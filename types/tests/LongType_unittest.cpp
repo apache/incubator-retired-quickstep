@@ -32,9 +32,9 @@ void CheckPrintValue(const std::int64_t literal_value) {
 }  // namespace
 
 TEST(LongTypeTest, PrintValueTest) {
-  CheckPrintValue(0l);
-  CheckPrintValue(123l);
-  CheckPrintValue(-123l);
+  CheckPrintValue(INT64_C(0));
+  CheckPrintValue(INT64_C(123));
+  CheckPrintValue(INT64_C(-123));
   CheckPrintValue(std::numeric_limits<std::int64_t>::max());
   CheckPrintValue(std::numeric_limits<std::int64_t>::min());
 }
@@ -74,21 +74,21 @@ void CheckPrintValueToFile(const std::int64_t literal_value) {
 }  // namespace
 
 TEST(LongTypeTest, PrintValueToFileTest) {
-  CheckPrintValueToFile(0l);
-  CheckPrintValueToFile(123l);
-  CheckPrintValueToFile(-123l);
+  CheckPrintValueToFile(INT64_C(0));
+  CheckPrintValueToFile(INT64_C(123));
+  CheckPrintValueToFile(INT64_C(-123));
   CheckPrintValueToFile(std::numeric_limits<std::int64_t>::max());
   CheckPrintValueToFile(std::numeric_limits<std::int64_t>::min());
 }
 
 TEST(LongTypeTest, ParseValueFromStringTest) {
-  type_test::CheckSuccessfulParseLiteralValueFromString<LongType>(0l, "0");
-  type_test::CheckSuccessfulParseLiteralValueFromString<LongType>(0l, "000");
-  type_test::CheckSuccessfulParseLiteralValueFromString<LongType>(123l, "123");
-  type_test::CheckSuccessfulParseLiteralValueFromString<LongType>(123l, "0123");
-  type_test::CheckSuccessfulParseLiteralValueFromString<LongType>(123l, "+123");
-  type_test::CheckSuccessfulParseLiteralValueFromString<LongType>(-123l, "-123");
-  type_test::CheckSuccessfulParseLiteralValueFromString<LongType>(-123l, "-0123");
+  type_test::CheckSuccessfulParseLiteralValueFromString<LongType>(INT64_C(0), "0");
+  type_test::CheckSuccessfulParseLiteralValueFromString<LongType>(INT64_C(0), "000");
+  type_test::CheckSuccessfulParseLiteralValueFromString<LongType>(INT64_C(123), "123");
+  type_test::CheckSuccessfulParseLiteralValueFromString<LongType>(INT64_C(123), "0123");
+  type_test::CheckSuccessfulParseLiteralValueFromString<LongType>(INT64_C(123), "+123");
+  type_test::CheckSuccessfulParseLiteralValueFromString<LongType>(INT64_C(-123), "-123");
+  type_test::CheckSuccessfulParseLiteralValueFromString<LongType>(INT64_C(-123), "-0123");
   type_test::CheckSuccessfulParseLiteralValueFromString<LongType>(
       std::numeric_limits<std::int64_t>::max(),
       std::to_string(std::numeric_limits<std::int64_t>::max()));

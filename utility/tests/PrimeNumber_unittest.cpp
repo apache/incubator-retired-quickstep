@@ -5,6 +5,7 @@
  **/
 
 #include <cstddef>
+#include <cstdint>
 #include <limits>
 
 #include "gtest/gtest.h"
@@ -42,12 +43,15 @@ TEST(PrimeNumberTest, GetNextPrimeTest) {
   EXPECT_EQ((1u << 31) - 1, get_next_prime_number(2147483647u));
 
   if (sizeof(std::size_t) >= 8) {
-    EXPECT_EQ((1ull << 61) - 1, get_next_prime_number(2305843009213693951ull));
+    EXPECT_EQ((UINT64_C(1) << 61) - 1,
+              get_next_prime_number(
+                  static_cast<std::size_t>(UINT64_C(2305843009213693951))));
 
     // Search for the largest 64-bit prime, starting from the
     // second largest + 1.
-    EXPECT_EQ(18446744073709551557ull,
-              get_next_prime_number(18446744073709551534ull));
+    EXPECT_EQ(static_cast<std::size_t>(UINT64_C(18446744073709551557)),
+              get_next_prime_number(
+                  static_cast<std::size_t>(UINT64_C(18446744073709551534))));
   }
 }
 
@@ -87,10 +91,12 @@ TEST(PrimeNumberTest, GetPreviousPrimeTest) {
   EXPECT_EQ((1u << 31) - 1, get_previous_prime_number(2147483647u));
 
   if (sizeof(std::size_t) >= 8) {
-    EXPECT_EQ((1ull << 61) - 1, get_previous_prime_number(2305843009213693951ull));
+    EXPECT_EQ((UINT64_C(1) << 61) - 1,
+              get_previous_prime_number(
+                  static_cast<std::size_t>(UINT64_C(2305843009213693951))));
 
     // Search for the largest 64-bit prime, starting from the max size_t value.
-    EXPECT_EQ(18446744073709551557ull,
+    EXPECT_EQ(static_cast<std::size_t>(UINT64_C(18446744073709551557)),
               get_previous_prime_number(std::numeric_limits<std::size_t>::max()));
   }
 }

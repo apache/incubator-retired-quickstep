@@ -1029,7 +1029,7 @@ CSBTreeIndexSubBlock::InsertReturnValue CSBTreeIndexSubBlock::internalInsertHelp
     // If the child was split, insert the new key.
     node_header = static_cast<NodeHeader*>(node);
     void *key_location = static_cast<char*>(node)
-                         + sizeof(node_header)
+                         + sizeof(*node_header)
                          + key_num * key_length_bytes_;
     // Move subsequent entries right if necessary.
     if (key_num < node_header->num_keys) {

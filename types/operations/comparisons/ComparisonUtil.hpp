@@ -23,10 +23,12 @@
 #include "types/TypedValue.hpp"
 #include "types/containers/Tuple.hpp"
 #include "types/operations/comparisons/AsciiStringComparators.hpp"
+#include "types/operations/comparisons/AsciiStringComparators-inl.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "types/operations/comparisons/LiteralComparators.hpp"
+#include "types/operations/comparisons/LiteralComparators-inl.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"

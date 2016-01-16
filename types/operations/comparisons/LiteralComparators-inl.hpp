@@ -7,7 +7,9 @@
 
 // NOTE(chasseur): This file helps resolve some otherwise intractible circular
 // dependencies with the the vectorized methods of the template classes in
-// LiteralComparators.hpp.
+// LiteralComparators.hpp. It should ONLY be included where a
+// LiteralUncheckedComparator is actually created (e.g. the various
+// comparison source files like LessComparison.cpp, and ComparisonUtil.hpp).
 
 #ifndef QUICKSTEP_TYPES_OPERATIONS_COMPARISONS_LITERAL_COMPARATORS_INL_HPP_
 #define QUICKSTEP_TYPES_OPERATIONS_COMPARISONS_LITERAL_COMPARATORS_INL_HPP_

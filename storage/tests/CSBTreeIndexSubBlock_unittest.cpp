@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <memory>
 #include <set>
@@ -164,6 +165,7 @@ class CSBTreeIndexSubBlockTest : public ::testing::Test {
     }
 
     index_memory_.reset(index_memory_size);
+    std::memset(index_memory_.get(), 0x0, index_memory_size);
     index_.reset(new CSBTreeIndexSubBlock(*tuple_store_,
                                           *index_description_,
                                           true,
@@ -1477,6 +1479,7 @@ TEST_F(CSBTreeIndexSubBlockTest, TruncatedCompressedKeyTest) {
   compressed_index_description.AddExtension(CSBTreeIndexSubBlockDescription::indexed_attribute_id, 0);
 
   index_memory_.reset(kIndexSubBlockSize);
+  std::memset(index_memory_.get(), 0x0, kIndexSubBlockSize);
   index_.reset(new CSBTreeIndexSubBlock(*compressed_tuple_store,
                                         compressed_index_description,
                                         true,
@@ -1699,6 +1702,7 @@ TEST_F(CSBTreeIndexSubBlockTest, DictionaryCompressedKeyTest) {
   compressed_index_description.AddExtension(CSBTreeIndexSubBlockDescription::indexed_attribute_id, 0);
 
   index_memory_.reset(kIndexSubBlockSize);
+  std::memset(index_memory_.get(), 0x0, kIndexSubBlockSize);
   index_.reset(new CSBTreeIndexSubBlock(*compressed_tuple_store,
                                         compressed_index_description,
                                         true,

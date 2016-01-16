@@ -27,7 +27,7 @@ namespace quickstep {
 struct DatetimeIntervalLit {
   std::int64_t interval_ticks;
 
-  static constexpr std::int64_t kTicksPerSecond = 1000000LL;
+  static constexpr std::int64_t kTicksPerSecond = INT64_C(1000000);
 
   // The maximum number of characters needed to print out a DatetimeInterval in
   // the "standard" format.

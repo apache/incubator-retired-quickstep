@@ -39,7 +39,9 @@ class CountedReference {
    * @brief Default constructor. Initializes the object without a StorageBlockBase
    *     to manage.
    **/
-  CountedReference() : block_(nullptr) {}
+  CountedReference()
+      : block_(nullptr),
+        eviction_policy_(nullptr) {}
 
   /**
    * @brief Construct a new CountedReference to manage a reference to an

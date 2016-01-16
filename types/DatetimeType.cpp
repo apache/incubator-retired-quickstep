@@ -64,7 +64,7 @@ std::string DatetimeType::printValueToString(const TypedValue &value) const {
 
   // Note that although there is no year 0 in the Gregorian calendar, ISO 8601
   // has year 0 equivalent to 1 BCE, year -1 equivalent to 2 BCE, and so on.
-  std::int64_t actual_year = timeinfo.tm_year + 1900;
+  std::int64_t actual_year = INT64_C(1900) + timeinfo.tm_year;
 
   char datebuf[DatetimeLit::kIsoChars + 1];
   std::size_t chars_written = 0;
@@ -188,8 +188,7 @@ bool DatetimeType::parseValueFromString(const std::string &value_string,
   }
 
   // Broken-down time counts from midnight, January 1st, 1900.
-  struct tm time_parts;
-  std::memset(&time_parts, 0x0, sizeof(time_parts));
+  struct tm time_parts = {};
   time_parts.tm_year = year - 1900;
   time_parts.tm_mon = month - 1;
   time_parts.tm_mday = day;

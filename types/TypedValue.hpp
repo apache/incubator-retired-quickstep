@@ -162,6 +162,11 @@ class TypedValue {
    **/
   explicit TypedValue(const TypeID type_id)
       : value_info_(static_cast<std::uint64_t>(type_id) | kNullIndicatorMask) {
+    // Although 'value_union_' should never be accessed when the null bit is
+    // set, we zero it out anyway to prevent a false positive warning when the
+    // compiler may complain about 'value_union_' being read without being
+    // initialized.
+    value_union_.long_value = 0;
   }
 
   /**

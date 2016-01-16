@@ -176,9 +176,20 @@ class BitVectorTest : public ::testing::Test {
     CheckZeroLengthMetaData(*bit_vector);
     bit_vector->flipBits();
     CheckZeroLengthMetaData(*bit_vector);
-    bit_vector->setBitRange(0, 0, false);
+
+    // Some compilers may aggressively propagate constants through inlined
+    // functions (especially for RELEASE builds), eventually resulting in a
+    // call to std::memset() with a constant zero-length parameter
+    // (effectively a no-op). Some C standard library implementations
+    // (including glibc) have memset declared with an attribute to warn about a
+    // constant zero for the length parameter. Storing the zero-length constant
+    // in a variable marked volatile prevents constant propagation and
+    // supresses warnings for memset() when we intentionally test
+    // BitVector::setBitRange() with length 0.
+    const volatile std::size_t kZeroLen = 0;
+    bit_vector->setBitRange(0, kZeroLen, false);
     CheckZeroLengthMetaData(*bit_vector);
-    bit_vector->setBitRange(0, 0, true);
+    bit_vector->setBitRange(0, kZeroLen, true);
     CheckZeroLengthMetaData(*bit_vector);
     bit_vector->assignFrom(other_zero_length_bit_vector);
     CheckZeroLengthMetaData(*bit_vector);
@@ -615,12 +626,12 @@ TYPED_TEST(BitVectorTest, SetAndGetBitWordTest) {
 
   // Set with exact size_t boundaries.
   const std::size_t bits_in_word = sizeof(std::size_t) << 3;
-  const std::size_t word_mask = -1ULL;
+  const std::size_t word_mask = static_cast<std::size_t>(-1);
   const std::size_t last_word_id = (TestFixture::kBiggerBitSize - 1) / bits_in_word;
 
   // This test should work on both 32bit architecture and 64-bit architecture.
-  bigger_bit_vector->setBitWord(2, 1ULL << ((bits_in_word - 1) - 3));
-  bigger_bit_vector->setBitWord(6, ~(1ULL << ((bits_in_word - 1) - 11)));
+  bigger_bit_vector->setBitWord(2, static_cast<std::size_t>(1) << ((bits_in_word - 1) - 3));
+  bigger_bit_vector->setBitWord(6, ~(static_cast<std::size_t>(1) << ((bits_in_word - 1) - 11)));
   bigger_bit_vector->setBitWord(last_word_id, word_mask);
   for (size_t i = 0; i < TestFixture::kBiggerBitSize; ++i) {
     if (i == 2 * bits_in_word + 3
@@ -633,9 +644,11 @@ TYPED_TEST(BitVectorTest, SetAndGetBitWordTest) {
   }
   for (size_t word_id = 0; word_id <= last_word_id; ++word_id) {
     if (word_id == 2) {
-      EXPECT_EQ(1ULL << ((bits_in_word - 1) - 3), bigger_bit_vector->getBitWord(word_id));
+      EXPECT_EQ(static_cast<std::size_t>(1) << ((bits_in_word - 1) - 3),
+                bigger_bit_vector->getBitWord(word_id));
     } else if (word_id == 6) {
-      EXPECT_EQ(~(1ULL << ((bits_in_word - 1) - 11)), bigger_bit_vector->getBitWord(word_id));
+      EXPECT_EQ(~(static_cast<std::size_t>(1) << ((bits_in_word - 1) - 11)),
+                bigger_bit_vector->getBitWord(word_id));
     } else if (word_id == last_word_id) {
       size_t last_word = word_mask
           << ((last_word_id + 1) * bits_in_word - TestFixture::kBiggerBitSize);

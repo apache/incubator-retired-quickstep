@@ -5,6 +5,8 @@
  **/
 
 #include <cstddef>
+#include <cstdint>
+#include <ctime>
 #include <string>
 
 #include "types/DatetimeLit.hpp"
@@ -26,7 +28,7 @@ TEST(DatetimeTypeTest, PrintValueTest) {
 
   // Skynet becomes self-aware at 2:14 AM on August 29, 1997.
   DatetimeLit judgement_day;
-  judgement_day.ticks = 872820840LL * DatetimeLit::kTicksPerSecond;
+  judgement_day.ticks = INT64_C(872820840) * DatetimeLit::kTicksPerSecond;
   TypedValue judgement_day_value(judgement_day);
   EXPECT_EQ(std::string("1997-08-29T02:14:00"),
             datetime_type.printValueToString(judgement_day_value));
@@ -38,11 +40,16 @@ TEST(DatetimeTypeTest, PrintValueTest) {
             datetime_type.printValueToString(judgement_day_value));
 
   // Check extended formatting for years far in the past.
-  DatetimeLit dawn_age;
-  dawn_age.ticks = -630720000000000000LL;
-  TypedValue dawn_age_value(dawn_age);
-  EXPECT_EQ(std::string("-18017-04-13T00:00:00"),
-            datetime_type.printValueToString(dawn_age_value));
+  //
+  // This test is only enabled if time_t is at least 64 bits, otherwise time_t
+  // doesn't have enough range for dates far from the epoch.
+  if (sizeof(std::time_t) >= 8) {
+    DatetimeLit dawn_age;
+    dawn_age.ticks = INT64_C(-630720000000000000);
+    TypedValue dawn_age_value(dawn_age);
+    EXPECT_EQ(std::string("-18017-04-13T00:00:00"),
+              datetime_type.printValueToString(dawn_age_value));
+  }
 }
 
 namespace {
@@ -80,55 +87,77 @@ void CheckPrintValueToFile(const DatetimeLit literal_value,
 
 TEST(DatetimeTypeTest, PrintValueToFileTest) {
   DatetimeLit judgement_day;
-  judgement_day.ticks = 872820840LL * DatetimeLit::kTicksPerSecond;
+  judgement_day.ticks = INT64_C(872820840) * DatetimeLit::kTicksPerSecond;
   CheckPrintValueToFile(judgement_day, "1997-08-29T02:14:00");
 
   judgement_day.ticks += 123;
   CheckPrintValueToFile(judgement_day, "1997-08-29T02:14:00.000123");
 
-  DatetimeLit dawn_age;
-  dawn_age.ticks = -630720000000000000LL;
-  CheckPrintValueToFile(dawn_age, "-18017-04-13T00:00:00");
+  // This test is only enabled if time_t is at least 64 bits, otherwise time_t
+  // doesn't have enough range for dates far from the epoch.
+  if (sizeof(std::time_t) >= 8) {
+    DatetimeLit dawn_age;
+    dawn_age.ticks = INT64_C(-630720000000000000);
+    CheckPrintValueToFile(dawn_age, "-18017-04-13T00:00:00");
+  }
 }
 
 TEST(DatetimeTypeTest, ParseValueFromStringTest) {
   // Parse the same value in a bunch of different valid format variations.
   type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
-      DatetimeLit{872820840LL * DatetimeLit::kTicksPerSecond}, "1997-08-29T02:14:00");
+      DatetimeLit{INT64_C(872820840) * DatetimeLit::kTicksPerSecond},
+      "1997-08-29T02:14:00");
   type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
-      DatetimeLit{872820840LL * DatetimeLit::kTicksPerSecond}, "1997-08-29t02:14:00");
+      DatetimeLit{INT64_C(872820840) * DatetimeLit::kTicksPerSecond},
+      "1997-08-29t02:14:00");
   type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
-      DatetimeLit{872820840LL * DatetimeLit::kTicksPerSecond}, "1997-08-29 02:14:00");
+      DatetimeLit{INT64_C(872820840) * DatetimeLit::kTicksPerSecond},
+      "1997-08-29 02:14:00");
   type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
-      DatetimeLit{872820840LL * DatetimeLit::kTicksPerSecond}, "+1997-08-29T02:14:00");
+      DatetimeLit{INT64_C(872820840) * DatetimeLit::kTicksPerSecond},
+      "+1997-08-29T02:14:00");
   type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
-      DatetimeLit{872820840LL * DatetimeLit::kTicksPerSecond}, "+001997-08-29T02:14:00");
+      DatetimeLit{INT64_C(872820840) * DatetimeLit::kTicksPerSecond},
+      "+001997-08-29T02:14:00");
   type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
-      DatetimeLit{872820840LL * DatetimeLit::kTicksPerSecond}, "1997-08-29T02:14:00.0");
+      DatetimeLit{INT64_C(872820840) * DatetimeLit::kTicksPerSecond},
+      "1997-08-29T02:14:00.0");
   type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
-      DatetimeLit{872820840LL * DatetimeLit::kTicksPerSecond}, "1997-08-29T02:14:00.000");
+      DatetimeLit{INT64_C(872820840) * DatetimeLit::kTicksPerSecond},
+      "1997-08-29T02:14:00.000");
   type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
-      DatetimeLit{872820840LL * DatetimeLit::kTicksPerSecond}, "1997-08-29T02:14:00.000000");
+      DatetimeLit{INT64_C(872820840) * DatetimeLit::kTicksPerSecond},
+      "1997-08-29T02:14:00.000000");
 
   // Parse with fractional subseconds.
   type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
-      DatetimeLit{872820840LL * DatetimeLit::kTicksPerSecond + 123}, "1997-08-29T02:14:00.000123");
+      DatetimeLit{INT64_C(872820840) * DatetimeLit::kTicksPerSecond + 123},
+      "1997-08-29T02:14:00.000123");
   type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
-      DatetimeLit{872820840LL * DatetimeLit::kTicksPerSecond + 1230}, "1997-08-29T02:14:00.00123");
+      DatetimeLit{INT64_C(872820840) * DatetimeLit::kTicksPerSecond + 1230},
+      "1997-08-29T02:14:00.00123");
   type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
-      DatetimeLit{872820840LL * DatetimeLit::kTicksPerSecond + 123000}, "1997-08-29T02:14:00.123");
+      DatetimeLit{INT64_C(872820840) * DatetimeLit::kTicksPerSecond + 123000},
+      "1997-08-29T02:14:00.123");
 
-  // Parse a date without a time.
-  type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
-      DatetimeLit{-3117571200LL * DatetimeLit::kTicksPerSecond}, "1871-03-18");
-  type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
-      DatetimeLit{-3117571200LL * DatetimeLit::kTicksPerSecond}, "+1871-03-18");
-  type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
-      DatetimeLit{-3117571200LL * DatetimeLit::kTicksPerSecond}, "+001871-03-18");
+  // These tests are only enabled if time_t is at least 64 bits, otherwise
+  // time_t doesn't have enough range for dates far from the epoch.
+  if (sizeof(std::time_t) >= 8) {
+    // Parse a date without a time.
+    type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
+        DatetimeLit{INT64_C(-3117571200) * DatetimeLit::kTicksPerSecond},
+        "1871-03-18");
+    type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
+        DatetimeLit{INT64_C(-3117571200) * DatetimeLit::kTicksPerSecond},
+        "+1871-03-18");
+    type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
+        DatetimeLit{INT64_C(-3117571200) * DatetimeLit::kTicksPerSecond},
+        "+001871-03-18");
 
-  // Parse extended format with negative year.
-  type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
-      DatetimeLit{-630720000000000000LL}, "-18017-04-13T00:00:00");
+    // Parse extended format with negative year.
+    type_test::CheckSuccessfulParseLiteralValueFromString<DatetimeType>(
+        DatetimeLit{INT64_C(-630720000000000000)}, "-18017-04-13T00:00:00");
+  }
 
   // Test some parses that we expect to fail.
   const Type &datetime_type = TypeFactory::GetType(kDatetime);

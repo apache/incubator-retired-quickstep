@@ -314,6 +314,21 @@ if(CMAKE_COMPILER_IS_GNUCXX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=native")
   endif()
 
+  # On 32-bit x86, GCC defaults to using i387 (not a typo) for floating-point
+  # math. This is slower than SSE, and also uses 80-bit temporaries that don't
+  # correspond to any of the IEEE 754 floating-point formats, so that rounding
+  # errors may be introduced relative to FPUs that do math in a normal IEEE 754
+  # encoding. Using SSE is preferable for both performance and correctness, so
+  # we enable it here.
+  if ((CMAKE_SIZEOF_VOID_P EQUAL 4)
+      AND ((CMAKE_SYSTEM_PROCESSOR MATCHES "[0-6x]86")
+           OR (CMAKE_SYSTEM_PROCESSOR MATCHES "amd64")))
+    CHECK_CXX_COMPILER_FLAG("-mfpmath=sse" GCC_HAS_MFPMATH_SSE)
+    if (GCC_HAS_MFPMATH_SSE)
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mfpmath=sse")
+    endif()
+  endif()
+
   # Loop-transformation optimizations that aren't turned on by -O3
   CHECK_CXX_COMPILER_FLAG("-ftree-loop-linear" GCC_HAS_FTREE_LOOP_LINEAR)
   if (GCC_HAS_FTREE_LOOP_LINEAR)
