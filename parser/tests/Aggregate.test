@@ -1,0 +1,157 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+select agg(*), agg(), agg(a, b, c) from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-FunctionCall[name=agg,is_star=true]
+  | +-SelectListItem
+  | | +-FunctionCall[name=agg]
+  | +-SelectListItem
+  |   +-FunctionCall[name=agg]
+  |     +-AttributeReference[attribute_name=a]
+  |     +-AttributeReference[attribute_name=b]
+  |     +-AttributeReference[attribute_name=c]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select agg()+1, agg()*2+1+agg(a, b)/agg(c, d) from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-Add
+  | |   +-left_operand=FunctionCall[name=agg]
+  | |   +-right_operand=Literal
+  | |     +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-SelectListItem
+  |   +-Add
+  |     +-left_operand=Add
+  |     | +-left_operand=Multiply
+  |     | | +-left_operand=FunctionCall[name=agg]
+  |     | | +-right_operand=Literal
+  |     | |   +-NumericLiteral[numeric_string=2,float_like=false]
+  |     | +-right_operand=Literal
+  |     |   +-NumericLiteral[numeric_string=1,float_like=false]
+  |     +-right_operand=Divide
+  |       +-left_operand=FunctionCall[name=agg]
+  |       | +-AttributeReference[attribute_name=a]
+  |       | +-AttributeReference[attribute_name=b]
+  |       +-right_operand=FunctionCall[name=agg]
+  |         +-AttributeReference[attribute_name=c]
+  |         +-AttributeReference[attribute_name=d]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+# Function calls as arguments of another function calls.
+# This is just for testing purpose. If agg is an aggregation,
+# the query is not valid. The query resolver will capture the error.
+select agg(agg(agg()+1)*2, agg(*)/2.0) from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-FunctionCall[name=agg]
+  |     +-Multiply
+  |     | +-left_operand=FunctionCall[name=agg]
+  |     | | +-Add
+  |     | |   +-left_operand=FunctionCall[name=agg]
+  |     | |   +-right_operand=Literal
+  |     | |     +-NumericLiteral[numeric_string=1,float_like=false]
+  |     | +-right_operand=Literal
+  |     |   +-NumericLiteral[numeric_string=2,float_like=false]
+  |     +-Divide
+  |       +-left_operand=FunctionCall[name=agg,is_star=true]
+  |       +-right_operand=Literal
+  |         +-NumericLiteral[numeric_string=2.0,float_like=true]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select agg(*, a) from test
+--
+ERROR: syntax error (1 : 13)
+select agg(*, a) from test
+            ^
+==
+
+select agg()+1 from test group by a+1, agg()+1 having agg()*2>1
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Add
+  |     +-left_operand=FunctionCall[name=agg]
+  |     +-right_operand=Literal
+  |       +-NumericLiteral[numeric_string=1,float_like=false]
+  +-group_by=GroupBy
+  | +-Add
+  | | +-left_operand=AttributeReference[attribute_name=a]
+  | | +-right_operand=Literal
+  | |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-Add
+  |   +-left_operand=FunctionCall[name=agg]
+  |   +-right_operand=Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-having=HAVING
+  | +-Greater
+  |   +-left_operand=Multiply
+  |   | +-left_operand=FunctionCall[name=agg]
+  |   | +-right_operand=Literal
+  |   |   +-NumericLiteral[numeric_string=2,float_like=false]
+  |   +-right_operand=Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select 1 from test having agg() > 1 and 1=1
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-having=HAVING
+  | +-And
+  |   +-Greater
+  |   | +-left_operand=FunctionCall[name=agg]
+  |   | +-right_operand=Literal
+  |   |   +-NumericLiteral[numeric_string=1,float_like=false]
+  |   +-Equal
+  |     +-left_operand=Literal
+  |     | +-NumericLiteral[numeric_string=1,float_like=false]
+  |     +-right_operand=Literal
+  |       +-NumericLiteral[numeric_string=1,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select 1 from test group by agg()+1, agg()/agg()
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-group_by=GroupBy
+  | +-Add
+  | | +-left_operand=FunctionCall[name=agg]
+  | | +-right_operand=Literal
+  | |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-Divide
+  |   +-left_operand=FunctionCall[name=agg]
+  |   +-right_operand=FunctionCall[name=agg]
+  +-from_clause=
+    +-TableReference[table=test]

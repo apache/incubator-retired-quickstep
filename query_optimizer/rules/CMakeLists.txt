@@ -1,0 +1,110 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+add_subdirectory(tests)
+
+# Declare micro-libs:
+add_library(quickstep_queryoptimizer_rules_BottomUpRule ../../empty_src.cpp BottomUpRule.hpp)
+add_library(quickstep_queryoptimizer_rules_CollapseProject CollapseProject.cpp CollapseProject.hpp)
+add_library(quickstep_queryoptimizer_rules_GenerateJoins GenerateJoins.cpp GenerateJoins.hpp)
+add_library(quickstep_queryoptimizer_rules_PruneColumns PruneColumns.cpp PruneColumns.hpp)
+add_library(quickstep_queryoptimizer_rules_PushDownFilter PushDownFilter.cpp PushDownFilter.hpp)
+add_library(quickstep_queryoptimizer_rules_Rule ../../empty_src.cpp Rule.hpp)
+add_library(quickstep_queryoptimizer_rules_RuleHelper RuleHelper.cpp RuleHelper.hpp)
+add_library(quickstep_queryoptimizer_rules_TopDownRule ../../empty_src.cpp TopDownRule.hpp)
+add_library(quickstep_queryoptimizer_rules_UpdateExpression UpdateExpression.cpp UpdateExpression.hpp)
+                      
+# Link dependencies:
+target_link_libraries(quickstep_queryoptimizer_rules_BottomUpRule
+                      glog
+                      quickstep_queryoptimizer_rules_Rule
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_rules_CollapseProject
+                      glog
+                      quickstep_queryoptimizer_expressions_NamedExpression
+                      quickstep_queryoptimizer_logical_Logical
+                      quickstep_queryoptimizer_logical_PatternMatcher
+                      quickstep_queryoptimizer_logical_Project
+                      quickstep_queryoptimizer_rules_BottomUpRule
+                      quickstep_queryoptimizer_rules_Rule
+                      quickstep_queryoptimizer_rules_RuleHelper
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_rules_GenerateJoins
+                      glog
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ComparisonExpression
+                      quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_expressions_PatternMatcher
+                      quickstep_queryoptimizer_logical_Filter
+                      quickstep_queryoptimizer_logical_HashJoin
+                      quickstep_queryoptimizer_logical_Logical
+                      quickstep_queryoptimizer_logical_MultiwayCartesianJoin
+                      quickstep_queryoptimizer_logical_NestedLoopsJoin
+                      quickstep_queryoptimizer_logical_PatternMatcher
+                      quickstep_queryoptimizer_rules_Rule
+                      quickstep_queryoptimizer_rules_RuleHelper
+                      quickstep_queryoptimizer_rules_TopDownRule
+                      quickstep_types_operations_comparisons_ComparisonFactory
+                      quickstep_types_operations_comparisons_ComparisonID
+                      quickstep_utility_HashPair
+                      quickstep_utility_Macros
+                      quickstep_utility_VectorUtil)
+target_link_libraries(quickstep_queryoptimizer_rules_PruneColumns
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_expressions_NamedExpression
+                      quickstep_queryoptimizer_physical_PatternMatcher
+                      quickstep_queryoptimizer_physical_Physical
+                      quickstep_queryoptimizer_rules_Rule
+                      quickstep_queryoptimizer_rules_TopDownRule
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_rules_PushDownFilter
+                      glog
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_logical_Filter
+                      quickstep_queryoptimizer_logical_Logical
+                      quickstep_queryoptimizer_logical_PatternMatcher
+                      quickstep_queryoptimizer_rules_Rule
+                      quickstep_queryoptimizer_rules_RuleHelper
+                      quickstep_queryoptimizer_rules_TopDownRule
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_rules_Rule
+                      glog
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_rules_RuleHelper
+                      quickstep_queryoptimizer_expressions_Alias
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExprId
+                      quickstep_queryoptimizer_expressions_Expression
+                      quickstep_queryoptimizer_expressions_LogicalAnd
+                      quickstep_queryoptimizer_expressions_NamedExpression
+                      quickstep_queryoptimizer_expressions_PatternMatcher
+                      quickstep_queryoptimizer_expressions_Predicate
+                      quickstep_queryoptimizer_rules_UpdateExpression)
+target_link_libraries(quickstep_queryoptimizer_rules_TopDownRule
+                      quickstep_queryoptimizer_rules_Rule
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_rules_UpdateExpression
+                      glog
+                      quickstep_queryoptimizer_expressions_ExprId
+                      quickstep_queryoptimizer_expressions_Expression
+                      quickstep_queryoptimizer_expressions_NamedExpression
+                      quickstep_queryoptimizer_expressions_PatternMatcher
+                      quickstep_queryoptimizer_rules_BottomUpRule
+                      quickstep_queryoptimizer_rules_Rule
+                      quickstep_utility_Macros)
+
+# Module all-in-one library:
+add_library(quickstep_queryoptimizer_rules ../../empty_src.cpp OptimizerRulesModule.hpp)
+target_link_libraries(quickstep_queryoptimizer_rules
+                      quickstep_queryoptimizer_rules_BottomUpRule
+                      quickstep_queryoptimizer_rules_CollapseProject
+                      quickstep_queryoptimizer_rules_GenerateJoins
+                      quickstep_queryoptimizer_rules_PruneColumns
+                      quickstep_queryoptimizer_rules_PushDownFilter
+                      quickstep_queryoptimizer_rules_Rule
+                      quickstep_queryoptimizer_rules_RuleHelper
+                      quickstep_queryoptimizer_rules_TopDownRule
+                      quickstep_queryoptimizer_rules_UpdateExpression)

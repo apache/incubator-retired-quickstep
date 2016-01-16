@@ -1,0 +1,583 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# Copyright (c) 2015, Pivotal Software, Inc.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+QS_PROTOBUF_GENERATE_CPP(relationaloperators_SortMergeRunOperator_proto_srcs
+                         relationaloperators_SortMergeRunOperator_proto_hdrs
+                         SortMergeRunOperator.proto)
+QS_PROTOBUF_GENERATE_CPP(relationaloperators_TextScanOperator_proto_srcs
+                         relationaloperators_TextScanOperator_proto_hdrs
+                         TextScanOperator.proto)
+
+# Declare micro-libs:
+add_library(quickstep_relationaloperators_AggregationOperator AggregationOperator.cpp AggregationOperator.hpp)
+add_library(quickstep_relationaloperators_BuildHashOperator BuildHashOperator.cpp BuildHashOperator.hpp)
+add_library(quickstep_relationaloperators_CreateTableOperator CreateTableOperator.cpp CreateTableOperator.hpp)
+add_library(quickstep_relationaloperators_DeleteOperator DeleteOperator.cpp DeleteOperator.hpp)
+add_library(quickstep_relationaloperators_DestroyHashOperator DestroyHashOperator.cpp DestroyHashOperator.hpp)
+add_library(quickstep_relationaloperators_DropTableOperator DropTableOperator.cpp DropTableOperator.hpp)
+add_library(quickstep_relationaloperators_FinalizeAggregationOperator
+            FinalizeAggregationOperator.cpp
+            FinalizeAggregationOperator.hpp)
+add_library(quickstep_relationaloperators_HashJoinOperator HashJoinOperator.cpp HashJoinOperator.hpp)
+add_library(quickstep_relationaloperators_InsertOperator InsertOperator.cpp InsertOperator.hpp)
+add_library(quickstep_relationaloperators_NestedLoopsJoinOperator
+            NestedLoopsJoinOperator.cpp
+            NestedLoopsJoinOperator.hpp)
+add_library(quickstep_relationaloperators_RebuildWorkOrder ../empty_src.cpp RebuildWorkOrder.hpp)
+add_library(quickstep_relationaloperators_RelationalOperator ../empty_src.cpp RelationalOperator.hpp)
+add_library(quickstep_relationaloperators_SaveBlocksOperator SaveBlocksOperator.cpp SaveBlocksOperator.hpp)
+add_library(quickstep_relationaloperators_SelectOperator SelectOperator.cpp SelectOperator.hpp)
+add_library(quickstep_relationaloperators_SortMergeRunOperator SortMergeRunOperator.cpp
+            SortMergeRunOperator.hpp)
+add_library(quickstep_relationaloperators_SortMergeRunOperator_proto
+            ${relationaloperators_SortMergeRunOperator_proto_srcs}
+            ${relationaloperators_SortMergeRunOperator_proto_hdrs})
+add_library(quickstep_relationaloperators_SortMergeRunOperatorHelpers SortMergeRunOperatorHelpers.cpp
+            SortMergeRunOperatorHelpers.hpp)
+add_library(quickstep_relationaloperators_SortRunGenerationOperator SortRunGenerationOperator.cpp
+            SortRunGenerationOperator.hpp)
+add_library(quickstep_relationaloperators_TextScanOperator TextScanOperator.cpp TextScanOperator.hpp)
+add_library(quickstep_relationaloperators_TextScanOperator_proto
+            ${relationaloperators_TextScanOperator_proto_srcs}
+            ${relationaloperators_TextScanOperator_proto_hdrs})
+add_library(quickstep_relationaloperators_UpdateOperator UpdateOperator.cpp UpdateOperator.hpp)
+add_library(quickstep_relationaloperators_WorkOrder ../empty_src.cpp WorkOrder.hpp)
+
+# Link dependencies:
+target_link_libraries(quickstep_relationaloperators_AggregationOperator
+                      glog
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_AggregationOperationState
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_relationaloperators_BuildHashOperator
+                      glog
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_HashTable
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_storage_TupleReference
+                      quickstep_storage_TupleStorageSubBlock
+                      quickstep_storage_ValueAccessor
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_relationaloperators_CreateTableOperator
+                      glog
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_relationaloperators_DeleteOperator
+                      glog
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_ForemanMessage
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_QueryExecutionUtil
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_threading_ThreadIDBasedMap
+                      quickstep_utility_Macros
+                      tmb)
+target_link_libraries(quickstep_relationaloperators_DestroyHashOperator
+                      glog
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_relationaloperators_DropTableOperator
+                      glog
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_relationaloperators_FinalizeAggregationOperator
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_AggregationOperationState
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_relationaloperators_HashJoinOperator
+                      glog
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogRelationSchema
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_predicate_Predicate
+                      quickstep_expressions_scalar_Scalar
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_HashTable
+                      quickstep_storage_InsertDestination
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_storage_TupleReference
+                      quickstep_storage_TupleStorageSubBlock
+                      quickstep_storage_ValueAccessor
+                      quickstep_types_containers_ColumnVectorsValueAccessor
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_relationaloperators_InsertOperator
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_InsertDestination
+                      quickstep_types_containers_Tuple
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_relationaloperators_NestedLoopsJoinOperator
+                      glog
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_predicate_Predicate
+                      quickstep_expressions_scalar_Scalar
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_InsertDestination
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_storage_TupleStorageSubBlock
+                      quickstep_storage_ValueAccessor
+                      quickstep_types_containers_ColumnVectorsValueAccessor
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_relationaloperators_RebuildWorkOrder
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_ForemanMessage
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_QueryExecutionUtil
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_StorageBlock
+                      quickstep_threading_ThreadIDBasedMap
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_relationaloperators_RelationalOperator
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_relationaloperators_SaveBlocksOperator
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_relationaloperators_SelectOperator
+                      glog
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogRelationSchema
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_InsertDestination
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_relationaloperators_SortMergeRunOperator
+                      glog
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_SortMergeRunOperatorHelpers
+                      quickstep_relationaloperators_SortMergeRunOperator_proto
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_threading_ThreadIDBasedMap
+                      quickstep_utility_Macros
+                      quickstep_utility_SortConfiguration
+                      tmb)
+target_link_libraries(quickstep_relationaloperators_SortMergeRunOperator_proto
+                      ${PROTOBUF_LIBRARY})
+target_link_libraries(quickstep_relationaloperators_SortMergeRunOperatorHelpers
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_scalar_Scalar
+                      quickstep_storage_InsertDestination
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_storage_TupleStorageSubBlock
+                      quickstep_storage_ValueAccessor
+                      quickstep_storage_ValueAccessorUtil
+                      quickstep_threading_SpinMutex
+                      quickstep_types_Type
+                      quickstep_types_containers_Tuple
+                      quickstep_types_operations_comparisons_Comparison
+                      quickstep_types_operations_comparisons_ComparisonFactory
+                      quickstep_types_operations_comparisons_ComparisonID
+                      quickstep_utility_Macros
+                      quickstep_utility_PtrVector
+                      quickstep_utility_SortConfiguration)
+target_link_libraries(quickstep_relationaloperators_SortRunGenerationOperator
+                      glog
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_InsertDestination
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_storage_TupleIdSequence
+                      quickstep_utility_Macros
+                      quickstep_utility_SortConfiguration)
+target_link_libraries(quickstep_relationaloperators_TextScanOperator
+                      gflags_nothreads-static
+                      glog
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogRelationSchema
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_ForemanMessage
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_QueryExecutionUtil
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_TextScanOperator_proto
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_InsertDestination
+                      quickstep_storage_StorageBlob
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_threading_ThreadIDBasedMap
+                      quickstep_types_Type
+                      quickstep_types_TypedValue
+                      quickstep_types_containers_Tuple
+                      quickstep_utility_Glob
+                      quickstep_utility_Macros
+                      quickstep_utility_ThreadSafeQueue
+                      tmb)
+target_link_libraries(quickstep_relationaloperators_UpdateOperator
+                      glog
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_ForemanMessage
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_QueryExecutionUtil
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_InsertDestination
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_threading_ThreadIDBasedMap
+                      quickstep_utility_Macros
+                      tmb)
+target_link_libraries(quickstep_relationaloperators_WorkOrder
+                      glog
+                      tmb
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_utility_Macros)
+
+# Module all-in-one library:
+add_library(quickstep_relationaloperators ../empty_src.cpp RelationalOperatorsModule.hpp)
+target_link_libraries(quickstep_relationaloperators
+                      quickstep_relationaloperators_AggregationOperator
+                      quickstep_relationaloperators_BuildHashOperator
+                      quickstep_relationaloperators_CreateTableOperator
+                      quickstep_relationaloperators_DeleteOperator
+                      quickstep_relationaloperators_DestroyHashOperator
+                      quickstep_relationaloperators_DropTableOperator
+                      quickstep_relationaloperators_FinalizeAggregationOperator
+                      quickstep_relationaloperators_HashJoinOperator
+                      quickstep_relationaloperators_InsertOperator
+                      quickstep_relationaloperators_NestedLoopsJoinOperator
+                      quickstep_relationaloperators_RebuildWorkOrder
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_SaveBlocksOperator
+                      quickstep_relationaloperators_SelectOperator
+                      quickstep_relationaloperators_SortMergeRunOperator
+                      quickstep_relationaloperators_SortMergeRunOperatorHelpers
+                      quickstep_relationaloperators_SortMergeRunOperator_proto
+                      quickstep_relationaloperators_SortRunGenerationOperator
+                      quickstep_relationaloperators_TextScanOperator
+                      quickstep_relationaloperators_TextScanOperator_proto
+                      quickstep_relationaloperators_UpdateOperator
+                      quickstep_relationaloperators_WorkOrder)
+
+# Tests:
+add_executable(AggregationOperator_unittest
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/AggregationOperator_unittest.cpp")
+target_link_libraries(AggregationOperator_unittest
+                      glog
+                      gtest
+                      gtest_main
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_Expressions_proto
+                      quickstep_expressions_aggregation_AggregateFunction
+                      quickstep_expressions_aggregation_AggregateFunctionFactory
+                      quickstep_expressions_aggregation_AggregationID
+                      quickstep_expressions_predicate_ComparisonPredicate
+                      quickstep_expressions_predicate_Predicate
+                      quickstep_expressions_scalar_Scalar
+                      quickstep_expressions_scalar_ScalarAttribute
+                      quickstep_expressions_scalar_ScalarBinaryExpression
+                      quickstep_expressions_scalar_ScalarLiteral
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_AggregationOperator
+                      quickstep_relationaloperators_FinalizeAggregationOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_AggregationOperationState_proto
+                      quickstep_storage_HashTable_proto
+                      quickstep_storage_InsertDestination
+                      quickstep_storage_InsertDestination_proto
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageBlockLayout
+                      quickstep_storage_StorageManager
+                      quickstep_storage_TupleStorageSubBlock
+                      quickstep_types_DoubleType
+                      quickstep_types_FloatType
+                      quickstep_types_IntType
+                      quickstep_types_LongType
+                      quickstep_types_TypedValue
+                      quickstep_types_containers_Tuple
+                      quickstep_types_operations_binaryoperations_BinaryOperationFactory
+                      quickstep_types_operations_binaryoperations_BinaryOperationID
+                      quickstep_types_operations_comparisons_ComparisonFactory
+                      quickstep_types_operations_comparisons_ComparisonID
+                      quickstep_utility_Macros
+                      quickstep_utility_PtrList
+                      tmb
+                      ${LIBS})
+add_test(AggregationOperator_unittest AggregationOperator_unittest)
+
+add_executable(HashJoinOperator_unittest
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/HashJoinOperator_unittest.cpp")
+target_link_libraries(HashJoinOperator_unittest
+                      glog
+                      gtest
+                      gtest_main
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_Expressions_proto
+                      quickstep_expressions_predicate_ComparisonPredicate
+                      quickstep_expressions_predicate_Predicate
+                      quickstep_expressions_scalar_ScalarAttribute
+                      quickstep_expressions_scalar_ScalarLiteral
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_BuildHashOperator
+                      quickstep_relationaloperators_DestroyHashOperator
+                      quickstep_relationaloperators_HashJoinOperator
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_HashTable_proto
+                      quickstep_storage_InsertDestination
+                      quickstep_storage_InsertDestination_proto
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageBlockLayout
+                      quickstep_storage_StorageBlockLayout_proto
+                      quickstep_storage_StorageManager
+                      quickstep_storage_TupleStorageSubBlock
+                      quickstep_types_CharType
+                      quickstep_types_IntType
+                      quickstep_types_LongType
+                      quickstep_types_Type
+                      quickstep_types_Type_proto
+                      quickstep_types_TypedValue
+                      quickstep_types_VarCharType
+                      quickstep_types_containers_Tuple
+                      quickstep_types_operations_comparisons_ComparisonFactory
+                      quickstep_types_operations_comparisons_ComparisonID
+                      quickstep_utility_Macros
+                      tmb
+                      ${LIBS})
+add_test(HashJoinOperator_unittest HashJoinOperator_unittest)
+
+add_executable(SortMergeRunOperator_unittest
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/SortMergeRunOperator_unittest.cpp")
+target_link_libraries(SortMergeRunOperator_unittest
+                      glog
+                      gtest
+                      gtest_main
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_Expressions_proto
+                      quickstep_expressions_scalar_Scalar
+                      quickstep_expressions_scalar_ScalarAttribute
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_SortMergeRunOperator
+                      quickstep_relationaloperators_SortMergeRunOperatorHelpers
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_BasicColumnStoreValueAccessor
+                      quickstep_storage_CompressedColumnStoreValueAccessor
+                      quickstep_storage_CompressedPackedRowStoreValueAccessor
+                      quickstep_storage_CountedReference
+                      quickstep_storage_InsertDestination
+                      quickstep_storage_InsertDestination_proto
+                      quickstep_storage_PackedRowStoreValueAccessor
+                      quickstep_storage_SplitRowStoreValueAccessor
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageBlockLayout
+                      quickstep_storage_StorageManager
+                      quickstep_storage_TupleStorageSubBlock
+                      quickstep_storage_ValueAccessor
+                      quickstep_storage_ValueAccessorUtil
+                      quickstep_threading_ThreadIDBasedMap
+                      quickstep_types_IntType
+                      quickstep_types_Type
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
+                      quickstep_types_containers_ColumnVectorsValueAccessor
+                      quickstep_types_containers_Tuple
+                      quickstep_utility_PtrVector
+                      quickstep_utility_SortConfiguration
+                      quickstep_utility_SortConfiguration_proto
+                      tmb
+                      ${LIBS})
+add_test(SortMergeRunOperator_unittest SortMergeRunOperator_unittest)
+
+add_executable(SortRunGenerationOperator_unittest
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/SortRunGenerationOperator_unittest.cpp")
+target_link_libraries(SortRunGenerationOperator_unittest
+                      glog
+                      gtest
+                      gtest_main
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_Expressions_proto
+                      quickstep_expressions_scalar_Scalar
+                      quickstep_expressions_scalar_ScalarAttribute
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_SortRunGenerationOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_BasicColumnStoreValueAccessor
+                      quickstep_storage_CompressedColumnStoreValueAccessor
+                      quickstep_storage_CompressedPackedRowStoreValueAccessor
+                      quickstep_storage_CountedReference
+                      quickstep_storage_InsertDestination
+                      quickstep_storage_PackedRowStoreValueAccessor
+                      quickstep_storage_SplitRowStoreValueAccessor
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageBlockLayout
+                      quickstep_storage_StorageManager
+                      quickstep_storage_TupleStorageSubBlock
+                      quickstep_storage_ValueAccessor
+                      quickstep_storage_ValueAccessorUtil
+                      quickstep_threading_ThreadIDBasedMap
+                      quickstep_types_IntType
+                      quickstep_types_Type
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
+                      quickstep_types_containers_ColumnVectorsValueAccessor
+                      quickstep_types_containers_Tuple
+                      quickstep_utility_SortConfiguration_proto
+                      tmb
+                      ${LIBS})
+add_test(SortRunGenerationOperator_unittest SortRunGenerationOperator_unittest)
+
+add_executable(TextScanOperator_unittest
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/TextScanOperator_unittest.cpp")
+target_link_libraries(TextScanOperator_unittest
+                      glog
+                      gtest
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_cli_PrintToScreen
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_TextScanOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_InsertDestination_proto
+                      quickstep_storage_StorageManager
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_utility_MemStream
+                      tmb)
+file(TO_NATIVE_PATH
+     "${CMAKE_CURRENT_SOURCE_DIR}/tests/text_scan_input.txt"
+     TEXT_SCAN_INPUT_FILE)
+file(TO_NATIVE_PATH
+     "${CMAKE_CURRENT_SOURCE_DIR}/tests/text_scan_golden_output.txt"
+     TEXT_SCAN_GOLDEN_OUTPUT_FILE)
+file(TO_NATIVE_PATH
+     "${CMAKE_CURRENT_BINARY_DIR}/text_scan_failure_output.txt"
+     TEXT_SCAN_FAILURE_OUTPUT_FILE)
+add_test(TextScanOperator_unittest
+         TextScanOperator_unittest
+         ${TEXT_SCAN_INPUT_FILE}
+         ${TEXT_SCAN_GOLDEN_OUTPUT_FILE}
+         ${TEXT_SCAN_FAILURE_OUTPUT_FILE})

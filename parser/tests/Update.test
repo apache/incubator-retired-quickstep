@@ -1,0 +1,68 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+update table test set attr = 1
+--
+ERROR: syntax error (1 : 8)
+update table test set attr = 1
+       ^
+==
+
+update table set attr = 1
+--
+ERROR: syntax error (1 : 8)
+update table set attr = 1
+       ^
+==
+
+update test set attr1 = 1, attr2=5, attr3 = 4 where attr2 < 1 and attr1 > 5 and attr1+1<2*attr2
+--
+UpdateStatement[relation_name=test]
++-where_predicate=And
+| +-Less
+| | +-left_operand=AttributeReference[attribute_name=attr2]
+| | +-right_operand=Literal
+| |   +-NumericLiteral[numeric_string=1,float_like=false]
+| +-Greater
+| | +-left_operand=AttributeReference[attribute_name=attr1]
+| | +-right_operand=Literal
+| |   +-NumericLiteral[numeric_string=5,float_like=false]
+| +-Less
+|   +-left_operand=Add
+|   | +-left_operand=AttributeReference[attribute_name=attr1]
+|   | +-right_operand=Literal
+|   |   +-NumericLiteral[numeric_string=1,float_like=false]
+|   +-right_operand=Multiply
+|     +-left_operand=Literal
+|     | +-NumericLiteral[numeric_string=2,float_like=false]
+|     +-right_operand=AttributeReference[attribute_name=attr2]
++-assignment=
+  +-AttributeAssignment[attribute_name=attr1]
+  | +-value=Literal
+  |   +-NumericLiteral[numeric_string=1,float_like=false]
+  +-AttributeAssignment[attribute_name=attr2]
+  | +-value=Literal
+  |   +-NumericLiteral[numeric_string=5,float_like=false]
+  +-AttributeAssignment[attribute_name=attr3]
+    +-value=Literal
+      +-NumericLiteral[numeric_string=4,float_like=false]
+==
+
+update test set attr = 4+1
+--
+UpdateStatement[relation_name=test]
++-assignment=
+  +-AttributeAssignment[attribute_name=attr]
+    +-value=Add
+      +-left_operand=Literal
+      | +-NumericLiteral[numeric_string=4,float_like=false]
+      +-right_operand=Literal
+        +-NumericLiteral[numeric_string=1,float_like=false]
+==
+
+update test where attr2=1
+--
+ERROR: syntax error (1 : 13)
+update test where attr2=1
+            ^

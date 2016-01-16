@@ -1,0 +1,14 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+drop table test
+--
+DropTableStatement[relation_name=test]
+==
+
+drop table table
+--
+ERROR: syntax error (1 : 12)
+drop table table
+           ^

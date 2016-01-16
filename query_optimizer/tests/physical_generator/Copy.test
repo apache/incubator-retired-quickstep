@@ -1,0 +1,36 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# Copyright (c) 2015, Pivotal Software, Inc.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+[default optimized_logical_plan physical_plan]
+copy test from 'test.txt'
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=CopyFrom[relation=Test,file_name=test.txt,column_delimiter="\t",
+| escape_strings=true]
++-output_attributes=
+  +-[]
+[Physical Plan]
+TopLevelPlan
++-plan=CopyFrom[relation=Test,file_name=test.txt,column_delimiter=	,
+| escape_strings=true]
++-output_attributes=
+  +-[]
+==
+
+copy test from 'test.txt' with (delimiter 'd', escape_strings false)
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=CopyFrom[relation=Test,file_name=test.txt,column_delimiter="d",
+| escape_strings=false]
++-output_attributes=
+  +-[]
+[Physical Plan]
+TopLevelPlan
++-plan=CopyFrom[relation=Test,file_name=test.txt,column_delimiter=d,
+| escape_strings=false]
++-output_attributes=
+  +-[]

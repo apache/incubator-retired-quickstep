@@ -1,0 +1,29 @@
+// This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+// Copyright (c) 2015, Pivotal Software, Inc.
+// All rights reserved.
+// See file CREDITS.txt for details.
+
+syntax = "proto2";
+
+package quickstep.serialization;
+
+import "expressions/Expressions.proto";
+import "expressions/aggregation/AggregateFunction.proto";
+import "storage/HashTable.proto";
+
+message Aggregate {
+  required AggregateFunction function = 1;
+  repeated Scalar argument = 2;
+}
+
+message AggregationOperationState {
+  required int32 relation_id = 1;
+  repeated Aggregate aggregates = 2;
+  repeated Scalar group_by_expressions = 3;
+  optional Predicate predicate = 4;
+  required uint64 estimated_num_entries = 5;
+
+  // NOTE(chasseur): 'hash_table_impl_type' is marked optional, but it is
+  // needed if 'group_by_expressions' is non-empty, and ignored otherwise.
+  optional HashTableImplType hash_table_impl_type = 6;
+}

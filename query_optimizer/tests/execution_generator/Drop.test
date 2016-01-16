@@ -1,0 +1,10 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+drop table test;
+select * from test
+--
+ERROR: Unrecognized relation test (2 : 15)
+select * from test
+              ^

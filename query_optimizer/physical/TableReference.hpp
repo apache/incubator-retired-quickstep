@@ -1,0 +1,125 @@
+/**
+ * This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+ * All rights reserved.
+ * See file CREDITS.txt for details.
+ **/
+
+#ifndef QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_TABLE_REFERENCE_HPP_
+#define QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_TABLE_REFERENCE_HPP_
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "query_optimizer/OptimizerTree.hpp"
+#include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/ExpressionUtil.hpp"
+#include "query_optimizer/expressions/NamedExpression.hpp"
+#include "query_optimizer/physical/Physical.hpp"
+#include "query_optimizer/physical/PhysicalType.hpp"
+#include "utility/Macros.hpp"
+
+#include "glog/logging.h"
+
+namespace quickstep {
+
+class CatalogRelation;
+
+namespace optimizer {
+namespace physical {
+
+/** \addtogroup OptimizerPhysical
+ *  @{
+ */
+
+class TableReference;
+typedef std::shared_ptr<const TableReference> TableReferencePtr;
+
+/**
+ * @brief Leaf physical node that represents a reference to a catalog relation.
+ */
+class TableReference : public Physical {
+ public:
+  PhysicalType getPhysicalType() const override { return PhysicalType::kTableReference; }
+
+  std::string getName() const override { return "TableReference"; }
+
+  /**
+   * @return The input catalog relation.
+   */
+  const CatalogRelation* relation() const { return relation_; }
+
+  /**
+   * @return The list of references to the relation attributes.
+   */
+  const std::vector<expressions::AttributeReferencePtr>& attribute_list() const {
+    return attribute_list_;
+  }
+
+  PhysicalPtr copyWithNewChildren(
+      const std::vector<PhysicalPtr> &new_children) const override {
+    DCHECK_EQ(new_children.size(), children().size());
+    return TableReferencePtr(new TableReference(relation_, alias_, attribute_list_));
+  }
+
+  std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {
+    return attribute_list_;
+  }
+
+  std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override {
+    return {};
+  }
+
+  bool maybeCopyWithPrunedExpressions(
+      const expressions::UnorderedNamedExpressionSet &referenced_expressions,
+      PhysicalPtr *output) const override {
+    // The project attributes cannot be changed in a TableReference.
+    return false;
+  }
+
+  /**
+   * @brief Creates a TableReference.
+   *
+   * @param relation The referenced catalog relation.
+   * @param alias The relation alias in the query. It is used only for printing.
+   * @param attribute_list The list of AttributeReferences of the relation.
+   * @return An immutable TableReference.
+   */
+  static TableReferencePtr Create(
+      const CatalogRelation *relation,
+      const std::string &alias,
+      const std::vector<expressions::AttributeReferencePtr> &attribute_list) {
+    return TableReferencePtr(new TableReference(relation, alias, attribute_list));
+  }
+
+ protected:
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<OptimizerTreeBaseNodePtr> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const override;
+
+ private:
+  TableReference(
+      const CatalogRelation *relation, const std::string &alias,
+      const std::vector<expressions::AttributeReferencePtr> &attribute_list)
+      : relation_(relation),
+        alias_(alias),
+        attribute_list_(attribute_list) {}
+
+  const CatalogRelation *relation_;
+  std::string alias_;
+  std::vector<expressions::AttributeReferencePtr> attribute_list_;
+
+  DISALLOW_COPY_AND_ASSIGN(TableReference);
+};
+
+/** @} */
+
+}  // namespace physical
+}  // namespace optimizer
+}  // namespace quickstep
+
+#endif /* QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_TABLE_REFERENCE_HPP_ */

@@ -1,0 +1,46 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# Copyright (c) 2015, Pivotal Software, Inc.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+[default optimized_logical_plan physical_plan]
+insert into test values (1, 2, 1.1, 1.3, 'foo', 'foo')
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=InsertTuple
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-column_values=
+|   +-Literal[value=1,type=Int NULL]
+|   +-Literal[value=2,type=Long]
+|   +-Literal[value=1.10000002,type=Float]
+|   +-Literal[value=1.3,type=Double NULL]
+|   +-Literal[value=foo,type=Char(20)]
+|   +-Literal[value=foo,type=VarChar(20) NULL]
++-output_attributes=
+  +-[]
+[Physical Plan]
+TopLevelPlan
++-plan=InsertTuple
+| +-input=TableReference[relation=Test,alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-column_values=
+|   +-Literal[value=1,type=Int NULL]
+|   +-Literal[value=2,type=Long]
+|   +-Literal[value=1.10000002,type=Float]
+|   +-Literal[value=1.3,type=Double NULL]
+|   +-Literal[value=foo,type=Char(20)]
+|   +-Literal[value=foo,type=VarChar(20) NULL]
++-output_attributes=
+  +-[]

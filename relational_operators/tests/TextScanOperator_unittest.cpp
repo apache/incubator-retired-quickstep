@@ -1,0 +1,193 @@
+/**
+ * This file copyright (c) 2015, Pivotal Software, Inc.
+ * All rights reserved.
+ * See file CREDITS.txt for details.
+ **/
+
+#include <cstddef>
+#include <cstdio>
+#include <memory>
+#include <string>
+
+#include "catalog/CatalogAttribute.hpp"
+#include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogRelation.hpp"
+#include "catalog/CatalogTypedefs.hpp"
+#include "cli/PrintToScreen.hpp"
+#include "query_execution/QueryContext.hpp"
+#include "query_execution/QueryContext.pb.h"
+#include "query_execution/WorkOrdersContainer.hpp"
+#include "relational_operators/RelationalOperator.hpp"
+#include "relational_operators/TextScanOperator.hpp"
+#include "relational_operators/WorkOrder.hpp"
+#include "storage/InsertDestination.pb.h"
+#include "storage/StorageManager.hpp"
+#include "types/TypeFactory.hpp"
+#include "types/TypeID.hpp"
+#include "utility/MemStream.hpp"
+
+#include "glog/logging.h"
+
+#include "gtest/gtest.h"
+
+#include "tmb/id_typedefs.h"
+
+// Global variables used by test, set up by main().
+namespace {
+const char *input_filename;
+const char *golden_output_filename;
+const char *failure_output_filename;
+}  // namespace
+
+namespace quickstep {
+
+namespace {
+constexpr int kOpIndex = 0;
+}  // namespace
+
+class TextScanOperatorTest : public ::testing::Test {
+ protected:
+  virtual void SetUp() {
+    db_.reset(new CatalogDatabase(nullptr, "database"));
+
+    // Create table with a variety of attribute types.
+    relation_ = new CatalogRelation(nullptr, "test_relation");
+    db_->addRelation(relation_);
+
+    relation_->addAttribute(
+        new CatalogAttribute(relation_, "long_attr", TypeFactory::GetType(kLong, true)));
+    relation_->addAttribute(
+        new CatalogAttribute(relation_, "double_attr", TypeFactory::GetType(kDouble, true)));
+    relation_->addAttribute(
+        new CatalogAttribute(relation_, "char_attr", TypeFactory::GetType(kChar, 20, true)));
+    relation_->addAttribute(
+        new CatalogAttribute(relation_, "datetime_attr", TypeFactory::GetType(kDatetime, true)));
+    relation_->addAttribute(
+        new CatalogAttribute(relation_, "interval_attr", TypeFactory::GetType(kDatetimeInterval, true)));
+    relation_->addAttribute(
+        new CatalogAttribute(relation_, "varchar_attr", TypeFactory::GetType(kVarChar, 20, true)));
+
+    storage_manager_.reset(new StorageManager("./test_data/"));
+  }
+
+  void fetchAndExecuteWorkOrders(RelationalOperator *op) {
+    // Treat the single operator as the sole node in a query plan DAG.
+    op->setOperatorIndex(kOpIndex);
+    WorkOrdersContainer container(1, 0);
+    const std::size_t op_index = 0;
+    op->informAllBlockingDependenciesMet();
+    op->getAllWorkOrders(&container);
+
+    while (container.hasNormalWorkOrder(op_index)) {
+      WorkOrder *wu = container.getNormalWorkOrder(op_index);
+      wu->execute(query_context_.get(), db_.get(), storage_manager_.get());
+      delete wu;
+    }
+
+    while (container.hasRebuildWorkOrder(op_index)) {
+      WorkOrder *wu = container.getRebuildWorkOrder(op_index);
+      wu->execute(query_context_.get(), db_.get(), storage_manager_.get());
+      delete wu;
+    }
+  }
+
+  static std::string LoadGoldenOutput() {
+    std::string golden_string;
+
+    FILE *golden_file = std::fopen(golden_output_filename, "r");
+    CHECK_NOTNULL(golden_file);
+
+    char read_buffer[1024];
+    for (;;) {
+      std::size_t bytes_read = std::fread(read_buffer, 1, 1024, golden_file);
+      if (bytes_read == 0) {
+        break;
+      }
+      golden_string.append(read_buffer, bytes_read);
+    }
+
+    CHECK(std::feof(golden_file));
+    std::fclose(golden_file);
+
+    return golden_string;
+  }
+
+  std::unique_ptr<CatalogDatabase> db_;
+  CatalogRelation *relation_;
+  std::unique_ptr<StorageManager> storage_manager_;
+  std::unique_ptr<QueryContext> query_context_;
+};
+
+TEST_F(TextScanOperatorTest, ScanTest) {
+  std::string golden_string = LoadGoldenOutput();
+
+  const relation_id output_relation_id = relation_->getID();
+
+  // Setup the InsertDestination proto in the query context proto.
+  serialization::QueryContext query_context_proto;
+
+  QueryContext::insert_destination_id output_destination_index = query_context_proto.insert_destinations_size();
+  serialization::InsertDestination *output_destination_proto = query_context_proto.add_insert_destinations();
+
+  output_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
+  output_destination_proto->set_relation_id(output_relation_id);
+  output_destination_proto->set_need_to_add_blocks_from_relation(false);
+  output_destination_proto->set_relational_op_index(kOpIndex);
+  output_destination_proto->set_foreman_client_id(tmb::kClientIdNone);
+
+  std::unique_ptr<TextScanOperator> text_scan_op(
+      new TextScanOperator(input_filename,
+                           '\t',
+                           true,
+                           false,
+                           output_relation_id,
+                           output_destination_index,
+                           tmb::kClientIdNone /* foreman_client_id */,
+                           nullptr /* TMB */));
+
+  // Setup query_context_.
+  query_context_.reset(new QueryContext(query_context_proto,
+                                        db_.get(),
+                                        storage_manager_.get(),
+                                        nullptr /* TMB */));
+
+  fetchAndExecuteWorkOrders(text_scan_op.get());
+  text_scan_op.reset(nullptr);
+
+  MemStream print_stream;
+  PrintToScreen::PrintRelation(*relation_,
+                               storage_manager_.get(),
+                               print_stream.file());
+  std::string printed(print_stream.str());
+
+  EXPECT_EQ(golden_string, printed);
+  if (golden_string != printed) {
+    FILE *failure_output = std::fopen(failure_output_filename, "w");
+    CHECK_NOTNULL(failure_output);
+    const std::size_t written
+        = std::fwrite(printed.c_str(), 1, printed.length(), failure_output);
+    CHECK_EQ(printed.length(), written);
+    std::fclose(failure_output);
+  }
+}
+
+}  // namespace quickstep
+
+int main(int argc, char* argv[]) {
+  google::InitGoogleLogging(argv[0]);
+  testing::InitGoogleTest(&argc, argv);
+
+  if (argc != 4) {
+    std::fprintf(stderr,
+                 "USAGE: %s [gtest options] "
+                     "INPUT_FILENAME GOLDEN_OUTPUT_FILENAME FAILURE_OUTPUT_FILENAME\n",
+                 argv[0]);
+    return 1;
+  }
+
+  input_filename = argv[1];
+  golden_output_filename = argv[2];
+  failure_output_filename = argv[3];
+
+  return RUN_ALL_TESTS();
+}

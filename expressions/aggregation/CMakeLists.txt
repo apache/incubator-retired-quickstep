@@ -1,0 +1,274 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# Copyright (c) 2015, Pivotal Software, Inc.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+QS_PROTOBUF_GENERATE_CPP(expressions_aggregation_AggregateFunction_proto_srcs
+                         expressions_aggregation_AggregateFunction_proto_hdrs
+                         AggregateFunction.proto)
+
+# Declare micro-libs:
+add_library(quickstep_expressions_aggregation_AggregateFunction
+            AggregateFunction.cpp
+            AggregateFunction.hpp)
+add_library(quickstep_expressions_aggregation_AggregateFunction_proto
+            ${expressions_aggregation_AggregateFunction_proto_srcs})
+add_library(quickstep_expressions_aggregation_AggregateFunctionAvg
+            AggregateFunctionAvg.cpp
+            AggregateFunctionAvg.hpp)
+add_library(quickstep_expressions_aggregation_AggregateFunctionCount
+            AggregateFunctionCount.cpp
+            AggregateFunctionCount.hpp)
+add_library(quickstep_expressions_aggregation_AggregateFunctionFactory
+            AggregateFunctionFactory.cpp
+            AggregateFunctionFactory.hpp)
+add_library(quickstep_expressions_aggregation_AggregateFunctionMax
+            AggregateFunctionMax.cpp
+            AggregateFunctionMax.hpp)
+add_library(quickstep_expressions_aggregation_AggregateFunctionMin
+            AggregateFunctionMin.cpp
+            AggregateFunctionMin.hpp)
+add_library(quickstep_expressions_aggregation_AggregateFunctionSum
+            AggregateFunctionSum.cpp
+            AggregateFunctionSum.hpp)
+add_library(quickstep_expressions_aggregation_AggregationHandle
+            ../../empty_src.cpp
+            AggregationHandle.hpp)
+add_library(quickstep_expressions_aggregation_AggregationHandleAvg
+            AggregationHandleAvg.cpp
+            AggregationHandleAvg.hpp)
+add_library(quickstep_expressions_aggregation_AggregationHandleCount
+            AggregationHandleCount.cpp
+            AggregationHandleCount.hpp)
+add_library(quickstep_expressions_aggregation_AggregationHandleMax
+            AggregationHandleMax.cpp
+            AggregationHandleMax.hpp)
+add_library(quickstep_expressions_aggregation_AggregationHandleMin
+            AggregationHandleMin.cpp
+            AggregationHandleMin.hpp)
+add_library(quickstep_expressions_aggregation_AggregationHandleSum
+            AggregationHandleSum.cpp
+            AggregationHandleSum.hpp)
+add_library(quickstep_expressions_aggregation_AggregationID
+            ../../empty_src.cpp
+            AggregationID.hpp)
+
+# Link dependencies:
+target_link_libraries(quickstep_expressions_aggregation_AggregateFunction
+                      glog
+                      quickstep_expressions_aggregation_AggregateFunction_proto
+                      quickstep_expressions_aggregation_AggregationID
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_expressions_aggregation_AggregateFunction_proto
+                      ${PROTOBUF_LIBRARY})
+target_link_libraries(quickstep_expressions_aggregation_AggregateFunctionAvg
+                      glog
+                      quickstep_expressions_aggregation_AggregateFunction
+                      quickstep_expressions_aggregation_AggregationHandleAvg
+                      quickstep_expressions_aggregation_AggregationID
+                      quickstep_types_Type
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_types_operations_binaryoperations_BinaryOperation
+                      quickstep_types_operations_binaryoperations_BinaryOperationFactory
+                      quickstep_types_operations_binaryoperations_BinaryOperationID
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_expressions_aggregation_AggregateFunctionCount
+                      glog
+                      quickstep_expressions_aggregation_AggregateFunction
+                      quickstep_expressions_aggregation_AggregationHandleCount
+                      quickstep_expressions_aggregation_AggregationID
+                      quickstep_types_Type
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_expressions_aggregation_AggregateFunctionFactory
+                      glog
+                      quickstep_expressions_aggregation_AggregateFunction_proto
+                      quickstep_expressions_aggregation_AggregateFunctionAvg
+                      quickstep_expressions_aggregation_AggregateFunctionCount
+                      quickstep_expressions_aggregation_AggregateFunctionMax
+                      quickstep_expressions_aggregation_AggregateFunctionMin
+                      quickstep_expressions_aggregation_AggregateFunctionSum
+                      quickstep_expressions_aggregation_AggregationID
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_expressions_aggregation_AggregateFunctionMax
+                      glog
+                      quickstep_expressions_aggregation_AggregateFunction
+                      quickstep_expressions_aggregation_AggregationHandleMax
+                      quickstep_expressions_aggregation_AggregationID
+                      quickstep_types_Type
+                      quickstep_types_operations_comparisons_Comparison
+                      quickstep_types_operations_comparisons_ComparisonFactory
+                      quickstep_types_operations_comparisons_ComparisonID
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_expressions_aggregation_AggregateFunctionMin
+                      glog
+                      quickstep_expressions_aggregation_AggregateFunction
+                      quickstep_expressions_aggregation_AggregationHandleMin
+                      quickstep_expressions_aggregation_AggregationID
+                      quickstep_types_Type
+                      quickstep_types_operations_comparisons_Comparison
+                      quickstep_types_operations_comparisons_ComparisonFactory
+                      quickstep_types_operations_comparisons_ComparisonID
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_expressions_aggregation_AggregateFunctionSum
+                      glog
+                      quickstep_expressions_aggregation_AggregateFunction
+                      quickstep_expressions_aggregation_AggregationHandleSum
+                      quickstep_expressions_aggregation_AggregationID
+                      quickstep_types_Type
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_types_operations_binaryoperations_BinaryOperation
+                      quickstep_types_operations_binaryoperations_BinaryOperationFactory
+                      quickstep_types_operations_binaryoperations_BinaryOperationID
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_expressions_aggregation_AggregationHandle
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_storage_HashTableBase
+                      quickstep_types_TypedValue
+                      quickstep_types_containers_ColumnVector
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_expressions_aggregation_AggregationHandleAvg
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_aggregation_AggregationHandle
+                      quickstep_storage_HashTable
+                      quickstep_storage_HashTableBase
+                      quickstep_storage_HashTableFactory
+                      quickstep_threading_SpinMutex
+                      quickstep_types_Type
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
+                      quickstep_types_operations_binaryoperations_BinaryOperation
+                      quickstep_types_operations_binaryoperations_BinaryOperationFactory
+                      quickstep_types_operations_binaryoperations_BinaryOperationID
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_expressions_aggregation_AggregationHandleCount
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_aggregation_AggregationHandle
+                      quickstep_storage_HashTable
+                      quickstep_storage_HashTableBase
+                      quickstep_storage_HashTableFactory
+                      quickstep_storage_ValueAccessor
+                      quickstep_storage_ValueAccessorUtil
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
+                      quickstep_types_containers_ColumnVector
+                      quickstep_types_containers_ColumnVectorUtil
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_expressions_aggregation_AggregationHandleMax
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_aggregation_AggregationHandle
+                      quickstep_storage_HashTable
+                      quickstep_storage_HashTableBase
+                      quickstep_storage_HashTableFactory
+                      quickstep_threading_SpinMutex
+                      quickstep_types_Type
+                      quickstep_types_TypedValue
+                      quickstep_types_containers_ColumnVector
+                      quickstep_types_operations_comparisons_Comparison
+                      quickstep_types_operations_comparisons_ComparisonFactory
+                      quickstep_types_operations_comparisons_ComparisonID
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_expressions_aggregation_AggregationHandleMin
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_aggregation_AggregationHandle
+                      quickstep_storage_HashTable
+                      quickstep_storage_HashTableBase
+                      quickstep_storage_HashTableFactory
+                      quickstep_threading_SpinMutex
+                      quickstep_types_Type
+                      quickstep_types_TypedValue
+                      quickstep_types_containers_ColumnVector
+                      quickstep_types_operations_comparisons_Comparison
+                      quickstep_types_operations_comparisons_ComparisonFactory
+                      quickstep_types_operations_comparisons_ComparisonID
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_expressions_aggregation_AggregationHandleSum
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_aggregation_AggregationHandle
+                      quickstep_storage_HashTable
+                      quickstep_storage_HashTableBase
+                      quickstep_storage_HashTableFactory
+                      quickstep_threading_SpinMutex
+                      quickstep_types_Type
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
+                      quickstep_types_operations_binaryoperations_BinaryOperation
+                      quickstep_types_operations_binaryoperations_BinaryOperationFactory
+                      quickstep_types_operations_binaryoperations_BinaryOperationID
+                      quickstep_utility_Macros)
+
+# Submodule all-in-one library:
+add_library(quickstep_expressions_aggregation ../../empty_src.cpp)
+target_link_libraries(quickstep_expressions_aggregation
+                      quickstep_expressions_aggregation_AggregateFunction
+                      quickstep_expressions_aggregation_AggregateFunction_proto
+                      quickstep_expressions_aggregation_AggregateFunctionAvg
+                      quickstep_expressions_aggregation_AggregateFunctionCount
+                      quickstep_expressions_aggregation_AggregateFunctionFactory
+                      quickstep_expressions_aggregation_AggregateFunctionMax
+                      quickstep_expressions_aggregation_AggregateFunctionMin
+                      quickstep_expressions_aggregation_AggregateFunctionSum
+                      quickstep_expressions_aggregation_AggregationHandle
+                      quickstep_expressions_aggregation_AggregationHandleAvg
+                      quickstep_expressions_aggregation_AggregationHandleCount
+                      quickstep_expressions_aggregation_AggregationHandleMax
+                      quickstep_expressions_aggregation_AggregationHandleMin
+                      quickstep_expressions_aggregation_AggregationHandleSum
+                      quickstep_expressions_aggregation_AggregationHandleUtil
+                      quickstep_expressions_aggregation_AggregationID)
+
+# Tests:
+
+# Unified executable to ammortize cost of linking.
+add_executable(AggregationHandle_tests
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/AggregationHandleAvg_unittest.cpp"
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/AggregationHandleCount_unittest.cpp"
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/AggregationHandleMax_unittest.cpp"
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/AggregationHandleMin_unittest.cpp"
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/AggregationHandleSum_unittest.cpp")
+target_link_libraries(AggregationHandle_tests
+                      gtest
+                      gtest_main
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_aggregation_AggregateFunction
+                      quickstep_expressions_aggregation_AggregateFunctionFactory
+                      quickstep_expressions_aggregation_AggregationHandle
+                      quickstep_expressions_aggregation_AggregationHandleAvg
+                      quickstep_expressions_aggregation_AggregationHandleCount
+                      quickstep_expressions_aggregation_AggregationHandleMax
+                      quickstep_expressions_aggregation_AggregationHandleMin
+                      quickstep_expressions_aggregation_AggregationHandleSum
+                      quickstep_expressions_aggregation_AggregationID
+                      quickstep_types_CharType
+                      quickstep_types_DateOperatorOverloads
+                      quickstep_types_DatetimeIntervalType
+                      quickstep_types_DatetimeType
+                      quickstep_types_DoubleType
+                      quickstep_types_FloatType
+                      quickstep_types_IntType
+                      quickstep_types_IntervalLit
+                      quickstep_types_LongType
+                      quickstep_types_Type
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
+                      quickstep_types_VarCharType
+                      quickstep_types_YearMonthIntervalType
+                      quickstep_types_containers_ColumnVector
+                      quickstep_types_containers_ColumnVectorsValueAccessor
+                      quickstep_types_operations_comparisons_Comparison
+                      quickstep_types_operations_comparisons_ComparisonFactory
+                      quickstep_types_operations_comparisons_ComparisonID)
+add_test(AggregationHandle_tests AggregationHandle_tests)

@@ -1,0 +1,14 @@
+/**
+ * This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+ * All rights reserved.
+ * See file CREDITS.txt for details.
+ **/
+
+#cmakedefine QUICKSTEP_HAVE_FILE_MANAGER_POSIX
+#cmakedefine QUICKSTEP_HAVE_FILE_MANAGER_WINDOWS
+#cmakedefine QUICKSTEP_HAVE_FILE_MANAGER_HDFS
+#cmakedefine QUICKSTEP_REBUILD_INDEX_ON_UPDATE_OVERFLOW
+#cmakedefine QUICKSTEP_HAVE_MMAP_LINUX_HUGETLB
+#cmakedefine QUICKSTEP_HAVE_MMAP_BSD_SUPERPAGE
+#cmakedefine QUICKSTEP_HAVE_MMAP_PLAIN
+#cmakedefine QUICKSTEP_HAVE_LIBNUMA

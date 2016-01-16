@@ -1,0 +1,13 @@
+// This file copyright (c) 2015, Pivotal Software, Inc.
+// All rights reserved.
+// See file CREDITS.txt for details.
+
+syntax = "proto2";
+
+package quickstep.serialization;
+
+import "types/TypedValue.proto";
+
+message Tuple {
+  repeated TypedValue attribute_values = 1;
+}

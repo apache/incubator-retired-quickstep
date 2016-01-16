@@ -1,0 +1,19 @@
+/**
+ * This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+ * Copyright (c) 2015, Pivotal Software, Inc.
+ * All rights reserved.
+ * See file CREDITS.txt for details.
+ **/
+
+#cmakedefine QUICKSTEP_HAVE_BUILTIN_POPCOUNT
+#cmakedefine QUICKSTEP_HAVE_BUILTIN_CLZ
+#cmakedefine QUICKSTEP_HAVE_BUILTIN_CTZ
+#cmakedefine QUICKSTEP_HAVE_STD_ALIGN
+#cmakedefine QUICKSTEP_HAVE_TCMALLOC
+#cmakedefine QUICKSTEP_HAVE_ALIGNED_ALLOC
+#cmakedefine QUICKSTEP_HAVE_POSIX_MEMALIGN
+#cmakedefine QUICKSTEP_HAVE_MEMALIGN
+#cmakedefine QUICKSTEP_HAVE_WIN_ALIGNED_MALLOC
+#cmakedefine QUICKSTEP_HAVE_GLOB
+#cmakedefine QUICKSTEP_HAVE_WINDOWS
+#cmakedefine QUICKSTEP_HAVE_OPEN_MEMSTREAM

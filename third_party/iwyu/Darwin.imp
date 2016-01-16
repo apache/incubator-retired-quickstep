@@ -1,0 +1,10 @@
+[
+  { include: [ "@<_types/.*\\.h>", private, "<cstdint>", public ] },
+  { include: [ "@<sys/_types/.*\\.h>", private, "<cstdint>", public ] },
+  { symbol: [ "std::move", private, "<utility>", public ] },
+  { symbol: [ "std::isxdigit", private, "<cctype>", public ] },
+  { symbol: [ "std::string", private, "<string>", public ] },
+  { symbol: [ "std::hash", private, "<functional>", public ] },
+  { symbol: [ "std::vector", private, "<vector>", public ] },
+  { symbol: [ "std::unordered_map", private, "<unordered_map>", public ] },
+]

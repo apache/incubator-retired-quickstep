@@ -1,0 +1,43 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+insert into test (attr1, attr2) values (1, 2)
+--
+ERROR: list of column names in INSERT statement is not supported yet (1 : 18)
+insert into test (attr1, attr2) values (1, 2)
+                 ^
+==
+
+insert into test values (1, -2, 3)
+--
+InsertStatement[relation_name=test]
++-tuple=
+  +-Literal
+  | +-NumericLiteral[numeric_string=1,float_like=false]
+  +-Literal
+  | +-NumericLiteral[numeric_string=-2,float_like=false]
+  +-Literal
+    +-NumericLiteral[numeric_string=3,float_like=false]
+==
+
+insert into test values (1+1, 2*2, 3+1)
+--
+ERROR: syntax error (1 : 27)
+insert into test values (1+1, 2*2, 3+1)
+                          ^
+==
+
+insert into test values (e'\'sdfs')
+--
+InsertStatement[relation_name=test]
++-tuple=
+  +-Literal
+    +-StringLiteral[value='sdfs]
+==
+
+insert into test values ('\'sdfs')
+--
+ERROR: syntax error (1 : 29)
+insert into test values ('\'sdfs')
+                            ^

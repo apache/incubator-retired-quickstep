@@ -1,0 +1,15 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+create table foo (col1 int,
+                  col2 long,
+                  col3 double,
+                  col4 float,
+                  col5 char(5));
+select * from foo
+--
++-----------+--------------------+------------------------+---------------+-----+
+|col1       |col2                |col3                    |col4           |col5 |
++-----------+--------------------+------------------------+---------------+-----+
++-----------+--------------------+------------------------+---------------+-----+

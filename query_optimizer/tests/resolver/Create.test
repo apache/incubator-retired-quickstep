@@ -1,0 +1,75 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+[default initial_logical_plan]
+create table test (col int)
+--
+ERROR: Relation test already exists (1 : 14)
+create table test (col int)
+             ^
+==
+
+create table foo (col1 int not null,
+                  col2 long,
+                  col3 double,
+                  col4 float,
+                  col5 char(5),
+                  col6 varchar(5),
+                  col7 int null,
+                  col8 long null,
+                  col9 double null,
+                  col10 float null,
+                  col11 char(5) null,
+                  col12 varchar(5) null)
+--
+TopLevelPlan
++-plan=CreateTable[relation=foo]
+| +-attributes=
+|   +-AttributeReference[id=0,name=col1,relation=foo,type=Int]
+|   +-AttributeReference[id=1,name=col2,relation=foo,type=Long]
+|   +-AttributeReference[id=2,name=col3,relation=foo,type=Double]
+|   +-AttributeReference[id=3,name=col4,relation=foo,type=Float]
+|   +-AttributeReference[id=4,name=col5,relation=foo,type=Char(5)]
+|   +-AttributeReference[id=5,name=col6,relation=foo,type=VarChar(5)]
+|   +-AttributeReference[id=6,name=col7,relation=foo,type=Int NULL]
+|   +-AttributeReference[id=7,name=col8,relation=foo,type=Long NULL]
+|   +-AttributeReference[id=8,name=col9,relation=foo,type=Double NULL]
+|   +-AttributeReference[id=9,name=col10,relation=foo,type=Float NULL]
+|   +-AttributeReference[id=10,name=col11,relation=foo,type=Char(5) NULL]
+|   +-AttributeReference[id=11,name=col12,relation=foo,type=VarChar(5) NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=col1,relation=foo,type=Int]
+  +-AttributeReference[id=1,name=col2,relation=foo,type=Long]
+  +-AttributeReference[id=2,name=col3,relation=foo,type=Double]
+  +-AttributeReference[id=3,name=col4,relation=foo,type=Float]
+  +-AttributeReference[id=4,name=col5,relation=foo,type=Char(5)]
+  +-AttributeReference[id=5,name=col6,relation=foo,type=VarChar(5)]
+  +-AttributeReference[id=6,name=col7,relation=foo,type=Int NULL]
+  +-AttributeReference[id=7,name=col8,relation=foo,type=Long NULL]
+  +-AttributeReference[id=8,name=col9,relation=foo,type=Double NULL]
+  +-AttributeReference[id=9,name=col10,relation=foo,type=Float NULL]
+  +-AttributeReference[id=10,name=col11,relation=foo,type=Char(5) NULL]
+  +-AttributeReference[id=11,name=col12,relation=foo,type=VarChar(5) NULL]
+==
+
+create table foo (col1 int, col1 int)
+--
+ERROR: Column col1 is specified more than once (1 : 29)
+create table foo (col1 int, col1 int)
+                            ^
+==
+
+create table foo (col1 int, CoL1 int)
+--
+ERROR: Column CoL1 is specified more than once (1 : 29)
+create table foo (col1 int, CoL1 int)
+                            ^
+==
+
+# "_qstemp_result_" is preserved for internal use.
+create table "_qstemp_result_s" (col int)
+--
+ERROR: Relation name cannot start with _qstemp_result_ (1 : 14)
+create table "_qstemp_result_s" (col int)
+             ^

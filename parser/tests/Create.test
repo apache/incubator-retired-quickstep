@@ -1,0 +1,128 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+create table table (attr int)
+--
+ERROR: syntax error (1 : 14)
+create table table (attr int)
+             ^
+==
+
+# We do not allow an empty-column table.
+create table test ()
+--
+ERROR: syntax error (1 : 20)
+create table test ()
+                   ^
+==
+
+create table test (attr1 int, attr2 float, attr3 double, attr4 char(5), attr5 varchar(4))
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+  +-AttributeDefinition[name=attr1,type=Int]
+  +-AttributeDefinition[name=attr2,type=Float]
+  +-AttributeDefinition[name=attr3,type=Double]
+  +-AttributeDefinition[name=attr4,type=Char(5)]
+  +-AttributeDefinition[name=attr5,type=VarChar(4)]
+==
+
+create table test (attr char(-1))
+--
+ERROR: syntax error (1 : 30)
+create table test (attr char(-1))
+                             ^
+==
+
+# Zero-length char type is not allowed.
+create table test (attr char(0))
+--
+ERROR: Length for CHAR type must be at least 1 (1 : 30)
+create table test (attr char(0))
+                             ^
+==
+
+create table test(attr char(1+1))
+--
+ERROR: syntax error (1 : 30)
+create table test(attr char(1+1))
+                             ^
+==
+
+create table test (attr unknown_type)
+--
+ERROR: syntax error (1 : 25)
+create table test (attr unknown_type)
+                        ^
+==
+
+create table test (attr int null, attr float not null)
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+  +-AttributeDefinition[name=attr,type=Int NULL]
+  +-AttributeDefinition[name=attr,type=Float]
+==
+
+create table test (attr int unique)
+--
+ERROR: Column Constraints (UNIQUE) is not supported yet (1 : 29)
+create table test (attr int unique)
+                            ^
+==
+
+create table test (attr int primary key)
+--
+ERROR: Column Constraints (PRIMARY KEY) is not supported yet (1 : 29)
+create table test (attr int primary key)
+                            ^
+==
+
+create table test (attr int default 4)
+--
+ERROR: Column Constraints (DEFAULT) is not supported yet (1 : 29)
+create table test (attr int default 4)
+                            ^
+==
+
+create table test (attr int check(attr>5))
+--
+ERROR: Column Constraints (CHECK) is not supported yet (1 : 29)
+create table test (attr int check(attr>5))
+                            ^
+==
+
+create table test (attr int references test2(attr2))
+--
+ERROR: Foreign Keys is not supported yet (1 : 29)
+create table test (attr int references test2(attr2))
+                            ^
+==
+
+create table test (attr int) unique(attr)
+--
+ERROR: Table Constraints (UNIQUE) is not supported yet (1 : 30)
+create table test (attr int) unique(attr)
+                             ^
+==
+
+create table test (attr int) primary key(attr)
+--
+ERROR: Table Constraints (PRIMARY KEY) is not supported yet (1 : 30)
+create table test (attr int) primary key(attr)
+                             ^
+==
+
+create table test (attr int) foreign key(attr)
+--
+ERROR: syntax error (1 : 47)
+... table test (attr int) foreign key(attr)
+                                           ^
+==
+
+create table test (attr int) check(attr>0)
+--
+ERROR: Table Constraints (CHECK) is not supported yet (1 : 30)
+create table test (attr int) check(attr>0)
+                             ^

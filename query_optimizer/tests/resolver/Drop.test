@@ -1,0 +1,23 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+[default initial_logical_plan]
+drop table test
+--
+TopLevelPlan
++-plan=DropTable[relation=Test]
++-output_attributes=
+  +-[]
+==
+
+drop table TesT
+--
+[same as above]
+==
+
+drop table foo
+--
+ERROR: Unrecognized relation foo (1 : 12)
+drop table foo
+           ^

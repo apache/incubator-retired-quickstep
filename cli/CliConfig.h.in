@@ -1,0 +1,8 @@
+/**
+ * This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+ * All rights reserved.
+ * See file CREDITS.txt for details.
+ **/
+
+#cmakedefine QUICKSTEP_USE_LINENOISE
+#cmakedefine QUICKSTEP_OS_WINDOWS

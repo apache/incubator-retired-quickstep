@@ -1,0 +1,77 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+[default optimized_logical_plan physical_plan]
+update test
+set int_col=int_col+1, double_col=int_col+1.2, float_col=1.2, char_col='foo', vchar_col='vfoo'
+where int_col+1>long_col
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=UpdateTable
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-predicate=Greater
+| | +-Add
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-Literal[value=1,type=Int]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| +-attributes=
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-assigned_values=
+|   +-Add
+|   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   | +-Literal[value=1,type=Int]
+|   +-Add
+|   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   | +-Literal[value=1.2,type=Double]
+|   +-Literal[value=1.20000005,type=Float]
+|   +-Literal[value=foo,type=Char(20)]
+|   +-Cast[target_type=VarChar(20) NULL]
+|     +-operand=Literal[value=vfoo,type=VarChar(20)]
++-output_attributes=
+  +-[]
+[Physical Plan]
+TopLevelPlan
++-plan=UpdateTable
+| +-input=TableReference[relation=Test,alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-predicate=Greater
+| | +-Add
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-Literal[value=1,type=Int]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| +-attributes=
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-assigned_values=
+|   +-Add
+|   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   | +-Literal[value=1,type=Int]
+|   +-Add
+|   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   | +-Literal[value=1.2,type=Double]
+|   +-Literal[value=1.20000005,type=Float]
+|   +-Literal[value=foo,type=Char(20)]
+|   +-Cast[target_type=VarChar(20) NULL]
+|     +-operand=Literal[value=vfoo,type=VarChar(20)]
++-output_attributes=
+  +-[]

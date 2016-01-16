@@ -1,0 +1,45 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# Copyright (c) 2015, Pivotal Software, Inc.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+copy test from 'test.txt' with ()
+--
+ERROR: syntax error (1 : 33)
+copy test from 'test.txt' with ()
+                                ^
+==
+
+copy test from 'test.txt'
+--
+CopyFromStatement[relation_name=test,source_file=test.txt]
+==
+
+copy test from 'test.txt' with (delimiter 'd', escape_strings false)
+--
+CopyFromStatement[relation_name=test,source_file=test.txt]
++-params=CopyFromParams[delimiter=d,escape_string=false]
+==
+
+copy test from 'test.txt' with (delimiter '123', escape_strings false)
+--
+CopyFromStatement[relation_name=test,source_file=test.txt]
++-params=CopyFromParams[delimiter=123,escape_string=false]
+==
+
+copy test from 'test.txt' with (delimiter e'\t')
+--
+CopyFromStatement[relation_name=test,source_file=test.txt]
++-params=CopyFromParams[delimiter=	,escape_string=true]
+==
+
+copy test from 'test.txt' with (escape_strings false, delimiter 'd')
+--
+CopyFromStatement[relation_name=test,source_file=test.txt]
++-params=CopyFromParams[delimiter=d,escape_string=false]
+==
+
+copy test from 'test.txt' with (delimiter '1', escape_strings false, delimiter '2', escape_strings true)
+--
+CopyFromStatement[relation_name=test,source_file=test.txt]
++-params=CopyFromParams[delimiter=2,escape_string=true]

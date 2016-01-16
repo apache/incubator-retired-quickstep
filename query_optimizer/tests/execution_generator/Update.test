@@ -1,0 +1,18 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+# Both assignments need coercion.
+update test
+set float_col=2, double_col=float_col/2
+where int_col < -10;
+select float_col, float_col/2, double_col from test where int_col < -20 or int_col > 20
+--
++---------------+---------------+------------------------+
+|float_col      |(float_col/2)  |double_col              |
++---------------+---------------+------------------------+
+|              2|              1|       2.291287899017334|
+|     4.69041586|     2.34520793|      103.18914671611546|
+|              2|              1|      2.3979158401489258|
+|     4.89897966|     2.44948983|      117.57550765359254|
++---------------+---------------+------------------------+

@@ -1,0 +1,133 @@
+/**
+ * This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+ * Copyright (c) 2015, Pivotal Software, Inc.
+ * All rights reserved.
+ * See file CREDITS.txt for details.
+ **/
+
+#ifndef QUICKSTEP_TYPES_DATETIME_TYPE_HPP_
+#define QUICKSTEP_TYPES_DATETIME_TYPE_HPP_
+
+#include <cstddef>
+#include <cstdio>
+#include <string>
+
+#include "types/DatetimeLit.hpp"
+#include "types/Type.hpp"
+#include "types/TypeID.hpp"
+#include "utility/Macros.hpp"
+
+namespace quickstep {
+
+class TypedValue;
+
+/** \addtogroup Types
+ *  @{
+ */
+
+/**
+ * @brief A type representing the datetime.
+ **/
+class DatetimeType : public Type {
+ public:
+  typedef DatetimeLit cpptype;
+
+  static const TypeID kStaticTypeID = kDatetime;
+
+  /**
+   * @brief Get a reference to the non-nullable singleton instance of this
+   *        Type.
+   *
+   * @return A reference to the non-nullable singleton instance of this Type.
+   **/
+  static const DatetimeType& InstanceNonNullable() {
+    static DatetimeType instance(false);
+    return instance;
+  }
+
+  /**
+   * @brief Get a reference to the nullable singleton instance of this Type.
+   *
+   * @return A reference to the nullable singleton instance of this Type.
+   **/
+  static const DatetimeType& InstanceNullable() {
+    static DatetimeType instance(true);
+    return instance;
+  }
+
+  /**
+   * @brief Get a reference to a singleton instance of this Type.
+   *
+   * @param nullable Whether to get the nullable version of this Type.
+   * @return A reference to the desired singleton instance of this Type.
+   **/
+  static const DatetimeType& Instance(const bool nullable) {
+    if (nullable) {
+      return InstanceNullable();
+    } else {
+      return InstanceNonNullable();
+    }
+  }
+
+  const Type& getNullableVersion() const override {
+    return InstanceNullable();
+  }
+
+  const Type& getNonNullableVersion() const override {
+    return InstanceNonNullable();
+  }
+
+  std::size_t estimateAverageByteLength() const override {
+    return sizeof(DatetimeLit);
+  }
+
+  bool isCoercibleFrom(const Type &original_type) const override;
+
+  bool isSafelyCoercibleFrom(const Type &original_type) const override;
+
+  int getPrintWidth() const override {
+    return DatetimeLit::kIsoChars;
+  }
+
+  std::string printValueToString(const TypedValue &value) const override;
+
+  void printValueToFile(const TypedValue &value,
+                        FILE *file,
+                        const int padding = 0) const override;
+
+  /**
+   * @note value_string is expected to be in (possibly extended) ISO-8601
+   *       format. Extended ISO-8601 format is one of the following:
+   *       "YYYY-MM-DD", "YYYY-MM-DDThh:mm:ss", or
+   *       "YYYY-MM-DDThh:mm:ss.uuuuuu". YYYY is an integer year (in extended
+   *       format, this may be more than 4 digits and include an optional
+   *       sign prefix +/-). MM is a 2-digit month in the range 01-12. DD is
+   *       a 2-digit day of month in the appropriate range for the month (i.e.
+   *       28 days for February in non-leap years, 29 days for February in
+   *       leap years, 30 days for April, June, September, and November, and
+   *       31 days for all other months). T is the separator character between
+   *       the date and time portions of the string (strict ISO-8601 requires
+   *       that the character be 'T', but we also allow lower-case 't' and a
+   *       single blank space ' '). hh is a 2-digit hour in the range 00-23.
+   *       mm is a 2-digit minute in the range 00-59. ss is a 2-digit second
+   *       in the range 00-59. uuuuuu is a fractional subsecond part of up to
+   *       six digits (i.e. microsecond resolution). Note that parsing will
+   *       fail if there are any "extra" characters at the end of the string
+   *       after a parsable ISO-8601 date/time.
+   **/
+  bool parseValueFromString(const std::string &value_string,
+                            TypedValue *value) const override;
+
+ private:
+  explicit DatetimeType(const bool nullable)
+      : Type(Type::kOther, kDatetime, nullable, sizeof(DatetimeLit), sizeof(DatetimeLit)) {
+  }
+
+  DISALLOW_COPY_AND_ASSIGN(DatetimeType);
+};
+
+/** @} */
+
+}  // namespace quickstep
+
+#endif  // QUICKSTEP_TYPES_DATETIME_TYPE_HPP_

@@ -1,0 +1,26 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+delete from test where int_col+float_col>0;
+select int_col+float_col from test
+--
++-------------------+
+|(int_col+float_col)|
++-------------------+
+|               NULL|
+|                  0|
+|        -1.26794922|
+|        -2.76393199|
+|          -4.354249|
+|                 -6|
+|               NULL|
+|        -7.68337536|
+|        -9.39444923|
+|        -11.1270161|
+|         -12.876894|
+|        -14.6411009|
+|               NULL|
+|        -16.4174232|
+|        -18.2041683|
++-------------------+

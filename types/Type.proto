@@ -1,0 +1,44 @@
+// This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+// Copyright (c) 2015, Pivotal Software, Inc.
+// All rights reserved.
+// See file CREDITS.txt for details.
+
+syntax = "proto2";
+
+package quickstep.serialization;
+
+message Type {
+  enum TypeID {
+    INT = 0;
+    LONG = 1;
+    FLOAT = 2;
+    DOUBLE = 3;
+    CHAR = 4;
+    VAR_CHAR = 5;
+    DATETIME = 6;
+    DATETIME_INTERVAL = 7;
+    YEAR_MONTH_INTERVAL = 8;
+    NULL_TYPE = 9;
+  }
+
+  required TypeID type_id = 1;
+  required bool nullable = 2;
+
+  // The convention for extension numbering is that extensions for a particular
+  // TypeID should begin from (type_id + 1) * 32.
+  extensions 32 to max;
+}
+
+message CharType {
+  extend Type {
+    // Required when type_id == CHAR.
+    optional uint64 length = 160;
+  }
+}
+
+message VarCharType {
+  extend Type {
+    // Required when type_id == VAR_CHAR.
+    optional uint64 length = 192;
+  }
+}

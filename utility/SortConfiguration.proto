@@ -1,0 +1,19 @@
+// This file copyright (c) 2015, Pivotal Software, Inc.
+// All rights reserved.
+// See file CREDITS.txt for details.
+
+syntax = "proto2";
+
+package quickstep.serialization;
+
+import "expressions/Expressions.proto";
+
+message SortConfiguration {
+  message OrderBy {
+    required Scalar expression = 1;
+    required bool is_ascending = 2;
+    required bool null_first = 3;
+  }
+
+  repeated OrderBy order_by_list = 1;
+}

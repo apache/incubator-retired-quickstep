@@ -1,0 +1,14 @@
+/**
+ * This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+ * All rights reserved.
+ * See file CREDITS.txt for details.
+ **/
+
+#cmakedefine QUICKSTEP_HAVE_GMTIME_R
+#cmakedefine QUICKSTEP_HAVE_GMTIME_S
+#cmakedefine QUICKSTEP_HAVE_LOCALTIME_R
+#cmakedefine QUICKSTEP_HAVE_LOCALTIME_S
+#cmakedefine QUICKSTEP_HAVE_SETENV
+#cmakedefine QUICKSTEP_HAVE_STRNLEN
+#cmakedefine QUICKSTEP_HAVE_TIMEGM
+#cmakedefine QUICKSTEP_HAVE_TZSET

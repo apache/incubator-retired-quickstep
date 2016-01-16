@@ -1,0 +1,17 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+[default optimized_logical_plan physical_plan]
+drop table test
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=DropTable[relation=Test]
++-output_attributes=
+  +-[]
+[Physical Plan]
+TopLevelPlan
++-plan=DropTable[relation=Test]
++-output_attributes=
+  +-[]

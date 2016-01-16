@@ -1,0 +1,43 @@
+// This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+// Copyright (c) 2015, Pivotal Software, Inc.
+// All rights reserved.
+// See file CREDITS.txt for details.
+
+syntax = "proto2";
+
+package quickstep.serialization;
+
+import "expressions/Expressions.proto";
+import "storage/AggregationOperationState.proto";
+import "storage/HashTable.proto";
+import "storage/InsertDestination.proto";
+import "types/containers/Tuple.proto";
+import "utility/SortConfiguration.proto";
+
+message QueryContext {
+  message ScalarGroup {
+    repeated Scalar scalars = 1;
+  }
+
+  message UpdateGroup {
+    message UpdateAssignment {
+      required int32 attribute_id = 1;
+      required Scalar scalar = 2;
+    }
+
+    // NOTE(zuyu): Only used for validating UpdateAssignment's attribute_id.
+    required int32 relation_id = 1;
+    repeated UpdateAssignment update_assignments = 2;
+  }
+
+  repeated AggregationOperationState aggregation_states = 1;
+  repeated HashTable join_hash_tables = 2;
+  repeated InsertDestination insert_destinations = 3;
+  repeated Predicate predicates = 4;
+  repeated ScalarGroup scalar_groups = 5;
+  repeated SortConfiguration sort_configs = 6;
+  repeated Tuple tuples = 7;
+
+  // NOTE(zuyu): For UpdateWorkOrder only.
+  repeated UpdateGroup update_groups = 8;
+}

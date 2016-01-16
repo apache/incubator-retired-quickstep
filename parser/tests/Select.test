@@ -1,0 +1,1360 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+select * from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectStar
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+# If the error location is beyond the end of the SQL,
+# we point the error to the place next to the last character.
+select *
+--
+ERROR: syntax error (1 : 9)
+select *
+        ^
+==
+
+select *;
+--
+ERROR: syntax error (1 : 9)
+select *;
+        ^
+==
+
+select $attr from test
+--
+ERROR: illegal character (1 : 9)
+select $attr from test
+        ^
+==
+
+select 1 "" from test
+--
+ERROR: Zero-length identifier (1 : 11)
+select 1 "" from test
+          ^
+==
+
+select 1 from test as ""
+--
+ERROR: Zero-length identifier (1 : 24)
+select 1 from test as ""
+                       ^
+==
+
+select attr from $test
+--
+ERROR: illegal character (1 : 19)
+select attr from $test
+                  ^
+==
+
+select from test
+--
+ERROR: syntax error (1 : 8)
+select from test
+       ^
+==
+
+select attr1
+--
+ERROR: syntax error (1 : 13)
+select attr1
+            ^
+==
+
+select 1, 2, 3, 4
+--
+ERROR: syntax error (1 : 18)
+select 1, 2, 3, 4
+                 ^
+==
+
+select 1, 2, 1+1, 1-1, 1-1.2+1-2.3, attr1, attr2, attr1+1, attr1+1*2+attr2, attr1+1*(2+attr2) from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=2,float_like=false]
+  | +-SelectListItem
+  | | +-Add
+  | |   +-left_operand=Literal
+  | |   | +-NumericLiteral[numeric_string=1,float_like=false]
+  | |   +-right_operand=Literal
+  | |     +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-SelectListItem
+  | | +-Subtract
+  | |   +-left_operand=Literal
+  | |   | +-NumericLiteral[numeric_string=1,float_like=false]
+  | |   +-right_operand=Literal
+  | |     +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-SelectListItem
+  | | +-Subtract
+  | |   +-left_operand=Add
+  | |   | +-left_operand=Subtract
+  | |   | | +-left_operand=Literal
+  | |   | | | +-NumericLiteral[numeric_string=1,float_like=false]
+  | |   | | +-right_operand=Literal
+  | |   | |   +-NumericLiteral[numeric_string=1.2,float_like=true]
+  | |   | +-right_operand=Literal
+  | |   |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | |   +-right_operand=Literal
+  | |     +-NumericLiteral[numeric_string=2.3,float_like=true]
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=attr1]
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=attr2]
+  | +-SelectListItem
+  | | +-Add
+  | |   +-left_operand=AttributeReference[attribute_name=attr1]
+  | |   +-right_operand=Literal
+  | |     +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-SelectListItem
+  | | +-Add
+  | |   +-left_operand=Add
+  | |   | +-left_operand=AttributeReference[attribute_name=attr1]
+  | |   | +-right_operand=Multiply
+  | |   |   +-left_operand=Literal
+  | |   |   | +-NumericLiteral[numeric_string=1,float_like=false]
+  | |   |   +-right_operand=Literal
+  | |   |     +-NumericLiteral[numeric_string=2,float_like=false]
+  | |   +-right_operand=AttributeReference[attribute_name=attr2]
+  | +-SelectListItem
+  |   +-Add
+  |     +-left_operand=AttributeReference[attribute_name=attr1]
+  |     +-right_operand=Multiply
+  |       +-left_operand=Literal
+  |       | +-NumericLiteral[numeric_string=1,float_like=false]
+  |       +-right_operand=Add
+  |         +-left_operand=Literal
+  |         | +-NumericLiteral[numeric_string=2,float_like=false]
+  |         +-right_operand=AttributeReference[attribute_name=attr2]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select * from 123
+--
+ERROR: syntax error (1 : 15)
+select * from 123
+              ^
+==
+
+# Alias
+select 1 as a, 2+1 as b, 3 a, 4 b from test as a, test a
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem[alias=a]
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-SelectListItem[alias=b]
+  | | +-Add
+  | |   +-left_operand=Literal
+  | |   | +-NumericLiteral[numeric_string=2,float_like=false]
+  | |   +-right_operand=Literal
+  | |     +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-SelectListItem[alias=a]
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=3,float_like=false]
+  | +-SelectListItem[alias=b]
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=4,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+    | +-table_signature=TableSignature[table_alias=a]
+    +-TableReference[table=test]
+      +-table_signature=TableSignature[table_alias=a]
+==
+
+# Column list aliases in FROM.
+select 1 from test test_alias(attr, attr1, attr2, attr3), (select * from test) as subquery(attr1, attr1, attr4)
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+    | +-table_signature=TableSignature[table_alias=test_alias,
+    |   columns=(attr, attr1, attr2, attr3)]
+    +-SubqueryTable
+      +-table_signature=TableSignature[table_alias=subquery,
+      | columns=(attr1, attr1, attr4)]
+      +-SubqueryExpression
+        +-Select
+          +-select_clause=SelectStar
+          +-from_clause=
+            +-TableReference[table=test]
+==
+
+# Table subquery must be named.
+select 1 from (select * from test)
+--
+ERROR: syntax error (1 : 35)
+select 1 from (select * from test)
+                                  ^
+==
+
+select 1 from test test_alias(attr+1)
+--
+ERROR: syntax error (1 : 35)
+select 1 from test test_alias(attr+1)
+                                  ^
+==
+
+select 1 from test as
+--
+ERROR: syntax error (1 : 22)
+select 1 from test as
+                     ^
+==
+
+select 1 as a+1 from test
+--
+ERROR: syntax error (1 : 14)
+select 1 as a+1 from test
+             ^
+==
+
+select 1 from test as a+1
+--
+ERROR: syntax error (1 : 24)
+select 1 from test as a+1
+                       ^
+==
+
+select 1 from test where 1=1 and attr1=1 and attr+1>=1 and attr-1<=1 and attr+1>1 and attr-1<1
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-where_clause=And
+  | +-Equal
+  | | +-left_operand=Literal
+  | | | +-NumericLiteral[numeric_string=1,float_like=false]
+  | | +-right_operand=Literal
+  | |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-Equal
+  | | +-left_operand=AttributeReference[attribute_name=attr1]
+  | | +-right_operand=Literal
+  | |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-GreaterOrEqual
+  | | +-left_operand=Add
+  | | | +-left_operand=AttributeReference[attribute_name=attr]
+  | | | +-right_operand=Literal
+  | | |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | | +-right_operand=Literal
+  | |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-LessOrEqual
+  | | +-left_operand=Subtract
+  | | | +-left_operand=AttributeReference[attribute_name=attr]
+  | | | +-right_operand=Literal
+  | | |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | | +-right_operand=Literal
+  | |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-Greater
+  | | +-left_operand=Add
+  | | | +-left_operand=AttributeReference[attribute_name=attr]
+  | | | +-right_operand=Literal
+  | | |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | | +-right_operand=Literal
+  | |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-Less
+  |   +-left_operand=Subtract
+  |   | +-left_operand=AttributeReference[attribute_name=attr]
+  |   | +-right_operand=Literal
+  |   |   +-NumericLiteral[numeric_string=1,float_like=false]
+  |   +-right_operand=Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select 1 from test where attr between 1 and 2 and attr between 2 and 1
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-where_clause=And
+  | +-Between
+  | | +-check_operand=AttributeReference[attribute_name=attr]
+  | | +-lower_bound_operand=Literal
+  | | | +-NumericLiteral[numeric_string=1,float_like=false]
+  | | +-upper_bound_operand=Literal
+  | |   +-NumericLiteral[numeric_string=2,float_like=false]
+  | +-Between
+  |   +-check_operand=AttributeReference[attribute_name=attr]
+  |   +-lower_bound_operand=Literal
+  |   | +-NumericLiteral[numeric_string=2,float_like=false]
+  |   +-upper_bound_operand=Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select 1 from test where attr not between 1 and 2
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-where_clause=Not
+  | +-Between
+  |   +-check_operand=AttributeReference[attribute_name=attr]
+  |   +-lower_bound_operand=Literal
+  |   | +-NumericLiteral[numeric_string=1,float_like=false]
+  |   +-upper_bound_operand=Literal
+  |     +-NumericLiteral[numeric_string=2,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select 1 from test order by attr, 1
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-order_by=OrderBy
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  | | +-AttributeReference[attribute_name=attr]
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select fun(attr)+1 from test group by fun()+fun(attr), attr1+attr2 having attr1>1 and fun(*)>1
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Add
+  |     +-left_operand=FunctionCall[name=fun]
+  |     | +-AttributeReference[attribute_name=attr]
+  |     +-right_operand=Literal
+  |       +-NumericLiteral[numeric_string=1,float_like=false]
+  +-group_by=GroupBy
+  | +-Add
+  | | +-left_operand=FunctionCall[name=fun]
+  | | +-right_operand=FunctionCall[name=fun]
+  | |   +-AttributeReference[attribute_name=attr]
+  | +-Add
+  |   +-left_operand=AttributeReference[attribute_name=attr1]
+  |   +-right_operand=AttributeReference[attribute_name=attr2]
+  +-having=HAVING
+  | +-And
+  |   +-Greater
+  |   | +-left_operand=AttributeReference[attribute_name=attr1]
+  |   | +-right_operand=Literal
+  |   |   +-NumericLiteral[numeric_string=1,float_like=false]
+  |   +-Greater
+  |     +-left_operand=FunctionCall[name=fun,is_star=true]
+  |     +-right_operand=Literal
+  |       +-NumericLiteral[numeric_string=1,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+# ORDER BY
+select 1 from test order by 1 asc,
+                            2 desc,
+                            3 asc nulls first,
+                            attr1 desc nulls last,
+                            attr1+1 nulls first,
+                            fun(attr)/2
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-order_by=OrderBy
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-OrderByItem[is_asc=false,nulls_first=true]
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=2,float_like=false]
+  | +-OrderByItem[is_asc=true,nulls_first=true]
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=3,float_like=false]
+  | +-OrderByItem[is_asc=false,nulls_first=false]
+  | | +-AttributeReference[attribute_name=attr1]
+  | +-OrderByItem[is_asc=true,nulls_first=true]
+  | | +-Add
+  | |   +-left_operand=AttributeReference[attribute_name=attr1]
+  | |   +-right_operand=Literal
+  | |     +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  |   +-Divide
+  |     +-left_operand=FunctionCall[name=fun]
+  |     | +-AttributeReference[attribute_name=attr]
+  |     +-right_operand=Literal
+  |       +-NumericLiteral[numeric_string=2,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+# Limit
+select 1 from test limit 1
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-limit=LIMIT
+  | +-NumericLiteral[numeric_string=1,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select 1 from test limit 1.1
+--
+ERROR: LIMIT value must be an integer (1 : 26)
+select 1 from test limit 1.1
+                         ^
+==
+
+select 1 from test limit 0
+--
+ERROR: LIMIT value must be positive (1 : 26)
+select 1 from test limit 0
+                         ^
+==
+
+select 1 from test limit -1
+--
+ERROR: syntax error (1 : 26)
+select 1 from test limit -1
+                         ^
+==
+
+select 1 from test limit abc
+--
+ERROR: syntax error (1 : 26)
+select 1 from test limit abc
+                         ^
+==
+
+#
+# Subqueries
+#
+
+# Subqueries in the FROM clause.
+select * from test, (select * from test) as a, (select * from test) a
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectStar
+  +-from_clause=
+    +-TableReference[table=test]
+    +-SubqueryTable
+    | +-table_signature=TableSignature[table_alias=a]
+    | +-SubqueryExpression
+    |   +-Select
+    |     +-select_clause=SelectStar
+    |     +-from_clause=
+    |       +-TableReference[table=test]
+    +-SubqueryTable
+      +-table_signature=TableSignature[table_alias=a]
+      +-SubqueryExpression
+        +-Select
+          +-select_clause=SelectStar
+          +-from_clause=
+            +-TableReference[table=test]
+==
+
+select * from test, select * from test
+--
+ERROR: syntax error (1 : 21)
+select * from test, select * from test
+                    ^
+==
+
+select * from (select * from (select * from (select * from test) a ) a ) a
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectStar
+  +-from_clause=
+    +-SubqueryTable
+      +-table_signature=TableSignature[table_alias=a]
+      +-SubqueryExpression
+        +-Select
+          +-select_clause=SelectStar
+          +-from_clause=
+            +-SubqueryTable
+              +-table_signature=TableSignature[table_alias=a]
+              +-SubqueryExpression
+                +-Select
+                  +-select_clause=SelectStar
+                  +-from_clause=
+                    +-SubqueryTable
+                      +-table_signature=TableSignature[table_alias=a]
+                      +-SubqueryExpression
+                        +-Select
+                          +-select_clause=SelectStar
+                          +-from_clause=
+                            +-TableReference[table=test]
+==
+
+# Subqueries are not supported yet in clauses other than the FROM clause.
+select (select * from test) from test
+--
+ERROR: syntax error (1 : 9)
+select (select * from test) from test
+        ^
+==
+
+select 1 from test where 1 > (select 1 from test)
+--
+ERROR: syntax error (1 : 31)
+select 1 from test where 1 > (select 1 from test)
+                              ^
+==
+
+#
+# WITH clause
+#
+with a (col) as (select 1 from test group by a order by b limit 1),
+     b (col1, col2, col3) as (select * from (select * from test) a),
+     c as (select 1 from test)
+select 1 from a, b, c, d
+--
+SelectStatement
++-select_query=Select
+| +-select_clause=SelectList
+| | +-SelectListItem
+| |   +-Literal
+| |     +-NumericLiteral[numeric_string=1,float_like=false]
+| +-from_clause=
+|   +-TableReference[table=a]
+|   +-TableReference[table=b]
+|   +-TableReference[table=c]
+|   +-TableReference[table=d]
++-with_clause=
+  +-SubqueryTable
+  | +-table_signature=TableSignature[table_alias=a,columns=(col)]
+  | +-SubqueryExpression
+  |   +-Select
+  |     +-select_clause=SelectList
+  |     | +-SelectListItem
+  |     |   +-Literal
+  |     |     +-NumericLiteral[numeric_string=1,float_like=false]
+  |     +-group_by=GroupBy
+  |     | +-AttributeReference[attribute_name=a]
+  |     +-order_by=OrderBy
+  |     | +-OrderByItem[is_asc=true,nulls_first=false]
+  |     |   +-AttributeReference[attribute_name=b]
+  |     +-limit=LIMIT
+  |     | +-NumericLiteral[numeric_string=1,float_like=false]
+  |     +-from_clause=
+  |       +-TableReference[table=test]
+  +-SubqueryTable
+  | +-table_signature=TableSignature[table_alias=b,columns=(col1, col2, col3)]
+  | +-SubqueryExpression
+  |   +-Select
+  |     +-select_clause=SelectStar
+  |     +-from_clause=
+  |       +-SubqueryTable
+  |         +-table_signature=TableSignature[table_alias=a]
+  |         +-SubqueryExpression
+  |           +-Select
+  |             +-select_clause=SelectStar
+  |             +-from_clause=
+  |               +-TableReference[table=test]
+  +-SubqueryTable
+    +-table_signature=TableSignature[table_alias=c]
+    +-SubqueryExpression
+      +-Select
+        +-select_clause=SelectList
+        | +-SelectListItem
+        |   +-Literal
+        |     +-NumericLiteral[numeric_string=1,float_like=false]
+        +-from_clause=
+          +-TableReference[table=test]
+==
+
+with a as (select 1 from test)
+select 1 from a
+--
+SelectStatement
++-select_query=Select
+| +-select_clause=SelectList
+| | +-SelectListItem
+| |   +-Literal
+| |     +-NumericLiteral[numeric_string=1,float_like=false]
+| +-from_clause=
+|   +-TableReference[table=a]
++-with_clause=
+  +-SubqueryTable
+    +-table_signature=TableSignature[table_alias=a]
+    +-SubqueryExpression
+      +-Select
+        +-select_clause=SelectList
+        | +-SelectListItem
+        |   +-Literal
+        |     +-NumericLiteral[numeric_string=1,float_like=false]
+        +-from_clause=
+          +-TableReference[table=test]
+==
+
+# AS cannot be omitted.
+with a (select 1 from test)
+select 1 from a
+--
+ERROR: syntax error (1 : 9)
+with a (select 1 from test)
+        ^
+==
+
+with a as (select 1 from test)
+--
+ERROR: syntax error (1 : 31)
+with a as (select 1 from test)
+                              ^
+==
+
+# The WITH query cannot have WITH.
+with a as (with c select 1 from test)
+select 1 from test
+--
+ERROR: syntax error (1 : 12)
+with a as (with c select 1 from test)
+           ^
+==
+
+with a as (select 1 from test) b
+select 1 from test
+--
+ERROR: syntax error (1 : 32)
+with a as (select 1 from test) b
+                               ^
+==
+
+# Missing comma.
+select a as (select 1 from test) b as (select 1 from test)
+select 1 from test
+--
+ERROR: syntax error (1 : 13)
+select a as (select 1 from test) b as (selec...
+            ^
+==
+
+#
+# Literal values and types.
+#
+
+# Bool literal value is not supported yet.
+select 1 from test where true
+--
+ERROR: syntax error (1 : 26)
+select 1 from test where true
+                         ^
+==
+
+select 1 from test where tb1 = true
+--
+ERROR: syntax error (1 : 32)
+select 1 from test where tb1 = true
+                               ^
+==
+
+# FIXME(chasseur, qzeng): The result is wrong. Add support for hexadecimal literals.
+select 0xfff from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem[alias=xfff]
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=0,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select x'fff' from test
+--
+ERROR: syntax error (1 : 13)
+select x'fff' from test
+            ^
+==
+
+select 123e23, 123e-123, 123e-2+1, 123e-2*2, 123e-123,
+       1e100000000
+from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=123e23,float_like=true]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=123e-123,float_like=true]
+  | +-SelectListItem
+  | | +-Add
+  | |   +-left_operand=Literal
+  | |   | +-NumericLiteral[numeric_string=123e-2,float_like=true]
+  | |   +-right_operand=Literal
+  | |     +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-SelectListItem
+  | | +-Multiply
+  | |   +-left_operand=Literal
+  | |   | +-NumericLiteral[numeric_string=123e-2,float_like=true]
+  | |   +-right_operand=Literal
+  | |     +-NumericLiteral[numeric_string=2,float_like=false]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=123e-123,float_like=true]
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1e100000000,float_like=true]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select 9223372036854775805, 9223372036854775807, 9223372036854775809, -9223372036854775805,
+       -9223372036854775807, -9223372036854775809, 9223372036854775800.8, 1.123456789012345678901234567890,
+       -9223372036854775800.8, -1.123456789012345678901234567890
+from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=9223372036854775805,float_like=false]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=9223372036854775807,float_like=false]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=9223372036854775809,float_like=false]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=-9223372036854775805,float_like=false]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=-9223372036854775807,float_like=false]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=-9223372036854775809,float_like=false]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=9223372036854775800.8,float_like=true]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=1.123456789012345678901234567890,
+  | |     float_like=true]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=-9223372036854775800.8,float_like=true]
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=-1.123456789012345678901234567890,
+  |       float_like=true]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+# Escape characters.
+select 1, e'$asdfg\'\'\"\"\t\r\n' from test where char_col = e'\'asdfg\''
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-SelectListItem
+  |   +-Literal
+  |     +-StringLiteral[value=$asdfg''""	
+]
+  +-where_clause=Equal
+  | +-left_operand=AttributeReference[attribute_name=char_col]
+  | +-right_operand=Literal
+  |   +-StringLiteral[value='asdfg']
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+# Double-quoted strings are identifiers, which do not need to be escaped.
+select 1 "abc\n" from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem[alias=abc\n]
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select 1 "abc
+
+def
+" from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem[alias=abc
+
+def
+]
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+# Currently predicate is not treated as a regular scalar expression.
+select 1 from test where (1>1)=(1<1)
+--
+ERROR: syntax error (1 : 31)
+select 1 from test where (1>1)=(1<1)
+                              ^
+==
+
+select 1 """this is a double-quoted string""", 2 "this is not a double-quoted string" from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem[alias="this is a double-quoted string"]
+  | | +-Literal
+  | |   +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-SelectListItem[alias=this is not a double-quoted string]
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=2,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+#
+# DateTime and Interval
+#
+
+select '1998-12-01',
+       date '1998-12-01'
+from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1998-12-01]
+  | +-SelectListItem
+  |   +-Literal
+  |     +-StringLiteral[value=1998-12-01,explicit_type=Datetime]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+# Year before 1970.
+select date '1960-12-12',
+       date '1901-12-14' from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1960-12-12,explicit_type=Datetime]
+  | +-SelectListItem
+  |   +-Literal
+  |     +-StringLiteral[value=1901-12-14,explicit_type=Datetime]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select date '1998-2-12', date '1998-12-2' from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1998-2-12,explicit_type=Datetime]
+  | +-SelectListItem
+  |   +-Literal
+  |     +-StringLiteral[value=1998-12-2,explicit_type=Datetime]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select date '+1921-12-12',
+       date '+10001-12-12'
+from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=+1921-12-12,explicit_type=Datetime]
+  | +-SelectListItem
+  |   +-Literal
+  |     +-StringLiteral[value=+10001-12-12,explicit_type=Datetime]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select date 'a1998-12-12' from test
+--
+ERROR: Failed to parse literal as specified type (1 : 25)
+select date 'a1998-12-12' from test
+                        ^
+==
+
+select date '1998-a12-b12' from test
+--
+ERROR: Failed to parse literal as specified type (1 : 26)
+select date '1998-a12-b12' from test
+                         ^
+==
+
+select date '1998-+12-12' from test
+--
+ERROR: Failed to parse literal as specified type (1 : 25)
+select date '1998-+12-12' from test
+                        ^
+==
+
+select date '1998-12-12abc' from test
+--
+ERROR: Failed to parse literal as specified type (1 : 27)
+select date '1998-12-12abc' from test
+                          ^
+==
+
+select date '1998/12/12' from test
+--
+ERROR: Failed to parse literal as specified type (1 : 24)
+select date '1998/12/12' from test
+                       ^
+==
+
+select date '1996-02-29',
+       date '1997-03-31',
+       date '1998-04-30' from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1996-02-29,explicit_type=Datetime]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1997-03-31,explicit_type=Datetime]
+  | +-SelectListItem
+  |   +-Literal
+  |     +-StringLiteral[value=1998-04-30,explicit_type=Datetime]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select date '1999-02-29' from test
+--
+ERROR: Failed to parse literal as specified type (1 : 24)
+select date '1999-02-29' from test
+                       ^
+==
+
+# Quickstep accepts time in the DATE type.
+select date '2007-05-08 12:35:29',
+       date '2007-05-08 12:35:29.010'
+from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=2007-05-08 12:35:29,explicit_type=Datetime]
+  | +-SelectListItem
+  |   +-Literal
+  |     +-StringLiteral[value=2007-05-08 12:35:29.010,explicit_type=Datetime]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select date '1999-04-31' from test
+--
+ERROR: Failed to parse literal as specified type (1 : 24)
+select date '1999-04-31' from test
+                       ^
+==
+
+select 1 from test where attr_date <= date '1998-12-01' - interval '96 day'
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-where_clause=LessOrEqual
+  | +-left_operand=AttributeReference[attribute_name=attr_date]
+  | +-right_operand=Subtract
+  |   +-left_operand=Literal
+  |   | +-StringLiteral[value=1998-12-01,explicit_type=Datetime]
+  |   +-right_operand=Literal
+  |     +-StringLiteral[value=96 day,explicit_type=DatetimeInterval]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select interval '1 us', interval '1 ms', interval '1 s', interval '1 minute',
+           interval '1 h', interval '1 day', interval '1 week',
+           interval '1 month', interval '1 year', interval '1 decade',
+           interval '1 century', interval '1 millennium',
+       datetime interval '1 us', datetime interval '1 ms',
+           datetime interval '1 s', datetime interval '1 minute',
+           datetime interval '1 h', datetime interval '1 day',
+           datetime interval '1 week', yearmonth interval '1 month',
+           yearmonth interval '1 year', yearmonth interval '1 decade',
+           yearmonth interval '1 century', yearmonth interval '1 millennium'
+from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 us,explicit_type=DatetimeInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 ms,explicit_type=DatetimeInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 s,explicit_type=DatetimeInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 minute,explicit_type=DatetimeInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 h,explicit_type=DatetimeInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 day,explicit_type=DatetimeInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 week,explicit_type=DatetimeInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 month,explicit_type=YearMonthInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 year,explicit_type=YearMonthInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 decade,explicit_type=YearMonthInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 century,explicit_type=YearMonthInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 millennium,explicit_type=YearMonthInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 us,explicit_type=DatetimeInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 ms,explicit_type=DatetimeInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 s,explicit_type=DatetimeInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 minute,explicit_type=DatetimeInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 h,explicit_type=DatetimeInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 day,explicit_type=DatetimeInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 week,explicit_type=DatetimeInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 month,explicit_type=YearMonthInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 year,explicit_type=YearMonthInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 decade,explicit_type=YearMonthInterval]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1 century,explicit_type=YearMonthInterval]
+  | +-SelectListItem
+  |   +-Literal
+  |     +-StringLiteral[value=1 millennium,explicit_type=YearMonthInterval]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select interval '4 day' (1)
+from test
+--
+ERROR: syntax error (1 : 25)
+select interval '4 day' (1)
+                        ^
+==
+
+select interval '2 moth' from test
+--
+ERROR: Failed to parse literal as specified type (1 : 24)
+select interval '2 moth' from test
+                       ^
+==
+
+select interval '-3 year' from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-StringLiteral[value=-3 year,explicit_type=YearMonthInterval]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select interval 'a 3 year' from test
+--
+ERROR: Failed to parse literal as specified type (1 : 26)
+select interval 'a 3 year' from test
+                         ^
+==
+
+select interval '5-3 year to month' from test
+--
+ERROR: Failed to parse literal as specified type (1 : 35)
+select interval '5-3 year to month' from test
+                                  ^
+==
+
+select interval '5-3 day to second' from test
+--
+ERROR: Failed to parse literal as specified type (1 : 35)
+select interval '5-3 day to second' from test
+                                  ^
+==
+
+#
+# Minus sign in arithmetic expressions is parsed as the subtraction
+# or negation operation, not as the notation of a negative value.
+#
+
+select 1-1  from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Subtract
+  |     +-left_operand=Literal
+  |     | +-NumericLiteral[numeric_string=1,float_like=false]
+  |     +-right_operand=Literal
+  |       +-NumericLiteral[numeric_string=1,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select 1 - 1 from test
+--
+[same as above]
+==
+
+select 1--1 from test
+--
+ERROR: syntax error (1 : 22)
+select 1--1 from test
+                     ^
+==
+
+select 1+-1 from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Add
+  |     +-left_operand=Literal
+  |     | +-NumericLiteral[numeric_string=1,float_like=false]
+  |     +-right_operand=Literal
+  |       +-NumericLiteral[numeric_string=-1,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select 1-1+-1 from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Add
+  |     +-left_operand=Subtract
+  |     | +-left_operand=Literal
+  |     | | +-NumericLiteral[numeric_string=1,float_like=false]
+  |     | +-right_operand=Literal
+  |     |   +-NumericLiteral[numeric_string=1,float_like=false]
+  |     +-right_operand=Literal
+  |       +-NumericLiteral[numeric_string=-1,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select 1+(-1) from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Add
+  |     +-left_operand=Literal
+  |     | +-NumericLiteral[numeric_string=1,float_like=false]
+  |     +-right_operand=Literal
+  |       +-NumericLiteral[numeric_string=-1,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+# Quit statement
+quit
+--
+QuitStatement
+==
+
+# Literals with various explicit types.
+select int '1', long '1', float '1', double '1', char(42) 'foo', varchar(42) 'bar' from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1,explicit_type=Int]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1,explicit_type=Long]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1,explicit_type=Float]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=1,explicit_type=Double]
+  | +-SelectListItem
+  | | +-Literal
+  | |   +-StringLiteral[value=foo,explicit_type=Char(42)]
+  | +-SelectListItem
+  |   +-Literal
+  |     +-StringLiteral[value=bar,explicit_type=VarChar(42)]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+# Value needs to be quoted when giving an explicit type.
+select int 1 from test
+--
+ERROR: syntax error (1 : 12)
+select int 1 from test
+           ^
+==
+
+# Explicit type that can't parse the supplied string.
+select int 'foo' from test
+--
+ERROR: Failed to parse literal as specified type (1 : 16)
+select int 'foo' from test
+               ^
+==
+
+# Various floats that, while not in the canonical print format, are still
+# acceptable according to the SQL standard.
+select 1. from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1.,float_like=true]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select .1 from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=.1,float_like=true]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select 1.e1 from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1.e1,float_like=true]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select .1e1 from test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=.1e1,float_like=true]
+  +-from_clause=
+    +-TableReference[table=test]

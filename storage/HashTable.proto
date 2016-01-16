@@ -1,0 +1,24 @@
+// This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+// Copyright (c) 2015, Pivotal Software, Inc.
+// All rights reserved.
+// See file CREDITS.txt for details.
+
+syntax = "proto2";
+
+package quickstep.serialization;
+
+import "types/Type.proto";
+
+enum HashTableImplType {
+  LINEAR_OPEN_ADDRESSING = 0;
+  SEPARATE_CHAINING = 1;
+}
+
+// NOTE(chasseur): This proto describes the run-time parameters for a resizable
+// HashTable. It does not describe any template parameters of the HashTable
+// class, which are different in different contexts (e.g. join vs. grouping).
+message HashTable {
+  required HashTableImplType hash_table_impl_type = 1;
+  repeated Type key_types = 2;
+  required uint64 estimated_num_entries = 3;
+}

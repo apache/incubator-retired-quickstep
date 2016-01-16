@@ -1,0 +1,96 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# Copyright (c) 2015, Pivotal Software, Inc.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+# Declare micro-libs:
+add_library(quickstep_queryoptimizer_resolver_NameResolver NameResolver.cpp NameResolver.hpp)
+add_library(quickstep_queryoptimizer_resolver_Resolver Resolver.cpp Resolver.hpp)
+
+# Link dependencies:
+target_link_libraries(quickstep_queryoptimizer_resolver_NameResolver
+                      glog
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogRelation
+                      quickstep_parser_ParseString
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_logical_Logical
+                      quickstep_utility_Macros
+                      quickstep_utility_SqlError
+                      quickstep_utility_StringUtil)
+target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
+                      glog
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_expressions_aggregation_AggregateFunction
+                      quickstep_expressions_aggregation_AggregateFunctionFactory
+                      quickstep_parser_ParseAssignment
+                      quickstep_parser_ParseBasicExpressions
+                      quickstep_parser_ParseExpression
+                      quickstep_parser_ParseGroupBy
+                      quickstep_parser_ParseHaving
+                      quickstep_parser_ParseLimit
+                      quickstep_parser_ParseLiteralValue
+                      quickstep_parser_ParseOrderBy
+                      quickstep_parser_ParsePredicate
+                      quickstep_parser_ParseSelect
+                      quickstep_parser_ParseSelectionClause
+                      quickstep_parser_ParseSimpleTableReference
+                      quickstep_parser_ParseStatement
+                      quickstep_parser_ParseString
+                      quickstep_parser_ParseSubqueryExpression
+                      quickstep_parser_ParseSubqueryTableReference
+                      quickstep_parser_ParseTableReference
+                      quickstep_queryoptimizer_OptimizerContext
+                      quickstep_queryoptimizer_Validator
+                      quickstep_queryoptimizer_expressions_AggregateFunction
+                      quickstep_queryoptimizer_expressions_Alias
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_BinaryExpression
+                      quickstep_queryoptimizer_expressions_Cast
+                      quickstep_queryoptimizer_expressions_ComparisonExpression
+                      quickstep_queryoptimizer_expressions_ExprId
+                      quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_expressions_LogicalAnd
+                      quickstep_queryoptimizer_expressions_LogicalNot
+                      quickstep_queryoptimizer_expressions_LogicalOr
+                      quickstep_queryoptimizer_expressions_NamedExpression
+                      quickstep_queryoptimizer_expressions_PatternMatcher
+                      quickstep_queryoptimizer_expressions_Predicate
+                      quickstep_queryoptimizer_expressions_PredicateLiteral
+                      quickstep_queryoptimizer_expressions_Scalar
+                      quickstep_queryoptimizer_expressions_ScalarLiteral
+                      quickstep_queryoptimizer_expressions_UnaryExpression
+                      quickstep_queryoptimizer_logical_Aggregate
+                      quickstep_queryoptimizer_logical_CopyFrom
+                      quickstep_queryoptimizer_logical_CreateTable
+                      quickstep_queryoptimizer_logical_DeleteTuples
+                      quickstep_queryoptimizer_logical_DropTable
+                      quickstep_queryoptimizer_logical_Filter
+                      quickstep_queryoptimizer_logical_InsertTuple
+                      quickstep_queryoptimizer_logical_Logical
+                      quickstep_queryoptimizer_logical_MultiwayCartesianJoin
+                      quickstep_queryoptimizer_logical_Project
+                      quickstep_queryoptimizer_logical_SharedSubplanReference
+                      quickstep_queryoptimizer_logical_Sort
+                      quickstep_queryoptimizer_logical_TableReference
+                      quickstep_queryoptimizer_logical_TopLevelPlan
+                      quickstep_queryoptimizer_logical_UpdateTable
+                      quickstep_queryoptimizer_resolver_NameResolver
+                      quickstep_types_IntType
+                      quickstep_types_Type
+                      quickstep_types_TypeFactory
+                      quickstep_types_operations_binaryoperations_BinaryOperation
+                      quickstep_types_operations_comparisons_Comparison
+                      quickstep_types_operations_comparisons_ComparisonFactory
+                      quickstep_types_operations_comparisons_ComparisonID
+                      quickstep_types_operations_unaryoperations_UnaryOperation
+                      quickstep_utility_Macros
+                      quickstep_utility_PtrList
+                      quickstep_utility_SqlError
+                      quickstep_utility_StringUtil)
+
+# Module all-in-one library:
+add_library(quickstep_queryoptimizer_resolver ../../empty_src.cpp QueryResolverModule.hpp)
+target_link_libraries(quickstep_queryoptimizer_resolver
+                      quickstep_queryoptimizer_resolver_NameResolver
+                      quickstep_queryoptimizer_resolver_Resolver)

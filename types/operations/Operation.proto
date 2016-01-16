@@ -1,0 +1,69 @@
+// This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+// Copyright (c) 2015, Pivotal Software, Inc.
+// All rights reserved.
+// See file CREDITS.txt for details.
+
+syntax = "proto2";
+
+package quickstep.serialization;
+
+import "types/Type.proto";
+
+message Comparison {
+  enum ComparisonID {
+    EQUAL = 0;
+    NOT_EQUAL = 1;
+    LESS = 2;
+    LESS_OR_EQUAL = 3;
+    GREATER = 4;
+    GREATER_OR_EQUAL = 5;
+  }
+
+  required ComparisonID comparison_id = 1;
+}
+
+message UnaryOperation {
+  enum UnaryOperationID {
+    NEGATE = 0;
+    CAST = 1;
+    DATE_EXTRACT = 2;
+  }
+
+  required UnaryOperationID operation_id = 1;
+
+  extensions 32 to max;
+}
+
+message CastOperation {
+  extend UnaryOperation {
+    // Required when operation_id = CAST.
+    optional Type target_type = 64;
+  }
+}
+
+message DateExtractOperation {
+  enum Unit {
+    YEAR = 0;
+    MONTH = 1;
+    DAY = 2;
+    HOUR = 3;
+    MINUTE = 4;
+    SECOND = 5;
+  }
+
+  extend UnaryOperation {
+    // Required when operation_id = DATE_EXTRACT.
+    optional Unit unit = 96;
+  }
+}
+
+message BinaryOperation {
+  enum BinaryOperationID {
+    ADD = 0;
+    SUBTRACT = 1;
+    MULTIPLY = 2;
+    DIVIDE = 3;
+  }
+
+  required BinaryOperationID operation_id = 1;
+}

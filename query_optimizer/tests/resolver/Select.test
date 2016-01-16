@@ -1,0 +1,2279 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+# Query identifiers are case-insensitive.
+[default initial_logical_plan]
+select a.int_col, A.INT_cOL, b.FLOAT_COL, c.flOAT_Col from Test as A, tEsT as B, teSt as c
+--
+TopLevelPlan
++-plan=Project
+| +-input=MultiwayCartesianJoin
+| | +-TableReference[relation_name=Test,relation_alias=A]
+| | | +-AttributeReference[id=0,name=int_col,relation=A,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=A,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=A,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=A,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=A,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=A,type=VarChar(20) NULL]
+| | +-TableReference[relation_name=Test,relation_alias=B]
+| | | +-AttributeReference[id=6,name=int_col,relation=B,type=Int NULL]
+| | | +-AttributeReference[id=7,name=long_col,relation=B,type=Long]
+| | | +-AttributeReference[id=8,name=float_col,relation=B,type=Float]
+| | | +-AttributeReference[id=9,name=double_col,relation=B,type=Double NULL]
+| | | +-AttributeReference[id=10,name=char_col,relation=B,type=Char(20)]
+| | | +-AttributeReference[id=11,name=vchar_col,relation=B,type=VarChar(20) NULL]
+| | +-TableReference[relation_name=Test,relation_alias=c]
+| |   +-AttributeReference[id=12,name=int_col,relation=c,type=Int NULL]
+| |   +-AttributeReference[id=13,name=long_col,relation=c,type=Long]
+| |   +-AttributeReference[id=14,name=float_col,relation=c,type=Float]
+| |   +-AttributeReference[id=15,name=double_col,relation=c,type=Double NULL]
+| |   +-AttributeReference[id=16,name=char_col,relation=c,type=Char(20)]
+| |   +-AttributeReference[id=17,name=vchar_col,relation=c,type=VarChar(20) NULL]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=A,type=Int NULL]
+|   +-AttributeReference[id=0,name=int_col,relation=A,type=Int NULL]
+|   +-AttributeReference[id=8,name=float_col,relation=B,type=Float]
+|   +-AttributeReference[id=14,name=float_col,relation=c,type=Float]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=A,type=Int NULL]
+  +-AttributeReference[id=0,name=int_col,relation=A,type=Int NULL]
+  +-AttributeReference[id=8,name=float_col,relation=B,type=Float]
+  +-AttributeReference[id=14,name=float_col,relation=c,type=Float]
+==
+
+select * from Test as A, Test as a
+--
+ERROR: Relation alias a appears more than once (1 : 34)
+select * from Test as A, Test as a
+                                 ^
+==
+
+select * from undefined_table
+--
+ERROR: Unrecognized relation undefined_table (1 : 15)
+select * from undefined_table
+              ^
+==
+
+select int_col from Test as a, Test
+--
+ERROR: Ambiguous attribute int_col (1 : 8)
+select int_col from Test as a, Test
+       ^
+==
+
+select 1+int_col from Test as a, Test
+--
+ERROR: Ambiguous attribute int_col (1 : 10)
+select 1+int_col from Test as a, Test
+         ^
+==
+
+select 1 from test as a, Test where 1+int_col > a.float_col
+--
+ERROR: Ambiguous attribute int_col (1 : 39)
+select 1 from test as a, Test where 1+int_col > a.float_col
+                                      ^
+==
+
+select 1 from Test as a, test
+--
+TopLevelPlan
++-plan=Project
+| +-input=MultiwayCartesianJoin
+| | +-TableReference[relation_name=Test,relation_alias=a]
+| | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=a,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=a,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=a,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=a,type=VarChar(20) NULL]
+| | +-TableReference[relation_name=Test,relation_alias=test]
+| |   +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
+| |   +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
+| |   +-AttributeReference[id=8,name=float_col,relation=test,type=Float]
+| |   +-AttributeReference[id=9,name=double_col,relation=test,type=Double NULL]
+| |   +-AttributeReference[id=10,name=char_col,relation=test,type=Char(20)]
+| |   +-AttributeReference[id=11,name=vchar_col,relation=test,
+| |     type=VarChar(20) NULL]
+| +-project_list=
+|   +-Alias[id=12,name=,alias=1,relation=,type=Int]
+|     +-Literal[value=1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=12,name=,alias=1,relation=,type=Int]
+==
+
+# Subqueries.
+select * from (select * from test) as a
+--
+TopLevelPlan
++-plan=Project
+| +-input=Project
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-project_list=
+| |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| |     type=VarChar(20) NULL]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+|   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+|   +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+  +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+  +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+  +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+  +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+  +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+==
+
+select * from (select * from test) a, test a
+--
+ERROR: Relation alias a appears more than once (1 : 44)
+select * from (select * from test) a, test a
+                                           ^
+==
+
+select int_col, a.int_col, float_col, a.float_col from (select * from test) as a
+--
+TopLevelPlan
++-plan=Project
+| +-input=Project
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-project_list=
+| |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| |     type=VarChar(20) NULL]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+  +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+  +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+  +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+==
+
+select int_col from (select float_col from test) as a
+--
+ERROR: Unrecognized attribute int_col (1 : 8)
+select int_col from (select float_col...
+       ^
+==
+
+select int_col from (select int_col from test) as a
+--
+TopLevelPlan
++-plan=Project
+| +-input=Project
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-project_list=
+| |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+==
+
+select int_col from (select float_col int_col from (select float_col from test) as a) as a
+--
+TopLevelPlan
++-plan=Project
+| +-input=Project
+| | +-input=Project
+| | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-project_list=
+| | |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-project_list=
+| |   +-Alias[id=2,name=int_col,relation=a,type=Float]
+| |     +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| +-project_list=
+|   +-AttributeReference[id=2,name=int_col,relation=a,type=Float]
++-output_attributes=
+  +-AttributeReference[id=2,name=int_col,relation=a,type=Float]
+==
+
+select int_col from (select * from (select float_col from test) as a) as a
+--
+ERROR: Unrecognized attribute int_col (1 : 8)
+select int_col from (select * from (selec...
+       ^
+==
+
+select a, b from (select int_col as a, float_col as b from (select int_col, float_col from test) as a) as a
+--
+TopLevelPlan
++-plan=Project
+| +-input=Project
+| | +-input=Project
+| | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-project_list=
+| | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-project_list=
+| |   +-Alias[id=0,name=a,relation=a,type=Int NULL]
+| |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   +-Alias[id=2,name=b,relation=a,type=Float]
+| |     +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| +-project_list=
+|   +-AttributeReference[id=0,name=a,relation=a,type=Int NULL]
+|   +-AttributeReference[id=2,name=b,relation=a,type=Float]
++-output_attributes=
+  +-AttributeReference[id=0,name=a,relation=a,type=Int NULL]
+  +-AttributeReference[id=2,name=b,relation=a,type=Float]
+==
+
+select a, b from (select a as b, b as a from (select int_col a, float_col b from test) as a ) as a
+--
+TopLevelPlan
++-plan=Project
+| +-input=Project
+| | +-input=Project
+| | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-project_list=
+| | |   +-Alias[id=0,name=a,relation=a,type=Int NULL]
+| | |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-Alias[id=2,name=b,relation=a,type=Float]
+| | |     +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-project_list=
+| |   +-Alias[id=0,name=b,relation=a,type=Int NULL]
+| |   | +-AttributeReference[id=0,name=a,relation=a,type=Int NULL]
+| |   +-Alias[id=2,name=a,relation=a,type=Float]
+| |     +-AttributeReference[id=2,name=b,relation=a,type=Float]
+| +-project_list=
+|   +-AttributeReference[id=2,name=a,relation=a,type=Float]
+|   +-AttributeReference[id=0,name=b,relation=a,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=2,name=a,relation=a,type=Float]
+  +-AttributeReference[id=0,name=b,relation=a,type=Int NULL]
+==
+
+# Use different type of scalar and predicate expressions.
+select -1, 1+2, -float_col, int_col+int_col-int_col*float_col/double_col, char_col, vchar_col
+from test
+where 1!=1 and int_col+1=float_col and int_col-1>double_col and double_col<float_col-5 or double_col != 1
+      and not(int_col>2*int_col)
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-filter_predicate=Or
+| |   +-And
+| |   | +-NotEqual
+| |   | | +-Literal[value=1,type=Int]
+| |   | | +-Literal[value=1,type=Int]
+| |   | +-Equal
+| |   | | +-Add
+| |   | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   | | | +-Literal[value=1,type=Int]
+| |   | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |   | +-Greater
+| |   | | +-Subtract
+| |   | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   | | | +-Literal[value=1,type=Int]
+| |   | | +-AttributeReference[id=3,name=double_col,relation=test,
+| |   | |   type=Double NULL]
+| |   | +-Less
+| |   |   +-AttributeReference[id=3,name=double_col,relation=test,
+| |   |   | type=Double NULL]
+| |   |   +-Subtract
+| |   |     +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |   |     +-Literal[value=5,type=Int]
+| |   +-And
+| |     +-NotEqual
+| |     | +-AttributeReference[id=3,name=double_col,relation=test,
+| |     | | type=Double NULL]
+| |     | +-Literal[value=1,type=Int]
+| |     +-NOT
+| |       +-Greater
+| |         +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |         +-Multiply
+| |           +-Literal[value=2,type=Int]
+| |           +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=-1,relation=,type=Int]
+|   | +-Literal[value=-1,type=Int]
+|   +-Alias[id=7,name=,alias=(1+2),relation=,type=Int]
+|   | +-Add
+|   |   +-Literal[value=1,type=Int]
+|   |   +-Literal[value=2,type=Int]
+|   +-Alias[id=8,name=,alias=-float_col,relation=,type=Float]
+|   | +-Negate
+|   |   +-Operand=AttributeReference[id=2,name=float_col,relation=test,
+|   |     type=Float]
+|   +-Alias[id=9,name=,
+|   | alias=((int_col+int_col)-((int_col*float_col)/double_col)),relation=,
+|   | type=Double NULL]
+|   | +-Subtract
+|   |   +-Add
+|   |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |   +-Divide
+|   |     +-Multiply
+|   |     | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |     | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   |     +-AttributeReference[id=3,name=double_col,relation=test,
+|   |       type=Double NULL]
+|   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+|   +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=-1,relation=,type=Int]
+  +-AttributeReference[id=7,name=,alias=(1+2),relation=,type=Int]
+  +-AttributeReference[id=8,name=,alias=-float_col,relation=,type=Float]
+  +-AttributeReference[id=9,name=,
+  | alias=((int_col+int_col)-((int_col*float_col)/double_col)),relation=,
+  | type=Double NULL]
+  +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+  +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+==
+
+# Invalid comparison.
+select 1 from test where int_col>char_col
+--
+ERROR: Comparison operation Greater cannot be applied between Int NULL and Char(20) (1 : 33)
+select 1 from test where int_col>char_col
+                                ^
+==
+
+select 1 from test where int_col != vchar_col
+--
+ERROR: Comparison operation NotEqual cannot be applied between Int NULL and VarChar(20) NULL (1 : 34)
+select 1 from test where int_col != vchar_col
+                                 ^
+==
+
+# Invalid binary operation.
+select 1+char_col from test
+--
+ERROR: Can not apply binary operation "Add" to arguments of types Int and Char(20) (1 : 9)
+select 1+char_col from test
+        ^
+==
+
+select 1/char_col from test
+--
+ERROR: Can not apply binary operation "Divide" to arguments of types Int and Char(20) (1 : 9)
+select 1/char_col from test
+        ^
+==
+
+# Invalid unary operation.
+select -char_col from test
+--
+ERROR: Can not apply unary operation "Negate" to argument of type Char(20) (1 : 8)
+select -char_col from test
+       ^
+==
+
+select 1 from test where int_col between 1+int_col and 3 and float_col not between 100 and 200.5
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-filter_predicate=And
+| |   +-LessOrEqual
+| |   | +-Add
+| |   | | +-Literal[value=1,type=Int]
+| |   | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   +-LessOrEqual
+| |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   | +-Literal[value=3,type=Int]
+| |   +-NOT
+| |     +-And
+| |       +-LessOrEqual
+| |       | +-Literal[value=100,type=Int]
+| |       | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |       +-LessOrEqual
+| |         +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |         +-Literal[value=200.5,type=Double]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=1,relation=,type=Int]
+|     +-Literal[value=1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=1,relation=,type=Int]
+==
+
+select 1 from test where int_col between 1 and 'cde'
+--
+ERROR: Comparison operation LessOrEqual cannot be applied between Int NULL and VarChar(3) (1 : 48)
+...1 from test where int_col between 1 and 'cde'
+                                           ^
+==
+
+select 1 from test where char_col between 'cde' and 1.2
+--
+ERROR: Comparison operation LessOrEqual cannot be applied between Char(20) and Double (1 : 53)
+...from test where char_col between 'cde' and 1.2
+                                              ^
+==
+
+select 1 from test where char_col between 'abc' and 'cde'
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-filter_predicate=And
+| |   +-LessOrEqual
+| |   | +-Literal[value=abc,type=VarChar(3)]
+| |   | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| |   +-LessOrEqual
+| |     +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| |     +-Literal[value=cde,type=VarChar(3)]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=1,relation=,type=Int]
+|     +-Literal[value=1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=1,relation=,type=Int]
+==
+
+# NULL tests
+# NULL can be appropriately casted to make the binary or comparison expressions valid.
+select null, null+1
+from test
+where null=null and null!=long_col and null != 'string_literal' and null = char_col
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-filter_predicate=And
+| |   +-Literal[value=false]
+| |   +-Literal[value=false]
+| |   +-Literal[value=false]
+| |   +-Literal[value=false]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=NULL,relation=,type=NullType NULL]
+|   | +-Literal[value=NULL,type=NullType NULL]
+|   +-Alias[id=7,name=,alias=(NULL+1),relation=,type=NullType NULL]
+|     +-Literal[value=NULL,type=NullType NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=NULL,relation=,type=NullType NULL]
+  +-AttributeReference[id=7,name=,alias=(NULL+1),relation=,type=NullType NULL]
+==
+
+select -null from test
+--
+TopLevelPlan
++-plan=Project
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=-NULL,relation=,type=NullType NULL]
+|     +-Literal[value=NULL,type=NullType NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=-NULL,relation=,type=NullType NULL]
+==
+
+select 1 from test where -null='string_literal'
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-filter_predicate=Literal[value=false]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=1,relation=,type=Int]
+|     +-Literal[value=1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=1,relation=,type=Int]
+==
+
+# More tests for aggregation are in Aggregate.test.
+select 1 from test group by int_col+1
+--
+TopLevelPlan
++-plan=Project
+| +-input=Aggregate
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-grouping_expressions=
+| | | +-Alias[id=7,name=,alias=$groupby0,relation=$groupby,type=Int NULL]
+| | |   +-Add
+| | |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |     +-Literal[value=1,type=Int]
+| | +-aggregate_expressions=
+| |   +-[]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=1,relation=,type=Int]
+|     +-Literal[value=1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=1,relation=,type=Int]
+==
+
+select 1 from test having int_col+1 < 1
+--
+ERROR: Expression contains an attribute int_col, which is neither a GROUP BY expression nor in an aggregate expression (1 : 37)
+select 1 from test having int_col+1 < 1
+                                    ^
+==
+
+select 1 from test order by int_col+1, float_col+int_col desc, char_col asc
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true,false,true],nulls_first=[false,true,false]]
+| | +-input=Project
+| | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-project_list=
+| | |   +-Alias[id=7,name=,alias=$orderby0,relation=$orderby,type=Int NULL]
+| | |   | +-Add
+| | |   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   |   +-Literal[value=1,type=Int]
+| | |   +-Alias[id=8,name=,alias=$orderby1,relation=$orderby,type=Float NULL]
+| | |   | +-Add
+| | |   |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | |   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | |   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |     type=VarChar(20) NULL]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=7,name=,alias=$orderby0,relation=$orderby,
+| |   | type=Int NULL]
+| |   +-AttributeReference[id=8,name=,alias=$orderby1,relation=$orderby,
+| |   | type=Float NULL]
+| |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=1,relation=,type=Int]
+|     +-Literal[value=1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=1,relation=,type=Int]
+==
+
+#
+# Alias reference tests.
+#
+
+# Alias references in group by order by and having
+select int_col a, long_col b from test
+group by a, b
+having a>b
+order by a, b desc
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true,false],nulls_first=[false,true]]
+| | +-input=Filter
+| | | +-input=Aggregate
+| | | | +-input=Project
+| | | | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | | | +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | | | | type=Double NULL]
+| | | | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | | |   type=VarChar(20) NULL]
+| | | | | +-project_list=
+| | | | |   +-Alias[id=0,name=a,relation=,type=Int NULL]
+| | | | |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | |   +-Alias[id=1,name=b,relation=,type=Long]
+| | | | |   | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | |   +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | |   | type=Double NULL]
+| | | | |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | |     type=VarChar(20) NULL]
+| | | | +-grouping_expressions=
+| | | | | +-AttributeReference[id=0,name=a,relation=,type=Int NULL]
+| | | | | +-AttributeReference[id=1,name=b,relation=,type=Long]
+| | | | +-aggregate_expressions=
+| | | |   +-[]
+| | | +-filter_predicate=Greater
+| | |   +-AttributeReference[id=0,name=a,relation=,type=Int NULL]
+| | |   +-AttributeReference[id=1,name=b,relation=,type=Long]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=0,name=a,relation=,type=Int NULL]
+| |   +-AttributeReference[id=1,name=b,relation=,type=Long]
+| +-project_list=
+|   +-AttributeReference[id=0,name=a,relation=,type=Int NULL]
+|   +-AttributeReference[id=1,name=b,relation=,type=Long]
++-output_attributes=
+  +-AttributeReference[id=0,name=a,relation=,type=Int NULL]
+  +-AttributeReference[id=1,name=b,relation=,type=Long]
+==
+
+# Needs to precompute the select-list expression before group by.
+select int_col+1 a from test
+group by a, a+a, a*2
+order by a, a+a, a*2
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true,true,true],nulls_first=[false,false,false]]
+| | +-input=Project
+| | | +-input=Aggregate
+| | | | +-input=Project
+| | | | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | | | +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | | | | type=Double NULL]
+| | | | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | | |   type=VarChar(20) NULL]
+| | | | | +-project_list=
+| | | | |   +-Alias[id=6,name=a,relation=,type=Int NULL]
+| | | | |   | +-Add
+| | | | |   |   +-AttributeReference[id=0,name=int_col,relation=test,
+| | | | |   |   | type=Int NULL]
+| | | | |   |   +-Literal[value=1,type=Int]
+| | | | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | |   +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | |   | type=Double NULL]
+| | | | |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | |     type=VarChar(20) NULL]
+| | | | +-grouping_expressions=
+| | | | | +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | | | | +-Alias[id=7,name=,alias=$groupby1,relation=$groupby,type=Int NULL]
+| | | | | | +-Add
+| | | | | |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | | | | |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | | | | +-Alias[id=8,name=,alias=$groupby2,relation=$groupby,type=Int NULL]
+| | | | |   +-Multiply
+| | | | |     +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | | | |     +-Literal[value=2,type=Int]
+| | | | +-aggregate_expressions=
+| | | |   +-[]
+| | | +-project_list=
+| | |   +-Alias[id=9,name=,alias=$orderby0,relation=$orderby,type=Int NULL]
+| | |   | +-Add
+| | |   |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | |   |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | |   +-Alias[id=10,name=,alias=$orderby1,relation=$orderby,type=Int NULL]
+| | |   | +-Multiply
+| | |   |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | |   |   +-Literal[value=2,type=Int]
+| | |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | |   +-AttributeReference[id=7,name=,alias=$groupby1,relation=$groupby,
+| | |   | type=Int NULL]
+| | |   +-AttributeReference[id=8,name=,alias=$groupby2,relation=$groupby,
+| | |     type=Int NULL]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| |   +-AttributeReference[id=9,name=,alias=$orderby0,relation=$orderby,
+| |   | type=Int NULL]
+| |   +-AttributeReference[id=10,name=,alias=$orderby1,relation=$orderby,
+| |     type=Int NULL]
+| +-project_list=
+|   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+==
+
+select int_col+1 as a, int_col+double_col b, char_col c from test
+group by a, b, c, int_col, a+1, a+b, a+int_col
+order by a, b, c, a+1, a+b, b+int_col
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true,true,true,true,true,true],
+| | nulls_first=[false,false,false,false,false,false]]
+| | +-input=Project
+| | | +-input=Aggregate
+| | | | +-input=Project
+| | | | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | | | +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | | | | type=Double NULL]
+| | | | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | | |   type=VarChar(20) NULL]
+| | | | | +-project_list=
+| | | | |   +-Alias[id=6,name=a,relation=,type=Int NULL]
+| | | | |   | +-Add
+| | | | |   |   +-AttributeReference[id=0,name=int_col,relation=test,
+| | | | |   |   | type=Int NULL]
+| | | | |   |   +-Literal[value=1,type=Int]
+| | | | |   +-Alias[id=7,name=b,relation=,type=Double NULL]
+| | | | |   | +-Add
+| | | | |   |   +-AttributeReference[id=0,name=int_col,relation=test,
+| | | | |   |   | type=Int NULL]
+| | | | |   |   +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | |   |     type=Double NULL]
+| | | | |   +-Alias[id=4,name=c,relation=,type=Char(20)]
+| | | | |   | +-AttributeReference[id=4,name=char_col,relation=test,
+| | | | |   |   type=Char(20)]
+| | | | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | |   +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | |   | type=Double NULL]
+| | | | |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | |     type=VarChar(20) NULL]
+| | | | +-grouping_expressions=
+| | | | | +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | | | | +-AttributeReference[id=7,name=b,relation=,type=Double NULL]
+| | | | | +-AttributeReference[id=4,name=c,relation=,type=Char(20)]
+| | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | +-Alias[id=8,name=,alias=$groupby4,relation=$groupby,type=Int NULL]
+| | | | | | +-Add
+| | | | | |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | | | | |   +-Literal[value=1,type=Int]
+| | | | | +-Alias[id=9,name=,alias=$groupby5,relation=$groupby,type=Double NULL]
+| | | | | | +-Add
+| | | | | |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | | | | |   +-AttributeReference[id=7,name=b,relation=,type=Double NULL]
+| | | | | +-Alias[id=10,name=,alias=$groupby6,relation=$groupby,type=Int NULL]
+| | | | |   +-Add
+| | | | |     +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | | | |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-aggregate_expressions=
+| | | |   +-[]
+| | | +-project_list=
+| | |   +-Alias[id=11,name=,alias=$orderby0,relation=$orderby,type=Int NULL]
+| | |   | +-Add
+| | |   |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | |   |   +-Literal[value=1,type=Int]
+| | |   +-Alias[id=12,name=,alias=$orderby1,relation=$orderby,type=Double NULL]
+| | |   | +-Add
+| | |   |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | |   |   +-AttributeReference[id=7,name=b,relation=,type=Double NULL]
+| | |   +-Alias[id=13,name=,alias=$orderby2,relation=$orderby,type=Double NULL]
+| | |   | +-Add
+| | |   |   +-AttributeReference[id=7,name=b,relation=,type=Double NULL]
+| | |   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | |   +-AttributeReference[id=7,name=b,relation=,type=Double NULL]
+| | |   +-AttributeReference[id=4,name=c,relation=,type=Char(20)]
+| | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=8,name=,alias=$groupby4,relation=$groupby,
+| | |   | type=Int NULL]
+| | |   +-AttributeReference[id=9,name=,alias=$groupby5,relation=$groupby,
+| | |   | type=Double NULL]
+| | |   +-AttributeReference[id=10,name=,alias=$groupby6,relation=$groupby,
+| | |     type=Int NULL]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| |   +-AttributeReference[id=7,name=b,relation=,type=Double NULL]
+| |   +-AttributeReference[id=4,name=c,relation=,type=Char(20)]
+| |   +-AttributeReference[id=11,name=,alias=$orderby0,relation=$orderby,
+| |   | type=Int NULL]
+| |   +-AttributeReference[id=12,name=,alias=$orderby1,relation=$orderby,
+| |   | type=Double NULL]
+| |   +-AttributeReference[id=13,name=,alias=$orderby2,relation=$orderby,
+| |     type=Double NULL]
+| +-project_list=
+|   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+|   +-AttributeReference[id=7,name=b,relation=,type=Double NULL]
+|   +-AttributeReference[id=4,name=c,relation=,type=Char(20)]
++-output_attributes=
+  +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+  +-AttributeReference[id=7,name=b,relation=,type=Double NULL]
+  +-AttributeReference[id=4,name=c,relation=,type=Char(20)]
+==
+
+# WHERE and SELECT-list expressions cannot reference a SELECT-list expression by an alias.
+select int_col a, a+1 from test
+--
+ERROR: Unrecognized attribute a (1 : 19)
+select int_col a, a+1 from test
+                  ^
+==
+
+select int_col a from test
+where a>1
+--
+ERROR: Unrecognized attribute a (2 : 7)
+where a>1
+      ^
+==
+
+# Aliases in aggregations.
+select int_col+1 as a from test group by a having count(a+1)>1 order by sum(a)+max(a/2)
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true],nulls_first=[false]]
+| | +-input=Project
+| | | +-input=Filter
+| | | | +-input=Aggregate
+| | | | | +-input=Project
+| | | | | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | | | | +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | | | | | type=Double NULL]
+| | | | | | | +-AttributeReference[id=4,name=char_col,relation=test,
+| | | | | | | | type=Char(20)]
+| | | | | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | | | |   type=VarChar(20) NULL]
+| | | | | | +-project_list=
+| | | | | |   +-Alias[id=6,name=a,relation=,type=Int NULL]
+| | | | | |   | +-Add
+| | | | | |   |   +-AttributeReference[id=0,name=int_col,relation=test,
+| | | | | |   |   | type=Int NULL]
+| | | | | |   |   +-Literal[value=1,type=Int]
+| | | | | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | | |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | | |   +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | | |   | type=Double NULL]
+| | | | | |   +-AttributeReference[id=4,name=char_col,relation=test,
+| | | | | |   | type=Char(20)]
+| | | | | |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | | |     type=VarChar(20) NULL]
+| | | | | +-grouping_expressions=
+| | | | | | +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | | | | +-aggregate_expressions=
+| | | | |   +-Alias[id=7,name=,alias=$aggregate0,relation=$aggregate,type=Long]
+| | | | |   | +-AggregateFunction[function=COUNT]
+| | | | |   |   +-Add
+| | | | |   |     +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | | | |   |     +-Literal[value=1,type=Int]
+| | | | |   +-Alias[id=8,name=,alias=$aggregate1,relation=$aggregate,
+| | | | |   | type=Long NULL]
+| | | | |   | +-AggregateFunction[function=SUM]
+| | | | |   |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | | | |   +-Alias[id=9,name=,alias=$aggregate2,relation=$aggregate,
+| | | | |     type=Int NULL]
+| | | | |     +-AggregateFunction[function=MAX]
+| | | | |       +-Divide
+| | | | |         +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | | | |         +-Literal[value=2,type=Int]
+| | | | +-filter_predicate=Greater
+| | | |   +-AttributeReference[id=7,name=,alias=$aggregate0,relation=$aggregate,
+| | | |   | type=Long]
+| | | |   +-Literal[value=1,type=Int]
+| | | +-project_list=
+| | |   +-Alias[id=10,name=,alias=$orderby0,relation=$orderby,type=Long NULL]
+| | |   | +-Add
+| | |   |   +-AttributeReference[id=8,name=,alias=$aggregate1,
+| | |   |   | relation=$aggregate,type=Long NULL]
+| | |   |   +-AttributeReference[id=9,name=,alias=$aggregate2,
+| | |   |     relation=$aggregate,type=Int NULL]
+| | |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | |   +-AttributeReference[id=7,name=,alias=$aggregate0,relation=$aggregate,
+| | |   | type=Long]
+| | |   +-AttributeReference[id=8,name=,alias=$aggregate1,relation=$aggregate,
+| | |   | type=Long NULL]
+| | |   +-AttributeReference[id=9,name=,alias=$aggregate2,relation=$aggregate,
+| | |     type=Int NULL]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=10,name=,alias=$orderby0,relation=$orderby,
+| |     type=Long NULL]
+| +-project_list=
+|   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+==
+
+select int_col a, count(a) from test
+--
+ERROR: Unrecognized attribute a (1 : 25)
+select int_col a, count(a) from test
+                        ^
+==
+
+# Group by constant by alias.
+select 1+1 a from test
+group by a
+--
+ERROR: Constant expression not allowed in GROUP BY (2 : 10)
+group by a
+         ^
+==
+
+# Order by constant by alias.
+select 1+1 a from test
+order by a
+--
+ERROR: Constant expression not allowed in ORDER BY (2 : 10)
+order by a
+         ^
+==
+
+# SELECT-list constants in expressions are inserted "inline", rather than by an attribute reference to a SELECT column.
+select 1+1 a from test
+group by int_col, int_col+a
+order by int_col+1, count(a)
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true,true],nulls_first=[false,false]]
+| | +-input=Project
+| | | +-input=Aggregate
+| | | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | | +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | | | type=Double NULL]
+| | | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | |   type=VarChar(20) NULL]
+| | | | +-grouping_expressions=
+| | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | +-Alias[id=7,name=,alias=$groupby1,relation=$groupby,type=Int NULL]
+| | | | |   +-Add
+| | | | |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | |     +-Add
+| | | | |       +-Literal[value=1,type=Int]
+| | | | |       +-Literal[value=1,type=Int]
+| | | | +-aggregate_expressions=
+| | | |   +-Alias[id=8,name=,alias=$aggregate0,relation=$aggregate,type=Long]
+| | | |     +-AggregateFunction[function=COUNT]
+| | | |       +-Add
+| | | |         +-Literal[value=1,type=Int]
+| | | |         +-Literal[value=1,type=Int]
+| | | +-project_list=
+| | |   +-Alias[id=9,name=,alias=$orderby0,relation=$orderby,type=Int NULL]
+| | |   | +-Add
+| | |   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   |   +-Literal[value=1,type=Int]
+| | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=7,name=,alias=$groupby1,relation=$groupby,
+| | |   | type=Int NULL]
+| | |   +-AttributeReference[id=8,name=,alias=$aggregate0,relation=$aggregate,
+| | |     type=Long]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=9,name=,alias=$orderby0,relation=$orderby,
+| |   | type=Int NULL]
+| |   +-AttributeReference[id=8,name=,alias=$aggregate0,relation=$aggregate,
+| |     type=Long]
+| +-project_list=
+|   +-Alias[id=6,name=a,relation=,type=Int]
+|     +-Add
+|       +-Literal[value=1,type=Int]
+|       +-Literal[value=1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=a,relation=,type=Int]
+==
+
+select null a from test
+group by int_col, int_col+a
+order by int_col+1, count(a)
+--
+ERROR: Constant expression not allowed in GROUP BY (2 : 26)
+group by int_col, int_col+a
+                         ^
+==
+
+# The NULL in the SELECT is int type, but the NULL in HAVING is varchar type.
+select null a from test
+having a>'asdfd'
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=Aggregate
+| | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-grouping_expressions=
+| | | | +-[]
+| | | +-aggregate_expressions=
+| | |   +-[]
+| | +-filter_predicate=Literal[value=false]
+| +-project_list=
+|   +-Alias[id=6,name=a,relation=,type=NullType NULL]
+|     +-Literal[value=NULL,type=NullType NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=a,relation=,type=NullType NULL]
+==
+
+# The is actually wierd case. The sort expression uses the attribute alias and name that are created in the project
+# after sort. However, this won't affect the correctness.
+select count(*) a from test
+group by a
+--
+ERROR: SELECT-list column a contains an aggregate function, which is not allowed in GROUP BY clause (2 : 10)
+group by a
+         ^
+==
+
+select count(*) a from test
+group by int_col
+order by sum(a+int_col)
+--
+ERROR: Aggregation of Aggregates are not allowed (3 : 14)
+order by sum(a+int_col)
+             ^
+==
+
+select count(*) a from test order by a
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true],nulls_first=[false]]
+| | +-input=Aggregate
+| | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-grouping_expressions=
+| | | | +-[]
+| | | +-aggregate_expressions=
+| | |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Long]
+| | |     +-AggregateFunction[function=COUNT]
+| | |       +-[]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=6,name=a,relation=,type=Long]
+| +-project_list=
+|   +-Alias[id=6,name=a,relation=,type=Long]
+|     +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|       type=Long]
++-output_attributes=
+  +-AttributeReference[id=6,name=a,relation=,type=Long]
+==
+
+select count(*)+1 a from test order by a
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true],nulls_first=[false]]
+| | +-input=Project
+| | | +-input=Aggregate
+| | | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | | +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | | | type=Double NULL]
+| | | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | |   type=VarChar(20) NULL]
+| | | | +-grouping_expressions=
+| | | | | +-[]
+| | | | +-aggregate_expressions=
+| | | |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Long]
+| | | |     +-AggregateFunction[function=COUNT]
+| | | |       +-[]
+| | | +-project_list=
+| | |   +-Alias[id=7,name=a,relation=,type=Long]
+| | |   | +-Add
+| | |   |   +-AttributeReference[id=6,name=,alias=$aggregate0,
+| | |   |   | relation=$aggregate,type=Long]
+| | |   |   +-Literal[value=1,type=Int]
+| | |   +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+| | |     type=Long]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=7,name=a,relation=,type=Long]
+| +-project_list=
+|   +-AttributeReference[id=7,name=a,relation=,type=Long]
++-output_attributes=
+  +-AttributeReference[id=7,name=a,relation=,type=Long]
+==
+
+select count(*)+1 a from test order by a+1
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true],nulls_first=[false]]
+| | +-input=Project
+| | | +-input=Project
+| | | | +-input=Aggregate
+| | | | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | | | +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | | | | type=Double NULL]
+| | | | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | | |   type=VarChar(20) NULL]
+| | | | | +-grouping_expressions=
+| | | | | | +-[]
+| | | | | +-aggregate_expressions=
+| | | | |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Long]
+| | | | |     +-AggregateFunction[function=COUNT]
+| | | | |       +-[]
+| | | | +-project_list=
+| | | |   +-Alias[id=7,name=a,relation=,type=Long]
+| | | |   | +-Add
+| | | |   |   +-AttributeReference[id=6,name=,alias=$aggregate0,
+| | | |   |   | relation=$aggregate,type=Long]
+| | | |   |   +-Literal[value=1,type=Int]
+| | | |   +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+| | | |     type=Long]
+| | | +-project_list=
+| | |   +-Alias[id=8,name=,alias=$orderby0,relation=$orderby,type=Long]
+| | |   | +-Add
+| | |   |   +-AttributeReference[id=7,name=a,relation=,type=Long]
+| | |   |   +-Literal[value=1,type=Int]
+| | |   +-AttributeReference[id=7,name=a,relation=,type=Long]
+| | |   +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+| | |     type=Long]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=8,name=,alias=$orderby0,relation=$orderby,
+| |     type=Long]
+| +-project_list=
+|   +-AttributeReference[id=7,name=a,relation=,type=Long]
++-output_attributes=
+  +-AttributeReference[id=7,name=a,relation=,type=Long]
+==
+
+# Alias reference to an aggregation.
+select count(*)+1 a from test
+group by int_col
+having a > int_col
+order by a+int_col
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true],nulls_first=[false]]
+| | +-input=Project
+| | | +-input=Filter
+| | | | +-input=Project
+| | | | | +-input=Aggregate
+| | | | | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | | | | +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | | | | | type=Double NULL]
+| | | | | | | +-AttributeReference[id=4,name=char_col,relation=test,
+| | | | | | | | type=Char(20)]
+| | | | | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | | | |   type=VarChar(20) NULL]
+| | | | | | +-grouping_expressions=
+| | | | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | | +-aggregate_expressions=
+| | | | | |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Long]
+| | | | | |     +-AggregateFunction[function=COUNT]
+| | | | | |       +-[]
+| | | | | +-project_list=
+| | | | |   +-Alias[id=7,name=a,relation=,type=Long]
+| | | | |   | +-Add
+| | | | |   |   +-AttributeReference[id=6,name=,alias=$aggregate0,
+| | | | |   |   | relation=$aggregate,type=Long]
+| | | | |   |   +-Literal[value=1,type=Int]
+| | | | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | |   +-AttributeReference[id=6,name=,alias=$aggregate0,
+| | | | |     relation=$aggregate,type=Long]
+| | | | +-filter_predicate=Greater
+| | | |   +-AttributeReference[id=7,name=a,relation=,type=Long]
+| | | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-project_list=
+| | |   +-Alias[id=8,name=,alias=$orderby0,relation=$orderby,type=Long NULL]
+| | |   | +-Add
+| | |   |   +-AttributeReference[id=7,name=a,relation=,type=Long]
+| | |   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=7,name=a,relation=,type=Long]
+| | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+| | |     type=Long]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=8,name=,alias=$orderby0,relation=$orderby,
+| |     type=Long NULL]
+| +-project_list=
+|   +-AttributeReference[id=7,name=a,relation=,type=Long]
++-output_attributes=
+  +-AttributeReference[id=7,name=a,relation=,type=Long]
+==
+
+# If the alias is identical to an attribute name in the FROM list, use the expression in the SELECT list.
+select int_col+1 int_col, int_col*2 from test
+group by int_col, test.int_col
+order by int_col, count(int_col)
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true,true],nulls_first=[false,false]]
+| | +-input=Aggregate
+| | | +-input=Project
+| | | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | | +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | | | type=Double NULL]
+| | | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | |   type=VarChar(20) NULL]
+| | | | +-project_list=
+| | | |   +-Alias[id=6,name=int_col,relation=,type=Int NULL]
+| | | |   | +-Add
+| | | |   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | |   |   +-Literal[value=1,type=Int]
+| | | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | |   +-AttributeReference[id=3,name=double_col,relation=test,
+| | | |   | type=Double NULL]
+| | | |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |     type=VarChar(20) NULL]
+| | | +-grouping_expressions=
+| | | | +-AttributeReference[id=6,name=int_col,relation=,type=Int NULL]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-aggregate_expressions=
+| | |   +-Alias[id=8,name=,alias=$aggregate0,relation=$aggregate,type=Long]
+| | |     +-AggregateFunction[function=COUNT]
+| | |       +-AttributeReference[id=6,name=int_col,relation=,type=Int NULL]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=6,name=int_col,relation=,type=Int NULL]
+| |   +-AttributeReference[id=8,name=,alias=$aggregate0,relation=$aggregate,
+| |     type=Long]
+| +-project_list=
+|   +-AttributeReference[id=6,name=int_col,relation=,type=Int NULL]
+|   +-Alias[id=7,name=,alias=(int_col*2),relation=,type=Int NULL]
+|     +-Multiply
+|       +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|       +-Literal[value=2,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=int_col,relation=,type=Int NULL]
+  +-AttributeReference[id=7,name=,alias=(int_col*2),relation=,type=Int NULL]
+==
+
+select int_col int_col, int_col from test
+group by int_col
+--
+ERROR: Alias int_col is ambiguous in the SELECT list (2 : 10)
+group by int_col
+         ^
+==
+
+select int_col int_col, int_col+1 from test
+group by int_col
+--
+TopLevelPlan
++-plan=Project
+| +-input=Aggregate
+| | +-input=Project
+| | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-project_list=
+| | |   +-Alias[id=0,name=int_col,relation=,type=Int NULL]
+| | |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | |   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |     type=VarChar(20) NULL]
+| | +-grouping_expressions=
+| | | +-AttributeReference[id=0,name=int_col,relation=,type=Int NULL]
+| | +-aggregate_expressions=
+| |   +-[]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=,type=Int NULL]
+|   +-Alias[id=6,name=,alias=(int_col+1),relation=,type=Int NULL]
+|     +-Add
+|       +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|       +-Literal[value=1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=,type=Int NULL]
+  +-AttributeReference[id=6,name=,alias=(int_col+1),relation=,type=Int NULL]
+==
+
+select int_col+1 int_col, int_col/2 from test
+group by int_col
+--
+ERROR: Expression contains an attribute int_col, which is neither a GROUP BY expression nor in an aggregate expression (1 : 27)
+select int_col+1 int_col, int_col/2 from test
+                          ^
+==
+
+select * from test
+group by int_col
+--
+ERROR: Expression contains an attribute long_col, which is neither a GROUP BY expression nor in an aggregate expression (1 : 8)
+select * from test
+       ^
+==
+
+select int_col+long_col/float_col a from test group by a
+--
+TopLevelPlan
++-plan=Project
+| +-input=Aggregate
+| | +-input=Project
+| | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-project_list=
+| | |   +-Alias[id=6,name=a,relation=,type=Double NULL]
+| | |   | +-Add
+| | |   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   |   +-Divide
+| | |   |     +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | |   |     +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | |   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |     type=VarChar(20) NULL]
+| | +-grouping_expressions=
+| | | +-AttributeReference[id=6,name=a,relation=,type=Double NULL]
+| | +-aggregate_expressions=
+| |   +-[]
+| +-project_list=
+|   +-AttributeReference[id=6,name=a,relation=,type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=a,relation=,type=Double NULL]
+==
+
+# Ambiguous alias.
+select int_col+1 int_col, long_col int_col from test
+order by int_col
+--
+ERROR: Alias int_col is ambiguous in the SELECT list (2 : 10)
+order by int_col
+         ^
+==
+
+select int_col+1 int_col, long_col int_col from test
+order by 1+int_col
+--
+ERROR: Alias int_col is ambiguous in the SELECT list (2 : 12)
+order by 1+int_col
+           ^
+==
+
+# Alias is not sensitive
+select int_col AliAS from test order by aliAs
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true],nulls_first=[false]]
+| | +-input=Project
+| | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-project_list=
+| | |   +-Alias[id=0,name=AliAS,relation=,type=Int NULL]
+| | |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | |   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |     type=VarChar(20) NULL]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=0,name=AliAS,relation=,type=Int NULL]
+| +-project_list=
+|   +-AttributeReference[id=0,name=AliAS,relation=,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=AliAS,relation=,type=Int NULL]
+==
+
+# Ordinal reference.
+select * from test order by 1, 4, 2, 3, 6, 5, 1
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true,true,true,true,true,true,true],
+| | nulls_first=[false,false,false,false,false,false,false]]
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| |   | type=VarChar(20) NULL]
+| |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+|   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+|   +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+  +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+  +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+  +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+  +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+  +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+==
+
+select * from test order by 7
+--
+ERROR: SELECT-list position 7 is out of range [1, 6] (1 : 29)
+select * from test order by 7
+                            ^
+==
+
+select * from test order by 0
+--
+ERROR: SELECT-list position 0 is out of range [1, 6] (1 : 29)
+select * from test order by 0
+                            ^
+==
+
+select * from test order by -1
+--
+ERROR: SELECT-list position -1 is out of range [1, 6] (1 : 29)
+select * from test order by -1
+                            ^
+==
+
+select * from test order by 2147483647
+--
+ERROR: SELECT-list position 2147483647 is out of range [1, 6] (1 : 29)
+select * from test order by 2147483647
+                            ^
+==
+
+select * from test order by 3147483647
+--
+ERROR: Constant expression not allowed in ORDER BY (1 : 29)
+select * from test order by 3147483647
+                            ^
+==
+
+select * from test order by 1.2
+--
+ERROR: Constant expression not allowed in ORDER BY (1 : 29)
+select * from test order by 1.2
+                            ^
+==
+
+select 1+1-2 from test order by 1
+--
+ERROR: Constant expression not allowed in ORDER BY (1 : 33)
+select 1+1-2 from test order by 1
+                                ^
+==
+
+select 1+1 from test order by 1+1
+--
+ERROR: Constant expression not allowed in ORDER BY (1 : 31)
+select 1+1 from test order by 1+1
+                              ^
+==
+
+select count(*)+1 from test order by 1
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true],nulls_first=[false]]
+| | +-input=Project
+| | | +-input=Aggregate
+| | | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | | +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | | | type=Double NULL]
+| | | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | |   type=VarChar(20) NULL]
+| | | | +-grouping_expressions=
+| | | | | +-[]
+| | | | +-aggregate_expressions=
+| | | |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Long]
+| | | |     +-AggregateFunction[function=COUNT]
+| | | |       +-[]
+| | | +-project_list=
+| | |   +-Alias[id=7,name=,alias=(count(*)+1),relation=,type=Long]
+| | |   | +-Add
+| | |   |   +-AttributeReference[id=6,name=,alias=$aggregate0,
+| | |   |   | relation=$aggregate,type=Long]
+| | |   |   +-Literal[value=1,type=Int]
+| | |   +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+| | |     type=Long]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=7,name=,alias=(count(*)+1),relation=,type=Long]
+| +-project_list=
+|   +-AttributeReference[id=7,name=,alias=(count(*)+1),relation=,type=Long]
++-output_attributes=
+  +-AttributeReference[id=7,name=,alias=(count(*)+1),relation=,type=Long]
+==
+
+select count(*)+1 from test group by 1
+--
+ERROR: SELECT-list position 0 contains an aggregate function, which is not allowed in GROUP BY clause (1 : 38)
+select count(*)+1 from test group by 1
+                                     ^
+==
+
+select int_col+1 a from test group by 1 order by a+1
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true],nulls_first=[false]]
+| | +-input=Project
+| | | +-input=Aggregate
+| | | | +-input=Project
+| | | | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | | | +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | | | | type=Double NULL]
+| | | | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | | |   type=VarChar(20) NULL]
+| | | | | +-project_list=
+| | | | |   +-Alias[id=6,name=a,relation=,type=Int NULL]
+| | | | |   | +-Add
+| | | | |   |   +-AttributeReference[id=0,name=int_col,relation=test,
+| | | | |   |   | type=Int NULL]
+| | | | |   |   +-Literal[value=1,type=Int]
+| | | | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | |   +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | |   | type=Double NULL]
+| | | | |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | |     type=VarChar(20) NULL]
+| | | | +-grouping_expressions=
+| | | | | +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | | | +-aggregate_expressions=
+| | | |   +-[]
+| | | +-project_list=
+| | |   +-Alias[id=7,name=,alias=$orderby0,relation=$orderby,type=Int NULL]
+| | |   | +-Add
+| | |   |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | |   |   +-Literal[value=1,type=Int]
+| | |   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=7,name=,alias=$orderby0,relation=$orderby,
+| |     type=Int NULL]
+| +-project_list=
+|   +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=a,relation=,type=Int NULL]
+==
+
+select 1 from test limit 1
+--
+ERROR: LIMIT is not supported without ORDER BY (1 : 20)
+select 1 from test limit 1
+                   ^
+==
+
+# WITH queries.
+with subquery as (select int_col subquery_col from test)
+select subquery_col from subquery
+--
+TopLevelPlan
++-plan=Project
+| +-input=SharedSubplanReference[subplan_id=0]
+| | +-output_attributes=
+| |   +-AttributeReference[id=0,name=subquery_col,relation=subquery,
+| |     type=Int NULL]
+| +-project_list=
+|   +-AttributeReference[id=0,name=subquery_col,relation=subquery,type=Int NULL]
++-shared_subplans=
+| +-Project
+|   +-input=TableReference[relation_name=Test,relation_alias=test]
+|   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+|   | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+|   | +-AttributeReference[id=5,name=vchar_col,relation=test,
+|   |   type=VarChar(20) NULL]
+|   +-project_list=
+|     +-Alias[id=0,name=subquery_col,relation=subquery,type=Int NULL]
+|       +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=subquery_col,relation=subquery,type=Int NULL]
+==
+
+# Multiple WITH queries.
+with subquery1 as (select int_col from test),
+     subquery2 as (select int_col+5 int_col from subquery1),
+     subquery3 as (select subquery2.int_col+6 int_col from subquery2, subquery1)
+select * from subquery3, subquery2
+--
+TopLevelPlan
++-plan=Project
+| +-input=MultiwayCartesianJoin
+| | +-SharedSubplanReference[subplan_id=2]
+| | | +-output_attributes=
+| | |   +-AttributeReference[id=7,name=int_col,relation=subquery3,type=Int NULL]
+| | +-SharedSubplanReference[subplan_id=1]
+| |   +-output_attributes=
+| |     +-AttributeReference[id=6,name=int_col,relation=subquery2,type=Int NULL]
+| +-project_list=
+|   +-AttributeReference[id=7,name=int_col,relation=subquery3,type=Int NULL]
+|   +-AttributeReference[id=6,name=int_col,relation=subquery2,type=Int NULL]
++-shared_subplans=
+| +-Project
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-project_list=
+| |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| +-Project
+| | +-input=SharedSubplanReference[subplan_id=0]
+| | | +-output_attributes=
+| | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-project_list=
+| |   +-Alias[id=6,name=int_col,relation=subquery2,type=Int NULL]
+| |     +-Add
+| |       +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |       +-Literal[value=5,type=Int]
+| +-Project
+|   +-input=MultiwayCartesianJoin
+|   | +-SharedSubplanReference[subplan_id=1]
+|   | | +-output_attributes=
+|   | |   +-AttributeReference[id=6,name=int_col,relation=subquery2,
+|   | |     type=Int NULL]
+|   | +-SharedSubplanReference[subplan_id=0]
+|   |   +-output_attributes=
+|   |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   +-project_list=
+|     +-Alias[id=7,name=int_col,relation=subquery3,type=Int NULL]
+|       +-Add
+|         +-AttributeReference[id=6,name=int_col,relation=subquery2,
+|         | type=Int NULL]
+|         +-Literal[value=6,type=Int]
++-output_attributes=
+  +-AttributeReference[id=7,name=int_col,relation=subquery3,type=Int NULL]
+  +-AttributeReference[id=6,name=int_col,relation=subquery2,type=Int NULL]
+==
+
+with subquery(int_col_alias, long_col_alias) as (select int_col, long_col from test)
+select int_col_alias from subquery
+--
+TopLevelPlan
++-plan=Project
+| +-input=SharedSubplanReference[subplan_id=0]
+| | +-output_attributes=
+| |   +-AttributeReference[id=6,name=int_col_alias,relation=,type=Int NULL]
+| |   +-AttributeReference[id=7,name=long_col_alias,relation=,type=Long]
+| +-project_list=
+|   +-AttributeReference[id=6,name=int_col_alias,relation=,type=Int NULL]
++-shared_subplans=
+| +-Project
+|   +-input=Project
+|   | +-input=TableReference[relation_name=Test,relation_alias=test]
+|   | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+|   | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+|   | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+|   | |   type=VarChar(20) NULL]
+|   | +-project_list=
+|   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   +-project_list=
+|     +-Alias[id=6,name=int_col_alias,relation=,type=Int NULL]
+|     | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|     +-Alias[id=7,name=long_col_alias,relation=,type=Long]
+|       +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
++-output_attributes=
+  +-AttributeReference[id=6,name=int_col_alias,relation=,type=Int NULL]
+==
+
+with subquery as (select int_col, long_col from test)
+select int_col_alias from subquery aliased_subquery(int_col_alias, long_col_alias)
+--
+TopLevelPlan
++-plan=Project
+| +-input=Project
+| | +-input=SharedSubplanReference[subplan_id=0]
+| | | +-output_attributes=
+| | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-project_list=
+| |   +-Alias[id=6,name=int_col_alias,relation=,type=Int NULL]
+| |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   +-Alias[id=7,name=long_col_alias,relation=,type=Long]
+| |     +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| +-project_list=
+|   +-AttributeReference[id=6,name=int_col_alias,relation=,type=Int NULL]
++-shared_subplans=
+| +-Project
+|   +-input=TableReference[relation_name=Test,relation_alias=test]
+|   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+|   | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+|   | +-AttributeReference[id=5,name=vchar_col,relation=test,
+|   |   type=VarChar(20) NULL]
+|   +-project_list=
+|     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|     +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
++-output_attributes=
+  +-AttributeReference[id=6,name=int_col_alias,relation=,type=Int NULL]
+==
+
+with subquery as (select int_col int_col_alias, long_col from test)
+select int_col_alias from subquery
+--
+TopLevelPlan
++-plan=Project
+| +-input=SharedSubplanReference[subplan_id=0]
+| | +-output_attributes=
+| |   +-AttributeReference[id=0,name=int_col_alias,relation=subquery,
+| |   | type=Int NULL]
+| |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col_alias,relation=subquery,type=Int NULL]
++-shared_subplans=
+| +-Project
+|   +-input=TableReference[relation_name=Test,relation_alias=test]
+|   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+|   | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+|   | +-AttributeReference[id=5,name=vchar_col,relation=test,
+|   |   type=VarChar(20) NULL]
+|   +-project_list=
+|     +-Alias[id=0,name=int_col_alias,relation=subquery,type=Int NULL]
+|     | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|     +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col_alias,relation=subquery,type=Int NULL]
+==
+
+# A WITH query cannot reference a subsequent WITH query.
+with subquery1 as (select int_col from subquery2),
+     subquery2 as (select int_col+5 from test)
+select 1 from subquery2, subquery1
+--
+ERROR: Unrecognized relation subquery2 (1 : 40)
+with subquery1 as (select int_col from subquery2),
+                                       ^
+==
+
+# Self-reference.
+with subquery as (select int_col from test, subquery)
+select 1 from subquery
+--
+ERROR: Unrecognized relation subquery (1 : 45)
+... subquery as (select int_col from test, subquery)
+                                           ^
+==
+
+# Report an error if a WITH query is not used.
+with subquery1 as (select int_col from test)
+select 1 from test
+--
+ERROR: WITH query subquery1 is defined but not used (1 : 6)
+with subquery1 as (select int_col fro...
+     ^
+==
+
+with test as (select 1 from test)
+select 1 from test
+--
+TopLevelPlan
++-plan=Project
+| +-input=SharedSubplanReference[subplan_id=0]
+| | +-output_attributes=
+| |   +-AttributeReference[id=6,name=,alias=1,relation=test,type=Int]
+| +-project_list=
+|   +-Alias[id=7,name=,alias=1,relation=,type=Int]
+|     +-Literal[value=1,type=Int]
++-shared_subplans=
+| +-Project
+|   +-input=TableReference[relation_name=Test,relation_alias=test]
+|   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+|   | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+|   | +-AttributeReference[id=5,name=vchar_col,relation=test,
+|   |   type=VarChar(20) NULL]
+|   +-project_list=
+|     +-Alias[id=6,name=,alias=1,relation=test,type=Int]
+|       +-Literal[value=1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=7,name=,alias=1,relation=,type=Int]
+==
+
+# Identifies with special characters.
+# The resolve gives the internal aliases to unnamed columns. The
+# following four queries are used to test that the identifiers with
+# identical names as internal aliases are resolved to correct attributes.
+select "$aggregate1" from (select 1 "$aggregate1", count(*), sum(int_col) from test) as a
+--
+TopLevelPlan
++-plan=Project
+| +-input=Project
+| | +-input=Aggregate
+| | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-grouping_expressions=
+| | | | +-[]
+| | | +-aggregate_expressions=
+| | |   +-Alias[id=7,name=,alias=$aggregate0,relation=$aggregate,type=Long]
+| | |   | +-AggregateFunction[function=COUNT]
+| | |   |   +-[]
+| | |   +-Alias[id=8,name=,alias=$aggregate1,relation=$aggregate,type=Long NULL]
+| | |     +-AggregateFunction[function=SUM]
+| | |       +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-project_list=
+| |   +-Alias[id=6,name=$aggregate1,relation=a,type=Int]
+| |   | +-Literal[value=1,type=Int]
+| |   +-Alias[id=7,name=,alias=count(*),relation=a,type=Long]
+| |   | +-AttributeReference[id=7,name=,alias=$aggregate0,relation=$aggregate,
+| |   |   type=Long]
+| |   +-Alias[id=8,name=,alias=sum(int_col),relation=a,type=Long NULL]
+| |     +-AttributeReference[id=8,name=,alias=$aggregate1,relation=$aggregate,
+| |       type=Long NULL]
+| +-project_list=
+|   +-Alias[id=6,name=$aggregate1,relation=,type=Int]
+|     +-AttributeReference[id=6,name=$aggregate1,relation=a,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=$aggregate1,relation=,type=Int]
+==
+
+select "$aggregate1" from (select 1, count(*), sum(int_col) "$aggregate1" from test) as a
+--
+TopLevelPlan
++-plan=Project
+| +-input=Project
+| | +-input=Aggregate
+| | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-grouping_expressions=
+| | | | +-[]
+| | | +-aggregate_expressions=
+| | |   +-Alias[id=7,name=,alias=$aggregate0,relation=$aggregate,type=Long]
+| | |   | +-AggregateFunction[function=COUNT]
+| | |   |   +-[]
+| | |   +-Alias[id=8,name=,alias=$aggregate1,relation=$aggregate,type=Long NULL]
+| | |     +-AggregateFunction[function=SUM]
+| | |       +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-project_list=
+| |   +-Alias[id=6,name=,alias=1,relation=a,type=Int]
+| |   | +-Literal[value=1,type=Int]
+| |   +-Alias[id=7,name=,alias=count(*),relation=a,type=Long]
+| |   | +-AttributeReference[id=7,name=,alias=$aggregate0,relation=$aggregate,
+| |   |   type=Long]
+| |   +-Alias[id=8,name=$aggregate1,relation=a,type=Long NULL]
+| |     +-AttributeReference[id=8,name=,alias=$aggregate1,relation=$aggregate,
+| |       type=Long NULL]
+| +-project_list=
+|   +-Alias[id=8,name=$aggregate1,relation=,type=Long NULL]
+|     +-AttributeReference[id=8,name=$aggregate1,relation=a,type=Long NULL]
++-output_attributes=
+  +-AttributeReference[id=8,name=$aggregate1,relation=,type=Long NULL]
+==
+
+select "$aggregate1" from (select 1 "$aggregate1", count(*), sum(int_col) "$aggregate1" from test) as a
+--
+ERROR: Ambiguous attribute $aggregate1 (1 : 8)
+select "$aggregate1" from (select 1 "...
+       ^
+==
+
+select "$aggregate1" from (select count(*), sum(int_col) from test) as a
+--
+ERROR: Unrecognized attribute $aggregate1 (1 : 8)
+select "$aggregate1" from (select coun...
+       ^
+==
+
+select 1 "$multi_line
+
+name
+" from test
+--
+TopLevelPlan
++-plan=Project
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-project_list=
+|   +-Alias[id=6,name=$multi_line
+
+name
+,relation=,type=Int]
+|     +-Literal[value=1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=$multi_line
+
+name
+,relation=,type=Int]
+==
+
+select "$multi_line
+
+name
+" from (select float_col "$multi_line
+
+name
+" from test) test
+--
+TopLevelPlan
++-plan=Project
+| +-input=Project
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-project_list=
+| |   +-Alias[id=2,name=$multi_line
+
+name
+,relation=test,type=Float]
+| |     +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| +-project_list=
+|   +-Alias[id=2,name=$multi_line
+
+name
+,relation=,type=Float]
+|     +-AttributeReference[id=2,name=$multi_line
+
+name
+,relation=test,type=Float]
++-output_attributes=
+  +-AttributeReference[id=2,name=$multi_line
+
+name
+,relation=,type=Float]
+==
+
+select date '1998-12-12' + interval '5 day',
+       date '1998-12-12' - interval '5 month',
+       interval '5 year' + date '1998-12-12',
+       date '1998-12-12' - date '1998-12-11',
+       interval '10 day' + interval '11 day',
+       interval '30 month' + interval '1 year',
+       interval '30 month' - interval '1 year'
+from test
+--
+TopLevelPlan
++-plan=Project
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=(Datetime('1998-12-12')+DatetimeInterval('5 day')),
+|   | relation=,type=Datetime]
+|   | +-Add
+|   |   +-Literal[value=1998-12-12T00:00:00,type=Datetime]
+|   |   +-Literal[value=5 days 00:00:00,type=DatetimeInterval]
+|   +-Alias[id=7,name=,
+|   | alias=(Datetime('1998-12-12')-YearMonthInterval('5 month')),relation=,
+|   | type=Datetime]
+|   | +-Subtract
+|   |   +-Literal[value=1998-12-12T00:00:00,type=Datetime]
+|   |   +-Literal[value=5 mons,type=YearMonthInterval]
+|   +-Alias[id=8,name=,
+|   | alias=(YearMonthInterval('5 year')+Datetime('1998-12-12')),relation=,
+|   | type=Datetime]
+|   | +-Add
+|   |   +-Literal[value=5 years,type=YearMonthInterval]
+|   |   +-Literal[value=1998-12-12T00:00:00,type=Datetime]
+|   +-Alias[id=9,name=,alias=(Datetime('1998-12-12')-Datetime('1998-12-11')),
+|   | relation=,type=DatetimeInterval]
+|   | +-Subtract
+|   |   +-Literal[value=1998-12-12T00:00:00,type=Datetime]
+|   |   +-Literal[value=1998-12-11T00:00:00,type=Datetime]
+|   +-Alias[id=10,name=,
+|   | alias=(DatetimeInterval('10 day')+DatetimeInterval('11 day')),relation=,
+|   | type=DatetimeInterval]
+|   | +-Add
+|   |   +-Literal[value=10 days 00:00:00,type=DatetimeInterval]
+|   |   +-Literal[value=11 days 00:00:00,type=DatetimeInterval]
+|   +-Alias[id=11,name=,
+|   | alias=(YearMonthInterval('30 month')+YearMonthInterval('1 year')),
+|   | relation=,type=YearMonthInterval]
+|   | +-Add
+|   |   +-Literal[value=2 years 6 mons,type=YearMonthInterval]
+|   |   +-Literal[value=1 year,type=YearMonthInterval]
+|   +-Alias[id=12,name=,
+|     alias=(YearMonthInterval('30 month')-YearMonthInterval('1 year')),
+|     relation=,type=YearMonthInterval]
+|     +-Subtract
+|       +-Literal[value=2 years 6 mons,type=YearMonthInterval]
+|       +-Literal[value=1 year,type=YearMonthInterval]
++-output_attributes=
+  +-AttributeReference[id=6,name=,
+  | alias=(Datetime('1998-12-12')+DatetimeInterval('5 day')),relation=,
+  | type=Datetime]
+  +-AttributeReference[id=7,name=,
+  | alias=(Datetime('1998-12-12')-YearMonthInterval('5 month')),relation=,
+  | type=Datetime]
+  +-AttributeReference[id=8,name=,
+  | alias=(YearMonthInterval('5 year')+Datetime('1998-12-12')),relation=,
+  | type=Datetime]
+  +-AttributeReference[id=9,name=,
+  | alias=(Datetime('1998-12-12')-Datetime('1998-12-11')),relation=,
+  | type=DatetimeInterval]
+  +-AttributeReference[id=10,name=,
+  | alias=(DatetimeInterval('10 day')+DatetimeInterval('11 day')),relation=,
+  | type=DatetimeInterval]
+  +-AttributeReference[id=11,name=,
+  | alias=(YearMonthInterval('30 month')+YearMonthInterval('1 year')),relation=,
+  | type=YearMonthInterval]
+  +-AttributeReference[id=12,name=,
+    alias=(YearMonthInterval('30 month')-YearMonthInterval('1 year')),relation=,
+    type=YearMonthInterval]
+==
+
+select interval '10 day' * 5,
+       5 * interval '10 month',
+       interval '10 year' / 5
+from test
+--
+TopLevelPlan
++-plan=Project
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=(DatetimeInterval('10 day')*5),relation=,
+|   | type=DatetimeInterval]
+|   | +-Multiply
+|   |   +-Literal[value=10 days 00:00:00,type=DatetimeInterval]
+|   |   +-Literal[value=5,type=Int]
+|   +-Alias[id=7,name=,alias=(5*YearMonthInterval('10 month')),relation=,
+|   | type=YearMonthInterval]
+|   | +-Multiply
+|   |   +-Literal[value=5,type=Int]
+|   |   +-Literal[value=10 mons,type=YearMonthInterval]
+|   +-Alias[id=8,name=,alias=(YearMonthInterval('10 year')/5),relation=,
+|     type=YearMonthInterval]
+|     +-Divide
+|       +-Literal[value=10 years,type=YearMonthInterval]
+|       +-Literal[value=5,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=(DatetimeInterval('10 day')*5),
+  | relation=,type=DatetimeInterval]
+  +-AttributeReference[id=7,name=,alias=(5*YearMonthInterval('10 month')),
+  | relation=,type=YearMonthInterval]
+  +-AttributeReference[id=8,name=,alias=(YearMonthInterval('10 year')/5),
+    relation=,type=YearMonthInterval]
+==
+
+select interval '4 day' + interval '5 year'
+from test
+--
+ERROR: Can not apply binary operation "Add" to arguments of types DatetimeInterval and YearMonthInterval (1 : 25)
+select interval '4 day' + interval '5 year'
+                        ^
+==
+
+select date '1998-12-12' + date '1998-12-12'
+from test
+--
+ERROR: Can not apply binary operation "Add" to arguments of types Datetime and Datetime (1 : 26)
+select date '1998-12-12' + date '1998-12-12'
+                         ^
+==
+
+select date '1998-12-12' * date '1998-12-12'
+from test
+--
+ERROR: Can not apply binary operation "Multiply" to arguments of types Datetime and Datetime (1 : 26)
+select date '1998-12-12' * date '1998-12-12'
+                         ^
+==
+
+select interval '5 day' - date '1998-12-12'
+from test
+--
+ERROR: Can not apply binary operation "Subtract" to arguments of types DatetimeInterval and Datetime (1 : 25)
+select interval '5 day' - date '1998-12-12'
+                        ^
+==
+
+select (interval '10 day' + interval '3 day') + 5
+from test
+--
+ERROR: Can not apply binary operation "Add" to arguments of types DatetimeInterval and Int (1 : 47)
+... (interval '10 day' + interval '3 day') + 5
+                                           ^
+==
+
+select 5 / (date '1999-10-12' + yearmonth interval '10 year')
+from test
+--
+ERROR: Can not apply binary operation "Divide" to arguments of types Int and Datetime (1 : 10)
+select 5 / (date '1999-10-12' + yearmont...
+         ^

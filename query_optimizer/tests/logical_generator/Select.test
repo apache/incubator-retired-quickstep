@@ -1,0 +1,587 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+[default optimized_logical_plan]
+select * from test
+--
+TopLevelPlan
++-plan=Project
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+|   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+|   +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+  +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+  +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+  +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+  +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+  +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+==
+
+select 1, 2 from test
+--
+TopLevelPlan
++-plan=Project
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=1,relation=,type=Int]
+|   | +-Literal[value=1,type=Int]
+|   +-Alias[id=7,name=,alias=2,relation=,type=Int]
+|     +-Literal[value=2,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=1,relation=,type=Int]
+  +-AttributeReference[id=7,name=,alias=2,relation=,type=Int]
+==
+
+# Push down the where predicates into the subquery.
+select int_col, long_col from (select * from test where int_col=1) a where long_col!=int_col and double_col>1
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-filter_predicate=And
+| |   +-NotEqual
+| |   | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   +-Greater
+| |   | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| |   | +-Literal[value=1,type=Int]
+| |   +-Equal
+| |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |     +-Literal[value=1,type=Int]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+  +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+==
+
+select * from test a, test b
+--
+TopLevelPlan
++-plan=Project
+| +-input=NestedLoopsJoin
+| | +-left=TableReference[relation_name=Test,relation_alias=a]
+| | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=a,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=a,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=a,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=a,type=VarChar(20) NULL]
+| | +-right=TableReference[relation_name=Test,relation_alias=b]
+| | | +-AttributeReference[id=6,name=int_col,relation=b,type=Int NULL]
+| | | +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+| | | +-AttributeReference[id=8,name=float_col,relation=b,type=Float]
+| | | +-AttributeReference[id=9,name=double_col,relation=b,type=Double NULL]
+| | | +-AttributeReference[id=10,name=char_col,relation=b,type=Char(20)]
+| | | +-AttributeReference[id=11,name=vchar_col,relation=b,type=VarChar(20) NULL]
+| | +-join_predicate=Literal[value=true]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+|   +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+|   +-AttributeReference[id=2,name=float_col,relation=a,type=Float]
+|   +-AttributeReference[id=3,name=double_col,relation=a,type=Double NULL]
+|   +-AttributeReference[id=4,name=char_col,relation=a,type=Char(20)]
+|   +-AttributeReference[id=5,name=vchar_col,relation=a,type=VarChar(20) NULL]
+|   +-AttributeReference[id=6,name=int_col,relation=b,type=Int NULL]
+|   +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+|   +-AttributeReference[id=8,name=float_col,relation=b,type=Float]
+|   +-AttributeReference[id=9,name=double_col,relation=b,type=Double NULL]
+|   +-AttributeReference[id=10,name=char_col,relation=b,type=Char(20)]
+|   +-AttributeReference[id=11,name=vchar_col,relation=b,type=VarChar(20) NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+  +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+  +-AttributeReference[id=2,name=float_col,relation=a,type=Float]
+  +-AttributeReference[id=3,name=double_col,relation=a,type=Double NULL]
+  +-AttributeReference[id=4,name=char_col,relation=a,type=Char(20)]
+  +-AttributeReference[id=5,name=vchar_col,relation=a,type=VarChar(20) NULL]
+  +-AttributeReference[id=6,name=int_col,relation=b,type=Int NULL]
+  +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+  +-AttributeReference[id=8,name=float_col,relation=b,type=Float]
+  +-AttributeReference[id=9,name=double_col,relation=b,type=Double NULL]
+  +-AttributeReference[id=10,name=char_col,relation=b,type=Char(20)]
+  +-AttributeReference[id=11,name=vchar_col,relation=b,type=VarChar(20) NULL]
+==
+
+# Hash join.
+select a.int_col, b.long_col from test a, test b where a.long_col=b.long_col and a.int_col+b.long_col=a.long_col
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=HashJoin
+| | | +-left=TableReference[relation_name=Test,relation_alias=a]
+| | | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=a,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=a,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=a,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=a,
+| | | |   type=VarChar(20) NULL]
+| | | +-right=TableReference[relation_name=Test,relation_alias=b]
+| | | | +-AttributeReference[id=6,name=int_col,relation=b,type=Int NULL]
+| | | | +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+| | | | +-AttributeReference[id=8,name=float_col,relation=b,type=Float]
+| | | | +-AttributeReference[id=9,name=double_col,relation=b,type=Double NULL]
+| | | | +-AttributeReference[id=10,name=char_col,relation=b,type=Char(20)]
+| | | | +-AttributeReference[id=11,name=vchar_col,relation=b,
+| | | |   type=VarChar(20) NULL]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+| | +-filter_predicate=Equal
+| |   +-Add
+| |   | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+| |   | +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+| |   +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+|   +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+  +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+==
+
+# Nested loops join.
+select a.int_col, b.long_col from test a, test b where a.long_col!=b.long_col and a.int_col+b.long_col=a.long_col
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=NestedLoopsJoin
+| | | +-left=TableReference[relation_name=Test,relation_alias=a]
+| | | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=a,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=a,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=a,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=a,
+| | | |   type=VarChar(20) NULL]
+| | | +-right=TableReference[relation_name=Test,relation_alias=b]
+| | | | +-AttributeReference[id=6,name=int_col,relation=b,type=Int NULL]
+| | | | +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+| | | | +-AttributeReference[id=8,name=float_col,relation=b,type=Float]
+| | | | +-AttributeReference[id=9,name=double_col,relation=b,type=Double NULL]
+| | | | +-AttributeReference[id=10,name=char_col,relation=b,type=Char(20)]
+| | | | +-AttributeReference[id=11,name=vchar_col,relation=b,
+| | | |   type=VarChar(20) NULL]
+| | | +-join_predicate=NotEqual
+| | |   +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+| | |   +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+| | +-filter_predicate=Equal
+| |   +-Add
+| |   | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+| |   | +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+| |   +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+|   +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+  +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+==
+
+select a.int_col
+from test a, test b, test c, test d
+where a.int_col=b.int_col and
+      c.int_col=d.int_col and
+      a.long_col=b.long_col and
+      a.long_col+b.long_col>d.long_col
+--
+TopLevelPlan
++-plan=Project
+| +-input=NestedLoopsJoin
+| | +-left=HashJoin
+| | | +-left=TableReference[relation_name=Test,relation_alias=a]
+| | | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=a,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=a,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=a,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=a,
+| | | |   type=VarChar(20) NULL]
+| | | +-right=TableReference[relation_name=Test,relation_alias=b]
+| | | | +-AttributeReference[id=6,name=int_col,relation=b,type=Int NULL]
+| | | | +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+| | | | +-AttributeReference[id=8,name=float_col,relation=b,type=Float]
+| | | | +-AttributeReference[id=9,name=double_col,relation=b,type=Double NULL]
+| | | | +-AttributeReference[id=10,name=char_col,relation=b,type=Char(20)]
+| | | | +-AttributeReference[id=11,name=vchar_col,relation=b,
+| | | |   type=VarChar(20) NULL]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=6,name=int_col,relation=b,type=Int NULL]
+| | |   +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+| | +-right=HashJoin
+| | | +-left=TableReference[relation_name=Test,relation_alias=c]
+| | | | +-AttributeReference[id=12,name=int_col,relation=c,type=Int NULL]
+| | | | +-AttributeReference[id=13,name=long_col,relation=c,type=Long]
+| | | | +-AttributeReference[id=14,name=float_col,relation=c,type=Float]
+| | | | +-AttributeReference[id=15,name=double_col,relation=c,type=Double NULL]
+| | | | +-AttributeReference[id=16,name=char_col,relation=c,type=Char(20)]
+| | | | +-AttributeReference[id=17,name=vchar_col,relation=c,
+| | | |   type=VarChar(20) NULL]
+| | | +-right=TableReference[relation_name=Test,relation_alias=d]
+| | | | +-AttributeReference[id=18,name=int_col,relation=d,type=Int NULL]
+| | | | +-AttributeReference[id=19,name=long_col,relation=d,type=Long]
+| | | | +-AttributeReference[id=20,name=float_col,relation=d,type=Float]
+| | | | +-AttributeReference[id=21,name=double_col,relation=d,type=Double NULL]
+| | | | +-AttributeReference[id=22,name=char_col,relation=d,type=Char(20)]
+| | | | +-AttributeReference[id=23,name=vchar_col,relation=d,
+| | | |   type=VarChar(20) NULL]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=12,name=int_col,relation=c,type=Int NULL]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=18,name=int_col,relation=d,type=Int NULL]
+| | +-join_predicate=Greater
+| |   +-Add
+| |   | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+| |   | +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+| |   +-AttributeReference[id=19,name=long_col,relation=d,type=Long]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+==
+
+select a.int_col
+from test a, test b, test c, test d
+where a.int_col=d.int_col and a.int_col+b.int_col=c.int_col and (d.double_col>1 or d.int_col=1) and
+      a.int_col+b.long_col=c.long_col
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=NestedLoopsJoin
+| | | +-left=HashJoin
+| | | | +-left=TableReference[relation_name=Test,relation_alias=a]
+| | | | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+| | | | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+| | | | | +-AttributeReference[id=2,name=float_col,relation=a,type=Float]
+| | | | | +-AttributeReference[id=3,name=double_col,relation=a,type=Double NULL]
+| | | | | +-AttributeReference[id=4,name=char_col,relation=a,type=Char(20)]
+| | | | | +-AttributeReference[id=5,name=vchar_col,relation=a,
+| | | | |   type=VarChar(20) NULL]
+| | | | +-right=Filter
+| | | | | +-input=TableReference[relation_name=Test,relation_alias=d]
+| | | | | | +-AttributeReference[id=18,name=int_col,relation=d,type=Int NULL]
+| | | | | | +-AttributeReference[id=19,name=long_col,relation=d,type=Long]
+| | | | | | +-AttributeReference[id=20,name=float_col,relation=d,type=Float]
+| | | | | | +-AttributeReference[id=21,name=double_col,relation=d,
+| | | | | | | type=Double NULL]
+| | | | | | +-AttributeReference[id=22,name=char_col,relation=d,type=Char(20)]
+| | | | | | +-AttributeReference[id=23,name=vchar_col,relation=d,
+| | | | | |   type=VarChar(20) NULL]
+| | | | | +-filter_predicate=Or
+| | | | |   +-Greater
+| | | | |   | +-AttributeReference[id=21,name=double_col,relation=d,
+| | | | |   | | type=Double NULL]
+| | | | |   | +-Literal[value=1,type=Int]
+| | | | |   +-Equal
+| | | | |     +-AttributeReference[id=18,name=int_col,relation=d,type=Int NULL]
+| | | | |     +-Literal[value=1,type=Int]
+| | | | +-left_join_attributes=
+| | | | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+| | | | +-right_join_attributes=
+| | | |   +-AttributeReference[id=18,name=int_col,relation=d,type=Int NULL]
+| | | +-right=NestedLoopsJoin
+| | | | +-left=TableReference[relation_name=Test,relation_alias=b]
+| | | | | +-AttributeReference[id=6,name=int_col,relation=b,type=Int NULL]
+| | | | | +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+| | | | | +-AttributeReference[id=8,name=float_col,relation=b,type=Float]
+| | | | | +-AttributeReference[id=9,name=double_col,relation=b,type=Double NULL]
+| | | | | +-AttributeReference[id=10,name=char_col,relation=b,type=Char(20)]
+| | | | | +-AttributeReference[id=11,name=vchar_col,relation=b,
+| | | | |   type=VarChar(20) NULL]
+| | | | +-right=TableReference[relation_name=Test,relation_alias=c]
+| | | | | +-AttributeReference[id=12,name=int_col,relation=c,type=Int NULL]
+| | | | | +-AttributeReference[id=13,name=long_col,relation=c,type=Long]
+| | | | | +-AttributeReference[id=14,name=float_col,relation=c,type=Float]
+| | | | | +-AttributeReference[id=15,name=double_col,relation=c,type=Double NULL]
+| | | | | +-AttributeReference[id=16,name=char_col,relation=c,type=Char(20)]
+| | | | | +-AttributeReference[id=17,name=vchar_col,relation=c,
+| | | | |   type=VarChar(20) NULL]
+| | | | +-join_predicate=Literal[value=true]
+| | | +-join_predicate=Equal
+| | |   +-Add
+| | |   | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+| | |   | +-AttributeReference[id=6,name=int_col,relation=b,type=Int NULL]
+| | |   +-AttributeReference[id=12,name=int_col,relation=c,type=Int NULL]
+| | +-filter_predicate=Equal
+| |   +-Add
+| |   | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+| |   | +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+| |   +-AttributeReference[id=13,name=long_col,relation=c,type=Long]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+==
+
+select a.int_col
+from test a, test b, test c,
+     (select a.int_col as subquery_int0, b.long_col as subquery_long, c.int_col as subquery_int1
+      from test a, test b, test c
+      where a.int_col = b.int_col) as d
+where a.int_col = b.int_col and subquery_int1=subquery_long and c.int_col=subquery_int0
+--
+TopLevelPlan
++-plan=Project
+| +-input=NestedLoopsJoin
+| | +-left=HashJoin
+| | | +-left=TableReference[relation_name=Test,relation_alias=a]
+| | | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=a,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=a,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=a,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=a,
+| | | |   type=VarChar(20) NULL]
+| | | +-right=TableReference[relation_name=Test,relation_alias=b]
+| | | | +-AttributeReference[id=6,name=int_col,relation=b,type=Int NULL]
+| | | | +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+| | | | +-AttributeReference[id=8,name=float_col,relation=b,type=Float]
+| | | | +-AttributeReference[id=9,name=double_col,relation=b,type=Double NULL]
+| | | | +-AttributeReference[id=10,name=char_col,relation=b,type=Char(20)]
+| | | | +-AttributeReference[id=11,name=vchar_col,relation=b,
+| | | |   type=VarChar(20) NULL]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=6,name=int_col,relation=b,type=Int NULL]
+| | +-right=HashJoin
+| | | +-left=TableReference[relation_name=Test,relation_alias=c]
+| | | | +-AttributeReference[id=12,name=int_col,relation=c,type=Int NULL]
+| | | | +-AttributeReference[id=13,name=long_col,relation=c,type=Long]
+| | | | +-AttributeReference[id=14,name=float_col,relation=c,type=Float]
+| | | | +-AttributeReference[id=15,name=double_col,relation=c,type=Double NULL]
+| | | | +-AttributeReference[id=16,name=char_col,relation=c,type=Char(20)]
+| | | | +-AttributeReference[id=17,name=vchar_col,relation=c,
+| | | |   type=VarChar(20) NULL]
+| | | +-right=Project
+| | | | +-input=HashJoin
+| | | | | +-left=TableReference[relation_name=Test,relation_alias=a]
+| | | | | | +-AttributeReference[id=18,name=int_col,relation=a,type=Int NULL]
+| | | | | | +-AttributeReference[id=19,name=long_col,relation=a,type=Long]
+| | | | | | +-AttributeReference[id=20,name=float_col,relation=a,type=Float]
+| | | | | | +-AttributeReference[id=21,name=double_col,relation=a,
+| | | | | | | type=Double NULL]
+| | | | | | +-AttributeReference[id=22,name=char_col,relation=a,type=Char(20)]
+| | | | | | +-AttributeReference[id=23,name=vchar_col,relation=a,
+| | | | | |   type=VarChar(20) NULL]
+| | | | | +-right=HashJoin
+| | | | | | +-left=TableReference[relation_name=Test,relation_alias=c]
+| | | | | | | +-AttributeReference[id=30,name=int_col,relation=c,type=Int NULL]
+| | | | | | | +-AttributeReference[id=31,name=long_col,relation=c,type=Long]
+| | | | | | | +-AttributeReference[id=32,name=float_col,relation=c,type=Float]
+| | | | | | | +-AttributeReference[id=33,name=double_col,relation=c,
+| | | | | | | | type=Double NULL]
+| | | | | | | +-AttributeReference[id=34,name=char_col,relation=c,type=Char(20)]
+| | | | | | | +-AttributeReference[id=35,name=vchar_col,relation=c,
+| | | | | | |   type=VarChar(20) NULL]
+| | | | | | +-right=TableReference[relation_name=Test,relation_alias=b]
+| | | | | | | +-AttributeReference[id=24,name=int_col,relation=b,type=Int NULL]
+| | | | | | | +-AttributeReference[id=25,name=long_col,relation=b,type=Long]
+| | | | | | | +-AttributeReference[id=26,name=float_col,relation=b,type=Float]
+| | | | | | | +-AttributeReference[id=27,name=double_col,relation=b,
+| | | | | | | | type=Double NULL]
+| | | | | | | +-AttributeReference[id=28,name=char_col,relation=b,type=Char(20)]
+| | | | | | | +-AttributeReference[id=29,name=vchar_col,relation=b,
+| | | | | | |   type=VarChar(20) NULL]
+| | | | | | +-left_join_attributes=
+| | | | | | | +-AttributeReference[id=30,name=subquery_int1,relation=d,
+| | | | | | |   type=Int NULL]
+| | | | | | +-right_join_attributes=
+| | | | | |   +-AttributeReference[id=25,name=subquery_long,relation=d,type=Long]
+| | | | | +-left_join_attributes=
+| | | | | | +-AttributeReference[id=18,name=int_col,relation=a,type=Int NULL]
+| | | | | +-right_join_attributes=
+| | | | |   +-AttributeReference[id=24,name=int_col,relation=b,type=Int NULL]
+| | | | +-project_list=
+| | | |   +-Alias[id=18,name=subquery_int0,relation=d,type=Int NULL]
+| | | |   | +-AttributeReference[id=18,name=int_col,relation=a,type=Int NULL]
+| | | |   +-Alias[id=25,name=subquery_long,relation=d,type=Long]
+| | | |   | +-AttributeReference[id=25,name=long_col,relation=b,type=Long]
+| | | |   +-Alias[id=30,name=subquery_int1,relation=d,type=Int NULL]
+| | | |     +-AttributeReference[id=30,name=int_col,relation=c,type=Int NULL]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=12,name=int_col,relation=c,type=Int NULL]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=18,name=subquery_int0,relation=d,type=Int NULL]
+| | +-join_predicate=Literal[value=true]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+==
+
+# This is an semantically equivalent query as above, but we generate a different plan.
+# It is because we do not optimize the WITH query and the main query holistically.
+with subquery as (select a.int_col as subquery_int0, b.long_col as subquery_long, c.int_col as subquery_int1
+                  from test a, test b, test c where a.int_col = b.int_col)
+select a.int_col
+from test a, test b, test c, subquery as d
+where a.int_col = b.int_col and subquery_int1=subquery_long and c.int_col=subquery_int0
+--
+TopLevelPlan
++-plan=Project
+| +-input=NestedLoopsJoin
+| | +-left=HashJoin
+| | | +-left=TableReference[relation_name=Test,relation_alias=a]
+| | | | +-AttributeReference[id=18,name=int_col,relation=a,type=Int NULL]
+| | | | +-AttributeReference[id=19,name=long_col,relation=a,type=Long]
+| | | | +-AttributeReference[id=20,name=float_col,relation=a,type=Float]
+| | | | +-AttributeReference[id=21,name=double_col,relation=a,type=Double NULL]
+| | | | +-AttributeReference[id=22,name=char_col,relation=a,type=Char(20)]
+| | | | +-AttributeReference[id=23,name=vchar_col,relation=a,
+| | | |   type=VarChar(20) NULL]
+| | | +-right=TableReference[relation_name=Test,relation_alias=b]
+| | | | +-AttributeReference[id=24,name=int_col,relation=b,type=Int NULL]
+| | | | +-AttributeReference[id=25,name=long_col,relation=b,type=Long]
+| | | | +-AttributeReference[id=26,name=float_col,relation=b,type=Float]
+| | | | +-AttributeReference[id=27,name=double_col,relation=b,type=Double NULL]
+| | | | +-AttributeReference[id=28,name=char_col,relation=b,type=Char(20)]
+| | | | +-AttributeReference[id=29,name=vchar_col,relation=b,
+| | | |   type=VarChar(20) NULL]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=18,name=int_col,relation=a,type=Int NULL]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=24,name=int_col,relation=b,type=Int NULL]
+| | +-right=HashJoin
+| | | +-left=TableReference[relation_name=Test,relation_alias=c]
+| | | | +-AttributeReference[id=30,name=int_col,relation=c,type=Int NULL]
+| | | | +-AttributeReference[id=31,name=long_col,relation=c,type=Long]
+| | | | +-AttributeReference[id=32,name=float_col,relation=c,type=Float]
+| | | | +-AttributeReference[id=33,name=double_col,relation=c,type=Double NULL]
+| | | | +-AttributeReference[id=34,name=char_col,relation=c,type=Char(20)]
+| | | | +-AttributeReference[id=35,name=vchar_col,relation=c,
+| | | |   type=VarChar(20) NULL]
+| | | +-right=Filter
+| | | | +-input=SharedSubplanReference[subplan_id=0]
+| | | | | +-output_attributes=
+| | | | |   +-AttributeReference[id=0,name=subquery_int0,relation=subquery,
+| | | | |   | type=Int NULL]
+| | | | |   +-AttributeReference[id=7,name=subquery_long,relation=subquery,
+| | | | |   | type=Long]
+| | | | |   +-AttributeReference[id=12,name=subquery_int1,relation=subquery,
+| | | | |     type=Int NULL]
+| | | | +-filter_predicate=Equal
+| | | |   +-AttributeReference[id=12,name=subquery_int1,relation=subquery,
+| | | |   | type=Int NULL]
+| | | |   +-AttributeReference[id=7,name=subquery_long,relation=subquery,
+| | | |     type=Long]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=30,name=int_col,relation=c,type=Int NULL]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=0,name=subquery_int0,relation=subquery,
+| | |     type=Int NULL]
+| | +-join_predicate=Literal[value=true]
+| +-project_list=
+|   +-AttributeReference[id=18,name=int_col,relation=a,type=Int NULL]
++-shared_subplans=
+| +-Project
+|   +-input=NestedLoopsJoin
+|   | +-left=TableReference[relation_name=Test,relation_alias=c]
+|   | | +-AttributeReference[id=12,name=int_col,relation=c,type=Int NULL]
+|   | | +-AttributeReference[id=13,name=long_col,relation=c,type=Long]
+|   | | +-AttributeReference[id=14,name=float_col,relation=c,type=Float]
+|   | | +-AttributeReference[id=15,name=double_col,relation=c,type=Double NULL]
+|   | | +-AttributeReference[id=16,name=char_col,relation=c,type=Char(20)]
+|   | | +-AttributeReference[id=17,name=vchar_col,relation=c,
+|   | |   type=VarChar(20) NULL]
+|   | +-right=HashJoin
+|   | | +-left=TableReference[relation_name=Test,relation_alias=a]
+|   | | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+|   | | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
+|   | | | +-AttributeReference[id=2,name=float_col,relation=a,type=Float]
+|   | | | +-AttributeReference[id=3,name=double_col,relation=a,type=Double NULL]
+|   | | | +-AttributeReference[id=4,name=char_col,relation=a,type=Char(20)]
+|   | | | +-AttributeReference[id=5,name=vchar_col,relation=a,
+|   | | |   type=VarChar(20) NULL]
+|   | | +-right=TableReference[relation_name=Test,relation_alias=b]
+|   | | | +-AttributeReference[id=6,name=int_col,relation=b,type=Int NULL]
+|   | | | +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+|   | | | +-AttributeReference[id=8,name=float_col,relation=b,type=Float]
+|   | | | +-AttributeReference[id=9,name=double_col,relation=b,type=Double NULL]
+|   | | | +-AttributeReference[id=10,name=char_col,relation=b,type=Char(20)]
+|   | | | +-AttributeReference[id=11,name=vchar_col,relation=b,
+|   | | |   type=VarChar(20) NULL]
+|   | | +-left_join_attributes=
+|   | | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+|   | | +-right_join_attributes=
+|   | |   +-AttributeReference[id=6,name=int_col,relation=b,type=Int NULL]
+|   | +-join_predicate=Literal[value=true]
+|   +-project_list=
+|     +-Alias[id=0,name=subquery_int0,relation=subquery,type=Int NULL]
+|     | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
+|     +-Alias[id=7,name=subquery_long,relation=subquery,type=Long]
+|     | +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
+|     +-Alias[id=12,name=subquery_int1,relation=subquery,type=Int NULL]
+|       +-AttributeReference[id=12,name=int_col,relation=c,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=18,name=int_col,relation=a,type=Int NULL]
+==
+
+with subquery as (select int_col+2 from (select int_col+1 int_col from test) test)
+select * from subquery
+--
+TopLevelPlan
++-plan=Project
+| +-input=SharedSubplanReference[subplan_id=0]
+| | +-output_attributes=
+| |   +-AttributeReference[id=7,name=,alias=(int_col+2),relation=subquery,
+| |     type=Int NULL]
+| +-project_list=
+|   +-AttributeReference[id=7,name=,alias=(int_col+2),relation=subquery,
+|     type=Int NULL]
++-shared_subplans=
+| +-Project
+|   +-input=TableReference[relation_name=Test,relation_alias=test]
+|   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+|   | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+|   | +-AttributeReference[id=5,name=vchar_col,relation=test,
+|   |   type=VarChar(20) NULL]
+|   +-project_list=
+|     +-Alias[id=7,name=,alias=(int_col+2),relation=subquery,type=Int NULL]
+|       +-Add
+|         +-Add
+|         | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|         | +-Literal[value=1,type=Int]
+|         +-Literal[value=2,type=Int]
++-output_attributes=
+  +-AttributeReference[id=7,name=,alias=(int_col+2),relation=subquery,
+    type=Int NULL]

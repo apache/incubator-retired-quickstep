@@ -1,0 +1,12 @@
+// This file copyright (c) 2015, Pivotal Software, Inc.
+// All rights reserved.
+// See file CREDITS.txt for details.
+
+syntax = "proto2";
+
+package quickstep.serialization;
+
+message TextBlob {
+  required fixed64 blob_id = 1;
+  required uint64 size = 2;
+}

@@ -1,0 +1,19 @@
+// This file copyright (c) 2015, Pivotal Software, Inc.
+// All rights reserved.
+// See file CREDITS.txt for details.
+
+syntax = "proto2";
+
+package quickstep.serialization;
+
+message AggregateFunction {
+  enum AggregationID {
+    AVG = 0;
+    COUNT = 1;
+    MAX = 2;
+    MIN = 3;
+    SUM = 4;
+  }
+
+  required AggregationID aggregation_id = 1;
+}

@@ -1,0 +1,125 @@
+// This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+// Copyright (c) 2015, Pivotal Software, Inc.
+// All rights reserved.
+// See file CREDITS.txt for details.
+
+syntax = "proto2";
+
+package quickstep;
+
+// Options for TupleStorageSubBlocks.
+message TupleStorageSubBlockDescription {
+  enum TupleStorageSubBlockType {
+    PACKED_ROW_STORE = 0;
+    BASIC_COLUMN_STORE = 1;
+    COMPRESSED_PACKED_ROW_STORE = 2;
+    COMPRESSED_COLUMN_STORE = 3;
+    SPLIT_ROW_STORE = 4;
+  }
+
+  required TupleStorageSubBlockType sub_block_type = 1;
+
+  // The convention for extension numbering is that extensions for a particular
+  // TupleStorageSubBlock type should begin from (sub_block_type + 1) * 32.
+  extensions 32 to max;
+}
+
+message BasicColumnStoreTupleStorageSubBlockDescription {
+  extend TupleStorageSubBlockDescription {
+    // Extentions may not be marked required in protobuf 2.6 or higher. This
+    // field is considered required when sub_block_type == BASIC_COLUMN_STORE.
+    optional int32 sort_attribute_id = 64;
+  }
+}
+
+message CompressedPackedRowStoreTupleStorageSubBlockDescription {
+  extend TupleStorageSubBlockDescription {
+    repeated int32 compressed_attribute_id = 96;
+  }
+}
+
+message CompressedColumnStoreTupleStorageSubBlockDescription {
+  extend TupleStorageSubBlockDescription {
+    // Required when sub_block_type == COMPRESSED_COLUMN_STORE.
+    optional int32 sort_attribute_id = 128;
+    repeated int32 compressed_attribute_id = 129;
+  }
+}
+
+
+// Options for IndexSubBlocks.
+message IndexSubBlockDescription {
+  enum IndexSubBlockType {
+    CSB_TREE = 0;
+  }
+
+  required IndexSubBlockType sub_block_type = 1;
+
+  // The convention for extension numbering is that extensions for a particular
+  // TupleStorageSubBlock type should begin from (sub_block_type + 1) * 32.
+  extensions 32 to max;
+}
+
+message CSBTreeIndexSubBlockDescription {
+  extend IndexSubBlockDescription {
+    repeated int32 indexed_attribute_id = 32;
+  }
+}
+
+// A complete logical description of a layout.
+message StorageBlockLayoutDescription {
+  required uint64 num_slots = 1;
+  required TupleStorageSubBlockDescription tuple_store_description = 2;
+  repeated IndexSubBlockDescription index_description = 3;
+}
+
+// A binary-format header for an individual StorageBlock. The memory-layout of
+// a StorageBlock is as follows:
+//   - 4 bytes: An int which is the length of the subsequent StorageBlockHeader
+//     (obtained from StorageBlockHeader::ByteSize())
+//   - Variable length (previous int): A binary-serialized StorageBlockHeader.
+//   - Variable length (header.tuple_store_size): A TupleStorageSubBlock.
+//   - A series of 0 or more IndexSubBlocks whose lengths are from
+//     header.index_size.
+message StorageBlockHeader {
+  required StorageBlockLayoutDescription layout = 1;
+
+  // Sub-block sizes in bytes.
+  //
+  // NOTE(chasseur): Although uint64 would almost always lead to smaller, more
+  // efficient coding, we use fixed64 so that the exact size of a header can be
+  // known before the sub-block sizes are computed.
+  required fixed64 tuple_store_size = 2;
+  repeated fixed64 index_size = 3 [packed=true];
+
+  // Whether each IndexSubBlock is in a consistent state (i.e. completely and
+  // accurately reflects the contents of the TupleStorageSubBlock).
+  repeated bool index_consistent = 4 [packed=true];
+}
+
+
+// A binary-format header for common information in compressed blocks.
+message CompressedBlockInfo {
+  // The compressed byte-length of each attribute. If this is different than
+  // the byte-length of the attribute's type in the catalog, then the attribute
+  // is compressed.
+  repeated fixed64 attribute_size = 1 [packed=true];
+
+  // The size of dictionaries. There is one entry for each attribute. A
+  // positive value indicates the size of the attribute's compression
+  // dictionary. Zero indicates that the attribute is either uncompressed,
+  // or is an integer-like attribute which is compressed by truncating values
+  // to a shorter byte length.
+  repeated fixed64 dictionary_size = 2 [packed=true];
+
+  // The size in bits of the null bitmap(s) for uncompressed attributes with
+  // null values. May be zero if no uncompressed attributes have any null
+  // values.
+  required fixed64 null_bitmap_bits = 3;
+
+  // Whether each attribute is uncompressed and has null values (i.e. whether
+  // it has a columnar null bitmap in CompressedColumnStoreTupleStorageSubBlock
+  // or bits in the row-major null bitmap of a
+  // CompressedPackedRowStoreTupleStorageSubBlock).
+  repeated bool uncompressed_attribute_has_nulls = 4 [packed=true];
+}

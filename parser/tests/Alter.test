@@ -1,0 +1,42 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+alter table test
+add attr int
+--
+ERROR: syntax error (2 : 5)
+add attr int
+    ^
+==
+
+alter table test
+add column attr int
+--
+ERROR: ALTER statements is not supported yet (1 : 1)
+alter table test
+^
+==
+
+alter table test
+drop column attr int
+--
+ERROR: ALTER statements is not supported yet (1 : 1)
+alter table test
+^
+==
+
+alter table test
+add constraint unique(attr)
+--
+ERROR: Table Constraints (UNIQUE) is not supported yet (2 : 16)
+add constraint unique(attr)
+               ^
+==
+
+alter table test
+drop constraint constraint0
+--
+ERROR: ALTER statements is not supported yet (1 : 1)
+alter table test
+^

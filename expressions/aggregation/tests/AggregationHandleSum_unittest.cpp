@@ -1,0 +1,418 @@
+/**
+ * This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+ * Copyright (c) 2015, Pivotal Software, Inc.
+ * All rights reserved.
+ * See file CREDITS.txt for details.
+ **/
+
+#include <cstddef>
+#include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "catalog/CatalogTypedefs.hpp"
+#include "expressions/aggregation/AggregateFunction.hpp"
+#include "expressions/aggregation/AggregateFunctionFactory.hpp"
+#include "expressions/aggregation/AggregationHandle.hpp"
+#include "expressions/aggregation/AggregationHandleSum.hpp"
+#include "expressions/aggregation/AggregationID.hpp"
+#include "types/CharType.hpp"
+#include "types/DatetimeIntervalType.hpp"
+#include "types/DoubleType.hpp"
+#include "types/FloatType.hpp"
+#include "types/IntType.hpp"
+#include "types/IntervalLit.hpp"
+#include "types/LongType.hpp"
+#include "types/Type.hpp"
+#include "types/TypeFactory.hpp"
+#include "types/TypeID.hpp"
+#include "types/TypedValue.hpp"
+#include "types/VarCharType.hpp"
+#include "types/YearMonthIntervalType.hpp"
+#include "types/containers/ColumnVector.hpp"
+
+#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
+#include "types/containers/ColumnVectorsValueAccessor.hpp"
+#endif
+
+#include "gtest/gtest.h"
+
+namespace quickstep {
+
+class AggregationHandleSumTest : public::testing::Test {
+ protected:
+  static const int kNumSamples = 1000;
+
+  // Helper method that calls AggregationHandleSum::iterateUnaryInl() to
+  // aggregate 'value' into '*state'.
+  void iterateHandle(AggregationState *state, const TypedValue &value) {
+    static_cast<const AggregationHandleSum&>(*aggregation_handle_sum_).iterateUnaryInl(
+        static_cast<AggregationStateSum*>(state),
+        value);
+  }
+
+  void initializeHandle(const Type &type) {
+    aggregation_handle_sum_.reset(
+        AggregateFunctionFactory::Get(AggregationID::kSum).createHandle(
+            std::vector<const Type*>(1, &type)));
+    aggregation_handle_sum_state_.reset(
+        aggregation_handle_sum_->createInitialState());
+  }
+
+  static bool ApplyToTypesTest(TypeID typeID) {
+    const Type &type = (typeID == kChar || typeID == kVarChar) ?
+        TypeFactory::GetType(typeID, static_cast<std::size_t>(10)) :
+        TypeFactory::GetType(typeID);
+
+    return AggregateFunctionFactory::Get(AggregationID::kSum).canApplyToTypes(
+        std::vector<const Type*>(1, &type));
+  }
+
+  static bool ResultTypeForArgumentTypeTest(TypeID input_type_id,
+                                            TypeID output_type_id) {
+    const Type *result_type
+        = AggregateFunctionFactory::Get(AggregationID::kSum).resultTypeForArgumentTypes(
+            std::vector<const Type*>(1, &TypeFactory::GetType(input_type_id)));
+    return (result_type->getTypeID() == output_type_id);
+  }
+
+  template <typename CppType>
+  static void CheckSumValue(
+      CppType expected,
+      const AggregationHandle &target,
+      const AggregationState &state) {
+    EXPECT_EQ(expected, target.finalize(state).getLiteral<CppType>());
+  }
+
+  // Static templated method to set a meaningful to data types.
+  template <typename CppType>
+  static void SetDataType(int value, CppType *data) {
+    *data = value;
+  }
+
+  template <typename GenericType, typename PrecisionType>
+  void checkAggregationSumGeneric() {
+    const GenericType &type = GenericType::Instance(true);
+
+    initializeHandle(type);
+    EXPECT_TRUE(aggregation_handle_sum_->finalize(*aggregation_handle_sum_state_).isNull());
+
+    typename GenericType::cpptype val;
+    typename PrecisionType::cpptype sum;
+    SetDataType(0, &sum);
+
+    iterateHandle(aggregation_handle_sum_state_.get(), type.makeNullValue());
+    for (int i = 0; i < kNumSamples; ++i) {
+      if (type.getTypeID() == kInt || type.getTypeID() == kLong) {
+        SetDataType(i - 10, &val);
+      } else {
+        SetDataType(static_cast<float>(i - 10)/10, &val);
+      }
+      iterateHandle(aggregation_handle_sum_state_.get(), type.makeValue(&val));
+      sum += val;
+    }
+    iterateHandle(aggregation_handle_sum_state_.get(), type.makeNullValue());
+    CheckSumValue<typename PrecisionType::cpptype>(sum, *aggregation_handle_sum_, *aggregation_handle_sum_state_);
+
+    // Test mergeStates().
+    std::unique_ptr<AggregationState> merge_state(
+        aggregation_handle_sum_->createInitialState());
+    aggregation_handle_sum_->mergeStates(*merge_state,
+                                         aggregation_handle_sum_state_.get());
+
+    iterateHandle(merge_state.get(), type.makeNullValue());
+    for (int i = 0; i < kNumSamples; ++i) {
+      if (type.getTypeID() == kInt || type.getTypeID() == kLong) {
+        SetDataType(i - 10, &val);
+      } else {
+        SetDataType(static_cast<float>(i - 10)/10, &val);
+      }
+      iterateHandle(merge_state.get(), type.makeValue(&val));
+      sum += val;
+    }
+    aggregation_handle_sum_->mergeStates(*merge_state,
+                                         aggregation_handle_sum_state_.get());
+    CheckSumValue<typename PrecisionType::cpptype>(
+        sum,
+        *aggregation_handle_sum_,
+        *aggregation_handle_sum_state_);
+  }
+
+  template <typename GenericType, typename Output>
+  ColumnVector *createColumnVectorGeneric(const Type &type, Output *sum) {
+    NativeColumnVector *column = new NativeColumnVector(type, kNumSamples + 3);
+
+    typename GenericType::cpptype val;
+    SetDataType(0, sum);
+
+    column->appendTypedValue(type.makeNullValue());
+    for (int i = 0; i < kNumSamples; ++i) {
+      if (type.getTypeID() == kInt || type.getTypeID() == kLong) {
+        SetDataType(i - 10, &val);
+      } else {
+        SetDataType(static_cast<float>(i - 10)/10, &val);
+      }
+      column->appendTypedValue(type.makeValue(&val));
+      *sum += val;
+      // One NULL in the middle.
+      if (i == kNumSamples/2) {
+        column->appendTypedValue(type.makeNullValue());
+      }
+    }
+    column->appendTypedValue(type.makeNullValue());
+
+    return column;
+  }
+
+  template <typename GenericType, typename PrecisionType>
+  void checkAggregationSumGenericColumnVector() {
+    const GenericType &type = GenericType::Instance(true);
+
+    initializeHandle(type);
+    EXPECT_TRUE(aggregation_handle_sum_->finalize(*aggregation_handle_sum_state_).isNull());
+
+    typename PrecisionType::cpptype sum;
+    std::vector<std::unique_ptr<ColumnVector>> column_vectors;
+    column_vectors.emplace_back(
+        createColumnVectorGeneric<GenericType, typename PrecisionType::cpptype>(type, &sum));
+
+    std::unique_ptr<AggregationState> cv_state(
+        aggregation_handle_sum_->accumulateColumnVectors(column_vectors));
+
+    // Test the state generated directly by accumulateColumnVectors(), and also
+    // test after merging back.
+    CheckSumValue<typename PrecisionType::cpptype>(
+        sum,
+        *aggregation_handle_sum_,
+        *cv_state);
+
+    aggregation_handle_sum_->mergeStates(*cv_state, aggregation_handle_sum_state_.get());
+    CheckSumValue<typename PrecisionType::cpptype>(
+        sum,
+        *aggregation_handle_sum_,
+        *aggregation_handle_sum_state_);
+  }
+
+#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
+  template <typename GenericType, typename PrecisionType>
+  void checkAggregationSumGenericValueAccessor() {
+    const GenericType &type = GenericType::Instance(true);
+
+    initializeHandle(type);
+    EXPECT_TRUE(aggregation_handle_sum_->finalize(*aggregation_handle_sum_state_).isNull());
+
+    typename PrecisionType::cpptype sum;
+    std::unique_ptr<ColumnVectorsValueAccessor> accessor(new ColumnVectorsValueAccessor());
+    accessor->addColumn(
+        createColumnVectorGeneric<GenericType, typename PrecisionType::cpptype>(type, &sum));
+
+    std::unique_ptr<AggregationState> va_state(
+        aggregation_handle_sum_->accumulateValueAccessor(accessor.get(),
+                                                         std::vector<attribute_id>(1, 0)));
+
+    // Test the state generated directly by accumulateValueAccessor(), and also
+    // test after merging back.
+    CheckSumValue<typename PrecisionType::cpptype>(
+        sum,
+        *aggregation_handle_sum_,
+        *va_state);
+
+    aggregation_handle_sum_->mergeStates(*va_state, aggregation_handle_sum_state_.get());
+    CheckSumValue<typename PrecisionType::cpptype>(
+        sum,
+        *aggregation_handle_sum_,
+        *aggregation_handle_sum_state_);
+  }
+#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
+
+  std::unique_ptr<AggregationHandle> aggregation_handle_sum_;
+  std::unique_ptr<AggregationState> aggregation_handle_sum_state_;
+};
+
+const int AggregationHandleSumTest::kNumSamples;
+
+template <>
+void AggregationHandleSumTest::CheckSumValue<float>(
+    float val,
+    const AggregationHandle &handle,
+    const AggregationState &state) {
+  EXPECT_FLOAT_EQ(val, handle.finalize(state).getLiteral<float>());
+}
+
+template <>
+void AggregationHandleSumTest::CheckSumValue<double>(
+    double val,
+    const AggregationHandle &handle,
+    const AggregationState &state) {
+  EXPECT_DOUBLE_EQ(val, handle.finalize(state).getLiteral<double>());
+}
+
+template <>
+void AggregationHandleSumTest::SetDataType<DatetimeIntervalLit>(int value, DatetimeIntervalLit *data) {
+  data->interval_ticks = value;
+}
+
+template <>
+void AggregationHandleSumTest::SetDataType<YearMonthIntervalLit>(int value, YearMonthIntervalLit *data) {
+  data->months = value;
+}
+
+typedef AggregationHandleSumTest AggregationHandleSumDeathTest;
+
+TEST_F(AggregationHandleSumTest, IntTypeTest) {
+  checkAggregationSumGeneric<IntType, LongType>();
+}
+
+TEST_F(AggregationHandleSumTest, LongTypeTest) {
+  checkAggregationSumGeneric<LongType, LongType>();
+}
+
+TEST_F(AggregationHandleSumTest, FloatTypeTest) {
+  checkAggregationSumGeneric<FloatType, DoubleType>();
+}
+
+TEST_F(AggregationHandleSumTest, DoubleTypeTest) {
+  checkAggregationSumGeneric<DoubleType, DoubleType>();
+}
+
+TEST_F(AggregationHandleSumTest, DatetimeIntervalTypeTest) {
+  checkAggregationSumGeneric<DatetimeIntervalType, DatetimeIntervalType>();
+}
+
+TEST_F(AggregationHandleSumTest, YearMonthIntervalTypeTest) {
+  checkAggregationSumGeneric<YearMonthIntervalType, YearMonthIntervalType>();
+}
+
+TEST_F(AggregationHandleSumTest, IntTypeColumnVectorTest) {
+  checkAggregationSumGenericColumnVector<IntType, LongType>();
+}
+
+TEST_F(AggregationHandleSumTest, LongTypeColumnVectorTest) {
+  checkAggregationSumGenericColumnVector<LongType, LongType>();
+}
+
+TEST_F(AggregationHandleSumTest, FloatTypeColumnVectorTest) {
+  checkAggregationSumGenericColumnVector<FloatType, DoubleType>();
+}
+
+TEST_F(AggregationHandleSumTest, DoubleTypeColumnVectorTest) {
+  checkAggregationSumGenericColumnVector<DoubleType, DoubleType>();
+}
+
+TEST_F(AggregationHandleSumTest, DatetimeIntervalTypeColumnVectorTest) {
+  checkAggregationSumGenericColumnVector<DatetimeIntervalType, DatetimeIntervalType>();
+}
+
+TEST_F(AggregationHandleSumTest, YearMonthIntervalTypeColumnVectorTest) {
+  checkAggregationSumGenericColumnVector<YearMonthIntervalType, YearMonthIntervalType>();
+}
+
+#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
+TEST_F(AggregationHandleSumTest, IntTypeValueAccessorTest) {
+  checkAggregationSumGenericValueAccessor<IntType, LongType>();
+}
+
+TEST_F(AggregationHandleSumTest, LongTypeValueAccessorTest) {
+  checkAggregationSumGenericValueAccessor<LongType, LongType>();
+}
+
+TEST_F(AggregationHandleSumTest, FloatTypeValueAccessorTest) {
+  checkAggregationSumGenericValueAccessor<FloatType, DoubleType>();
+}
+
+TEST_F(AggregationHandleSumTest, DoubleTypeValueAccessorTest) {
+  checkAggregationSumGenericValueAccessor<DoubleType, DoubleType>();
+}
+
+TEST_F(AggregationHandleSumTest, DatetimeIntervalTypeValueAccessorTest) {
+  checkAggregationSumGenericValueAccessor<DatetimeIntervalType, DatetimeIntervalType>();
+}
+
+TEST_F(AggregationHandleSumTest, YearMonthIntervalTypeValueAccessorTest) {
+  checkAggregationSumGenericValueAccessor<YearMonthIntervalType, YearMonthIntervalType>();
+}
+#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
+
+#ifdef QUICKSTEP_DEBUG
+TEST_F(AggregationHandleSumDeathTest, CharTypeTest) {
+  const Type &type = CharType::Instance(true, 10);
+  EXPECT_DEATH(initializeHandle(type), "");
+}
+
+TEST_F(AggregationHandleSumDeathTest, VarTypeTest) {
+  const Type &type = VarCharType::Instance(true, 10);
+  EXPECT_DEATH(initializeHandle(type), "");
+}
+
+TEST_F(AggregationHandleSumDeathTest, WrongTypeTest) {
+  const Type &int_non_null_type = IntType::Instance(false);
+  const Type &long_type = LongType::Instance(true);
+  const Type &double_type = DoubleType::Instance(true);
+  const Type &float_type = FloatType::Instance(true);
+  const Type &char_type = CharType::Instance(true, 10);
+  const Type &varchar_type = VarCharType::Instance(true, 10);
+
+  initializeHandle(IntType::Instance(true));
+  int int_val = 0;
+  std::int64_t long_val = 0;
+  double double_val = 0;
+  float float_val = 0;
+
+  // Passes.
+  iterateHandle(aggregation_handle_sum_state_.get(), int_non_null_type.makeValue(&int_val));
+
+  EXPECT_DEATH(iterateHandle(aggregation_handle_sum_state_.get(), long_type.makeValue(&long_val)), "");
+  EXPECT_DEATH(iterateHandle(aggregation_handle_sum_state_.get(), double_type.makeValue(&double_val)), "");
+  EXPECT_DEATH(iterateHandle(aggregation_handle_sum_state_.get(), float_type.makeValue(&float_val)), "");
+  EXPECT_DEATH(iterateHandle(aggregation_handle_sum_state_.get(), char_type.makeValue("asdf", 5)), "");
+  EXPECT_DEATH(iterateHandle(aggregation_handle_sum_state_.get(), varchar_type.makeValue("asdf", 5)), "");
+
+  // Test mergeStates() with incorrectly typed handles.
+  std::unique_ptr<AggregationHandle> aggregation_handle_sum_double(
+      AggregateFunctionFactory::Get(AggregationID::kSum).createHandle(
+          std::vector<const Type*>(1, &double_type)));
+  std::unique_ptr<AggregationState> aggregation_state_sum_merge_double(
+      aggregation_handle_sum_double->createInitialState());
+  static_cast<const AggregationHandleSum&>(*aggregation_handle_sum_double).iterateUnaryInl(
+      static_cast<AggregationStateSum*>(aggregation_state_sum_merge_double.get()),
+      double_type.makeValue(&double_val));
+  EXPECT_DEATH(aggregation_handle_sum_->mergeStates(*aggregation_state_sum_merge_double,
+                                                    aggregation_handle_sum_state_.get()),
+               "");
+
+  std::unique_ptr<AggregationHandle> aggregation_handle_sum_float(
+      AggregateFunctionFactory::Get(AggregationID::kSum).createHandle(
+          std::vector<const Type*>(1, &float_type)));
+  std::unique_ptr<AggregationState> aggregation_state_sum_merge_float(
+      aggregation_handle_sum_float->createInitialState());
+  static_cast<const AggregationHandleSum&>(*aggregation_handle_sum_float).iterateUnaryInl(
+      static_cast<AggregationStateSum*>(aggregation_state_sum_merge_float.get()),
+      float_type.makeValue(&float_val));
+  EXPECT_DEATH(aggregation_handle_sum_->mergeStates(*aggregation_state_sum_merge_float,
+                                                    aggregation_handle_sum_state_.get()),
+               "");
+}
+#endif
+
+TEST_F(AggregationHandleSumTest, canApplyToTypeTest) {
+  EXPECT_TRUE(ApplyToTypesTest(kInt));
+  EXPECT_TRUE(ApplyToTypesTest(kLong));
+  EXPECT_TRUE(ApplyToTypesTest(kFloat));
+  EXPECT_TRUE(ApplyToTypesTest(kDouble));
+  EXPECT_FALSE(ApplyToTypesTest(kChar));
+  EXPECT_FALSE(ApplyToTypesTest(kVarChar));
+  EXPECT_FALSE(ApplyToTypesTest(kDatetime));
+  EXPECT_TRUE(ApplyToTypesTest(kDatetimeInterval));
+  EXPECT_TRUE(ApplyToTypesTest(kYearMonthInterval));
+}
+
+TEST_F(AggregationHandleSumTest, ResultTypeForArgumentTypeTest) {
+  EXPECT_TRUE(ResultTypeForArgumentTypeTest(kInt, kLong));
+  EXPECT_TRUE(ResultTypeForArgumentTypeTest(kLong, kLong));
+  EXPECT_TRUE(ResultTypeForArgumentTypeTest(kFloat, kDouble));
+  EXPECT_TRUE(ResultTypeForArgumentTypeTest(kDouble, kDouble));
+  EXPECT_TRUE(ResultTypeForArgumentTypeTest(kDatetimeInterval, kDatetimeInterval));
+  EXPECT_TRUE(ResultTypeForArgumentTypeTest(kYearMonthInterval, kYearMonthInterval));
+}
+
+}  // namespace quickstep

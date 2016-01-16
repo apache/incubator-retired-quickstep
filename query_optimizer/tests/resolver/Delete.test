@@ -1,0 +1,65 @@
+# This file copyright (c) 2011-2015, Quickstep Technologies LLC.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+[default initial_logical_plan]
+delete from test where int_col+long_col>1-float_col and int_col<4
+--
+TopLevelPlan
++-plan=DeleteTuples
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-predicate=And
+|   +-Greater
+|   | +-Add
+|   | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   | +-Subtract
+|   |   +-Literal[value=1,type=Int]
+|   |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   +-Less
+|     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|     +-Literal[value=4,type=Int]
++-output_attributes=
+  +-[]
+==
+
+delete from TesT
+--
+TopLevelPlan
++-plan=DeleteTuples
+| +-input=TableReference[relation_name=Test,relation_alias=TesT]
+|   +-AttributeReference[id=0,name=int_col,relation=TesT,type=Int NULL]
+|   +-AttributeReference[id=1,name=long_col,relation=TesT,type=Long]
+|   +-AttributeReference[id=2,name=float_col,relation=TesT,type=Float]
+|   +-AttributeReference[id=3,name=double_col,relation=TesT,type=Double NULL]
+|   +-AttributeReference[id=4,name=char_col,relation=TesT,type=Char(20)]
+|   +-AttributeReference[id=5,name=vchar_col,relation=TesT,type=VarChar(20) NULL]
++-output_attributes=
+  +-[]
+==
+
+delete from undefined_table
+--
+ERROR: Unrecognized relation undefined_table (1 : 13)
+delete from undefined_table
+            ^
+==
+
+delete from test where undefined_col<1
+--
+ERROR: Unrecognized attribute undefined_col (1 : 24)
+delete from test where undefined_col<1
+                       ^
+==
+
+delete from test where int_col>count(*)
+--
+ERROR: Aggregate function not allowed in WHERE clause (1 : 32)
+delete from test where int_col>count(*)
+                               ^
