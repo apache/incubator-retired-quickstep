@@ -63,9 +63,6 @@ Xcode by typing in:
 open QUICKSTEP.xcodeproj
 ```
 
-[Warning: You may need to go to the last step at this point to fix an issue
-with the third party protobuf.]
-
 Xcode should start and the first thing you should see is a pop-up box that asks
 if you want to `Manually Manage Schemes` or `Automatically Create Schemes`.
 Pick the latter and let Xcode genreate the schemes, which will essentially
