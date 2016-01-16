@@ -14,6 +14,8 @@
 #include "utility/Macros.hpp"
 #include "utility/UtilityConfig.h"
 
+#include "glog/logging.h"
+
 #ifdef QUICKSTEP_HAVE_STD_ALIGN
 #include <memory>
 #endif
@@ -66,13 +68,13 @@ inline void* malloc_with_alignment(const std::size_t size,
                                    const std::size_t alignment) {
 #if defined(QUICKSTEP_HAVE_TCMALLOC)
   void *ptr;
-  DO_AND_DEBUG_ASSERT_ZERO(tc_posix_memalign(&ptr, alignment, size));
+  CHECK_EQ(0, tc_posix_memalign(&ptr, alignment, size));
   return ptr;
 #elif defined(QUICKSTEP_HAVE_ALIGNED_ALLOC)
   return aligned_alloc(alignment, size);
 #elif defined(QUICKSTEP_HAVE_POSIX_MEMALIGN)
   void *ptr;
-  DO_AND_DEBUG_ASSERT_ZERO(posix_memalign(&ptr, alignment, size));
+  CHECK_EQ(0, posix_memalign(&ptr, alignment, size));
   return ptr;
 #elif defined(QUICKSTEP_HAVE_MEMALIGN)
   return memalign(alignment, size);

@@ -7,8 +7,9 @@
 
 // NOTE(chasseur): This file helps resolve some otherwise intractible circular
 // dependencies with the the vectorized methods of the template classes in
-// AsciiStringComparators.hpp. It should ONLY be included from
-// BasicComparisons.cpp.
+// AsciiStringComparators.hpp. It should ONLY be included where an
+// AsciiStringUncheckedComparator is actually created (e.g. the various
+// comparison source files like LessComparison.cpp, and ComparisonUtil.hpp).
 
 #ifndef QUICKSTEP_TYPES_OPERATIONS_COMPARISONS_ASCII_STRING_COMPARATORS_INL_HPP_
 #define QUICKSTEP_TYPES_OPERATIONS_COMPARISONS_ASCII_STRING_COMPARATORS_INL_HPP_

@@ -14,6 +14,7 @@
 #include <limits>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -1501,6 +1502,13 @@ void CheckNumericHash() {
   values.push_back(TypedValue(numeric_limits<NumericType>::min()));
 
   CheckHashEquivalence(values);
+
+  // On 32-bit platforms, INT64_MIN and INT64_MAX can collide with hashes for
+  // 0 and -1.
+  if (std::is_same<NumericType, std::int64_t>::value
+      && (sizeof(std::size_t) < 8)) {
+    values.resize(values.size() - 2);
+  }
   CheckHashCollisions(values);
 }
 

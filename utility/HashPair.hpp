@@ -36,9 +36,9 @@ struct HashCombiner<HashT,
                                           std::size_t second_hash) {
     // Based on Hash128to64() from cityhash.
     static constexpr std::size_t kMul = UINT64_C(0x9ddfea08eb382d69);
-    std::size_t a = (first_hash ^ second_hash) * kMul;
+    HashT a = (first_hash ^ second_hash) * kMul;
     a ^= (a >> 47);
-    std::size_t b = (second_hash ^ a) * kMul;
+    HashT b = (second_hash ^ a) * kMul;
     b ^= (b >> 47);
     b *= kMul;
     return b;

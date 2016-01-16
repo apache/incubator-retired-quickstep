@@ -25,7 +25,7 @@ namespace quickstep {
 struct DatetimeLit {
   std::int64_t ticks;  // Ticks in GMT.
 
-  static constexpr std::int64_t kTicksPerSecond = 1000000LL;
+  static constexpr std::int64_t kTicksPerSecond = INT64_C(1000000);
 
   // The maximum number of characters needed to represent any date in ISO 8601
   // notation.

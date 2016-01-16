@@ -3,6 +3,15 @@
 # All rights reserved.
 # See file CREDITS.txt for details.
 
+include(CheckTypeSize)
+set(CMAKE_EXTRA_INCLUDE_FILES "time.h")
+CHECK_TYPE_SIZE("time_t" SIZEOF_TIME_T)
+if(SIZEOF_TIME_T LESS 8)
+  message(
+      WARNING
+      "time_t is not 64 bits, so printing of years will only be accurate near the epoch")
+endif()
+
 add_subdirectory(containers)
 add_subdirectory(operations)
 add_subdirectory(port)

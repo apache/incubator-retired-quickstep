@@ -45,9 +45,10 @@ class ConditionVariableImplPosix {
     struct timespec timeout_time;
     struct timeval current_time;
     gettimeofday(&current_time, nullptr);
-    std::uint64_t nanoseconds = (current_time.tv_usec + milliseconds * 1000ULL) * 1000ULL;
-    timeout_time.tv_sec = current_time.tv_sec + nanoseconds / 1000000000ULL;
-    timeout_time.tv_nsec = nanoseconds % 1000000000ULL;
+    std::uint64_t nanoseconds
+        = (current_time.tv_usec + milliseconds * UINT64_C(1000)) * UINT64_C(1000);
+    timeout_time.tv_sec = current_time.tv_sec + nanoseconds / UINT64_C(1000000000);
+    timeout_time.tv_nsec = nanoseconds % UINT64_C(1000000000);
     int error_code = pthread_cond_timedwait(&internal_condition_var_,
                                             parent_mutex_, &timeout_time);
     if (ETIMEDOUT == error_code) {
