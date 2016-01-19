@@ -87,3 +87,7 @@ concerns of a database system. The main modules are:
   pruning, join ordering) as part of the transformation process.
 * [Command-Line Interface](cli) - An interactive SQL shell interface to
   Quickstep.
+
+## Licensing
+
+Quickstep is licensed under the Apache License, Version 2.0. See [LICENSE](https://github.com/pivotalsoftware/quickstep/blob/master/LICENSE) for the full license text.
