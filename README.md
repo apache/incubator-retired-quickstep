@@ -2,8 +2,8 @@
 
 [![Travis Widget]][Travis]
 
-[Travis]: https://magnum.travis-ci.com/Pivotal-DataFabric/quickstep/
-[Travis Widget]: https://magnum.travis-ci.com/Pivotal-DataFabric/quickstep.svg?token=wsgNaqCGpUZgLHU84HTR&branch=master
+[Travis]: https://travis-ci.org/pivotalsoftware/quickstep
+[Travis Widget]: https://travis-ci.org/pivotalsoftware/quickstep.svg?branch=master
 
 Quickstep is an experimental high-performance database engine designed with the
 aim of Data at Bare-Metal Speed. It began life in 2011 as a 
