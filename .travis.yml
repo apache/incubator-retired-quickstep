@@ -1,0 +1,84 @@
+# NOTE(quickstep-team): In Travis-CI, jobs timeout if they take more than 120
+# mins or if there is no log output for more than 10 mins. Hence, we use -O0 to
+# speed up compilation in release build. Also, jobs can only use upto 20GB of
+# disk space. Hence, we minimize the amount of debug symbol using -g0 (DEBUG
+# builds were taking > 20GB of space with clang).
+
+language: cpp
+
+compiler:
+  - clang
+  - gcc
+
+env:
+  - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=none
+  - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=none
+  - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
+  - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
+
+install:
+  - if [ "$VECTOR_COPY_ELISION_LEVEL" = "joinwithbinaryexpressions" ] && [ "$CC" = "gcc" ]; then
+      export MAKE_JOBS=1;
+    else
+      export MAKE_JOBS=2;
+    fi
+  - export TEST_JOBS=2;
+  - if [ "$CC" = "gcc" ]; then
+      export CC="gcc-4.9";
+      export CXX="g++-4.9";
+    elif [ "$CC" = "clang" ]; then
+      export CC="clang-3.7";
+      export CXX="clang++-3.7";
+    fi
+  - export DEBUG_FLAGS="-g0";
+  - export RELEASE_FLAGS="-O0 -DNDEBUG";
+  - export LINKER_FLAGS="-s"
+
+before_script:
+  - $CC --version
+  - $CXX --version
+  - (cd build &&
+     cmake -D CMAKE_BUILD_TYPE=$BUILD_TYPE
+           -D CMAKE_C_FLAGS_DEBUG="$DEBUG_FLAGS"
+           -D CMAKE_CXX_FLAGS_DEBUG="$DEBUG_FLAGS"
+           -D CMAKE_C_FLAGS_RELEASE="$RELEASE_FLAGS"
+           -D CMAKE_CXX_FLAGS_RELEASE="$RELEASE_FLAGS"
+           -D CMAKE_EXE_LINKER_FLAGS="$LINKER_FLAGS"
+           -D CMAKE_C_COMPILER=$CC
+           -D CMAKE_CXX_COMPILER=$CXX
+           -D USE_TCMALLOC=0
+           -D VECTOR_COPY_ELISION_LEVEL=$VECTOR_COPY_ELISION_LEVEL ..)
+
+script:
+  - ./third_party/cpplint/lint_everything.py
+  - ./validate_cmakelists.py
+  - ./cyclic_dependency.py
+  - (cd build && make -j$MAKE_JOBS)
+  - (cd build && ctest --output-on-failure -j$TEST_JOBS)
+
+after_failure:
+  - df -h
+  - free -m
+  - dmesg
+
+# Besides pull requests, we want to continuously test pushes/merges to master.
+branches:
+  only:
+    - master
+
+addons:
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+      - llvm-toolchain-precise-3.7
+    packages:
+      - gcc-4.9
+      - g++-4.9
+      - clang-3.7
+      - libprotobuf-dev
+      - protobuf-compiler
+      - python-networkx
+      - libnuma-dev
+
+cache:
+  apt: true
