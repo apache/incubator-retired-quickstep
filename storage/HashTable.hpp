@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -36,7 +36,6 @@
 #include "threading/SpinSharedMutex.hpp"
 #include "types/Type.hpp"
 #include "types/TypedValue.hpp"
-#include "types/operations/comparisons/ComparisonUtil.hpp"
 #include "utility/HashPair.hpp"
 #include "utility/Macros.hpp"
 
@@ -54,16 +53,6 @@ enum class HashTablePutResult {
   kOK = 0,
   kDuplicateKey,
   kOutOfSpace
-};
-
-/**
- * @brief Used internally by HashTables to keep track of pre-allocated
- *        resources used in putValueAccessor() and
- *        putValueAccessorCompositeKey().
- **/
-struct HashTablePreallocationState {
-  std::size_t bucket_position;
-  std::size_t variable_length_key_position;
 };
 
 /**
@@ -127,14 +116,18 @@ class HashTable : public HashTableBase<resizable,
   static constexpr bool template_force_key_copy = force_key_copy;
   static constexpr bool template_allow_duplicate_keys = allow_duplicate_keys;
 
-  // A surrogate hash value for empty buckets. Keys which actually hash to this
-  // value should have their hashes mutated (e.g. by adding 1). We use zero,
-  // since we will often be using memory which is already zeroed-out and this
-  // saves us the trouble of a memset. This has some downside, as the std::hash
-  // function we use is the identity hash for integers, and the integer 0 is
-  // common in many data sets and must be adjusted (and will then spuriously
-  // collide with 1). Nevertheless, this expense is outweighed by no longer
-  // having to memset large regions of memory when initializing a HashTable.
+  // Some HashTable implementations (notably LinearOpenAddressingHashTable)
+  // use a special hash code to represent an empty bucket, and another special
+  // code to indicate that a bucket is currently being inserted into. For those
+  // HashTables, this is a surrogate hash value for empty buckets. Keys which
+  // actually hash to this value should have their hashes mutated (e.g. by
+  // adding 1). We use zero, since we will often be using memory which is
+  // already zeroed-out and this saves us the trouble of a memset. This has
+  // some downside, as the hash function we use is the identity hash for
+  // integers, and the integer 0 is common in many data sets and must be
+  // adjusted (and will then spuriously collide with 1). Nevertheless, this
+  // expense is outweighed by no longer having to memset large regions of
+  // memory when initializing a HashTable.
   static constexpr unsigned char kEmptyHashByte = 0x0;
   static constexpr std::size_t kEmptyHash = 0x0;
 
@@ -202,6 +195,7 @@ class HashTable : public HashTableBase<resizable,
    **/
   HashTablePutResult put(const TypedValue &key,
                          const ValueT &value);
+
   /**
    * @brief Add a new entry into the hash table (composite key version).
    *
@@ -780,24 +774,36 @@ class HashTable : public HashTableBase<resizable,
    *        hold.
    * @param storage_manager The StorageManager to use (a StorageBlob will be
    *        allocated to hold this hash table's contents).
+   * @param adjust_hashes If true, the hash of a key should be modified by
+   *        applying AdjustHash() so that it does not collide with one of the
+   *        special values kEmptyHash or kPendingHash. If false, the hash is
+   *        used as-is.
+   * @param use_scalar_literal_hash If true, the key is a single scalar literal
+   *        (non-composite) that it is safe to use the simplified hash function
+   *        TypedValue::getHashScalarLiteral() on. If false, the generic
+   *        TypedValue::getHash() method will be used.
+   * @param preallocate_supported If true, this HashTable overrides
+   *        preallocateForBulkInsert() to allow bulk-allocation of resources
+   *        (i.e. buckets and variable-length key storage) in a single up-front
+   *        pass when bulk-inserting entries. If false, resources are allocated
+   *        on the fly for each entry.
    **/
   HashTable(const std::vector<const Type*> &key_types,
             const std::size_t num_entries,
             StorageManager *storage_manager,
-            const std::size_t key_start_in_bucket,
             const bool adjust_hashes,
+            const bool use_scalar_literal_hash,
             const bool preallocate_supported)
         : key_types_(key_types),
-          fixed_key_size_(0),
-          estimated_variable_key_size_(0),
+          scalar_key_inline_(true),
+          key_inline_(nullptr),
           adjust_hashes_(adjust_hashes),
+          use_scalar_literal_hash_(use_scalar_literal_hash),
           preallocate_supported_(preallocate_supported),
           storage_manager_(storage_manager),
           hash_table_memory_(nullptr),
-          hash_table_memory_size_(0),
-          next_variable_length_key_offset_(0) {
+          hash_table_memory_size_(0) {
     DEBUG_ASSERT(resizable);
-    initializeKeyInfo(key_start_in_bucket);
   }
 
   /**
@@ -816,32 +822,52 @@ class HashTable : public HashTableBase<resizable,
    *        memory from StorageManager is zeroed-out). If false, this HashTable
    *        will explicitly zero-fill its memory as neccessary. This parameter
    *        has no effect when new_hash_table is false.
+   * @param adjust_hashes If true, the hash of a key should be modified by
+   *        applying AdjustHash() so that it does not collide with one of the
+   *        special values kEmptyHash or kPendingHash. If false, the hash is
+   *        used as-is.
+   * @param use_scalar_literal_hash If true, the key is a single scalar literal
+   *        (non-composite) that it is safe to use the simplified hash function
+   *        TypedValue::getHashScalarLiteral() on. If false, the generic
+   *        TypedValue::getHash() method will be used.
+   * @param preallocate_supported If true, this HashTable overrides
+   *        preallocateForBulkInsert() to allow bulk-allocation of resources
+   *        (i.e. buckets and variable-length key storage) in a single up-front
+   *        pass when bulk-inserting entries. If false, resources are allocated
+   *        on the fly for each entry.
    **/
   HashTable(const std::vector<const Type*> &key_types,
             void *hash_table_memory,
             const std::size_t hash_table_memory_size,
             const bool new_hash_table,
             const bool hash_table_memory_zeroed,
-            const std::size_t key_start_in_bucket,
             const bool adjust_hashes,
+            const bool use_scalar_literal_hash,
             const bool preallocate_supported)
       : key_types_(key_types),
-        fixed_key_size_(0),
-        estimated_variable_key_size_(0),
+        scalar_key_inline_(true),
+        key_inline_(nullptr),
         adjust_hashes_(adjust_hashes),
+        use_scalar_literal_hash_(use_scalar_literal_hash),
         preallocate_supported_(preallocate_supported),
         storage_manager_(nullptr),
         hash_table_memory_(hash_table_memory),
-        hash_table_memory_size_(hash_table_memory_size),
-        next_variable_length_key_offset_(0) {
+        hash_table_memory_size_(hash_table_memory_size) {
     DEBUG_ASSERT(!resizable);
-    initializeKeyInfo(key_start_in_bucket);
   }
 
   // Adjust 'hash' so that it is not exactly equal to either of the special
   // values kEmptyHash or kPendingHash.
   inline constexpr static std::size_t AdjustHash(const std::size_t hash) {
     return hash + (hash == kEmptyHash) - (hash == kPendingHash);
+  }
+
+  // Set information about which key components are stored inline. This usually
+  // comes from a HashTableKeyManager, and is set by the constructor of a
+  // subclass of HashTable.
+  inline void setKeyInline(const std::vector<bool> *key_inline) {
+    scalar_key_inline_ = key_inline->front();
+    key_inline_ = key_inline;
   }
 
   // Generate a hash for a composite key by hashing each component of 'key' and
@@ -938,55 +964,20 @@ class HashTable : public HashTableBase<resizable,
                 "implementation that does not support preallocation.");
   }
 
-  // Reserve 'required_bytes' of variable-length storage. This can be undone by
-  // calling deallocateVariableLengthKeyStorage(). Note that to actually use
-  // the allocated storage, 'next_variable_length_key_offset_' should be read
-  // incremented by a fetch_add(). This is a no-op if 'required_bytes' is 0.
-  // Returns true if allocation successful, false if not enough unreserved
-  // space was available.
-  inline bool allocateVariableLengthKeyStorage(const std::size_t required_bytes);
-
-  // Release 'bytes' of variable-length storage reserved by a previous call to
-  // allocateVariableLengthKeyStorage(), but never actually used.
-  inline void deallocateVariableLengthKeyStorage(const std::size_t bytes);
-
-  // Get a pointer to a component of a key (specified by 'component_idx', 0 for
-  // single scalar keys) in '*bucket'.
-  inline const void* getKeyComponent(const void *bucket,
-                                     const std::size_t component_idx) const;
-
-  // Similar to getKeyComponent(), but returns a TypedValue instead (also
-  // determines the size in bytes of the pointed-to value in order to construct
-  // the TypedValue).
-  inline TypedValue getKeyComponentTyped(const void *bucket,
-                                         const std::size_t component_idx) const;
-
-  // Check whether 'key' is actually equal to the scalar key stored in
-  // '*bucket'.
-  inline bool scalarKeyCollisionCheck(const TypedValue &key,
-                                      const void *bucket) const;
-
-  // Check whether 'key' is actually equal to the composite key stored in
-  // '*bucket'.
-  inline bool compositeKeyCollisionCheck(const std::vector<TypedValue> &key,
-                                         const void *bucket) const;
-
-  // Write 'component', the key component at 'component_idx' (0 for a single
-  // scalar key) into '*bucket'.
-  inline void writeKeyComponentToBucket(const TypedValue &component,
-                                        const std::size_t component_idx,
-                                        void *bucket,
-                                        HashTablePreallocationState *prealloc_state);
-
-  // Information about keys.
+  // Type(s) of keys.
   const std::vector<const Type*> key_types_;
-  std::size_t fixed_key_size_;
-  std::size_t estimated_variable_key_size_;
-  std::vector<std::size_t> key_offsets_;
-  std::vector<bool> key_inline_;
+
+  // Information about whether key components are stored inline or in a
+  // separate variable-length storage region. This is usually determined by a
+  // HashTableKeyManager and set by calling setKeyInline().
+  bool scalar_key_inline_;
+  const std::vector<bool> *key_inline_;
 
   // Whether hashes should be adjusted by AdjustHash() before being used.
   const bool adjust_hashes_;
+  // Whether it is safe to use the simplified TypedValue::getHashScalarLiteral()
+  // method instead of the generic TypedValue::getHash() method.
+  const bool use_scalar_literal_hash_;
   // Whether preallocateForBulkInsert() is supported by this HashTable.
   const bool preallocate_supported_;
 
@@ -1000,15 +991,6 @@ class HashTable : public HashTableBase<resizable,
   // Used only when resizable is false:
   void *hash_table_memory_;
   const std::size_t hash_table_memory_size_;
-
-  void *variable_length_key_storage_;
-  std::size_t variable_length_key_storage_size_;
-  std::atomic<std::size_t> *variable_length_bytes_allocated_;
-  // This is separate from '*variable_length_bytes_allocated_', because we
-  // allocate storage for variable-length keys up-front but defer actually
-  // copying them until we find an empty bucket.
-  alignas(kCacheLineBytes) std::atomic<std::size_t>
-      next_variable_length_key_offset_;
 
  private:
   // Assign '*key_vector' with the attribute values specified by 'key_attr_ids'
@@ -1032,7 +1014,16 @@ class HashTable : public HashTableBase<resizable,
     return false;
   }
 
-  void initializeKeyInfo(const std::size_t key_start_in_bucket);
+  // Method containing the actual logic implementing getAllFromValueAccessor().
+  // Has extra template parameters that control behavior to avoid some
+  // inner-loop branching.
+  template <typename FunctorT,
+            bool check_for_null_keys,
+            bool adjust_hashes_template,
+            bool use_scalar_literal_hash_template>
+  void getAllFromValueAccessorImpl(ValueAccessor *accessor,
+                                   const attribute_id key_attr_id,
+                                   FunctorT *functor) const;
 
   DISALLOW_COPY_AND_ASSIGN(HashTable);
 };
@@ -1078,8 +1069,8 @@ template <typename ValueT,
 HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
     ::put(const TypedValue &key,
           const ValueT &value) {
-  const std::size_t variable_size = (force_key_copy && !key_inline_.front()) ? key.getDataSize()
-                                                                             : 0;
+  const std::size_t variable_size = (force_key_copy && !scalar_key_inline_) ? key.getDataSize()
+                                                                            : 0;
   if (resizable) {
     HashTablePutResult result = HashTablePutResult::kOutOfSpace;
     while (result == HashTablePutResult::kOutOfSpace) {
@@ -1144,7 +1135,7 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
     if (using_prealloc) {
       std::size_t total_entries = 0;
       std::size_t total_variable_key_size = 0;
-      if (check_for_null_keys || (force_key_copy && !key_inline_.front())) {
+      if (check_for_null_keys || (force_key_copy && !scalar_key_inline_)) {
         // If we need to filter out nulls OR make variable copies, make a
         // prepass over the ValueAccessor.
         while (accessor->next()) {
@@ -1153,7 +1144,7 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
             continue;
           }
           ++total_entries;
-          total_variable_key_size += (force_key_copy && !key_inline_.front()) ? key.getDataSize() : 0;
+          total_variable_key_size += (force_key_copy && !scalar_key_inline_) ? key.getDataSize() : 0;
         }
         accessor->beginIteration();
       } else {
@@ -1188,7 +1179,7 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
             if (check_for_null_keys && key.isNull()) {
               continue;
             }
-            variable_size = (force_key_copy && !key_inline_.front()) ? key.getDataSize() : 0;
+            variable_size = (force_key_copy && !scalar_key_inline_) ? key.getDataSize() : 0;
             result = this->putInternal(key,
                                        variable_size,
                                        (*functor)(*accessor),
@@ -1213,7 +1204,7 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
         if (check_for_null_keys && key.isNull()) {
           continue;
         }
-        variable_size = (force_key_copy && !key_inline_.front()) ? key.getDataSize() : 0;
+        variable_size = (force_key_copy && !scalar_key_inline_) ? key.getDataSize() : 0;
         result = this->putInternal(key,
                                    variable_size,
                                    (*functor)(*accessor),
@@ -1353,7 +1344,7 @@ bool HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
              const ValueT &initial_value,
              FunctorT *functor) {
   DEBUG_ASSERT(!allow_duplicate_keys);
-  const std::size_t variable_size = (force_key_copy && !key_inline_.front()) ? key.getDataSize() : 0;
+  const std::size_t variable_size = (force_key_copy && !scalar_key_inline_) ? key.getDataSize() : 0;
   if (resizable) {
     for (;;) {
       {
@@ -1364,7 +1355,7 @@ bool HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
           return true;
         }
       }
-      resize(0, force_key_copy && !key_inline_.front() ? key.getDataSize() : 0);
+      resize(0, force_key_copy && !scalar_key_inline_ ? key.getDataSize() : 0);
     }
   } else {
     ValueT *value = upsertInternal(key, variable_size, initial_value);
@@ -1440,7 +1431,7 @@ bool HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
             if (check_for_null_keys && key.isNull()) {
               continue;
             }
-            variable_size = (force_key_copy && !key_inline_.front()) ? key.getDataSize() : 0;
+            variable_size = (force_key_copy && !scalar_key_inline_) ? key.getDataSize() : 0;
             ValueT *value = this->upsertInternal(key, variable_size, initial_value);
             if (value == nullptr) {
               continuing = true;
@@ -1461,7 +1452,7 @@ bool HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
         if (check_for_null_keys && key.isNull()) {
           continue;
         }
-        variable_size = (force_key_copy && !key_inline_.front()) ? key.getDataSize() : 0;
+        variable_size = (force_key_copy && !scalar_key_inline_) ? key.getDataSize() : 0;
         ValueT *value = this->upsertInternal(key, variable_size, initial_value);
         if (value == nullptr) {
           return false;
@@ -1559,26 +1550,45 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
                               const attribute_id key_attr_id,
                               const bool check_for_null_keys,
                               FunctorT *functor) const {
-  InvokeOnAnyValueAccessor(
-      accessor,
-      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
-    while (accessor->next()) {
-      TypedValue key = accessor->getTypedValue(key_attr_id);
-      if (check_for_null_keys && key.isNull()) {
-        continue;
+  // Pass through to method with additional template parameters for less
+  // branching in inner loop.
+  if (check_for_null_keys) {
+    if (adjust_hashes_) {
+      if (use_scalar_literal_hash_) {
+        getAllFromValueAccessorImpl<FunctorT, true, true, true>(
+            accessor, key_attr_id, functor);
+      } else {
+        getAllFromValueAccessorImpl<FunctorT, true, true, false>(
+            accessor, key_attr_id, functor);
       }
-      const std::size_t hash_code = adjust_hashes_ ? this->AdjustHash(key.getHash())
-                                                   : key.getHash();
-      std::size_t entry_num = 0;
-      const ValueT *value;
-      while (this->getNextEntryForKey(key, hash_code, &value, &entry_num)) {
-        (*functor)(*accessor, *value);
-        if (!allow_duplicate_keys) {
-          break;
-        }
+    } else {
+      if (use_scalar_literal_hash_) {
+        getAllFromValueAccessorImpl<FunctorT, true, false, true>(
+            accessor, key_attr_id, functor);
+      } else {
+        getAllFromValueAccessorImpl<FunctorT, true, false, false>(
+            accessor, key_attr_id, functor);
       }
     }
-  });
+  } else {
+    if (adjust_hashes_) {
+      if (use_scalar_literal_hash_) {
+        getAllFromValueAccessorImpl<FunctorT, false, true, true>(
+            accessor, key_attr_id, functor);
+      } else {
+        getAllFromValueAccessorImpl<FunctorT, false, true, false>(
+            accessor, key_attr_id, functor);
+      }
+    } else {
+      if (use_scalar_literal_hash_) {
+        getAllFromValueAccessorImpl<FunctorT, false, false, true>(
+            accessor, key_attr_id, functor);
+      } else {
+        getAllFromValueAccessorImpl<FunctorT, false, false, false>(
+            accessor, key_attr_id, functor);
+      }
+    }
+  }
 }
 
 template <typename ValueT,
@@ -1699,7 +1709,7 @@ inline std::size_t HashTable<ValueT, resizable, serializable, force_key_copy, al
     for (std::vector<TypedValue>::size_type idx = 0;
          idx < key.size();
          ++idx) {
-      if (!key_inline_[idx]) {
+      if (!(*key_inline_)[idx]) {
         total += key[idx].getDataSize();
       }
     }
@@ -1714,245 +1724,37 @@ template <typename ValueT,
           bool serializable,
           bool force_key_copy,
           bool allow_duplicate_keys>
-inline bool HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
-    ::allocateVariableLengthKeyStorage(const std::size_t required_bytes) {
-  if (required_bytes == 0) {
-    return true;
-  }
-
-  const std::size_t original_variable_length_bytes_allocated
-      = variable_length_bytes_allocated_->fetch_add(required_bytes,
-                                                    std::memory_order_relaxed);
-  if (original_variable_length_bytes_allocated + required_bytes
-      > variable_length_key_storage_size_) {
-    // Release the memory we tried to allocate.
-    variable_length_bytes_allocated_->fetch_sub(required_bytes,
-                                                std::memory_order_relaxed);
-    return false;
-  } else {
-    return true;
-  }
-}
-
-template <typename ValueT,
-          bool resizable,
-          bool serializable,
-          bool force_key_copy,
-          bool allow_duplicate_keys>
-inline void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
-    ::deallocateVariableLengthKeyStorage(const std::size_t bytes) {
-  if (bytes == 0) {
-    return;
-  }
-  variable_length_bytes_allocated_->fetch_sub(bytes,
-                                              std::memory_order_relaxed);
-}
-
-template <typename ValueT,
-          bool resizable,
-          bool serializable,
-          bool force_key_copy,
-          bool allow_duplicate_keys>
-inline const void* HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
-    ::getKeyComponent(const void *bucket,
-                      const std::size_t component_idx) const {
-  DEBUG_ASSERT(component_idx < key_offsets_.size());
-
-  const void *base_key_ptr = static_cast<const char*>(bucket)
-                             + key_offsets_[component_idx];
-  if (key_inline_[component_idx]) {
-    // Component is inline.
-    return base_key_ptr;
-  } else if (force_key_copy) {
-    // Component is copied into variable-length region.
-    DEBUG_ASSERT(key_types_[component_idx]->isVariableLength());
-    return static_cast<const char*>(variable_length_key_storage_)
-           + *static_cast<const std::size_t*>(base_key_ptr);
-  } else if (serializable) {
-    // Relative pointer.
-    return static_cast<const char*>(base_key_ptr)
-           + *static_cast<const std::ptrdiff_t*>(base_key_ptr);
-  } else {
-    // Absolute pointer.
-    return *static_cast<const void* const*>(base_key_ptr);
-  }
-}
-
-template <typename ValueT,
-          bool resizable,
-          bool serializable,
-          bool force_key_copy,
-          bool allow_duplicate_keys>
-inline TypedValue HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
-    ::getKeyComponentTyped(const void *bucket,
-                           const std::size_t component_idx) const {
-  DEBUG_ASSERT(component_idx < key_offsets_.size());
-
-  const Type &key_type = *(key_types_[component_idx]);
-  const void *base_key_ptr = static_cast<const char*>(bucket)
-                             + key_offsets_[component_idx];
-  if (key_inline_[component_idx]) {
-    // Component is inline.
-    DEBUG_ASSERT(!key_type.isVariableLength());
-    return key_type.makeValue(base_key_ptr,
-                              key_type.maximumByteLength());
-  } else if (force_key_copy) {
-    // Component is copied into variable-length region.
-    DEBUG_ASSERT(key_type.isVariableLength());
-    return key_type.makeValue(static_cast<const char*>(variable_length_key_storage_)
-                                  + *static_cast<const std::size_t*>(base_key_ptr),
-                              *(static_cast<const std::size_t*>(base_key_ptr) + 1));
-  } else if (serializable) {
-    // Relative pointer.
-    return key_type.makeValue(
-        static_cast<const char*>(base_key_ptr)
-            + *static_cast<const std::ptrdiff_t*>(base_key_ptr),
-        key_type.isVariableLength() ? *(static_cast<const std::size_t*>(base_key_ptr) + 1)
-                                    : key_type.maximumByteLength());
-  } else {
-    // Absolute pointer.
-    return key_type.makeValue(
-        *static_cast<const void* const*>(base_key_ptr),
-        key_type.isVariableLength() ? *(static_cast<const std::size_t*>(base_key_ptr) + 1)
-                                    : key_type.maximumByteLength());
-  }
-}
-
-template <typename ValueT,
-          bool resizable,
-          bool serializable,
-          bool force_key_copy,
-          bool allow_duplicate_keys>
-inline bool HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
-    ::scalarKeyCollisionCheck(const TypedValue &key,
-                              const void *bucket) const {
-  return CheckUntypedValuesEqual(*key_types_.front(),
-                                 key.getDataPtr(),
-                                 getKeyComponent(bucket, 0));
-}
-
-template <typename ValueT,
-          bool resizable,
-          bool serializable,
-          bool force_key_copy,
-          bool allow_duplicate_keys>
-inline bool HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
-    ::compositeKeyCollisionCheck(const std::vector<TypedValue> &key,
-                                 const void *bucket) const {
-  DEBUG_ASSERT(key.size() == key_types_.size());
-
-  // Check key components one-by-one.
-  for (std::size_t idx = 0;
-       idx < key_types_.size();
-       ++idx) {
-    if (!CheckUntypedValuesEqual(*key_types_[idx],
-                                 key[idx].getDataPtr(),
-                                 getKeyComponent(bucket, idx))) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-template <typename ValueT,
-          bool resizable,
-          bool serializable,
-          bool force_key_copy,
-          bool allow_duplicate_keys>
-inline void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
-    ::writeKeyComponentToBucket(const TypedValue &component,
-                                const std::size_t component_idx,
-                                void *bucket,
-                                HashTablePreallocationState *prealloc_state) {
-  void *key_ptr = static_cast<char*>(bucket) + key_offsets_[component_idx];
-  if (key_inline_[component_idx]) {
-    // Copy key component directly into bucket.
-    component.copyInto(key_ptr);
-  } else if (force_key_copy) {
-    // Copy key into variable-length storage region and store its offset and
-    // length.
-    DEBUG_ASSERT(key_types_[component_idx]->isVariableLength());
-    const std::size_t component_size = component.getDataSize();
-    const std::size_t variable_length_key_pos
-        = (prealloc_state == nullptr)
-            ? next_variable_length_key_offset_.fetch_add(component_size,
-                                                         std::memory_order_relaxed)
-            : prealloc_state->variable_length_key_position;
-    if (prealloc_state != nullptr) {
-      prealloc_state->variable_length_key_position += component_size;
-    }
-    DEBUG_ASSERT(variable_length_key_pos + component_size
-                 <= variable_length_key_storage_size_);
-
-    component.copyInto(static_cast<char*>(variable_length_key_storage_)
-                       + variable_length_key_pos);
-    *static_cast<std::size_t*>(key_ptr) = variable_length_key_pos;
-    *(static_cast<std::size_t*>(key_ptr) + 1) = component_size;
-  } else if (serializable) {
-    // Store a relative pointer. We assume that we are pointing to memory
-    // that is serialized together with this LinearOpenAddressingHashTable,
-    // i.e. as part of the same StorageBlock. See comments regarding the
-    // 'force_key_copy' parameter in storage/HashTable.hpp for more details.
-    DEBUG_ASSERT(component.isReference());
-    *static_cast<std::ptrdiff_t*>(key_ptr) = static_cast<const char*>(component.getDataPtr())
-                                             - static_cast<const char*>(key_ptr);
-    if (key_types_[component_idx]->isVariableLength()) {
-      // Also store length if variable-length.
-      *(static_cast<std::size_t*>(key_ptr) + 1) = component.getDataSize();
-    }
-  } else {
-    // Store an absolute pointer.
-    *static_cast<const void**>(key_ptr) = component.getDataPtr();
-    if (key_types_[component_idx]->isVariableLength()) {
-      // Also store length if variable-length.
-      *(static_cast<std::size_t*>(key_ptr) + 1) = component.getDataSize();
-    }
-  }
-}
-
-template <typename ValueT,
-          bool resizable,
-          bool serializable,
-          bool force_key_copy,
-          bool allow_duplicate_keys>
+template <typename FunctorT,
+          bool check_for_null_keys,
+          bool adjust_hashes_template,
+          bool use_scalar_literal_hash_template>
 void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
-    ::initializeKeyInfo(const std::size_t key_start_in_bucket) {
-  DEBUG_ASSERT(!key_types_.empty());
-
-  // Make sure key info is not already initialized.
-  DEBUG_ASSERT(fixed_key_size_ == 0);
-  DEBUG_ASSERT(estimated_variable_key_size_ == 0);
-  DEBUG_ASSERT(key_offsets_.empty());
-  DEBUG_ASSERT(key_inline_.empty());
-
-  for (const Type *subkey_type : key_types_) {
-    key_offsets_.push_back(key_start_in_bucket + fixed_key_size_);
-
-    if (force_key_copy) {
-      if (subkey_type->isVariableLength()) {
-        // An offset into the variable length storage region, paired with a length.
-        fixed_key_size_ += sizeof(size_t) * 2;
-        estimated_variable_key_size_ += subkey_type->estimateAverageByteLength();
-        key_inline_.push_back(false);
-      } else {
-        fixed_key_size_ += subkey_type->maximumByteLength();
-        key_inline_.push_back(true);
+    ::getAllFromValueAccessorImpl(
+        ValueAccessor *accessor,
+        const attribute_id key_attr_id,
+        FunctorT *functor) const {
+  InvokeOnAnyValueAccessor(
+      accessor,
+      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+    while (accessor->next()) {
+      TypedValue key = accessor->getTypedValue(key_attr_id);
+      if (check_for_null_keys && key.isNull()) {
+        continue;
       }
-    } else {
-      constexpr std::size_t ptr_size = serializable ? sizeof(std::ptrdiff_t)
-                                                    : sizeof(const void*);
-      if ((!subkey_type->isVariableLength())
-          && (subkey_type->maximumByteLength() <= ptr_size + sizeof(size_t))) {
-        fixed_key_size_ += subkey_type->maximumByteLength();
-        key_inline_.push_back(true);
-      } else {
-        // A pointer to external memory, paired with a length.
-        fixed_key_size_ += ptr_size + sizeof(size_t);
-        key_inline_.push_back(false);
+      const std::size_t true_hash = use_scalar_literal_hash_template ? key.getHashScalarLiteral()
+                                                                     : key.getHash();
+      const std::size_t adjusted_hash = adjust_hashes_template ? this->AdjustHash(true_hash)
+                                                               : true_hash;
+      std::size_t entry_num = 0;
+      const ValueT *value;
+      while (this->getNextEntryForKey(key, adjusted_hash, &value, &entry_num)) {
+        (*functor)(*accessor, *value);
+        if (!allow_duplicate_keys) {
+          break;
+        }
       }
     }
-  }
+  });
 }
 
 }  // namespace quickstep

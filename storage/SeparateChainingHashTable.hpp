@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -28,6 +28,8 @@
 #include <vector>
 
 #include "storage/HashTable.hpp"
+#include "storage/HashTableBase.hpp"
+#include "storage/HashTableKeyManager.hpp"
 #include "storage/StorageBlob.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageConstants.hpp"
@@ -40,6 +42,10 @@
 #include "utility/PrimeNumber.hpp"
 
 namespace quickstep {
+
+/** \addtogroup Storage
+ *  @{
+ */
 
 /**
  * @brief A hash table implementation which uses separate chaining for buckets.
@@ -232,6 +238,9 @@ class SeparateChainingHashTable : public HashTable<ValueT,
   // at least 'extra_variable_storage' bytes of variable-length storage free.
   bool isFull(const std::size_t extra_variable_storage) const;
 
+  // Helper object to manage key storage.
+  HashTableKeyManager<serializable, force_key_copy> key_manager_;
+
   // In-memory structure is as follows:
   //   - SeparateChainingHashTable::Header
   //   - Array of slots, interpreted as follows:
@@ -264,6 +273,8 @@ class SeparateChainingHashTable : public HashTable<ValueT,
   DISALLOW_COPY_AND_ASSIGN(SeparateChainingHashTable);
 };
 
+/** @} */
+
 // ----------------------------------------------------------------------------
 // Implementations of template class methods follow.
 
@@ -280,16 +291,21 @@ SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, allow
               key_types,
               num_entries,
               storage_manager,
-              kValueOffset + sizeof(ValueT),
+              false,
               false,
               true),
-          bucket_size_(ComputeBucketSize(this->fixed_key_size_)) {
+          key_manager_(this->key_types_, kValueOffset + sizeof(ValueT)),
+          bucket_size_(ComputeBucketSize(key_manager_.getFixedKeySize())) {
+  // Give base HashTable information about what key components are stored
+  // inline from 'key_manager_'.
+  this->setKeyInline(key_manager_.getKeyInline());
+
   // Pick out a prime number of slots and calculate storage requirements.
   std::size_t num_slots_tmp = get_next_prime_number(num_entries * kHashTableLoadFactor);
   std::size_t required_memory = sizeof(Header)
                                 + num_slots_tmp * sizeof(std::atomic<std::size_t>)
                                 + (num_slots_tmp / kHashTableLoadFactor)
-                                    * (bucket_size_ + this->estimated_variable_key_size_);
+                                    * (bucket_size_ + key_manager_.getEstimatedVariableKeySize());
   std::size_t num_storage_slots = this->storage_manager_->SlotsNeededForBytes(required_memory);
   if (num_storage_slots == 0) {
     FATAL_ERROR("Storage requirement for SeparateChainingHashTable "
@@ -335,7 +351,7 @@ SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, allow
   std::size_t num_buckets_tmp
       = available_memory / (kHashTableLoadFactor * sizeof(std::atomic<std::size_t>)
                             + bucket_size_
-                            + this->estimated_variable_key_size_);
+                            + key_manager_.getEstimatedVariableKeySize());
   num_slots_tmp = get_previous_prime_number(num_buckets_tmp * kHashTableLoadFactor);
   num_buckets_tmp = num_slots_tmp / kHashTableLoadFactor;
   DEBUG_ASSERT(num_slots_tmp > 0);
@@ -377,10 +393,10 @@ SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, allow
 
   // Locate variable-length key storage region, and give it all the remaining
   // bytes in the blob.
-  this->variable_length_bytes_allocated_ = &(header_->variable_length_bytes_allocated);
-  this->variable_length_key_storage_
-      = static_cast<char*>(buckets_) + header_->num_buckets * bucket_size_;
-  this->variable_length_key_storage_size_ = available_memory;
+  key_manager_.setVariableLengthStorageInfo(
+      static_cast<char*>(buckets_) + header_->num_buckets * bucket_size_,
+      available_memory,
+      &(header_->variable_length_bytes_allocated));
 }
 
 template <typename ValueT,
@@ -400,10 +416,15 @@ SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, allow
               hash_table_memory_size,
               new_hash_table,
               hash_table_memory_zeroed,
-              kValueOffset + sizeof(ValueT),
+              false,
               false,
               true),
-          bucket_size_(ComputeBucketSize(this->fixed_key_size_)) {
+          key_manager_(this->key_types_, kValueOffset + sizeof(ValueT)),
+          bucket_size_(ComputeBucketSize(key_manager_.getFixedKeySize())) {
+  // Give base HashTable information about what key components are stored
+  // inline from 'key_manager_'.
+  this->setKeyInline(key_manager_.getKeyInline());
+
   // FIXME(chasseur): If we are reconstituting a HashTable using a block of
   // memory whose start was aligned differently than the memory block that was
   // originally used (modulo alignof(Header)), we could wind up with all of our
@@ -444,7 +465,7 @@ SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, allow
     std::size_t estimated_bucket_capacity
         = available_memory / (kHashTableLoadFactor * sizeof(std::atomic<std::size_t>)
                               + bucket_size_
-                              + this->estimated_variable_key_size_);
+                              + key_manager_.getEstimatedVariableKeySize());
     std::size_t num_slots = get_previous_prime_number(estimated_bucket_capacity * kHashTableLoadFactor);
 
     // Fill in the header.
@@ -452,8 +473,6 @@ SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, allow
     header_->num_buckets = num_slots / kHashTableLoadFactor;
     header_->buckets_allocated.store(0, std::memory_order_relaxed);
     header_->variable_length_bytes_allocated.store(0, std::memory_order_relaxed);
-  } else {
-    this->next_variable_length_key_offset_.store(header_->variable_length_bytes_allocated.load());
   }
 
   // Locate the slot array.
@@ -498,10 +517,10 @@ SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, allow
   }
 
   // Locate variable-length key storage region.
-  this->variable_length_bytes_allocated_ = &(header_->variable_length_bytes_allocated);
-  this->variable_length_key_storage_
-      = static_cast<char*>(buckets_) + header_->num_buckets * bucket_size_;
-  this->variable_length_key_storage_size_ = available_memory;
+  key_manager_.setVariableLengthStorageInfo(
+      static_cast<char*>(buckets_) + header_->num_buckets * bucket_size_,
+      available_memory,
+      &(header_->variable_length_bytes_allocated));
 }
 
 template <typename ValueT,
@@ -525,7 +544,7 @@ void SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
 
   header_->buckets_allocated.store(0, std::memory_order_relaxed);
   header_->variable_length_bytes_allocated.store(0, std::memory_order_relaxed);
-  this->next_variable_length_key_offset_.store(0, std::memory_order_relaxed);
+  key_manager_.zeroNextVariableLengthKeyOffset();
 }
 
 template <typename ValueT,
@@ -546,7 +565,7 @@ const ValueT* SeparateChainingHashTable<ValueT, resizable, serializable, force_k
     const char *bucket = static_cast<const char*>(buckets_) + (bucket_ref - 1) * bucket_size_;
     const std::size_t bucket_hash = *reinterpret_cast<const std::size_t*>(
         bucket + sizeof(std::atomic<std::size_t>));
-    if ((bucket_hash == hash_code) && this->scalarKeyCollisionCheck(key, bucket)) {
+    if ((bucket_hash == hash_code) && key_manager_.scalarKeyCollisionCheck(key, bucket)) {
       // Match located.
       return reinterpret_cast<const ValueT*>(bucket + kValueOffset);
     }
@@ -574,7 +593,7 @@ const ValueT* SeparateChainingHashTable<ValueT, resizable, serializable, force_k
     const char *bucket = static_cast<const char*>(buckets_) + (bucket_ref - 1) * bucket_size_;
     const std::size_t bucket_hash = *reinterpret_cast<const std::size_t*>(
         bucket + sizeof(std::atomic<std::size_t>));
-    if ((bucket_hash == hash_code) && this->compositeKeyCollisionCheck(key, bucket)) {
+    if ((bucket_hash == hash_code) && key_manager_.compositeKeyCollisionCheck(key, bucket)) {
       // Match located.
       return reinterpret_cast<const ValueT*>(bucket + kValueOffset);
     }
@@ -602,7 +621,7 @@ void SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
     const char *bucket = static_cast<const char*>(buckets_) + (bucket_ref - 1) * bucket_size_;
     const std::size_t bucket_hash = *reinterpret_cast<const std::size_t*>(
         bucket + sizeof(std::atomic<std::size_t>));
-    if ((bucket_hash == hash_code) && this->scalarKeyCollisionCheck(key, bucket)) {
+    if ((bucket_hash == hash_code) && key_manager_.scalarKeyCollisionCheck(key, bucket)) {
       // Match located.
       values->push_back(reinterpret_cast<const ValueT*>(bucket + kValueOffset));
       if (!allow_duplicate_keys) {
@@ -629,7 +648,7 @@ void SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
     const char *bucket = static_cast<const char*>(buckets_) + (bucket_ref - 1) * bucket_size_;
     const std::size_t bucket_hash = *reinterpret_cast<const std::size_t*>(
         bucket + sizeof(std::atomic<std::size_t>));
-    if ((bucket_hash == hash_code) && this->compositeKeyCollisionCheck(key, bucket)) {
+    if ((bucket_hash == hash_code) && key_manager_.compositeKeyCollisionCheck(key, bucket)) {
       // Match located.
       values->push_back(reinterpret_cast<const ValueT*>(bucket + kValueOffset));
       if (!allow_duplicate_keys) {
@@ -662,7 +681,7 @@ HashTablePutResult
 
     // TODO(chasseur): If allow_duplicate_keys is true, avoid storing more than
     // one copy of the same variable-length key.
-    if (!this->allocateVariableLengthKeyStorage(variable_key_size)) {
+    if (!key_manager_.allocateVariableLengthKeyStorage(variable_key_size)) {
       // Ran out of variable-length key storage space.
       return HashTablePutResult::kOutOfSpace;
     }
@@ -685,15 +704,15 @@ HashTablePutResult
       // Ran out of buckets. Deallocate any variable space that we were unable
       // to use.
       DEBUG_ASSERT(prealloc_state == nullptr);
-      this->deallocateVariableLengthKeyStorage(variable_key_size);
+      key_manager_.deallocateVariableLengthKeyStorage(variable_key_size);
       return HashTablePutResult::kOutOfSpace;
     } else {
       // Hash collision found, and duplicates aren't allowed.
       DEBUG_ASSERT(!allow_duplicate_keys);
       DEBUG_ASSERT(prealloc_state == nullptr);
-      if (this->scalarKeyCollisionCheck(key, bucket)) {
+      if (key_manager_.scalarKeyCollisionCheck(key, bucket)) {
         // Duplicate key. Deallocate any variable storage space and return.
-        this->deallocateVariableLengthKeyStorage(variable_key_size);
+        key_manager_.deallocateVariableLengthKeyStorage(variable_key_size);
         return HashTablePutResult::kDuplicateKey;
       }
     }
@@ -733,7 +752,7 @@ HashTablePutResult
 
     // TODO(chasseur): If allow_duplicate_keys is true, avoid storing more than
     // one copy of the same variable-length key.
-    if (!this->allocateVariableLengthKeyStorage(variable_key_size)) {
+    if (!key_manager_.allocateVariableLengthKeyStorage(variable_key_size)) {
       // Ran out of variable-length key storage space.
       return HashTablePutResult::kOutOfSpace;
     }
@@ -756,15 +775,15 @@ HashTablePutResult
       // Ran out of buckets. Deallocate any variable space that we were unable
       // to use.
       DEBUG_ASSERT(prealloc_state == nullptr);
-      this->deallocateVariableLengthKeyStorage(variable_key_size);
+      key_manager_.deallocateVariableLengthKeyStorage(variable_key_size);
       return HashTablePutResult::kOutOfSpace;
     } else {
       // Hash collision found, and duplicates aren't allowed.
       DEBUG_ASSERT(!allow_duplicate_keys);
       DEBUG_ASSERT(prealloc_state == nullptr);
-      if (this->compositeKeyCollisionCheck(key, bucket)) {
+      if (key_manager_.compositeKeyCollisionCheck(key, bucket)) {
         // Duplicate key. Deallocate any variable storage space and return.
-        this->deallocateVariableLengthKeyStorage(variable_key_size);
+        key_manager_.deallocateVariableLengthKeyStorage(variable_key_size);
         return HashTablePutResult::kDuplicateKey;
       }
     }
@@ -804,7 +823,7 @@ ValueT* SeparateChainingHashTable<ValueT, resizable, serializable, force_key_cop
     // allocate enough space for it).
     std::size_t allocated_bytes = header_->variable_length_bytes_allocated.load(std::memory_order_relaxed);
     if ((allocated_bytes < variable_key_size)
-        && (allocated_bytes + variable_key_size > this->variable_length_key_storage_size_)) {
+        && (allocated_bytes + variable_key_size > key_manager_.getVariableLengthKeyStorageSize())) {
       return nullptr;
     }
   }
@@ -825,7 +844,7 @@ ValueT* SeparateChainingHashTable<ValueT, resizable, serializable, force_key_cop
     } else if (bucket == nullptr) {
       // Ran out of buckets or variable-key space.
       return nullptr;
-    } else if (this->scalarKeyCollisionCheck(key, bucket)) {
+    } else if (key_manager_.scalarKeyCollisionCheck(key, bucket)) {
       // Found an already-existing entry for this key.
       return reinterpret_cast<ValueT*>(static_cast<char*>(bucket) + kValueOffset);
     }
@@ -838,7 +857,7 @@ ValueT* SeparateChainingHashTable<ValueT, resizable, serializable, force_key_cop
   // Copy the supplied 'initial_value' into place.
   ValueT *value = new(static_cast<char*>(bucket) + kValueOffset) ValueT(initial_value);
 
-  // Update the previous chaing pointer to point to the new bucket.
+  // Update the previous chain pointer to point to the new bucket.
   pending_chain_ptr->store(pending_chain_ptr_finish_value, std::memory_order_release);
 
   // Return the value.
@@ -865,7 +884,7 @@ ValueT* SeparateChainingHashTable<ValueT, resizable, serializable, force_key_cop
     // allocate enough space for it).
     std::size_t allocated_bytes = header_->variable_length_bytes_allocated.load(std::memory_order_relaxed);
     if ((allocated_bytes < variable_key_size)
-        && (allocated_bytes + variable_key_size > this->variable_length_key_storage_size_)) {
+        && (allocated_bytes + variable_key_size > key_manager_.getVariableLengthKeyStorageSize())) {
       return nullptr;
     }
   }
@@ -886,7 +905,7 @@ ValueT* SeparateChainingHashTable<ValueT, resizable, serializable, force_key_cop
     } else if (bucket == nullptr) {
       // Ran out of buckets or variable-key space.
       return nullptr;
-    } else if (this->compositeKeyCollisionCheck(key, bucket)) {
+    } else if (key_manager_.compositeKeyCollisionCheck(key, bucket)) {
       // Found an already-existing entry for this key.
       return reinterpret_cast<ValueT*>(static_cast<char*>(bucket) + kValueOffset);
     }
@@ -916,7 +935,7 @@ bool SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
   DEBUG_ASSERT(this->key_types_.size() == 1);
   if (*entry_num < header_->buckets_allocated.load(std::memory_order_relaxed)) {
     const char *bucket = static_cast<const char*>(buckets_) + (*entry_num) * bucket_size_;
-    *key = this->getKeyComponentTyped(bucket, 0);
+    *key = key_manager_.getKeyComponentTyped(bucket, 0);
     *value = reinterpret_cast<const ValueT*>(bucket + kValueOffset);
     ++(*entry_num);
     return true;
@@ -939,7 +958,7 @@ bool SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
     for (std::vector<const Type*>::size_type key_idx = 0;
          key_idx < this->key_types_.size();
          ++key_idx) {
-      key->emplace_back(this->getKeyComponentTyped(bucket, key_idx));
+      key->emplace_back(key_manager_.getKeyComponentTyped(bucket, key_idx));
     }
     *value = reinterpret_cast<const ValueT*>(bucket + kValueOffset);
     ++(*entry_num);
@@ -974,7 +993,7 @@ bool SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
     *entry_num = reinterpret_cast<const std::atomic<std::size_t>*>(bucket)->load(std::memory_order_relaxed);
     const std::size_t bucket_hash = *reinterpret_cast<const std::size_t*>(
         bucket + sizeof(std::atomic<std::size_t>));
-    if ((bucket_hash == hash_code) && this->scalarKeyCollisionCheck(key, bucket)) {
+    if ((bucket_hash == hash_code) && key_manager_.scalarKeyCollisionCheck(key, bucket)) {
       // Match located.
       *value = reinterpret_cast<const ValueT*>(bucket + kValueOffset);
       if (*entry_num == 0) {
@@ -1014,7 +1033,7 @@ bool SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
     *entry_num = reinterpret_cast<const std::atomic<std::size_t>*>(bucket)->load(std::memory_order_relaxed);
     const std::size_t bucket_hash = *reinterpret_cast<const std::size_t*>(
         bucket + sizeof(std::atomic<std::size_t>));
-    if ((bucket_hash == hash_code) && this->compositeKeyCollisionCheck(key, bucket)) {
+    if ((bucket_hash == hash_code) && key_manager_.compositeKeyCollisionCheck(key, bucket)) {
       // Match located.
       *value = reinterpret_cast<const ValueT*>(bucket + kValueOffset);
       if (*entry_num == 0) {
@@ -1065,14 +1084,14 @@ void SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
   std::size_t resized_num_slots = get_next_prime_number(
       (header_->num_buckets + extra_buckets / 2) * kHashTableLoadFactor * 2);
   std::size_t variable_storage_required
-      = (resized_num_slots / kHashTableLoadFactor) * this->estimated_variable_key_size_;
+      = (resized_num_slots / kHashTableLoadFactor) * key_manager_.getEstimatedVariableKeySize();
   const std::size_t original_variable_storage_used
       = header_->variable_length_bytes_allocated.load(std::memory_order_relaxed);
   // If this resize was triggered by a too-large variable-length key, bump up
   // the variable-length storage requirement.
   if ((extra_variable_storage > 0)
       && (extra_variable_storage + original_variable_storage_used
-          > this->variable_length_key_storage_size_)) {
+          > key_manager_.getVariableLengthKeyStorageSize())) {
     variable_storage_required += extra_variable_storage;
   }
 
@@ -1123,7 +1142,7 @@ void SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
       = (available_memory - extra_variable_storage)
         / (kHashTableLoadFactor * sizeof(std::atomic<std::size_t>)
            + bucket_size_
-           + this->estimated_variable_key_size_);
+           + key_manager_.getEstimatedVariableKeySize());
   resized_num_slots = get_previous_prime_number(resized_num_buckets * kHashTableLoadFactor);
   resized_num_buckets = resized_num_slots / kHashTableLoadFactor;
 
@@ -1197,10 +1216,10 @@ void SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
   // Copy over variable-length key components, if any.
   if (original_variable_storage_used > 0) {
     DEBUG_ASSERT(original_variable_storage_used
-                 == this->next_variable_length_key_offset_.load(std::memory_order_relaxed));
+                 == key_manager_.getNextVariableLengthKeyOffset());
     DEBUG_ASSERT(original_variable_storage_used <= resized_variable_length_key_storage_size);
     std::memcpy(resized_variable_length_key_storage,
-                this->variable_length_key_storage_,
+                key_manager_.getVariableLengthKeyStorage(),
                 original_variable_storage_used);
   }
 
@@ -1214,9 +1233,10 @@ void SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
   header_ = resized_header;
   slots_ = resized_slots;
   buckets_ = resized_buckets;
-  this->variable_length_key_storage_ = resized_variable_length_key_storage;
-  this->variable_length_key_storage_size_ = resized_variable_length_key_storage_size;
-  this->variable_length_bytes_allocated_ = &(resized_header->variable_length_bytes_allocated);
+  key_manager_.setVariableLengthStorageInfo(
+      resized_variable_length_key_storage,
+      resized_variable_length_key_storage_size,
+      &(resized_header->variable_length_bytes_allocated));
 
   // Drop the old blob.
   const block_id old_blob_id = resized_blob->getID();
@@ -1259,7 +1279,7 @@ bool SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
                                const std::size_t total_variable_key_size,
                                HashTablePreallocationState *prealloc_state) {
   DEBUG_ASSERT(allow_duplicate_keys);
-  if (!this->allocateVariableLengthKeyStorage(total_variable_key_size)) {
+  if (!key_manager_.allocateVariableLengthKeyStorage(total_variable_key_size)) {
     return false;
   }
 
@@ -1278,15 +1298,14 @@ bool SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
   }
 
   if (buckets_post_allocation > header_->num_buckets) {
-    this->deallocateVariableLengthKeyStorage(total_variable_key_size);
+    key_manager_.deallocateVariableLengthKeyStorage(total_variable_key_size);
     return false;
   }
 
   prealloc_state->bucket_position = original_buckets_allocated;
   if (total_variable_key_size != 0) {
     prealloc_state->variable_length_key_position
-        = this->next_variable_length_key_offset_.fetch_add(total_variable_key_size,
-                                                           std::memory_order_relaxed);
+        = key_manager_.incrementNextVariableLengthKeyOffset(total_variable_key_size);
   }
   return true;
 }
@@ -1339,7 +1358,7 @@ inline bool SeparateChainingHashTable<ValueT, resizable, serializable, force_key
       // First, allocate variable-length key storage, if needed (i.e. if this
       // is an upsert and we didn't allocate up-front).
       if ((prealloc_state == nullptr)
-          && !this->allocateVariableLengthKeyStorage(variable_key_allocation_required)) {
+          && !key_manager_.allocateVariableLengthKeyStorage(variable_key_allocation_required)) {
         // Ran out of variable-length storage.
         (*pending_chain_ptr)->store(0, std::memory_order_release);
         *bucket = nullptr;
@@ -1397,7 +1416,7 @@ inline void SeparateChainingHashTable<ValueT, resizable, serializable, force_key
                              HashTablePreallocationState *prealloc_state) {
   *reinterpret_cast<std::size_t*>(static_cast<char*>(bucket) + sizeof(std::atomic<std::size_t>))
       = hash_code;
-  this->writeKeyComponentToBucket(key, 0, bucket, prealloc_state);
+  key_manager_.writeKeyComponentToBucket(key, 0, bucket, prealloc_state);
 }
 
 template <typename ValueT,
@@ -1416,7 +1435,7 @@ inline void SeparateChainingHashTable<ValueT, resizable, serializable, force_key
   for (std::size_t idx = 0;
        idx < this->key_types_.size();
        ++idx) {
-    this->writeKeyComponentToBucket(key[idx], idx, bucket, prealloc_state);
+    key_manager_.writeKeyComponentToBucket(key[idx], idx, bucket, prealloc_state);
   }
 }
 
@@ -1435,7 +1454,7 @@ bool SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
   if (extra_variable_storage > 0) {
     if (extra_variable_storage
             + header_->variable_length_bytes_allocated.load(std::memory_order_relaxed)
-        > this->variable_length_key_storage_size_) {
+        > key_manager_.getVariableLengthKeyStorageSize()) {
       // Not enough variable-length key storage space.
       return true;
     }

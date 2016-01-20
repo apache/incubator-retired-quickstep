@@ -1,5 +1,5 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -170,6 +170,7 @@ add_library(quickstep_storage_HashTable ../empty_src.cpp HashTable.hpp)
 add_library(quickstep_storage_HashTable_proto ${storage_HashTable_proto_srcs})
 add_library(quickstep_storage_HashTableBase ../empty_src.cpp HashTableBase.hpp)
 add_library(quickstep_storage_HashTableFactory HashTableFactory.cpp HashTableFactory.hpp)
+add_library(quickstep_storage_HashTableKeyManager ../empty_src.cpp HashTableKeyManager.hpp)
 add_library(quickstep_storage_IndexSubBlock ../empty_src.cpp IndexSubBlock.hpp)
 add_library(quickstep_storage_InsertDestination InsertDestination.cpp InsertDestination.hpp)
 add_library(quickstep_storage_InsertDestinationInterface
@@ -516,7 +517,6 @@ target_link_libraries(quickstep_storage_HashTable
                       quickstep_threading_SpinSharedMutex
                       quickstep_types_Type
                       quickstep_types_TypedValue
-                      quickstep_types_operations_comparisons_ComparisonUtil
                       quickstep_utility_HashPair
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_HashTableBase
@@ -533,6 +533,14 @@ target_link_libraries(quickstep_storage_HashTableFactory
                       quickstep_storage_SeparateChainingHashTable
                       quickstep_storage_TupleReference
                       quickstep_types_TypeFactory
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_storage_HashTableKeyManager
+                      glog
+                      quickstep_storage_HashTableBase
+                      quickstep_storage_StorageConstants
+                      quickstep_types_Type
+                      quickstep_types_TypedValue
+                      quickstep_types_operations_comparisons_ComparisonUtil
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_IndexSubBlock
                       quickstep_catalog_CatalogTypedefs
@@ -571,6 +579,7 @@ target_link_libraries(quickstep_storage_InsertDestination_proto
                       ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_storage_LinearOpenAddressingHashTable
                       quickstep_storage_HashTable
+                      quickstep_storage_HashTableKeyManager
                       quickstep_storage_StorageBlob
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageConstants
@@ -621,6 +630,8 @@ target_link_libraries(quickstep_storage_PreloaderThread
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_SeparateChainingHashTable
                       quickstep_storage_HashTable
+                      quickstep_storage_HashTableBase
+                      quickstep_storage_HashTableKeyManager
                       quickstep_storage_StorageBlob
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageConstants
@@ -808,6 +819,7 @@ target_link_libraries(quickstep_storage
                       quickstep_storage_HashTable_proto
                       quickstep_storage_HashTableBase
                       quickstep_storage_HashTableFactory
+                      quickstep_storage_HashTableKeyManager
                       quickstep_storage_IndexSubBlock
                       quickstep_storage_InsertDestination
                       quickstep_storage_InsertDestinationInterface
