@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -497,6 +497,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
     }
   }
 
+  // Remember key types for call to SimplifyHashTableImplTypeProto() below.
+  std::vector<const Type*> key_types;
   for (std::vector<E::AttributeReferencePtr>::size_type attr_idx = 0;
        attr_idx < left_join_attributes.size();
        ++attr_idx) {
@@ -506,6 +508,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       THROW_SQL_ERROR() << "Equality join predicate between two attributes of different types "
                            "is not allowed in HashJoin";
     }
+    key_types.push_back(&left_attribute_type);
   }
 
   // Choose the smaller table as the inner build table,
@@ -551,7 +554,9 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   S::HashTable *hash_table_proto = query_context_proto_->add_join_hash_tables();
 
   hash_table_proto->set_hash_table_impl_type(
-      HashTableImplTypeProtoFromString(FLAGS_join_hashtable_type));
+      SimplifyHashTableImplTypeProto(
+          HashTableImplTypeProtoFromString(FLAGS_join_hashtable_type),
+          key_types));
 
   const CatalogRelationSchema *build_relation = build_relation_info->relation;
   for (const attribute_id build_attribute : build_attribute_ids) {
@@ -1005,6 +1010,7 @@ void ExecutionGenerator::convertAggregate(
     }
   }
 
+  std::vector<const Type*> group_by_types;
   for (const E::NamedExpressionPtr &grouping_expression : physical_plan->grouping_expressions()) {
     unique_ptr<const Scalar> execution_group_by_expression;
     E::AliasPtr alias;
@@ -1020,6 +1026,7 @@ void ExecutionGenerator::convertAggregate(
           grouping_expression->concretize(attribute_substitution_map_));
     }
     aggr_state_proto->add_group_by_expressions()->CopyFrom(execution_group_by_expression->getProto());
+    group_by_types.push_back(&execution_group_by_expression->getType());
   }
 
   if (physical_plan->filter_predicate() != nullptr) {
@@ -1029,8 +1036,12 @@ void ExecutionGenerator::convertAggregate(
 
   aggr_state_proto->set_estimated_num_entries(cost_model_->estimateCardinality(physical_plan));
 
-  aggr_state_proto->set_hash_table_impl_type(
-      HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type));
+  if (!group_by_types.empty()) {
+    aggr_state_proto->set_hash_table_impl_type(
+        SimplifyHashTableImplTypeProto(
+            HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type),
+            group_by_types));
+  }
 
   const QueryPlan::DAGNodeIndex aggregation_operator_index =
       execution_plan_->addRelationalOperator(
