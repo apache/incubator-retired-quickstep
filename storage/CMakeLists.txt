@@ -190,6 +190,9 @@ add_library(quickstep_storage_PackedRowStoreValueAccessor
             PackedRowStoreValueAccessor.hpp)
 add_library(quickstep_storage_PreloaderThread PreloaderThread.cpp PreloaderThread.hpp)
 add_library(quickstep_storage_SeparateChainingHashTable ../empty_src.cpp SeparateChainingHashTable.hpp)
+add_library(quickstep_storage_SimpleScalarSeparateChainingHashTable
+            SimpleScalarSeparateChainingHashTable.cpp
+            SimpleScalarSeparateChainingHashTable.hpp)
 add_library(quickstep_storage_SplitRowStoreTupleStorageSubBlock
             SplitRowStoreTupleStorageSubBlock.cpp
             SplitRowStoreTupleStorageSubBlock.hpp)
@@ -531,8 +534,11 @@ target_link_libraries(quickstep_storage_HashTableFactory
                       quickstep_storage_HashTableBase
                       quickstep_storage_LinearOpenAddressingHashTable
                       quickstep_storage_SeparateChainingHashTable
+                      quickstep_storage_SimpleScalarSeparateChainingHashTable
                       quickstep_storage_TupleReference
+                      quickstep_types_Type
                       quickstep_types_TypeFactory
+                      quickstep_types_TypedValue
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_HashTableKeyManager
                       glog
@@ -632,6 +638,20 @@ target_link_libraries(quickstep_storage_SeparateChainingHashTable
                       quickstep_storage_HashTable
                       quickstep_storage_HashTableBase
                       quickstep_storage_HashTableKeyManager
+                      quickstep_storage_StorageBlob
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageConstants
+                      quickstep_storage_StorageManager
+                      quickstep_threading_SpinSharedMutex
+                      quickstep_types_Type
+                      quickstep_types_TypedValue
+                      quickstep_utility_Alignment
+                      quickstep_utility_Macros
+                      quickstep_utility_PrimeNumber)
+target_link_libraries(quickstep_storage_SimpleScalarSeparateChainingHashTable
+                      glog
+                      quickstep_storage_HashTable
+                      quickstep_storage_HashTableBase
                       quickstep_storage_StorageBlob
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageConstants
@@ -829,6 +849,7 @@ target_link_libraries(quickstep_storage
                       quickstep_storage_PackedRowStoreValueAccessor
                       quickstep_storage_PreloaderThread
                       quickstep_storage_SeparateChainingHashTable
+                      quickstep_storage_SimpleScalarSeparateChainingHashTable
                       quickstep_storage_SplitRowStoreTupleStorageSubBlock
                       quickstep_storage_SplitRowStoreValueAccessor
                       quickstep_storage_StorageBlob
@@ -861,6 +882,16 @@ elseif (QUICKSTEP_HAVE_FILE_MANAGER_WINDOWS)
 endif()
 
 # Tests:
+include(CheckTypeSize)
+CHECK_TYPE_SIZE("size_t" SIZEOF_SIZE_T)
+if (SIZEOF_SIZE_T GREATER 7)
+  set(QUICKSTEP_LONG_HASH_REVERSIBLE 1)
+endif()
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/StorageTestConfig.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/tests/StorageTestConfig.h"
+)
+
 add_library(quickstep_storage_tests_FileManager_unittest_common
             ../empty_src.cpp
             "${CMAKE_CURRENT_SOURCE_DIR}/tests/FileManager_unittest_common.hpp")
@@ -1153,6 +1184,17 @@ target_link_libraries(SeparateChainingHashTable_unittest
                       quickstep_storage_tests_HashTable_unittest_common
                       ${LIBS})
 add_test(SeparateChainingHashTable_unittest SeparateChainingHashTable_unittest)
+
+add_executable(SimpleScalarSeparateChainingHashTable_unittest
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/SimpleScalarSeparateChainingHashTable_unittest.cpp")
+target_link_libraries(SimpleScalarSeparateChainingHashTable_unittest
+                      gtest
+                      gtest_main
+                      quickstep_storage_SimpleScalarSeparateChainingHashTable
+                      quickstep_storage_tests_HashTable_unittest_common
+                      ${LIBS})
+add_test(SimpleScalarSeparateChainingHashTable_unittest
+         SimpleScalarSeparateChainingHashTable_unittest)
 
 add_executable(SplitRowStoreTupleStorageSubBlock_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/SplitRowStoreTupleStorageSubBlock_unittest.cpp")

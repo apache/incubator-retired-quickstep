@@ -1,5 +1,5 @@
 /**
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -18,8 +18,11 @@
 
 #include <cstdio>
 #include <string>
+#include <vector>
 
 #include "storage/HashTable.pb.h"
+#include "types/Type.hpp"
+#include "types/TypedValue.hpp"
 
 #include "glog/logging.h"
 
@@ -37,18 +40,6 @@ bool ValidateHashTableImplTypeString(const char *flagname,
   }
 }
 
-HashTableImplType HashTableImplTypeFromString(
-    const std::string &hash_table_impl_string) {
-  if (hash_table_impl_string == "LinearOpenAddressing") {
-    return HashTableImplType::kLinearOpenAddressing;
-  } else if (hash_table_impl_string == "SeparateChaining") {
-    return HashTableImplType::kSeparateChaining;
-  } else {
-    LOG(FATAL) << "Unrecognized string for HashTable implementation type: "
-               << hash_table_impl_string;
-  }
-}
-
 serialization::HashTableImplType HashTableImplTypeProtoFromString(
     const std::string &hash_table_impl_string) {
   if (hash_table_impl_string == "LinearOpenAddressing") {
@@ -58,6 +49,18 @@ serialization::HashTableImplType HashTableImplTypeProtoFromString(
   } else {
     LOG(FATAL) << "Unrecognized string for HashTable implementation type: "
                << hash_table_impl_string;
+  }
+}
+
+serialization::HashTableImplType SimplifyHashTableImplTypeProto(
+    const serialization::HashTableImplType proto_impl_type,
+    const std::vector<const Type*> &key_types) {
+  if ((proto_impl_type == serialization::HashTableImplType::SEPARATE_CHAINING)
+      && (key_types.size() == 1)
+      && (TypedValue::HashIsReversible(key_types.front()->getTypeID()))) {
+    return serialization::HashTableImplType::SIMPLE_SCALAR_SEPARATE_CHAINING;
+  } else {
+    return proto_impl_type;
   }
 }
 

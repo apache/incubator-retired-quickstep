@@ -34,7 +34,8 @@ namespace quickstep {
  **/
 enum class HashTableImplType {
   kLinearOpenAddressing,
-  kSeparateChaining
+  kSeparateChaining,
+  kSimpleScalarSeparateChaining
 };
 
 /**

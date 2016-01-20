@@ -1,5 +1,5 @@
 /**
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@
 #include "storage/HashTable.pb.h"
 #include "storage/LinearOpenAddressingHashTable.hpp"
 #include "storage/SeparateChainingHashTable.hpp"
+#include "storage/SimpleScalarSeparateChainingHashTable.hpp"
 #include "storage/TupleReference.hpp"
 #include "types/TypeFactory.hpp"
 #include "utility/Macros.hpp"
@@ -45,6 +46,11 @@ class Type;
  * @brief Validation function for use with gflags. Checks that a string used to
  *        indicate a particular HashTable implementation is valid.
  *
+ * @note This function does NOT consider "SimpleScalarSeparateChaining" to be
+ *       a valid string, as that is considered a special case of
+ *       "SeparateChaining" that may be chosen by the optimizer but not
+ *       explicitly specified with command-line flags.
+ *
  * @param flagname The name of the command-line flag to validate.
  * @param value The value of the flag.
  * @return true if value is valid (i.e. it is either "LinearOpenAddressing" or
@@ -54,24 +60,9 @@ bool ValidateHashTableImplTypeString(const char *flagname,
                                      const std::string &value);
 
 /**
- * @brief Get a HashTableImplType from a human-readable string indicating the
- *        desired HashTable implementation.
- * @warning It is an error to call this function with an invalid
- *          hash_table_impl_string. The string should be checked beforehand
- *          (e.g. by registering ValidateHashTableImplTypeString() as a
- *          flag-validator in gflags).
- *
- * @param hash_table_impl_string A human readable-string (probably from a
- *        command-line flag) indicating the desired HashTable implementation
- *        (currently either "LinearOpenAddressing" or "SeparateChaining").
- * @return The HashTableImplType corresponding to hash_table_impl_string.
- **/
-HashTableImplType HashTableImplTypeFromString(
-    const std::string &hash_table_impl_string);
-
-/**
  * @brief Get a serialization::HashTableImplType from a human-readable string
  *        indicating the desired HashTable implementation.
+ *
  * @warning It is an error to call this function with an invalid
  *          hash_table_impl_string. The string should be checked beforehand
  *          (e.g. by registering ValidateHashTableImplTypeString() as a
@@ -87,6 +78,28 @@ serialization::HashTableImplType HashTableImplTypeProtoFromString(
     const std::string &hash_table_impl_string);
 
 /**
+ * @brief Attempt to convert a specified serialization::HashTableImplType to
+ *        a simpler HashTable implementation if possible for given key Types.
+ *
+ * @note Currently, this function converts SEPARATE_CHAINING to
+ *       SIMPLE_SCALAR_SEPARATE_CHAINING if there is a single scalar key with
+ *       a reversible hash function (i.e. if
+ *       SimpleScalarSeparateChainingHashTable is usable). It does nothing if
+ *       the originally selected implementation is LINEAR_OPEN_ADDRESSING or if
+ *       the requirements for the key are not met.
+ *
+ * @param proto_impl_type The proto form of the originally chosen HashTable
+ *        implementation.
+ * @param key_types The Types of keys to be used with the HashTable.
+ * @return A serialization::HashTableImplType indicating a simplified form of
+ *         the original proto_impl_type if possible, otherwise proto_impl_type
+ *         unchanged.
+ **/
+serialization::HashTableImplType SimplifyHashTableImplTypeProto(
+    const serialization::HashTableImplType proto_impl_type,
+    const std::vector<const Type*> &key_types);
+
+/**
  * @brief Convert a serialization::HashTableImplType to the equivalent
  *        HashTableImplType.
  *
@@ -100,6 +113,8 @@ inline HashTableImplType HashTableImplTypeFromProto(
       return HashTableImplType::kLinearOpenAddressing;
     case serialization::HashTableImplType::SEPARATE_CHAINING:
       return HashTableImplType::kSeparateChaining;
+    case serialization::HashTableImplType::SIMPLE_SCALAR_SEPARATE_CHAINING:
+      return HashTableImplType::kSimpleScalarSeparateChaining;
     default: {
       LOG(FATAL) << "Unrecognized serialization::HashTableImplType\n";
     }
@@ -140,7 +155,7 @@ class HashTableFactory {
                       const std::vector<const Type*> &key_types,
                       const std::size_t num_entries,
                       StorageManager *storage_manager) {
-    DEBUG_ASSERT(resizable);
+    DCHECK(resizable);
 
     switch (hash_table_type) {
       case HashTableImplType::kLinearOpenAddressing:
@@ -152,6 +167,13 @@ class HashTableFactory {
             allow_duplicate_keys>(key_types, num_entries, storage_manager);
       case HashTableImplType::kSeparateChaining:
         return new SeparateChainingHashTable<
+            ValueT,
+            resizable,
+            serializable,
+            force_key_copy,
+            allow_duplicate_keys>(key_types, num_entries, storage_manager);
+      case HashTableImplType::kSimpleScalarSeparateChaining:
+        return new SimpleScalarSeparateChainingHashTable<
             ValueT,
             resizable,
             serializable,
@@ -196,7 +218,7 @@ class HashTableFactory {
                       const std::size_t hash_table_memory_size,
                       const bool new_hash_table,
                       const bool hash_table_memory_zeroed) {
-    DEBUG_ASSERT(!resizable);
+    DCHECK(!resizable);
 
     switch (hash_table_type) {
       case HashTableImplType::kLinearOpenAddressing:
@@ -212,6 +234,17 @@ class HashTableFactory {
                                   hash_table_memory_zeroed);
       case HashTableImplType::kSeparateChaining:
         return new SeparateChainingHashTable<
+            ValueT,
+            resizable,
+            serializable,
+            force_key_copy,
+            allow_duplicate_keys>(key_types,
+                                  hash_table_memory,
+                                  hash_table_memory_size,
+                                  new_hash_table,
+                                  hash_table_memory_zeroed);
+      case HashTableImplType::kSimpleScalarSeparateChaining:
+        return new SimpleScalarSeparateChainingHashTable<
             ValueT,
             resizable,
             serializable,

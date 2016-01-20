@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -1130,15 +1130,27 @@ class HashTableTest : public ::testing::Test {
 };
 TYPED_TEST_CASE_P(HashTableTest);
 
+template <typename HashTableImpl> using HashTableTestLongOnly
+    = HashTableTest<HashTableImpl>;
+TYPED_TEST_CASE_P(HashTableTestLongOnly);
+
 // Alias for tests which only apply to resizable hash tables.
 template <typename HashTableImpl> using ResizableHashTableTest
     = HashTableTest<HashTableImpl>;
 TYPED_TEST_CASE_P(ResizableHashTableTest);
 
+template <typename HashTableImpl> using ResizableHashTableTestLongOnly
+    = HashTableTest<HashTableImpl>;
+TYPED_TEST_CASE_P(ResizableHashTableTestLongOnly);
+
 // Alias for tests which only apply to non-resizable hash tables.
 template <typename HashTableImpl> using NonResizableHashTableTest
     = HashTableTest<HashTableImpl>;
 TYPED_TEST_CASE_P(NonResizableHashTableTest);
+
+template <typename HashTableImpl> using NonResizableHashTableTestLongOnly
+    = HashTableTest<HashTableImpl>;
+TYPED_TEST_CASE_P(NonResizableHashTableTestLongOnly);
 
 // Alias for tests which only apply to hash tables which do not allow duplicate
 // keys.
@@ -1146,11 +1158,19 @@ template <typename HashTableImpl> using DuplicateKeysForbiddenHashTableTest
     = HashTableTest<HashTableImpl>;
 TYPED_TEST_CASE_P(DuplicateKeysForbiddenHashTableTest);
 
+template <typename HashTableImpl> using DuplicateKeysForbiddenHashTableTestLongOnly
+    = HashTableTest<HashTableImpl>;
+TYPED_TEST_CASE_P(DuplicateKeysForbiddenHashTableTestLongOnly);
+
 // Alias for tests which only apply to hash tables which are fixed-size and
 // serializable.
 template <typename HashTableImpl> using FixedSizeSerializableHashTableTest
     = HashTableTest<HashTableImpl>;
 TYPED_TEST_CASE_P(FixedSizeSerializableHashTableTest);
+
+template <typename HashTableImpl> using FixedSizeSerializableHashTableTestLongOnly
+    = HashTableTest<HashTableImpl>;
+TYPED_TEST_CASE_P(FixedSizeSerializableHashTableTestLongOnly);
 
 // We use a separate test fixture here, since the regular HashTableTest assumes
 // that HashTableImpl::value_type is TestHashPayload.
@@ -1300,7 +1320,11 @@ class NonTriviallyDestructibleValueHashTableTest : public ::testing::Test {
 };
 TYPED_TEST_CASE_P(NonTriviallyDestructibleValueHashTableTest);
 
-TYPED_TEST_P(HashTableTest, LongKeyPutAndGetTest) {
+template <typename HashTableImpl> using NonTriviallyDestructibleValueHashTableTestLongOnly
+    = NonTriviallyDestructibleValueHashTableTest<HashTableImpl>;
+TYPED_TEST_CASE_P(NonTriviallyDestructibleValueHashTableTestLongOnly);
+
+TYPED_TEST_P(HashTableTestLongOnly, LongKeyPutAndGetTest) {
   this->runScalarKeyPutAndGetTest(TypeID::kLong);
 }
 
@@ -1431,7 +1455,7 @@ TYPED_TEST_P(HashTableTest, SpecialHashesPutAndGetTest) {
   values.clear();
 }
 
-TYPED_TEST_P(HashTableTest, LongKeyPutDuplicateKeysTest) {
+TYPED_TEST_P(HashTableTestLongOnly, LongKeyPutDuplicateKeysTest) {
   this->runDuplicateScalarKeysPutAndGetTest(TypeID::kLong);
 }
 
@@ -1563,7 +1587,7 @@ TYPED_TEST_P(HashTableTest, CompositeKeyPutDuplicateKeysTest) {
   }
 }
 
-TYPED_TEST_P(HashTableTest, LongKeyPutAndGetFromValueAccessorTest) {
+TYPED_TEST_P(HashTableTestLongOnly, LongKeyPutAndGetFromValueAccessorTest) {
   this->runScalarKeyPutAndGetFromValueAccessorTest(TypeID::kLong);
 }
 
@@ -1619,7 +1643,7 @@ TYPED_TEST_P(HashTableTest, CompositeKeyPutAndGetFromValueAccessorTest) {
   }
 }
 
-TYPED_TEST_P(HashTableTest, LongKeyThreadedPutTest) {
+TYPED_TEST_P(HashTableTestLongOnly, LongKeyThreadedPutTest) {
   this->runScalarKeyThreadedPutTest(TypeID::kLong, false);
 }
 
@@ -1635,7 +1659,7 @@ TYPED_TEST_P(HashTableTest, CompositeKeyThreadedPutTest) {
   this->runCompositeKeyThreadedPutTest(false);
 }
 
-TYPED_TEST_P(HashTableTest, LongKeyClearTest) {
+TYPED_TEST_P(HashTableTestLongOnly, LongKeyClearTest) {
   this->runScalarKeyClearTest(TypeID::kLong);
 }
 
@@ -1676,7 +1700,7 @@ TYPED_TEST_P(HashTableTest, CompositeKeyClearTest) {
   EXPECT_EQ(0u, visitor.internal_map().size());
 }
 
-TYPED_TEST_P(ResizableHashTableTest, LongKeyResizeTest) {
+TYPED_TEST_P(ResizableHashTableTestLongOnly, LongKeyResizeTest) {
   this->runScalarKeyResizeTest(TypeID::kLong);
 }
 
@@ -1718,7 +1742,7 @@ TYPED_TEST_P(ResizableHashTableTest, CompositeKeyResizeTest) {
   }
 }
 
-TYPED_TEST_P(ResizableHashTableTest, LongKeyThreadedResizeTest) {
+TYPED_TEST_P(ResizableHashTableTestLongOnly, LongKeyThreadedResizeTest) {
   this->runScalarKeyThreadedPutTest(TypeID::kLong, true);
 }
 
@@ -1734,7 +1758,7 @@ TYPED_TEST_P(ResizableHashTableTest, CompositeKeyThreadedResizeTest) {
   this->runCompositeKeyThreadedPutTest(true);
 }
 
-TYPED_TEST_P(NonResizableHashTableTest, LongKeyExhaustSpaceTest) {
+TYPED_TEST_P(NonResizableHashTableTestLongOnly, LongKeyExhaustSpaceTest) {
   this->runScalarKeyExhaustSpaceTest(TypeID::kLong);
 }
 
@@ -1785,7 +1809,7 @@ TYPED_TEST_P(NonResizableHashTableTest, CompositeKeyExhaustSpaceTest) {
   EXPECT_TRUE(failed_matches.empty());
 }
 
-TYPED_TEST_P(DuplicateKeysForbiddenHashTableTest, LongKeyUpsertTest) {
+TYPED_TEST_P(DuplicateKeysForbiddenHashTableTestLongOnly, LongKeyUpsertTest) {
   this->runScalarKeyUpsertTest(TypeID::kLong);
 }
 
@@ -1829,7 +1853,7 @@ TYPED_TEST_P(DuplicateKeysForbiddenHashTableTest, CompositeKeyUpsertTest) {
   }
 }
 
-TYPED_TEST_P(DuplicateKeysForbiddenHashTableTest, LongKeyUpsertValueAccessorTest) {
+TYPED_TEST_P(DuplicateKeysForbiddenHashTableTestLongOnly, LongKeyUpsertValueAccessorTest) {
   this->runScalarKeyUpsertValueAccessorTest(TypeID::kLong);
 }
 
@@ -1872,7 +1896,7 @@ TYPED_TEST_P(DuplicateKeysForbiddenHashTableTest, CompositeKeyUpsertValueAccesso
   }
 }
 
-TYPED_TEST_P(FixedSizeSerializableHashTableTest, LongKeySerializationTest) {
+TYPED_TEST_P(FixedSizeSerializableHashTableTestLongOnly, LongKeySerializationTest) {
   this->runScalarKeySerializationTest(TypeID::kLong);
 }
 
@@ -1975,7 +1999,7 @@ TYPED_TEST_P(FixedSizeSerializableHashTableTest, CompositeKeySerializationTest) 
   EXPECT_TRUE(nonexistent_matches.empty());
 }
 
-TYPED_TEST_P(NonTriviallyDestructibleValueHashTableTest, LongKeyDestroyValueTest) {
+TYPED_TEST_P(NonTriviallyDestructibleValueHashTableTestLongOnly, LongKeyDestroyValueTest) {
   this->runScalarKeyDestroyValueTest(TypeID::kLong);
 }
 
@@ -2007,63 +2031,75 @@ TYPED_TEST_P(NonTriviallyDestructibleValueHashTableTest, CompositeKeyDestroyValu
   EXPECT_EQ(kNumSampleKeys, destruct_count.load(std::memory_order_relaxed));
 }
 
-REGISTER_TYPED_TEST_CASE_P(HashTableTest,
+REGISTER_TYPED_TEST_CASE_P(HashTableTestLongOnly,
                            LongKeyPutAndGetTest,
+                           LongKeyPutDuplicateKeysTest,
+                           LongKeyPutAndGetFromValueAccessorTest,
+                           LongKeyThreadedPutTest,
+                           LongKeyClearTest);
+
+REGISTER_TYPED_TEST_CASE_P(HashTableTest,
                            CharKeyPutAndGetTest,
                            VarCharKeyPutAndGetTest,
                            CompositeKeyPutAndGetTest,
                            SpecialHashesPutAndGetTest,
-                           LongKeyPutDuplicateKeysTest,
                            CharKeyPutDuplicateKeysTest,
                            VarCharKeyPutDuplicateKeysTest,
                            CompositeKeyPutDuplicateKeysTest,
-                           LongKeyPutAndGetFromValueAccessorTest,
                            CharKeyPutAndGetFromValueAccessorTest,
                            VarCharKeyPutAndGetFromValueAccessorTest,
                            CompositeKeyPutAndGetFromValueAccessorTest,
-                           LongKeyThreadedPutTest,
                            CharKeyThreadedPutTest,
                            VarCharKeyThreadedPutTest,
                            CompositeKeyThreadedPutTest,
-                           LongKeyClearTest,
                            CharKeyClearTest,
                            VarCharKeyClearTest,
                            CompositeKeyClearTest);
 
-REGISTER_TYPED_TEST_CASE_P(ResizableHashTableTest,
+REGISTER_TYPED_TEST_CASE_P(ResizableHashTableTestLongOnly,
                            LongKeyResizeTest,
+                           LongKeyThreadedResizeTest);
+
+REGISTER_TYPED_TEST_CASE_P(ResizableHashTableTest,
                            CharKeyResizeTest,
                            VarCharKeyResizeTest,
                            CompositeKeyResizeTest,
-                           LongKeyThreadedResizeTest,
                            CharKeyThreadedResizeTest,
                            VarCharKeyThreadedResizeTest,
                            CompositeKeyThreadedResizeTest);
 
+REGISTER_TYPED_TEST_CASE_P(NonResizableHashTableTestLongOnly,
+                           LongKeyExhaustSpaceTest);
+
 REGISTER_TYPED_TEST_CASE_P(NonResizableHashTableTest,
-                           LongKeyExhaustSpaceTest,
                            CharKeyExhaustSpaceTest,
                            VarCharKeyExhaustSpaceTest,
                            CompositeKeyExhaustSpaceTest);
 
-REGISTER_TYPED_TEST_CASE_P(DuplicateKeysForbiddenHashTableTest,
+REGISTER_TYPED_TEST_CASE_P(DuplicateKeysForbiddenHashTableTestLongOnly,
                            LongKeyUpsertTest,
+                           LongKeyUpsertValueAccessorTest);
+
+REGISTER_TYPED_TEST_CASE_P(DuplicateKeysForbiddenHashTableTest,
                            CharKeyUpsertTest,
                            VarCharKeyUpsertTest,
                            CompositeKeyUpsertTest,
-                           LongKeyUpsertValueAccessorTest,
                            CharKeyUpsertValueAccessorTest,
                            VarCharKeyUpsertValueAccessorTest,
                            CompositeKeyUpsertValueAccessorTest);
 
+REGISTER_TYPED_TEST_CASE_P(FixedSizeSerializableHashTableTestLongOnly,
+                           LongKeySerializationTest);
+
 REGISTER_TYPED_TEST_CASE_P(FixedSizeSerializableHashTableTest,
-                           LongKeySerializationTest,
                            CharKeySerializationTest,
                            VarCharKeySerializationTest,
                            CompositeKeySerializationTest);
 
+REGISTER_TYPED_TEST_CASE_P(NonTriviallyDestructibleValueHashTableTestLongOnly,
+                           LongKeyDestroyValueTest);
+
 REGISTER_TYPED_TEST_CASE_P(NonTriviallyDestructibleValueHashTableTest,
-                           LongKeyDestroyValueTest,
                            CharKeyDestroyValueTest,
                            VarCharKeyDestroyValueTest,
                            CompositeKeyDestroyValueTest);
@@ -2072,102 +2108,221 @@ REGISTER_TYPED_TEST_CASE_P(NonTriviallyDestructibleValueHashTableTest,
 
 // Macro to automatically instantiate tests for all the different flavors of
 // the specificied HashTable implementation template.
-#define QUICKSTEP_TEST_HASHTABLE_IMPL(HashTableImpl)                \
-namespace quickstep {                                               \
-                                                                    \
-typedef ::testing::Types<                                           \
-    HashTableImpl<TestHashPayload, false, false, false, false>,     \
-    HashTableImpl<TestHashPayload, false, false, false, true>,      \
-    HashTableImpl<TestHashPayload, false, false, true, false>,      \
-    HashTableImpl<TestHashPayload, false, false, true, true>,       \
-    HashTableImpl<TestHashPayload, false, true, false, false>,      \
-    HashTableImpl<TestHashPayload, false, true, false, true>,       \
-    HashTableImpl<TestHashPayload, false, true, true, false>,       \
-    HashTableImpl<TestHashPayload, false, true, true, true>,        \
-    HashTableImpl<TestHashPayload, true, false, false, false>,      \
-    HashTableImpl<TestHashPayload, true, false, false, true>,       \
-    HashTableImpl<TestHashPayload, true, false, true, false>,       \
-    HashTableImpl<TestHashPayload, true, false, true, true>,        \
-    HashTableImpl<TestHashPayload, true, true, true, false>,        \
-    HashTableImpl<TestHashPayload, true, true, true, true>>         \
-        _CommonTestTypes;                                           \
-INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                        \
-                              HashTableTest,                        \
-                              _CommonTestTypes);                    \
-                                                                    \
-typedef ::testing::Types<                                           \
-    HashTableImpl<TestHashPayload, true, false, false, false>,      \
-    HashTableImpl<TestHashPayload, true, false, false, true>,       \
-    HashTableImpl<TestHashPayload, true, false, true, false>,       \
-    HashTableImpl<TestHashPayload, true, false, true, true>,        \
-    HashTableImpl<TestHashPayload, true, true, true, false>,        \
-    HashTableImpl<TestHashPayload, true, true, true, true>>         \
-        _ResizableTestTypes;                                        \
-INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                        \
-                              ResizableHashTableTest,               \
-                              _ResizableTestTypes);                 \
-                                                                    \
-typedef ::testing::Types<                                           \
-    HashTableImpl<TestHashPayload, false, false, false, false>,     \
-    HashTableImpl<TestHashPayload, false, false, false, true>,      \
-    HashTableImpl<TestHashPayload, false, false, true, false>,      \
-    HashTableImpl<TestHashPayload, false, false, true, true>,       \
-    HashTableImpl<TestHashPayload, false, true, false, false>,      \
-    HashTableImpl<TestHashPayload, false, true, false, true>,       \
-    HashTableImpl<TestHashPayload, false, true, true, false>,       \
-    HashTableImpl<TestHashPayload, false, true, true, true>>        \
-        _NonResizableTestTypes;                                     \
-INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                        \
-                              NonResizableHashTableTest,            \
-                              _NonResizableTestTypes);              \
-                                                                    \
-typedef ::testing::Types<                                           \
-    HashTableImpl<TestHashPayload, false, false, false, false>,     \
-    HashTableImpl<TestHashPayload, false, false, true, false>,      \
-    HashTableImpl<TestHashPayload, false, true, false, false>,      \
-    HashTableImpl<TestHashPayload, false, true, true, false>,       \
-    HashTableImpl<TestHashPayload, true, false, false, false>,      \
-    HashTableImpl<TestHashPayload, true, false, true, false>,       \
-    HashTableImpl<TestHashPayload, true, true, true, false>>        \
-        _DuplicateKeysForbiddenTypes;                               \
-INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                        \
-                              DuplicateKeysForbiddenHashTableTest,  \
-                              _DuplicateKeysForbiddenTypes);        \
-                                                                    \
-typedef ::testing::Types<                                           \
-    HashTableImpl<TestHashPayload, false, true, false, false>,      \
-    HashTableImpl<TestHashPayload, false, true, false, true>,       \
-    HashTableImpl<TestHashPayload, false, true, true, false>,       \
-    HashTableImpl<TestHashPayload, false, true, true, true>>        \
-        _FixedSizeSerializableTestTypes;                            \
-INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                        \
-                              FixedSizeSerializableHashTableTest,   \
-                              _FixedSizeSerializableTestTypes);     \
-                                                                    \
-typedef ::testing::Types<                                           \
-    HashTableImpl<NonTriviallyDestructibleTestHashPayload,          \
-                  false, false, false, false>,                      \
-    HashTableImpl<NonTriviallyDestructibleTestHashPayload,          \
-                  false, false, false, true>,                       \
-    HashTableImpl<NonTriviallyDestructibleTestHashPayload,          \
-                  false, false, true, false>,                       \
-    HashTableImpl<NonTriviallyDestructibleTestHashPayload,          \
-                  false, false, true, true>,                        \
-    HashTableImpl<NonTriviallyDestructibleTestHashPayload,          \
-                  true, false, false, false>,                       \
-    HashTableImpl<NonTriviallyDestructibleTestHashPayload,          \
-                  true, false, false, true>,                        \
-    HashTableImpl<NonTriviallyDestructibleTestHashPayload,          \
-                  true, false, true, false>,                        \
-    HashTableImpl<NonTriviallyDestructibleTestHashPayload,          \
-                  true, false, true, true>>                         \
-        _NonTriviallyDestructibleNonSerializableTestTypes;          \
-INSTANTIATE_TYPED_TEST_CASE_P(                                      \
-    HashTableImpl,                                                  \
-    NonTriviallyDestructibleValueHashTableTest,                     \
-    _NonTriviallyDestructibleNonSerializableTestTypes);             \
-                                                                    \
-}  /* namespace quickstep */                                        \
+#define QUICKSTEP_TEST_HASHTABLE_IMPL(HashTableImpl)                        \
+namespace quickstep {                                                       \
+                                                                            \
+typedef ::testing::Types<                                                   \
+    HashTableImpl<TestHashPayload, false, false, false, false>,             \
+    HashTableImpl<TestHashPayload, false, false, false, true>,              \
+    HashTableImpl<TestHashPayload, false, false, true, false>,              \
+    HashTableImpl<TestHashPayload, false, false, true, true>,               \
+    HashTableImpl<TestHashPayload, false, true, false, false>,              \
+    HashTableImpl<TestHashPayload, false, true, false, true>,               \
+    HashTableImpl<TestHashPayload, false, true, true, false>,               \
+    HashTableImpl<TestHashPayload, false, true, true, true>,                \
+    HashTableImpl<TestHashPayload, true, false, false, false>,              \
+    HashTableImpl<TestHashPayload, true, false, false, true>,               \
+    HashTableImpl<TestHashPayload, true, false, true, false>,               \
+    HashTableImpl<TestHashPayload, true, false, true, true>,                \
+    HashTableImpl<TestHashPayload, true, true, true, false>,                \
+    HashTableImpl<TestHashPayload, true, true, true, true>>                 \
+        _CommonTestTypes;                                                   \
+INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                                \
+                              HashTableTestLongOnly,                        \
+                              _CommonTestTypes);                            \
+INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                                \
+                              HashTableTest,                                \
+                              _CommonTestTypes);                            \
+                                                                            \
+typedef ::testing::Types<                                                   \
+    HashTableImpl<TestHashPayload, true, false, false, false>,              \
+    HashTableImpl<TestHashPayload, true, false, false, true>,               \
+    HashTableImpl<TestHashPayload, true, false, true, false>,               \
+    HashTableImpl<TestHashPayload, true, false, true, true>,                \
+    HashTableImpl<TestHashPayload, true, true, true, false>,                \
+    HashTableImpl<TestHashPayload, true, true, true, true>>                 \
+        _ResizableTestTypes;                                                \
+INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                                \
+                              ResizableHashTableTestLongOnly,               \
+                              _ResizableTestTypes);                         \
+INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                                \
+                              ResizableHashTableTest,                       \
+                              _ResizableTestTypes);                         \
+                                                                            \
+typedef ::testing::Types<                                                   \
+    HashTableImpl<TestHashPayload, false, false, false, false>,             \
+    HashTableImpl<TestHashPayload, false, false, false, true>,              \
+    HashTableImpl<TestHashPayload, false, false, true, false>,              \
+    HashTableImpl<TestHashPayload, false, false, true, true>,               \
+    HashTableImpl<TestHashPayload, false, true, false, false>,              \
+    HashTableImpl<TestHashPayload, false, true, false, true>,               \
+    HashTableImpl<TestHashPayload, false, true, true, false>,               \
+    HashTableImpl<TestHashPayload, false, true, true, true>>                \
+        _NonResizableTestTypes;                                             \
+INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                                \
+                              NonResizableHashTableTestLongOnly,            \
+                              _NonResizableTestTypes);                      \
+INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                                \
+                              NonResizableHashTableTest,                    \
+                              _NonResizableTestTypes);                      \
+                                                                            \
+typedef ::testing::Types<                                                   \
+    HashTableImpl<TestHashPayload, false, false, false, false>,             \
+    HashTableImpl<TestHashPayload, false, false, true, false>,              \
+    HashTableImpl<TestHashPayload, false, true, false, false>,              \
+    HashTableImpl<TestHashPayload, false, true, true, false>,               \
+    HashTableImpl<TestHashPayload, true, false, false, false>,              \
+    HashTableImpl<TestHashPayload, true, false, true, false>,               \
+    HashTableImpl<TestHashPayload, true, true, true, false>>                \
+        _DuplicateKeysForbiddenTypes;                                       \
+INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                                \
+                              DuplicateKeysForbiddenHashTableTestLongOnly,  \
+                              _DuplicateKeysForbiddenTypes);                \
+INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                                \
+                              DuplicateKeysForbiddenHashTableTest,          \
+                              _DuplicateKeysForbiddenTypes);                \
+                                                                            \
+typedef ::testing::Types<                                                   \
+    HashTableImpl<TestHashPayload, false, true, false, false>,              \
+    HashTableImpl<TestHashPayload, false, true, false, true>,               \
+    HashTableImpl<TestHashPayload, false, true, true, false>,               \
+    HashTableImpl<TestHashPayload, false, true, true, true>>                \
+        _FixedSizeSerializableTestTypes;                                    \
+INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                                \
+                              FixedSizeSerializableHashTableTestLongOnly,   \
+                              _FixedSizeSerializableTestTypes);             \
+INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                                \
+                              FixedSizeSerializableHashTableTest,           \
+                              _FixedSizeSerializableTestTypes);             \
+                                                                            \
+typedef ::testing::Types<                                                   \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  false, false, false, false>,                              \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  false, false, false, true>,                               \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  false, false, true, false>,                               \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  false, false, true, true>,                                \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  true, false, false, false>,                               \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  true, false, false, true>,                                \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  true, false, true, false>,                                \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  true, false, true, true>>                                 \
+        _NonTriviallyDestructibleNonSerializableTestTypes;                  \
+INSTANTIATE_TYPED_TEST_CASE_P(                                              \
+    HashTableImpl,                                                          \
+    NonTriviallyDestructibleValueHashTableTestLongOnly,                     \
+    _NonTriviallyDestructibleNonSerializableTestTypes);                     \
+INSTANTIATE_TYPED_TEST_CASE_P(                                              \
+    HashTableImpl,                                                          \
+    NonTriviallyDestructibleValueHashTableTest,                             \
+    _NonTriviallyDestructibleNonSerializableTestTypes);                     \
+                                                                            \
+}  /* namespace quickstep */                                                \
+struct quickstep_hashtable_test_dummy  /* NOLINT(build/class) */
+
+// Similar to QUICKSTEP_TEST_HASHTABLE_IMPL(), but only instantiates test cases
+// that use LONG keys.
+#define QUICKSTEP_TEST_HASHTABLE_IMPL_LONG_ONLY(HashTableImpl)              \
+namespace quickstep {                                                       \
+                                                                            \
+typedef ::testing::Types<                                                   \
+    HashTableImpl<TestHashPayload, false, false, false, false>,             \
+    HashTableImpl<TestHashPayload, false, false, false, true>,              \
+    HashTableImpl<TestHashPayload, false, false, true, false>,              \
+    HashTableImpl<TestHashPayload, false, false, true, true>,               \
+    HashTableImpl<TestHashPayload, false, true, false, false>,              \
+    HashTableImpl<TestHashPayload, false, true, false, true>,               \
+    HashTableImpl<TestHashPayload, false, true, true, false>,               \
+    HashTableImpl<TestHashPayload, false, true, true, true>,                \
+    HashTableImpl<TestHashPayload, true, false, false, false>,              \
+    HashTableImpl<TestHashPayload, true, false, false, true>,               \
+    HashTableImpl<TestHashPayload, true, false, true, false>,               \
+    HashTableImpl<TestHashPayload, true, false, true, true>,                \
+    HashTableImpl<TestHashPayload, true, true, true, false>,                \
+    HashTableImpl<TestHashPayload, true, true, true, true>>                 \
+        _CommonTestTypes;                                                   \
+INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                                \
+                              HashTableTestLongOnly,                        \
+                              _CommonTestTypes);                            \
+                                                                            \
+typedef ::testing::Types<                                                   \
+    HashTableImpl<TestHashPayload, true, false, false, false>,              \
+    HashTableImpl<TestHashPayload, true, false, false, true>,               \
+    HashTableImpl<TestHashPayload, true, false, true, false>,               \
+    HashTableImpl<TestHashPayload, true, false, true, true>,                \
+    HashTableImpl<TestHashPayload, true, true, true, false>,                \
+    HashTableImpl<TestHashPayload, true, true, true, true>>                 \
+        _ResizableTestTypes;                                                \
+INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                                \
+                              ResizableHashTableTestLongOnly,               \
+                              _ResizableTestTypes);                         \
+                                                                            \
+typedef ::testing::Types<                                                   \
+    HashTableImpl<TestHashPayload, false, false, false, false>,             \
+    HashTableImpl<TestHashPayload, false, false, false, true>,              \
+    HashTableImpl<TestHashPayload, false, false, true, false>,              \
+    HashTableImpl<TestHashPayload, false, false, true, true>,               \
+    HashTableImpl<TestHashPayload, false, true, false, false>,              \
+    HashTableImpl<TestHashPayload, false, true, false, true>,               \
+    HashTableImpl<TestHashPayload, false, true, true, false>,               \
+    HashTableImpl<TestHashPayload, false, true, true, true>>                \
+        _NonResizableTestTypes;                                             \
+INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                                \
+                              NonResizableHashTableTestLongOnly,            \
+                              _NonResizableTestTypes);                      \
+                                                                            \
+typedef ::testing::Types<                                                   \
+    HashTableImpl<TestHashPayload, false, false, false, false>,             \
+    HashTableImpl<TestHashPayload, false, false, true, false>,              \
+    HashTableImpl<TestHashPayload, false, true, false, false>,              \
+    HashTableImpl<TestHashPayload, false, true, true, false>,               \
+    HashTableImpl<TestHashPayload, true, false, false, false>,              \
+    HashTableImpl<TestHashPayload, true, false, true, false>,               \
+    HashTableImpl<TestHashPayload, true, true, true, false>>                \
+        _DuplicateKeysForbiddenTypes;                                       \
+INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                                \
+                              DuplicateKeysForbiddenHashTableTestLongOnly,  \
+                              _DuplicateKeysForbiddenTypes);                \
+                                                                            \
+typedef ::testing::Types<                                                   \
+    HashTableImpl<TestHashPayload, false, true, false, false>,              \
+    HashTableImpl<TestHashPayload, false, true, false, true>,               \
+    HashTableImpl<TestHashPayload, false, true, true, false>,               \
+    HashTableImpl<TestHashPayload, false, true, true, true>>                \
+        _FixedSizeSerializableTestTypes;                                    \
+INSTANTIATE_TYPED_TEST_CASE_P(HashTableImpl,                                \
+                              FixedSizeSerializableHashTableTestLongOnly,   \
+                              _FixedSizeSerializableTestTypes);             \
+                                                                            \
+typedef ::testing::Types<                                                   \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  false, false, false, false>,                              \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  false, false, false, true>,                               \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  false, false, true, false>,                               \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  false, false, true, true>,                                \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  true, false, false, false>,                               \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  true, false, false, true>,                                \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  true, false, true, false>,                                \
+    HashTableImpl<NonTriviallyDestructibleTestHashPayload,                  \
+                  true, false, true, true>>                                 \
+        _NonTriviallyDestructibleNonSerializableTestTypes;                  \
+INSTANTIATE_TYPED_TEST_CASE_P(                                              \
+    HashTableImpl,                                                          \
+    NonTriviallyDestructibleValueHashTableTestLongOnly,                     \
+    _NonTriviallyDestructibleNonSerializableTestTypes);                     \
+                                                                            \
+}  /* namespace quickstep */                                                \
 struct quickstep_hashtable_test_dummy  /* NOLINT(build/class) */
 
 #endif  // QUICKSTEP_STORAGE_TESTS_HASHTABLE_UNITTEST_COMMON_HPP_
