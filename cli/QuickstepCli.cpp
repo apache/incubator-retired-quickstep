@@ -25,6 +25,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <thread>  // NOLINT(build/c++11)
+
 
 #include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE.
 #include "cli/DropRelation.hpp"
@@ -116,7 +118,11 @@ static constexpr char kPathSeparator = '/';
 static constexpr char kDefaultStoragePath[] = "qsstor/";
 #endif
 
-DEFINE_int32(num_workers, 1, "Number of worker threads");
+DEFINE_int32(num_workers, 0, "Number of worker threads. If this value is "
+                             "specified and is greater than 0, then this "
+                             "user-supplied value is used. Else (i.e. the"
+                             "default case), we examine the reported "
+                             "hardware concurrency level, and use that.");
 DEFINE_bool(preload_buffer_pool, false,
             "If true, pre-load all known blocks into buffer pool before "
             "accepting queries (should also set --buffer_pool_slots to be "
@@ -135,9 +141,22 @@ int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   google::InitGoogleLogging(argv[0]);
 
-  if (quickstep::FLAGS_num_workers > 0) {
-    printf("Starting Quickstep with %d worker thread(s)\n",
-           quickstep::FLAGS_num_workers);
+  // Detect the hardware concurrency level. Note this call will return 0
+  // if it fails (which it may on some machines/environments).
+  const unsigned int num_hw_threads = std::thread::hardware_concurrency();
+
+  // Use the command-line value if that was supplied, else use the value
+  // that we computed above, provided it did return a valid value.
+  // TODO(jmp): May need to change this at some point to keep one thread
+  //            available for the OS if the hardware concurrency level is high.
+  const unsigned int real_num_workers = quickstep::FLAGS_num_workers != 0
+                                      ? quickstep::FLAGS_num_workers
+                                      : (num_hw_threads != 0 ?
+                                         num_hw_threads
+                                         : 1);
+
+  if (real_num_workers > 0) {
+    printf("Starting Quickstep with %d worker thread(s)\n", real_num_workers);
   } else {
     LOG(FATAL) << "Quickstep needs at least one worker thread";
   }
@@ -188,7 +207,7 @@ int main(int argc, char* argv[]) {
   // Parse the CPU affinities for workers and the preloader thread, if enabled
   // to warm up the buffer pool.
   const vector<int> worker_cpu_affinities =
-      InputParserUtil::ParseWorkerAffinities(quickstep::FLAGS_num_workers,
+      InputParserUtil::ParseWorkerAffinities(real_num_workers,
                                              quickstep::FLAGS_worker_affinities);
 
   if (quickstep::FLAGS_preload_buffer_pool) {
@@ -217,7 +236,7 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<QueryContext> query_context;
 
   // Initialize the worker threads.
-  DCHECK_EQ(static_cast<std::size_t>(quickstep::FLAGS_num_workers),
+  DCHECK_EQ(static_cast<std::size_t>(real_num_workers),
             worker_cpu_affinities.size());
   for (std::size_t worker_idx = 0;
        worker_idx < worker_cpu_affinities.size();
