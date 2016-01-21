@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -224,7 +224,13 @@ class HashJoinWorkOrder : public WorkOrder {
                StorageManager *storage_manager) override;
 
  private:
-  const relation_id build_relation_id_, probe_relation_id_;
+  template <typename CollectorT>
+  void executeWithCollectorType(QueryContext *query_context,
+                                CatalogDatabase *catalog_database,
+                                StorageManager *storage_manager);
+
+  const relation_id build_relation_id_;
+  const relation_id probe_relation_id_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
   const QueryContext::insert_destination_id output_destination_index_;
