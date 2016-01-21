@@ -118,7 +118,7 @@ static constexpr char kPathSeparator = '/';
 static constexpr char kDefaultStoragePath[] = "qsstor/";
 #endif
 
-DEFINE_int32(num_workers, 0, "Number of worker threads. If this values is "
+DEFINE_int32(num_workers, 0, "Number of worker threads. If this value is "
                              "specified and is greater than 0, then this "
                              "user-supplied value is used. Else (i.e. the"
                              "default case), we examine the reported "
