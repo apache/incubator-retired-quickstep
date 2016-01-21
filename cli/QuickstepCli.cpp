@@ -25,7 +25,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <thread>
+#include <thread>  // NOLINT(build/c++11)
 
 
 #include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE.
