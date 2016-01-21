@@ -25,6 +25,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <thread>
+
 
 #include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE.
 #include "cli/DropRelation.hpp"
@@ -116,7 +118,10 @@ static constexpr char kPathSeparator = '/';
 static constexpr char kDefaultStoragePath[] = "qsstor/";
 #endif
 
-DEFINE_int32(num_workers, 1, "Number of worker threads");
+DEFINE_int32(num_workers, 1, "Number of worker threads. The default is picked "
+                             "by examining the reported hardware concurrency "
+                             "level. If that can't be computed, "
+                             "then set to 1.");
 DEFINE_bool(preload_buffer_pool, false,
             "If true, pre-load all known blocks into buffer pool before "
             "accepting queries (should also set --buffer_pool_slots to be "
@@ -134,6 +139,16 @@ DEFINE_string(worker_affinities, "",
 int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   google::InitGoogleLogging(argv[0]);
+
+  // Detect the hardware concurrency level.
+  unsigned int num_hw_threads = std::thread::hardware_concurrency();
+
+  // It is possible that the call above fails and returns 0, in which case
+  // the default should be 1.
+  quickstep::FLAGS_num_workers = (num_hw_threads == 0) ? 1 : num_hw_threads;
+  LOG(INFO) << "Number of threads set to "
+            << quickstep::FLAGS_num_workers
+            << "\n";
 
   if (quickstep::FLAGS_num_workers > 0) {
     printf("Starting Quickstep with %d worker thread(s)\n",
