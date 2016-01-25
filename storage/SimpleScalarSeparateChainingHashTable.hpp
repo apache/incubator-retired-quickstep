@@ -51,6 +51,17 @@ namespace quickstep {
  * @brief A lean simplified version of SeparateChainingHashTable that only
  *        works for scalar (non-composite) keys that have a reversible hash
  *        function.
+ *
+ * The simplified code in this version of HashTable is mostly made possible by
+ * the fact that the key Type has a reversible hash function. i.e. The original
+ * key can always be recovered from the hash value, and the hash-function is
+ * collision-free (although it is still possible for different hashes to have
+ * the same remainder modulo the number of slots in the HashTable and wind up
+ * in the same slot). So, this HashTable implementation only stores hash codes
+ * and not copies of the original keys. Besides saving space, this also means
+ * that all code for managing variable-length and/or composite keys can can be
+ * omitted, and that exact equality of hash codes (a simple integer comparison)
+ * can always be used to detect if keys collide.
  **/
 template <typename ValueT,
           bool resizable,

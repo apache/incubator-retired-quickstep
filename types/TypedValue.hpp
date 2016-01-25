@@ -290,6 +290,12 @@ class TypedValue {
    * @brief Determine if the hash function getHash() is reversible for
    *        instances of a given type.
    *
+   * @note If getHash() is reversible, then it is possible to use the
+   *       hash-reversing constructor above to perfectly recreate a value from
+   *       its hash code. This is exploited by some code (e.g.
+   *       SimpleScalarSeparateChainingHashTable) to avoid copying and storing
+   *       values when just their hashes can be stored instead.
+   *
    * @param type_id The ID of the type to check.
    * @return Whether the hash function getHash() is reversible for instances of
    *         the type denoted by type_id.

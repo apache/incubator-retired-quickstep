@@ -553,6 +553,9 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       query_context_proto_->join_hash_tables_size();
   S::HashTable *hash_table_proto = query_context_proto_->add_join_hash_tables();
 
+  // SimplifyHashTableImplTypeProto() switches the hash table implementation
+  // from SeparateChaining to SimpleScalarSeparateChaining when there is a
+  // single scalar key type with a reversible hash function.
   hash_table_proto->set_hash_table_impl_type(
       SimplifyHashTableImplTypeProto(
           HashTableImplTypeProtoFromString(FLAGS_join_hashtable_type),
@@ -1037,6 +1040,9 @@ void ExecutionGenerator::convertAggregate(
   aggr_state_proto->set_estimated_num_entries(cost_model_->estimateCardinality(physical_plan));
 
   if (!group_by_types.empty()) {
+    // SimplifyHashTableImplTypeProto() switches the hash table implementation
+    // from SeparateChaining to SimpleScalarSeparateChaining when there is a
+    // single scalar key type with a reversible hash function.
     aggr_state_proto->set_hash_table_impl_type(
         SimplifyHashTableImplTypeProto(
             HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type),

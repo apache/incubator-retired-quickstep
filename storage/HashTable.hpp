@@ -58,6 +58,40 @@ enum class HashTablePutResult {
 /**
  * @brief Base class for hash table.
  *
+ * This class is templated so that the core hash-table logic can be reused in
+ * different contexts requiring different value types and semantics (e.g.
+ * hash-joins vs. hash-based grouping for aggregates vs. hash-based indices).
+ * The base template defines the interface that HashTables provide to clients
+ * and implements some common functionality for all HashTables. There a few
+ * different (also templated) implementation classes that inherit from this
+ * base class and have different physical layouts with different performance
+ * characteristics. As of this writing, they are:
+ *      1. LinearOpenAddressingHashTable - All keys/values are stored directly
+ *         in a single array of buckets. Collisions are handled by simply
+ *         advancing to the "next" adjacent bucket until an empty bucket is
+ *         found. This implementation is vulnerable to performance degradation
+ *         due to the formation of bucket chains when there are many duplicate
+ *         and/or consecutive keys.
+ *      2. SeparateChainingHashTable - Keys/values are stored in a separate
+ *         region of memory from the base hash table slot array. Every bucket
+ *         has a "next" pointer so that entries that collide (i.e. map to the
+ *         same base slot) form chains of pointers with each other. Although
+ *         this implementation has some extra indirection compared to
+ *         LinearOpenAddressingHashTable, it does not have the same
+ *         vulnerabilities to key skew, and it additionally supports a very
+ *         efficient bucket-preallocation mechanism that minimizes cache
+ *         coherency overhead when multiple threads are building a HashTable
+ *         as part of a hash-join.
+ *      3. SimpleScalarSeparateChainingHashTable - A simplified version of
+ *         SeparateChainingHashTable that is only usable for single, scalar
+ *         keys with a reversible hash function. This implementation exploits
+ *         the reversible hash to avoid storing separate copies of keys at all,
+ *         and to skip an extra key comparison when hash codes collide.
+ *
+ * @note If you need to create a HashTable and not just use it as a client, see
+ *       HashTableFactory, which simplifies the process of creating a
+ *       HashTable.
+ *
  * @param ValueT The mapped value in this hash table. Must be
  *        copy-constructible. For a serializable hash table, ValueT must also
  *        be trivially copyable and trivially destructible (and beware of
