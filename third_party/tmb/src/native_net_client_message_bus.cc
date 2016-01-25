@@ -58,7 +58,7 @@ void NativeNetClientMessageBus::AddServer(const std::string &hostname,
 bool NativeNetClientMessageBus::Initialize() {
   stub_ = internal::net::MessageBus::NewStub(
       grpc::CreateChannel(server_address_,
-                          grpc::InsecureCredentials()));
+                          grpc::InsecureChannelCredentials()));
 
   return (stub_.get() != nullptr);
 }
