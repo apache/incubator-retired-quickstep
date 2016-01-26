@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -46,17 +46,17 @@ using std::vector;
 
 namespace quickstep {
 
-bool Foreman::initialize() {
+void Foreman::initialize() {
   if (cpu_id_ >= 0) {
     // We can pin the foreman thread to a CPU if specified.
     ThreadUtil::BindToCPU(cpu_id_);
   }
   DEBUG_ASSERT(query_dag_ != nullptr);
 
-  const dag_node_index dag_size = query_dag_->size();
   initializeState();
 
   // Collect all the workorders from all the relational operators in the DAG.
+  const dag_node_index dag_size = query_dag_->size();
   for (dag_node_index index = 0; index < dag_size; ++index) {
     RelationalOperator *curr_op = query_dag_->getNodePayloadMutable(index);
     if (checkAllBlockingDependenciesMet(index)) {
@@ -67,14 +67,12 @@ bool Foreman::initialize() {
 
   // Dispatch the WorkOrders generated so far.
   dispatchWorkerMessages(0, 0);
-  return num_operators_finished_ == dag_size;
 }
 
 // TODO(harshad) - There is duplication in terms of functionality provided by
 // TMB and ForemanMessage class with respect to determining the message types.
 // Try to use TMB message types for infering the messsage types consistently.
-bool Foreman::processMessage(const ForemanMessage &message) {
-  const dag_node_index dag_size = query_dag_->size();
+void Foreman::processMessage(const ForemanMessage &message) {
   // Get the relational operator that caused this message to be sent.
   dag_node_index response_op_index = message.getRelationalOpIndex();
   const int worker_id = message.getWorkerID();
@@ -184,7 +182,6 @@ bool Foreman::processMessage(const ForemanMessage &message) {
   // candidate worker to receive the next WorkOrder is the one that sent the
   // response message to Foreman.
   dispatchWorkerMessages(((worker_id >= 0) ? worker_id : 0), response_op_index);
-  return num_operators_finished_ == dag_size;
 }
 
 void Foreman::processFeedbackMessage(const WorkOrder::FeedbackMessage &msg) {
@@ -195,10 +192,10 @@ void Foreman::processFeedbackMessage(const WorkOrder::FeedbackMessage &msg) {
 
 void Foreman::run() {
   // Initialize before for Foreman eventloop.
-  bool done = initialize();
+  initialize();
 
   // Event loop
-  while (!done) {
+  while (!checkQueryExecutionFinished()) {
     // Receive() causes this thread to sleep until next message is received.
     AnnotatedMessage annotated_msg = bus_->Receive(foreman_client_id_, 0, true);
     // Message is either workorder feedback message or foreman message.
@@ -208,8 +205,8 @@ void Foreman::run() {
           annotated_msg.tagged_message.message_bytes());
       processFeedbackMessage(msg);
     } else {
-      done = processMessage(*static_cast<const ForemanMessage *>(
-                                annotated_msg.tagged_message.message()));
+      processMessage(*static_cast<const ForemanMessage *>(
+          annotated_msg.tagged_message.message()));
     }
   }
 

@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -154,6 +154,15 @@ class Foreman : public Thread {
   typedef DAG<RelationalOperator, bool>::size_type_nodes dag_node_index;
 
   /**
+   * @brief Check if the current query has finished its execution.
+   *
+   * @return True if the query has finished. Otherwise false.
+   **/
+  bool checkQueryExecutionFinished() const {
+    return num_operators_finished_ == query_dag_->size();
+  }
+
+  /**
    * @brief Check if all the dependencies of the node at specified index have
    *        finished their execution.
    *
@@ -234,26 +243,18 @@ class Foreman : public Thread {
    * @brief Initialize the Foreman before starting the event loop. This binds
    * the Foreman thread to configured CPU, and does initial processing of
    * operator before waiting for events from Workers.
-   *
-   * @return Whether the Foreman is done processing execution. In a corner
-   *         case, when operators don't generate work orders, Foreman is done
-   *         with execution immediately in the initialize step.
    **/
-  bool initialize();
+  void initialize();
 
   /**
    * @brief Process a message sent to Foreman.
    *
    * @param messsage Message sent to Foreman.
    *
-   * @return Whether Foreman has completed processing and scheduling the DAG,
-   *         i.e., all operators in DAG have completely finished generating
-   *         work, and all WorkOrders have finished executing.
-   *
    * @note We still need to cleanUp() before exiting, if we want to reuse this
    *       Foreman instance for processing another DAG.
    **/
-  bool processMessage(const ForemanMessage &message);
+  void processMessage(const ForemanMessage &message);
 
   /**
    * @brief Process work order feedback message and notify relational operator.

@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -279,30 +279,35 @@ class ForemanTest : public ::testing::Test {
   inline bool placeDataPipelineMessage(const QueryPlan::DAGNodeIndex source_operator_index) {
     VLOG(3) << "Place DataPipeline message for Op[" << source_operator_index << "]";
     ForemanMessage foreman_message(ForemanMessage::DataPipelineMessage(source_operator_index, 0, 0));
-    return foreman_->processMessage(foreman_message);
+    foreman_->processMessage(foreman_message);
+    return foreman_->checkQueryExecutionFinished();
   }
 
   inline bool placeWorkOrderCompleteMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place WorkOrderComplete message for Op[" << index << "]";
     ForemanMessage foreman_message(ForemanMessage::WorkOrderCompletionMessage(index, 0));
-    return foreman_->processMessage(foreman_message);
+    foreman_->processMessage(foreman_message);
+    return foreman_->checkQueryExecutionFinished();
   }
 
   inline bool placeRebuildWorkOrderCompleteMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place RebuildWorkOrderComplete message for Op[" << index << "]";
     ForemanMessage foreman_message(ForemanMessage::RebuildCompletionMessage(index, 0));
-    return foreman_->processMessage(foreman_message);
+    foreman_->processMessage(foreman_message);
+    return foreman_->checkQueryExecutionFinished();
   }
 
   inline bool placeOutputBlockMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place OutputBlock message for Op[" << index << "]";
     ForemanMessage foreman_message(
     ForemanMessage::DataPipelineMessage(index, BlockIdUtil::GetBlockId(1 /* domain */, 1), 0));
-    return foreman_->processMessage(foreman_message);
+    foreman_->processMessage(foreman_message);
+    return foreman_->checkQueryExecutionFinished();
   }
 
   inline bool startForeman() {
-    return foreman_->initialize();
+    foreman_->initialize();
+    return foreman_->checkQueryExecutionFinished();
   }
 
   inline int getWorkerInputQueueSize() {
