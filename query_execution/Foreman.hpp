@@ -166,7 +166,7 @@ class Foreman : public Thread {
    *         otherwise.
    **/
   inline bool checkAllDependenciesMet(const dag_node_index node_index) const {
-    for (dag_node_index dependency_index : query_dag_->getDependencies(node_index)) {
+    for (const dag_node_index dependency_index : query_dag_->getDependencies(node_index)) {
       // If at least one of the dependencies is not met, return false.
       if (!execution_finished_[dependency_index]) {
         return false;
@@ -189,7 +189,7 @@ class Foreman : public Thread {
    *         execution. False otherwise.
    **/
   inline bool checkAllBlockingDependenciesMet(const dag_node_index node_index) const {
-    for (dag_node_index blocking_dependency_index : blocking_dependencies_[node_index]) {
+    for (const dag_node_index blocking_dependency_index : blocking_dependencies_[node_index]) {
       if (!execution_finished_[blocking_dependency_index]) {
         return false;
       }
