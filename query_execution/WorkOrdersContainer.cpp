@@ -35,17 +35,17 @@ WorkOrdersContainer::~WorkOrdersContainer() {
       if (!workorders_found) {
         workorders_found = true;
       }
-      WorkOrder *wu = getNormalWorkOrder(op);
-      DEBUG_ASSERT(wu != nullptr);
-      delete wu;
+      WorkOrder *work_order = getNormalWorkOrder(op);
+      DEBUG_ASSERT(work_order != nullptr);
+      delete work_order;
     }
     while (hasRebuildWorkOrder(op)) {
       if (!workorders_found) {
         workorders_found = true;
       }
-      WorkOrder *wu = getRebuildWorkOrder(op);
-      DEBUG_ASSERT(wu != nullptr);
-      delete wu;
+      WorkOrder *work_order = getRebuildWorkOrder(op);
+      DEBUG_ASSERT(work_order != nullptr);
+      delete work_order;
     }
   }
   if (workorders_found) {
@@ -63,9 +63,9 @@ WorkOrder* WorkOrdersContainer::InternalListContainer::getWorkOrderForNUMANode(
     if (!numa_nodes.empty()) {
       if (std::find(numa_nodes.begin(), numa_nodes.end(), numa_node) !=
           numa_nodes.end()) {
-        WorkOrder *wu = *it;
+        WorkOrder *work_order = *it;
         workorders_.erase(it);
-        return wu;
+        return work_order;
       }
     }
   }
@@ -93,8 +93,8 @@ std::size_t
     WorkOrdersContainer::InternalListContainer::getNumWorkOrdersForNUMANode(
     const int numa_node) const {
   std::size_t num_workorders = 0;
-  for (WorkOrder *wu : workorders_) {
-    const std::vector<int> &numa_nodes = wu->getPreferredNUMANodes();
+  for (WorkOrder *work_order : workorders_) {
+    const std::vector<int> &numa_nodes = work_order->getPreferredNUMANodes();
     if (!numa_nodes.empty()) {
       std::vector<int>::const_iterator
           it = std::find(numa_nodes.begin(), numa_nodes.end(), numa_node);
@@ -109,8 +109,8 @@ std::size_t
 
 bool WorkOrdersContainer::InternalListContainer::hasWorkOrderForNUMANode(
     const int numa_node) const {
-  for (WorkOrder *wu : workorders_) {
-    const std::vector<int> &numa_nodes = wu->getPreferredNUMANodes();
+  for (WorkOrder *work_order : workorders_) {
+    const std::vector<int> &numa_nodes = work_order->getPreferredNUMANodes();
     if (!numa_nodes.empty()) {
       std::vector<int>::const_iterator
           it = std::find(numa_nodes.begin(), numa_nodes.end(), numa_node);

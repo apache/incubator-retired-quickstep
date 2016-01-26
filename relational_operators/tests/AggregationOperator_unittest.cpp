@@ -351,9 +351,9 @@ class AggregationOperatorTest : public ::testing::Test {
     op_->getAllWorkOrders(&op_container);
 
     while (op_container.hasNormalWorkOrder(op_index)) {
-      WorkOrder *wu = op_container.getNormalWorkOrder(op_index);
-      wu->execute(query_context_.get(), db_.get(), storage_manager_.get());
-      delete wu;
+      WorkOrder *work_order = op_container.getNormalWorkOrder(op_index);
+      work_order->execute(query_context_.get(), db_.get(), storage_manager_.get());
+      delete work_order;
     }
 
     finalize_op_->informAllBlockingDependenciesMet();
@@ -363,9 +363,9 @@ class AggregationOperatorTest : public ::testing::Test {
     finalize_op_->getAllWorkOrders(&finalize_op_container);
 
     while (finalize_op_container.hasNormalWorkOrder(finalize_op_index)) {
-      WorkOrder *wu = finalize_op_container.getNormalWorkOrder(finalize_op_index);
-      wu->execute(query_context_.get(), db_.get(), storage_manager_.get());
-      delete wu;
+      WorkOrder *work_order = finalize_op_container.getNormalWorkOrder(finalize_op_index);
+      work_order->execute(query_context_.get(), db_.get(), storage_manager_.get());
+      delete work_order;
     }
   }
 
