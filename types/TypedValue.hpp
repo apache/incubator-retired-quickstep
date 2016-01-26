@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -29,6 +29,7 @@
 #include "types/TypeID.hpp"
 #include "types/TypedValue.pb.h"
 #include "types/port/strnlen.hpp"
+#include "utility/HashPair.hpp"
 #include "utility/Macros.hpp"
 
 #include "third_party/farmhash/farmhash.h"
@@ -61,7 +62,7 @@ class TypedValue {
    **/
   TypedValue()
       : value_info_(0) {
-    value_union_.long_value = 0;
+    value_union_.hash64 = 0;
   }
 
   /**
@@ -91,8 +92,8 @@ class TypedValue {
    **/
   explicit TypedValue(const int literal_int)
       : value_info_(static_cast<std::uint64_t>(kInt)) {
-    // Zero-out all bytes in the union for fastEqualCheck().
-    value_union_.long_value = 0;
+    // Zero-out all bytes in the union for getHash() and fastEqualCheck().
+    value_union_.hash64 = 0;
     value_union_.int_value = literal_int;
   }
 
@@ -109,9 +110,11 @@ class TypedValue {
    **/
   explicit TypedValue(const float literal_float)
       : value_info_(static_cast<std::uint64_t>(kFloat)) {
-    // Zero-out all bytes in the union for fastEqualCheck().
-    value_union_.long_value = 0;
-    value_union_.float_value = literal_float;
+    // Zero-out all bytes in the union for getHash() and fastEqualCheck().
+    value_union_.hash64 = 0;
+
+    // Canonicalize negative zero.
+    value_union_.float_value = literal_float == 0 ? 0 : literal_float;
   }
 
   /**
@@ -119,7 +122,8 @@ class TypedValue {
    **/
   explicit TypedValue(const double literal_double)
       : value_info_(static_cast<std::uint64_t>(kDouble)) {
-    value_union_.double_value = literal_double;
+    // Canonicalize negative zero.
+    value_union_.double_value = literal_double == 0 ? 0 : literal_double;
   }
 
   /**
@@ -178,6 +182,18 @@ class TypedValue {
     // initialized.
     value_union_.long_value = 0;
   }
+
+  /**
+   * @brief Constructor for reversing a hash function, recovering the original
+   *        value.
+   *
+   * @warning This is only usable for Types that have a reversible hash
+   *          function. Check HashIsReversible() if unsure.
+   *
+   * @param type_id The ID of the value's Type.
+   * @param hash The value's hash.
+   **/
+  inline TypedValue(const TypeID type_id, const std::size_t hash);
 
   /**
    * @brief Destructor.
@@ -271,6 +287,36 @@ class TypedValue {
   }
 
   /**
+   * @brief Determine if the hash function getHash() is reversible for
+   *        instances of a given type.
+   *
+   * @note If getHash() is reversible, then it is possible to use the
+   *       hash-reversing constructor above to perfectly recreate a value from
+   *       its hash code. This is exploited by some code (e.g.
+   *       SimpleScalarSeparateChainingHashTable) to avoid copying and storing
+   *       values when just their hashes can be stored instead.
+   *
+   * @param type_id The ID of the type to check.
+   * @return Whether the hash function getHash() is reversible for instances of
+   *         the type denoted by type_id.
+   **/
+  static bool HashIsReversible(const TypeID type_id) {
+    switch (type_id) {
+      case kInt:
+      case kFloat:
+        return sizeof(value_union_.int_value) <= sizeof(std::size_t);
+      case kLong:
+      case kDouble:
+      case kDatetime:
+      case kDatetimeInterval:
+      case kYearMonthInterval:
+        return sizeof(value_union_) <= sizeof(std::size_t);
+      default:
+        return false;
+    }
+  }
+
+  /**
    * @brief Clears this value, making it equivalent to a default-constructed
    *        TypedValue (int 0). Frees any owned out-of-line data.
    **/
@@ -280,7 +326,7 @@ class TypedValue {
     }
 
     value_info_ = 0;
-    value_union_.long_value = 0;
+    value_union_.hash64 = 0;
   }
 
   /**
@@ -338,13 +384,10 @@ class TypedValue {
         return sizeof(int);
       case kLong:
       case kDouble:
-        return sizeof(std::int64_t);
       case kDatetime:
-        return sizeof(DatetimeLit);
       case kDatetimeInterval:
-        return sizeof(DatetimeIntervalLit);
       case kYearMonthInterval:
-        return sizeof(YearMonthIntervalLit);
+        return sizeof(value_union_);
       default:
         return value_info_ >> kSizeShift;
     }
@@ -460,23 +503,16 @@ class TypedValue {
    **/
   inline const void* getDataPtr() const {
     DCHECK(!isNull());
-    switch (getTypeID()) {
-      case kInt:
-        return &(value_union_.int_value);
-      case kLong:
-        return &(value_union_.long_value);
-      case kFloat:
-        return &(value_union_.float_value);
-      case kDouble:
-        return &(value_union_.double_value);
-      case kDatetime:
-        return &(value_union_.datetime_value);
-      case kDatetimeInterval:
-        return &(value_union_.datetime_interval_value);
-      case kYearMonthInterval:
-        return &(value_union_.year_month_interval_value);
-      default:
-        return value_union_.out_of_line_data;
+    if (value_info_ & kSizeBitsMask) {
+      // Data is out-of-line.
+      DCHECK(!RepresentedInline(getTypeID()));
+      return value_union_.out_of_line_data;
+    } else {
+       // According to the C standard, a pointer to a union points to each of
+       // its members and vice versa (i.e. every non-bitfield member of a union
+       // is always aligned at the front of the union itself).
+      DCHECK(RepresentedInline(getTypeID()));
+      return &value_union_;
     }
   }
 
@@ -490,40 +526,31 @@ class TypedValue {
    **/
   inline void copyInto(void *destination) const {
     DCHECK(!isNull());
-    switch (getTypeID()) {
-      case kInt:
-        *static_cast<int*>(destination) = value_union_.int_value;
-        return;
-      case kLong:
-        *static_cast<std::int64_t*>(destination) = value_union_.long_value;
-        return;
-      case kFloat:
-        *static_cast<float*>(destination) = value_union_.float_value;
-        return;
-      case kDouble:
-        *static_cast<double*>(destination) = value_union_.double_value;
-        return;
-      case kDatetime:
-        *static_cast<DatetimeLit*>(destination) = value_union_.datetime_value;
-        return;
-      case kDatetimeInterval:
-        *static_cast<DatetimeIntervalLit*>(destination) = value_union_.datetime_interval_value;
-        return;
-      case kYearMonthInterval:
-        *static_cast<YearMonthIntervalLit*>(destination) = value_union_.year_month_interval_value;
-        return;
-      default:
-        std::memcpy(destination,
-                    value_union_.out_of_line_data,
-                    value_info_ >> kSizeShift);
-        return;
+    const std::size_t out_of_line_size = value_info_ >> kSizeShift;
+    if (out_of_line_size != 0) {
+      std::memcpy(destination,
+                  value_union_.out_of_line_data,
+                  value_info_ >> kSizeShift);
+    } else {
+      switch (getTypeID()) {
+        case kInt:
+        case kFloat:
+          // 4 bytes byte-for-byte copy.
+          *static_cast<int*>(destination) = value_union_.int_value;
+          break;
+        default:
+          // 8 bytes byte-for-byte copy.
+          *static_cast<ValueUnion*>(destination) = value_union_;
+      }
     }
   }
 
   /**
    * @brief Get a hash of this TypedValue.
-   * @note The std::hash function is used for numeric values, and FarmHash is
-   *       used for all other values.
+   * @note A trivial bit-for-bit identity hash is used for inline literal
+   *       values (although on 32-bit systems bits from 64-bit wide scalars
+   *       will be mixed by CombineHashes()), and FarmHash is used for all
+   *       other values.
    * @note String values which are the same will hash to the same value, even
    *       if they are different types (i.e. Char or VarChar with different
    *       width parameters). This is intentional.
@@ -532,40 +559,83 @@ class TypedValue {
    * @return A hash of this TypedValue.
    **/
   inline std::size_t getHash() const {
-    DCHECK(!isNull());
     switch (getTypeID()) {
-      case kInt: {
-        return std::hash<int>()(value_union_.int_value);
-      }
-      case kLong: {
-        return std::hash<std::int64_t>()(value_union_.long_value);
-      }
-      case kFloat: {
-        return std::hash<float>()(value_union_.float_value);
-      }
-      case kDouble: {
-        return std::hash<double>()(value_union_.double_value);
-      }
-      case kDatetime: {
-        return std::hash<std::int64_t>()(value_union_.datetime_value.ticks);
-      }
-      case kDatetimeInterval: {
-        return std::hash<std::int64_t>()(value_union_.datetime_interval_value.interval_ticks);
-      }
-      case kYearMonthInterval: {
-        return std::hash<std::int64_t>()(value_union_.year_month_interval_value.months);
-      }
+      case kInt:
+      case kLong:
+      case kFloat:
+      case kDouble:
+      case kDatetime:
+      case kDatetimeInterval:
+      case kYearMonthInterval:
+        return getHashScalarLiteral();
       case kChar:
-      case kVarChar: {
-        // Don't hash a null-terminator or any bytes that follow it.
-        std::size_t len = getAsciiStringLength();
-        return util::Hash(static_cast<const char*>(value_union_.out_of_line_data),
-                          len);
-      }
+      case kVarChar:
+        return getHashAsciiString();
       default:
-        return util::Hash(static_cast<const char*>(value_union_.out_of_line_data),
-                          getDataSize());
+        return getHashOutOfLineNonString();
     }
+  }
+
+  /**
+   * @brief Simplified version of getHash() that is only for scalar literals
+   *        that are represented inline.
+   *
+   * @note A trivial bit-for-bit identity hash is used for inline scalar
+   *       literals (although on 32-bit systems bits from 64-bit wide scalars
+   *       will be mixed by CombineHashes()).
+   * @warning It is an error to call this for a TypedValue where
+   *          RepresentedInline() is false. If in doubt, use the generic
+   *          getHash() method instead.
+   * @warning This must not be used with null values.
+   *
+   * @return A hash of this TypedValue.
+   **/
+  inline std::size_t getHashScalarLiteral() const;
+
+  /**
+   * @brief Simplified version of getHash() that is only for ASCII string types
+   *        (i.e. instances of CharType or VarCharType).
+   *
+   * @note FarmHash is the hash function used for strings.
+   * @note Strings which are the same according to lexicographical comparison
+   *       will hash to the same value, even if they are different types (e.g.
+   *       CharType vs. VarCharType and/or string types with different width
+   *       parameters). This is intentional.
+   * @warning It is an error to call this for a TypedValue where getTypeID() is
+   *          not kChar or kVarChar. If in doubt, use the generic getHash()
+   *          method instead.
+   * @warning This must not be used with null values.
+   *
+   * @return A hash of this TypedValue.
+   **/
+  inline std::size_t getHashAsciiString() const {
+    DCHECK(!isNull());
+    DCHECK(getTypeID() == kChar || getTypeID() == kVarChar);
+
+    // Don't hash a null-terminator or any bytes that follow it.
+    return util::Hash(static_cast<const char*>(value_union_.out_of_line_data),
+                      getAsciiStringLength());
+  }
+
+  /**
+   * @brief Simplified version of getHash() that is only for types that are
+   *        represented out-of-line but are NOT ASCII strings.
+   *
+   * @note FarmHash is the hash function used for types represented
+   *       out-of-line.
+   * @warning It is an error to call this for a TypedValue where
+   *          RepresentedInline() is true, or if getTypeID() is kChar or
+   *          kVarChar. If in doubt, use the generic getHash() instead.
+   * @warning This must not be used with null values.
+   *
+   * @return A hash of this TypedValue.
+   **/
+  inline std::size_t getHashOutOfLineNonString() const {
+    DCHECK(!isNull());
+    DCHECK(!RepresentedInline(getTypeID())
+           && !(getTypeID() == kChar || getTypeID() == kVarChar));
+    return util::Hash(static_cast<const char*>(value_union_.out_of_line_data),
+                      getDataSize());
   }
 
   /**
@@ -587,16 +657,23 @@ class TypedValue {
     switch (getTypeID()) {
       case kInt:
       case kLong:
+      case kFloat:
+      case kDouble:
       case kDatetime:
       case kDatetimeInterval:
       case kYearMonthInterval:
-        return value_union_.long_value == other.value_union_.long_value;
-      // NOTE(chasseur): Signed zero and subnormals mean bitwise equality isn't
-      // always suited for floats.
-      case kFloat:
-        return value_union_.float_value == other.value_union_.float_value;
-      case kDouble:
-        return value_union_.double_value == other.value_union_.double_value;
+        // NOTE(chasseur): We simply do a byte-for-byte equality check of
+        // 'value_union_' for types that are represented inline. For types that
+        // are effectively 64-bit integers (LONG, DATETIME, and both INTERVAL
+        // types) this is exactly the same as normal integer equality. For
+        // types shorter than 64 bits (INT and FLOAT) we zero-out the union
+        // when constructing the TypedValue, so the non-value bytes of the
+        // union will always compare the same. Finally, for floating-point
+        // types (FLOAT and DOUBLE), we always convert negative zero to
+        // ordinary zero so that bitwise comparison will give correct results
+        // for exact equality (although the usual caveats about rounding errors
+        // for floating-point arithmetic still apply).
+        return value_union_.hash64 == other.value_union_.hash64;
       case kChar:
       case kVarChar: {
         const std::size_t len = getAsciiStringLength();
@@ -683,6 +760,18 @@ class TypedValue {
     value_info_ |= kOwnershipMask;
   }
 
+  // Templated helper method for getHashScalarLiteral(). Has implementations
+  // for 64-bit systems (always the trivial identity hash) and 32-bit systems
+  // (the trivial identity hash for scalars that are themselves 32 bits like
+  // INT and FLOAT, otherwise CombineHashes() applied to the lower and upper
+  // 4 bytes of 'value_union_').
+  template <bool size_t_64bit>
+  inline std::size_t getHashScalarLiteralImpl() const;
+
+  // Helper method for hash-reversing constructor.
+  template <bool size_t_64bit>
+  inline void reverseHash(const std::size_t hash);
+
   union ValueUnion {
     int int_value;
     std::int64_t long_value;
@@ -692,7 +781,38 @@ class TypedValue {
     DatetimeLit datetime_value;
     DatetimeIntervalLit datetime_interval_value;
     YearMonthIntervalLit year_month_interval_value;
+
+    // Used to interpret the bytes of any of the inline fields above as a
+    // 64-bit integer, providing a trivial reversible hash function.
+    std::uint64_t hash64;
+
+    // For 32-bit systems, this struct splits the 8 bytes of the ValueUnion
+    // into 2 4-byte fields that we can use CombineHashes() on.
+    struct Hash32 {
+      std::uint32_t a;
+      std::uint32_t b;
+    } hash32;
   } value_union_;
+
+  // Some static asserts that guarantee certain assumptions about ValueUnion
+  // hold.
+  static_assert(sizeof(ValueUnion) == sizeof(std::uint64_t),
+                "TypedValue::ValueUnion must fit in 64 bits.");
+
+  static_assert(sizeof(ValueUnion) == sizeof(ValueUnion::Hash32),
+                "TypedValue::ValueUnion::Hash32 must cover all of ValueUnion.");
+
+  static_assert(sizeof(ValueUnion) == sizeof(std::int64_t)
+                    && sizeof(ValueUnion) == sizeof(double)
+                    && sizeof(ValueUnion) == sizeof(DatetimeLit)
+                    && sizeof(ValueUnion) == sizeof(DatetimeIntervalLit)
+                    && sizeof(ValueUnion) == sizeof(YearMonthIntervalLit),
+                "All inline fields of TypedValue::ValueUnion except for "
+                "int_value and float_value should be 64 bits.");
+
+  static_assert(sizeof(int) == 4 && sizeof(float) == 4,
+                "TypedValue::ValueUnion::int_value and "
+                "TypedValue::ValueUnion::float_value should both be 32 bits.");
 
   // Lowest-order 6 bits are the TypeID, the 7th-lowest bit is the NULL
   // indicator, and the 8th-lowest bit indicates whether
@@ -751,6 +871,60 @@ inline YearMonthIntervalLit TypedValue::getLiteral<YearMonthIntervalLit>() const
   DCHECK_EQ(kYearMonthInterval, getTypeID());
   DCHECK(!isNull());
   return value_union_.year_month_interval_value;
+}
+
+// Explicit specializations of getHashScalarLiteralImpl().
+
+// 32-bit size_t.
+template <>
+inline std::size_t TypedValue::getHashScalarLiteralImpl<false>() const {
+  switch (getTypeID()) {
+    case kInt:
+    case kFloat:
+      return value_union_.hash32.a;
+    default:
+      return CombineHashes(value_union_.hash32.a, value_union_.hash32.b);
+  }
+}
+
+// 64-bit size_t.
+template <>
+inline std::size_t TypedValue::getHashScalarLiteralImpl<true>() const {
+  return value_union_.hash64;
+}
+
+// Implementation of TypedValue::getHashScalarLiteral() is written out-of-line
+// here because instantiations of TypedValue::getHashScalarLiteralImpl() must
+// come after the explicit specializations above.
+inline std::size_t TypedValue::getHashScalarLiteral() const {
+  DCHECK(!isNull());
+  DCHECK(RepresentedInline(getTypeID()));
+  return getHashScalarLiteralImpl<sizeof(std::size_t) == sizeof(std::uint64_t)>();
+}
+
+// Explicit specializations of reverseHash().
+
+// 32-bit size_t.
+template <>
+inline void TypedValue::reverseHash<false>(const std::size_t hash) {
+  value_union_.hash32.a = hash;
+  value_union_.hash32.b = 0;
+}
+
+// 64-bit size_t.
+template <>
+inline void TypedValue::reverseHash<true>(const std::size_t hash) {
+  value_union_.hash64 = hash;
+}
+
+// Implementation of hash-reversing constructor is written out-of-line here
+// because instantiations of TypedValue::reverseHash() must come after the
+// explicit specializations above.
+inline TypedValue::TypedValue(const TypeID type_id,
+                              const std::size_t hash)
+    : value_info_(static_cast<std::uint64_t>(type_id)) {
+  DCHECK(HashIsReversible(type_id));
+  reverseHash<sizeof(std::size_t) == sizeof(std::uint64_t)>(hash);
 }
 
 }  // namespace quickstep

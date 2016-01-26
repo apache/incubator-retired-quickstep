@@ -437,6 +437,7 @@ target_link_libraries(HashJoinOperator_unittest
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_HashTable_proto
+                      quickstep_storage_HashTableBase
                       quickstep_storage_InsertDestination
                       quickstep_storage_InsertDestination_proto
                       quickstep_storage_StorageBlock

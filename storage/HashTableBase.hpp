@@ -1,5 +1,5 @@
 /**
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -17,6 +17,8 @@
 #ifndef QUICKSTEP_STORAGE_HASH_TABLE_BASE_HPP_
 #define QUICKSTEP_STORAGE_HASH_TABLE_BASE_HPP_
 
+#include <cstddef>
+
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -32,7 +34,18 @@ namespace quickstep {
  **/
 enum class HashTableImplType {
   kLinearOpenAddressing,
-  kSeparateChaining
+  kSeparateChaining,
+  kSimpleScalarSeparateChaining
+};
+
+/**
+ * @brief Used internally by HashTables to keep track of pre-allocated
+ *        resources used in putValueAccessor() and
+ *        putValueAccessorCompositeKey().
+ **/
+struct HashTablePreallocationState {
+  std::size_t bucket_position;
+  std::size_t variable_length_key_position;
 };
 
 /**

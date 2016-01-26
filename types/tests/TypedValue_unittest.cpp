@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -1498,6 +1498,16 @@ void CheckHashCollisions(const vector<TypedValue> &values) {
   }
 }
 
+template <typename ScalarLiteralType>
+void CheckHashReversal(const vector<TypedValue> &values) {
+  for (const TypedValue &original_value : values) {
+    const std::size_t hash = original_value.getHash();
+    TypedValue reconstructed(original_value.getTypeID(), hash);
+    EXPECT_EQ(original_value.getLiteral<ScalarLiteralType>(),
+              reconstructed.getLiteral<ScalarLiteralType>());
+  }
+}
+
 template <typename NumericType>
 void CheckNumericHash() {
   vector<TypedValue> values;
@@ -1512,6 +1522,10 @@ void CheckNumericHash() {
   values.push_back(TypedValue(numeric_limits<NumericType>::min()));
 
   CheckHashEquivalence(values);
+
+  if (sizeof(NumericType) <= sizeof(std::size_t)) {
+    CheckHashReversal<NumericType>(values);
+  }
 
   // On 32-bit platforms, INT64_MIN and INT64_MAX can collide with hashes for
   // 0 and -1.

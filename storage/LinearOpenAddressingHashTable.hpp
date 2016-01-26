@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "storage/HashTable.hpp"
+#include "storage/HashTableKeyManager.hpp"
 #include "storage/StorageBlob.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageConstants.hpp"
@@ -242,6 +243,9 @@ class LinearOpenAddressingHashTable : public HashTable<ValueT,
   // at least 'extra_variable_storage' bytes of variable-length storage free.
   bool isFull(const std::size_t extra_variable_storage) const;
 
+  // Helper object to manage key storage.
+  HashTableKeyManager<serializable, force_key_copy> key_manager_;
+
   // In-memory structure is as follows:
   //   - LinearOpenAddressingHashTable::Header
   //   - Array of hash buckets, each of which is:
@@ -283,15 +287,20 @@ LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_copy, a
               key_types,
               num_entries,
               storage_manager,
-              kValueOffset + sizeof(ValueT),
               true,
+              false,
               false),
-          bucket_size_(ComputeBucketSize(this->fixed_key_size_)) {
+          key_manager_(this->key_types_, kValueOffset + sizeof(ValueT)),
+          bucket_size_(ComputeBucketSize(key_manager_.getFixedKeySize())) {
+  // Give base HashTable information about what key components are stored
+  // inline from 'key_manager_'.
+  this->setKeyInline(key_manager_.getKeyInline());
+
   // Pick out a prime number of buckets and calculate storage requirements.
   std::size_t num_buckets_tmp = get_next_prime_number(num_entries * kHashTableLoadFactor);
   std::size_t required_memory = sizeof(Header)
                                 + (num_buckets_tmp + kLinearOpenAddressingHashTableNumOverflowBuckets)
-                                    * (bucket_size_ + this->estimated_variable_key_size_);
+                                    * (bucket_size_ + key_manager_.getEstimatedVariableKeySize());
   std::size_t num_slots = this->storage_manager_->SlotsNeededForBytes(required_memory);
   if (num_slots == 0) {
     FATAL_ERROR("Storage requirement for LinearOpenAddressingHashTable "
@@ -353,7 +362,7 @@ LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_copy, a
   // will wind up with fewer buckets than we initially wanted because of screwy
   // alignment requirements for ValueT, as noted above.
   num_buckets_tmp
-      = get_previous_prime_number((available_memory / (bucket_size_ + this->estimated_variable_key_size_))
+      = get_previous_prime_number((available_memory / (bucket_size_ + key_manager_.getEstimatedVariableKeySize()))
                                   - kLinearOpenAddressingHashTableNumOverflowBuckets);
   DEBUG_ASSERT(num_buckets_tmp > 0);
 
@@ -375,11 +384,11 @@ LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_copy, a
   // Locate variable-length key storage region, and give it all the remaining
   // bytes in the blob.
   header_->variable_length_bytes_allocated.store(0, std::memory_order_relaxed);
-  this->variable_length_bytes_allocated_ = &(header_->variable_length_bytes_allocated);
-  this->variable_length_key_storage_
-      = static_cast<char*>(hash_buckets_)
-        + (header_->num_buckets + header_->num_overflow_buckets) * bucket_size_;
-  this->variable_length_key_storage_size_ = available_memory;
+  key_manager_.setVariableLengthStorageInfo(
+      static_cast<char*>(hash_buckets_)
+          + (header_->num_buckets + header_->num_overflow_buckets) * bucket_size_,
+      available_memory,
+      &(header_->variable_length_bytes_allocated));
 }
 
 template <typename ValueT,
@@ -399,10 +408,15 @@ LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_copy, a
               hash_table_memory_size,
               new_hash_table,
               hash_table_memory_zeroed,
-              kValueOffset + sizeof(ValueT),
               true,
+              false,
               false),
-          bucket_size_(ComputeBucketSize(this->fixed_key_size_)) {
+          key_manager_(this->key_types_, kValueOffset + sizeof(ValueT)),
+          bucket_size_(ComputeBucketSize(key_manager_.getFixedKeySize())) {
+  // Give base HashTable information about what key components are stored
+  // inline from 'key_manager_'.
+  this->setKeyInline(key_manager_.getKeyInline());
+
   // FIXME(chasseur): If we are reconstituting a HashTable using a block of
   // memory whose start was aligned differently than the memory block that was
   // originally used (modulo alignof(Header)), we could wind up with all of our
@@ -460,7 +474,7 @@ LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_copy, a
   if (new_hash_table) {
     std::size_t estimated_bucket_capacity
         = (available_memory - sizeof(Header))
-          / (bucket_size_ + this->estimated_variable_key_size_);
+          / (bucket_size_ + key_manager_.getEstimatedVariableKeySize());
     std::size_t estimated_overflow_buckets
         = estimated_bucket_capacity * kFixedSizeLinearOpenAddressingHashTableOverflowFactor
             > kLinearOpenAddressingHashTableNumOverflowBuckets
@@ -484,17 +498,15 @@ LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_copy, a
                       header_->num_buckets + header_->num_overflow_buckets,
                       bucket_size_,
                       hash_table_memory_zeroed);
-  } else {
-    this->next_variable_length_key_offset_.store(header_->variable_length_bytes_allocated.load());
   }
   available_memory -= bucket_size_ * (header_->num_buckets + header_->num_overflow_buckets);
 
   // Locate variable-length key storage region.
-  this->variable_length_bytes_allocated_ = &(header_->variable_length_bytes_allocated);
-  this->variable_length_key_storage_
-      = static_cast<char*>(hash_buckets_)
-        + (header_->num_buckets + header_->num_overflow_buckets) * bucket_size_;
-  this->variable_length_key_storage_size_ = available_memory;
+  key_manager_.setVariableLengthStorageInfo(
+      static_cast<char*>(hash_buckets_)
+          + (header_->num_buckets + header_->num_overflow_buckets) * bucket_size_,
+      available_memory,
+      &(header_->variable_length_bytes_allocated));
 }
 
 template <typename ValueT,
@@ -505,7 +517,7 @@ template <typename ValueT,
 void LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
     ::clear() {
   header_->variable_length_bytes_allocated.store(0, std::memory_order_relaxed);
-  this->next_variable_length_key_offset_.store(0, std::memory_order_relaxed);
+  key_manager_.zeroNextVariableLengthKeyOffset();
 
   DestroyValues(hash_buckets_,
                 header_->num_buckets + header_->num_overflow_buckets,
@@ -564,7 +576,7 @@ const ValueT* LinearOpenAddressingHashTable<ValueT, resizable, serializable, for
     // place.
     DEBUG_ASSERT(bucket_hash != kPendingHash);
 
-    if ((bucket_hash == hash_code) && this->scalarKeyCollisionCheck(key, bucket)) {
+    if ((bucket_hash == hash_code) && key_manager_.scalarKeyCollisionCheck(key, bucket)) {
       // Match located.
       return reinterpret_cast<const ValueT*>(bucket + kValueOffset);
     }
@@ -600,7 +612,7 @@ const ValueT* LinearOpenAddressingHashTable<ValueT, resizable, serializable, for
     // place.
     DEBUG_ASSERT(bucket_hash != kPendingHash);
 
-    if ((bucket_hash == hash_code) && this->compositeKeyCollisionCheck(key, bucket)) {
+    if ((bucket_hash == hash_code) && key_manager_.compositeKeyCollisionCheck(key, bucket)) {
       // Match located.
       return reinterpret_cast<const ValueT*>(bucket + kValueOffset);
     }
@@ -636,7 +648,7 @@ void LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_co
     // place.
     DEBUG_ASSERT(bucket_hash != kPendingHash);
 
-    if ((bucket_hash == hash_code) && this->scalarKeyCollisionCheck(key, bucket)) {
+    if ((bucket_hash == hash_code) && key_manager_.scalarKeyCollisionCheck(key, bucket)) {
       // Match located.
       values->push_back(reinterpret_cast<const ValueT*>(bucket + kValueOffset));
       if (!allow_duplicate_keys) {
@@ -671,7 +683,7 @@ void LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_co
     // place.
     DEBUG_ASSERT(bucket_hash != kPendingHash);
 
-    if ((bucket_hash == hash_code) && this->compositeKeyCollisionCheck(key, bucket)) {
+    if ((bucket_hash == hash_code) && key_manager_.compositeKeyCollisionCheck(key, bucket)) {
       // Match located.
       values->push_back(reinterpret_cast<const ValueT*>(bucket + kValueOffset));
       if (!allow_duplicate_keys) {
@@ -698,7 +710,7 @@ HashTablePutResult
 
   // TODO(chasseur): If allow_duplicate_keys is true, avoid storing more than
   // one copy of the same variable-length key.
-  if (!this->allocateVariableLengthKeyStorage(variable_key_size)) {
+  if (!key_manager_.allocateVariableLengthKeyStorage(variable_key_size)) {
     // Ran out of variable-length key storage space.
     return HashTablePutResult::kOutOfSpace;
   }
@@ -715,9 +727,9 @@ HashTablePutResult
     // Found at least a hash collision. Check for duplicate keys if necessary.
     if (!allow_duplicate_keys
         && (bucket_num < header_->num_buckets + header_->num_overflow_buckets)
-        && this->scalarKeyCollisionCheck(key, bucket)) {
+        && key_manager_.scalarKeyCollisionCheck(key, bucket)) {
       // Duplicate key. Deallocate any variable storage space and return.
-      this->deallocateVariableLengthKeyStorage(variable_key_size);
+      key_manager_.deallocateVariableLengthKeyStorage(variable_key_size);
       return HashTablePutResult::kDuplicateKey;
     } else {
       // Duplicates are allowed, or the hash collision was spurious.
@@ -727,7 +739,7 @@ HashTablePutResult
   if (bucket_num >= header_->num_buckets + header_->num_overflow_buckets) {
     // Ran out of buckets. Deallocate any variable space that we were unable to
     // use.
-    this->deallocateVariableLengthKeyStorage(variable_key_size);
+    key_manager_.deallocateVariableLengthKeyStorage(variable_key_size);
     return HashTablePutResult::kOutOfSpace;
   }
 
@@ -756,7 +768,7 @@ HashTablePutResult
 
   // TODO(chasseur): If allow_duplicate_keys is true, avoid storing more than
   // one copy of the same variable-length key.
-  if (!this->allocateVariableLengthKeyStorage(variable_key_size)) {
+  if (!key_manager_.allocateVariableLengthKeyStorage(variable_key_size)) {
     // Ran out of variable-length key storage space.
     return HashTablePutResult::kOutOfSpace;
   }
@@ -774,9 +786,9 @@ HashTablePutResult
     // necessary.
     if (!allow_duplicate_keys
         && (bucket_num < header_->num_buckets + header_->num_overflow_buckets)
-        && this->compositeKeyCollisionCheck(key, bucket)) {
+        && key_manager_.compositeKeyCollisionCheck(key, bucket)) {
       // Duplicate key. Deallocate any variable storage space and return.
-      this->deallocateVariableLengthKeyStorage(variable_key_size);
+      key_manager_.deallocateVariableLengthKeyStorage(variable_key_size);
       return HashTablePutResult::kDuplicateKey;
     } else {
       // Duplicates are allowed, or the hash collision was spurious.
@@ -786,7 +798,7 @@ HashTablePutResult
   if (bucket_num >= header_->num_buckets + header_->num_overflow_buckets) {
     // Ran out of buckets. Deallocate any variable space that we were unable to
     // use.
-    this->deallocateVariableLengthKeyStorage(variable_key_size);
+    key_manager_.deallocateVariableLengthKeyStorage(variable_key_size);
     return HashTablePutResult::kOutOfSpace;
   }
 
@@ -822,7 +834,7 @@ ValueT* LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key
       // allocate enough space for it).
       std::size_t allocated_bytes = header_->variable_length_bytes_allocated.load(std::memory_order_relaxed);
       if ((allocated_bytes < variable_key_size)
-          && (allocated_bytes + variable_key_size > this->variable_length_key_storage_size_)) {
+          && (allocated_bytes + variable_key_size > key_manager_.getVariableLengthKeyStorageSize())) {
         break;
       }
     }
@@ -835,7 +847,7 @@ ValueT* LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key
         // Found an empty bucket.
         break;
       } else if ((bucket_num < header_->num_buckets + header_->num_overflow_buckets)
-                 && this->scalarKeyCollisionCheck(key, bucket)) {
+                 && key_manager_.scalarKeyCollisionCheck(key, bucket)) {
         // Found an already-existing entry for this key.
         return reinterpret_cast<ValueT*>(static_cast<char*>(bucket) + kValueOffset);
       } else {
@@ -849,7 +861,7 @@ ValueT* LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key
 
     // We are now writing to an empty bucket. Allocate storage for
     // variable-length key, if needed.
-    if (!this->allocateVariableLengthKeyStorage(variable_key_size)) {
+    if (!key_manager_.allocateVariableLengthKeyStorage(variable_key_size)) {
       // Allocation failed. Abandon this insert.
       static_cast<std::atomic<std::size_t>*>(bucket)->store(kEmptyHash,
                                                             std::memory_order_release);
@@ -894,7 +906,7 @@ ValueT* LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key
       // allocate enough space for it).
       std::size_t allocated_bytes = header_->variable_length_bytes_allocated.load(std::memory_order_relaxed);
       if ((allocated_bytes < variable_key_size)
-          && (allocated_bytes + variable_key_size > this->variable_length_key_storage_size_)) {
+          && (allocated_bytes + variable_key_size > key_manager_.getVariableLengthKeyStorageSize())) {
         break;
       }
     }
@@ -907,7 +919,7 @@ ValueT* LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key
         // Found an empty bucket.
         break;
       } else if ((bucket_num < header_->num_buckets + header_->num_overflow_buckets)
-                 && this->compositeKeyCollisionCheck(key, bucket)) {
+                 && key_manager_.compositeKeyCollisionCheck(key, bucket)) {
         // Found an already-existing entry for this key.
         return reinterpret_cast<ValueT*>(static_cast<char*>(bucket) + kValueOffset);
       } else {
@@ -921,7 +933,7 @@ ValueT* LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key
 
     // We are now writing to an empty bucket. Allocate storage for
     // variable-length key, if needed.
-    if (!this->allocateVariableLengthKeyStorage(variable_key_size)) {
+    if (!key_manager_.allocateVariableLengthKeyStorage(variable_key_size)) {
       // Allocation failed. Abandon this insert.
       static_cast<std::atomic<std::size_t>*>(bucket)->store(kEmptyHash,
                                                             std::memory_order_release);
@@ -959,7 +971,7 @@ bool LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_co
         = reinterpret_cast<const std::atomic<std::size_t>*>(bucket)->load(std::memory_order_relaxed);
     if (bucket_hash != kEmptyHash) {
       DEBUG_ASSERT(bucket_hash != kPendingHash);
-      *key = this->getKeyComponentTyped(bucket, 0);
+      *key = key_manager_.getKeyComponentTyped(bucket, 0);
       *value = reinterpret_cast<const ValueT*>(bucket + kValueOffset);
 
       // Increment '*entry_num' before returning so that the next call will
@@ -992,7 +1004,7 @@ bool LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_co
       for (std::vector<const Type*>::size_type key_idx = 0;
            key_idx < this->key_types_.size();
            ++key_idx) {
-        key->emplace_back(this->getKeyComponentTyped(bucket, key_idx));
+        key->emplace_back(key_manager_.getKeyComponentTyped(bucket, key_idx));
       }
       *value = reinterpret_cast<const ValueT*>(bucket + kValueOffset);
 
@@ -1032,7 +1044,7 @@ bool LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_co
     if (bucket_hash == kEmptyHash) {
       // Hit an empty bucket, so we are all done with this key.
       return false;
-    } else if ((bucket_hash == hash_code) && this->scalarKeyCollisionCheck(key, bucket)) {
+    } else if ((bucket_hash == hash_code) && key_manager_.scalarKeyCollisionCheck(key, bucket)) {
       // Match located.
       *value = reinterpret_cast<const ValueT*>(bucket + kValueOffset);
 
@@ -1071,7 +1083,7 @@ bool LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_co
     if (bucket_hash == kEmptyHash) {
       // Hit an empty bucket, so we are all done with this key.
       return false;
-    } else if ((bucket_hash == hash_code) && this->compositeKeyCollisionCheck(key, bucket)) {
+    } else if ((bucket_hash == hash_code) && key_manager_.compositeKeyCollisionCheck(key, bucket)) {
       // Match located.
       *value = reinterpret_cast<const ValueT*>(bucket + kValueOffset);
 
@@ -1126,14 +1138,14 @@ void LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_co
 
   std::size_t variable_storage_required
       = (resized_regular_buckets + kLinearOpenAddressingHashTableNumOverflowBuckets)
-        * this->estimated_variable_key_size_;
+        * key_manager_.getEstimatedVariableKeySize();
   const std::size_t original_variable_storage_used
       = header_->variable_length_bytes_allocated.load(std::memory_order_relaxed);
   // If this resize was triggered by a too-large variable-length key, bump up
   // the variable-length storage requirement.
   if ((extra_variable_storage > 0)
       && (extra_variable_storage + original_variable_storage_used
-          > this->variable_length_key_storage_size_)) {
+          > key_manager_.getVariableLengthKeyStorageSize())) {
     variable_storage_required += extra_variable_storage;
   }
 
@@ -1197,7 +1209,7 @@ void LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_co
   // actual available memory.
   resized_regular_buckets = get_previous_prime_number(
       ((available_memory - extra_variable_storage)
-          / (bucket_size_ + this->estimated_variable_key_size_))
+          / (bucket_size_ + key_manager_.getEstimatedVariableKeySize()))
       - kLinearOpenAddressingHashTableNumOverflowBuckets);
   DEBUG_ASSERT(resized_regular_buckets > header_->num_buckets);
   available_memory -= bucket_size_
@@ -1292,10 +1304,10 @@ void LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_co
   // Copy over variable-length key components, if any.
   if (original_variable_storage_used > 0) {
     DEBUG_ASSERT(original_variable_storage_used
-                 == this->next_variable_length_key_offset_.load(std::memory_order_relaxed));
+                 == key_manager_.getNextVariableLengthKeyOffset());
     DEBUG_ASSERT(original_variable_storage_used <= resized_variable_length_key_storage_size);
     std::memcpy(resized_variable_length_key_storage,
-                this->variable_length_key_storage_,
+                key_manager_.getVariableLengthKeyStorage(),
                 original_variable_storage_used);
   }
 
@@ -1308,9 +1320,10 @@ void LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_co
   std::swap(this->blob_, resized_blob);
   header_ = resized_header;
   hash_buckets_ = resized_hash_buckets;
-  this->variable_length_key_storage_ = resized_variable_length_key_storage;
-  this->variable_length_key_storage_size_ = resized_variable_length_key_storage_size;
-  this->variable_length_bytes_allocated_ = &(resized_header->variable_length_bytes_allocated);
+  key_manager_.setVariableLengthStorageInfo(
+      resized_variable_length_key_storage,
+      resized_variable_length_key_storage_size,
+      &(resized_header->variable_length_bytes_allocated));
 
   // Drop the old blob.
   const block_id old_blob_id = resized_blob->getID();
@@ -1424,7 +1437,7 @@ inline void LinearOpenAddressingHashTable<ValueT, resizable, serializable, force
     ::writeScalarKeyToBucket(const TypedValue &key,
                              const std::size_t hash_code,
                              void *bucket) {
-  this->writeKeyComponentToBucket(key, 0, bucket, nullptr);
+  key_manager_.writeKeyComponentToBucket(key, 0, bucket, nullptr);
 
   // Store the real hash.
   static_cast<std::atomic<std::size_t>*>(bucket)->store(
@@ -1445,7 +1458,7 @@ inline void LinearOpenAddressingHashTable<ValueT, resizable, serializable, force
   for (std::size_t idx = 0;
        idx < this->key_types_.size();
        ++idx) {
-    this->writeKeyComponentToBucket(key[idx], idx, bucket, nullptr);
+    key_manager_.writeKeyComponentToBucket(key[idx], idx, bucket, nullptr);
   }
 
   // Store the real hash.
@@ -1475,7 +1488,7 @@ bool LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_co
   if (extra_variable_storage > 0) {
     if (extra_variable_storage
             + header_->variable_length_bytes_allocated.load(std::memory_order_relaxed)
-        > this->variable_length_key_storage_size_) {
+        > key_manager_.getVariableLengthKeyStorageSize()) {
       // Not enough variable-length key storage space.
       return true;
     }

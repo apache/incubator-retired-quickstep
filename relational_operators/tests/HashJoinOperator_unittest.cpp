@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -46,6 +46,7 @@
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/HashTable.pb.h"
+#include "storage/HashTableBase.hpp"
 #include "storage/InsertDestination.hpp"
 #include "storage/InsertDestination.pb.h"
 #include "storage/StorageBlock.hpp"
@@ -83,11 +84,6 @@ using std::unique_ptr;
 namespace quickstep {
 
 namespace {
-// Used to set up a value-parameterized test with certain types of hash tables.
-enum class HashTableType {
-  kLinearOpenAddressing,
-  kSeparateChaining
-};
 
 constexpr std::size_t kCharLength = 16;
 constexpr tuple_id kNumDimTuples = 200;
@@ -98,7 +94,7 @@ constexpr int kOpIndex = 0;
 
 }  // namespace
 
-class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableType> {
+class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> {
  protected:
   virtual void SetUp() {
     storage_manager_.reset(new StorageManager("./test_data/"));
@@ -260,14 +256,24 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
   serialization::HashTable *hash_table_proto =
       query_context_proto.add_join_hash_tables();
   switch (GetParam()) {
-    case HashTableType::kLinearOpenAddressing:
+    case HashTableImplType::kLinearOpenAddressing:
       hash_table_proto->set_hash_table_impl_type(
           serialization::HashTableImplType::LINEAR_OPEN_ADDRESSING);
       break;
-    case HashTableType::kSeparateChaining:
+    case HashTableImplType::kSeparateChaining:
       hash_table_proto->set_hash_table_impl_type(
           serialization::HashTableImplType::SEPARATE_CHAINING);
       break;
+    case HashTableImplType::kSimpleScalarSeparateChaining:
+      if (TypedValue::HashIsReversible(kLong)) {
+        hash_table_proto->set_hash_table_impl_type(
+            serialization::HashTableImplType::SIMPLE_SCALAR_SEPARATE_CHAINING);
+        break;
+      } else {
+        // Can't use SimpleScalarSeparateChainingHashTable for long keys on
+        // this platform.
+        return;
+      }
     default:
       FATAL_ERROR("Unknown HashTable type requested for join.");
   }
@@ -382,14 +388,24 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
   serialization::HashTable *hash_table_proto =
       query_context_proto.add_join_hash_tables();
   switch (GetParam()) {
-    case HashTableType::kLinearOpenAddressing:
+    case HashTableImplType::kLinearOpenAddressing:
       hash_table_proto->set_hash_table_impl_type(
           serialization::HashTableImplType::LINEAR_OPEN_ADDRESSING);
       break;
-    case HashTableType::kSeparateChaining:
+    case HashTableImplType::kSeparateChaining:
       hash_table_proto->set_hash_table_impl_type(
           serialization::HashTableImplType::SEPARATE_CHAINING);
       break;
+    case HashTableImplType::kSimpleScalarSeparateChaining:
+      if (TypedValue::HashIsReversible(kInt)) {
+        hash_table_proto->set_hash_table_impl_type(
+            serialization::HashTableImplType::SIMPLE_SCALAR_SEPARATE_CHAINING);
+        break;
+      } else {
+        // Can't use SimpleScalarSeparateChainingHashTable for int keys on this
+        // platform.
+        return;
+      }
     default:
       FATAL_ERROR("Unknown HashTable type requested for join.");
   }
@@ -533,14 +549,17 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
   serialization::HashTable *hash_table_proto =
       query_context_proto.add_join_hash_tables();
   switch (GetParam()) {
-    case HashTableType::kLinearOpenAddressing:
+    case HashTableImplType::kLinearOpenAddressing:
       hash_table_proto->set_hash_table_impl_type(
           serialization::HashTableImplType::LINEAR_OPEN_ADDRESSING);
       break;
-    case HashTableType::kSeparateChaining:
+    case HashTableImplType::kSeparateChaining:
       hash_table_proto->set_hash_table_impl_type(
           serialization::HashTableImplType::SEPARATE_CHAINING);
       break;
+    case HashTableImplType::kSimpleScalarSeparateChaining:
+      // Can't use SimpleScalarSeparateChainingHashTable with CHAR(X) keys.
+      return;
     default:
       FATAL_ERROR("Unknown HashTable type requested for join.");
   }
@@ -657,14 +676,17 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
   serialization::HashTable *hash_table_proto =
       query_context_proto.add_join_hash_tables();
   switch (GetParam()) {
-    case HashTableType::kLinearOpenAddressing:
+    case HashTableImplType::kLinearOpenAddressing:
       hash_table_proto->set_hash_table_impl_type(
           serialization::HashTableImplType::LINEAR_OPEN_ADDRESSING);
       break;
-    case HashTableType::kSeparateChaining:
+    case HashTableImplType::kSeparateChaining:
       hash_table_proto->set_hash_table_impl_type(
           serialization::HashTableImplType::SEPARATE_CHAINING);
       break;
+    case HashTableImplType::kSimpleScalarSeparateChaining:
+      // Can't use SimpleScalarSeparateChainingHashTable with VARCHAR(X) keys.
+      return;
     default:
       FATAL_ERROR("Unknown HashTable type requested for join.");
   }
@@ -812,14 +834,17 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   serialization::HashTable *hash_table_proto =
       query_context_proto.add_join_hash_tables();
   switch (GetParam()) {
-    case HashTableType::kLinearOpenAddressing:
+    case HashTableImplType::kLinearOpenAddressing:
       hash_table_proto->set_hash_table_impl_type(
           serialization::HashTableImplType::LINEAR_OPEN_ADDRESSING);
       break;
-    case HashTableType::kSeparateChaining:
+    case HashTableImplType::kSeparateChaining:
       hash_table_proto->set_hash_table_impl_type(
           serialization::HashTableImplType::SEPARATE_CHAINING);
       break;
+    case HashTableImplType::kSimpleScalarSeparateChaining:
+      // Can't use SimpleScalarSeparateChainingHashTable with composite keys.
+      return;
     default:
       FATAL_ERROR("Unknown HashTable type requested for join.");
   }
@@ -977,14 +1002,17 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   serialization::HashTable *hash_table_proto =
       query_context_proto.add_join_hash_tables();
   switch (GetParam()) {
-    case HashTableType::kLinearOpenAddressing:
+    case HashTableImplType::kLinearOpenAddressing:
       hash_table_proto->set_hash_table_impl_type(
           serialization::HashTableImplType::LINEAR_OPEN_ADDRESSING);
       break;
-    case HashTableType::kSeparateChaining:
+    case HashTableImplType::kSeparateChaining:
       hash_table_proto->set_hash_table_impl_type(
           serialization::HashTableImplType::SEPARATE_CHAINING);
       break;
+    case HashTableImplType::kSimpleScalarSeparateChaining:
+      // Can't use SimpleScalarSeparateChainingHashTable with composite keys.
+      return;
     default:
       FATAL_ERROR("Unknown HashTable type requested for join.");
   }
@@ -1141,10 +1169,10 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   db_->dropRelationById(output_relation_id);
 }
 
-INSTANTIATE_TEST_CASE_P(HashTableType,
+INSTANTIATE_TEST_CASE_P(HashTableImplType,
                         HashJoinOperatorTest,
-                        ::testing::Values(HashTableType::kLinearOpenAddressing,
-                                          HashTableType::kSeparateChaining));
-
+                        ::testing::Values(HashTableImplType::kLinearOpenAddressing,
+                                          HashTableImplType::kSeparateChaining,
+                                          HashTableImplType::kSimpleScalarSeparateChaining));
 
 }  // namespace quickstep
