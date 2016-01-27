@@ -54,6 +54,28 @@ extern const char *kComparisonShortNames[
     static_cast<typename std::underlying_type<ComparisonID>::type>(
         ComparisonID::kNumComparisonIDs)];
 
+/**
+ * Flips a comparison. As in greater than flips to less than, less than flips
+ * to greater than, and similarly for greater/less than or equals. Notice that
+ * flipping equals results in equals, same for not equals.
+ * @param comparison - The Id of a comparison to flip.
+ * @return The flipped comparison id.
+ */
+inline ComparisonID flipComparisonID(const ComparisonID comparison) {
+  switch (comparison) {
+    case ComparisonID::kLess:
+      return ComparisonID::kGreater;
+    case ComparisonID::kLessOrEqual:
+      return ComparisonID::kGreaterOrEqual;
+    case ComparisonID::kGreater:
+      return ComparisonID::kLess;
+    case ComparisonID::kGreaterOrEqual:
+      return ComparisonID::kLessOrEqual;
+    default:
+      return comparison;
+  }
+}
+
 /** @} */
 
 }  // namespace quickstep
