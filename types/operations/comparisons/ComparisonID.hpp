@@ -55,10 +55,13 @@ extern const char *kComparisonShortNames[
         ComparisonID::kNumComparisonIDs)];
 
 /**
- * Flips a comparison. As in greater than flips to less than, less than flips
- * to greater than, and similarly for greater/less than or equals. Notice that
- * flipping equals results in equals, same for not equals.
- * @param comparison - The Id of a comparison to flip.
+ * @brief Flips a comparison. 
+ * 
+ * As in greater than flips to less than, less than flips to greater than, and
+ * similarly for greater/less than or equals. Notice that flipping equals
+ * results in equals, same for not equals.
+ * 
+ * @param comparison The Id of a comparison to flip.
  * @return The flipped comparison id.
  */
 inline ComparisonID flipComparisonID(const ComparisonID comparison) {
