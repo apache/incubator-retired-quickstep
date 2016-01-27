@@ -49,13 +49,16 @@ QUICKSTEP_DECLARE_SUB_BLOCK_TYPE_REGISTERED(SMAIndexSubBlock);
 namespace smaindex_internal {
 
 /**
- * @brief A simple holding struct for a comparison predicate. Selectivity enum indicates 
- * if the SMA has been used to solve the predicate and if so, what is the selectivity over
- * the block.
+ * @brief A simple holding struct for a comparison predicate.
+ * @details The selectivity enum indicates if the SMA has been used to solve the
+ *  predicate and if so, what is the selectivity over the block.
  */
 struct SMAPredicate {
-
-  enum Selectivity {
+  /**
+   * @brief Describes how many tuples a predicate will select from a storage
+   * block. 
+   */
+  enum class Selectivity {
     kAll,
     kSome,
     kNone,
@@ -63,39 +66,41 @@ struct SMAPredicate {
     kUnsolved
   };
 
-  SMAPredicate( const CatalogAttribute& attribute,
-                const ComparisonID comparisonid,
-                const TypedValue literal) :
-                                    attribute_(attribute),
-                                    comparisonid_(comparisonid),
-                                    literal_(literal),
-                                    selectivity_(kUnsolved) {};
+  /**
+   * @brief Constructor. 
+   * @param attribute Catalog attribute to be compared on the left.
+   * @param comparisonid A Comparison Id.
+   * @param literal A literal typed value for the right side of the comparison.
+   */
+  SMAPredicate(const CatalogAttribute& attribute,
+               const ComparisonID comparisonid,
+               const TypedValue literal) 
+                   : attribute_(attribute),
+                     comparisonid_(comparisonid),
+                     literal_(literal),
+                     selectivity_(kUnsolved) { };
 
   /**
-   * @brief Extracts a comparison predicate into an SMAPredicate
-   * 
-   * @param predicate A comparison of the form {attribute} {comparison} {literal} or
-   *                  {literal} {comparison} {attribute}
-   *                  
-   * @return an SMAPredicate which the caller must manage
+   * @brief Extracts a comparison predicate into an SMAPredicate.
+   * @param predicate A comparison of the form 
+   *  {attribute} {comparison} {literal} or
+   *  {literal} {comparison} {attribute}
+   * @return An SMAPredicate which the caller must manage.
    */
   static SMAPredicate* Create(const ComparisonPredicate& predicate);
-
-  //tmp
-  string selectivityStr() const;
 
   const CatalogAttribute& attribute_;
   const ComparisonID comparisonid_;
   const TypedValue literal_;
   Selectivity selectivity_;
-
 };
 
 /**
- * @brief Refers to a specific entry (tuple's attribute value). Used for min, max entries.
+ * @brief Refers to a specific entry (tuple's attribute value). Used for min, 
+ *  max entries.
  */
 class EntryReference {
-public:
+ public:
   EntryReference(const tuple_id tuple = -1) : tid_(-1), value_() {  }
 
   ~EntryReference() { }
@@ -123,30 +128,40 @@ private:
   TypedValue value_;
 };
 
+/**
+ * @brief An SMAEntry will be created for each attribute which is indexed under
+ *  the SMAIndexSubBlock.
+ */
 class SMAEntry {
-public:
-  SMAEntry(const attribute_id attr_id, const Type& attr) :
-                                                  attr_id_(attr_id),
-                                                  min_(),
-                                                  max_(),
-                                                  sum_(AggregationStateSum::SumZero(attr)),
-                                                  requires_rebuild_(true) { }
+ public:
+  /**
+   * @brief Constructor.
+   * @param attribute_id The ID of the attribute which is being indexed.
+   * @param attribute_type The type of the attibute being indexed.
+   */
+  SMAEntry(const attribute_id attribute_id, const Type& attribute_type) 
+              : attr_id_(attribute_id),
+                min_(),
+                max_(),
+                sum_(AggregationStateSum::SumZero(attribute_type)),
+                requires_rebuild_(true) { }
 
   ~SMAEntry() { }
 
   /**
-   * Used in place of the constructor where raw memory is cast into an SMAEntry.
-   * 
+   * @brief Used in place of the constructor where raw memory is cast into an 
+   *  SMAEntry.
    * @param new_block if this is a new SMA index or one being deserialized
    * @param attr_id ID of attribute which this entry summarizes
    * @param storage_block where the corresponding tuples are stored
    */
-  void initialize( bool new_block, 
-                   const attribute_id attr_id,
-                   const TupleStorageSubBlock& tuple_store);
+  void initialize(bool new_block, 
+                  const attribute_id attr_id,
+                  const TupleStorageSubBlock& tuple_store);
 
   /**
-   * Resets the entry to an initialized state. Used prior to a rebuild.
+   * @brief Resets the entry to an initialized state. 
+   * @details This is called prior to a rebuild.
    */
   void reset();
 
@@ -171,26 +186,25 @@ public:
   }
 
   /**
-   * Updates the aggregates based on the values of the new tuple.
-   * @param tid id of the new tuple
-   * @param tuple_store reference to the storage block containing the tuple
+   * @brief Updates the aggregates based on the values of the new tuple.
+   * @param tid The id of the new tuple.
+   * @param tuple_store A reference to the storage block containing the tuple.
    */
   void insertUpdate(const tuple_id tid, const TupleStorageSubBlock& tuple_store);
 
   /**
-   * Attempts to update the SMAEntry on a removal. Some types of removals will
-   * require a rebuild (scan of storage_block).
-   * @param tid tuple which was removed
-   * @param tuple_store related tuple store
+   * @brief Attempts to update the SMAEntry on a removal. Some types of removals
+   *  will require a rebuild (scan of storage_block).
+   * @param tid The ID of the tuple which was removed.
+   * @param tuple_store The tuple store containing the removed tuple.
    */
   void removeUpdate(const tuple_id tid, const TupleStorageSubBlock& tuple_store);
 
   /**
-   * Given a predicate, uses the min and max entries to determine if all, none,
-   * or some of the tuples in the storage block will be selected. This is used
-   * as a helper method by the SMAIndexSubBlock.
-   * 
-   * @param predicate An SMAPredicate to solve
+   * @brief Given a predicate, uses the min and max entries to determine if all,
+   *  none, or some of the tuples in the storage block will be selected. This is
+   *  used as a helper method by the SMAIndexSubBlock. 
+   * @param predicate An SMAPredicate to solve.
    */
   void solvePredicate(SMAPredicate& predicate) const;
 
@@ -202,8 +216,7 @@ public:
     requires_rebuild_ = rebuild;
   }
 
-private:
-
+ private:
   void resetSum();
 
   static const Comparison& getLess();
@@ -214,20 +227,19 @@ private:
   TypeID attr_typeID_;
   EntryReference min_;
   EntryReference max_;
-  TypedValue sum_;      // higher precision than attribute type (ex. float->double)
+  TypedValue sum_;  // This is possibly higher precision than attribute type
+                    // (ex. float->double)
   std::uint64_t count_;
-
   // fast operators for updating sum
   std::unique_ptr<UncheckedBinaryOperator> sub_operator_;
   std::unique_ptr<UncheckedBinaryOperator> add_operator_;
-
   // fast comparators
   std::unique_ptr<UncheckedComparator> less_comparison_;
   std::unique_ptr<UncheckedComparator> equal_comparison_;
   bool requires_rebuild_;
 };
 
-} // namespace smaindex_internal
+}  // namespace smaindex_internal
 
 
 /**
