@@ -624,22 +624,7 @@ TupleIdSequence* CSBTreeIndexSubBlock::getMatchesForPredicate(const ComparisonPr
   // If the literal is on the left, flip the comparison around.
   ComparisonID comp = predicate.getComparison().getComparisonID();
   if (left_literal) {
-    switch (comp) {
-      case ComparisonID::kLess:
-        comp = ComparisonID::kGreater;
-        break;
-      case ComparisonID::kLessOrEqual:
-        comp = ComparisonID::kGreaterOrEqual;
-        break;
-      case ComparisonID::kGreater:
-        comp = ComparisonID::kLess;
-        break;
-      case ComparisonID::kGreaterOrEqual:
-        comp = ComparisonID::kLessOrEqual;
-        break;
-      default:
-        break;
-    }
+    flipComparisonID(comp);
   }
 
   TupleIdSequence *idx_result;
