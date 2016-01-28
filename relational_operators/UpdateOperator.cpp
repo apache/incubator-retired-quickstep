@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -17,12 +17,14 @@
 
 #include "relational_operators/UpdateOperator.hpp"
 
+#include <cstddef>
+#include <cstdlib>
 #include <ostream>
 #include <utility>
 
 #include "catalog/CatalogDatabase.hpp"
-#include "query_execution/ForemanMessage.hpp"
 #include "query_execution/QueryContext.hpp"
+#include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "storage/InsertDestination.hpp"
@@ -33,6 +35,8 @@
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
+
+#include "tmb/tagged_message.h"
 
 namespace quickstep {
 
@@ -83,18 +87,25 @@ void UpdateWorkOrder::execute(QueryContext *query_context,
 
   // TODO(harshad): Stream the block ID only if the predicate returned at least
   // one match in the StorageBlock.
-  ForemanMessage message(ForemanMessage::DataPipelineMessage(update_operator_index_,
-                                                             input_block_id_,
-                                                             rel_id_));
-  TaggedMessage foreman_tagged_msg;
-  foreman_tagged_msg.set_message(
-      &message, sizeof(message), kDataPipelineMessage);
+  serialization::DataPipelineMessage proto;
+  proto.set_operator_index(update_operator_index_);
+  proto.set_block_id(input_block_id_);
+  proto.set_relation_id(rel_id_);
+
+  const std::size_t proto_length = proto.ByteSize();
+  char *proto_bytes = static_cast<char*>(std::malloc(proto_length));
+  CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+  tmb::TaggedMessage tagged_message(static_cast<const void *>(proto_bytes),
+                                    proto_length,
+                                    kDataPipelineMessage);
+  std::free(proto_bytes);
 
   QueryExecutionUtil::SendTMBMessage(
       bus_,
       ClientIDMap::Instance()->getValue(),
       foreman_client_id_,
-      std::move(foreman_tagged_msg));
+      std::move(tagged_message));
 }
 
 }  // namespace quickstep

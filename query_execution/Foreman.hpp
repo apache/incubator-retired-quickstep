@@ -24,11 +24,13 @@
 #include <utility>
 #include <vector>
 
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "query_execution/WorkerMessage.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "threading/Thread.hpp"
 #include "utility/DAG.hpp"
 #include "utility/Macros.hpp"
@@ -37,7 +39,6 @@
 
 namespace quickstep {
 
-class ForemanMessage;
 class QueryContext;
 class WorkerDirectory;
 
@@ -247,17 +248,41 @@ class Foreman : public Thread {
   void initialize();
 
   /**
-   * @brief Process a message sent to Foreman.
+   * @brief Process the received WorkOrder complete message.
    *
-   * @param messsage Message sent to Foreman.
-   *
-   * @note We still need to cleanUp() before exiting, if we want to reuse this
-   *       Foreman instance for processing another DAG.
+   * @param node_index The index of the specified operator node in the query DAG
+   *        for the completed WorkOrder.
+   * @param worker_id The logical ID of the worker for the completed WorkOrder.
    **/
-  void processMessage(const ForemanMessage &message);
+  void processWorkOrderCompleteMessage(const dag_node_index op_index,
+                                       const std::size_t worker_id);
 
   /**
-   * @brief Process work order feedback message and notify relational operator.
+   * @brief Process the received RebuildWorkOrder complete message.
+   *
+   * @param node_index The index of the specified operator node in the query DAG
+   *        for the completed RebuildWorkOrder.
+   * @param worker_id The logical ID of the worker for the completed
+   *        RebuildWorkOrder.
+   **/
+  void processRebuildWorkOrderCompleteMessage(const dag_node_index op_index,
+                                              const std::size_t worker_id);
+
+  /**
+   * @brief Process the received data pipeline message.
+   *
+   * @param node_index The index of the specified operator node in the query DAG
+   *        for the pipelining block.
+   * @param block The block id.
+   * @param rel_id The ID of the relation that produced 'block'.
+   **/
+  void processDataPipelineMessage(const dag_node_index op_index,
+                                  const block_id block,
+                                  const relation_id rel_id);
+
+  /**
+   * @brief Process the received work order feedback message and notify relational
+   *        operator.
    *
    * @param message Feedback message from work order.
    **/

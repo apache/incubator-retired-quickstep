@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@
 #include "threading/Thread.hpp"
 #include "utility/Macros.hpp"
 
+#include "tmb/id_typedefs.h"
 #include "tmb/message_bus.h"
 
 namespace quickstep {
@@ -103,6 +104,18 @@ class Worker : public Thread {
   void run() override;
 
  private:
+  /**
+   * @brief Send the response WorkOrder completion message.
+   *
+   * @param receiver The id of the TMB client which should receive the response.
+   * @param op_index The index of the operator to which the WorkOrder belongs.
+   * @param isRebuildWorkOrder True if it is a RebuildWorkOrder. Otherwise
+   *        false.
+   **/
+  void sendWorkOrderCompleteMessage(const tmb::client_id receiver,
+                                    const std::size_t op_index,
+                                    const bool isRebuildWorkOrder);
+
   const std::size_t worker_id_;
   const std::unique_ptr<QueryContext> &query_context_;
   MessageBus *bus_;

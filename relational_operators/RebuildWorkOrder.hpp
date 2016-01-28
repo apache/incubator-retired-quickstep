@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -19,17 +19,22 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_REBUILD_WORKORDER_HPP_
 
 #include <cstddef>
+#include <cstdlib>
 #include <ostream>
 #include <utility>
 
 #include "catalog/CatalogTypedefs.hpp"
-#include "query_execution/ForemanMessage.hpp"
+#include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlock.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
+
+#include "tmb/tagged_message.h"
 
 namespace quickstep {
 
@@ -75,24 +80,27 @@ class RebuildWorkOrder : public WorkOrder {
                   << block_ref_->getID() << " invalidated one or more "
                   "IndexSubBlocks.");
     }
-    ForemanMessage message(ForemanMessage::DataPipelineMessage(
-        input_operator_index_,
-        block_ref_->getID(),
-        input_relation_id_));
 
-    TaggedMessage foreman_tagged_msg;
+    serialization::DataPipelineMessage proto;
+    proto.set_operator_index(input_operator_index_);
+    proto.set_block_id(block_ref_->getID());
+    proto.set_relation_id(input_relation_id_);
 
-    foreman_tagged_msg.set_message(
-        &message,
-        sizeof(message),
-        kDataPipelineMessage);
+    const std::size_t proto_length = proto.ByteSize();
+    char *proto_bytes = static_cast<char*>(std::malloc(proto_length));
+    CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+    tmb::TaggedMessage tagged_message(static_cast<const void *>(proto_bytes),
+                                      proto_length,
+                                      kDataPipelineMessage);
+    std::free(proto_bytes);
 
     // Refer to InsertDestination::sendBlockFilledMessage for the rationale
     // behind using the ClientIDMap map.
     QueryExecutionUtil::SendTMBMessage(bus_,
                                        ClientIDMap::Instance()->getValue(),
                                        foreman_client_id_,
-                                       std::move(foreman_tagged_msg));
+                                       std::move(tagged_message));
   }
 
  private:
