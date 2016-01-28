@@ -316,9 +316,9 @@ class WorkOrdersContainer {
 
     inline WorkOrder* getWorkOrder() {
       if (!workorders_.empty()) {
-        WorkOrder *wu = workorders_.front();
+        WorkOrder *work_order = workorders_.front();
         workorders_.pop();
-        return wu;
+        return work_order;
       }
       return nullptr;
     }
@@ -355,9 +355,9 @@ class WorkOrdersContainer {
 
     inline WorkOrder* getWorkOrder() {
       if (!workorders_.empty()) {
-        WorkOrder *wu = workorders_.front();
+        WorkOrder *work_order = workorders_.front();
         workorders_.pop_front();
-        return wu;
+        return work_order;
       }
       return nullptr;
     }
@@ -457,12 +457,12 @@ class WorkOrdersContainer {
     WorkOrder* getWorkOrderForNUMANode(const int numa_node_id) {
       DEBUG_ASSERT(numa_node_id >= 0);
       DEBUG_ASSERT(static_cast<std::size_t>(numa_node_id) < num_numa_nodes_);
-      WorkOrder *wu = single_numa_node_workorders_[numa_node_id].getWorkOrder();
-      if (wu == nullptr) {
-        wu = multiple_numa_nodes_workorders_.getWorkOrderForNUMANode(
+      WorkOrder *work_order = single_numa_node_workorders_[numa_node_id].getWorkOrder();
+      if (work_order == nullptr) {
+        work_order = multiple_numa_nodes_workorders_.getWorkOrderForNUMANode(
             numa_node_id);
       }
-      return wu;
+      return work_order;
     }
 
     WorkOrder* getWorkOrder(const bool prefer_single_NUMA_node = true);

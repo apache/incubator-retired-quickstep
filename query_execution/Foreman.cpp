@@ -311,7 +311,7 @@ WorkerMessage* Foreman::getNextWorkerMessage(
     const dag_node_index start_operator_index, const int numa_node) {
   // Default policy: Operator with lowest index first.
   std::unique_ptr<WorkerMessage> worker_message;
-  WorkOrder *wu = nullptr;
+  WorkOrder *work_order = nullptr;
   size_t num_operators_checked = 0;
   for (dag_node_index index = start_operator_index;
        num_operators_checked < query_dag_->size();
@@ -321,39 +321,39 @@ WorkerMessage* Foreman::getNextWorkerMessage(
     }
     if (numa_node != -1) {
       // First try to get a normal WorkOrder from the specified NUMA node.
-      wu = workorders_container_->getNormalWorkOrderForNUMANode(index, numa_node);
-      if (wu != nullptr) {
+      work_order = workorders_container_->getNormalWorkOrderForNUMANode(index, numa_node);
+      if (work_order != nullptr) {
         // A WorkOrder found on the given NUMA node.
         ++queued_workorders_per_op_[index];
         worker_message.reset(generateWorkerMessage(
-            wu, index, WorkerMessage::kWorkOrder));
+            work_order, index, WorkerMessage::kWorkOrder));
         return worker_message.release();
       } else {
         // Normal workorder not found on this node. Look for a rebuild workorder
         // on this NUMA node.
-        wu = workorders_container_->getRebuildWorkOrderForNUMANode(index,
+        work_order = workorders_container_->getRebuildWorkOrderForNUMANode(index,
                                                                  numa_node);
-        if (wu != nullptr) {
+        if (work_order != nullptr) {
           worker_message.reset(generateWorkerMessage(
-              wu, index, WorkerMessage::kRebuildWorkOrder));
+              work_order, index, WorkerMessage::kRebuildWorkOrder));
           return worker_message.release();
         }
       }
     }
     // Either no workorder found on the given NUMA node, or numa_node is -1.
     // Try to get a normal WorkOrder from other NUMA nodes.
-    wu = workorders_container_->getNormalWorkOrder(index);
-    if (wu != nullptr) {
+    work_order = workorders_container_->getNormalWorkOrder(index);
+    if (work_order != nullptr) {
       ++queued_workorders_per_op_[index];
       worker_message.reset(generateWorkerMessage(
-          wu, index, WorkerMessage::kWorkOrder));
+          work_order, index, WorkerMessage::kWorkOrder));
       return worker_message.release();
     } else {
       // Normal WorkOrder not found, look for a RebuildWorkOrder.
-      wu = workorders_container_->getRebuildWorkOrder(index);
-      if (wu != nullptr) {
+      work_order = workorders_container_->getRebuildWorkOrder(index);
+      if (work_order != nullptr) {
         worker_message.reset(generateWorkerMessage(
-            wu, index, WorkerMessage::kRebuildWorkOrder));
+            work_order, index, WorkerMessage::kRebuildWorkOrder));
         return worker_message.release();
       }
     }
