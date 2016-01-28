@@ -56,7 +56,6 @@
 
 #include "glog/logging.h"
 
-
 using std::memcpy;
 using std::memmove;
 using std::pair;
@@ -69,8 +68,6 @@ using std::vector;
 using std::map;
 using std::exception;
 
-using std::string; // temporary
-
 namespace quickstep {
 
 QUICKSTEP_REGISTER_INDEX(SMAIndexSubBlock, SMA);
@@ -79,56 +76,16 @@ typedef smaindex_internal::EntryReference EntryReference;
 typedef smaindex_internal::SMAPredicate SMAPredicate;
 typedef smaindex_internal::SMAEntry SMAEntry;
 
-
-string predicateString(const ComparisonPredicate& predicate) {
-  string str = "(";
-  if(predicate.getLeftOperand().hasStaticValue()) {
-
-    //str += *reinterpret_cast<const int*>(predicate.getLeftOperand().getStaticValue().getDataPtr());
-    str += std::to_string(predicate.getLeftOperand().getStaticValue().getLiteral<std::int64_t>());
-    str += " ";
-    str += kComparisonShortNames[(int) predicate.getComparison().getComparisonID()];
-    str += " ";
-
-    const CatalogAttribute& comparison_attribute = static_cast<const ScalarAttribute&>(
-                                predicate.getRightOperand()).getAttribute();
-    str += comparison_attribute.getName();
-
-  } else {
-
-    const CatalogAttribute& comparison_attribute = static_cast<const ScalarAttribute&>(
-                                predicate.getLeftOperand()).getAttribute();
-    str += comparison_attribute.getName();
-    
-    str += " ";
-    str += kComparisonShortNames[(int) predicate.getComparison().getComparisonID()];
-    str += " ";
-
-    str += std::to_string(predicate.getRightOperand().getStaticValue().getLiteral<std::int64_t>());
-    //*reinterpret_cast<const int*>(predicate.getRightOperand().getStaticValue().getDataPtr());
-  }
-
-  str += ")";
-
-  return str;
-}
-
 attribute_id extractAttributeID(const ComparisonPredicate& predicate) {
   if (predicate.getLeftOperand().hasStaticValue()) {
-    return (static_cast<const ScalarAttribute&>(
-                                  predicate.getRightOperand()).getAttribute()).getID();
+    return (static_cast<const ScalarAttribute&>(predicate.getRightOperand()).getAttribute()).getID();
   } else {
-    return (static_cast<const ScalarAttribute&>(
-                                  predicate.getLeftOperand()).getAttribute()).getID();
+    return (static_cast<const ScalarAttribute&>(predicate.getLeftOperand()).getAttribute()).getID();
   }
 }
 
 namespace smaindex_internal {
 
-/// SMAPredicate methods
-
-//TODO(marc)[1.15.2016] it will be faster to store the attribute ID or
-// the index in the SMA's array
 SMAPredicate* SMAPredicate::Create(const ComparisonPredicate& predicate) {
   const CatalogAttribute* comparison_attribute;
   TypedValue comparison_literal;
@@ -141,7 +98,6 @@ SMAPredicate* SMAPredicate::Create(const ComparisonPredicate& predicate) {
                                   predicate.getRightOperand()).getAttribute());
     comparison_literal = predicate.getLeftOperand().getStaticValue().makeReferenceToThis();
     comparison_id = flipComparisonID(comparison_id);
-
   } else {
     DLOG_IF(FATAL, predicate.getLeftOperand().getDataSource() != Scalar::kAttribute);
 
@@ -150,42 +106,18 @@ SMAPredicate* SMAPredicate::Create(const ComparisonPredicate& predicate) {
     comparison_literal = predicate.getRightOperand().getStaticValue().makeReferenceToThis();
   }
 
-  return new SMAPredicate( *comparison_attribute,
-                            comparison_id,
-                            comparison_literal);
+  return new SMAPredicate(*comparison_attribute, comparison_id, comparison_literal);
 }
-
-string SMAPredicate::selectivityStr() const {
-  switch (selectivity_) {
-    case kAll:
-      return string("all");
-    case kNone:
-      return string("none");
-    case kSome: 
-      return string("some");
-    case kUnknown:
-      return string("unknown");
-    case kUnsolved:
-      return string("unsolved");
-    default:
-      return string("ERROR");
-  }
-}
-
-/// EntryReference methods
 
 void EntryReference::set(tuple_id id, const TypedValue & value){
   DLOG_IF(FATAL, value.isReference()) << "EntryReferences do not support variable length values";
-
   tid_ = id;
   value_ = value;
 }
 
-/// SMAEntry methods
-
-void SMAEntry::initialize(bool new_block, const attribute_id attr_id,
-                                          const TupleStorageSubBlock& tuple_store) {
-
+void SMAEntry::initialize(bool new_block, 
+                          const attribute_id attr_id,
+                          const TupleStorageSubBlock& tuple_store) {
   const Type& attr_type = tuple_store.getRelation().getAttributeById(attr_id)->getType();
 
   if(new_block){
@@ -194,8 +126,7 @@ void SMAEntry::initialize(bool new_block, const attribute_id attr_id,
     reset();
     requires_rebuild_ = false;
   } else {
-    // check to ensure values were stored correctly, there's no reason they
-    // shouldn't have been
+    // Check to ensure values were stored correctly.
     CHECK(attr_id_ == attr_id);
     const Comparison& equals = ComparisonFactory::GetComparison(ComparisonID::kEqual);
 
@@ -205,7 +136,6 @@ void SMAEntry::initialize(bool new_block, const attribute_id attr_id,
         tuple_store.getAttributeValueTyped(max_.getTupleID(), attr_id)));
   }
 
-  // TODO fix, this is a hack to prevent segfaults occurring in some situations
   add_operator_.release();
   sub_operator_.release();
   less_comparison_.release();
@@ -353,38 +283,43 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
                                    const bool new_block,
                                    void *sub_block_memory,
                                    const std::size_t sub_block_memory_size)
-                                          : IndexSubBlock(tuple_store,
-                                                          description,
-                                                          new_block,
-                                                          sub_block_memory,
-                                                          sub_block_memory_size),
-                                                          initialized_(false) {
+    : IndexSubBlock(tuple_store,
+                    description,
+                    new_block,
+                    sub_block_memory,
+                    sub_block_memory_size),
+      initialized_(false),
+      requires_rebuild_(true),
+      sub_operators_(),
+      add_operators_(),
+      less_comparison_(),
+      equal_comparisons_() {
   CHECK(DescriptionIsValid(relation_, description_)) <<\
     "Attempted to construct an SMAIndexSubBlock from an invalid description.";
 
-  num_entries_ = description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id);
+  int num_indexed_attributes = description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id);
 
-  CHECK(num_entries_ * sizeof(SMAEntry) <= sub_block_memory_size_) <<\
+  CHECK(num_indexed_attributes * sizeof(SMAEntry) <= sub_block_memory_size_) <<\
     "Attempted to create SMAIndexSubBlock without enough space allocated.";
 
-  // iterate through each attribute which is being indexed
-  for( int indexed_attribute_num = 0;
-       indexed_attribute_num < num_entries_;
+  // Iterate through each attribute which is being indexed.
+  for (int indexed_attribute_num = 0;
+       indexed_attribute_num < num_indexed_attributes;
        ++indexed_attribute_num) {
+    const attribute_id attribute = description_.GetExtension(
+        SMAIndexSubBlockDescription::indexed_attribute_id,
+        indexed_attribute_num);
+    // Map the attribute's id to its entry index.
+    attribute_to_index_.insert(attribute, indexed_attribute_num);
 
-    const attribute_id attr_id = description_.GetExtension(
-                                  SMAIndexSubBlockDescription::indexed_attribute_id,
-                                  indexed_attribute_num );
+    SMAEntry* entry = reinterpret_cast<SMAEntry*>(sub_block_memory_) + indexed_attribute_num;
+    entry->initialize(new_block, attribute, tuple_store);
 
-    attr_ids_.push_back(attr_id);
-    // associate an attribute ID to the index of its SMAEntry
-    attr_to_index_[attr_id] = indexed_attribute_num;
-
-
-    // cast raw memory into entry
-    SMAEntry* entry = reinterpret_cast<SMAEntry*>(sub_block_memory_);
-    entry = entry + indexed_attribute_num; // index in to correct entry
-    entry->initialize(new_block, attr_id, tuple_store);
+    // Initialize the operators.
+    sub_operators_.push_back(
+         BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kSubtract)
+            .makeUncheckedBinaryOperatorForTypes(TypeFactory::GetType(sum_.getTypeID()), attr_type));
+    // Initialize the comparators.
   }
 }
 
@@ -403,15 +338,13 @@ bool SMAIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema & relation
   for (int indexed_attribute_num = 0;
        indexed_attribute_num < description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id);
        ++indexed_attribute_num) {
-    attribute_id indexed_attribute_id
-        = description.GetExtension(SMAIndexSubBlockDescription::indexed_attribute_id, indexed_attribute_num);
+    attribute_id indexed_attribute_id = description.GetExtension(
+        SMAIndexSubBlockDescription::indexed_attribute_id, indexed_attribute_num);
     if (!relation.hasAttributeWithId(indexed_attribute_id)) {
       return false;
     }
     const Type &attr_type = relation.getAttributeById(indexed_attribute_id)->getType();
     if (attr_type.isVariableLength()) {
-      // we don't yet support string types
-      // TODO(marc)[1.15.2015] support string types if compressed codes
       return false;
     }
   }

@@ -51,12 +51,11 @@ namespace smaindex_internal {
 /**
  * @brief A simple holding struct for a comparison predicate.
  * @details The selectivity enum indicates if the SMA has been used to solve the
- *  predicate and if so, what is the selectivity over the block.
+ *          predicate and if so, what is the selectivity over the block.
  */
 struct SMAPredicate {
   /**
-   * @brief Describes how many tuples a predicate will select from a storage
-   * block. 
+   * @brief Describes how many tuples a predicate will select from a storage block. 
    */
   enum class Selectivity {
     kAll,
@@ -67,7 +66,8 @@ struct SMAPredicate {
   };
 
   /**
-   * @brief Constructor. 
+   * @brief Constructor.
+   *
    * @param attribute Catalog attribute to be compared on the left.
    * @param comparisonid A Comparison Id.
    * @param literal A literal typed value for the right side of the comparison.
@@ -82,9 +82,9 @@ struct SMAPredicate {
 
   /**
    * @brief Extracts a comparison predicate into an SMAPredicate.
-   * @param predicate A comparison of the form 
-   *  {attribute} {comparison} {literal} or
-   *  {literal} {comparison} {attribute}
+   *
+   * @param predicate A comparison of the form {attribute} {comparison} {literal} or
+   *        {literal} {comparison} {attribute}
    * @return An SMAPredicate which the caller must manage.
    */
   static SMAPredicate* Create(const ComparisonPredicate& predicate);
@@ -97,10 +97,9 @@ struct SMAPredicate {
 
 /**
  * @brief Refers to a specific entry (tuple's attribute value). Used for min, 
- *  max entries.
+ *        max entries.
  */
-class EntryReference {
- public:
+struct EntryReference {
   EntryReference(const tuple_id tuple = -1) : tid_(-1), value_() {  }
 
   ~EntryReference() { }
@@ -130,12 +129,13 @@ private:
 
 /**
  * @brief An SMAEntry will be created for each attribute which is indexed under
- *  the SMAIndexSubBlock.
+ *        the SMAIndexSubBlock.
  */
 class SMAEntry {
  public:
   /**
    * @brief Constructor.
+   * 
    * @param attribute_id The ID of the attribute which is being indexed.
    * @param attribute_type The type of the attibute being indexed.
    */
@@ -150,7 +150,8 @@ class SMAEntry {
 
   /**
    * @brief Used in place of the constructor where raw memory is cast into an 
-   *  SMAEntry.
+   *        SMAEntry.
+   *
    * @param new_block if this is a new SMA index or one being deserialized
    * @param attr_id ID of attribute which this entry summarizes
    * @param storage_block where the corresponding tuples are stored
@@ -187,6 +188,7 @@ class SMAEntry {
 
   /**
    * @brief Updates the aggregates based on the values of the new tuple.
+   *
    * @param tid The id of the new tuple.
    * @param tuple_store A reference to the storage block containing the tuple.
    */
@@ -194,7 +196,8 @@ class SMAEntry {
 
   /**
    * @brief Attempts to update the SMAEntry on a removal. Some types of removals
-   *  will require a rebuild (scan of storage_block).
+   *        will require a rebuild (scan of storage_block).
+   *
    * @param tid The ID of the tuple which was removed.
    * @param tuple_store The tuple store containing the removed tuple.
    */
@@ -202,19 +205,12 @@ class SMAEntry {
 
   /**
    * @brief Given a predicate, uses the min and max entries to determine if all,
-   *  none, or some of the tuples in the storage block will be selected. This is
-   *  used as a helper method by the SMAIndexSubBlock. 
+   *        none, or some of the tuples in the storage block will be selected. 
+   *        This is used as a helper method by the SMAIndexSubBlock.
+   *
    * @param predicate An SMAPredicate to solve.
    */
   void solvePredicate(SMAPredicate& predicate) const;
-
-  bool getRequiresRebuild() const {
-    return requires_rebuild_;
-  }
-
-  void setRequiresRebuild(bool rebuild) {
-    requires_rebuild_ = rebuild;
-  }
 
  private:
   void resetSum();
@@ -223,38 +219,28 @@ class SMAEntry {
 
   static const Comparison& getEqual();
 
-  attribute_id attr_id_;
-  TypeID attr_typeID_;
+  attribute_id attribute_;
+  TypeID attribute_typeid_;
   EntryReference min_;
   EntryReference max_;
-  TypedValue sum_;  // This is possibly higher precision than attribute type
-                    // (ex. float->double)
-  std::uint64_t count_;
-  // fast operators for updating sum
-  std::unique_ptr<UncheckedBinaryOperator> sub_operator_;
-  std::unique_ptr<UncheckedBinaryOperator> add_operator_;
-  // fast comparators
-  std::unique_ptr<UncheckedComparator> less_comparison_;
-  std::unique_ptr<UncheckedComparator> equal_comparison_;
-  bool requires_rebuild_;
+  TypedValue sum_;  // This is possibly higher precision than attribute type (ex. float->double).
 };
 
 }  // namespace smaindex_internal
 
 
 /**
- * Small Materialized Aggregate SubBlock
- *
- * Keeps account of several types of aggregate functions per Block. Currently
- * supports min, max.
+ * @brief Small Materialized Aggregate SubBlock.
+ * @details Keeps account of several types of aggregate functions per Block. 
+ *          Currently supports min, max, sum, and count.
  */
 class SMAIndexSubBlock : public IndexSubBlock {
-public:
-  SMAIndexSubBlock( const TupleStorageSubBlock &tuple_store,
-                    const IndexSubBlockDescription &description,
-                    const bool new_block,
-                    void *sub_block_memory,
-                    const std::size_t sub_block_memory_size);
+ public:
+  SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
+                   const IndexSubBlockDescription &description,
+                   const bool new_block,
+                   void *sub_block_memory,
+                   const std::size_t sub_block_memory_size);
 
   ~SMAIndexSubBlock() { }
 
@@ -271,8 +257,8 @@ public:
    *         of this type, belonging to relation, can be constructed according
    *         to description).
    **/
-  static bool DescriptionIsValid( const CatalogRelationSchema &relation,
-                                  const IndexSubBlockDescription &description);
+  static bool DescriptionIsValid(const CatalogRelationSchema &relation,
+                                 const IndexSubBlockDescription &description);
 
   /**
    * @brief Estimate the average number of bytes (including any applicable
@@ -289,89 +275,120 @@ public:
    *         tuple of relation in an IndexSubBlock of this type described by
    *         description.
    **/
-  static std::size_t EstimateBytesPerTuple( const CatalogRelationSchema &relation,
-                                            const IndexSubBlockDescription &description);
+  static std::size_t EstimateBytesPerTuple(const CatalogRelationSchema &relation,
+                                           const IndexSubBlockDescription &description);
 
+  /**
+   * @return The sub block type.
+   */
   IndexSubBlockType getIndexSubBlockType() const override {
     return kSMA;
   }
 
+  /**
+   * @return \c true if the SMA block is initialized.
+   */
   bool supportsAdHocAdd() const override{
     return initialized_;
   }
 
   /**
-   * @brief Cannot remove unless we rebuild the entire index.
-   *
-   * @return false, does not support.
+   * @return \c true if the SMA block is initialized.
    */
   bool supportsAdHocRemove() const override {
-    return false;
+    return initialized_;
   }
 
   /**
    * @param tuple The new tuple added.
-   * @return true always. There's no reason we should ever run out of space once
+   * @return \c true always. There's no reason we should ever run out of space once
    *         this index has been successfully created
    */
   bool addEntry(const tuple_id tuple) override;
 
+  /**
+   * @brief Updates the index to reflect the removal of a single tuple.
+   * 
+   * @param tuple The id of the tuple which is going to be removed (ie it still
+   *        exists within the storage block.
+   */
   void removeEntry(const tuple_id tuple) override;
 
+  /**
+   * @brief Updates the index to reflect the addition of several tuples.
+   * 
+   * @param tuples The ids of the tuple which have been added (ie they exist within
+   *        the storage block.)
+   * @return \c true if successful.
+   */
   bool bulkAddEntries(const TupleIdSequence &tuples) override;
 
+  /**
+   * @brief Updates the index to reflect the removal of several tuples.
+   * 
+   * @param tuples The ids of the tuple which is going to be removed (ie they 
+   *        still exist within the storage block.
+   */
   void bulkRemoveEntries(const TupleIdSequence &tuples) override;
 
   /**
+   * @brief Gives an estimate of how long it will take to respond to a query.
    * The SMA index will detect if one of the following cases is true:
-   * 1) Complete match: all the tuples in this subblock will match the predicate
-   * 2) Empty match: none of the tuples will match
-   * 3) Partial match: some of the tuples may match
+   *   1) Complete match: all the tuples in this subblock will match the predicate
+   *   2) Empty match: none of the tuples will match
+   *   3) Partial match: some of the tuples may match
    * If there is a partial match, the SMA index is of no use. However, in a
    * Complete or Empty match, the SMA index can speed up the selection process
    * and should be used.
    *
-   * @param predicate - Simple predicate too be evaluated.
-   *
-   * @return Cost associated with the type of match. Empty matches are constant,
-   * partial matches require a scan, and complete matches require something less
-   * than a regular scan (because we don't need to do the comparison operation
-   * for each tuple) but is still linear with the number of tuples.
+   * @param predicate A simple predicate too be evaluated.
+   * @return The cost associated with the type of match. Empty matches are constant,
+   *         partial matches require a scan, and complete matches require something
+   *         less than a regular scan (because we don't need to do the comparison 
+   *         operation for each tuple) but is still linear with the number of tuples.
    */
   predicate_cost_t estimatePredicateEvaluationCost(
-                                  const ComparisonPredicate &predicate) const override;
+      const ComparisonPredicate &predicate) const override;
 
   /**
-   * Calling this method on the SMA index implies that we are not going to do a
-   * scan for some tuple matches. As in, the SMA index will either return an
-   * empty set of tuple ids, or a set of tuple ids which is the entire set of
-   * all tuple ids in the storage subblock.
+   * @warning Calling this method on the SMA index implies that we are not going 
+   *          to do a scan for some tuple matches. As in, the SMA index will 
+   *          either return an empty set of tuple ids, or a set of tuple ids 
+   *          which is the entire set of all tuple ids in the storage subblock.
    * @note Currently this version only supports simple comparisons of a literal
    *       value with a non-composite key.
    **/
   TupleIdSequence* getMatchesForPredicate(const ComparisonPredicate &predicate,
                                           const TupleIdSequence *filter) const override;
 
-
+  /**
+   * @brief Update the index to reflect the current state of the storage block.
+   * 
+   * @return \c true if successful.
+   */
   bool rebuild() override;
 
   /**
-   * @brief Returns if the index is consistent. Rebuilding will ensure this returns true
+   * @brief Returns if the index is consistent. Rebuilding will ensure this 
+   *        returns true.
+   *
    * @return true if consistent
    */
   bool requiresRebuild() const;
 
   /**
-   * Given an attribute, quickly check to see if the SMA index contains an
-   * entry for it.
-   * @param attribute - The ID of the attribute to check.
-   * @return true if this index contains an entry.
+   * @brief Given an attribute, quickly check to see if the SMA index contains an
+   *        entry for it.
+   *        
+   * @param attribute The ID of the attribute to check.
+   * @return \c true if this index contains an entry.
    */
   bool hasEntryForAttribute(attribute_id attribute) const;
 
   /**
-   * @brief Returns the corresponding SMAEntry from a given attribute ID
-   * @param a_id AttributeID of the indexed attribute
+   * @brief Returns the corresponding SMAEntry from a given attribute ID.
+   * 
+   * @param attribute The attribute id of the indexed attribute
    * @return a pointer to the SMAEntry stored in this index's block memory.
    *         \c nullptr if the attribute is not indexed.
    */
@@ -384,26 +401,24 @@ public:
    */
   unsigned getCount() const;
 
-private:
-
+ private:
   void resetAggregates();
 
   /**
    * @brief Determines how much of the tuple store a predicate will select.
    * 
    * @param predicate The predicate to evaluate.
-   * 
-   * @return a solved SMA predicate which the caller must manage
+   * @return A solved SMA predicate which the caller must manage.
    */
   smaindex_internal::SMAPredicate* solvePredicate(const ComparisonPredicate& predicate) const;
 
-
-  int num_entries_;
-  std::vector<attribute_id> attr_ids_;
-  std::map<attribute_id, unsigned> attr_to_index_;
+  std::unordered_map<attribute_id, int> attribute_to_index_;
   bool initialized_;
-
-  std::unique_ptr<smaindex_internal::SMAPredicate> last_predicate_;
+  bool requires_rebuild_;
+  PtrVector<UncheckedBinaryOperator> sub_operators_;
+  PtrVector<UncheckedBinaryOperator> add_operators_;
+  PtrVector<UncheckedComparator> less_comparisons_;
+  PtrVector<UncheckedComparator> equal_comparisons_;
 
   friend class SMAIndexSubBlockTest;
 
