@@ -88,9 +88,7 @@ target_link_libraries(quickstep_relationaloperators_CreateTableOperator
                       glog
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
-                      quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_RelationalOperator
-                      quickstep_relationaloperators_WorkOrder
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_relationaloperators_DeleteOperator
                       glog

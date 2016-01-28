@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@
 #include <memory>
 
 #include "catalog/CatalogDatabase.hpp"
-#include "query_execution/WorkOrdersContainer.hpp"
 
 #include "glog/logging.h"
 
@@ -29,18 +28,9 @@ namespace quickstep {
 bool CreateTableOperator::getAllWorkOrders(WorkOrdersContainer *container) {
   if (!work_generated_) {
     work_generated_ = true;
-    container->addNormalWorkOrder(
-        new CreateTableWorkOrder(relation_.release()),
-        op_index_);
+    database_->addRelation(relation_.release());
   }
-  return work_generated_;
-}
-
-void CreateTableWorkOrder::execute(QueryContext *query_context,
-                                   CatalogDatabase *catalog_database,
-                                   StorageManager *storage_manager) {
-  DCHECK(catalog_database != nullptr);
-  catalog_database->addRelation(relation_.release());
+  return true;
 }
 
 }  // namespace quickstep
