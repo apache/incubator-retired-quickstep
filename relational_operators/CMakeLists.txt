@@ -85,7 +85,6 @@ target_link_libraries(quickstep_relationaloperators_BuildHashOperator
                       quickstep_storage_ValueAccessor
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_relationaloperators_CreateTableOperator
-                      glog
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_relationaloperators_RelationalOperator

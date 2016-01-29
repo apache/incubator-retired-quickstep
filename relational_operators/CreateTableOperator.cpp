@@ -21,8 +21,6 @@
 
 #include "catalog/CatalogDatabase.hpp"
 
-#include "glog/logging.h"
-
 namespace quickstep {
 
 bool CreateTableOperator::getAllWorkOrders(WorkOrdersContainer *container) {
