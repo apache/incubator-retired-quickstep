@@ -144,12 +144,32 @@ StorageBlockLayout* StorageBlockLayout::GenerateDefaultLayout(const CatalogRelat
   description->set_num_slots(1);
 
   TupleStorageSubBlockDescription *tuple_store_description = description->mutable_tuple_store_description();
-  if (relation_variable_length) {
-    tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
-  } else {
-    tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::PACKED_ROW_STORE);
-  }
 
+  // For "permanent" tables, use compressed column store as the default layout.
+  if (!relation.isTemporary()) {
+    tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE);
+
+    // use the first column as the sort column
+    // TODO(jmp): When there is support for keys, pick a key.
+    tuple_store_description->SetExtension(
+                                          CompressedColumnStoreTupleStorageSubBlockDescription::sort_attribute_id,
+                                          0);
+
+    // complete the setup for the compressed column store
+    for (attribute_id attr_id = 0; attr_id < relation.size(); ++attr_id) {
+      tuple_store_description->AddExtension(
+                                            CompressedColumnStoreTupleStorageSubBlockDescription::compressed_attribute_id,
+                                            attr_id);
+    }
+  } else {
+    // For "temporary" tables, use row store as they are faster to construct.
+    if (relation_variable_length) {
+      tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
+    } else {
+      tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::PACKED_ROW_STORE);
+    }
+  }
+  
   layout->finalize();
   return layout;
 }
