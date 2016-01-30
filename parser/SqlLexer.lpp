@@ -120,6 +120,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 "between"          return TOKEN_BETWEEN;
 "bigint"           return TOKEN_BIGINT;
 "bit"              return TOKEN_BIT;
+"bloom_filter"     return TOKEN_BLOOM_FILTER_INDEX;
 "by"               return TOKEN_BY;
 "char"             return TOKEN_CHARACTER;
 "character"        return TOKEN_CHARACTER;
@@ -148,6 +149,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 "full"             return TOKEN_FULL;
 "group"            return TOKEN_GROUP;
 "having"           return TOKEN_HAVING;
+"index"            return TOKEN_INDEX;
 "inner"            return TOKEN_INNER;
 "insert"           return TOKEN_INSERT;
 "int"              return TOKEN_INTEGER;
@@ -185,6 +187,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 "true"             return TOKEN_TRUE;
 "unique"           return TOKEN_UNIQUE;
 "update"           return TOKEN_UPDATE;
+"using"            return TOKEN_USING;
 "values"           return TOKEN_VALUES;
 "varchar"          return TOKEN_VARCHAR;
 "where"            return TOKEN_WHERE;

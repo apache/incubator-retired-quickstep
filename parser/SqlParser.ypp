@@ -205,6 +205,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_ASC;
 %token TOKEN_BIGINT;
 %token TOKEN_BIT;
+%token TOKEN_BLOOM_FILTER_INDEX;
 %token TOKEN_BY;
 %token TOKEN_CHARACTER;
 %token TOKEN_CHECK;
@@ -231,6 +232,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_FULL;
 %token TOKEN_GROUP;
 %token TOKEN_HAVING;
+%token TOKEN_INDEX;
 %token TOKEN_INNER;
 %token TOKEN_INSERT;
 %token TOKEN_INTEGER;
@@ -265,6 +267,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_TRUE;
 %token TOKEN_UNIQUE;
 %token TOKEN_UPDATE;
+%token TOKEN_USING;
 %token TOKEN_VALUES;
 %token TOKEN_VARCHAR;
 %token TOKEN_WHERE;
@@ -376,6 +379,9 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %type <create_table_statement_>
   create_table_statement
 
+%type <statement_>
+  create_index_statement
+
 %type <drop_table_statement_>
   drop_table_statement
 
@@ -440,6 +446,9 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
   table_constraint_def  // unimplemented
   table_constraint_def_commalist        // unimplemented
   opt_table_constraint_def_commalist    // unimplemented
+  opt_column_list       // unimplemented
+  index_type            // unimplemented
+  opt_index_properties  // unimplemented
 */
 
 %destructor { } <boolean_value_>
@@ -481,6 +490,9 @@ sql_statement:
     $$ = $1;
   }
   | create_table_statement {
+    $$ = $1;
+  }
+  | create_index_statement {
     $$ = $1;
   }
   | delete_statement {
@@ -541,6 +553,15 @@ alter_table_statement:
 create_table_statement:
   TOKEN_CREATE TOKEN_TABLE any_name '(' column_def_commalist ')' opt_table_constraint_def_commalist {
     $$ = new quickstep::ParseStatementCreateTable(@1.first_line, @1.first_column, $3, $5);
+  };
+
+create_index_statement:
+  TOKEN_CREATE TOKEN_INDEX any_name TOKEN_ON any_name opt_column_list TOKEN_USING index_type opt_index_properties {
+    delete $3;
+    delete $5;
+    $$ = nullptr;
+    NotSupported(&@1, yyscanner, "CREATE INDEX statements");
+    YYERROR;
   };
 
 drop_table_statement:
@@ -757,6 +778,51 @@ opt_table_constraint_def_commalist:
   }
   | table_constraint_def_commalist {
     /* $$ = $1; */
+  };
+
+opt_column_list:
+  %empty
+  | '(' name_commalist ')' {
+    delete $2;
+    NotSupported(&@1, yyscanner, "list of column names in CREATE INDEX statement");
+    YYERROR;
+  };
+
+index_type:
+  TOKEN_BLOOM_FILTER_INDEX {
+    NotSupported(&@1, yyscanner, "Bloom Filter Index");
+    YYERROR;
+  };
+
+opt_index_properties:
+  %empty
+  | '(' index_properties_list ')' {
+    NotSupported(&@1, yyscanner, "list of index properties in CREATE INDEX statement");
+    YYERROR;
+  };
+
+index_properties_list:
+  index_property {
+    NotSupported(&@1, yyscanner, "index property in CREATE INDEX statement");
+    YYERROR;
+  }
+  | index_properties_list ',' index_property {
+    NotSupported(&@1, yyscanner, "list of index properties in CREATE INDEX statement");
+    YYERROR;
+  };
+
+index_property:
+  any_name literal_value {
+    delete $1;
+    delete $2;
+    NotSupported(&@1, yyscanner, "index property in CREATE INDEX statement");
+    YYERROR;
+  }
+  | any_name '(' literal_value_commalist ')' {
+    delete $1;
+    delete $3;
+    NotSupported(&@1, yyscanner, "index property list in CREATE INDEX statement");
+    YYERROR;
   };
 
 /* Update Database Contents */
