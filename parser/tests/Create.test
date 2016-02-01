@@ -13,22 +13,22 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-create table table (attr int)
+CREATE TABLE TABLE (attr int)
 --
 ERROR: syntax error (1 : 14)
-create table table (attr int)
+CREATE TABLE TABLE (attr int)
              ^
 ==
 
 # We do not allow an empty-column table.
-create table test ()
+CREATE TABLE test ()
 --
 ERROR: syntax error (1 : 20)
-create table test ()
+CREATE TABLE test ()
                    ^
 ==
 
-create table test (attr1 int, attr2 float, attr3 double, attr4 char(5), attr5 varchar(4))
+CREATE TABLE test (attr1 INT, attr2 FLOAT, attr3 DOUBLE, attr4 CHAR(5), attr5 VARCHAR(4))
 --
 CreateTableStatement[relation_name=test]
 +-attribute_list=
@@ -39,36 +39,36 @@ CreateTableStatement[relation_name=test]
   +-AttributeDefinition[name=attr5,type=VarChar(4)]
 ==
 
-create table test (attr char(-1))
+CREATE TABLE test (attr CHAR(-1))
 --
 ERROR: syntax error (1 : 30)
-create table test (attr char(-1))
+CREATE TABLE test (attr CHAR(-1))
                              ^
 ==
 
 # Zero-length char type is not allowed.
-create table test (attr char(0))
+CREATE TABLE test (attr CHAR(0))
 --
 ERROR: Length for CHAR type must be at least 1 (1 : 30)
-create table test (attr char(0))
+CREATE TABLE test (attr CHAR(0))
                              ^
 ==
 
-create table test(attr char(1+1))
+CREATE TABLE test(attr CHAR(1+1))
 --
 ERROR: syntax error (1 : 30)
-create table test(attr char(1+1))
+CREATE TABLE test(attr CHAR(1+1))
                              ^
 ==
 
-create table test (attr unknown_type)
+CREATE TABLE test (attr UNKNOWN_TYPE)
 --
 ERROR: syntax error (1 : 25)
-create table test (attr unknown_type)
+CREATE TABLE test (attr UNKNOWN_TYPE)
                         ^
 ==
 
-create table test (attr int null, attr float not null)
+CREATE TABLE test (attr INT NULL, attr FLOAT NOT NULL)
 --
 CreateTableStatement[relation_name=test]
 +-attribute_list=
@@ -76,64 +76,64 @@ CreateTableStatement[relation_name=test]
   +-AttributeDefinition[name=attr,type=Float]
 ==
 
-create table test (attr int unique)
+CREATE TABLE test (attr INT UNIQUE)
 --
 ERROR: Column Constraints (UNIQUE) is not supported yet (1 : 29)
-create table test (attr int unique)
+CREATE TABLE test (attr INT UNIQUE)
                             ^
 ==
 
-create table test (attr int primary key)
+CREATE TABLE test (attr INT PRIMARY KEY)
 --
 ERROR: Column Constraints (PRIMARY KEY) is not supported yet (1 : 29)
-create table test (attr int primary key)
+CREATE TABLE test (attr INT PRIMARY KEY)
                             ^
 ==
 
-create table test (attr int default 4)
+CREATE TABLE test (attr INT DEFAULT 4)
 --
 ERROR: Column Constraints (DEFAULT) is not supported yet (1 : 29)
-create table test (attr int default 4)
+CREATE TABLE test (attr INT DEFAULT 4)
                             ^
 ==
 
-create table test (attr int check(attr>5))
+CREATE TABLE test (attr INT CHECK(attr>5))
 --
 ERROR: Column Constraints (CHECK) is not supported yet (1 : 29)
-create table test (attr int check(attr>5))
+CREATE TABLE test (attr INT CHECK(attr>5))
                             ^
 ==
 
-create table test (attr int references test2(attr2))
+CREATE TABLE test (attr INT REFERENCES test2(attr2))
 --
 ERROR: Foreign Keys is not supported yet (1 : 29)
-create table test (attr int references test2(attr2))
+CREATE TABLE test (attr INT REFERENCES test2(attr2))
                             ^
 ==
 
-create table test (attr int) unique(attr)
+CREATE TABLE test (attr INT) UNIQUE(attr)
 --
 ERROR: Table Constraints (UNIQUE) is not supported yet (1 : 30)
-create table test (attr int) unique(attr)
+CREATE TABLE test (attr INT) UNIQUE(attr)
                              ^
 ==
 
-create table test (attr int) primary key(attr)
+CREATE TABLE test (attr INT) PRIMARY KEY(attr)
 --
 ERROR: Table Constraints (PRIMARY KEY) is not supported yet (1 : 30)
-create table test (attr int) primary key(attr)
+CREATE TABLE test (attr INT) PRIMARY KEY(attr)
                              ^
 ==
 
-create table test (attr int) foreign key(attr)
+CREATE TABLE test (attr INT) FOREIGN KEY(attr)
 --
 ERROR: syntax error (1 : 47)
-... table test (attr int) foreign key(attr)
+... TABLE test (attr INT) FOREIGN KEY(attr)
                                            ^
 ==
 
-create table test (attr int) check(attr>0)
+CREATE TABLE test (attr INT) CHECK(attr>0)
 --
 ERROR: Table Constraints (CHECK) is not supported yet (1 : 30)
-create table test (attr int) check(attr>0)
+CREATE TABLE test (attr INT) CHECK(attr>0)
                              ^
