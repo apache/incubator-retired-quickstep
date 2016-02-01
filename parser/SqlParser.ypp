@@ -80,6 +80,7 @@ typedef struct YYLTYPE {
 #include "parser/ParseSimpleTableReference.hpp"
 #include "parser/ParseStatement.hpp"
 #include "parser/ParseString.hpp"
+#include "parser/ParseStringKeyLiteralValues.hpp"
 #include "parser/ParseSubqueryExpression.hpp"
 #include "parser/ParseSubqueryTableReference.hpp"
 #include "parser/ParseTableReference.hpp"
@@ -112,6 +113,7 @@ typedef void* yyscan_t;
   quickstep::NumericParseLiteralValue *numeric_literal_value_;
   quickstep::ParseLiteralValue *literal_value_;
   quickstep::PtrList<quickstep::ParseScalarLiteral> *literal_value_list_;
+  quickstep::ParseStringKeyLiteralValues *string_key_literal_values_;
 
   quickstep::ParseExpression *expression_;
 

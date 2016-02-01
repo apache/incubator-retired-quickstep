@@ -57,6 +57,7 @@ class ParseSelectionItem;
 class ParseSelectionItemScalar;
 class ParseSelectionList;
 class ParseSimpleTableReference;
+class ParseStringKeyLiteralValues;
 class ParseStatement;
 class ParseStatementCopyFrom;
 class ParseStatementCreateTable;
