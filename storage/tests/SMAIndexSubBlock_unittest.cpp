@@ -263,19 +263,25 @@ class SMAIndexSubBlockTest : public ::testing::Test {
 const char SMAIndexSubBlockTest::kCharAttrNullValue[] = "_NULLSTRING";
 
 TEST_F(SMAIndexSubBlockTest, TestConstructor) {
-  vector<attribute_id> attrs;
-  attrs.push_back(0);
-  createIndex(attrs, kIndexSubBlockSize);
-
-  std::unique_ptr<ComparisonPredicate> pred(generateNumericComparisonPredicate<LongType>(ComparisonID::kEqual, 0, 0)); // attr0 == 0
-  std::unique_ptr<TupleIdSequence> match_sequence(index_->getMatchesForPredicate(*pred, nullptr));
-  
-  EXPECT_TRUE(match_sequence->numTuples() == 0);
+  createIndex({0, 2}, kIndexSubBlockSize); // Creates proper description.
+  memset(index_memory_.get(),0,kIndexSubBlockSize);
+  index_.reset(new SMAIndexSubBlock(*tuple_store_,
+                                    *index_description_,
+                                    true,
+                                    index_memory_.get(),
+                                    kIndexSubBlockSize));
+  EXPECT_TRUE(index_->requiresRebuild());
+  EXPECT_TRUE(index_->rebuild());
+  index_.reset(new SMAIndexSubBlock(*tuple_store_,
+                                    *index_description_,
+                                    false,
+                                    index_memory_.get(),
+                                    kIndexSubBlockSize));
+  EXPECT_FALSE(index_->requiresRebuild());
 }
 
 TEST_F(SMAIndexSubBlockTest, TestRebuild) {
-  vector<attribute_id> attrs({0, 2}); // Index long, float type.
-  createIndex(attrs, kIndexSubBlockSize);
+  createIndex({0, 2}, kIndexSubBlockSize);  // Index long, float type.
   int min = 0, max = 9010, step = 10;
   std::int64_t sum_0 = 0;
   double sum_2 = 0;
@@ -331,6 +337,30 @@ TEST_F(SMAIndexSubBlockTest, TestRebuild) {
 
   // Check count.
   EXPECT_EQ(max_id + 1, index_->getCount());
+}
+
+TEST_F(SMAIndexSubBlockTest, DescriptionIsValidTest) {
+  std::unique_ptr<IndexSubBlockDescription> index_description_;
+  vector<attribute_id> valid_attrs({0, 2, 3});
+  // Only descriptions with non-Null, non-variable length attributes should be valid.
+  for (const CatalogAttribute &attr : *relation_) {
+    index_description_.reset(
+        new IndexSubBlockDescription());
+    index_description_->set_sub_block_type(
+        IndexSubBlockDescription::SMA);
+    index_description_->AddExtension(
+        SMAIndexSubBlockDescription::indexed_attribute_id,
+        attr.getID());
+    if (std::find(valid_attrs.begin(), valid_attrs.end(), attr.getID()) != valid_attrs.end()) {
+      EXPECT_TRUE(SMAIndexSubBlock::DescriptionIsValid(
+        *relation_,
+        *index_description_));
+    } else {
+      EXPECT_FALSE(SMAIndexSubBlock::DescriptionIsValid(
+        *relation_,
+        *index_description_));
+    }    
+  }
 }
 
 }  // namespace quickstep

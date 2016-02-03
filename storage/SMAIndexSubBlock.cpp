@@ -242,14 +242,15 @@ void SMAIndexSubBlock::resetEntries() {
   }
 }
 
-bool SMAIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema & relation,
-                                          const IndexSubBlockDescription & description) {
+bool SMAIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema &relation,
+                                          const IndexSubBlockDescription &description) {
   if (!description.IsInitialized()) {
    return false;
   }
   if (description.sub_block_type() != IndexSubBlockDescription::SMA) {
    return false;
   }
+  // Must have at least one indexed attribute.
   if(description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id) == 0){
     return false;
   }
@@ -270,7 +271,7 @@ bool SMAIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema & relation
   return true;
 }
 
-bool SMAIndexSubBlock::bulkAddEntries(const TupleIdSequence & tuples) {
+bool SMAIndexSubBlock::bulkAddEntries(const TupleIdSequence &tuples) {
   header_->consistent_ = false;
   return true; // There will always be space for the entry.
 }
@@ -285,8 +286,8 @@ predicate_cost_t SMAIndexSubBlock::estimatePredicateEvaluationCost(
 }
 
 std::size_t SMAIndexSubBlock::EstimateBytesPerTuple(
-                                  const CatalogRelationSchema &relation,
-                                  const IndexSubBlockDescription &description) {
+    const CatalogRelationSchema &relation,
+    const IndexSubBlockDescription &description) {
   // TODO(marc): Returning 1 almost always gives too much space. An enhancement
   // would be to inform the storage subblock that this index uses space w.r.t. 
   // # of attributes being indexed, not tuples.
@@ -310,6 +311,7 @@ TupleIdSequence* SMAIndexSubBlock::getMatchesForPredicate(
 
 bool SMAIndexSubBlock::rebuild() {
   resetEntries();
+  header_->count_ = 0;
   if (tuple_store_.isPacked()) {
     for (tuple_id tid = 0; tid <= tuple_store_.getMaxTupleID(); ++tid) {
       addTuple(tid);
@@ -332,7 +334,8 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
     entry.sum_ = add_operators_[index].applyToTypedValues(entry.sum_, tuple_value);
 
     if (!entry.min_entry_.valid_) {
-      entry.min_entry_.value_ = tuple_value;
+      memcpy(&entry.min_entry_.value_, &tuple_value, sizeof(TypedValue));
+      //entry.min_entry_.value_ = tuple_value;
       entry.min_entry_.tuple_ = tuple;
       entry.min_entry_.valid_ = true;
     } else {
@@ -343,7 +346,8 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
     }
 
     if (!entry.max_entry_.valid_) {
-      entry.max_entry_.value_ = tuple_value;
+      memcpy(&entry.max_entry_.value_, &tuple_value, sizeof(TypedValue));
+      //entry.max_entry_.value_ = tuple_value;
       entry.max_entry_.tuple_ = tuple;
       entry.max_entry_.valid_ = true;
     } else {
@@ -357,7 +361,7 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
 }
 
 bool SMAIndexSubBlock::requiresRebuild() const {
-  return true;
+  return !header_->consistent_;
 }
 
 }  // namespace quickstep
