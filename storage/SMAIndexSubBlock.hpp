@@ -48,6 +48,15 @@ QUICKSTEP_DECLARE_SUB_BLOCK_TYPE_REGISTERED(SMAIndexSubBlock);
 
 namespace sma_internal {
 
+// A 64-bit header.
+struct SMAHeader {
+  std::uint32_t count_;
+  union {
+    bool consistent_;
+    std::uint32_t buffer_;
+  };
+};
+
 struct EntryReference {
   tuple_id tuple_;
   TypedValue value_;
@@ -222,12 +231,12 @@ class SMAIndexSubBlock : public IndexSubBlock {
   bool hasEntryForAttribute(attribute_id attribute) const;
 
   /**
-   * @brief Returns the number of tuples, the aggregate COUNT, of the storage SubBlock.
+   * @brief Returns the number of tuples, the aggregate COUNT, of the storage sub block.
    * 
-   * @return Number of tuples in the SubBlock
+   * @return Number of tuples in the sub block.
    */
   std::uint32_t getCount() const {
-    return *reinterpret_cast<std::uint32_t*>(sub_block_memory_);
+    return reinterpret_cast<sma_internal::SMAHeader*>(sub_block_memory_)->count_;
   }
 
  private:
@@ -245,15 +254,17 @@ class SMAIndexSubBlock : public IndexSubBlock {
     return (entries_ + attribute_to_entry_.at(attribute));
   }
 
-  void initializeEntry(sma_internal::SMAEntry *entry,
-                       bool new_block,
-                       attribute_id attribute,
-                       const Type &attribute_type);
+  void resetEntry(sma_internal::SMAEntry *entry, attribute_id attribute, const Type &attribute_type);
 
+  void resetEntries();
+
+  void addTuple(tuple_id tuple);
+
+  sma_internal::SMAHeader *header_;
+  sma_internal::SMAEntry *entries_;
   std::unordered_map<attribute_id, int> attribute_to_entry_;
-  sma_internal::SMAEntry *entries_; // Region of storage memory for entries.
+  int indexed_attributes_;
   bool initialized_;
-  bool requires_rebuild_;
   PtrVector<UncheckedBinaryOperator> sub_operators_;
   PtrVector<UncheckedBinaryOperator> add_operators_;
   PtrVector<UncheckedComparator> less_comparisons_;

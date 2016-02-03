@@ -74,15 +74,11 @@ QUICKSTEP_REGISTER_INDEX(SMAIndexSubBlock, SMA);
 
 typedef sma_internal::EntryReference EntryReference;
 //typedef sma_internal::SMAPredicate SMAPredicate;
+typedef sma_internal::SMAHeader SMAHeader;
 typedef sma_internal::SMAEntry SMAEntry;
 
 namespace sma_internal {
 
-/**
- * @return A caller-mananged TypedValue for sum aggregation. Promotes types to a 
- *         higher precision type. For example int->int64. Returns nullptr if the
- *         given type cannot be used for summation. For example, Char.
- */
 void setTypedValueForSum(SMAEntry *entry) {
   TypedValue *value = &(entry->sum_);
   switch (entry->type_) {
@@ -112,6 +108,45 @@ void setTypedValueForSum(SMAEntry *entry) {
   }
 }
 
+void setTypedValueForMinMax(SMAEntry *entry) {
+  TypedValue *min = &(entry->min_entry_.value_);
+  TypedValue *max = &(entry->max_entry_.value_);
+  switch (entry->type_) {
+    case kInt:
+      new (min) TypedValue(static_cast<int>(0));
+      new (max) TypedValue(static_cast<int>(0));
+      return;
+    case kLong:
+      new (min) TypedValue(static_cast<std::int64_t>(0));
+      new (min) TypedValue(static_cast<std::int64_t>(0));
+      return;
+    case kFloat:
+      new (min) TypedValue(static_cast<float>(0));
+      new (max) TypedValue(static_cast<float>(0));
+    case kDouble:
+      new (min) TypedValue(static_cast<double>(0.0));
+      new (max) TypedValue(static_cast<double>(0.0));
+      return;
+    case kDatetimeInterval: {
+      DatetimeIntervalLit zero;
+      zero.interval_ticks = 0;
+      new (min) TypedValue(zero);
+      new (max) TypedValue(zero);
+      return;
+    }
+    case kYearMonthInterval: {
+      YearMonthIntervalLit zero;
+      zero.months = 0;
+      new (min) TypedValue(zero);
+      new (max) TypedValue(zero);
+      return;
+    }
+    default: {
+      CHECK(false) << "SMA Index was created on an unindexable type.";
+    }
+  }
+}
+
 } // namespace sma_internal
 
 
@@ -125,9 +160,10 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
                     new_block,
                     sub_block_memory,
                     sub_block_memory_size),
+      header_(nullptr),
       entries_(nullptr),
+      indexed_attributes_(0),
       initialized_(false),
-      requires_rebuild_(true),
       sub_operators_(),
       add_operators_(),
       less_comparisons_(),
@@ -135,26 +171,25 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
   CHECK(DescriptionIsValid(relation_, description_))
       << "Attempted to construct an SMAIndexSubBlock from an invalid description.";
 
-  int num_indexed_attributes = description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id);
+  indexed_attributes_ = description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id);
 
-  CHECK((sizeof(std::uint32_t) + (num_indexed_attributes * sizeof(SMAEntry))) <= sub_block_memory_size_)
+  CHECK((sizeof(sma_internal::SMAHeader) + (indexed_attributes_ * sizeof(SMAEntry))) <= sub_block_memory_size_)
       << "Attempted to create SMAIndexSubBlock without enough space allocated.";
 
-  // The first entry is after the entry for count.
-  entries_ = reinterpret_cast<SMAEntry*>((char*)sub_block_memory_ + sizeof(std::uint32_t));
+  header_ = reinterpret_cast<SMAHeader*>(sub_block_memory_);
+  entries_ = reinterpret_cast<SMAEntry*>(header_ + 1);
 
   // Iterate through each attribute which is being indexed.
   for (int indexed_attribute_num = 0;
-       indexed_attribute_num < num_indexed_attributes;
+       indexed_attribute_num < indexed_attributes_;
        ++indexed_attribute_num) {
     const attribute_id attribute = description_.GetExtension(
         SMAIndexSubBlockDescription::indexed_attribute_id,
         indexed_attribute_num);
 
     const Type &attribute_type = tuple_store_.getRelation().getAttributeById(attribute)->getType();
-
     SMAEntry *entry = entries_ + indexed_attribute_num;
-    initializeEntry(entry, new_block, attribute, attribute_type);
+    resetEntry(entry, attribute, attribute_type);
 
     // Initialize the operators.
     // TODO(marc): Attributes that share the same type can share operators. Making
@@ -176,18 +211,34 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
     // Map the attribute's id to its entry's index.
     attribute_to_entry_.insert({attribute, indexed_attribute_num});
   }
+
+  if (new_block) {
+    header_->consistent_ = false;
+  }
 }
 
-void SMAIndexSubBlock::initializeEntry(SMAEntry *entry,
-                                       bool new_block,
-                                       attribute_id attribute,
-                                       const Type &attribute_type) {
-  if (new_block) {
-    entry->attribute_ = attribute;
-    entry->type_ = attribute_type.getTypeID();
-    entry->min_entry_.valid_ = false;
-    entry->max_entry_.valid_ = false;
-    sma_internal::setTypedValueForSum(entry);
+void SMAIndexSubBlock::resetEntry(SMAEntry *entry,
+                                  attribute_id attribute,
+                                  const Type &attribute_type) {
+  entry->attribute_ = attribute;
+  entry->type_ = attribute_type.getTypeID();
+  entry->min_entry_.valid_ = false;
+  entry->max_entry_.valid_ = false;
+  setTypedValueForMinMax(entry);
+  sma_internal::setTypedValueForSum(entry);
+}
+
+void SMAIndexSubBlock::resetEntries() {
+  for (int indexed_attribute_num = 0;
+       indexed_attribute_num < indexed_attributes_;
+       ++indexed_attribute_num) {
+    const attribute_id attribute = description_.GetExtension(
+        SMAIndexSubBlockDescription::indexed_attribute_id,
+        indexed_attribute_num);
+
+    const Type &attribute_type = tuple_store_.getRelation().getAttributeById(attribute)->getType();
+
+    resetEntry(entries_ + indexed_attribute_num, attribute, attribute_type);
   }
 }
 
@@ -220,10 +271,13 @@ bool SMAIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema & relation
 }
 
 bool SMAIndexSubBlock::bulkAddEntries(const TupleIdSequence & tuples) {
-  return true;
+  header_->consistent_ = false;
+  return true; // There will always be space for the entry.
 }
 
-void SMAIndexSubBlock::bulkRemoveEntries(const TupleIdSequence &tuples) { }
+void SMAIndexSubBlock::bulkRemoveEntries(const TupleIdSequence &tuples) {
+  header_->consistent_ = false;
+}
 
 predicate_cost_t SMAIndexSubBlock::estimatePredicateEvaluationCost(
     const ComparisonPredicate &predicate) const {
@@ -240,10 +294,13 @@ std::size_t SMAIndexSubBlock::EstimateBytesPerTuple(
 }
 
 bool SMAIndexSubBlock::addEntry(const tuple_id tuple) {
-  return true;
+  header_->consistent_ = false;
+  return true; // There will always be space to insert the entry.
 }
 
-void SMAIndexSubBlock::removeEntry(const tuple_id tuple) { }
+void SMAIndexSubBlock::removeEntry(const tuple_id tuple) {
+  header_->consistent_ = false;
+}
 
 TupleIdSequence* SMAIndexSubBlock::getMatchesForPredicate(
     const ComparisonPredicate &predicate,
@@ -252,7 +309,51 @@ TupleIdSequence* SMAIndexSubBlock::getMatchesForPredicate(
 }
 
 bool SMAIndexSubBlock::rebuild() {
+  resetEntries();
+  if (tuple_store_.isPacked()) {
+    for (tuple_id tid = 0; tid <= tuple_store_.getMaxTupleID(); ++tid) {
+      addTuple(tid);
+    }
+  } else {
+    for (tuple_id tid = 0; tid <= tuple_store_.getMaxTupleID(); ++tid) {
+      if (tuple_store_.hasTupleWithID(tid)) {
+        addTuple(tid);
+      }
+    }
+  }
+  header_->consistent_ = true;
   return true;
+}
+
+void SMAIndexSubBlock::addTuple(tuple_id tuple) {
+  for (int index = 0; index < indexed_attributes_; ++index) {
+    SMAEntry &entry = entries_[index];
+    TypedValue tuple_value = tuple_store_.getAttributeValueTyped(tuple, entry.attribute_);
+    entry.sum_ = add_operators_[index].applyToTypedValues(entry.sum_, tuple_value);
+
+    if (!entry.min_entry_.valid_) {
+      entry.min_entry_.value_ = tuple_value;
+      entry.min_entry_.tuple_ = tuple;
+      entry.min_entry_.valid_ = true;
+    } else {
+      if (less_comparisons_[index].compareTypedValues(tuple_value, entry.min_entry_.value_)) {
+        entry.min_entry_.value_ = tuple_value;
+        entry.min_entry_.tuple_ = tuple;
+      }
+    }
+
+    if (!entry.max_entry_.valid_) {
+      entry.max_entry_.value_ = tuple_value;
+      entry.max_entry_.tuple_ = tuple;
+      entry.max_entry_.valid_ = true;
+    } else {
+      if (less_comparisons_[index].compareTypedValues(entry.max_entry_.value_, tuple_value)) {
+        entry.max_entry_.value_ = tuple_value;
+        entry.max_entry_.tuple_ = tuple;
+      }
+    }
+  }
+  header_->count_++;
 }
 
 bool SMAIndexSubBlock::requiresRebuild() const {

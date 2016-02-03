@@ -313,15 +313,15 @@ TEST_F(SMAIndexSubBlockTest, TestRebuild) {
   EXPECT_TRUE(longs_equal(entry0->min_entry_.value_,
                           tuple_store_->getAttributeValueTyped(0, 0)));
 
-  EXPECT_TRUE(longs_equal(entry2->min_entry_.value_,
-                          tuple_store_->getAttributeValueTyped(0, 2)));
+  EXPECT_TRUE(floats_equal(entry2->min_entry_.value_,
+                           tuple_store_->getAttributeValueTyped(0, 2)));
 
   // Check max ids and values.
   tuple_id max_id = (max - min)/step;
   EXPECT_EQ(max_id, entry0->max_entry_.tuple_);
   EXPECT_EQ(max_id, entry2->max_entry_.tuple_);
-  EXPECT_TRUE(floats_equal(entry0->max_entry_.value_,
-                           tuple_store_->getAttributeValueTyped(max_id, 0)));
+  EXPECT_TRUE(longs_equal(entry0->max_entry_.value_,
+                          tuple_store_->getAttributeValueTyped(max_id, 0)));
   EXPECT_TRUE(floats_equal(entry2->max_entry_.value_,
                            tuple_store_->getAttributeValueTyped(max_id, 2)));
 
