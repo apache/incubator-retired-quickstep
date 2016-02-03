@@ -71,9 +71,9 @@ using std::vector;
 
 namespace quickstep {
 
-typedef smaindex_internal::EntryReference EntryReference;
-typedef smaindex_internal::SMAEntry SMAEntry;
-typedef smaindex_internal::SMAPredicate SMAPredicate;
+typedef sma_internal::EntryReference EntryReference;
+typedef sma_internal::SMAEntry SMAEntry;
+// typedef sma_internal::SMAPredicate SMAPredicate;
 
 class SMAIndexSubBlockTest : public ::testing::Test {
  protected:
@@ -131,48 +131,20 @@ class SMAIndexSubBlockTest : public ::testing::Test {
     index_.reset();
   }
 
-
-
   void createIndex(const vector<attribute_id> &indexed_attrs, const size_t index_memory_size){
     // Make the IndexSubBlockDescription.
     index_description_.reset(new IndexSubBlockDescription());
     index_description_->set_sub_block_type(IndexSubBlockDescription::SMA);
-    for(int i = 0; i < indexed_attrs.size(); ++i){
+    for (int i = 0; i < indexed_attrs.size(); ++i) {
       index_description_->AddExtension(SMAIndexSubBlockDescription::indexed_attribute_id,
-                                        indexed_attrs[i]);
+                                       indexed_attrs[i]);
     }
-
     index_memory_.reset(index_memory_size);
     index_.reset(new SMAIndexSubBlock(*tuple_store_,
                                       *index_description_,
                                       true,
                                       index_memory_.get(),
                                       index_memory_size));
-  }
-
-  Tuple* createTuple() const {
-    return new Tuple(*relation_);
-  }
-
-  static void AppendValueToTuple(Tuple *tuple, const TypedValue &value) {
-    tuple->append(value);
-  }
-
-  // we must make accessors for each private member of the index we wish to
-  // access in the test because TEST_F creates a subclass which is no longer
-  // friends with the index
-  SMAEntry* getEntryForAttribute(attribute_id a_id) const {
-    return const_cast<SMAEntry*>(index_->getEntry(a_id));
-  }
-
-  // private method accessor
-  SMAPredicate* callSolvePredicate(const ComparisonPredicate &predicate) {
-    return index_->solvePredicate(predicate);
-  }
-
-  // private variable accessor
-  bool getRequiresRebuild() const {
-    return index_->requiresRebuild();
   }
 
   // Insert a tuple with the specified attribute values into tuple_store_.
@@ -183,42 +155,49 @@ class SMAIndexSubBlockTest : public ::testing::Test {
                                    const string &nullable_char_val,
                                    const string &big_char_val,
                                    const string &varchar_val) {
-    std::unique_ptr<Tuple> new_tuple(new Tuple(*relation_));
+    std::vector<TypedValue> attrs;
 
-    new_tuple->append(LongType::InstanceNonNullable().makeValue(&long_val));
+    attrs.emplace_back(LongType::InstanceNonNullable().makeValue(&long_val));
 
     if (nullable_long_val == kLongAttrNullValue) {
-      new_tuple->append(LongType::InstanceNullable().makeNullValue());
+      attrs.emplace_back(LongType::InstanceNullable().makeNullValue());
     } else {
-      new_tuple->append(LongType::InstanceNullable().makeValue(&nullable_long_val));
+      attrs.emplace_back(LongType::InstanceNullable().makeValue(&nullable_long_val));
     }
 
-    new_tuple->append(FloatType::InstanceNonNullable().makeValue(&float_val));
+    attrs.emplace_back(FloatType::InstanceNonNullable().makeValue(&float_val));
 
-    new_tuple->append(CharType::InstanceNonNullable(4).makeValue(
+    attrs.emplace_back(CharType::InstanceNonNullable(4).makeValue(
         char_val.c_str(),
         char_val.size() >= 4 ? 4 : char_val.size() + 1).ensureNotReference());
 
     if (nullable_char_val == kCharAttrNullValue) {
-      new_tuple->append(CharType::InstanceNullable(4).makeNullValue());
+      attrs.emplace_back(CharType::InstanceNullable(4).makeNullValue());
     } else {
-      new_tuple->append(CharType::InstanceNonNullable(4).makeValue(
+      attrs.emplace_back(CharType::InstanceNonNullable(4).makeValue(
           nullable_char_val.c_str(),
           nullable_char_val.size() >= 4 ? 4 : nullable_char_val.size() + 1).ensureNotReference());
     }
 
-    new_tuple->append(CharType::InstanceNonNullable(80).makeValue(
+    attrs.emplace_back(CharType::InstanceNonNullable(80).makeValue(
         big_char_val.c_str(),
         big_char_val.size() >= 80 ? 80 : big_char_val.size() + 1).ensureNotReference());
 
-    new_tuple->append(VarCharType::InstanceNonNullable(varchar_val.size()).makeValue(
-        varchar_val.c_str(),
-        varchar_val.size() + 1)
-            // Sometimes we test with strings bigger than 8 chars, so coerce.
-            .coerceInPlace(VarCharType::InstanceNonNullable(8).getSignature())
-            .ensureNotReference());
+    TypedValue varchar_typed_value
+        = VarCharType::InstanceNonNullable(varchar_val.size()).makeValue(
+            varchar_val.c_str(),
+            varchar_val.size() + 1);
+    // Test strings are sometimes longer than 8 characters, so truncate if
+    // needed.
+    varchar_typed_value = VarCharType::InstanceNonNullable(8).coerceValue(
+        varchar_typed_value,
+        VarCharType::InstanceNonNullable(varchar_val.size()));
+    varchar_typed_value.ensureNotReference();
+    attrs.emplace_back(std::move(varchar_typed_value));
 
-    return tuple_store_->addTupleMock(new_tuple.release());
+    // MockTupleStorageSubBlock takes ownership of new tuple passed in with
+    // addTupleMock() method.
+    return tuple_store_->addTupleMock(new Tuple(std::move(attrs)));
   }
 
   // Generate a sample tuple based on 'base_value' and insert in into
@@ -262,8 +241,8 @@ class SMAIndexSubBlockTest : public ::testing::Test {
       const typename AttributeType::cpptype literal) {
     ScalarAttribute *scalar_attribute = new ScalarAttribute(*relation_->getAttributeById(attribute));
     ScalarLiteral *scalar_literal
-        = new ScalarLiteral(AttributeType::InstanceNonNullable().makeValue(&literal));
-
+        = new ScalarLiteral(AttributeType::InstanceNonNullable().makeValue(&literal),
+                            AttributeType::InstanceNonNullable());
     return new ComparisonPredicate(ComparisonFactory::GetComparison(comp), scalar_attribute, scalar_literal);
   }
 
@@ -285,438 +264,7 @@ TEST_F(SMAIndexSubBlockTest, TestConstructor) {
   std::unique_ptr<ComparisonPredicate> pred(generateNumericComparisonPredicate<LongType>(ComparisonID::kEqual, 0, 0)); // attr0 == 0
   std::unique_ptr<TupleIdSequence> match_sequence(index_->getMatchesForPredicate(*pred, nullptr));
   
-  EXPECT_TRUE(match_sequence->numTuples() == 0); // no matches
+  EXPECT_TRUE(match_sequence->numTuples() == 0);
 }
 
-TEST_F(SMAIndexSubBlockTest, TestRebuild) {
-  vector<attribute_id> attrs;
-  attrs.push_back(0); // long
-  attrs.push_back(2); // float
-  createIndex(attrs, kIndexSubBlockSize);
-  int f_id = -1, l_id = -1; // first, last ids
-  int min = 0, max = 9010, step = 10;
-  for(unsigned i = min; i <= max; i+=step){
-    if(i == 0){
-      f_id = generateAndInsertTuple(i, false, "suffix");
-    } else if( i == max){
-      l_id = generateAndInsertTuple(i, false, "suffix");
-    } else {
-      generateAndInsertTuple(i, false, "suffix");
-    }
-  }
-  index_->rebuild();
-  SMAEntry* attr0Entry = getEntryForAttribute(0);
-  SMAEntry* attr2Entry = getEntryForAttribute(2);
-  EXPECT_EQ(f_id, attr0Entry->getMinEntryReference().getTupleID());
-  EXPECT_EQ(l_id, attr0Entry->getMaxEntryReference().getTupleID());
-  EXPECT_EQ(f_id, attr2Entry->getMinEntryReference().getTupleID());
-  EXPECT_EQ(l_id, attr2Entry->getMaxEntryReference().getTupleID());
-  // make the tuple store unpacked
-  tuple_store_->deleteTuple(1);
-  tuple_store_->deleteTuple(2);
-  index_->rebuild();
-  EXPECT_EQ(f_id, attr0Entry->getMinEntryReference().getTupleID());
-  EXPECT_EQ(l_id, attr0Entry->getMaxEntryReference().getTupleID());
-  EXPECT_EQ(f_id, attr2Entry->getMinEntryReference().getTupleID());
-  EXPECT_EQ(l_id, attr2Entry->getMaxEntryReference().getTupleID());
-  // bulk remove
-  std::unique_ptr<TupleIdSequence> tid_seq(new TupleIdSequence(tuple_store_->getMaxTupleID()));
-  tid_seq->set(10, true);
-  tid_seq->set(20, true);
-  tid_seq->set(30, true);
-  index_->bulkRemoveEntries(*(tid_seq.get()));
-  tuple_store_->bulkDeleteTuples(tid_seq.get());
-  EXPECT_EQ(true, getRequiresRebuild());
-  index_->removeEntry(l_id);
-  tuple_store_->deleteTuple(l_id);
-  EXPECT_EQ(true, getRequiresRebuild());
-  l_id -= 1;
-  index_->rebuild(); // since requires a rebuild, we rebuild
-  EXPECT_EQ(l_id, attr0Entry->getMaxEntryReference().getTupleID());
-  EXPECT_EQ(false, getRequiresRebuild());
-}
-
-TEST_F(SMAIndexSubBlockTest, TestExtractComparison) {
-  const int indexed_attr = 0;
-  vector<attribute_id> attrs;
-  attrs.push_back(indexed_attr);
-  createIndex(attrs, kIndexSubBlockSize);
-  std::unique_ptr<ComparisonPredicate> pred(
-      generateNumericComparisonPredicate<LongType>( ComparisonID::kEqual,
-                                                    indexed_attr, 0));
-  std::unique_ptr<SMAPredicate> smapredicate(callSolvePredicate(*pred));
-
-  EXPECT_EQ(relation_->getAttributeById(0)->getType().getTypeID(),
-              smapredicate->attribute_.getType().getTypeID());
-
-  EXPECT_EQ(ComparisonID::kEqual, smapredicate->comparisonid_);
-
-  EXPECT_EQ(0, smapredicate->literal_.getLiteral<std::int64_t>());
-}
-
-TEST_F(SMAIndexSubBlockTest, TestGetSelectivity) {
-  vector<attribute_id> attrs;
-  attrs.push_back(0); // long
-  attrs.push_back(2); // float
-  createIndex(attrs, kIndexSubBlockSize);
-  int f_id = -1, l_id = -1;  // first/last id
-  int min = 0, max = 9010, step = 10;
-  for(unsigned i = min; i <= max; i+=step){
-    if(i == min){
-      f_id = generateAndInsertTuple(i, false, "suffix");
-    } else if( i == max){
-      l_id = generateAndInsertTuple(i, false, "suffix");
-    } else {
-      generateAndInsertTuple(i, false, "suffix");
-    }
-  }
-  index_->rebuild();
-
-  /// test EQUALS
-  std::unique_ptr<ComparisonPredicate> pred;
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kEqual,
-                                                          *(attrs.begin()),
-                                                          min - 10));
-  std::unique_ptr<SMAPredicate> smapredicate(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kNone, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kEqual,
-                                                          *(attrs.begin()),
-                                                          max + 10));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kNone, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kEqual,
-                                                            *(attrs.begin()),
-                                                            max - ((max-min) / 2)));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kUnknown, smapredicate->selectivity_);
-
-  /// test LESS THAN
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kLess,
-                                                          *(attrs.begin()),
-                                                          min - 10));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kNone, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kLess,
-                                                          *(attrs.begin()),
-                                                          max + 10));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kAll, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kLess,
-                                                            *(attrs.begin()),
-                                                            max - ((max-min) / 2)));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kUnknown, smapredicate->selectivity_);
-
-  /// test LESS OR EQUAL
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kLessOrEqual,
-                                                           *(attrs.begin()),
-                                                           min));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kUnknown, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kLessOrEqual,
-                                                          *(attrs.begin()),
-                                                          max));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kAll, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kLessOrEqual,
-                                                            *(attrs.begin()),
-                                                            max - ((max-min) / 2)));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kUnknown, smapredicate->selectivity_);
-
-  /// test GREATER THAN
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kGreater,
-                                                          *(attrs.begin()),
-                                                          min - 10));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kAll, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kGreater,
-                                                          *(attrs.begin()),
-                                                          max + 10));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kNone, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kGreater,
-                                                            *(attrs.begin()),
-                                                            max - ((max-min) / 2)));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kUnknown, smapredicate->selectivity_);
-
-  // test GREATER OR EQUAL
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kGreaterOrEqual,
-                                                           *(attrs.begin()),
-                                                           min));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kAll, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kGreaterOrEqual,
-                                                          *(attrs.begin()),
-                                                          max));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kUnknown, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kGreaterOrEqual,
-                                                            *(attrs.begin()),
-                                                            max - ((max-min) / 2)));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kUnknown, smapredicate->selectivity_);
-}
-
-// Test special functionality with a CompressedTupleStorageSubBlock and
-// truncation-compressed key.
-TEST_F(SMAIndexSubBlockTest, TruncatedCompressedKeyTest) {
-  // Create a relation with just a single attribute, which will be compressed.
-  relation_.reset(new CatalogRelation(NULL, "TestRelation"));
-  CatalogAttribute *truncated_long_attr = new CatalogAttribute(relation_.get(),
-                                                               "truncated_long_attr",
-                                                               TypeFactory::GetType(kLong, false));
-  ASSERT_EQ(0, relation_->addAttribute(truncated_long_attr));
-
-  // Create a CompressedPackedRowStoreTupleStorageSubBlock.
-  TupleStorageSubBlockDescription compressed_tuple_store_description;
-  compressed_tuple_store_description.set_sub_block_type(
-      TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE);
-  compressed_tuple_store_description.AddExtension(
-      CompressedPackedRowStoreTupleStorageSubBlockDescription::compressed_attribute_id,
-      0);
-
-  ScopedBuffer compressed_tuple_store_memory(kIndexSubBlockSize);
-  std::unique_ptr<CompressedPackedRowStoreTupleStorageSubBlock> compressed_tuple_store;
-  compressed_tuple_store.reset(new CompressedPackedRowStoreTupleStorageSubBlock(
-      *relation_,
-      compressed_tuple_store_description,
-      true,
-      compressed_tuple_store_memory.get(),
-      kIndexSubBlockSize));
-
-  // Create an index on the compressed tuple store.
-  IndexSubBlockDescription compressed_index_description;
-  compressed_index_description.set_sub_block_type(IndexSubBlockDescription::SMA);
-  compressed_index_description.AddExtension(SMAIndexSubBlockDescription::indexed_attribute_id, 0);
-
-  index_memory_.reset(kIndexSubBlockSize);
-  index_.reset(new SMAIndexSubBlock(*compressed_tuple_store,
-                                        compressed_index_description,
-                                        true,
-                                        index_memory_.get(),
-                                        kIndexSubBlockSize));
-
-  // Bulk-load some tuples into the compressed tuple store.
-  int min = 0, max = 9010, step = 10;
-  for(unsigned i = min; i <= max; i+=step){
-    std::unique_ptr<Tuple> tuple(createTuple());
-    int64_t value_buf = i;
-    AppendValueToTuple(tuple.get(),
-                         LongType::InstanceNonNullable().makeValue(&value_buf));
-    ASSERT_TRUE(compressed_tuple_store->insertTupleInBatch(*tuple, kNone));
-  }
-
-
-  // Build the tuple-store.
-  compressed_tuple_store->rebuild();
-  EXPECT_FALSE(compressed_tuple_store->compressedAttributeIsDictionaryCompressed(0));
-  EXPECT_TRUE(compressed_tuple_store->compressedAttributeIsTruncationCompressed(0));
-  EXPECT_EQ(2u, compressed_tuple_store->compressedGetCompressedAttributeSize(0));
-
-  // Build the index.
-  ASSERT_TRUE(index_->rebuild());
-  // test equals
-  std::unique_ptr<ComparisonPredicate> pred;
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kEqual,
-                                                          0,
-                                                          min - 10));
-  std::unique_ptr<SMAPredicate> smapredicate(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kNone, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kEqual,
-                                                          0,
-                                                          max + 10));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kNone, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kEqual,
-                                                            0,
-                                                            max - ((max-min) / 2)));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kUnknown, smapredicate->selectivity_);
-
-  // test less than
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kLess,
-                                                          0,
-                                                          min - 10));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kNone, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kLess,
-                                                          0,
-                                                          max + 10));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kAll, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kLess,
-                                                            0,
-                                                            max - ((max-min) / 2)));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kUnknown, smapredicate->selectivity_);
-
-  // test less or equal
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kLessOrEqual,
-                                                           0,
-                                                           min));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kUnknown, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kLessOrEqual,
-                                                          0,
-                                                          max));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kAll, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kLessOrEqual,
-                                                            0,
-                                                            max - ((max-min) / 2)));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kUnknown, smapredicate->selectivity_);
-
-  // test greater than
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kGreater,
-                                                          0,
-                                                          min - 10));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kAll, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kGreater,
-                                                          0,
-                                                          max + 10));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kNone, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kGreater,
-                                                            0,
-                                                            max - ((max-min) / 2)));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kUnknown, smapredicate->selectivity_);
-
-  // test greater or equal
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kGreaterOrEqual,
-                                                           0,
-                                                           min));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kAll, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kGreaterOrEqual,
-                                                          0,
-                                                          max));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kUnknown, smapredicate->selectivity_);
-
-  pred.reset(generateNumericComparisonPredicate<LongType>( ComparisonID::kGreaterOrEqual,
-                                                            0,
-                                                            max - ((max-min) / 2)));
-  smapredicate.reset(callSolvePredicate(*pred));
-  EXPECT_EQ(SMAPredicate::Selectivity::kUnknown, smapredicate->selectivity_);
-}
-
-TEST_F(SMAIndexSubBlockTest, TestCount) {
-  vector<attribute_id> attrs;
-  attrs.push_back(0); // long
-  attrs.push_back(2); // float
-  createIndex(attrs, kIndexSubBlockSize);
-  int min = 0, max = 10000, step = 10;
-  unsigned realcount = 0;
-  for(unsigned i = min; i <= max; i+=step){
-    generateAndInsertTuple(i, false, "suffix");
-    realcount++;
-  }
-  index_->rebuild();
-  EXPECT_EQ(realcount, index_->getCount());
-  for(unsigned i = 0; i < 10; i++){
-    tuple_id added = generateAndInsertTuple(301 + i, false, "suffix");
-    index_->addEntry(added);
-    realcount++;
-  }
-  EXPECT_EQ(false, index_->requiresRebuild());
-  EXPECT_EQ(realcount, index_->getCount());
-  for(tuple_id i = 30; i < 50; i++){
-    index_->removeEntry(i);
-    tuple_store_->deleteTuple(i);
-    realcount--;
-  }
-  EXPECT_EQ(false, index_->requiresRebuild());
-  EXPECT_EQ(realcount, index_->getCount());
-}
-
-TEST_F(SMAIndexSubBlockTest, TestSum) {
-  vector<attribute_id> attrs;
-  attrs.push_back(0); // long
-  attrs.push_back(1); // nullable long
-  attrs.push_back(2); // float
-  createIndex(attrs, kIndexSubBlockSize);
-  int min = 0, max = 10000, step = 10;
-  int count = 0;
-  long sum0 = 0; // sum of attr0
-  long sum1 = 0; 
-  double sum2 = 0.0;
-  for(unsigned i = min; i < max; i+=step){
-    if(i % 2){
-      generateAndInsertTuple(i, true, "suffix");
-    } else {
-      generateAndInsertTuple(i, false, "suffix");
-      sum1 += i;
-    }
-    sum0 += i;
-    sum2 += ((double)i)* 0.25;
-    count++;
-  }
-  index_->rebuild();
-  long sma_sum0 = index_->getEntry(0)->getSum().getLiteral<long>();
-  long sma_sum1 = index_->getEntry(1)->getSum().getLiteral<long>();
-  double sma_sum2 = index_->getEntry(2)->getSum().getLiteral<double>();
-  EXPECT_EQ(sum0, sma_sum0);
-  EXPECT_EQ(sum1, sma_sum1);
-  EXPECT_EQ(sum2, sma_sum2);
-
-  // add some more values an do not call rebuild
-  long after_add0 = sum0;
-  long after_add1 = sum1;
-  double after_add2 = sum2;
-  vector<tuple_id> added_ids;
-  for(unsigned i = max; i < max + 10000; i++) {
-    tuple_id added = 0;
-    if(i % 2){
-      added = generateAndInsertTuple(i, true, "suffix");
-    } else {
-      added = generateAndInsertTuple(i, false, "suffix");
-      after_add1 += i;
-    }
-    after_add0 += i;
-    after_add2 += ((double)i)* 0.25;
-    index_->addEntry(added);
-    added_ids.push_back(added);
-    count++;
-  }
-
-  EXPECT_EQ(after_add0, index_->getEntry(0)->getSum().getLiteral<long>());
-  EXPECT_EQ(after_add1, index_->getEntry(1)->getSum().getLiteral<long>());
-  EXPECT_EQ(after_add2, index_->getEntry(2)->getSum().getLiteral<double>());
-
-  // remove the added values
-  for(tuple_id tid : added_ids){
-    index_->removeEntry(tid);
-    count--;
-  }
-  EXPECT_EQ(sum0, index_->getEntry(0)->getSum().getLiteral<long>());
-  EXPECT_EQ(sum1, index_->getEntry(1)->getSum().getLiteral<long>());
-  EXPECT_EQ(sum2, index_->getEntry(2)->getSum().getLiteral<double>());
-  EXPECT_EQ(count, index_->getCount());
-}
-
-
-}
+}  // namespace quickstep

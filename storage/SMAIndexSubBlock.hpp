@@ -19,9 +19,9 @@
 
 #include <cstddef>
 #include <exception>
-#include <vector>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "catalog/CatalogAttribute.hpp"
 #include "expressions/aggregation/AggregationHandleSum.hpp"
@@ -38,7 +38,7 @@
 #include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
 
-using std::string; 
+#include "glog/logging.h"
 
 namespace quickstep {
 
@@ -46,187 +46,23 @@ class SMAIndexSubBlock;
 
 QUICKSTEP_DECLARE_SUB_BLOCK_TYPE_REGISTERED(SMAIndexSubBlock);
 
-namespace smaindex_internal {
+namespace sma_internal {
 
-/**
- * @brief A simple holding struct for a comparison predicate.
- * @details The selectivity enum indicates if the SMA has been used to solve the
- *          predicate and if so, what is the selectivity over the block.
- */
-struct SMAPredicate {
-  /**
-   * @brief Describes how many tuples a predicate will select from a storage block. 
-   */
-  enum class Selectivity {
-    kAll,
-    kSome,
-    kNone,
-    kUnknown,
-    kUnsolved
-  };
-
-  /**
-   * @brief Constructor.
-   *
-   * @param attribute Catalog attribute to be compared on the left.
-   * @param comparisonid A Comparison Id.
-   * @param literal A literal typed value for the right side of the comparison.
-   */
-  SMAPredicate(const CatalogAttribute& attribute,
-               const ComparisonID comparisonid,
-               const TypedValue literal) 
-                   : attribute_(attribute),
-                     comparisonid_(comparisonid),
-                     literal_(literal),
-                     selectivity_(kUnsolved) { };
-
-  /**
-   * @brief Extracts a comparison predicate into an SMAPredicate.
-   *
-   * @param predicate A comparison of the form {attribute} {comparison} {literal} or
-   *        {literal} {comparison} {attribute}
-   * @return An SMAPredicate which the caller must manage.
-   */
-  static SMAPredicate* Create(const ComparisonPredicate& predicate);
-
-  const CatalogAttribute& attribute_;
-  const ComparisonID comparisonid_;
-  const TypedValue literal_;
-  Selectivity selectivity_;
-};
-
-/**
- * @brief Refers to a specific entry (tuple's attribute value). Used for min, 
- *        max entries.
- */
 struct EntryReference {
-  EntryReference(const tuple_id tuple = -1) : tid_(-1), value_() {  }
-
-  ~EntryReference() { }
-
-  inline const TypedValue& getValue() const {
-    return value_;
-  }
-
-  inline tuple_id getTupleID() const {
-    return tid_;
-  }
-
-  bool isSet() const {
-    return tid_ != -1;
-  }
-
-  void set(tuple_id id, const TypedValue & value);
-
-  void reset() {
-    tid_ = -1;
-  }
-
-private:
-  tuple_id tid_;
+  tuple_id tuple_;
   TypedValue value_;
+  bool valid_;
 };
 
-/**
- * @brief An SMAEntry will be created for each attribute which is indexed under
- *        the SMAIndexSubBlock.
- */
-class SMAEntry {
- public:
-  /**
-   * @brief Constructor.
-   * 
-   * @param attribute_id The ID of the attribute which is being indexed.
-   * @param attribute_type The type of the attibute being indexed.
-   */
-  SMAEntry(const attribute_id attribute_id, const Type& attribute_type) 
-              : attr_id_(attribute_id),
-                min_(),
-                max_(),
-                sum_(AggregationStateSum::SumZero(attribute_type)),
-                requires_rebuild_(true) { }
-
-  ~SMAEntry() { }
-
-  /**
-   * @brief Used in place of the constructor where raw memory is cast into an 
-   *        SMAEntry.
-   *
-   * @param new_block if this is a new SMA index or one being deserialized
-   * @param attr_id ID of attribute which this entry summarizes
-   * @param storage_block where the corresponding tuples are stored
-   */
-  void initialize(bool new_block, 
-                  const attribute_id attr_id,
-                  const TupleStorageSubBlock& tuple_store);
-
-  /**
-   * @brief Resets the entry to an initialized state. 
-   * @details This is called prior to a rebuild.
-   */
-  void reset();
-
-  attribute_id getAttrID() const {
-    return attr_id_;
-  }
-
-  const EntryReference& getMinEntryReference() const {
-    return min_;
-  }
-
-  const EntryReference& getMaxEntryReference() const {
-    return max_;
-  }
-
-  const std::uint64_t getCount() const {
-    return count_;
-  }
-
-  const TypedValue& getSum() const {
-    return sum_;
-  }
-
-  /**
-   * @brief Updates the aggregates based on the values of the new tuple.
-   *
-   * @param tid The id of the new tuple.
-   * @param tuple_store A reference to the storage block containing the tuple.
-   */
-  void insertUpdate(const tuple_id tid, const TupleStorageSubBlock& tuple_store);
-
-  /**
-   * @brief Attempts to update the SMAEntry on a removal. Some types of removals
-   *        will require a rebuild (scan of storage_block).
-   *
-   * @param tid The ID of the tuple which was removed.
-   * @param tuple_store The tuple store containing the removed tuple.
-   */
-  void removeUpdate(const tuple_id tid, const TupleStorageSubBlock& tuple_store);
-
-  /**
-   * @brief Given a predicate, uses the min and max entries to determine if all,
-   *        none, or some of the tuples in the storage block will be selected. 
-   *        This is used as a helper method by the SMAIndexSubBlock.
-   *
-   * @param predicate An SMAPredicate to solve.
-   */
-  void solvePredicate(SMAPredicate& predicate) const;
-
- private:
-  void resetSum();
-
-  static const Comparison& getLess();
-
-  static const Comparison& getEqual();
-
+struct SMAEntry {
   attribute_id attribute_;
-  TypeID attribute_typeid_;
-  EntryReference min_;
-  EntryReference max_;
-  TypedValue sum_;  // This is possibly higher precision than attribute type (ex. float->double).
+  TypeID type_;
+  EntryReference min_entry_;
+  EntryReference max_entry_;
+  TypedValue sum_;
 };
 
-}  // namespace smaindex_internal
+}  // namespace sma_internal
 
 
 /**
@@ -335,8 +171,8 @@ class SMAIndexSubBlock : public IndexSubBlock {
    * @brief Gives an estimate of how long it will take to respond to a query.
    * The SMA index will detect if one of the following cases is true:
    *   1) Complete match: all the tuples in this subblock will match the predicate
-   *   2) Empty match: none of the tuples will match
-   *   3) Partial match: some of the tuples may match
+   *   2) Empty match:    none of the tuples will match
+   *   3) Partial match:  some of the tuples may match
    * If there is a partial match, the SMA index is of no use. However, in a
    * Complete or Empty match, the SMA index can speed up the selection process
    * and should be used.
@@ -372,7 +208,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
    * @brief Returns if the index is consistent. Rebuilding will ensure this 
    *        returns true.
    *
-   * @return true if consistent
+   * @return \c true if inconsistent (rebuild to return true).
    */
   bool requiresRebuild() const;
 
@@ -392,27 +228,22 @@ class SMAIndexSubBlock : public IndexSubBlock {
    * @return a pointer to the SMAEntry stored in this index's block memory.
    *         \c nullptr if the attribute is not indexed.
    */
-  const smaindex_internal::SMAEntry* getEntry(attribute_id attribute) const;
+  const sma_internal::SMAEntry* getEntry(attribute_id attribute) const;
 
   /**
    * @brief Returns the number of tuples, the aggregate COUNT, of the storage SubBlock.
    * 
    * @return Number of tuples in the SubBlock
    */
-  unsigned getCount() const;
+  std::uint32_t getCount() const;
 
  private:
-  void resetAggregates();
+  void initializeEntry(sma_internal::SMAEntry *entry,
+                       bool new_block,
+                       attribute_id attribute,
+                       const Type &attribute_type);
 
-  /**
-   * @brief Determines how much of the tuple store a predicate will select.
-   * 
-   * @param predicate The predicate to evaluate.
-   * @return A solved SMA predicate which the caller must manage.
-   */
-  smaindex_internal::SMAPredicate* solvePredicate(const ComparisonPredicate& predicate) const;
-
-  std::unordered_map<attribute_id, int> attribute_to_index_;
+  std::unordered_map<attribute_id, int> attribute_to_entry_;
   bool initialized_;
   bool requires_rebuild_;
   PtrVector<UncheckedBinaryOperator> sub_operators_;
