@@ -222,28 +222,36 @@ class SMAIndexSubBlock : public IndexSubBlock {
   bool hasEntryForAttribute(attribute_id attribute) const;
 
   /**
-   * @brief Returns the corresponding SMAEntry from a given attribute ID.
-   * 
-   * @param attribute The attribute id of the indexed attribute
-   * @return a pointer to the SMAEntry stored in this index's block memory.
-   *         \c nullptr if the attribute is not indexed.
-   */
-  const sma_internal::SMAEntry* getEntry(attribute_id attribute) const;
-
-  /**
    * @brief Returns the number of tuples, the aggregate COUNT, of the storage SubBlock.
    * 
    * @return Number of tuples in the SubBlock
    */
-  std::uint32_t getCount() const;
+  std::uint32_t getCount() const {
+    return *reinterpret_cast<std::uint32_t*>(sub_block_memory_);
+  }
 
  private:
+  // Retrieves an entry, first checking if the given attribute is indexed.
+  inline const sma_internal::SMAEntry* getEntryChecked(attribute_id attribute) const {
+    if (attribute_to_entry_.find(attribute) != attribute_to_entry_.end()) {
+      return getEntry(attribute);
+    }
+    return nullptr;
+  }
+
+  // Retrieves an entry, not checking if the given attribute is indexed.
+  // Warning: This should not be used unless the attribute is indexed.
+  inline const sma_internal::SMAEntry* getEntry(attribute_id attribute) const {
+    return (entries_ + attribute_to_entry_.at(attribute));
+  }
+
   void initializeEntry(sma_internal::SMAEntry *entry,
                        bool new_block,
                        attribute_id attribute,
                        const Type &attribute_type);
 
   std::unordered_map<attribute_id, int> attribute_to_entry_;
+  sma_internal::SMAEntry *entries_; // Region of storage memory for entries.
   bool initialized_;
   bool requires_rebuild_;
   PtrVector<UncheckedBinaryOperator> sub_operators_;

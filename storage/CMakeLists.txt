@@ -1254,6 +1254,7 @@ target_link_libraries(SMAIndexSubBlock_unittest
                       quickstep_storage_TupleIdSequence
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_types_CharType
+                      quickstep_types_DoubleType
                       quickstep_types_FloatType
                       quickstep_types_LongType
                       quickstep_types_Type

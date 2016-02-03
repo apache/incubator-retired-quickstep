@@ -43,6 +43,7 @@
 #include "storage/TupleIdSequence.hpp"
 #include "storage/tests/MockTupleStorageSubBlock.hpp"
 #include "types/CharType.hpp"
+#include "types/DoubleType.hpp"
 #include "types/FloatType.hpp"
 #include "types/LongType.hpp"
 #include "types/Type.hpp"
@@ -246,6 +247,11 @@ class SMAIndexSubBlockTest : public ::testing::Test {
     return new ComparisonPredicate(ComparisonFactory::GetComparison(comp), scalar_attribute, scalar_literal);
   }
 
+  // Retrieves the SMAEntry from the test SMAIndex instance.
+  SMAEntry* getEntryForAttribute(attribute_id attribute) {
+    return const_cast<SMAEntry*>(index_->getEntryChecked(attribute));
+  }
+
   std::unique_ptr<CatalogRelation> relation_;
   std::unique_ptr<MockTupleStorageSubBlock> tuple_store_;
   ScopedBuffer index_memory_;
@@ -265,6 +271,66 @@ TEST_F(SMAIndexSubBlockTest, TestConstructor) {
   std::unique_ptr<TupleIdSequence> match_sequence(index_->getMatchesForPredicate(*pred, nullptr));
   
   EXPECT_TRUE(match_sequence->numTuples() == 0);
+}
+
+TEST_F(SMAIndexSubBlockTest, TestRebuild) {
+  vector<attribute_id> attrs({0, 2}); // Index long, float type.
+  createIndex(attrs, kIndexSubBlockSize);
+  int min = 0, max = 9010, step = 10;
+  std::int64_t sum_0 = 0;
+  double sum_2 = 0;
+  for (unsigned i = min; i <= max; i+=step) {
+    generateAndInsertTuple(i, false, "suffix");
+    sum_0 += i;
+    sum_2 += (i * 0.25);
+  }
+  index_->rebuild();
+  SMAEntry* entry0 = getEntryForAttribute(0);
+  SMAEntry* entry2 = getEntryForAttribute(2);
+
+  // Handy comparison functions.
+  auto longs_equal = [](TypedValue left, TypedValue right) -> bool {
+    return ComparisonFactory::GetComparison(ComparisonID::kEqual)
+        .compareTypedValuesChecked(left, LongType::InstanceNonNullable(),
+                                   right, LongType::InstanceNonNullable());
+  };
+
+  auto floats_equal = [](TypedValue left, TypedValue right) -> bool {
+    return ComparisonFactory::GetComparison(ComparisonID::kEqual)
+        .compareTypedValuesChecked(left, FloatType::InstanceNonNullable(),
+                                   right, FloatType::InstanceNonNullable());
+  };
+
+  auto doubles_equal = [](TypedValue left, TypedValue right) -> bool {
+    return ComparisonFactory::GetComparison(ComparisonID::kEqual)
+        .compareTypedValuesChecked(left, DoubleType::InstanceNonNullable(),
+                                   right, DoubleType::InstanceNonNullable());
+  };
+  
+  // Check min ids and values.
+  EXPECT_EQ(0, entry0->min_entry_.tuple_);
+  EXPECT_EQ(0, entry2->min_entry_.tuple_);
+  EXPECT_TRUE(longs_equal(entry0->min_entry_.value_,
+                          tuple_store_->getAttributeValueTyped(0, 0)));
+
+  EXPECT_TRUE(longs_equal(entry2->min_entry_.value_,
+                          tuple_store_->getAttributeValueTyped(0, 2)));
+
+  // Check max ids and values.
+  tuple_id max_id = (max - min)/step;
+  EXPECT_EQ(max_id, entry0->max_entry_.tuple_);
+  EXPECT_EQ(max_id, entry2->max_entry_.tuple_);
+  EXPECT_TRUE(floats_equal(entry0->max_entry_.value_,
+                           tuple_store_->getAttributeValueTyped(max_id, 0)));
+  EXPECT_TRUE(floats_equal(entry2->max_entry_.value_,
+                           tuple_store_->getAttributeValueTyped(max_id, 2)));
+
+  // Check sums.
+  EXPECT_TRUE(longs_equal(entry0->sum_, TypedValue(sum_0)));
+  EXPECT_TRUE(doubles_equal(entry2->sum_, TypedValue(sum_2)));
+
+  // Check count.
+  EXPECT_EQ(max_id + 1, index_->getCount());
 }
 
 }  // namespace quickstep

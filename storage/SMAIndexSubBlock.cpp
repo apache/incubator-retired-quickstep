@@ -125,6 +125,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
                     new_block,
                     sub_block_memory,
                     sub_block_memory_size),
+      entries_(nullptr),
       initialized_(false),
       requires_rebuild_(true),
       sub_operators_(),
@@ -140,7 +141,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
       << "Attempted to create SMAIndexSubBlock without enough space allocated.";
 
   // The first entry is after the entry for count.
-  SMAEntry *first_entry = reinterpret_cast<SMAEntry*>((char*)sub_block_memory_ + sizeof(std::uint32_t));
+  entries_ = reinterpret_cast<SMAEntry*>((char*)sub_block_memory_ + sizeof(std::uint32_t));
 
   // Iterate through each attribute which is being indexed.
   for (int indexed_attribute_num = 0;
@@ -152,7 +153,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
 
     const Type &attribute_type = tuple_store_.getRelation().getAttributeById(attribute)->getType();
 
-    SMAEntry *entry = first_entry + indexed_attribute_num;
+    SMAEntry *entry = entries_ + indexed_attribute_num;
     initializeEntry(entry, new_block, attribute, attribute_type);
 
     // Initialize the operators.
