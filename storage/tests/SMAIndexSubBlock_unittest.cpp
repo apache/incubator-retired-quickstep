@@ -353,14 +353,53 @@ TEST_F(SMAIndexSubBlockTest, DescriptionIsValidTest) {
         attr.getID());
     if (std::find(valid_attrs.begin(), valid_attrs.end(), attr.getID()) != valid_attrs.end()) {
       EXPECT_TRUE(SMAIndexSubBlock::DescriptionIsValid(
-        *relation_,
-        *index_description_));
+          *relation_,
+          *index_description_));
     } else {
       EXPECT_FALSE(SMAIndexSubBlock::DescriptionIsValid(
-        *relation_,
-        *index_description_));
+          *relation_,
+          *index_description_));
     }    
   }
+}
+
+TEST_F(SMAIndexSubBlockTest, TestRebuildWithNulls) {
+  createIndex({0, 1, 2}, kIndexSubBlockSize);
+  int min = 0, max = 9010, step = 10;
+  std::int64_t sum_1 = 0;  // Attribute 1 will contain some nulls.
+  for (unsigned i = min; i <= max; i+=step) {
+    bool insertNull = (i % 4) == 0;
+    generateAndInsertTuple(i, insertNull, "suffix");
+    sum_1 += insertNull ? 0 : i;
+  }
+  index_->rebuild();
+  SMAEntry* entry1 = getEntryForAttribute(1);
+
+  // Handy comparison function.
+  auto longs_equal = [](TypedValue left, TypedValue right) -> bool {
+    return ComparisonFactory::GetComparison(ComparisonID::kEqual)
+        .compareTypedValuesChecked(left, LongType::InstanceNonNullable(),
+                                   right, LongType::InstanceNonNullable());
+  };
+
+  // Check min ids and values.
+  tuple_id min_tuple = 1;
+  EXPECT_EQ(min_tuple, entry1->min_entry_.tuple_);
+  EXPECT_TRUE(longs_equal(entry1->min_entry_.value_,
+                          tuple_store_->getAttributeValueTyped(min_tuple, 1)));
+
+  // Check max ids and values.
+  int num_tuples = (max - min)/step + 1;
+  tuple_id max_tuple = ((num_tuples - 1) % 4) == 0 ? num_tuples - 2 : num_tuples - 1;
+  EXPECT_EQ(max_tuple, entry1->max_entry_.tuple_);
+  EXPECT_TRUE(longs_equal(entry1->max_entry_.value_,
+                          tuple_store_->getAttributeValueTyped(max_tuple, 1)));
+
+  // Check sums.
+  EXPECT_TRUE(longs_equal(entry1->sum_, TypedValue(sum_1)));
+
+  // Check count.
+  EXPECT_EQ(num_tuples, index_->getCount());
 }
 
 }  // namespace quickstep
