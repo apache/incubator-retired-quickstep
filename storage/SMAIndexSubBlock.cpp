@@ -245,10 +245,10 @@ void SMAIndexSubBlock::resetEntries() {
 bool SMAIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema &relation,
                                           const IndexSubBlockDescription &description) {
   if (!description.IsInitialized()) {
-   return false;
+    return false;
   }
   if (description.sub_block_type() != IndexSubBlockDescription::SMA) {
-   return false;
+    return false;
   }
   // Must have at least one indexed attribute.
   if(description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id) == 0){
@@ -265,6 +265,9 @@ bool SMAIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema &relation,
     }
     const Type &attr_type = relation.getAttributeById(indexed_attribute_id)->getType();
     if (attr_type.isVariableLength()) {
+      return false;
+    }
+    if (!TypedValue::RepresentedInline(attr_type.getTypeID())) {
       return false;
     }
   }
@@ -331,6 +334,11 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
   for (int index = 0; index < indexed_attributes_; ++index) {
     SMAEntry &entry = entries_[index];
     TypedValue tuple_value = tuple_store_.getAttributeValueTyped(tuple, entry.attribute_);
+
+    if (tuple_value.isNull()) {
+      continue;
+    }
+
     entry.sum_ = add_operators_[index].applyToTypedValues(entry.sum_, tuple_value);
 
     if (!entry.min_entry_.valid_) {

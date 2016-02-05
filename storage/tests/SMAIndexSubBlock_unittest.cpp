@@ -76,6 +76,33 @@ typedef sma_internal::EntryReference EntryReference;
 typedef sma_internal::SMAEntry SMAEntry;
 // typedef sma_internal::SMAPredicate SMAPredicate;
 
+namespace sma_test {
+  // Handy comparison functions.
+  bool longs_equal(TypedValue left, TypedValue right) {
+    return ComparisonFactory::GetComparison(ComparisonID::kEqual)
+        .compareTypedValuesChecked(left, LongType::InstanceNonNullable(),
+                                   right, LongType::InstanceNonNullable());
+  }
+
+  bool floats_equal(TypedValue left, TypedValue right) {
+    return ComparisonFactory::GetComparison(ComparisonID::kEqual)
+        .compareTypedValuesChecked(left, FloatType::InstanceNonNullable(),
+                                   right, FloatType::InstanceNonNullable());
+  }
+
+  bool doubles_equal(TypedValue left, TypedValue right) {
+    return ComparisonFactory::GetComparison(ComparisonID::kEqual)
+        .compareTypedValuesChecked(left, DoubleType::InstanceNonNullable(),
+                                   right, DoubleType::InstanceNonNullable());
+  }
+
+  bool chars_equal(TypedValue left, TypedValue right) {
+    return ComparisonFactory::GetComparison(ComparisonID::kEqual)
+        .compareTypedValuesChecked(left, CharType::Instance(80, false),
+                                   right, CharType::Instance(80, false));
+  }
+}  // namespace sma_test
+
 class SMAIndexSubBlockTest : public ::testing::Test {
  protected:
   static const size_t kIndexSubBlockSize = 0x100000;  // 1 MB
@@ -262,8 +289,34 @@ class SMAIndexSubBlockTest : public ::testing::Test {
 
 const char SMAIndexSubBlockTest::kCharAttrNullValue[] = "_NULLSTRING";
 
+TEST_F(SMAIndexSubBlockTest, DescriptionIsValidTest) {
+  std::unique_ptr<IndexSubBlockDescription> index_description_;
+  vector<attribute_id> valid_attrs({0, 1, 2});
+  // Only descriptions with non-Null, non-variable length attributes should be valid.
+  for (const CatalogAttribute &attr : *relation_) {
+    index_description_.reset(
+        new IndexSubBlockDescription());
+    index_description_->set_sub_block_type(
+        IndexSubBlockDescription::SMA);
+    index_description_->AddExtension(
+        SMAIndexSubBlockDescription::indexed_attribute_id,
+        attr.getID());
+    if (std::find(valid_attrs.begin(), valid_attrs.end(), attr.getID()) != valid_attrs.end()) {
+      EXPECT_TRUE(SMAIndexSubBlock::DescriptionIsValid(
+          *relation_,
+          *index_description_)) 
+               << "Expected attribute " << attr.getID() << " to be valid.";
+    } else {
+      EXPECT_FALSE(SMAIndexSubBlock::DescriptionIsValid(
+          *relation_,
+          *index_description_))
+              << "Expected attribute " << attr.getID() << " to be invalid.";
+    }    
+  }
+}
+
 TEST_F(SMAIndexSubBlockTest, TestConstructor) {
-  createIndex({0, 2}, kIndexSubBlockSize); // Creates proper description.
+  createIndex({0, 1, 2}, kIndexSubBlockSize); // Creates proper description.
   memset(index_memory_.get(),0,kIndexSubBlockSize);
   index_.reset(new SMAIndexSubBlock(*tuple_store_,
                                     *index_description_,
@@ -281,7 +334,7 @@ TEST_F(SMAIndexSubBlockTest, TestConstructor) {
 }
 
 TEST_F(SMAIndexSubBlockTest, TestRebuild) {
-  createIndex({0, 2}, kIndexSubBlockSize);  // Index long, float type.
+  createIndex({0, 2}, kIndexSubBlockSize);  // Index long, float type, bigChar type.
   int min = 0, max = 9010, step = 10;
   std::int64_t sum_0 = 0;
   double sum_2 = 0;
@@ -293,74 +346,31 @@ TEST_F(SMAIndexSubBlockTest, TestRebuild) {
   index_->rebuild();
   SMAEntry* entry0 = getEntryForAttribute(0);
   SMAEntry* entry2 = getEntryForAttribute(2);
-
-  // Handy comparison functions.
-  auto longs_equal = [](TypedValue left, TypedValue right) -> bool {
-    return ComparisonFactory::GetComparison(ComparisonID::kEqual)
-        .compareTypedValuesChecked(left, LongType::InstanceNonNullable(),
-                                   right, LongType::InstanceNonNullable());
-  };
-
-  auto floats_equal = [](TypedValue left, TypedValue right) -> bool {
-    return ComparisonFactory::GetComparison(ComparisonID::kEqual)
-        .compareTypedValuesChecked(left, FloatType::InstanceNonNullable(),
-                                   right, FloatType::InstanceNonNullable());
-  };
-
-  auto doubles_equal = [](TypedValue left, TypedValue right) -> bool {
-    return ComparisonFactory::GetComparison(ComparisonID::kEqual)
-        .compareTypedValuesChecked(left, DoubleType::InstanceNonNullable(),
-                                   right, DoubleType::InstanceNonNullable());
-  };
   
   // Check min ids and values.
   EXPECT_EQ(0, entry0->min_entry_.tuple_);
   EXPECT_EQ(0, entry2->min_entry_.tuple_);
-  EXPECT_TRUE(longs_equal(entry0->min_entry_.value_,
-                          tuple_store_->getAttributeValueTyped(0, 0)));
+  EXPECT_TRUE(sma_test::longs_equal(entry0->min_entry_.value_,
+                                    tuple_store_->getAttributeValueTyped(0, 0)));
 
-  EXPECT_TRUE(floats_equal(entry2->min_entry_.value_,
-                           tuple_store_->getAttributeValueTyped(0, 2)));
+  EXPECT_TRUE(sma_test::floats_equal(entry2->min_entry_.value_,
+                                     tuple_store_->getAttributeValueTyped(0, 2)));
 
   // Check max ids and values.
   tuple_id max_id = (max - min)/step;
   EXPECT_EQ(max_id, entry0->max_entry_.tuple_);
   EXPECT_EQ(max_id, entry2->max_entry_.tuple_);
-  EXPECT_TRUE(longs_equal(entry0->max_entry_.value_,
-                          tuple_store_->getAttributeValueTyped(max_id, 0)));
-  EXPECT_TRUE(floats_equal(entry2->max_entry_.value_,
-                           tuple_store_->getAttributeValueTyped(max_id, 2)));
+  EXPECT_TRUE(sma_test::longs_equal(entry0->max_entry_.value_,
+                                    tuple_store_->getAttributeValueTyped(max_id, 0)));
+  EXPECT_TRUE(sma_test::floats_equal(entry2->max_entry_.value_,
+                                     tuple_store_->getAttributeValueTyped(max_id, 2)));
 
   // Check sums.
-  EXPECT_TRUE(longs_equal(entry0->sum_, TypedValue(sum_0)));
-  EXPECT_TRUE(doubles_equal(entry2->sum_, TypedValue(sum_2)));
+  EXPECT_TRUE(sma_test::longs_equal(entry0->sum_, TypedValue(sum_0)));
+  EXPECT_TRUE(sma_test::doubles_equal(entry2->sum_, TypedValue(sum_2)));
 
   // Check count.
   EXPECT_EQ(max_id + 1, index_->getCount());
-}
-
-TEST_F(SMAIndexSubBlockTest, DescriptionIsValidTest) {
-  std::unique_ptr<IndexSubBlockDescription> index_description_;
-  vector<attribute_id> valid_attrs({0, 2, 3});
-  // Only descriptions with non-Null, non-variable length attributes should be valid.
-  for (const CatalogAttribute &attr : *relation_) {
-    index_description_.reset(
-        new IndexSubBlockDescription());
-    index_description_->set_sub_block_type(
-        IndexSubBlockDescription::SMA);
-    index_description_->AddExtension(
-        SMAIndexSubBlockDescription::indexed_attribute_id,
-        attr.getID());
-    if (std::find(valid_attrs.begin(), valid_attrs.end(), attr.getID()) != valid_attrs.end()) {
-      EXPECT_TRUE(SMAIndexSubBlock::DescriptionIsValid(
-          *relation_,
-          *index_description_));
-    } else {
-      EXPECT_FALSE(SMAIndexSubBlock::DescriptionIsValid(
-          *relation_,
-          *index_description_));
-    }    
-  }
 }
 
 TEST_F(SMAIndexSubBlockTest, TestRebuildWithNulls) {
@@ -375,28 +385,21 @@ TEST_F(SMAIndexSubBlockTest, TestRebuildWithNulls) {
   index_->rebuild();
   SMAEntry* entry1 = getEntryForAttribute(1);
 
-  // Handy comparison function.
-  auto longs_equal = [](TypedValue left, TypedValue right) -> bool {
-    return ComparisonFactory::GetComparison(ComparisonID::kEqual)
-        .compareTypedValuesChecked(left, LongType::InstanceNonNullable(),
-                                   right, LongType::InstanceNonNullable());
-  };
-
   // Check min ids and values.
   tuple_id min_tuple = 1;
   EXPECT_EQ(min_tuple, entry1->min_entry_.tuple_);
-  EXPECT_TRUE(longs_equal(entry1->min_entry_.value_,
-                          tuple_store_->getAttributeValueTyped(min_tuple, 1)));
+  EXPECT_TRUE(sma_test::longs_equal(entry1->min_entry_.value_,
+                                    tuple_store_->getAttributeValueTyped(min_tuple, 1)));
 
   // Check max ids and values.
   int num_tuples = (max - min)/step + 1;
   tuple_id max_tuple = ((num_tuples - 1) % 4) == 0 ? num_tuples - 2 : num_tuples - 1;
   EXPECT_EQ(max_tuple, entry1->max_entry_.tuple_);
-  EXPECT_TRUE(longs_equal(entry1->max_entry_.value_,
-                          tuple_store_->getAttributeValueTyped(max_tuple, 1)));
+  EXPECT_TRUE(sma_test::longs_equal(entry1->max_entry_.value_,
+                                    tuple_store_->getAttributeValueTyped(max_tuple, 1)));
 
   // Check sums.
-  EXPECT_TRUE(longs_equal(entry1->sum_, TypedValue(sum_1)));
+  EXPECT_TRUE(sma_test::longs_equal(entry1->sum_, TypedValue(sum_1)));
 
   // Check count.
   EXPECT_EQ(num_tuples, index_->getCount());
