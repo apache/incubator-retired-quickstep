@@ -35,7 +35,7 @@
 #include "expressions/scalar/Scalar.hpp"
 #include "expressions/scalar/ScalarAttribute.hpp"
 #include "expressions/scalar/ScalarLiteral.hpp"
-#include "storage/CompressedPackedRowStoreTupleStorageSubBlock.hpp"
+#include "storage/CompressedColumnStoreTupleStorageSubBlock.hpp"
 #include "storage/CompressedTupleStorageSubBlock.hpp"
 #include "storage/SMAIndexSubBlock.hpp"
 #include "storage/StorageBlockLayout.pb.h"
@@ -403,6 +403,55 @@ TEST_F(SMAIndexSubBlockTest, TestRebuildWithNulls) {
 
   // Check count.
   EXPECT_EQ(num_tuples, index_->getCount());
+}
+
+
+TEST_F(SMAIndexSubBlockTest, TestWithCompressedColumnStore) {
+  // Create a relation with just a single attribute, which will be compressed.
+  relation_.reset(new CatalogRelation(NULL, "TestRelation"));
+  CatalogAttribute *truncated_long_attr = new CatalogAttribute(relation_.get(),
+                                                               "truncated_long_attr",
+                                                               TypeFactory::GetType(kLong, false));
+  ASSERT_EQ(0, relation_->addAttribute(truncated_long_attr));
+
+  CatalogAttribute *compessed_string_attr = new CatalogAttribute(relation_.get(),
+                                                                 "compressed_string_attr",
+                                                                 TypeFactory::GetType(kVarChar, 80, false));
+  ASSERT_EQ(1, relation_->addAttribute(compessed_string_attr));
+
+  // Create a CompressedPackedRowStoreTupleStorageSubBlock.
+  TupleStorageSubBlockDescription *tuple_store_description = new TupleStorageSubBlockDescription();
+  tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE);
+  tuple_store_description->SetExtension(
+      CompressedColumnStoreTupleStorageSubBlockDescription::sort_attribute_id,
+      0);
+  for (attribute_id attr_id = 0; attr_id < 2; ++attr_id) {
+    tuple_store_description->AddExtension(
+        CompressedColumnStoreTupleStorageSubBlockDescription::compressed_attribute_id,
+        attr_id);
+  }
+
+  ScopedBuffer compressed_tuple_store_memory(kIndexSubBlockSize);
+  std::unique_ptr<CompressedColumnStoreTupleStorageSubBlock> compressed_tuple_store(
+      new CompressedColumnStoreTupleStorageSubBlock(
+          *relation_,
+          *tuple_store_description,
+          true,
+          compressed_tuple_store_memory.get(),
+          kIndexSubBlockSize));
+
+  // Create an index on the compressed tuple store.
+  IndexSubBlockDescription compressed_index_description;
+  compressed_index_description.set_sub_block_type(IndexSubBlockDescription::SMA);
+  compressed_index_description.AddExtension(SMAIndexSubBlockDescription::indexed_attribute_id, 0);
+  compressed_index_description.AddExtension(SMAIndexSubBlockDescription::indexed_attribute_id, 1);
+
+  index_memory_.reset(kIndexSubBlockSize);
+  ASSERT_DEATH(index_.reset(new SMAIndexSubBlock(*compressed_tuple_store,
+                                    compressed_index_description,
+                                    true,
+                                    index_memory_.get(),
+                                    kIndexSubBlockSize)), "description");
 }
 
 }  // namespace quickstep
