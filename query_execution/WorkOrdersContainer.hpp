@@ -139,7 +139,8 @@ class WorkOrdersContainer {
    * @param numa_node_id The NUMA node.
    *
    * @return A WorkOrder which prefers numa_node_id. If no such WorkOrder is
-   *         available, return nullptr.
+   *         available, return nullptr. The caller is responsible for taking the
+   *         ownership.
    **/
   WorkOrder* getNormalWorkOrderForNUMANode(const std::size_t operator_index,
                                            const int numa_node_id) {
@@ -158,7 +159,8 @@ class WorkOrdersContainer {
    *        prefer exactly one NUMA node over workorders which list more than
    *        one NUMA node as their preference.
    *
-   * @return A WorkOrder. If no WorkOrder is available, returns nullptr.
+   * @return A WorkOrder. If no WorkOrder is available, returns nullptr. The
+   *         caller is responsible for taking the ownership.
    **/
   WorkOrder* getNormalWorkOrder(const std::size_t operator_index,
                                 const bool prefer_single_NUMA_node = true) {
@@ -175,7 +177,8 @@ class WorkOrdersContainer {
    * @param numa_node_id The NUMA node.
    *
    * @return A WorkOrder that prefers numa_node_id. If no such WorkOrder is
-   *         available, return nullptr.
+   *         available, return nullptr. The caller is responsible for taking the
+   *         ownership.
    **/
   WorkOrder* getRebuildWorkOrderForNUMANode(const std::size_t operator_index,
                                             const int numa_node_id) {
@@ -194,7 +197,8 @@ class WorkOrdersContainer {
    *        prefer exactly one NUMA node over workorders which list more than
    *        one NUMA node as their preference.
    *
-   * @return A WorkOrder. If no WorkOrder is available, returns nullptr.
+   * @return A WorkOrder. If no WorkOrder is available, returns nullptr. The
+   *         caller is responsible for taking the ownership.
    **/
   WorkOrder* getRebuildWorkOrder(const std::size_t operator_index,
                                  const bool prefer_single_NUMA_node = true) {
@@ -207,6 +211,7 @@ class WorkOrdersContainer {
    * @brief Add a normal (non-rebuild) WorkOrder generated from a given
    *        operator.
    *
+   * @note Take the ownership of \p workorder.
    * @note The workorder to be added contains information about its preferred
    *       NUMA nodes. This information is used to insert the WorkOrder
    *       appropriately.
@@ -223,6 +228,7 @@ class WorkOrdersContainer {
   /**
    * @brief Add a rebuild WorkOrder generated from a given operator.
    *
+   * @note Take the ownership of \p workorder.
    * @note The workorder to be added contains information about its preferred
    *       NUMA nodes. This information is used to insert the WorkOrder
    *       appropriately.
