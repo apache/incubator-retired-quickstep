@@ -13,14 +13,14 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-insert into test (attr1, attr2) values (1, 2)
+INSERT INTO test (attr1, attr2) VALUES (1, 2)
 --
 ERROR: list of column names in INSERT statement is not supported yet (1 : 18)
-insert into test (attr1, attr2) values (1, 2)
+INSERT INTO test (attr1, attr2) VALUES (1, 2)
                  ^
 ==
 
-insert into test values (1, -2, 3)
+INSERT INTO test VALUES (1, -2, 3)
 --
 InsertStatement[relation_name=test]
 +-tuple=
@@ -32,14 +32,14 @@ InsertStatement[relation_name=test]
     +-NumericLiteral[numeric_string=3,float_like=false]
 ==
 
-insert into test values (1+1, 2*2, 3+1)
+INSERT INTO test VALUES (1+1, 2*2, 3+1)
 --
 ERROR: syntax error (1 : 27)
-insert into test values (1+1, 2*2, 3+1)
+INSERT INTO test VALUES (1+1, 2*2, 3+1)
                           ^
 ==
 
-insert into test values (e'\'sdfs')
+INSERT INTO test VALUES (e'\'sdfs')
 --
 InsertStatement[relation_name=test]
 +-tuple=
@@ -47,8 +47,8 @@ InsertStatement[relation_name=test]
     +-StringLiteral[value='sdfs]
 ==
 
-insert into test values ('\'sdfs')
+INSERT INTO test VALUES ('\'sdfs')
 --
 ERROR: syntax error (1 : 29)
-insert into test values ('\'sdfs')
+INSERT INTO test VALUES ('\'sdfs')
                             ^

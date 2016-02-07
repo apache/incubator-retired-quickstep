@@ -13,41 +13,39 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-alter table test
-add attr int
+ALTER TABLE test
+ADD attr INT
 --
 ERROR: syntax error (2 : 5)
-add attr int
+ADD attr INT
     ^
 ==
 
-alter table test
-add column attr int
+ALTER TABLE test
+ADD COLUMN attr INT
 --
 ERROR: ALTER statements is not supported yet (1 : 1)
-alter table test
+ALTER TABLE test
 ^
 ==
 
-alter table test
-drop column attr int
+ALTER TABLE test
+DROP COLUMN attr INT
 --
-ERROR: ALTER statements is not supported yet (1 : 1)
-alter table test
-^
+[same as above]
 ==
 
-alter table test
-add constraint unique(attr)
+ALTER TABLE test
+ADD CONSTRAINT UNIQUE(attr)
 --
 ERROR: Table Constraints (UNIQUE) is not supported yet (2 : 16)
-add constraint unique(attr)
+ADD CONSTRAINT UNIQUE(attr)
                ^
 ==
 
-alter table test
-drop constraint constraint0
+ALTER TABLE test
+DROP CONSTRAINT constraint0
 --
 ERROR: ALTER statements is not supported yet (1 : 1)
-alter table test
+ALTER TABLE test
 ^

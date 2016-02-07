@@ -13,21 +13,21 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-update table test set attr = 1
+UPDATE TABLE test SET attr = 1
 --
 ERROR: syntax error (1 : 8)
-update table test set attr = 1
+UPDATE TABLE test SET attr = 1
        ^
 ==
 
-update table set attr = 1
+UPDATE TABLE SET attr = 1
 --
 ERROR: syntax error (1 : 8)
-update table set attr = 1
+UPDATE TABLE SET attr = 1
        ^
 ==
 
-update test set attr1 = 1, attr2=5, attr3 = 4 where attr2 < 1 and attr1 > 5 and attr1+1<2*attr2
+UPDATE test SET attr1 = 1, attr2=5, attr3 = 4 WHERE attr2 < 1 AND attr1 > 5 AND attr1+1<2*attr2
 --
 UpdateStatement[relation_name=test]
 +-where_predicate=And
@@ -60,7 +60,7 @@ UpdateStatement[relation_name=test]
       +-NumericLiteral[numeric_string=4,float_like=false]
 ==
 
-update test set attr = 4+1
+UPDATE test SET attr = 4+1
 --
 UpdateStatement[relation_name=test]
 +-assignment=
@@ -72,8 +72,8 @@ UpdateStatement[relation_name=test]
         +-NumericLiteral[numeric_string=1,float_like=false]
 ==
 
-update test where attr2=1
+UPDATE test WHERE attr2=1
 --
 ERROR: syntax error (1 : 13)
-update test where attr2=1
+UPDATE test WHERE attr2=1
             ^

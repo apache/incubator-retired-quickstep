@@ -13,7 +13,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-delete from test where tb1=1
+DELETE FROM test WHERE tb1=1
 --
 DeleteStatement[relation_name=test]
 +-where_predicate=Equal
@@ -22,27 +22,27 @@ DeleteStatement[relation_name=test]
     +-NumericLiteral[numeric_string=1,float_like=false]
 ==
 
-delete from test
+DELETE FROM test
 --
 DeleteStatement[relation_name=test]
 ==
 
-delete from table
+DELETE FROM TABLE
 --
 ERROR: syntax error (1 : 13)
-delete from table
+DELETE FROM TABLE
             ^
 ==
 
-delete from table test
+DELETE FROM TABLE test
 --
 ERROR: syntax error (1 : 13)
-delete from table test
+DELETE FROM TABLE test
             ^
 ==
 
-delete from test1, test2
+DELETE FROM test1, test2
 --
 ERROR: syntax error (1 : 18)
-delete from test1, test2
+DELETE FROM test1, test2
                  ^
