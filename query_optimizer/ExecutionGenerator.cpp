@@ -770,7 +770,8 @@ void ExecutionGenerator::convertCreateTable(
   }
 
   execution_plan_->addRelationalOperator(
-      new CreateTableOperator(catalog_relation.release()));
+      new CreateTableOperator(catalog_relation.release(),
+                              optimizer_context_->catalog_database()));
 }
 
 void ExecutionGenerator::convertDeleteTuples(
