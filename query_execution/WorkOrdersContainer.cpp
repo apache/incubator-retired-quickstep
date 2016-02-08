@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -20,50 +20,37 @@
 #include <algorithm>
 #include <cstddef>
 #include <list>
+#include <memory>
 #include <vector>
 
 #include "relational_operators/WorkOrder.hpp"
+
+#include "glog/logging.h"
+
+using std::unique_ptr;
 
 namespace quickstep {
 
 WorkOrdersContainer::~WorkOrdersContainer() {
   // For each operator ..
-  bool workorders_found = false;
   for (std::size_t op = 0; op < num_operators_; ++op) {
-    // Delete the leftover WorkOrders.
-    while (hasNormalWorkOrder(op)) {
-      if (!workorders_found) {
-        workorders_found = true;
-      }
-      WorkOrder *work_order = getNormalWorkOrder(op);
-      DEBUG_ASSERT(work_order != nullptr);
-      delete work_order;
+    if (hasNormalWorkOrder(op) || hasRebuildWorkOrder(op)) {
+      LOG(WARNING) << "Destroying a WorkOrdersContainer that still has pending WorkOrders.";
+      break;
     }
-    while (hasRebuildWorkOrder(op)) {
-      if (!workorders_found) {
-        workorders_found = true;
-      }
-      WorkOrder *work_order = getRebuildWorkOrder(op);
-      DEBUG_ASSERT(work_order != nullptr);
-      delete work_order;
-    }
-  }
-  if (workorders_found) {
-    DEV_WARNING(
-        "Destroying a WorkOrdersContainer that still has pending WorkOrders.");
   }
 }
 
 WorkOrder* WorkOrdersContainer::InternalListContainer::getWorkOrderForNUMANode(
     const int numa_node) {
-  for (std::list<WorkOrder*>::iterator it = workorders_.begin();
+  for (std::list<unique_ptr<WorkOrder>>::iterator it = workorders_.begin();
        it != workorders_.end();
        ++it) {
     const std::vector<int> &numa_nodes = (*it)->getPreferredNUMANodes();
     if (!numa_nodes.empty()) {
       if (std::find(numa_nodes.begin(), numa_nodes.end(), numa_node) !=
           numa_nodes.end()) {
-        WorkOrder *work_order = *it;
+        WorkOrder *work_order = it->release();
         workorders_.erase(it);
         return work_order;
       }
@@ -93,7 +80,7 @@ std::size_t
     WorkOrdersContainer::InternalListContainer::getNumWorkOrdersForNUMANode(
     const int numa_node) const {
   std::size_t num_workorders = 0;
-  for (WorkOrder *work_order : workorders_) {
+  for (const unique_ptr<WorkOrder> &work_order : workorders_) {
     const std::vector<int> &numa_nodes = work_order->getPreferredNUMANodes();
     if (!numa_nodes.empty()) {
       std::vector<int>::const_iterator
@@ -109,7 +96,7 @@ std::size_t
 
 bool WorkOrdersContainer::InternalListContainer::hasWorkOrderForNUMANode(
     const int numa_node) const {
-  for (WorkOrder *work_order : workorders_) {
+  for (const unique_ptr<WorkOrder> &work_order : workorders_) {
     const std::vector<int> &numa_nodes = work_order->getPreferredNUMANodes();
     if (!numa_nodes.empty()) {
       std::vector<int>::const_iterator
