@@ -76,7 +76,7 @@ struct SMAEntry {
 
 /**
  * @brief Small Materialized Aggregate SubBlock.
- * @details Keeps account of several types of aggregate functions per Block. 
+ * @details Keeps account of several types of aggregate functions per Block.
  *          Currently supports min, max, sum, and count.
  */
 class SMAIndexSubBlock : public IndexSubBlock {
@@ -87,7 +87,10 @@ class SMAIndexSubBlock : public IndexSubBlock {
                    void *sub_block_memory,
                    const std::size_t sub_block_memory_size);
 
-  ~SMAIndexSubBlock() { }
+  /**
+   * @brief Frees data associated with variable length attributes.
+   */
+  ~SMAIndexSubBlock();
 
   /**
    * @brief Determine whether an IndexSubBlockDescription is valid for this
@@ -153,7 +156,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
 
   /**
    * @brief Updates the index to reflect the removal of a single tuple.
-   * 
+   *
    * @param tuple The id of the tuple which is going to be removed (ie it still
    *        exists within the storage block.
    */
@@ -161,7 +164,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
 
   /**
    * @brief Updates the index to reflect the addition of several tuples.
-   * 
+   *
    * @param tuples The ids of the tuple which have been added (ie they exist within
    *        the storage block.)
    * @return \c true if successful.
@@ -170,8 +173,8 @@ class SMAIndexSubBlock : public IndexSubBlock {
 
   /**
    * @brief Updates the index to reflect the removal of several tuples.
-   * 
-   * @param tuples The ids of the tuple which is going to be removed (ie they 
+   *
+   * @param tuples The ids of the tuple which is going to be removed (ie they
    *        still exist within the storage block.
    */
   void bulkRemoveEntries(const TupleIdSequence &tuples) override;
@@ -189,16 +192,16 @@ class SMAIndexSubBlock : public IndexSubBlock {
    * @param predicate A simple predicate too be evaluated.
    * @return The cost associated with the type of match. Empty matches are constant,
    *         partial matches require a scan, and complete matches require something
-   *         less than a regular scan (because we don't need to do the comparison 
+   *         less than a regular scan (because we don't need to do the comparison
    *         operation for each tuple) but is still linear with the number of tuples.
    */
   predicate_cost_t estimatePredicateEvaluationCost(
       const ComparisonPredicate &predicate) const override;
 
   /**
-   * @warning Calling this method on the SMA index implies that we are not going 
-   *          to do a scan for some tuple matches. As in, the SMA index will 
-   *          either return an empty set of tuple ids, or a set of tuple ids 
+   * @warning Calling this method on the SMA index implies that we are not going
+   *          to do a scan for some tuple matches. As in, the SMA index will
+   *          either return an empty set of tuple ids, or a set of tuple ids
    *          which is the entire set of all tuple ids in the storage subblock.
    * @note Currently this version only supports simple comparisons of a literal
    *       value with a non-composite key.
@@ -208,13 +211,13 @@ class SMAIndexSubBlock : public IndexSubBlock {
 
   /**
    * @brief Update the index to reflect the current state of the storage block.
-   * 
+   *
    * @return \c true if successful.
    */
   bool rebuild() override;
 
   /**
-   * @brief Returns if the index is consistent. Rebuilding will ensure this 
+   * @brief Returns if the index is consistent. Rebuilding will ensure this
    *        returns true.
    *
    * @return \c true if inconsistent (rebuild to return true).
@@ -224,7 +227,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   /**
    * @brief Given an attribute, quickly check to see if the SMA index contains an
    *        entry for it.
-   *        
+   *
    * @param attribute The ID of the attribute to check.
    * @return \c true if this index contains an entry.
    */
@@ -232,7 +235,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
 
   /**
    * @brief Returns the number of tuples, the aggregate COUNT, of the storage sub block.
-   * 
+   *
    * @return Number of tuples in the sub block.
    */
   std::uint32_t getCount() const {
@@ -264,15 +267,31 @@ class SMAIndexSubBlock : public IndexSubBlock {
 
   void addTuple(tuple_id tuple);
 
+  // Frees any TypedValue data which is held in the SMA entries.
+  void freeOutOfLineData();
+
   sma_internal::SMAHeader *header_;
   sma_internal::SMAEntry *entries_;
   std::unordered_map<attribute_id, int> attribute_to_entry_;
   int indexed_attributes_;
   bool initialized_;
-  PtrVector<UncheckedBinaryOperator> sub_operators_;
-  PtrVector<UncheckedBinaryOperator> add_operators_;
-  PtrVector<UncheckedComparator> less_comparisons_;
-  PtrVector<UncheckedComparator> equal_comparisons_;
+
+  // Maps AttributeTypeID -> addOperator. The addOperator takes the attribute
+  // TypedValue and a TypedValue of the SumType on the right.
+  // So when using, it should look like:
+  //    add_operations_.at(attribute_typeid).applyWithTypedValues(
+  //           Attribute Type TypedValue,
+  //           SumType TypedValue);
+  std::unordered_map<int, UncheckedBinaryOperator*> add_operations_;
+
+  // Maps AttributeTypeID -> ComparisonOperator. The Comparison operator
+  // must be used with 2 Typed Values of the same type as the Attribute Type.
+  // So when using, it should look like:
+  //    add_operations_.at(attribute_typeid).applyWithTypedValues(
+  //           Attribute Type TypedValue,
+  //           Attribute Type TypedValue);
+  std::unordered_map<int, UncheckedComparator*> less_comparisons_;
+  std::unordered_map<int, UncheckedComparator*> equal_comparisons_;
 
   friend class SMAIndexSubBlockTest;
 

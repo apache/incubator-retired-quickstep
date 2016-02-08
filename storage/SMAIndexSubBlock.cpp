@@ -79,32 +79,45 @@ typedef sma_internal::SMAEntry SMAEntry;
 
 namespace sma_internal {
 
-void setTypedValueForSum(SMAEntry *entry) {
-  TypedValue *value = &(entry->sum_);
-  switch (entry->type_) {
+/**
+ * @brief Summation will promote lower precision types to higher precision types.
+ *
+ * @return The higher precision sum typeid. Returns kNullType to indicate that the
+ *         given type cannot be summed.
+ */
+inline TypeID sumType(TypeID type) {
+  switch (type) {
     case kInt:
     case kLong:
-      new (value) TypedValue(static_cast<std::int64_t>(0));
-      return;
+      return kLong;
     case kFloat:
     case kDouble:
-      new (value) TypedValue(static_cast<double>(0.0));
-      return;
-    case kDatetimeInterval: {
-      DatetimeIntervalLit zero;
-      zero.interval_ticks = 0;
-      new (value) TypedValue(zero);
-      return;
-    }
-    case kYearMonthInterval: {
-      YearMonthIntervalLit zero;
-      zero.months = 0;
-      new (value) TypedValue(zero);
-      return;
-    }
+      return kDouble;
     default: {
-      CHECK(false) << "SMA Index was created on an unindexable type.";
+      return kNullType;
     }
+  }
+}
+
+/**
+ * @return True if the type can be summed.
+ */
+inline bool canSum(TypeID type) {
+  return type == kInt || type == kLong || type == kFloat || type == kDouble;
+}
+
+/**
+ * @brief Sets the given entry's sum to zero using the correct promoted type
+ *        of the sum. Does nothing if the entry's type cannot be summed.
+ * @note We ignore clearing any old data held in the previous sum because Double
+ *       and Long types are always represented inline.
+ */
+inline void setTypedValueForSum(SMAEntry *entry) {
+  TypeID sum_type = sumType(entry->type_);
+  if (sum_type == kLong) {
+    new (&entry->sum_) TypedValue(static_cast<std::int64_t>(0));
+  } else if (sum_type == kDouble) {
+    new (&entry->sum_) TypedValue(static_cast<double>(0.0));
   }
 }
 
@@ -164,8 +177,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
       entries_(nullptr),
       indexed_attributes_(0),
       initialized_(false),
-      sub_operators_(),
-      add_operators_(),
+      add_operations_(),
       less_comparisons_(),
       equal_comparisons_() {
   CHECK(DescriptionIsValid(relation_, description_))
@@ -179,6 +191,10 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
   header_ = reinterpret_cast<SMAHeader*>(sub_block_memory_);
   entries_ = reinterpret_cast<SMAEntry*>(header_ + 1);
 
+  if (new_block) {
+    header_->consistent_ = false;
+  }
+
   // Iterate through each attribute which is being indexed.
   for (int indexed_attribute_num = 0;
        indexed_attribute_num < indexed_attributes_;
@@ -189,31 +205,68 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
 
     const Type &attribute_type = tuple_store_.getRelation().getAttributeById(attribute)->getType();
     SMAEntry *entry = entries_ + indexed_attribute_num;
-    resetEntry(entry, attribute, attribute_type);
 
-    // Initialize the operators.
-    // TODO(marc): Attributes that share the same type can share operators. Making
-    // this change will save space.
-    TypeID sum_type = entry->sum_.getTypeID();
-    sub_operators_.push_back(
-        BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kSubtract)
-            .makeUncheckedBinaryOperatorForTypes(TypeFactory::GetType(sum_type), attribute_type));
-    add_operators_.push_back(
-        BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
-            .makeUncheckedBinaryOperatorForTypes(TypeFactory::GetType(sum_type), attribute_type));
-    less_comparisons_.push_back(
-        ComparisonFactory::GetComparison(ComparisonID::kLess)
-            .makeUncheckedComparatorForTypes(attribute_type, attribute_type));
-    equal_comparisons_.push_back(
-        ComparisonFactory::GetComparison(ComparisonID::kEqual)
-            .makeUncheckedComparatorForTypes(attribute_type, attribute_type));
+    // Initialize the operator map.
+    if (sma_internal::canSum(attribute_type.getTypeID())) {
+      TypeID attr_sum_type = sma_internal::sumType(attribute_type.getTypeID());
+      if (add_operations_.find(static_cast<int>(attr_sum_type)) == add_operations_.end()) {
+        add_operations_.insert({
+          static_cast<int>(attribute_type.getTypeID()),
+          BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
+              .makeUncheckedBinaryOperatorForTypes(attribute_type, TypeFactory::GetType(attr_sum_type))});
+      }
+    }
+
+    // Initialize comparison map. Maps attribute type to comparison function.
+    int attr_typeid = static_cast<int>(attribute_type.getTypeID());
+    if (less_comparisons_.find(attr_typeid) == less_comparisons_.end()) {
+      less_comparisons_.insert({attr_typeid,
+          ComparisonFactory::GetComparison(ComparisonID::kLess)
+              .makeUncheckedComparatorForTypes(attribute_type, attribute_type)});
+      equal_comparisons_.insert({attr_typeid,
+          ComparisonFactory::GetComparison(ComparisonID::kEqual)
+              .makeUncheckedComparatorForTypes(attribute_type, attribute_type)});
+    }
 
     // Map the attribute's id to its entry's index.
     attribute_to_entry_.insert({attribute, indexed_attribute_num});
-  }
 
-  if (new_block) {
-    header_->consistent_ = false;
+    if (!header_->consistent_) {
+      resetEntry(entry, attribute, attribute_type);
+    } else {
+      // If the data held by min/max is out of line, we must retrieve it.
+      if (!TypedValue::RepresentedInline(entry->type_)) {
+
+        // First, set to 0 so that we don't try to free invalid memory on copy.
+        // Next, copy from the tuple store. This will copy and give us ownership of out of line data.
+        if (entry->min_entry_.valid_) {
+          new (&entry->min_entry_.value_) TypedValue();
+          entry->min_entry_.value_ = tuple_store
+              .getAttributeValueTyped(entry->min_entry_.tuple_, entry->attribute_);
+        }
+        if (entry->max_entry_.valid_) {
+          new (&entry->max_entry_.value_) TypedValue();
+          entry->max_entry_.value_ = tuple_store
+              .getAttributeValueTyped(entry->max_entry_.tuple_, entry->attribute_);
+        }
+      }
+    }
+  }
+}
+
+SMAIndexSubBlock::~SMAIndexSubBlock() {
+  // Any typed values which have out of line data must be cleared.
+  freeOutOfLineData();
+
+  // Delete owned comparators and operations.
+  for (auto pair : less_comparisons_) {
+    delete pair.second;
+  }
+  for (auto pair : equal_comparisons_) {
+    delete pair.second;
+  }
+  for (auto pair : add_operations_) {
+    delete pair.second;
   }
 }
 
@@ -222,13 +275,20 @@ void SMAIndexSubBlock::resetEntry(SMAEntry *entry,
                                   const Type &attribute_type) {
   entry->attribute_ = attribute;
   entry->type_ = attribute_type.getTypeID();
-  entry->min_entry_.valid_ = false;
-  entry->max_entry_.valid_ = false;
-  setTypedValueForMinMax(entry);
+  if (entry->min_entry_.valid_) {
+    entry->min_entry_.value_.clear();
+    entry->min_entry_.valid_ = false;
+  }
+  if (entry->max_entry_.valid_) {
+    entry->max_entry_.value_.clear();
+    entry->max_entry_.valid_ = false;
+  }
   sma_internal::setTypedValueForSum(entry);
 }
 
 void SMAIndexSubBlock::resetEntries() {
+  freeOutOfLineData();
+
   for (int indexed_attribute_num = 0;
        indexed_attribute_num < indexed_attributes_;
        ++indexed_attribute_num) {
@@ -237,8 +297,23 @@ void SMAIndexSubBlock::resetEntries() {
         indexed_attribute_num);
 
     const Type &attribute_type = tuple_store_.getRelation().getAttributeById(attribute)->getType();
-
     resetEntry(entries_ + indexed_attribute_num, attribute, attribute_type);
+  }
+}
+
+void SMAIndexSubBlock::freeOutOfLineData() {
+  for (int indexed_attribute_num = 0;
+       indexed_attribute_num < indexed_attributes_;
+       ++indexed_attribute_num) {
+    SMAEntry &entry = entries_[indexed_attribute_num];
+    if (!TypedValue::RepresentedInline(entry.type_)) {
+      if (entry.min_entry_.valid_) {
+        entry.min_entry_.value_.clear();
+      }
+      if (entry.max_entry_.valid_) {
+        entry.max_entry_.value_.clear();
+      }
+    }
   }
 }
 
@@ -263,13 +338,6 @@ bool SMAIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema &relation,
     if (!relation.hasAttributeWithId(indexed_attribute_id)) {
       return false;
     }
-    const Type &attr_type = relation.getAttributeById(indexed_attribute_id)->getType();
-    if (attr_type.isVariableLength()) {
-      return false;
-    }
-    if (!TypedValue::RepresentedInline(attr_type.getTypeID())) {
-      return false;
-    }
   }
   return true;
 }
@@ -292,7 +360,7 @@ std::size_t SMAIndexSubBlock::EstimateBytesPerTuple(
     const CatalogRelationSchema &relation,
     const IndexSubBlockDescription &description) {
   // TODO(marc): Returning 1 almost always gives too much space. An enhancement
-  // would be to inform the storage subblock that this index uses space w.r.t. 
+  // would be to inform the storage subblock that this index uses space w.r.t.
   // # of attributes being indexed, not tuples.
   return 1;
 }
@@ -339,32 +407,39 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
       continue;
     }
 
-    entry.sum_ = add_operators_[index].applyToTypedValues(entry.sum_, tuple_value);
+    if (sma_internal::canSum(entry.type_)) {
+      entry.sum_ = add_operations_
+                       .at(static_cast<int>(entry.type_))
+                            ->applyToTypedValues(tuple_value, entry.sum_);
+    }
 
     if (!entry.min_entry_.valid_) {
-      memcpy(&entry.min_entry_.value_, &tuple_value, sizeof(TypedValue));
-      //entry.min_entry_.value_ = tuple_value;
+      entry.min_entry_.value_ = tuple_value;
+      entry.min_entry_.value_.ensureNotReference();
       entry.min_entry_.tuple_ = tuple;
       entry.min_entry_.valid_ = true;
     } else {
-      if (less_comparisons_[index].compareTypedValues(tuple_value, entry.min_entry_.value_)) {
+      if (less_comparisons_.at(entry.type_)->compareTypedValues(tuple_value, entry.min_entry_.value_)) {
         entry.min_entry_.value_ = tuple_value;
+        entry.min_entry_.value_.ensureNotReference();
         entry.min_entry_.tuple_ = tuple;
       }
     }
 
     if (!entry.max_entry_.valid_) {
-      memcpy(&entry.max_entry_.value_, &tuple_value, sizeof(TypedValue));
-      //entry.max_entry_.value_ = tuple_value;
+      entry.max_entry_.value_ = tuple_value;
+      entry.max_entry_.value_.ensureNotReference();
       entry.max_entry_.tuple_ = tuple;
       entry.max_entry_.valid_ = true;
     } else {
-      if (less_comparisons_[index].compareTypedValues(entry.max_entry_.value_, tuple_value)) {
+      if (less_comparisons_.at(entry.type_)->compareTypedValues(entry.max_entry_.value_, tuple_value)) {
         entry.max_entry_.value_ = tuple_value;
+        entry.max_entry_.value_.ensureNotReference();
         entry.max_entry_.tuple_ = tuple;
       }
     }
   }
+
   header_->count_++;
 }
 
