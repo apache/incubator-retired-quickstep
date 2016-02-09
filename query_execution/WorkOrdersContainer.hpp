@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -20,15 +20,15 @@
 
 #include <cstddef>
 #include <list>
+#include <memory>
 #include <queue>
 #include <vector>
 
-#include "utility/PtrVector.hpp"
+#include "relational_operators/WorkOrder.hpp"
 #include "utility/Macros.hpp"
+#include "utility/PtrVector.hpp"
 
 namespace quickstep {
-
-class WorkOrder;
 
 /** \addtogroup QueryExecution
  *  @{
@@ -139,10 +139,11 @@ class WorkOrdersContainer {
    * @param numa_node_id The NUMA node.
    *
    * @return A WorkOrder which prefers numa_node_id. If no such WorkOrder is
-   *         available, return nullptr.
+   *         available, return nullptr. The caller is responsible for taking the
+   *         ownership.
    **/
   WorkOrder* getNormalWorkOrderForNUMANode(const std::size_t operator_index,
-                                         const int numa_node_id) {
+                                           const int numa_node_id) {
     DEBUG_ASSERT(operator_index < num_operators_);
     DEBUG_ASSERT(numa_node_id >= 0);
     DEBUG_ASSERT(static_cast<std::size_t>(numa_node_id) < num_numa_nodes_);
@@ -158,10 +159,11 @@ class WorkOrdersContainer {
    *        prefer exactly one NUMA node over workorders which list more than
    *        one NUMA node as their preference.
    *
-   * @return A WorkOrder. If no WorkOrder is available, returns nullptr.
+   * @return A WorkOrder. If no WorkOrder is available, returns nullptr. The
+   *         caller is responsible for taking the ownership.
    **/
   WorkOrder* getNormalWorkOrder(const std::size_t operator_index,
-                              const bool prefer_single_NUMA_node = true) {
+                                const bool prefer_single_NUMA_node = true) {
     DEBUG_ASSERT(operator_index < num_operators_);
     return normal_workorders_[operator_index].getWorkOrder(
         prefer_single_NUMA_node);
@@ -175,10 +177,11 @@ class WorkOrdersContainer {
    * @param numa_node_id The NUMA node.
    *
    * @return A WorkOrder that prefers numa_node_id. If no such WorkOrder is
-   *         available, return nullptr.
+   *         available, return nullptr. The caller is responsible for taking the
+   *         ownership.
    **/
   WorkOrder* getRebuildWorkOrderForNUMANode(const std::size_t operator_index,
-                                          const int numa_node_id) {
+                                            const int numa_node_id) {
     DEBUG_ASSERT(operator_index < num_operators_);
     DEBUG_ASSERT(numa_node_id >= 0);
     DEBUG_ASSERT(static_cast<std::size_t>(numa_node_id) < num_numa_nodes_);
@@ -194,10 +197,11 @@ class WorkOrdersContainer {
    *        prefer exactly one NUMA node over workorders which list more than
    *        one NUMA node as their preference.
    *
-   * @return A WorkOrder. If no WorkOrder is available, returns nullptr.
+   * @return A WorkOrder. If no WorkOrder is available, returns nullptr. The
+   *         caller is responsible for taking the ownership.
    **/
   WorkOrder* getRebuildWorkOrder(const std::size_t operator_index,
-                               const bool prefer_single_NUMA_node = true) {
+                                 const bool prefer_single_NUMA_node = true) {
     DEBUG_ASSERT(operator_index < num_operators_);
     return rebuild_workorders_[operator_index].getWorkOrder(
         prefer_single_NUMA_node);
@@ -207,6 +211,7 @@ class WorkOrdersContainer {
    * @brief Add a normal (non-rebuild) WorkOrder generated from a given
    *        operator.
    *
+   * @note Take the ownership of \p workorder.
    * @note The workorder to be added contains information about its preferred
    *       NUMA nodes. This information is used to insert the WorkOrder
    *       appropriately.
@@ -223,6 +228,7 @@ class WorkOrdersContainer {
   /**
    * @brief Add a rebuild WorkOrder generated from a given operator.
    *
+   * @note Take the ownership of \p workorder.
    * @note The workorder to be added contains information about its preferred
    *       NUMA nodes. This information is used to insert the WorkOrder
    *       appropriately.
@@ -231,7 +237,7 @@ class WorkOrdersContainer {
    * @param operator_index The index of the operator in the query DAG.
    **/
   void addRebuildWorkOrder(WorkOrder *workorder,
-                          const std::size_t operator_index) {
+                           const std::size_t operator_index) {
     DEBUG_ASSERT(workorder != nullptr);
     DEBUG_ASSERT(operator_index < num_operators_);
     rebuild_workorders_[operator_index].addWorkOrder(workorder);
@@ -311,16 +317,17 @@ class WorkOrdersContainer {
     }
 
     inline void addWorkOrder(WorkOrder *workorder) {
-      workorders_.push(workorder);
+      workorders_.emplace(std::unique_ptr<WorkOrder>(workorder));
     }
 
     inline WorkOrder* getWorkOrder() {
-      if (!workorders_.empty()) {
-        WorkOrder *work_order = workorders_.front();
-        workorders_.pop();
-        return work_order;
+      if (workorders_.empty()) {
+        return nullptr;
       }
-      return nullptr;
+
+      WorkOrder *work_order = workorders_.front().release();
+      workorders_.pop();
+      return work_order;
     }
 
     inline bool hasWorkOrder() const {
@@ -332,7 +339,7 @@ class WorkOrdersContainer {
     }
 
    private:
-    std::queue<WorkOrder*> workorders_;
+    std::queue<std::unique_ptr<WorkOrder>> workorders_;
 
     DISALLOW_COPY_AND_ASSIGN(InternalQueueContainer);
   };
@@ -350,16 +357,17 @@ class WorkOrdersContainer {
     }
 
     inline void addWorkOrder(WorkOrder *workorder) {
-      workorders_.push_back(workorder);
+      workorders_.emplace_back(std::unique_ptr<WorkOrder>(workorder));
     }
 
     inline WorkOrder* getWorkOrder() {
-      if (!workorders_.empty()) {
-        WorkOrder *work_order = workorders_.front();
-        workorders_.pop_front();
-        return work_order;
+      if (workorders_.empty()) {
+        return nullptr;
       }
-      return nullptr;
+
+      WorkOrder *work_order = workorders_.front().release();
+      workorders_.pop_front();
+      return work_order;
     }
 
     /**
@@ -390,7 +398,7 @@ class WorkOrdersContainer {
     std::size_t getNumWorkOrdersForNUMANode(const int numa_node) const;
 
    private:
-    std::list<WorkOrder*> workorders_;
+    std::list<std::unique_ptr<WorkOrder>> workorders_;
 
     DISALLOW_COPY_AND_ASSIGN(InternalListContainer);
   };
