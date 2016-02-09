@@ -68,7 +68,7 @@ class SortRunGenerationOperator : public RelationalOperator {
    * configuration and writing to output destination.
    *
    * @param input_relation The relation to generate sorted runs of.
-   * @param output_relation_id The id of the output relation.
+   * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to store the sorted blocks of runs.
    * @param sort_config Sort configuration specifying ORDER BY, ordering and
@@ -79,12 +79,12 @@ class SortRunGenerationOperator : public RelationalOperator {
    *                                 streamed.
    **/
   SortRunGenerationOperator(const CatalogRelation &input_relation,
-                            const relation_id output_relation_id,
+                            const CatalogRelation &output_relation,
                             const QueryContext::insert_destination_id output_destination_index,
                             const QueryContext::sort_config_id sort_config_index,
                             bool input_relation_is_stored)
       : input_relation_(input_relation),
-        output_relation_id_(output_relation_id),
+        output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         sort_config_index_(sort_config_index),
         input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
@@ -114,13 +114,13 @@ class SortRunGenerationOperator : public RelationalOperator {
   }
 
   const relation_id getOutputRelationID() const override {
-    return output_relation_id_;
+    return output_relation_.getID();
   }
 
  private:
   const CatalogRelation &input_relation_;
 
-  const relation_id output_relation_id_;
+  const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
 
   const QueryContext::sort_config_id sort_config_index_;

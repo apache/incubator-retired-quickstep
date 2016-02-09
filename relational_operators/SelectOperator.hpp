@@ -51,7 +51,7 @@ class SelectOperator : public RelationalOperator {
    *        list.
    *
    * @param input_relation The relation to perform selection over.
-   * @param output_relation_id The id of the output relation.
+   * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the selection results.
    * @param predicate_index The index of selection predicate in QueryContext.
@@ -64,13 +64,13 @@ class SelectOperator : public RelationalOperator {
    *        workorders.
    **/
   SelectOperator(const CatalogRelation &input_relation,
-                 const relation_id output_relation_id,
+                 const CatalogRelation &output_relation,
                  const QueryContext::insert_destination_id output_destination_index,
                  const QueryContext::predicate_id predicate_index,
                  const QueryContext::scalar_group_id selection_index,
                  bool input_relation_is_stored)
       : input_relation_(input_relation),
-        output_relation_id_(output_relation_id),
+        output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         predicate_index_(predicate_index),
         selection_index_(selection_index),
@@ -88,7 +88,7 @@ class SelectOperator : public RelationalOperator {
    * @note selection_index_ is invalid, and will not be used for projection.
    *
    * @param input_relation The relation to perform selection over.
-   * @param output_relation_id The id of the output relation.
+   * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the selection results.
    * @param selection A projection list of attribute IDs. The operator takes
@@ -101,13 +101,13 @@ class SelectOperator : public RelationalOperator {
    *        workorders.
    **/
   SelectOperator(const CatalogRelation &input_relation,
-                 const relation_id output_relation_id,
+                 const CatalogRelation &output_relation,
                  const QueryContext::insert_destination_id output_destination_index,
                  const QueryContext::predicate_id predicate_index,
                  std::vector<attribute_id> *selection,
                  bool input_relation_is_stored)
       : input_relation_(input_relation),
-        output_relation_id_(output_relation_id),
+        output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         predicate_index_(predicate_index),
         selection_index_(QueryContext::kInvalidScalarGroupId),
@@ -138,13 +138,13 @@ class SelectOperator : public RelationalOperator {
   }
 
   const relation_id getOutputRelationID() const override {
-    return output_relation_id_;
+    return output_relation_.getID();
   }
 
  private:
-  const CatalogRelationSchema &input_relation_;
+  const CatalogRelation &input_relation_;
 
-  const relation_id output_relation_id_;
+  const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
   const QueryContext::predicate_id predicate_index_;
 

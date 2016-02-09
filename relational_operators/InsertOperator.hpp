@@ -42,15 +42,15 @@ class InsertOperator : public RelationalOperator {
   /**
    * @brief Constructor.
    *
-   * @param output_relation_id The id of the output relation.
+   * @param output_relation_id The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the tuple.
    * @param tuple_index The index of the tuple to insert in the QueryContext.
    **/
-  InsertOperator(const relation_id output_relation_id,
+  InsertOperator(const CatalogRelation &output_relation,
                  const QueryContext::insert_destination_id output_destination_index,
                  const QueryContext::tuple_id tuple_index)
-      : output_relation_id_(output_relation_id),
+      : output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         tuple_index_(tuple_index),
         work_generated_(false) {}
@@ -64,11 +64,11 @@ class InsertOperator : public RelationalOperator {
   }
 
   const relation_id getOutputRelationID() const override {
-    return output_relation_id_;
+    return output_relation_.getID();
   }
 
  private:
-  const relation_id output_relation_id_;
+  const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
   const QueryContext::tuple_id tuple_index_;
   bool work_generated_;
