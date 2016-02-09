@@ -166,7 +166,7 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
     }
     const QueryPlan::DAGNodeIndex drop_table_index =
         execution_plan_->addRelationalOperator(
-            new DropTableOperator(temporary_relation->getID(),
+            new DropTableOperator(*temporary_relation,
                                   false /* only_drop_blocks */));
     DCHECK(!temporary_relation_info.isStoredRelation());
     execution_plan_->addDependenciesForDropOperator(
@@ -796,7 +796,7 @@ void ExecutionGenerator::convertDeleteTuples(
        execution_predicate->getStaticResult())) {
     const QueryPlan::DAGNodeIndex drop_table_index =
         execution_plan_->addRelationalOperator(
-            new DropTableOperator(input_relation_info->relation->getID(),
+            new DropTableOperator(*input_relation_info->relation,
                                   true /* only_drop_blocks */));
     if (!input_relation_info->isStoredRelation()) {
       execution_plan_->addDirectDependency(drop_table_index,
@@ -833,7 +833,7 @@ void ExecutionGenerator::convertDropTable(
     const P::DropTablePtr &physical_plan) {
   // DropTable is converted to a DropTable operator.
   execution_plan_->addRelationalOperator(
-      new DropTableOperator(physical_plan->catalog_relation()->getID()));
+      new DropTableOperator(*physical_plan->catalog_relation()));
 }
 
 void ExecutionGenerator::convertInsertTuple(
@@ -1198,7 +1198,7 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
   const QueryPlan::DAGNodeIndex drop_merged_runs_index =
       execution_plan_->addRelationalOperator(
           new DropTableOperator(
-              merged_runs_relation->getID(),
+              *merged_runs_relation,
               false /* only_drop_blocks */));
   execution_plan_->addDirectDependency(
       drop_merged_runs_index,
