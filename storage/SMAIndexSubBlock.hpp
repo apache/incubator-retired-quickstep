@@ -59,8 +59,8 @@ struct SMAHeader {
 
 struct EntryReference {
   tuple_id tuple_;
-  TypedValue value_;
   bool valid_;
+  TypedValue value_;
 };
 
 struct SMAEntry {

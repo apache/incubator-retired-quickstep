@@ -101,6 +101,12 @@ namespace sma_test {
         .compareTypedValuesChecked(left, CharType::Instance(80, false),
                                    right, CharType::Instance(80, false));
   }
+
+  bool varchars_equal(TypedValue left, TypedValue right) {
+    return ComparisonFactory::GetComparison(ComparisonID::kEqual)
+        .compareTypedValuesChecked(left, TypeFactory::GetType(kVarChar, 8, false),
+                                   right, TypeFactory::GetType(kVarChar, 8, false));
+  }
 }  // namespace sma_test
 
 class SMAIndexSubBlockTest : public ::testing::Test {
@@ -350,6 +356,8 @@ TEST_F(SMAIndexSubBlockTest, TestRebuild) {
   index_->rebuild();
   SMAEntry* entry0 = getEntryForAttribute(0);
   SMAEntry* entry2 = getEntryForAttribute(2);
+  // Entries should and must exist.
+  ASSERT_TRUE(entry0 != nullptr && entry2 != nullptr);
   
   // Check entry validity.
   EXPECT_TRUE(entry0->min_entry_.valid_);
@@ -392,8 +400,11 @@ TEST_F(SMAIndexSubBlockTest, TestRebuildWithNulls) {
     generateAndInsertTuple(i, insertNull, "suffix");
     sum_1 += insertNull ? 0 : i;
   }
-  index_->rebuild();
+  bool rebuild_status = index_->rebuild();
+  ASSERT_TRUE(rebuild_status);
+
   SMAEntry* entry1 = getEntryForAttribute(1);
+  EXPECT_TRUE(entry1->min_entry_.valid_);
 
   // Check min ids and values.
   tuple_id min_tuple = 1;
@@ -418,11 +429,34 @@ TEST_F(SMAIndexSubBlockTest, TestRebuildWithNulls) {
 
 TEST_F(SMAIndexSubBlockTest, TestWithVariableLengthAttrs) {
   createIndex({4, 5, 6}, kIndexSubBlockSize);  // Nullable char, BigChar, VarChar.
-  int min = 0, max = 9010, step = 10;
-  for (unsigned i = min; i <= max; i+=step) {
-    generateAndInsertTuple(i, true, "suffix");
+  int min = 0, max = 1001;
+  tuple_id max_id, min_id;
+
+  std::string suffix("suffix");
+  std::string max_str("");
+  std::string min_str("Z");
+  for (unsigned i = min; i < max; ++i) {
+    tuple_id id = generateAndInsertTuple(i, false, suffix);
+
+    // Keep track of the min/max strings entered.
+    ostringstream string_value_buffer;
+    string_value_buffer << i << suffix;
+    if (string_value_buffer.str() < min_str) {
+      min_str = string_value_buffer.str();
+      min_id = id;
+    }
+    if (string_value_buffer.str() > max_str) {
+      max_str = string_value_buffer.str();
+      max_id = id;
+    }
   }
+
+  EXPECT_TRUE(index_->hasEntryForAttribute(4));
+  EXPECT_TRUE(index_->hasEntryForAttribute(5));
+  EXPECT_TRUE(index_->hasEntryForAttribute(6));
   EXPECT_TRUE(index_->rebuild());
+
+  // Test attribute 4, a nullable 4 character char.
   SMAEntry* entry4 = getEntryForAttribute(4);
   EXPECT_EQ(kChar, entry4->type_);
   EXPECT_EQ(4, entry4->attribute_);
@@ -432,31 +466,80 @@ TEST_F(SMAIndexSubBlockTest, TestWithVariableLengthAttrs) {
   EXPECT_TRUE(entry4->min_entry_.valid_);
 
   // Check min ids and values.
-  tuple_id max_id = (max - min)/step;
-  EXPECT_EQ(0, entry4->min_entry_.tuple_);
+  EXPECT_EQ(min_id, entry4->min_entry_.tuple_);
   EXPECT_EQ(max_id, entry4->max_entry_.tuple_);
+  EXPECT_TRUE(sma_test::chars_equal(
+      entry4->min_entry_.value_,
+      tuple_store_->getAttributeValueTyped(entry4->min_entry_.tuple_, 4)));
 
-  // EXPECT_TRUE(sma_test::longs_equal(entry0->min_entry_.value_,
-  //                                   tuple_store_->getAttributeValueTyped(0, 0)));
+  EXPECT_TRUE(sma_test::chars_equal(
+      entry4->max_entry_.value_,
+      tuple_store_->getAttributeValueTyped(entry4->max_entry_.tuple_, 4)));
 
-  // EXPECT_TRUE(sma_test::floats_equal(entry2->min_entry_.value_,
-  //                                    tuple_store_->getAttributeValueTyped(0, 2)));
+  // Test attribute 5, an 80 character char.
+  SMAEntry* entry5 = getEntryForAttribute(5);
+  EXPECT_EQ(kChar, entry5->type_);
+  EXPECT_EQ(5, entry5->attribute_);
 
-  // // Check max ids and values.
-  // tuple_id max_id = (max - min)/step;
-  // EXPECT_EQ(max_id, entry0->max_entry_.tuple_);
-  // EXPECT_EQ(max_id, entry2->max_entry_.tuple_);
-  // EXPECT_TRUE(sma_test::longs_equal(entry0->max_entry_.value_,
-  //                                   tuple_store_->getAttributeValueTyped(max_id, 0)));
-  // EXPECT_TRUE(sma_test::floats_equal(entry2->max_entry_.value_,
-  //                                    tuple_store_->getAttributeValueTyped(max_id, 2)));
+  // Min and Max values should be valid at this point.
+  EXPECT_TRUE(entry5->max_entry_.valid_);
+  EXPECT_TRUE(entry5->min_entry_.valid_);
 
-  // // Check sums.
-  // EXPECT_TRUE(sma_test::longs_equal(entry0->sum_, TypedValue(sum_0)));
-  // EXPECT_TRUE(sma_test::doubles_equal(entry2->sum_, TypedValue(sum_2)));
+  // Check min ids and values.
+  EXPECT_EQ(min_id, entry5->min_entry_.tuple_);
+  EXPECT_EQ(max_id, entry5->max_entry_.tuple_);
+  EXPECT_TRUE(sma_test::chars_equal(
+      entry5->min_entry_.value_,
+      tuple_store_->getAttributeValueTyped(entry5->min_entry_.tuple_, 5)));
+
+  EXPECT_TRUE(sma_test::chars_equal(
+      entry5->max_entry_.value_,
+      tuple_store_->getAttributeValueTyped(entry5->max_entry_.tuple_, 5)));
+
+  // Test attribute 6, an 8 character varchar.
+  SMAEntry* entry6 = getEntryForAttribute(6);
+  EXPECT_EQ(kVarChar, entry6->type_);
+  EXPECT_EQ(6, entry6->attribute_);
+
+  // Min and Max values should be valid at this point.
+  EXPECT_TRUE(entry6->max_entry_.valid_);
+  EXPECT_TRUE(entry6->min_entry_.valid_);
+
+  // Check min ids and values.
+  EXPECT_EQ(min_id, entry6->min_entry_.tuple_);
+  EXPECT_EQ(max_id, entry6->max_entry_.tuple_);
+  EXPECT_TRUE(sma_test::varchars_equal(
+      entry6->min_entry_.value_,
+      tuple_store_->getAttributeValueTyped(entry6->min_entry_.tuple_, 6)));
+
+  EXPECT_TRUE(sma_test::varchars_equal(
+      entry6->max_entry_.value_,
+      tuple_store_->getAttributeValueTyped(entry6->max_entry_.tuple_, 6)));
+
+  // Try kicking the index out of memory and then getting the variable length
+  // attributes back.
+  index_.reset(new SMAIndexSubBlock(*tuple_store_,
+                                    *index_description_,
+                                    false,
+                                    index_memory_.get(),
+                                    kIndexSubBlockSize));
+  ASSERT_FALSE(index_->requiresRebuild());
+
+  SMAEntry* nentry6 = getEntryForAttribute(6);
+  EXPECT_EQ(kVarChar, nentry6->type_);
+  EXPECT_EQ(6, nentry6->attribute_);
+  EXPECT_EQ(min_id, nentry6->min_entry_.tuple_);
+  EXPECT_EQ(max_id, nentry6->max_entry_.tuple_);
+  ASSERT_EQ(kVarChar, nentry6->max_entry_.value_.getTypeID());
+  EXPECT_TRUE(sma_test::varchars_equal(
+      nentry6->min_entry_.value_,
+      tuple_store_->getAttributeValueTyped(nentry6->min_entry_.tuple_, 6)));
+  EXPECT_TRUE(sma_test::varchars_equal(
+      nentry6->max_entry_.value_,
+      tuple_store_->getAttributeValueTyped(nentry6->max_entry_.tuple_, 6)));
 
   // Check count.
-  EXPECT_EQ(max_id + 1, index_->getCount());
+  EXPECT_EQ(max, index_->getCount());
 }
 
 

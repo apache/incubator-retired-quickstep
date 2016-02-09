@@ -240,14 +240,18 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
         // First, set to 0 so that we don't try to free invalid memory on copy.
         // Next, copy from the tuple store. This will copy and give us ownership of out of line data.
         if (entry->min_entry_.valid_) {
+          std::cout << "set min\n";
           new (&entry->min_entry_.value_) TypedValue();
           entry->min_entry_.value_ = tuple_store
               .getAttributeValueTyped(entry->min_entry_.tuple_, entry->attribute_);
+          std::cout << "typeid: " << entry->min_entry_.value_.getTypeID() << "\n";
         }
         if (entry->max_entry_.valid_) {
+          std::cout << "set max\n";
           new (&entry->max_entry_.value_) TypedValue();
           entry->max_entry_.value_ = tuple_store
               .getAttributeValueTyped(entry->max_entry_.tuple_, entry->attribute_);
+          std::cout << "typeid: " << entry->max_entry_.value_.getTypeID() << "\n";
         }
       }
     }
@@ -400,42 +404,42 @@ bool SMAIndexSubBlock::rebuild() {
 
 void SMAIndexSubBlock::addTuple(tuple_id tuple) {
   for (int index = 0; index < indexed_attributes_; ++index) {
-    SMAEntry &entry = entries_[index];
-    TypedValue tuple_value = tuple_store_.getAttributeValueTyped(tuple, entry.attribute_);
+    SMAEntry *entry = entries_ + index;
+    TypedValue tuple_value = tuple_store_.getAttributeValueTyped(tuple, entry->attribute_);
 
     if (tuple_value.isNull()) {
       continue;
     }
 
-    if (sma_internal::canSum(entry.type_)) {
-      entry.sum_ = add_operations_
-                       .at(static_cast<int>(entry.type_))
-                            ->applyToTypedValues(tuple_value, entry.sum_);
+    if (sma_internal::canSum(entry->type_)) {
+      entry->sum_ = add_operations_
+                       .at(static_cast<int>(entry->type_))
+                            ->applyToTypedValues(tuple_value, entry->sum_);
     }
 
-    if (!entry.min_entry_.valid_) {
-      entry.min_entry_.value_ = tuple_value;
-      entry.min_entry_.value_.ensureNotReference();
-      entry.min_entry_.tuple_ = tuple;
-      entry.min_entry_.valid_ = true;
+    if (!entry->min_entry_.valid_) {
+      entry->min_entry_.value_ = tuple_value;
+      entry->min_entry_.value_.ensureNotReference();
+      entry->min_entry_.tuple_ = tuple;
+      entry->min_entry_.valid_ = true;
     } else {
-      if (less_comparisons_.at(entry.type_)->compareTypedValues(tuple_value, entry.min_entry_.value_)) {
-        entry.min_entry_.value_ = tuple_value;
-        entry.min_entry_.value_.ensureNotReference();
-        entry.min_entry_.tuple_ = tuple;
+      if (less_comparisons_.at(entry->type_)->compareTypedValues(tuple_value, entry->min_entry_.value_)) {
+        entry->min_entry_.value_ = tuple_value;
+        entry->min_entry_.value_.ensureNotReference();
+        entry->min_entry_.tuple_ = tuple;
       }
     }
 
-    if (!entry.max_entry_.valid_) {
-      entry.max_entry_.value_ = tuple_value;
-      entry.max_entry_.value_.ensureNotReference();
-      entry.max_entry_.tuple_ = tuple;
-      entry.max_entry_.valid_ = true;
+    if (!entry->max_entry_.valid_) {
+      entry->max_entry_.value_ = tuple_value;
+      entry->max_entry_.value_.ensureNotReference();
+      entry->max_entry_.tuple_ = tuple;
+      entry->max_entry_.valid_ = true;
     } else {
-      if (less_comparisons_.at(entry.type_)->compareTypedValues(entry.max_entry_.value_, tuple_value)) {
-        entry.max_entry_.value_ = tuple_value;
-        entry.max_entry_.value_.ensureNotReference();
-        entry.max_entry_.tuple_ = tuple;
+      if (less_comparisons_.at(entry->type_)->compareTypedValues(entry->max_entry_.value_, tuple_value)) {
+        entry->max_entry_.value_ = tuple_value;
+        entry->max_entry_.value_.ensureNotReference();
+        entry->max_entry_.tuple_ = tuple;
       }
     }
   }
@@ -445,6 +449,10 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
 
 bool SMAIndexSubBlock::requiresRebuild() const {
   return !header_->consistent_;
+}
+
+bool SMAIndexSubBlock::hasEntryForAttribute(attribute_id attribute) const {
+  return attribute_to_entry_.find(attribute) != attribute_to_entry_.end();
 }
 
 }  // namespace quickstep
