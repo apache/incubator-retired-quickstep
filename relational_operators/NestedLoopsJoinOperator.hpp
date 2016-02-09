@@ -59,7 +59,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
    *        actually important).
    * @param right_input_relation The second relation in the join (order is not
    *        actually important).
-   * @param output_relation_id The id of the output relation.
+   * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the join results.
    * @param join_predicate_index The index of join predicate in QueryContext to
@@ -75,7 +75,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
    **/
   NestedLoopsJoinOperator(const CatalogRelation &left_input_relation,
                           const CatalogRelation &right_input_relation,
-                          const relation_id output_relation_id,
+                          const CatalogRelation &output_relation,
                           const QueryContext::insert_destination_id output_destination_index,
                           const QueryContext::predicate_id join_predicate_index,
                           const QueryContext::scalar_group_id selection_index,
@@ -83,7 +83,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
                           bool right_relation_is_stored)
       : left_input_relation_(left_input_relation),
         right_input_relation_(right_input_relation),
-        output_relation_id_(output_relation_id),
+        output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         join_predicate_index_(join_predicate_index),
         selection_index_(selection_index),
@@ -124,7 +124,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
   }
 
   const relation_id getOutputRelationID() const override {
-    return output_relation_id_;
+    return output_relation_.getID();
   }
 
  private:
@@ -168,7 +168,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
   const CatalogRelation &left_input_relation_;
   const CatalogRelation &right_input_relation_;
 
-  const relation_id output_relation_id_;
+  const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
 
   const QueryContext::predicate_id join_predicate_index_;

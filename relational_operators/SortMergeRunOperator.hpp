@@ -71,7 +71,7 @@ class SortMergeRunOperator : public RelationalOperator {
    * @brief Constructor for merging sorted runs to generate a sorted relation.
    *
    * @param input_relation The relation to merge sorted blocks.
-   * @param output_relation_id The id of the output relation.
+   * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to store the sorted blocks in.
    * @param run_relation The temporary relation used to store intermediate runs
@@ -90,7 +90,7 @@ class SortMergeRunOperator : public RelationalOperator {
    * @param bus A pointer to the TMB.
    **/
   SortMergeRunOperator(const CatalogRelation &input_relation,
-                       const relation_id output_relation_id,
+                       const CatalogRelation &output_relation,
                        const QueryContext::insert_destination_id output_destination_index,
                        const CatalogRelation &run_relation,
                        const QueryContext::insert_destination_id run_block_destination_index,
@@ -101,7 +101,7 @@ class SortMergeRunOperator : public RelationalOperator {
                        const tmb::client_id foreman_client_id,
                        tmb::MessageBus *bus)
       : input_relation_(input_relation),
-        output_relation_id_(output_relation_id),
+        output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         sort_config_index_(sort_config_index),
         merge_factor_(merge_factor),
@@ -156,7 +156,7 @@ class SortMergeRunOperator : public RelationalOperator {
   }
 
   const relation_id getOutputRelationID() const override {
-    return output_relation_id_;
+    return output_relation_.getID();
   }
 
  private:
@@ -172,7 +172,7 @@ class SortMergeRunOperator : public RelationalOperator {
 
   const CatalogRelation &input_relation_;
 
-  const relation_id output_relation_id_;
+  const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
 
   const QueryContext::sort_config_id sort_config_index_;
