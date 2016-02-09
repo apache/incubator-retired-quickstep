@@ -39,7 +39,6 @@ class ParseDataType;
 class ParseFunctionCall;
 class ParseLiteralValue;
 class ParsePredicate;
-class ParseStringKeyLiteralValues;
 class ParseScalarLiteral;
 class ParseSelection;
 class ParseSelectionItem;
