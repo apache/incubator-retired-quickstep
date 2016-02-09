@@ -74,7 +74,7 @@ class DropTableWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @param rel_id The id of the relation to drop.
+   * @param relation The relation to drop.
    * @param only_drop_blocks If true, only drop the blocks belonging to
    *        relation, but leave relation in the database.
    **/

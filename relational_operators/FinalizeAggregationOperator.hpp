@@ -44,7 +44,7 @@ class FinalizeAggregationOperator : public RelationalOperator {
    * tuples.  The actual aggregation is computed by the AggregationOperator.
    *
    * @param aggr_state_index The index of the AggregationState in QueryContext.
-   * @param output_relation_id The id of the output relation.
+   * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert aggregation results.
    */

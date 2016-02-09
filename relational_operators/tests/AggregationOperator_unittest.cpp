@@ -239,21 +239,19 @@ class AggregationOperatorTest : public ::testing::Test {
     // Create Operators.
     op_.reset(new AggregationOperator(*table_, true, aggr_state_index));
 
-    const relation_id output_relation_id = result_table_->getID();
-
     // Setup the InsertDestination proto in the query context proto.
     const QueryContext::insert_destination_id insert_destination_index =
         query_context_proto.insert_destinations_size();
     serialization::InsertDestination *insert_destination_proto = query_context_proto.add_insert_destinations();
 
     insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
-    insert_destination_proto->set_relation_id(output_relation_id);
+    insert_destination_proto->set_relation_id(result_table_->getID());
     insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
     insert_destination_proto->set_foreman_client_id(tmb::kClientIdNone);
 
     finalize_op_.reset(
-        new FinalizeAggregationOperator(aggr_state_index, output_relation_id, insert_destination_index));
+        new FinalizeAggregationOperator(aggr_state_index, *result_table_, insert_destination_index));
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto, db_.get(), storage_manager_.get(), nullptr /* TMB */));
@@ -319,21 +317,19 @@ class AggregationOperatorTest : public ::testing::Test {
     // Create Operators.
     op_.reset(new AggregationOperator(*table_, true, aggr_state_index));
 
-    const relation_id output_relation_id = result_table_->getID();
-
     // Setup the InsertDestination proto in the query context proto.
     const QueryContext::insert_destination_id insert_destination_index =
         query_context_proto.insert_destinations_size();
     serialization::InsertDestination *insert_destination_proto = query_context_proto.add_insert_destinations();
 
     insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
-    insert_destination_proto->set_relation_id(output_relation_id);
+    insert_destination_proto->set_relation_id(result_table_->getID());
     insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
     insert_destination_proto->set_foreman_client_id(tmb::kClientIdNone);
 
     finalize_op_.reset(
-        new FinalizeAggregationOperator(aggr_state_index, output_relation_id, insert_destination_index));
+        new FinalizeAggregationOperator(aggr_state_index, *result_table_, insert_destination_index));
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto, db_.get(), storage_manager_.get(), nullptr /* TMB */));
