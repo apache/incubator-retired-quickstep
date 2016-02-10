@@ -707,20 +707,20 @@ static const yytype_uint16 yyrline[] =
      662,   674,   677,   680,   698,   718,   721,   724,   729,   734,
      740,   746,   755,   759,   765,   768,   773,   778,   783,   790,
      797,   801,   807,   810,   815,   818,   826,   830,   836,   839,
-     842,   847,   852,   857,   862,   865,   872,   875,   882,   890,
-     895,   900,   903,   908,   912,   916,   920,   926,   931,   936,
-     940,   946,   952,   957,   960,   965,   969,   975,   981,   987,
-     990,   994,  1000,  1003,  1008,  1012,  1018,  1021,  1024,  1029,
-    1034,  1037,  1043,  1047,  1053,  1059,  1065,  1071,  1077,  1083,
-    1089,  1095,  1103,  1108,  1112,  1116,  1121,  1124,  1129,  1132,
-    1137,  1141,  1147,  1150,  1155,  1158,  1163,  1166,  1171,  1174,
-    1193,  1197,  1203,  1210,  1213,  1216,  1221,  1224,  1227,  1233,
-    1236,  1241,  1246,  1255,  1260,  1269,  1274,  1277,  1282,  1285,
-    1290,  1296,  1302,  1309,  1312,  1319,  1322,  1327,  1330,  1335,
-    1338,  1343,  1346,  1349,  1352,  1357,  1361,  1365,  1370,  1374,
-    1380,  1383,  1386,  1389,  1401,  1405,  1424,  1439,  1443,  1449,
-    1452,  1458,  1461,  1464,  1467,  1470,  1473,  1478,  1489,  1492,
-    1497,  1500,  1506,  1510,  1516,  1519,  1527,  1530,  1533,  1536
+     842,   847,   852,   857,   862,   867,   874,   877,   884,   892,
+     897,   902,   905,   910,   914,   918,   922,   928,   933,   938,
+     942,   948,   954,   959,   962,   967,   971,   977,   983,   989,
+     992,   996,  1002,  1005,  1010,  1014,  1020,  1023,  1026,  1031,
+    1036,  1039,  1045,  1049,  1055,  1061,  1067,  1073,  1079,  1085,
+    1091,  1097,  1105,  1110,  1114,  1118,  1123,  1126,  1131,  1134,
+    1139,  1143,  1149,  1152,  1157,  1160,  1165,  1168,  1173,  1176,
+    1195,  1199,  1205,  1212,  1215,  1218,  1223,  1226,  1229,  1235,
+    1238,  1243,  1248,  1257,  1262,  1271,  1276,  1279,  1284,  1287,
+    1292,  1298,  1304,  1311,  1314,  1321,  1324,  1329,  1332,  1337,
+    1340,  1345,  1348,  1351,  1354,  1359,  1363,  1367,  1372,  1376,
+    1382,  1385,  1388,  1391,  1403,  1407,  1426,  1441,  1445,  1451,
+    1454,  1460,  1463,  1466,  1469,  1472,  1475,  1480,  1491,  1494,
+    1499,  1502,  1508,  1512,  1518,  1521,  1529,  1532,  1535,  1538
 };
 #endif
 
@@ -3445,38 +3445,40 @@ yyreduce:
 #line 862 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.index_type_) = nullptr;
+    NotSupported(&(yylsp[0]), yyscanner, "Bloom Filter Index");
+    YYERROR;
   }
-#line 3450 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3452 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 75:
-#line 865 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 867 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.index_type_) = nullptr;
     NotSupported(&(yylsp[0]), yyscanner, "CSB Tree Index");
     YYERROR;
   }
-#line 3460 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3462 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 76:
-#line 872 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 874 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.key_value_list_) = nullptr;
   }
-#line 3468 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3470 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 77:
-#line 875 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 877 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.key_value_list_) = (yyvsp[-1].key_value_list_);
   }
-#line 3476 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3478 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 78:
-#line 882 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 884 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     delete (yyvsp[-7].string_value_);
     delete (yyvsp[-5].string_list_);
@@ -3485,535 +3487,535 @@ yyreduce:
     NotSupported(&(yylsp[-6]), yyscanner, "list of column names in INSERT statement");
     YYERROR;
   }
-#line 3489 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3491 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 79:
-#line 890 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 892 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.insert_statement_) = new quickstep::ParseStatementInsert((yylsp[-6]).first_line, (yylsp[-6]).first_column, (yyvsp[-4].string_value_), (yyvsp[-1].literal_value_list_));
   }
-#line 3497 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3499 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 80:
-#line 895 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 897 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.copy_from_statement_) = new quickstep::ParseStatementCopyFrom((yylsp[-4]).first_line, (yylsp[-4]).first_column, (yyvsp[-3].string_value_), (yyvsp[-1].string_value_), (yyvsp[0].copy_from_params_));
   }
-#line 3505 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3507 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 81:
-#line 900 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 902 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.copy_from_params_) = nullptr;
   }
-#line 3513 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3515 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 82:
-#line 903 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 905 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.copy_from_params_) = (yyvsp[-1].copy_from_params_);
   }
-#line 3521 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3523 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 83:
-#line 908 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 910 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.copy_from_params_) = new quickstep::ParseCopyFromParams((yylsp[-1]).first_line, (yylsp[-1]).first_column);
     (yyval.copy_from_params_)->set_delimiter((yyvsp[0].string_value_));
   }
-#line 3530 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3532 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 84:
-#line 912 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 914 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.copy_from_params_) = new quickstep::ParseCopyFromParams((yylsp[-1]).first_line, (yylsp[-1]).first_column);
     (yyval.copy_from_params_)->escape_strings = (yyvsp[0].boolean_value_);
   }
-#line 3539 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3541 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 85:
-#line 916 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 918 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.copy_from_params_) = (yyvsp[-3].copy_from_params_);
     (yyval.copy_from_params_)->set_delimiter((yyvsp[0].string_value_));
   }
-#line 3548 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3550 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 86:
-#line 920 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 922 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.copy_from_params_) = (yyvsp[-3].copy_from_params_);
     (yyval.copy_from_params_)->escape_strings = (yyvsp[0].boolean_value_);
   }
-#line 3557 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3559 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 87:
-#line 926 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 928 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.update_statement_) = new quickstep::ParseStatementUpdate((yylsp[-4]).first_line, (yylsp[-4]).first_column, (yyvsp[-3].string_value_), (yyvsp[-1].assignment_list_), (yyvsp[0].predicate_));
   }
-#line 3565 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3567 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 88:
-#line 931 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 933 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.delete_statement_) = new quickstep::ParseStatementDelete((yylsp[-3]).first_line, (yylsp[-3]).first_column, (yyvsp[-1].string_value_), (yyvsp[0].predicate_));
   }
-#line 3573 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3575 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 89:
-#line 936 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 938 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.assignment_list_) = (yyvsp[-2].assignment_list_);
     (yyval.assignment_list_)->push_back((yyvsp[0].assignment_));
   }
-#line 3582 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3584 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 90:
-#line 940 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 942 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.assignment_list_) = new quickstep::PtrList<quickstep::ParseAssignment>();
     (yyval.assignment_list_)->push_back((yyvsp[0].assignment_));
   }
-#line 3591 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3593 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 91:
-#line 946 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 948 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.assignment_) = new quickstep::ParseAssignment((yylsp[-2]).first_line, (yylsp[-2]).first_column, (yyvsp[-2].string_value_), (yyvsp[0].expression_));
   }
-#line 3599 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3601 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 92:
-#line 952 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 954 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.select_statement_) = new quickstep::ParseStatementSelect((yylsp[-1]).first_line, (yylsp[-1]).first_column, (yyvsp[0].select_query_), (yyvsp[-1].with_list_));
   }
-#line 3607 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3609 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 93:
-#line 957 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 959 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.with_list_) = nullptr;
   }
-#line 3615 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3617 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 94:
-#line 960 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 962 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.with_list_) = (yyvsp[0].with_list_);
   }
-#line 3623 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3625 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 95:
-#line 965 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 967 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.with_list_) = new quickstep::PtrVector<quickstep::ParseSubqueryTableReference>();
     (yyval.with_list_)->push_back((yyvsp[0].with_list_element_));
   }
-#line 3632 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3634 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 96:
-#line 969 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 971 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.with_list_) = (yyvsp[-2].with_list_);
     (yyval.with_list_)->push_back((yyvsp[0].with_list_element_));
   }
-#line 3641 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3643 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 97:
-#line 975 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 977 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.with_list_element_) = new quickstep::ParseSubqueryTableReference((yylsp[-2]).first_line, (yylsp[-2]).first_column, (yyvsp[0].subquery_expression_));
     (yyval.with_list_element_)->set_table_reference_signature((yyvsp[-2].table_reference_signature_));
   }
-#line 3650 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3652 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 98:
-#line 982 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 984 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.select_query_) = new quickstep::ParseSelect((yylsp[-8]).first_line, (yylsp[-8]).first_column, (yyvsp[-6].selection_), (yyvsp[-5].table_reference_list_), (yyvsp[-4].predicate_), (yyvsp[-3].opt_group_by_clause_), (yyvsp[-2].opt_having_clause_), (yyvsp[-1].opt_order_by_clause_), (yyvsp[0].opt_limit_clause_));
   }
-#line 3658 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3660 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 99:
-#line 987 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 989 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     /* $$ = nullptr; */
   }
-#line 3666 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3668 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 100:
-#line 990 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 992 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     NotSupported(&(yylsp[0]), yyscanner, "ALL in selection");
     YYERROR;
   }
-#line 3675 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3677 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 101:
-#line 994 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 996 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     NotSupported(&(yylsp[0]), yyscanner, "DISTINCT in selection");
     YYERROR;
   }
-#line 3684 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3686 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 102:
-#line 1000 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1002 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.selection_) = new quickstep::ParseSelectionStar((yylsp[0]).first_line, (yylsp[0]).first_column);
   }
-#line 3692 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3694 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 103:
-#line 1003 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1005 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.selection_) = (yyvsp[0].selection_list_);
   }
-#line 3700 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3702 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 104:
-#line 1008 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1010 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.selection_list_) = new quickstep::ParseSelectionList((yylsp[0]).first_line, (yylsp[0]).first_column);
     (yyval.selection_list_)->add((yyvsp[0].selection_item_));
   }
-#line 3709 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3711 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 105:
-#line 1012 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1014 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.selection_list_) = (yyvsp[-2].selection_list_);
     (yyval.selection_list_)->add((yyvsp[0].selection_item_));
   }
-#line 3718 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3720 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 106:
-#line 1018 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1020 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.selection_item_) = new quickstep::ParseSelectionItem((yylsp[-2]).first_line, (yylsp[-2]).first_column, (yyvsp[-2].expression_), (yyvsp[0].string_value_));
   }
-#line 3726 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3728 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 107:
-#line 1021 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1023 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.selection_item_) = new quickstep::ParseSelectionItem((yylsp[-1]).first_line, (yylsp[-1]).first_column, (yyvsp[-1].expression_), (yyvsp[0].string_value_));
   }
-#line 3734 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3736 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 108:
-#line 1024 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1026 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.selection_item_) = new quickstep::ParseSelectionItem((yylsp[0]).first_line, (yylsp[0]).first_column, (yyvsp[0].expression_));
   }
-#line 3742 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3744 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 109:
-#line 1029 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1031 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.table_reference_list_) = (yyvsp[-1].table_reference_list_);
   }
-#line 3750 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3752 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 110:
-#line 1034 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1036 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     /* $$ = nullptr; */
   }
-#line 3758 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3760 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 111:
-#line 1037 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1039 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     NotSupported(&(yylsp[0]), yyscanner, "alternate JOIN syntax (specify in WHERE clause instead)");
     YYERROR;
   }
-#line 3767 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3769 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 112:
-#line 1043 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1045 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     NotSupported(&(yylsp[-1]), yyscanner, "alternate JOIN syntax (specify in WHERE clause instead)");
     YYERROR;
   }
-#line 3776 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3778 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 113:
-#line 1047 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1049 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     NotSupported(&(yylsp[0]), yyscanner, "alternate JOIN syntax (specify in WHERE clause instead)");
     YYERROR;
   }
-#line 3785 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3787 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 114:
-#line 1053 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1055 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     delete (yyvsp[-2].string_list_);
     delete (yyvsp[0].predicate_);
     NotSupported(&(yylsp[-4]), yyscanner, "alternate JOIN syntax (specify in WHERE clause instead)");
     YYERROR;
   }
-#line 3796 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3798 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 115:
-#line 1059 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1061 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     delete (yyvsp[-2].string_list_);
     delete (yyvsp[0].predicate_);
     NotSupported(&(yylsp[-3]), yyscanner, "alternate JOIN syntax (specify in WHERE clause instead)");
     YYERROR;
   }
-#line 3807 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3809 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 116:
-#line 1065 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1067 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     delete (yyvsp[-2].string_list_);
     delete (yyvsp[0].predicate_);
     NotSupported(&(yylsp[-5]), yyscanner, "OUTER JOIN");
     YYERROR;
   }
-#line 3818 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3820 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 117:
-#line 1071 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1073 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     delete (yyvsp[-2].string_list_);
     delete (yyvsp[0].predicate_);
     NotSupported(&(yylsp[-4]), yyscanner, "OUTER JOIN");
     YYERROR;
   }
-#line 3829 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3831 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 118:
-#line 1077 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1079 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     delete (yyvsp[-2].string_list_);
     delete (yyvsp[0].predicate_);
     NotSupported(&(yylsp[-5]), yyscanner, "OUTER JOIN");
     YYERROR;
   }
-#line 3840 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3842 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 119:
-#line 1083 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1085 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     delete (yyvsp[-2].string_list_);
     delete (yyvsp[0].predicate_);
     NotSupported(&(yylsp[-4]), yyscanner, "OUTER JOIN");
     YYERROR;
   }
-#line 3851 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3853 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 120:
-#line 1089 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1091 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     delete (yyvsp[-2].string_list_);
     delete (yyvsp[0].predicate_);
     NotSupported(&(yylsp[-5]), yyscanner, "OUTER JOIN");
     YYERROR;
   }
-#line 3862 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3864 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 121:
-#line 1095 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1097 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     delete (yyvsp[-2].string_list_);
     delete (yyvsp[0].predicate_);
     NotSupported(&(yylsp[-4]), yyscanner, "OUTER JOIN");
     YYERROR;
   }
-#line 3873 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3875 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 122:
-#line 1103 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1105 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.subquery_expression_) = new quickstep::ParseSubqueryExpression((yylsp[-2]).first_line, (yylsp[-2]).first_column, (yyvsp[-1].select_query_));
   }
-#line 3881 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3883 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 123:
-#line 1108 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1110 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.table_reference_) = new quickstep::ParseSubqueryTableReference((yylsp[-1]).first_line, (yylsp[-1]).first_column, (yyvsp[-1].subquery_expression_));
     (yyval.table_reference_)->set_table_reference_signature((yyvsp[0].table_reference_signature_));
   }
-#line 3890 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3892 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 124:
-#line 1112 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1114 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.table_reference_) = new quickstep::ParseSimpleTableReference((yylsp[-1]).first_line, (yylsp[-1]).first_column, (yyvsp[-1].string_value_));
     (yyval.table_reference_)->set_table_reference_signature((yyvsp[0].table_reference_signature_));
   }
-#line 3899 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3901 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 125:
-#line 1116 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1118 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.table_reference_) = new quickstep::ParseSimpleTableReference((yylsp[0]).first_line, (yylsp[0]).first_column, (yyvsp[0].string_value_));
   }
-#line 3907 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3909 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 126:
-#line 1121 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1123 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.table_reference_signature_) = (yyvsp[0].table_reference_signature_);
   }
-#line 3915 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3917 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 127:
-#line 1124 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1126 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.table_reference_signature_) = (yyvsp[0].table_reference_signature_);
   }
-#line 3923 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3925 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 128:
-#line 1129 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1131 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.table_reference_signature_) = new ::quickstep::ParseTableReferenceSignature((yylsp[0]).first_line, (yylsp[0]).first_column, (yyvsp[0].string_value_));
   }
-#line 3931 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3933 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 129:
-#line 1132 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1134 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.table_reference_signature_) = new ::quickstep::ParseTableReferenceSignature((yylsp[-3]).first_line, (yylsp[-3]).first_column, (yyvsp[-3].string_value_), (yyvsp[-1].string_list_));
   }
-#line 3939 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3941 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 130:
-#line 1137 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1139 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.table_reference_list_) = new quickstep::PtrList<quickstep::ParseTableReference>();
     (yyval.table_reference_list_)->push_back((yyvsp[0].table_reference_));
   }
-#line 3948 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3950 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 131:
-#line 1141 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1143 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.table_reference_list_) = (yyvsp[-2].table_reference_list_);
     (yyval.table_reference_list_)->push_back((yyvsp[0].table_reference_));
   }
-#line 3957 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3959 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 132:
-#line 1147 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1149 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.opt_group_by_clause_) = nullptr;
   }
-#line 3965 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3967 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 133:
-#line 1150 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1152 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.opt_group_by_clause_) = new quickstep::ParseGroupBy((yylsp[-2]).first_line, (yylsp[-2]).first_column, (yyvsp[0].expression_list_));
   }
-#line 3973 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3975 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 134:
-#line 1155 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1157 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.opt_having_clause_) = nullptr;
   }
-#line 3981 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3983 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 135:
-#line 1158 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1160 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.opt_having_clause_) = new quickstep::ParseHaving((yylsp[-1]).first_line, (yylsp[-1]).first_column, (yyvsp[0].predicate_));
   }
-#line 3989 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3991 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 136:
-#line 1163 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1165 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.opt_order_by_clause_) = nullptr;
   }
-#line 3997 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 3999 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 137:
-#line 1166 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1168 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.opt_order_by_clause_) = new quickstep::ParseOrderBy((yylsp[-2]).first_line, (yylsp[-2]).first_column, (yyvsp[0].order_commalist_));
   }
-#line 4005 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4007 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 138:
-#line 1171 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1173 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.opt_limit_clause_) = nullptr;
   }
-#line 4013 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4015 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 139:
-#line 1174 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1176 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     if ((yyvsp[0].numeric_literal_value_)->float_like()) {
       delete (yyvsp[0].numeric_literal_value_);
@@ -4031,111 +4033,111 @@ yyreduce:
       }
     }
   }
-#line 4035 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4037 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 140:
-#line 1193 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1195 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.order_commalist_) = new quickstep::PtrList<quickstep::ParseOrderByItem>();
     (yyval.order_commalist_)->push_back((yyvsp[0].order_item_));
   }
-#line 4044 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4046 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 141:
-#line 1197 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1199 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.order_commalist_) = (yyvsp[-2].order_commalist_);
     (yyval.order_commalist_)->push_back((yyvsp[0].order_item_));
   }
-#line 4053 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4055 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 142:
-#line 1203 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1205 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.order_item_) = new quickstep::ParseOrderByItem((yylsp[-2]).first_line, (yylsp[-2]).first_column, (yyvsp[-2].expression_), (yyvsp[-1].order_direction_), (yyvsp[0].order_direction_));
     delete (yyvsp[-1].order_direction_);
     delete (yyvsp[0].order_direction_);
   }
-#line 4063 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4065 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 143:
-#line 1210 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1212 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.order_direction_) = nullptr;
   }
-#line 4071 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4073 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 144:
-#line 1213 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1215 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.order_direction_) = new bool(true);
   }
-#line 4079 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4081 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 145:
-#line 1216 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1218 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.order_direction_) = new bool(false);
   }
-#line 4087 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4089 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 146:
-#line 1221 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1223 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.order_direction_) = nullptr;
   }
-#line 4095 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4097 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 147:
-#line 1224 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1226 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.order_direction_) = new bool(true);
   }
-#line 4103 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4105 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 148:
-#line 1227 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1229 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.order_direction_) = new bool(false);
   }
-#line 4111 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4113 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 149:
-#line 1233 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1235 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.predicate_) = nullptr;
   }
-#line 4119 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4121 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 150:
-#line 1236 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1238 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.predicate_) = (yyvsp[0].predicate_);
   }
-#line 4127 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4129 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 151:
-#line 1241 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1243 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.predicate_) = (yyvsp[0].predicate_);
   }
-#line 4135 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4137 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 152:
-#line 1246 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1248 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     if ((yyvsp[-2].predicate_)->getParsePredicateType() == quickstep::ParsePredicate::kDisjunction) {
       (yyval.predicate_) = (yyvsp[-2].predicate_);
@@ -4145,19 +4147,19 @@ yyreduce:
     }
     static_cast<quickstep::ParsePredicateDisjunction *>((yyval.predicate_))->addPredicate((yyvsp[0].predicate_));
   }
-#line 4149 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4151 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 153:
-#line 1255 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1257 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.predicate_) = (yyvsp[0].predicate_);
   }
-#line 4157 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4159 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 154:
-#line 1260 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1262 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     if ((yyvsp[-2].predicate_)->getParsePredicateType() == quickstep::ParsePredicate::kConjunction) {
       (yyval.predicate_) = (yyvsp[-2].predicate_);
@@ -4167,75 +4169,75 @@ yyreduce:
     }
     static_cast<quickstep::ParsePredicateConjunction *>((yyval.predicate_))->addPredicate((yyvsp[0].predicate_));
   }
-#line 4171 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4173 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 155:
-#line 1269 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1271 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.predicate_) = (yyvsp[0].predicate_);
   }
-#line 4179 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4181 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 156:
-#line 1274 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1276 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.predicate_) = new quickstep::ParsePredicateNegation((yylsp[-1]).first_line, (yylsp[-1]).first_column, (yyvsp[0].predicate_));
   }
-#line 4187 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4189 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 157:
-#line 1277 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1279 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.predicate_) = (yyvsp[0].predicate_);
   }
-#line 4195 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4197 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 158:
-#line 1282 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1284 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.predicate_) = new quickstep::ParsePredicateBetween((yylsp[-3]).first_line, (yylsp[-3]).first_column, (yyvsp[-4].expression_), (yyvsp[-2].expression_), (yyvsp[0].expression_));
   }
-#line 4203 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4205 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 159:
-#line 1285 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1287 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.predicate_) = new quickstep::ParsePredicateNegation(
         (yylsp[-4]).first_line, (yylsp[-4]).first_column,
         new quickstep::ParsePredicateBetween((yylsp[-3]).first_line, (yylsp[-3]).first_column, (yyvsp[-5].expression_), (yyvsp[-2].expression_), (yyvsp[0].expression_)));
   }
-#line 4213 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4215 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 160:
-#line 1290 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1292 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     delete (yyvsp[-3].attribute_);
     (yyval.predicate_) = nullptr;
     NotSupported(&(yylsp[-2]), yyscanner, "NULL comparison predicates");
     YYERROR;
   }
-#line 4224 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4226 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 161:
-#line 1296 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1298 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     delete (yyvsp[-2].attribute_);
     (yyval.predicate_) = nullptr;
     NotSupported(&(yylsp[-1]), yyscanner, "NULL comparison predicates");
     YYERROR;
   }
-#line 4235 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4237 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 162:
-#line 1302 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1304 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     delete (yyvsp[-2].expression_);
     delete (yyvsp[0].string_value_);
@@ -4243,175 +4245,175 @@ yyreduce:
     NotSupported(&(yylsp[-1]), yyscanner, "LIKE predicates");
     YYERROR;
   }
-#line 4247 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4249 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 163:
-#line 1309 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1311 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.predicate_) = new quickstep::ParsePredicateComparison((yylsp[-1]).first_line, (yylsp[-1]).first_column, *(yyvsp[-1].comparison_), (yyvsp[-2].expression_), (yyvsp[0].expression_));
   }
-#line 4255 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4257 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 164:
-#line 1312 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1314 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.predicate_) = (yyvsp[-1].predicate_);
   }
-#line 4263 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4265 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 165:
-#line 1319 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1321 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.expression_) = new quickstep::ParseBinaryExpression((yylsp[-1]).first_line, (yylsp[-1]).first_column, *(yyvsp[-1].binary_operation_), (yyvsp[-2].expression_), (yyvsp[0].expression_));
   }
-#line 4271 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4273 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 166:
-#line 1322 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1324 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.expression_) = (yyvsp[0].expression_);
   }
-#line 4279 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4281 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 167:
-#line 1327 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1329 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.expression_) = new quickstep::ParseBinaryExpression((yylsp[-1]).first_line, (yylsp[-1]).first_column, *(yyvsp[-1].binary_operation_), (yyvsp[-2].expression_), (yyvsp[0].expression_));
   }
-#line 4287 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4289 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 168:
-#line 1330 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1332 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.expression_) = (yyvsp[0].expression_);
   }
-#line 4295 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4297 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 169:
-#line 1335 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1337 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.expression_) = new quickstep::ParseUnaryExpression((yylsp[-1]).first_line, (yylsp[-1]).first_column, *(yyvsp[-1].unary_operation_), (yyvsp[0].expression_));
   }
-#line 4303 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4305 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 170:
-#line 1338 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1340 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.expression_) = (yyvsp[0].expression_);
   }
-#line 4311 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4313 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 171:
-#line 1343 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1345 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.expression_) = (yyvsp[0].attribute_);
   }
-#line 4319 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4321 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 172:
-#line 1346 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1348 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.expression_) = new quickstep::ParseScalarLiteral((yyvsp[0].literal_value_));
   }
-#line 4327 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4329 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 173:
-#line 1349 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1351 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.expression_) = (yyvsp[0].function_call_);
   }
-#line 4335 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4337 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 174:
-#line 1352 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1354 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.expression_) = (yyvsp[-1].expression_);
   }
-#line 4343 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4345 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 175:
-#line 1357 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1359 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.function_call_) = new quickstep::ParseFunctionCall(
         (yylsp[-2]).first_line, (yylsp[-2]).first_column, (yyvsp[-2].string_value_), new quickstep::PtrList<quickstep::ParseExpression>());
   }
-#line 4352 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4354 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 176:
-#line 1361 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1363 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.function_call_) = new quickstep::ParseFunctionCall(
         (yylsp[-3]).first_line, (yylsp[-3]).first_column, (yyvsp[-3].string_value_), new quickstep::ParseStar((yylsp[-1]).first_line, (yylsp[-1]).first_column));
   }
-#line 4361 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4363 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 177:
-#line 1365 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1367 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.function_call_) = new quickstep::ParseFunctionCall((yylsp[-3]).first_line, (yylsp[-3]).first_column, (yyvsp[-3].string_value_), (yyvsp[-1].expression_list_));
   }
-#line 4369 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4371 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 178:
-#line 1370 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1372 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.expression_list_) = new quickstep::PtrList<quickstep::ParseExpression>();
     (yyval.expression_list_)->push_back((yyvsp[0].expression_));
   }
-#line 4378 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4380 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 179:
-#line 1374 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1376 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.expression_list_) = (yyvsp[-2].expression_list_);
     (yyval.expression_list_)->push_back((yyvsp[0].expression_));
   }
-#line 4387 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4389 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 180:
-#line 1380 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1382 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.literal_value_) = new quickstep::NullParseLiteralValue((yylsp[0]).first_line, (yylsp[0]).first_column);
   }
-#line 4395 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4397 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 181:
-#line 1383 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1385 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.literal_value_) = (yyvsp[0].numeric_literal_value_);
   }
-#line 4403 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4405 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 182:
-#line 1386 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1388 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.literal_value_) = (yyvsp[0].numeric_literal_value_);
   }
-#line 4411 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4413 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 183:
-#line 1389 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1391 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     /**
      * NOTE(chasseur): This case exhibits a shift/reduce conflict with the
@@ -4424,20 +4426,20 @@ yyreduce:
     (yyvsp[0].numeric_literal_value_)->prependMinus();
     (yyval.literal_value_) = (yyvsp[0].numeric_literal_value_);
   }
-#line 4428 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4430 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 184:
-#line 1401 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1403 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.literal_value_) = new quickstep::StringParseLiteralValue((yyvsp[0].string_value_),
                                                 nullptr);  // No explicit type.
   }
-#line 4437 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4439 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 185:
-#line 1405 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1407 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     /**
      * NOTE(chasseur): This case exhibits a shift/reduce conflict with the
@@ -4457,11 +4459,11 @@ yyreduce:
       YYERROR;
     }
   }
-#line 4461 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4463 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 186:
-#line 1424 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1426 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     quickstep::StringParseLiteralValue *parse_value
         = new quickstep::StringParseLiteralValue((yyvsp[0].string_value_), &((yyvsp[-1].data_type_)->getType()));
@@ -4475,93 +4477,93 @@ yyreduce:
       (yyval.literal_value_) = parse_value;
     }
   }
-#line 4479 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4481 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 187:
-#line 1439 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1441 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.literal_value_list_) = new quickstep::PtrList<quickstep::ParseScalarLiteral>();
     (yyval.literal_value_list_)->push_back(new quickstep::ParseScalarLiteral((yyvsp[0].literal_value_)));
   }
-#line 4488 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4490 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 188:
-#line 1443 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1445 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.literal_value_list_) = (yyvsp[-2].literal_value_list_);
     (yyval.literal_value_list_)->push_back(new quickstep::ParseScalarLiteral((yyvsp[0].literal_value_)));
   }
-#line 4497 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4499 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 189:
-#line 1449 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1451 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.attribute_) = new quickstep::ParseAttribute((yylsp[0]).first_line, (yylsp[0]).first_column, (yyvsp[0].string_value_));
   }
-#line 4505 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4507 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 190:
-#line 1452 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1454 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.attribute_) = new quickstep::ParseAttribute((yylsp[-2]).first_line, (yylsp[-2]).first_column, (yyvsp[0].string_value_), (yyvsp[-2].string_value_));
   }
-#line 4513 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4515 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 191:
-#line 1458 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1460 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.comparison_) = &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kEqual);
   }
-#line 4521 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4523 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 192:
-#line 1461 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1463 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.comparison_) = &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kNotEqual);
   }
-#line 4529 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4531 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 193:
-#line 1464 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1466 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.comparison_) = &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kLess);
   }
-#line 4537 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4539 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 194:
-#line 1467 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1469 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.comparison_) = &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kLessOrEqual);
   }
-#line 4545 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4547 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 195:
-#line 1470 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1472 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.comparison_) = &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kGreater);
   }
-#line 4553 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4555 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 196:
-#line 1473 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1475 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.comparison_) = &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kGreaterOrEqual);
   }
-#line 4561 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4563 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 197:
-#line 1478 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1480 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     /**
      * NOTE(chasseur): This case exhibits a shift/reduce conflict with the
@@ -4571,112 +4573,112 @@ yyreduce:
      **/
     (yyval.unary_operation_) = &quickstep::UnaryOperationFactory::GetUnaryOperation(quickstep::UnaryOperationID::kNegate);
   }
-#line 4575 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4577 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 198:
-#line 1489 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1491 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.binary_operation_) = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kAdd);
   }
-#line 4583 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4585 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 199:
-#line 1492 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1494 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.binary_operation_) = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kSubtract);
   }
-#line 4591 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4593 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 200:
-#line 1497 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1499 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.binary_operation_) = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kMultiply);
   }
-#line 4599 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4601 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 201:
-#line 1500 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1502 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.binary_operation_) = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kDivide);
   }
-#line 4607 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4609 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 202:
-#line 1506 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1508 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.string_list_) = new quickstep::PtrList<quickstep::ParseString>();
     (yyval.string_list_)->push_back((yyvsp[0].string_value_));
   }
-#line 4616 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4618 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 203:
-#line 1510 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1512 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.string_list_) = (yyvsp[-2].string_list_);
     (yyval.string_list_)->push_back((yyvsp[0].string_value_));
   }
-#line 4625 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4627 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 204:
-#line 1516 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1518 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.string_value_) = (yyvsp[0].string_value_);
   }
-#line 4633 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4635 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 205:
-#line 1519 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1521 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     if ((yyvsp[0].string_value_)->value().empty()) {
       quickstep_yyerror(&(yylsp[0]), yyscanner, nullptr, "Zero-length identifier");
     }
     (yyval.string_value_) = (yyvsp[0].string_value_);
   }
-#line 4644 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4646 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 206:
-#line 1527 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1529 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.boolean_value_) = true;
   }
-#line 4652 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4654 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 207:
-#line 1530 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1532 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.boolean_value_) = true;
   }
-#line 4660 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4662 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 208:
-#line 1533 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1535 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.boolean_value_) = false;
   }
-#line 4668 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4670 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
   case 209:
-#line 1536 "../SqlParser.ypp" /* yacc.c:1661  */
+#line 1538 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.boolean_value_) = false;
   }
-#line 4676 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4678 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
 
 
-#line 4680 "SqlParser_gen.cpp" /* yacc.c:1661  */
+#line 4682 "SqlParser_gen.cpp" /* yacc.c:1661  */
       default: break;
     }
   /* User semantic actions sometimes alter yychar, and that requires
@@ -4911,7 +4913,7 @@ yyreturn:
 #endif
   return yyresult;
 }
-#line 1540 "../SqlParser.ypp" /* yacc.c:1906  */
+#line 1542 "../SqlParser.ypp" /* yacc.c:1906  */
 
 
 void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string &feature) {

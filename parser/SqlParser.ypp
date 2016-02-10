@@ -861,6 +861,8 @@ key_literal_value:
 index_type:
   TOKEN_BLOOM_FILTER {
     $$ = nullptr;
+    NotSupported(&@1, yyscanner, "Bloom Filter Index");
+    YYERROR;
   }
   | TOKEN_CSB_TREE {
     $$ = nullptr;
