@@ -29,6 +29,7 @@
 #include <vector>
 
 #include "parser/ParseLiteralValue.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "utility/PtrList.hpp"
 #include "utility/PtrVector.hpp"
 
@@ -46,6 +47,10 @@ class ParseExpression;
 class ParseFunctionCall;
 class ParseGroupBy;
 class ParseHaving;
+class ParseKeyValue;
+class ParseKeyStringValue;
+class ParseKeyStringList;
+class ParseKeyLiteralValue;
 class ParseLimit;
 class ParseOrderBy;
 class ParseOrderByItem;

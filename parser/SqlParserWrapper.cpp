@@ -20,6 +20,7 @@
 #include <string>
 
 #include "parser/ParseStatement.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 #include "utility/SqlError.hpp"
 
@@ -37,6 +38,10 @@ class ParseAttributeDefinition;
 class ParseColumnConstraint;
 class ParseDataType;
 class ParseFunctionCall;
+class ParseKeyValue;
+class ParseKeyStringValue;
+class ParseKeyStringList;
+class ParseKeyLiteralValue;
 class ParseLiteralValue;
 class ParsePredicate;
 class ParseScalarLiteral;

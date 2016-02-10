@@ -34,7 +34,6 @@ namespace quickstep {
  */
 class ParseKeyValue : public ParseTreeNode {
  public:
-
   enum class KeyValueType {
     kStringString,
     kStringStringList,
@@ -50,7 +49,7 @@ class ParseKeyValue : public ParseTreeNode {
    **/
   ParseKeyValue(const int line_number,
                 const int column_number,
-                ParseString *key) 
+                ParseString *key)
       : ParseTreeNode(line_number, column_number),
         key_(key) { }
 
@@ -58,7 +57,7 @@ class ParseKeyValue : public ParseTreeNode {
    * @brief Destructor.
    **/
   ~ParseKeyValue() override { }
-  
+
   /**
    * @brief Get the subclass type of the parse key value.
    */
@@ -69,6 +68,10 @@ class ParseKeyValue : public ParseTreeNode {
    */
   const ParseString* key() const {
     return key_.get();
+  }
+
+  std::string getName() const override {
+    return "KeyValue";
   }
 
  protected:
@@ -91,11 +94,11 @@ class ParseKeyStringValue : public ParseKeyValue {
   ParseKeyStringValue(const int line_number,
                       const int column_number,
                       ParseString *key,
-                      ParseString *value) 
+                      ParseString *value)
       : ParseKeyValue(line_number, column_number, key),
         value_(value) { }
 
-  KeyValueType getKeyValueType() const {
+  KeyValueType getKeyValueType() const override {
     return ParseKeyValue::KeyValueType::kStringString;
   }
 
@@ -104,6 +107,10 @@ class ParseKeyStringValue : public ParseKeyValue {
    */
   const ParseString* value() const {
     return value_.get();
+  }
+
+  std::string getName() const override {
+    return "KeyStringValue";
   }
 
  protected:
@@ -143,11 +150,11 @@ class ParseKeyStringList : public ParseKeyValue {
   ParseKeyStringList(const int line_number,
                      const int column_number,
                      ParseString *key,
-                     PtrList<ParseString> *value) 
+                     PtrList<ParseString> *value)
       : ParseKeyValue(line_number, column_number, key),
         value_(value) { }
 
-  KeyValueType getKeyValueType() const {
+  KeyValueType getKeyValueType() const override {
     return ParseKeyValue::KeyValueType::kStringStringList;
   }
 
@@ -156,6 +163,10 @@ class ParseKeyStringList : public ParseKeyValue {
    */
   const PtrList<ParseString>* value() const {
     return value_.get();
+  }
+
+  std::string getName() const override {
+    return "KeyStringList";
   }
 
  protected:
@@ -198,11 +209,11 @@ class ParseKeyLiteralValue : public ParseKeyValue {
   ParseKeyLiteralValue(const int line_number,
                        const int column_number,
                        ParseString *key,
-                       ParseLiteralValue *value) 
+                       ParseLiteralValue *value)
       : ParseKeyValue(line_number, column_number, key),
         value_(value) { }
 
-  KeyValueType getKeyValueType() const {
+  KeyValueType getKeyValueType() const override {
     return ParseKeyValue::KeyValueType::kStringLiteral;
   }
 
@@ -211,6 +222,10 @@ class ParseKeyLiteralValue : public ParseKeyValue {
    */
   const ParseLiteralValue* value() const {
     return value_.get();
+  }
+
+  std::string getName() const override {
+    return "KeyLiteralValue";
   }
 
  protected:
