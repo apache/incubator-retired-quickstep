@@ -1487,7 +1487,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     const QueryContext::sort_config_id sort_config_index = createSortConfigProto(attrs, ordering, null_ordering);
 
     merge_op_.reset(new SortMergeRunOperator(*input_table_,
-                                             result_table_->getID(),
+                                             *result_table_,
                                              insert_destination_index_,
                                              *run_table_,
                                              run_destination_index_,
@@ -1528,7 +1528,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     const QueryContext::sort_config_id sort_config_index = createSortConfigProto(attrs, ordering, null_ordering);
 
     merge_op_.reset(new SortMergeRunOperator(*input_table_,
-                                             result_table_->getID(),
+                                             *result_table_,
                                              insert_destination_index_,
                                              *run_table_,
                                              run_destination_index_,

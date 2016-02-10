@@ -128,7 +128,7 @@ class TextScanOperator : public RelationalOperator {
    *        text file.
    * @param parallelize_load Parallelize the load process by th spliting file
    *        into blobs, and generating separate work-orders for each of them.
-   * @param output_relation_id The id of the output relation.
+   * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert tuples.
    * @param foreman_client_id The TMB client ID of the Foreman thread.
@@ -138,7 +138,7 @@ class TextScanOperator : public RelationalOperator {
                    const char field_terminator,
                    const bool process_escape_sequences,
                    const bool parallelize_load,
-                   const relation_id output_relation_id,
+                   const CatalogRelation &output_relation,
                    const QueryContext::insert_destination_id output_destination_index,
                    const tmb::client_id foreman_client_id,
                    tmb::MessageBus *bus)
@@ -146,7 +146,7 @@ class TextScanOperator : public RelationalOperator {
         field_terminator_(field_terminator),
         process_escape_sequences_(process_escape_sequences),
         parallelize_load_(parallelize_load),
-        output_relation_id_(output_relation_id),
+        output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         foreman_client_id_(foreman_client_id),
         bus_(bus),
@@ -163,7 +163,7 @@ class TextScanOperator : public RelationalOperator {
   }
 
   const relation_id getOutputRelationID() const override {
-    return output_relation_id_;
+    return output_relation_.getID();
   }
 
   void receiveFeedbackMessage(const WorkOrder::FeedbackMessage &msg) override;
@@ -174,7 +174,7 @@ class TextScanOperator : public RelationalOperator {
   const bool process_escape_sequences_;
   const bool parallelize_load_;
 
-  const relation_id output_relation_id_;
+  const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
 
   const tmb::client_id foreman_client_id_;

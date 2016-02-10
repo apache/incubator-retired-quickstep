@@ -131,8 +131,6 @@ class TextScanOperatorTest : public ::testing::Test {
 TEST_F(TextScanOperatorTest, ScanTest) {
   std::string golden_string = LoadGoldenOutput();
 
-  const relation_id output_relation_id = relation_->getID();
-
   // Setup the InsertDestination proto in the query context proto.
   serialization::QueryContext query_context_proto;
 
@@ -140,7 +138,7 @@ TEST_F(TextScanOperatorTest, ScanTest) {
   serialization::InsertDestination *output_destination_proto = query_context_proto.add_insert_destinations();
 
   output_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
-  output_destination_proto->set_relation_id(output_relation_id);
+  output_destination_proto->set_relation_id(relation_->getID());
   output_destination_proto->set_need_to_add_blocks_from_relation(false);
   output_destination_proto->set_relational_op_index(kOpIndex);
   output_destination_proto->set_foreman_client_id(tmb::kClientIdNone);
@@ -150,7 +148,7 @@ TEST_F(TextScanOperatorTest, ScanTest) {
                            '\t',
                            true,
                            false,
-                           output_relation_id,
+                           *relation_,
                            output_destination_index,
                            tmb::kClientIdNone /* foreman_client_id */,
                            nullptr /* TMB */));
