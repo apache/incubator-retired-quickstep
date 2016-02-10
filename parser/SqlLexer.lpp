@@ -120,8 +120,8 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 "between"          return TOKEN_BETWEEN;
 "bigint"           return TOKEN_BIGINT;
 "bit"              return TOKEN_BIT;
-"bloomfilter"      return TOKEN_BLOOM_FILTER_INDEX;
-"csbtreeindex"     return TOKEN_CSB_TREE_INDEX;
+"bloomfilter"      return TOKEN_BLOOM_FILTER;
+"csbtree"          return TOKEN_CSB_TREE;
 "by"               return TOKEN_BY;
 "char"             return TOKEN_CHARACTER;
 "character"        return TOKEN_CHARACTER;
