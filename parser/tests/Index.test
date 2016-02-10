@@ -54,9 +54,9 @@ CREATE INDEX test ON test USING BLOOMFILTER
 ==
 
 # Check support for CSB Tree index
-CREATE INDEX test ON test USING CSBTREEINDEX
+CREATE INDEX test ON test USING CSBTREE
 --
 ERROR: CSB Tree Index is not supported yet (1 : 33)
-CREATE INDEX test ON test USING CSBTREEINDEX
+CREATE INDEX test ON test USING CSBTREE
                                 ^
 ==

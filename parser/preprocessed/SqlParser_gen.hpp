@@ -70,8 +70,8 @@ extern int quickstep_yydebug;
     TOKEN_ASC = 280,
     TOKEN_BIGINT = 281,
     TOKEN_BIT = 282,
-    TOKEN_BLOOM_FILTER_INDEX = 283,
-    TOKEN_CSB_TREE_INDEX = 284,
+    TOKEN_BLOOM_FILTER = 283,
+    TOKEN_CSB_TREE = 284,
     TOKEN_BY = 285,
     TOKEN_CHARACTER = 286,
     TOKEN_CHECK = 287,
@@ -176,7 +176,7 @@ union YYSTYPE
   quickstep::PtrList<quickstep::ParseTableReference> *table_reference_list_;
   quickstep::ParseTableReferenceSignature *table_reference_signature_;
 
-  quickstep::ParseDataType *data_type_;  
+  quickstep::ParseDataType *data_type_;
   quickstep::ParseAttributeDefinition *attribute_definition_;
   quickstep::ParseColumnConstraint *column_constraint_;
   quickstep::PtrList<quickstep::ParseColumnConstraint> *column_constraint_list_;
