@@ -20,7 +20,6 @@
 #include <string>
 
 #include "parser/ParseStatement.hpp"
-#include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 #include "utility/SqlError.hpp"
 

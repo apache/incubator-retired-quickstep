@@ -84,7 +84,6 @@ typedef struct YYLTYPE {
 #include "parser/ParseSubqueryExpression.hpp"
 #include "parser/ParseSubqueryTableReference.hpp"
 #include "parser/ParseTableReference.hpp"
-#include "storage/StorageBlockInfo.hpp"
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
@@ -143,8 +142,6 @@ typedef void* yyscan_t;
   quickstep::ParseKeyStringValue *key_string_value_;
   quickstep::ParseKeyStringList *key_string_list_;
   quickstep::ParseKeyLiteralValue *key_literal_value_;
-
-  quickstep::IndexSubBlockType *index_type_;
 
   quickstep::ParseCopyFromParams *copy_from_params_;
 
@@ -289,6 +286,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <string_value_>
   any_name
+  index_type
 
 %type <boolean_value_>
   boolean_value
@@ -341,9 +339,6 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <data_type_>
   data_type
-
-%type <index_type_>
-  index_type
 
 %type <attribute_definition_>
   column_def
