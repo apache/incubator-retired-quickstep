@@ -48,9 +48,9 @@ class DropTableOperator : public RelationalOperator {
    * @param only_drop_blocks If true, only drop the blocks belonging to
    *        relation, but leave relation in the database.
    **/
-  explicit DropTableOperator(const relation_id rel_id,
+  explicit DropTableOperator(const CatalogRelation &relation,
                              const bool only_drop_blocks = false)
-      : rel_id_(rel_id),
+      : relation_(relation),
         only_drop_blocks_(only_drop_blocks),
         work_generated_(false) {}
 
@@ -59,7 +59,7 @@ class DropTableOperator : public RelationalOperator {
   bool getAllWorkOrders(WorkOrdersContainer *container) override;
 
  private:
-  const relation_id rel_id_;
+  const CatalogRelation &relation_;
   const bool only_drop_blocks_;
   bool work_generated_;
 
@@ -74,7 +74,7 @@ class DropTableWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @param rel_id The id of the relation to drop.
+   * @param relation The relation to drop.
    * @param only_drop_blocks If true, only drop the blocks belonging to
    *        relation, but leave relation in the database.
    **/

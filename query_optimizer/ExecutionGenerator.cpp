@@ -166,7 +166,7 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
     }
     const QueryPlan::DAGNodeIndex drop_table_index =
         execution_plan_->addRelationalOperator(
-            new DropTableOperator(temporary_relation->getID(),
+            new DropTableOperator(*temporary_relation,
                                   false /* only_drop_blocks */));
     DCHECK(!temporary_relation_info.isStoredRelation());
     execution_plan_->addDependenciesForDropOperator(
@@ -422,13 +422,13 @@ void ExecutionGenerator::convertSelection(
   SelectOperator *op
       = convertSimpleProjection(project_expressions_group_index, attributes.get())
         ? new SelectOperator(*input_relation_info->relation,
-                             output_relation->getID(),
+                             *output_relation,
                              insert_destination_index,
                              execution_predicate_index,
                              attributes.release(),
                              input_relation_info->isStoredRelation())
         : new SelectOperator(*input_relation_info->relation,
-                             output_relation->getID(),
+                             *output_relation,
                              insert_destination_index,
                              execution_predicate_index,
                              project_expressions_group_index,
@@ -596,7 +596,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               probe_operator_info->isStoredRelation(),
               probe_attribute_ids,
               any_probe_attributes_nullable,
-              output_relation->getID(),
+              *output_relation,
               insert_destination_index,
               join_hash_table_index,
               residual_predicate_index,
@@ -683,7 +683,7 @@ void ExecutionGenerator::convertNestedLoopsJoin(
       execution_plan_->addRelationalOperator(new NestedLoopsJoinOperator(
           *left_relation_info->relation,
           *right_relation_info->relation,
-          output_relation->getID(),
+          *output_relation,
           insert_destination_index,
           execution_join_predicate_index,
           project_expressions_group_index,
@@ -714,7 +714,7 @@ void ExecutionGenerator::convertCopyFrom(
     const P::CopyFromPtr &physical_plan) {
   // CopyFrom is converted to a TextScan and a SaveBlocks.
 
-  const relation_id output_relation_id = physical_plan->catalog_relation()->getID();
+  const CatalogRelation *output_relation = physical_plan->catalog_relation();
 
   // Create InsertDestination proto.
   const QueryContext::insert_destination_id insert_destination_index =
@@ -722,7 +722,7 @@ void ExecutionGenerator::convertCopyFrom(
   S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
 
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
-  insert_destination_proto->set_relation_id(output_relation_id);
+  insert_destination_proto->set_relation_id(output_relation->getID());
   insert_destination_proto->set_need_to_add_blocks_from_relation(true);
   insert_destination_proto->set_foreman_client_id(optimizer_context_->getForemanClientID());
 
@@ -733,7 +733,7 @@ void ExecutionGenerator::convertCopyFrom(
               physical_plan->column_delimiter(),
               physical_plan->escape_strings(),
               FLAGS_parallelize_load,
-              output_relation_id,
+              *output_relation,
               insert_destination_index,
               optimizer_context_->getForemanClientID(),
               optimizer_context_->getMessageBus()));
@@ -796,7 +796,7 @@ void ExecutionGenerator::convertDeleteTuples(
        execution_predicate->getStaticResult())) {
     const QueryPlan::DAGNodeIndex drop_table_index =
         execution_plan_->addRelationalOperator(
-            new DropTableOperator(input_relation_info->relation->getID(),
+            new DropTableOperator(*input_relation_info->relation,
                                   true /* only_drop_blocks */));
     if (!input_relation_info->isStoredRelation()) {
       execution_plan_->addDirectDependency(drop_table_index,
@@ -833,7 +833,7 @@ void ExecutionGenerator::convertDropTable(
     const P::DropTablePtr &physical_plan) {
   // DropTable is converted to a DropTable operator.
   execution_plan_->addRelationalOperator(
-      new DropTableOperator(physical_plan->catalog_relation()->getID()));
+      new DropTableOperator(*physical_plan->catalog_relation()));
 }
 
 void ExecutionGenerator::convertInsertTuple(
@@ -879,7 +879,7 @@ void ExecutionGenerator::convertInsertTuple(
 
   const QueryPlan::DAGNodeIndex insert_operator_index =
       execution_plan_->addRelationalOperator(
-          new InsertOperator(input_relation->getID(),
+          new InsertOperator(*input_relation,
                              insert_destination_index,
                              tuple_index));
   insert_destination_proto->set_relational_op_index(insert_operator_index);
@@ -1074,7 +1074,7 @@ void ExecutionGenerator::convertAggregate(
   const QueryPlan::DAGNodeIndex finalize_aggregation_operator_index =
       execution_plan_->addRelationalOperator(
           new FinalizeAggregationOperator(aggr_state_index,
-                                          output_relation->getID(),
+                                          *output_relation,
                                           insert_destination_index));
   insert_destination_proto->set_relational_op_index(finalize_aggregation_operator_index);
 
@@ -1123,7 +1123,7 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
   const QueryPlan::DAGNodeIndex run_generator_index =
       execution_plan_->addRelationalOperator(
           new SortRunGenerationOperator(*input_relation_info->relation,
-                                        initial_runs_relation->getID(),
+                                        *initial_runs_relation,
                                         initial_runs_destination_id,
                                         sort_run_gen_config_id,
                                         input_relation_info->isStoredRelation()));
@@ -1176,7 +1176,7 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
   const QueryPlan::DAGNodeIndex merge_run_operator_index =
       execution_plan_->addRelationalOperator(
           new SortMergeRunOperator(*initial_runs_relation,
-                                   sorted_relation->getID(),
+                                   *sorted_relation,
                                    sorted_output_destination_id,
                                    *merged_runs_relation,
                                    merged_runs_destination_id,
@@ -1198,7 +1198,7 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
   const QueryPlan::DAGNodeIndex drop_merged_runs_index =
       execution_plan_->addRelationalOperator(
           new DropTableOperator(
-              merged_runs_relation->getID(),
+              *merged_runs_relation,
               false /* only_drop_blocks */));
   execution_plan_->addDirectDependency(
       drop_merged_runs_index,

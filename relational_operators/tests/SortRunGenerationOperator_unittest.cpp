@@ -288,8 +288,6 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
   void executeSort(const std::vector<attribute_id> &attrs,
                    const std::vector<bool> &ordering,
                    const std::vector<bool> &null_ordering) {
-    const relation_id output_relation_id = result_table_->getID();
-
     // Setup the InsertDestination proto in the query context proto.
     serialization::QueryContext query_context_proto;
 
@@ -298,7 +296,7 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
     serialization::InsertDestination *insert_destination_proto = query_context_proto.add_insert_destinations();
 
     insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
-    insert_destination_proto->set_relation_id(output_relation_id);
+    insert_destination_proto->set_relation_id(result_table_->getID());
     insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
     insert_destination_proto->set_foreman_client_id(thread_client_id_);
@@ -322,7 +320,7 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
 
     std::unique_ptr<RelationalOperator> run_gen(
         new SortRunGenerationOperator(*input_table_,
-                                      output_relation_id,
+                                      *result_table_,
                                       insert_destination_index,
                                       sort_config_index,
                                       true /* is_stored */));
