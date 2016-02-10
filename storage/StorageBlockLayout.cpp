@@ -156,7 +156,7 @@ StorageBlockLayout* StorageBlockLayout::GenerateDefaultLayout(const CatalogRelat
                                           0);
 
     // complete the setup for the compressed column store
-    for (attribute_id attr_id = 0; attr_id < relation.size(); ++attr_id) {
+    for (attribute_id attr_id = 0; attr_id < static_cast<attribute_id>(relation.size()); ++attr_id) {
       tuple_store_description->AddExtension(
                                             CompressedColumnStoreTupleStorageSubBlockDescription::compressed_attribute_id,
                                             attr_id);
