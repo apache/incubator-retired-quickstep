@@ -74,7 +74,8 @@ namespace quickstep {
 
 typedef sma_internal::EntryReference EntryReference;
 typedef sma_internal::SMAEntry SMAEntry;
-// typedef sma_internal::SMAPredicate SMAPredicate;
+typedef sma_internal::SMAPredicate SMAPredicate;
+typedef sma_internal::Selectivity Selectivity;
 
 namespace sma_test {
   // Handy comparison functions.
@@ -309,14 +310,14 @@ TEST_F(SMAIndexSubBlockTest, DescriptionIsValidTest) {
     if (std::find(valid_attrs.begin(), valid_attrs.end(), attr.getID()) != valid_attrs.end()) {
       EXPECT_TRUE(SMAIndexSubBlock::DescriptionIsValid(
           *relation_,
-          *index_description_)) 
+          *index_description_))
                << "Expected attribute " << attr.getID() << " to be valid.";
     } else {
       EXPECT_FALSE(SMAIndexSubBlock::DescriptionIsValid(
           *relation_,
           *index_description_))
               << "Expected attribute " << attr.getID() << " to be invalid.";
-    }    
+    }
   }
 }
 
@@ -358,7 +359,7 @@ TEST_F(SMAIndexSubBlockTest, TestRebuild) {
   SMAEntry* entry2 = getEntryForAttribute(2);
   // Entries should and must exist.
   ASSERT_TRUE(entry0 != nullptr && entry2 != nullptr);
-  
+
   // Check entry validity.
   EXPECT_TRUE(entry0->min_entry_.valid_);
   EXPECT_TRUE(entry2->min_entry_.valid_);
@@ -525,12 +526,14 @@ TEST_F(SMAIndexSubBlockTest, TestWithVariableLengthAttrs) {
                                     kIndexSubBlockSize));
   ASSERT_FALSE(index_->requiresRebuild());
 
+  // Ensure that the attributes are as they were before the rebuild process.
   SMAEntry* nentry6 = getEntryForAttribute(6);
   EXPECT_EQ(kVarChar, nentry6->type_);
   EXPECT_EQ(6, nentry6->attribute_);
   EXPECT_EQ(min_id, nentry6->min_entry_.tuple_);
   EXPECT_EQ(max_id, nentry6->max_entry_.tuple_);
   ASSERT_EQ(kVarChar, nentry6->max_entry_.value_.getTypeID());
+  ASSERT_EQ(kVarChar, nentry6->min_entry_.value_.getTypeID());
   EXPECT_TRUE(sma_test::varchars_equal(
       nentry6->min_entry_.value_,
       tuple_store_->getAttributeValueTyped(nentry6->min_entry_.tuple_, 6)));
@@ -542,7 +545,7 @@ TEST_F(SMAIndexSubBlockTest, TestWithVariableLengthAttrs) {
   EXPECT_EQ(max, index_->getCount());
 }
 
-
+//TODO(marc): finish this test.
 TEST_F(SMAIndexSubBlockTest, TestWithCompressedColumnStore) {
   // Create a relation with just a single attribute, which will be compressed.
   relation_.reset(new CatalogRelation(NULL, "TestRelation"));
@@ -584,11 +587,206 @@ TEST_F(SMAIndexSubBlockTest, TestWithCompressedColumnStore) {
   compressed_index_description.AddExtension(SMAIndexSubBlockDescription::indexed_attribute_id, 1);
 
   index_memory_.reset(kIndexSubBlockSize);
-  // ASSERT_DEATH(index_.reset(new SMAIndexSubBlock(*compressed_tuple_store,
-  //                                   compressed_index_description,
-  //                                   true,
-  //                                   index_memory_.get(),
-  //                                   kIndexSubBlockSize)), "description");
+  index_.reset(new SMAIndexSubBlock(*compressed_tuple_store,
+                                    compressed_index_description,
+                                    true,
+                                    index_memory_.get(),
+                                    kIndexSubBlockSize));
+}
+
+TEST_F(SMAIndexSubBlockTest, TestExtractComparison) {
+  const attribute_id indexed_attr = 0;
+  const int comparison_lit = 123;
+  std::unique_ptr<ComparisonPredicate> predicate(
+      generateNumericComparisonPredicate<LongType>(ComparisonID::kEqual, indexed_attr, comparison_lit));
+  std::unique_ptr<SMAPredicate> smapredicate(SMAPredicate::ExtractSMAPredicate(*predicate));
+
+  EXPECT_EQ(indexed_attr, smapredicate->attribute_);
+  EXPECT_EQ(ComparisonID::kEqual, smapredicate->comparison_);
+  EXPECT_EQ(comparison_lit, smapredicate->literal_.getLiteral<std::int64_t>());
+
+  // Test against a comparison which it might flip (less->greater).
+  predicate.reset(generateNumericComparisonPredicate<LongType>(ComparisonID::kLess, indexed_attr, comparison_lit));
+  smapredicate.reset(SMAPredicate::ExtractSMAPredicate(*predicate));
+
+  EXPECT_EQ(indexed_attr, smapredicate->attribute_);
+  EXPECT_EQ(ComparisonID::kLess, smapredicate->comparison_);
+  EXPECT_EQ(comparison_lit, smapredicate->literal_.getLiteral<std::int64_t>());
+
+  // Make a comparison which it must flip.
+  ScalarAttribute *scalar_attribute = new ScalarAttribute(*relation_->getAttributeById(indexed_attr));
+  ScalarLiteral *scalar_literal
+      = new ScalarLiteral(LongType::InstanceNonNullable().makeValue(&comparison_lit),
+                          LongType::InstanceNonNullable());
+  predicate.reset(new ComparisonPredicate(ComparisonFactory::GetComparison(ComparisonID::kGreater), scalar_literal, scalar_attribute));
+  smapredicate.reset(SMAPredicate::ExtractSMAPredicate(*predicate));
+
+  EXPECT_EQ(indexed_attr, smapredicate->attribute_);
+  EXPECT_EQ(ComparisonID::kLess, smapredicate->comparison_);
+  EXPECT_EQ(comparison_lit, smapredicate->literal_.getLiteral<std::int64_t>());
+}
+
+TEST_F(SMAIndexSubBlockTest, TestGetSelectivity) {
+  // Test with an inline type.
+  long lsmallest = 0, lsmall = 100, lmedium = 1000, llarge = 10000, llargest = 100000;
+  const TypedValue long_smallest = LongType::InstanceNonNullable().makeValue(&lsmallest);
+  const TypedValue long_small = LongType::InstanceNonNullable().makeValue(&lsmall);
+  const TypedValue long_medium = LongType::InstanceNonNullable().makeValue(&lmedium);
+  const TypedValue long_large = LongType::InstanceNonNullable().makeValue(&llarge);
+  const TypedValue long_largest = LongType::InstanceNonNullable().makeValue(&llargest);
+  std::unique_ptr<UncheckedComparator> longs_equal(
+      ComparisonFactory::GetComparison(ComparisonID::kEqual)
+          .makeUncheckedComparatorForTypes(LongType::InstanceNonNullable(), LongType::InstanceNonNullable()));
+  std::unique_ptr<UncheckedComparator> longs_less(
+      ComparisonFactory::GetComparison(ComparisonID::kLess)
+          .makeUncheckedComparatorForTypes(LongType::InstanceNonNullable(), LongType::InstanceNonNullable()));
+
+  // Test with equals.
+  EXPECT_EQ(Selectivity::kNone,
+            sma_internal::getSelectivity(long_smallest, ComparisonID::kEqual,
+                                         long_small, long_large,
+                                         longs_equal.get(), longs_less.get()));
+  EXPECT_EQ(Selectivity::kNone,
+            sma_internal::getSelectivity(long_largest, ComparisonID::kEqual,
+                                         long_small, long_large,
+                                         longs_equal.get(), longs_less.get()));
+  EXPECT_EQ(Selectivity::kSome,
+            sma_internal::getSelectivity(long_medium, ComparisonID::kEqual,
+                                         long_small, long_large,
+                                         longs_equal.get(), longs_less.get()));
+
+  // Test with not equals.
+  EXPECT_EQ(Selectivity::kUnknown,
+            sma_internal::getSelectivity(long_smallest, ComparisonID::kNotEqual,
+                                         long_small, long_large,
+                                         longs_equal.get(), longs_less.get()));
+
+  // Test with less.
+  EXPECT_EQ(Selectivity::kAll,
+            sma_internal::getSelectivity(long_largest, ComparisonID::kLess,
+                                         long_smallest, long_large,
+                                         longs_equal.get(), longs_less.get()));
+
+  EXPECT_EQ(Selectivity::kSome,
+            sma_internal::getSelectivity(long_large, ComparisonID::kLess,
+                                         long_smallest, long_largest,
+                                         longs_equal.get(), longs_less.get()));
+
+  EXPECT_EQ(Selectivity::kSome,
+            sma_internal::getSelectivity(long_largest, ComparisonID::kLess,
+                                         long_smallest, long_largest,
+                                         longs_equal.get(), longs_less.get()));
+
+  EXPECT_EQ(Selectivity::kNone,
+            sma_internal::getSelectivity(long_smallest, ComparisonID::kLess,
+                                         long_medium, long_largest,
+                                         longs_equal.get(), longs_less.get()));
+
+  // Test with less equals.
+  EXPECT_EQ(Selectivity::kAll,
+            sma_internal::getSelectivity(long_largest, ComparisonID::kLessOrEqual,
+                                         long_smallest, long_large,
+                                         longs_equal.get(), longs_less.get()));
+
+  EXPECT_EQ(Selectivity::kAll,
+            sma_internal::getSelectivity(long_largest, ComparisonID::kLessOrEqual,
+                                         long_medium, long_largest,
+                                         longs_equal.get(), longs_less.get()));
+
+  EXPECT_EQ(Selectivity::kSome,
+            sma_internal::getSelectivity(long_large, ComparisonID::kLessOrEqual,
+                                         long_smallest, long_largest,
+                                         longs_equal.get(), longs_less.get()));
+
+  EXPECT_EQ(Selectivity::kSome,
+            sma_internal::getSelectivity(long_medium, ComparisonID::kLessOrEqual,
+                                         long_medium, long_largest,
+                                         longs_equal.get(), longs_less.get()));
+
+  EXPECT_EQ(Selectivity::kNone,
+            sma_internal::getSelectivity(long_small, ComparisonID::kLessOrEqual,
+                                         long_medium, long_largest,
+                                         longs_equal.get(), longs_less.get()));
+
+  // Test with greater.
+  EXPECT_EQ(Selectivity::kAll,
+            sma_internal::getSelectivity(long_smallest, ComparisonID::kGreater,
+                                         long_small, long_large,
+                                         longs_equal.get(), longs_less.get()));
+
+  EXPECT_EQ(Selectivity::kSome,
+            sma_internal::getSelectivity(long_large, ComparisonID::kGreater,
+                                         long_smallest, long_largest,
+                                         longs_equal.get(), longs_less.get()));
+
+  EXPECT_EQ(Selectivity::kSome,
+            sma_internal::getSelectivity(long_smallest, ComparisonID::kGreater,
+                                         long_smallest, long_largest,
+                                         longs_equal.get(), longs_less.get()));
+
+  EXPECT_EQ(Selectivity::kNone,
+            sma_internal::getSelectivity(long_medium, ComparisonID::kGreater,
+                                         long_smallest, long_medium,
+                                         longs_equal.get(), longs_less.get()));
+
+  // Test with greater or equals.
+  EXPECT_EQ(Selectivity::kAll,
+            sma_internal::getSelectivity(long_smallest, ComparisonID::kGreaterOrEqual,
+                                         long_small, long_large,
+                                         longs_equal.get(), longs_less.get()));
+
+  EXPECT_EQ(Selectivity::kAll,
+            sma_internal::getSelectivity(long_medium, ComparisonID::kGreaterOrEqual,
+                                         long_medium, long_largest,
+                                         longs_equal.get(), longs_less.get()));
+
+  EXPECT_EQ(Selectivity::kSome,
+            sma_internal::getSelectivity(long_large, ComparisonID::kGreaterOrEqual,
+                                         long_smallest, long_largest,
+                                         longs_equal.get(), longs_less.get()));
+
+  EXPECT_EQ(Selectivity::kSome,
+            sma_internal::getSelectivity(long_largest, ComparisonID::kGreaterOrEqual,
+                                         long_medium, long_largest,
+                                         longs_equal.get(), longs_less.get()));
+
+  EXPECT_EQ(Selectivity::kNone,
+            sma_internal::getSelectivity(long_largest, ComparisonID::kGreaterOrEqual,
+                                         long_small, long_large,
+                                         longs_equal.get(), longs_less.get()));
+
+  // Now test with variable length attributes.
+  vector<string> str_vals({"avocado", "cruciferous", "fructose", "sauerkraut", "zeppelini"});
+  vector<TypedValue> str_tvals;
+  for (string &str : str_vals) {
+    str_tvals.push_back(
+        VarCharType::InstanceNonNullable(str.size()).makeValue(
+            str.c_str(),
+            str.size() + 1));
+    str_tvals.back().ensureNotReference();
+  }
+  std::unique_ptr<UncheckedComparator> str_equals(
+      ComparisonFactory::GetComparison(ComparisonID::kEqual)
+          .makeUncheckedComparatorForTypes(VarCharType::InstanceNonNullable(16), VarCharType::InstanceNonNullable(16)));
+  std::unique_ptr<UncheckedComparator> str_less(
+      ComparisonFactory::GetComparison(ComparisonID::kLess)
+          .makeUncheckedComparatorForTypes(VarCharType::InstanceNonNullable(16), VarCharType::InstanceNonNullable(16)));
+
+  // Test with equals.
+  EXPECT_EQ(Selectivity::kNone,
+            sma_internal::getSelectivity(str_tvals[4], ComparisonID::kEqual,
+                                         str_tvals[0], str_tvals[3],
+                                         str_equals.get(), str_less.get()));
+  EXPECT_EQ(Selectivity::kNone,
+            sma_internal::getSelectivity(str_tvals[0], ComparisonID::kEqual,
+                                         str_tvals[1], str_tvals[3],
+                                         str_equals.get(), str_less.get()));
+  EXPECT_EQ(Selectivity::kSome,
+            sma_internal::getSelectivity(str_tvals[1], ComparisonID::kEqual,
+                                         str_tvals[0], str_tvals[2],
+                                         str_equals.get(), str_less.get()));
+
+  // As long as the equals comparison works, that's a strong indication that all other comparisons will work.
 }
 
 }  // namespace quickstep

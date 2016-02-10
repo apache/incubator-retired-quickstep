@@ -73,17 +73,138 @@ namespace quickstep {
 QUICKSTEP_REGISTER_INDEX(SMAIndexSubBlock, SMA);
 
 typedef sma_internal::EntryReference EntryReference;
-//typedef sma_internal::SMAPredicate SMAPredicate;
+typedef sma_internal::SMAPredicate SMAPredicate;
 typedef sma_internal::SMAHeader SMAHeader;
 typedef sma_internal::SMAEntry SMAEntry;
 
 namespace sma_internal {
 
 /**
+ * @return Selectivity of an equals predicate.
+ */
+inline Selectivity getSelectivity_E(const TypedValue &literal,
+                                    const TypedValue &min,
+                                    const TypedValue &max,
+                                    const UncheckedComparator *less_comparator) {
+  if (less_comparator->compareTypedValues(literal, min) ||
+      less_comparator->compareTypedValues(max, literal)) {
+    return Selectivity::kNone;
+  }
+  return Selectivity::kSome;
+}
+
+/**
+ * @return Selectivity of an less predicate.
+ */
+inline Selectivity getSelectivity_L(const TypedValue &literal,
+                                    const TypedValue &min,
+                                    const TypedValue &max,
+                                    const UncheckedComparator *less_comparator,
+                                    const UncheckedComparator *equals_comparator) {
+  if (less_comparator->compareTypedValues(max, literal)) {
+    return Selectivity::kAll;
+  } else if (less_comparator->compareTypedValues(literal, min) ||
+             equals_comparator->compareTypedValues(literal, min)) {
+    return Selectivity::kNone;
+  }
+  return Selectivity::kSome;
+}
+
+/**
+ * @return Selectivity of an less equals predicate.
+ */
+inline Selectivity getSelectivity_LE(const TypedValue &literal,
+                                     const TypedValue &min,
+                                     const TypedValue &max,
+                                     const UncheckedComparator *less_comparator,
+                                     const UncheckedComparator *equals_comparator) {
+  if (less_comparator->compareTypedValues(max, literal) ||
+      equals_comparator->compareTypedValues(max, literal)) {
+    return Selectivity::kAll;
+  } else if (less_comparator->compareTypedValues(literal, min)) {
+    return Selectivity::kNone;
+  }
+  return Selectivity::kSome;
+}
+
+/**
+ * @return Selectivity of an greater predicate.
+ */
+inline Selectivity getSelectivity_G(const TypedValue &literal,
+                                    const TypedValue &min,
+                                    const TypedValue &max,
+                                    const UncheckedComparator *less_comparator,
+                                    const UncheckedComparator *equals_comparator) {
+  if(less_comparator->compareTypedValues(literal, min)) {
+    return Selectivity::kAll;
+  } else if (less_comparator->compareTypedValues(max, literal) || 
+             equals_comparator->compareTypedValues(max, literal)) {
+    return Selectivity::kNone;
+  }
+  return Selectivity::kSome;
+}
+
+/**
+ * @return Selectivity of a greater or equals predicate.
+ */
+inline Selectivity getSelectivity_GE(const TypedValue &literal,
+                                     const TypedValue &min,
+                                     const TypedValue &max,
+                                     const UncheckedComparator *less_comparator,
+                                     const UncheckedComparator *equals_comparator) {
+  if (less_comparator->compareTypedValues(literal, min) ||
+      equals_comparator->compareTypedValues(literal, min)) {
+    return Selectivity::kAll;
+  } else if (less_comparator->compareTypedValues(max, literal)) {
+    return Selectivity::kNone;
+  }
+  return Selectivity::kSome;
+}
+
+Selectivity getSelectivity(const TypedValue &literal,
+                           const ComparisonID comparison,
+                           const TypedValue &min,
+                           const TypedValue &max,
+                           const UncheckedComparator *equals_comparator,
+                           const UncheckedComparator *less_comparator) {
+  switch(comparison) {
+    case ComparisonID::kEqual:
+      return getSelectivity_E(literal, min, max, less_comparator);
+    case ComparisonID::kLess:
+      return getSelectivity_L(literal, min, max, less_comparator, equals_comparator);
+    case ComparisonID::kLessOrEqual:
+      return getSelectivity_LE(literal, min, max, less_comparator, equals_comparator);
+    case ComparisonID::kGreater:
+      return getSelectivity_G(literal, min, max, less_comparator, equals_comparator);
+    case ComparisonID::kGreaterOrEqual:
+      return getSelectivity_GE(literal, min, max, less_comparator, equals_comparator);
+    default:
+      return Selectivity::kUnknown;    
+  }
+}
+
+SMAPredicate* SMAPredicate::ExtractSMAPredicate(const ComparisonPredicate &predicate) {
+  if (predicate.getLeftOperand().hasStaticValue()) {
+    DLOG_IF(FATAL, predicate.getRightOperand().getDataSource() != Scalar::kAttribute);
+    return new SMAPredicate(
+         static_cast<const ScalarAttribute&>(predicate.getRightOperand()).getAttribute().getID(),
+         flipComparisonID(predicate.getComparison().getComparisonID()),
+         predicate.getLeftOperand().getStaticValue().makeReferenceToThis());
+  } else {
+    DLOG_IF(FATAL, predicate.getLeftOperand().getDataSource() != Scalar::kAttribute);
+    return new SMAPredicate(
+        static_cast<const ScalarAttribute&>(predicate.getLeftOperand()).getAttribute().getID(),
+        predicate.getComparison().getComparisonID(),
+        predicate.getRightOperand().getStaticValue().makeReferenceToThis());
+  }
+}
+
+
+/**
  * @brief Summation will promote lower precision types to higher precision types.
  *
  * @return The higher precision sum typeid. Returns kNullType to indicate that the
- *         given type cannot be summed.
+ *         given type cannot be summed (in lieu of a better sigil).
  */
 inline TypeID sumType(TypeID type) {
   switch (type) {
@@ -185,7 +306,8 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
 
   indexed_attributes_ = description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id);
 
-  CHECK((sizeof(sma_internal::SMAHeader) + (indexed_attributes_ * sizeof(SMAEntry))) <= sub_block_memory_size_)
+  CHECK((sizeof(sma_internal::SMAHeader) 
+            + (indexed_attributes_ * sizeof(SMAEntry))) <= sub_block_memory_size_)
       << "Attempted to create SMAIndexSubBlock without enough space allocated.";
 
   header_ = reinterpret_cast<SMAHeader*>(sub_block_memory_);
@@ -240,18 +362,20 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
         // First, set to 0 so that we don't try to free invalid memory on copy.
         // Next, copy from the tuple store. This will copy and give us ownership of out of line data.
         if (entry->min_entry_.valid_) {
-          std::cout << "set min\n";
+          std::cout << "set min\n"; // DEBUG
           new (&entry->min_entry_.value_) TypedValue();
           entry->min_entry_.value_ = tuple_store
               .getAttributeValueTyped(entry->min_entry_.tuple_, entry->attribute_);
-          std::cout << "typeid: " << entry->min_entry_.value_.getTypeID() << "\n";
+          entry->min_entry_.value_.ensureNotReference();  
+          std::cout << "typeid: " << entry->min_entry_.value_.getTypeID() << "\n"; // DEBUG
         }
         if (entry->max_entry_.valid_) {
-          std::cout << "set max\n";
+          std::cout << "set max\n"; // DEBUG
           new (&entry->max_entry_.value_) TypedValue();
           entry->max_entry_.value_ = tuple_store
               .getAttributeValueTyped(entry->max_entry_.tuple_, entry->attribute_);
-          std::cout << "typeid: " << entry->max_entry_.value_.getTypeID() << "\n";
+          entry->max_entry_.value_.ensureNotReference();
+          std::cout << "typeid: " << entry->max_entry_.value_.getTypeID() << "\n"; // DEBUG
         }
       }
     }
@@ -300,7 +424,8 @@ void SMAIndexSubBlock::resetEntries() {
         SMAIndexSubBlockDescription::indexed_attribute_id,
         indexed_attribute_num);
 
-    const Type &attribute_type = tuple_store_.getRelation().getAttributeById(attribute)->getType();
+    const Type &attribute_type = tuple_store_.getRelation()
+                                     .getAttributeById(attribute)->getType();
     resetEntry(entries_ + indexed_attribute_num, attribute, attribute_type);
   }
 }

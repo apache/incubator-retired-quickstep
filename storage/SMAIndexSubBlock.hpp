@@ -48,6 +48,75 @@ QUICKSTEP_DECLARE_SUB_BLOCK_TYPE_REGISTERED(SMAIndexSubBlock);
 
 namespace sma_internal {
 
+//// Predicate answering components.
+
+/**
+ * @brief Describes how much of the relation will be selected by a predicate.
+ * @details kAll, kNone indicate that the SMA has determined that all, or none 
+ *          of the tuples will be selected. kSome means that some tuples may be
+ *          selected, but a scan must be performed. kUnknown indicates that the
+ *          SMA tried to answer the predicate but did not have enough information.
+ *          kUnsolved indicates that the predicate has been created but not 
+ *          analyzed by the SMA.  
+ */
+enum class Selectivity {
+  kAll,
+  kSome,
+  kNone,
+  kUnknown,
+  kUnsolved
+};
+
+/**
+ * @brief Helper method. Uses the stored values from the SMA Index to determine
+ *        selectivity of a predicate.
+ * 
+ * @param literal 
+ * @param min 
+ * @param max 
+ * @param equals_comparator 
+ * @param less_comparator 
+ * @return Selectivity of this predicate.
+ */
+Selectivity getSelectivity(const TypedValue &literal,
+                           const ComparisonID comparison,
+                           const TypedValue &min,
+                           const TypedValue &max,
+                           const UncheckedComparator *equals_comparator,
+                           const UncheckedComparator *less_comparator);
+
+/**
+ * @brief A simple holding struct for a comparison predicate. Selectivity enum
+ *        indicates if the SMA has been used to solve the predicate and if so,
+ *        what is the selectivity over the block.
+ */
+struct SMAPredicate {
+  /**
+   * @brief Extracts a comparison predicate into an SMAPredicate.
+   * 
+   * @param predicate A comparison of the form {attribute} {comparison} {literal}
+   *                  or {literal} {comparison} {attribute}.
+   * @return An SMAPredicate pointer which the caller must manage.
+   */
+  static SMAPredicate* ExtractSMAPredicate(const ComparisonPredicate& predicate);
+
+  const attribute_id attribute_;
+  const ComparisonID comparison_;
+  const TypedValue literal_;
+  Selectivity selectivity_;
+
+ private:
+  SMAPredicate(const attribute_id attribute,
+               const ComparisonID comparisonid,
+               const TypedValue literal) 
+      : attribute_(attribute),
+        comparison_(comparisonid),
+        literal_(literal),
+        selectivity_(Selectivity::kUnsolved) {};
+};
+
+//// Components of the index.
+
 // A 64-bit header.
 struct SMAHeader {
   std::uint32_t count_;
@@ -57,12 +126,14 @@ struct SMAHeader {
   };
 };
 
+// Reference to an attribute value in a tuple.
 struct EntryReference {
   tuple_id tuple_;
   bool valid_;
   TypedValue value_;
 };
 
+// Index entry for an attribute.
 struct SMAEntry {
   attribute_id attribute_;
   TypeID type_;
@@ -243,6 +314,8 @@ class SMAIndexSubBlock : public IndexSubBlock {
   }
 
  private:
+  void solvePredicate(sma_internal::SMAPredicate &predicate) const;
+
   // Retrieves an entry, first checking if the given attribute is indexed.
   inline const sma_internal::SMAEntry* getEntryChecked(attribute_id attribute) const {
     if (attribute_to_entry_.find(attribute) != attribute_to_entry_.end()) {
@@ -282,6 +355,8 @@ class SMAIndexSubBlock : public IndexSubBlock {
   //    add_operations_.at(attribute_typeid).applyWithTypedValues(
   //           Attribute Type TypedValue,
   //           SumType TypedValue);
+  // TODO(marc): could replace this with an array as it would make lookups
+  //             faster without using much space.
   std::unordered_map<int, UncheckedBinaryOperator*> add_operations_;
 
   // Maps AttributeTypeID -> ComparisonOperator. The Comparison operator
@@ -290,6 +365,8 @@ class SMAIndexSubBlock : public IndexSubBlock {
   //    add_operations_.at(attribute_typeid).applyWithTypedValues(
   //           Attribute Type TypedValue,
   //           Attribute Type TypedValue);
+  // TODO(marc): could replace this with an array as it would make lookups
+  //             faster without using much space.
   std::unordered_map<int, UncheckedComparator*> less_comparisons_;
   std::unordered_map<int, UncheckedComparator*> equal_comparisons_;
 
