@@ -440,8 +440,7 @@ void SMAIndexSubBlock::resetEntries() {
         SMAIndexSubBlockDescription::indexed_attribute_id,
         indexed_attribute_num);
 
-    const Type &attribute_type = tuple_store_.getRelation()
-                                     .getAttributeById(attribute)->getType();
+    const Type &attribute_type = tuple_store_.getRelation().getAttributeById(attribute)->getType();
     resetEntry(entries_ + indexed_attribute_num, attribute, attribute_type);
   }
 }
@@ -611,6 +610,10 @@ predicate_cost_t SMAIndexSubBlock::estimatePredicateEvaluationCost(
 TupleIdSequence* SMAIndexSubBlock::getMatchesForPredicate(
     const ComparisonPredicate &predicate,
     const TupleIdSequence *filter) const {
+  if (filter != nullptr) {
+    LOG(FATAL) << "SMAIndex cannot evaluate filters.";
+  }
+
   Selectivity selectivity = selectivityForPredicate(predicate);
   if (selectivity == Selectivity::kAll) {
     TupleIdSequence* tidseq = new TupleIdSequence(tuple_store_.numTuples());
@@ -625,7 +628,7 @@ TupleIdSequence* SMAIndexSubBlock::getMatchesForPredicate(
     }
     return tidseq;
   } else if (selectivity == Selectivity::kNone) {
-    return new TupleIdSequence(0);
+    return new TupleIdSequence(tuple_store_.numTuples());
   }
   LOG(FATAL) << "SMAIndex failed to evaluate predicate. The SMA should not have been used";
   return nullptr;

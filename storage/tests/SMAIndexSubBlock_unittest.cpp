@@ -282,6 +282,19 @@ class SMAIndexSubBlockTest : public ::testing::Test {
     return new ComparisonPredicate(ComparisonFactory::GetComparison(comp), scalar_attribute, scalar_literal);
   }
 
+  ComparisonPredicate* generateStringComparisonPredicate(
+      const ComparisonID comp,
+      const attribute_id attribute,
+      const string &literal) {
+    ScalarAttribute *scalar_attribute = new ScalarAttribute(*relation_->getAttributeById(attribute));
+    ScalarLiteral *scalar_literal = new ScalarLiteral(
+        VarCharType::InstanceNonNullable(literal.size()).makeValue(
+            literal.c_str(),
+            literal.size() + 1).ensureNotReference(),
+        VarCharType::InstanceNonNullable(literal.size()));
+    return new ComparisonPredicate(ComparisonFactory::GetComparison(comp), scalar_attribute, scalar_literal);
+  }
+
   // Retrieves the SMAEntry from the test SMAIndex instance.
   SMAEntry* getEntryForAttribute(attribute_id attribute) {
     return const_cast<SMAEntry*>(index_->getEntryChecked(attribute));
@@ -809,9 +822,6 @@ TEST_F(SMAIndexSubBlockTest, TestEvaluatePredicateCost) {
   predicate_cost_t eval_cost = index_->estimatePredicateEvaluationCost(*predicate);
   EXPECT_EQ(predicate_cost::kConstantTime, eval_cost);
 
-  SMAEntry* entry = getEntryForAttribute(0);
-  EXPECT_EQ(500, entry->max_entry.value.getLiteral<std::int64_t>());
-
   predicate.reset(
       generateNumericComparisonPredicate<LongType>(ComparisonID::kLess, 0, max + 1));
   eval_cost = index_->estimatePredicateEvaluationCost(*predicate);
@@ -823,12 +833,65 @@ TEST_F(SMAIndexSubBlockTest, TestEvaluatePredicateCost) {
   EXPECT_EQ(predicate_cost::kInfinite, eval_cost);
 
   // Test with out of line values.
+  predicate.reset(
+      generateStringComparisonPredicate(ComparisonID::kLess, 5, " "));
+  eval_cost = index_->estimatePredicateEvaluationCost(*predicate);
+  EXPECT_EQ(predicate_cost::kConstantTime, eval_cost);
+
+  predicate.reset(
+      generateStringComparisonPredicate(ComparisonID::kGreater, 5, " "));
+  eval_cost = index_->estimatePredicateEvaluationCost(*predicate);
+  EXPECT_EQ(predicate_cost::kConstantTime, eval_cost);
+
+  predicate.reset(
+      generateStringComparisonPredicate(ComparisonID::kEqual, 5, "100suffix"));
+  eval_cost = index_->estimatePredicateEvaluationCost(*predicate);
+  EXPECT_EQ(predicate_cost::kInfinite, eval_cost);
 
   // Test with an inconsistent index.
+  tuple_id new_tuple = generateAndInsertTuple(0x1337, false, "suffix");
+  predicate.reset(generateNumericComparisonPredicate<LongType>(ComparisonID::kLess, 0, min));
+  EXPECT_TRUE(index_->addEntry(new_tuple));
+  EXPECT_TRUE(index_->requiresRebuild());
+  EXPECT_EQ(predicate_cost::kInfinite, index_->estimatePredicateEvaluationCost(*predicate));
 }
 
 TEST_F(SMAIndexSubBlockTest, TestGetMatchesForPredicate) {
-  EXPECT_EQ(0,0);
+  // Create the index on all the attributes.
+  createIndex({0, 1, 2, 3, 4, 5}, kIndexSubBlockSize);
+  const int min = 250, max = 500;
+  for (unsigned i = min; i <= max; ++i) {
+    if (i % 10 == 0) {
+      generateAndInsertTuple(i, true, "suffix");
+    } else {
+      generateAndInsertTuple(i, false, "suffix");
+    }    
+  }
+  index_->rebuild();
+
+  // Test with inline values.
+  // Check that no tuples have been returned.
+  std::unique_ptr<ComparisonPredicate> predicate(
+      generateNumericComparisonPredicate<LongType>(ComparisonID::kLess, 0, min));
+  std::unique_ptr<TupleIdSequence> result(index_->getMatchesForPredicate(*predicate, nullptr));
+  EXPECT_EQ(tuple_store_->getMaxTupleID() + 1, result->length());
+  EXPECT_EQ(0, result->numTuples());  
+
+  // // Check that all tuples have been returned.
+  // TODO: fix bug which causes this to crash.
+  // predicate.reset(
+  //     generateNumericComparisonPredicate<LongType>(ComparisonID::kLess, 0, max + 1));
+  // result.reset(index_->getMatchesForPredicate(*predicate, nullptr));
+  // EXPECT_EQ(tuple_store_->getMaxTupleID() + 1, result->length());
+  // EXPECT_EQ(tuple_store_->getMaxTupleID() + 1, result->numTuples());
+
+  predicate.reset(
+      generateNumericComparisonPredicate<LongType>(ComparisonID::kLess, 0, ((max - min)/2) + min));
+  // SMA should not be used in this case, it cannot answer this query.
+  EXPECT_DEATH(index_->getMatchesForPredicate(*predicate, nullptr), "SMAIndex failed to evaluate predicate");
+
+  // Test with out of line values.
+
 }
 
 
