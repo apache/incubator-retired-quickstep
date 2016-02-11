@@ -100,46 +100,46 @@ struct SMAPredicate {
    */
   static SMAPredicate* ExtractSMAPredicate(const ComparisonPredicate& predicate);
 
-  const attribute_id attribute_;
-  const ComparisonID comparison_;
-  const TypedValue literal_;
-  Selectivity selectivity_;
+  const attribute_id attribute;
+  const ComparisonID comparison;
+  const TypedValue literal;
+  Selectivity selectivity;
 
  private:
-  SMAPredicate(const attribute_id attribute,
-               const ComparisonID comparisonid,
-               const TypedValue literal) 
-      : attribute_(attribute),
-        comparison_(comparisonid),
-        literal_(literal),
-        selectivity_(Selectivity::kUnsolved) {};
+  SMAPredicate(const attribute_id attr,
+               const ComparisonID comp,
+               const TypedValue lit) 
+      : attribute(attr),
+        comparison(comp),
+        literal(lit),
+        selectivity(Selectivity::kUnsolved) { };
 };
 
 //// Components of the index.
 
 // A 64-bit header.
 struct SMAHeader {
-  std::uint32_t count_;
+  std::uint32_t count;
   union {
-    bool consistent_;
-    std::uint32_t buffer_;
+    bool consistent;
+    std::uint32_t buffer;
   };
 };
 
 // Reference to an attribute value in a tuple.
 struct EntryReference {
-  tuple_id tuple_;
-  bool valid_;
-  TypedValue value_;
+  tuple_id tuple;
+  bool valid;
+  TypedValue value;
 };
 
 // Index entry for an attribute.
 struct SMAEntry {
-  attribute_id attribute_;
-  TypeID type_;
-  EntryReference min_entry_;
-  EntryReference max_entry_;
-  TypedValue sum_;
+  attribute_id attribute;
+  TypeID type;
+  EntryReference min_entry;
+  EntryReference max_entry;
+  TypedValue sum;
 };
 
 }  // namespace sma_internal
@@ -310,11 +310,11 @@ class SMAIndexSubBlock : public IndexSubBlock {
    * @return Number of tuples in the sub block.
    */
   std::uint32_t getCount() const {
-    return reinterpret_cast<sma_internal::SMAHeader*>(sub_block_memory_)->count_;
+    return reinterpret_cast<sma_internal::SMAHeader*>(sub_block_memory_)->count;
   }
 
  private:
-  void solvePredicate(sma_internal::SMAPredicate &predicate) const;
+  inline sma_internal::Selectivity selectivityForPredicate(const ComparisonPredicate &predicate) const;
 
   // Retrieves an entry, first checking if the given attribute is indexed.
   inline const sma_internal::SMAEntry* getEntryChecked(attribute_id attribute) const {
@@ -349,26 +349,20 @@ class SMAIndexSubBlock : public IndexSubBlock {
   int indexed_attributes_;
   bool initialized_;
 
-  // Maps AttributeTypeID -> addOperator. The addOperator takes the attribute
+  // Maps attribute TypeID to AddOperator. The AddOperator takes the attribute
   // TypedValue and a TypedValue of the SumType on the right.
   // So when using, it should look like:
-  //    add_operations_.at(attribute_typeid).applyWithTypedValues(
-  //           Attribute Type TypedValue,
-  //           SumType TypedValue);
-  // TODO(marc): could replace this with an array as it would make lookups
-  //             faster without using much space.
-  std::unordered_map<int, UncheckedBinaryOperator*> add_operations_;
+  //
+  //    add_operations_[attribute_typeid].applyWithTypedValues(
+  //        Attribute Type TypedValue,
+  //        SumType TypedValue);
+  //
+  UncheckedBinaryOperator** add_operations_;
 
-  // Maps AttributeTypeID -> ComparisonOperator. The Comparison operator
-  // must be used with 2 Typed Values of the same type as the Attribute Type.
-  // So when using, it should look like:
-  //    add_operations_.at(attribute_typeid).applyWithTypedValues(
-  //           Attribute Type TypedValue,
-  //           Attribute Type TypedValue);
-  // TODO(marc): could replace this with an array as it would make lookups
-  //             faster without using much space.
-  std::unordered_map<int, UncheckedComparator*> less_comparisons_;
-  std::unordered_map<int, UncheckedComparator*> equal_comparisons_;
+  // Maps TypeID to ComparisonOperator. The comparison operator takes two of
+  // same type as the type ID which is used to index into this array.
+  UncheckedComparator** less_comparisons_;
+  UncheckedComparator** equal_comparisons_;
 
   friend class SMAIndexSubBlockTest;
 

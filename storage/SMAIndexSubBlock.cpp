@@ -76,6 +76,7 @@ typedef sma_internal::EntryReference EntryReference;
 typedef sma_internal::SMAPredicate SMAPredicate;
 typedef sma_internal::SMAHeader SMAHeader;
 typedef sma_internal::SMAEntry SMAEntry;
+typedef sma_internal::Selectivity Selectivity;
 
 namespace sma_internal {
 
@@ -199,7 +200,6 @@ SMAPredicate* SMAPredicate::ExtractSMAPredicate(const ComparisonPredicate &predi
   }
 }
 
-
 /**
  * @brief Summation will promote lower precision types to higher precision types.
  *
@@ -234,18 +234,18 @@ inline bool canSum(TypeID type) {
  *       and Long types are always represented inline.
  */
 inline void setTypedValueForSum(SMAEntry *entry) {
-  TypeID sum_type = sumType(entry->type_);
+  TypeID sum_type = sumType(entry->type);
   if (sum_type == kLong) {
-    new (&entry->sum_) TypedValue(static_cast<std::int64_t>(0));
+    new (&entry->sum) TypedValue(static_cast<std::int64_t>(0));
   } else if (sum_type == kDouble) {
-    new (&entry->sum_) TypedValue(static_cast<double>(0.0));
+    new (&entry->sum) TypedValue(static_cast<double>(0.0));
   }
 }
 
 void setTypedValueForMinMax(SMAEntry *entry) {
-  TypedValue *min = &(entry->min_entry_.value_);
-  TypedValue *max = &(entry->max_entry_.value_);
-  switch (entry->type_) {
+  TypedValue *min = &(entry->min_entry.value);
+  TypedValue *max = &(entry->max_entry.value);
+  switch (entry->type) {
     case kInt:
       new (min) TypedValue(static_cast<int>(0));
       new (max) TypedValue(static_cast<int>(0));
@@ -298,9 +298,9 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
       entries_(nullptr),
       indexed_attributes_(0),
       initialized_(false),
-      add_operations_(),
-      less_comparisons_(),
-      equal_comparisons_() {
+      add_operations_(new UncheckedBinaryOperator*[kNumTypeIDs]),
+      less_comparisons_(new UncheckedComparator*[kNumTypeIDs]),
+      equal_comparisons_(new UncheckedComparator*[kNumTypeIDs]) {
   CHECK(DescriptionIsValid(relation_, description_))
       << "Attempted to construct an SMAIndexSubBlock from an invalid description.";
 
@@ -314,8 +314,13 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
   entries_ = reinterpret_cast<SMAEntry*>(header_ + 1);
 
   if (new_block) {
-    header_->consistent_ = false;
+    header_->consistent = false;
   }
+
+  // Zero the comparator arrays so we don't try to reference invalid memory later.
+  memset(less_comparisons_, 0, sizeof(UncheckedComparator*) * kNumTypeIDs);
+  memset(equal_comparisons_, 0, sizeof(UncheckedComparator*) * kNumTypeIDs);
+  memset(add_operations_, 0, sizeof(UncheckedBinaryOperator*) * kNumTypeIDs);
 
   // Iterate through each attribute which is being indexed.
   for (int indexed_attribute_num = 0;
@@ -330,86 +335,97 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
 
     // Initialize the operator map.
     if (sma_internal::canSum(attribute_type.getTypeID())) {
-      TypeID attr_sum_type = sma_internal::sumType(attribute_type.getTypeID());
-      if (add_operations_.find(static_cast<int>(attr_sum_type)) == add_operations_.end()) {
-        add_operations_.insert({
-          static_cast<int>(attribute_type.getTypeID()),
-          BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
-              .makeUncheckedBinaryOperatorForTypes(attribute_type, TypeFactory::GetType(attr_sum_type))});
+      TypeID attr_typeid = attribute_type.getTypeID();
+      TypeID attr_sum_typeid = sma_internal::sumType(attr_typeid);
+      if (add_operations_[attr_typeid] == nullptr) {
+        add_operations_[attr_typeid]
+          = BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
+              .makeUncheckedBinaryOperatorForTypes(TypeFactory::GetType(attr_typeid), 
+                                                   TypeFactory::GetType(attr_sum_typeid));
       }
     }
 
     // Initialize comparison map. Maps attribute type to comparison function.
     int attr_typeid = static_cast<int>(attribute_type.getTypeID());
-    if (less_comparisons_.find(attr_typeid) == less_comparisons_.end()) {
-      less_comparisons_.insert({attr_typeid,
-          ComparisonFactory::GetComparison(ComparisonID::kLess)
-              .makeUncheckedComparatorForTypes(attribute_type, attribute_type)});
-      equal_comparisons_.insert({attr_typeid,
-          ComparisonFactory::GetComparison(ComparisonID::kEqual)
-              .makeUncheckedComparatorForTypes(attribute_type, attribute_type)});
+    if (less_comparisons_[attr_typeid] == nullptr) {
+      DCHECK(equal_comparisons_[attr_typeid] == nullptr);
+      less_comparisons_[attr_typeid]
+          = ComparisonFactory::GetComparison(ComparisonID::kLess)
+              .makeUncheckedComparatorForTypes(attribute_type, attribute_type);
+      equal_comparisons_[attr_typeid]
+          = ComparisonFactory::GetComparison(ComparisonID::kEqual)
+              .makeUncheckedComparatorForTypes(attribute_type, attribute_type);
     }
 
     // Map the attribute's id to its entry's index.
     attribute_to_entry_.insert({attribute, indexed_attribute_num});
 
-    if (!header_->consistent_) {
+    if (!header_->consistent) {
       resetEntry(entry, attribute, attribute_type);
     } else {
       // If the data held by min/max is out of line, we must retrieve it.
-      if (!TypedValue::RepresentedInline(entry->type_)) {
+      if (!TypedValue::RepresentedInline(entry->type)) {
 
         // First, set to 0 so that we don't try to free invalid memory on copy.
         // Next, copy from the tuple store. This will copy and give us ownership of out of line data.
-        if (entry->min_entry_.valid_) {
+        if (entry->min_entry.valid) {
           std::cout << "set min\n"; // DEBUG
-          new (&entry->min_entry_.value_) TypedValue();
-          entry->min_entry_.value_ = tuple_store
-              .getAttributeValueTyped(entry->min_entry_.tuple_, entry->attribute_);
-          entry->min_entry_.value_.ensureNotReference();  
-          std::cout << "typeid: " << entry->min_entry_.value_.getTypeID() << "\n"; // DEBUG
+          new (&entry->min_entry.value) TypedValue();
+          entry->min_entry.value = tuple_store
+              .getAttributeValueTyped(entry->min_entry.tuple, entry->attribute);
+          entry->min_entry.value.ensureNotReference();  
+          std::cout << "typeid: " << entry->min_entry.value.getTypeID() << "\n"; // DEBUG
         }
-        if (entry->max_entry_.valid_) {
+        if (entry->max_entry.valid) {
           std::cout << "set max\n"; // DEBUG
-          new (&entry->max_entry_.value_) TypedValue();
-          entry->max_entry_.value_ = tuple_store
-              .getAttributeValueTyped(entry->max_entry_.tuple_, entry->attribute_);
-          entry->max_entry_.value_.ensureNotReference();
-          std::cout << "typeid: " << entry->max_entry_.value_.getTypeID() << "\n"; // DEBUG
+          new (&entry->max_entry.value) TypedValue();
+          entry->max_entry.value = tuple_store
+              .getAttributeValueTyped(entry->max_entry.tuple, entry->attribute);
+          entry->max_entry.value.ensureNotReference();
+          std::cout << "typeid: " << entry->max_entry.value.getTypeID() << "\n"; // DEBUG
         }
       }
     }
   }
+  initialized_ = true;
 }
 
 SMAIndexSubBlock::~SMAIndexSubBlock() {
   // Any typed values which have out of line data must be cleared.
   freeOutOfLineData();
 
-  // Delete owned comparators and operations.
-  for (auto pair : less_comparisons_) {
-    delete pair.second;
+  // Clear any operators which have been allocated.
+  for (int i = 0; i < kNumTypeIDs; ++i) {
+    if (add_operations_[i] != nullptr) {
+      delete add_operations_[i];
+    }
+    if(equal_comparisons_[i] != nullptr) {
+      delete equal_comparisons_[i];
+    }
+    if(less_comparisons_[i] != nullptr) {
+      delete less_comparisons_[i];
+    }
   }
-  for (auto pair : equal_comparisons_) {
-    delete pair.second;
-  }
-  for (auto pair : add_operations_) {
-    delete pair.second;
-  }
+  
+  // Delete the operator arrays.
+  delete[] add_operations_;
+  delete[] equal_comparisons_;
+  delete[] less_comparisons_;
+
 }
 
 void SMAIndexSubBlock::resetEntry(SMAEntry *entry,
                                   attribute_id attribute,
                                   const Type &attribute_type) {
-  entry->attribute_ = attribute;
-  entry->type_ = attribute_type.getTypeID();
-  if (entry->min_entry_.valid_) {
-    entry->min_entry_.value_.clear();
-    entry->min_entry_.valid_ = false;
+  entry->attribute = attribute;
+  entry->type = attribute_type.getTypeID();
+  if (entry->min_entry.valid) {
+    entry->min_entry.value.clear();
+    entry->min_entry.valid = false;
   }
-  if (entry->max_entry_.valid_) {
-    entry->max_entry_.value_.clear();
-    entry->max_entry_.valid_ = false;
+  if (entry->max_entry.valid) {
+    entry->max_entry.value.clear();
+    entry->max_entry.valid = false;
   }
   sma_internal::setTypedValueForSum(entry);
 }
@@ -435,12 +451,12 @@ void SMAIndexSubBlock::freeOutOfLineData() {
        indexed_attribute_num < indexed_attributes_;
        ++indexed_attribute_num) {
     SMAEntry &entry = entries_[indexed_attribute_num];
-    if (!TypedValue::RepresentedInline(entry.type_)) {
-      if (entry.min_entry_.valid_) {
-        entry.min_entry_.value_.clear();
+    if (!TypedValue::RepresentedInline(entry.type)) {
+      if (entry.min_entry.valid) {
+        entry.min_entry.value.clear();
       }
-      if (entry.max_entry_.valid_) {
-        entry.max_entry_.value_.clear();
+      if (entry.max_entry.valid) {
+        entry.max_entry.value.clear();
       }
     }
   }
@@ -471,20 +487,6 @@ bool SMAIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema &relation,
   return true;
 }
 
-bool SMAIndexSubBlock::bulkAddEntries(const TupleIdSequence &tuples) {
-  header_->consistent_ = false;
-  return true; // There will always be space for the entry.
-}
-
-void SMAIndexSubBlock::bulkRemoveEntries(const TupleIdSequence &tuples) {
-  header_->consistent_ = false;
-}
-
-predicate_cost_t SMAIndexSubBlock::estimatePredicateEvaluationCost(
-    const ComparisonPredicate &predicate) const {
-  return predicate_cost::kInfinite;
-}
-
 std::size_t SMAIndexSubBlock::EstimateBytesPerTuple(
     const CatalogRelationSchema &relation,
     const IndexSubBlockDescription &description) {
@@ -494,24 +496,27 @@ std::size_t SMAIndexSubBlock::EstimateBytesPerTuple(
   return 1;
 }
 
+bool SMAIndexSubBlock::bulkAddEntries(const TupleIdSequence &tuples) {
+  header_->consistent = false;
+  return true; // There will always be space for the entry.
+}
+
+void SMAIndexSubBlock::bulkRemoveEntries(const TupleIdSequence &tuples) {
+  header_->consistent = false;
+}
+
 bool SMAIndexSubBlock::addEntry(const tuple_id tuple) {
-  header_->consistent_ = false;
+  header_->consistent = false;
   return true; // There will always be space to insert the entry.
 }
 
 void SMAIndexSubBlock::removeEntry(const tuple_id tuple) {
-  header_->consistent_ = false;
-}
-
-TupleIdSequence* SMAIndexSubBlock::getMatchesForPredicate(
-    const ComparisonPredicate &predicate,
-    const TupleIdSequence *filter) const {
-  return new TupleIdSequence(tuple_store_.getMaxTupleID() + 1);
+  header_->consistent = false;
 }
 
 bool SMAIndexSubBlock::rebuild() {
   resetEntries();
-  header_->count_ = 0;
+  header_->count = 0;
   if (tuple_store_.isPacked()) {
     for (tuple_id tid = 0; tid <= tuple_store_.getMaxTupleID(); ++tid) {
       addTuple(tid);
@@ -523,57 +528,111 @@ bool SMAIndexSubBlock::rebuild() {
       }
     }
   }
-  header_->consistent_ = true;
+  header_->consistent = true;
   return true;
 }
 
 void SMAIndexSubBlock::addTuple(tuple_id tuple) {
   for (int index = 0; index < indexed_attributes_; ++index) {
     SMAEntry *entry = entries_ + index;
-    TypedValue tuple_value = tuple_store_.getAttributeValueTyped(tuple, entry->attribute_);
+    TypedValue tuple_value = tuple_store_.getAttributeValueTyped(tuple, entry->attribute);
 
     if (tuple_value.isNull()) {
       continue;
     }
 
-    if (sma_internal::canSum(entry->type_)) {
-      entry->sum_ = add_operations_
-                       .at(static_cast<int>(entry->type_))
-                            ->applyToTypedValues(tuple_value, entry->sum_);
+    if (sma_internal::canSum(entry->type)) {
+      entry->sum = add_operations_[entry->type]->applyToTypedValues(tuple_value, entry->sum);
     }
 
-    if (!entry->min_entry_.valid_) {
-      entry->min_entry_.value_ = tuple_value;
-      entry->min_entry_.value_.ensureNotReference();
-      entry->min_entry_.tuple_ = tuple;
-      entry->min_entry_.valid_ = true;
+    if (!entry->min_entry.valid) {
+      entry->min_entry.value = tuple_value;
+      entry->min_entry.value.ensureNotReference();
+      entry->min_entry.tuple = tuple;
+      entry->min_entry.valid = true;
     } else {
-      if (less_comparisons_.at(entry->type_)->compareTypedValues(tuple_value, entry->min_entry_.value_)) {
-        entry->min_entry_.value_ = tuple_value;
-        entry->min_entry_.value_.ensureNotReference();
-        entry->min_entry_.tuple_ = tuple;
+      if (less_comparisons_[entry->type]->compareTypedValues(tuple_value, entry->min_entry.value)) {
+        entry->min_entry.value = tuple_value;
+        entry->min_entry.value.ensureNotReference();
+        entry->min_entry.tuple = tuple;
       }
     }
 
-    if (!entry->max_entry_.valid_) {
-      entry->max_entry_.value_ = tuple_value;
-      entry->max_entry_.value_.ensureNotReference();
-      entry->max_entry_.tuple_ = tuple;
-      entry->max_entry_.valid_ = true;
+    if (!entry->max_entry.valid) {
+      entry->max_entry.value = tuple_value;
+      entry->max_entry.value.ensureNotReference();
+      entry->max_entry.tuple = tuple;
+      entry->max_entry.valid = true;
     } else {
-      if (less_comparisons_.at(entry->type_)->compareTypedValues(entry->max_entry_.value_, tuple_value)) {
-        entry->max_entry_.value_ = tuple_value;
-        entry->max_entry_.value_.ensureNotReference();
-        entry->max_entry_.tuple_ = tuple;
+      if (less_comparisons_[entry->type]->compareTypedValues(entry->max_entry.value, tuple_value)) {
+        entry->max_entry.value = tuple_value;
+        entry->max_entry.value.ensureNotReference();
+        entry->max_entry.tuple = tuple;
       }
     }
   }
 
-  header_->count_++;
+  header_->count++;
+}
+
+Selectivity SMAIndexSubBlock::selectivityForPredicate(const ComparisonPredicate &predicate) const {
+  if (!header_->consistent) {
+    return Selectivity::kUnknown;
+  }
+
+  std::unique_ptr<SMAPredicate> sma_predicate(SMAPredicate::ExtractSMAPredicate(predicate));
+  const SMAEntry *entry = getEntryChecked(sma_predicate->attribute);
+
+  // The attribute wasn't indexed.
+  if (entry == nullptr || !entry->min_entry.valid || !entry->max_entry.valid) {
+    return Selectivity::kUnknown;
+  }
+
+  return sma_internal::getSelectivity(
+      sma_predicate->literal, 
+      sma_predicate->comparison,
+      entry->min_entry.value,
+      entry->max_entry.value,
+      less_comparisons_[entry->type],
+      equal_comparisons_[entry->type]);
+}
+
+predicate_cost_t SMAIndexSubBlock::estimatePredicateEvaluationCost(
+    const ComparisonPredicate &predicate) const {
+  DCHECK(initialized_);
+  Selectivity selectivity = selectivityForPredicate(predicate);
+  std::cout << "Selectivity: " << static_cast<int>(selectivity) << "\n";
+  if (selectivity == Selectivity::kAll || selectivity == Selectivity::kNone) {
+    return predicate_cost::kConstantTime;
+  }
+  return predicate_cost::kInfinite;
+}
+
+TupleIdSequence* SMAIndexSubBlock::getMatchesForPredicate(
+    const ComparisonPredicate &predicate,
+    const TupleIdSequence *filter) const {
+  Selectivity selectivity = selectivityForPredicate(predicate);
+  if (selectivity == Selectivity::kAll) {
+    TupleIdSequence* tidseq = new TupleIdSequence(tuple_store_.numTuples());
+    if(tuple_store_.isPacked()){
+      tidseq->setRange(0, tuple_store_.numTuples(), true);
+    } else {
+      for(tuple_id tid = 0; tid <= tuple_store_.getMaxTupleID(); ++tid) {
+        if(tuple_store_.hasTupleWithID(tid)){
+          tidseq->set(tid, true);
+        }
+      }
+    }
+    return tidseq;
+  } else if (selectivity == Selectivity::kNone) {
+    return new TupleIdSequence(0);
+  }
+  LOG(FATAL) << "SMAIndex failed to evaluate predicate. The SMA should not have been used";
+  return nullptr;
 }
 
 bool SMAIndexSubBlock::requiresRebuild() const {
-  return !header_->consistent_;
+  return !header_->consistent;
 }
 
 bool SMAIndexSubBlock::hasEntryForAttribute(attribute_id attribute) const {
