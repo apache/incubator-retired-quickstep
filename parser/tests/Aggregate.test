@@ -13,17 +13,17 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-select agg(*), agg(), agg(a, b, c) from test
+SELECT AGG(*), AGG(), AGG(a, b, c) FROM test
 --
 SelectStatement
 +-select_query=Select
   +-select_clause=SelectList
   | +-SelectListItem
-  | | +-FunctionCall[name=agg,is_star=true]
+  | | +-FunctionCall[name=AGG,is_star=true]
   | +-SelectListItem
-  | | +-FunctionCall[name=agg]
+  | | +-FunctionCall[name=AGG]
   | +-SelectListItem
-  |   +-FunctionCall[name=agg]
+  |   +-FunctionCall[name=AGG]
   |     +-AttributeReference[attribute_name=a]
   |     +-AttributeReference[attribute_name=b]
   |     +-AttributeReference[attribute_name=c]
@@ -31,30 +31,30 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select agg()+1, agg()*2+1+agg(a, b)/agg(c, d) from test
+SELECT AGG()+1, AGG()*2+1+AGG(a, b)/AGG(c, d) FROM test
 --
 SelectStatement
 +-select_query=Select
   +-select_clause=SelectList
   | +-SelectListItem
   | | +-Add
-  | |   +-left_operand=FunctionCall[name=agg]
+  | |   +-left_operand=FunctionCall[name=AGG]
   | |   +-right_operand=Literal
   | |     +-NumericLiteral[numeric_string=1,float_like=false]
   | +-SelectListItem
   |   +-Add
   |     +-left_operand=Add
   |     | +-left_operand=Multiply
-  |     | | +-left_operand=FunctionCall[name=agg]
+  |     | | +-left_operand=FunctionCall[name=AGG]
   |     | | +-right_operand=Literal
   |     | |   +-NumericLiteral[numeric_string=2,float_like=false]
   |     | +-right_operand=Literal
   |     |   +-NumericLiteral[numeric_string=1,float_like=false]
   |     +-right_operand=Divide
-  |       +-left_operand=FunctionCall[name=agg]
+  |       +-left_operand=FunctionCall[name=AGG]
   |       | +-AttributeReference[attribute_name=a]
   |       | +-AttributeReference[attribute_name=b]
-  |       +-right_operand=FunctionCall[name=agg]
+  |       +-right_operand=FunctionCall[name=AGG]
   |         +-AttributeReference[attribute_name=c]
   |         +-AttributeReference[attribute_name=d]
   +-from_clause=
@@ -64,44 +64,44 @@ SelectStatement
 # Function calls as arguments of another function calls.
 # This is just for testing purpose. If agg is an aggregation,
 # the query is not valid. The query resolver will capture the error.
-select agg(agg(agg()+1)*2, agg(*)/2.0) from test
+SELECT AGG(AGG(AGG()+1)*2, AGG(*)/2.0) FROM test
 --
 SelectStatement
 +-select_query=Select
   +-select_clause=SelectList
   | +-SelectListItem
-  |   +-FunctionCall[name=agg]
+  |   +-FunctionCall[name=AGG]
   |     +-Multiply
-  |     | +-left_operand=FunctionCall[name=agg]
+  |     | +-left_operand=FunctionCall[name=AGG]
   |     | | +-Add
-  |     | |   +-left_operand=FunctionCall[name=agg]
+  |     | |   +-left_operand=FunctionCall[name=AGG]
   |     | |   +-right_operand=Literal
   |     | |     +-NumericLiteral[numeric_string=1,float_like=false]
   |     | +-right_operand=Literal
   |     |   +-NumericLiteral[numeric_string=2,float_like=false]
   |     +-Divide
-  |       +-left_operand=FunctionCall[name=agg,is_star=true]
+  |       +-left_operand=FunctionCall[name=AGG,is_star=true]
   |       +-right_operand=Literal
   |         +-NumericLiteral[numeric_string=2.0,float_like=true]
   +-from_clause=
     +-TableReference[table=test]
 ==
 
-select agg(*, a) from test
+SELECT AGG(*, a) FROM test
 --
 ERROR: syntax error (1 : 13)
-select agg(*, a) from test
+SELECT AGG(*, a) FROM test
             ^
 ==
 
-select agg()+1 from test group by a+1, agg()+1 having agg()*2>1
+SELECT AGG()+1 FROM test GROUP BY a+1, AGG()+1 HAVING AGG()*2>1
 --
 SelectStatement
 +-select_query=Select
   +-select_clause=SelectList
   | +-SelectListItem
   |   +-Add
-  |     +-left_operand=FunctionCall[name=agg]
+  |     +-left_operand=FunctionCall[name=AGG]
   |     +-right_operand=Literal
   |       +-NumericLiteral[numeric_string=1,float_like=false]
   +-group_by=GroupBy
@@ -110,13 +110,13 @@ SelectStatement
   | | +-right_operand=Literal
   | |   +-NumericLiteral[numeric_string=1,float_like=false]
   | +-Add
-  |   +-left_operand=FunctionCall[name=agg]
+  |   +-left_operand=FunctionCall[name=AGG]
   |   +-right_operand=Literal
   |     +-NumericLiteral[numeric_string=1,float_like=false]
   +-having=HAVING
   | +-Greater
   |   +-left_operand=Multiply
-  |   | +-left_operand=FunctionCall[name=agg]
+  |   | +-left_operand=FunctionCall[name=AGG]
   |   | +-right_operand=Literal
   |   |   +-NumericLiteral[numeric_string=2,float_like=false]
   |   +-right_operand=Literal
@@ -125,7 +125,7 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select 1 from test having agg() > 1 and 1=1
+SELECT 1 FROM test HAVING AGG() > 1 AND 1=1
 --
 SelectStatement
 +-select_query=Select
@@ -136,7 +136,7 @@ SelectStatement
   +-having=HAVING
   | +-And
   |   +-Greater
-  |   | +-left_operand=FunctionCall[name=agg]
+  |   | +-left_operand=FunctionCall[name=AGG]
   |   | +-right_operand=Literal
   |   |   +-NumericLiteral[numeric_string=1,float_like=false]
   |   +-Equal
@@ -148,7 +148,7 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select 1 from test group by agg()+1, agg()/agg()
+SELECT 1 FROM test GROUP BY AGG()+1, AGG()/AGG()
 --
 SelectStatement
 +-select_query=Select
@@ -158,11 +158,11 @@ SelectStatement
   |     +-NumericLiteral[numeric_string=1,float_like=false]
   +-group_by=GroupBy
   | +-Add
-  | | +-left_operand=FunctionCall[name=agg]
+  | | +-left_operand=FunctionCall[name=AGG]
   | | +-right_operand=Literal
   | |   +-NumericLiteral[numeric_string=1,float_like=false]
   | +-Divide
-  |   +-left_operand=FunctionCall[name=agg]
-  |   +-right_operand=FunctionCall[name=agg]
+  |   +-left_operand=FunctionCall[name=AGG]
+  |   +-right_operand=FunctionCall[name=AGG]
   +-from_clause=
     +-TableReference[table=test]

@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -154,6 +154,15 @@ class Foreman : public Thread {
   typedef DAG<RelationalOperator, bool>::size_type_nodes dag_node_index;
 
   /**
+   * @brief Check if the current query has finished its execution.
+   *
+   * @return True if the query has finished. Otherwise false.
+   **/
+  bool checkQueryExecutionFinished() const {
+    return num_operators_finished_ == query_dag_->size();
+  }
+
+  /**
    * @brief Check if all the dependencies of the node at specified index have
    *        finished their execution.
    *
@@ -165,8 +174,8 @@ class Foreman : public Thread {
    * @return True if all the dependencies have finished their execution. False
    *         otherwise.
    **/
-  inline bool checkAllDependenciesMet(dag_node_index node_index) const {
-    for (dag_node_index dependency_index : query_dag_->getDependencies(node_index)) {
+  inline bool checkAllDependenciesMet(const dag_node_index node_index) const {
+    for (const dag_node_index dependency_index : query_dag_->getDependencies(node_index)) {
       // If at least one of the dependencies is not met, return false.
       if (!execution_finished_[dependency_index]) {
         return false;
@@ -188,8 +197,8 @@ class Foreman : public Thread {
    * @return True if all the blocking dependencies have finished their
    *         execution. False otherwise.
    **/
-  inline bool checkAllBlockingDependenciesMet(dag_node_index node_index) const {
-    for (dag_node_index blocking_dependency_index : blocking_dependencies_[node_index]) {
+  inline bool checkAllBlockingDependenciesMet(const dag_node_index node_index) const {
+    for (const dag_node_index blocking_dependency_index : blocking_dependencies_[node_index]) {
       if (!execution_finished_[blocking_dependency_index]) {
         return false;
       }
@@ -220,8 +229,8 @@ class Foreman : public Thread {
    * @return A pointer to the created message.
    **/
   WorkerMessage* generateWorkerMessage(WorkOrder *workorder,
-                                       dag_node_index index,
-                                       WorkerMessage::WorkerMessageType type);
+                                       const dag_node_index index,
+                                       const WorkerMessage::WorkerMessageType type);
 
   /**
    * @brief Initialize all the local vectors and maps. If the operator has an
@@ -234,26 +243,18 @@ class Foreman : public Thread {
    * @brief Initialize the Foreman before starting the event loop. This binds
    * the Foreman thread to configured CPU, and does initial processing of
    * operator before waiting for events from Workers.
-   *
-   * @return Whether the Foreman is done processing execution. In a corner
-   *         case, when operators don't generate work orders, Foreman is done
-   *         with execution immediately in the initialize step.
    **/
-  bool initialize();
+  void initialize();
 
   /**
    * @brief Process a message sent to Foreman.
    *
    * @param messsage Message sent to Foreman.
    *
-   * @return Whether Foreman has completed processing and scheduling the DAG,
-   *         i.e., all operators in DAG have completely finished generating
-   *         work, and all WorkOrders have finished executing.
-   *
    * @note We still need to cleanUp() before exiting, if we want to reuse this
    *       Foreman instance for processing another DAG.
    **/
-  bool processMessage(const ForemanMessage &message);
+  void processMessage(const ForemanMessage &message);
 
   /**
    * @brief Process work order feedback message and notify relational operator.
@@ -279,12 +280,12 @@ class Foreman : public Thread {
    *        them in the WorkOrdersContainer for this query. If the operator can
    *        be marked as done, do so.
    *
-   * @param op The Relational operator to be processed.
-   * @param index The index of op in the query plan DAG.
+   * @param index The index of the relational operator to be processed in the
+   *        query plan DAG.
    * @param recursively_check_dependents If an operator is done, should we
    *        call processOperator on its dependents recursively.
    **/
-  void processOperator(RelationalOperator *op, dag_node_index index, bool recursively_check_dependents);
+  void processOperator(const dag_node_index index, const bool recursively_check_dependents);
 
  /**
    * @brief Get the next workorder to be excuted, wrapped in a WorkerMessage.
@@ -306,18 +307,18 @@ class Foreman : public Thread {
    * @param worker_id The logical ID of the recipient worker.
    * @param message The WorkerMessage to be sent.
    **/
-  void sendWorkerMessage(std::size_t worker_id, const WorkerMessage &message);
+  void sendWorkerMessage(const std::size_t worker_id, const WorkerMessage &message);
 
   /**
    * @brief Fetch all work orders currently available in relational operator and
    *        store them internally.
    *
-   * @param op The Relational operator to be processed.
-   * @param index The index of op in the query plan DAG.
+   * @param index The index of the relational operator to be processed in the
+   *        query plan DAG.
    *
    * @return Whether any work order was generated by op.
    **/
-  bool fetchNormalWorkOrders(RelationalOperator *op, dag_node_index index);
+  bool fetchNormalWorkOrders(const dag_node_index index);
 
   /**
    * @brief This function does the following things:
@@ -331,7 +332,7 @@ class Foreman : public Thread {
    *
    * @param index The index of the given relational operator in the DAG.
    **/
-  void markOperatorFinished(dag_node_index index);
+  void markOperatorFinished(const dag_node_index index);
 
   /**
    * @brief Check if the execution of the given operator is over.
@@ -341,7 +342,7 @@ class Foreman : public Thread {
    * @return True if the execution of the given operator is over, false
    *         otherwise.
    **/
-  inline bool checkOperatorExecutionOver(dag_node_index index) const {
+  inline bool checkOperatorExecutionOver(const dag_node_index index) const {
     if (checkRebuildRequired(index)) {
       return (checkNormalExecutionOver(index) && checkRebuildOver(index));
     } else {
@@ -363,7 +364,7 @@ class Foreman : public Thread {
    * @return True if the normal execution of the given operator is over, false
    *         otherwise.
    **/
-  inline bool checkNormalExecutionOver(dag_node_index index) const {
+  inline bool checkNormalExecutionOver(const dag_node_index index) const {
     return (checkAllDependenciesMet(index) &&
             !workorders_container_->hasNormalWorkOrder(index) &&
             queued_workorders_per_op_[index] == 0 &&
@@ -377,7 +378,7 @@ class Foreman : public Thread {
    *
    * @return True if the rebuild operation is required, false otherwise.
    **/
-  inline bool checkRebuildRequired(dag_node_index index) const {
+  inline bool checkRebuildRequired(const dag_node_index index) const {
     return rebuild_required_[index];
   }
 
@@ -419,7 +420,7 @@ class Foreman : public Thread {
    * @return True if the rebuild is over immediately, i.e. the operator didn't
    *         generate any rebuild WorkOrders, false otherwise.
    **/
-  bool initiateRebuild(dag_node_index index);
+  bool initiateRebuild(const dag_node_index index);
 
   /**
    * @brief Get the rebuild WorkOrders for an operator.
@@ -431,7 +432,7 @@ class Foreman : public Thread {
    * @param container A pointer to a WorkOrdersContainer to be used to store the
    *        generated WorkOrders.
    **/
-  void getRebuildWorkOrders(dag_node_index index, WorkOrdersContainer *container);
+  void getRebuildWorkOrders(const dag_node_index index, WorkOrdersContainer *container);
 
   MessageBus *bus_;
 

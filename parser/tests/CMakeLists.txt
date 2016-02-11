@@ -50,6 +50,10 @@ add_test(quickstep_parser_tests_ParserTest_drop
          quickstep_parser_tests_ParserTest
          "${CMAKE_CURRENT_SOURCE_DIR}/Drop.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Drop.test")
+add_test(quickstep_parser_tests_ParserTest_index
+         quickstep_parser_tests_ParserTest
+         "${CMAKE_CURRENT_SOURCE_DIR}/Index.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Index.test")
 add_test(quickstep_parser_tests_ParserTest_insert
          quickstep_parser_tests_ParserTest
          "${CMAKE_CURRENT_SOURCE_DIR}/Insert.test"

@@ -77,7 +77,7 @@ class HashJoinOperator : public RelationalOperator {
    * @param join_key_attributes The IDs of equijoin attributes in
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param output_relation_id The id of the output relation.
+   * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the join results.
    * @param hash_table_index The index of the JoinHashTable in QueryContext.
@@ -90,12 +90,12 @@ class HashJoinOperator : public RelationalOperator {
    *        output_relation_id. Each Scalar is evaluated for the joined tuples,
    *        and the resulting value is inserted into the join result.
    **/
-  HashJoinOperator(const CatalogRelationSchema &build_relation,
+  HashJoinOperator(const CatalogRelation &build_relation,
                    const CatalogRelation &probe_relation,
                    const bool probe_relation_is_stored,
                    const std::vector<attribute_id> &join_key_attributes,
                    const bool any_join_key_attributes_nullable,
-                   const relation_id output_relation_id,
+                   const CatalogRelation &output_relation,
                    const QueryContext::insert_destination_id output_destination_index,
                    const QueryContext::join_hash_table_id hash_table_index,
                    const QueryContext::predicate_id residual_predicate_index,
@@ -105,7 +105,7 @@ class HashJoinOperator : public RelationalOperator {
       probe_relation_is_stored_(probe_relation_is_stored),
       join_key_attributes_(join_key_attributes),
       any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-      output_relation_id_(output_relation_id),
+      output_relation_(output_relation),
       output_destination_index_(output_destination_index),
       hash_table_index_(hash_table_index),
       residual_predicate_index_(residual_predicate_index),
@@ -138,16 +138,16 @@ class HashJoinOperator : public RelationalOperator {
   }
 
   const relation_id getOutputRelationID() const override {
-    return output_relation_id_;
+    return output_relation_.getID();
   }
 
  private:
-  const CatalogRelationSchema &build_relation_;
+  const CatalogRelation &build_relation_;
   const CatalogRelation &probe_relation_;
   const bool probe_relation_is_stored_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const relation_id output_relation_id_;
+  const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
   const QueryContext::join_hash_table_id hash_table_index_;
   const QueryContext::predicate_id residual_predicate_index_;

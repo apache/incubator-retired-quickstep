@@ -13,43 +13,43 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-copy test from 'test.txt' with ()
+COPY test FROM 'test.txt' WITH ()
 --
 ERROR: syntax error (1 : 33)
-copy test from 'test.txt' with ()
+COPY test FROM 'test.txt' WITH ()
                                 ^
 ==
 
-copy test from 'test.txt'
+COPY test FROM 'test.txt'
 --
 CopyFromStatement[relation_name=test,source_file=test.txt]
 ==
 
-copy test from 'test.txt' with (delimiter 'd', escape_strings false)
+COPY test FROM 'test.txt' WITH (DELIMITER 'd', ESCAPE_STRINGS FALSE)
 --
 CopyFromStatement[relation_name=test,source_file=test.txt]
 +-params=CopyFromParams[delimiter=d,escape_string=false]
 ==
 
-copy test from 'test.txt' with (delimiter '123', escape_strings false)
+COPY test FROM 'test.txt' WITH (DELIMITER '123', ESCAPE_STRINGS FALSE)
 --
 CopyFromStatement[relation_name=test,source_file=test.txt]
 +-params=CopyFromParams[delimiter=123,escape_string=false]
 ==
 
-copy test from 'test.txt' with (delimiter e'\t')
+COPY test FROM 'test.txt' WITH (DELIMITER e'\t')
 --
 CopyFromStatement[relation_name=test,source_file=test.txt]
 +-params=CopyFromParams[delimiter=	,escape_string=true]
 ==
 
-copy test from 'test.txt' with (escape_strings false, delimiter 'd')
+COPY test FROM 'test.txt' WITH (ESCAPE_STRINGS FALSE, DELIMITER 'd')
 --
 CopyFromStatement[relation_name=test,source_file=test.txt]
 +-params=CopyFromParams[delimiter=d,escape_string=false]
 ==
 
-copy test from 'test.txt' with (delimiter '1', escape_strings false, delimiter '2', escape_strings true)
+COPY test FROM 'test.txt' WITH (DELIMITER '1', ESCAPE_STRINGS FALSE, DELIMITER '2', ESCAPE_STRINGS TRUE)
 --
 CopyFromStatement[relation_name=test,source_file=test.txt]
 +-params=CopyFromParams[delimiter=2,escape_string=true]

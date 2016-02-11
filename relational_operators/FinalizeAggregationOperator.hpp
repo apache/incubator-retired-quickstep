@@ -44,15 +44,15 @@ class FinalizeAggregationOperator : public RelationalOperator {
    * tuples.  The actual aggregation is computed by the AggregationOperator.
    *
    * @param aggr_state_index The index of the AggregationState in QueryContext.
-   * @param output_relation_id The id of the output relation.
+   * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert aggregation results.
    */
   FinalizeAggregationOperator(const QueryContext::aggregation_state_id aggr_state_index,
-                              const relation_id output_relation_id,
+                              const CatalogRelation &output_relation,
                               const QueryContext::insert_destination_id output_destination_index)
       : aggr_state_index_(aggr_state_index),
-        output_relation_id_(output_relation_id),
+        output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         started_(false) {}
 
@@ -65,12 +65,12 @@ class FinalizeAggregationOperator : public RelationalOperator {
   }
 
   const relation_id getOutputRelationID() const override {
-    return output_relation_id_;
+    return output_relation_.getID();
   }
 
  private:
   const QueryContext::aggregation_state_id aggr_state_index_;
-  const relation_id output_relation_id_;
+  const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
   bool started_;
 

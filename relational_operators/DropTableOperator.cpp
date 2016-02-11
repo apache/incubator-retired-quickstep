@@ -33,7 +33,7 @@ bool DropTableOperator::getAllWorkOrders(WorkOrdersContainer *container) {
   if (blocking_dependencies_met_ && !work_generated_) {
     work_generated_ = true;
     container->addNormalWorkOrder(
-        new DropTableWorkOrder(rel_id_, only_drop_blocks_),
+        new DropTableWorkOrder(relation_.getID(), only_drop_blocks_),
         op_index_);
   }
   return work_generated_;

@@ -13,7 +13,7 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-select * from test
+SELECT * FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -24,70 +24,70 @@ SelectStatement
 
 # If the error location is beyond the end of the SQL,
 # we point the error to the place next to the last character.
-select *
+SELECT *
 --
 ERROR: syntax error (1 : 9)
-select *
+SELECT *
         ^
 ==
 
-select *;
+SELECT *;
 --
 ERROR: syntax error (1 : 9)
-select *;
+SELECT *;
         ^
 ==
 
-select $attr from test
+SELECT $attr FROM test
 --
 ERROR: illegal character (1 : 9)
-select $attr from test
+SELECT $attr FROM test
         ^
 ==
 
-select 1 "" from test
+SELECT 1 "" FROM test
 --
 ERROR: Zero-length identifier (1 : 11)
-select 1 "" from test
+SELECT 1 "" FROM test
           ^
 ==
 
-select 1 from test as ""
+SELECT 1 FROM test AS ""
 --
 ERROR: Zero-length identifier (1 : 24)
-select 1 from test as ""
+SELECT 1 FROM test AS ""
                        ^
 ==
 
-select attr from $test
+SELECT attr FROM $test
 --
 ERROR: illegal character (1 : 19)
-select attr from $test
+SELECT attr FROM $test
                   ^
 ==
 
-select from test
+SELECT FROM test
 --
 ERROR: syntax error (1 : 8)
-select from test
+SELECT FROM test
        ^
 ==
 
-select attr1
+SELECT attr1
 --
 ERROR: syntax error (1 : 13)
-select attr1
+SELECT attr1
             ^
 ==
 
-select 1, 2, 3, 4
+SELECT 1, 2, 3, 4
 --
 ERROR: syntax error (1 : 18)
-select 1, 2, 3, 4
+SELECT 1, 2, 3, 4
                  ^
 ==
 
-select 1, 2, 1+1, 1-1, 1-1.2+1-2.3, attr1, attr2, attr1+1, attr1+1*2+attr2, attr1+1*(2+attr2) from test
+SELECT 1, 2, 1+1, 1-1, 1-1.2+1-2.3, attr1, attr2, attr1+1, attr1+1*2+attr2, attr1+1*(2+attr2) FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -155,15 +155,15 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select * from 123
+SELECT * FROM 123
 --
 ERROR: syntax error (1 : 15)
-select * from 123
+SELECT * FROM 123
               ^
 ==
 
 # Alias
-select 1 as a, 2+1 as b, 3 a, 4 b from test as a, test a
+SELECT 1 AS a, 2+1 AS b, 3 a, 4 b FROM test AS a, test a
 --
 SelectStatement
 +-select_query=Select
@@ -191,7 +191,7 @@ SelectStatement
 ==
 
 # Column list aliases in FROM.
-select 1 from test test_alias(attr, attr1, attr2, attr3), (select * from test) as subquery(attr1, attr1, attr4)
+SELECT 1 FROM test test_alias(attr, attr1, attr2, attr3), (SELECT * FROM test) AS subquery(attr1, attr1, attr4)
 --
 SelectStatement
 +-select_query=Select
@@ -214,42 +214,42 @@ SelectStatement
 ==
 
 # Table subquery must be named.
-select 1 from (select * from test)
+SELECT 1 FROM (select * FROM test)
 --
 ERROR: syntax error (1 : 35)
-select 1 from (select * from test)
+SELECT 1 FROM (select * FROM test)
                                   ^
 ==
 
-select 1 from test test_alias(attr+1)
+SELECT 1 FROM test test_alias(attr+1)
 --
 ERROR: syntax error (1 : 35)
-select 1 from test test_alias(attr+1)
+SELECT 1 FROM test test_alias(attr+1)
                                   ^
 ==
 
-select 1 from test as
+SELECT 1 FROM test AS
 --
 ERROR: syntax error (1 : 22)
-select 1 from test as
+SELECT 1 FROM test AS
                      ^
 ==
 
-select 1 as a+1 from test
+SELECT 1 AS a+1 FROM test
 --
 ERROR: syntax error (1 : 14)
-select 1 as a+1 from test
+SELECT 1 AS a+1 FROM test
              ^
 ==
 
-select 1 from test as a+1
+SELECT 1 FROM test AS a+1
 --
 ERROR: syntax error (1 : 24)
-select 1 from test as a+1
+SELECT 1 FROM test AS a+1
                        ^
 ==
 
-select 1 from test where 1=1 and attr1=1 and attr+1>=1 and attr-1<=1 and attr+1>1 and attr-1<1
+SELECT 1 FROM test WHERE 1=1 AND attr1=1 AND attr+1>=1 AND attr-1<=1 AND attr+1>1 AND attr-1<1
 --
 SelectStatement
 +-select_query=Select
@@ -299,7 +299,7 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select 1 from test where attr between 1 and 2 and attr between 2 and 1
+SELECT 1 FROM test WHERE attr BETWEEN 1 AND 2 AND attr BETWEEN 2 AND 1
 --
 SelectStatement
 +-select_query=Select
@@ -324,7 +324,7 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select 1 from test where attr not between 1 and 2
+SELECT 1 FROM test WHERE attr NOT BETWEEN 1 AND 2
 --
 SelectStatement
 +-select_query=Select
@@ -343,7 +343,7 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select 1 from test order by attr, 1
+SELECT 1 FROM test ORDER BY attr, 1
 --
 SelectStatement
 +-select_query=Select
@@ -361,7 +361,7 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select fun(attr)+1 from test group by fun()+fun(attr), attr1+attr2 having attr1>1 and fun(*)>1
+SELECT fun(attr)+1 FROM test GROUP BY fun()+fun(attr), attr1+attr2 HAVING attr1>1 AND fun(*)>1
 --
 SelectStatement
 +-select_query=Select
@@ -395,11 +395,11 @@ SelectStatement
 ==
 
 # ORDER BY
-select 1 from test order by 1 asc,
-                            2 desc,
-                            3 asc nulls first,
-                            attr1 desc nulls last,
-                            attr1+1 nulls first,
+SELECT 1 FROM test ORDER BY 1 ASC,
+                            2 DESC,
+                            3 ASC NULLS FIRST,
+                            attr1 DESC NULLS LAST,
+                            attr1+1 NULLS FIRST,
                             fun(attr)/2
 --
 SelectStatement
@@ -436,7 +436,7 @@ SelectStatement
 ==
 
 # Limit
-select 1 from test limit 1
+SELECT 1 FROM test LIMIT 1
 --
 SelectStatement
 +-select_query=Select
@@ -450,31 +450,31 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select 1 from test limit 1.1
+SELECT 1 FROM test LIMIT 1.1
 --
 ERROR: LIMIT value must be an integer (1 : 26)
-select 1 from test limit 1.1
+SELECT 1 FROM test LIMIT 1.1
                          ^
 ==
 
-select 1 from test limit 0
+SELECT 1 FROM test LIMIT 0
 --
 ERROR: LIMIT value must be positive (1 : 26)
-select 1 from test limit 0
+SELECT 1 FROM test LIMIT 0
                          ^
 ==
 
-select 1 from test limit -1
+SELECT 1 FROM test LIMIT -1
 --
 ERROR: syntax error (1 : 26)
-select 1 from test limit -1
+SELECT 1 FROM test LIMIT -1
                          ^
 ==
 
-select 1 from test limit abc
+SELECT 1 FROM test LIMIT abc
 --
 ERROR: syntax error (1 : 26)
-select 1 from test limit abc
+SELECT 1 FROM test LIMIT abc
                          ^
 ==
 
@@ -483,7 +483,7 @@ select 1 from test limit abc
 #
 
 # Subqueries in the FROM clause.
-select * from test, (select * from test) as a, (select * from test) a
+SELECT * FROM test, (select * FROM test) AS a, (select * FROM test) a
 --
 SelectStatement
 +-select_query=Select
@@ -506,14 +506,14 @@ SelectStatement
             +-TableReference[table=test]
 ==
 
-select * from test, select * from test
+SELECT * FROM test, SELECT * FROM test
 --
 ERROR: syntax error (1 : 21)
-select * from test, select * from test
+SELECT * FROM test, SELECT * FROM test
                     ^
 ==
 
-select * from (select * from (select * from (select * from test) a ) a ) a
+SELECT * FROM (select * FROM (select * FROM (select * FROM test) a ) a ) a
 --
 SelectStatement
 +-select_query=Select
@@ -541,27 +541,27 @@ SelectStatement
 ==
 
 # Subqueries are not supported yet in clauses other than the FROM clause.
-select (select * from test) from test
+SELECT (select * FROM test) FROM test
 --
 ERROR: syntax error (1 : 9)
-select (select * from test) from test
+SELECT (select * FROM test) FROM test
         ^
 ==
 
-select 1 from test where 1 > (select 1 from test)
+SELECT 1 FROM test WHERE 1 > (select 1 FROM test)
 --
 ERROR: syntax error (1 : 31)
-select 1 from test where 1 > (select 1 from test)
+SELECT 1 FROM test WHERE 1 > (select 1 FROM test)
                               ^
 ==
 
 #
 # WITH clause
 #
-with a (col) as (select 1 from test group by a order by b limit 1),
-     b (col1, col2, col3) as (select * from (select * from test) a),
-     c as (select 1 from test)
-select 1 from a, b, c, d
+WITH a (col) AS (SELECT 1 FROM test GROUP BY a ORDER BY b LIMIT 1),
+     b (col1, col2, col3) AS (SELECT * FROM (SELECT * FROM test) a),
+     c AS (SELECT 1 FROM test)
+SELECT 1 FROM a, b, c, d
 --
 SelectStatement
 +-select_query=Select
@@ -617,8 +617,8 @@ SelectStatement
           +-TableReference[table=test]
 ==
 
-with a as (select 1 from test)
-select 1 from a
+WITH a AS (SELECT 1 FROM test)
+SELECT 1 FROM a
 --
 SelectStatement
 +-select_query=Select
@@ -642,44 +642,44 @@ SelectStatement
 ==
 
 # AS cannot be omitted.
-with a (select 1 from test)
-select 1 from a
+WITH a (SELECT 1 FROM test)
+SELECT 1 FROM a
 --
 ERROR: syntax error (1 : 9)
-with a (select 1 from test)
+WITH a (SELECT 1 FROM test)
         ^
 ==
 
-with a as (select 1 from test)
+WITH a AS (SELECT 1 FROM test)
 --
 ERROR: syntax error (1 : 31)
-with a as (select 1 from test)
+WITH a AS (SELECT 1 FROM test)
                               ^
 ==
 
 # The WITH query cannot have WITH.
-with a as (with c select 1 from test)
-select 1 from test
+WITH a AS (with c SELECT 1 FROM test)
+SELECT 1 FROM test
 --
 ERROR: syntax error (1 : 12)
-with a as (with c select 1 from test)
+WITH a AS (with c SELECT 1 FROM test)
            ^
 ==
 
-with a as (select 1 from test) b
-select 1 from test
+WITH a AS (select 1 FROM test) b
+SELECT 1 FROM test
 --
 ERROR: syntax error (1 : 32)
-with a as (select 1 from test) b
+WITH a AS (select 1 FROM test) b
                                ^
 ==
 
 # Missing comma.
-select a as (select 1 from test) b as (select 1 from test)
-select 1 from test
+SELECT a AS (select 1 FROM test) b AS (SELECT 1 FROM test)
+SELECT 1 FROM test
 --
 ERROR: syntax error (1 : 13)
-select a as (select 1 from test) b as (selec...
+SELECT a AS (select 1 FROM test) b AS (SELEC...
             ^
 ==
 
@@ -688,22 +688,22 @@ select a as (select 1 from test) b as (selec...
 #
 
 # Bool literal value is not supported yet.
-select 1 from test where true
+SELECT 1 FROM test WHERE TRUE
 --
 ERROR: syntax error (1 : 26)
-select 1 from test where true
+SELECT 1 FROM test WHERE TRUE
                          ^
 ==
 
-select 1 from test where tb1 = true
+SELECT 1 FROM test WHERE tb1 = TRUE
 --
 ERROR: syntax error (1 : 32)
-select 1 from test where tb1 = true
+SELECT 1 FROM test WHERE tb1 = TRUE
                                ^
 ==
 
 # FIXME(chasseur, qzeng): The result is wrong. Add support for hexadecimal literals.
-select 0xfff from test
+SELECT 0xfff FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -715,16 +715,16 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select x'fff' from test
+SELECT x'fff' FROM test
 --
 ERROR: syntax error (1 : 13)
-select x'fff' from test
+SELECT x'fff' FROM test
             ^
 ==
 
-select 123e23, 123e-123, 123e-2+1, 123e-2*2, 123e-123,
+SELECT 123e23, 123e-123, 123e-2+1, 123e-2*2, 123e-123,
        1e100000000
-from test
+FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -757,10 +757,10 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select 9223372036854775805, 9223372036854775807, 9223372036854775809, -9223372036854775805,
+SELECT 9223372036854775805, 9223372036854775807, 9223372036854775809, -9223372036854775805,
        -9223372036854775807, -9223372036854775809, 9223372036854775800.8, 1.123456789012345678901234567890,
        -9223372036854775800.8, -1.123456789012345678901234567890
-from test
+FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -802,7 +802,7 @@ SelectStatement
 ==
 
 # Escape characters.
-select 1, e'$asdfg\'\'\"\"\t\r\n' from test where char_col = e'\'asdfg\''
+SELECT 1, e'$asdfg\'\'\"\"\t\r\n' FROM test WHERE char_col = e'\'asdfg\''
 --
 SelectStatement
 +-select_query=Select
@@ -823,7 +823,7 @@ SelectStatement
 ==
 
 # Double-quoted strings are identifiers, which do not need to be escaped.
-select 1 "abc\n" from test
+SELECT 1 "abc\n" FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -835,10 +835,10 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select 1 "abc
+SELECT 1 "abc
 
 def
-" from test
+" FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -854,22 +854,22 @@ def
 ==
 
 # Currently predicate is not treated as a regular scalar expression.
-select 1 from test where (1>1)=(1<1)
+SELECT 1 FROM test WHERE (1>1)=(1<1)
 --
 ERROR: syntax error (1 : 31)
-select 1 from test where (1>1)=(1<1)
+SELECT 1 FROM test WHERE (1>1)=(1<1)
                               ^
 ==
 
-select 1 """this is a double-quoted string""", 2 "this is not a double-quoted string" from test
+SELECT 1 """this IS a double-quoted string""", 2 "this IS NOT a double-quoted string" FROM test
 --
 SelectStatement
 +-select_query=Select
   +-select_clause=SelectList
-  | +-SelectListItem[alias="this is a double-quoted string"]
+  | +-SelectListItem[alias="this IS a double-quoted string"]
   | | +-Literal
   | |   +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-SelectListItem[alias=this is not a double-quoted string]
+  | +-SelectListItem[alias=this IS NOT a double-quoted string]
   |   +-Literal
   |     +-NumericLiteral[numeric_string=2,float_like=false]
   +-from_clause=
@@ -880,9 +880,9 @@ SelectStatement
 # DateTime and Interval
 #
 
-select '1998-12-01',
-       date '1998-12-01'
-from test
+SELECT '1998-12-01',
+       DATE '1998-12-01'
+FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -898,8 +898,8 @@ SelectStatement
 ==
 
 # Year before 1970.
-select date '1960-12-12',
-       date '1901-12-14' from test
+SELECT DATE '1960-12-12',
+       DATE '1901-12-14' FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -914,7 +914,7 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select date '1998-2-12', date '1998-12-2' from test
+SELECT DATE '1998-2-12', DATE '1998-12-2' FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -929,9 +929,9 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select date '+1921-12-12',
-       date '+10001-12-12'
-from test
+SELECT DATE '+1921-12-12',
+       DATE '+10001-12-12'
+FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -946,44 +946,44 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select date 'a1998-12-12' from test
+SELECT DATE 'a1998-12-12' FROM test
 --
 ERROR: Failed to parse literal as specified type (1 : 25)
-select date 'a1998-12-12' from test
+SELECT DATE 'a1998-12-12' FROM test
                         ^
 ==
 
-select date '1998-a12-b12' from test
+SELECT DATE '1998-a12-b12' FROM test
 --
 ERROR: Failed to parse literal as specified type (1 : 26)
-select date '1998-a12-b12' from test
+SELECT DATE '1998-a12-b12' FROM test
                          ^
 ==
 
-select date '1998-+12-12' from test
+SELECT DATE '1998-+12-12' FROM test
 --
 ERROR: Failed to parse literal as specified type (1 : 25)
-select date '1998-+12-12' from test
+SELECT DATE '1998-+12-12' FROM test
                         ^
 ==
 
-select date '1998-12-12abc' from test
+SELECT DATE '1998-12-12abc' FROM test
 --
 ERROR: Failed to parse literal as specified type (1 : 27)
-select date '1998-12-12abc' from test
+SELECT DATE '1998-12-12abc' FROM test
                           ^
 ==
 
-select date '1998/12/12' from test
+SELECT DATE '1998/12/12' FROM test
 --
 ERROR: Failed to parse literal as specified type (1 : 24)
-select date '1998/12/12' from test
+SELECT DATE '1998/12/12' FROM test
                        ^
 ==
 
-select date '1996-02-29',
-       date '1997-03-31',
-       date '1998-04-30' from test
+SELECT DATE '1996-02-29',
+       DATE '1997-03-31',
+       DATE '1998-04-30' FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -1001,17 +1001,17 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select date '1999-02-29' from test
+SELECT DATE '1999-02-29' FROM test
 --
 ERROR: Failed to parse literal as specified type (1 : 24)
-select date '1999-02-29' from test
+SELECT DATE '1999-02-29' FROM test
                        ^
 ==
 
 # Quickstep accepts time in the DATE type.
-select date '2007-05-08 12:35:29',
-       date '2007-05-08 12:35:29.010'
-from test
+SELECT DATE '2007-05-08 12:35:29',
+       DATE '2007-05-08 12:35:29.010'
+FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -1026,14 +1026,14 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select date '1999-04-31' from test
+SELECT DATE '1999-04-31' FROM test
 --
 ERROR: Failed to parse literal as specified type (1 : 24)
-select date '1999-04-31' from test
+SELECT DATE '1999-04-31' FROM test
                        ^
 ==
 
-select 1 from test where attr_date <= date '1998-12-01' - interval '96 day'
+SELECT 1 FROM test WHERE attr_date <= DATE '1998-12-01' - INTERVAL '96 day'
 --
 SelectStatement
 +-select_query=Select
@@ -1052,17 +1052,17 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select interval '1 us', interval '1 ms', interval '1 s', interval '1 minute',
-           interval '1 h', interval '1 day', interval '1 week',
-           interval '1 month', interval '1 year', interval '1 decade',
-           interval '1 century', interval '1 millennium',
-       datetime interval '1 us', datetime interval '1 ms',
-           datetime interval '1 s', datetime interval '1 minute',
-           datetime interval '1 h', datetime interval '1 day',
-           datetime interval '1 week', yearmonth interval '1 month',
-           yearmonth interval '1 year', yearmonth interval '1 decade',
-           yearmonth interval '1 century', yearmonth interval '1 millennium'
-from test
+SELECT INTERVAL '1 us', INTERVAL '1 ms', INTERVAL '1 s', INTERVAL '1 minute',
+           INTERVAL '1 h', INTERVAL '1 day', INTERVAL '1 week',
+           INTERVAL '1 month', INTERVAL '1 year', INTERVAL '1 decade',
+           INTERVAL '1 century', INTERVAL '1 millennium',
+       DATETIME INTERVAL '1 us', DATETIME INTERVAL '1 ms',
+           DATETIME INTERVAL '1 s', DATETIME INTERVAL '1 minute',
+           DATETIME INTERVAL '1 h', DATETIME INTERVAL '1 day',
+           DATETIME INTERVAL '1 week', YEARMONTH INTERVAL '1 month',
+           YEARMONTH INTERVAL '1 year', YEARMONTH INTERVAL '1 decade',
+           YEARMONTH INTERVAL '1 century', YEARMONTH INTERVAL '1 millennium'
+FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -1143,22 +1143,22 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select interval '4 day' (1)
-from test
+SELECT INTERVAL '4 day' (1)
+FROM test
 --
 ERROR: syntax error (1 : 25)
-select interval '4 day' (1)
+SELECT INTERVAL '4 day' (1)
                         ^
 ==
 
-select interval '2 moth' from test
+SELECT INTERVAL '2 moth' FROM test
 --
 ERROR: Failed to parse literal as specified type (1 : 24)
-select interval '2 moth' from test
+SELECT INTERVAL '2 moth' FROM test
                        ^
 ==
 
-select interval '-3 year' from test
+SELECT INTERVAL '-3 year' FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -1170,24 +1170,24 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select interval 'a 3 year' from test
+SELECT INTERVAL 'a 3 year' FROM test
 --
 ERROR: Failed to parse literal as specified type (1 : 26)
-select interval 'a 3 year' from test
+SELECT INTERVAL 'a 3 year' FROM test
                          ^
 ==
 
-select interval '5-3 year to month' from test
+SELECT INTERVAL '5-3 year to month' FROM test
 --
 ERROR: Failed to parse literal as specified type (1 : 35)
-select interval '5-3 year to month' from test
+SELECT INTERVAL '5-3 year to month' FROM test
                                   ^
 ==
 
-select interval '5-3 day to second' from test
+SELECT INTERVAL '5-3 day to second' FROM test
 --
 ERROR: Failed to parse literal as specified type (1 : 35)
-select interval '5-3 day to second' from test
+SELECT INTERVAL '5-3 day to second' FROM test
                                   ^
 ==
 
@@ -1196,7 +1196,7 @@ select interval '5-3 day to second' from test
 # or negation operation, not as the notation of a negative value.
 #
 
-select 1-1  from test
+SELECT 1-1 FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -1211,19 +1211,19 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select 1 - 1 from test
+SELECT 1 - 1 FROM test
 --
 [same as above]
 ==
 
-select 1--1 from test
+SELECT 1--1 FROM test
 --
 ERROR: syntax error (1 : 22)
-select 1--1 from test
+SELECT 1--1 FROM test
                      ^
 ==
 
-select 1+-1 from test
+SELECT 1+-1 FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -1238,7 +1238,7 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select 1-1+-1 from test
+SELECT 1-1+-1 FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -1256,7 +1256,7 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select 1+(-1) from test
+SELECT 1+(-1) FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -1272,13 +1272,13 @@ SelectStatement
 ==
 
 # Quit statement
-quit
+QUIT
 --
 QuitStatement
 ==
 
 # Literals with various explicit types.
-select int '1', long '1', float '1', double '1', char(42) 'foo', varchar(42) 'bar' from test
+SELECT INT '1', LONG '1', FLOAT '1', DOUBLE '1', char(42) 'foo', varchar(42) 'bar' FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -1306,24 +1306,24 @@ SelectStatement
 ==
 
 # Value needs to be quoted when giving an explicit type.
-select int 1 from test
+SELECT INT 1 FROM test
 --
 ERROR: syntax error (1 : 12)
-select int 1 from test
+SELECT INT 1 FROM test
            ^
 ==
 
 # Explicit type that can't parse the supplied string.
-select int 'foo' from test
+SELECT INT 'foo' FROM test
 --
 ERROR: Failed to parse literal as specified type (1 : 16)
-select int 'foo' from test
+SELECT INT 'foo' FROM test
                ^
 ==
 
 # Various floats that, while not in the canonical print format, are still
 # acceptable according to the SQL standard.
-select 1. from test
+SELECT 1. FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -1335,7 +1335,7 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select .1 from test
+SELECT .1 FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -1347,7 +1347,7 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select 1.e1 from test
+SELECT 1.e1 FROM test
 --
 SelectStatement
 +-select_query=Select
@@ -1359,7 +1359,7 @@ SelectStatement
     +-TableReference[table=test]
 ==
 
-select .1e1 from test
+SELECT .1e1 FROM test
 --
 SelectStatement
 +-select_query=Select
