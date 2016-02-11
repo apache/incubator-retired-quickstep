@@ -212,6 +212,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_ASC;
 %token TOKEN_BIGINT;
 %token TOKEN_BIT;
+%token TOKEN_BLOCKPROPERTIES;
 %token TOKEN_BLOOM_FILTER;
 %token TOKEN_CSB_TREE;
 %token TOKEN_BY;
@@ -359,6 +360,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %type <key_value_list_>
   key_value_list
   opt_index_properties
+  opt_block_properties
 
 %type <key_string_value_>
   key_string_value
@@ -574,8 +576,8 @@ alter_table_statement:
   };
 
 create_table_statement:
-  TOKEN_CREATE TOKEN_TABLE any_name '(' column_def_commalist ')' opt_table_constraint_def_commalist {
-    $$ = new quickstep::ParseStatementCreateTable(@1.first_line, @1.first_column, $3, $5);
+  TOKEN_CREATE TOKEN_TABLE any_name '(' column_def_commalist ')' opt_table_constraint_def_commalist opt_block_properties {
+    $$ = new quickstep::ParseStatementCreateTable(@1.first_line, @1.first_column, $3, $5, $8);
   };
 
 create_index_statement:
@@ -816,6 +818,14 @@ opt_column_list:
     NotSupported(&@1, yyscanner, "list of column names in CREATE INDEX statement");
     YYERROR;
   };
+
+opt_block_properties:
+  TOKEN_WITH TOKEN_BLOCKPROPERTIES '(' key_value_list ')' {
+    $$ = $4;
+  }
+  | {
+    $$ = nullptr;
+  }
 
 key_value_list:
   key_value {
