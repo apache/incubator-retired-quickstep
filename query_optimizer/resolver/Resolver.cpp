@@ -80,6 +80,7 @@
 #include "query_optimizer/logical/TopLevelPlan.hpp"
 #include "query_optimizer/logical/UpdateTable.hpp"
 #include "query_optimizer/resolver/NameResolver.hpp"
+#include "storage/StorageBlockLayout.pb.h"
 #include "types/IntType.hpp"
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
@@ -386,6 +387,11 @@ L::LogicalPtr Resolver::resolveCreateTable(
   }
 
   return L::CreateTable::Create(relation_name, attributes);
+}
+
+TupleStorageSubBlockDescription* Resolver::resolveBlockProperties(
+      const ParseStatementCreateTable &create_table_statement) {
+  return nullptr;
 }
 
 L::LogicalPtr Resolver::resolveDelete(
