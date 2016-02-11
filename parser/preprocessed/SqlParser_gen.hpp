@@ -147,7 +147,7 @@ extern int quickstep_yydebug;
 
 union YYSTYPE
 {
-#line 105 "../SqlParser.ypp" /* yacc.c:1915  */
+#line 106 "../SqlParser.ypp" /* yacc.c:1915  */
 
   quickstep::ParseString *string_value_;
 
@@ -181,6 +181,12 @@ union YYSTYPE
   quickstep::ParseColumnConstraint *column_constraint_;
   quickstep::PtrList<quickstep::ParseColumnConstraint> *column_constraint_list_;
   quickstep::PtrList<quickstep::ParseAttributeDefinition> *attribute_definition_list_;
+
+  quickstep::ParseKeyValue *key_value_;
+  quickstep::PtrList<quickstep::ParseKeyValue> *key_value_list_;
+  quickstep::ParseKeyStringValue *key_string_value_;
+  quickstep::ParseKeyStringList *key_string_list_;
+  quickstep::ParseKeyLiteralValue *key_literal_value_;
 
   quickstep::ParseCopyFromParams *copy_from_params_;
 
@@ -217,7 +223,7 @@ union YYSTYPE
   quickstep::PtrVector<quickstep::ParseSubqueryTableReference> *with_list_;
   quickstep::ParseSubqueryTableReference *with_list_element_;
 
-#line 221 "SqlParser_gen.hpp" /* yacc.c:1915  */
+#line 227 "SqlParser_gen.hpp" /* yacc.c:1915  */
 };
 
 typedef union YYSTYPE YYSTYPE;

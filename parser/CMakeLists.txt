@@ -98,6 +98,7 @@ add_library(quickstep_parser_ParseSelectionClause ParseSelectionClause.cpp Parse
 add_library(quickstep_parser_ParseSimpleTableReference ParseSimpleTableReference.cpp ParseSimpleTableReference.hpp)
 add_library(quickstep_parser_ParseStatement ../empty_src.cpp ParseStatement.hpp)
 add_library(quickstep_parser_ParseString ParseString.cpp ParseString.hpp)
+add_library(quickstep_parser_ParseKeyValue ../empty_src.cpp ParseKeyValue.hpp)
 add_library(quickstep_parser_ParseSubqueryExpression ParseSubqueryExpression.cpp ParseSubqueryExpression.hpp)
 add_library(quickstep_parser_ParseSubqueryTableReference ParseSubqueryTableReference.cpp ParseSubqueryTableReference.hpp)
 add_library(quickstep_parser_ParseTableReference ParseTableReference.cpp ParseTableReference.hpp)
@@ -206,6 +207,12 @@ target_link_libraries(quickstep_parser_ParseStatement
 target_link_libraries(quickstep_parser_ParseString
                       quickstep_parser_ParseTreeNode
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_parser_ParseKeyValue
+                      quickstep_parser_ParseLiteralValue
+                      quickstep_parser_ParseString
+                      quickstep_parser_ParseTreeNode
+                      quickstep_utility_Macros
+                      quickstep_utility_PtrList)
 target_link_libraries(quickstep_parser_ParseSubqueryExpression
                       glog
                       quickstep_parser_ParseExpression
@@ -239,6 +246,7 @@ target_link_libraries(quickstep_parser_SqlParser
                       quickstep_parser_ParseGroupBy
                       quickstep_parser_ParseHaving
                       quickstep_parser_ParseExpression
+                      quickstep_parser_ParseKeyValue
                       quickstep_parser_ParseLimit
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseOrderBy
@@ -310,6 +318,7 @@ target_link_libraries(quickstep_parser
                       quickstep_parser_ParseSimpleTableReference
                       quickstep_parser_ParseStatement
                       quickstep_parser_ParseString
+                      quickstep_parser_ParseKeyValue
                       quickstep_parser_ParseSubqueryExpression
                       quickstep_parser_ParseSubqueryTableReference
                       quickstep_parser_ParseTableReference

@@ -70,6 +70,7 @@ typedef struct YYLTYPE {
 #include "parser/ParseExpression.hpp"
 #include "parser/ParseGroupBy.hpp"
 #include "parser/ParseHaving.hpp"
+#include "parser/ParseKeyValue.hpp"
 #include "parser/ParseLimit.hpp"
 #include "parser/ParseLiteralValue.hpp"
 #include "parser/ParseOrderBy.hpp"
@@ -135,6 +136,12 @@ typedef void* yyscan_t;
   quickstep::ParseColumnConstraint *column_constraint_;
   quickstep::PtrList<quickstep::ParseColumnConstraint> *column_constraint_list_;
   quickstep::PtrList<quickstep::ParseAttributeDefinition> *attribute_definition_list_;
+
+  quickstep::ParseKeyValue *key_value_;
+  quickstep::PtrList<quickstep::ParseKeyValue> *key_value_list_;
+  quickstep::ParseKeyStringValue *key_string_value_;
+  quickstep::ParseKeyStringList *key_string_list_;
+  quickstep::ParseKeyLiteralValue *key_literal_value_;
 
   quickstep::ParseCopyFromParams *copy_from_params_;
 
@@ -279,6 +286,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <string_value_>
   any_name
+  index_type
 
 %type <boolean_value_>
   boolean_value
@@ -344,6 +352,22 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <attribute_definition_list_>
   column_def_commalist
+
+%type <key_value_>
+  key_value
+
+%type <key_value_list_>
+  key_value_list
+  opt_index_properties
+
+%type <key_string_value_>
+  key_string_value
+
+%type <key_string_list_>
+  key_string_list
+
+%type <key_literal_value_>
+  key_literal_value
 
 %type <assignment_>
   assignment_item
@@ -447,9 +471,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
   opt_all_distinct      // unimplemented
   table_constraint_def  // unimplemented
   table_constraint_def_commalist        // unimplemented
-  index_type            // unimplemented
   opt_table_constraint_def_commalist    // unimplemented
-  opt_index_properties  // unimplemented
 */
 
 %destructor { } <boolean_value_>
@@ -561,8 +583,10 @@ create_index_statement:
     delete $3;
     delete $5;
     delete $6;
+    delete $8;
+    delete $9;
     $$ = nullptr;
-    NotSupported(&@1, yyscanner, "CREATE INDEX statements");
+    NotSupported(&@1, yyscanner, "CREATE INDEX statement");
     YYERROR;
   };
 
@@ -793,48 +817,62 @@ opt_column_list:
     YYERROR;
   };
 
+key_value_list:
+  key_value {
+    $$ = new quickstep::PtrList<quickstep::ParseKeyValue>();
+    $$->push_back($1);
+  }
+  | key_value_list ',' key_value {
+    $$ = $1;
+    $$->push_back($3);
+  };
+
+key_value:
+  key_string_value {
+    $$ = $1;
+  }
+  | key_string_list {
+    $$ = $1;
+  }
+  | key_literal_value {
+    $$ = $1;
+  };
+
+key_string_value:
+  any_name any_name {
+    $$ = new quickstep::ParseKeyStringValue(@1.first_line, @1.first_column, $1, $2);
+  };
+
+key_string_list:
+  any_name '(' name_commalist ')' {
+    $$ = new quickstep::ParseKeyStringList(@1.first_line, @1.first_column, $1, $3);
+  };
+
+key_literal_value:
+  any_name literal_value {
+    $$ = new quickstep::ParseKeyLiteralValue(@1.first_line, @1.first_column, $1, $2);
+  };
+
 index_type:
   TOKEN_BLOOM_FILTER {
+    $$ = nullptr;
     NotSupported(&@1, yyscanner, "Bloom Filter Index");
     YYERROR;
   }
   | TOKEN_CSB_TREE {
+    $$ = nullptr;
     NotSupported(&@1, yyscanner, "CSB Tree Index");
     YYERROR;
   };
 
 opt_index_properties:
   {
-    /* $$ = nullptr; */
+    $$ = nullptr;
   }
-  | '(' index_properties_list ')' {
-    NotSupported(&@1, yyscanner, "list of index properties in CREATE INDEX statement");
-    YYERROR;
+  | '(' key_value_list ')' {
+    $$ = $2;
   };
 
-index_properties_list:
-  index_property {
-    NotSupported(&@1, yyscanner, "index property in CREATE INDEX statement");
-    YYERROR;
-  }
-  | index_properties_list ',' index_property {
-    NotSupported(&@1, yyscanner, "list of index properties in CREATE INDEX statement");
-    YYERROR;
-  };
-
-index_property:
-  any_name literal_value {
-    delete $1;
-    delete $2;
-    NotSupported(&@1, yyscanner, "index property in CREATE INDEX statement");
-    YYERROR;
-  }
-  | any_name '(' literal_value_commalist ')' {
-    delete $1;
-    delete $3;
-    NotSupported(&@1, yyscanner, "index property list in CREATE INDEX statement");
-    YYERROR;
-  };
 
 /* Update Database Contents */
 insert_statement:
