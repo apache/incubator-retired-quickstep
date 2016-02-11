@@ -77,7 +77,7 @@ void Worker::run() {
 
 void Worker::sendWorkOrderCompleteMessage(const tmb::client_id receiver,
                                           const size_t op_index,
-                                          const bool isRebuildWorkOrder) {
+                                          const bool is_rebuild_work_order) {
   serialization::WorkOrderCompletionMessage proto;
   proto.set_operator_index(op_index);
   proto.set_worker_id(worker_id_);
@@ -88,8 +88,8 @@ void Worker::sendWorkOrderCompleteMessage(const tmb::client_id receiver,
 
   TaggedMessage message(static_cast<const void*>(proto_bytes),
                         proto_length,
-                        isRebuildWorkOrder ? kRebuildWorkOrderCompleteMessage
-                                           : kWorkOrderCompleteMessage);
+                        is_rebuild_work_order ? kRebuildWorkOrderCompleteMessage
+                                              : kWorkOrderCompleteMessage);
   std::free(proto_bytes);
 
   QueryExecutionUtil::SendTMBMessage(bus_,
