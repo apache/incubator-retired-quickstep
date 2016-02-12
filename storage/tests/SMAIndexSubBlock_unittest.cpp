@@ -79,7 +79,8 @@ typedef sma_internal::SMAPredicate SMAPredicate;
 typedef sma_internal::Selectivity Selectivity;
 
 namespace sma_test {
-  // Handy comparison functions.
+  // Handy comparison functions which are used in the unit tests.
+
   bool longs_equal(TypedValue left, TypedValue right) {
     return ComparisonFactory::GetComparison(ComparisonID::kEqual)
         .compareTypedValuesChecked(left, LongType::InstanceNonNullable(),
@@ -313,6 +314,8 @@ const char SMAIndexSubBlockTest::kCharAttrNullValue[] = "_NULLSTRING";
 TEST_F(SMAIndexSubBlockTest, DescriptionIsValidTest) {
   std::unique_ptr<IndexSubBlockDescription> index_description_;
   vector<attribute_id> valid_attrs({0, 1, 2, 3, 4, 5, 6});
+  // Try to create an index on each of the attributes. Make sure that each
+  // of the attributes which can be indexed on is marked valid.
   for (const CatalogAttribute &attr : *relation_) {
     index_description_.reset(
         new IndexSubBlockDescription());
@@ -336,8 +339,11 @@ TEST_F(SMAIndexSubBlockTest, DescriptionIsValidTest) {
 }
 
 TEST_F(SMAIndexSubBlockTest, TestConstructor) {
-  createIndex({0, 1, 2}, kIndexSubBlockSize); // Creates proper description.
-  memset(index_memory_.get(),0,kIndexSubBlockSize);
+  // Use the test fixture class to create a proper description.
+  createIndex({0, 1, 2}, kIndexSubBlockSize);
+  memset(index_memory_.get(), 0, kIndexSubBlockSize);
+
+  // Create a new index on a zero-d stretch of memory.
   index_.reset(new SMAIndexSubBlock(*tuple_store_,
                                     *index_description_,
                                     true,
@@ -359,7 +365,10 @@ TEST_F(SMAIndexSubBlockTest, TestConstructor) {
 }
 
 TEST_F(SMAIndexSubBlockTest, TestRebuild) {
-  createIndex({0, 2}, kIndexSubBlockSize);  // Index long, float type.
+  // This test is checking to see if the min/max values are set correctly on
+  // a rebuild of the index.
+  // Index long, float type.
+  createIndex({0, 2}, kIndexSubBlockSize);  
   int min = 0, max = 9010, step = 10;
   std::int64_t sum_0 = 0;
   double sum_2 = 0;
@@ -407,9 +416,14 @@ TEST_F(SMAIndexSubBlockTest, TestRebuild) {
 }
 
 TEST_F(SMAIndexSubBlockTest, TestRebuildWithNulls) {
+  // Check that building an index with nullable attributes and null values
+  // behvaes correctly.
+
   createIndex({0, 1, 2}, kIndexSubBlockSize);
   int min = 0, max = 9010, step = 10;
-  std::int64_t sum_1 = 0;  // Attribute 1 will contain some nulls.
+
+  // Attribute 1 will contain some nulls so keep its sum while inserting tuples.
+  std::int64_t sum_1 = 0;
   for (unsigned i = min; i <= max; i+=step) {
     bool insertNull = (i % 4) == 0;
     generateAndInsertTuple(i, insertNull, "suffix");
@@ -443,10 +457,13 @@ TEST_F(SMAIndexSubBlockTest, TestRebuildWithNulls) {
 }
 
 TEST_F(SMAIndexSubBlockTest, TestWithVariableLengthAttrs) {
-  createIndex({4, 5, 6}, kIndexSubBlockSize);  // Nullable char, BigChar, VarChar.
+  // Create an index on nullable char, BigChar, VarChar.
+  createIndex({4, 5, 6}, kIndexSubBlockSize);
   int min = 0, max = 1001;
   tuple_id max_id, min_id;
 
+  // These are to keep track of the smallest and largest strings inserted 
+  // into the relation.
   std::string suffix("suffix");
   std::string max_str("");
   std::string min_str("Z");
@@ -610,6 +627,8 @@ TEST_F(SMAIndexSubBlockTest, TestWithCompressedColumnStore) {
 }
 
 TEST_F(SMAIndexSubBlockTest, TestExtractComparison) {
+  // Test for comparison extraction: getting the comparison to a format which
+  // the index can compute on.
   const attribute_id indexed_attr = 0;
   const int comparison_lit = 123;
   std::unique_ptr<ComparisonPredicate> predicate(
@@ -642,6 +661,7 @@ TEST_F(SMAIndexSubBlockTest, TestExtractComparison) {
 }
 
 TEST_F(SMAIndexSubBlockTest, TestGetSelectivity) {
+  // Test to make sure that the selectivity functions behave correctly.
   // Test with an inline type.
   long lsmallest = 0, lsmall = 100, lmedium = 1000, llarge = 10000, llargest = 100000;
   const TypedValue long_smallest = LongType::InstanceNonNullable().makeValue(&lsmallest);
