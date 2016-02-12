@@ -141,6 +141,12 @@ class HashJoinOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  void doneFeedingInputBlocks(const relation_id rel_id) override {
+    if (probe_relation_.getID() == rel_id) {
+      done_feeding_input_relation_ = true;
+    }
+  }
+
  private:
   const CatalogRelation &build_relation_;
   const CatalogRelation &probe_relation_;
