@@ -28,9 +28,6 @@
 #include <utility>
 #include <vector>
 
-#include "gflags/gflags.h"
-#include "glog/logging.h"
-
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
 #include "query_execution/ForemanMessage.hpp"
@@ -47,6 +44,11 @@
 #include "types/TypedValue.hpp"
 #include "types/containers/Tuple.hpp"
 #include "utility/Glob.hpp"
+
+#include "tmb/message_bus.h"
+
+#include "gflags/gflags.h"
+#include "glog/logging.h"
 
 using std::isxdigit;
 using std::size_t;
@@ -653,11 +655,17 @@ void TextSplitWorkOrder::sendBlobInfoToOperator(StorageManager *storage_manager,
   foreman_tagged_msg.set_message(&msg, sizeof(msg), kWorkOrdersAvailableMessage);
 
   // Send new work order available message to Foreman.
-  QueryExecutionUtil::SendTMBMessage(
-      bus_,
-      ClientIDMap::Instance()->getValue(),
-      foreman_client_id_,
-      std::move(foreman_tagged_msg));
+  tmb::MessageBus::SendStatus send_status =
+      QueryExecutionUtil::SendTMBMessage(
+          bus_,
+          ClientIDMap::Instance()->getValue(),
+          foreman_client_id_,
+          std::move(foreman_tagged_msg));
+  if (send_status != tmb::MessageBus::SendStatus::kOK) {
+    LOG(FATAL) << "Message could not be sent from thread with TMB client "
+        "ID " << ClientIDMap::Instance()->getValue() << " to Foreman with TMB "
+        "client ID " << foreman_client_id_;
+  }
 
   if (residue.size()) {
     // Allocate new blob, and copy residual bytes from last blob.

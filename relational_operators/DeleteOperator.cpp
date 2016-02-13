@@ -30,6 +30,8 @@
 #include "storage/StorageManager.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
 
+#include "tmb/message_bus.h"
+
 #include "glog/logging.h"
 
 namespace quickstep {
@@ -89,11 +91,17 @@ void DeleteWorkOrder::execute(QueryContext *query_context,
   foreman_tagged_msg.set_message(
       &message, sizeof(message), kDataPipelineMessage);
 
-  QueryExecutionUtil::SendTMBMessage(
-      bus_,
-      ClientIDMap::Instance()->getValue(),
-      foreman_client_id_,
-      std::move(foreman_tagged_msg));
+  tmb::MessageBus::SendStatus send_status =
+      QueryExecutionUtil::SendTMBMessage(
+          bus_,
+          ClientIDMap::Instance()->getValue(),
+          foreman_client_id_,
+          std::move(foreman_tagged_msg));
+  if (send_status != tmb::MessageBus::SendStatus::kOK) {
+    LOG(FATAL) << "Message could not be sent from thread with TMB client "
+        "ID " << ClientIDMap::Instance()->getValue() << " to Foreman with TMB "
+        "client ID " << foreman_client_id_;
+  }
 }
 
 }  // namespace quickstep

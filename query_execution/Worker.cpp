@@ -31,6 +31,8 @@
 #include "tmb/message_bus.h"
 #include "tmb/tagged_message.h"
 
+#include "glog/logging.h"
+
 namespace quickstep {
 
 void Worker::run() {
@@ -58,10 +60,15 @@ void Worker::run() {
         foreman_tagged_msg.set_message(&foreman_message,
                                        sizeof(foreman_message),
                                        kWorkOrderCompleteMessage);
-        QueryExecutionUtil::SendTMBMessage(bus_,
-                                           worker_client_id_,
-                                           annotated_msg.sender,
-                                           std::move(foreman_tagged_msg));
+        tmb::MessageBus::SendStatus send_status =
+            QueryExecutionUtil::SendTMBMessage(bus_,
+                                               worker_client_id_,
+                                               annotated_msg.sender,
+                                               std::move(foreman_tagged_msg));
+        if (send_status != tmb::MessageBus::SendStatus::kOK) {
+          LOG(FATAL) << "Message could not be sent from Worker with TMB client "
+            "ID " << worker_client_id_ << " to Foreman";
+        }
         delete message.getWorkOrder();
         break;
       }
@@ -78,10 +85,15 @@ void Worker::run() {
         foreman_tagged_msg.set_message(&foreman_message,
                                        sizeof(foreman_message),
                                        kRebuildWorkOrderCompleteMessage);
-        QueryExecutionUtil::SendTMBMessage(bus_,
-                                           worker_client_id_,
-                                           annotated_msg.sender,
-                                           std::move(foreman_tagged_msg));
+        tmb::MessageBus::SendStatus send_status =
+            QueryExecutionUtil::SendTMBMessage(bus_,
+                                               worker_client_id_,
+                                               annotated_msg.sender,
+                                               std::move(foreman_tagged_msg));
+        if (send_status != tmb::MessageBus::SendStatus::kOK) {
+          LOG(FATAL) << "Message could not be sent from Worker with TMB client "
+            "ID " << worker_client_id_ << " to Foreman";
+        }
         delete message.getWorkOrder();
         break;
       }
