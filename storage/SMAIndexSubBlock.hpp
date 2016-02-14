@@ -207,7 +207,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
    * @param relation The relation tuples belong to.
    * @param description A description of the parameters for this type of
    *        IndexSubBlock.
-   * @return The average/ammortized number of bytes used to index a single
+   * @return The average/amortized number of bytes used to index a single
    *         tuple of relation in an IndexSubBlock of this type described by
    *         description.
    **/
@@ -335,8 +335,11 @@ class SMAIndexSubBlock : public IndexSubBlock {
 
   // Retrieves an entry, first checking if the given attribute is indexed.
   inline const sma_internal::SMAEntry* getEntryChecked(attribute_id attribute) const {
-    if (attribute_to_entry_.find(attribute) != attribute_to_entry_.end()) {
-      return getEntry(attribute);
+    if (total_attributes_ > attribute) {
+      int index = attribute_to_entry_[attribute];
+      if (index != -1) {
+        return entries_ + index;
+      }
     }
     return nullptr;
   }
@@ -344,7 +347,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   // Retrieves an entry, not checking if the given attribute is indexed.
   // Warning: This should not be used unless the attribute is indexed.
   inline const sma_internal::SMAEntry* getEntry(attribute_id attribute) const {
-    return (entries_ + attribute_to_entry_.at(attribute));
+    return entries_ + attribute_to_entry_[attribute];
   }
 
   // Resets a single entry to a zero and invalid state.
@@ -364,9 +367,15 @@ class SMAIndexSubBlock : public IndexSubBlock {
   sma_internal::SMAHeader *header_;
   // Handy pointer to the beginning of the entries.
   sma_internal::SMAEntry *entries_;
-  std::unordered_map<attribute_id, int> attribute_to_entry_;
+  // Total number of attributes in the relation.
+  std::size_t total_attributes_;
+  // Used to lookup the index of the SMA entry given the attribute_id.
+  // For example SMAEntry &entry =  
+  //                 entries_[attribute_to_entry_[someAttribute->getID()]]
+  // -1 indicates that that attribute is not indexed.
+  int *attribute_to_entry_;
   // Number of indexed attributes.
-  int indexed_attributes_;
+  std::size_t indexed_attributes_;
   // True if the index has gone through the initialization process.
   bool initialized_;
 

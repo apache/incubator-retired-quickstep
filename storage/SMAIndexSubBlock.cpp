@@ -65,7 +65,6 @@ using std::uint8_t;
 using std::uint16_t;
 using std::uint32_t;
 using std::vector;
-using std::map;
 using std::exception;
 
 namespace quickstep {
@@ -301,6 +300,8 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
                     sub_block_memory_size),
       header_(nullptr),
       entries_(nullptr),
+      total_attributes_(tuple_store.getRelation().size()),
+      attribute_to_entry_(nullptr),
       indexed_attributes_(0),
       initialized_(false),
       add_operations_(new UncheckedBinaryOperator*[kNumTypeIDs]),
@@ -317,6 +318,11 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
 
   header_ = reinterpret_cast<SMAHeader*>(sub_block_memory_);
   entries_ = reinterpret_cast<SMAEntry*>(header_ + 1);
+  attribute_to_entry_ = new int[total_attributes_];
+  // Set each attribute to invalid.
+  for (std::size_t i = 0; i < total_attributes_; ++i) {
+    attribute_to_entry_[i] = -1;
+  }
 
   if (new_block) {
     header_->consistent = false;
@@ -363,7 +369,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
     }
 
     // Map the attribute's id to its entry's index.
-    attribute_to_entry_.insert({attribute, indexed_attribute_num});
+    attribute_to_entry_[attribute] = indexed_attribute_num;
 
     if (!header_->consistent) {
       resetEntry(entry, attribute, attribute_type);
@@ -416,7 +422,7 @@ SMAIndexSubBlock::~SMAIndexSubBlock() {
   delete[] add_operations_;
   delete[] equal_comparisons_;
   delete[] less_comparisons_;
-
+  delete[] attribute_to_entry_;
 }
 
 void SMAIndexSubBlock::resetEntry(SMAEntry *entry,
@@ -424,6 +430,8 @@ void SMAIndexSubBlock::resetEntry(SMAEntry *entry,
                                   const Type &attribute_type) {
   entry->attribute = attribute;
   entry->type = attribute_type.getTypeID();
+
+  // Clearing min/max will free any out of line data.
   if (entry->min_entry.valid) {
     entry->min_entry.value.clear();
     entry->min_entry.valid = false;
@@ -476,10 +484,10 @@ bool SMAIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema &relation,
     return false;
   }
   // Must have at least one indexed attribute.
-  if(description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id) == 0){
+  if (description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id) == 0) {
     return false;
   }
-  // Check that all key attributes exist and are fixed-length.
+  // Check that all key attributes exist.
   for (int indexed_attribute_num = 0;
        indexed_attribute_num < description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id);
        ++indexed_attribute_num) {
@@ -542,6 +550,7 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
     SMAEntry *entry = entries_ + index;
     TypedValue tuple_value = tuple_store_.getAttributeValueTyped(tuple, entry->attribute);
 
+    // Ignore all nulls.
     if (tuple_value.isNull()) {
       continue;
     }
@@ -550,7 +559,10 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
       entry->sum = add_operations_[entry->type]->applyToTypedValues(tuple_value, entry->sum);
     }
 
+    // If the entries are valid, we can do comparison, otherwise, we skip the 
+    // comparison and set the value.
     if (!entry->min_entry.valid) {
+      memset(&entry->min_entry.value, 0, sizeof(TypedValue));
       entry->min_entry.value = tuple_value;
       entry->min_entry.value.ensureNotReference();
       entry->min_entry.tuple = tuple;
@@ -564,6 +576,7 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
     }
 
     if (!entry->max_entry.valid) {
+      memset(&entry->max_entry.value, 0, sizeof(TypedValue));
       entry->max_entry.value = tuple_value;
       entry->max_entry.value.ensureNotReference();
       entry->max_entry.tuple = tuple;
@@ -606,7 +619,7 @@ predicate_cost_t SMAIndexSubBlock::estimatePredicateEvaluationCost(
     const ComparisonPredicate &predicate) const {
   DCHECK(initialized_);
   Selectivity selectivity = selectivityForPredicate(predicate);
-  std::cout << "Selectivity: " << static_cast<int>(selectivity) << "\n";
+  std::cout << "Selectivity: " << static_cast<int>(selectivity) << "\n"; // DEBUG
   if (selectivity == Selectivity::kAll || selectivity == Selectivity::kNone) {
     return predicate_cost::kConstantTime;
   }
@@ -623,6 +636,8 @@ TupleIdSequence* SMAIndexSubBlock::getMatchesForPredicate(
   Selectivity selectivity = selectivityForPredicate(predicate);
   if (selectivity == Selectivity::kAll) {
     TupleIdSequence* tidseq = new TupleIdSequence(tuple_store_.numTuples());
+
+    // Set all existing tuples to true, selected.
     if(tuple_store_.isPacked()){
       tidseq->setRange(0, tuple_store_.numTuples(), true);
     } else {
@@ -634,6 +649,7 @@ TupleIdSequence* SMAIndexSubBlock::getMatchesForPredicate(
     }
     return tidseq;
   } else if (selectivity == Selectivity::kNone) {
+    // A new tuple ID sequence is initialized to false for all values.
     return new TupleIdSequence(tuple_store_.numTuples());
   }
   LOG(FATAL) << "SMAIndex failed to evaluate predicate. The SMA should not have been used";
@@ -645,7 +661,7 @@ bool SMAIndexSubBlock::requiresRebuild() const {
 }
 
 bool SMAIndexSubBlock::hasEntryForAttribute(attribute_id attribute) const {
-  return attribute_to_entry_.find(attribute) != attribute_to_entry_.end();
+  return total_attributes_ > attribute && attribute_to_entry_[attribute] != -1;
 }
 
 }  // namespace quickstep

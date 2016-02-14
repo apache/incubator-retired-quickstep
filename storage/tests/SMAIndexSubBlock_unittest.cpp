@@ -595,8 +595,7 @@ TEST_F(SMAIndexSubBlockTest, TestWithCompressedColumnStore) {
   TupleStorageSubBlockDescription *tuple_store_description = new TupleStorageSubBlockDescription();
   tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE);
   tuple_store_description->SetExtension(
-      CompressedColumnStoreTupleStorageSubBlockDescription::sort_attribute_id,
-      0);
+      CompressedColumnStoreTupleStorageSubBlockDescription::sort_attribute_id, 0);
   for (attribute_id attr_id = 0; attr_id < 2; ++attr_id) {
     tuple_store_description->AddExtension(
         CompressedColumnStoreTupleStorageSubBlockDescription::compressed_attribute_id,
@@ -618,12 +617,101 @@ TEST_F(SMAIndexSubBlockTest, TestWithCompressedColumnStore) {
   compressed_index_description.AddExtension(SMAIndexSubBlockDescription::indexed_attribute_id, 0);
   compressed_index_description.AddExtension(SMAIndexSubBlockDescription::indexed_attribute_id, 1);
 
+  // Compressed blocks should be valid.
+  ASSERT_TRUE(SMAIndexSubBlock::DescriptionIsValid(*relation_, compressed_index_description));
+
+  // Add some values to the compressed store.
+  std::string max_varchar_string("0");
+  for (int tuple_num = 0; tuple_num < 400; ++tuple_num) {
+    int tuple_val = tuple_num % 100;
+    std::vector<TypedValue> attrs;
+    attrs.emplace_back(static_cast<int64_t>(tuple_val));
+
+    std::string varchar_val = std::to_string(tuple_val);
+    varchar_val.append("suffix");
+    TypedValue varchar_typed_value
+        = VarCharType::InstanceNonNullable(varchar_val.size()).makeValue(
+            varchar_val.c_str(),
+            varchar_val.size() + 1);
+
+    // Keep track of the largest varchar.
+    if (varchar_val > max_varchar_string) {
+      max_varchar_string = varchar_val;
+    }
+
+    attrs.emplace_back(varchar_typed_value);
+    ASSERT_TRUE(compressed_tuple_store->insertTupleInBatch(Tuple(std::move(attrs))));
+  }
+  
+  // Build the tuple-store.
+  compressed_tuple_store->rebuild();
+  EXPECT_FALSE(compressed_tuple_store->compressedAttributeIsDictionaryCompressed(0));
+  EXPECT_TRUE(compressed_tuple_store->compressedAttributeIsTruncationCompressed(0));
+
+  EXPECT_TRUE(compressed_tuple_store->compressedAttributeIsDictionaryCompressed(1));
+  EXPECT_FALSE(compressed_tuple_store->compressedAttributeIsTruncationCompressed(1));
+
+  // Build the index.
   index_memory_.reset(kIndexSubBlockSize);
   index_.reset(new SMAIndexSubBlock(*compressed_tuple_store,
                                     compressed_index_description,
                                     true,
                                     index_memory_.get(),
                                     kIndexSubBlockSize));
+
+  index_->rebuild();
+
+  // Test variable length attribute..
+  SMAEntry* entry1 = getEntryForAttribute(1);
+  EXPECT_EQ(kVarChar, entry1->type);
+  EXPECT_EQ(1, entry1->attribute);
+
+  // Min and Max values should be valid at this point.
+  EXPECT_TRUE(entry1->max_entry.valid);
+  EXPECT_TRUE(entry1->min_entry.valid);
+
+  // Check min ids and values.
+  EXPECT_TRUE(sma_test::varchars_equal(
+      entry1->min_entry.value,
+      compressed_tuple_store->getAttributeValueTyped(entry1->min_entry.tuple, 1)));
+
+  EXPECT_TRUE(sma_test::varchars_equal(
+      entry1->max_entry.value,
+      compressed_tuple_store->getAttributeValueTyped(entry1->max_entry.tuple, 1)));
+
+  TypedValue max_varchar_typedvalue
+        = VarCharType::InstanceNonNullable(max_varchar_string.size()).makeValue(
+            max_varchar_string.c_str(),
+            max_varchar_string.size() + 1);
+
+  EXPECT_TRUE(ComparisonFactory::GetComparison(ComparisonID::kEqual)
+      .compareTypedValuesChecked(max_varchar_typedvalue, TypeFactory::GetType(kVarChar, 80, false),
+                                 entry1->max_entry.value, TypeFactory::GetType(kVarChar, 80, false)));
+
+  // Test inline attribute..
+  SMAEntry* entry0 = getEntryForAttribute(0);
+  EXPECT_EQ(kLong, entry0->type);
+  EXPECT_EQ(0, entry0->attribute);
+
+  // Min and Max values should be valid at this point.
+  EXPECT_TRUE(entry0->max_entry.valid);
+  EXPECT_TRUE(entry0->min_entry.valid);
+
+  // Check min ids and values.
+  EXPECT_TRUE(sma_test::longs_equal(
+      entry0->min_entry.value,
+      compressed_tuple_store->getAttributeValueTyped(entry0->min_entry.tuple, 0)));
+
+  EXPECT_TRUE(sma_test::longs_equal(
+      entry0->max_entry.value,
+      compressed_tuple_store->getAttributeValueTyped(entry0->max_entry.tuple, 0)));
+
+  TypedValue max_long_typedvalue(static_cast<int64_t>(99));
+
+  EXPECT_TRUE(ComparisonFactory::GetComparison(ComparisonID::kEqual)
+      .compareTypedValuesChecked(max_long_typedvalue, TypeFactory::GetType(kLong, false),
+                                 entry0->max_entry.value, TypeFactory::GetType(kLong, false)));
+
 }
 
 TEST_F(SMAIndexSubBlockTest, TestExtractComparison) {
