@@ -71,11 +71,11 @@ enum class Selectivity {
  * @brief Helper method. Uses the stored values from the SMA Index to determine
  *        selectivity of a predicate.
  * 
- * @param literal 
- * @param min 
- * @param max 
- * @param equals_comparator 
- * @param less_comparator 
+ * @param literal The literal value to compare against.
+ * @param min The minimum value associated with that attribute.
+ * @param max The maximum value associated with that attribute.
+ * @param equals_comparator The equals comparator for the attribute type.
+ * @param less_comparator  The less comparator for the attribute type.
  * @return Selectivity of this predicate.
  */
 Selectivity getSelectivity(const TypedValue &literal,
@@ -103,6 +103,8 @@ struct SMAPredicate {
   const attribute_id attribute;
   const ComparisonID comparison;
   const TypedValue literal;
+  // How much of the TupleStore this predicate will select. kUnsolved indicates
+  // that the predicate had not been used previously.
   Selectivity selectivity;
 
  private:
@@ -119,26 +121,38 @@ struct SMAPredicate {
 
 // A 64-bit header.
 struct SMAHeader {
+  // Count refers the SQL aggregate COUNT.
   std::uint32_t count;
+
   union {
+    // Consistent refers to the index being in a consistent state.
     bool consistent;
-    std::uint32_t buffer;
+    // Padding is so we keep this data structure to 64 bits in length.
+    std::uint32_t padding;
   };
 };
 
-// Reference to an attribute value in a tuple.
+// Reference to an attribute value in a tuple. This struct is used to keep a
+// of the min and max value for an attribute.
 struct EntryReference {
   tuple_id tuple;
+  // There are certain cases when the entry reference can be invalid such as
+  // when the index is being rebuilt. value should not be used in this case.
   bool valid;
+  // A copy of the typed value referenced by tuple.
   TypedValue value;
 };
 
-// Index entry for an attribute.
+// Index entry for an attribute in the SMA.
 struct SMAEntry {
   attribute_id attribute;
+  // The type of the attribute contained in this entry.
   TypeID type;
+  // A reference to the minimum value of the attribute.
   EntryReference min_entry;
+  // A reference to the maximum value of the attribute.
   EntryReference max_entry;
+  // The sum of the attribute. This is only used in the case of numeric types.
   TypedValue sum;
 };
 
@@ -149,6 +163,9 @@ struct SMAEntry {
  * @brief Small Materialized Aggregate SubBlock.
  * @details Keeps account of several types of aggregate functions per Block.
  *          Currently supports min, max, sum, and count.
+ *          Physical organization of the block is as follows:
+ *          
+ *          [SMAHeader][SMAEntry x number of indexed attributes]
  */
 class SMAIndexSubBlock : public IndexSubBlock {
  public:
@@ -343,24 +360,30 @@ class SMAIndexSubBlock : public IndexSubBlock {
   // Frees any TypedValue data which is held in the SMA entries.
   void freeOutOfLineData();
 
+  // Handy pointer to the header.
   sma_internal::SMAHeader *header_;
+  // Handy pointer to the beginning of the entries.
   sma_internal::SMAEntry *entries_;
   std::unordered_map<attribute_id, int> attribute_to_entry_;
+  // Number of indexed attributes.
   int indexed_attributes_;
+  // True if the index has gone through the initialization process.
   bool initialized_;
 
-  // Maps attribute TypeID to AddOperator. The AddOperator takes the attribute
-  // TypedValue and a TypedValue of the SumType on the right.
-  // So when using, it should look like:
-  //
-  //    add_operations_[attribute_typeid].applyWithTypedValues(
-  //        Attribute Type TypedValue,
-  //        SumType TypedValue);
-  //
+  // An array of pointers to necessary add operations for updating SUM. 
+  // Essentially, it maps between TypeID and the pointer to the correct
+  // operator for that type.
+  //    For example: add_operations_[AttributeTypeID]->applyWithTypedValues(
+  //                                          TypedValue of the attributes type,
+  //                                          TypedValue of the sum type)
   UncheckedBinaryOperator** add_operations_;
 
-  // Maps TypeID to ComparisonOperator. The comparison operator takes two of
-  // same type as the type ID which is used to index into this array.
+  // An array of pointers to necessary comparison operations for updating MIN/MAX. 
+  // Essentially, it maps between TypeID and the pointer to the correct
+  // operator for that type.
+  //    For example: add_operations_[AttributeTypeID]->applyWithTypedValues(
+  //                                          TypedValue of the attributes type,
+  //                                          TypedValue of the attributes type)
   UncheckedComparator** less_comparisons_;
   UncheckedComparator** equal_comparisons_;
 

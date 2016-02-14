@@ -224,7 +224,7 @@ inline TypeID sumType(TypeID type) {
  * @return True if the type can be summed.
  */
 inline bool canSum(TypeID type) {
-  return type == kInt || type == kLong || type == kFloat || type == kDouble;
+  return sumType(type) != kNullType;
 }
 
 /**
@@ -242,6 +242,11 @@ inline void setTypedValueForSum(SMAEntry *entry) {
   }
 }
 
+/**
+ * @brief Correctly zeroes the SMA entry for each possible type.
+ * 
+ * @param entry The entry for which the min/max references will be zeroed out. 
+ */
 void setTypedValueForMinMax(SMAEntry *entry) {
   TypedValue *min = &(entry->min_entry.value);
   TypedValue *max = &(entry->max_entry.value);
@@ -446,6 +451,7 @@ void SMAIndexSubBlock::resetEntries() {
 }
 
 void SMAIndexSubBlock::freeOutOfLineData() {
+  // For each entry, clear the min and max typed values (frees out of line data).
   for (int indexed_attribute_num = 0;
        indexed_attribute_num < indexed_attributes_;
        ++indexed_attribute_num) {
