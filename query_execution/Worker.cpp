@@ -60,15 +60,15 @@ void Worker::run() {
         foreman_tagged_msg.set_message(&foreman_message,
                                        sizeof(foreman_message),
                                        kWorkOrderCompleteMessage);
-        tmb::MessageBus::SendStatus send_status =
+        const tmb::MessageBus::SendStatus send_status =
             QueryExecutionUtil::SendTMBMessage(bus_,
                                                worker_client_id_,
                                                annotated_msg.sender,
                                                std::move(foreman_tagged_msg));
-        if (send_status != tmb::MessageBus::SendStatus::kOK) {
-          LOG(FATAL) << "Message could not be sent from Worker with TMB client "
-            "ID " << worker_client_id_ << " to Foreman";
-        }
+        CHECK(send_status == tmb::MessageBus::SendStatus::kOK) <<
+            "Message could not be sent from Worker with TMB client "
+            "ID " << worker_client_id_ << " to Foreman with TMB client ID "
+            << annotated_msg.sender;
         delete message.getWorkOrder();
         break;
       }
@@ -85,15 +85,15 @@ void Worker::run() {
         foreman_tagged_msg.set_message(&foreman_message,
                                        sizeof(foreman_message),
                                        kRebuildWorkOrderCompleteMessage);
-        tmb::MessageBus::SendStatus send_status =
+        const tmb::MessageBus::SendStatus send_status =
             QueryExecutionUtil::SendTMBMessage(bus_,
                                                worker_client_id_,
                                                annotated_msg.sender,
                                                std::move(foreman_tagged_msg));
-        if (send_status != tmb::MessageBus::SendStatus::kOK) {
-          LOG(FATAL) << "Message could not be sent from Worker with TMB client "
-            "ID " << worker_client_id_ << " to Foreman";
-        }
+        CHECK(send_status == tmb::MessageBus::SendStatus::kOK) <<
+           "Message could not be sent from Worker with TMB client ID "
+            << worker_client_id_ << " to Foreman with client ID "
+            << annotated_msg.sender;
         delete message.getWorkOrder();
         break;
       }

@@ -285,16 +285,14 @@ class WorkOrder {
     tmb::MessageStyle single_receiver_style;
 
     DCHECK(bus != nullptr);
-    tmb::MessageBus::SendStatus send_status =
+    const tmb::MessageBus::SendStatus send_status =
         bus->Send(sender_id,
                   receiver_address,
                   single_receiver_style,
                   std::move(msg));
-    if (send_status != tmb::MessageBus::SendStatus::kOK) {
-      LOG(FATAL) << "Message could not be sent from thread with TMB client ID "
-          << sender_id << " to receiver thread with TMB client ID " <<
-          receiver_id;
-    }
+    CHECK(send_status == tmb::MessageBus::SendStatus::kOK) << "Message could"
+        " not be sent from thread with TMB client ID " << sender_id << " to"
+        " receiver thread with TMB client ID " << receiver_id;
   }
 
  protected:
