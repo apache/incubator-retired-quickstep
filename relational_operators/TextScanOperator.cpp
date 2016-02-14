@@ -661,10 +661,10 @@ void TextSplitWorkOrder::sendBlobInfoToOperator(StorageManager *storage_manager,
           ClientIDMap::Instance()->getValue(),
           foreman_client_id_,
           std::move(foreman_tagged_msg));
-  CHECK (send_status != tmb::MessageBus::SendStatus::kOK) << "Message could not"
-      " be sent from thread with TMB client ID "
-      << ClientIDMap::Instance()->getValue() << " to Foreman with TMB client"
-      " ID " << foreman_client_id_;
+  CHECK(send_status != tmb::MessageBus::SendStatus::kOK) << "Message could not "
+      "be sent from thread with TMB client ID "
+      << ClientIDMap::Instance()->getValue() << " to Foreman with TMB client "
+      "ID " << foreman_client_id_;
 
   if (residue.size()) {
     // Allocate new blob, and copy residual bytes from last blob.
