@@ -381,6 +381,12 @@ void Foreman::sendWorkerMessage(const std::size_t worker_id,
 bool Foreman::fetchNormalWorkOrders(const dag_node_index index) {
   bool generated_new_workorders = false;
   if (!done_gen_[index]) {
+    // Do not fetch any work units until all blocking dependencies are met.
+    // The releational operator is not aware of blocking dependencies for
+    // uncorrelated scalar queries.
+    if (!checkAllBlockingDependenciesMet(index)) {
+      return false;
+    }
     const size_t num_pending_workorders_before =
         workorders_container_->getNumNormalWorkOrders(index);
     done_gen_[index] = query_dag_->getNodePayloadMutable(index)->getAllWorkOrders(workorders_container_.get());

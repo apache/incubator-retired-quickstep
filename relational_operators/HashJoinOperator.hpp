@@ -141,6 +141,15 @@ class HashJoinOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  void doneFeedingInputBlocks(const relation_id rel_id) override {
+    // The HashJoinOperator depends on BuildHashOperator too, but it
+    // should ignore a doneFeedingInputBlocks() message that comes
+    // after completion of BuildHashOperator. Therefore we need this check.
+    if (probe_relation_.getID() == rel_id) {
+      done_feeding_input_relation_ = true;
+    }
+  }
+
  private:
   const CatalogRelation &build_relation_;
   const CatalogRelation &probe_relation_;
