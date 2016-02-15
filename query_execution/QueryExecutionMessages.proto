@@ -17,6 +17,9 @@ syntax = "proto2";
 package quickstep.serialization;
 
 // Used for both Normal WorkOrders and RebuildWorkOrders.
+// NOTE(zuyu): we might need to seperate the completion messages to contain
+// run-time information for Foreman to make better decisions on scheduling
+// WorkOrders.
 message WorkOrderCompletionMessage {
   required uint64 operator_index = 1;
   required uint64 worker_id = 2;

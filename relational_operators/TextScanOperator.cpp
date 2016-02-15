@@ -652,6 +652,7 @@ void TextSplitWorkOrder::sendBlobInfoToOperator(StorageManager *storage_manager,
   serialization::WorkOrdersAvailableMessage message_proto;
   message_proto.set_operator_index(operator_index_);
 
+  // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
   const size_t message_proto_length = message_proto.ByteSize();
   char *message_proto_bytes = static_cast<char*>(std::malloc(message_proto_length));
   CHECK(message_proto.SerializeToArray(message_proto_bytes, message_proto_length));

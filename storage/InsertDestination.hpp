@@ -210,6 +210,7 @@ class InsertDestination : public InsertDestinationInterface {
     proto.set_block_id(id);
     proto.set_relation_id(relation_->getID());
 
+    // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
     const std::size_t proto_length = proto.ByteSize();
     char *proto_bytes = static_cast<char*>(std::malloc(proto_length));
     CHECK(proto.SerializeToArray(proto_bytes, proto_length));

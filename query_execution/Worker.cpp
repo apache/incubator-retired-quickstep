@@ -82,6 +82,7 @@ void Worker::sendWorkOrderCompleteMessage(const tmb::client_id receiver,
   proto.set_operator_index(op_index);
   proto.set_worker_id(worker_id_);
 
+  // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
   const size_t proto_length = proto.ByteSize();
   char *proto_bytes = static_cast<char*>(std::malloc(proto_length));
   CHECK(proto.SerializeToArray(proto_bytes, proto_length));

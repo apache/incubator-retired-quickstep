@@ -90,6 +90,7 @@ void DeleteWorkOrder::execute(QueryContext *query_context,
   proto.set_block_id(input_block_id_);
   proto.set_relation_id(rel_id_);
 
+  // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
   const std::size_t proto_length = proto.ByteSize();
   char *proto_bytes = static_cast<char*>(std::malloc(proto_length));
   CHECK(proto.SerializeToArray(proto_bytes, proto_length));
