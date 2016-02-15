@@ -37,7 +37,7 @@ endif()
 find_package(FLEX)
 if (FLEX_FOUND)
   # TODO(chasseur): This might not be the exact version to test for.
-  if (FLEX_VERSION VERSION_GREATER 2.5.34)
+  if (FLEX_VERSION VERSION_GREATER 2.5.37)
     set(RUN_FLEX TRUE)
   else()
     set(RUN_FLEX FALSE)
