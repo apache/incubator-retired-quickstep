@@ -137,7 +137,7 @@ inline Selectivity getSelectivity_G(const TypedValue &literal,
                                     const UncheckedComparator *equals_comparator) {
   if(less_comparator->compareTypedValues(literal, min)) {
     return Selectivity::kAll;
-  } else if (less_comparator->compareTypedValues(max, literal) || 
+  } else if (less_comparator->compareTypedValues(max, literal) ||
              equals_comparator->compareTypedValues(max, literal)) {
     return Selectivity::kNone;
   }
@@ -165,8 +165,8 @@ Selectivity getSelectivity(const TypedValue &literal,
                            const ComparisonID comparison,
                            const TypedValue &min,
                            const TypedValue &max,
-                           const UncheckedComparator *equals_comparator,
-                           const UncheckedComparator *less_comparator) {
+                           const UncheckedComparator *less_comparator,
+                           const UncheckedComparator *equals_comparator) {
   switch(comparison) {
     case ComparisonID::kEqual:
       return getSelectivity_E(literal, min, max, less_comparator);
@@ -179,7 +179,7 @@ Selectivity getSelectivity(const TypedValue &literal,
     case ComparisonID::kGreaterOrEqual:
       return getSelectivity_GE(literal, min, max, less_comparator, equals_comparator);
     default:
-      return Selectivity::kUnknown;    
+      return Selectivity::kUnknown;
   }
 }
 
@@ -243,8 +243,8 @@ inline void setTypedValueForSum(SMAEntry *entry) {
 
 /**
  * @brief Correctly zeroes the SMA entry for each possible type.
- * 
- * @param entry The entry for which the min/max references will be zeroed out. 
+ *
+ * @param entry The entry for which the min/max references will be zeroed out.
  */
 void setTypedValueForMinMax(SMAEntry *entry) {
   TypedValue *min = &(entry->min_entry.value);
@@ -312,7 +312,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
 
   indexed_attributes_ = description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id);
 
-  CHECK((sizeof(sma_internal::SMAHeader) 
+  CHECK((sizeof(sma_internal::SMAHeader)
             + (indexed_attributes_ * sizeof(SMAEntry))) <= sub_block_memory_size_)
       << "Attempted to create SMAIndexSubBlock without enough space allocated.";
 
@@ -351,7 +351,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
       if (add_operations_[attr_typeid] == nullptr) {
         add_operations_[attr_typeid]
           = BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
-              .makeUncheckedBinaryOperatorForTypes(TypeFactory::GetType(attr_typeid), 
+              .makeUncheckedBinaryOperatorForTypes(TypeFactory::GetType(attr_typeid),
                                                    TypeFactory::GetType(attr_sum_typeid));
       }
     }
@@ -374,26 +374,22 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
     if (!header_->consistent) {
       resetEntry(entry, attribute, attribute_type);
     } else {
-      // If the data held by min/max is out of line, we must retrieve it.
+      // If the data held by min/max is out of line, we must retrieve it as we initialize.
       if (!TypedValue::RepresentedInline(entry->type)) {
 
         // First, set to 0 so that we don't try to free invalid memory on copy.
         // Next, copy from the tuple store. This will copy and give us ownership of out of line data.
         if (entry->min_entry.valid) {
-          std::cout << "set min\n"; // DEBUG
           new (&entry->min_entry.value) TypedValue();
           entry->min_entry.value = tuple_store
               .getAttributeValueTyped(entry->min_entry.tuple, entry->attribute);
-          entry->min_entry.value.ensureNotReference();  
-          std::cout << "typeid: " << entry->min_entry.value.getTypeID() << "\n"; // DEBUG
+          entry->min_entry.value.ensureNotReference();
         }
         if (entry->max_entry.valid) {
-          std::cout << "set max\n"; // DEBUG
           new (&entry->max_entry.value) TypedValue();
           entry->max_entry.value = tuple_store
               .getAttributeValueTyped(entry->max_entry.tuple, entry->attribute);
           entry->max_entry.value.ensureNotReference();
-          std::cout << "typeid: " << entry->max_entry.value.getTypeID() << "\n"; // DEBUG
         }
       }
     }
@@ -417,7 +413,7 @@ SMAIndexSubBlock::~SMAIndexSubBlock() {
       delete less_comparisons_[i];
     }
   }
-  
+
   // Delete the operator arrays.
   delete[] add_operations_;
   delete[] equal_comparisons_;
@@ -559,7 +555,7 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
       entry->sum = add_operations_[entry->type]->applyToTypedValues(tuple_value, entry->sum);
     }
 
-    // If the entries are valid, we can do comparison, otherwise, we skip the 
+    // If the entries are valid, we can do comparison, otherwise, we skip the
     // comparison and set the value.
     if (!entry->min_entry.valid) {
       memset(&entry->min_entry.value, 0, sizeof(TypedValue));
@@ -605,21 +601,19 @@ Selectivity SMAIndexSubBlock::selectivityForPredicate(const ComparisonPredicate 
   if (entry == nullptr || !entry->min_entry.valid || !entry->max_entry.valid) {
     return Selectivity::kUnknown;
   }
-
   return sma_internal::getSelectivity(
-      sma_predicate->literal, 
-      sma_predicate->comparison,
-      entry->min_entry.value,
-      entry->max_entry.value,
-      less_comparisons_[entry->type],
-      equal_comparisons_[entry->type]);
+    sma_predicate->literal,
+    sma_predicate->comparison,
+    entry->min_entry.value,
+    entry->max_entry.value,
+    less_comparisons_[entry->type],
+    equal_comparisons_[entry->type]);
 }
 
 predicate_cost_t SMAIndexSubBlock::estimatePredicateEvaluationCost(
     const ComparisonPredicate &predicate) const {
   DCHECK(initialized_);
   Selectivity selectivity = selectivityForPredicate(predicate);
-  std::cout << "Selectivity: " << static_cast<int>(selectivity) << "\n"; // DEBUG
   if (selectivity == Selectivity::kAll || selectivity == Selectivity::kNone) {
     return predicate_cost::kConstantTime;
   }

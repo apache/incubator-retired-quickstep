@@ -52,12 +52,12 @@ namespace sma_internal {
 
 /**
  * @brief Describes how much of the relation will be selected by a predicate.
- * @details kAll, kNone indicate that the SMA has determined that all, or none 
+ * @details kAll, kNone indicate that the SMA has determined that all, or none
  *          of the tuples will be selected. kSome means that some tuples may be
  *          selected, but a scan must be performed. kUnknown indicates that the
  *          SMA tried to answer the predicate but did not have enough information.
- *          kUnsolved indicates that the predicate has been created but not 
- *          analyzed by the SMA.  
+ *          kUnsolved indicates that the predicate has been created but not
+ *          analyzed by the SMA.
  */
 enum class Selectivity {
   kAll,
@@ -70,7 +70,7 @@ enum class Selectivity {
 /**
  * @brief Helper method. Uses the stored values from the SMA Index to determine
  *        selectivity of a predicate.
- * 
+ *
  * @param literal The literal value to compare against.
  * @param min The minimum value associated with that attribute.
  * @param max The maximum value associated with that attribute.
@@ -93,7 +93,7 @@ Selectivity getSelectivity(const TypedValue &literal,
 struct SMAPredicate {
   /**
    * @brief Extracts a comparison predicate into an SMAPredicate.
-   * 
+   *
    * @param predicate A comparison of the form {attribute} {comparison} {literal}
    *                  or {literal} {comparison} {attribute}.
    * @return An SMAPredicate pointer which the caller must manage.
@@ -110,7 +110,7 @@ struct SMAPredicate {
  private:
   SMAPredicate(const attribute_id attr,
                const ComparisonID comp,
-               const TypedValue lit) 
+               const TypedValue lit)
       : attribute(attr),
         comparison(comp),
         literal(lit),
@@ -164,7 +164,7 @@ struct SMAEntry {
  * @details Keeps account of several types of aggregate functions per Block.
  *          Currently supports min, max, sum, and count.
  *          Physical organization of the block is as follows:
- *          
+ *
  *          [SMAHeader][SMAEntry x number of indexed attributes]
  */
 class SMAIndexSubBlock : public IndexSubBlock {
@@ -370,7 +370,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   // Total number of attributes in the relation.
   std::size_t total_attributes_;
   // Used to lookup the index of the SMA entry given the attribute_id.
-  // For example SMAEntry &entry =  
+  // For example SMAEntry &entry =
   //                 entries_[attribute_to_entry_[someAttribute->getID()]]
   // -1 indicates that that attribute is not indexed.
   int *attribute_to_entry_;
@@ -379,7 +379,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   // True if the index has gone through the initialization process.
   bool initialized_;
 
-  // An array of pointers to necessary add operations for updating SUM. 
+  // An array of pointers to necessary add operations for updating SUM.
   // Essentially, it maps between TypeID and the pointer to the correct
   // operator for that type.
   //    For example: add_operations_[AttributeTypeID]->applyWithTypedValues(
@@ -387,7 +387,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   //                                          TypedValue of the sum type)
   UncheckedBinaryOperator** add_operations_;
 
-  // An array of pointers to necessary comparison operations for updating MIN/MAX. 
+  // An array of pointers to necessary comparison operations for updating MIN/MAX.
   // Essentially, it maps between TypeID and the pointer to the correct
   // operator for that type.
   //    For example: add_operations_[AttributeTypeID]->applyWithTypedValues(
