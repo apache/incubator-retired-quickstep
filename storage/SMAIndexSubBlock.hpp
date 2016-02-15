@@ -114,7 +114,7 @@ struct SMAPredicate {
       : attribute(attr),
         comparison(comp),
         literal(lit),
-        selectivity(Selectivity::kUnsolved) { };
+        selectivity(Selectivity::kUnsolved) { }
 };
 
 //// Components of the index.
@@ -224,7 +224,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   /**
    * @return \c true if the SMA block is initialized.
    */
-  bool supportsAdHocAdd() const override{
+  bool supportsAdHocAdd() const override {
     return initialized_;
   }
 
@@ -399,7 +399,6 @@ class SMAIndexSubBlock : public IndexSubBlock {
   friend class SMAIndexSubBlockTest;
 
   DISALLOW_COPY_AND_ASSIGN(SMAIndexSubBlock);
-
 };
 } /* namespace quickstep */
 

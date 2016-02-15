@@ -168,7 +168,7 @@ class SMAIndexSubBlockTest : public ::testing::Test {
     index_.reset();
   }
 
-  void createIndex(const vector<attribute_id> &indexed_attrs, const size_t index_memory_size){
+  void createIndex(const vector<attribute_id> &indexed_attrs, const size_t index_memory_size) {
     // Make the IndexSubBlockDescription.
     index_description_.reset(new IndexSubBlockDescription());
     index_description_->set_sub_block_type(IndexSubBlockDescription::SMA);
@@ -306,7 +306,6 @@ class SMAIndexSubBlockTest : public ::testing::Test {
   ScopedBuffer index_memory_;
   std::unique_ptr<IndexSubBlockDescription> index_description_;
   std::unique_ptr<SMAIndexSubBlock> index_;
-
 };
 
 const char SMAIndexSubBlockTest::kCharAttrNullValue[] = "_NULLSTRING";
@@ -715,7 +714,6 @@ TEST_F(SMAIndexSubBlockTest, TestWithCompressedColumnStore) {
   EXPECT_TRUE(ComparisonFactory::GetComparison(ComparisonID::kEqual)
       .compareTypedValuesChecked(max_long_typedvalue, TypeFactory::GetType(kLong, false),
                                  entry0->max_entry.value, TypeFactory::GetType(kLong, false)));
-
 }
 
 TEST_F(SMAIndexSubBlockTest, TestExtractComparison) {
@@ -744,7 +742,8 @@ TEST_F(SMAIndexSubBlockTest, TestExtractComparison) {
   ScalarLiteral *scalar_literal
       = new ScalarLiteral(LongType::InstanceNonNullable().makeValue(&comparison_lit),
                           LongType::InstanceNonNullable());
-  predicate.reset(new ComparisonPredicate(ComparisonFactory::GetComparison(ComparisonID::kGreater), scalar_literal, scalar_attribute));
+  predicate.reset(new ComparisonPredicate(
+      ComparisonFactory::GetComparison(ComparisonID::kGreater), scalar_literal, scalar_attribute));
   smapredicate.reset(SMAPredicate::ExtractSMAPredicate(*predicate));
 
   EXPECT_EQ(indexed_attr, smapredicate->attribute);
@@ -755,7 +754,7 @@ TEST_F(SMAIndexSubBlockTest, TestExtractComparison) {
 TEST_F(SMAIndexSubBlockTest, TestGetSelectivity) {
   // Test to make sure that the selectivity functions behave correctly.
   // Test with an inline type.
-  long lsmallest = 0, lsmall = 100, lmedium = 1000, llarge = 10000, llargest = 100000;
+  int lsmallest = 0, lsmall = 100, lmedium = 1000, llarge = 10000, llargest = 100000;
   const TypedValue long_smallest = LongType::InstanceNonNullable().makeValue(&lsmallest);
   const TypedValue long_small = LongType::InstanceNonNullable().makeValue(&lsmall);
   const TypedValue long_medium = LongType::InstanceNonNullable().makeValue(&lmedium);
@@ -912,7 +911,6 @@ TEST_F(SMAIndexSubBlockTest, TestGetSelectivity) {
             sma_internal::getSelectivity(str_tvals[1], ComparisonID::kEqual,
                                          str_tvals[0], str_tvals[2],
                                          str_less.get(), str_equals.get()));
-
 }
 
 TEST_F(SMAIndexSubBlockTest, TestEvaluatePredicateCost) {

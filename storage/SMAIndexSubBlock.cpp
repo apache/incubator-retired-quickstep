@@ -135,7 +135,7 @@ inline Selectivity getSelectivity_G(const TypedValue &literal,
                                     const TypedValue &max,
                                     const UncheckedComparator *less_comparator,
                                     const UncheckedComparator *equals_comparator) {
-  if(less_comparator->compareTypedValues(literal, min)) {
+  if (less_comparator->compareTypedValues(literal, min)) {
     return Selectivity::kAll;
   } else if (less_comparator->compareTypedValues(max, literal) ||
              equals_comparator->compareTypedValues(max, literal)) {
@@ -167,7 +167,7 @@ Selectivity getSelectivity(const TypedValue &literal,
                            const TypedValue &max,
                            const UncheckedComparator *less_comparator,
                            const UncheckedComparator *equals_comparator) {
-  switch(comparison) {
+  switch (comparison) {
     case ComparisonID::kEqual:
       return getSelectivity_E(literal, min, max, less_comparator);
     case ComparisonID::kLess:
@@ -285,7 +285,7 @@ void setTypedValueForMinMax(SMAEntry *entry) {
   }
 }
 
-} // namespace sma_internal
+}  // namespace sma_internal
 
 
 SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
@@ -376,7 +376,6 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
     } else {
       // If the data held by min/max is out of line, we must retrieve it as we initialize.
       if (!TypedValue::RepresentedInline(entry->type)) {
-
         // First, set to 0 so that we don't try to free invalid memory on copy.
         // Next, copy from the tuple store. This will copy and give us ownership of out of line data.
         if (entry->min_entry.valid) {
@@ -406,10 +405,10 @@ SMAIndexSubBlock::~SMAIndexSubBlock() {
     if (add_operations_[i] != nullptr) {
       delete add_operations_[i];
     }
-    if(equal_comparisons_[i] != nullptr) {
+    if (equal_comparisons_[i] != nullptr) {
       delete equal_comparisons_[i];
     }
-    if(less_comparisons_[i] != nullptr) {
+    if (less_comparisons_[i] != nullptr) {
       delete less_comparisons_[i];
     }
   }
@@ -507,7 +506,7 @@ std::size_t SMAIndexSubBlock::EstimateBytesPerTuple(
 
 bool SMAIndexSubBlock::bulkAddEntries(const TupleIdSequence &tuples) {
   header_->consistent = false;
-  return true; // There will always be space for the entry.
+  return true;  // There will always be space for the entry.
 }
 
 void SMAIndexSubBlock::bulkRemoveEntries(const TupleIdSequence &tuples) {
@@ -516,7 +515,7 @@ void SMAIndexSubBlock::bulkRemoveEntries(const TupleIdSequence &tuples) {
 
 bool SMAIndexSubBlock::addEntry(const tuple_id tuple) {
   header_->consistent = false;
-  return true; // There will always be space to insert the entry.
+  return true;  // There will always be space to insert the entry.
 }
 
 void SMAIndexSubBlock::removeEntry(const tuple_id tuple) {
@@ -632,11 +631,11 @@ TupleIdSequence* SMAIndexSubBlock::getMatchesForPredicate(
     TupleIdSequence* tidseq = new TupleIdSequence(tuple_store_.numTuples());
 
     // Set all existing tuples to true, selected.
-    if(tuple_store_.isPacked()){
+    if (tuple_store_.isPacked()) {
       tidseq->setRange(0, tuple_store_.numTuples(), true);
     } else {
-      for(tuple_id tid = 0; tid <= tuple_store_.getMaxTupleID(); ++tid) {
-        if(tuple_store_.hasTupleWithID(tid)){
+      for (tuple_id tid = 0; tid <= tuple_store_.getMaxTupleID(); ++tid) {
+        if (tuple_store_.hasTupleWithID(tid)) {
           tidseq->set(tid, true);
         }
       }
