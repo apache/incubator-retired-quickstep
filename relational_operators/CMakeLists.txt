@@ -94,8 +94,8 @@ target_link_libraries(quickstep_relationaloperators_DeleteOperator
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
-                      quickstep_queryexecution_ForemanMessage
                       quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_WorkOrdersContainer
@@ -188,7 +188,7 @@ target_link_libraries(quickstep_relationaloperators_NestedLoopsJoinOperator
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_relationaloperators_RebuildWorkOrder
                       quickstep_catalog_CatalogTypedefs
-                      quickstep_queryexecution_ForemanMessage
+                      quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
                       quickstep_relationaloperators_WorkOrder
@@ -287,8 +287,8 @@ target_link_libraries(quickstep_relationaloperators_TextScanOperator
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
-                      quickstep_queryexecution_ForemanMessage
                       quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_WorkOrdersContainer
@@ -312,8 +312,8 @@ target_link_libraries(quickstep_relationaloperators_UpdateOperator
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
-                      quickstep_queryexecution_ForemanMessage
                       quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_WorkOrdersContainer
