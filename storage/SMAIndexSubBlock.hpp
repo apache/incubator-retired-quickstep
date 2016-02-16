@@ -177,6 +177,10 @@ class SMAIndexSubBlock : public IndexSubBlock {
 
   /**
    * @brief Frees data associated with variable length attributes.
+   * 
+   * Several of the data structure in this index are in heap, therefore it is
+   * important that the destructor be called when evicted. The variables which
+   * are held out of line are the variable length TypedValues and the comparators. 
    */
   ~SMAIndexSubBlock();
 
