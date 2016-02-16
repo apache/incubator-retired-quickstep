@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@
 
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
-#include "query_execution/ForemanMessage.hpp"
 #include "query_execution/QueryContext.hpp"
+#include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/TextScanOperator.pb.h"
@@ -46,6 +46,7 @@
 #include "utility/Glob.hpp"
 
 #include "tmb/message_bus.h"
+#include "tmb/tagged_message.h"
 
 #include "gflags/gflags.h"
 #include "glog/logging.h"
@@ -649,10 +650,18 @@ void TextSplitWorkOrder::sendBlobInfoToOperator(StorageManager *storage_manager,
   SendFeedbackMessage(bus_, ClientIDMap::Instance()->getValue(), foreman_client_id_, feedback_msg);
 
   // Notify Foreman for the avaiable work order on the blob.
-  ForemanMessage msg(
-      ForemanMessage::WorkOrdersAvailableMessage(operator_index_));
-  TaggedMessage foreman_tagged_msg;
-  foreman_tagged_msg.set_message(&msg, sizeof(msg), kWorkOrdersAvailableMessage);
+  serialization::WorkOrdersAvailableMessage message_proto;
+  message_proto.set_operator_index(operator_index_);
+
+  // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
+  const size_t message_proto_length = message_proto.ByteSize();
+  char *message_proto_bytes = static_cast<char*>(std::malloc(message_proto_length));
+  CHECK(message_proto.SerializeToArray(message_proto_bytes, message_proto_length));
+
+  tmb::TaggedMessage tagged_message(static_cast<const void *>(message_proto_bytes),
+                                    message_proto_length,
+                                    kWorkOrdersAvailableMessage);
+  std::free(message_proto_bytes);
 
   // Send new work order available message to Foreman.
   const tmb::MessageBus::SendStatus send_status =
@@ -660,7 +669,7 @@ void TextSplitWorkOrder::sendBlobInfoToOperator(StorageManager *storage_manager,
           bus_,
           ClientIDMap::Instance()->getValue(),
           foreman_client_id_,
-          std::move(foreman_tagged_msg));
+          std::move(tagged_message));
   CHECK(send_status != tmb::MessageBus::SendStatus::kOK) << "Message could not "
       "be sent from thread with TMB client ID "
       << ClientIDMap::Instance()->getValue() << " to Foreman with TMB client "

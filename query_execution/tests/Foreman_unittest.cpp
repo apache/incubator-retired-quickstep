@@ -16,7 +16,6 @@
  **/
 
 #include <climits>
-#include <cstddef>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -25,7 +24,6 @@
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/Foreman.hpp"
-#include "query_execution/ForemanMessage.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
@@ -278,30 +276,27 @@ class ForemanTest : public ::testing::Test {
 
   inline bool placeDataPipelineMessage(const QueryPlan::DAGNodeIndex source_operator_index) {
     VLOG(3) << "Place DataPipeline message for Op[" << source_operator_index << "]";
-    ForemanMessage foreman_message(ForemanMessage::DataPipelineMessage(source_operator_index, 0, 0));
-    foreman_->processMessage(foreman_message);
+    foreman_->processDataPipelineMessage(source_operator_index, 0 /* block_id */, 0 /* relation_id */);
     return foreman_->checkQueryExecutionFinished();
   }
 
   inline bool placeWorkOrderCompleteMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place WorkOrderComplete message for Op[" << index << "]";
-    ForemanMessage foreman_message(ForemanMessage::WorkOrderCompletionMessage(index, 0));
-    foreman_->processMessage(foreman_message);
+    foreman_->processWorkOrderCompleteMessage(index, 0 /* worker id */);
     return foreman_->checkQueryExecutionFinished();
   }
 
   inline bool placeRebuildWorkOrderCompleteMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place RebuildWorkOrderComplete message for Op[" << index << "]";
-    ForemanMessage foreman_message(ForemanMessage::RebuildCompletionMessage(index, 0));
-    foreman_->processMessage(foreman_message);
+    foreman_->processRebuildWorkOrderCompleteMessage(index, 0 /* worker id */);
     return foreman_->checkQueryExecutionFinished();
   }
 
   inline bool placeOutputBlockMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place OutputBlock message for Op[" << index << "]";
-    ForemanMessage foreman_message(
-    ForemanMessage::DataPipelineMessage(index, BlockIdUtil::GetBlockId(1 /* domain */, 1), 0));
-    foreman_->processMessage(foreman_message);
+    foreman_->processDataPipelineMessage(index,
+                                         BlockIdUtil::GetBlockId(1 /* domain */, 1),
+                                         0 /* relation_id */);
     return foreman_->checkQueryExecutionFinished();
   }
 
