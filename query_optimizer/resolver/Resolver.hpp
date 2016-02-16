@@ -57,7 +57,7 @@ class ParseTableReferenceSignature;
 class ParseTreeNode;
 template <class T>
 class PtrList;
-class TupleStorageSubBlockDescription;
+class StorageBlockLayoutDescription;
 class Type;
 
 }  // namespace quickstep
@@ -168,7 +168,7 @@ class Resolver {
    * @return A pointer to a user-owned Proto message describing the block. Note
    *         that this message may be invalid.
    */
-  TupleStorageSubBlockDescription* resolveBlockProperties(
+  StorageBlockLayoutDescription* resolveBlockProperties(
       const ParseStatementCreateTable &create_table_statement);
 
   /**

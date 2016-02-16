@@ -87,6 +87,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_logical_UpdateTable
                       quickstep_queryoptimizer_resolver_NameResolver
                       quickstep_storage_StorageBlockLayout_proto
+                      quickstep_storage_StorageConstants
                       quickstep_types_IntType
                       quickstep_types_Type
                       quickstep_types_TypeFactory

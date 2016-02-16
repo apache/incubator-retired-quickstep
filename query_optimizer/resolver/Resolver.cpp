@@ -81,6 +81,7 @@
 #include "query_optimizer/logical/UpdateTable.hpp"
 #include "query_optimizer/resolver/NameResolver.hpp"
 #include "storage/StorageBlockLayout.pb.h"
+#include "storage/StorageConstants.hpp"
 #include "types/IntType.hpp"
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
@@ -389,9 +390,132 @@ L::LogicalPtr Resolver::resolveCreateTable(
   return L::CreateTable::Create(relation_name, attributes);
 }
 
-TupleStorageSubBlockDescription* Resolver::resolveBlockProperties(
+StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
       const ParseStatementCreateTable &create_table_statement) {
-  return nullptr;
+
+  const PtrList<ParseKeyValue> *key_value_list = create_table_statement.opt_block_properties();
+
+  // If there are no block properties.
+  if (key_value_list == nullptr) {
+    return nullptr;
+  }
+
+  // Create a vector of KeyValues which we can modify as we resolve properties.
+  std::vector<const ParseKeyValue*> key_values_mutable;
+  for (const ParseKeyValue &key_value : *key_value_list) {
+    key_values_mutable.push_back(&key_value);
+  }
+
+  // Begin building a protobuf message which will describe the block based on
+  // user input.
+  std::unique_ptr<StorageBlockLayoutDescription> storage_block_description(new StorageBlockLayoutDescription());
+  TupleStorageSubBlockDescription *description = storage_block_description->mutable_tuple_store_description();
+
+  // Helper function.
+  // Searches for a KeyValue based on a key name. It pops the keyvalue off of
+  // the list and returns a pointer to it. Returns nullptr to indicate that
+  // the key was not found.
+  auto popKeyValue = [](
+      const std::string& key,
+      std::vector<const ParseKeyValue*> &key_value_list) -> const ParseKeyValue* {
+    std::string search = ToLower(key);
+    for (std::vector<const ParseKeyValue*>::iterator itr = key_value_list.begin();
+         itr != key_value_list.end();
+         ++itr) {
+      if (ToLower((*itr)->key()->value()).compare(search) == 0) {
+        const ParseKeyValue* match = *itr;
+        key_value_list.erase(itr);
+        return match;
+      }
+    }
+    return nullptr;
+  };
+
+  // Helper function.
+  // Throws an SQL error if the given key property exists in the list of 
+  // key-values. This is to be used after popping the first key.
+  auto throwSqlErrorIfKeyExists = [popKeyValue](
+      const std::string& key,
+      std::vector<const ParseKeyValue*> &key_value_list) -> void {
+    const ParseKeyValue *type_key_value = popKeyValue(key, key_value_list);
+    if (type_key_value != nullptr) {
+      THROW_SQL_ERROR_AT(type_key_value)
+          << key << " property must be specified only one time.";
+    }
+  };
+
+  // Resolve the TYPE property.
+  bool requires_sort = false;
+  bool is_compressed = false;
+  const ParseKeyValue *type_key_value = popKeyValue("type", key_values_mutable);
+  if (type_key_value == nullptr) {
+    THROW_SQL_ERROR_AT(&create_table_statement)
+        << "The BLOCK PROPERTIES clause did not specify a block type.";
+  }
+  
+  if (type_key_value->getKeyValueType() != ParseKeyValue::KeyValueType::kStringString) {
+    THROW_SQL_ERROR_AT(type_key_value)
+        << "The TYPE property must contain a string key.";
+  }
+
+  const ParseString *type_value = static_cast<const ParseKeyStringValue*>(type_key_value)->value();
+  const std::string &type_string = ToLower(type_value->value());
+
+  if(type_string.compare("rowstore") == 0) {
+    description->set_sub_block_type(quickstep::TupleStorageSubBlockDescription::PACKED_ROW_STORE);
+  } else if(type_string.compare("split_rowstore") == 0){
+    description->set_sub_block_type(quickstep::TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
+  } else if(type_string.compare("column_store") == 0){
+    description->set_sub_block_type(quickstep::TupleStorageSubBlockDescription::BASIC_COLUMN_STORE);
+    requires_sort = true;
+  } else if(type_string.compare("compressed_rowstore") == 0) {
+    description->set_sub_block_type( quickstep::TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE);
+    is_compressed = true;
+  } else if(type_string.compare("compressed_columnstore") == 0){
+    description->set_sub_block_type( quickstep::TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE);
+    requires_sort = true;
+    is_compressed = true;
+  } else {
+    THROW_SQL_ERROR_AT(type_value) << "Unrecognized storage type.";
+  }
+
+  // See if the user entered TYPE more than once.
+  throwSqlErrorIfKeyExists("TYPE", key_values_mutable);
+
+  // Resolve the BLOCKSIZE parameter, if it exists. Otherwise, set to default.
+  const ParseKeyValue *block_size_key_value = popKeyValue("blocksize", key_values_mutable);
+  if (block_size_key_value != nullptr) {
+    if (block_size_key_value->getKeyValueType() != ParseKeyValue::KeyValueType::kStringInteger) {
+      THROW_SQL_ERROR_AT(type_key_value)
+          << "The BLOCKSIZE property must contain an integer key.";
+    }
+    const ParseKeyIntegerValue *block_size_lit_key_value = static_cast<const ParseKeyIntegerValue*>(
+        block_size_key_value);
+    const NumericParseLiteralValue *block_size_literal = block_size_lit_key_value->value();
+    std::uint64_t size_mb = block_size_literal->long_value();
+    std::uint64_t size_slots = (size_mb * 1000000) / kSlotSizeBytes;
+    DLOG(INFO) << "Resolver using BLOCKSIZE of " << size_slots << " slots"
+        << " which is " << (size_slots * kSlotSizeBytes) << " bytes versus"
+        << " user requested " << (size_mb * 1000000) << " bytes.";
+
+    // TODO(marc) What is a sane number of slots?
+    if (size_slots < 1 || size_slots > 10) {
+      THROW_SQL_ERROR_AT(block_size_literal)
+        << "The BLOCKSIZE property must be between 1 and 10 slots.";
+    }
+
+    storage_block_description->set_num_slots(size_slots);
+
+    // See if the user entered BLOCKSIZE more than once.
+    throwSqlErrorIfKeyExists("BLOCKSIZE", key_values_mutable);
+  } else {
+    // Set default to be 1.
+    storage_block_description->set_num_slots(1);
+  }
+  
+  // Check for invalid key values.
+
+  return storage_block_description.release();
 }
 
 L::LogicalPtr Resolver::resolveDelete(
