@@ -141,7 +141,7 @@ typedef void* yyscan_t;
   quickstep::PtrList<quickstep::ParseKeyValue> *key_value_list_;
   quickstep::ParseKeyStringValue *key_string_value_;
   quickstep::ParseKeyStringList *key_string_list_;
-  quickstep::ParseKeyLiteralValue *key_literal_value_;
+  quickstep::ParseKeyIntegerValue *key_integer_value_;
 
   quickstep::ParseCopyFromParams *copy_from_params_;
 
@@ -368,8 +368,8 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %type <key_string_list_>
   key_string_list
 
-%type <key_literal_value_>
-  key_literal_value
+%type <key_integer_value_>
+  key_integer_value
 
 %type <assignment_>
   assignment_item
@@ -820,11 +820,11 @@ opt_column_list:
   };
 
 opt_block_properties:
-  TOKEN_WITH TOKEN_BLOCKPROPERTIES '(' key_value_list ')' {
-    $$ = $4;
-  }
-  | {
+  {
     $$ = nullptr;
+  }
+  | TOKEN_WITH TOKEN_BLOCKPROPERTIES '(' key_value_list ')' {
+    $$ = $4;
   }
 
 key_value_list:
@@ -844,7 +844,7 @@ key_value:
   | key_string_list {
     $$ = $1;
   }
-  | key_literal_value {
+  | key_integer_value {
     $$ = $1;
   };
 
@@ -858,9 +858,15 @@ key_string_list:
     $$ = new quickstep::ParseKeyStringList(@1.first_line, @1.first_column, $1, $3);
   };
 
-key_literal_value:
-  any_name literal_value {
-    $$ = new quickstep::ParseKeyLiteralValue(@1.first_line, @1.first_column, $1, $2);
+key_integer_value:
+  any_name TOKEN_UNSIGNED_NUMVAL {
+    if ($2->float_like()) {
+      delete $2;
+      $$ = nullptr;
+      quickstep_yyerror(&@2, yyscanner, nullptr, "Value must be an integer");
+      YYERROR;
+    }
+    $$ = new quickstep::ParseKeyIntegerValue(@1.first_line, @1.first_column, $1, $2);
   };
 
 index_type:
