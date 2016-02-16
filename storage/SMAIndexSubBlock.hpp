@@ -24,7 +24,6 @@
 #include <vector>
 
 #include "catalog/CatalogAttribute.hpp"
-#include "expressions/aggregation/AggregationHandleSum.hpp"
 #include "expressions/predicate/PredicateCost.hpp"
 #include "storage/IndexSubBlock.hpp"
 #include "storage/StorageConstants.hpp"
