@@ -74,16 +74,16 @@ enum class Selectivity {
  * @param literal The literal value to compare against.
  * @param min The minimum value associated with that attribute.
  * @param max The maximum value associated with that attribute.
- * @param equals_comparator The equals comparator for the attribute type.
- * @param less_comparator  The less comparator for the attribute type.
+ * @param less_comparator The less comparator for the attribute type.
+ * @param equals_comparator  The equals comparator for the attribute type.
  * @return Selectivity of this predicate.
  */
 Selectivity getSelectivity(const TypedValue &literal,
                            const ComparisonID comparison,
                            const TypedValue &min,
                            const TypedValue &max,
-                           const UncheckedComparator *equals_comparator,
-                           const UncheckedComparator *less_comparator);
+                           const UncheckedComparator *less_comparator,
+                           const UncheckedComparator *equals_comparator);
 
 /**
  * @brief A simple holding struct for a comparison predicate. Selectivity enum

@@ -754,7 +754,7 @@ TEST_F(SMAIndexSubBlockTest, TestExtractComparison) {
 TEST_F(SMAIndexSubBlockTest, TestGetSelectivity) {
   // Test to make sure that the selectivity functions behave correctly.
   // Test with an inline type.
-  int lsmallest = 0, lsmall = 100, lmedium = 1000, llarge = 10000, llargest = 100000;
+  std::uint64_t lsmallest = 0, lsmall = 100, lmedium = 1000, llarge = 10000, llargest = 100000;
   const TypedValue long_smallest = LongType::InstanceNonNullable().makeValue(&lsmallest);
   const TypedValue long_small = LongType::InstanceNonNullable().makeValue(&lsmall);
   const TypedValue long_medium = LongType::InstanceNonNullable().makeValue(&lmedium);
