@@ -104,7 +104,8 @@ class ParseStatementCreateTable : public ParseStatement {
                             PtrList<ParseKeyValue> *opt_block_properties)
       : ParseStatement(line_number, column_number),
         relation_name_(relation_name),
-        attribute_definition_list_(attribute_definition_list) {
+        attribute_definition_list_(attribute_definition_list),
+        opt_block_properties_(opt_block_properties) {
   }
 
   ~ParseStatementCreateTable() override {

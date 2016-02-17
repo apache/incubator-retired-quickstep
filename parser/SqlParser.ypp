@@ -240,6 +240,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_FROM;
 %token TOKEN_FULL;
 %token TOKEN_GROUP;
+%token TOKEN_GB;
 %token TOKEN_HAVING;
 %token TOKEN_INDEX;
 %token TOKEN_INNER;
@@ -253,6 +254,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_LEFT;
 %token TOKEN_LIMIT;
 %token TOKEN_LONG;
+%token TOKEN_MB;
 %token TOKEN_NOT;
 %token TOKEN_NULL;
 %token TOKEN_NULLS;
@@ -851,7 +853,12 @@ key_value:
 key_string_value:
   any_name any_name {
     $$ = new quickstep::ParseKeyStringValue(@1.first_line, @1.first_column, $1, $2);
-  };
+  }
+  | any_name TOKEN_ALL {
+    // This is a special case to handle the COMPRESS ALL option of the BLOCK PROPERTIES.
+    $$ = new quickstep::ParseKeyStringValue(@1.first_line, @1.first_column, $1, 
+        new quickstep::ParseString(@2.first_line, @2.first_column, "ALL"));
+  }
 
 key_string_list:
   any_name '(' name_commalist ')' {
@@ -888,7 +895,6 @@ opt_index_properties:
   | '(' key_value_list ')' {
     $$ = $2;
   };
-
 
 /* Update Database Contents */
 insert_statement:

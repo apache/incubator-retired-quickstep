@@ -153,6 +153,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 "foreign"          return TOKEN_FOREIGN;
 "from"             return TOKEN_FROM;
 "full"             return TOKEN_FULL;
+"gb"               return TOKEN_GB;
 "group"            return TOKEN_GROUP;
 "having"           return TOKEN_HAVING;
 "index"            return TOKEN_INDEX;
@@ -170,6 +171,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 "like"             return TOKEN_LIKE;
 "limit"            return TOKEN_LIMIT;
 "long"             return TOKEN_LONG;
+"mb"               return TOKEN_MB;
 "not"              return TOKEN_NOT;
 "null"             return TOKEN_NULL;
 "nulls"             return TOKEN_NULLS;

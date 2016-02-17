@@ -387,6 +387,12 @@ L::LogicalPtr Resolver::resolveCreateTable(
     attribute_name_set.insert(lower_attribute_name);
   }
 
+  if (resolveBlockProperties(create_table_statement) != nullptr) {
+    LOG(WARNING) << "Parsed BLOCKPROPERTY";
+  } else {
+    LOG(WARNING) << "Did not parse BLOCKPROPERTY";
+  }
+
   return L::CreateTable::Create(relation_name, attributes);
 }
 
@@ -436,12 +442,32 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
   // key-values. This is to be used after popping the first key.
   auto throwSqlErrorIfKeyExists = [popKeyValue](
       const std::string& key,
-      std::vector<const ParseKeyValue*> &key_value_list) -> void {
+      std::vector<const ParseKeyValue*> &key_value_list,
+      std::string message) -> void {
     const ParseKeyValue *type_key_value = popKeyValue(key, key_value_list);
     if (type_key_value != nullptr) {
       THROW_SQL_ERROR_AT(type_key_value)
-          << key << " property must be specified only one time.";
+          << key << " " << message;
     }
+  };
+
+  // Helper function.
+  // Returns the column id from the name of the given attribute. Returns -1 if
+  // the attribute is not found.
+  auto columnIdFromAttributeName = [&create_table_statement](
+      const std::string& attribute_name) -> int {
+    const std::string search_name = ToLower(attribute_name);
+    int i = 0;
+    for (const ParseAttributeDefinition &attribute_definition :
+     create_table_statement.attribute_definition_list()) {
+      const std::string lower_attribute_name =
+        ToLower(attribute_definition.name()->value());
+      if(lower_attribute_name.compare(search_name) == 0) {
+        return i;
+      }
+      i++;
+    }
+    return -1;
   };
 
   // Resolve the TYPE property.
@@ -461,17 +487,17 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
   const ParseString *type_value = static_cast<const ParseKeyStringValue*>(type_key_value)->value();
   const std::string &type_string = ToLower(type_value->value());
 
-  if(type_string.compare("rowstore") == 0) {
+  if (type_string.compare("rowstore") == 0) {
     description->set_sub_block_type(quickstep::TupleStorageSubBlockDescription::PACKED_ROW_STORE);
-  } else if(type_string.compare("split_rowstore") == 0){
+  } else if (type_string.compare("split_rowstore") == 0){
     description->set_sub_block_type(quickstep::TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
-  } else if(type_string.compare("column_store") == 0){
+  } else if (type_string.compare("columnstore") == 0){
     description->set_sub_block_type(quickstep::TupleStorageSubBlockDescription::BASIC_COLUMN_STORE);
     requires_sort = true;
-  } else if(type_string.compare("compressed_rowstore") == 0) {
+  } else if (type_string.compare("compressed_rowstore") == 0) {
     description->set_sub_block_type( quickstep::TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE);
     is_compressed = true;
-  } else if(type_string.compare("compressed_columnstore") == 0){
+  } else if (type_string.compare("compressed_columnstore") == 0){
     description->set_sub_block_type( quickstep::TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE);
     requires_sort = true;
     is_compressed = true;
@@ -480,7 +506,89 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
   }
 
   // See if the user entered TYPE more than once.
-  throwSqlErrorIfKeyExists("TYPE", key_values_mutable);
+  throwSqlErrorIfKeyExists("TYPE", key_values_mutable, "property should be set only once.");
+
+  // Resolve the SORT parameter, if required.
+  if (requires_sort) {
+    const ParseKeyValue *sort_key_value = popKeyValue("SORT", key_values_mutable);
+    if (sort_key_value == nullptr) {
+      THROW_SQL_ERROR_AT(type_key_value)
+          << "The SORT property is required for the specified block type.";
+    }
+
+    if (sort_key_value->getKeyValueType() != ParseKeyValue::KeyValueType::kStringString) {
+      THROW_SQL_ERROR_AT(sort_key_value)
+          << "The SORT property requires an attribute name as the value.";
+    }
+    const std::string &sort_attribute_string 
+        = static_cast<const ParseKeyStringValue*>(sort_key_value)->value()->value();
+
+    // Get the column ID of the sort attribute. Throw if not found, else set description.
+    int sort_attribute_id = columnIdFromAttributeName(sort_attribute_string);
+    if (sort_attribute_id == -1) {
+      THROW_SQL_ERROR_AT(sort_key_value)
+          << "The specified SORT attribute does not exist.";
+    } else {
+      if(description->sub_block_type() == TupleStorageSubBlockDescription::BASIC_COLUMN_STORE) {
+        description->SetExtension(BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id, sort_attribute_id);
+      } else if(description->sub_block_type() == TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE) {
+        description->SetExtension(CompressedColumnStoreTupleStorageSubBlockDescription::sort_attribute_id, sort_attribute_id);
+      }
+    }
+    throwSqlErrorIfKeyExists("SORT", key_values_mutable, "attribute should not be specified more than once.");
+  } else {
+    throwSqlErrorIfKeyExists("SORT", key_values_mutable, "attribute should not be specified for this block type.");
+  }
+
+  // Resolve the COMPRESS parameter.
+  if (is_compressed) {
+    const ParseKeyValue *compress_key_value = popKeyValue("COMPRESS", key_values_mutable);
+    if (compress_key_value == nullptr) {
+      THROW_SQL_ERROR_AT(type_key_value)
+          << "The COMPRESS property is required for the specified block type.";
+    }
+    // The valid types for this key-value are string-string and string-stringlist.
+    if (compress_key_value->getKeyValueType() == ParseKeyValue::KeyValueType::kStringString) {
+      const std::string &value_string = static_cast<const ParseKeyStringValue*>(compress_key_value)->value()->value();
+      if (value_string.compare("ALL") != 0) {
+        THROW_SQL_ERROR_AT(compress_key_value)
+            << "The COMPRESS property requires a list of attribute names or ALL as the value.";
+      }
+      // Add every column to the compressed columns.
+      for (int attribute_id = 0; 
+           attribute_id < create_table_statement.attribute_definition_list().size(); 
+           ++attribute_id) {
+        if (description->sub_block_type() == TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE) {
+          description->AddExtension(CompressedPackedRowStoreTupleStorageSubBlockDescription::compressed_attribute_id, attribute_id);
+        } else if (description->sub_block_type() == TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE) {
+          description->AddExtension(CompressedColumnStoreTupleStorageSubBlockDescription::compressed_attribute_id, attribute_id);
+        }
+      }
+    } else if(compress_key_value->getKeyValueType() == ParseKeyValue::KeyValueType::kStringStringList) {
+      // Search through the given attribute names and add each one's
+      // corresponding column_id to the description.
+      const PtrList<ParseString> *compressed_attributes_list
+          = static_cast<const ParseKeyStringList*>(compress_key_value)->value();
+      for (const ParseString &compressed_attribute_name : *compressed_attributes_list) {
+        int column_id = columnIdFromAttributeName(compressed_attribute_name.value());
+        if (column_id == -1) {
+          THROW_SQL_ERROR_AT(&compressed_attribute_name)
+              << "The given attribute was not found.";
+        }
+        if (description->sub_block_type() == TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE) {
+          description->AddExtension(CompressedPackedRowStoreTupleStorageSubBlockDescription::compressed_attribute_id, column_id);
+        } else if (description->sub_block_type() == TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE) {
+          description->AddExtension(CompressedColumnStoreTupleStorageSubBlockDescription::compressed_attribute_id, column_id);
+        }
+      }
+    } else {
+      THROW_SQL_ERROR_AT(compress_key_value)
+          << "The SORT property requires a list of attribute names or ALL as the value.";
+    }
+    throwSqlErrorIfKeyExists("COMPRESS", key_values_mutable, "attribute should not be specified more than once.");
+  } else {
+    throwSqlErrorIfKeyExists("COMPRESS", key_values_mutable, "attribute should not be specified for this block type.");
+  }
 
   // Resolve the BLOCKSIZE parameter, if it exists. Otherwise, set to default.
   const ParseKeyValue *block_size_key_value = popKeyValue("blocksize", key_values_mutable);
@@ -507,13 +615,17 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
     storage_block_description->set_num_slots(size_slots);
 
     // See if the user entered BLOCKSIZE more than once.
-    throwSqlErrorIfKeyExists("BLOCKSIZE", key_values_mutable);
+    throwSqlErrorIfKeyExists("BLOCKSIZE", key_values_mutable, "property must be specified only one time.");
   } else {
     // Set default to be 1.
     storage_block_description->set_num_slots(1);
   }
   
-  // Check for invalid key values.
+  // Check for invalid key values. At this point, every valid property
+  // has been parsed so there should be no more remaining in the list.
+  if (key_values_mutable.size() != 0) {
+    THROW_SQL_ERROR_AT(*key_values_mutable.begin()) << "Unrecognized BLOCKPROPERTY.";
+  }
 
   return storage_block_description.release();
 }
