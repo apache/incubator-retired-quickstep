@@ -93,10 +93,14 @@ void Worker::sendWorkOrderCompleteMessage(const tmb::client_id receiver,
                                               : kWorkOrderCompleteMessage);
   std::free(proto_bytes);
 
-  QueryExecutionUtil::SendTMBMessage(bus_,
-                                     worker_client_id_,
-                                     receiver,
-                                     std::move(message));
+  const tmb::MessageBus::SendStatus send_status =
+      QueryExecutionUtil::SendTMBMessage(bus_,
+                                         worker_client_id_,
+                                         receiver,
+                                         std::move(message));
+  CHECK(send_status == tmb::MessageBus::SendStatus::kOK) << "Message could not "
+      "be sent from worker with TMB client ID " << worker_client_id_ << " to "
+      "Foreman with TMB client ID " << receiver;
 }
 
 }  // namespace quickstep

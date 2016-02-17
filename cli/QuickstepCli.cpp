@@ -361,10 +361,13 @@ int main(int argc, char* argv[]) {
       sizeof(poison_message),
       quickstep::kPoisonMessage);
 
-  bus.Send(main_thread_client_id,
-           address,
-           style,
-           std::move(poison_tagged_message));
+  const tmb::MessageBus::SendStatus send_status =
+      bus.Send(main_thread_client_id,
+               address,
+               style,
+               std::move(poison_tagged_message));
+  CHECK(send_status == tmb::MessageBus::SendStatus::kOK) <<
+     "Broadcast message from Foreman to workers failed";
 
   for (Worker &worker : workers) {
     worker.join();

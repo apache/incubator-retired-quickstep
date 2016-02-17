@@ -398,10 +398,15 @@ void Foreman::sendWorkerMessage(const std::size_t worker_id,
   TaggedMessage worker_tagged_message;
   worker_tagged_message.set_message(&message, sizeof(message), type);
 
-  QueryExecutionUtil::SendTMBMessage(bus_,
-                                     foreman_client_id_,
-                                     workers_->getClientID(worker_id),
-                                     move(worker_tagged_message));
+  const tmb::MessageBus::SendStatus send_status =
+      QueryExecutionUtil::SendTMBMessage(bus_,
+                                         foreman_client_id_,
+                                         workers_->getClientID(worker_id),
+                                         move(worker_tagged_message));
+  CHECK(send_status == tmb::MessageBus::SendStatus::kOK) <<
+      "Message could not be sent from Foreman with TMB client ID "
+      << foreman_client_id_ << " to Foreman with TMB client ID "
+      << workers_->getClientID(worker_id);
 }
 
 bool Foreman::fetchNormalWorkOrders(const dag_node_index index) {

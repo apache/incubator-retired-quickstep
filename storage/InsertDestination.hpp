@@ -240,10 +240,15 @@ class InsertDestination : public InsertDestinationInterface {
     ClientIDMap *thread_id_map = ClientIDMap::Instance();
 
     DCHECK(bus_ != nullptr);
-    QueryExecutionUtil::SendTMBMessage(bus_,
-                                       thread_id_map->getValue(),
-                                       foreman_client_id_,
-                                       std::move(tagged_message));
+    const tmb::MessageBus::SendStatus send_status =
+        QueryExecutionUtil::SendTMBMessage(bus_,
+                                           thread_id_map->getValue(),
+                                           foreman_client_id_,
+                                           std::move(tagged_message));
+    CHECK(send_status == tmb::MessageBus::SendStatus::kOK) <<
+        "Message could not be sent from thread with TMB client ID "
+        << ClientIDMap::Instance()->getValue() << " to Foreman with TMB client"
+        " ID " << foreman_client_id_;
   }
 
   StorageManager *storage_manager_;

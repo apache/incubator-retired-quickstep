@@ -187,6 +187,7 @@ target_link_libraries(quickstep_relationaloperators_NestedLoopsJoinOperator
                       quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_relationaloperators_RebuildWorkOrder
+                      glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
@@ -194,7 +195,8 @@ target_link_libraries(quickstep_relationaloperators_RebuildWorkOrder
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_StorageBlock
                       quickstep_threading_ThreadIDBasedMap
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_RelationalOperator
                       glog
                       quickstep_catalog_CatalogTypedefs

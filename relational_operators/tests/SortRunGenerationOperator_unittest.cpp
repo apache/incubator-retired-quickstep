@@ -148,6 +148,7 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
     bus_.Initialize();
     thread_client_id_ = bus_.Connect();
     bus_.RegisterClientAsSender(thread_client_id_, kDataPipelineMessage);
+    bus_.RegisterClientAsReceiver(thread_client_id_, kDataPipelineMessage);
 
     thread_id_map_ = ClientIDMap::Instance();
     // Usually the worker thread makes the following call. In this test setup,

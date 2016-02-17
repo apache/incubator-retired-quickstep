@@ -32,9 +32,9 @@
 #include "threading/ThreadIDBasedMap.hpp"
 #include "utility/Macros.hpp"
 
-#include "glog/logging.h"
-
 #include "tmb/tagged_message.h"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 
@@ -98,10 +98,15 @@ class RebuildWorkOrder : public WorkOrder {
 
     // Refer to InsertDestination::sendBlockFilledMessage for the rationale
     // behind using the ClientIDMap map.
-    QueryExecutionUtil::SendTMBMessage(bus_,
-                                       ClientIDMap::Instance()->getValue(),
-                                       foreman_client_id_,
-                                       std::move(tagged_message));
+    const tmb::MessageBus::SendStatus send_status =
+        QueryExecutionUtil::SendTMBMessage(bus_,
+                                           ClientIDMap::Instance()->getValue(),
+                                           foreman_client_id_,
+                                           std::move(tagged_message));
+    CHECK(send_status == tmb::MessageBus::SendStatus::kOK) << "Message could "
+        " not be sent from thread with TMB client ID " <<
+        ClientIDMap::Instance()->getValue() << " to Foreman with TMB client ID "
+        << foreman_client_id_;
   }
 
  private:
