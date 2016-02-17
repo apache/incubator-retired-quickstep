@@ -667,11 +667,13 @@ target_link_libraries(quickstep_storage_SMAIndexSubBlock
                       glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
+                      quickstep_compression_CompressionDictionary
                       quickstep_expressions_predicate_ComparisonPredicate
                       quickstep_expressions_predicate_Predicate
                       quickstep_expressions_predicate_PredicateCost
                       quickstep_expressions_scalar_Scalar
                       quickstep_expressions_scalar_ScalarAttribute
+                      quickstep_storage_CompressedTupleStorageSubBlock
                       quickstep_storage_IndexSubBlock
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_storage_StorageConstants
