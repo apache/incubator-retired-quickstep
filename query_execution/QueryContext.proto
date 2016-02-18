@@ -18,6 +18,7 @@ syntax = "proto2";
 package quickstep.serialization;
 
 import "expressions/Expressions.proto";
+import "expressions/table_generator/GeneratorFunction.proto";
 import "storage/AggregationOperationState.proto";
 import "storage/HashTable.proto";
 import "storage/InsertDestination.proto";
@@ -47,7 +48,8 @@ message QueryContext {
   repeated ScalarGroup scalar_groups = 5;
   repeated SortConfiguration sort_configs = 6;
   repeated Tuple tuples = 7;
+  repeated GeneratorFunctionHandle generator_functions = 8;
 
   // NOTE(zuyu): For UpdateWorkOrder only.
-  repeated UpdateGroup update_groups = 8;
+  repeated UpdateGroup update_groups = 9;
 }

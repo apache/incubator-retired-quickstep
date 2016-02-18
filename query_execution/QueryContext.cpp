@@ -1,3 +1,4 @@
+
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
@@ -26,6 +27,8 @@
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/ExpressionFactories.hpp"
+#include "expressions/table_generator/GeneratorFunctionFactory.hpp"
+#include "expressions/table_generator/GeneratorFunctionHandle.hpp"
 #include "query_execution/QueryContext.pb.h"
 #include "storage/AggregationOperationState.hpp"
 #include "storage/HashTable.hpp"
@@ -116,6 +119,11 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
 
     update_groups_.push_back(move(update_group));
   }
+ 
+  for (int i = 0; i < proto.generator_functions_size(); i++) {
+    generator_function_groups_.emplace_back(
+        GeneratorFunctionFactory::ReconstructFromProto(proto.generator_functions(i)));
+  }
 }
 
 bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
@@ -185,6 +193,15 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
 
       if (!rel->hasAttributeWithId(update_assignment_proto.attribute_id()) ||
           !ScalarFactory::ProtoIsValid(update_assignment_proto.scalar(), database)) {
+        return false;
+      }
+    }
+  }
+ 
+  for (int i = 0; i < proto.generator_functions_size(); i++) {
+    const serialization::GeneratorFunctionHandle &func_proto = proto.generator_functions(i);
+    for (int j = 0; j < func_proto.args_size(); j++) {
+      if (!TypedValue::ProtoIsValid(func_proto.args(j))) {
         return false;
       }
     }
