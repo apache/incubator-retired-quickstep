@@ -1231,7 +1231,7 @@ void ExecutionGenerator::convertTableGenerator(
                                  &output_relation,
                                  insert_destination_proto);
 
-  // Create GeneratorFunction proto
+  // Create GeneratorFunctionHandle proto
   const QueryContext::generator_function_id generator_function_index =
       query_context_proto_->generator_functions_size();
   query_context_proto_->add_generator_functions()->CopyFrom(

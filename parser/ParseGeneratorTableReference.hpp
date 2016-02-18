@@ -46,7 +46,7 @@ class ParseGeneratorTableReference : public ParseTableReference {
    *
    * @param line_number The line number of the first token of the table reference.
    * @param column_number The column number of the first token of the table reference.
-   * @param generator_function_ The generator function.
+   * @param generator_function_ The parsed generator function.
    */
   ParseGeneratorTableReference(const int line_number,
                                const int column_number,
@@ -67,7 +67,7 @@ class ParseGeneratorTableReference : public ParseTableReference {
   std::string getName() const override { return "GeneratorTable"; }
 
   /**
-   * @return The generator FunctionCall.
+   * @return The parsed generator function.
    */
   const ParseFunctionCall* generator_function() const { return generator_function_.get(); }
 

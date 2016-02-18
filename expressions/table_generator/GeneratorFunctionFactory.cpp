@@ -28,7 +28,7 @@
 namespace quickstep {
 
 const GeneratorFunction* GeneratorFunctionFactory::GetByName(const std::string &name) {
-  if (name == "generate_series") {
+  if (name == GenerateSeries::Instance().getName()) {
     return &GenerateSeries::Instance();
   } else {
     return nullptr;
@@ -47,7 +47,7 @@ GeneratorFunctionHandlePtr GeneratorFunctionFactory::ReconstructFromProto(
     args.emplace_back(std::move(TypedValue::ReconstructFromProto(arg_proto)));
   }
  
-  return func_template->concretize(args);
+  return func_template->createHandle(args);
 }
  
 }  // namespace quickstep

@@ -45,7 +45,8 @@ class TableGenerator;
 typedef std::shared_ptr<const TableGenerator> TableGeneratorPtr;
 
 /**
- * @brief 
+ * @brief Leaf physical node that represents a table that will be populated
+ *        by a generator function.
  */
 class TableGenerator : public Physical {
  public:
@@ -70,10 +71,16 @@ class TableGenerator : public Physical {
     return false;
   }
  
+  /**
+   * @return The reference to the generator function handle.
+   */
   const GeneratorFunctionHandlePtr &generator_function_handle() const {
     return generator_function_handle_;
   }
 
+  /**
+   * @return The alias name of this table.
+   */
   const std::string &table_alias() const {
     return table_alias_;
   }

@@ -304,7 +304,9 @@ class ExecutionGenerator {
   void convertSort(const physical::SortPtr &physical_plan);
 
   /**
-   * @brief TODO
+   * @brief Converts a physical TableGenerator to a TableGeneratorOperator.
+   *
+   * @param physical_plan The TableGenerator to be converted.
    */
   void convertTableGenerator(const physical::TableGeneratorPtr &physical_plan);
 

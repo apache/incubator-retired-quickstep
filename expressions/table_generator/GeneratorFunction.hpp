@@ -28,6 +28,9 @@ namespace quickstep {
  *  @{
  */
 
+/**
+ * @brief Exception thrown for invalid arguments to a generator function.
+ **/
 class GeneratorFunctionInvalidArguments : public std::exception {
  public:
   /**
@@ -51,20 +54,46 @@ class GeneratorFunctionInvalidArguments : public std::exception {
 };
 
 /**
- * @brief Abstract representation of a generator function.
+ * @brief A class representing a particular generator function in the abstract
+ *        sense.
+ *
+ * Generator functions are used for generating tables. A generator function
+ * takes a list of constant arguments at compile time, and populates the given
+ * ColumnVectorValueAccesor at run time.
+ *
+ * The GeneratorFunction class provides informational methods about the
+ * applicability of a particular generator function to particular (constant)
+ * arguments. The actual implementation of the generator functions' logic is in
+ * the GeneratorFunctionHandle class hierarchy, and can be different depending
+ * on the particular arguments given to the function. At query compile-time,
+ * a caller should first call GeneratorFunction::generateHandle() to instantiate
+ * an GeneratorFunctionHandle object. The handle object provides information
+ * about the concrete function, e.g. the number and types of the output columns
+ * Then, at query execution-time, the backend also uses the handle object's
+ * methods to actually populate a table.
+ * 
  **/
 class GeneratorFunction {
  public:
-   
   /**
-   * @brief Concretize a GeneratorFunction with its constant arguments
+   * @brief Get the name of this generator function. The name should be unique
+   * as it is used to register this function into the generator function pool.
    *
-   * @param argument A list of zero or more TypedValue (in order) as
-   *        arguments to this function.
-   * @return The concretized GeneratorFunction, or NULL if the function cannot
-   *         be concretized with the given arguments.
+   * @return The name of this generator function.
    **/
-  virtual GeneratorFunctionHandlePtr concretize(
+  virtual std::string getName() const = 0;
+ 
+  /**
+   * @brief Create an GeneratorFunctionHandle.
+   *
+   * @param arguments A list of zero or more constant arguments to this
+   *        generator funciton.
+   * @exception GeneratorFunctionInvalidArguments The arguments to this
+                generator function are invalid.
+   * @return Shared smart pointer of a new GeneratorFunctionHandle object that
+   *         can be used to do the actual table generation.
+   **/
+  virtual GeneratorFunctionHandlePtr createHandle(
       const std::vector<const TypedValue> &arguments) const = 0;
 
  protected:

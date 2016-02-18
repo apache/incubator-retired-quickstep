@@ -35,24 +35,34 @@ namespace quickstep {
  *  @{
  */
 
+/**
+ * @brief Handle for the GenerateSeries function.
+ */
 class GenerateSeriesHandle : public GeneratorFunctionHandle {
  public:
-  GenerateSeriesHandle(const std::vector<const TypedValue> &orig_args,
-                       const Type &type,
+  /**
+   * @brief Constructor
+   *
+   * @param func_name The registered name of the GenerateSeries function.
+   * @param orig_args The original constant arguments to this function
+   * @param type The unified type for the arguments.
+   * @param start The start value. Its type should equal unified_type.
+   * @param end The end value. Its type should equal unified_type.
+   * @param step The step size. Its type should equal unified_type.
+   */
+  GenerateSeriesHandle(const std::string &func_name,
+                       const std::vector<const TypedValue> &orig_args,
+                       const Type &unified_type,
                        const TypedValue &start,
                        const TypedValue &end,
                        const TypedValue &step)
-      : GeneratorFunctionHandle(orig_args),
-        type_(type),
+      : GeneratorFunctionHandle(func_name, orig_args),
+        type_(unified_type),
         start_(start),
         end_(end),
         step_(step) {
   }
- 
-  std::string getName() const override {
-    return "generate_series";
-  }
- 
+
   int getNumberOfOutputColumns() const override {
     return 1;
   }
@@ -61,6 +71,7 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
     if (index > 0) {
       LOG(FATAL) << "generate_series function has only 1 output column";
     }
+    // Use the function name as the column name.
     return getName();
   }
  
@@ -74,6 +85,7 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
   void populateColumns(ColumnVectorsValueAccessor *results) const override {
     DCHECK(results != nullptr);
 
+    // Populate the output column.
     ColumnVector *result_vec;
     switch (type_.getTypeID()) {
       case TypeID::kInt: {
@@ -107,7 +119,7 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
 
     DCHECK(start <= end);
     DCHECK(step > 0);
-   
+
     std::size_t length = static_cast<std::size_t>((end - start) / step) + 1;
     NativeColumnVector *result_vec = new NativeColumnVector(type_, length);
     T value = start;

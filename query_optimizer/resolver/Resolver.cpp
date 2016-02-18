@@ -1122,14 +1122,17 @@ L::LogicalPtr Resolver::resolveGeneratorTableReference(
     const ParseGeneratorTableReference &table_reference,
     const ParseString *reference_alias) {
   const ParseString *func_name = table_reference.generator_function()->name();
+
+  // Resolve the generator function
   const quickstep::GeneratorFunction *func_template =
       GeneratorFunctionFactory::GetByName(func_name->value());
-
   if (func_template == nullptr) {
       THROW_SQL_ERROR_AT(func_name)
         << "Generator function " << func_name->value() << " not found";
   }
 
+  // Check that all arguments are constant literals, also convert them into a
+  // list of TypedValue's.
   const PtrList<ParseExpression> *func_args = table_reference.generator_function()->arguments();
   std::vector<const TypedValue> concretized_args;
   if (func_args != nullptr) {
@@ -1145,9 +1148,10 @@ L::LogicalPtr Resolver::resolveGeneratorTableReference(
     }
   }
 
+  // Concretize the generator function with the arguments.
   quickstep::GeneratorFunctionHandlePtr func_handle;
   try {
-    func_handle = func_template->concretize(concretized_args);
+    func_handle = func_template->createHandle(concretized_args);
   } catch (const std::exception &e) {
     THROW_SQL_ERROR_AT(table_reference.generator_function()) << e.what();
   }

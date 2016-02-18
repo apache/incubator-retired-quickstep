@@ -36,18 +36,30 @@ namespace quickstep {
  */
 
 /**
- * @brief GenerateSeries
+ * @brief GeneratorFunction that generates a series of values, from a start
+ *        value to a stop value with a step size.
  */
 class GenerateSeries : public GeneratorFunction {
  public:
+  /**
+   * @brief Singleton instance of the GenerateSeries class.
+   * @return a const reference to the singleton instance of the GenerateSeries
+   *         class.
+   */
   static const GenerateSeries& Instance() {
     static GenerateSeries instance;
     return instance;
   }
 
-  GeneratorFunctionHandlePtr concretize(
+  std::string getName() const override {
+    return "generate_series";
+  }
+
+  GeneratorFunctionHandlePtr createHandle(
       const std::vector<const TypedValue> &arguments) const override {
     int arg_size = arguments.size();
+   
+    // Arguments should have the pattern (start, end) or (start, end, step).
     if (arg_size != 2 && arg_size != 3) {
       throw GeneratorFunctionInvalidArguments("Invalid number of arguments");
     }
@@ -57,12 +69,14 @@ class GenerateSeries : public GeneratorFunction {
       arg_types.emplace_back(&TypeFactory::GetType(arg.getTypeID()));
     }
   
+    // Get the unified type of all arguments.
     const Type *unified_type = arg_types[0];
     for (int i = 1; i < arg_size && unified_type != nullptr; i++) {
       unified_type =
           TypeFactory::GetUnifyingType(*arg_types[i],
                                        *unified_type);
     }
+    // Check if the unified type if applicable, then create the handle.
     if (unified_type != nullptr) {
       TypeID tid = unified_type->getTypeID();
       if (tid == TypeID::kInt
@@ -81,25 +95,21 @@ class GenerateSeries : public GeneratorFunction {
   }
 
  private:
-   /**
-   * @brief Concretize the GenerateSeries function with all arguments coerced
-   *        to the specified type
-   *
-   * @param arguments A list of two or three TypedValue arguments to this
-   *        function.
-   * @return The concretized GeneratorFunction with the coerced arguments.
-   */
   GeneratorFunctionHandlePtr concretizeWithType(
       const std::vector<const Type*> &arg_types,
       const std::vector<const TypedValue> &args,
       const Type &type) const {
+    DCHECK(args.size() == 2 || args.size() == 3);
+
+    // Coerce all arguments to the unified type.
     TypedValue start = type.coerceValue(args[0], *arg_types[0]);
     TypedValue end = type.coerceValue(args[1], *arg_types[1]);
-    // TODO: swap start end
     TypedValue step =
         args.size() > 2 ? type.coerceValue(args[2], *arg_types[2])
                         : type.coerceValue(TypedValue(1), TypeFactory::GetType(TypeID::kInt));
-   
+
+    // If start > end, swap them and flip the sign of step. Then verify that
+    // step is positive.
     const GreaterComparison &gt_comparator = GreaterComparison::Instance();
     if (gt_comparator.compareTypedValuesChecked(start, type, end, type)) {
       std::swap(start, end);
@@ -113,7 +123,7 @@ class GenerateSeries : public GeneratorFunction {
     }
 
     return GeneratorFunctionHandlePtr(
-        new GenerateSeriesHandle(args, type, start, end, step));
+        new GenerateSeriesHandle(getName(), args, type, start, end, step));
   }
 
   DISALLOW_COPY_AND_ASSIGN(GenerateSeries);

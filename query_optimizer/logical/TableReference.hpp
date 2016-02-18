@@ -74,6 +74,9 @@ class TableReference : public Logical {
     return attribute_list_;
   }
 
+  /**
+   * @return The reference to the output attributes of this table.
+   */
   LogicalPtr copyWithNewChildren(
       const std::vector<LogicalPtr> &new_children) const override;
 
@@ -86,13 +89,13 @@ class TableReference : public Logical {
   }
 
   /**
-   * @brief Generates a AttributeRerference for each CatalogAttribute in the \p
-   *        catalog_relation and creates a TableReference on it.
+   * @brief Creates a physical TableGenerator node.
    *
-   * @param catalog_relation The catalog relation to be scanned.
-   * @param relation_alias The relation alias. This is stored here for the printing purpose only.
-   * @param optimizer_context The OptimizerContext for the query.
-   * @return An immutable TableReference.
+   * @param generator_function_handle The shared_ptr reference to a generator
+            function handle.
+   * @param table_alias The alias name of this table.
+   * @param optimizer_context The OptimizerContext for the query
+   * @return An immutable TableGenerator.
    */
   static TableReferencePtr Create(const CatalogRelation *catalog_relation,
                                   const std::string &relation_alias,

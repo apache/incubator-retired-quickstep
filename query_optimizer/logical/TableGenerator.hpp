@@ -47,7 +47,8 @@ class TableGenerator;
 typedef std::shared_ptr<const TableGenerator> TableGeneratorPtr;
 
 /**
- * @brief 
+ * @brief Leaf logical node that represents a table that will be populated
+ *        by a generator function.
  */
 class TableGenerator : public Logical {
  public:
@@ -63,14 +64,23 @@ class TableGenerator : public Logical {
                            attribute_list_));
   }
 
+  /**
+   * @return The reference to the generator function handle.
+   */
   const GeneratorFunctionHandlePtr &generator_function_handle() const {
     return generator_function_handle_;
   }
 
+  /**
+   * @return The alias name of this table.
+   */
   const std::string &table_alias() const {
     return table_alias_;
   }
  
+  /**
+   * @return The reference to the output attributes of this table.
+   */
   const std::vector<expressions::AttributeReferencePtr> &attribute_list() const {
     return attribute_list_;
   }
@@ -104,9 +114,12 @@ class TableGenerator : public Logical {
   }
 
   /**
-   * @brief Creates a table generator that generates a table.
+   * @brief Creates a logical TableGenerator node.
    *
-   * @param A generator function handle.
+   * @param generator_function_handle The shared_ptr reference to a generator
+            function handle.
+   * @param table_alias The alias name of this table.
+   * @param optimizer_context The OptimizerContext for the query
    * @return An immutable TableGenerator.
    */
   static TableGeneratorPtr Create(

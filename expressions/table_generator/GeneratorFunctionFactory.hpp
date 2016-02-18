@@ -38,12 +38,18 @@ class GeneratorFunctionFactory {
   /**
    * @brief Get a particular GeneratorFunction by its name.
    *
-   * @param name The name of the desired GeneratorFunction in lower case.
+   * @param name The name of the desired GeneratorFunction.
    * @return A pointer to the GeneratorFunction specified by name, or NULL if
    *         name does not match any known GeneratorFunction.
    **/
   static const GeneratorFunction *GetByName(const std::string &name);
  
+  /**
+   * @brief Reconstruct a particular GeneratorFunctionHandle by its proto.
+   *
+   * @param proto A serialized protocol buffer representation of the
+   *        GeneratorFunctionHandle.
+   */
   static GeneratorFunctionHandlePtr ReconstructFromProto(
       const serialization::GeneratorFunctionHandle &proto);
 
