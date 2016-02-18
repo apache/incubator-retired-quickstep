@@ -33,7 +33,7 @@ class Predicate;
 
 bool TableGeneratorOperator::getAllWorkOrders(WorkOrdersContainer *container) {
   if (!started_) {
-    // Currently the generator function is not abstracted to be parallelizable
+    // Currently the generator function is not abstracted to be parallelizable,
     // so just produce one work order.
     container->addNormalWorkOrder(
         new TableGeneratorWorkOrder(output_destination_index_,

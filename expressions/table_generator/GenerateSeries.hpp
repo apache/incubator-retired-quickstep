@@ -56,18 +56,22 @@ class GenerateSeries : public GeneratorFunction {
 
   GeneratorFunctionHandlePtr createHandle(
       const std::vector<const TypedValue> &arguments) const override {
-    int arg_size = arguments.size();
-   
+    // Checks arguments and create the function handle for generate_series.
+
     // Arguments should have the pattern (start, end) or (start, end, step).
+    int arg_size = arguments.size();
     if (arg_size != 2 && arg_size != 3) {
       throw GeneratorFunctionInvalidArguments("Invalid number of arguments");
     }
-   
+
     std::vector<const Type*> arg_types;
     for (const TypedValue &arg : arguments) {
+      if (TypeFactory::TypeRequiresLengthParameter(arg.getTypeID())) {
+        throw GeneratorFunctionInvalidArguments("Invalid argument types");
+      }
       arg_types.emplace_back(&TypeFactory::GetType(arg.getTypeID()));
     }
-  
+
     // Get the unified type of all arguments.
     const Type *unified_type = arg_types[0];
     for (int i = 1; i < arg_size && unified_type != nullptr; i++) {
@@ -75,6 +79,7 @@ class GenerateSeries : public GeneratorFunction {
           TypeFactory::GetUnifyingType(*arg_types[i],
                                        *unified_type);
     }
+
     // Check if the unified type if applicable, then create the handle.
     if (unified_type != nullptr) {
       TypeID tid = unified_type->getTypeID();

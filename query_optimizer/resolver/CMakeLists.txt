@@ -86,8 +86,8 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_logical_Project
                       quickstep_queryoptimizer_logical_SharedSubplanReference
                       quickstep_queryoptimizer_logical_Sort
-                      quickstep_queryoptimizer_logical_TableReference
                       quickstep_queryoptimizer_logical_TableGenerator
+                      quickstep_queryoptimizer_logical_TableReference
                       quickstep_queryoptimizer_logical_TopLevelPlan
                       quickstep_queryoptimizer_logical_UpdateTable
                       quickstep_queryoptimizer_resolver_NameResolver

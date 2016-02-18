@@ -264,8 +264,7 @@ class Resolver {
    * @return A logical plan for the table reference.
    */
   logical::LogicalPtr resolveSimpleTableReference(
-      const ParseString &table_name,
-      const ParseString *reference_alias);
+      const ParseString &table_name, const ParseString *reference_alias);
 
   /**
    * @brief Resolves a generator table reference and links the corresponding

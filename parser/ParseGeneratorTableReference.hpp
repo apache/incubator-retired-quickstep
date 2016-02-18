@@ -41,8 +41,7 @@ class ParseTreeNode;
 class ParseGeneratorTableReference : public ParseTableReference {
  public:
   /**
-   * @brief Constructor. Takes ownership of \p generator_function_name and
-   *                     generator_function_params.
+   * @brief Constructor. Takes ownership of \p generator_function.
    *
    * @param line_number The line number of the first token of the table reference.
    * @param column_number The column number of the first token of the table reference.

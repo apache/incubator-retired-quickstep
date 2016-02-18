@@ -43,8 +43,8 @@ enum class LogicalType {
   kProject,
   kSharedSubplanReference,
   kSort,
-  kTableReference,
   kTableGenerator,
+  kTableReference,
   kTopLevelPlan,
   kUpdateTable
 };

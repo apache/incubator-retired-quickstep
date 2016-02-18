@@ -105,7 +105,7 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
         break;
       }
       default:
-        LOG(FATAL) << "GenerateSeries cannot handle arguments with type"
+        LOG(FATAL) << "GenerateSeries cannot handle arguments with type "
                    << type_.getName();
     }
     results->addColumn(result_vec);
@@ -143,4 +143,4 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
 
 }  // namespace quickstep
 
-#endif /* QUICKSTEP_QUERY_OPTIMIZER_EXPRESSIONS_GENERATOR_FUNCTION_HPP_ */
+#endif /* QUICKSTEP_EXPRESSIONS_TABLE_GENERATOR_GENERATE_SERIES_HANDLE_HPP_ */

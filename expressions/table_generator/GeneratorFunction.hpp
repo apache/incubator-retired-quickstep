@@ -58,23 +58,23 @@ class GeneratorFunctionInvalidArguments : public std::exception {
  *        sense.
  *
  * Generator functions are used for generating tables. A generator function
- * takes a list of constant arguments at compile time, and populates the given
- * ColumnVectorValueAccesor at run time.
+ * takes a list of constant arguments at query compile time, and populates the
+ * given ColumnVectorValueAccesor at query run time.
  *
  * The GeneratorFunction class provides informational methods about the
- * applicability of a particular generator function to particular (constant)
+ * applicability of a particular generator function to particular constant
  * arguments. The actual implementation of the generator functions' logic is in
  * the GeneratorFunctionHandle class hierarchy, and can be different depending
- * on the particular arguments given to the function. At query compile-time,
+ * on the particular arguments given to the function. At query compile time,
  * a caller should first call GeneratorFunction::generateHandle() to instantiate
  * an GeneratorFunctionHandle object. The handle object provides information
  * about the concrete function, e.g. the number and types of the output columns
- * Then, at query execution-time, the backend also uses the handle object's
- * methods to actually populate a table.
+ * Then, at query run time, the backend also uses the handle object's methods
+ * to actually generate a table.
  *
  * To add a new generator function, subclass both GeneratorFunction and
  * GeneratorFunctionHandle to implement the logics. Also modify
- * GeneratorFunctionFactory::GetByName() to register the function.
+ * GeneratorFunctionFactory::GetByName() to make the new function registered.
  * 
  **/
 class GeneratorFunction {
@@ -94,8 +94,8 @@ class GeneratorFunction {
    *        generator funciton.
    * @exception GeneratorFunctionInvalidArguments The arguments to this
                 generator function are invalid.
-   * @return Shared smart pointer of a new GeneratorFunctionHandle object that
-   *         can be used to do the actual table generation.
+   * @return Reference to a GeneratorFunctionHandle object that is used to do
+   *         the actual table generation.
    **/
   virtual GeneratorFunctionHandlePtr createHandle(
       const std::vector<const TypedValue> &arguments) const = 0;
