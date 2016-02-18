@@ -27,6 +27,7 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/predicate/Predicate.hpp"
 #include "expressions/scalar/Scalar.hpp"
+#include "expressions/table_generator/GeneratorFunctionHandle.hpp"
 #include "storage/AggregationOperationState.hpp"
 #include "storage/HashTable.hpp"
 #include "storage/InsertDestination.hpp"
@@ -102,6 +103,11 @@ class QueryContext {
    * @brief A unique identifier for a group of UpdateAssignments per query.
    **/
   typedef std::uint32_t update_group_id;
+
+  /**
+   * @brief A unique identifier for a group of GeneratorFunctionHandles per query.
+   **/
+  typedef std::uint32_t generator_function_id;
 
   /**
    * @brief Constructor.
@@ -277,6 +283,11 @@ class QueryContext {
     return update_groups_[id];
   }
 
+  inline const GeneratorFunctionHandlePtr& getGeneratorFunctionHandle(
+      const generator_function_id id) {
+    return generator_function_groups_[id];
+  }
+
  private:
   std::vector<std::unique_ptr<AggregationOperationState>> aggregation_states_;
   std::vector<std::unique_ptr<InsertDestination>> insert_destinations_;
@@ -286,6 +297,7 @@ class QueryContext {
   std::vector<std::unique_ptr<const SortConfiguration>> sort_configs_;
   std::vector<std::unique_ptr<Tuple>> tuples_;
   std::vector<std::unordered_map<attribute_id, std::unique_ptr<const Scalar>>> update_groups_;
+  std::vector<GeneratorFunctionHandlePtr> generator_function_groups_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryContext);
 };

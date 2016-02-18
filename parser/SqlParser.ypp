@@ -68,6 +68,7 @@ typedef struct YYLTYPE {
 #include "parser/ParseAttributeDefinition.hpp"
 #include "parser/ParseBasicExpressions.hpp"
 #include "parser/ParseExpression.hpp"
+#include "parser/ParseGeneratorTableReference.hpp"
 #include "parser/ParseGroupBy.hpp"
 #include "parser/ParseHaving.hpp"
 #include "parser/ParseKeyValue.hpp"
@@ -1110,9 +1111,17 @@ table_reference:
     $$ = new quickstep::ParseSimpleTableReference(@1.first_line, @1.first_column, $1);
     $$->set_table_reference_signature($2);
   }
+  | function_call table_reference_signature {
+    $$ = new quickstep::ParseGeneratorTableReference(@1.first_line, @1.first_column, $1);
+    $$->set_table_reference_signature($2);
+  }
+  | function_call {
+    $$ = new quickstep::ParseGeneratorTableReference(@1.first_line, @1.first_column, $1);
+  }
   | any_name {
     $$ = new quickstep::ParseSimpleTableReference(@1.first_line, @1.first_column, $1);
-  };
+  }
+  ;
 
 table_reference_signature:
   table_reference_signature_primary {

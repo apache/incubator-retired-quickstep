@@ -113,8 +113,8 @@ class TableReference : public Logical {
 
  private:
   TableReference(const CatalogRelation *catalog_relation,
-            const std::string &relation_alias,
-            OptimizerContext *optimizer_context);
+                 const std::string &relation_alias,
+                 OptimizerContext *optimizer_context);
 
   // Constructor where the attribute list is explicitly given.
   TableReference(

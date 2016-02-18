@@ -85,7 +85,7 @@ P::PhysicalPtr PhysicalGenerator::optimizePlan() {
              << physical_plan_->toString();
   }
 
-  DVLOG(4) << "Optimized physical plan:\n" << physical_plan_->toString();
+  std::cerr << "Optimized physical plan:\n" << physical_plan_->toString();
 
 #ifdef QUICKSTEP_DEBUG
   Validate(physical_plan_);
