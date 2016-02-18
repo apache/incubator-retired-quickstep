@@ -334,7 +334,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
   memset(add_operations_, 0, sizeof(UncheckedBinaryOperator*) * kNumTypeIDs);
 
   // Iterate through each attribute which is being indexed.
-  for (int indexed_attribute_num = 0;
+  for (std::size_t indexed_attribute_num = 0;
        indexed_attribute_num < indexed_attributes_;
        ++indexed_attribute_num) {
     const attribute_id attribute = description_.GetExtension(
@@ -441,7 +441,7 @@ void SMAIndexSubBlock::resetEntry(SMAEntry *entry,
 void SMAIndexSubBlock::resetEntries() {
   freeOutOfLineData();
 
-  for (int indexed_attribute_num = 0;
+  for (std::size_t indexed_attribute_num = 0;
        indexed_attribute_num < indexed_attributes_;
        ++indexed_attribute_num) {
     const attribute_id attribute = description_.GetExtension(
@@ -455,7 +455,7 @@ void SMAIndexSubBlock::resetEntries() {
 
 void SMAIndexSubBlock::freeOutOfLineData() {
   // For each entry, clear the min and max typed values (frees out of line data).
-  for (int indexed_attribute_num = 0;
+  for (std::size_t indexed_attribute_num = 0;
        indexed_attribute_num < indexed_attributes_;
        ++indexed_attribute_num) {
     SMAEntry &entry = entries_[indexed_attribute_num];
@@ -541,7 +541,7 @@ bool SMAIndexSubBlock::rebuild() {
 }
 
 void SMAIndexSubBlock::addTuple(tuple_id tuple) {
-  for (int index = 0; index < indexed_attributes_; ++index) {
+  for (std::size_t index = 0; index < indexed_attributes_; ++index) {
     SMAEntry *entry = entries_ + index;
     TypedValue tuple_value = tuple_store_.getAttributeValueTyped(tuple, entry->attribute);
 
@@ -654,7 +654,8 @@ bool SMAIndexSubBlock::requiresRebuild() const {
 }
 
 bool SMAIndexSubBlock::hasEntryForAttribute(attribute_id attribute) const {
-  return total_attributes_ > attribute && attribute_to_entry_[attribute] != -1;
+  return total_attributes_ > static_cast<std::size_t>(attribute) &&
+      attribute_to_entry_[attribute] != -1;
 }
 
 }  // namespace quickstep

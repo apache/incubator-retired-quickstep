@@ -338,7 +338,9 @@ class SMAIndexSubBlock : public IndexSubBlock {
 
   // Retrieves an entry, first checking if the given attribute is indexed.
   inline const sma_internal::SMAEntry* getEntryChecked(attribute_id attribute) const {
-    if (total_attributes_ > attribute) {
+    DCHECK(attribute > -1) << "Attribute Id must be >= 0";
+
+    if (total_attributes_ > static_cast<std::size_t>(attribute)) {
       int index = attribute_to_entry_[attribute];
       if (index != -1) {
         return entries_ + index;

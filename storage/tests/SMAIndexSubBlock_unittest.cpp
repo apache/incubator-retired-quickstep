@@ -172,7 +172,7 @@ class SMAIndexSubBlockTest : public ::testing::Test {
     // Make the IndexSubBlockDescription.
     index_description_.reset(new IndexSubBlockDescription());
     index_description_->set_sub_block_type(IndexSubBlockDescription::SMA);
-    for (int i = 0; i < indexed_attrs.size(); ++i) {
+    for (std::size_t i = 0; i < indexed_attrs.size(); ++i) {
       index_description_->AddExtension(SMAIndexSubBlockDescription::indexed_attribute_id,
                                        indexed_attrs[i]);
     }
@@ -371,7 +371,7 @@ TEST_F(SMAIndexSubBlockTest, TestRebuild) {
   int min = 0, max = 9010, step = 10;
   std::int64_t sum_0 = 0;
   double sum_2 = 0;
-  for (unsigned i = min; i <= max; i+=step) {
+  for (std::size_t i = min; i <= static_cast<std::size_t>(max); i += step) {
     generateAndInsertTuple(i, false, "suffix");
     sum_0 += i;
     sum_2 += (i * 0.25);
@@ -411,7 +411,7 @@ TEST_F(SMAIndexSubBlockTest, TestRebuild) {
   EXPECT_TRUE(sma_test::doubles_equal(entry2->sum, TypedValue(sum_2)));
 
   // Check count.
-  EXPECT_EQ(max_id + 1, index_->getCount());
+  EXPECT_EQ(static_cast<std::size_t>(max_id + 1), index_->getCount());
 }
 
 TEST_F(SMAIndexSubBlockTest, TestRebuildWithNulls) {
@@ -423,7 +423,7 @@ TEST_F(SMAIndexSubBlockTest, TestRebuildWithNulls) {
 
   // Attribute 1 will contain some nulls so keep its sum while inserting tuples.
   std::int64_t sum_1 = 0;
-  for (unsigned i = min; i <= max; i+=step) {
+  for (std::size_t i = min; i <= static_cast<std::size_t>(max); i += step) {
     bool insertNull = (i % 4) == 0;
     generateAndInsertTuple(i, insertNull, "suffix");
     sum_1 += insertNull ? 0 : i;
@@ -452,7 +452,7 @@ TEST_F(SMAIndexSubBlockTest, TestRebuildWithNulls) {
   EXPECT_TRUE(sma_test::longs_equal(entry1->sum, TypedValue(sum_1)));
 
   // Check count.
-  EXPECT_EQ(num_tuples, index_->getCount());
+  EXPECT_EQ(static_cast<std::size_t>(num_tuples), index_->getCount());
 }
 
 TEST_F(SMAIndexSubBlockTest, TestWithVariableLengthAttrs) {
@@ -466,7 +466,7 @@ TEST_F(SMAIndexSubBlockTest, TestWithVariableLengthAttrs) {
   std::string suffix("suffix");
   std::string max_str("");
   std::string min_str("Z");
-  for (unsigned i = min; i < max; ++i) {
+  for (std::size_t i = min; i < static_cast<std::size_t>(max); ++i) {
     tuple_id id = generateAndInsertTuple(i, false, suffix);
 
     // Keep track of the min/max strings entered.
@@ -578,7 +578,7 @@ TEST_F(SMAIndexSubBlockTest, TestWithVariableLengthAttrs) {
       tuple_store_->getAttributeValueTyped(nentry6->max_entry.tuple, 6)));
 
   // Check count.
-  EXPECT_EQ(max, index_->getCount());
+  EXPECT_EQ(static_cast<std::size_t>(max), index_->getCount());
 }
 
 TEST_F(SMAIndexSubBlockTest, TestWithCompressedColumnStore) {
@@ -720,7 +720,7 @@ TEST_F(SMAIndexSubBlockTest, TestExtractComparison) {
   // Test for comparison extraction: getting the comparison to a format which
   // the index can compute on.
   const attribute_id indexed_attr = 0;
-  const int comparison_lit = 123;
+  const std::int64_t comparison_lit = 123;
   std::unique_ptr<ComparisonPredicate> predicate(
       generateNumericComparisonPredicate<LongType>(ComparisonID::kEqual, indexed_attr, comparison_lit));
   std::unique_ptr<SMAPredicate> smapredicate(SMAPredicate::ExtractSMAPredicate(*predicate));
@@ -731,6 +731,7 @@ TEST_F(SMAIndexSubBlockTest, TestExtractComparison) {
 
   // Test against a comparison which it might flip (less->greater).
   predicate.reset(generateNumericComparisonPredicate<LongType>(ComparisonID::kLess, indexed_attr, comparison_lit));
+  smapredicate.reset();
   smapredicate.reset(SMAPredicate::ExtractSMAPredicate(*predicate));
 
   EXPECT_EQ(indexed_attr, smapredicate->attribute);
@@ -742,8 +743,10 @@ TEST_F(SMAIndexSubBlockTest, TestExtractComparison) {
   ScalarLiteral *scalar_literal
       = new ScalarLiteral(LongType::InstanceNonNullable().makeValue(&comparison_lit),
                           LongType::InstanceNonNullable());
+  predicate.reset();
   predicate.reset(new ComparisonPredicate(
       ComparisonFactory::GetComparison(ComparisonID::kGreater), scalar_literal, scalar_attribute));
+  smapredicate.reset();
   smapredicate.reset(SMAPredicate::ExtractSMAPredicate(*predicate));
 
   EXPECT_EQ(indexed_attr, smapredicate->attribute);
@@ -986,15 +989,15 @@ TEST_F(SMAIndexSubBlockTest, TestGetMatchesForPredicate) {
   std::unique_ptr<ComparisonPredicate> predicate(
       generateNumericComparisonPredicate<LongType>(ComparisonID::kLess, 0, min));
   std::unique_ptr<TupleIdSequence> result(index_->getMatchesForPredicate(*predicate, nullptr));
-  EXPECT_EQ(tuple_store_->getMaxTupleID() + 1, result->length());
-  EXPECT_EQ(0, result->numTuples());
+  EXPECT_EQ(static_cast<std::size_t>(tuple_store_->getMaxTupleID() + 1), result->length());
+  EXPECT_EQ(static_cast<std::size_t>(0), result->numTuples());
 
   // Check that all tuples have been returned.
   predicate.reset(
       generateNumericComparisonPredicate<LongType>(ComparisonID::kLess, 0, max + 1));
   result.reset(index_->getMatchesForPredicate(*predicate, nullptr));
-  EXPECT_EQ(tuple_store_->getMaxTupleID() + 1, result->length());
-  EXPECT_EQ(tuple_store_->getMaxTupleID() + 1, result->numTuples());
+  EXPECT_EQ(static_cast<std::size_t>(tuple_store_->getMaxTupleID() + 1), result->length());
+  EXPECT_EQ(static_cast<std::size_t>(tuple_store_->getMaxTupleID() + 1), result->numTuples());
 }
 
 }  // namespace quickstep
