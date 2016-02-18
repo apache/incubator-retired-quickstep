@@ -71,6 +71,10 @@ class GeneratorFunctionInvalidArguments : public std::exception {
  * about the concrete function, e.g. the number and types of the output columns
  * Then, at query execution-time, the backend also uses the handle object's
  * methods to actually populate a table.
+ *
+ * To add a new generator function, subclass both GeneratorFunction and
+ * GeneratorFunctionHandle to implement the logics. Also modify
+ * GeneratorFunctionFactory::GetByName() to register the function.
  * 
  **/
 class GeneratorFunction {

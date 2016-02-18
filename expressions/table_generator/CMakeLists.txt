@@ -41,7 +41,6 @@ target_link_libraries(quickstep_expressions_tablegenerator_GenerateSeries
                       quickstep_expressions_tablegenerator_GeneratorFunctionHandle
                       quickstep_types_operations_comparisons_GreaterComparison
                       quickstep_types_TypedValue
-                      quickstep_types_operations_unaryoperations_ArithmeticUnaryOperations
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_tablegenerator_GenerateSeriesHandle
                       glog

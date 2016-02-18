@@ -26,7 +26,6 @@
 #include "types/TypedValue.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/operations/comparisons/GreaterComparison.hpp"
-#include "types/operations/unary_operations/ArithmeticUnaryOperations.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -108,17 +107,14 @@ class GenerateSeries : public GeneratorFunction {
         args.size() > 2 ? type.coerceValue(args[2], *arg_types[2])
                         : type.coerceValue(TypedValue(1), TypeFactory::GetType(TypeID::kInt));
 
-    // If start > end, swap them and flip the sign of step. Then verify that
-    // step is positive.
+    // Check that step is not 0, and (end - start) / step is positive
     const GreaterComparison &gt_comparator = GreaterComparison::Instance();
-    if (gt_comparator.compareTypedValuesChecked(start, type, end, type)) {
-      std::swap(start, end);
-      step = NegateUnaryOperation::Instance().applyToChecked(step, type);
-    }
-    if (!gt_comparator.compareTypedValuesChecked(step,
-                                                 type,
-                                                 TypedValue(0),
-                                                 TypeFactory::GetType(TypeID::kInt))) {
+    bool start_gt_end = gt_comparator.compareTypedValuesChecked(start, type, end, type);
+    bool step_gt_0 = gt_comparator.compareTypedValuesChecked(
+        step, type, TypedValue(0), TypeFactory::GetType(TypeID::kInt));
+    bool step_lt_0 = gt_comparator.compareTypedValuesChecked(
+        TypedValue(0), TypeFactory::GetType(TypeID::kInt), step, type);
+    if ((!start_gt_end && step_lt_0) || (start_gt_end && step_gt_0)) {
       throw GeneratorFunctionInvalidArguments("Invalid step width");
     }
 

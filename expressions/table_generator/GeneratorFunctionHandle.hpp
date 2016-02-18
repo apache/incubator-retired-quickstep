@@ -36,6 +36,12 @@ typedef std::shared_ptr<const GeneratorFunctionHandle> GeneratorFunctionHandlePt
 
 /**
  * @brief Abstract representation of a concrete generator function.
+ *
+ * @note This class provides facilities for both the frontend (e.g. output
+ *       column type information, which is needed by the query planner) and the
+ *       backend (e.g. the populateColumns method). It is also an option, if
+ *       needed later, to abstract one more GeneratorFunctionDescriptor class
+ *       to split out the functionalities purely for the frontend.
  **/
 class GeneratorFunctionHandle {
  public:

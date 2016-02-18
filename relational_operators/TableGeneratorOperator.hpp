@@ -40,12 +40,19 @@ class WorkOrdersContainer;
  */
 
 /**
- * @brief TODO
+ * @brief An operator which uses the given generator function to populate a
+ *        table.
  **/
 class TableGeneratorOperator : public RelationalOperator {
  public:
   /**
    * @brief Constructor
+   *
+   * @param output_relation The output relation.
+   * @param output_destination_index The index of the InsertDestination in the
+   *        QueryContext to insert the generated output.
+   * @param generator_function_index The index of the GeneratorFunctionHandle in
+   *        the QueryContext.
    *
    **/
   TableGeneratorOperator(const CatalogRelation &output_relation,
@@ -93,6 +100,10 @@ class TableGeneratorWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param output_destination_index The index of the InsertDestination in the
+   *        QueryContext to insert the generated output.
+   * @param generator_function_index The index of the GeneratorFunctionHandle in
+   *        the QueryContext.
    **/
   TableGeneratorWorkOrder(const QueryContext::insert_destination_id output_destination_index,
                           const QueryContext::generator_function_id generator_function_index)

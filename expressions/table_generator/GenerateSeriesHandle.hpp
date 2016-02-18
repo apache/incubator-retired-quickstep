@@ -36,7 +36,7 @@ namespace quickstep {
  */
 
 /**
- * @brief Handle for the GenerateSeries function.
+ * @brief Handle for the instantiated GenerateSeries function.
  */
 class GenerateSeriesHandle : public GeneratorFunctionHandle {
  public:
@@ -105,7 +105,8 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
         break;
       }
       default:
-        LOG(FATAL) << "TODO";
+        LOG(FATAL) << "GenerateSeries cannot handle arguments with type"
+                   << type_.getName();
     }
     results->addColumn(result_vec);
   }
@@ -117,10 +118,10 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
     T end = end_.getLiteral<T>();
     T step = step_.getLiteral<T>();
 
-    DCHECK(start <= end);
-    DCHECK(step > 0);
-
+    DCHECK(step != 0);
     std::size_t length = static_cast<std::size_t>((end - start) / step) + 1;
+    DCHECK(length >= 0);
+   
     NativeColumnVector *result_vec = new NativeColumnVector(type_, length);
     T value = start;
     for (int i = 0; i < length; i++) {
