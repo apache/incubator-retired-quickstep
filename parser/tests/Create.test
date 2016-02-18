@@ -137,3 +137,60 @@ CREATE TABLE test (attr INT) CHECK(attr>0)
 ERROR: Table Constraints (CHECK) is not supported yet (1 : 30)
 CREATE TABLE test (attr INT) CHECK(attr>0)
                              ^
+==
+
+CREATE TABLE test (attr INT) WITH BLOCKPROPERTIES
+(TYPE rowstore)
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+| +-AttributeDefinition[name=attr,type=Int]
++-block_properties=
+  +-KeyStringValue[key=TYPE]
+    +-value=String[value=rowstore]
+==
+
+CREATE TABLE test (attr INT) WITH BLOCKPROPERTIES
+(TYPE compressed_columnstore, SORT attr, COMPRESS ALL)
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+| +-AttributeDefinition[name=attr,type=Int]
++-block_properties=
+  +-KeyStringValue[key=TYPE]
+  | +-value=String[value=compressed_columnstore]
+  +-KeyStringValue[key=SORT]
+  | +-value=String[value=attr]
+  +-KeyStringValue[key=COMPRESS]
+    +-value=String[value=ALL]
+==
+
+CREATE TABLE test (attr1 INT, attr2 INT) WITH BLOCKPROPERTIES
+(TYPE compressed_columnstore, SORT attr1, COMPRESS (attr1, attr2))
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+| +-AttributeDefinition[name=attr1,type=Int]
+| +-AttributeDefinition[name=attr2,type=Int]
++-block_properties=
+  +-KeyStringValue[key=TYPE]
+  | +-value=String[value=compressed_columnstore]
+  +-KeyStringValue[key=SORT]
+  | +-value=String[value=attr1]
+  +-KeyStringList[key=COMPRESS]
+    +-value_list=
+      +-String[value=attr1]
+      +-String[value=attr2]
+==
+
+CREATE TABLE test (attr INT) WITH BLOCKPROPERTIES
+(TYPE rowstore, BLOCKSIZE 10);
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+| +-AttributeDefinition[name=attr,type=Int]
++-block_properties=
+  +-KeyStringValue[key=TYPE]
+  | +-value=String[value=rowstore]
+  +-KeyIntegerValue[key=BLOCKSIZE]
+    +-value=NumericLiteral[numeric_string=10,float_like=false]
