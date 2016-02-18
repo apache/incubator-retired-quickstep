@@ -594,7 +594,7 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
   const ParseKeyValue *block_size_key_value = popKeyValue("blocksize", key_values_mutable);
   if (block_size_key_value != nullptr) {
     if (block_size_key_value->getKeyValueType() != ParseKeyValue::KeyValueType::kStringInteger) {
-      THROW_SQL_ERROR_AT(type_key_value)
+      THROW_SQL_ERROR_AT(block_size_key_value)
           << "The BLOCKSIZE property must contain an integer key.";
     }
     const ParseKeyIntegerValue *block_size_lit_key_value = static_cast<const ParseKeyIntegerValue*>(
