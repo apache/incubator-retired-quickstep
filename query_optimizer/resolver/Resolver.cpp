@@ -1144,7 +1144,7 @@ L::LogicalPtr Resolver::resolveGeneratorTableReference(
       const ParseScalarLiteral &scalar_literal_arg = static_cast<const ParseScalarLiteral&>(arg);
       const Type* dumb_concretized_type;
       concretized_args.emplace_back(
-          std::move(scalar_literal_arg.literal_value()->concretize(nullptr, &dumb_concretized_type)));
+          scalar_literal_arg.literal_value()->concretize(nullptr, &dumb_concretized_type));
     }
   }
 

@@ -45,7 +45,7 @@ GeneratorFunctionHandlePtr GeneratorFunctionFactory::ReconstructFromProto(
 
   std::vector<TypedValue> args;
   for (const auto& arg_proto : proto.args()) {
-    args.emplace_back(std::move(TypedValue::ReconstructFromProto(arg_proto)));
+    args.emplace_back(TypedValue::ReconstructFromProto(arg_proto));
   }
 
   return func_template->createHandle(args);
