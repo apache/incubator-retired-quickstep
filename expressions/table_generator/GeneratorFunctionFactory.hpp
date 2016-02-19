@@ -43,7 +43,7 @@ class GeneratorFunctionFactory {
    *         name does not match any known GeneratorFunction.
    **/
   static const GeneratorFunction *GetByName(const std::string &name);
- 
+
   /**
    * @brief Reconstruct a particular GeneratorFunctionHandle by its proto.
    *

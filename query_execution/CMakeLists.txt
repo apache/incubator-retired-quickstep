@@ -79,6 +79,7 @@ target_link_libraries(quickstep_queryexecution_QueryContext
                       quickstep_utility_SortConfiguration)
 target_link_libraries(quickstep_queryexecution_QueryContext_proto
                       quickstep_expressions_Expressions_proto
+                      quickstep_expressions_tablegenerator_GeneratorFunction_proto
                       quickstep_storage_AggregationOperationState_proto
                       quickstep_storage_HashTable_proto
                       quickstep_storage_InsertDestination_proto

@@ -17,6 +17,7 @@
 #include "expressions/table_generator/GeneratorFunctionFactory.hpp"
 
 #include <string>
+#include <vector>
 
 #include "expressions/table_generator/GenerateSeries.hpp"
 #include "expressions/table_generator/GenerateSeriesHandle.hpp"
@@ -41,13 +42,13 @@ GeneratorFunctionHandlePtr GeneratorFunctionFactory::ReconstructFromProto(
   if (func_template == nullptr) {
     LOG(FATAL) << "Generator function " << proto.function_name() << " not found";
   }
- 
+
   std::vector<const TypedValue> args;
   for (const auto& arg_proto : proto.args()) {
     args.emplace_back(std::move(TypedValue::ReconstructFromProto(arg_proto)));
   }
- 
+
   return func_template->createHandle(args);
 }
- 
+
 }  // namespace quickstep

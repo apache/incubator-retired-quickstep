@@ -63,14 +63,14 @@ class TableGenerator : public Physical {
                            table_alias_,
                            attribute_list_));
   }
- 
+
   bool maybeCopyWithPrunedExpressions(
       const expressions::UnorderedNamedExpressionSet &referenced_expressions,
       PhysicalPtr *output) const override {
     // The number of output columns is fixed for generator functions.
     return false;
   }
- 
+
   /**
    * @return The reference to the generator function handle.
    */
@@ -84,7 +84,7 @@ class TableGenerator : public Physical {
   const std::string &table_alias() const {
     return table_alias_;
   }
- 
+
   const std::vector<expressions::AttributeReferencePtr> &attribute_list() const {
     return attribute_list_;
   }

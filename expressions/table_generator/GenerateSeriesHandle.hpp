@@ -17,19 +17,21 @@
 #ifndef QUICKSTEP_EXPRESSIONS_TABLE_GENERATOR_GENERATE_SERIES_HANDLE_HPP_
 #define QUICKSTEP_EXPRESSIONS_TABLE_GENERATOR_GENERATE_SERIES_HANDLE_HPP_
 
+#include <string>
 #include <vector>
 
 #include "expressions/table_generator/GeneratorFunctionHandle.hpp"
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypedValue.hpp"
-#include "types/containers/ColumnVector.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
 
 namespace quickstep {
+
+class ColumnVector;
 
 /** \addtogroup Expressions
  *  @{
@@ -66,7 +68,7 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
   int getNumberOfOutputColumns() const override {
     return 1;
   }
- 
+
   std::string getOutputColumnName(int index) const override {
     if (index > 0) {
       LOG(FATAL) << "generate_series function has only 1 output column";
@@ -74,14 +76,14 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
     // Use the function name as the column name.
     return getName();
   }
- 
+
   const Type &getOutputColumnType(int index) const override {
     if (index > 0) {
       LOG(FATAL) << "generate_series function has only 1 output column";
     }
     return type_;
   }
- 
+
   void populateColumns(ColumnVectorsValueAccessor *results) const override {
     DCHECK(results != nullptr);
 
@@ -110,7 +112,7 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
     }
     results->addColumn(result_vec);
   }
- 
+
  private:
   template <typename T>
   ColumnVector *generateColumn() const {
@@ -118,13 +120,13 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
     T end = end_.getLiteral<T>();
     T step = step_.getLiteral<T>();
 
-    DCHECK(step != 0);
+    DCHECK_NE(step, 0);
     std::size_t length = static_cast<std::size_t>((end - start) / step) + 1;
-    DCHECK(length >= 0);
-   
+    DCHECK_GE(length, 0);
+
     NativeColumnVector *result_vec = new NativeColumnVector(type_, length);
     T value = start;
-    for (int i = 0; i < length; i++) {
+    for (std::size_t i = 0; i < length; i++) {
       result_vec->appendUntypedValue(&value);
       value += step;
     }

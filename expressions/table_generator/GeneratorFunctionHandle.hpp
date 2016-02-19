@@ -19,6 +19,8 @@
 
 #include <memory>
 #include <sstream>
+#include <string>
+#include <vector>
 
 #include "expressions/table_generator/GeneratorFunction.pb.h"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
@@ -51,7 +53,7 @@ class GeneratorFunctionHandle {
    * @return The number of output columns.
    */
   virtual int getNumberOfOutputColumns() const = 0;
- 
+
   /**
    * @brief Get the default name of the specified output column.
    *

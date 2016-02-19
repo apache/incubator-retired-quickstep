@@ -17,6 +17,9 @@
 #ifndef QUICKSTEP_EXPRESSIONS_TABLE_GENERATOR_GENERATOR_FUNCTION_HPP_
 #define QUICKSTEP_EXPRESSIONS_TABLE_GENERATOR_GENERATOR_FUNCTION_HPP_
 
+#include <string>
+#include <vector>
+
 #include "expressions/table_generator/GeneratorFunctionHandle.hpp"
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
@@ -86,7 +89,7 @@ class GeneratorFunction {
    * @return The name of this generator function.
    **/
   virtual std::string getName() const = 0;
- 
+
   /**
    * @brief Create an GeneratorFunctionHandle.
    *
@@ -103,7 +106,7 @@ class GeneratorFunction {
  protected:
   GeneratorFunction() {
   }
- 
+
  private:
   DISALLOW_COPY_AND_ASSIGN(GeneratorFunction);
 };

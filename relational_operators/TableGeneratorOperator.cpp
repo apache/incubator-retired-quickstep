@@ -57,10 +57,10 @@ void TableGeneratorWorkOrder::execute(QueryContext *query_context,
 
   GeneratorFunctionHandlePtr function_handle =
       query_context->getGeneratorFunctionHandle(generator_function_index_);
- 
+
   ColumnVectorsValueAccessor temp_result;
   function_handle->populateColumns(&temp_result);
- 
+
   output_destination->bulkInsertTuples(&temp_result);
 }
 

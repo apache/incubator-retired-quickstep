@@ -119,7 +119,7 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
 
     update_groups_.push_back(move(update_group));
   }
- 
+
   for (int i = 0; i < proto.generator_functions_size(); i++) {
     generator_function_groups_.emplace_back(
         GeneratorFunctionFactory::ReconstructFromProto(proto.generator_functions(i)));
@@ -197,7 +197,7 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
       }
     }
   }
- 
+
   for (int i = 0; i < proto.generator_functions_size(); i++) {
     const serialization::GeneratorFunctionHandle &func_proto = proto.generator_functions(i);
     for (int j = 0; j < func_proto.args_size(); j++) {

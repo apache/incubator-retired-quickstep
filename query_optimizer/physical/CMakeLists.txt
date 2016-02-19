@@ -181,8 +181,6 @@ target_link_libraries(quickstep_queryoptimizer_physical_TableGenerator
                       quickstep_expressions_tablegenerator_GeneratorFunctionHandle
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
-                      quickstep_queryoptimizer_expressions_ExpressionUtil
-                      quickstep_queryoptimizer_expressions_NamedExpression
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
                       quickstep_utility_Cast
@@ -240,6 +238,7 @@ target_link_libraries(quickstep_queryoptimizer_physical
                       quickstep_queryoptimizer_physical_Selection
                       quickstep_queryoptimizer_physical_SharedSubplanReference
                       quickstep_queryoptimizer_physical_Sort
+                      quickstep_queryoptimizer_physical_TableGenerator
                       quickstep_queryoptimizer_physical_TableReference
                       quickstep_queryoptimizer_physical_TopLevelPlan
                       quickstep_queryoptimizer_physical_UpdateTable)

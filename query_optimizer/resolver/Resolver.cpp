@@ -1156,7 +1156,7 @@ L::LogicalPtr Resolver::resolveGeneratorTableReference(
     THROW_SQL_ERROR_AT(table_reference.generator_function()) << e.what();
   }
   DCHECK(func_handle != nullptr);
- 
+
   return L::TableGenerator::Create(func_handle, reference_alias->value(), context_);
 }
 

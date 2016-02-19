@@ -37,30 +37,30 @@ add_library(quickstep_expressions_tablegenerator_GeneratorFunctionHandle
 
 # Link dependencies:
 target_link_libraries(quickstep_expressions_tablegenerator_GenerateSeries
-                      quickstep_expressions_tablegenerator_GeneratorFunction
                       quickstep_expressions_tablegenerator_GeneratorFunctionHandle
-                      quickstep_types_operations_comparisons_GreaterComparison
+                      quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_types_TypedValue
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_tablegenerator_GenerateSeriesHandle
                       glog
-                      quickstep_expressions_tablegenerator_GeneratorFunctionHandle
-                      quickstep_types_containers_ColumnVector
+                      quickstep_expressions_tablegenerator_GeneratorFunction_proto
                       quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_types_Type
-                      quickstep_types_TypedValue
-                      quickstep_types_TypeFactory
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_tablegenerator_GeneratorFunction
                       quickstep_expressions_tablegenerator_GeneratorFunctionHandle
-                      quickstep_types_Type
                       quickstep_types_TypedValue
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_tablegenerator_GeneratorFunctionFactory
                       glog
                       quickstep_expressions_tablegenerator_GenerateSeries
+                      quickstep_expressions_tablegenerator_GenerateSeriesHandle
+                      quickstep_expressions_tablegenerator_GeneratorFunction
+                      quickstep_expressions_tablegenerator_GeneratorFunctionHandle
+                      quickstep_types_TypedValue
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_tablegenerator_GeneratorFunctionHandle
                       quickstep_expressions_tablegenerator_GeneratorFunction_proto
+                      quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_types_Type
                       quickstep_utility_Macros)

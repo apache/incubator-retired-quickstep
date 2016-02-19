@@ -18,6 +18,7 @@
 #define QUICKSTEP_EXPRESSIONS_TABLE_GENERATOR_GENERATE_SERIES_HPP_
 
 #include <string>
+#include <vector>
 
 #include "expressions/table_generator/GeneratorFunction.hpp"
 #include "expressions/table_generator/GeneratorFunctionHandle.hpp"

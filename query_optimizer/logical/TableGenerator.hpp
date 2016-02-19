@@ -77,7 +77,7 @@ class TableGenerator : public Logical {
   const std::string &table_alias() const {
     return table_alias_;
   }
- 
+
   /**
    * @return The reference to the output attributes of this table.
    */
@@ -140,7 +140,7 @@ class TableGenerator : public Logical {
         table_alias_(table_alias) {
     int num_attrs = generator_function_handle->getNumberOfOutputColumns();
     const std::string &table_name = generator_function_handle->getName();
-    
+
     for (int i = 0; i < num_attrs; i++) {
       attribute_list_.emplace_back(
         E::AttributeReference::Create(
