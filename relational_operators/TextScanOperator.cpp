@@ -670,7 +670,7 @@ void TextSplitWorkOrder::sendBlobInfoToOperator(StorageManager *storage_manager,
           ClientIDMap::Instance()->getValue(),
           foreman_client_id_,
           std::move(tagged_message));
-  CHECK(send_status != tmb::MessageBus::SendStatus::kOK) << "Message could not "
+  CHECK(send_status == tmb::MessageBus::SendStatus::kOK) << "Message could not "
       "be sent from thread with TMB client ID "
       << ClientIDMap::Instance()->getValue() << " to Foreman with TMB client "
       "ID " << foreman_client_id_;
