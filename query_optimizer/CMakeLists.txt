@@ -118,6 +118,7 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_utility_SqlError)
 target_link_libraries(quickstep_queryoptimizer_LogicalGenerator
                       glog
+                      quickstep_parser_ParseStatement
                       quickstep_queryoptimizer_logical_Logical
                       quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_rules_CollapseProject
@@ -143,6 +144,7 @@ target_link_libraries(quickstep_queryoptimizer_OptimizerContext
                       quickstep_utility_Macros
                       tmb)
 target_link_libraries(quickstep_queryoptimizer_OptimizerTree
+                      quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_TreeStringSerializable
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_PhysicalGenerator

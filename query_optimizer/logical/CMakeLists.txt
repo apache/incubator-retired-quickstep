@@ -72,6 +72,7 @@ target_link_libraries(quickstep_queryoptimizer_logical_CreateTable
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_logical_Logical
                       quickstep_queryoptimizer_logical_LogicalType
+                      quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_logical_DeleteTuples
