@@ -33,10 +33,10 @@ namespace quickstep {
  */
 
 /**
- * @brief Parsed BlockPropertyItem which simply a key (property) and the 
+ * @brief Parsed BlockPropertyItem which simply a key (property) and the
  *        corresponding value.
- * @details The value may actually be a list of Parse strings. This is to cover 
- *          the case where a user specifies a subset of columns to compress 
+ * @details The value may actually be a list of Parse strings. This is to cover
+ *          the case where a user specifies a subset of columns to compress
  *          rather than using the keyword 'ALL'.
  *
  * @tparam The type of the Value which the item holds (ParseString for all
@@ -60,7 +60,7 @@ class ParseBlockPropertyItem : public ParseTreeNode {
    * @param column_number Column number of the first token of this node in the SQL statement.
    * @param property Describes which type of block property this is. Corresponds
    *                 to a field of the StorageBlockLayoutDescription message.
-   * @param value A parse string representing the assignment of the property. 
+   * @param value A parse string representing the assignment of the property.
    *              ParseBlockPropertyItem takes ownership of the pointer.
    **/
   ParseBlockPropertyItem(int line_number,
@@ -76,12 +76,12 @@ class ParseBlockPropertyItem : public ParseTreeNode {
 
   /**
    * @brief Constructor.
-   * 
+   *
    * @param line_number Line number of the first token of this node in the SQL statement.
    * @param column_number Column number of the first token of this node in the SQL statement.
    * @param property Describes which type of block property this is. Corresponds
    *                 to a field of the StorageBlockLayoutDescription message.
-   * @param values A list of parse strings representing the assignment of the 
+   * @param values A list of parse strings representing the assignment of the
    *               property. The ParseBlockPropertyItem takes ownership.
    **/
   ParseBlockPropertyItem(int line_number,
@@ -95,13 +95,13 @@ class ParseBlockPropertyItem : public ParseTreeNode {
 
   /**
    * @brief Useful in the case where the parser finds the terms, 'COMPRESS ALL'.
-   * 
+   *
    * @param line_number Line number of the first token of this node in the SQL statement.
    * @param column_number Column number of the first token of this node in the SQL statement.
-   * @return A caller-managed BlockPropertyItem representing the property of 
+   * @return A caller-managed BlockPropertyItem representing the property of
    *         COMPRESS ALL for compressing all attributes in a table.
    */
-  static ParseBlockPropertyItem<ParseString>* GetCompressAllItem(int line_number, int column_number, 
+  static ParseBlockPropertyItem<ParseString>* GetCompressAllItem(int line_number, int column_number,
                                                                  int line_number_all, int column_number_all) {
     ParseBlockPropertyItem<ParseString> *compress_all =
         new ParseBlockPropertyItem(line_number, column_number, Property::kCompress, new PtrList<ParseString>());
@@ -119,7 +119,7 @@ class ParseBlockPropertyItem : public ParseTreeNode {
 
   /**
    * @brief The type of property being described.
-   * 
+   *
    * @return The specific block property which this instance is describing.
    */
   Property property() const {
@@ -127,7 +127,7 @@ class ParseBlockPropertyItem : public ParseTreeNode {
   }
 
   /**
-   * @return A list of T values which the parser has captured to 
+   * @return A list of T values which the parser has captured to
    *         describe this property. This may be empty in the case of 'COMPRESS ALL'.
    */
   const PtrList<T>& values() const {
@@ -136,7 +136,7 @@ class ParseBlockPropertyItem : public ParseTreeNode {
 
   /**
    * @brief Gets a string version of the property which this pair describes.
-   * @details For example, if this the property type of 'kCompress' will return 
+   * @details For example, if this the property type of 'kCompress' will return
    *          a string object with the value 'compress'.
    *
    * @return A string description of the property.
@@ -157,9 +157,9 @@ class ParseBlockPropertyItem : public ParseTreeNode {
   }
 
   /**
-   * @brief Returns if the user specified to compress all attributes (COMPRESS 
+   * @brief Returns if the user specified to compress all attributes (COMPRESS
    *  ALL) attributes using a special keyword.
-   *  
+   *
    * @return \ctrue if this is a compression property and the value is 'ALL'.
    */
   bool compressAll() const {
@@ -207,7 +207,7 @@ class ParseBlockProperties : public ParseTreeNode {
  public:
   /**
    * @brief Constructor.
-   * 
+   *
    * @param line_number Line number of the first token of this node in the SQL statement.
    * @param column_number Column number of the first token of this node in the SQL statement.
    **/
@@ -226,7 +226,7 @@ class ParseBlockProperties : public ParseTreeNode {
 
   /**
    * @brief Gets the specified BlockPropertyItem.
-   * 
+   *
    * @param property The property, one of kSort, kCompress, or kType.
    * @return Pointer to the property or nullptr if not found.
    */
