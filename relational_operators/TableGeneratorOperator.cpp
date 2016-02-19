@@ -16,20 +16,17 @@
 
 #include "relational_operators/TableGeneratorOperator.hpp"
 
-#include "catalog/CatalogDatabase.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "storage/InsertDestination.hpp"
-#include "storage/StorageBlock.hpp"
-#include "storage/StorageBlockInfo.hpp"
-#include "storage/StorageManager.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
 
 #include "glog/logging.h"
 
 namespace quickstep {
 
-class Predicate;
+class CatalogDatabase;
+class StorageManager;
 
 bool TableGeneratorOperator::getAllWorkOrders(WorkOrdersContainer *container) {
   if (!started_) {

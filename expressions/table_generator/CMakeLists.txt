@@ -60,7 +60,6 @@ target_link_libraries(quickstep_expressions_tablegenerator_GeneratorFunctionFact
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_tablegenerator_GeneratorFunctionHandle
                       quickstep_expressions_tablegenerator_GeneratorFunction_proto
-                      quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_types_Type
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_tablegenerator_GeneratorFunction_proto

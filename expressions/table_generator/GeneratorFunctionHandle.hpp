@@ -23,11 +23,12 @@
 #include <vector>
 
 #include "expressions/table_generator/GeneratorFunction.pb.h"
-#include "types/containers/ColumnVectorsValueAccessor.hpp"
 #include "types/Type.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
+
+class ColumnVectorsValueAccessor;
 
 /** \addtogroup Expressions
  *  @{

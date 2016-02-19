@@ -286,18 +286,14 @@ target_link_libraries(quickstep_relationaloperators_SortRunGenerationOperator
                       quickstep_utility_SortConfiguration)
 target_link_libraries(quickstep_relationaloperators_TableGeneratorOperator
                       glog
-                      quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_CatalogRelation
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_RelationalOperator
-                      quickstep_relationaloperators_TableGeneratorOperator
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_InsertDestination
-                      quickstep_storage_StorageBlock
                       quickstep_storage_StorageBlockInfo
-                      quickstep_storage_StorageManager
                       quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_relationaloperators_TextScanOperator
