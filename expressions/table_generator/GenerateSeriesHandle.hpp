@@ -120,9 +120,9 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
     T end = end_.getLiteral<T>();
     T step = step_.getLiteral<T>();
 
-    DCHECK_NE(step, 0);
+    DCHECK_NE(step, static_cast<T>(0));
     std::size_t length = static_cast<std::size_t>((end - start) / step) + 1;
-    DCHECK_GE(length, 0);
+    DCHECK_GE(length, static_cast<std::size_t>(0));
 
     NativeColumnVector *result_vec = new NativeColumnVector(type_, length);
     T value = start;
