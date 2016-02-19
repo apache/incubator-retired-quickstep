@@ -20,11 +20,12 @@
 #include <string>
 #include <vector>
 
-#include "expressions/table_generator/GeneratorFunctionHandle.hpp"
 #include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
+
+class GeneratorFunctionHandle;
 
 /** \addtogroup Expressions
  *  @{
@@ -95,11 +96,12 @@ class GeneratorFunction {
    * @param arguments A list of zero or more constant arguments to this
    *        generator funciton.
    * @exception GeneratorFunctionInvalidArguments The arguments to this
-                generator function are invalid.
-   * @return Reference to a GeneratorFunctionHandle object that is used to do
-   *         the actual table generation.
+   *            generator function are invalid.
+   * @return A new GeneratorFunctionHandle object that is used to do the actual
+   *         table generation. Caller is responsible for deleting the returned
+   *         object.
    **/
-  virtual GeneratorFunctionHandlePtr createHandle(
+  virtual GeneratorFunctionHandle *createHandle(
       const std::vector<TypedValue> &arguments) const = 0;
 
  protected:

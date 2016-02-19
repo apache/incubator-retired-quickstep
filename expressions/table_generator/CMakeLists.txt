@@ -46,7 +46,6 @@ target_link_libraries(quickstep_expressions_tablegenerator_GenerateSeriesHandle
                       quickstep_types_Type
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_tablegenerator_GeneratorFunction
-                      quickstep_expressions_tablegenerator_GeneratorFunctionHandle
                       quickstep_types_TypedValue
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_tablegenerator_GeneratorFunctionFactory
@@ -54,7 +53,6 @@ target_link_libraries(quickstep_expressions_tablegenerator_GeneratorFunctionFact
                       quickstep_expressions_tablegenerator_GenerateSeries
                       quickstep_expressions_tablegenerator_GenerateSeriesHandle
                       quickstep_expressions_tablegenerator_GeneratorFunction
-                      quickstep_expressions_tablegenerator_GeneratorFunctionHandle
                       quickstep_types_TypedValue
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_tablegenerator_GeneratorFunctionHandle

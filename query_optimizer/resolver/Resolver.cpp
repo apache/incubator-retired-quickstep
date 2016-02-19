@@ -1128,7 +1128,7 @@ L::LogicalPtr Resolver::resolveGeneratorTableReference(
       GeneratorFunctionFactory::GetByName(func_name->value());
   if (func_template == nullptr) {
       THROW_SQL_ERROR_AT(func_name)
-        << "Generator function " << func_name->value() << " not found";
+          << "Generator function " << func_name->value() << " not found";
   }
 
   // Check that all arguments are constant literals, also convert them into a
@@ -1149,15 +1149,18 @@ L::LogicalPtr Resolver::resolveGeneratorTableReference(
   }
 
   // Concretize the generator function with the arguments.
-  quickstep::GeneratorFunctionHandlePtr func_handle;
+  quickstep::GeneratorFunctionHandle *func_handle = nullptr;
   try {
     func_handle = func_template->createHandle(concretized_args);
   } catch (const std::exception &e) {
+    DCHECK(func_handle == nullptr);
     THROW_SQL_ERROR_AT(table_reference.generator_function()) << e.what();
   }
   DCHECK(func_handle != nullptr);
 
-  return L::TableGenerator::Create(func_handle, reference_alias->value(), context_);
+  return L::TableGenerator::Create(quickstep::GeneratorFunctionHandlePtr(func_handle),
+                                   reference_alias->value(),
+                                   context_);
 }
 
 

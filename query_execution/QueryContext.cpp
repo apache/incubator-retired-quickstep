@@ -122,7 +122,8 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
 
   for (int i = 0; i < proto.generator_functions_size(); i++) {
     generator_function_groups_.emplace_back(
-        GeneratorFunctionFactory::ReconstructFromProto(proto.generator_functions(i)));
+        std::unique_ptr<GeneratorFunctionHandle>(
+            GeneratorFunctionFactory::ReconstructFromProto(proto.generator_functions(i))));
   }
 }
 

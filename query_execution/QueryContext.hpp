@@ -283,9 +283,15 @@ class QueryContext {
     return update_groups_[id];
   }
 
-  inline const GeneratorFunctionHandlePtr& getGeneratorFunctionHandle(
+  /**
+   * @brief Get the GeneratorFunctionHandle.
+   *
+   * @param id The GeneratorFunctionHandle id in the query.
+   * @return The GeneratorFunctionHandle, alreadly created in the constructor.
+   **/
+  inline const GeneratorFunctionHandle* getGeneratorFunctionHandle(
       const generator_function_id id) {
-    return generator_function_groups_[id];
+    return generator_function_groups_[id].get();
   }
 
  private:
@@ -297,7 +303,7 @@ class QueryContext {
   std::vector<std::unique_ptr<const SortConfiguration>> sort_configs_;
   std::vector<std::unique_ptr<Tuple>> tuples_;
   std::vector<std::unordered_map<attribute_id, std::unique_ptr<const Scalar>>> update_groups_;
-  std::vector<GeneratorFunctionHandlePtr> generator_function_groups_;
+  std::vector<std::unique_ptr<GeneratorFunctionHandle>> generator_function_groups_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryContext);
 };

@@ -21,7 +21,7 @@
 
 #include "expressions/table_generator/GenerateSeries.hpp"
 #include "expressions/table_generator/GenerateSeriesHandle.hpp"
-#include "expressions/table_generator/GeneratorFunctionHandle.hpp"
+#include "expressions/table_generator/GeneratorFunction.hpp"
 #include "types/TypedValue.hpp"
 
 #include "glog/logging.h"
@@ -36,7 +36,7 @@ const GeneratorFunction* GeneratorFunctionFactory::GetByName(const std::string &
   }
 }
 
-GeneratorFunctionHandlePtr GeneratorFunctionFactory::ReconstructFromProto(
+GeneratorFunctionHandle *GeneratorFunctionFactory::ReconstructFromProto(
     const serialization::GeneratorFunctionHandle &proto) {
   const GeneratorFunction *func_template = GetByName(proto.function_name());
   if (func_template == nullptr) {

@@ -55,7 +55,7 @@ class GenerateSeries : public GeneratorFunction {
     return "generate_series";
   }
 
-  GeneratorFunctionHandlePtr createHandle(
+  GeneratorFunctionHandle *createHandle(
       const std::vector<TypedValue> &arguments) const override {
     // Checks arguments and create the function handle for generate_series.
 
@@ -100,7 +100,7 @@ class GenerateSeries : public GeneratorFunction {
   }
 
  private:
-  GeneratorFunctionHandlePtr concretizeWithType(
+  GeneratorFunctionHandle *concretizeWithType(
       const std::vector<const Type*> &arg_types,
       const std::vector<TypedValue> &args,
       const Type &type) const {
@@ -124,8 +124,7 @@ class GenerateSeries : public GeneratorFunction {
       throw GeneratorFunctionInvalidArguments("Invalid step width");
     }
 
-    return GeneratorFunctionHandlePtr(
-        new GenerateSeriesHandle(getName(), args, type, start, end, step));
+    return new GenerateSeriesHandle(getName(), args, type, start, end, step);
   }
 
   DISALLOW_COPY_AND_ASSIGN(GenerateSeries);

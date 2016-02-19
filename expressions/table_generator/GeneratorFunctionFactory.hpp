@@ -19,11 +19,13 @@
 
 #include <string>
 
-#include "expressions/table_generator/GeneratorFunction.hpp"
-#include "expressions/table_generator/GeneratorFunctionHandle.hpp"
+#include "expressions/table_generator/GeneratorFunction.pb.h"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
+
+class GeneratorFunction;
+class GeneratorFunctionHandle;
 
 /** \addtogroup Expressions
  *  @{
@@ -45,12 +47,15 @@ class GeneratorFunctionFactory {
   static const GeneratorFunction *GetByName(const std::string &name);
 
   /**
-   * @brief Reconstruct a particular GeneratorFunctionHandle by its proto.
+   * @brief Reconstruct a particular GeneratorFunctionHandle by its protobuf
+   *        message.
    *
    * @param proto A serialized protocol buffer representation of the
    *        GeneratorFunctionHandle.
+   * @return A new GeneratorFunctionHandle object constructed from the protobuf
+   *         message. Caller is responsible for deleting the returned object.
    */
-  static GeneratorFunctionHandlePtr ReconstructFromProto(
+  static GeneratorFunctionHandle *ReconstructFromProto(
       const serialization::GeneratorFunctionHandle &proto);
 
  private:

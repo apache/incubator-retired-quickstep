@@ -52,7 +52,7 @@ void TableGeneratorWorkOrder::execute(QueryContext *query_context,
       query_context->getInsertDestination(output_destination_index_);
   DCHECK(output_destination != nullptr);
 
-  GeneratorFunctionHandlePtr function_handle =
+  const GeneratorFunctionHandle *function_handle =
       query_context->getGeneratorFunctionHandle(generator_function_index_);
 
   ColumnVectorsValueAccessor temp_result;
