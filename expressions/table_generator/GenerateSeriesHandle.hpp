@@ -53,7 +53,7 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
    * @param step The step size. Its type should equal unified_type.
    */
   GenerateSeriesHandle(const std::string &func_name,
-                       const std::vector<const TypedValue> &orig_args,
+                       const std::vector<TypedValue> &orig_args,
                        const Type &unified_type,
                        const TypedValue &start,
                        const TypedValue &end,

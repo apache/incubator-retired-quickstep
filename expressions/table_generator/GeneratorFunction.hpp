@@ -22,7 +22,6 @@
 
 #include "expressions/table_generator/GeneratorFunctionHandle.hpp"
 #include "types/TypedValue.hpp"
-#include "types/containers/ColumnVectorsValueAccessor.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -101,7 +100,7 @@ class GeneratorFunction {
    *         the actual table generation.
    **/
   virtual GeneratorFunctionHandlePtr createHandle(
-      const std::vector<const TypedValue> &arguments) const = 0;
+      const std::vector<TypedValue> &arguments) const = 0;
 
  protected:
   GeneratorFunction() {

@@ -43,7 +43,7 @@ GeneratorFunctionHandlePtr GeneratorFunctionFactory::ReconstructFromProto(
     LOG(FATAL) << "Generator function " << proto.function_name() << " not found";
   }
 
-  std::vector<const TypedValue> args;
+  std::vector<TypedValue> args;
   for (const auto& arg_proto : proto.args()) {
     args.emplace_back(std::move(TypedValue::ReconstructFromProto(arg_proto)));
   }

@@ -46,6 +46,7 @@ target_link_libraries(quickstep_expressions_tablegenerator_GenerateSeriesHandle
                       quickstep_expressions_tablegenerator_GeneratorFunction_proto
                       quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_types_Type
+                      quickstep_types_TypedValue_proto
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_tablegenerator_GeneratorFunction
                       quickstep_expressions_tablegenerator_GeneratorFunctionHandle

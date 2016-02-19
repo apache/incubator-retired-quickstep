@@ -56,7 +56,7 @@ class GenerateSeries : public GeneratorFunction {
   }
 
   GeneratorFunctionHandlePtr createHandle(
-      const std::vector<const TypedValue> &arguments) const override {
+      const std::vector<TypedValue> &arguments) const override {
     // Checks arguments and create the function handle for generate_series.
 
     // Arguments should have the pattern (start, end) or (start, end, step).
@@ -102,7 +102,7 @@ class GenerateSeries : public GeneratorFunction {
  private:
   GeneratorFunctionHandlePtr concretizeWithType(
       const std::vector<const Type*> &arg_types,
-      const std::vector<const TypedValue> &args,
+      const std::vector<TypedValue> &args,
       const Type &type) const {
     DCHECK(args.size() == 2 || args.size() == 3);
 

@@ -1134,7 +1134,7 @@ L::LogicalPtr Resolver::resolveGeneratorTableReference(
   // Check that all arguments are constant literals, also convert them into a
   // list of TypedValue's.
   const PtrList<ParseExpression> *func_args = table_reference.generator_function()->arguments();
-  std::vector<const TypedValue> concretized_args;
+  std::vector<TypedValue> concretized_args;
   if (func_args != nullptr) {
     for (const ParseExpression& arg : *func_args) {
       if (arg.getExpressionType() != ParseExpression::kScalarLiteral) {
@@ -1144,7 +1144,7 @@ L::LogicalPtr Resolver::resolveGeneratorTableReference(
       const ParseScalarLiteral &scalar_literal_arg = static_cast<const ParseScalarLiteral&>(arg);
       const Type* dumb_concretized_type;
       concretized_args.emplace_back(
-          scalar_literal_arg.literal_value()->concretize(nullptr, &dumb_concretized_type));
+          std::move(scalar_literal_arg.literal_value()->concretize(nullptr, &dumb_concretized_type)));
     }
   }
 

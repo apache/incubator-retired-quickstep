@@ -115,14 +115,14 @@ class GeneratorFunctionHandle {
 
  protected:
   GeneratorFunctionHandle(const std::string &func_name,
-                          const std::vector<const TypedValue> &orig_args)
+                          const std::vector<TypedValue> &orig_args)
       : func_name_(func_name),
         orig_args_(orig_args) {
   }
 
  private:
   std::string func_name_;
-  std::vector<const TypedValue> orig_args_;
+  std::vector<TypedValue> orig_args_;
 
   DISALLOW_COPY_AND_ASSIGN(GeneratorFunctionHandle);
 };
