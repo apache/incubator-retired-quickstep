@@ -37,7 +37,6 @@ add_library(quickstep_expressions_tablegenerator_GeneratorFunctionHandle
 
 # Link dependencies:
 target_link_libraries(quickstep_expressions_tablegenerator_GenerateSeries
-                      quickstep_expressions_tablegenerator_GeneratorFunctionHandle
                       quickstep_types_TypedValue
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_tablegenerator_GenerateSeriesHandle
@@ -53,6 +52,7 @@ target_link_libraries(quickstep_expressions_tablegenerator_GeneratorFunctionFact
                       quickstep_expressions_tablegenerator_GenerateSeries
                       quickstep_expressions_tablegenerator_GenerateSeriesHandle
                       quickstep_expressions_tablegenerator_GeneratorFunction
+                      quickstep_expressions_tablegenerator_GeneratorFunction_proto
                       quickstep_types_TypedValue
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_tablegenerator_GeneratorFunctionHandle
