@@ -43,7 +43,7 @@ class GenerateSeries : public GeneratorFunction {
  public:
   /**
    * @brief Singleton instance of the GenerateSeries class.
-   * @return a const reference to the singleton instance of the GenerateSeries
+   * @return A const reference to the singleton instance of the GenerateSeries
    *         class.
    */
   static const GenerateSeries& Instance() {
