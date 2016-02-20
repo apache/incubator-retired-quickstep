@@ -1407,6 +1407,9 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     std::size_t num_receieved = 0;
     do {
       if (bus_.ReceiveIfAvailable(foreman_client_id_, &msg)) {
+        // Note that this function only deals with feedback messages and it is
+        // safe to discard other kinds of messages (e.g. pipeline) in this
+        // funtion.
         if (msg.tagged_message.message_type() == kWorkOrderFeedbackMessage) {
           WorkOrder::FeedbackMessage feedback_msg(
               const_cast<void *>(msg.tagged_message.message()),
