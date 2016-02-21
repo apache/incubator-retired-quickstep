@@ -594,31 +594,31 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
   }
 
   // Resolve the BLOCKSIZE parameter, if it exists. Otherwise, set to default.
-  const ParseKeyValue *block_size_key_value = popKeyValue("blocksize", key_values_mutable);
+  const ParseKeyValue *block_size_key_value = popKeyValue("blocksizemb", key_values_mutable);
   if (block_size_key_value != nullptr) {
     if (block_size_key_value->getKeyValueType() != ParseKeyValue::KeyValueType::kStringInteger) {
       THROW_SQL_ERROR_AT(block_size_key_value)
-          << "The BLOCKSIZE property must contain an integer key.";
+          << "The BLOCKSIZEMB property must contain an integer key.";
     }
     const ParseKeyIntegerValue *block_size_lit_key_value = static_cast<const ParseKeyIntegerValue*>(
         block_size_key_value);
     const NumericParseLiteralValue *block_size_literal = block_size_lit_key_value->value();
     std::uint64_t size_mb = block_size_literal->long_value();
     std::uint64_t size_slots = (size_mb * 1000000) / kSlotSizeBytes;
-    DLOG(INFO) << "Resolver using BLOCKSIZE of " << size_slots << " slots"
+    DLOG(INFO) << "Resolver using BLOCKSIZEMB of " << size_slots << " slots"
         << " which is " << (size_slots * kSlotSizeBytes) << " bytes versus"
         << " user requested " << (size_mb * 1000000) << " bytes.";
 
     // TODO(marc) What is a sane number of slots?
     if (size_slots < 1 || size_slots > 10) {
       THROW_SQL_ERROR_AT(block_size_literal)
-        << "The BLOCKSIZE property must be between 1 and 10 slots.";
+        << "The BLOCKSIZEMB property must be between 1 and 10 slots.";
     }
 
     storage_block_description->set_num_slots(size_slots);
 
     // See if the user entered BLOCKSIZE more than once.
-    throwSqlErrorIfKeyExists("BLOCKSIZE", key_values_mutable, "property must be specified only one time.");
+    throwSqlErrorIfKeyExists("BLOCKSIZEMB", key_values_mutable, "property must be specified only one time.");
   } else {
     // Set default to be 1.
     storage_block_description->set_num_slots(1);

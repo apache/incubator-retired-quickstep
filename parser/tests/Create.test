@@ -184,7 +184,7 @@ CreateTableStatement[relation_name=test]
 ==
 
 CREATE TABLE test (attr INT) WITH BLOCKPROPERTIES
-(TYPE rowstore, BLOCKSIZE 10);
+(TYPE rowstore, BLOCKSIZEMB 10);
 --
 CreateTableStatement[relation_name=test]
 +-attribute_list=
@@ -192,5 +192,5 @@ CreateTableStatement[relation_name=test]
 +-block_properties=
   +-KeyStringValue[key=TYPE]
   | +-value=String[value=rowstore]
-  +-KeyIntegerValue[key=BLOCKSIZE]
+  +-KeyIntegerValue[key=BLOCKSIZEMB]
     +-value=NumericLiteral[numeric_string=10,float_like=false]

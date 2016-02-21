@@ -240,7 +240,6 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_FROM;
 %token TOKEN_FULL;
 %token TOKEN_GROUP;
-%token TOKEN_GB;
 %token TOKEN_HAVING;
 %token TOKEN_INDEX;
 %token TOKEN_INNER;
@@ -254,7 +253,6 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_LEFT;
 %token TOKEN_LIMIT;
 %token TOKEN_LONG;
-%token TOKEN_MB;
 %token TOKEN_NOT;
 %token TOKEN_NULL;
 %token TOKEN_NULLS;
