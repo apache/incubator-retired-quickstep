@@ -202,6 +202,7 @@ SMAPredicate* SMAPredicate::ExtractSMAPredicate(const ComparisonPredicate &predi
 /**
  * @brief Summation will promote lower precision types to higher precision types.
  *
+ * @param type The type id of the type we wish to sum over.
  * @return The higher precision sum typeid. Returns kNullType to indicate that the
  *         given type cannot be summed (in lieu of a better sigil).
  */
@@ -220,6 +221,7 @@ inline TypeID sumType(TypeID type) {
 }
 
 /**
+ * @param type A type id.
  * @return True if the type can be summed.
  */
 inline bool canSum(TypeID type) {
@@ -231,6 +233,8 @@ inline bool canSum(TypeID type) {
  *        of the sum. Does nothing if the entry's type cannot be summed.
  * @note We ignore clearing any old data held in the previous sum because Double
  *       and Long types are always represented inline.
+ *       
+ * @param entry A pointer to the entry to modify.
  */
 inline void setTypedValueForSum(SMAEntry *entry) {
   TypeID sum_type = sumType(entry->type);

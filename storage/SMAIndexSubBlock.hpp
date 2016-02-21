@@ -50,7 +50,8 @@ namespace sma_internal {
 //// Predicate answering components.
 
 /**
- * @brief Describes how much of the relation will be selected by a predicate.
+ * @brief Roughly describes how many tuples of a subblock will be selected by
+ *        a predicate.
  * @details kAll, kNone indicate that the SMA has determined that all, or none
  *          of the tuples will be selected. kSome means that some tuples may be
  *          selected, but a scan must be performed. kUnknown indicates that the
@@ -59,11 +60,11 @@ namespace sma_internal {
  *          analyzed by the SMA.
  */
 enum class Selectivity {
-  kAll,
-  kSome,
-  kNone,
-  kUnknown,
-  kUnsolved
+  kAll,      // Select all tuples in storage subblock.
+  kSome,     // Select some of the tuples.
+  kNone,     // Select none of the tuples.
+  kUnknown,  // The predicate cannot be determined.
+  kUnsolved  // We have not tried to determine the selectivity.
 };
 
 /**
@@ -71,10 +72,12 @@ enum class Selectivity {
  *        selectivity of a predicate.
  *
  * @param literal The literal value to compare against.
+ * @param comparison The id of the predicate comparison function.
  * @param min The minimum value associated with that attribute.
  * @param max The maximum value associated with that attribute.
  * @param less_comparator The less comparator for the attribute type.
  * @param equals_comparator  The equals comparator for the attribute type.
+ * 
  * @return Selectivity of this predicate.
  */
 Selectivity getSelectivity(const TypedValue &literal,
@@ -210,6 +213,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
    * @param relation The relation tuples belong to.
    * @param description A description of the parameters for this type of
    *        IndexSubBlock.
+   *
    * @return The average/amortized number of bytes used to index a single
    *         tuple of relation in an IndexSubBlock of this type described by
    *         description.
@@ -241,14 +245,14 @@ class SMAIndexSubBlock : public IndexSubBlock {
   /**
    * @param tuple The new tuple added.
    * @return \c true always. There's no reason we should ever run out of space once
-   *         this index has been successfully created
+   *         this index has been successfully created.
    */
   bool addEntry(const tuple_id tuple) override;
 
   /**
    * @brief Updates the index to reflect the removal of a single tuple.
    *
-   * @param tuple The id of the tuple which is going to be removed (ie it still
+   * @param tuple The id of the tuple which is going to be removed (IE it still
    *        exists within the storage block.
    */
   void removeEntry(const tuple_id tuple) override;
@@ -256,8 +260,9 @@ class SMAIndexSubBlock : public IndexSubBlock {
   /**
    * @brief Updates the index to reflect the addition of several tuples.
    *
-   * @param tuples The ids of the tuple which have been added (ie they exist within
-   *        the storage block.)
+   * @param tuples The ids of the tuple which have been added (IE they exist within
+   *        the storage block).
+   *
    * @return \c true if successful.
    */
   bool bulkAddEntries(const TupleIdSequence &tuples) override;
@@ -265,13 +270,14 @@ class SMAIndexSubBlock : public IndexSubBlock {
   /**
    * @brief Updates the index to reflect the removal of several tuples.
    *
-   * @param tuples The ids of the tuple which is going to be removed (ie they
+   * @param tuples The ids of the tuple which is going to be removed (IE they
    *        still exist within the storage block.
    */
   void bulkRemoveEntries(const TupleIdSequence &tuples) override;
 
   /**
    * @brief Gives an estimate of how long it will take to respond to a query.
+   * 
    * The SMA index will detect if one of the following cases is true:
    *   1) Complete match: all the tuples in this subblock will match the predicate
    *   2) Empty match:    none of the tuples will match
@@ -281,6 +287,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
    * and should be used.
    *
    * @param predicate A simple predicate too be evaluated.
+   * 
    * @return The cost associated with the type of match. Empty matches are constant,
    *         partial matches require a scan, and complete matches require something
    *         less than a regular scan (because we don't need to do the comparison
@@ -320,6 +327,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
    *        entry for it.
    *
    * @param attribute The ID of the attribute to check.
+   * 
    * @return \c true if this index contains an entry.
    */
   bool hasEntryForAttribute(attribute_id attribute) const;
@@ -377,7 +385,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   // Used to lookup the index of the SMA entry given the attribute_id.
   // For example SMAEntry &entry =
   //                 entries_[attribute_to_entry_[someAttribute->getID()]]
-  // -1 indicates that that attribute is not indexed.
+  // A value of -1 indicates that that attribute is not indexed.
   int *attribute_to_entry_;
   // Number of indexed attributes.
   std::size_t indexed_attributes_;
