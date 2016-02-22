@@ -46,6 +46,7 @@ class ParseSimpleTableReference;
 class ParseStatement;
 class ParseStatementCopyFrom;
 class ParseStatementCreateTable;
+class ParseStatementCreateIndex;
 class ParseStatementDelete;
 class ParseStatementDropTable;
 class ParseStatementInsert;
@@ -158,6 +159,15 @@ class Resolver {
    */
   logical::LogicalPtr resolveCreateTable(
       const ParseStatementCreateTable &create_table_statement);
+
+  /**
+   * @brief Resolves a CREATE INDEX query and returns a logical plan.
+   *
+   * @param create_index_statement THE CREATE INDEX parse tree.
+   * @return A logical plan for the CREATE INDEX query.
+   */
+  logical::LogicalPtr resolveCreateIndex(
+      const ParseStatementCreateIndex &create_index_statement);
 
   /**
    * @brief Resolves a DELETE query and returns a logical plan.

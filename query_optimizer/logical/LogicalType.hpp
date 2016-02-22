@@ -32,6 +32,7 @@ namespace logical {
 enum class LogicalType {
   kAggregate,
   kCopyFrom,
+  kCreateIndex,
   kCreateTable,
   kDeleteTuples,
   kDropTable,

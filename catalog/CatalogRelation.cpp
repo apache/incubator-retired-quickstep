@@ -18,6 +18,7 @@
 #include "catalog/CatalogRelation.hpp"
 
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "catalog/Catalog.pb.h"
@@ -92,6 +93,11 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelation &proto)
     }
   }
 
+  // Deserializing the indices of the relation
+  for (int i = 0; i < proto.index_size(); i++) {
+    indices_.push_back(proto.index(i));
+  }
+
   // Deserializing the partition scheme for the relation.
   // This should be done after the attributes are added and before the
   // blocks of the relation are added.
@@ -135,6 +141,10 @@ serialization::CatalogRelation CatalogRelation::getProto() const {
     for (const block_id block : blocks_) {
       proto.add_blocks(block);
     }
+  }
+
+  for (std::vector<std::string>::const_iterator it = indices_.begin(); it != indices_.end(); ++it) {
+    proto.add_index(*it);
   }
 
   for (PtrVector<CatalogAttribute, true>::const_iterator it = attr_vec_.begin();

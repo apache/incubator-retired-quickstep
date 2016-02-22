@@ -65,8 +65,9 @@ message CatalogRelation {
 
   repeated fixed64 blocks = 4 [packed=true];
   repeated CatalogAttribute attributes = 5;
-  optional PartitionScheme partition_scheme = 6;
-  optional NUMAPlacementScheme placement_scheme = 7;
+  repeated string index = 6;
+  optional PartitionScheme partition_scheme = 7;
+  optional NUMAPlacementScheme placement_scheme = 8;
 }
 
 message CatalogDatabase {

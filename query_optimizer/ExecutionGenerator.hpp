@@ -35,6 +35,7 @@
 #include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
 #include "query_optimizer/physical/CopyFrom.hpp"
+#include "query_optimizer/physical/CreateIndex.hpp"
 #include "query_optimizer/physical/CreateTable.hpp"
 #include "query_optimizer/physical/DeleteTuples.hpp"
 #include "query_optimizer/physical/DropTable.hpp"
@@ -247,6 +248,13 @@ class ExecutionGenerator {
    * @param physical_plan The CopyFrom to be converted.
    */
   void convertCopyFrom(const physical::CopyFromPtr &physical_plan);
+
+  /**
+   * @brief Converts a CreateIndex to a CreateIndex operator.
+   *
+   * @param physical_plan The CreateIndex to be converted.
+   */
+  void convertCreateIndex(const physical::CreateIndexPtr &physical_plan);
 
   /**
    * @brief Converts a CreateTable to a CreateTable operator.

@@ -67,6 +67,7 @@
 #include "query_optimizer/expressions/UnaryExpression.hpp"
 #include "query_optimizer/logical/Aggregate.hpp"
 #include "query_optimizer/logical/CopyFrom.hpp"
+#include "query_optimizer/logical/CreateIndex.hpp"
 #include "query_optimizer/logical/CreateTable.hpp"
 #include "query_optimizer/logical/DeleteTuples.hpp"
 #include "query_optimizer/logical/DropTable.hpp"
@@ -246,6 +247,11 @@ L::LogicalPtr Resolver::resolve(const ParseStatement &parse_query) {
       logical_plan_ = resolveCreateTable(
           static_cast<const ParseStatementCreateTable&>(parse_query));
       break;
+    case ParseStatement::kCreateIndex:
+      context_->set_is_catalog_changed();
+      logical_plan_ = resolveCreateIndex(
+          static_cast<const ParseStatementCreateIndex&>(parse_query));
+      break;
     case ParseStatement::kDelete:
       context_->set_is_catalog_changed();
       logical_plan_ =
@@ -386,6 +392,16 @@ L::LogicalPtr Resolver::resolveCreateTable(
   }
 
   return L::CreateTable::Create(relation_name, attributes);
+}
+
+L::LogicalPtr Resolver::resolveCreateIndex(
+    const ParseStatementCreateIndex &create_index_statement) {
+  // Resolve relation name.
+  const L::LogicalPtr input = resolveSimpleTableReference(
+      *create_index_statement.relation_name(), nullptr /* reference_alias */);
+
+  const std::string index_name = create_index_statement.index_name()->value();
+  return L::CreateIndex::Create(input, index_name);
 }
 
 L::LogicalPtr Resolver::resolveDelete(

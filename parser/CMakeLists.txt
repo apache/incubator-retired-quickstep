@@ -196,6 +196,7 @@ target_link_libraries(quickstep_parser_ParseStatement
                       quickstep_parser_ParseAssignment
                       quickstep_parser_ParseAttributeDefinition
                       quickstep_parser_ParseBasicExpressions
+                      quickstep_parser_ParseKeyValue
                       quickstep_parser_ParsePredicate
                       quickstep_parser_ParseSelect
                       quickstep_parser_ParseString
@@ -260,6 +261,7 @@ target_link_libraries(quickstep_parser_SqlParser
                       quickstep_parser_ParseSubqueryTableReference
                       quickstep_parser_ParseTableReference
                       quickstep_parser_ParserUtil
+                      quickstep_storage_StorageBlockInfo
                       quickstep_types_Type
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID

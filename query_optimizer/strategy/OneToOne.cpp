@@ -25,6 +25,7 @@
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/logical/CopyFrom.hpp"
+#include "query_optimizer/logical/CreateIndex.hpp"
 #include "query_optimizer/logical/CreateTable.hpp"
 #include "query_optimizer/logical/DeleteTuples.hpp"
 #include "query_optimizer/logical/DropTable.hpp"
@@ -36,6 +37,7 @@
 #include "query_optimizer/logical/TopLevelPlan.hpp"
 #include "query_optimizer/logical/UpdateTable.hpp"
 #include "query_optimizer/physical/CopyFrom.hpp"
+#include "query_optimizer/physical/CreateIndex.hpp"
 #include "query_optimizer/physical/CreateTable.hpp"
 #include "query_optimizer/physical/DeleteTuples.hpp"
 #include "query_optimizer/physical/DropTable.hpp"
@@ -91,6 +93,13 @@ bool OneToOne::generatePlan(const L::LogicalPtr &logical_input,
       *physical_output = P::CopyFrom::Create(
           copy_from->catalog_relation(), copy_from->file_name(),
           copy_from->column_delimiter(), copy_from->escape_strings());
+      return true;
+    }
+    case L::LogicalType::kCreateIndex: {
+      const L::CreateIndexPtr create_index =
+          std::static_pointer_cast<const L::CreateIndex>(logical_input);
+      *physical_output = P::CreateIndex::Create(
+          physical_mapper_->createOrGetPhysicalFromLogical(create_index->input()), create_index->index_name());
       return true;
     }
     case L::LogicalType::kCreateTable: {

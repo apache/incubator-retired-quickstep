@@ -162,8 +162,8 @@ class ParseStatementCreateTable : public ParseStatement {
   /**
    * @brief The parsed representation of a CREATE INDEX statement.
    **/
-  class ParseStatementCreateIndex : public ParseStatement {
-  public:
+class ParseStatementCreateIndex : public ParseStatement {
+ public:
     /**
      * @brief Constructor.
      *
@@ -191,16 +191,16 @@ class ParseStatementCreateTable : public ParseStatement {
     index_type_(index_type),
     index_property_list_(index_property_list) {
     }
-    
+
     ~ParseStatementCreateIndex() override {
     }
-    
+
     StatementType getStatementType() const override {
       return kCreateIndex;
     }
-    
+
     std::string getName() const override { return "CreateIndexStatement"; }
-    
+
     /**
      * @brief Get the name of the index to create.
      *
@@ -209,7 +209,7 @@ class ParseStatementCreateTable : public ParseStatement {
     const ParseString* index_name() const {
       return index_name_.get();
     }
-    
+
     /**
      * @brief Get the name of the relation to create index upon.
      *
@@ -218,7 +218,7 @@ class ParseStatementCreateTable : public ParseStatement {
     const ParseString* relation_name() const {
       return relation_name_.get();
     }
-    
+
     /**
      * @brief Get the list of attributes on which index is supposed to be defined.
      *
@@ -227,7 +227,7 @@ class ParseStatementCreateTable : public ParseStatement {
     const PtrList<ParseString>& attribute_name_list() const {
       return *attribute_name_list_;
     }
-    
+
     /**
      * @brief Get the type of the index to be created.
      *
@@ -236,9 +236,9 @@ class ParseStatementCreateTable : public ParseStatement {
     const ParseString* index_type() const {
       return index_type_.get();
     }
-    
-    
-  protected:
+
+
+ protected:
     void getFieldStringItems(
                              std::vector<std::string> *inline_field_names,
                              std::vector<std::string> *inline_field_values,
@@ -248,13 +248,13 @@ class ParseStatementCreateTable : public ParseStatement {
                              std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override {
       inline_field_names->push_back("index_name");
       inline_field_values->push_back(index_name_->value());
-      
+
       inline_field_names->push_back("relation_name");
       inline_field_values->push_back(relation_name_->value());
-      
+
       inline_field_names->push_back("index_type");
       inline_field_values->push_back(index_type_->value());
-      
+
       if (attribute_name_list_.get() != nullptr) {
         container_child_field_names->push_back("attribute_name_list");
         container_child_fields->emplace_back();
@@ -262,7 +262,7 @@ class ParseStatementCreateTable : public ParseStatement {
           container_child_fields->back().push_back(&attribute_name);
         }
       }
-      
+
       if (index_property_list_.get() != nullptr) {
         container_child_field_names->push_back("index_property_list");
         container_child_fields->emplace_back();
@@ -271,17 +271,17 @@ class ParseStatementCreateTable : public ParseStatement {
         }
       }
     }
-    
-  private:
+
+ private:
     std::unique_ptr<ParseString> index_name_;
     std::unique_ptr<ParseString> relation_name_;
     std::unique_ptr<PtrList<ParseString> > attribute_name_list_;
     std::unique_ptr<ParseString> index_type_;
     std::unique_ptr<PtrList<ParseKeyValue> > index_property_list_;
-    
+
     DISALLOW_COPY_AND_ASSIGN(ParseStatementCreateIndex);
-  };
-  
+};
+
 /**
  * @brief The parsed representation of a DROP TABLE statement.
  **/
