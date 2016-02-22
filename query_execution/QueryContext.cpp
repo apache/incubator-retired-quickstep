@@ -120,10 +120,12 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
     update_groups_.push_back(move(update_group));
   }
 
-  for (int i = 0; i < proto.generator_functions_size(); i++) {
+  for (int i = 0; i < proto.generator_functions_size(); ++i) {
+    const GeneratorFunctionHandle *func_handle =
+        GeneratorFunctionFactory::Instance().ReconstructFromProto(proto.generator_functions(i));
+    DCHECK(func_handle != nullptr);
     generator_function_groups_.emplace_back(
-        std::unique_ptr<GeneratorFunctionHandle>(
-            GeneratorFunctionFactory::ReconstructFromProto(proto.generator_functions(i))));
+        std::unique_ptr<const GeneratorFunctionHandle>(func_handle));
   }
 }
 
@@ -199,7 +201,9 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
     }
   }
 
-  for (int i = 0; i < proto.generator_functions_size(); i++) {
+  // Each GeneratorFunctionHandle object is serialized as a function name with
+  // a list of arguments. Here checks that the arguments are valid TypedValue's.
+  for (int i = 0; i < proto.generator_functions_size(); ++i) {
     const serialization::GeneratorFunctionHandle &func_proto = proto.generator_functions(i);
     for (int j = 0; j < func_proto.args_size(); j++) {
       if (!TypedValue::ProtoIsValid(func_proto.args(j))) {

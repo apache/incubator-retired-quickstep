@@ -1,6 +1,4 @@
 /**
- *   Copyright 2016 Pivotal Software, Inc.
- *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
  *   You may obtain a copy of the License at
@@ -40,11 +38,16 @@ typedef std::shared_ptr<const GeneratorFunctionHandle> GeneratorFunctionHandlePt
 /**
  * @brief Abstract representation of a concrete generator function.
  *
- * @note This class provides facilities for both the frontend (e.g. output
- *       column type information, which is needed by the query planner) and the
- *       backend (e.g. the populateColumns method). It is also an option, if
- *       needed later, to abstract one more GeneratorFunctionDescriptor class
- *       to split out the functionalities purely for the frontend.
+ * This class abstracts the required facilities for a particular generator
+ * function to be usable by the query processor.
+ *
+ * To implement a particular generator function, one needs to subclass
+ * GeneratorFunctionHandle and implement the methods that provide the function
+ * signature information, i.e. the number of output columns and the value type
+ * of each output column, where this information will be used by the query
+ * processor to generate the query plan. Then, the subclass should implement
+ * the populateColumns() method which will actually populate a column-based
+ * table (abstracted as ColumnVectorsValueAccessor) at query run time.
  **/
 class GeneratorFunctionHandle {
  public:

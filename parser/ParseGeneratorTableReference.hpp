@@ -1,6 +1,4 @@
 /**
- *   Copyright 2016 Pivotal Software, Inc.
- *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
  *   You may obtain a copy of the License at
@@ -63,7 +61,7 @@ class ParseGeneratorTableReference : public ParseTableReference {
     return kGeneratorTableReference;
   }
 
-  std::string getName() const override { return "GeneratorTable"; }
+  std::string getName() const override { return "TableGenerator"; }
 
   /**
    * @return The parsed generator function.

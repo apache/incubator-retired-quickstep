@@ -1125,7 +1125,7 @@ L::LogicalPtr Resolver::resolveGeneratorTableReference(
 
   // Resolve the generator function
   const quickstep::GeneratorFunction *func_template =
-      GeneratorFunctionFactory::GetByName(func_name->value());
+      GeneratorFunctionFactory::Instance().GetByName(func_name->value());
   if (func_template == nullptr) {
       THROW_SQL_ERROR_AT(func_name)
           << "Generator function " << func_name->value() << " not found";
@@ -1156,7 +1156,10 @@ L::LogicalPtr Resolver::resolveGeneratorTableReference(
     DCHECK(func_handle == nullptr);
     THROW_SQL_ERROR_AT(table_reference.generator_function()) << e.what();
   }
-  DCHECK(func_handle != nullptr);
+  if (func_handle == nullptr) {
+    THROW_SQL_ERROR_AT(table_reference.generator_function())
+        << "Invalid arguments";
+  }
 
   return L::TableGenerator::Create(quickstep::GeneratorFunctionHandlePtr(func_handle),
                                    reference_alias->value(),

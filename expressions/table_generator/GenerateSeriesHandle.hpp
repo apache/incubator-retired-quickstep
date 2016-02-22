@@ -1,6 +1,4 @@
 /**
- *   Copyright 2016 Pivotal Software, Inc.
- *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
  *   You may obtain a copy of the License at
@@ -24,14 +22,13 @@
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypedValue.hpp"
+#include "types/containers/ColumnVector.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
 
 namespace quickstep {
-
-class ColumnVector;
 
 /** \addtogroup Expressions
  *  @{
@@ -42,29 +39,6 @@ class ColumnVector;
  */
 class GenerateSeriesHandle : public GeneratorFunctionHandle {
  public:
-  /**
-   * @brief Constructor
-   *
-   * @param func_name The registered name of the GenerateSeries function.
-   * @param orig_args The original constant arguments to this function
-   * @param type The unified type for the arguments.
-   * @param start The start value. Its type should equal unified_type.
-   * @param end The end value. Its type should equal unified_type.
-   * @param step The step size. Its type should equal unified_type.
-   */
-  GenerateSeriesHandle(const std::string &func_name,
-                       const std::vector<TypedValue> &orig_args,
-                       const Type &unified_type,
-                       const TypedValue &start,
-                       const TypedValue &end,
-                       const TypedValue &step)
-      : GeneratorFunctionHandle(func_name, orig_args),
-        type_(unified_type),
-        start_(start),
-        end_(end),
-        step_(step) {
-  }
-
   int getNumberOfOutputColumns() const override {
     return 1;
   }
@@ -87,8 +61,8 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
   void populateColumns(ColumnVectorsValueAccessor *results) const override {
     DCHECK(results != nullptr);
 
-    // Populate the output column.
-    ColumnVector *result_vec;
+    // Generate the output column.
+    NativeColumnVector *result_vec;
     switch (type_.getTypeID()) {
       case TypeID::kInt: {
         result_vec = generateColumn<int>();
@@ -107,15 +81,44 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
         break;
       }
       default:
+        // Should not reach here -- type checking should be done inside
+        // GenerateSeries::createHandle() at query compile time.
         LOG(FATAL) << "GenerateSeries cannot handle arguments with type "
                    << type_.getName();
     }
+    // Add the output column into the ColumnVectorsValueAccessor container.
     results->addColumn(result_vec);
   }
 
  private:
+  friend class GenerateSeries;
+
+  /**
+   * @brief Constructor. A GenerateSeriesHandle object should only be
+   *        instantiated inside method GenerateSeries::createHandle().
+   *
+   * @param func_name The registered name of the GenerateSeries function.
+   * @param orig_args The original constant arguments to this function
+   * @param type The unified type for the arguments.
+   * @param start The start value. Its type should equal unified_type.
+   * @param end The end value. Its type should equal unified_type.
+   * @param step The step size. Its type should equal unified_type.
+   */
+  GenerateSeriesHandle(const std::string &func_name,
+                       const std::vector<TypedValue> &orig_args,
+                       const Type &unified_type,
+                       const TypedValue &start,
+                       const TypedValue &end,
+                       const TypedValue &step)
+      : GeneratorFunctionHandle(func_name, orig_args),
+        type_(unified_type),
+        start_(start),
+        end_(end),
+        step_(step) {
+  }
+
   template <typename T>
-  ColumnVector *generateColumn() const {
+  NativeColumnVector *generateColumn() const {
     T start = start_.getLiteral<T>();
     T end = end_.getLiteral<T>();
     T step = step_.getLiteral<T>();

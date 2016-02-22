@@ -1,6 +1,4 @@
 /**
- *   Copyright 2016 Pivotal Software, Inc.
- *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
  *   You may obtain a copy of the License at
@@ -28,16 +26,34 @@
 
 namespace quickstep {
 
-const GeneratorFunction* GeneratorFunctionFactory::GetByName(const std::string &name) {
-  if (name == GenerateSeries::Instance().getName()) {
-    return &GenerateSeries::Instance();
+
+GeneratorFunctionFactory::GeneratorFunctionFactory() {
+#define REGISTER_GENERATOR_FUNCTION_(FuncClass) \
+  func_map_.emplace(FuncClass::Instance().getName(), &FuncClass::Instance())
+
+  // Register all generator functions here.
+  REGISTER_GENERATOR_FUNCTION_(GenerateSeries);
+
+#undef REGISTER_GENERATOR_FUNCTION_
+}
+
+
+const GeneratorFunctionFactory& GeneratorFunctionFactory::Instance() {
+  static GeneratorFunctionFactory instance;
+  return instance;
+}
+
+const GeneratorFunction* GeneratorFunctionFactory::GetByName(const std::string &name) const {
+  const auto it = func_map_.find(name);
+  if (it == func_map_.end()) {
+    return it->second;
   } else {
     return nullptr;
   }
 }
 
 GeneratorFunctionHandle *GeneratorFunctionFactory::ReconstructFromProto(
-    const serialization::GeneratorFunctionHandle &proto) {
+    const serialization::GeneratorFunctionHandle &proto) const {
   const GeneratorFunction *func_template = GetByName(proto.function_name());
   if (func_template == nullptr) {
     LOG(FATAL) << "Generator function " << proto.function_name() << " not found";

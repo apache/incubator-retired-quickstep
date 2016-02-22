@@ -1,6 +1,4 @@
 /**
- *   Copyright 2016 Pivotal Software, Inc.
- *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
  *   You may obtain a copy of the License at
@@ -32,11 +30,24 @@ class GeneratorFunctionHandle;
  */
 
 /**
- * @brief All-static factory class that provides access to the various concrete
+ * @brief Singleton factory class that provides access to the various concrete
  *        implementations of GeneratorFunction.
+ *
+ * @note Generator functions are used for generating tables. A generator
+ *       function takes a list of constant arguments at query compile time,
+ *       and populates a table at query run time. See the documentation in
+ *       GeneratorFunction.hpp for a detailed description and for how to
+ *       implement a new generator function.
  **/
 class GeneratorFunctionFactory {
  public:
+  /**
+   * @brief Singleton instance of the GeneratorFunctionFactory class.
+   * @return A const reference to the singleton instance of the
+   *         GeneratorFunctionFactory class.
+   */
+  static const GeneratorFunctionFactory& Instance();
+
   /**
    * @brief Get a particular GeneratorFunction by its name.
    *
@@ -44,7 +55,7 @@ class GeneratorFunctionFactory {
    * @return A pointer to the GeneratorFunction specified by name, or NULL if
    *         name does not match any known GeneratorFunction.
    **/
-  static const GeneratorFunction *GetByName(const std::string &name);
+  const GeneratorFunction *GetByName(const std::string &name) const;
 
   /**
    * @brief Reconstruct a particular GeneratorFunctionHandle by its protobuf
@@ -55,12 +66,17 @@ class GeneratorFunctionFactory {
    * @return A new GeneratorFunctionHandle object constructed from the protobuf
    *         message. Caller is responsible for deleting the returned object.
    */
-  static GeneratorFunctionHandle *ReconstructFromProto(
-      const serialization::GeneratorFunctionHandle &proto);
+  GeneratorFunctionHandle *ReconstructFromProto(
+      const serialization::GeneratorFunctionHandle &proto) const;
 
  private:
-  // Class is all-static and can not be instantiated.
+  /**
+   * @brief Constructor. All the implemented generator functions should be
+   *        registered into GeneratorFunctionFactory inside the constructor.
+   */
   GeneratorFunctionFactory();
+
+  std::map<std::string, const GeneratorFunction *> func_map_;
 
   DISALLOW_COPY_AND_ASSIGN(GeneratorFunctionFactory);
 };

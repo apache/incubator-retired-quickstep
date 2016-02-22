@@ -1,6 +1,4 @@
 /**
- *   Copyright 2016 Pivotal Software, Inc.
- *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
  *   You may obtain a copy of the License at
@@ -49,6 +47,9 @@ typedef std::shared_ptr<const TableGenerator> TableGeneratorPtr;
 /**
  * @brief Leaf logical node that represents a table that will be populated
  *        by a generator function.
+ *
+ * @note For how to add a new generator function, see the documentation of
+ *       GeneratorFunction and GeneratorFunctionHandle.
  */
 class TableGenerator : public Logical {
  public:

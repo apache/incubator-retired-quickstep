@@ -303,7 +303,7 @@ class QueryContext {
   std::vector<std::unique_ptr<const SortConfiguration>> sort_configs_;
   std::vector<std::unique_ptr<Tuple>> tuples_;
   std::vector<std::unordered_map<attribute_id, std::unique_ptr<const Scalar>>> update_groups_;
-  std::vector<std::unique_ptr<GeneratorFunctionHandle>> generator_function_groups_;
+  std::vector<std::unique_ptr<const GeneratorFunctionHandle>> generator_function_groups_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryContext);
 };
