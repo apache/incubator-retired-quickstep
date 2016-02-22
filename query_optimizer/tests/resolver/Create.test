@@ -184,22 +184,22 @@ ERROR: The given attribute was not found. (2 : 44)
                                              ^
 ==
 
-# BLOCKSIZE property must be an integer.
+# BLOCKSIZEMB property must be an integer.
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
-(TYPE rowstore, BLOCKSIZE ten);
+(TYPE rowstore, BLOCKSIZEMB ten);
 --
-ERROR: The BLOCKSIZE property must contain an integer key. (2 : 17)
-(TYPE rowstore, BLOCKSIZE ten);
+ERROR: The BLOCKSIZEMB property must contain an integer key. (2 : 17)
+(TYPE rowstore, BLOCKSIZEMB ten);
                 ^
 ==
 
-# BLOCKSIZE must not be 0.
+# BLOCKSIZEMB must not be 0.
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
-(TYPE rowstore, BLOCKSIZE 0);
+(TYPE rowstore, BLOCKSIZEMB 0);
 --
-ERROR: The BLOCKSIZE property must be between 1 and 10 slots. (2 : 27)
-(TYPE rowstore, BLOCKSIZE 0);
-                          ^
+ERROR: The BLOCKSIZEMB property must be between 1 and 10 slots. (2 : 29)
+(TYPE rowstore, BLOCKSIZEMB 0);
+                            ^
 ==
 
 # Unrecognized BLOCKPROPERTIES should throw.
