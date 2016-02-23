@@ -219,31 +219,26 @@ void Join::addHashJoin(const logical::ProjectPtr &logical_project,
     }
   }
 
-  std::vector<E::ExpressionPtr> join_attributes(left_join_attributes.begin(),
-                                                left_join_attributes.end());
-  join_attributes.insert(join_attributes.end(),
-                         right_join_attributes.begin(),
-                         right_join_attributes.end());
-
   // Pull up the left Selection.
   P::SelectionPtr selection;
   if (P::SomeSelection::MatchesWithConditionalCast(left, &selection) &&
       selection->filter_predicate() == nullptr) {
     const std::vector<E::NamedExpressionPtr> old_project_expressions =
         project_expressions;
-    const std::vector<E::ExpressionPtr> old_join_attributes = join_attributes;
-    const std::vector<E::ExpressionPtr> old_non_hash_join_predicates = non_hash_join_predicates;
+    const std::vector<E::ExpressionPtr> old_non_hash_join_predicates =
+        non_hash_join_predicates;
+    std::vector<E::ExpressionPtr> join_attributes(left_join_attributes.begin(),
+                                                  left_join_attributes.end());
+
     PullUpProjectExpressions(selection->project_expressions(),
                              {&join_attributes, &non_hash_join_predicates} /* non_project_expression_lists */,
                              {&project_expressions} /* project_expression_lists */);
 
     bool pull_up_selection = true;
     // Do not pull up the Selection if original join attributes have been changed to non-attributes.
-    E::AliasPtr join_attribute_alias;
+    std::vector<E::AttributeReferencePtr> new_left_join_attributes;
     for (const E::ExpressionPtr &new_join_expression : join_attributes) {
-      if (!E::SomeAttributeReference::Matches(new_join_expression)
-          && !(E::SomeAlias::MatchesWithConditionalCast(new_join_expression, &join_attribute_alias)
-               && E::SomeAttributeReference::Matches(join_attribute_alias->expression()))) {
+      if (!E::SomeAttributeReference::Matches(new_join_expression)) {
         pull_up_selection = false;
         break;
       }
@@ -251,8 +246,8 @@ void Join::addHashJoin(const logical::ProjectPtr &logical_project,
 
     if (pull_up_selection) {
       left = selection->input();
+      left_join_attributes = CastSharedPtrVector<E::AttributeReference>(join_attributes);
     } else {
-      join_attributes = old_join_attributes;
       non_hash_join_predicates = old_non_hash_join_predicates;
       project_expressions = old_project_expressions;
     }
@@ -265,17 +260,17 @@ void Join::addHashJoin(const logical::ProjectPtr &logical_project,
         project_expressions;
     const std::vector<E::ExpressionPtr> old_non_hash_join_predicates =
         non_hash_join_predicates;
+    std::vector<E::ExpressionPtr> join_attributes(right_join_attributes.begin(),
+                                                  right_join_attributes.end());
+
     PullUpProjectExpressions(selection->project_expressions(),
                              {&join_attributes, &non_hash_join_predicates} /* non_project_expression_lists */,
                              {&project_expressions} /* project_expression_lists */);
 
     bool pull_up_selection = true;
     // Do not pull up the Selection if original join attributes have been changed to non-attributes.
-    E::AliasPtr join_attribute_alias;
     for (const E::ExpressionPtr &new_join_expression : join_attributes) {
-      if (!E::SomeAttributeReference::Matches(new_join_expression)
-          && !(E::SomeAlias::MatchesWithConditionalCast(new_join_expression, &join_attribute_alias)
-               && E::SomeAttributeReference::Matches(join_attribute_alias->expression()))) {
+      if (!E::SomeAttributeReference::Matches(new_join_expression)) {
         pull_up_selection = false;
         break;
       }
@@ -283,6 +278,7 @@ void Join::addHashJoin(const logical::ProjectPtr &logical_project,
 
     if (pull_up_selection) {
       right = selection->input();
+      right_join_attributes = CastSharedPtrVector<E::AttributeReference>(join_attributes);
     } else {
       non_hash_join_predicates = old_non_hash_join_predicates;
       project_expressions = old_project_expressions;
