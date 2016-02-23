@@ -41,6 +41,12 @@ void CreateTable::getFieldStringItems(
 
   container_child_field_names->push_back("attributes");
   container_child_fields->push_back(CastSharedPtrVector<OptimizerTreeBase>(attributes_));
+
+  // The tree representation of the LayoutDescription object, if specified by the user.
+  if (block_properties_representation_) {
+    non_container_child_field_names->push_back("block_properties");
+    non_container_child_fields->push_back(block_properties_representation_);
+  }
 }
 
 }  // namespace physical

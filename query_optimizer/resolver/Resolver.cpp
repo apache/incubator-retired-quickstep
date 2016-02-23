@@ -18,6 +18,7 @@
 #include "query_optimizer/resolver/Resolver.hpp"
 
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -387,9 +388,10 @@ L::LogicalPtr Resolver::resolveCreateTable(
     attribute_name_set.insert(lower_attribute_name);
   }
 
-  return L::CreateTable::Create(relation_name,
-                                attributes,
-                                resolveBlockProperties(create_table_statement));
+  std::shared_ptr<const StorageBlockLayoutDescription>
+      block_properties(resolveBlockProperties(create_table_statement));
+
+  return L::CreateTable::Create(relation_name, attributes, block_properties);
 }
 
 StorageBlockLayoutDescription* Resolver::resolveBlockProperties(

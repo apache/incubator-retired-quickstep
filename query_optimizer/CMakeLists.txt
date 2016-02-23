@@ -145,8 +145,8 @@ target_link_libraries(quickstep_queryoptimizer_OptimizerContext
                       tmb)
 target_link_libraries(quickstep_queryoptimizer_OptimizerTree
                       quickstep_storage_StorageBlockLayout_proto
-                      quickstep_utility_TreeStringSerializable
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      quickstep_utility_TreeStringSerializable)
 target_link_libraries(quickstep_queryoptimizer_PhysicalGenerator
                       quickstep_queryoptimizer_LogicalToPhysicalMapper
                       quickstep_queryoptimizer_logical_Logical

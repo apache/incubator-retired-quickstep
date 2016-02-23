@@ -66,10 +66,17 @@ class CreateTable : public Physical {
     return attributes_;
   }
 
+  /**
+   * @return Shared pointer to the block properties.
+   */
+  const std::shared_ptr<const StorageBlockLayoutDescription> block_properties() const {
+    return block_properties_;
+  }
+
   PhysicalPtr copyWithNewChildren(
       const std::vector<PhysicalPtr> &new_children) const override {
     DCHECK_EQ(getNumChildren(), new_children.size());
-    return Create(relation_name_, attributes_);
+    return Create(relation_name_, attributes_, block_properties_);
   }
 
   std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {
@@ -92,12 +99,14 @@ class CreateTable : public Physical {
    *
    * @param relation_name The name of the relation to be inserted.
    * @param attributes Schema of the relation.
+   * @param block_properties The optional proto message describing the block.
    * @return An immutable CreateTable node.
    */
   static CreateTablePtr Create(
       const std::string &relation_name,
-      const std::vector<expressions::AttributeReferencePtr> &attributes) {
-    return CreateTablePtr(new CreateTable(relation_name, attributes));
+      const std::vector<expressions::AttributeReferencePtr> &attributes,
+      const std::shared_ptr<const StorageBlockLayoutDescription> &block_properties) {
+    return CreateTablePtr(new CreateTable(relation_name, attributes, block_properties));
   }
 
  protected:
@@ -112,11 +121,18 @@ class CreateTable : public Physical {
  private:
   CreateTable(
       const std::string &relation_name,
-      const std::vector<expressions::AttributeReferencePtr> &attributes)
-      : relation_name_(relation_name), attributes_(attributes) {}
+      const std::vector<expressions::AttributeReferencePtr> &attributes,
+      const std::shared_ptr<const StorageBlockLayoutDescription> &block_properties)
+      : relation_name_(relation_name),
+        attributes_(attributes),
+        block_properties_(block_properties),
+        block_properties_representation_(
+            getOptimizerRepresentationForProto<OptimizerTreeBaseNodePtr>(block_properties_.get())) {}
 
   std::string relation_name_;
   std::vector<expressions::AttributeReferencePtr> attributes_;
+  std::shared_ptr<const StorageBlockLayoutDescription> block_properties_;
+  std::shared_ptr<const OptimizerProtoRepresentation<OptimizerTreeBaseNodePtr> > block_properties_representation_;
 
   DISALLOW_COPY_AND_ASSIGN(CreateTable);
 };
