@@ -80,7 +80,7 @@ class GenerateSeries : public GeneratorFunction {
 
     // Get the unified type of all arguments.
     const Type *unified_type = arg_types[0];
-    for (int i = 1; i < arg_size && unified_type != nullptr; i++) {
+    for (int i = 1; i < arg_size && unified_type != nullptr; ++i) {
       unified_type =
           TypeFactory::GetUnifyingType(*arg_types[i],
                                        *unified_type);

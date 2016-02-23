@@ -145,7 +145,7 @@ class TableGenerator : public Logical {
     int num_attrs = generator_function_handle->getNumberOfOutputColumns();
     const std::string &table_name = generator_function_handle->getName();
 
-    for (int i = 0; i < num_attrs; i++) {
+    for (int i = 0; i < num_attrs; ++i) {
       attribute_list_.emplace_back(
         E::AttributeReference::Create(
             optimizer_context->nextExprId(),

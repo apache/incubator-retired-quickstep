@@ -132,7 +132,7 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
 
     NativeColumnVector *result_vec = new NativeColumnVector(type_, length);
     T value = start;
-    for (std::size_t i = 0; i < length; i++) {
+    for (std::size_t i = 0; i < length; ++i) {
       result_vec->appendUntypedValue(&value);
       value += step;
     }
