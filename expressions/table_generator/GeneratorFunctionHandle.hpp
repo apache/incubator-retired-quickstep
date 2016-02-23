@@ -126,7 +126,7 @@ class GeneratorFunctionHandle {
     }
     return proto;
   }
- 
+
  protected:
   GeneratorFunctionHandle(const std::string &func_name,
                           const std::vector<TypedValue> &orig_args)
