@@ -1,4 +1,7 @@
 /**
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *   University of Wisconsin—Madison.
+ *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
  *   You may obtain a copy of the License at
@@ -16,6 +19,7 @@
 #define QUICKSTEP_EXPRESSIONS_TABLE_GENERATOR_GENERATOR_FUNCTION_FACTORY_HPP_
 
 #include <string>
+#include <map>
 
 #include "expressions/table_generator/GeneratorFunction.pb.h"
 #include "utility/Macros.hpp"

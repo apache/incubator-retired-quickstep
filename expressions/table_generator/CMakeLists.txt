@@ -42,8 +42,6 @@ target_link_libraries(quickstep_expressions_tablegenerator_GenerateSeries
 target_link_libraries(quickstep_expressions_tablegenerator_GenerateSeriesHandle
                       glog
                       quickstep_expressions_tablegenerator_GeneratorFunction_proto
-                      quickstep_types_containers_ColumnVector
-                      quickstep_types_containers_ColumnVectorsValueAccesor
                       quickstep_types_Type
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_tablegenerator_GeneratorFunction

@@ -1,4 +1,7 @@
 /**
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *   University of Wisconsin—Madison.
+ *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
  *   You may obtain a copy of the License at
@@ -52,7 +55,7 @@ class GenerateSeries : public GeneratorFunction {
   const std::string getName() const override {
     return "generate_series";
   }
- 
+
   const std::string getSyntax() const override {
     return getName() + "(<start>, <end>[, <step>])";
   }

@@ -1,4 +1,7 @@
 /**
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *   University of Wisconsin—Madison.
+ *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
  *   You may obtain a copy of the License at
@@ -26,7 +29,6 @@
 
 namespace quickstep {
 
-
 GeneratorFunctionFactory::GeneratorFunctionFactory() {
 #define REGISTER_GENERATOR_FUNCTION_(FuncClass) \
   func_map_.emplace(FuncClass::Instance().getName(), &FuncClass::Instance())
@@ -37,7 +39,6 @@ GeneratorFunctionFactory::GeneratorFunctionFactory() {
 #undef REGISTER_GENERATOR_FUNCTION_
 }
 
-
 const GeneratorFunctionFactory& GeneratorFunctionFactory::Instance() {
   static GeneratorFunctionFactory instance;
   return instance;
@@ -45,7 +46,7 @@ const GeneratorFunctionFactory& GeneratorFunctionFactory::Instance() {
 
 const GeneratorFunction* GeneratorFunctionFactory::GetByName(const std::string &name) const {
   const auto it = func_map_.find(name);
-  if (it == func_map_.end()) {
+  if (it != func_map_.end()) {
     return it->second;
   } else {
     return nullptr;
