@@ -81,8 +81,9 @@ There are just three steps to implement a new generator function.
 3. Register the **`GeneratorFunction`** subclass into **`GeneratorFunctionFactory`** by adding into `GeneratorFunctionFactory`'s constructor a new line:
 ```
 GeneratorFunctionFactory::GeneratorFunctionFactory() {
-  // Register all generator functions here.
   ...
-  REGISTER_GENERATOR_FUNCTION_(YourGeneratorFunctionSubclassName);
+  // Register all generator functions here.
+  REGISTER_GENERATOR_FUNCTION_(YourGeneratorFunctionSubclass);
+  ...
 }
 ```
