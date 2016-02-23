@@ -184,12 +184,12 @@ class ParseStatementCreateIndex : public ParseStatement {
                               PtrList<ParseString> *attribute_name_list,
                               ParseString *index_type,
                               PtrList<ParseKeyValue> *index_property_list)
-    : ParseStatement(line_number, column_number),
-    index_name_(index_name),
-    relation_name_(relation_name),
-    attribute_name_list_(attribute_name_list),
-    index_type_(index_type),
-    index_property_list_(index_property_list) {
+      : ParseStatement(line_number, column_number),
+        index_name_(index_name),
+        relation_name_(relation_name),
+        attribute_name_list_(attribute_name_list),
+        index_type_(index_type),
+        index_property_list_(index_property_list) {
     }
 
     ~ParseStatementCreateIndex() override {
@@ -240,12 +240,12 @@ class ParseStatementCreateIndex : public ParseStatement {
 
  protected:
     void getFieldStringItems(
-                             std::vector<std::string> *inline_field_names,
-                             std::vector<std::string> *inline_field_values,
-                             std::vector<std::string> *non_container_child_field_names,
-                             std::vector<const ParseTreeNode*> *non_container_child_fields,
-                             std::vector<std::string> *container_child_field_names,
-                             std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override {
+       std::vector<std::string> *inline_field_names,
+       std::vector<std::string> *inline_field_values,
+       std::vector<std::string> *non_container_child_field_names,
+       std::vector<const ParseTreeNode*> *non_container_child_fields,
+       std::vector<std::string> *container_child_field_names,
+       std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override {
       inline_field_names->push_back("index_name");
       inline_field_values->push_back(index_name_->value());
 

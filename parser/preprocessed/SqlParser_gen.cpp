@@ -3436,7 +3436,7 @@ yyreduce:
 #line 851 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.string_value_) = new quickstep::ParseString((yylsp[0]).first_line, (yylsp[0]).first_column,
-                      std::to_string(quickstep::IndexSubBlockType::kBloomFilter));
+           std::to_string(quickstep::IndexSubBlockType::kBloomFilter));
   }
 #line 3442 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;
@@ -3445,7 +3445,7 @@ yyreduce:
 #line 855 "../SqlParser.ypp" /* yacc.c:1661  */
     {
     (yyval.string_value_) = new quickstep::ParseString((yylsp[0]).first_line, (yylsp[0]).first_column,
-                      std::to_string(quickstep::IndexSubBlockType::kCSBTree));
+           std::to_string(quickstep::IndexSubBlockType::kCSBTree));
   }
 #line 3451 "SqlParser_gen.cpp" /* yacc.c:1661  */
     break;

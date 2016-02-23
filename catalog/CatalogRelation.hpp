@@ -212,8 +212,7 @@ class CatalogRelation : public CatalogRelationSchema {
    **/
   bool hasIndexWithName(const std::string& name) {
     SpinSharedMutexExclusiveLock<false> lock(indices_mutex);
-    std::vector<std::string>::iterator it = std::find(
-                    indices_.begin(), indices_.end(), name);
+    std::vector<std::string>::iterator it = std::find(indices_.begin(), indices_.end(), name);
     if (it != indices_.end()) {
       return true;
     } else {

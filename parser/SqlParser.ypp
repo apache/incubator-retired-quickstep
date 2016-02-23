@@ -850,11 +850,11 @@ key_literal_value:
 index_type:
   TOKEN_BLOOM_FILTER {
     $$ = new quickstep::ParseString(@1.first_line, @1.first_column,
-                      std::to_string(quickstep::IndexSubBlockType::kBloomFilter));
+           std::to_string(quickstep::IndexSubBlockType::kBloomFilter));
   }
   | TOKEN_CSB_TREE {
     $$ = new quickstep::ParseString(@1.first_line, @1.first_column,
-                      std::to_string(quickstep::IndexSubBlockType::kCSBTree));
+           std::to_string(quickstep::IndexSubBlockType::kCSBTree));
   };
 
 opt_index_properties:
