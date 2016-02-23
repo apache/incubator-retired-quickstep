@@ -46,7 +46,7 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
     return 1;
   }
 
-  std::string getOutputColumnName(int index) const override {
+  const std::string getOutputColumnName(int index) const override {
     if (index > 0) {
       LOG(FATAL) << "generate_series function has only 1 output column";
     }
@@ -59,6 +59,27 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
       LOG(FATAL) << "generate_series function has only 1 output column";
     }
     return type_;
+  }
+
+  size_t getEstimatedCardinality() const override {
+    switch (type_.getTypeID()) {
+      case TypeID::kInt: {
+        return estimateCardinality<int>();
+      }
+      case TypeID::kLong: {
+        return estimateCardinality<std::int64_t>();
+      }
+      case TypeID::kFloat: {
+        return estimateCardinality<float>();
+      }
+      case TypeID::kDouble: {
+        return estimateCardinality<double>();
+      }
+      default:
+        LOG(FATAL) << "GenerateSeries cannot handle arguments with type "
+                   << type_.getName();
+    }
+    return 0;
   }
 
   void populateColumns(ColumnVectorsValueAccessor *results) const override {
@@ -127,7 +148,7 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
     T step = step_.getLiteral<T>();
 
     DCHECK_NE(step, static_cast<T>(0));
-    std::size_t length = static_cast<std::size_t>((end - start) / step) + 1;
+    std::size_t length = static_cast<std::size_t>((end - start) / step + 1);
     DCHECK_GE(length, static_cast<std::size_t>(0));
 
     NativeColumnVector *result_vec = new NativeColumnVector(type_, length);
@@ -137,6 +158,14 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
       value += step;
     }
     return result_vec;
+  }
+
+  template <typename T>
+  size_t estimateCardinality() const {
+    T step = step_.getLiteral<T>();
+    DCHECK_NE(step, static_cast<T>(0));
+    return static_cast<std::size_t>(
+        (end_.getLiteral<T>() - start_.getLiteral<T>()) / step + 1);
   }
 
   const Type &type_;

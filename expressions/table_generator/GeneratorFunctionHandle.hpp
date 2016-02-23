@@ -67,7 +67,7 @@ class GeneratorFunctionHandle {
    * @param index The index of the output column.
    * @return The name of the specified output column.
    */
-  virtual std::string getOutputColumnName(int index) const {
+  virtual const std::string getOutputColumnName(int index) const {
     std::ostringstream oss;
     oss << "attr" << (index+1);
     return oss.str();
@@ -80,6 +80,13 @@ class GeneratorFunctionHandle {
    * @param The type of the specified output column
    */
   virtual const Type &getOutputColumnType(int index) const = 0;
+
+  /**
+   * @brief Get the estimated number of rows that the function will generate.
+   *
+   * @return The estimated number of rows that the function will generate.
+   */
+  virtual size_t getEstimatedCardinality() const = 0;
 
   /**
    * @brief Populate the given ColumnVectorsValueAccessor with data.
@@ -119,7 +126,7 @@ class GeneratorFunctionHandle {
     }
     return proto;
   }
-
+ 
  protected:
   GeneratorFunctionHandle(const std::string &func_name,
                           const std::vector<TypedValue> &orig_args)
