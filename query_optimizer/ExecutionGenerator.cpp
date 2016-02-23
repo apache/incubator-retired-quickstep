@@ -769,6 +769,20 @@ void ExecutionGenerator::convertCreateTable(
     ++aid;
   }
 
+  // If specified, set the physical block type as the users'. Otherwise,
+  // the system uses the default layout.
+  if (physical_plan->block_properties()) {
+    if (!StorageBlockLayout::DescriptionIsValid(*catalog_relation,
+                                                *physical_plan->block_properties())) {
+      THROW_SQL_ERROR() << "BLOCKPROPERTIES is invalid.";
+    }
+
+    std::unique_ptr<StorageBlockLayout> layout(
+        new StorageBlockLayout(*catalog_relation, *physical_plan->block_properties()));
+    layout->finalize();
+    catalog_relation->setDefaultStorageBlockLayout(layout.release());
+  }
+
   execution_plan_->addRelationalOperator(
       new CreateTableOperator(catalog_relation.release(),
                               optimizer_context_->catalog_database()));

@@ -24,3 +24,17 @@ select * from foo
 |col1       |col2                |col3                    |col4           |col5 |
 +-----------+--------------------+------------------------+---------------+-----+
 +-----------+--------------------+------------------------+---------------+-----+
+==
+CREATE TABLE foo1 (col1 INT, col2 char(5)) WITH BLOCKPROPERTIES
+(TYPE columnstore, SORT col1);
+SELECT * FROM foo1;
+--
++-----------+-----+
+|col1       |col2 |
++-----------+-----+
++-----------+-----+
+==
+CREATE TABLE foo2 (col1 INT, col2 varchar(80))
+  WITH BLOCKPROPERTIES (TYPE columnstore, SORT col2);
+--
+ERROR: BLOCKPROPERTIES is invalid.
