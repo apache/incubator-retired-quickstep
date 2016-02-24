@@ -45,10 +45,12 @@ class SMAIndexSubBlock;
 
 QUICKSTEP_DECLARE_SUB_BLOCK_TYPE_REGISTERED(SMAIndexSubBlock);
 
+/**
+ * Namespace contains helper functions of the SMA block. This includes functions
+ * to find the selectivity of predicates over a storage subblock. Also includes
+ * structs that make up the index.
+ */
 namespace sma_internal {
-
-//// Predicate answering components.
-
 /**
  * @brief Roughly describes how many tuples of a subblock will be selected by
  *        a predicate.
@@ -119,8 +121,6 @@ struct SMAPredicate {
         selectivity(Selectivity::kUnsolved) { }
 };
 
-//// Components of the index.
-
 // A 64-bit header.
 struct SMAHeader {
   // Count refers the SQL aggregate COUNT.
@@ -164,13 +164,26 @@ struct SMAEntry {
 /**
  * @brief Small Materialized Aggregate SubBlock.
  * @details Keeps account of several types of aggregate functions per Block.
- *          Currently supports min, max, sum, and count.
+ *          Currently supports min, max, sum, and count (for numeric types).
  *          Physical organization of the block is as follows:
  *
  *          [SMAHeader][SMAEntry x number of indexed attributes]
  */
 class SMAIndexSubBlock : public IndexSubBlock {
  public:
+  /**
+   * @brief Constructor.
+   * 
+   * @param tuple_store The TupleStorageSubBlock whose contents are indexed by
+   *                    this IndexSubBlock.
+   * @param description A description containing any parameters needed to
+   *        construct this SubBlock (e.g. what attributes to index on).
+   *        Implementation-specific parameters are defined as extensions in
+   *        StorageBlockLayout.proto.
+   * @param new_block Whether this is a newly-created block.
+   * @param sub_block_memory The memory slot to use for the block's contents.
+   * @param sub_block_memory_size The size of the memory slot in bytes.
+   */
   SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
                    const IndexSubBlockDescription &description,
                    const bool new_block,
@@ -180,9 +193,10 @@ class SMAIndexSubBlock : public IndexSubBlock {
   /**
    * @brief Frees data associated with variable length attributes.
    * 
-   * Several of the data structure in this index are in heap, therefore it is
+   * Several of the data structures in this index are on the heap, therefore it is
    * important that the destructor be called when evicted. The variables which
-   * are held out of line are the variable length TypedValues and the comparators. 
+   * are held out of line (on the heap_ are the variable length TypedValues and
+   * the comparators. 
    */
   ~SMAIndexSubBlock();
 
@@ -243,7 +257,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   }
 
   /**
-   * @param tuple The new tuple added.
+   * @param tuple The id of the new tuple.
    * @return \c true always. There's no reason we should ever run out of space once
    *         this index has been successfully created.
    */
@@ -252,7 +266,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   /**
    * @brief Updates the index to reflect the removal of a single tuple.
    *
-   * @param tuple The id of the tuple which is going to be removed (IE it still
+   * @param tuple The id of the tuple which is going to be removed (i.e. it still
    *        exists within the storage block.
    */
   void removeEntry(const tuple_id tuple) override;
@@ -260,7 +274,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   /**
    * @brief Updates the index to reflect the addition of several tuples.
    *
-   * @param tuples The ids of the tuple which have been added (IE they exist within
+   * @param tuples The ids of the tuple which have been added (i.e. they exist within
    *        the storage block).
    *
    * @return \c true if successful.
@@ -270,7 +284,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   /**
    * @brief Updates the index to reflect the removal of several tuples.
    *
-   * @param tuples The ids of the tuple which is going to be removed (IE they
+   * @param tuples The ids of the tuple which is going to be removed (i.e. they
    *        still exist within the storage block.
    */
   void bulkRemoveEntries(const TupleIdSequence &tuples) override;
