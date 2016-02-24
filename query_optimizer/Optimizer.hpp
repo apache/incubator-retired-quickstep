@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -24,8 +24,6 @@
 #include "utility/Macros.hpp"
 
 #include "tmb/id_typedefs.h"
-
-namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
@@ -54,15 +52,12 @@ class Optimizer {
    *        names for temporary relations.
    * @param database The database that the query is executed on.
    * @param storage_manager The storage manager for the database.
-   * @param bus A pointer to the TMB.
    */
-  // TODO(zuyu): Remove passing 'bus' once WorkOrder serialization is done.
   Optimizer(const tmb::client_id foreman_client_id,
             const std::size_t query_id,
             CatalogDatabase *database,
-            StorageManager *storage_manager,
-            tmb::MessageBus *bus)
-      : optimizer_context_(foreman_client_id, query_id, database, storage_manager, bus) {}
+            StorageManager *storage_manager)
+      : optimizer_context_(foreman_client_id, query_id, database, storage_manager) {}
 
   /**
    * @brief Destructor.

@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -27,8 +27,6 @@
 #include "utility/Macros.hpp"
 
 #include "tmb/id_typedefs.h"
-
-namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
@@ -58,19 +56,16 @@ class OptimizerContext {
    * @param catalog_database The catalog database where this query is executed.
    * @param storage_manager The storage manager to use for allocating storage
    *        blocks.
-   * @param bus A pointer to the TMB.
    */
   OptimizerContext(const tmb::client_id foreman_client_id,
                    const std::size_t query_id,
                    CatalogDatabase *catalog_database,
-                   StorageManager *storage_manager,
-                   tmb::MessageBus *bus)
+                   StorageManager *storage_manager)
       : foreman_client_id_(foreman_client_id),
         query_id_(query_id),
         current_expr_id_(-1),
         catalog_database_(catalog_database),
         storage_manager_(storage_manager),
-        bus_(bus),
         is_catalog_changed_(false) {}
 
   /**
@@ -117,15 +112,6 @@ class OptimizerContext {
   std::size_t query_id() const { return query_id_; }
 
   /**
-   * @brief Get a pointer to the TMB.
-   *
-   * @return A pointer to the TMB.
-   **/
-  tmb::MessageBus* getMessageBus() {
-    return bus_;
-  }
-
-  /**
    * @brief Gets the next ExprId.
    *
    * @return A new ExprId.
@@ -154,9 +140,6 @@ class OptimizerContext {
 
   CatalogDatabase *catalog_database_;
   StorageManager *storage_manager_;
-
-  // TODO(zuyu): Remove 'bus_' once WorkOrder serialization is done.
-  tmb::MessageBus *bus_;
 
   bool is_catalog_changed_;
 
