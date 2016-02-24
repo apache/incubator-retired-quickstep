@@ -27,8 +27,6 @@
 #include "storage/StorageManager.hpp"
 #include "utility/Macros.hpp"
 
-#include "tmb/id_typedefs.h"
-
 namespace quickstep {
 
 class CatalogDatabase;
@@ -131,13 +129,10 @@ class QueryProcessor {
    * @param catalog_filename The file to read the serialized catalog from.
    * @param storage_path The filesystem directory where blocks are stored on
    *        disk.
-   * @param foreman_client_id The TMB client ID of the Foreman thread.
    **/
   QueryProcessor(const std::string &catalog_filename,
-                 const std::string &storage_path,
-                 const tmb::client_id foreman_client_id)
+                 const std::string &storage_path)
       : catalog_filename_(catalog_filename),
-        foreman_client_id_(foreman_client_id),
         catalog_altered_(false),
         query_id_(0) {
     loadCatalog();
@@ -182,8 +177,6 @@ class QueryProcessor {
   void loadCatalog();  // If it exists, free catalog_ before calling this
 
   std::string catalog_filename_;
-
-  const tmb::client_id foreman_client_id_;
 
   std::unique_ptr<Catalog> catalog_;
   std::unique_ptr<StorageManager> storage_manager_;

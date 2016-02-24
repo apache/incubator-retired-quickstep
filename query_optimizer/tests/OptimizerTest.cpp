@@ -48,8 +48,6 @@
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "utility/Cast.hpp"
 
-#include "tmb/id_typedefs.h"
-
 namespace quickstep {
 namespace optimizer {
 
@@ -61,8 +59,7 @@ OptimizerTest::OptimizerTest()
     : catalog_(new Catalog),
       catalog_database_(
           new CatalogDatabase(catalog_.get(), "TestDatabase" /* name */, 0)),
-      optimizer_context_(new OptimizerContext(tmb::kClientIdNone /* foreman_client_id */,
-                                              0 /* query_id */,
+      optimizer_context_(new OptimizerContext(0 /* query_id */,
                                               catalog_database_.get(),
                                               nullptr /* storage_manager */)),
       physical_generator_(new PhysicalGenerator()) {}

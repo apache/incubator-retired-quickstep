@@ -279,7 +279,6 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_rel_id);
   insert_destination_proto->set_need_to_add_blocks_from_relation(true);
-  insert_destination_proto->set_foreman_client_id(optimizer_context_->getForemanClientID());
 }
 
 void ExecutionGenerator::dropAllTemporaryRelations() {
@@ -735,7 +734,6 @@ void ExecutionGenerator::convertCopyFrom(
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation->getID());
   insert_destination_proto->set_need_to_add_blocks_from_relation(true);
-  insert_destination_proto->set_foreman_client_id(optimizer_context_->getForemanClientID());
 
   const QueryPlan::DAGNodeIndex scan_operator_index =
       execution_plan_->addRelationalOperator(
@@ -916,7 +914,6 @@ void ExecutionGenerator::convertInsertTuple(
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(input_relation->getID());
   insert_destination_proto->set_need_to_add_blocks_from_relation(true);
-  insert_destination_proto->set_foreman_client_id(optimizer_context_->getForemanClientID());
 
   const QueryPlan::DAGNodeIndex insert_operator_index =
       execution_plan_->addRelationalOperator(
@@ -956,7 +953,6 @@ void ExecutionGenerator::convertUpdateTable(
   relocation_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   relocation_destination_proto->set_relation_id(input_rel_id);
   relocation_destination_proto->set_need_to_add_blocks_from_relation(false);
-  relocation_destination_proto->set_foreman_client_id(optimizer_context_->getForemanClientID());
 
   // Convert the predicate proto.
   QueryContext::predicate_id execution_predicate_index = QueryContext::kInvalidPredicateId;

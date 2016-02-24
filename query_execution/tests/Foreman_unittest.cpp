@@ -724,7 +724,6 @@ TEST_F(ForemanTest, TwoNodesDAGPartiallyFilledBlocksTest) {
   insert_destination_proto->set_relation_id(output_relation_id);
   insert_destination_proto->set_need_to_add_blocks_from_relation(false);
   insert_destination_proto->set_relational_op_index(id1);
-  insert_destination_proto->set_foreman_client_id(foreman_->getBusClientID());
 
   MockOperator *op1_mutable =
       static_cast<MockOperator*>(query_plan_->getQueryPlanDAGMutable()->getNodePayloadMutable(id1));
@@ -737,7 +736,7 @@ TEST_F(ForemanTest, TwoNodesDAGPartiallyFilledBlocksTest) {
   // Set up the QueryContext.
   unique_ptr<StorageManager> storage_manager(new StorageManager("./"));
   unique_ptr<QueryContext> query_context(
-      new QueryContext(query_context_proto, db.get(), storage_manager.get(), &bus_));
+      new QueryContext(query_context_proto, db.get(), storage_manager.get(), foreman_->getBusClientID(), &bus_));
 
   // NOTE(zuyu): An operator generally has no ideas about partially filled blocks, but Foreman does.
   // Mock to add partially filled blocks in the InsertDestination.

@@ -248,13 +248,16 @@ class AggregationOperatorTest : public ::testing::Test {
     insert_destination_proto->set_relation_id(result_table_->getID());
     insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
-    insert_destination_proto->set_foreman_client_id(tmb::kClientIdNone);
 
     finalize_op_.reset(
         new FinalizeAggregationOperator(aggr_state_index, *result_table_, insert_destination_index));
 
     // Set up the QueryContext.
-    query_context_.reset(new QueryContext(query_context_proto, db_.get(), storage_manager_.get(), nullptr /* TMB */));
+    query_context_.reset(new QueryContext(query_context_proto,
+                                          db_.get(),
+                                          storage_manager_.get(),
+                                          tmb::kClientIdNone /* foreman_client_id */,
+                                          nullptr /* TMB */));
 
     // Note: We treat these two operators as different query plan DAGs. The
     // index for each operator should be set, so that the WorkOrdersContainer
@@ -326,13 +329,16 @@ class AggregationOperatorTest : public ::testing::Test {
     insert_destination_proto->set_relation_id(result_table_->getID());
     insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
-    insert_destination_proto->set_foreman_client_id(tmb::kClientIdNone);
 
     finalize_op_.reset(
         new FinalizeAggregationOperator(aggr_state_index, *result_table_, insert_destination_index));
 
     // Set up the QueryContext.
-    query_context_.reset(new QueryContext(query_context_proto, db_.get(), storage_manager_.get(), nullptr /* TMB */));
+    query_context_.reset(new QueryContext(query_context_proto,
+                                          db_.get(),
+                                          storage_manager_.get(),
+                                          tmb::kClientIdNone /* foreman_client_id */,
+                                          nullptr /* TMB */));
 
     // Note: We treat these two operators as different query plan DAGs. The
     // index for each operator should be set, so that the WorkOrdersContainer

@@ -143,7 +143,6 @@ TEST_F(TextScanOperatorTest, ScanTest) {
   output_destination_proto->set_relation_id(relation_->getID());
   output_destination_proto->set_need_to_add_blocks_from_relation(false);
   output_destination_proto->set_relational_op_index(kOpIndex);
-  output_destination_proto->set_foreman_client_id(tmb::kClientIdNone);
 
   std::unique_ptr<TextScanOperator> text_scan_op(
       new TextScanOperator(input_filename,
@@ -157,6 +156,7 @@ TEST_F(TextScanOperatorTest, ScanTest) {
   query_context_.reset(new QueryContext(query_context_proto,
                                         db_.get(),
                                         storage_manager_.get(),
+                                        tmb::kClientIdNone /* foreman_client_id */,
                                         nullptr /* TMB */));
 
   fetchAndExecuteWorkOrders(text_scan_op.get());

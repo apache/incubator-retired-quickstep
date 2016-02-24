@@ -69,8 +69,7 @@ void ExecutionGeneratorTestRunner::runTestCase(
   while (true) {
     ParseResult result = sql_parser_.getNextStatement();
 
-    OptimizerContext optimizer_context(foreman_->getBusClientID(),
-                                       0 /* query_id */,
+    OptimizerContext optimizer_context(0 /* query_id */,
                                        test_database_loader_.catalog_database(),
                                        test_database_loader_.storage_manager());
 
@@ -98,6 +97,7 @@ void ExecutionGeneratorTestRunner::runTestCase(
         query_context_.reset(new QueryContext(query_handle.getQueryContextProto(),
                                               test_database_loader_.catalog_database(),
                                               test_database_loader_.storage_manager(),
+                                              foreman_->getBusClientID(),
                                               &bus_));
         foreman_->setQueryContext(query_context_.get());
 
