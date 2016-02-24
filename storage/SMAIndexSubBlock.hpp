@@ -124,11 +124,11 @@ struct SMAPredicate {
 // A 64-bit header.
 struct SMAHeader {
   // Count refers the SQL aggregate COUNT.
-  std::uint32_t count;
+  std::uint32_t count_aggregate;
 
   union {
     // Consistent refers to the index being in a consistent state.
-    bool consistent;
+    bool index_consistent;
     // Padding is so we keep this data structure to 64 bits in length.
     std::uint32_t padding;
   };
@@ -137,7 +137,7 @@ struct SMAHeader {
 // Reference to an attribute value in a tuple. This struct is used to keep a
 // of the min and max value for an attribute.
 struct EntryReference {
-  tuple_id tuple;
+  tuple_id entry_ref_tuple;
   // There are certain cases when the entry reference can be invalid such as
   // when the index is being rebuilt. value should not be used in this case.
   bool valid;
@@ -149,13 +149,13 @@ struct EntryReference {
 struct SMAEntry {
   attribute_id attribute;
   // The type of the attribute contained in this entry.
-  TypeID type;
+  TypeID type_id;
   // A reference to the minimum value of the attribute.
-  EntryReference min_entry;
+  EntryReference min_entry_ref;
   // A reference to the maximum value of the attribute.
-  EntryReference max_entry;
+  EntryReference max_entry_ref;
   // The sum of the attribute. This is only used in the case of numeric types.
-  TypedValue sum;
+  TypedValue sum_aggregate;
 };
 
 }  // namespace sma_internal
@@ -352,7 +352,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
    * @return Number of tuples in the sub block.
    */
   std::uint32_t getCount() const {
-    return reinterpret_cast<sma_internal::SMAHeader*>(sub_block_memory_)->count;
+    return reinterpret_cast<sma_internal::SMAHeader*>(sub_block_memory_)->count_aggregate;
   }
 
  private:

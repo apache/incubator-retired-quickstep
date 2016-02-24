@@ -237,11 +237,11 @@ inline bool canSum(TypeID type) {
  * @param entry A pointer to the entry to modify.
  */
 inline void setTypedValueForSum(SMAEntry *entry) {
-  TypeID sum_type = sumType(entry->type);
+  TypeID sum_type = sumType(entry->type_id);
   if (sum_type == kLong) {
-    new (&entry->sum) TypedValue(static_cast<std::int64_t>(0));
+    new (&entry->sum_aggregate) TypedValue(static_cast<std::int64_t>(0));
   } else if (sum_type == kDouble) {
-    new (&entry->sum) TypedValue(static_cast<double>(0.0));
+    new (&entry->sum_aggregate) TypedValue(static_cast<double>(0.0));
   }
 }
 
@@ -251,9 +251,9 @@ inline void setTypedValueForSum(SMAEntry *entry) {
  * @param entry The entry for which the min/max references will be zeroed out.
  */
 void setTypedValueForMinMax(SMAEntry *entry) {
-  TypedValue *min = &(entry->min_entry.value);
-  TypedValue *max = &(entry->max_entry.value);
-  switch (entry->type) {
+  TypedValue *min = &(entry->min_entry_ref.value);
+  TypedValue *max = &(entry->max_entry_ref.value);
+  switch (entry->type_id) {
     case kInt:
       new (min) TypedValue(static_cast<int>(0));
       new (max) TypedValue(static_cast<int>(0));
@@ -329,7 +329,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
   }
 
   if (new_block) {
-    header_->consistent = false;
+    header_->index_consistent = false;
   }
 
   // Zero the comparator arrays so we don't try to reference invalid memory later.
@@ -375,24 +375,24 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
     // Map the attribute's id to its entry's index.
     attribute_to_entry_[attribute] = indexed_attribute_num;
 
-    if (!header_->consistent) {
+    if (!header_->index_consistent) {
       resetEntry(entry, attribute, attribute_type);
     } else {
       // If the data held by min/max is out of line, we must retrieve it as we initialize.
-      if (!TypedValue::RepresentedInline(entry->type)) {
+      if (!TypedValue::RepresentedInline(entry->type_id)) {
         // First, set to 0 so that we don't try to free invalid memory on copy.
         // Next, copy from the tuple store. This will copy and give us ownership of out of line data.
-        if (entry->min_entry.valid) {
-          new (&entry->min_entry.value) TypedValue();
-          entry->min_entry.value = tuple_store
-              .getAttributeValueTyped(entry->min_entry.tuple, entry->attribute);
-          entry->min_entry.value.ensureNotReference();
+        if (entry->min_entry_ref.valid) {
+          new (&entry->min_entry_ref.value) TypedValue();
+          entry->min_entry_ref.value = tuple_store
+              .getAttributeValueTyped(entry->min_entry_ref.entry_ref_tuple, entry->attribute);
+          entry->min_entry_ref.value.ensureNotReference();
         }
-        if (entry->max_entry.valid) {
-          new (&entry->max_entry.value) TypedValue();
-          entry->max_entry.value = tuple_store
-              .getAttributeValueTyped(entry->max_entry.tuple, entry->attribute);
-          entry->max_entry.value.ensureNotReference();
+        if (entry->max_entry_ref.valid) {
+          new (&entry->max_entry_ref.value) TypedValue();
+          entry->max_entry_ref.value = tuple_store
+              .getAttributeValueTyped(entry->max_entry_ref.entry_ref_tuple, entry->attribute);
+          entry->max_entry_ref.value.ensureNotReference();
         }
       }
     }
@@ -428,16 +428,16 @@ void SMAIndexSubBlock::resetEntry(SMAEntry *entry,
                                   attribute_id attribute,
                                   const Type &attribute_type) {
   entry->attribute = attribute;
-  entry->type = attribute_type.getTypeID();
+  entry->type_id = attribute_type.getTypeID();
 
   // Clearing min/max will free any out of line data.
-  if (entry->min_entry.valid) {
-    entry->min_entry.value.clear();
-    entry->min_entry.valid = false;
+  if (entry->min_entry_ref.valid) {
+    entry->min_entry_ref.value.clear();
+    entry->min_entry_ref.valid = false;
   }
-  if (entry->max_entry.valid) {
-    entry->max_entry.value.clear();
-    entry->max_entry.valid = false;
+  if (entry->max_entry_ref.valid) {
+    entry->max_entry_ref.value.clear();
+    entry->max_entry_ref.valid = false;
   }
   sma_internal::setTypedValueForSum(entry);
 }
@@ -463,12 +463,12 @@ void SMAIndexSubBlock::freeOutOfLineData() {
        indexed_attribute_num < indexed_attributes_;
        ++indexed_attribute_num) {
     SMAEntry &entry = entries_[indexed_attribute_num];
-    if (!TypedValue::RepresentedInline(entry.type)) {
-      if (entry.min_entry.valid) {
-        entry.min_entry.value.clear();
+    if (!TypedValue::RepresentedInline(entry.type_id)) {
+      if (entry.min_entry_ref.valid) {
+        entry.min_entry_ref.value.clear();
       }
-      if (entry.max_entry.valid) {
-        entry.max_entry.value.clear();
+      if (entry.max_entry_ref.valid) {
+        entry.max_entry_ref.value.clear();
       }
     }
   }
@@ -509,26 +509,26 @@ std::size_t SMAIndexSubBlock::EstimateBytesPerTuple(
 }
 
 bool SMAIndexSubBlock::bulkAddEntries(const TupleIdSequence &tuples) {
-  header_->consistent = false;
+  header_->index_consistent = false;
   return true;  // There will always be space for the entry.
 }
 
 void SMAIndexSubBlock::bulkRemoveEntries(const TupleIdSequence &tuples) {
-  header_->consistent = false;
+  header_->index_consistent = false;
 }
 
 bool SMAIndexSubBlock::addEntry(const tuple_id tuple) {
-  header_->consistent = false;
+  header_->index_consistent = false;
   return true;  // There will always be space to insert the entry.
 }
 
 void SMAIndexSubBlock::removeEntry(const tuple_id tuple) {
-  header_->consistent = false;
+  header_->index_consistent = false;
 }
 
 bool SMAIndexSubBlock::rebuild() {
   resetEntries();
-  header_->count = 0;
+  header_->count_aggregate = 0;
   if (tuple_store_.isPacked()) {
     for (tuple_id tid = 0; tid <= tuple_store_.getMaxTupleID(); ++tid) {
       addTuple(tid);
@@ -540,7 +540,7 @@ bool SMAIndexSubBlock::rebuild() {
       }
     }
   }
-  header_->consistent = true;
+  header_->index_consistent = true;
   return true;
 }
 
@@ -554,46 +554,46 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
       continue;
     }
 
-    if (sma_internal::canSum(entry->type)) {
-      entry->sum = add_operations_[entry->type]->applyToTypedValues(tuple_value, entry->sum);
+    if (sma_internal::canSum(entry->type_id)) {
+      entry->sum_aggregate = add_operations_[entry->type_id]->applyToTypedValues(tuple_value, entry->sum_aggregate);
     }
 
     // If the entries are valid, we can do comparison, otherwise, we skip the
     // comparison and set the value.
-    if (!entry->min_entry.valid) {
-      memset(&entry->min_entry.value, 0, sizeof(TypedValue));
-      entry->min_entry.value = tuple_value;
-      entry->min_entry.value.ensureNotReference();
-      entry->min_entry.tuple = tuple;
-      entry->min_entry.valid = true;
+    if (!entry->min_entry_ref.valid) {
+      memset(&entry->min_entry_ref.value, 0, sizeof(TypedValue));
+      entry->min_entry_ref.value = tuple_value;
+      entry->min_entry_ref.value.ensureNotReference();
+      entry->min_entry_ref.entry_ref_tuple = tuple;
+      entry->min_entry_ref.valid = true;
     } else {
-      if (less_comparisons_[entry->type]->compareTypedValues(tuple_value, entry->min_entry.value)) {
-        entry->min_entry.value = tuple_value;
-        entry->min_entry.value.ensureNotReference();
-        entry->min_entry.tuple = tuple;
+      if (less_comparisons_[entry->type_id]->compareTypedValues(tuple_value, entry->min_entry_ref.value)) {
+        entry->min_entry_ref.value = tuple_value;
+        entry->min_entry_ref.value.ensureNotReference();
+        entry->min_entry_ref.entry_ref_tuple = tuple;
       }
     }
 
-    if (!entry->max_entry.valid) {
-      memset(&entry->max_entry.value, 0, sizeof(TypedValue));
-      entry->max_entry.value = tuple_value;
-      entry->max_entry.value.ensureNotReference();
-      entry->max_entry.tuple = tuple;
-      entry->max_entry.valid = true;
+    if (!entry->max_entry_ref.valid) {
+      memset(&entry->max_entry_ref.value, 0, sizeof(TypedValue));
+      entry->max_entry_ref.value = tuple_value;
+      entry->max_entry_ref.value.ensureNotReference();
+      entry->max_entry_ref.entry_ref_tuple = tuple;
+      entry->max_entry_ref.valid = true;
     } else {
-      if (less_comparisons_[entry->type]->compareTypedValues(entry->max_entry.value, tuple_value)) {
-        entry->max_entry.value = tuple_value;
-        entry->max_entry.value.ensureNotReference();
-        entry->max_entry.tuple = tuple;
+      if (less_comparisons_[entry->type_id]->compareTypedValues(entry->max_entry_ref.value, tuple_value)) {
+        entry->max_entry_ref.value = tuple_value;
+        entry->max_entry_ref.value.ensureNotReference();
+        entry->max_entry_ref.entry_ref_tuple = tuple;
       }
     }
   }
 
-  header_->count++;
+  header_->count_aggregate++;
 }
 
 Selectivity SMAIndexSubBlock::selectivityForPredicate(const ComparisonPredicate &predicate) const {
-  if (!header_->consistent) {
+  if (!header_->index_consistent) {
     return Selectivity::kUnknown;
   }
 
@@ -601,16 +601,16 @@ Selectivity SMAIndexSubBlock::selectivityForPredicate(const ComparisonPredicate 
   const SMAEntry *entry = getEntryChecked(sma_predicate->attribute);
 
   // The attribute wasn't indexed.
-  if (entry == nullptr || !entry->min_entry.valid || !entry->max_entry.valid) {
+  if (entry == nullptr || !entry->min_entry_ref.valid || !entry->max_entry_ref.valid) {
     return Selectivity::kUnknown;
   }
   return sma_internal::getSelectivity(
     sma_predicate->literal,
     sma_predicate->comparison,
-    entry->min_entry.value,
-    entry->max_entry.value,
-    less_comparisons_[entry->type],
-    equal_comparisons_[entry->type]);
+    entry->min_entry_ref.value,
+    entry->max_entry_ref.value,
+    less_comparisons_[entry->type_id],
+    equal_comparisons_[entry->type_id]);
 }
 
 predicate_cost_t SMAIndexSubBlock::estimatePredicateEvaluationCost(
@@ -654,7 +654,7 @@ TupleIdSequence* SMAIndexSubBlock::getMatchesForPredicate(
 }
 
 bool SMAIndexSubBlock::requiresRebuild() const {
-  return !header_->consistent;
+  return !header_->index_consistent;
 }
 
 bool SMAIndexSubBlock::hasEntryForAttribute(attribute_id attribute) const {
