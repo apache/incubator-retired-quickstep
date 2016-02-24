@@ -33,9 +33,13 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_catalog_CatalogDatabase
                       quickstep_expressions_aggregation_AggregateFunction
                       quickstep_expressions_aggregation_AggregateFunctionFactory
+                      quickstep_expressions_tablegenerator_GeneratorFunction
+                      quickstep_expressions_tablegenerator_GeneratorFunctionFactory
+                      quickstep_expressions_tablegenerator_GeneratorFunctionHandle
                       quickstep_parser_ParseAssignment
                       quickstep_parser_ParseBasicExpressions
                       quickstep_parser_ParseExpression
+                      quickstep_parser_ParseGeneratorTableReference
                       quickstep_parser_ParseGroupBy
                       quickstep_parser_ParseHaving
                       quickstep_parser_ParseLimit
@@ -82,12 +86,14 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_logical_Project
                       quickstep_queryoptimizer_logical_SharedSubplanReference
                       quickstep_queryoptimizer_logical_Sort
+                      quickstep_queryoptimizer_logical_TableGenerator
                       quickstep_queryoptimizer_logical_TableReference
                       quickstep_queryoptimizer_logical_TopLevelPlan
                       quickstep_queryoptimizer_logical_UpdateTable
                       quickstep_queryoptimizer_resolver_NameResolver
                       quickstep_types_IntType
                       quickstep_types_Type
+                      quickstep_types_TypedValue
                       quickstep_types_TypeFactory
                       quickstep_types_operations_binaryoperations_BinaryOperation
                       quickstep_types_operations_comparisons_Comparison
