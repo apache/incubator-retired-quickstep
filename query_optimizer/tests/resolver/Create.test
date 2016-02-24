@@ -86,6 +86,24 @@ create table "_qstemp_result_s" (col int)
              ^
 ==
 
+# Cannot repeat Block properties.
+CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
+(TYPE rowstore, TYPE columnstore);
+--
+ERROR: Properties must be specified at most once. (2 : 17)
+(TYPE rowstore, TYPE columnstore);
+                ^
+==
+
+# Unrecognized BLOCKPROPERTIES should throw.
+CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
+(TYPE rowstore, INVALID_PROP val);
+--
+ERROR: Unrecognized property name. (2 : 17)
+(TYPE rowstore, INVALID_PROP val);
+                ^
+==
+
 # TYPE property only accepts names of storage blocks.
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
 (TYPE not_a_type);
@@ -95,84 +113,75 @@ ERROR: Unrecognized storage type. (2 : 7)
       ^
 ==
 
-CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
-(TYPE rowstore, TYPE columnstore);
+# TYPE property must be specified.
+CREATE TABLE foo (attr INT) WITH
+BLOCKPROPERTIES (BLOCKSIZEMB 10);
 --
-ERROR: TYPE property should be set only once. (2 : 17)
-(TYPE rowstore, TYPE columnstore);
-                ^
+ERROR: TYPE property must be specified and be a string. (2 : 1)
+BLOCKPROPERTIES (BLOCKSIZEMB 1...
+^
 ==
 
 # Rowstores cannot have a sorted attribute.
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES 
 (TYPE rowstore, SORT attr);
 --
-ERROR: SORT attribute should not be specified for this block type. (2 : 17)
+ERROR: The SORT property does not apply to this block type. (2 : 22)
 (TYPE rowstore, SORT attr);
-                ^
+                     ^
 ==
 
 # Columnstores require a sort attribute.
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
 (TYPE columnstore);
 --
-ERROR: The SORT property is required for the specified block type. (2 : 2)
+ERROR: The SORT property must be specified as an attribute name. (2 : 7)
 (TYPE columnstore);
- ^
+      ^
 ==
 
 # Non-existant columns should be caught.
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
 (TYPE columnstore, SORT not_attr);
 --
-ERROR: The specified SORT attribute does not exist. (2 : 20)
+ERROR: The SORT property did not match any attribute name. (2 : 25)
 (TYPE columnstore, SORT not_attr);
-                   ^
-==
-
-# Sort cannot be specified more than once.
-CREATE TABLE foo (attr INT, attr2 INT) WITH BLOCKPROPERTIES
-(TYPE columnstore, SORT attr, SORT attr2);
---
-ERROR: SORT attribute should not be specified more than once. (2 : 31)
-(TYPE columnstore, SORT attr, SORT attr2);
-                              ^
+                        ^
 ==
 
 # Sort property must be a string type, not a list.
 CREATE TABLE foo (attr INT, attr2 INT) WITH BLOCKPROPERTIES
 (TYPE columnstore, SORT (attr, attr2));
 --
-ERROR: The SORT property requires an attribute name as the value. (2 : 20)
-(TYPE columnstore, SORT (attr, attr2));
-                   ^
+ERROR: The SORT property must be specified as an attribute name. (2 : 7)
+(TYPE columnstore, SORT (attr, attr2...
+      ^
 ==
-
 # Compress should only be specified on compressed blocks.
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
 (TYPE columnstore, SORT attr, COMPRESS ALL);
 --
-ERROR: COMPRESS attribute should not be specified for this block type. (2 : 31)
-(TYPE columnstore, SORT attr, COMPRESS ALL);
-                              ^
+ERROR: The COMPRESS property does not apply to this block type. (2 : 7)
+(TYPE columnstore, SORT attr, COMPRES...
+      ^
 ==
 
 # Compress property is required for compressed blocks.
-CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
-(TYPE compressed_rowstore);
+CREATE TABLE foo (attr INT) WITH 
+BLOCKPROPERTIES (TYPE compressed_rowstore);
 --
-ERROR: The COMPRESS property is required for the specified block type. (2 : 2)
-(TYPE compressed_rowstore);
- ^
+ERROR: The COMPRESS property must be specified as ALL or a list of attributes. (2 : 1)
+BLOCKPROPERTIES (TYPE compresse...
+^
 ==
 
 # Compress cannot have an integer value
-CREATE TABLE foo (attr INT, attr2 INT) WITH BLOCKPROPERTIES
-(TYPE compressed_rowstore, COMPRESS 1);
+CREATE TABLE foo (attr INT, attr2 INT) WITH
+BLOCKPROPERTIES (TYPE compressed_rowstore, COMPRESS 1);
 --
-ERROR: The SORT property requires a list of attribute names or ALL as the value. (2 : 28)
-(TYPE compressed_rowstore, COMPRESS 1);
-                           ^
+ERROR: The COMPRESS property must be specified as ALL or a list of attributes. (2 : 1)
+BLOCKPROPERTIES (TYPE compresse...
+^
 ==
 
 # All specified COMPRESS columns must exist.
@@ -188,7 +197,7 @@ ERROR: The given attribute was not found. (2 : 44)
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
 (TYPE rowstore, BLOCKSIZEMB ten);
 --
-ERROR: The BLOCKSIZEMB property must contain an integer key. (2 : 17)
+ERROR: The BLOCKSIZEMB property must be an integer. (2 : 17)
 (TYPE rowstore, BLOCKSIZEMB ten);
                 ^
 ==
@@ -197,15 +206,6 @@ ERROR: The BLOCKSIZEMB property must contain an integer key. (2 : 17)
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
 (TYPE rowstore, BLOCKSIZEMB 0);
 --
-ERROR: The BLOCKSIZEMB property must be between 1 and 10 slots. (2 : 29)
+ERROR: The BLOCKSIZEMB property must be between 2Mb and 1000Mb. (2 : 17)
 (TYPE rowstore, BLOCKSIZEMB 0);
-                            ^
-==
-
-# Unrecognized BLOCKPROPERTIES should throw.
-CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
-(TYPE rowstore, INVALID_PROP val);
---
-ERROR: Unrecognized BLOCKPROPERTY. (2 : 17)
-(TYPE rowstore, INVALID_PROP val);
                 ^

@@ -146,8 +146,9 @@ CreateTableStatement[relation_name=test]
 +-attribute_list=
 | +-AttributeDefinition[name=attr,type=Int]
 +-block_properties=
-  +-KeyStringValue[key=TYPE]
-    +-value=String[value=rowstore]
+  +-BlockProperties
+    +-block_property=KeyStringValue[key=TYPE]
+      +-value=String[value=rowstore]
 ==
 
 CREATE TABLE test (attr INT) WITH BLOCKPROPERTIES
@@ -157,12 +158,13 @@ CreateTableStatement[relation_name=test]
 +-attribute_list=
 | +-AttributeDefinition[name=attr,type=Int]
 +-block_properties=
-  +-KeyStringValue[key=TYPE]
-  | +-value=String[value=compressed_columnstore]
-  +-KeyStringValue[key=SORT]
-  | +-value=String[value=attr]
-  +-KeyStringValue[key=COMPRESS]
-    +-value=String[value=ALL]
+  +-BlockProperties
+    +-block_property=KeyStringValue[key=TYPE]
+    | +-value=String[value=compressed_columnstore]
+    +-block_property=KeyStringValue[key=SORT]
+    | +-value=String[value=attr]
+    +-block_property=KeyStringValue[key=COMPRESS]
+      +-value=String[value=ALL]
 ==
 
 CREATE TABLE test (attr1 INT, attr2 INT) WITH BLOCKPROPERTIES
@@ -173,14 +175,15 @@ CreateTableStatement[relation_name=test]
 | +-AttributeDefinition[name=attr1,type=Int]
 | +-AttributeDefinition[name=attr2,type=Int]
 +-block_properties=
-  +-KeyStringValue[key=TYPE]
-  | +-value=String[value=compressed_columnstore]
-  +-KeyStringValue[key=SORT]
-  | +-value=String[value=attr1]
-  +-KeyStringList[key=COMPRESS]
-    +-value_list=
-      +-String[value=attr1]
-      +-String[value=attr2]
+  +-BlockProperties
+    +-block_property=KeyStringValue[key=TYPE]
+    | +-value=String[value=compressed_columnstore]
+    +-block_property=KeyStringValue[key=SORT]
+    | +-value=String[value=attr1]
+    +-block_property=KeyStringList[key=COMPRESS]
+      +-value_list=
+        +-String[value=attr1]
+        +-String[value=attr2]
 ==
 
 CREATE TABLE test (attr INT) WITH BLOCKPROPERTIES
@@ -190,7 +193,8 @@ CreateTableStatement[relation_name=test]
 +-attribute_list=
 | +-AttributeDefinition[name=attr,type=Int]
 +-block_properties=
-  +-KeyStringValue[key=TYPE]
-  | +-value=String[value=rowstore]
-  +-KeyIntegerValue[key=BLOCKSIZEMB]
-    +-value=NumericLiteral[numeric_string=10,float_like=false]
+  +-BlockProperties
+    +-block_property=KeyStringValue[key=TYPE]
+    | +-value=String[value=rowstore]
+    +-block_property=KeyIntegerValue[key=BLOCKSIZEMB]
+      +-value=NumericLiteral[numeric_string=10,float_like=false]

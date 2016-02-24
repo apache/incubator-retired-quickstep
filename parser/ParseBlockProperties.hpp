@@ -1,5 +1,6 @@
 /**
- *   Copyright 2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -17,14 +18,20 @@
 #ifndef QUICKSTEP_PARSER_PARSE_BLOCK_PROPERTIES_HPP_
 #define QUICKSTEP_PARSER_PARSE_BLOCK_PROPERTIES_HPP_
 
+#include <cstdint>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
 
+#include "parser/ParseKeyValue.hpp"
 #include "parser/ParseString.hpp"
 #include "parser/ParseTreeNode.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrList.hpp"
+#include "utility/StringUtil.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 
@@ -33,210 +40,181 @@ namespace quickstep {
  */
 
 /**
- * @brief Parsed BlockPropertyItem which simply a key (property) and the
- *        corresponding value.
- * @details The value may actually be a list of Parse strings. This is to cover
- *          the case where a user specifies a subset of columns to compress
- *          rather than using the keyword 'ALL'.
- *
- * @tparam The type of the Value which the item holds (ParseString for all
- *         cases except for BlockSize which is a ParseNumericLiteral). T must
- *         inheret from ParseTreeNode.
- */
-template<class T>
-class ParseBlockPropertyItem : public ParseTreeNode {
- public:
-  enum class Property {
-    kBlockSize,
-    kCompress,
-    kSort,
-    kType
-  };
-
-  /**
-   * @brief Constructor.
-   *
-   * @param line_number Line number of the first token of this node in the SQL statement.
-   * @param column_number Column number of the first token of this node in the SQL statement.
-   * @param property Describes which type of block property this is. Corresponds
-   *                 to a field of the StorageBlockLayoutDescription message.
-   * @param value A parse string representing the assignment of the property.
-   *              ParseBlockPropertyItem takes ownership of the pointer.
-   **/
-  ParseBlockPropertyItem(int line_number,
-                         int column_number,
-                         Property property,
-                         T *value)
-      : ParseTreeNode(line_number, column_number),
-        property_(property),
-        compress_all_(false) {
-    values_.reset(new PtrList<T>);
-    values_->push_back(value);
-  }
-
-  /**
-   * @brief Constructor.
-   *
-   * @param line_number Line number of the first token of this node in the SQL statement.
-   * @param column_number Column number of the first token of this node in the SQL statement.
-   * @param property Describes which type of block property this is. Corresponds
-   *                 to a field of the StorageBlockLayoutDescription message.
-   * @param values A list of parse strings representing the assignment of the
-   *               property. The ParseBlockPropertyItem takes ownership.
-   **/
-  ParseBlockPropertyItem(int line_number,
-                         int column_number,
-                         Property property,
-                         PtrList<T> *values)
-      : ParseTreeNode(line_number, column_number),
-        property_(property),
-        values_(values),
-        compress_all_(false) { }
-
-  /**
-   * @brief Useful in the case where the parser finds the terms, 'COMPRESS ALL'.
-   *
-   * @param line_number Line number of the first token of this node in the SQL statement.
-   * @param column_number Column number of the first token of this node in the SQL statement.
-   * @return A caller-managed BlockPropertyItem representing the property of
-   *         COMPRESS ALL for compressing all attributes in a table.
-   */
-  static ParseBlockPropertyItem<ParseString>* GetCompressAllItem(int line_number, int column_number,
-                                                                 int line_number_all, int column_number_all) {
-    ParseBlockPropertyItem<ParseString> *compress_all =
-        new ParseBlockPropertyItem(line_number, column_number, Property::kCompress, new PtrList<ParseString>());
-    compress_all->compress_all_ = true;
-    compress_all->values_->push_back(new ParseString(line_number_all, column_number_all, "ALL"));
-    return compress_all;
-  }
-
-  /**
-   * @return Name of the parser construct represented by this class.
-   */
-  std::string getName() const override {
-    return std::string("BlockPropertyItem");
-  }
-
-  /**
-   * @brief The type of property being described.
-   *
-   * @return The specific block property which this instance is describing.
-   */
-  Property property() const {
-    return property_;
-  }
-
-  /**
-   * @return A list of T values which the parser has captured to
-   *         describe this property. This may be empty in the case of 'COMPRESS ALL'.
-   */
-  const PtrList<T>& values() const {
-    return *(values_.get());
-  }
-
-  /**
-   * @brief Gets a string version of the property which this pair describes.
-   * @details For example, if this the property type of 'kCompress' will return
-   *          a string object with the value 'compress'.
-   *
-   * @return A string description of the property.
-   */
-  std::string getPropertyString() const {
-    switch (property_) {
-      case Property::kBlockSize:
-        return "blocksize";
-      case Property::kCompress:
-        return "compress";
-      case Property::kSort:
-        return "sort";
-      case Property::kType:
-        return "type";
-      default:
-        return "unknown";
-    }
-  }
-
-  /**
-   * @brief Returns if the user specified to compress all attributes (COMPRESS
-   *  ALL) attributes using a special keyword.
-   *
-   * @return \ctrue if this is a compression property and the value is 'ALL'.
-   */
-  bool compressAll() const {
-    return property_ == Property::kCompress && compress_all_;
-  }
-
-  bool containsParseStrings() const {
-    return !(containsParseNumericLiterals());
-  }
-
-  bool containsParseNumericLiterals() const {
-    return property_ == Property::kBlockSize;
-  }
-
- protected:
-  void getFieldStringItems(
-      std::vector<std::string> *inline_field_names,
-      std::vector<std::string> *inline_field_values,
-      std::vector<std::string> *non_container_child_field_names,
-      std::vector<const ParseTreeNode*> *non_container_child_fields,
-      std::vector<std::string> *container_child_field_names,
-      std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override {
-    inline_field_names->push_back("property");
-    inline_field_values->push_back(getPropertyString());
-
-    container_child_field_names->push_back((values_->size() == 1) ? "value" : "values");
-    container_child_fields->emplace_back();
-    for (const T& item_value : *values_) {
-      container_child_fields->back().push_back(&item_value);
-    }
-  }
-
- private:
-  Property property_;
-  std::unique_ptr<PtrList<T>> values_;
-  bool compress_all_;
-
-  DISALLOW_COPY_AND_ASSIGN(ParseBlockPropertyItem);
-};
-
-/**
- * @brief Contains user-specified physical properties of a table's blocks as BlockPropertyItems.
+ * @brief Encapsulates the BlockProperties key-value list. Makes the job
+ *        of resolving BlockProperties easy.
  */
 class ParseBlockProperties : public ParseTreeNode {
+  // Valid key names for the BlockProperties.
+  static const std::string kKeyBlockSizeMB;
+  static const std::string kKeyCompress;
+  static const std::string kKeySort;
+  static const std::string kKeyType;
+
  public:
   /**
    * @brief Constructor.
-   *
-   * @param line_number Line number of the first token of this node in the SQL statement.
-   * @param column_number Column number of the first token of this node in the SQL statement.
-   **/
+   * 
+   * @param line_number Beginning line number.
+   * @param column_number Beginning column number.
+   * @param properties PtrList to the KeyValues.
+   */
   ParseBlockProperties(int line_number,
                        int column_number,
-                       PtrList<ParseBlockPropertyItem>* properties)
-                           : ParseTreeNode(line_number, column_number),
-                             properties_(properties) { }
+                       PtrList<ParseKeyValue> *properties)
+      : ParseTreeNode(line_number, column_number),
+        properties_(properties) { }
 
   /**
-   * @return Name of the parser construct represented by this class.
+   * @return The name of this entity.
    */
   std::string getName() const override {
     return "BlockProperties";
   }
 
   /**
-   * @brief Gets the specified BlockPropertyItem.
-   *
-   * @param property The property, one of kSort, kCompress, or kType.
-   * @return Pointer to the property or nullptr if not found.
+   * @brief Returns the first repeated key contained in the key-value list.
+   * @details A repeated key is any 2 key-values with case-insensitive matching
+   *          key names.
+   *          
+   * @return A pointer to the first repeated key-value or nullptr if there
+   *         are no repetitions.
    */
-  const ParseBlockPropertyItem* getPropertyItem(ParseBlockPropertyItem::Property property) const {
-    for (const ParseBlockPropertyItem &item : *properties_) {
-      if (item.property() == property) {
-        return &item;
+  const ParseKeyValue* getFirstRepeatedKeyValue() const {
+    std::set<std::string> seen_keys;
+    for (const ParseKeyValue &key_value : *properties_) {
+      std::string lower_key = ToLower(key_value.key()->value());
+      std::set<std::string>::iterator itr = seen_keys.find(lower_key);
+      if (itr != seen_keys.end()) {
+        return &key_value;
+      }
+      seen_keys.insert(lower_key);
+    }
+    return nullptr;
+  }
+
+  /**
+   * @brief Returns the first invalid key contained in the key-value list.
+   * @details An invalid key-value is a key-value with a key whose case-insensitive
+   *          string does not match one of the valid key names.
+   *          
+   * @return A pointer to the first invalid key-value or nullptr if there none.
+   */
+  const ParseKeyValue* getFirstInvalidKeyValue() const {
+    std::set<std::string> valid_names({kKeyCompress,
+        kKeyType, kKeySort, kKeyBlockSizeMB});
+    for (const ParseKeyValue &key_value : *properties_) {
+      std::string lower_key = ToLower(key_value.key()->value());
+      std::set<std::string>::iterator itr = valid_names.find(lower_key);
+      if (itr == valid_names.end()) {
+        return &key_value;
       }
     }
     return nullptr;
+  }
+
+  /**
+   * @brief Gets the ParseString value of the type property.
+   * 
+   * @return ParseString value of the type property or nullptr if the type
+   *         was incorrect ParseKeyValue type or not specified.
+   */
+  const ParseString* getType() const {
+    const ParseKeyValue *type_key_value = getKeyValueByName(kKeyType);
+    if (type_key_value == nullptr) {
+      return nullptr;
+    }
+    if (type_key_value->getKeyValueType() !=
+        ParseKeyValue::KeyValueType::kStringString) {
+      return nullptr;
+    }
+    return static_cast<const ParseKeyStringValue*>(type_key_value)->value();
+  }
+
+  /**
+   * @brief Gets the ParseString value of the sort property.
+   * 
+   * @return ParseString value of the sort property or nullptr if the type
+   *         was not a ParseKeyStringValue or was not specified.
+   */
+  const ParseString* getSort() const {
+    const ParseKeyValue *sort_key_value = getKeyValueByName(kKeySort);
+    if (sort_key_value == nullptr) {
+      return nullptr;
+    }
+    if (sort_key_value->getKeyValueType() !=
+        ParseKeyValue::KeyValueType::kStringString) {
+      return nullptr;
+    }
+    return static_cast<const ParseKeyStringValue*>(sort_key_value)->value();
+  }
+
+  /**
+   * @brief Get the list of compressed column names.
+   * @note Check compressAll() first to see if all columns are to be compressed.
+   * 
+   * @return A list of column names to compress.
+   */
+  const PtrList<ParseString>* getCompressed() const {
+    const ParseKeyValue *compress_key_value = getKeyValueByName(kKeyCompress);
+    if (compress_key_value == nullptr) {
+      return nullptr;
+    }
+    if (compress_key_value->getKeyValueType() !=
+        ParseKeyValue::KeyValueType::kStringStringList) {
+      return nullptr;
+    }
+    return static_cast<const ParseKeyStringList*>(compress_key_value)->value();
+  }
+
+  /**
+   * @brief True if the user specified to compress all columns.
+   */
+  bool compressAll() const {
+    const ParseKeyValue *compress_key_value = getKeyValueByName(kKeyCompress);
+    if (compress_key_value == nullptr) {
+      return false;
+    }
+    if (compress_key_value->getKeyValueType() !=
+        ParseKeyValue::KeyValueType::kStringString) {
+      return false;
+    }
+    // The StringString value from the parser should always be, 'ALL'.
+    DCHECK(static_cast<const ParseKeyStringValue*>(compress_key_value)
+        ->value()->value().compare("ALL") == 0)
+            << "BlockProperties got an invalid COMPRESS value.";
+    return true;
+  }
+
+  /**
+   * @return Pointer to the blocksize property, nullptr if not specified.
+   */
+  const ParseKeyValue* getBlockSizeMb() const {
+    return getKeyValueByName(kKeyBlockSizeMB);
+  }
+
+  /**
+   * @return the blocksizemb property or -1 if not specified or not an int.
+   */
+  std::int64_t getBlockSizeMbValue() const {
+    const ParseKeyValue *size_key_value = getKeyValueByName(kKeyBlockSizeMB);
+    if (size_key_value == nullptr) {
+      return -1;
+    }
+    if (size_key_value->getKeyValueType() !=
+        ParseKeyValue::KeyValueType::kStringInteger) {
+      return -1;
+    }
+    std::int64_t numeric_value =
+        static_cast<const ParseKeyIntegerValue*>(size_key_value)->value()->long_value();
+    return numeric_value;
+  }
+
+  /**
+   * @return True if the user specified the size property. Note that returning
+   *         true does not mean the property was valid.
+   */
+  bool hasBlockSizeMb() const {
+    return getKeyValueByName(kKeyBlockSizeMB) != nullptr;
   }
 
  protected:
@@ -247,14 +225,24 @@ class ParseBlockProperties : public ParseTreeNode {
       std::vector<const ParseTreeNode*> *non_container_child_fields,
       std::vector<std::string> *container_child_field_names,
       std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override {
-    for (const ParseBlockPropertyItem &property_item : *properties_) {
-      non_container_child_field_names->push_back(property_item.getName());
-      non_container_child_fields->push_back(&property_item);
+    for (const ParseKeyValue &block_property : *properties_) {
+      non_container_child_field_names->push_back("block_property");
+      non_container_child_fields->push_back(&block_property);
     }
   }
 
  private:
-  std::unique_ptr<PtrList<ParseBlockPropertyItem> > properties_;
+  const ParseKeyValue* getKeyValueByName(const std::string &name) const {
+    // Get the first occurance of this name.
+    for (const ParseKeyValue &key_value : *properties_) {
+      if (ToLower(key_value.key()->value()).compare(name) == 0) {
+        return &key_value;
+      }
+    }
+    return nullptr;
+  }
+
+  std::unique_ptr<PtrList<ParseKeyValue> > properties_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseBlockProperties);
 };

@@ -39,6 +39,7 @@ class Comparison;
 class ParseAssignment;
 class ParseAttribute;
 class ParseAttributeDefinition;
+class ParseBlockProperties;
 class ParseColumnConstraint;
 struct ParseCopyFromParams;
 class ParseDataType;

@@ -35,6 +35,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_expressions_aggregation_AggregateFunctionFactory
                       quickstep_parser_ParseAssignment
                       quickstep_parser_ParseBasicExpressions
+                      quickstep_parser_ParseBlockProperties
                       quickstep_parser_ParseExpression
                       quickstep_parser_ParseGroupBy
                       quickstep_parser_ParseHaving

@@ -67,6 +67,7 @@ typedef struct YYLTYPE {
 #include "parser/ParseAssignment.hpp"
 #include "parser/ParseAttributeDefinition.hpp"
 #include "parser/ParseBasicExpressions.hpp"
+#include "parser/ParseBlockProperties.hpp"
 #include "parser/ParseExpression.hpp"
 #include "parser/ParseGroupBy.hpp"
 #include "parser/ParseHaving.hpp"
@@ -155,6 +156,7 @@ typedef void* yyscan_t;
   quickstep::ParseStatementDelete *delete_statement_;
   quickstep::ParseStatementCopyFrom *copy_from_statement_;
   quickstep::ParseStatementCreateTable *create_table_statement_;
+  quickstep::ParseBlockProperties *block_properties_;
   quickstep::ParseStatementDropTable *drop_table_statement_;
   quickstep::ParseStatementQuit *quit_statement_;
 
@@ -360,7 +362,6 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %type <key_value_list_>
   key_value_list
   opt_index_properties
-  opt_block_properties
 
 %type <key_string_value_>
   key_string_value
@@ -405,6 +406,9 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <create_table_statement_>
   create_table_statement
+
+%type <block_properties_>
+  opt_block_properties
 
 %type <statement_>
   create_index_statement
@@ -824,7 +828,7 @@ opt_block_properties:
     $$ = nullptr;
   }
   | TOKEN_WITH TOKEN_BLOCKPROPERTIES '(' key_value_list ')' {
-    $$ = $4;
+    $$ = new quickstep::ParseBlockProperties(@2.first_line, @2.first_column, $4);
   }
 
 key_value_list:
