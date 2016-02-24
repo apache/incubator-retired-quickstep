@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 #define QUICKSTEP_STORAGE_INSERT_DESTINATION_HPP_
 
 #include <cstddef>
+#include <cstdlib>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -26,7 +27,7 @@
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "catalog/PartitionScheme.hpp"
-#include "query_execution/ForemanMessage.hpp"
+#include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "storage/InsertDestinationInterface.hpp"
@@ -43,6 +44,7 @@
 #include "gtest/gtest_prod.h"
 
 #include "tmb/id_typedefs.h"
+#include "tmb/tagged_message.h"
 
 namespace tmb { class MessageBus; }
 
@@ -203,12 +205,20 @@ class InsertDestination : public InsertDestinationInterface {
    * @param id The id of the StorageBlock to be pipelined.
    **/
   void sendBlockFilledMessage(const block_id id) const {
-    ForemanMessage message(ForemanMessage::DataPipelineMessage(
-        relational_op_index_, id, relation_->getID()));
+    serialization::DataPipelineMessage proto;
+    proto.set_operator_index(relational_op_index_);
+    proto.set_block_id(id);
+    proto.set_relation_id(relation_->getID());
 
-    TaggedMessage foreman_tagged_msg;
-    foreman_tagged_msg.set_message(
-        &message, sizeof(message), kDataPipelineMessage);
+    // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
+    const std::size_t proto_length = proto.ByteSize();
+    char *proto_bytes = static_cast<char*>(std::malloc(proto_length));
+    CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+    tmb::TaggedMessage tagged_message(static_cast<const void *>(proto_bytes),
+                                      proto_length,
+                                      kDataPipelineMessage);
+    std::free(proto_bytes);
 
     // The reason we use the ClientIDMap is as follows:
     // InsertDestination needs to send data pipeline messages to Foreman. To
@@ -230,10 +240,15 @@ class InsertDestination : public InsertDestinationInterface {
     ClientIDMap *thread_id_map = ClientIDMap::Instance();
 
     DCHECK(bus_ != nullptr);
-    QueryExecutionUtil::SendTMBMessage(bus_,
-                                       thread_id_map->getValue(),
-                                       foreman_client_id_,
-                                       std::move(foreman_tagged_msg));
+    const tmb::MessageBus::SendStatus send_status =
+        QueryExecutionUtil::SendTMBMessage(bus_,
+                                           thread_id_map->getValue(),
+                                           foreman_client_id_,
+                                           std::move(tagged_message));
+    CHECK(send_status == tmb::MessageBus::SendStatus::kOK) <<
+        "Message could not be sent from thread with TMB client ID "
+        << ClientIDMap::Instance()->getValue() << " to Foreman with TMB client"
+        " ID " << foreman_client_id_;
   }
 
   StorageManager *storage_manager_;
