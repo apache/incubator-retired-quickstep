@@ -27,6 +27,7 @@
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
 #include "query_optimizer/physical/Selection.hpp"
+#include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
 
@@ -50,6 +51,9 @@ std::size_t SimpleCostModel::estimateCardinality(
     case P::PhysicalType::kSelection:
       return estimateCardinalityForSelection(
           std::static_pointer_cast<const P::Selection>(physical_plan));
+    case P::PhysicalType::kTableGenerator:
+      return estimateCardinalityForTableGenerator(
+          std::static_pointer_cast<const P::TableGenerator>(physical_plan));
     case P::PhysicalType::kHashJoin:
       return estimateCardinalityForHashJoin(
           std::static_pointer_cast<const P::HashJoin>(physical_plan));
@@ -77,6 +81,11 @@ std::size_t SimpleCostModel::estimateCardinalityForTableReference(
 std::size_t SimpleCostModel::estimateCardinalityForSelection(
     const P::SelectionPtr &physical_plan) {
   return estimateCardinality(physical_plan->input());
+}
+
+std::size_t SimpleCostModel::estimateCardinalityForTableGenerator(
+    const P::TableGeneratorPtr &physical_plan) {
+  return physical_plan->generator_function_handle()->getEstimatedCardinality();
 }
 
 std::size_t SimpleCostModel::estimateCardinalityForHashJoin(

@@ -64,6 +64,7 @@
 #include "query_optimizer/physical/Selection.hpp"
 #include "query_optimizer/physical/SharedSubplanReference.hpp"
 #include "query_optimizer/physical/Sort.hpp"
+#include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
@@ -83,6 +84,7 @@
 #include "relational_operators/SelectOperator.hpp"
 #include "relational_operators/SortMergeRunOperator.hpp"
 #include "relational_operators/SortRunGenerationOperator.hpp"
+#include "relational_operators/TableGeneratorOperator.hpp"
 #include "relational_operators/TextScanOperator.hpp"
 #include "relational_operators/UpdateOperator.hpp"
 #include "storage/AggregationOperationState.pb.h"
@@ -221,6 +223,9 @@ void ExecutionGenerator::generatePlanInternal(
     case P::PhysicalType::kSort:
       return convertSort(
           std::static_pointer_cast<const P::Sort>(physical_plan));
+    case P::PhysicalType::kTableGenerator:
+      return convertTableGenerator(
+          std::static_pointer_cast<const P::TableGenerator>(physical_plan));
     case P::PhysicalType::kTableReference:
       return convertTableReference(
           std::static_pointer_cast<const P::TableReference>(physical_plan));
@@ -1235,6 +1240,41 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
       std::forward_as_tuple(physical_sort),
       std::forward_as_tuple(merge_run_operator_index,
                             sorted_relation));
+}
+
+void ExecutionGenerator::convertTableGenerator(
+    const P::TableGeneratorPtr &physical_tablegen) {
+  // Create InsertDestination proto.
+  const CatalogRelation *output_relation = nullptr;
+  const QueryContext::insert_destination_id insert_destination_index =
+      query_context_proto_->insert_destinations_size();
+  S::InsertDestination *insert_destination_proto =
+      query_context_proto_->add_insert_destinations();
+  createTemporaryCatalogRelation(physical_tablegen,
+                                 &output_relation,
+                                 insert_destination_proto);
+
+  // Create GeneratorFunctionHandle proto
+  const QueryContext::generator_function_id generator_function_index =
+      query_context_proto_->generator_functions_size();
+  query_context_proto_->add_generator_functions()->CopyFrom(
+      physical_tablegen->generator_function_handle()->getProto());
+
+  TableGeneratorOperator *op =
+      new TableGeneratorOperator(*output_relation,
+                                 insert_destination_index,
+                                 generator_function_index);
+
+  const QueryPlan::DAGNodeIndex tablegen_index =
+      execution_plan_->addRelationalOperator(op);
+  insert_destination_proto->set_relational_op_index(tablegen_index);
+
+  physical_to_output_relation_map_.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple(physical_tablegen),
+      std::forward_as_tuple(tablegen_index,
+                            output_relation));
+  temporary_relation_info_vec_.emplace_back(tablegen_index, output_relation);
 }
 
 }  // namespace optimizer

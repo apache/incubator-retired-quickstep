@@ -46,6 +46,7 @@
 #include "query_optimizer/physical/Selection.hpp"
 #include "query_optimizer/physical/SharedSubplanReference.hpp"
 #include "query_optimizer/physical/Sort.hpp"
+#include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
@@ -309,6 +310,13 @@ class ExecutionGenerator {
    * @param physical_plan The Sort to be converted.
    */
   void convertSort(const physical::SortPtr &physical_plan);
+
+  /**
+   * @brief Converts a physical TableGenerator to a TableGeneratorOperator.
+   *
+   * @param physical_plan The TableGenerator to be converted.
+   */
+  void convertTableGenerator(const physical::TableGeneratorPtr &physical_plan);
 
   /**
    * @brief Converts a list of NamedExpressions in the optimizer expression

@@ -42,6 +42,7 @@ enum class PhysicalType {
   kSelection,
   kSharedSubplanReference,
   kSort,
+  kTableGenerator,
   kTableReference,
   kTopLevelPlan,
   kUpdateTable

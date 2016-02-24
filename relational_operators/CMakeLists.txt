@@ -49,6 +49,7 @@ add_library(quickstep_relationaloperators_SortMergeRunOperatorHelpers SortMergeR
             SortMergeRunOperatorHelpers.hpp)
 add_library(quickstep_relationaloperators_SortRunGenerationOperator SortRunGenerationOperator.cpp
             SortRunGenerationOperator.hpp)
+add_library(quickstep_relationaloperators_TableGeneratorOperator TableGeneratorOperator.cpp TableGeneratorOperator.hpp)
 add_library(quickstep_relationaloperators_TextScanOperator TextScanOperator.cpp TextScanOperator.hpp)
 add_library(quickstep_relationaloperators_TextScanOperator_proto
             ${relationaloperators_TextScanOperator_proto_srcs}
@@ -288,6 +289,18 @@ target_link_libraries(quickstep_relationaloperators_SortRunGenerationOperator
                       quickstep_storage_TupleIdSequence
                       quickstep_utility_Macros
                       quickstep_utility_SortConfiguration)
+target_link_libraries(quickstep_relationaloperators_TableGeneratorOperator
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_CatalogRelation
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_InsertDestination
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_types_containers_ColumnVectorsValueAccessor
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_relationaloperators_TextScanOperator
                       gflags_nothreads-static
                       glog
@@ -361,6 +374,7 @@ target_link_libraries(quickstep_relationaloperators
                       quickstep_relationaloperators_SortMergeRunOperatorHelpers
                       quickstep_relationaloperators_SortMergeRunOperator_proto
                       quickstep_relationaloperators_SortRunGenerationOperator
+                      quickstep_relationaloperators_TableGeneratorOperator
                       quickstep_relationaloperators_TextScanOperator
                       quickstep_relationaloperators_TextScanOperator_proto
                       quickstep_relationaloperators_UpdateOperator
