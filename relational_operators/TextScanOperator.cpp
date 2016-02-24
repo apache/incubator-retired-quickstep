@@ -45,11 +45,12 @@
 #include "types/containers/Tuple.hpp"
 #include "utility/Glob.hpp"
 
-#include "tmb/message_bus.h"
-#include "tmb/tagged_message.h"
-
 #include "gflags/gflags.h"
 #include "glog/logging.h"
+
+#include "tmb/id_typedefs.h"
+#include "tmb/message_bus.h"
+#include "tmb/tagged_message.h"
 
 using std::isxdigit;
 using std::size_t;
@@ -137,7 +138,10 @@ inline unsigned DetectRowTerminator(const char *search_string,
 
 }  // namespace
 
-bool TextScanOperator::getAllWorkOrders(WorkOrdersContainer *container) {
+bool TextScanOperator::getAllWorkOrders(
+    WorkOrdersContainer *container,
+    const tmb::client_id foreman_client_id,
+    tmb::MessageBus *bus) {
   const std::vector<std::string> files = utility::file::GlobExpand(file_pattern_);
   if (parallelize_load_) {
     // Parallel implementation: Split work orders are generated for each file
@@ -152,8 +156,8 @@ bool TextScanOperator::getAllWorkOrders(WorkOrdersContainer *container) {
               new TextSplitWorkOrder(file,
                                      process_escape_sequences_,
                                      op_index_,
-                                     foreman_client_id_,
-                                     bus_),
+                                     foreman_client_id,
+                                     bus),
               op_index_);
           ++num_split_work_orders_;
         }

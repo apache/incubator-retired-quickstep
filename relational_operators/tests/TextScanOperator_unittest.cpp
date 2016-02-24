@@ -1,5 +1,5 @@
 /**
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -86,7 +86,9 @@ class TextScanOperatorTest : public ::testing::Test {
     WorkOrdersContainer container(1, 0);
     const std::size_t op_index = 0;
     op->informAllBlockingDependenciesMet();
-    op->getAllWorkOrders(&container);
+    op->getAllWorkOrders(&container,
+                         tmb::kClientIdNone /* foreman_client_id */,
+                         nullptr /* TMB */);
 
     while (container.hasNormalWorkOrder(op_index)) {
       WorkOrder *work_order = container.getNormalWorkOrder(op_index);
@@ -149,9 +151,7 @@ TEST_F(TextScanOperatorTest, ScanTest) {
                            true,
                            false,
                            *relation_,
-                           output_destination_index,
-                           tmb::kClientIdNone /* foreman_client_id */,
-                           nullptr /* TMB */));
+                           output_destination_index));
 
   // Setup query_context_.
   query_context_.reset(new QueryContext(query_context_proto,

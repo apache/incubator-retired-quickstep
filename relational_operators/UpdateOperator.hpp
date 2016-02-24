@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -65,8 +65,6 @@ class UpdateOperator : public RelationalOperator {
    * @param update_group_index The index of a update group (the map of
    *        attribute_ids to Scalars) which should be evaluated to get the new
    *        value for the corresponding attribute.
-   * @param foreman_client_id The TMB client ID of the Foreman thread.
-   * @param bus A pointer to the TMB.
    *
    * @warning The constructed InsertDestination should belong to relation, but
    *          must NOT contain any pre-existing blocks.
@@ -74,21 +72,19 @@ class UpdateOperator : public RelationalOperator {
   UpdateOperator(const CatalogRelation &relation,
                  const QueryContext::insert_destination_id relocation_destination_index,
                  const QueryContext::predicate_id predicate_index,
-                 const QueryContext::update_group_id update_group_index,
-                 const tmb::client_id foreman_client_id,
-                 tmb::MessageBus *bus)
+                 const QueryContext::update_group_id update_group_index)
       : relation_(relation),
         relocation_destination_index_(relocation_destination_index),
         predicate_index_(predicate_index),
         update_group_index_(update_group_index),
         input_blocks_(relation.getBlocksSnapshot()),
-        foreman_client_id_(foreman_client_id),
-        bus_(bus),
         started_(false) {}
 
   ~UpdateOperator() override {}
 
-  bool getAllWorkOrders(WorkOrdersContainer *container) override;
+  bool getAllWorkOrders(WorkOrdersContainer *container,
+                        const tmb::client_id foreman_client_id,
+                        tmb::MessageBus *bus) override;
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
     return relocation_destination_index_;
@@ -105,10 +101,6 @@ class UpdateOperator : public RelationalOperator {
   const QueryContext::update_group_id update_group_index_;
 
   const std::vector<block_id> input_blocks_;
-
-  const tmb::client_id foreman_client_id_;
-  // TODO(zuyu): Remove 'bus_' once WorkOrder serialization is done.
-  tmb::MessageBus *bus_;
 
   bool started_;
 

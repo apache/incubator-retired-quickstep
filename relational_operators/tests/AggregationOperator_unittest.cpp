@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -344,7 +344,9 @@ class AggregationOperatorTest : public ::testing::Test {
   void execute() {
     const std::size_t op_index = 0;
     WorkOrdersContainer op_container(1, 0);
-    op_->getAllWorkOrders(&op_container);
+    op_->getAllWorkOrders(&op_container,
+                          tmb::kClientIdNone /* foreman_client_id */,
+                          nullptr /* TMB */);
 
     while (op_container.hasNormalWorkOrder(op_index)) {
       WorkOrder *work_order = op_container.getNormalWorkOrder(op_index);
@@ -356,7 +358,9 @@ class AggregationOperatorTest : public ::testing::Test {
 
     WorkOrdersContainer finalize_op_container(1, 0);
     const std::size_t finalize_op_index = 0;
-    finalize_op_->getAllWorkOrders(&finalize_op_container);
+    finalize_op_->getAllWorkOrders(&finalize_op_container,
+                                   tmb::kClientIdNone /* foreman_client_id */,
+                                   nullptr /* TMB */);
 
     while (finalize_op_container.hasNormalWorkOrder(finalize_op_index)) {
       WorkOrder *work_order = finalize_op_container.getNormalWorkOrder(finalize_op_index);

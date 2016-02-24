@@ -68,7 +68,8 @@ target_link_libraries(quickstep_relationaloperators_AggregationOperator
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_AggregationOperationState
                       quickstep_storage_StorageBlockInfo
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_BuildHashOperator
                       glog
                       quickstep_catalog_CatalogDatabase
@@ -85,16 +86,19 @@ target_link_libraries(quickstep_relationaloperators_BuildHashOperator
                       quickstep_storage_TupleReference
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_storage_ValueAccessor
-                      quickstep_utility_Macros)
-target_link_libraries(quickstep_relationaloperators_CreateIndexOperator                      
+                      quickstep_utility_Macros
+                      tmb)
+target_link_libraries(quickstep_relationaloperators_CreateIndexOperator
                       quickstep_catalog_CatalogRelation
                       quickstep_relationaloperators_RelationalOperator
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_CreateTableOperator
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_relationaloperators_RelationalOperator
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_DeleteOperator
                       glog
                       quickstep_catalog_CatalogDatabase
@@ -119,7 +123,8 @@ target_link_libraries(quickstep_relationaloperators_DestroyHashOperator
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_relationaloperators_WorkOrder
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_DropTableOperator
                       glog
                       quickstep_catalog_CatalogDatabase
@@ -130,7 +135,8 @@ target_link_libraries(quickstep_relationaloperators_DropTableOperator
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_FinalizeAggregationOperator
                       glog
                       quickstep_catalog_CatalogTypedefs
@@ -139,7 +145,8 @@ target_link_libraries(quickstep_relationaloperators_FinalizeAggregationOperator
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_AggregationOperationState
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_HashJoinOperator
                       gflags_nothreads-static
                       glog
@@ -162,7 +169,8 @@ target_link_libraries(quickstep_relationaloperators_HashJoinOperator
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_storage_ValueAccessor
                       quickstep_types_containers_ColumnVectorsValueAccessor
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_InsertOperator
                       glog
                       quickstep_catalog_CatalogTypedefs
@@ -172,7 +180,8 @@ target_link_libraries(quickstep_relationaloperators_InsertOperator
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_InsertDestination
                       quickstep_types_containers_Tuple
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_NestedLoopsJoinOperator
                       glog
                       quickstep_catalog_CatalogDatabase
@@ -191,7 +200,8 @@ target_link_libraries(quickstep_relationaloperators_NestedLoopsJoinOperator
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_storage_ValueAccessor
                       quickstep_types_containers_ColumnVectorsValueAccessor
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_RebuildWorkOrder
                       glog
                       quickstep_catalog_CatalogTypedefs
@@ -209,7 +219,8 @@ target_link_libraries(quickstep_relationaloperators_RelationalOperator
                       quickstep_queryexecution_QueryContext
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_StorageBlockInfo
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_SaveBlocksOperator
                       glog
                       quickstep_catalog_CatalogTypedefs
@@ -218,7 +229,8 @@ target_link_libraries(quickstep_relationaloperators_SaveBlocksOperator
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_SelectOperator
                       glog
                       quickstep_catalog_CatalogDatabase
@@ -233,7 +245,8 @@ target_link_libraries(quickstep_relationaloperators_SelectOperator
                       quickstep_storage_StorageBlock
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_SortMergeRunOperator
                       glog
                       quickstep_catalog_CatalogDatabase
@@ -288,7 +301,8 @@ target_link_libraries(quickstep_relationaloperators_SortRunGenerationOperator
                       quickstep_storage_StorageManager
                       quickstep_storage_TupleIdSequence
                       quickstep_utility_Macros
-                      quickstep_utility_SortConfiguration)
+                      quickstep_utility_SortConfiguration
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_TableGeneratorOperator
                       glog
                       quickstep_catalog_CatalogRelation
@@ -301,7 +315,8 @@ target_link_libraries(quickstep_relationaloperators_TableGeneratorOperator
                       quickstep_storage_InsertDestination
                       quickstep_storage_StorageBlockInfo
                       quickstep_types_containers_ColumnVectorsValueAccessor
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_TextScanOperator
                       gflags_nothreads-static
                       glog

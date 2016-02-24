@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -60,19 +60,13 @@ class DeleteOperator : public RelationalOperator {
    *        tuples will be deleted).
    * @param relation_is_stored If relation is a stored relation and is fully
    *        available to the operator before it can start generating workorders.
-   * @param foreman_client_id The TMB client ID of the Foreman thread.
-   * @param bus A pointer to the TMB.
    **/
   DeleteOperator(const CatalogRelation &relation,
                  const QueryContext::predicate_id predicate_index,
-                 const bool relation_is_stored,
-                 const tmb::client_id foreman_client_id,
-                 tmb::MessageBus *bus)
+                 const bool relation_is_stored)
      :  relation_(relation),
         predicate_index_(predicate_index),
         relation_is_stored_(relation_is_stored),
-        foreman_client_id_(foreman_client_id),
-        bus_(bus),
         started_(false),
         relation_block_ids_(relation_is_stored ? relation.getBlocksSnapshot()
                                                : std::vector<block_id>()),
@@ -80,7 +74,9 @@ class DeleteOperator : public RelationalOperator {
 
   ~DeleteOperator() override {}
 
-  bool getAllWorkOrders(WorkOrdersContainer *container) override;
+  bool getAllWorkOrders(WorkOrdersContainer *container,
+                        const tmb::client_id foreman_client_id,
+                        tmb::MessageBus *bus) override;
 
   const relation_id getOutputRelationID() const override {
     return relation_.getID();
@@ -103,10 +99,6 @@ class DeleteOperator : public RelationalOperator {
   const QueryContext::predicate_id predicate_index_;
 
   const bool relation_is_stored_;
-
-  const tmb::client_id foreman_client_id_;
-  // TODO(zuyu): Remove 'bus_' once WorkOrder serialization is done.
-  tmb::MessageBus *bus_;
 
   bool started_;
 
