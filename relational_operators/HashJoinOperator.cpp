@@ -355,4 +355,19 @@ void HashJoinWorkOrder::executeWithCollectorType(QueryContext *query_context,
   }
 }
 
+void HashSemiJoinWorkOrder::execute(QueryContext *query_context,
+               CatalogDatabase *catalog_database,
+               StorageManager *storage_manager) {
+  const Predicate *residual_predicate =
+      query_context->getPredicate(residual_predicate_index_);
+    if (residual_predicate == nullptr) {
+      executeWithoutResidualPredicate(query_context,
+                                      catalog_database,
+                                      storage_manager);
+    } else {
+      executeWithResidualPredicate(query_context,
+                                   catalog_database,
+                                   storage_manager);
+    }
+}
 }  // namespace quickstep
