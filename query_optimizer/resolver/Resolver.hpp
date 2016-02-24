@@ -38,6 +38,7 @@ class CatalogRelation;
 class Comparison;
 class ParseExpression;
 class ParseFunctionCall;
+class ParseGeneratorTableReference;
 class ParseOrderBy;
 class ParsePredicate;
 class ParseSelect;
@@ -255,12 +256,13 @@ class Resolver {
 
   /**
    * @brief Resolves a table reference item, which can be a base table,
-   *        a subquery table, or a joined table defined by a join chain.
+   *        a generator table, a subquery table, or a joined table defined by
+   *        a join chain.
    *
    * @param table_reference The parse table reference to be resolved.
    * @param name_resolver The name resolver to be updated with new tables
    *                      visible from this table reference item.
-   * @return The logical plan to derived the table.
+   * @return The logical plan to derive the table.
    */
   logical::LogicalPtr resolveTableReference(const ParseTableReference &table_reference,
                                             NameResolver *name_resolver);
@@ -275,6 +277,17 @@ class Resolver {
    */
   logical::LogicalPtr resolveSimpleTableReference(
       const ParseString &table_name, const ParseString *reference_alias);
+
+  /**
+   * @brief Resolves a generator table reference and links the corresponding
+   *        generator function. The table is not added into the NameResolver.
+   *
+   * @param table_reference The parse table reference to be resolved.
+   * @return The logical plan for the generator table reference.
+   */
+  logical::LogicalPtr resolveGeneratorTableReference(
+      const ParseGeneratorTableReference &table_reference,
+      const ParseString *reference_alias);
 
   /**
    * @brief Renames the output columns from \p logical_plan based on the table signature

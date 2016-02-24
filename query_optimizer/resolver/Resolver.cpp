@@ -29,10 +29,14 @@
 #include "catalog/CatalogDatabase.hpp"
 #include "expressions/aggregation/AggregateFunction.hpp"
 #include "expressions/aggregation/AggregateFunctionFactory.hpp"
+#include "expressions/table_generator/GeneratorFunction.hpp"
+#include "expressions/table_generator/GeneratorFunctionFactory.hpp"
+#include "expressions/table_generator/GeneratorFunctionHandle.hpp"
 #include "parser/ParseAssignment.hpp"
 #include "parser/ParseBasicExpressions.hpp"
 #include "parser/ParseBlockProperties.hpp"
 #include "parser/ParseExpression.hpp"
+#include "parser/ParseGeneratorTableReference.hpp"
 #include "parser/ParseGroupBy.hpp"
 #include "parser/ParseHaving.hpp"
 #include "parser/ParseLimit.hpp"
@@ -78,6 +82,7 @@
 #include "query_optimizer/logical/Project.hpp"
 #include "query_optimizer/logical/SharedSubplanReference.hpp"
 #include "query_optimizer/logical/Sort.hpp"
+#include "query_optimizer/logical/TableGenerator.hpp"
 #include "query_optimizer/logical/TableReference.hpp"
 #include "query_optimizer/logical/TopLevelPlan.hpp"
 #include "query_optimizer/logical/UpdateTable.hpp"
@@ -86,6 +91,7 @@
 #include "storage/StorageConstants.hpp"
 #include "types/IntType.hpp"
 #include "types/Type.hpp"
+#include "types/TypedValue.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
@@ -1151,65 +1157,9 @@ L::LogicalPtr Resolver::resolveFromClause(
     NameResolver *name_resolver) {
   std::vector<L::LogicalPtr> from_logical_list;
   for (const ParseTableReference &from_parse_item : from_list) {
-    L::LogicalPtr from_logical_item;
-    const ParseString *reference_alias = nullptr;
-    const ParseTableReferenceSignature *reference_signature =
-        from_parse_item.table_reference_signature();
-    if (from_parse_item.getTableReferenceType() ==
-        ParseTableReference::kSimpleTableReference) {
-      const ParseSimpleTableReference &simple_table_reference =
-          static_cast<const ParseSimpleTableReference&>(from_parse_item);
-
-      if (reference_signature == nullptr) {
-        reference_alias = simple_table_reference.table_name();
-      } else {
-        DCHECK(reference_signature->table_alias() != nullptr);
-        reference_alias = reference_signature->table_alias();
-      }
-
-      from_logical_item = resolveSimpleTableReference(
-          *simple_table_reference.table_name(), reference_alias);
-    } else {
-      DCHECK_EQ(from_parse_item.getTableReferenceType(),
-                ParseTableReference::kSubqueryTableReference);
-      DCHECK(from_parse_item.table_reference_signature() != nullptr)
-          << "Subquery expressions in FROM must be explicitly named";
-      DCHECK(reference_signature->table_alias() != nullptr);
-
-      reference_alias = reference_signature->table_alias();
-      from_logical_item = resolveSelect(
-          *static_cast<const ParseSubqueryTableReference&>(from_parse_item).subquery_expr()->query(),
-          reference_alias->value());
-    }
-    if (reference_signature != nullptr &&
-        reference_signature->column_aliases() != nullptr) {
-      const PtrList<ParseString> &column_aliases =
-          *reference_signature->column_aliases();
-      const std::vector<E::AttributeReferencePtr> output_attributes =
-          from_logical_item->getOutputAttributes();
-
-      // Rename the name of each attribute to its column alias.
-      std::vector<E::NamedExpressionPtr> project_expressions;
-      if (column_aliases.size() != output_attributes.size()) {
-        THROW_SQL_ERROR_AT(reference_signature)
-            << "The number of named columns is different from the number of table columns ("
-            << std::to_string(column_aliases.size()) << " vs. " << std::to_string(output_attributes.size()) << ")";
-      }
-
-      int attr_index = 0;
-      for (const ParseString &column_alias : column_aliases) {
-        project_expressions.emplace_back(E::Alias::Create(
-            context_->nextExprId(),
-            output_attributes[attr_index],
-            column_alias.value(),
-            column_alias.value()));
-        ++attr_index;
-      }
-      from_logical_item =
-          L::Project::Create(from_logical_item, project_expressions);
-    }
+    L::LogicalPtr from_logical_item =
+        resolveTableReference(from_parse_item, name_resolver);
     from_logical_list.emplace_back(from_logical_item);
-    name_resolver->addRelation(reference_alias, from_logical_item);
   }
 
   if (from_logical_list.size() > 1u) {
@@ -1238,6 +1188,27 @@ L::LogicalPtr Resolver::resolveTableReference(const ParseTableReference &table_r
       }
 
       logical_plan = resolveSimpleTableReference(*simple_table_reference.table_name(), reference_alias);
+
+      if (reference_signature != nullptr && reference_signature->column_aliases() != nullptr) {
+        logical_plan = RenameOutputColumns(logical_plan, *reference_signature);
+      }
+
+      name_resolver->addRelation(reference_alias, logical_plan);
+      break;
+    }
+    case ParseTableReference::kGeneratorTableReference: {
+      const ParseGeneratorTableReference &generator_table_reference =
+          static_cast<const ParseGeneratorTableReference&>(table_reference);
+
+      if (reference_signature == nullptr) {
+        reference_alias = generator_table_reference.generator_function()->name();
+      } else {
+        DCHECK(reference_signature->table_alias() != nullptr);
+        reference_alias = reference_signature->table_alias();
+      }
+
+      logical_plan = resolveGeneratorTableReference(generator_table_reference,
+                                                    reference_alias);
 
       if (reference_signature != nullptr && reference_signature->column_aliases() != nullptr) {
         logical_plan = RenameOutputColumns(logical_plan, *reference_signature);
@@ -1339,6 +1310,55 @@ L::LogicalPtr Resolver::resolveSimpleTableReference(
 
   return L::TableReference::Create(relation, scoped_table_name->value(), context_);
 }
+
+L::LogicalPtr Resolver::resolveGeneratorTableReference(
+    const ParseGeneratorTableReference &table_reference,
+    const ParseString *reference_alias) {
+  const ParseString *func_name = table_reference.generator_function()->name();
+
+  // Resolve the generator function
+  const quickstep::GeneratorFunction *func_template =
+      GeneratorFunctionFactory::Instance().GetByName(func_name->value());
+  if (func_template == nullptr) {
+      THROW_SQL_ERROR_AT(func_name)
+          << "Generator function " << func_name->value() << " not found";
+  }
+
+  // Check that all arguments are constant literals, also convert them into a
+  // list of TypedValue's.
+  const PtrList<ParseExpression> *func_args = table_reference.generator_function()->arguments();
+  std::vector<TypedValue> concretized_args;
+  if (func_args != nullptr) {
+    for (const ParseExpression& arg : *func_args) {
+      if (arg.getExpressionType() != ParseExpression::kScalarLiteral) {
+        THROW_SQL_ERROR_AT(&arg)
+            << "Argument(s) to a generator function can only be constant literals";
+      }
+      const ParseScalarLiteral &scalar_literal_arg = static_cast<const ParseScalarLiteral&>(arg);
+      const Type* dumb_concretized_type;
+      concretized_args.emplace_back(
+          scalar_literal_arg.literal_value()->concretize(nullptr, &dumb_concretized_type));
+    }
+  }
+
+  // Concretize the generator function with the arguments.
+  quickstep::GeneratorFunctionHandle *func_handle = nullptr;
+  try {
+    func_handle = func_template->createHandle(concretized_args);
+  } catch (const std::exception &e) {
+    DCHECK(func_handle == nullptr);
+    THROW_SQL_ERROR_AT(table_reference.generator_function()) << e.what();
+  }
+  if (func_handle == nullptr) {
+    THROW_SQL_ERROR_AT(table_reference.generator_function())
+        << "Invalid arguments";
+  }
+
+  return L::TableGenerator::Create(quickstep::GeneratorFunctionHandlePtr(func_handle),
+                                   reference_alias->value(),
+                                   context_);
+}
+
 
 void Resolver::resolveSelectClause(
     const ParseSelectionClause &parse_selection,
