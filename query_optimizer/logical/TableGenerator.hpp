@@ -1,7 +1,7 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
  *   University of Wisconsin—Madison.
-#   Copyright 2016 Pivotal Software, Inc.
+ *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -72,21 +72,21 @@ class TableGenerator : public Logical {
   /**
    * @return The reference to the generator function handle.
    */
-  const GeneratorFunctionHandlePtr &generator_function_handle() const {
+  const GeneratorFunctionHandlePtr& generator_function_handle() const {
     return generator_function_handle_;
   }
 
   /**
    * @return The alias name of this table.
    */
-  const std::string &table_alias() const {
+  const std::string& table_alias() const {
     return table_alias_;
   }
 
   /**
    * @return The reference to the output attributes of this table.
    */
-  const std::vector<expressions::AttributeReferencePtr> &attribute_list() const {
+  const std::vector<expressions::AttributeReferencePtr>& attribute_list() const {
     return attribute_list_;
   }
 

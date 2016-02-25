@@ -65,7 +65,7 @@ class GenerateSeries : public GeneratorFunction {
     return getName() + "(<start>, <end>[, <step>])";
   }
 
-  GeneratorFunctionHandle *createHandle(
+  GeneratorFunctionHandle* createHandle(
       const std::vector<TypedValue> &arguments) const override {
     // Checks arguments and create the function handle for generate_series.
 
@@ -110,7 +110,7 @@ class GenerateSeries : public GeneratorFunction {
   }
 
  private:
-  GeneratorFunctionHandle *concretizeWithType(
+  GeneratorFunctionHandle* concretizeWithType(
       const std::vector<const Type*> &arg_types,
       const std::vector<TypedValue> &args,
       const Type &type) const {

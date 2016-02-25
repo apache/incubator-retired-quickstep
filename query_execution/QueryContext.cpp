@@ -1,7 +1,7 @@
 
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -122,7 +122,7 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
 
   for (int i = 0; i < proto.generator_functions_size(); ++i) {
     const GeneratorFunctionHandle *func_handle =
-        GeneratorFunctionFactory::Instance().ReconstructFromProto(proto.generator_functions(i));
+        GeneratorFunctionFactory::Instance().reconstructFromProto(proto.generator_functions(i));
     DCHECK(func_handle != nullptr);
     generator_function_groups_.emplace_back(
         std::unique_ptr<const GeneratorFunctionHandle>(func_handle));

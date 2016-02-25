@@ -46,7 +46,7 @@ const GeneratorFunctionFactory& GeneratorFunctionFactory::Instance() {
   return instance;
 }
 
-const GeneratorFunction* GeneratorFunctionFactory::GetByName(const std::string &name) const {
+const GeneratorFunction* GeneratorFunctionFactory::getByName(const std::string &name) const {
   const auto it = func_map_.find(name);
   if (it != func_map_.end()) {
     return it->second;
@@ -55,15 +55,15 @@ const GeneratorFunction* GeneratorFunctionFactory::GetByName(const std::string &
   }
 }
 
-GeneratorFunctionHandle* GeneratorFunctionFactory::ReconstructFromProto(
+GeneratorFunctionHandle* GeneratorFunctionFactory::reconstructFromProto(
     const serialization::GeneratorFunctionHandle &proto) const {
-  const GeneratorFunction *func_template = GetByName(proto.function_name());
+  const GeneratorFunction *func_template = getByName(proto.function_name());
   if (func_template == nullptr) {
     LOG(FATAL) << "Generator function " << proto.function_name() << " not found";
   }
 
   std::vector<TypedValue> args;
-  for (const auto& arg_proto : proto.args()) {
+  for (const auto &arg_proto : proto.args()) {
     args.emplace_back(TypedValue::ReconstructFromProto(arg_proto));
   }
 

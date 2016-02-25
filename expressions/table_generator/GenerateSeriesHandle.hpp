@@ -57,7 +57,7 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
     return getName();
   }
 
-  const Type &getOutputColumnType(int index) const override {
+  const Type& getOutputColumnType(int index) const override {
     if (index > 0) {
       LOG(FATAL) << "generate_series function has only 1 output column";
     }
@@ -118,8 +118,6 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
   }
 
  private:
-  friend class GenerateSeries;
-
   /**
    * @brief Constructor. A GenerateSeriesHandle object should only be
    *        instantiated inside method GenerateSeries::createHandle().
@@ -145,7 +143,7 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
   }
 
   template <typename T>
-  NativeColumnVector *generateColumn() const {
+  NativeColumnVector* generateColumn() const {
     T start = start_.getLiteral<T>();
     T end = end_.getLiteral<T>();
     T step = step_.getLiteral<T>();
@@ -175,6 +173,8 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
   const TypedValue start_;
   const TypedValue end_;
   const TypedValue step_;
+
+  friend class GenerateSeries;
 
   DISALLOW_COPY_AND_ASSIGN(GenerateSeriesHandle);
 };

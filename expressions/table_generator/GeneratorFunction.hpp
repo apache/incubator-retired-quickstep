@@ -90,7 +90,7 @@ class GeneratorFunction {
    *         table generation. Caller is responsible for deleting the returned
    *         object.
    **/
-  virtual GeneratorFunctionHandle *createHandle(
+  virtual GeneratorFunctionHandle* createHandle(
       const std::vector<TypedValue> &arguments) const = 0;
 
  protected:

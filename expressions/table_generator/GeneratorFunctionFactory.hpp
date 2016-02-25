@@ -61,7 +61,7 @@ class GeneratorFunctionFactory {
    * @return A pointer to the GeneratorFunction specified by name, or NULL if
    *         name does not match any known GeneratorFunction.
    **/
-  const GeneratorFunction *GetByName(const std::string &name) const;
+  const GeneratorFunction* getByName(const std::string &name) const;
 
   /**
    * @brief Reconstruct a particular GeneratorFunctionHandle by its protobuf
@@ -72,7 +72,7 @@ class GeneratorFunctionFactory {
    * @return A new GeneratorFunctionHandle object constructed from the protobuf
    *         message. Caller is responsible for deleting the returned object.
    */
-  GeneratorFunctionHandle *ReconstructFromProto(
+  GeneratorFunctionHandle* reconstructFromProto(
       const serialization::GeneratorFunctionHandle &proto) const;
 
  private:
