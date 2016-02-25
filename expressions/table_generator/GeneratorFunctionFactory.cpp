@@ -1,6 +1,7 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
  *   University of Wisconsin—Madison.
+ *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -18,11 +19,12 @@
 #include "expressions/table_generator/GeneratorFunctionFactory.hpp"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "expressions/table_generator/GenerateSeries.hpp"
-#include "expressions/table_generator/GenerateSeriesHandle.hpp"
 #include "expressions/table_generator/GeneratorFunction.hpp"
+#include "expressions/table_generator/GeneratorFunction.pb.h"
 #include "types/TypedValue.hpp"
 
 #include "glog/logging.h"
@@ -53,7 +55,7 @@ const GeneratorFunction* GeneratorFunctionFactory::GetByName(const std::string &
   }
 }
 
-GeneratorFunctionHandle *GeneratorFunctionFactory::ReconstructFromProto(
+GeneratorFunctionHandle* GeneratorFunctionFactory::ReconstructFromProto(
     const serialization::GeneratorFunctionHandle &proto) const {
   const GeneratorFunction *func_template = GetByName(proto.function_name());
   if (func_template == nullptr) {

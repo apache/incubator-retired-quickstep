@@ -134,10 +134,8 @@ target_link_libraries(quickstep_parser_ParseExpression
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_parser_ParseGeneratorTableReference
                       quickstep_parser_ParseBasicExpressions
-                      quickstep_parser_ParseString
                       quickstep_parser_ParseTableReference
-                      quickstep_utility_Macros
-                      quickstep_utility_PtrList)
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_parser_ParseGroupBy
                       quickstep_parser_ParseExpression
                       quickstep_parser_ParseTreeNode

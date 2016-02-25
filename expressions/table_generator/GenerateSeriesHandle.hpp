@@ -1,6 +1,7 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
  *   University of Wisconsin—Madison.
+ *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -18,12 +19,14 @@
 #ifndef QUICKSTEP_EXPRESSIONS_TABLE_GENERATOR_GENERATE_SERIES_HANDLE_HPP_
 #define QUICKSTEP_EXPRESSIONS_TABLE_GENERATOR_GENERATE_SERIES_HANDLE_HPP_
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
 #include "expressions/table_generator/GeneratorFunctionHandle.hpp"
 #include "types/Type.hpp"
-#include "types/TypeFactory.hpp"
+#include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVector.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
@@ -61,7 +64,7 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
     return type_;
   }
 
-  size_t getEstimatedCardinality() const override {
+  std::size_t getEstimatedCardinality() const override {
     switch (type_.getTypeID()) {
       case TypeID::kInt: {
         return estimateCardinality<int>();
@@ -161,7 +164,7 @@ class GenerateSeriesHandle : public GeneratorFunctionHandle {
   }
 
   template <typename T>
-  size_t estimateCardinality() const {
+  std::size_t estimateCardinality() const {
     T step = step_.getLiteral<T>();
     DCHECK_NE(step, static_cast<T>(0));
     return static_cast<std::size_t>(
