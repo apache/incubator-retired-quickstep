@@ -85,3 +85,31 @@ TopLevelPlan
   +-AttributeReference[id=9,name=col10,relation=foo,type=Float NULL]
   +-AttributeReference[id=10,name=col11,relation=foo,type=Char(5) NULL]
   +-AttributeReference[id=11,name=col12,relation=foo,type=VarChar(5) NULL]
+==
+CREATE TABLE foo (col1 INT) WITH BLOCKPROPERTIES 
+  (TYPE compressed_columnstore, SORT col1, COMPRESS ALL, BLOCKSIZEMB 5);
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=CreateTable[relation=foo]
+| +-block_properties=ProtoDescription
+| | +-Property=ProtoProperty[Property=blocktype,Value=compressed_columnstore]
+| | +-Property=ProtoProperty[Property=sort,Value=0]
+| | +-Property=ProtoProperty[Property=compress,Value=0]
+| | +-Property=ProtoProperty[Property=slots,Value=2]
+| +-attributes=
+|   +-AttributeReference[id=0,name=col1,relation=foo,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=col1,relation=foo,type=Int]
+[Physical Plan]
+TopLevelPlan
++-plan=CreateTable[relation=foo]
+| +-block_properties=ProtoDescription
+| | +-Property=ProtoProperty[Property=blocktype,Value=compressed_columnstore]
+| | +-Property=ProtoProperty[Property=sort,Value=0]
+| | +-Property=ProtoProperty[Property=compress,Value=0]
+| | +-Property=ProtoProperty[Property=slots,Value=2]
+| +-attributes=
+|   +-AttributeReference[id=0,name=col1,relation=foo,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=col1,relation=foo,type=Int]

@@ -99,7 +99,8 @@ bool OneToOne::generatePlan(const L::LogicalPtr &logical_input,
       const L::CreateTablePtr create_table =
           std::static_pointer_cast<const L::CreateTable>(logical_input);
       *physical_output = P::CreateTable::Create(create_table->relation_name(),
-                                                create_table->attributes());
+                                                create_table->attributes(),
+                                                create_table->block_properties());
       return true;
     }
     case L::LogicalType::kDeleteTuples: {

@@ -58,6 +58,7 @@ class ParseTableReferenceSignature;
 class ParseTreeNode;
 template <class T>
 class PtrList;
+class StorageBlockLayoutDescription;
 class Type;
 
 }  // namespace quickstep
@@ -158,6 +159,17 @@ class Resolver {
    * @return A logical plan for the CREATE TABLE query.
    */
   logical::LogicalPtr resolveCreateTable(
+      const ParseStatementCreateTable &create_table_statement);
+
+  /**
+   * @brief Resolves the BLOCK PROPERTIES of a CREATE TABLE statement to a
+   *        proto message describing the user input. 
+   * 
+   * @param create_table_statement The create table statement.
+   * @return A pointer to a user-owned Proto message describing the block. Note
+   *         that this message may be invalid.
+   */
+  StorageBlockLayoutDescription* resolveBlockProperties(
       const ParseStatementCreateTable &create_table_statement);
 
   /**

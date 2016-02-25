@@ -38,6 +38,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_expressions_tablegenerator_GeneratorFunctionHandle
                       quickstep_parser_ParseAssignment
                       quickstep_parser_ParseBasicExpressions
+                      quickstep_parser_ParseBlockProperties
                       quickstep_parser_ParseExpression
                       quickstep_parser_ParseGeneratorTableReference
                       quickstep_parser_ParseGroupBy
@@ -91,6 +92,8 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_logical_TopLevelPlan
                       quickstep_queryoptimizer_logical_UpdateTable
                       quickstep_queryoptimizer_resolver_NameResolver
+                      quickstep_storage_StorageBlockLayout_proto
+                      quickstep_storage_StorageConstants
                       quickstep_types_IntType
                       quickstep_types_Type
                       quickstep_types_TypedValue

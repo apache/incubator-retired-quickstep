@@ -137,3 +137,64 @@ CREATE TABLE test (attr INT) CHECK(attr>0)
 ERROR: Table Constraints (CHECK) is not supported yet (1 : 30)
 CREATE TABLE test (attr INT) CHECK(attr>0)
                              ^
+==
+
+CREATE TABLE test (attr INT) WITH BLOCKPROPERTIES
+(TYPE rowstore)
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+| +-AttributeDefinition[name=attr,type=Int]
++-block_properties=
+  +-BlockProperties
+    +-block_property=KeyStringValue[key=TYPE]
+      +-value=String[value=rowstore]
+==
+
+CREATE TABLE test (attr INT) WITH BLOCKPROPERTIES
+(TYPE compressed_columnstore, SORT attr, COMPRESS ALL)
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+| +-AttributeDefinition[name=attr,type=Int]
++-block_properties=
+  +-BlockProperties
+    +-block_property=KeyStringValue[key=TYPE]
+    | +-value=String[value=compressed_columnstore]
+    +-block_property=KeyStringValue[key=SORT]
+    | +-value=String[value=attr]
+    +-block_property=KeyStringValue[key=COMPRESS]
+      +-value=String[value=ALL]
+==
+
+CREATE TABLE test (attr1 INT, attr2 INT) WITH BLOCKPROPERTIES
+(TYPE compressed_columnstore, SORT attr1, COMPRESS (attr1, attr2))
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+| +-AttributeDefinition[name=attr1,type=Int]
+| +-AttributeDefinition[name=attr2,type=Int]
++-block_properties=
+  +-BlockProperties
+    +-block_property=KeyStringValue[key=TYPE]
+    | +-value=String[value=compressed_columnstore]
+    +-block_property=KeyStringValue[key=SORT]
+    | +-value=String[value=attr1]
+    +-block_property=KeyStringList[key=COMPRESS]
+      +-value_list=
+        +-String[value=attr1]
+        +-String[value=attr2]
+==
+
+CREATE TABLE test (attr INT) WITH BLOCKPROPERTIES
+(TYPE rowstore, BLOCKSIZEMB 10);
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+| +-AttributeDefinition[name=attr,type=Int]
++-block_properties=
+  +-BlockProperties
+    +-block_property=KeyStringValue[key=TYPE]
+    | +-value=String[value=rowstore]
+    +-block_property=KeyIntegerValue[key=BLOCKSIZEMB]
+      +-value=NumericLiteral[numeric_string=10,float_like=false]
