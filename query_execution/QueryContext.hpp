@@ -61,6 +61,11 @@ class QueryContext {
   typedef std::uint32_t aggregation_state_id;
 
   /**
+   * @brief A unique identifier for a GeneratorFunctionHandle per query.
+   **/
+  typedef std::uint32_t generator_function_id;
+
+  /**
    * @brief A unique identifier for an InsertDestination per query.
    *
    * @note A negative value indicates a nonexistent InsertDestination.
@@ -103,11 +108,6 @@ class QueryContext {
    * @brief A unique identifier for a group of UpdateAssignments per query.
    **/
   typedef std::uint32_t update_group_id;
-
-  /**
-   * @brief A unique identifier for a group of GeneratorFunctionHandles per query.
-   **/
-  typedef std::uint32_t generator_function_id;
 
   /**
    * @brief Constructor.
@@ -161,6 +161,19 @@ class QueryContext {
   inline void destroyAggregationState(const aggregation_state_id id) {
     DCHECK_LT(id, aggregation_states_.size());
     aggregation_states_[id].reset();
+  }
+
+  /**
+   * @brief Get the GeneratorFunctionHandle.
+   *
+   * @param id The GeneratorFunctionHandle id in the query.
+   *
+   * @return The GeneratorFunctionHandle, alreadly created in the constructor.
+   **/
+  inline const GeneratorFunctionHandle& getGeneratorFunctionHandle(
+      const generator_function_id id) {
+    DCHECK_LT(static_cast<std::size_t>(id), generator_functions_.size());
+    return *generator_functions_[id];
   }
 
   /**
@@ -283,19 +296,9 @@ class QueryContext {
     return update_groups_[id];
   }
 
-  /**
-   * @brief Get the GeneratorFunctionHandle.
-   *
-   * @param id The GeneratorFunctionHandle id in the query.
-   * @return The GeneratorFunctionHandle, alreadly created in the constructor.
-   **/
-  inline const GeneratorFunctionHandle* getGeneratorFunctionHandle(
-      const generator_function_id id) {
-    return generator_function_groups_[id].get();
-  }
-
  private:
   std::vector<std::unique_ptr<AggregationOperationState>> aggregation_states_;
+  std::vector<std::unique_ptr<const GeneratorFunctionHandle>> generator_functions_;
   std::vector<std::unique_ptr<InsertDestination>> insert_destinations_;
   std::vector<std::unique_ptr<JoinHashTable>> join_hash_tables_;
   std::vector<std::unique_ptr<const Predicate>> predicates_;
@@ -303,7 +306,6 @@ class QueryContext {
   std::vector<std::unique_ptr<const SortConfiguration>> sort_configs_;
   std::vector<std::unique_ptr<Tuple>> tuples_;
   std::vector<std::unordered_map<attribute_id, std::unique_ptr<const Scalar>>> update_groups_;
-  std::vector<std::unique_ptr<const GeneratorFunctionHandle>> generator_function_groups_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryContext);
 };

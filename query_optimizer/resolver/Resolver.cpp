@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -1125,7 +1125,7 @@ L::LogicalPtr Resolver::resolveGeneratorTableReference(
 
   // Resolve the generator function
   const quickstep::GeneratorFunction *func_template =
-      GeneratorFunctionFactory::Instance().GetByName(func_name->value());
+      GeneratorFunctionFactory::Instance().getByName(func_name->value());
   if (func_template == nullptr) {
       THROW_SQL_ERROR_AT(func_name)
           << "Generator function " << func_name->value() << " not found";

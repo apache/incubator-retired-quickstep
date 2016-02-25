@@ -1,6 +1,7 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
  *   University of Wisconsin—Madison.
+ *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -18,11 +19,12 @@
 #include "expressions/table_generator/GeneratorFunctionFactory.hpp"
 
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "expressions/table_generator/GenerateSeries.hpp"
-#include "expressions/table_generator/GenerateSeriesHandle.hpp"
 #include "expressions/table_generator/GeneratorFunction.hpp"
+#include "expressions/table_generator/GeneratorFunction.pb.h"
 #include "types/TypedValue.hpp"
 
 #include "glog/logging.h"
@@ -44,7 +46,7 @@ const GeneratorFunctionFactory& GeneratorFunctionFactory::Instance() {
   return instance;
 }
 
-const GeneratorFunction* GeneratorFunctionFactory::GetByName(const std::string &name) const {
+const GeneratorFunction* GeneratorFunctionFactory::getByName(const std::string &name) const {
   const auto it = func_map_.find(name);
   if (it != func_map_.end()) {
     return it->second;
@@ -53,15 +55,14 @@ const GeneratorFunction* GeneratorFunctionFactory::GetByName(const std::string &
   }
 }
 
-GeneratorFunctionHandle *GeneratorFunctionFactory::ReconstructFromProto(
+GeneratorFunctionHandle* GeneratorFunctionFactory::reconstructFromProto(
     const serialization::GeneratorFunctionHandle &proto) const {
-  const GeneratorFunction *func_template = GetByName(proto.function_name());
-  if (func_template == nullptr) {
-    LOG(FATAL) << "Generator function " << proto.function_name() << " not found";
-  }
+  const GeneratorFunction *func_template = getByName(proto.function_name());
+  CHECK(func_template != nullptr)
+      << "Generator function " << proto.function_name() << " not found";
 
   std::vector<TypedValue> args;
-  for (const auto& arg_proto : proto.args()) {
+  for (const auto &arg_proto : proto.args()) {
     args.emplace_back(TypedValue::ReconstructFromProto(arg_proto));
   }
 
