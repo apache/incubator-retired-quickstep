@@ -58,9 +58,8 @@ const GeneratorFunction* GeneratorFunctionFactory::getByName(const std::string &
 GeneratorFunctionHandle* GeneratorFunctionFactory::reconstructFromProto(
     const serialization::GeneratorFunctionHandle &proto) const {
   const GeneratorFunction *func_template = getByName(proto.function_name());
-  if (func_template == nullptr) {
-    LOG(FATAL) << "Generator function " << proto.function_name() << " not found";
-  }
+  CHECK(func_template != nullptr)
+      << "Generator function " << proto.function_name() << " not found";
 
   std::vector<TypedValue> args;
   for (const auto &arg_proto : proto.args()) {
