@@ -31,13 +31,17 @@ namespace quickstep {
 
 bool SaveBlocksOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
+    CatalogDatabase *catalog_database,
+    QueryContext *query_context,
+    StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
     tmb::MessageBus *bus) {
   while (num_workorders_generated_ < destination_block_ids_.size()) {
     container->addNormalWorkOrder(
         new SaveBlocksWorkOrder(
             destination_block_ids_[num_workorders_generated_],
-            force_),
+            force_,
+            storage_manager),
         op_index_);
     ++num_workorders_generated_;
   }
@@ -51,12 +55,10 @@ void SaveBlocksOperator::feedInputBlock(const block_id input_block_id, const rel
 void SaveBlocksWorkOrder::execute(QueryContext *query_context,
                                   CatalogDatabase *catalog_database,
                                   StorageManager *storage_manager) {
-  DCHECK(storage_manager != nullptr);
-
   // It may happen that the block gets saved to disk as a result of an eviction,
   // before this invocation. In either case, we don't care about the return
   // value of saveBlockOrBlob.
-  storage_manager->saveBlockOrBlob(save_block_id_, force_);
+  storage_manager_->saveBlockOrBlob(save_block_id_, force_);
 }
 
 }  // namespace quickstep

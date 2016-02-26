@@ -63,6 +63,9 @@ class FinalizeAggregationOperator : public RelationalOperator {
   ~FinalizeAggregationOperator() override {}
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
@@ -92,14 +95,18 @@ class FinalizeAggregationWorkOrder : public WorkOrder {
    * @brief Constructor.
    *
    * @param aggr_state_index The index of the AggregationState in QueryContext.
-   * @param output_destination_index The index of the InsertDestination in the
-   *        QueryContext to insert aggregation results.
+   * @param output_destination The InsertDestination to insert aggregation
+   *        results.
    */
-  FinalizeAggregationWorkOrder(
-      const QueryContext::aggregation_state_id aggr_state_index,
-      const QueryContext::insert_destination_id output_destination_index)
+  FinalizeAggregationWorkOrder(const QueryContext::aggregation_state_id aggr_state_index,
+                               InsertDestination *output_destination,
+                               QueryContext *query_context)
       : aggr_state_index_(aggr_state_index),
-        output_destination_index_(output_destination_index) {}
+        output_destination_(output_destination),
+        query_context_(query_context) {
+    DCHECK(output_destination_ != nullptr);
+    DCHECK(query_context_ != nullptr);
+  }
 
   ~FinalizeAggregationWorkOrder() override {}
 
@@ -109,7 +116,9 @@ class FinalizeAggregationWorkOrder : public WorkOrder {
 
  private:
   const QueryContext::aggregation_state_id aggr_state_index_;
-  const QueryContext::insert_destination_id output_destination_index_;
+
+  InsertDestination *output_destination_;
+  QueryContext *query_context_;
 
   DISALLOW_COPY_AND_ASSIGN(FinalizeAggregationWorkOrder);
 };

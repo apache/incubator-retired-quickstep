@@ -75,6 +75,9 @@ class DeleteOperator : public RelationalOperator {
   ~DeleteOperator() override {}
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
@@ -116,28 +119,33 @@ class DeleteWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @param rel_id The id of the relation to perform the DELETE over.
-   * @param predicate_index The index of Predicate in QueryContext. All tuples
-   *        matching pred will be deleted (If kInvalidPredicateId, then all
-   *        tuples will be deleted).
+   * @param input_relation The relation to perform the DELETE over.
    * @param input_block_id The block Id.
+   * @param predicate All tuples matching \c predicate will be deleted (If
+   *        NULL, then all tuples will be deleted).
+   * @param storage_manager The StorageManager to use.
    * @param delete_operator_index The index of the Delete Operator in the query
    *        plan DAG.
    * @param foreman_client_id The TMB client ID of the Foreman thread.
    * @param bus A pointer to the TMB.
    **/
-  DeleteWorkOrder(const relation_id rel_id,
-                  const QueryContext::predicate_id predicate_index,
+  DeleteWorkOrder(const CatalogRelationSchema &input_relation,
                   const block_id input_block_id,
+                  const Predicate *predicate,
+                  StorageManager *storage_manager,
                   const std::size_t delete_operator_index,
                   const tmb::client_id foreman_client_id,
                   MessageBus *bus)
-      : rel_id_(rel_id),
-        predicate_index_(predicate_index),
+      : input_relation_(input_relation),
         input_block_id_(input_block_id),
+        predicate_(predicate),
+        storage_manager_(storage_manager),
         delete_operator_index_(delete_operator_index),
         foreman_client_id_(foreman_client_id),
-        bus_(bus) {}
+        bus_(bus) {
+    DCHECK(storage_manager_ != nullptr);
+    DCHECK(bus_ != nullptr);
+  }
 
   ~DeleteWorkOrder() override {}
 
@@ -146,9 +154,11 @@ class DeleteWorkOrder : public WorkOrder {
                StorageManager *storage_manager) override;
 
  private:
-  const relation_id rel_id_;
-  const QueryContext::predicate_id predicate_index_;
+  const CatalogRelationSchema &input_relation_;
   const block_id input_block_id_;
+  const Predicate *predicate_;
+
+  StorageManager *storage_manager_;
 
   const std::size_t delete_operator_index_;
   const tmb::client_id foreman_client_id_;

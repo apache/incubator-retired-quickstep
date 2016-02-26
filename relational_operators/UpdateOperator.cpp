@@ -44,16 +44,22 @@ namespace quickstep {
 
 bool UpdateOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
+    CatalogDatabase *catalog_database,
+    QueryContext *query_context,
+    StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
     tmb::MessageBus *bus) {
   if (blocking_dependencies_met_ && !started_) {
+    DCHECK(query_context != nullptr);
+
     for (const block_id input_block_id : input_blocks_) {
       container->addNormalWorkOrder(
-          new UpdateWorkOrder(relation_.getID(),
-                              relocation_destination_index_,
-                              predicate_index_,
-                              update_group_index_,
+          new UpdateWorkOrder(relation_,
                               input_block_id,
+                              query_context->getPredicate(predicate_index_),
+                              query_context->getUpdateGroup(update_group_index_),
+                              query_context->getInsertDestination(relocation_destination_index_),
+                              storage_manager,
                               op_index_,
                               foreman_client_id,
                               bus),
@@ -67,22 +73,11 @@ bool UpdateOperator::getAllWorkOrders(
 void UpdateWorkOrder::execute(QueryContext *query_context,
                               CatalogDatabase *database,
                               StorageManager *storage_manager) {
-  DCHECK(query_context != nullptr);
-  DCHECK(database != nullptr);
-  DCHECK(storage_manager != nullptr);
-
   MutableBlockReference block(
-      storage_manager->getBlockMutable(input_block_id_,
-                                       *database->getRelationById(rel_id_)));
-
-  InsertDestination *relocation_destination =
-      query_context->getInsertDestination(relocation_destination_index_);
-  DCHECK(relocation_destination != nullptr);
+      storage_manager_->getBlockMutable(input_block_id_, relation_));
 
   StorageBlock::UpdateResult result =
-      block->update(query_context->getUpdateGroup(update_group_index_),
-                    query_context->getPredicate(predicate_index_),
-                    relocation_destination);
+      block->update(assignments_, predicate_, relocation_destination_);
 
   if (!result.indices_consistent) {
     LOG_WARNING("An UPDATE caused one or more IndexSubBlocks in StorageBlock "
@@ -95,7 +90,7 @@ void UpdateWorkOrder::execute(QueryContext *query_context,
   serialization::DataPipelineMessage proto;
   proto.set_operator_index(update_operator_index_);
   proto.set_block_id(input_block_id_);
-  proto.set_relation_id(rel_id_);
+  proto.set_relation_id(relation_.getID());
 
   // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
   const std::size_t proto_length = proto.ByteSize();

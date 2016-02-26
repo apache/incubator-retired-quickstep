@@ -28,11 +28,14 @@ namespace quickstep {
 
 bool DestroyHashOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
+    CatalogDatabase *catalog_database,
+    QueryContext *query_context,
+    StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
     tmb::MessageBus *bus) {
   if (blocking_dependencies_met_ && !work_generated_) {
     work_generated_ = true;
-    container->addNormalWorkOrder(new DestroyHashWorkOrder(hash_table_index_),
+    container->addNormalWorkOrder(new DestroyHashWorkOrder(hash_table_index_, query_context),
                                   op_index_);
   }
   return work_generated_;
@@ -41,8 +44,7 @@ bool DestroyHashOperator::getAllWorkOrders(
 void DestroyHashWorkOrder::execute(QueryContext *query_context,
                                    CatalogDatabase *catalog_database,
                                    StorageManager *storage_manager) {
-  DCHECK(query_context != nullptr);
-  query_context->destroyJoinHashTable(hash_table_index_);
+  query_context_->destroyJoinHashTable(hash_table_index_);
 }
 
 }  // namespace quickstep

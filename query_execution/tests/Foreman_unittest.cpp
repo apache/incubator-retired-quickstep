@@ -145,6 +145,9 @@ class MockOperator: public RelationalOperator {
   // Override methods from the base class.
   bool getAllWorkOrders(
       WorkOrdersContainer *container,
+      CatalogDatabase *catalog_database,
+      QueryContext *query_context,
+      StorageManager *storage_manager,
       const tmb::client_id foreman_client_id,
       tmb::MessageBus *bus) override {
     ++num_calls_get_workorders_;
@@ -224,7 +227,7 @@ class ForemanTest : public ::testing::Test {
     query_plan_.reset(new QueryPlan());
 
     bus_.Initialize();
-    foreman_.reset(new Foreman(&bus_));
+    foreman_.reset(new Foreman(&bus_, nullptr /* catalog_database */, nullptr /* storage_manager */));
 
     // This thread acts both as Foreman as well as Worker. Foreman connects to
     // the bus in its constructor.

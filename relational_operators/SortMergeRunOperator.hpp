@@ -121,6 +121,9 @@ class SortMergeRunOperator : public RelationalOperator {
   ~SortMergeRunOperator() {}
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
@@ -162,11 +165,15 @@ class SortMergeRunOperator : public RelationalOperator {
 
   // Generate work orders for the current state of operator.
   bool generateWorkOrders(WorkOrdersContainer *container,
+                          QueryContext *query_context,
+                          StorageManager *storage_manager,
                           const tmb::client_id foreman_client_id,
                           tmb::MessageBus *bus);
 
   // Create a merge work order for the given merge job.
   WorkOrder *createWorkOrder(merge_run_operator::MergeTree::MergeJob *job,
+                             QueryContext *query_context,
+                             StorageManager *storage_manager,
                              const tmb::client_id foreman_client_id,
                              tmb::MessageBus *bus);
 
@@ -210,46 +217,53 @@ class SortMergeRunWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @param sort_config_index The index of the Sort configuration in
-   *        QueryContext.
+   * @param sort_config The Sort configuration.
+   * @param run_relation The relation to which the run blocks belong to.
    * @param input_runs Input runs to merge.
    * @param top_k If non-zero will merge only \c top_k tuples.
    * @param merge_level Merge level in the merge tree.
-   * @param run_relation_id The id of the relation to which the run blocks
-   *        belong to.
-   * @param output_destination_index The index of the InsertDestination in the
-   *        QueryContext to create new blocks.
+   * @param output_destination The InsertDestination to create new blocks.
+   * @param storage_manager The StorageManager to use.
    * @param operator_index Merge-run operator index to send feedback messages
    *                       to.
    * @param foreman_client_id Foreman's TMB client ID.
    * @param bus TMB to send the feedback message on.
    **/
   SortMergeRunWorkOrder(
-      const QueryContext::sort_config_id sort_config_index,
+      const SortConfiguration &sort_config,
+      const CatalogRelationSchema &run_relation,
       std::vector<merge_run_operator::Run> &&input_runs,
       const std::size_t top_k,
       const std::size_t merge_level,
-      const relation_id run_relation_id,
-      const QueryContext::insert_destination_id output_destination_index,
+      InsertDestination *output_destination,
+      StorageManager *storage_manager,
       const std::size_t operator_index,
       const tmb::client_id foreman_client_id,
       MessageBus *bus)
-      : sort_config_index_(sort_config_index),
+      : sort_config_(sort_config),
+        run_relation_(run_relation),
         input_runs_(std::move(input_runs)),
         top_k_(top_k),
         merge_level_(merge_level),
-        run_relation_id_(run_relation_id),
-        output_destination_index_(output_destination_index),
+        output_destination_(output_destination),
+        storage_manager_(storage_manager),
         operator_index_(operator_index),
         foreman_client_id_(foreman_client_id),
-        bus_(bus) {}
+        bus_(bus) {
+    DCHECK(sort_config_.isValid());
+    DCHECK(output_destination_ != nullptr);
+    DCHECK(storage_manager_ != nullptr);
+    DCHECK(bus_ != nullptr);
+  }
 
-  const QueryContext::sort_config_id sort_config_index_;
+  const SortConfiguration &sort_config_;
+  const CatalogRelationSchema &run_relation_;
   std::vector<merge_run_operator::Run> input_runs_;
   const std::size_t top_k_;
   const std::size_t merge_level_;
-  const relation_id run_relation_id_;
-  const QueryContext::insert_destination_id output_destination_index_;
+
+  InsertDestination *output_destination_;
+  StorageManager *storage_manager_;
 
   const std::size_t operator_index_;
   const tmb::client_id foreman_client_id_;

@@ -35,6 +35,9 @@ namespace quickstep {
 
 bool DropTableOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
+    CatalogDatabase *catalog_database,
+    QueryContext *query_context,
+    StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
     tmb::MessageBus *bus) {
   if (blocking_dependencies_met_ && !work_generated_) {
@@ -44,7 +47,7 @@ bool DropTableOperator::getAllWorkOrders(
 
     // DropTableWorkOrder only drops blocks, if any.
     container->addNormalWorkOrder(
-        new DropTableWorkOrder(std::move(relation_blocks)),
+        new DropTableWorkOrder(std::move(relation_blocks), storage_manager),
         op_index_);
 
     database_->setStatus(CatalogDatabase::Status::kPendingBlockDeletions);
@@ -67,10 +70,8 @@ void DropTableOperator::updateCatalogOnCompletion() {
 void DropTableWorkOrder::execute(QueryContext *query_context,
                                  CatalogDatabase *database,
                                  StorageManager *storage_manager) {
-  DCHECK(storage_manager != nullptr);
-
   for (const block_id block : blocks_) {
-    storage_manager->deleteBlockOrBlobFile(block);
+    storage_manager_->deleteBlockOrBlobFile(block);
   }
 }
 

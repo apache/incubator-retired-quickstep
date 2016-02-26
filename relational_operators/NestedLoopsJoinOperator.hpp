@@ -108,6 +108,9 @@ class NestedLoopsJoinOperator : public RelationalOperator {
   ~NestedLoopsJoinOperator() override {}
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
@@ -141,6 +144,8 @@ class NestedLoopsJoinOperator : public RelationalOperator {
    *
    * @param container A pointer to the WorkOrdersContainer to store the
    *                  resulting WorkOrders.
+   * @param query_context The QueryContext that stores query execution states.
+   * @param storage_manager The StorageManager to use.
    * @param left_min The starting index in left_relation_block_ids_ from where
    *                 we begin generating NestedLoopsJoinWorkOrders.
    * @param left_max The index in left_relation_block_ids_ until which we
@@ -154,6 +159,8 @@ class NestedLoopsJoinOperator : public RelationalOperator {
    *         function.
    **/
   std::size_t getAllWorkOrdersHelperBothNotStored(WorkOrdersContainer *container,
+                                                  QueryContext *query_context,
+                                                  StorageManager *storage_manager,
                                                   std::vector<block_id>::size_type left_min,
                                                   std::vector<block_id>::size_type left_max,
                                                   std::vector<block_id>::size_type right_min,
@@ -166,10 +173,14 @@ class NestedLoopsJoinOperator : public RelationalOperator {
    *
    * @param container A pointer to the WorkOrdersContainer to store the
    *                  resulting WorkOrders.
+   * @param query_context The QueryContext that stores query execution states.
+   * @param storage_manager The StorageManager to use.
    *
    * @return Whether all work orders have been generated.
    **/
-  bool getAllWorkOrdersHelperOneStored(WorkOrdersContainer *container);
+  bool getAllWorkOrdersHelperOneStored(WorkOrdersContainer *container,
+                                       QueryContext *query_context,
+                                       StorageManager *storage_manager);
 
   const CatalogRelation &left_input_relation_;
   const CatalogRelation &right_input_relation_;
@@ -209,38 +220,39 @@ class NestedLoopsJoinWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @param left_input_relation_id The id of the first relation in the join
-   *        (order is not actually important).
-   * @param right_input_relation_id The id of the second relation in the join
-   *        (order is not actually important).
+   * @param left_input_relation The first relation in the join (order is not
+   *        actually important).
+   * @param right_input_relation The second relation in the join (order is not
+   *        actually important).
    * @param left_block_id The block id of the first relation.
    * @param right_block_id The block id of the second relation.
-   * @param output_destination_index The index of the InsertDestination in the
-   *        QueryContext to insert the join results.
-   * @param join_predicate_index The index of join predicate in QueryContext to
-   *        evaluate for each pair of tuples in the input relations.
-   *        (cannot be kInvalidPredicateId).
-   * @param selection_index The group index of Scalars in QueryContext,
-   *        corresponding to the relation attributes in InsertDestination
-   *        referred by output_destination_index in QueryContext. Each Scalar is
-   *        evaluated for the joined tuples, and the resulting value is inserted
-   *        into the join result.
+   * @param join_predicate The join predicate to evaluate for each pair of
+   *        tuples in the input relations. (cannot be NULL).
+   * @param selection A list of Scalars corresponding to the relation attributes
+   *        in \c output_destination. Each Scalar is evaluated for the joined
+   *        tuples, and the resulting value is inserted into the join result.
+   * @param output_destination The InsertDestination to insert the join results.
+   * @param storage_manager The StorageManager to use.
    **/
-  NestedLoopsJoinWorkOrder(const relation_id left_input_relation_id,
-                           const relation_id right_input_relation_id,
+  NestedLoopsJoinWorkOrder(const CatalogRelationSchema &left_input_relation,
+                           const CatalogRelationSchema &right_input_relation,
                            const block_id left_block_id,
                            const block_id right_block_id,
-                           const QueryContext::insert_destination_id output_destination_index,
-                           const QueryContext::predicate_id join_predicate_index,
-                           const QueryContext::scalar_group_id selection_index)
-      : left_input_relation_id_(left_input_relation_id),
-        right_input_relation_id_(right_input_relation_id),
+                           const Predicate *join_predicate,
+                           const std::vector<std::unique_ptr<const Scalar>> &selection,
+                           InsertDestination *output_destination,
+                           StorageManager *storage_manager)
+      : left_input_relation_(left_input_relation),
+        right_input_relation_(right_input_relation),
         left_block_id_(left_block_id),
         right_block_id_(right_block_id),
-        output_destination_index_(output_destination_index),
-        join_predicate_index_(join_predicate_index),
-        selection_index_(selection_index) {
-    DCHECK_NE(join_predicate_index_, QueryContext::kInvalidPredicateId);
+        join_predicate_(join_predicate),
+        selection_(selection),
+        output_destination_(output_destination),
+        storage_manager_(storage_manager) {
+    DCHECK(join_predicate_ != nullptr);
+    DCHECK(output_destination_ != nullptr);
+    DCHECK(storage_manager_ != nullptr);
   }
 
   ~NestedLoopsJoinWorkOrder() override {}
@@ -259,17 +271,15 @@ class NestedLoopsJoinWorkOrder : public WorkOrder {
  private:
   template <bool LEFT_PACKED, bool RIGHT_PACKED>
   void executeHelper(const TupleStorageSubBlock &left_store,
-                     const TupleStorageSubBlock &right_store,
-                     const std::vector<std::unique_ptr<const Scalar>> &selection,
-                     const Predicate *join_predicate,
-                     InsertDestination *output_destination);
+                     const TupleStorageSubBlock &right_store);
 
-  const relation_id left_input_relation_id_, right_input_relation_id_;
+  const CatalogRelationSchema &left_input_relation_, &right_input_relation_;
   const block_id left_block_id_, right_block_id_;
+  const Predicate *join_predicate_;
+  const std::vector<std::unique_ptr<const Scalar>> &selection_;
 
-  const QueryContext::insert_destination_id output_destination_index_;
-  const QueryContext::predicate_id join_predicate_index_;
-  const QueryContext::scalar_group_id selection_index_;
+  InsertDestination *output_destination_;
+  StorageManager *storage_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(NestedLoopsJoinWorkOrder);
 };

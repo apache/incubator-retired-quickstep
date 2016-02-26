@@ -100,6 +100,9 @@ class SortRunGenerationOperator : public RelationalOperator {
   ~SortRunGenerationOperator() {}
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
@@ -144,21 +147,28 @@ class SortRunGenerationWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @param input_relation_id The id of the relation to generate sorted runs of.
-   * @param output_destination_index The index of the InsertDestination in the
-   *        QueryContext to store the sorted blocks of runs.
-   * @param sort_config_index The index of the Sort configuration in
-   *        QueryContext specifying ORDER BY, ordering and null ordering.
+   * @param input_relation The relation to generate sorted runs of.
    * @param input_block_id The block id.
+   * @param sort_config The Sort configuration specifying ORDER BY, ordering,
+   *        and null ordering.
+   * @param output_destination The InsertDestination to store the sorted blocks
+   *        of runs.
+   * @param storage_manager The StorageManager to use.
    **/
-  SortRunGenerationWorkOrder(const relation_id input_relation_id,
-                             const QueryContext::insert_destination_id output_destination_index,
-                             const QueryContext::sort_config_id sort_config_index,
-                             const block_id input_block_id)
-      : input_relation_id_(input_relation_id),
-        output_destination_index_(output_destination_index),
-        sort_config_index_(sort_config_index),
-        input_block_id_(input_block_id) {}
+  SortRunGenerationWorkOrder(const CatalogRelationSchema &input_relation,
+                             const block_id input_block_id,
+                             const SortConfiguration &sort_config,
+                             InsertDestination *output_destination,
+                             StorageManager *storage_manager)
+      : input_relation_(input_relation),
+        input_block_id_(input_block_id),
+        sort_config_(sort_config),
+        output_destination_(output_destination),
+        storage_manager_(storage_manager) {
+    DCHECK(sort_config_.isValid());
+    DCHECK(output_destination_ != nullptr);
+    DCHECK(storage_manager_ != nullptr);
+  }
 
   ~SortRunGenerationWorkOrder() {}
 
@@ -167,11 +177,12 @@ class SortRunGenerationWorkOrder : public WorkOrder {
                StorageManager *storage_manager) override;
 
  private:
-  const relation_id input_relation_id_;
-  const QueryContext::insert_destination_id output_destination_index_;
-  const QueryContext::sort_config_id sort_config_index_;
-
+  const CatalogRelationSchema &input_relation_;
   const block_id input_block_id_;
+  const SortConfiguration &sort_config_;
+
+  InsertDestination *output_destination_;
+  StorageManager *storage_manager_;
 
   friend class SortRunGenerationOperator;
 

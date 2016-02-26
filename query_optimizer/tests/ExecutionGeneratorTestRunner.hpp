@@ -62,7 +62,9 @@ class ExecutionGeneratorTestRunner : public TextBasedTestRunner {
 
     bus_.Initialize();
 
-    foreman_.reset(new Foreman(&bus_));
+    foreman_.reset(new Foreman(&bus_,
+                               test_database_loader_.catalog_database(),
+                               test_database_loader_.storage_manager()));
     worker_.reset(new Worker(0,
                              query_context_,
                              &bus_,

@@ -265,9 +265,9 @@ class QueryContext {
    *
    * @return The SortConfiguration, alreadly created in the constructor.
    **/
-  inline const SortConfiguration* getSortConfig(const sort_config_id id) {
+  inline const SortConfiguration& getSortConfig(const sort_config_id id) {
     DCHECK_LT(id, sort_configs_.size());
-    return sort_configs_[id].get();
+    return *sort_configs_[id];
   }
 
   /**

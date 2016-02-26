@@ -351,6 +351,9 @@ class AggregationOperatorTest : public ::testing::Test {
     const std::size_t op_index = 0;
     WorkOrdersContainer op_container(1, 0);
     op_->getAllWorkOrders(&op_container,
+                          db_.get(),
+                          query_context_.get(),
+                          storage_manager_.get(),
                           tmb::kClientIdNone /* foreman_client_id */,
                           nullptr /* TMB */);
 
@@ -365,6 +368,9 @@ class AggregationOperatorTest : public ::testing::Test {
     WorkOrdersContainer finalize_op_container(1, 0);
     const std::size_t finalize_op_index = 0;
     finalize_op_->getAllWorkOrders(&finalize_op_container,
+                                   db_.get(),
+                                   query_context_.get(),
+                                   storage_manager_.get(),
                                    tmb::kClientIdNone /* foreman_client_id */,
                                    nullptr /* TMB */);
 

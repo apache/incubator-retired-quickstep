@@ -32,12 +32,18 @@ namespace quickstep {
 
 bool InsertOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
+    CatalogDatabase *catalog_database,
+    QueryContext *query_context,
+    StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
     tmb::MessageBus *bus) {
   if (blocking_dependencies_met_ && !work_generated_) {
+    DCHECK(query_context != nullptr);
+
     work_generated_ = true;
     container->addNormalWorkOrder(
-        new InsertWorkOrder(output_destination_index_, tuple_index_),
+        new InsertWorkOrder(query_context->getInsertDestination(output_destination_index_),
+                            query_context->releaseTuple(tuple_index_)),
         op_index_);
   }
   return work_generated_;
@@ -46,15 +52,7 @@ bool InsertOperator::getAllWorkOrders(
 void InsertWorkOrder::execute(QueryContext *query_context,
                               CatalogDatabase *catalog_database,
                               StorageManager *storage_manager) {
-  DCHECK(query_context != nullptr);
-
-  InsertDestination *output_destination =
-      query_context->getInsertDestination(output_destination_index_);
-  DCHECK(output_destination != nullptr);
-
-  std::unique_ptr<Tuple> tuple(query_context->releaseTuple(tuple_index_));
-
-  output_destination->insertTuple(*tuple);
+  output_destination_->insertTuple(*tuple_);
 }
 
 }  // namespace quickstep

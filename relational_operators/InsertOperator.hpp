@@ -62,6 +62,9 @@ class InsertOperator : public RelationalOperator {
   ~InsertOperator() override {}
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
@@ -90,15 +93,18 @@ class InsertWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @param output_destination_index The index of the InsertDestination in the
-   *        QueryContext to insert the tuple.
-   * @param tuple_index The index of the tuple to insert in the QueryContext.
+   * @note InsertWorkOrder takes ownership of tuple.
+   *
+   * @param output_destination The InsertDestination to insert the tuple.
+   * @param tuple The tuple to insert.
    **/
-  InsertWorkOrder(
-      const QueryContext::insert_destination_id output_destination_index,
-      const QueryContext::tuple_id tuple_index)
-      : output_destination_index_(output_destination_index),
-        tuple_index_(tuple_index) {}
+  InsertWorkOrder(InsertDestination *output_destination,
+                  Tuple *tuple)
+      : output_destination_(output_destination),
+        tuple_(tuple) {
+    DCHECK(output_destination_ != nullptr);
+    DCHECK(tuple_ != nullptr);
+  }
 
   ~InsertWorkOrder() override {}
 
@@ -111,8 +117,8 @@ class InsertWorkOrder : public WorkOrder {
                StorageManager *storage_manager) override;
 
  private:
-  const QueryContext::insert_destination_id output_destination_index_;
-  const QueryContext::tuple_id tuple_index_;
+  InsertDestination *output_destination_;
+  std::unique_ptr<Tuple> tuple_;
 
   DISALLOW_COPY_AND_ASSIGN(InsertWorkOrder);
 };

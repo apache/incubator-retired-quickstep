@@ -31,12 +31,19 @@ class InsertDestination;
 
 bool FinalizeAggregationOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
+    CatalogDatabase *catalog_database,
+    QueryContext *query_context,
+    StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
     tmb::MessageBus *bus) {
+  DCHECK(query_context != nullptr);
+
   if (blocking_dependencies_met_ && !started_) {
     started_ = true;
     container->addNormalWorkOrder(
-        new FinalizeAggregationWorkOrder(aggr_state_index_, output_destination_index_),
+        new FinalizeAggregationWorkOrder(aggr_state_index_,
+                                         query_context->getInsertDestination(output_destination_index_),
+                                         query_context),
         op_index_);
   }
   return started_;
@@ -46,19 +53,14 @@ void FinalizeAggregationWorkOrder::execute(
     QueryContext *query_context,
     CatalogDatabase *catalog_database,
     StorageManager *storage_manager) {
-  DCHECK(query_context != nullptr);
-  AggregationOperationState *state = query_context->getAggregationState(aggr_state_index_);
+  AggregationOperationState *state = query_context_->getAggregationState(aggr_state_index_);
   DCHECK(state != nullptr);
 
-  InsertDestination *output_destination =
-      query_context->getInsertDestination(output_destination_index_);
-  DCHECK(output_destination != nullptr);
-
-  state->finalizeAggregate(output_destination);
+  state->finalizeAggregate(output_destination_);
 
   // Now that the final results are materialized, destroy the
   // AggregationOperationState to free up memory ASAP.
-  query_context->destroyAggregationState(aggr_state_index_);
+  query_context_->destroyAggregationState(aggr_state_index_);
 }
 
 }  // namespace quickstep
