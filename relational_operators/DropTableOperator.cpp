@@ -17,10 +17,12 @@
 
 #include "relational_operators/DropTableOperator.hpp"
 
+#include <utility>
 #include <vector>
 
 #include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogRelation.hpp"
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
@@ -32,9 +34,21 @@ namespace quickstep {
 bool DropTableOperator::getAllWorkOrders(WorkOrdersContainer *container) {
   if (blocking_dependencies_met_ && !work_generated_) {
     work_generated_ = true;
+
+    std::vector<block_id> relation_blocks(relation_.getBlocksSnapshot());
+
+    // DropTableWorkOrder only drops blocks, if any.
     container->addNormalWorkOrder(
-        new DropTableWorkOrder(relation_.getID(), only_drop_blocks_),
+        new DropTableWorkOrder(std::move(relation_blocks)),
         op_index_);
+
+    // TODO(zuyu): move the following code to a better place.
+    const relation_id rel_id = relation_.getID();
+    if (only_drop_blocks_) {
+      database_->getRelationByIdMutable(rel_id)->clearBlocks();
+    } else {
+      database_->dropRelationById(rel_id);
+    }
   }
   return work_generated_;
 }
@@ -42,22 +56,10 @@ bool DropTableOperator::getAllWorkOrders(WorkOrdersContainer *container) {
 void DropTableWorkOrder::execute(QueryContext *query_context,
                                  CatalogDatabase *database,
                                  StorageManager *storage_manager) {
-  DCHECK(database != nullptr);
   DCHECK(storage_manager != nullptr);
 
-  CatalogRelation *relation = database->getRelationByIdMutable(rel_id_);
-  DCHECK(relation != nullptr);
-
-  std::vector<block_id> relation_blocks(relation->getBlocksSnapshot());
-
-  for (const block_id relation_block_id : relation_blocks) {
-    storage_manager->deleteBlockOrBlobFile(relation_block_id);
-  }
-
-  if (only_drop_blocks_) {
-    relation->clearBlocks();
-  } else {
-    database->dropRelationById(rel_id_);
+  for (const block_id block : blocks_) {
+    storage_manager->deleteBlockOrBlobFile(block);
   }
 }
 
