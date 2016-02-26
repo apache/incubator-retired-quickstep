@@ -170,7 +170,7 @@ class Resolver {
    */
   logical::LogicalPtr resolveCreateIndex(
       const ParseStatementCreateIndex &create_index_statement);
-      
+
   /**
    * @brief Resolves the BLOCK PROPERTIES of a CREATE TABLE statement to a
    *        proto message describing the user input.
