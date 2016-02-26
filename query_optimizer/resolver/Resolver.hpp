@@ -183,17 +183,6 @@ class Resolver {
       const ParseStatementCreateTable &create_table_statement);
 
   /**
-   * @brief Resolves the BLOCK PROPERTIES of a CREATE TABLE statement to a
-   *        proto message describing the user input.
-   *
-   * @param create_table_statement The create table statement.
-   * @return A pointer to a user-owned Proto message describing the block. Note
-   *         that this message may be invalid.
-   */
-  StorageBlockLayoutDescription* resolveBlockProperties(
-      const ParseStatementCreateTable &create_table_statement);
-
-  /**
    * @brief Resolves a DELETE query and returns a logical plan.
    *
    * @param delete_statement The DELETE parse tree.
