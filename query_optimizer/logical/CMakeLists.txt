@@ -17,6 +17,7 @@
 add_library(quickstep_queryoptimizer_logical_Aggregate Aggregate.cpp Aggregate.hpp)
 add_library(quickstep_queryoptimizer_logical_BinaryJoin BinaryJoin.cpp BinaryJoin.hpp)
 add_library(quickstep_queryoptimizer_logical_CopyFrom CopyFrom.cpp CopyFrom.hpp)
+add_library(quickstep_queryoptimizer_logical_CreateIndex CreateIndex.cpp CreateIndex.hpp)
 add_library(quickstep_queryoptimizer_logical_CreateTable CreateTable.cpp CreateTable.hpp)
 add_library(quickstep_queryoptimizer_logical_DeleteTuples DeleteTuples.cpp DeleteTuples.hpp)
 add_library(quickstep_queryoptimizer_logical_DropTable DropTable.cpp DropTable.hpp)
@@ -67,6 +68,14 @@ target_link_libraries(quickstep_queryoptimizer_logical_CopyFrom
                       quickstep_queryoptimizer_logical_LogicalType
                       quickstep_utility_Macros
                       quickstep_utility_StringUtil)
+target_link_libraries(quickstep_queryoptimizer_logical_CreateIndex
+                      glog
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_logical_Logical
+                      quickstep_queryoptimizer_logical_LogicalType
+                      quickstep_utility_Cast
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_logical_CreateTable
                       glog
                       quickstep_queryoptimizer_OptimizerTree
@@ -222,6 +231,7 @@ target_link_libraries(quickstep_queryoptimizer_logical
                       quickstep_queryoptimizer_logical_Aggregate
                       quickstep_queryoptimizer_logical_BinaryJoin
                       quickstep_queryoptimizer_logical_CopyFrom
+                      quickstep_queryoptimizer_logical_CreateIndex
                       quickstep_queryoptimizer_logical_CreateTable
                       quickstep_queryoptimizer_logical_DeleteTuples
                       quickstep_queryoptimizer_logical_DropTable

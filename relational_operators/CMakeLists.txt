@@ -23,6 +23,7 @@ QS_PROTOBUF_GENERATE_CPP(relationaloperators_TextScanOperator_proto_srcs
 # Declare micro-libs:
 add_library(quickstep_relationaloperators_AggregationOperator AggregationOperator.cpp AggregationOperator.hpp)
 add_library(quickstep_relationaloperators_BuildHashOperator BuildHashOperator.cpp BuildHashOperator.hpp)
+add_library(quickstep_relationaloperators_CreateIndexOperator CreateIndexOperator.cpp CreateIndexOperator.hpp)
 add_library(quickstep_relationaloperators_CreateTableOperator CreateTableOperator.cpp CreateTableOperator.hpp)
 add_library(quickstep_relationaloperators_DeleteOperator DeleteOperator.cpp DeleteOperator.hpp)
 add_library(quickstep_relationaloperators_DestroyHashOperator DestroyHashOperator.cpp DestroyHashOperator.hpp)
@@ -84,6 +85,10 @@ target_link_libraries(quickstep_relationaloperators_BuildHashOperator
                       quickstep_storage_TupleReference
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_storage_ValueAccessor
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_relationaloperators_CreateIndexOperator                      
+                      quickstep_catalog_CatalogRelation
+                      quickstep_relationaloperators_RelationalOperator
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_relationaloperators_CreateTableOperator
                       quickstep_catalog_CatalogDatabase
@@ -353,6 +358,7 @@ add_library(quickstep_relationaloperators ../empty_src.cpp RelationalOperatorsMo
 target_link_libraries(quickstep_relationaloperators
                       quickstep_relationaloperators_AggregationOperator
                       quickstep_relationaloperators_BuildHashOperator
+                      quickstep_relationaloperators_CreateIndexOperator
                       quickstep_relationaloperators_CreateTableOperator
                       quickstep_relationaloperators_DeleteOperator
                       quickstep_relationaloperators_DestroyHashOperator

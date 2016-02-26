@@ -47,6 +47,7 @@ class ParseSimpleTableReference;
 class ParseStatement;
 class ParseStatementCopyFrom;
 class ParseStatementCreateTable;
+class ParseStatementCreateIndex;
 class ParseStatementDelete;
 class ParseStatementDropTable;
 class ParseStatementInsert;
@@ -162,9 +163,18 @@ class Resolver {
       const ParseStatementCreateTable &create_table_statement);
 
   /**
+   * @brief Resolves a CREATE INDEX query and returns a logical plan.
+   *
+   * @param create_index_statement THE CREATE INDEX parse tree.
+   * @return A logical plan for the CREATE INDEX query.
+   */
+  logical::LogicalPtr resolveCreateIndex(
+      const ParseStatementCreateIndex &create_index_statement);
+
+  /**
    * @brief Resolves the BLOCK PROPERTIES of a CREATE TABLE statement to a
-   *        proto message describing the user input. 
-   * 
+   *        proto message describing the user input.
+   *
    * @param create_table_statement The create table statement.
    * @return A pointer to a user-owned Proto message describing the block. Note
    *         that this message may be invalid.

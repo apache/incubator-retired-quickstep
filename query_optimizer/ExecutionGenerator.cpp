@@ -51,6 +51,7 @@
 #include "query_optimizer/expressions/Scalar.hpp"
 #include "query_optimizer/expressions/ScalarLiteral.hpp"
 #include "query_optimizer/physical/CopyFrom.hpp"
+#include "query_optimizer/physical/CreateIndex.hpp"
 #include "query_optimizer/physical/CreateTable.hpp"
 #include "query_optimizer/physical/DeleteTuples.hpp"
 #include "query_optimizer/physical/DropTable.hpp"
@@ -69,6 +70,7 @@
 #include "query_optimizer/physical/UpdateTable.hpp"
 #include "relational_operators/AggregationOperator.hpp"
 #include "relational_operators/BuildHashOperator.hpp"
+#include "relational_operators/CreateIndexOperator.hpp"
 #include "relational_operators/CreateTableOperator.hpp"
 #include "relational_operators/DeleteOperator.hpp"
 #include "relational_operators/DestroyHashOperator.hpp"
@@ -191,6 +193,9 @@ void ExecutionGenerator::generatePlanInternal(
     case P::PhysicalType::kCopyFrom:
       return convertCopyFrom(
           std::static_pointer_cast<const P::CopyFrom>(physical_plan));
+    case P::PhysicalType::kCreateIndex:
+      return convertCreateIndex(
+          std::static_pointer_cast<const P::CreateIndex>(physical_plan));
     case P::PhysicalType::kCreateTable:
       return convertCreateTable(
           std::static_pointer_cast<const P::CreateTable>(physical_plan));
@@ -750,6 +755,24 @@ void ExecutionGenerator::convertCopyFrom(
   execution_plan_->addDirectDependency(save_blocks_operator_index,
                                        scan_operator_index,
                                        false /* is_pipeline_breaker */);
+}
+
+
+void ExecutionGenerator::convertCreateIndex(
+  const P::CreateIndexPtr &physical_plan) {
+  // CreateIndex is converted to a CreateIndex operator.
+  const CatalogRelationInfo *input_relation_info =
+      findRelationInfoOutputByPhysical(physical_plan->input());
+  CatalogRelation *input_relation =
+      optimizer_context_->catalog_database()->getRelationByIdMutable(
+            input_relation_info->relation->getID());
+  if (input_relation->hasIndexWithName(physical_plan->index_name())) {
+    THROW_SQL_ERROR() << "The relation " << input_relation->getName()
+            << " already has an index named "<< physical_plan->index_name();
+  } else {
+    execution_plan_->addRelationalOperator(
+       new CreateIndexOperator(input_relation, physical_plan->index_name()));
+  }
 }
 
 void ExecutionGenerator::convertCreateTable(

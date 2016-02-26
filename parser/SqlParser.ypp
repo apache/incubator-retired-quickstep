@@ -86,6 +86,7 @@ typedef struct YYLTYPE {
 #include "parser/ParseSubqueryExpression.hpp"
 #include "parser/ParseSubqueryTableReference.hpp"
 #include "parser/ParseTableReference.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
@@ -587,14 +588,7 @@ create_table_statement:
 
 create_index_statement:
   TOKEN_CREATE TOKEN_INDEX any_name TOKEN_ON any_name opt_column_list TOKEN_USING index_type opt_index_properties {
-    delete $3;
-    delete $5;
-    delete $6;
-    delete $8;
-    delete $9;
-    $$ = nullptr;
-    NotSupported(&@1, yyscanner, "CREATE INDEX statement");
-    YYERROR;
+    $$ = new quickstep::ParseStatementCreateIndex(@1.first_line, @1.first_column, $3, $5, $6, $8, $9);
   };
 
 drop_table_statement:
@@ -881,14 +875,12 @@ key_integer_value:
 
 index_type:
   TOKEN_BLOOM_FILTER {
-    $$ = nullptr;
-    NotSupported(&@1, yyscanner, "Bloom Filter Index");
-    YYERROR;
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column,
+           std::to_string(quickstep::IndexSubBlockType::kBloomFilter));
   }
   | TOKEN_CSB_TREE {
-    $$ = nullptr;
-    NotSupported(&@1, yyscanner, "CSB Tree Index");
-    YYERROR;
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column,
+           std::to_string(quickstep::IndexSubBlockType::kCSBTree));
   };
 
 opt_index_properties:

@@ -17,6 +17,7 @@
 add_library(quickstep_queryoptimizer_physical_Aggregate Aggregate.cpp Aggregate.hpp)
 add_library(quickstep_queryoptimizer_physical_BinaryJoin BinaryJoin.cpp BinaryJoin.hpp)
 add_library(quickstep_queryoptimizer_physical_CopyFrom CopyFrom.cpp CopyFrom.hpp)
+add_library(quickstep_queryoptimizer_physical_CreateIndex CreateIndex.cpp CreateIndex.hpp)
 add_library(quickstep_queryoptimizer_physical_CreateTable CreateTable.cpp CreateTable.hpp)
 add_library(quickstep_queryoptimizer_physical_DeleteTuples DeleteTuples.cpp DeleteTuples.hpp)
 add_library(quickstep_queryoptimizer_physical_DropTable DropTable.cpp DropTable.hpp)
@@ -66,6 +67,13 @@ target_link_libraries(quickstep_queryoptimizer_physical_CopyFrom
                       quickstep_queryoptimizer_expressions_NamedExpression
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_physical_CreateIndex
+                      glog
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_physical_Physical
+                      quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_utility_Cast
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_physical_CreateTable
                       glog
@@ -227,6 +235,7 @@ target_link_libraries(quickstep_queryoptimizer_physical
                       quickstep_queryoptimizer_physical_Aggregate
                       quickstep_queryoptimizer_physical_BinaryJoin
                       quickstep_queryoptimizer_physical_CopyFrom
+                      quickstep_queryoptimizer_physical_CreateIndex
                       quickstep_queryoptimizer_physical_CreateTable
                       quickstep_queryoptimizer_physical_DeleteTuples
                       quickstep_queryoptimizer_physical_DropTable

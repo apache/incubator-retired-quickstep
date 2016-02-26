@@ -278,6 +278,7 @@ target_link_libraries(quickstep_parser_SqlParser
                       quickstep_parser_ParseSubqueryTableReference
                       quickstep_parser_ParseTableReference
                       quickstep_parser_ParserUtil
+                      quickstep_storage_StorageBlockInfo
                       quickstep_types_Type
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID

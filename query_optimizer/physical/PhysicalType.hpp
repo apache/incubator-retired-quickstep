@@ -32,6 +32,7 @@ namespace physical {
 enum class PhysicalType {
   kAggregate,
   kCopyFrom,
+  kCreateIndex,
   kCreateTable,
   kDeleteTuples,
   kDropTable,
