@@ -1,6 +1,7 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
  *   University of Wisconsin—Madison.
+ *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -23,14 +24,14 @@
 #include <vector>
 
 #include "expressions/table_generator/GeneratorFunctionHandle.hpp"
+#include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/logical/LogicalType.hpp"
 #include "utility/Cast.hpp"
 #include "utility/Macros.hpp"
-
-#include "glog/logging.h"
 
 namespace quickstep {
 namespace optimizer {
@@ -71,21 +72,21 @@ class TableGenerator : public Logical {
   /**
    * @return The reference to the generator function handle.
    */
-  const GeneratorFunctionHandlePtr &generator_function_handle() const {
+  const GeneratorFunctionHandlePtr& generator_function_handle() const {
     return generator_function_handle_;
   }
 
   /**
    * @return The alias name of this table.
    */
-  const std::string &table_alias() const {
+  const std::string& table_alias() const {
     return table_alias_;
   }
 
   /**
    * @return The reference to the output attributes of this table.
    */
-  const std::vector<expressions::AttributeReferencePtr> &attribute_list() const {
+  const std::vector<expressions::AttributeReferencePtr>& attribute_list() const {
     return attribute_list_;
   }
 

@@ -1,7 +1,7 @@
 
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -59,6 +59,14 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
         AggregationOperationState::ReconstructFromProto(proto.aggregation_states(i),
                                                         *database,
                                                         storage_manager));
+  }
+
+  for (int i = 0; i < proto.generator_functions_size(); ++i) {
+    const GeneratorFunctionHandle *func_handle =
+        GeneratorFunctionFactory::Instance().reconstructFromProto(proto.generator_functions(i));
+    DCHECK(func_handle != nullptr);
+    generator_functions_.emplace_back(
+        std::unique_ptr<const GeneratorFunctionHandle>(func_handle));
   }
 
   for (int i = 0; i < proto.join_hash_tables_size(); ++i) {
@@ -119,14 +127,6 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
 
     update_groups_.push_back(move(update_group));
   }
-
-  for (int i = 0; i < proto.generator_functions_size(); ++i) {
-    const GeneratorFunctionHandle *func_handle =
-        GeneratorFunctionFactory::Instance().ReconstructFromProto(proto.generator_functions(i));
-    DCHECK(func_handle != nullptr);
-    generator_function_groups_.emplace_back(
-        std::unique_ptr<const GeneratorFunctionHandle>(func_handle));
-  }
 }
 
 bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
@@ -134,6 +134,17 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
   for (int i = 0; i < proto.aggregation_states_size(); ++i) {
     if (!AggregationOperationState::ProtoIsValid(proto.aggregation_states(i), database)) {
       return false;
+    }
+  }
+
+  // Each GeneratorFunctionHandle object is serialized as a function name with
+  // a list of arguments. Here checks that the arguments are valid TypedValue's.
+  for (int i = 0; i < proto.generator_functions_size(); ++i) {
+    const serialization::GeneratorFunctionHandle &func_proto = proto.generator_functions(i);
+    for (int j = 0; j < func_proto.args_size(); ++j) {
+      if (!TypedValue::ProtoIsValid(func_proto.args(j))) {
+        return false;
+      }
     }
   }
 
@@ -196,17 +207,6 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
 
       if (!rel->hasAttributeWithId(update_assignment_proto.attribute_id()) ||
           !ScalarFactory::ProtoIsValid(update_assignment_proto.scalar(), database)) {
-        return false;
-      }
-    }
-  }
-
-  // Each GeneratorFunctionHandle object is serialized as a function name with
-  // a list of arguments. Here checks that the arguments are valid TypedValue's.
-  for (int i = 0; i < proto.generator_functions_size(); ++i) {
-    const serialization::GeneratorFunctionHandle &func_proto = proto.generator_functions(i);
-    for (int j = 0; j < func_proto.args_size(); j++) {
-      if (!TypedValue::ProtoIsValid(func_proto.args(j))) {
         return false;
       }
     }
