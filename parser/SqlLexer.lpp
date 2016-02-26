@@ -39,6 +39,7 @@ class Comparison;
 class ParseAssignment;
 class ParseAttribute;
 class ParseAttributeDefinition;
+class ParseBlockProperties;
 class ParseColumnConstraint;
 struct ParseCopyFromParams;
 class ParseDataType;
@@ -46,10 +47,10 @@ class ParseExpression;
 class ParseFunctionCall;
 class ParseGroupBy;
 class ParseHaving;
-class ParseKeyValue;
+class ParseKeyIntegerValue;
 class ParseKeyStringValue;
 class ParseKeyStringList;
-class ParseKeyLiteralValue;
+class ParseKeyValue;
 class ParseLimit;
 class ParseOrderBy;
 class ParseOrderByItem;
@@ -77,7 +78,6 @@ class ParseTableReference;
 class ParseTableReferenceSignature;
 class Type;
 class UnaryOperation;
-
 
 }  // namespace quickstep
 
@@ -125,6 +125,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 "between"          return TOKEN_BETWEEN;
 "bigint"           return TOKEN_BIGINT;
 "bit"              return TOKEN_BIT;
+"blockproperties"  return TOKEN_BLOCKPROPERTIES;
 "bloomfilter"      return TOKEN_BLOOM_FILTER;
 "csbtree"          return TOKEN_CSB_TREE;
 "by"               return TOKEN_BY;

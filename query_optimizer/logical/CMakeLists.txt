@@ -1,5 +1,5 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -82,6 +82,7 @@ target_link_libraries(quickstep_queryoptimizer_logical_CreateTable
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_logical_Logical
                       quickstep_queryoptimizer_logical_LogicalType
+                      quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_logical_DeleteTuples
@@ -187,8 +188,10 @@ target_link_libraries(quickstep_queryoptimizer_logical_Sort
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_logical_TableGenerator
                       quickstep_expressions_tablegenerator_GeneratorFunctionHandle
+                      quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_logical_Logical
                       quickstep_queryoptimizer_logical_LogicalType
                       quickstep_utility_Cast

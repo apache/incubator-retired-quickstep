@@ -20,10 +20,14 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <vector>
 
+#include "storage/StorageBlockLayout.pb.h"
 #include "utility/Macros.hpp"
 #include "utility/TreeStringSerializable.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 namespace optimizer {
@@ -104,7 +108,7 @@ class OptimizerTree : public OptimizerTreeBase {
   OptimizerTree() {}
 
   /**
-   * @brief Adds a new child node to this tree node.
+   * @brief Adds a new child node to this tree node->
    *
    * @param child The node to add as a new child.
    */
@@ -117,6 +121,169 @@ class OptimizerTree : public OptimizerTreeBase {
 
   DISALLOW_COPY_AND_ASSIGN(OptimizerTree);
 };
+
+/**
+ * @brief A helper class for printing Protobuf messages in a simple flat-format.
+ * @details Holds key-value pairs of a proto message. Key values are added as strings.
+ *          To use, create a representation and then add properties:
+ *             auto foo = new OptimizerProtoRepresentation<OptimizerPtrType>();
+ *             foo.addProperty("friendly_name", proto.GetExtension(ProtoType::friendly_name));
+ */
+template<class TreeNodeType>
+class OptimizerProtoRepresentation : public OptimizerTreeBase {
+  /**
+   * @brief Inner class which represents key-value properties of the given proto.
+   */
+  class OptimizerProtoPropertyRepresentation : public OptimizerTreeBase {
+   public:
+    OptimizerProtoPropertyRepresentation(std::string key, std::string value)
+        : key_(key), value_(value) {  }
+
+    std::string getName() const {
+      return "ProtoProperty";
+    }
+
+    void getFieldStringItems(std::vector<std::string> *inline_field_names,
+                             std::vector<std::string> *inline_field_values,
+                             std::vector<std::string> *non_container_child_field_names,
+                             std::vector<TreeNodeType> *non_container_child_fields,
+                             std::vector<std::string> *container_child_field_names,
+                             std::vector<std::vector<TreeNodeType>> *container_child_fields) const {
+      inline_field_names->push_back(std::string("Property"));
+      inline_field_values->push_back(key_);
+
+      inline_field_names->push_back(std::string("Value"));
+      inline_field_values->push_back(value_);
+    }
+
+   private:
+    std::string key_;
+    std::string value_;
+  };  // class OptimizerProtoRepresentation
+
+ public:
+  OptimizerProtoRepresentation() : properties_() { }
+
+  std::string getName() const {
+    return "ProtoDescription";
+  }
+
+  /**
+   * @brief Add a key-value type property to this proto representation.
+   * @details Internally, the instance creates another node to represent the
+   *          given values.
+   *
+   * @param key A string key.
+   * @param value A string value.
+   */
+  void addProperty(std::string key, std::string value) {
+    std::shared_ptr<const OptimizerProtoPropertyRepresentation> property(
+        new OptimizerProtoPropertyRepresentation(key, value));
+    properties_.push_back(property);
+  }
+
+  /**
+   * @brief Add a key-value type property to this proto representation.
+   * @details Internally, the instance creates another node to represent the
+   *          given values.
+   *
+   * @param key A string key.
+   * @param value An int value which is converted into a string.
+   */
+  void addProperty(std::string key, int value) {
+    std::shared_ptr<const OptimizerProtoPropertyRepresentation> property(
+        new OptimizerProtoPropertyRepresentation(key, std::to_string(value)));
+    properties_.push_back(property);
+  }
+
+  void getFieldStringItems(std::vector<std::string> *inline_field_names,
+                           std::vector<std::string> *inline_field_values,
+                           std::vector<std::string> *non_container_child_field_names,
+                           std::vector<TreeNodeType> *non_container_child_fields,
+                           std::vector<std::string> *container_child_field_names,
+                           std::vector<std::vector<TreeNodeType>> *container_child_fields) const {
+    for (auto property : properties_) {
+      non_container_child_field_names->push_back("Property");
+      non_container_child_fields->push_back(property);
+    }
+  }
+  // A list of managed properties.
+  std::vector<std::shared_ptr<const OptimizerProtoPropertyRepresentation> > properties_;
+};
+
+/**
+ * @brief Returns an optimizer node representation of a LayoutDescription.
+ *
+ * @param description A valid StorageBlockLayoutDescription.
+ * @return A caller-managed optimizer tree node of the proto message.
+ */
+template<class TreeNodeType>
+OptimizerProtoRepresentation<TreeNodeType>* getOptimizerRepresentationForProto(
+    const StorageBlockLayoutDescription *description) {
+  if (description == nullptr) {
+    return nullptr;
+  }
+
+  std::unique_ptr<OptimizerProtoRepresentation<TreeNodeType> >
+      node(new OptimizerProtoRepresentation<TreeNodeType>());
+
+  // Add properties based on the tuple storage block type.
+  const ::quickstep::TupleStorageSubBlockDescription &storage_block_description
+      = description->tuple_store_description();
+  switch (storage_block_description.sub_block_type()) {
+    case TupleStorageSubBlockDescription::PACKED_ROW_STORE: {
+      node->addProperty("blocktype", "rowstore");
+      break;
+    }
+    case TupleStorageSubBlockDescription::SPLIT_ROW_STORE: {
+      node->addProperty("blocktype", "split_rowstore");
+      break;
+    }
+    case TupleStorageSubBlockDescription::BASIC_COLUMN_STORE: {
+      node->addProperty("blocktype", "columnstore");
+      node->addProperty("sort",
+          storage_block_description.GetExtension(
+              quickstep::BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id));
+      break;
+    }
+    case TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE: {
+      node->addProperty("blocktype", "compressed_columnstore");
+      node->addProperty("sort",
+          storage_block_description.GetExtension(
+              quickstep::CompressedColumnStoreTupleStorageSubBlockDescription::sort_attribute_id));
+      for (int compressed_attribute = 0;
+           compressed_attribute < storage_block_description.ExtensionSize(
+               quickstep::CompressedColumnStoreTupleStorageSubBlockDescription::compressed_attribute_id);
+           ++compressed_attribute) {
+        node->addProperty("compress",
+            storage_block_description.GetExtension(
+                quickstep::CompressedColumnStoreTupleStorageSubBlockDescription::compressed_attribute_id,
+                compressed_attribute));
+      }
+      break;
+    }
+    case TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE: {
+      node->addProperty("blocktype", "compressed_packed_rowstore");
+      for (int compressed_attribute = 0;
+           compressed_attribute < storage_block_description.ExtensionSize(
+               quickstep::CompressedPackedRowStoreTupleStorageSubBlockDescription::compressed_attribute_id);
+           ++compressed_attribute) {
+        node->addProperty("compress",
+            storage_block_description.GetExtension(
+                quickstep::CompressedPackedRowStoreTupleStorageSubBlockDescription::compressed_attribute_id,
+                compressed_attribute));
+      }
+      break;
+    }
+    default: {
+      LOG(WARNING) << "Unrecognized block type in protobuf message.";
+      break;
+    }
+  }
+  // Every case will specify a slots number.
+  node->addProperty("slots", description->num_slots());
+  return node.release();
+}
 
 /** @} */
 

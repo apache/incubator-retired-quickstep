@@ -37,7 +37,7 @@ class ParseKeyValue : public ParseTreeNode {
   enum class KeyValueType {
     kStringString,
     kStringStringList,
-    kStringLiteral
+    kStringInteger
   };
 
   /**
@@ -196,7 +196,7 @@ class ParseKeyStringList : public ParseKeyValue {
 /**
  * @brief The parsed representation of a key-value pair.
  **/
-class ParseKeyLiteralValue : public ParseKeyValue {
+class ParseKeyIntegerValue : public ParseKeyValue {
  public:
   /**
    * @brief Single value constructor.
@@ -204,28 +204,28 @@ class ParseKeyLiteralValue : public ParseKeyValue {
    * @param line_number Line number of the first token of this node in the SQL statement.
    * @param column_number Column number of the first token of this node in the SQL statement.
    * @param key A parse string representing the key.
-   * @param value A single literal value.
+   * @param value A single numeric literal value.
    **/
-  ParseKeyLiteralValue(const int line_number,
+  ParseKeyIntegerValue(const int line_number,
                        const int column_number,
                        ParseString *key,
-                       ParseLiteralValue *value)
+                       NumericParseLiteralValue *value)
       : ParseKeyValue(line_number, column_number, key),
         value_(value) { }
 
   KeyValueType getKeyValueType() const override {
-    return ParseKeyValue::KeyValueType::kStringLiteral;
+    return ParseKeyValue::KeyValueType::kStringInteger;
   }
 
   /**
    * @return A pointer to the value ParseString.
    */
-  const ParseLiteralValue* value() const {
+  const NumericParseLiteralValue* value() const {
     return value_.get();
   }
 
   std::string getName() const override {
-    return "KeyLiteralValue";
+    return "KeyIntegerValue";
   }
 
  protected:
@@ -244,9 +244,9 @@ class ParseKeyLiteralValue : public ParseKeyValue {
   }
 
  private:
-  std::unique_ptr<ParseLiteralValue> value_;
+  std::unique_ptr<NumericParseLiteralValue> value_;
 
-  DISALLOW_COPY_AND_ASSIGN(ParseKeyLiteralValue);
+  DISALLOW_COPY_AND_ASSIGN(ParseKeyIntegerValue);
 };
 
 }  // namespace quickstep

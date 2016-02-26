@@ -1,6 +1,7 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
  *   University of Wisconsin—Madison.
+ *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -21,16 +22,20 @@
 #include <string>
 #include <vector>
 
-#include "expressions/table_generator/GeneratorFunction.hpp"
-#include "expressions/table_generator/GeneratorFunctionHandle.hpp"
 #include "expressions/table_generator/GenerateSeriesHandle.hpp"
+#include "expressions/table_generator/GeneratorFunction.hpp"
 #include "types/Type.hpp"
-#include "types/TypedValue.hpp"
 #include "types/TypeFactory.hpp"
+#include "types/TypeID.hpp"
+#include "types/TypedValue.hpp"
 #include "types/operations/comparisons/GreaterComparison.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 namespace quickstep {
+
+class GeneratorFunctionHandle;
 
 /** \addtogroup Expressions
  *  @{
@@ -60,7 +65,7 @@ class GenerateSeries : public GeneratorFunction {
     return getName() + "(<start>, <end>[, <step>])";
   }
 
-  GeneratorFunctionHandle *createHandle(
+  GeneratorFunctionHandle* createHandle(
       const std::vector<TypedValue> &arguments) const override {
     // Checks arguments and create the function handle for generate_series.
 
@@ -105,7 +110,7 @@ class GenerateSeries : public GeneratorFunction {
   }
 
  private:
-  GeneratorFunctionHandle *concretizeWithType(
+  GeneratorFunctionHandle* concretizeWithType(
       const std::vector<const Type*> &arg_types,
       const std::vector<TypedValue> &args,
       const Type &type) const {

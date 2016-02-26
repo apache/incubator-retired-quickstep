@@ -1,6 +1,7 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
  *   University of Wisconsin—Madison.
+ *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -17,6 +18,7 @@
 
 #include "relational_operators/TableGeneratorOperator.hpp"
 
+#include "expressions/table_generator/GeneratorFunctionHandle.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "storage/InsertDestination.hpp"
@@ -53,11 +55,11 @@ void TableGeneratorWorkOrder::execute(QueryContext *query_context,
       query_context->getInsertDestination(output_destination_index_);
   DCHECK(output_destination != nullptr);
 
-  const GeneratorFunctionHandle *function_handle =
+  const GeneratorFunctionHandle &function_handle =
       query_context->getGeneratorFunctionHandle(generator_function_index_);
 
   ColumnVectorsValueAccessor temp_result;
-  function_handle->populateColumns(&temp_result);
+  function_handle.populateColumns(&temp_result);
 
   output_destination->bulkInsertTuples(&temp_result);
 }

@@ -1,6 +1,7 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
  *   University of Wisconsin—Madison.
+ *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -18,18 +19,21 @@
 #ifndef QUICKSTEP_EXPRESSIONS_TABLE_GENERATOR_GENERATOR_FUNCTION_HANDLE_HPP_
 #define QUICKSTEP_EXPRESSIONS_TABLE_GENERATOR_GENERATOR_FUNCTION_HANDLE_HPP_
 
+#include <cstddef>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "expressions/table_generator/GeneratorFunction.pb.h"
-#include "types/Type.hpp"
+#include "types/TypedValue.hpp"
+#include "types/TypedValue.pb.h"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
 
 class ColumnVectorsValueAccessor;
+class Type;
 
 /** \addtogroup Expressions
  *  @{
@@ -86,7 +90,7 @@ class GeneratorFunctionHandle {
    *
    * @return The estimated number of rows that the function will generate.
    */
-  virtual size_t getEstimatedCardinality() const = 0;
+  virtual std::size_t getEstimatedCardinality() const = 0;
 
   /**
    * @brief Populate the given ColumnVectorsValueAccessor with data.

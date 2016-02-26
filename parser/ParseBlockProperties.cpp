@@ -1,7 +1,6 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
- *   University of Wisconsin—Madison.
- *   Copyright 2016 Pivotal Software, Inc.
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -16,24 +15,15 @@
  *   limitations under the License.
  **/
 
-#include "parser/ParseGeneratorTableReference.hpp"
+#include "parser/ParseBlockProperties.hpp"
 
 #include <string>
-#include <vector>
 
 namespace quickstep {
 
-class ParseTreeNode;
-
-void ParseGeneratorTableReference::getFieldStringItems(
-    std::vector<std::string> *inline_field_names,
-    std::vector<std::string> *inline_field_values,
-    std::vector<std::string> *non_container_child_field_names,
-    std::vector<const ParseTreeNode*> *non_container_child_fields,
-    std::vector<std::string> *container_child_field_names,
-    std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
-  non_container_child_field_names->push_back("");
-  non_container_child_fields->push_back(generator_function_.get());
-}
+const std::string ParseBlockProperties::kKeyBlockSizeMB = "blocksizemb";
+const std::string ParseBlockProperties::kKeyCompress = "compress";
+const std::string ParseBlockProperties::kKeySort = "sort";
+const std::string ParseBlockProperties::kKeyType = "type";
 
 }  // namespace quickstep
