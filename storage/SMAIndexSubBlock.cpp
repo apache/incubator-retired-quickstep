@@ -82,7 +82,7 @@ namespace sma_internal {
 /**
  * @return Selectivity of an equals predicate.
  */
-inline Selectivity getSelectivity_E(const TypedValue &literal,
+Selectivity getSelectivity_E(const TypedValue &literal,
                                     const TypedValue &min,
                                     const TypedValue &max,
                                     const UncheckedComparator *less_comparator) {
@@ -96,7 +96,7 @@ inline Selectivity getSelectivity_E(const TypedValue &literal,
 /**
  * @return Selectivity of an less predicate.
  */
-inline Selectivity getSelectivity_L(const TypedValue &literal,
+Selectivity getSelectivity_L(const TypedValue &literal,
                                     const TypedValue &min,
                                     const TypedValue &max,
                                     const UncheckedComparator *less_comparator,
@@ -113,7 +113,7 @@ inline Selectivity getSelectivity_L(const TypedValue &literal,
 /**
  * @return Selectivity of an less equals predicate.
  */
-inline Selectivity getSelectivity_LE(const TypedValue &literal,
+Selectivity getSelectivity_LE(const TypedValue &literal,
                                      const TypedValue &min,
                                      const TypedValue &max,
                                      const UncheckedComparator *less_comparator,
@@ -130,7 +130,7 @@ inline Selectivity getSelectivity_LE(const TypedValue &literal,
 /**
  * @return Selectivity of an greater predicate.
  */
-inline Selectivity getSelectivity_G(const TypedValue &literal,
+Selectivity getSelectivity_G(const TypedValue &literal,
                                     const TypedValue &min,
                                     const TypedValue &max,
                                     const UncheckedComparator *less_comparator,
@@ -147,7 +147,7 @@ inline Selectivity getSelectivity_G(const TypedValue &literal,
 /**
  * @return Selectivity of a greater or equals predicate.
  */
-inline Selectivity getSelectivity_GE(const TypedValue &literal,
+Selectivity getSelectivity_GE(const TypedValue &literal,
                                      const TypedValue &min,
                                      const TypedValue &max,
                                      const UncheckedComparator *less_comparator,
@@ -206,7 +206,7 @@ SMAPredicate* SMAPredicate::ExtractSMAPredicate(const ComparisonPredicate &predi
  * @return The higher precision sum typeid. Returns kNullType to indicate that the
  *         given type cannot be summed (in lieu of a better sigil).
  */
-inline TypeID sumType(TypeID type) {
+TypeID sumType(TypeID type) {
   switch (type) {
     case kInt:
     case kLong:
@@ -224,7 +224,7 @@ inline TypeID sumType(TypeID type) {
  * @param type A type id.
  * @return True if the type can be summed.
  */
-inline bool canSum(TypeID type) {
+bool canSum(TypeID type) {
   return sumType(type) != kNullType;
 }
 
@@ -236,7 +236,7 @@ inline bool canSum(TypeID type) {
  *       
  * @param entry A pointer to the entry to modify.
  */
-inline void setTypedValueForSum(SMAEntry *entry) {
+void setTypedValueForSum(SMAEntry *entry) {
   TypeID sum_type = sumType(entry->type_id);
   if (sum_type == kLong) {
     new (&entry->sum_aggregate) TypedValue(static_cast<std::int64_t>(0));
