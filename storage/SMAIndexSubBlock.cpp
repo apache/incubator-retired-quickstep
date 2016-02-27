@@ -94,7 +94,7 @@ Selectivity getSelectivity_E(const TypedValue &literal,
 }
 
 /**
- * @return Selectivity of an less predicate.
+ * @return Selectivity of a less predicate.
  */
 Selectivity getSelectivity_L(const TypedValue &literal,
                                     const TypedValue &min,
@@ -111,7 +111,7 @@ Selectivity getSelectivity_L(const TypedValue &literal,
 }
 
 /**
- * @return Selectivity of an less equals predicate.
+ * @return Selectivity of a less equals predicate.
  */
 Selectivity getSelectivity_LE(const TypedValue &literal,
                                      const TypedValue &min,
@@ -206,7 +206,7 @@ SMAPredicate* SMAPredicate::ExtractSMAPredicate(const ComparisonPredicate &predi
  * @return The higher precision sum typeid. Returns kNullType to indicate that the
  *         given type cannot be summed (in lieu of a better sigil).
  */
-TypeID sumType(TypeID type) {
+TypeID getTypeForSum(TypeID type) {
   switch (type) {
     case kInt:
     case kLong:
@@ -225,7 +225,7 @@ TypeID sumType(TypeID type) {
  * @return True if the type can be summed.
  */
 bool canSum(TypeID type) {
-  return sumType(type) != kNullType;
+  return getTypeForSum(type) != kNullType;
 }
 
 /**
@@ -237,7 +237,7 @@ bool canSum(TypeID type) {
  * @param entry A pointer to the entry to modify.
  */
 void setTypedValueForSum(SMAEntry *entry) {
-  TypeID sum_type = sumType(entry->type_id);
+  TypeID sum_type = getTypeForSum(entry->type_id);
   if (sum_type == kLong) {
     new (&entry->sum_aggregate) TypedValue(static_cast<std::int64_t>(0));
   } else if (sum_type == kDouble) {
@@ -351,7 +351,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
     // Initialize the operator map.
     if (sma_internal::canSum(attribute_type.getTypeID())) {
       TypeID attr_typeid = attribute_type.getTypeID();
-      TypeID attr_sum_typeid = sma_internal::sumType(attr_typeid);
+      TypeID attr_sum_typeid = sma_internal::getTypeForSum(attr_typeid);
       if (add_operations_[attr_typeid] == nullptr) {
         add_operations_[attr_typeid]
           = BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
