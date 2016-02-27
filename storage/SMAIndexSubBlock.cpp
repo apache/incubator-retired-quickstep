@@ -214,9 +214,8 @@ TypeID getTypeForSum(TypeID type) {
     case kFloat:
     case kDouble:
       return kDouble;
-    default: {
+    default:
       return kNullType;
-    }
   }
 }
 
@@ -236,7 +235,7 @@ bool canSum(TypeID type) {
  *       
  * @param entry A pointer to the entry to modify.
  */
-void setTypedValueForSum(SMAEntry *entry) {
+void initializeTypedValueForSum(SMAEntry *entry) {
   TypeID sum_type = getTypeForSum(entry->type_id);
   if (sum_type == kLong) {
     new (&entry->sum_aggregate) TypedValue(static_cast<std::int64_t>(0));
@@ -250,25 +249,29 @@ void setTypedValueForSum(SMAEntry *entry) {
  *
  * @param entry The entry for which the min/max references will be zeroed out.
  */
-void setTypedValueForMinMax(SMAEntry *entry) {
+void initializeTypedValueForMinMax(SMAEntry *entry) {
   TypedValue *min = &(entry->min_entry_ref.value);
   TypedValue *max = &(entry->max_entry_ref.value);
   switch (entry->type_id) {
-    case kInt:
+    case kInt: {
       new (min) TypedValue(static_cast<int>(0));
       new (max) TypedValue(static_cast<int>(0));
       return;
-    case kLong:
+    }
+    case kLong: {
       new (min) TypedValue(static_cast<std::int64_t>(0));
       new (min) TypedValue(static_cast<std::int64_t>(0));
       return;
-    case kFloat:
+    }
+    case kFloat: {
       new (min) TypedValue(static_cast<float>(0));
       new (max) TypedValue(static_cast<float>(0));
-    case kDouble:
+    }
+    case kDouble: {
       new (min) TypedValue(static_cast<double>(0.0));
       new (max) TypedValue(static_cast<double>(0.0));
       return;
+    }
     case kDatetimeInterval: {
       DatetimeIntervalLit zero;
       zero.interval_ticks = 0;
@@ -284,7 +287,9 @@ void setTypedValueForMinMax(SMAEntry *entry) {
       return;
     }
     default: {
-      CHECK(false) << "SMA Index was created on an unindexable type.";
+      CHECK(false)
+          << "SMA Index was created on an unindexable type: "
+          << entry->type_id;
     }
   }
 }
@@ -439,7 +444,7 @@ void SMAIndexSubBlock::resetEntry(SMAEntry *entry,
     entry->max_entry_ref.value.clear();
     entry->max_entry_ref.valid = false;
   }
-  sma_internal::setTypedValueForSum(entry);
+  sma_internal::initializeTypedValueForSum(entry);
 }
 
 void SMAIndexSubBlock::resetEntries() {
