@@ -235,8 +235,8 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 <CONDITION_STRING_SINGLE_QUOTED,CONDITION_STRING_SINGLE_QUOTED_ESCAPED,CONDITION_STRING_DOUBLE_QUOTED>{
   <<EOF>> {
     delete yylval->string_value_;
-    quickstep_yyerror(NULL, yyscanner, NULL, "unterminated string");
     BEGIN(INITIAL);
+    quickstep_yyerror(NULL, yyscanner, NULL, "unterminated string");
     return TOKEN_LEX_ERROR;
   }
 }
@@ -249,8 +249,8 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
     std::sscanf(yytext + 1, "%o", &code);
     if (code > 0xff) {
       delete yylval->string_value_;
-      quickstep_yyerror(NULL, yyscanner, NULL, "octal escape sequence out of 1-byte range");
       BEGIN(INITIAL);
+      quickstep_yyerror(NULL, yyscanner, NULL, "octal escape sequence out of 1-byte range");
       return TOKEN_LEX_ERROR;
     }
     yylval->string_value_->push_back(code);
@@ -264,8 +264,8 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   \\[0-9]+ {
     /* A numeric escape sequence that isn't correctly specified. */
     delete yylval->string_value_;
-    quickstep_yyerror(NULL, yyscanner, NULL, "bad numeric escape sequence (must be octal or hex)");
     BEGIN(INITIAL);
+    quickstep_yyerror(NULL, yyscanner, NULL, "bad numeric escape sequence (must be octal or hex)");
     return TOKEN_LEX_ERROR;
   }
   \\b {
@@ -295,8 +295,8 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   \\ {
     /* This should only be encountered right before an EOF. */
     delete yylval->string_value_;
-    quickstep_yyerror(NULL, yyscanner, NULL, "unfinished escape sequence");
     BEGIN(INITIAL);
+    quickstep_yyerror(NULL, yyscanner, NULL, "unfinished escape sequence");
     return TOKEN_LEX_ERROR;
   }
 }
