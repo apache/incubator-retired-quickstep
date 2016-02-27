@@ -143,7 +143,10 @@ class MockOperator: public RelationalOperator {
   }
 
   // Override methods from the base class.
-  bool getAllWorkOrders(WorkOrdersContainer *container) override {
+  bool getAllWorkOrders(
+      WorkOrdersContainer *container,
+      const tmb::client_id foreman_client_id,
+      tmb::MessageBus *bus) override {
     ++num_calls_get_workorders_;
     if (produce_workorders_) {
       if (has_streaming_input_) {

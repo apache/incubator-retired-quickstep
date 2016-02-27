@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -29,9 +29,14 @@
 
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
+
 namespace quickstep {
 
-bool DropTableOperator::getAllWorkOrders(WorkOrdersContainer *container) {
+bool DropTableOperator::getAllWorkOrders(
+    WorkOrdersContainer *container,
+    const tmb::client_id foreman_client_id,
+    tmb::MessageBus *bus) {
   if (blocking_dependencies_met_ && !work_generated_) {
     work_generated_ = true;
 

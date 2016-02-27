@@ -26,12 +26,17 @@
 
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
+
 namespace quickstep {
 
 class CatalogDatabase;
 class StorageManager;
 
-bool TableGeneratorOperator::getAllWorkOrders(WorkOrdersContainer *container) {
+bool TableGeneratorOperator::getAllWorkOrders(
+    WorkOrdersContainer *container,
+    const tmb::client_id foreman_client_id,
+    tmb::MessageBus *bus) {
   if (!started_) {
     // Currently the generator function is not abstracted to be parallelizable,
     // so just produce one work order.

@@ -32,15 +32,19 @@
 #include "storage/StorageManager.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
 
-#include "tmb/message_bus.h"
 
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
+#include "tmb/message_bus.h"
 #include "tmb/tagged_message.h"
 
 namespace quickstep {
 
-bool DeleteOperator::getAllWorkOrders(WorkOrdersContainer *container) {
+bool DeleteOperator::getAllWorkOrders(
+    WorkOrdersContainer *container,
+    const tmb::client_id foreman_client_id,
+    tmb::MessageBus *bus) {
   if (relation_is_stored_) {
     // If relation_ is stored, iterate over the list of blocks in relation_.
     if (!started_) {
@@ -50,8 +54,8 @@ bool DeleteOperator::getAllWorkOrders(WorkOrdersContainer *container) {
                                 predicate_index_,
                                 input_block_id,
                                 op_index_,
-                                foreman_client_id_,
-                                bus_),
+                                foreman_client_id,
+                                bus),
             op_index_);
       }
       started_ = true;
@@ -64,8 +68,8 @@ bool DeleteOperator::getAllWorkOrders(WorkOrdersContainer *container) {
                               predicate_index_,
                               relation_block_ids_[num_workorders_generated_],
                               op_index_,
-                              foreman_client_id_,
-                              bus_),
+                              foreman_client_id,
+                              bus),
           op_index_);
       ++num_workorders_generated_;
     }

@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -27,6 +27,10 @@
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
+
+#include "tmb/id_typedefs.h"
+
+namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
@@ -75,7 +79,9 @@ class BuildHashOperator : public RelationalOperator {
 
   ~BuildHashOperator() override {}
 
-  bool getAllWorkOrders(WorkOrdersContainer *container) override;
+  bool getAllWorkOrders(WorkOrdersContainer *container,
+                        const tmb::client_id foreman_client_id,
+                        tmb::MessageBus *bus) override;
 
   void feedInputBlock(const block_id input_block_id,
                       const relation_id input_relation_id) override {

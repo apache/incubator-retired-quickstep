@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -72,8 +72,7 @@ void ExecutionGeneratorTestRunner::runTestCase(
     OptimizerContext optimizer_context(foreman_->getBusClientID(),
                                        0 /* query_id */,
                                        test_database_loader_.catalog_database(),
-                                       test_database_loader_.storage_manager(),
-                                       &bus_);
+                                       test_database_loader_.storage_manager());
 
     if (result.condition != ParseResult::kSuccess) {
       if (result.condition == ParseResult::kError) {

@@ -45,6 +45,8 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
+
 using std::unique_ptr;
 using std::vector;
 
@@ -185,7 +187,10 @@ class VectorBasedJoinedTupleCollector {
 
 }  // namespace
 
-bool HashJoinOperator::getAllWorkOrders(WorkOrdersContainer *container) {
+bool HashJoinOperator::getAllWorkOrders(
+    WorkOrdersContainer *container,
+    const tmb::client_id foreman_client_id,
+    tmb::MessageBus *bus) {
   // We wait until the building of global hash table is complete.
   if (blocking_dependencies_met_) {
     if (probe_relation_is_stored_) {

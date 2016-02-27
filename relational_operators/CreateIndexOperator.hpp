@@ -59,7 +59,9 @@ class CreateIndexOperator : public RelationalOperator {
   /**
    * @note no WorkOrder generated for this operator.
    **/
-  bool getAllWorkOrders(WorkOrdersContainer *container) override;
+  bool getAllWorkOrders(WorkOrdersContainer *container,
+                        const tmb::client_id foreman_client_id,
+                        tmb::MessageBus *bus) override;
 
  private:
   CatalogRelation *relation_;

@@ -229,7 +229,7 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
     op->setOperatorIndex(kOpIndex);
     WorkOrdersContainer container(1, 0);
     const std::size_t op_index = 0;
-    op->getAllWorkOrders(&container);
+    op->getAllWorkOrders(&container, tmb::kClientIdNone /* foreman_client_id */, nullptr /* TMB */);
 
     while (container.hasNormalWorkOrder(op_index)) {
       WorkOrder *work_order = container.getNormalWorkOrder(op_index);

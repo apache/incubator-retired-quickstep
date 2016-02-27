@@ -196,8 +196,7 @@ int main(int argc, char* argv[]) {
   // Setup QueryProcessor, including CatalogDatabase and StorageManager.
   std::unique_ptr<QueryProcessor> query_processor;
   try {
-    // TODO(zuyu): Remove passing 'bus' once WorkOrder serialization is done.
-    query_processor.reset(new QueryProcessor(catalog_path, fixed_storage_path, foreman.getBusClientID(), &bus));
+    query_processor.reset(new QueryProcessor(catalog_path, fixed_storage_path, foreman.getBusClientID()));
   } catch (const std::exception &e) {
     LOG(FATAL) << "FATAL ERROR DURING STARTUP: " << e.what();
   } catch (...) {

@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -39,7 +39,7 @@ namespace quickstep {
 QueryHandle* QueryProcessor::generateQueryHandle(const ParseStatement &statement) {
   std::unique_ptr<QueryHandle> query_handle(new QueryHandle());
 
-  optimizer::Optimizer optimizer(foreman_client_id_, query_id_, getDefaultDatabase(), storage_manager_.get(), bus_);
+  optimizer::Optimizer optimizer(foreman_client_id_, query_id_, getDefaultDatabase(), storage_manager_.get());
   optimizer.generateQueryHandle(statement, query_handle.get());
 
   if (optimizer.isCatalogChanged() && !catalog_altered_) {

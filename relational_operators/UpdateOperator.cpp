@@ -34,15 +34,18 @@
 #include "threading/ThreadIDBasedMap.hpp"
 #include "utility/Macros.hpp"
 
-#include "tmb/message_bus.h"
-
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
+#include "tmb/message_bus.h"
 #include "tmb/tagged_message.h"
 
 namespace quickstep {
 
-bool UpdateOperator::getAllWorkOrders(WorkOrdersContainer *container) {
+bool UpdateOperator::getAllWorkOrders(
+    WorkOrdersContainer *container,
+    const tmb::client_id foreman_client_id,
+    tmb::MessageBus *bus) {
   if (blocking_dependencies_met_ && !started_) {
     for (const block_id input_block_id : input_blocks_) {
       container->addNormalWorkOrder(
@@ -52,8 +55,8 @@ bool UpdateOperator::getAllWorkOrders(WorkOrdersContainer *container) {
                               update_group_index_,
                               input_block_id,
                               op_index_,
-                              foreman_client_id_,
-                              bus_),
+                              foreman_client_id,
+                              bus),
           op_index_);
     }
     started_ = true;

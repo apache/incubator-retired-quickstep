@@ -745,9 +745,7 @@ void ExecutionGenerator::convertCopyFrom(
               physical_plan->escape_strings(),
               FLAGS_parallelize_load,
               *output_relation,
-              insert_destination_index,
-              optimizer_context_->getForemanClientID(),
-              optimizer_context_->getMessageBus()));
+              insert_destination_index));
   insert_destination_proto->set_relational_op_index(scan_operator_index);
 
   const QueryPlan::DAGNodeIndex save_blocks_operator_index =
@@ -855,9 +853,7 @@ void ExecutionGenerator::convertDeleteTuples(
         execution_plan_->addRelationalOperator(new DeleteOperator(
             *input_relation_info->relation,
             execution_predicate_index,
-            input_relation_info->isStoredRelation(),
-            optimizer_context_->getForemanClientID(),
-            optimizer_context_->getMessageBus()));
+            input_relation_info->isStoredRelation()));
     if (!input_relation_info->isStoredRelation()) {
       execution_plan_->addDirectDependency(delete_tuples_index,
                                            input_relation_info->producer_operator_index,
@@ -1005,9 +1001,7 @@ void ExecutionGenerator::convertUpdateTable(
               *optimizer_context_->catalog_database()->getRelationByIdMutable(input_rel_id),
               relocation_destination_index,
               execution_predicate_index,
-              update_group_index,
-              optimizer_context_->getForemanClientID(),
-              optimizer_context_->getMessageBus()));
+              update_group_index));
   relocation_destination_proto->set_relational_op_index(update_operator_index);
 
   const QueryPlan::DAGNodeIndex save_blocks_index =
@@ -1228,9 +1222,7 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
                                    sort_merge_run_config_id,
                                    64 /* merge_factor */,
                                    physical_sort->limit(),
-                                   false /* input_relation_is_stored */,
-                                   optimizer_context_->getForemanClientID(),
-                                   optimizer_context_->getMessageBus()));
+                                   false /* input_relation_is_stored */));
   execution_plan_->addDirectDependency(merge_run_operator_index,
                                        run_generator_index,
                                        false /* is_pipeline_breaker */);

@@ -23,7 +23,9 @@
 
 namespace quickstep {
 
-bool CreateIndexOperator::getAllWorkOrders(WorkOrdersContainer *container) {
+bool CreateIndexOperator::getAllWorkOrders(WorkOrdersContainer *container,
+                                           const tmb::client_id foreman_client_id,
+                                           tmb::MessageBus *bus) {
   if (!work_generated_) {
     work_generated_ = true;
     relation_->addIndex(index_name_);

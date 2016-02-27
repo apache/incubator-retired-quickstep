@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -32,6 +32,8 @@
 
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
+
 namespace quickstep {
 
 class InsertDestination;
@@ -40,7 +42,10 @@ using merge_run_operator::Run;
 using merge_run_operator::RunMerger;
 using merge_run_operator::MergeTree;
 
-bool SortMergeRunOperator::getAllWorkOrders(WorkOrdersContainer *container) {
+bool SortMergeRunOperator::getAllWorkOrders(
+    WorkOrdersContainer *container,
+    const tmb::client_id foreman_client_id,
+    tmb::MessageBus *bus) {
   if (input_relation_is_stored_) {
     // Input blocks (or runs) are from base relation. Only possible when base
     // relation is stored sorted.
@@ -61,11 +66,13 @@ bool SortMergeRunOperator::getAllWorkOrders(WorkOrdersContainer *container) {
     }
   }
   // Generate runs from merge tree.
-  return generateWorkOrders(container);
+  return generateWorkOrders(container, foreman_client_id, bus);
 }
 
 WorkOrder *SortMergeRunOperator::createWorkOrder(
-    merge_run_operator::MergeTree::MergeJob *job) {
+    merge_run_operator::MergeTree::MergeJob *job,
+    const tmb::client_id foreman_client_id,
+    tmb::MessageBus *bus) {
   DCHECK(!job->runs.empty());
   // Create a work order from the merge job from merge tree.
   return new SortMergeRunWorkOrder(
@@ -77,11 +84,14 @@ WorkOrder *SortMergeRunOperator::createWorkOrder(
       job->is_final_level ? output_destination_index_
                           : run_block_destination_index_,
       op_index_,
-      foreman_client_id_,
-      bus_);
+      foreman_client_id,
+      bus);
 }
 
-bool SortMergeRunOperator::generateWorkOrders(WorkOrdersContainer *container) {
+bool SortMergeRunOperator::generateWorkOrders(
+    WorkOrdersContainer *container,
+    const tmb::client_id foreman_client_id,
+    tmb::MessageBus *bus) {
   std::vector<MergeTree::MergeJob> jobs;
 
   // Get merge jobs from merge tree.
@@ -91,7 +101,7 @@ bool SortMergeRunOperator::generateWorkOrders(WorkOrdersContainer *container) {
        job_id != jobs.size();
        ++job_id) {
     // Add work order for each merge job.
-    container->addNormalWorkOrder(createWorkOrder(&jobs[job_id]),
+    container->addNormalWorkOrder(createWorkOrder(&jobs[job_id], foreman_client_id, bus),
                                   op_index_);
   }
 

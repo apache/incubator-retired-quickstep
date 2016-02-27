@@ -420,7 +420,10 @@ bool Foreman::fetchNormalWorkOrders(const dag_node_index index) {
     }
     const size_t num_pending_workorders_before =
         workorders_container_->getNumNormalWorkOrders(index);
-    done_gen_[index] = query_dag_->getNodePayloadMutable(index)->getAllWorkOrders(workorders_container_.get());
+    done_gen_[index] =
+        query_dag_->getNodePayloadMutable(index)->getAllWorkOrders(workorders_container_.get(),
+                                                                   foreman_client_id_,
+                                                                   bus_);
 
     // TODO(shoban): It would be a good check to see if operator is making
     // useful progress, i.e., the operator either generates work orders to

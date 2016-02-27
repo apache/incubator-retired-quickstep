@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -86,8 +86,6 @@ class SortMergeRunOperator : public RelationalOperator {
    *              \c top_k is 0.
    * @param input_relation_is_stored Boolean to indicate is input relation is
    *                                 stored or streamed.
-   * @param foreman_client_id The TMB client ID of the Foreman thread.
-   * @param bus A pointer to the TMB.
    **/
   SortMergeRunOperator(const CatalogRelation &input_relation,
                        const CatalogRelation &output_relation,
@@ -97,9 +95,7 @@ class SortMergeRunOperator : public RelationalOperator {
                        const QueryContext::sort_config_id sort_config_index,
                        const std::size_t merge_factor,
                        const std::size_t top_k,
-                       const bool input_relation_is_stored,
-                       const tmb::client_id foreman_client_id,
-                       tmb::MessageBus *bus)
+                       const bool input_relation_is_stored)
       : input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
@@ -115,8 +111,6 @@ class SortMergeRunOperator : public RelationalOperator {
         run_block_destination_index_(run_block_destination_index),
         input_relation_is_stored_(input_relation_is_stored),
         input_stream_done_(input_relation_is_stored),
-        foreman_client_id_(foreman_client_id),
-        bus_(bus),
         started_(false) {
     DCHECK_GT(merge_factor_, 1u);
   }
@@ -126,7 +120,9 @@ class SortMergeRunOperator : public RelationalOperator {
    **/
   ~SortMergeRunOperator() {}
 
-  bool getAllWorkOrders(WorkOrdersContainer *container) override;
+  bool getAllWorkOrders(WorkOrdersContainer *container,
+                        const tmb::client_id foreman_client_id,
+                        tmb::MessageBus *bus) override;
 
   void feedInputBlock(const block_id input_block_id,
                       const relation_id input_relation_id) override {
@@ -165,10 +161,14 @@ class SortMergeRunOperator : public RelationalOperator {
   void initializeInputRuns();
 
   // Generate work orders for the current state of operator.
-  bool generateWorkOrders(WorkOrdersContainer *container);
+  bool generateWorkOrders(WorkOrdersContainer *container,
+                          const tmb::client_id foreman_client_id,
+                          tmb::MessageBus *bus);
 
   // Create a merge work order for the given merge job.
-  WorkOrder *createWorkOrder(merge_run_operator::MergeTree::MergeJob *job);
+  WorkOrder *createWorkOrder(merge_run_operator::MergeTree::MergeJob *job,
+                             const tmb::client_id foreman_client_id,
+                             tmb::MessageBus *bus);
 
   const CatalogRelation &input_relation_;
 
@@ -188,10 +188,6 @@ class SortMergeRunOperator : public RelationalOperator {
 
   const bool input_relation_is_stored_;
   const bool input_stream_done_;
-
-  const tmb::client_id foreman_client_id_;
-  // TODO(zuyu): Remove 'bus_' once WorkOrder serialization is done.
-  tmb::MessageBus *bus_;
 
   bool started_;
 

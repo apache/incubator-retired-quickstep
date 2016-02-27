@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -28,8 +28,6 @@
 #include "utility/Macros.hpp"
 
 #include "tmb/id_typedefs.h"
-
-namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
@@ -134,15 +132,12 @@ class QueryProcessor {
    * @param storage_path The filesystem directory where blocks are stored on
    *        disk.
    * @param foreman_client_id The TMB client ID of the Foreman thread.
-   * @param bus A pointer to the TMB.
    **/
   QueryProcessor(const std::string &catalog_filename,
                  const std::string &storage_path,
-                 const tmb::client_id foreman_client_id,
-                 tmb::MessageBus *bus)
+                 const tmb::client_id foreman_client_id)
       : catalog_filename_(catalog_filename),
         foreman_client_id_(foreman_client_id),
-        bus_(bus),
         catalog_altered_(false),
         query_id_(0) {
     loadCatalog();
@@ -189,8 +184,6 @@ class QueryProcessor {
   std::string catalog_filename_;
 
   const tmb::client_id foreman_client_id_;
-  // TODO(zuyu): Remove 'bus_' once WorkOrder serialization is done.
-  tmb::MessageBus *bus_;
 
   std::unique_ptr<Catalog> catalog_;
   std::unique_ptr<StorageManager> storage_manager_;
