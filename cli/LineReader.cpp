@@ -51,7 +51,7 @@ std::string LineReader::getNextCommand() {
       case kNormal:
         // A semicolon to end the SQL command, or any character which might
         // put us into a different mode.
-        special_char_location = multiline_buffer.find_first_of(";'\"-eE", scan_position);
+        special_char_location = multiline_buffer.find_first_of(";'\"-eE.", scan_position);
         break;
       case kSingleQuote:
         // A single quote which ends the string (note that two successive

@@ -41,6 +41,7 @@ class ParseAttribute;
 class ParseAttributeDefinition;
 class ParseBlockProperties;
 class ParseColumnConstraint;
+class ParseCommand;
 struct ParseCopyFromParams;
 class ParseDataType;
 class ParseExpression;
@@ -133,7 +134,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 }
 
 <CONDITION_COMMAND>{
-  "help" {
+  "help"|"help " {
     BEGIN(CONDITION_COMMAND_STRING);
     return TOKEN_HELP;
   }
@@ -147,12 +148,16 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 }
 
 <CONDITION_COMMAND_STRING>{
-  [^\n\r]*\n {
-    /* Note: An empty string is acceptable. */
+  [^\n\r]+ {
     yylval->string_value_ = new quickstep::ParseString(
         yylloc->first_line, yylloc->first_column, std::string(yytext, yyleng));
-    BEGIN(INITIAL);
     return TOKEN_COMMAND_STRING;
+  }
+
+  [\n\r] {
+    yycolumn = 0;
+    BEGIN(INITIAL);
+    return '\n';
   }
 }
 

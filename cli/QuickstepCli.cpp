@@ -41,6 +41,7 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 
 #include "cli/InputParserUtil.hpp"
 #include "cli/PrintToScreen.hpp"
+#include "parser/ParseCommand.hpp"
 #include "parser/ParseStatement.hpp"
 #include "parser/SqlParserWrapper.hpp"
 #include "query_execution/Foreman.hpp"
@@ -91,6 +92,7 @@ using quickstep::Foreman;
 using quickstep::InputParserUtil;
 using quickstep::MessageBusImpl;
 using quickstep::MessageStyle;
+using quickstep::ParseCommand;
 using quickstep::ParseResult;
 using quickstep::ParseStatement;
 using quickstep::PrintToScreen;
@@ -290,6 +292,13 @@ int main(int argc, char* argv[]) {
         if (result.parsed_statement->getStatementType() == ParseStatement::kQuit) {
           quitting = true;
           break;
+        }
+
+        if (result.parsed_statement->getStatementType() == ParseStatement::kCommand) {
+          const ParseCommand *command = static_cast<const ParseCommand*>(result.parsed_statement);
+          ParseCommand *mutable_command = const_cast<ParseCommand*>(command);
+          mutable_command->execute();
+          continue;
         }
 
         std::unique_ptr<QueryHandle> query_handle;
