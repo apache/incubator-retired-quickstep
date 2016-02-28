@@ -21,6 +21,7 @@
 %lex-param    {yyscan_t yyscanner}
 %parse-param  {yyscan_t yyscanner}
 %parse-param  {quickstep::ParseStatement **parsedStatement}
+%debug
 
 /**
  * NOTE(chasseur): There are two known shift/reduce conflicts in this parser.
@@ -189,6 +190,7 @@ typedef void* yyscan_t;
 void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string &feature);
 %}
 
+%token <string_value_> TOKEN_COMMAND_STRING;
 %token <string_value_> TOKEN_NAME;
 %token <string_value_> TOKEN_STRING_SINGLE_QUOTED;
 %token <string_value_> TOKEN_STRING_DOUBLE_QUOTED;
@@ -245,6 +247,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_FULL;
 %token TOKEN_GROUP;
 %token TOKEN_HAVING;
+%token TOKEN_HELP;
 %token TOKEN_INDEX;
 %token TOKEN_INNER;
 %token TOKEN_INSERT;
