@@ -82,7 +82,8 @@ class LineReader {
     kSingleQuoteWithEscape,
     kDoubleQuote,
     kDoubleQuoteWithEscape,
-    kComment
+    kComment,
+    kCommand
   };
 
   bool getMoreInput(std::string *input_buffer, bool *continuing);
