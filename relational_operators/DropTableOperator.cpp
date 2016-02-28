@@ -46,16 +46,18 @@ bool DropTableOperator::getAllWorkOrders(
     container->addNormalWorkOrder(
         new DropTableWorkOrder(std::move(relation_blocks)),
         op_index_);
-
-    // TODO(zuyu): move the following code to a better place.
-    const relation_id rel_id = relation_.getID();
-    if (only_drop_blocks_) {
-      database_->getRelationByIdMutable(rel_id)->clearBlocks();
-    } else {
-      database_->dropRelationById(rel_id);
-    }
   }
+
   return work_generated_;
+}
+
+void DropTableOperator::updateCatalogOnCompletion() {
+  const relation_id rel_id = relation_.getID();
+  if (only_drop_blocks_) {
+    database_->getRelationByIdMutable(rel_id)->clearBlocks();
+  } else {
+    database_->dropRelationById(rel_id);
+  }
 }
 
 void DropTableWorkOrder::execute(QueryContext *query_context,

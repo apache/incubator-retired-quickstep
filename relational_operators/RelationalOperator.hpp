@@ -77,6 +77,14 @@ class RelationalOperator {
                                 tmb::MessageBus *bus) = 0;
 
   /**
+   * @brief Update Catalog upon the completion of this RelationalOperator, if
+   *        necessary.
+   *
+   **/
+  virtual void updateCatalogOnCompletion() {
+  }
+
+  /**
    * @brief Inform this RelationalOperator that ALL the dependencies which break
    *        the pipeline have been met.
    *
