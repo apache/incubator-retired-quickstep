@@ -28,12 +28,15 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 #include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
+class AggregationOperationState;
 class CatalogDatabase;
 class StorageManager;
 class WorkOrdersContainer;
@@ -118,9 +121,7 @@ class AggregationWorkOrder : public WorkOrder {
 
   ~AggregationWorkOrder() override {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   const block_id input_block_id_;

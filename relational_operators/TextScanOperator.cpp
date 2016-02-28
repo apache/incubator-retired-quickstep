@@ -263,9 +263,7 @@ TextScanWorkOrder::TextScanWorkOrder(const block_id text_blob,
   DCHECK(storage_manager_ != nullptr);
 }
 
-void TextScanWorkOrder::execute(QueryContext *query_context,
-                                CatalogDatabase *catalog_database,
-                                StorageManager *storage_manager) {
+void TextScanWorkOrder::execute() {
   const CatalogRelationSchema &relation = output_destination_->getRelation();
 
   string current_row_string;
@@ -571,9 +569,7 @@ Tuple TextScanWorkOrder::parseRow(const std::string &row_string, const CatalogRe
   return Tuple(std::move(attribute_values));
 }
 
-void TextSplitWorkOrder::execute(QueryContext *query_context,
-                                 CatalogDatabase *catalog_database,
-                                 StorageManager *storage_manager) {
+void TextSplitWorkOrder::execute() {
   std::FILE *file = std::fopen(filename_.c_str(), "r");
   if (!file) {
     throw TextScanReadError(filename_);

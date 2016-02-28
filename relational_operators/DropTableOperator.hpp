@@ -21,11 +21,12 @@
 #include <utility>
 #include <vector>
 
-#include "catalog/CatalogTypedefs.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
 
 #include "tmb/id_typedefs.h"
 
@@ -105,9 +106,7 @@ class DropTableWorkOrder : public WorkOrder {
 
   ~DropTableWorkOrder() override {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   const std::vector<block_id> blocks_;

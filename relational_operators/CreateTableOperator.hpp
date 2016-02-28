@@ -31,6 +31,8 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class CatalogDatabase;
+class QueryContext;
+class StorageManager;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators

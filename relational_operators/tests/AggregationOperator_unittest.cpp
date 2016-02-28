@@ -359,7 +359,7 @@ class AggregationOperatorTest : public ::testing::Test {
 
     while (op_container.hasNormalWorkOrder(op_index)) {
       WorkOrder *work_order = op_container.getNormalWorkOrder(op_index);
-      work_order->execute(query_context_.get(), db_.get(), storage_manager_.get());
+      work_order->execute();
       delete work_order;
     }
 
@@ -376,7 +376,7 @@ class AggregationOperatorTest : public ::testing::Test {
 
     while (finalize_op_container.hasNormalWorkOrder(finalize_op_index)) {
       WorkOrder *work_order = finalize_op_container.getNormalWorkOrder(finalize_op_index);
-      work_order->execute(query_context_.get(), db_.get(), storage_manager_.get());
+      work_order->execute();
       delete work_order;
     }
   }

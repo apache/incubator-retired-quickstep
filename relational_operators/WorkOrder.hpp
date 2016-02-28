@@ -242,14 +242,8 @@ class WorkOrder {
 
   /**
    * @brief Run this WorkOrder in the calling thread.
-   *
-   * @param query_context The QueryContext that stores query execution states.
-   * @param catalog_database The catalog database where this query is executed.
-   * @param storage_manager The StorageManager to use.
    **/
-  virtual void execute(QueryContext *query_context,
-                       CatalogDatabase *catalog_database,
-                       StorageManager *storage_manager) = 0;
+  virtual void execute() = 0;
 
   /**
    * @brief Get the preferred NUMA node(s) where this WorkOrder should be

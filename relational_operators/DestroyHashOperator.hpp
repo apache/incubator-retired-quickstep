@@ -23,6 +23,8 @@
 #include "relational_operators/WorkOrder.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 #include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
@@ -87,9 +89,7 @@ class DestroyHashWorkOrder : public WorkOrder {
 
   ~DestroyHashWorkOrder() override {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   const QueryContext::join_hash_table_id hash_table_index_;

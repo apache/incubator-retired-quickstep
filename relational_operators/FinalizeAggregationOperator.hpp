@@ -18,6 +18,9 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_FINALIZE_AGGREGATION_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_FINALIZE_AGGREGATION_OPERATOR_HPP_
 
+#include <memory>
+
+#include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
@@ -30,7 +33,9 @@ namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
+class AggregationOperationState;
 class CatalogDatabase;
+class InsertDestination;
 class StorageManager;
 class WorkOrdersContainer;
 
@@ -94,31 +99,27 @@ class FinalizeAggregationWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @param aggr_state_index The index of the AggregationState in QueryContext.
+   * @note InsertWorkOrder takes ownership of \c state.
+   *
+   * @param state The AggregationState to use.
    * @param output_destination The InsertDestination to insert aggregation
    *        results.
    */
-  FinalizeAggregationWorkOrder(const QueryContext::aggregation_state_id aggr_state_index,
-                               InsertDestination *output_destination,
-                               QueryContext *query_context)
-      : aggr_state_index_(aggr_state_index),
-        output_destination_(output_destination),
-        query_context_(query_context) {
+  FinalizeAggregationWorkOrder(AggregationOperationState *state,
+                               InsertDestination *output_destination)
+      : state_(state),
+        output_destination_(output_destination) {
+    DCHECK(state_ != nullptr);
     DCHECK(output_destination_ != nullptr);
-    DCHECK(query_context_ != nullptr);
   }
 
   ~FinalizeAggregationWorkOrder() override {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
-  const QueryContext::aggregation_state_id aggr_state_index_;
-
+  std::unique_ptr<AggregationOperationState> state_;
   InsertDestination *output_destination_;
-  QueryContext *query_context_;
 
   DISALLOW_COPY_AND_ASSIGN(FinalizeAggregationWorkOrder);
 };

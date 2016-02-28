@@ -24,8 +24,6 @@
 #include "storage/AggregationOperationState.hpp"
 #include "storage/StorageBlockInfo.hpp"
 
-#include "glog/logging.h"
-
 #include "tmb/id_typedefs.h"
 
 namespace quickstep {
@@ -60,9 +58,7 @@ bool AggregationOperator::getAllWorkOrders(
   }
 }
 
-void AggregationWorkOrder::execute(QueryContext *query_context,
-                                   CatalogDatabase *catalog_database,
-                                   StorageManager *storage_manager) {
+void AggregationWorkOrder::execute() {
   state_->aggregateBlock(input_block_id_);
 }
 

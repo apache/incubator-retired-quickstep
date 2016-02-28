@@ -91,9 +91,7 @@ bool SelectOperator::getAllWorkOrders(
   }
 }
 
-void SelectWorkOrder::execute(QueryContext *query_context,
-                              CatalogDatabase *database,
-                              StorageManager *storage_manager) {
+void SelectWorkOrder::execute() {
   BlockReference block(
       storage_manager_->getBlock(input_block_id_, input_relation_));
 

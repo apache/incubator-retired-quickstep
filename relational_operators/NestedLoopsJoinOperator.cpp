@@ -301,16 +301,11 @@ void NestedLoopsJoinWorkOrder::executeHelper(const TupleStorageSubBlock &left_st
   }
 }
 
-void NestedLoopsJoinWorkOrder::execute(QueryContext *query_context,
-                                       CatalogDatabase *database,
-                                       StorageManager *storage_manager) {
-  DCHECK(database != nullptr);
-  DCHECK(storage_manager != nullptr);
-
+void NestedLoopsJoinWorkOrder::execute() {
   BlockReference left(
-      storage_manager->getBlock(left_block_id_, left_input_relation_));
+      storage_manager_->getBlock(left_block_id_, left_input_relation_));
   BlockReference right(
-      storage_manager->getBlock(right_block_id_, right_input_relation_));
+      storage_manager_->getBlock(right_block_id_, right_input_relation_));
 
   const TupleStorageSubBlock &left_store = left->getTupleStorageSubBlock();
   const TupleStorageSubBlock &right_store = right->getTupleStorageSubBlock();

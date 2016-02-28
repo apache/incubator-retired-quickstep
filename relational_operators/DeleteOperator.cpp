@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-#include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogRelationSchema.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionUtil.hpp"
@@ -84,9 +84,7 @@ bool DeleteOperator::getAllWorkOrders(
   }
 }
 
-void DeleteWorkOrder::execute(QueryContext *query_context,
-                              CatalogDatabase *database,
-                              StorageManager *storage_manager) {
+void DeleteWorkOrder::execute() {
   MutableBlockReference block(
       storage_manager_->getBlockMutable(input_block_id_, input_relation_));
   block->deleteTuples(predicate_);

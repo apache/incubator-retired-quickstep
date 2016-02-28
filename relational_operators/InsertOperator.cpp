@@ -49,9 +49,7 @@ bool InsertOperator::getAllWorkOrders(
   return work_generated_;
 }
 
-void InsertWorkOrder::execute(QueryContext *query_context,
-                              CatalogDatabase *catalog_database,
-                              StorageManager *storage_manager) {
+void InsertWorkOrder::execute() {
   output_destination_->insertTuple(*tuple_);
 }
 

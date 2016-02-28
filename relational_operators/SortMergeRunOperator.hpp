@@ -209,9 +209,7 @@ class SortMergeRunWorkOrder : public WorkOrder {
  public:
   ~SortMergeRunWorkOrder() {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   /**

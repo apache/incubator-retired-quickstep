@@ -27,8 +27,6 @@
 
 namespace quickstep {
 
-class InsertDestination;
-
 bool FinalizeAggregationOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
     CatalogDatabase *catalog_database,
@@ -41,26 +39,15 @@ bool FinalizeAggregationOperator::getAllWorkOrders(
   if (blocking_dependencies_met_ && !started_) {
     started_ = true;
     container->addNormalWorkOrder(
-        new FinalizeAggregationWorkOrder(aggr_state_index_,
-                                         query_context->getInsertDestination(output_destination_index_),
-                                         query_context),
+        new FinalizeAggregationWorkOrder(query_context->releaseAggregationState(aggr_state_index_),
+                                         query_context->getInsertDestination(output_destination_index_)),
         op_index_);
   }
   return started_;
 }
 
-void FinalizeAggregationWorkOrder::execute(
-    QueryContext *query_context,
-    CatalogDatabase *catalog_database,
-    StorageManager *storage_manager) {
-  AggregationOperationState *state = query_context_->getAggregationState(aggr_state_index_);
-  DCHECK(state != nullptr);
-
-  state->finalizeAggregate(output_destination_);
-
-  // Now that the final results are materialized, destroy the
-  // AggregationOperationState to free up memory ASAP.
-  query_context_->destroyAggregationState(aggr_state_index_);
+void FinalizeAggregationWorkOrder::execute() {
+  state_->finalizeAggregate(output_destination_);
 }
 
 }  // namespace quickstep

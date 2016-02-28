@@ -72,7 +72,6 @@ target_link_libraries(quickstep_relationaloperators_AggregationOperator
                       tmb)
 target_link_libraries(quickstep_relationaloperators_BuildHashOperator
                       glog
-                      quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_QueryContext
@@ -101,8 +100,8 @@ target_link_libraries(quickstep_relationaloperators_CreateTableOperator
                       tmb)
 target_link_libraries(quickstep_relationaloperators_DeleteOperator
                       glog
-                      quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryExecutionMessages_proto
@@ -139,6 +138,7 @@ target_link_libraries(quickstep_relationaloperators_DropTableOperator
                       tmb)
 target_link_libraries(quickstep_relationaloperators_FinalizeAggregationOperator
                       glog
+                      quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_WorkOrdersContainer

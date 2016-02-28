@@ -158,9 +158,7 @@ class UpdateWorkOrder : public WorkOrder {
 
   ~UpdateWorkOrder() override {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   const CatalogRelationSchema &relation_;

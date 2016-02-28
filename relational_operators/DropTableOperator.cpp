@@ -27,8 +27,6 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
 
-#include "glog/logging.h"
-
 #include "tmb/id_typedefs.h"
 
 namespace quickstep {
@@ -67,9 +65,8 @@ void DropTableOperator::updateCatalogOnCompletion() {
   database_->setStatus(CatalogDatabase::Status::kConsistent);
 }
 
-void DropTableWorkOrder::execute(QueryContext *query_context,
-                                 CatalogDatabase *database,
-                                 StorageManager *storage_manager) {
+
+void DropTableWorkOrder::execute() {
   for (const block_id block : blocks_) {
     storage_manager_->deleteBlockOrBlobFile(block);
   }

@@ -39,6 +39,8 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class CatalogDatabase;
+class CatalogRelationSchema;
+class Predicate;
 class StorageManager;
 class WorkOrdersContainer;
 
@@ -149,9 +151,7 @@ class DeleteWorkOrder : public WorkOrder {
 
   ~DeleteWorkOrder() override {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   const CatalogRelationSchema &input_relation_;

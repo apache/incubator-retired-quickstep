@@ -21,13 +21,17 @@
 #include <memory>
 #include <string>
 
-#include "catalog/CatalogRelation.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "utility/Macros.hpp"
+
+namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
 class CatalogRelation;
+class CatalogDatabase;
+class QueryContext;
+class StorageManager;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -49,7 +53,7 @@ class CreateIndexOperator : public RelationalOperator {
    * @param index_name The index to create.
    **/
   CreateIndexOperator(CatalogRelation *relation,
-                      const std::string index_name)
+                      const std::string &index_name)
       : relation_(relation),
         index_name_(index_name),
         work_generated_(false) {}
@@ -68,7 +72,7 @@ class CreateIndexOperator : public RelationalOperator {
 
  private:
   CatalogRelation *relation_;
-  std::string index_name_;
+  const std::string &index_name_;
   bool work_generated_;
 
   DISALLOW_COPY_AND_ASSIGN(CreateIndexOperator);

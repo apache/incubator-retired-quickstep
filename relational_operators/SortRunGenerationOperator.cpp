@@ -78,9 +78,7 @@ bool SortRunGenerationOperator::getAllWorkOrders(
   }
 }
 
-void SortRunGenerationWorkOrder::execute(QueryContext *query_context,
-                                         CatalogDatabase *database,
-                                         StorageManager *storage_manager) {
+void SortRunGenerationWorkOrder::execute() {
   BlockReference block(
       storage_manager_->getBlock(input_block_id_, input_relation_));
 

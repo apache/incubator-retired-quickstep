@@ -115,9 +115,7 @@ class SaveBlocksWorkOrder : public WorkOrder {
    * @exception FileWriteError An IO error occurred while writing the block's
    *            on-disk storage file.
    **/
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   const block_id save_block_id_;

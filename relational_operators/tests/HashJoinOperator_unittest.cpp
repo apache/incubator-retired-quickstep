@@ -238,7 +238,7 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
 
     while (container.hasNormalWorkOrder(op_index)) {
       WorkOrder *work_order = container.getNormalWorkOrder(op_index);
-      work_order->execute(query_context_.get(), db_.get(), storage_manager_.get());
+      work_order->execute();
       delete work_order;
     }
   }

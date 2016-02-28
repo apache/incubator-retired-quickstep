@@ -172,9 +172,7 @@ class SortRunGenerationWorkOrder : public WorkOrder {
 
   ~SortRunGenerationWorkOrder() {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   const CatalogRelationSchema &input_relation_;

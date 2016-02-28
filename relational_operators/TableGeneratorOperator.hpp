@@ -126,9 +126,7 @@ class TableGeneratorWorkOrder : public WorkOrder {
 
   ~TableGeneratorWorkOrder() override {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   const GeneratorFunctionHandle &function_handle_;

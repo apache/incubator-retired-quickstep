@@ -242,9 +242,7 @@ class TextScanWorkOrder : public WorkOrder {
    * @exception TupleTooLargeForBlock A tuple in the text file was too large
    *            to fit in a StorageBlock.
    **/
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   // Parse up to three octal digits (0-7) starting at '*start_pos' in
@@ -344,9 +342,7 @@ class TextSplitWorkOrder : public WorkOrder {
    * @exception TextScanReadError The text file could not be opened for
    *            reading.
    */
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   // Allocate a new blob.

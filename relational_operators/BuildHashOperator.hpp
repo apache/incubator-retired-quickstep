@@ -28,6 +28,8 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 #include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
@@ -35,6 +37,7 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class CatalogDatabase;
+class CatalogRelationSchema;
 class StorageManager;
 class WorkOrdersContainer;
 
@@ -152,9 +155,7 @@ class BuildHashWorkOrder : public WorkOrder {
 
   ~BuildHashWorkOrder() override {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   const CatalogRelationSchema &input_relation_;

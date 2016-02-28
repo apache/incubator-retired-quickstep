@@ -52,9 +52,7 @@ void SaveBlocksOperator::feedInputBlock(const block_id input_block_id, const rel
   destination_block_ids_.push_back(input_block_id);
 }
 
-void SaveBlocksWorkOrder::execute(QueryContext *query_context,
-                                  CatalogDatabase *catalog_database,
-                                  StorageManager *storage_manager) {
+void SaveBlocksWorkOrder::execute() {
   // It may happen that the block gets saved to disk as a result of an eviction,
   // before this invocation. In either case, we don't care about the return
   // value of saveBlockOrBlob.

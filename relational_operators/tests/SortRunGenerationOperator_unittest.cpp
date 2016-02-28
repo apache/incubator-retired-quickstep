@@ -286,7 +286,7 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
                          &bus_);
     while (container.hasNormalWorkOrder(kOpIndex)) {
       std::unique_ptr<WorkOrder> order(container.getNormalWorkOrder(kOpIndex));
-      order->execute(query_context_.get(), db_.get(), storage_manager_.get());
+      order->execute();
     }
   }
 

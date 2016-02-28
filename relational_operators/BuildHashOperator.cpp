@@ -20,7 +20,6 @@
 #include <memory>
 #include <vector>
 
-#include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
@@ -99,9 +98,7 @@ bool BuildHashOperator::getAllWorkOrders(
   }
 }
 
-void BuildHashWorkOrder::execute(QueryContext *query_context,
-                                 CatalogDatabase *database,
-                                 StorageManager *storage_manager) {
+void BuildHashWorkOrder::execute() {
   BlockReference block(
       storage_manager_->getBlock(build_block_id_, input_relation_));
 

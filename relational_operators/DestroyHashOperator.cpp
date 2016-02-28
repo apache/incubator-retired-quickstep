@@ -20,8 +20,6 @@
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 
-#include "glog/logging.h"
-
 #include "tmb/id_typedefs.h"
 
 namespace quickstep {
@@ -41,9 +39,7 @@ bool DestroyHashOperator::getAllWorkOrders(
   return work_generated_;
 }
 
-void DestroyHashWorkOrder::execute(QueryContext *query_context,
-                                   CatalogDatabase *catalog_database,
-                                   StorageManager *storage_manager) {
+void DestroyHashWorkOrder::execute() {
   query_context_->destroyJoinHashTable(hash_table_index_);
 }
 

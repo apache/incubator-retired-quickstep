@@ -241,15 +241,11 @@ class HashJoinWorkOrder : public WorkOrder {
    *            destination) when this exception is thrown, causing potential
    *            inconsistency.
    **/
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   template <typename CollectorT>
-  void executeWithCollectorType(QueryContext *query_context,
-                                CatalogDatabase *catalog_database,
-                                StorageManager *storage_manager);
+  void executeWithCollectorType();
 
   const CatalogRelationSchema &build_relation_, &probe_relation_;
   const std::vector<attribute_id> join_key_attributes_;

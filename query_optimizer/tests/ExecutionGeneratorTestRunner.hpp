@@ -65,11 +65,7 @@ class ExecutionGeneratorTestRunner : public TextBasedTestRunner {
     foreman_.reset(new Foreman(&bus_,
                                test_database_loader_.catalog_database(),
                                test_database_loader_.storage_manager()));
-    worker_.reset(new Worker(0,
-                             query_context_,
-                             &bus_,
-                             test_database_loader_.catalog_database(),
-                             test_database_loader_.storage_manager()));
+    worker_.reset(new Worker(0, &bus_));
 
     std::vector<client_id> worker_client_ids;
     worker_client_ids.push_back(worker_->getBusClientID());

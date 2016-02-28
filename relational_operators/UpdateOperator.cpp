@@ -70,9 +70,7 @@ bool UpdateOperator::getAllWorkOrders(
   return started_;
 }
 
-void UpdateWorkOrder::execute(QueryContext *query_context,
-                              CatalogDatabase *database,
-                              StorageManager *storage_manager) {
+void UpdateWorkOrder::execute() {
   MutableBlockReference block(
       storage_manager_->getBlockMutable(input_block_id_, relation_));
 

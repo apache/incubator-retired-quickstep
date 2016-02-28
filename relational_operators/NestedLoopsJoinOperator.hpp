@@ -264,9 +264,7 @@ class NestedLoopsJoinWorkOrder : public WorkOrder {
    *            some tuples inserted into the destination) when this exception
    *            is thrown, causing potential inconsistency.
    **/
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   template <bool LEFT_PACKED, bool RIGHT_PACKED>

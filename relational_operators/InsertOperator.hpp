@@ -93,7 +93,7 @@ class InsertWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @note InsertWorkOrder takes ownership of tuple.
+   * @note InsertWorkOrder takes ownership of \c tuple.
    *
    * @param output_destination The InsertDestination to insert the tuple.
    * @param tuple The tuple to insert.
@@ -112,9 +112,7 @@ class InsertWorkOrder : public WorkOrder {
    * @exception TupleTooLargeForBlock The tuple was too large to insert into an
    *            empty block provided by output_destination_index_ in query_context.
    **/
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   InsertDestination *output_destination_;

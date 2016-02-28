@@ -243,9 +243,7 @@ void SortMergeRunOperator::receiveFeedbackMessage(
                              run_output.getBlocksMutable());
 }
 
-void SortMergeRunWorkOrder::execute(QueryContext *query_context,
-                                    CatalogDatabase *catalog_database,
-                                    StorageManager *storage_manager) {
+void SortMergeRunWorkOrder::execute() {
   // Merge input runs.
   merge_run_operator::RunMerger run_merger(sort_config_,
                                            std::move(input_runs_),

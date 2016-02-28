@@ -247,25 +247,16 @@ bool HashJoinOperator::getAllWorkOrders(
   return false;
 }
 
-void HashJoinWorkOrder::execute(QueryContext *query_context,
-                                CatalogDatabase *catalog_database,
-                                StorageManager *storage_manager) {
+void HashJoinWorkOrder::execute() {
   if (FLAGS_vector_based_joined_tuple_collector) {
-    executeWithCollectorType<VectorBasedJoinedTupleCollector>(query_context,
-                                                              catalog_database,
-                                                              storage_manager);
+    executeWithCollectorType<VectorBasedJoinedTupleCollector>();
   } else {
-    executeWithCollectorType<MapBasedJoinedTupleCollector>(query_context,
-                                                           catalog_database,
-                                                           storage_manager);
+    executeWithCollectorType<MapBasedJoinedTupleCollector>();
   }
 }
 
 template <typename CollectorT>
-void HashJoinWorkOrder::executeWithCollectorType(QueryContext *query_context,
-                                                 CatalogDatabase *catalog_database,
-                                                 StorageManager *storage_manager) {
-
+void HashJoinWorkOrder::executeWithCollectorType() {
   BlockReference probe_block(
       storage_manager_->getBlock(block_id_, probe_relation_));
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();

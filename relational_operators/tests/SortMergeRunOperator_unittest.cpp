@@ -1436,7 +1436,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
                                          &bus_);
       while (container.hasNormalWorkOrder(kOpIndex)) {
         std::unique_ptr<WorkOrder> order(container.getNormalWorkOrder(kOpIndex));
-        order->execute(query_context_.get(), db_.get(), storage_manager_.get());
+        order->execute();
         checkAndDispatchFeedbackMessages(1);
       }
     } while (!done);
@@ -1460,7 +1460,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
       executed = false;
       if (container.hasNormalWorkOrder(kOpIndex)) {
         std::unique_ptr<WorkOrder> order(container.getNormalWorkOrder(kOpIndex));
-        order->execute(query_context_.get(), db_.get(), storage_manager_.get());
+        order->execute();
         checkAndDispatchFeedbackMessages(1);
         executed = true;
       }

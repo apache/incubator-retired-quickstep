@@ -15,11 +15,9 @@
  *   limitations under the License.
  **/
 
-#include <memory>
-#include <string>
+#include "relational_operators/CreateIndexOperator.hpp"
 
 #include "catalog/CatalogRelation.hpp"
-#include "relational_operators/CreateIndexOperator.hpp"
 
 namespace quickstep {
 

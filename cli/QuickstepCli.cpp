@@ -251,12 +251,8 @@ int main(int argc, char* argv[]) {
     }
     worker_numa_nodes.push_back(numa_node_id);
 
-    workers.push_back(new Worker(worker_idx,
-                                 query_context,
-                                 &bus,
-                                 query_processor->getDefaultDatabase(),
-                                 query_processor->getStorageManager(),
-                                 worker_cpu_affinities[worker_idx]));
+    workers.push_back(
+        new Worker(worker_idx, &bus, worker_cpu_affinities[worker_idx]));
     worker_client_ids.push_back(workers.back().getBusClientID());
   }
 

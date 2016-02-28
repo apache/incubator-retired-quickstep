@@ -54,9 +54,7 @@ bool TableGeneratorOperator::getAllWorkOrders(
   return started_;
 }
 
-void TableGeneratorWorkOrder::execute(QueryContext *query_context,
-                                      CatalogDatabase *database,
-                                      StorageManager *storage_manager) {
+void TableGeneratorWorkOrder::execute() {
   ColumnVectorsValueAccessor temp_result;
   function_handle_.populateColumns(&temp_result);
 
