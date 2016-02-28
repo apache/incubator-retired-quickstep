@@ -17,10 +17,21 @@
 
 #include "parser/ParseCommand.hpp"
 
-#include <string>
 #include <cstdio>
+#include <map>
+#include <string>
+
+#include "parser/ParseString.hpp"
+#include "utility/StringUtil.hpp"
+
+#include "glog/logging.h"
+
+using std::string;
+using std::map;
 
 namespace quickstep {
+
+std::map<const std::string, std::string> ParseHelpCommand::help_messages_;
 
 void ParseHelpCommand::execute() {
   // If the user did not enter any query text, display a generic message.
@@ -28,7 +39,49 @@ void ParseHelpCommand::execute() {
     printf("Enter '.help {Sql Keyword} for usage information.'\n");
     return;
   }
-  printf("Entered Query: %s\n", query_->value().c_str());
+
+  // Look up the query in the map. If an exact match is not found, suggest
+  // the closest keyword.
+  const string lower_query = ToLower(query_->value());
+  const map<const string, string> &message_map = getHelpMessageMap();
+
+  // Try to find an exact match.
+  auto exact_itr = message_map.find(lower_query);
+
+  if (exact_itr != message_map.end()) {
+    printf("%s\n", exact_itr->second.c_str());
+    return;
+  }
+  // If an exact match cannot be found, try to find a close match and suggest
+  // this keyword.
+  printf("Keyword %s not found\n", query_->value().c_str());
+  for (auto itr = message_map.begin();
+       itr != message_map.end();
+       ++itr) {
+    // Check if the query begins with the map key, or visa-versa.
+    string key_string = itr->first;
+    if (key_string.length() > lower_query.length()) {
+      if (key_string.compare(0, lower_query.length(), lower_query) == 0) {
+        printf("did you mean %s?\n", key_string.c_str());
+        return;
+      }
+    } else {
+      if (lower_query.compare(0, key_string.length(), key_string) == 0) {
+        printf("did you mean %s?\n", key_string.c_str());
+        return;
+      }
+    }
+  }
+}
+
+const map<const string, string>& ParseHelpCommand::getHelpMessageMap() {
+  if (help_messages_.empty()) {
+    // Construct the map.
+    help_messages_["create"] = "CREATE TABLE";
+    help_messages_["type"] = "INT | FLOAT | VARCHAR | CHAR";
+    help_messages_["blockproperties"] = "[BLOCKPROPERTIES]";
+  }
+  return help_messages_;
 }
 
 }  // namespace quickstep

@@ -18,9 +18,10 @@
 #ifndef QUICKSTEP_PARSER_PARSE_COMMAND_HPP_
 #define QUICKSTEP_PARSER_PARSE_COMMAND_HPP_
 
-#include <cstdint>
+#include <map>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "parser/ParseStatement.hpp"
 #include "parser/ParseString.hpp"
@@ -83,6 +84,10 @@ class ParseCommand : public ParseStatement {
  * 
  */
 class ParseHelpCommand : public ParseCommand {
+  // A lazily-constructed map of help messages.
+  // Maps SQL-keyword string (ex. "create"), to a description string.
+  static std::map<const std::string, std::string> help_messages_;
+
  public:
   /**
    * @brief Constructor.
@@ -122,6 +127,7 @@ class ParseHelpCommand : public ParseCommand {
    * @brief Prints a help message to standard out.
    */
   void execute() override;
+
  protected:
   void getFieldStringItems(
        std::vector<std::string> *inline_field_names,
@@ -130,11 +136,13 @@ class ParseHelpCommand : public ParseCommand {
        std::vector<const ParseTreeNode*> *non_container_child_fields,
        std::vector<std::string> *container_child_field_names,
        std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override {
-      inline_field_names->push_back("query");
-      inline_field_values->push_back(query_->value());
-    }
+    inline_field_names->push_back("query");
+    inline_field_values->push_back(query_->value());
+  }
 
  private:
+  const std::map<const std::string, std::string>& getHelpMessageMap();
+
   std::unique_ptr<ParseString> query_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseHelpCommand);

@@ -140,6 +140,7 @@ target_link_libraries(quickstep_parser_ParseBlockProperties
                       quickstep_utility_PtrList
                       quickstep_utility_StringUtil)
 target_link_libraries(quickstep_parser_ParseCommand
+                      glog
                       quickstep_parser_ParseStatement
                       quickstep_parser_ParseString
                       quickstep_parser_ParseTreeNode
