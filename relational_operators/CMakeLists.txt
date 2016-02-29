@@ -150,7 +150,6 @@ target_link_libraries(quickstep_relationaloperators_FinalizeAggregationOperator
 target_link_libraries(quickstep_relationaloperators_HashJoinOperator
                       gflags_nothreads-static
                       glog
-                      quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
@@ -173,6 +172,7 @@ target_link_libraries(quickstep_relationaloperators_HashJoinOperator
                       tmb)
 target_link_libraries(quickstep_relationaloperators_InsertOperator
                       glog
+                      quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_WorkOrdersContainer
@@ -184,8 +184,8 @@ target_link_libraries(quickstep_relationaloperators_InsertOperator
                       tmb)
 target_link_libraries(quickstep_relationaloperators_NestedLoopsJoinOperator
                       glog
-                      quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_predicate_Predicate
                       quickstep_expressions_scalar_Scalar
@@ -233,9 +233,7 @@ target_link_libraries(quickstep_relationaloperators_SaveBlocksOperator
                       tmb)
 target_link_libraries(quickstep_relationaloperators_SelectOperator
                       glog
-                      quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
-                      quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_WorkOrdersContainer
@@ -249,7 +247,6 @@ target_link_libraries(quickstep_relationaloperators_SelectOperator
                       tmb)
 target_link_libraries(quickstep_relationaloperators_SortMergeRunOperator
                       glog
-                      quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_QueryContext
@@ -288,7 +285,6 @@ target_link_libraries(quickstep_relationaloperators_SortMergeRunOperatorHelpers
                       quickstep_utility_SortConfiguration)
 target_link_libraries(quickstep_relationaloperators_SortRunGenerationOperator
                       glog
-                      quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_QueryContext
@@ -321,6 +317,7 @@ target_link_libraries(quickstep_relationaloperators_TextScanOperator
                       gflags_nothreads-static
                       glog
                       quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_QueryContext
@@ -345,8 +342,8 @@ target_link_libraries(quickstep_relationaloperators_TextScanOperator
                       tmb)
 target_link_libraries(quickstep_relationaloperators_UpdateOperator
                       glog
-                      quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryExecutionMessages_proto
@@ -587,6 +584,7 @@ target_link_libraries(SortRunGenerationOperator_unittest
                       quickstep_types_TypedValue
                       quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_types_containers_Tuple
+                      quickstep_utility_SortConfiguration
                       quickstep_utility_SortConfiguration_proto
                       tmb
                       ${LIBS})

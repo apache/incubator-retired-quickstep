@@ -22,7 +22,6 @@
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "storage/InsertDestination.hpp"
-#include "types/containers/Tuple.hpp"
 
 #include "glog/logging.h"
 

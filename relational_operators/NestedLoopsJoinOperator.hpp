@@ -39,6 +39,7 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class CatalogDatabase;
+class CatalogRelationSchema;
 class InsertDestination;
 class Predicate;
 class Scalar;

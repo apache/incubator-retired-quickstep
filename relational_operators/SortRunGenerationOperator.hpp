@@ -27,6 +27,7 @@
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
+#include "utility/SortConfiguration.hpp"
 
 #include "glog/logging.h"
 
@@ -37,6 +38,8 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class CatalogDatabase;
+class CatalogRelationSchema;
+class InsertDestination;
 class StorageManager;
 class WorkOrdersContainer;
 

@@ -18,11 +18,17 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_INSERT_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_INSERT_OPERATOR_HPP_
 
+#include <memory>
+
+#include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
+#include "types/containers/Tuple.hpp"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
 
 #include "tmb/id_typedefs.h"
 
@@ -31,6 +37,7 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class CatalogDatabase;
+class InsertDestination;
 class StorageManager;
 class WorkOrdersContainer;
 

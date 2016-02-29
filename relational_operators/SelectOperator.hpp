@@ -18,7 +18,6 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_SELECT_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_SELECT_OPERATOR_HPP_
 
-#include <cstddef>
 #include <memory>
 #include <vector>
 
@@ -30,6 +29,8 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 #include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
@@ -38,6 +39,9 @@ namespace quickstep {
 
 class CatalogDatabase;
 class CatalogRelationSchema;
+class InsertDestination;
+class Predicate;
+class Scalar;
 class StorageManager;
 class WorkOrdersContainer;
 

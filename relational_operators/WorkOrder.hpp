@@ -38,10 +38,6 @@
 
 namespace quickstep {
 
-class CatalogDatabase;
-class QueryContext;
-class StorageManager;
-
 /** \addtogroup RelationalOperators
  *  @{
  */

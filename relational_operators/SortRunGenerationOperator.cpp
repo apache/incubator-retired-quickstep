@@ -19,7 +19,6 @@
 
 #include <vector>
 
-#include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
@@ -42,6 +41,8 @@ bool SortRunGenerationOperator::getAllWorkOrders(
     StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
     tmb::MessageBus *bus) {
+  DCHECK(query_context != nullptr);
+
   const SortConfiguration &sort_config = query_context->getSortConfig(sort_config_index_);
   InsertDestination *output_destination =
       query_context->getInsertDestination(output_destination_index_);

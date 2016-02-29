@@ -19,6 +19,8 @@
 
 #include "catalog/CatalogRelation.hpp"
 
+#include "tmb/id_typedefs.h"
+
 namespace quickstep {
 
 bool CreateIndexOperator::getAllWorkOrders(WorkOrdersContainer *container,

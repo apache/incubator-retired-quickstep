@@ -60,6 +60,7 @@
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
 #include "types/containers/Tuple.hpp"
+#include "utility/SortConfiguration.hpp"
 #include "utility/SortConfiguration.pb.h"
 
 #include "glog/logging.h"

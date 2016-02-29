@@ -32,6 +32,7 @@
 #include "threading/ThreadIDBasedMap.hpp"
 #include "utility/Macros.hpp"
 
+#include "tmb/message_bus.h"
 #include "tmb/tagged_message.h"
 
 #include "glog/logging.h"

@@ -20,12 +20,14 @@
 
 #include <cstddef>
 #include <vector>
+#include <memory>
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
+#include "storage/HashTable.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
@@ -39,6 +41,9 @@ namespace quickstep {
 
 class CatalogDatabase;
 class CatalogRelationSchema;
+class InsertDestination;
+class Predicate;
+class Scalar;
 class StorageManager;
 class WorkOrdersContainer;
 

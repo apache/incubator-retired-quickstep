@@ -39,7 +39,9 @@
 
 namespace quickstep {
 
+class CatalogDatabase;
 class QueryContext;
+class StorageManager;
 class WorkerDirectory;
 
 /** \addtogroup QueryExecution

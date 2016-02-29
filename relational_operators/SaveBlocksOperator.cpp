@@ -23,8 +23,6 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
 
-#include "glog/logging.h"
-
 #include "tmb/id_typedefs.h"
 
 namespace quickstep {

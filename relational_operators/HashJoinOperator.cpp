@@ -18,13 +18,11 @@
 #include "relational_operators/HashJoinOperator.hpp"
 
 #include <algorithm>
-#include <cstddef>
 #include <memory>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
-#include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"

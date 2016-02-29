@@ -20,8 +20,6 @@
 #include <memory>
 #include <vector>
 
-#include "catalog/CatalogDatabase.hpp"
-#include "catalog/CatalogRelationSchema.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "storage/InsertDestination.hpp"

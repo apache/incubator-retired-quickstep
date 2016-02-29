@@ -22,7 +22,7 @@
 #include <ostream>
 #include <utility>
 
-#include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogRelationSchema.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionUtil.hpp"

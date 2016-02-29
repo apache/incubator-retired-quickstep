@@ -26,6 +26,8 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 #include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
@@ -103,7 +105,9 @@ class SaveBlocksWorkOrder : public WorkOrder {
                       StorageManager *storage_manager)
       : save_block_id_(save_block_id),
         force_(force),
-        storage_manager_(storage_manager) {}
+        storage_manager_(storage_manager) {
+    DCHECK(storage_manager_ != nullptr);
+  }
 
   ~SaveBlocksWorkOrder() override {}
 

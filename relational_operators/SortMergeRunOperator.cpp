@@ -22,13 +22,11 @@
 #include <utility>
 #include <vector>
 
-#include "catalog/CatalogDatabase.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/SortMergeRunOperator.pb.h"
 #include "relational_operators/SortMergeRunOperatorHelpers.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
-#include "utility/SortConfiguration.hpp"
 
 #include "glog/logging.h"
 

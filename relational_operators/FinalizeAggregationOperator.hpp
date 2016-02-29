@@ -25,7 +25,10 @@
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
+#include "storage/AggregationOperationState.hpp"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
 
 #include "tmb/id_typedefs.h"
 
@@ -33,7 +36,6 @@ namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
-class AggregationOperationState;
 class CatalogDatabase;
 class InsertDestination;
 class StorageManager;

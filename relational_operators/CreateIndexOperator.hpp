@@ -18,11 +18,12 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_CREATE_INDEX_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_CREATE_INDEX_OPERATOR_HPP_
 
-#include <memory>
 #include <string>
 
 #include "relational_operators/RelationalOperator.hpp"
 #include "utility/Macros.hpp"
+
+#include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
 

@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-#include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogRelationSchema.hpp"
 #include "expressions/predicate/Predicate.hpp"
 #include "expressions/scalar/Scalar.hpp"
 #include "query_execution/QueryContext.hpp"
