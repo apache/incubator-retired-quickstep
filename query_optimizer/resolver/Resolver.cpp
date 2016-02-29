@@ -601,6 +601,14 @@ L::LogicalPtr Resolver::resolveCreateIndex(
       *create_index_statement.relation_name(), nullptr /* reference_alias */);
 
   const std::string index_name = create_index_statement.index_name()->value();
+  std::shared_ptr<const StorageBlockLayoutDescription> index_description;
+  
+  if (create_index_statement.getIndexProperties()->hasValidIndexDescription()) {
+    index_description.reset(create_index_statement.getIndexProperties()->getIndexDescription());
+  } else {
+      THROW_SQL_ERROR_AT(create_index_statement.getIndexProperties()->getInvalidPropertyNode()) << create_index_statement.getIndexProperties()->getReasonForInvalidIndex();
+  }
+  
   return L::CreateIndex::Create(input, index_name);
 }
 

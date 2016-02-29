@@ -26,12 +26,14 @@
 #include "parser/ParseAttributeDefinition.hpp"
 #include "parser/ParseBasicExpressions.hpp"
 #include "parser/ParseBlockProperties.hpp"
+#include "parser/ParseIndexProperties.hpp"
 #include "parser/ParseKeyValue.hpp"
 #include "parser/ParsePredicate.hpp"
 #include "parser/ParseSelect.hpp"
 #include "parser/ParseString.hpp"
 #include "parser/ParseSubqueryTableReference.hpp"
 #include "parser/ParseTreeNode.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrList.hpp"
 #include "utility/PtrVector.hpp"
@@ -195,8 +197,35 @@ class ParseStatementCreateIndex : public ParseStatement {
      *                            If specified as null, then index is created
      *                            on all the attributes.
      * @param index_type The type of index to create.
-     * @param index_property_list A list of properties for the index that modify
-     *                            the default properties of the index.
+     **/
+    ParseStatementCreateIndex(const int line_number,
+                              const int column_number,
+                              ParseString *index_name,
+                              ParseString *relation_name,
+                              PtrList<ParseString> *attribute_name_list,
+                              ParseString *index_type)
+      : ParseStatement(line_number, column_number),
+        index_name_(index_name),
+        relation_name_(relation_name),
+        attribute_name_list_(attribute_name_list),
+        index_type_(index_type) {
+          initializeIndexType();
+    }
+
+    /**
+     * @brief Constructor.
+     *
+     * @param index_name The name of the index to create.
+     * @param relation_name The name of the relation to create index upon.
+     * @param attribute_name_list A list of attributes of the relation
+     *                            on which the index has to be created.
+     *                            If specified as null, then index is created
+     *                            on all the attributes.
+     * @param index_type The type of index to create.
+     * @param index_properties_line_number
+     * @param index_properties_column_number
+     * @param index_properties
+     * TODO(ssaurabh) Fix comments
      **/
     ParseStatementCreateIndex(const int line_number,
                               const int column_number,
@@ -204,14 +233,19 @@ class ParseStatementCreateIndex : public ParseStatement {
                               ParseString *relation_name,
                               PtrList<ParseString> *attribute_name_list,
                               ParseString *index_type,
-                              PtrList<ParseKeyValue> *index_property_list)
-      : ParseStatement(line_number, column_number),
-        index_name_(index_name),
-        relation_name_(relation_name),
-        attribute_name_list_(attribute_name_list),
-        index_type_(index_type),
-        index_property_list_(index_property_list) {
+                              const int index_properties_line_number,
+                              const int index_properties_column_number,
+                              PtrList<ParseKeyValue> *index_properties)
+    : ParseStatement(line_number, column_number),
+      index_name_(index_name),
+      relation_name_(relation_name),
+      attribute_name_list_(attribute_name_list),
+      index_type_(index_type) {
+        initializeIndexType();
+        opt_custom_properties_node_.reset(new ParseIndexProperties(index_properties_line_number,index_properties_column_number,index_properties_.get(), index_properties));
     }
+
+  
 
     ~ParseStatementCreateIndex() override {
     }
@@ -257,7 +291,28 @@ class ParseStatementCreateIndex : public ParseStatement {
     const ParseString* index_type() const {
       return index_type_.get();
     }
-
+  
+    /**
+     * @brief Get the index properties associated with this index type.
+     *
+     * @return The index properties for this type.
+     **/
+    const IndexProperties* getIndexProperties() const {
+      return index_properties_.get();
+    }
+  
+    const ParseIndexProperties* getCustomPropertiesNode() const {
+      return opt_custom_properties_node_.get();
+    }
+  
+    const bool doesDefineCustomProperties() const {
+      if (opt_custom_properties_node_) {
+        return true;
+      } else {
+        return false;
+      }
+    }
+  
 
  protected:
     void getFieldStringItems(
@@ -284,12 +339,10 @@ class ParseStatementCreateIndex : public ParseStatement {
         }
       }
 
-      if (index_property_list_.get() != nullptr) {
+      if (opt_custom_properties_node_.get() != nullptr) {
         container_child_field_names->push_back("index_property_list");
         container_child_fields->emplace_back();
-        for (const ParseKeyValue& index_property : *index_property_list_) {
-          container_child_fields->back().push_back(&index_property);
-        }
+        container_child_fields->back().push_back(opt_custom_properties_node_.get());
       }
     }
 
@@ -298,7 +351,23 @@ class ParseStatementCreateIndex : public ParseStatement {
     std::unique_ptr<ParseString> relation_name_;
     std::unique_ptr<PtrList<ParseString> > attribute_name_list_;
     std::unique_ptr<ParseString> index_type_;
-    std::unique_ptr<PtrList<ParseKeyValue> > index_property_list_;
+    std::unique_ptr<IndexProperties> index_properties_;
+    std::unique_ptr<ParseIndexProperties> opt_custom_properties_node_;
+  
+  
+    void initializeIndexType() {
+      int index_type_enum_val =std::stoi(index_type_->value());
+      switch (index_type_enum_val) {
+        case IndexSubBlockType::kBloomFilter:
+          index_properties_.reset(new BloomFilterIndexProperties());
+          break;
+        case IndexSubBlockType::kCSBTree:
+          index_properties_.reset(new CSBTreeIndexProperties());
+        default:
+          index_properties_.reset(new DefaultIndexProperties());
+          break;
+      }
+    }
 
     DISALLOW_COPY_AND_ASSIGN(ParseStatementCreateIndex);
 };

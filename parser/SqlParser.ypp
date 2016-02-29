@@ -616,7 +616,11 @@ create_table_statement:
 
 create_index_statement:
   TOKEN_CREATE TOKEN_INDEX any_name TOKEN_ON any_name opt_column_list TOKEN_USING index_type opt_index_properties {
-    $$ = new quickstep::ParseStatementCreateIndex(@1.first_line, @1.first_column, $3, $5, $6, $8, $9);
+    if ($9) {
+      $$ = new quickstep::ParseStatementCreateIndex(@1.first_line, @1.first_column, $3, $5, $6, $8, @9.first_line, @9.first_column, $9);
+    } else {      
+      $$ = new quickstep::ParseStatementCreateIndex(@1.first_line, @1.first_column, $3, $5, $6, $8);
+    }
   };
 
 drop_table_statement:
@@ -881,7 +885,7 @@ key_string_value:
   }
   | any_name TOKEN_ALL {
     // This is a special case to handle the COMPRESS ALL option of the BLOCK PROPERTIES.
-    $$ = new quickstep::ParseKeyStringValue(@1.first_line, @1.first_column, $1, 
+    $$ = new quickstep::ParseKeyStringValue(@1.first_line, @1.first_column, $1,
         new quickstep::ParseString(@2.first_line, @2.first_column, "ALL"));
   }
 

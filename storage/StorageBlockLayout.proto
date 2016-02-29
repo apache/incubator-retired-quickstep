@@ -62,6 +62,7 @@ message IndexSubBlockDescription {
   enum IndexSubBlockType {
     CSB_TREE = 0;
     SMA = 1;
+    BLOOM_FILTER = 2;
   }
 
   required IndexSubBlockType sub_block_type = 1;
@@ -72,6 +73,21 @@ message IndexSubBlockDescription {
   // TupleStorageSubBlock type should begin from (sub_block_type + 1) * 32.
   extensions 32 to max;
 }
+
+message BloomFilterIndexSubBlockDescription {
+  extend IndexSubBlockDescription {
+    // The default values are added for a 2 MB block size, which were
+    // determined from empirical experiments. These values control the
+    // amount of false positivity that is expected from Bloom Filter.
+    // - Default bloom filter size per attribute = 10 KB.
+    // - Default number of hash functions used in bloom filter = 20.
+    // - Default number of elements expected to be stored = 1 million.
+    optional fixed64 bloom_filter_size = 96 [default = 10000];
+    optional int32 number_of_hashes = 97 [default = 20];
+    optional fixed64 projected_element_count = 98 [default = 1000000];
+  }
+}
+
 
 // A complete logical description of a layout.
 message StorageBlockLayoutDescription {
