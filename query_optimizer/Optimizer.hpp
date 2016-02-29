@@ -23,8 +23,6 @@
 #include "query_optimizer/OptimizerContext.hpp"
 #include "utility/Macros.hpp"
 
-#include "tmb/id_typedefs.h"
-
 namespace quickstep {
 
 class CatalogDatabase;
@@ -47,17 +45,15 @@ class Optimizer {
   /**
    * @brief Constructor.
    *
-   * @param foreman_client_id The TMB client ID of the Foreman thread.
    * @param query_id The query id. Used to identify a query and create distinct
    *        names for temporary relations.
    * @param database The database that the query is executed on.
    * @param storage_manager The storage manager for the database.
    */
-  Optimizer(const tmb::client_id foreman_client_id,
-            const std::size_t query_id,
+  Optimizer(const std::size_t query_id,
             CatalogDatabase *database,
             StorageManager *storage_manager)
-      : optimizer_context_(foreman_client_id, query_id, database, storage_manager) {}
+      : optimizer_context_(query_id, database, storage_manager) {}
 
   /**
    * @brief Destructor.

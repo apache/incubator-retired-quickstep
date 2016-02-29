@@ -26,8 +26,6 @@
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "utility/Macros.hpp"
 
-#include "tmb/id_typedefs.h"
-
 namespace quickstep {
 
 class CatalogDatabase;
@@ -51,18 +49,15 @@ class OptimizerContext {
   /**
    * @brief Constructor.
    *
-   * @param foreman_client_id The TMB client ID of the Foreman thread.
    * @param query_id The query ID.
    * @param catalog_database The catalog database where this query is executed.
    * @param storage_manager The storage manager to use for allocating storage
    *        blocks.
    */
-  OptimizerContext(const tmb::client_id foreman_client_id,
-                   const std::size_t query_id,
+  OptimizerContext(const std::size_t query_id,
                    CatalogDatabase *catalog_database,
                    StorageManager *storage_manager)
-      : foreman_client_id_(foreman_client_id),
-        query_id_(query_id),
+      : query_id_(query_id),
         current_expr_id_(-1),
         catalog_database_(catalog_database),
         storage_manager_(storage_manager),
@@ -72,15 +67,6 @@ class OptimizerContext {
    * @brief Destructor.
    */
   ~OptimizerContext() {}
-
-  /**
-   * @brief Get the TMB client ID of Foreman thread.
-   *
-   * @return TMB client ID of foreman thread.
-   **/
-  tmb::client_id getForemanClientID() const {
-    return foreman_client_id_;
-  }
 
   /**
    * @return Const pointer to the catalog database
@@ -132,8 +118,6 @@ class OptimizerContext {
   bool is_catalog_changed() const { return is_catalog_changed_; }
 
  private:
-  const tmb::client_id foreman_client_id_;
-
   const std::size_t query_id_;
 
   expressions::ExprId current_expr_id_;

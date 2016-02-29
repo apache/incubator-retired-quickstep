@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -196,7 +196,7 @@ int main(int argc, char* argv[]) {
   // Setup QueryProcessor, including CatalogDatabase and StorageManager.
   std::unique_ptr<QueryProcessor> query_processor;
   try {
-    query_processor.reset(new QueryProcessor(catalog_path, fixed_storage_path, foreman.getBusClientID()));
+    query_processor.reset(new QueryProcessor(catalog_path, fixed_storage_path));
   } catch (const std::exception &e) {
     LOG(FATAL) << "FATAL ERROR DURING STARTUP: " << e.what();
   } catch (...) {
@@ -308,6 +308,7 @@ int main(int argc, char* argv[]) {
           query_context.reset(new QueryContext(query_handle->getQueryContextProto(),
                                                query_processor->getDefaultDatabase(),
                                                query_processor->getStorageManager(),
+                                               foreman.getBusClientID(),
                                                &bus));
           foreman.setQueryContext(query_context.get());
           foreman.start();

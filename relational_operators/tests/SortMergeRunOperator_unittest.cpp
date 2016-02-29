@@ -1241,7 +1241,6 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     insert_destination_proto->set_relation_id(result_table_id);
     insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
-    insert_destination_proto->set_foreman_client_id(foreman_client_id_);
 
     // Create run_table_, owned by db_.
     run_table_ = createTable(kRunTableName, kRunTableId);
@@ -1262,10 +1261,13 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     insert_destination_proto->set_relation_id(run_table_id);
     insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
-    insert_destination_proto->set_foreman_client_id(foreman_client_id_);
 
     // Set up the QueryContext.
-    query_context_.reset(new QueryContext(query_context_proto_, db_.get(), storage_manager_.get(), &bus_));
+    query_context_.reset(new QueryContext(query_context_proto_,
+                                          db_.get(),
+                                          storage_manager_.get(),
+                                          foreman_client_id_,
+                                          &bus_));
   }
 
   virtual void TearDown() {
@@ -1505,7 +1507,11 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     merge_op_->setOperatorIndex(kOpIndex);
 
     // Set up the QueryContext.
-    query_context_.reset(new QueryContext(query_context_proto_, db_.get(), storage_manager_.get(), &bus_));
+    query_context_.reset(new QueryContext(query_context_proto_,
+                                          db_.get(),
+                                          storage_manager_.get(),
+                                          foreman_client_id_,
+                                          &bus_));
 
     executeOperatorUntilDone();
   }
@@ -1544,7 +1550,11 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     merge_op_->setOperatorIndex(kOpIndex);
 
     // Set up the QueryContext.
-    query_context_.reset(new QueryContext(query_context_proto_, db_.get(), storage_manager_.get(), &bus_));
+    query_context_.reset(new QueryContext(query_context_proto_,
+                                          db_.get(),
+                                          storage_manager_.get(),
+                                          foreman_client_id_,
+                                          &bus_));
 
     std::vector<block_id> blocks = input_table_->getBlocksSnapshot();
     while (!blocks.empty()) {

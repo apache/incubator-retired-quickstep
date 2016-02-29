@@ -1,5 +1,5 @@
 //   Copyright 2011-2015 Quickstep Technologies LLC.
-//   Copyright 2015 Pivotal Software, Inc.
+//   Copyright 2015-2016 Pivotal Software, Inc.
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -36,5 +36,4 @@ message InsertDestination {
   optional StorageBlockLayoutDescription layout = 4;
 
   required uint64 relational_op_index = 5;
-  required uint32 foreman_client_id = 6;
 }

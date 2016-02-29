@@ -40,6 +40,8 @@
 
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
+
 using std::move;
 using std::unique_ptr;
 using std::vector;
@@ -49,6 +51,7 @@ namespace quickstep {
 QueryContext::QueryContext(const serialization::QueryContext &proto,
                            CatalogDatabase *database,
                            StorageManager *storage_manager,
+                           const tmb::client_id foreman_client_id,
                            tmb::MessageBus *bus) {
   DCHECK(ProtoIsValid(proto, *database))
       << "Attempted to create QueryContext from an invalid proto description:\n"
@@ -82,6 +85,7 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
                                                 database->getRelationByIdMutable(
                                                     insert_destination_proto.relation_id()),
                                                 storage_manager,
+                                                foreman_client_id,
                                                 bus));
   }
 

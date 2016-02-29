@@ -300,7 +300,6 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
     insert_destination_proto->set_relation_id(result_table_->getID());
     insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
-    insert_destination_proto->set_foreman_client_id(thread_client_id_);
 
     // Setup the SortConfiguration proto.
     DCHECK_EQ(attrs.size(), ordering.size());
@@ -328,7 +327,11 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
     run_gen->setOperatorIndex(kOpIndex);
 
     // Set up the QueryContext.
-    query_context_.reset(new QueryContext(query_context_proto, db_.get(), storage_manager_.get(), &bus_));
+    query_context_.reset(new QueryContext(query_context_proto,
+                                          db_.get(),
+                                          storage_manager_.get(),
+                                          thread_client_id_,
+                                          &bus_));
 
     executeOperator(run_gen.get());
   }

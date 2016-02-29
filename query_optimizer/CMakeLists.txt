@@ -1,5 +1,5 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -140,13 +140,11 @@ target_link_libraries(quickstep_queryoptimizer_Optimizer
                       quickstep_queryoptimizer_LogicalGenerator
                       quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_PhysicalGenerator
-                      quickstep_utility_Macros
-                      tmb)
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_OptimizerContext
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryoptimizer_expressions_ExprId
-                      quickstep_utility_Macros
-                      tmb)
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_OptimizerTree
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_Macros
@@ -180,8 +178,7 @@ target_link_libraries(quickstep_queryoptimizer_QueryProcessor
                       quickstep_queryoptimizer_Optimizer
                       quickstep_queryoptimizer_QueryHandle
                       quickstep_storage_StorageManager
-                      quickstep_utility_Macros
-                      tmb)
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_Validator
                       glog
                       quickstep_queryoptimizer_expressions_AttributeReference
