@@ -46,6 +46,8 @@ bool DropTableOperator::getAllWorkOrders(
     container->addNormalWorkOrder(
         new DropTableWorkOrder(std::move(relation_blocks)),
         op_index_);
+
+    database_->setStatus(CatalogDatabase::Status::kPendingBlockDeletions);
   }
 
   return work_generated_;
@@ -58,6 +60,8 @@ void DropTableOperator::updateCatalogOnCompletion() {
   } else {
     database_->dropRelationById(rel_id);
   }
+
+  database_->setStatus(CatalogDatabase::Status::kConsistent);
 }
 
 void DropTableWorkOrder::execute(QueryContext *query_context,
