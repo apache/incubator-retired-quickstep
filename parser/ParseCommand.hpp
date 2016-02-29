@@ -25,11 +25,7 @@
 
 #include "parser/ParseStatement.hpp"
 #include "parser/ParseString.hpp"
-#include "parser/ParseTreeNode.hpp"
 #include "utility/Macros.hpp"
-#include "utility/StringUtil.hpp"
-
-#include "glog/logging.h"
 
 namespace quickstep {
 
@@ -86,7 +82,7 @@ class ParseCommand : public ParseStatement {
 class ParseHelpCommand : public ParseCommand {
   // A lazily-constructed map of help messages.
   // Maps SQL-keyword string (ex. "create"), to a description string.
-  static std::map<const std::string, std::string> help_messages_;
+  static std::map<std::string, std::string> help_messages_;
 
  public:
   /**
@@ -141,7 +137,7 @@ class ParseHelpCommand : public ParseCommand {
   }
 
  private:
-  const std::map<const std::string, std::string>& getHelpMessageMap();
+  const std::map<std::string, std::string>& getHelpMessageMap();
 
   std::unique_ptr<ParseString> query_;
 

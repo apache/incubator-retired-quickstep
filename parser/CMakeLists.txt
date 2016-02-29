@@ -143,7 +143,6 @@ target_link_libraries(quickstep_parser_ParseCommand
                       glog
                       quickstep_parser_ParseStatement
                       quickstep_parser_ParseString
-                      quickstep_parser_ParseTreeNode
                       quickstep_utility_Macros
                       quickstep_utility_StringUtil)
 target_link_libraries(quickstep_parser_ParseExpression

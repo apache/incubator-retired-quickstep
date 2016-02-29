@@ -77,7 +77,7 @@ std::string LineReader::getNextCommand() {
         special_char_location = multiline_buffer.find_first_of("\"\\", scan_position);
         break;
       case kComment:
-      case kCommand:
+      case kCommand:  // Fall Through.
         // A newline which ends the command and comment and resumes normal SQL parsing.
         special_char_location = multiline_buffer.find_first_of('\n', scan_position);
         break;
