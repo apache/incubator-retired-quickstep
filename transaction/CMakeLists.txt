@@ -14,9 +14,6 @@ target_link_libraries(quickstep_transaction_DirectedGraph
 target_link_libraries(quickstep_transaction_StronglyConnectedComponents
                       quickstep_transaction_DirectedGraph
                       quickstep_utility_Macros)
-target_link_libraries(quickstep_transaction_Transaction
-                      Transaction.cpp
-                      Transaction.hpp)
 
 add_library(quickstep_transaction
             ../empty_src.cpp

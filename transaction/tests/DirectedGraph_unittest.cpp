@@ -34,20 +34,20 @@ TEST(DirectedGraphTest, AddNode) {
   TransactionId *tid5 = new TransactionId(5);
   TransactionId *tid6 = new TransactionId(6);
 
-  EXPECT_EQ(0, wait_for_graph.count());
+  EXPECT_EQ(0u, wait_for_graph.count());
 
   wait_for_graph.addNode(tid3);
 
-  EXPECT_EQ(1, wait_for_graph.count());
+  EXPECT_EQ(1u, wait_for_graph.count());
 
   wait_for_graph.addNode(tid4);
 
-  EXPECT_EQ(2, wait_for_graph.count());
+  EXPECT_EQ(2u, wait_for_graph.count());
 
   wait_for_graph.addNode(tid5);
   wait_for_graph.addNode(tid6);
 
-  EXPECT_EQ(4, wait_for_graph.count());
+  EXPECT_EQ(4u, wait_for_graph.count());
 }
 
 TEST(DirectedGraphTest, AddEdge) {
@@ -92,17 +92,17 @@ TEST(DirectedGraphTest, GetAdjacentNodes) {
   NID nid5 = wait_for_graph.addNode(tid5);
 
   std::vector<NID> result1 = wait_for_graph.getAdjacentNodes(nid3);
-  EXPECT_EQ(0, result1.size());
+  EXPECT_EQ(0u, result1.size());
 
   wait_for_graph.addEdge(nid3, nid4);
   wait_for_graph.addEdge(nid3, nid5);
 
   std::vector<NID> result2 = wait_for_graph.getAdjacentNodes(nid3);
-  EXPECT_EQ(2, result2.size());
+  EXPECT_EQ(2u, result2.size());
 
   wait_for_graph.addEdge(nid3, nid6);
   std::vector<NID> result3 = wait_for_graph.getAdjacentNodes(nid3);
-  EXPECT_EQ(3, result3.size());
+  EXPECT_EQ(3u, result3.size());
 }
 
 }  // namespace transaction

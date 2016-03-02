@@ -278,10 +278,10 @@ TEST_F(StronglyConnectedComponentsTest, GetComponentsMapping) {
   std::vector<NID> component_no_2 = mapping[2];
   std::vector<NID> component_no_3 = mapping[3];
 
-  EXPECT_EQ(6, component_no_0.size());
-  EXPECT_EQ(2, component_no_1.size());
-  EXPECT_EQ(3, component_no_2.size());
-  EXPECT_EQ(1, component_no_3.size());
+  EXPECT_EQ(6u, component_no_0.size());
+  EXPECT_EQ(2u, component_no_1.size());
+  EXPECT_EQ(3u, component_no_2.size());
+  EXPECT_EQ(1u, component_no_3.size());
 }
 
 }  // namespace transaction
