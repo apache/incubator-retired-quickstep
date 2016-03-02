@@ -120,12 +120,12 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 %%
 
 <INITIAL>{
-  \.|\\ {
+  [.\\] {
     /* A dot or forward slash character represents a system command. */
     BEGIN(CONDITION_COMMAND);
   }
 
-  . {
+  [^.\\] {
     /* Place the char back and process SQL normally. */
     yyless(0);
     yycolumn--;
@@ -134,13 +134,16 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 }
 
 <CONDITION_COMMAND>{
-  "help"|"help " {
+  [a-zA-Z]+ {
     BEGIN(CONDITION_COMMAND_STRING);
-    return TOKEN_HELP;
+    yylval->string_value_ = new quickstep::ParseString(
+        yylloc->first_line, yylloc->first_column, std::string(yytext, yyleng));
+    return TOKEN_COMMAND;
   }
 
-  . {
-    /* Anything else is an invalid escape command. */
+  ([^a-zA-Z].*[\n\r])|[\n\r] {
+    /* Anything else is an invalid escape command. Consume up through newline. */
+    yycolumn = 0;
     BEGIN(INITIAL);
     quickstep_yyerror(NULL, yyscanner, NULL, "Invalid command, try '.help'");
     return TOKEN_LEX_ERROR;

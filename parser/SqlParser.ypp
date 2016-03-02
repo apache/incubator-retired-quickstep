@@ -68,7 +68,6 @@ typedef struct YYLTYPE {
 #include "parser/ParseAttributeDefinition.hpp"
 #include "parser/ParseBasicExpressions.hpp"
 #include "parser/ParseBlockProperties.hpp"
-#include "parser/ParseCommand.hpp"
 #include "parser/ParseExpression.hpp"
 #include "parser/ParseGeneratorTableReference.hpp"
 #include "parser/ParseGroupBy.hpp"
@@ -192,6 +191,7 @@ typedef void* yyscan_t;
 void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string &feature);
 %}
 
+%token <string_value_> TOKEN_COMMAND;
 %token <string_value_> TOKEN_COMMAND_STRING;
 %token <string_value_> TOKEN_NAME;
 %token <string_value_> TOKEN_STRING_SINGLE_QUOTED;
@@ -249,7 +249,6 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_FULL;
 %token TOKEN_GROUP;
 %token TOKEN_HAVING;
-%token TOKEN_HELP;
 %token TOKEN_INDEX;
 %token TOKEN_INNER;
 %token TOKEN_INSERT;
@@ -524,8 +523,9 @@ start:
     YYABORT;
   }
   | TOKEN_EOF {
-    // Regular yyparse() return codes are non-negative, so use a negative one here.
-    return -1;
+    // Use YYACCEPT because it will reset the scanner state.
+    *parsedStatement = nullptr;
+    YYACCEPT;
   };
 
 /* All supported statement types */
@@ -1576,11 +1576,11 @@ boolean_value:
 
 /* Command Statments */
 command:
-  TOKEN_HELP TOKEN_COMMAND_STRING {
-    $$ = new quickstep::ParseHelpCommand(@1.first_line, @1.first_column, $2);
+  TOKEN_COMMAND TOKEN_COMMAND_STRING {
+    $$ = new quickstep::ParseCommand(@1.first_line, @1.first_column, $1, $2);
   }
-  | TOKEN_HELP {
-    $$ = new quickstep::ParseHelpCommand(@1.first_line, @1.first_column, nullptr);
+  | TOKEN_COMMAND {
+    $$ = new quickstep::ParseCommand(@1.first_line, @1.first_column, $1, nullptr);
   }
 
 %%
