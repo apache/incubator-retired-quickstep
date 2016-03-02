@@ -523,9 +523,8 @@ start:
     YYABORT;
   }
   | TOKEN_EOF {
-    // Use YYACCEPT because it will reset the scanner state.
-    *parsedStatement = nullptr;
-    YYACCEPT;
+    // Regular yyparse() return codes are non-negative, so use a negative one here.
+    return -1;
   };
 
 /* All supported statement types */

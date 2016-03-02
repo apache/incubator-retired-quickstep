@@ -139,7 +139,6 @@ DEFINE_string(worker_affinities, "",
 }  // namespace quickstep
 
 int main(int argc, char* argv[]) {
-  quickstep_yydebug = 1;
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   google::InitGoogleLogging(argv[0]);
 
@@ -346,7 +345,7 @@ int main(int argc, char* argv[]) {
           fprintf(stderr, "%s", result.error_message.c_str());
         }
         // A parse error should reset the parser as it will reset
-        // the parser's state.
+        // the parser to an initial state.
         parser_wrapper.reset(new SqlParserWrapper());
         break;
       }
