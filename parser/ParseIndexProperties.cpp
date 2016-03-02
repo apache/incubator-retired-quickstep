@@ -20,7 +20,9 @@
 #include <string>
 
 namespace quickstep {
-
-  
+  // initialize constants for various index properties
+  const std::string BloomFilterIndexProperties::kBloomFilterSizeInBytes = "size";
+  const std::string BloomFilterIndexProperties::kBloomFilterNumHashes = "num_hashes";
+  const std::string BloomFilterIndexProperties::kBloomFilterProjectElementCount = "projected_element_count";
 
 }  // namespace quickstep

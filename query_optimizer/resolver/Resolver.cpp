@@ -601,14 +601,25 @@ L::LogicalPtr Resolver::resolveCreateIndex(
       *create_index_statement.relation_name(), nullptr /* reference_alias */);
 
   const std::string index_name = create_index_statement.index_name()->value();
-  std::shared_ptr<const StorageBlockLayoutDescription> index_description;
-  
+  std::shared_ptr<const IndexSubBlockDescription> index_description_shared;
+
   if (create_index_statement.getIndexProperties()->hasValidIndexDescription()) {
-    index_description.reset(create_index_statement.getIndexProperties()->getIndexDescription());
+    // create a deep copy of the index description and pass its ownership to the shared ptr
+    std::unique_ptr<IndexSubBlockDescription> index_description(new IndexSubBlockDescription());
+    index_description->CopyFrom(*create_index_statement.getIndexProperties()->getIndexDescription());
+    index_description_shared.reset(index_description.release());
+    DEBUG_ASSERT(index_description_shared.get() != nullptr);
   } else {
-      THROW_SQL_ERROR_AT(create_index_statement.getIndexProperties()->getInvalidPropertyNode()) << create_index_statement.getIndexProperties()->getReasonForInvalidIndex();
+    if (create_index_statement.getIndexProperties()->getInvalidPropertyNode() != nullptr) {
+      // if exact location is known in the parser, the error is thrown at that specific node
+      THROW_SQL_ERROR_AT(create_index_statement.getIndexProperties()->getInvalidPropertyNode())
+        << create_index_statement.getIndexProperties()->getReasonForInvalidIndexDescription();
+    } else {
+      // else the error is thrown at the index name node
+      THROW_SQL_ERROR_AT(create_index_statement.index_type())
+        << create_index_statement.getIndexProperties()->getReasonForInvalidIndexDescription();
+    }
   }
-  
   return L::CreateIndex::Create(input, index_name);
 }
 

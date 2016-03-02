@@ -23,6 +23,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
 #include "parser/ParseKeyValue.hpp"
 #include "parser/ParseString.hpp"
@@ -35,7 +36,6 @@
 #include "glog/logging.h"
 
 namespace quickstep {
-
 /** \addtogroup Parser
  *  @{
  */
@@ -45,101 +45,176 @@ namespace quickstep {
  */
 class IndexProperties {
  public:
-  
-  virtual bool hasValidIndexDescription() const = 0;
-  
-  virtual const ParseKeyValue* getInvalidPropertyNode() const = 0;
-  
-  virtual std::string getReasonForInvalidIndex() const = 0;
-  
-  virtual const StorageBlockLayoutDescription* getIndexDescription() const = 0;
-  
-  virtual bool parseCustomProperties(PtrList<ParseKeyValue> *key_value_list) = 0;
-  
+  typedef std::unordered_map<std::string, ParseKeyValue::KeyValueType> valid_property_map_t;
+
+  bool hasValidIndexDescription() const {
+    return is_index_description_valid_;
+  }
+
+  const ParseKeyValue* getInvalidPropertyNode() const {
+    return invalid_property_node_;
+  }
+
+  std::string getReasonForInvalidIndexDescription() const {
+    return reason_for_invalid_description_;
+  }
+
+  const IndexSubBlockDescription* getIndexDescription() const {
+    return index_sub_block_description_.get();
+  }
+
+  void setIndexDescriptionAsInvalid(std::string reason) {
+    is_index_description_valid_ = false;
+    index_sub_block_description_.reset();
+    reason_for_invalid_description_ = reason;
+    invalid_property_node_ = nullptr;
+  }
+
+  void setIndexDescriptionAsInvalid(const ParseKeyValue *invalid_node, std::string reason) {
+    is_index_description_valid_ = false;
+    index_sub_block_description_.reset();
+    reason_for_invalid_description_ = reason;
+    invalid_property_node_ = invalid_node;
+  }
+
+  virtual bool addCustomProperties(const PtrList<ParseKeyValue> *key_value_list) = 0;
+
+  bool hasDuplicateCustomProperty(const PtrList<ParseKeyValue> *key_value_list) {
+    // define an existence map, which checks for duplicate properties in the key_value_list
+    std::unordered_map<std::string, bool> is_duplicate_property;
+    for (const ParseKeyValue &key_value : *key_value_list) {
+      std::string key = ToLower(key_value.key()->value());
+      if (is_duplicate_property.find(key) != is_duplicate_property.end()) {
+        setIndexDescriptionAsInvalid(&key_value, key + " is specified more than once");
+        return true;  // duplicate found, return true
+      } else {
+        is_duplicate_property[key] = true;
+      }
+    }
+    return false;  // no duplicates, return false
+  }
+
+  bool hasInvalidCustomProperty(const PtrList<ParseKeyValue> *key_value_list) {
+    for (const ParseKeyValue &key_value : *key_value_list) {
+      std::string key = ToLower(key_value.key()->value());
+      if (valid_property_map_.find(key) == valid_property_map_.end()) {
+        setIndexDescriptionAsInvalid(&key_value, key + " is an invalid property for this index");
+        return true;  // this is not one of the valid keys, return true
+      } else {
+        // validate the type
+        if (key_value.getKeyValueType() != valid_property_map_[key]) {
+          setIndexDescriptionAsInvalid(&key_value, key + " property has an invalid type for this index");
+          return true;  // this key has an unexpected type, return true
+        }
+      }
+    }
+    return false;  // all valid keys, return false
+  }
+
+ protected:
+  valid_property_map_t valid_property_map_;  // a map of index property constants and their associated type
+  bool is_index_description_valid_;
+  const ParseKeyValue* invalid_property_node_;  // referred object owned by ParseIndexProperties class
+  std::string reason_for_invalid_description_;
+  std::unique_ptr<IndexSubBlockDescription> index_sub_block_description_;
 };
 
 /**
  * TODO (@ssaurabh): Improve Documentation
  */
-class DefaultIndexProperties : public IndexProperties {
- public:
-  
-  bool hasValidIndexDescription() const override {
-    return false;
-  }
-  
-  const ParseKeyValue* getInvalidPropertyNode() const override {
-    return nullptr;
-  }
-  
-  std::string getReasonForInvalidIndex() const override {
-    return "no such index type exists";
-  }
-  
-  const StorageBlockLayoutDescription* getIndexDescription() const override {
-    return nullptr;
-  }
-  
-  bool parseCustomProperties(PtrList<ParseKeyValue> *key_value_list) override {
-    return true;
-  }
-};
-  
-/**
- * TODO (@ssaurabh): Improve Documentation
- */
 class BloomFilterIndexProperties : public IndexProperties {
  public:
-  
-  bool hasValidIndexDescription() const override {
-    return false;
+  // index properties associated with this index
+  static const std::string kBloomFilterSizeInBytes;    // is of type integer
+  static const std::string kBloomFilterNumHashes;      // is of type integer
+  static const std::string kBloomFilterProjectElementCount;  // is of type integer
+
+  BloomFilterIndexProperties() {
+    // initialize the valid_property_map_ for this index with appropriate type for each property
+    valid_property_map_[kBloomFilterSizeInBytes] = ParseKeyValue::KeyValueType::kStringInteger;
+    valid_property_map_[kBloomFilterNumHashes] = ParseKeyValue::KeyValueType::kStringInteger;
+    valid_property_map_[kBloomFilterProjectElementCount] = ParseKeyValue::KeyValueType::kStringInteger;
+
+    is_index_description_valid_ = true;
+    invalid_property_node_ = nullptr;
+
+    index_sub_block_description_.reset(new IndexSubBlockDescription());
+    index_sub_block_description_->set_sub_block_type(IndexSubBlockDescription::BLOOM_FILTER);
   }
-  
-  const ParseKeyValue* getInvalidPropertyNode() const override {
-    return nullptr;
-  }
-  
-  std::string getReasonForInvalidIndex() const override {
-    return "";
-  }
-  
-  const StorageBlockLayoutDescription* getIndexDescription() const override {
-    return nullptr;
-  }
-  
-  bool parseCustomProperties(PtrList<ParseKeyValue> *key_value_list) override {
+
+  bool addCustomProperties(const PtrList<ParseKeyValue> *key_value_list) override {
+    // verify for duplicates and invalid types, if any
+    if (hasDuplicateCustomProperty(key_value_list) || hasInvalidCustomProperty(key_value_list)) {
+      return false;
+    }
+
+    for (const ParseKeyValue &key_value : *key_value_list) {
+      std::string key = ToLower(key_value.key()->value());
+      if (key.compare(kBloomFilterSizeInBytes) == 0) {
+        const ParseKeyIntegerValue *key_integer_value = static_cast<const ParseKeyIntegerValue*>(&key_value);
+        if (key_integer_value->value()->float_like()) {
+          setIndexDescriptionAsInvalid(&key_value, "size cannot be specified as a float");
+          return false;
+        }
+        const int64_t bloom_filter_size = key_integer_value->value()->long_value();
+        if (bloom_filter_size < 0) {
+          setIndexDescriptionAsInvalid(&key_value, "size cannot be negative");
+          return false;
+        }
+        // all good! allow the default bloom filter size to be modified
+        index_sub_block_description_->SetExtension(BloomFilterIndexSubBlockDescription::bloom_filter_size,
+                                                   bloom_filter_size);
+      } else if (key.compare(kBloomFilterNumHashes) == 0) {
+        const ParseKeyIntegerValue *key_integer_value = static_cast<const ParseKeyIntegerValue*>(&key_value);
+        if (key_integer_value->value()->float_like()) {
+          setIndexDescriptionAsInvalid(&key_value, "num_hashes cannot be specified as a float");
+          return false;
+        }
+        const int64_t number_of_hashes = key_integer_value->value()->long_value();
+        if (number_of_hashes < 0) {
+          setIndexDescriptionAsInvalid(&key_value, "num_hashes cannot be negative");
+          return false;
+        }
+        // all good! allow the default num_hashes to be modified
+        index_sub_block_description_->SetExtension(BloomFilterIndexSubBlockDescription::number_of_hashes,
+                                                   number_of_hashes);
+      } else if (key.compare(kBloomFilterProjectElementCount) == 0) {
+        const ParseKeyIntegerValue *key_integer_value = static_cast<const ParseKeyIntegerValue*>(&key_value);
+        if (key_integer_value->value()->float_like()) {
+          setIndexDescriptionAsInvalid(&key_value, "projected_element_count cannot be specified as a float");
+          return false;
+        }
+        const int64_t projected_element_count = key_integer_value->value()->long_value();
+        if (projected_element_count < 0) {
+          setIndexDescriptionAsInvalid(&key_value, "projected_element_count cannot be negative");
+          return false;
+        }
+        // all good! allow the default projected_element_count to be modified
+        index_sub_block_description_->SetExtension(BloomFilterIndexSubBlockDescription::projected_element_count,
+                                                   projected_element_count);
+      }
+    }
     return true;
   }
 };
-  
+
 /**
  * TODO (@ssaurabh): Improve Documentation
  */
 class CSBTreeIndexProperties : public IndexProperties {
-public:
-  
-  bool hasValidIndexDescription() const override {
+ public:
+  CSBTreeIndexProperties() {
+    is_index_description_valid_ = false;
+    reason_for_invalid_description_ = "CSBTree index is not yet implemented";
+    invalid_property_node_ = nullptr;
+    index_sub_block_description_.reset(nullptr);
+  }
+
+  bool addCustomProperties(const PtrList<ParseKeyValue> *key_value_list) override {
     return false;
   }
-  
-  const ParseKeyValue* getInvalidPropertyNode() const override {
-    return nullptr;
-  }
-  
-  std::string getReasonForInvalidIndex() const override {
-    return "CSB Tree index is not yet implemented";
-  }
-  
-  const StorageBlockLayoutDescription* getIndexDescription() const override {
-    return nullptr;
-  }
-  
-  bool parseCustomProperties(PtrList<ParseKeyValue> *key_value_list) override {
-    return true;
-  }
 };
-  
-  
+
 /**
  * @brief Encapsulates the IndexProperties key-value list. Makes the job
  *        of resolving IndexProperties easy.
@@ -155,20 +230,17 @@ class ParseIndexProperties : public ParseTreeNode {
    */
   ParseIndexProperties(const int line_number,
                        const int column_number,
-                       IndexProperties *index_properties,
                        PtrList<ParseKeyValue> *key_value_list)
   : ParseTreeNode(line_number, column_number),
     key_value_list_(key_value_list) {
-      index_properties->parseCustomProperties(key_value_list);
   }
-  
+
   std::string getName() const override { return "IndexProperties"; }
-  
-  
+
   const PtrList<ParseKeyValue>* getKeyValueList() const {
     return key_value_list_.get();
   }
-  
+
  protected:
   void getFieldStringItems(
       std::vector<std::string> *inline_field_names,
