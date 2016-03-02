@@ -229,9 +229,12 @@ void quickstep_yyfree (void * ,yyscan_t yyscanner );
 
 #ifdef YY_HEADER_EXPORT_START_CONDITIONS
 #define INITIAL 0
-#define CONDITION_STRING_SINGLE_QUOTED 1
-#define CONDITION_STRING_SINGLE_QUOTED_ESCAPED 2
-#define CONDITION_STRING_DOUBLE_QUOTED 3
+#define CONDITION_SQL 1
+#define CONDITION_COMMAND 2
+#define CONDITION_COMMAND_STRING 3
+#define CONDITION_STRING_SINGLE_QUOTED 4
+#define CONDITION_STRING_SINGLE_QUOTED_ESCAPED 5
+#define CONDITION_STRING_DOUBLE_QUOTED 6
 
 #endif
 
@@ -358,9 +361,9 @@ extern int quickstep_yylex \
 #undef YY_DECL
 #endif
 
-#line 368 "../SqlLexer.lpp"
+#line 425 "../SqlLexer.lpp"
 
 
-#line 365 "SqlLexer_gen.hpp"
+#line 368 "SqlLexer_gen.hpp"
 #undef quickstep_yyIN_HEADER
 #endif /* quickstep_yyHEADER_H */

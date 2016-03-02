@@ -68,6 +68,7 @@ typedef struct YYLTYPE {
 #include "parser/ParseAttributeDefinition.hpp"
 #include "parser/ParseBasicExpressions.hpp"
 #include "parser/ParseBlockProperties.hpp"
+#include "parser/ParseCommand.hpp"
 #include "parser/ParseExpression.hpp"
 #include "parser/ParseGeneratorTableReference.hpp"
 #include "parser/ParseGroupBy.hpp"
@@ -151,6 +152,8 @@ typedef void* yyscan_t;
   quickstep::ParseAssignment *assignment_;
   quickstep::PtrList<quickstep::ParseAssignment> *assignment_list_;
 
+  quickstep::ParseCommand *command_;
+
   quickstep::ParseStatement *statement_;
   quickstep::ParseStatementSelect *select_statement_;
   quickstep::ParseStatementUpdate *update_statement_;
@@ -189,6 +192,7 @@ typedef void* yyscan_t;
 void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string &feature);
 %}
 
+%token <string_value_> TOKEN_COMMAND_STRING;
 %token <string_value_> TOKEN_NAME;
 %token <string_value_> TOKEN_STRING_SINGLE_QUOTED;
 %token <string_value_> TOKEN_STRING_DOUBLE_QUOTED;
@@ -245,6 +249,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_FULL;
 %token TOKEN_GROUP;
 %token TOKEN_HAVING;
+%token TOKEN_HELP;
 %token TOKEN_INDEX;
 %token TOKEN_INNER;
 %token TOKEN_INSERT;
@@ -471,6 +476,9 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %type <with_list_element_>
   with_list_element
 
+%type <command_>
+  command
+
 /*
 %type <int_val>
   join                  // unimplemented
@@ -501,6 +509,14 @@ start:
     YYACCEPT;
   }
   | sql_statement TOKEN_EOF {
+    *parsedStatement = $1;
+    YYACCEPT;
+  }
+  | command '\n' {
+    *parsedStatement = $1;
+    YYACCEPT;
+  }
+  | command TOKEN_EOF {
     *parsedStatement = $1;
     YYACCEPT;
   }
@@ -1557,6 +1573,15 @@ boolean_value:
   | TOKEN_OFF {
     $$ = false;
   };
+
+/* Command Statments */
+command:
+  TOKEN_HELP TOKEN_COMMAND_STRING {
+    $$ = new quickstep::ParseHelpCommand(@1.first_line, @1.first_column, $2);
+  }
+  | TOKEN_HELP {
+    $$ = new quickstep::ParseHelpCommand(@1.first_line, @1.first_column, nullptr);
+  }
 
 %%
 

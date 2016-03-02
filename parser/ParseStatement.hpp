@@ -61,7 +61,8 @@ class ParseStatement : public ParseTreeNode {
     kCopyFrom,
     kUpdate,
     kDelete,
-    kQuit
+    kQuit,
+    kCommand
   };
 
   /**
