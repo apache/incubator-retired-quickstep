@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -60,6 +60,7 @@ InsertDestination::InsertDestination(StorageManager *storage_manager,
 InsertDestination* InsertDestination::ReconstructFromProto(const serialization::InsertDestination &proto,
                                                            CatalogRelation *relation,
                                                            StorageManager *storage_manager,
+                                                           const tmb::client_id foreman_client_id,
                                                            tmb::MessageBus *bus) {
   DCHECK(ProtoIsValid(proto, *relation));
 
@@ -75,7 +76,7 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
                                                     relation,
                                                     layout,
                                                     proto.relational_op_index(),
-                                                    proto.foreman_client_id(),
+                                                    foreman_client_id,
                                                     bus);
     }
     case serialization::InsertDestinationType::BLOCK_POOL: {
@@ -84,7 +85,7 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
                                          relation,
                                          layout,
                                          proto.relational_op_index(),
-                                         proto.foreman_client_id(),
+                                         foreman_client_id,
                                          bus);
 
       if (proto.need_to_add_blocks_from_relation()) {
@@ -99,7 +100,7 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
                                               relation,
                                               layout,
                                               proto.relational_op_index(),
-                                              proto.foreman_client_id(),
+                                              foreman_client_id,
                                               bus);
 
       if (proto.need_to_add_blocks_from_relation()) {

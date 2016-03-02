@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 #include "query_optimizer/resolver/Resolver.hpp"
 
 #include <map>
+#include <memory>
 #include <set>
 #include <string>
 #include <unordered_map>
@@ -28,9 +29,14 @@
 #include "catalog/CatalogDatabase.hpp"
 #include "expressions/aggregation/AggregateFunction.hpp"
 #include "expressions/aggregation/AggregateFunctionFactory.hpp"
+#include "expressions/table_generator/GeneratorFunction.hpp"
+#include "expressions/table_generator/GeneratorFunctionFactory.hpp"
+#include "expressions/table_generator/GeneratorFunctionHandle.hpp"
 #include "parser/ParseAssignment.hpp"
 #include "parser/ParseBasicExpressions.hpp"
+#include "parser/ParseBlockProperties.hpp"
 #include "parser/ParseExpression.hpp"
+#include "parser/ParseGeneratorTableReference.hpp"
 #include "parser/ParseGroupBy.hpp"
 #include "parser/ParseHaving.hpp"
 #include "parser/ParseLimit.hpp"
@@ -67,6 +73,7 @@
 #include "query_optimizer/expressions/UnaryExpression.hpp"
 #include "query_optimizer/logical/Aggregate.hpp"
 #include "query_optimizer/logical/CopyFrom.hpp"
+#include "query_optimizer/logical/CreateIndex.hpp"
 #include "query_optimizer/logical/CreateTable.hpp"
 #include "query_optimizer/logical/DeleteTuples.hpp"
 #include "query_optimizer/logical/DropTable.hpp"
@@ -76,12 +83,16 @@
 #include "query_optimizer/logical/Project.hpp"
 #include "query_optimizer/logical/SharedSubplanReference.hpp"
 #include "query_optimizer/logical/Sort.hpp"
+#include "query_optimizer/logical/TableGenerator.hpp"
 #include "query_optimizer/logical/TableReference.hpp"
 #include "query_optimizer/logical/TopLevelPlan.hpp"
 #include "query_optimizer/logical/UpdateTable.hpp"
 #include "query_optimizer/resolver/NameResolver.hpp"
+#include "storage/StorageBlockLayout.pb.h"
+#include "storage/StorageConstants.hpp"
 #include "types/IntType.hpp"
 #include "types/Type.hpp"
+#include "types/TypedValue.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
@@ -246,6 +257,11 @@ L::LogicalPtr Resolver::resolve(const ParseStatement &parse_query) {
       logical_plan_ = resolveCreateTable(
           static_cast<const ParseStatementCreateTable&>(parse_query));
       break;
+    case ParseStatement::kCreateIndex:
+      context_->set_is_catalog_changed();
+      logical_plan_ = resolveCreateIndex(
+          static_cast<const ParseStatementCreateIndex&>(parse_query));
+      break;
     case ParseStatement::kDelete:
       context_->set_is_catalog_changed();
       logical_plan_ =
@@ -385,7 +401,206 @@ L::LogicalPtr Resolver::resolveCreateTable(
     attribute_name_set.insert(lower_attribute_name);
   }
 
-  return L::CreateTable::Create(relation_name, attributes);
+  std::shared_ptr<const StorageBlockLayoutDescription>
+      block_properties(resolveBlockProperties(create_table_statement));
+
+  return L::CreateTable::Create(relation_name, attributes, block_properties);
+}
+
+StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
+    const ParseStatementCreateTable &create_table_statement) {
+  const ParseBlockProperties *block_properties
+      = create_table_statement.opt_block_properties();
+  // If there are no block properties.
+  if (block_properties == nullptr) {
+    return nullptr;
+  }
+  // Check for error conditions.
+  const ParseKeyValue *repeated_key_value
+      = block_properties->getFirstRepeatedKeyValue();
+  if (repeated_key_value != nullptr) {
+    THROW_SQL_ERROR_AT(repeated_key_value)
+        << "Properties must be specified at most once.";
+  }
+  const ParseKeyValue *invalid_key_value
+      = block_properties->getFirstInvalidKeyValue();
+  if (invalid_key_value != nullptr) {
+    THROW_SQL_ERROR_AT(invalid_key_value)
+        << "Unrecognized property name.";
+  }
+
+  // Begin resolution of properties.
+  std::unique_ptr<StorageBlockLayoutDescription>
+      storage_block_description(new StorageBlockLayoutDescription());
+  TupleStorageSubBlockDescription *description =
+      storage_block_description->mutable_tuple_store_description();
+
+  // Resolve TYPE property.
+  // The type of the block will determine these:
+  bool block_requires_sort = false;
+  bool block_requires_compress = false;
+
+  const ParseString *type_parse_string = block_properties->getType();
+  if (type_parse_string == nullptr) {
+    THROW_SQL_ERROR_AT(block_properties)
+        << "TYPE property must be specified and be a string.";
+  }
+  const std::string type_string = ToLower(type_parse_string->value());
+  if (type_string.compare("rowstore") == 0) {
+    description->set_sub_block_type(
+        quickstep::TupleStorageSubBlockDescription::PACKED_ROW_STORE);
+  } else if (type_string.compare("split_rowstore") == 0) {
+    description->set_sub_block_type(
+        quickstep::TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
+  } else if (type_string.compare("columnstore") == 0) {
+    description->set_sub_block_type(
+        quickstep::TupleStorageSubBlockDescription::BASIC_COLUMN_STORE);
+    block_requires_sort = true;
+  } else if (type_string.compare("compressed_rowstore") == 0) {
+    description->set_sub_block_type(
+        quickstep::TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE);
+    block_requires_compress = true;
+  } else if (type_string.compare("compressed_columnstore") == 0) {
+    description->set_sub_block_type(
+        quickstep::TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE);
+    block_requires_sort = true;
+    block_requires_compress = true;
+  } else {
+    THROW_SQL_ERROR_AT(type_parse_string) << "Unrecognized storage type.";
+  }
+
+  // Helper lambda function which will be used in COMPRESS and SORT resolution.
+  // Returns the column id from the name of the given attribute. Returns -1 if
+  // the attribute is not found.
+  auto columnIdFromAttributeName = [&create_table_statement](
+      const std::string& attribute_name) -> int {
+    const std::string search_name = ToLower(attribute_name);
+    int i = 0;
+    for (const ParseAttributeDefinition &attribute_definition :
+     create_table_statement.attribute_definition_list()) {
+      const std::string lower_attribute_name =
+        ToLower(attribute_definition.name()->value());
+      if (lower_attribute_name.compare(search_name) == 0) {
+        return i;
+      }
+      i++;
+    }
+    return -1;
+  };
+
+  // Resolve the SORT property.
+  const ParseString *sort_parse_string = block_properties->getSort();
+  if (block_requires_sort) {
+    if (sort_parse_string == nullptr) {
+      THROW_SQL_ERROR_AT(type_parse_string)
+          << "The SORT property must be specified as an attribute name.";
+    } else {
+      const std::string &sort_name = sort_parse_string->value();
+      // Lookup the name and map to a column id.
+      int sort_id = columnIdFromAttributeName(sort_name);
+      if (sort_id == -1) {
+        THROW_SQL_ERROR_AT(sort_parse_string)
+          << "The SORT property did not match any attribute name.";
+      } else {
+        if (description->sub_block_type() ==
+            TupleStorageSubBlockDescription::BASIC_COLUMN_STORE) {
+          description->SetExtension(
+              BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id, sort_id);
+        } else if (description->sub_block_type() ==
+            TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE) {
+          description->SetExtension(
+              CompressedColumnStoreTupleStorageSubBlockDescription::sort_attribute_id, sort_id);
+        }
+      }
+    }
+  } else {
+    if (sort_parse_string != nullptr) {
+      THROW_SQL_ERROR_AT(sort_parse_string)
+          << "The SORT property does not apply to this block type.";
+    }
+  }
+  // Resolve the COMPRESS property.
+  if (block_requires_compress) {
+    std::vector<std::size_t> compressed_column_ids;
+    // If we compress all the columns in the relation.
+    if (block_properties->compressAll()) {
+      for (std::size_t attribute_id = 0;
+           attribute_id < create_table_statement.attribute_definition_list().size();
+           ++attribute_id) {
+        compressed_column_ids.push_back(attribute_id);
+      }
+    } else {
+      // Otherwise search through the relation, mapping attribute names to their id.
+      const PtrList<ParseString> *compress_parse_strings
+          = block_properties->getCompressed();
+      if (compress_parse_strings == nullptr) {
+        THROW_SQL_ERROR_AT(block_properties)
+          << "The COMPRESS property must be specified as ALL or a list of attributes.";
+      }
+      for (const ParseString &compressed_attribute_name : *compress_parse_strings) {
+        int column_id = columnIdFromAttributeName(compressed_attribute_name.value());
+        if (column_id == -1) {
+          THROW_SQL_ERROR_AT(&compressed_attribute_name)
+              << "The given attribute was not found.";
+        } else {
+          compressed_column_ids.push_back(static_cast<std::size_t>(column_id));
+        }
+      }
+    }
+    // Add the found column ids to the proto message.
+    for (std::size_t column_id : compressed_column_ids) {
+      if (description->sub_block_type() ==
+          TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE) {
+        description->AddExtension(
+            CompressedPackedRowStoreTupleStorageSubBlockDescription::compressed_attribute_id, column_id);
+      } else if (description->sub_block_type() ==
+          TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE) {
+        description->AddExtension(
+            CompressedColumnStoreTupleStorageSubBlockDescription::compressed_attribute_id, column_id);
+      }
+    }
+  } else {
+    // If the user specified COMPRESS but the block type did not require it, throw.
+    if (block_properties->compressAll() ||
+        block_properties->getCompressed() != nullptr) {
+      THROW_SQL_ERROR_AT(type_parse_string)
+          << "The COMPRESS property does not apply to this block type.";
+    }
+  }
+  // Resolve the Block size (size -> # of slots).
+  std::int64_t slots = 1;  // The default.
+  if (block_properties->hasBlockSizeMb()) {
+    std::int64_t blocksizemb = block_properties->getBlockSizeMbValue();
+    if (blocksizemb == -1) {
+      // Indicates an error condition if the property is present but getter returns -1.
+      THROW_SQL_ERROR_AT(block_properties->getBlockSizeMb())
+          << "The BLOCKSIZEMB property must be an integer.";
+    }
+    slots = (blocksizemb * 1000000) / kSlotSizeBytes;
+    DLOG(INFO) << "Resolver using BLOCKSIZEMB of " << slots << " slots"
+        << " which is " << (slots * kSlotSizeBytes) << " bytes versus"
+        << " user requested " << (blocksizemb * 1000000) << " bytes.";
+    // 1Gb is the max size.
+    const std::int64_t max_size_slots = 1000000000 / kSlotSizeBytes;
+    // TODO(marc) The upper bound is arbitrary.
+    if (slots < 1 || slots > max_size_slots) {
+      THROW_SQL_ERROR_AT(block_properties->getBlockSizeMb())
+        << "The BLOCKSIZEMB property must be between 2Mb and 1000Mb.";
+    }
+  }
+  storage_block_description->set_num_slots(slots);
+
+  return storage_block_description.release();
+}
+
+L::LogicalPtr Resolver::resolveCreateIndex(
+    const ParseStatementCreateIndex &create_index_statement) {
+  // Resolve relation name.
+  const L::LogicalPtr input = resolveSimpleTableReference(
+      *create_index_statement.relation_name(), nullptr /* reference_alias */);
+
+  const std::string index_name = create_index_statement.index_name()->value();
+  return L::CreateIndex::Create(input, index_name);
 }
 
 L::LogicalPtr Resolver::resolveDelete(
@@ -958,65 +1173,9 @@ L::LogicalPtr Resolver::resolveFromClause(
     NameResolver *name_resolver) {
   std::vector<L::LogicalPtr> from_logical_list;
   for (const ParseTableReference &from_parse_item : from_list) {
-    L::LogicalPtr from_logical_item;
-    const ParseString *reference_alias = nullptr;
-    const ParseTableReferenceSignature *reference_signature =
-        from_parse_item.table_reference_signature();
-    if (from_parse_item.getTableReferenceType() ==
-        ParseTableReference::kSimpleTableReference) {
-      const ParseSimpleTableReference &simple_table_reference =
-          static_cast<const ParseSimpleTableReference&>(from_parse_item);
-
-      if (reference_signature == nullptr) {
-        reference_alias = simple_table_reference.table_name();
-      } else {
-        DCHECK(reference_signature->table_alias() != nullptr);
-        reference_alias = reference_signature->table_alias();
-      }
-
-      from_logical_item = resolveSimpleTableReference(
-          *simple_table_reference.table_name(), reference_alias);
-    } else {
-      DCHECK_EQ(from_parse_item.getTableReferenceType(),
-                ParseTableReference::kSubqueryTableReference);
-      DCHECK(from_parse_item.table_reference_signature() != nullptr)
-          << "Subquery expressions in FROM must be explicitly named";
-      DCHECK(reference_signature->table_alias() != nullptr);
-
-      reference_alias = reference_signature->table_alias();
-      from_logical_item = resolveSelect(
-          *static_cast<const ParseSubqueryTableReference&>(from_parse_item).subquery_expr()->query(),
-          reference_alias->value());
-    }
-    if (reference_signature != nullptr &&
-        reference_signature->column_aliases() != nullptr) {
-      const PtrList<ParseString> &column_aliases =
-          *reference_signature->column_aliases();
-      const std::vector<E::AttributeReferencePtr> output_attributes =
-          from_logical_item->getOutputAttributes();
-
-      // Rename the name of each attribute to its column alias.
-      std::vector<E::NamedExpressionPtr> project_expressions;
-      if (column_aliases.size() != output_attributes.size()) {
-        THROW_SQL_ERROR_AT(reference_signature)
-            << "The number of named columns is different from the number of table columns ("
-            << std::to_string(column_aliases.size()) << " vs. " << std::to_string(output_attributes.size()) << ")";
-      }
-
-      int attr_index = 0;
-      for (const ParseString &column_alias : column_aliases) {
-        project_expressions.emplace_back(E::Alias::Create(
-            context_->nextExprId(),
-            output_attributes[attr_index],
-            column_alias.value(),
-            column_alias.value()));
-        ++attr_index;
-      }
-      from_logical_item =
-          L::Project::Create(from_logical_item, project_expressions);
-    }
+    L::LogicalPtr from_logical_item =
+        resolveTableReference(from_parse_item, name_resolver);
     from_logical_list.emplace_back(from_logical_item);
-    name_resolver->addRelation(reference_alias, from_logical_item);
   }
 
   if (from_logical_list.size() > 1u) {
@@ -1045,6 +1204,27 @@ L::LogicalPtr Resolver::resolveTableReference(const ParseTableReference &table_r
       }
 
       logical_plan = resolveSimpleTableReference(*simple_table_reference.table_name(), reference_alias);
+
+      if (reference_signature != nullptr && reference_signature->column_aliases() != nullptr) {
+        logical_plan = RenameOutputColumns(logical_plan, *reference_signature);
+      }
+
+      name_resolver->addRelation(reference_alias, logical_plan);
+      break;
+    }
+    case ParseTableReference::kGeneratorTableReference: {
+      const ParseGeneratorTableReference &generator_table_reference =
+          static_cast<const ParseGeneratorTableReference&>(table_reference);
+
+      if (reference_signature == nullptr) {
+        reference_alias = generator_table_reference.generator_function()->name();
+      } else {
+        DCHECK(reference_signature->table_alias() != nullptr);
+        reference_alias = reference_signature->table_alias();
+      }
+
+      logical_plan = resolveGeneratorTableReference(generator_table_reference,
+                                                    reference_alias);
 
       if (reference_signature != nullptr && reference_signature->column_aliases() != nullptr) {
         logical_plan = RenameOutputColumns(logical_plan, *reference_signature);
@@ -1146,6 +1326,55 @@ L::LogicalPtr Resolver::resolveSimpleTableReference(
 
   return L::TableReference::Create(relation, scoped_table_name->value(), context_);
 }
+
+L::LogicalPtr Resolver::resolveGeneratorTableReference(
+    const ParseGeneratorTableReference &table_reference,
+    const ParseString *reference_alias) {
+  const ParseString *func_name = table_reference.generator_function()->name();
+
+  // Resolve the generator function
+  const quickstep::GeneratorFunction *func_template =
+      GeneratorFunctionFactory::Instance().getByName(func_name->value());
+  if (func_template == nullptr) {
+      THROW_SQL_ERROR_AT(func_name)
+          << "Generator function " << func_name->value() << " not found";
+  }
+
+  // Check that all arguments are constant literals, also convert them into a
+  // list of TypedValue's.
+  const PtrList<ParseExpression> *func_args = table_reference.generator_function()->arguments();
+  std::vector<TypedValue> concretized_args;
+  if (func_args != nullptr) {
+    for (const ParseExpression& arg : *func_args) {
+      if (arg.getExpressionType() != ParseExpression::kScalarLiteral) {
+        THROW_SQL_ERROR_AT(&arg)
+            << "Argument(s) to a generator function can only be constant literals";
+      }
+      const ParseScalarLiteral &scalar_literal_arg = static_cast<const ParseScalarLiteral&>(arg);
+      const Type* dumb_concretized_type;
+      concretized_args.emplace_back(
+          scalar_literal_arg.literal_value()->concretize(nullptr, &dumb_concretized_type));
+    }
+  }
+
+  // Concretize the generator function with the arguments.
+  quickstep::GeneratorFunctionHandle *func_handle = nullptr;
+  try {
+    func_handle = func_template->createHandle(concretized_args);
+  } catch (const std::exception &e) {
+    DCHECK(func_handle == nullptr);
+    THROW_SQL_ERROR_AT(table_reference.generator_function()) << e.what();
+  }
+  if (func_handle == nullptr) {
+    THROW_SQL_ERROR_AT(table_reference.generator_function())
+        << "Invalid arguments";
+  }
+
+  return L::TableGenerator::Create(quickstep::GeneratorFunctionHandlePtr(func_handle),
+                                   reference_alias->value(),
+                                   context_);
+}
+
 
 void Resolver::resolveSelectClause(
     const ParseSelectionClause &parse_selection,

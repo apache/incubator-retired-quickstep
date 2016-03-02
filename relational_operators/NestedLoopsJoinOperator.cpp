@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -37,6 +37,8 @@
 
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
+
 using std::unique_ptr;
 using std::vector;
 
@@ -62,7 +64,10 @@ void NestedLoopsJoinOperator::feedInputBlock(const block_id input_block_id, cons
   }
 }
 
-bool NestedLoopsJoinOperator::getAllWorkOrders(WorkOrdersContainer *container) {
+bool NestedLoopsJoinOperator::getAllWorkOrders(
+    WorkOrdersContainer *container,
+    const tmb::client_id foreman_client_id,
+    tmb::MessageBus *bus) {
   if (left_relation_is_stored_ && right_relation_is_stored_) {
     // Make sure we generate workorders only once.
     if (!all_workorders_generated_) {

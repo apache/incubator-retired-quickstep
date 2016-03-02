@@ -25,6 +25,7 @@
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/logical/CopyFrom.hpp"
+#include "query_optimizer/logical/CreateIndex.hpp"
 #include "query_optimizer/logical/CreateTable.hpp"
 #include "query_optimizer/logical/DeleteTuples.hpp"
 #include "query_optimizer/logical/DropTable.hpp"
@@ -32,16 +33,19 @@
 #include "query_optimizer/logical/LogicalType.hpp"
 #include "query_optimizer/logical/SharedSubplanReference.hpp"
 #include "query_optimizer/logical/Sort.hpp"
+#include "query_optimizer/logical/TableGenerator.hpp"
 #include "query_optimizer/logical/TableReference.hpp"
 #include "query_optimizer/logical/TopLevelPlan.hpp"
 #include "query_optimizer/logical/UpdateTable.hpp"
 #include "query_optimizer/physical/CopyFrom.hpp"
+#include "query_optimizer/physical/CreateIndex.hpp"
 #include "query_optimizer/physical/CreateTable.hpp"
 #include "query_optimizer/physical/DeleteTuples.hpp"
 #include "query_optimizer/physical/DropTable.hpp"
 #include "query_optimizer/physical/InsertTuple.hpp"
 #include "query_optimizer/physical/SharedSubplanReference.hpp"
 #include "query_optimizer/physical/Sort.hpp"
+#include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
@@ -93,11 +97,19 @@ bool OneToOne::generatePlan(const L::LogicalPtr &logical_input,
           copy_from->column_delimiter(), copy_from->escape_strings());
       return true;
     }
+    case L::LogicalType::kCreateIndex: {
+      const L::CreateIndexPtr create_index =
+          std::static_pointer_cast<const L::CreateIndex>(logical_input);
+      *physical_output = P::CreateIndex::Create(
+          physical_mapper_->createOrGetPhysicalFromLogical(create_index->input()), create_index->index_name());
+      return true;
+    }
     case L::LogicalType::kCreateTable: {
       const L::CreateTablePtr create_table =
           std::static_pointer_cast<const L::CreateTable>(logical_input);
       *physical_output = P::CreateTable::Create(create_table->relation_name(),
-                                                create_table->attributes());
+                                                create_table->attributes(),
+                                                create_table->block_properties());
       return true;
     }
     case L::LogicalType::kDeleteTuples: {
@@ -148,6 +160,15 @@ bool OneToOne::generatePlan(const L::LogicalPtr &logical_input,
           sort->sort_ascending(),
           sort->nulls_first_flags(),
           sort->limit());
+      return true;
+    }
+    case L::LogicalType::kTableGenerator: {
+      const L::TableGeneratorPtr table_generator =
+          std::static_pointer_cast<const L::TableGenerator>(logical_input);
+      *physical_output = P::TableGenerator::Create(
+          table_generator->generator_function_handle(),
+          table_generator->table_alias(),
+          table_generator->attribute_list());
       return true;
     }
     case L::LogicalType::kUpdateTable: {

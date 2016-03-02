@@ -67,7 +67,10 @@ typedef struct YYLTYPE {
 #include "parser/ParseAssignment.hpp"
 #include "parser/ParseAttributeDefinition.hpp"
 #include "parser/ParseBasicExpressions.hpp"
+#include "parser/ParseBlockProperties.hpp"
+#include "parser/ParseCommand.hpp"
 #include "parser/ParseExpression.hpp"
+#include "parser/ParseGeneratorTableReference.hpp"
 #include "parser/ParseGroupBy.hpp"
 #include "parser/ParseHaving.hpp"
 #include "parser/ParseKeyValue.hpp"
@@ -84,6 +87,7 @@ typedef struct YYLTYPE {
 #include "parser/ParseSubqueryExpression.hpp"
 #include "parser/ParseSubqueryTableReference.hpp"
 #include "parser/ParseTableReference.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
@@ -141,12 +145,14 @@ typedef void* yyscan_t;
   quickstep::PtrList<quickstep::ParseKeyValue> *key_value_list_;
   quickstep::ParseKeyStringValue *key_string_value_;
   quickstep::ParseKeyStringList *key_string_list_;
-  quickstep::ParseKeyLiteralValue *key_literal_value_;
+  quickstep::ParseKeyIntegerValue *key_integer_value_;
 
   quickstep::ParseCopyFromParams *copy_from_params_;
 
   quickstep::ParseAssignment *assignment_;
   quickstep::PtrList<quickstep::ParseAssignment> *assignment_list_;
+
+  quickstep::ParseCommand *command_;
 
   quickstep::ParseStatement *statement_;
   quickstep::ParseStatementSelect *select_statement_;
@@ -155,6 +161,7 @@ typedef void* yyscan_t;
   quickstep::ParseStatementDelete *delete_statement_;
   quickstep::ParseStatementCopyFrom *copy_from_statement_;
   quickstep::ParseStatementCreateTable *create_table_statement_;
+  quickstep::ParseBlockProperties *block_properties_;
   quickstep::ParseStatementDropTable *drop_table_statement_;
   quickstep::ParseStatementQuit *quit_statement_;
 
@@ -185,6 +192,7 @@ typedef void* yyscan_t;
 void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string &feature);
 %}
 
+%token <string_value_> TOKEN_COMMAND_STRING;
 %token <string_value_> TOKEN_NAME;
 %token <string_value_> TOKEN_STRING_SINGLE_QUOTED;
 %token <string_value_> TOKEN_STRING_DOUBLE_QUOTED;
@@ -212,6 +220,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_ASC;
 %token TOKEN_BIGINT;
 %token TOKEN_BIT;
+%token TOKEN_BLOCKPROPERTIES;
 %token TOKEN_BLOOM_FILTER;
 %token TOKEN_CSB_TREE;
 %token TOKEN_BY;
@@ -240,6 +249,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_FULL;
 %token TOKEN_GROUP;
 %token TOKEN_HAVING;
+%token TOKEN_HELP;
 %token TOKEN_INDEX;
 %token TOKEN_INNER;
 %token TOKEN_INSERT;
@@ -366,8 +376,8 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %type <key_string_list_>
   key_string_list
 
-%type <key_literal_value_>
-  key_literal_value
+%type <key_integer_value_>
+  key_integer_value
 
 %type <assignment_>
   assignment_item
@@ -403,6 +413,9 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <create_table_statement_>
   create_table_statement
+
+%type <block_properties_>
+  opt_block_properties
 
 %type <statement_>
   create_index_statement
@@ -463,6 +476,9 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %type <with_list_element_>
   with_list_element
 
+%type <command_>
+  command
+
 /*
 %type <int_val>
   join                  // unimplemented
@@ -493,6 +509,14 @@ start:
     YYACCEPT;
   }
   | sql_statement TOKEN_EOF {
+    *parsedStatement = $1;
+    YYACCEPT;
+  }
+  | command '\n' {
+    *parsedStatement = $1;
+    YYACCEPT;
+  }
+  | command TOKEN_EOF {
     *parsedStatement = $1;
     YYACCEPT;
   }
@@ -574,20 +598,13 @@ alter_table_statement:
   };
 
 create_table_statement:
-  TOKEN_CREATE TOKEN_TABLE any_name '(' column_def_commalist ')' opt_table_constraint_def_commalist {
-    $$ = new quickstep::ParseStatementCreateTable(@1.first_line, @1.first_column, $3, $5);
+  TOKEN_CREATE TOKEN_TABLE any_name '(' column_def_commalist ')' opt_table_constraint_def_commalist opt_block_properties {
+    $$ = new quickstep::ParseStatementCreateTable(@1.first_line, @1.first_column, $3, $5, $8);
   };
 
 create_index_statement:
   TOKEN_CREATE TOKEN_INDEX any_name TOKEN_ON any_name opt_column_list TOKEN_USING index_type opt_index_properties {
-    delete $3;
-    delete $5;
-    delete $6;
-    delete $8;
-    delete $9;
-    $$ = nullptr;
-    NotSupported(&@1, yyscanner, "CREATE INDEX statement");
-    YYERROR;
+    $$ = new quickstep::ParseStatementCreateIndex(@1.first_line, @1.first_column, $3, $5, $6, $8, $9);
   };
 
 drop_table_statement:
@@ -817,6 +834,14 @@ opt_column_list:
     YYERROR;
   };
 
+opt_block_properties:
+  {
+    $$ = nullptr;
+  }
+  | TOKEN_WITH TOKEN_BLOCKPROPERTIES '(' key_value_list ')' {
+    $$ = new quickstep::ParseBlockProperties(@2.first_line, @2.first_column, $4);
+  }
+
 key_value_list:
   key_value {
     $$ = new quickstep::PtrList<quickstep::ParseKeyValue>();
@@ -834,35 +859,44 @@ key_value:
   | key_string_list {
     $$ = $1;
   }
-  | key_literal_value {
+  | key_integer_value {
     $$ = $1;
   };
 
 key_string_value:
   any_name any_name {
     $$ = new quickstep::ParseKeyStringValue(@1.first_line, @1.first_column, $1, $2);
-  };
+  }
+  | any_name TOKEN_ALL {
+    // This is a special case to handle the COMPRESS ALL option of the BLOCK PROPERTIES.
+    $$ = new quickstep::ParseKeyStringValue(@1.first_line, @1.first_column, $1, 
+        new quickstep::ParseString(@2.first_line, @2.first_column, "ALL"));
+  }
 
 key_string_list:
   any_name '(' name_commalist ')' {
     $$ = new quickstep::ParseKeyStringList(@1.first_line, @1.first_column, $1, $3);
   };
 
-key_literal_value:
-  any_name literal_value {
-    $$ = new quickstep::ParseKeyLiteralValue(@1.first_line, @1.first_column, $1, $2);
+key_integer_value:
+  any_name TOKEN_UNSIGNED_NUMVAL {
+    if ($2->float_like()) {
+      delete $2;
+      $$ = nullptr;
+      quickstep_yyerror(&@2, yyscanner, nullptr, "Value must be an integer");
+      YYERROR;
+    }
+    $$ = new quickstep::ParseKeyIntegerValue(@1.first_line, @1.first_column, $1, $2);
   };
 
 index_type:
   TOKEN_BLOOM_FILTER {
-    $$ = nullptr;
-    NotSupported(&@1, yyscanner, "Bloom Filter Index");
-    YYERROR;
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column,
+           std::to_string(quickstep::IndexSubBlockType::kBloomFilter));
   }
   | TOKEN_CSB_TREE {
-    $$ = nullptr;
-    NotSupported(&@1, yyscanner, "CSB Tree Index");
-    YYERROR;
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column,
+           std::to_string(quickstep::IndexSubBlockType::kCSBTree));
   };
 
 opt_index_properties:
@@ -872,7 +906,6 @@ opt_index_properties:
   | '(' key_value_list ')' {
     $$ = $2;
   };
-
 
 /* Update Database Contents */
 insert_statement:
@@ -1109,6 +1142,13 @@ table_reference:
   | any_name table_reference_signature {
     $$ = new quickstep::ParseSimpleTableReference(@1.first_line, @1.first_column, $1);
     $$->set_table_reference_signature($2);
+  }
+  | function_call table_reference_signature {
+    $$ = new quickstep::ParseGeneratorTableReference(@1.first_line, @1.first_column, $1);
+    $$->set_table_reference_signature($2);
+  }
+  | function_call {
+    $$ = new quickstep::ParseGeneratorTableReference(@1.first_line, @1.first_column, $1);
   }
   | any_name {
     $$ = new quickstep::ParseSimpleTableReference(@1.first_line, @1.first_column, $1);
@@ -1533,6 +1573,15 @@ boolean_value:
   | TOKEN_OFF {
     $$ = false;
   };
+
+/* Command Statments */
+command:
+  TOKEN_HELP TOKEN_COMMAND_STRING {
+    $$ = new quickstep::ParseHelpCommand(@1.first_line, @1.first_column, $2);
+  }
+  | TOKEN_HELP {
+    $$ = new quickstep::ParseHelpCommand(@1.first_line, @1.first_column, nullptr);
+  }
 
 %%
 

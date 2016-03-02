@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -23,6 +23,10 @@
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "utility/Macros.hpp"
+
+#include "tmb/id_typedefs.h"
+
+namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
@@ -58,7 +62,9 @@ class FinalizeAggregationOperator : public RelationalOperator {
 
   ~FinalizeAggregationOperator() override {}
 
-  bool getAllWorkOrders(WorkOrdersContainer *container) override;
+  bool getAllWorkOrders(WorkOrdersContainer *container,
+                        const tmb::client_id foreman_client_id,
+                        tmb::MessageBus *bus) override;
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
     return output_destination_index_;

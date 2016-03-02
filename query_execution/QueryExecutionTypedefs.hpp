@@ -1,6 +1,6 @@
 /**
- * This file copyright (c) 2011-2015, the Quickstep authors.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2011-2015 Quickstep Technologies LLC.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -56,14 +56,15 @@ using ClientIDMap = ThreadIDBasedMap<client_id,
                                      'p'>;
 
 enum QueryExecutionMessageType : message_type_id {
-  kWorkOrderMessage,
-  kRebuildWorkOrderMessage,
-  kWorkOrderCompleteMessage,
-  kRebuildWorkOrderCompleteMessage,
-  kDataPipelineMessage,
-  kWorkOrdersAvailableMessage,
-  kPoisonMessage,
-  kWorkOrderFeedbackMessage,
+  kWorkOrderMessage,  // From Foreman to Worker.
+  kWorkOrderCompleteMessage,  // From Worker to Foreman.
+  kDataPipelineMessage,  // From InsertDestination or some WorkOrders to Foreman.
+  kWorkOrdersAvailableMessage,  // From some WorkOrders to Foreman.
+  kWorkOrderFeedbackMessage,  // From some WorkOrders to Foreman on behalf of
+                              // their corresponding RelationalOperators.
+  kRebuildWorkOrderMessage,  // From Foreman to Worker.
+  kRebuildWorkOrderCompleteMessage,  // From Worker to Foreman.
+  kPoisonMessage,  // From the CLI shell to Foreman, then from Foreman to Workers.
 };
 
 /** @} */

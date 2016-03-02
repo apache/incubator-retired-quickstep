@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -159,6 +159,7 @@ class RunTest : public ::testing::Test {
     bus_.Initialize();
     thread_client_id_ = bus_.Connect();
     bus_.RegisterClientAsSender(thread_client_id_, kDataPipelineMessage);
+    bus_.RegisterClientAsReceiver(thread_client_id_, kDataPipelineMessage);
 
     thread_id_map_ = ClientIDMap::Instance();
     // Usually the worker thread makes the following call. In this test setup,
@@ -376,6 +377,7 @@ class RunMergerTest : public ::testing::Test {
     bus_.Initialize();
     thread_client_id_ = bus_.Connect();
     bus_.RegisterClientAsSender(thread_client_id_, kDataPipelineMessage);
+    bus_.RegisterClientAsReceiver(thread_client_id_, kDataPipelineMessage);
 
     thread_id_map_ = ClientIDMap::Instance();
     // Usually the worker thread makes the following call. In this test setup,
@@ -1200,6 +1202,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
 
     foreman_client_id_ = bus_.Connect();
     bus_.RegisterClientAsReceiver(foreman_client_id_, kWorkOrderFeedbackMessage);
+    bus_.RegisterClientAsReceiver(foreman_client_id_, kDataPipelineMessage);
 
     storage_manager_.reset(new StorageManager(kStoragePath));
 
@@ -1238,7 +1241,6 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     insert_destination_proto->set_relation_id(result_table_id);
     insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
-    insert_destination_proto->set_foreman_client_id(foreman_client_id_);
 
     // Create run_table_, owned by db_.
     run_table_ = createTable(kRunTableName, kRunTableId);
@@ -1259,10 +1261,13 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     insert_destination_proto->set_relation_id(run_table_id);
     insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
-    insert_destination_proto->set_foreman_client_id(foreman_client_id_);
 
     // Set up the QueryContext.
-    query_context_.reset(new QueryContext(query_context_proto_, db_.get(), storage_manager_.get(), &bus_));
+    query_context_.reset(new QueryContext(query_context_proto_,
+                                          db_.get(),
+                                          storage_manager_.get(),
+                                          foreman_client_id_,
+                                          &bus_));
   }
 
   virtual void TearDown() {
@@ -1404,13 +1409,17 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     std::size_t num_receieved = 0;
     do {
       if (bus_.ReceiveIfAvailable(foreman_client_id_, &msg)) {
-        EXPECT_EQ(kWorkOrderFeedbackMessage, msg.tagged_message.message_type());
-        WorkOrder::FeedbackMessage feedback_msg(
-            const_cast<void *>(msg.tagged_message.message()),
-            msg.tagged_message.message_bytes());
-        EXPECT_EQ(kOpIndex, feedback_msg.header().rel_op_index);
-        merge_op_->receiveFeedbackMessage(feedback_msg);
-        num_receieved++;
+        // Note that this function only deals with feedback messages and it is
+        // safe to discard other kinds of messages (e.g. pipeline) in this
+        // funtion.
+        if (msg.tagged_message.message_type() == kWorkOrderFeedbackMessage) {
+          WorkOrder::FeedbackMessage feedback_msg(
+              const_cast<void *>(msg.tagged_message.message()),
+              msg.tagged_message.message_bytes());
+          EXPECT_EQ(kOpIndex, feedback_msg.header().rel_op_index);
+          merge_op_->receiveFeedbackMessage(feedback_msg);
+          num_receieved++;
+        }
       }
     } while (num_receieved < expected);
   }
@@ -1419,7 +1428,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     bool done;
     WorkOrdersContainer container(kOpIndex + 1, 0);
     do {
-      done = merge_op_->getAllWorkOrders(&container);
+      done = merge_op_->getAllWorkOrders(&container, foreman_client_id_, &bus_);
       while (container.hasNormalWorkOrder(kOpIndex)) {
         std::unique_ptr<WorkOrder> order(container.getNormalWorkOrder(kOpIndex));
         order->execute(query_context_.get(), db_.get(), storage_manager_.get());
@@ -1435,7 +1444,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     do {
       if (!done) {
         // Find work orders to execute, if not done already.
-        done = merge_op_->getAllWorkOrders(&container);
+        done = merge_op_->getAllWorkOrders(&container, foreman_client_id_, &bus_);
       }
 
       executed = false;
@@ -1494,13 +1503,15 @@ class SortMergeRunOperatorTest : public ::testing::Test {
                                              sort_config_index,
                                              merge_factor,
                                              top_k,
-                                             true,
-                                             foreman_client_id_,
-                                             &bus_));
+                                             true));
     merge_op_->setOperatorIndex(kOpIndex);
 
     // Set up the QueryContext.
-    query_context_.reset(new QueryContext(query_context_proto_, db_.get(), storage_manager_.get(), &bus_));
+    query_context_.reset(new QueryContext(query_context_proto_,
+                                          db_.get(),
+                                          storage_manager_.get(),
+                                          foreman_client_id_,
+                                          &bus_));
 
     executeOperatorUntilDone();
   }
@@ -1535,13 +1546,15 @@ class SortMergeRunOperatorTest : public ::testing::Test {
                                              sort_config_index,
                                              merge_factor,
                                              top_k,
-                                             false,
-                                             foreman_client_id_,
-                                             &bus_));
+                                             false));
     merge_op_->setOperatorIndex(kOpIndex);
 
     // Set up the QueryContext.
-    query_context_.reset(new QueryContext(query_context_proto_, db_.get(), storage_manager_.get(), &bus_));
+    query_context_.reset(new QueryContext(query_context_proto_,
+                                          db_.get(),
+                                          storage_manager_.get(),
+                                          foreman_client_id_,
+                                          &bus_));
 
     std::vector<block_id> blocks = input_table_->getBlocksSnapshot();
     while (!blocks.empty()) {

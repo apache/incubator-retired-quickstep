@@ -41,8 +41,11 @@ class QueryExecutionUtil {
    * @param sender_id The client ID of the sender.
    * @param receiver_id The client ID of the receiver.
    * @param tagged_message A moved-from reference to the tagged message.
+   *
+   * @return A status code indicating the result of the message getting sent.
+   *         The caller should ensure that the status is SendStatus::kOK.
    **/
-  static void SendTMBMessage(
+  static tmb::MessageBus::SendStatus SendTMBMessage(
       MessageBus *bus,
       client_id sender_id,
       client_id receiver_id,
@@ -51,10 +54,10 @@ class QueryExecutionUtil {
     receiver_address.AddRecipient(receiver_id);
 
     MessageStyle single_receiver_style;
-    bus->Send(sender_id,
-              receiver_address,
-              single_receiver_style,
-              std::move(tagged_message));
+    return bus->Send(sender_id,
+                     receiver_address,
+                     single_receiver_style,
+                     std::move(tagged_message));
   }
 
  private:

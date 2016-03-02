@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -41,6 +41,7 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 
 #include "cli/InputParserUtil.hpp"
 #include "cli/PrintToScreen.hpp"
+#include "parser/ParseCommand.hpp"
 #include "parser/ParseStatement.hpp"
 #include "parser/SqlParserWrapper.hpp"
 #include "query_execution/Foreman.hpp"
@@ -91,6 +92,7 @@ using quickstep::Foreman;
 using quickstep::InputParserUtil;
 using quickstep::MessageBusImpl;
 using quickstep::MessageStyle;
+using quickstep::ParseCommand;
 using quickstep::ParseResult;
 using quickstep::ParseStatement;
 using quickstep::PrintToScreen;
@@ -196,8 +198,7 @@ int main(int argc, char* argv[]) {
   // Setup QueryProcessor, including CatalogDatabase and StorageManager.
   std::unique_ptr<QueryProcessor> query_processor;
   try {
-    // TODO(zuyu): Remove passing 'bus' once WorkOrder serialization is done.
-    query_processor.reset(new QueryProcessor(catalog_path, fixed_storage_path, foreman.getBusClientID(), &bus));
+    query_processor.reset(new QueryProcessor(catalog_path, fixed_storage_path));
   } catch (const std::exception &e) {
     LOG(FATAL) << "FATAL ERROR DURING STARTUP: " << e.what();
   } catch (...) {
@@ -293,6 +294,13 @@ int main(int argc, char* argv[]) {
           break;
         }
 
+        if (result.parsed_statement->getStatementType() == ParseStatement::kCommand) {
+          const ParseCommand *command = static_cast<const ParseCommand*>(result.parsed_statement);
+          ParseCommand *mutable_command = const_cast<ParseCommand*>(command);
+          mutable_command->execute();
+          continue;
+        }
+
         std::unique_ptr<QueryHandle> query_handle;
         try {
           query_handle.reset(query_processor->generateQueryHandle(*result.parsed_statement));
@@ -309,6 +317,7 @@ int main(int argc, char* argv[]) {
           query_context.reset(new QueryContext(query_handle->getQueryContextProto(),
                                                query_processor->getDefaultDatabase(),
                                                query_processor->getStorageManager(),
+                                               foreman.getBusClientID(),
                                                &bus));
           foreman.setQueryContext(query_context.get());
           foreman.start();
@@ -361,10 +370,13 @@ int main(int argc, char* argv[]) {
       sizeof(poison_message),
       quickstep::kPoisonMessage);
 
-  bus.Send(main_thread_client_id,
-           address,
-           style,
-           std::move(poison_tagged_message));
+  const tmb::MessageBus::SendStatus send_status =
+      bus.Send(main_thread_client_id,
+               address,
+               style,
+               std::move(poison_tagged_message));
+  CHECK(send_status == tmb::MessageBus::SendStatus::kOK) <<
+     "Broadcast message from Foreman to workers failed";
 
   for (Worker &worker : workers) {
     worker.join();

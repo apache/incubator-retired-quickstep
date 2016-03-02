@@ -35,6 +35,7 @@ class ParseAssignment;
 class ParseAttribute;
 class ParseAttributeDefinition;
 class ParseColumnConstraint;
+class ParseCommand;
 class ParseDataType;
 class ParseFunctionCall;
 class ParseKeyValue;

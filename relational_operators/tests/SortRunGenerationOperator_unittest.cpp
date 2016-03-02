@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -148,6 +148,7 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
     bus_.Initialize();
     thread_client_id_ = bus_.Connect();
     bus_.RegisterClientAsSender(thread_client_id_, kDataPipelineMessage);
+    bus_.RegisterClientAsReceiver(thread_client_id_, kDataPipelineMessage);
 
     thread_id_map_ = ClientIDMap::Instance();
     // Usually the worker thread makes the following call. In this test setup,
@@ -277,7 +278,7 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
 
   void executeOperator(RelationalOperator *op) {
     WorkOrdersContainer container(kOpIndex + 1, 0);
-    op->getAllWorkOrders(&container);
+    op->getAllWorkOrders(&container, thread_client_id_, &bus_);
     while (container.hasNormalWorkOrder(kOpIndex)) {
       std::unique_ptr<WorkOrder> order(container.getNormalWorkOrder(kOpIndex));
       order->execute(query_context_.get(), db_.get(), storage_manager_.get());
@@ -299,7 +300,6 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
     insert_destination_proto->set_relation_id(result_table_->getID());
     insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
-    insert_destination_proto->set_foreman_client_id(thread_client_id_);
 
     // Setup the SortConfiguration proto.
     DCHECK_EQ(attrs.size(), ordering.size());
@@ -327,7 +327,11 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
     run_gen->setOperatorIndex(kOpIndex);
 
     // Set up the QueryContext.
-    query_context_.reset(new QueryContext(query_context_proto, db_.get(), storage_manager_.get(), &bus_));
+    query_context_.reset(new QueryContext(query_context_proto,
+                                          db_.get(),
+                                          storage_manager_.get(),
+                                          thread_client_id_,
+                                          &bus_));
 
     executeOperator(run_gen.get());
   }

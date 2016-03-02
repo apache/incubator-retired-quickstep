@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -131,32 +131,28 @@ class TextScanOperator : public RelationalOperator {
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert tuples.
-   * @param foreman_client_id The TMB client ID of the Foreman thread.
-   * @param bus A pointer to the TMB.
    **/
   TextScanOperator(const std::string &file_pattern,
                    const char field_terminator,
                    const bool process_escape_sequences,
                    const bool parallelize_load,
                    const CatalogRelation &output_relation,
-                   const QueryContext::insert_destination_id output_destination_index,
-                   const tmb::client_id foreman_client_id,
-                   tmb::MessageBus *bus)
+                   const QueryContext::insert_destination_id output_destination_index)
       : file_pattern_(file_pattern),
         field_terminator_(field_terminator),
         process_escape_sequences_(process_escape_sequences),
         parallelize_load_(parallelize_load),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
-        foreman_client_id_(foreman_client_id),
-        bus_(bus),
         num_done_split_work_orders_(0),
         num_split_work_orders_(0),
         work_generated_(false) {}
 
   ~TextScanOperator() override {}
 
-  bool getAllWorkOrders(WorkOrdersContainer *container) override;
+  bool getAllWorkOrders(WorkOrdersContainer *container,
+                        const tmb::client_id foreman_client_id,
+                        tmb::MessageBus *bus) override;
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
     return output_destination_index_;
@@ -176,10 +172,6 @@ class TextScanOperator : public RelationalOperator {
 
   const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
-
-  const tmb::client_id foreman_client_id_;
-  // TODO(zuyu): Remove 'bus_' once WorkOrder serialization is done.
-  tmb::MessageBus *bus_;
 
   ThreadSafeQueue<TextBlob> text_blob_queue_;
   std::atomic<std::uint32_t> num_done_split_work_orders_;

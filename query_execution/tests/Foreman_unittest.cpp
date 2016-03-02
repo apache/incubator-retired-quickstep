@@ -16,7 +16,6 @@
  **/
 
 #include <climits>
-#include <cstddef>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -25,7 +24,6 @@
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/Foreman.hpp"
-#include "query_execution/ForemanMessage.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
@@ -145,7 +143,10 @@ class MockOperator: public RelationalOperator {
   }
 
   // Override methods from the base class.
-  bool getAllWorkOrders(WorkOrdersContainer *container) override {
+  bool getAllWorkOrders(
+      WorkOrdersContainer *container,
+      const tmb::client_id foreman_client_id,
+      tmb::MessageBus *bus) override {
     ++num_calls_get_workorders_;
     if (produce_workorders_) {
       if (has_streaming_input_) {
@@ -278,30 +279,27 @@ class ForemanTest : public ::testing::Test {
 
   inline bool placeDataPipelineMessage(const QueryPlan::DAGNodeIndex source_operator_index) {
     VLOG(3) << "Place DataPipeline message for Op[" << source_operator_index << "]";
-    ForemanMessage foreman_message(ForemanMessage::DataPipelineMessage(source_operator_index, 0, 0));
-    foreman_->processMessage(foreman_message);
+    foreman_->processDataPipelineMessage(source_operator_index, 0 /* block_id */, 0 /* relation_id */);
     return foreman_->checkQueryExecutionFinished();
   }
 
   inline bool placeWorkOrderCompleteMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place WorkOrderComplete message for Op[" << index << "]";
-    ForemanMessage foreman_message(ForemanMessage::WorkOrderCompletionMessage(index, 0));
-    foreman_->processMessage(foreman_message);
+    foreman_->processWorkOrderCompleteMessage(index, 0 /* worker id */);
     return foreman_->checkQueryExecutionFinished();
   }
 
   inline bool placeRebuildWorkOrderCompleteMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place RebuildWorkOrderComplete message for Op[" << index << "]";
-    ForemanMessage foreman_message(ForemanMessage::RebuildCompletionMessage(index, 0));
-    foreman_->processMessage(foreman_message);
+    foreman_->processRebuildWorkOrderCompleteMessage(index, 0 /* worker id */);
     return foreman_->checkQueryExecutionFinished();
   }
 
   inline bool placeOutputBlockMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place OutputBlock message for Op[" << index << "]";
-    ForemanMessage foreman_message(
-    ForemanMessage::DataPipelineMessage(index, BlockIdUtil::GetBlockId(1 /* domain */, 1), 0));
-    foreman_->processMessage(foreman_message);
+    foreman_->processDataPipelineMessage(index,
+                                         BlockIdUtil::GetBlockId(1 /* domain */, 1),
+                                         0 /* relation_id */);
     return foreman_->checkQueryExecutionFinished();
   }
 
@@ -726,7 +724,6 @@ TEST_F(ForemanTest, TwoNodesDAGPartiallyFilledBlocksTest) {
   insert_destination_proto->set_relation_id(output_relation_id);
   insert_destination_proto->set_need_to_add_blocks_from_relation(false);
   insert_destination_proto->set_relational_op_index(id1);
-  insert_destination_proto->set_foreman_client_id(foreman_->getBusClientID());
 
   MockOperator *op1_mutable =
       static_cast<MockOperator*>(query_plan_->getQueryPlanDAGMutable()->getNodePayloadMutable(id1));
@@ -739,7 +736,7 @@ TEST_F(ForemanTest, TwoNodesDAGPartiallyFilledBlocksTest) {
   // Set up the QueryContext.
   unique_ptr<StorageManager> storage_manager(new StorageManager("./"));
   unique_ptr<QueryContext> query_context(
-      new QueryContext(query_context_proto, db.get(), storage_manager.get(), &bus_));
+      new QueryContext(query_context_proto, db.get(), storage_manager.get(), foreman_->getBusClientID(), &bus_));
 
   // NOTE(zuyu): An operator generally has no ideas about partially filled blocks, but Foreman does.
   // Mock to add partially filled blocks in the InsertDestination.

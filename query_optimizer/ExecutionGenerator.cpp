@@ -51,6 +51,7 @@
 #include "query_optimizer/expressions/Scalar.hpp"
 #include "query_optimizer/expressions/ScalarLiteral.hpp"
 #include "query_optimizer/physical/CopyFrom.hpp"
+#include "query_optimizer/physical/CreateIndex.hpp"
 #include "query_optimizer/physical/CreateTable.hpp"
 #include "query_optimizer/physical/DeleteTuples.hpp"
 #include "query_optimizer/physical/DropTable.hpp"
@@ -63,11 +64,13 @@
 #include "query_optimizer/physical/Selection.hpp"
 #include "query_optimizer/physical/SharedSubplanReference.hpp"
 #include "query_optimizer/physical/Sort.hpp"
+#include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
 #include "relational_operators/AggregationOperator.hpp"
 #include "relational_operators/BuildHashOperator.hpp"
+#include "relational_operators/CreateIndexOperator.hpp"
 #include "relational_operators/CreateTableOperator.hpp"
 #include "relational_operators/DeleteOperator.hpp"
 #include "relational_operators/DestroyHashOperator.hpp"
@@ -81,6 +84,7 @@
 #include "relational_operators/SelectOperator.hpp"
 #include "relational_operators/SortMergeRunOperator.hpp"
 #include "relational_operators/SortRunGenerationOperator.hpp"
+#include "relational_operators/TableGeneratorOperator.hpp"
 #include "relational_operators/TextScanOperator.hpp"
 #include "relational_operators/UpdateOperator.hpp"
 #include "storage/AggregationOperationState.pb.h"
@@ -167,6 +171,7 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
     const QueryPlan::DAGNodeIndex drop_table_index =
         execution_plan_->addRelationalOperator(
             new DropTableOperator(*temporary_relation,
+                                  optimizer_context_->catalog_database(),
                                   false /* only_drop_blocks */));
     DCHECK(!temporary_relation_info.isStoredRelation());
     execution_plan_->addDependenciesForDropOperator(
@@ -189,6 +194,9 @@ void ExecutionGenerator::generatePlanInternal(
     case P::PhysicalType::kCopyFrom:
       return convertCopyFrom(
           std::static_pointer_cast<const P::CopyFrom>(physical_plan));
+    case P::PhysicalType::kCreateIndex:
+      return convertCreateIndex(
+          std::static_pointer_cast<const P::CreateIndex>(physical_plan));
     case P::PhysicalType::kCreateTable:
       return convertCreateTable(
           std::static_pointer_cast<const P::CreateTable>(physical_plan));
@@ -216,6 +224,9 @@ void ExecutionGenerator::generatePlanInternal(
     case P::PhysicalType::kSort:
       return convertSort(
           std::static_pointer_cast<const P::Sort>(physical_plan));
+    case P::PhysicalType::kTableGenerator:
+      return convertTableGenerator(
+          std::static_pointer_cast<const P::TableGenerator>(physical_plan));
     case P::PhysicalType::kTableReference:
       return convertTableReference(
           std::static_pointer_cast<const P::TableReference>(physical_plan));
@@ -268,7 +279,6 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_rel_id);
   insert_destination_proto->set_need_to_add_blocks_from_relation(true);
-  insert_destination_proto->set_foreman_client_id(optimizer_context_->getForemanClientID());
 }
 
 void ExecutionGenerator::dropAllTemporaryRelations() {
@@ -724,7 +734,6 @@ void ExecutionGenerator::convertCopyFrom(
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation->getID());
   insert_destination_proto->set_need_to_add_blocks_from_relation(true);
-  insert_destination_proto->set_foreman_client_id(optimizer_context_->getForemanClientID());
 
   const QueryPlan::DAGNodeIndex scan_operator_index =
       execution_plan_->addRelationalOperator(
@@ -734,9 +743,7 @@ void ExecutionGenerator::convertCopyFrom(
               physical_plan->escape_strings(),
               FLAGS_parallelize_load,
               *output_relation,
-              insert_destination_index,
-              optimizer_context_->getForemanClientID(),
-              optimizer_context_->getMessageBus()));
+              insert_destination_index));
   insert_destination_proto->set_relational_op_index(scan_operator_index);
 
   const QueryPlan::DAGNodeIndex save_blocks_operator_index =
@@ -745,6 +752,24 @@ void ExecutionGenerator::convertCopyFrom(
   execution_plan_->addDirectDependency(save_blocks_operator_index,
                                        scan_operator_index,
                                        false /* is_pipeline_breaker */);
+}
+
+
+void ExecutionGenerator::convertCreateIndex(
+  const P::CreateIndexPtr &physical_plan) {
+  // CreateIndex is converted to a CreateIndex operator.
+  const CatalogRelationInfo *input_relation_info =
+      findRelationInfoOutputByPhysical(physical_plan->input());
+  CatalogRelation *input_relation =
+      optimizer_context_->catalog_database()->getRelationByIdMutable(
+            input_relation_info->relation->getID());
+  if (input_relation->hasIndexWithName(physical_plan->index_name())) {
+    THROW_SQL_ERROR() << "The relation " << input_relation->getName()
+            << " already has an index named "<< physical_plan->index_name();
+  } else {
+    execution_plan_->addRelationalOperator(
+       new CreateIndexOperator(input_relation, physical_plan->index_name()));
+  }
 }
 
 void ExecutionGenerator::convertCreateTable(
@@ -767,6 +792,20 @@ void ExecutionGenerator::convertCreateTable(
         attribute->attribute_alias()));
     catalog_relation->addAttribute(catalog_attribute.release());
     ++aid;
+  }
+
+  // If specified, set the physical block type as the users'. Otherwise,
+  // the system uses the default layout.
+  if (physical_plan->block_properties()) {
+    if (!StorageBlockLayout::DescriptionIsValid(*catalog_relation,
+                                                *physical_plan->block_properties())) {
+      THROW_SQL_ERROR() << "BLOCKPROPERTIES is invalid.";
+    }
+
+    std::unique_ptr<StorageBlockLayout> layout(
+        new StorageBlockLayout(*catalog_relation, *physical_plan->block_properties()));
+    layout->finalize();
+    catalog_relation->setDefaultStorageBlockLayout(layout.release());
   }
 
   execution_plan_->addRelationalOperator(
@@ -797,6 +836,7 @@ void ExecutionGenerator::convertDeleteTuples(
     const QueryPlan::DAGNodeIndex drop_table_index =
         execution_plan_->addRelationalOperator(
             new DropTableOperator(*input_relation_info->relation,
+                                  optimizer_context_->catalog_database(),
                                   true /* only_drop_blocks */));
     if (!input_relation_info->isStoredRelation()) {
       execution_plan_->addDirectDependency(drop_table_index,
@@ -811,9 +851,7 @@ void ExecutionGenerator::convertDeleteTuples(
         execution_plan_->addRelationalOperator(new DeleteOperator(
             *input_relation_info->relation,
             execution_predicate_index,
-            input_relation_info->isStoredRelation(),
-            optimizer_context_->getForemanClientID(),
-            optimizer_context_->getMessageBus()));
+            input_relation_info->isStoredRelation()));
     if (!input_relation_info->isStoredRelation()) {
       execution_plan_->addDirectDependency(delete_tuples_index,
                                            input_relation_info->producer_operator_index,
@@ -833,7 +871,8 @@ void ExecutionGenerator::convertDropTable(
     const P::DropTablePtr &physical_plan) {
   // DropTable is converted to a DropTable operator.
   execution_plan_->addRelationalOperator(
-      new DropTableOperator(*physical_plan->catalog_relation()));
+      new DropTableOperator(*physical_plan->catalog_relation(),
+                            optimizer_context_->catalog_database()));
 }
 
 void ExecutionGenerator::convertInsertTuple(
@@ -875,7 +914,6 @@ void ExecutionGenerator::convertInsertTuple(
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(input_relation->getID());
   insert_destination_proto->set_need_to_add_blocks_from_relation(true);
-  insert_destination_proto->set_foreman_client_id(optimizer_context_->getForemanClientID());
 
   const QueryPlan::DAGNodeIndex insert_operator_index =
       execution_plan_->addRelationalOperator(
@@ -915,7 +953,6 @@ void ExecutionGenerator::convertUpdateTable(
   relocation_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   relocation_destination_proto->set_relation_id(input_rel_id);
   relocation_destination_proto->set_need_to_add_blocks_from_relation(false);
-  relocation_destination_proto->set_foreman_client_id(optimizer_context_->getForemanClientID());
 
   // Convert the predicate proto.
   QueryContext::predicate_id execution_predicate_index = QueryContext::kInvalidPredicateId;
@@ -960,9 +997,7 @@ void ExecutionGenerator::convertUpdateTable(
               *optimizer_context_->catalog_database()->getRelationByIdMutable(input_rel_id),
               relocation_destination_index,
               execution_predicate_index,
-              update_group_index,
-              optimizer_context_->getForemanClientID(),
-              optimizer_context_->getMessageBus()));
+              update_group_index));
   relocation_destination_proto->set_relational_op_index(update_operator_index);
 
   const QueryPlan::DAGNodeIndex save_blocks_index =
@@ -1183,9 +1218,7 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
                                    sort_merge_run_config_id,
                                    64 /* merge_factor */,
                                    physical_sort->limit(),
-                                   false /* input_relation_is_stored */,
-                                   optimizer_context_->getForemanClientID(),
-                                   optimizer_context_->getMessageBus()));
+                                   false /* input_relation_is_stored */));
   execution_plan_->addDirectDependency(merge_run_operator_index,
                                        run_generator_index,
                                        false /* is_pipeline_breaker */);
@@ -1199,6 +1232,7 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
       execution_plan_->addRelationalOperator(
           new DropTableOperator(
               *merged_runs_relation,
+              optimizer_context_->catalog_database(),
               false /* only_drop_blocks */));
   execution_plan_->addDirectDependency(
       drop_merged_runs_index,
@@ -1212,6 +1246,41 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
       std::forward_as_tuple(physical_sort),
       std::forward_as_tuple(merge_run_operator_index,
                             sorted_relation));
+}
+
+void ExecutionGenerator::convertTableGenerator(
+    const P::TableGeneratorPtr &physical_tablegen) {
+  // Create InsertDestination proto.
+  const CatalogRelation *output_relation = nullptr;
+  const QueryContext::insert_destination_id insert_destination_index =
+      query_context_proto_->insert_destinations_size();
+  S::InsertDestination *insert_destination_proto =
+      query_context_proto_->add_insert_destinations();
+  createTemporaryCatalogRelation(physical_tablegen,
+                                 &output_relation,
+                                 insert_destination_proto);
+
+  // Create GeneratorFunctionHandle proto
+  const QueryContext::generator_function_id generator_function_index =
+      query_context_proto_->generator_functions_size();
+  query_context_proto_->add_generator_functions()->CopyFrom(
+      physical_tablegen->generator_function_handle()->getProto());
+
+  TableGeneratorOperator *op =
+      new TableGeneratorOperator(*output_relation,
+                                 insert_destination_index,
+                                 generator_function_index);
+
+  const QueryPlan::DAGNodeIndex tablegen_index =
+      execution_plan_->addRelationalOperator(op);
+  insert_destination_proto->set_relational_op_index(tablegen_index);
+
+  physical_to_output_relation_map_.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple(physical_tablegen),
+      std::forward_as_tuple(tablegen_index,
+                            output_relation));
+  temporary_relation_info_vec_.emplace_back(tablegen_index, output_relation);
 }
 
 }  // namespace optimizer

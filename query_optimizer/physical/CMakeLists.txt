@@ -1,5 +1,5 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 add_library(quickstep_queryoptimizer_physical_Aggregate Aggregate.cpp Aggregate.hpp)
 add_library(quickstep_queryoptimizer_physical_BinaryJoin BinaryJoin.cpp BinaryJoin.hpp)
 add_library(quickstep_queryoptimizer_physical_CopyFrom CopyFrom.cpp CopyFrom.hpp)
+add_library(quickstep_queryoptimizer_physical_CreateIndex CreateIndex.cpp CreateIndex.hpp)
 add_library(quickstep_queryoptimizer_physical_CreateTable CreateTable.cpp CreateTable.hpp)
 add_library(quickstep_queryoptimizer_physical_DeleteTuples DeleteTuples.cpp DeleteTuples.hpp)
 add_library(quickstep_queryoptimizer_physical_DropTable DropTable.cpp DropTable.hpp)
@@ -32,6 +33,7 @@ add_library(quickstep_queryoptimizer_physical_SharedSubplanReference
             SharedSubplanReference.cpp
             SharedSubplanReference.hpp)
 add_library(quickstep_queryoptimizer_physical_Sort Sort.cpp Sort.hpp)
+add_library(quickstep_queryoptimizer_physical_TableGenerator ../../empty_src.cpp TableGenerator.hpp)
 add_library(quickstep_queryoptimizer_physical_TableReference TableReference.cpp TableReference.hpp)
 add_library(quickstep_queryoptimizer_physical_TopLevelPlan TopLevelPlan.cpp TopLevelPlan.hpp)
 add_library(quickstep_queryoptimizer_physical_UpdateTable UpdateTable.cpp UpdateTable.hpp)
@@ -65,6 +67,13 @@ target_link_libraries(quickstep_queryoptimizer_physical_CopyFrom
                       quickstep_queryoptimizer_expressions_NamedExpression
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_physical_CreateIndex
+                      glog
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_physical_Physical
+                      quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_utility_Cast
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_physical_CreateTable
                       glog
@@ -136,7 +145,7 @@ target_link_libraries(quickstep_queryoptimizer_physical_NestedLoopsJoin
                       quickstep_queryoptimizer_physical_BinaryJoin
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
-                      quickstep_utility_Macros) 
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_physical_PatternMatcher
                       quickstep_queryoptimizer_physical_PhysicalType)
 target_link_libraries(quickstep_queryoptimizer_physical_Physical
@@ -171,6 +180,16 @@ target_link_libraries(quickstep_queryoptimizer_physical_Sort
                       glog
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_physical_Physical
+                      quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_utility_Cast
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_physical_TableGenerator
+                      quickstep_expressions_tablegenerator_GeneratorFunctionHandle
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_ExpressionUtil
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
@@ -216,6 +235,7 @@ target_link_libraries(quickstep_queryoptimizer_physical
                       quickstep_queryoptimizer_physical_Aggregate
                       quickstep_queryoptimizer_physical_BinaryJoin
                       quickstep_queryoptimizer_physical_CopyFrom
+                      quickstep_queryoptimizer_physical_CreateIndex
                       quickstep_queryoptimizer_physical_CreateTable
                       quickstep_queryoptimizer_physical_DeleteTuples
                       quickstep_queryoptimizer_physical_DropTable
@@ -229,6 +249,7 @@ target_link_libraries(quickstep_queryoptimizer_physical
                       quickstep_queryoptimizer_physical_Selection
                       quickstep_queryoptimizer_physical_SharedSubplanReference
                       quickstep_queryoptimizer_physical_Sort
+                      quickstep_queryoptimizer_physical_TableGenerator
                       quickstep_queryoptimizer_physical_TableReference
                       quickstep_queryoptimizer_physical_TopLevelPlan
                       quickstep_queryoptimizer_physical_UpdateTable)

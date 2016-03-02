@@ -1,5 +1,5 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -15,14 +15,19 @@
 
 QS_PROTOBUF_GENERATE_CPP(queryexecution_QueryContext_proto_srcs queryexecution_QueryContext_proto_hdrs
                          QueryContext.proto)
+QS_PROTOBUF_GENERATE_CPP(queryexecution_QueryExecutionMessages_proto_srcs
+                         queryexecution_QueryExecutionMessages_proto_hdrs
+                         QueryExecutionMessages.proto)
 
 # Declare micro-libs:
 add_library(quickstep_queryexecution_Foreman Foreman.cpp Foreman.hpp)
-add_library(quickstep_queryexecution_ForemanMessage ../empty_src.cpp ForemanMessage.hpp)
 add_library(quickstep_queryexecution_QueryContext QueryContext.cpp QueryContext.hpp)
 add_library(quickstep_queryexecution_QueryContext_proto
             ${queryexecution_QueryContext_proto_srcs}
             ${queryexecution_QueryContext_proto_hdrs})
+add_library(quickstep_queryexecution_QueryExecutionMessages_proto
+            ${queryexecution_QueryExecutionMessages_proto_srcs}
+            ${queryexecution_QueryExecutionMessages_proto_hdrs})
 add_library(quickstep_queryexecution_QueryExecutionTypedefs ../empty_src.cpp QueryExecutionTypedefs.hpp)
 add_library(quickstep_queryexecution_QueryExecutionUtil ../empty_src.cpp QueryExecutionUtil.hpp)
 add_library(quickstep_queryexecution_WorkOrdersContainer WorkOrdersContainer.cpp WorkOrdersContainer.hpp)
@@ -35,8 +40,8 @@ add_library(quickstep_queryexecution_WorkerSelectionPolicy ../empty_src.cpp Work
 target_link_libraries(quickstep_queryexecution_Foreman
                       glog
                       quickstep_catalog_CatalogTypedefs
-                      quickstep_queryexecution_ForemanMessage
                       quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_WorkOrdersContainer
@@ -47,19 +52,10 @@ target_link_libraries(quickstep_queryexecution_Foreman
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_InsertDestination
                       quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
                       quickstep_threading_Thread
                       quickstep_threading_ThreadUtil
                       quickstep_utility_DAG
-                      quickstep_utility_Macros
-                      tmb)
-target_link_libraries(quickstep_queryexecution_ForemanMessage
-                      quickstep_catalog_CatalogTypedefs
-                      quickstep_storage_StorageBlockInfo)
-target_link_libraries(quickstep_queryexecution_QueryExecutionTypedefs
-                      quickstep_threading_ThreadIDBasedMap
-                      tmb)
-target_link_libraries(quickstep_queryexecution_QueryExecutionUtil
-                      quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_utility_Macros
                       tmb)
 target_link_libraries(quickstep_queryexecution_QueryContext
@@ -70,6 +66,8 @@ target_link_libraries(quickstep_queryexecution_QueryContext
                       quickstep_expressions_ExpressionFactories
                       quickstep_expressions_predicate_Predicate
                       quickstep_expressions_scalar_Scalar
+                      quickstep_expressions_tablegenerator_GeneratorFunctionFactory
+                      quickstep_expressions_tablegenerator_GeneratorFunctionHandle
                       quickstep_queryexecution_QueryContext_proto
                       quickstep_storage_AggregationOperationState
                       quickstep_storage_HashTable
@@ -81,19 +79,30 @@ target_link_libraries(quickstep_queryexecution_QueryContext
                       quickstep_utility_SortConfiguration)
 target_link_libraries(quickstep_queryexecution_QueryContext_proto
                       quickstep_expressions_Expressions_proto
+                      quickstep_expressions_tablegenerator_GeneratorFunction_proto
                       quickstep_storage_AggregationOperationState_proto
                       quickstep_storage_HashTable_proto
                       quickstep_storage_InsertDestination_proto
                       quickstep_types_containers_Tuple_proto
                       quickstep_utility_SortConfiguration_proto
                       ${PROTOBUF_LIBRARY})
+target_link_libraries(quickstep_queryexecution_QueryExecutionMessages_proto
+                      ${PROTOBUF_LIBRARY})
+target_link_libraries(quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_threading_ThreadIDBasedMap
+                      tmb)
+target_link_libraries(quickstep_queryexecution_QueryExecutionUtil
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_utility_Macros
+                      tmb)
 target_link_libraries(quickstep_queryexecution_WorkOrdersContainer
                       glog
                       quickstep_relationaloperators_WorkOrder
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector)
 target_link_libraries(quickstep_queryexecution_Worker
-                      quickstep_queryexecution_ForemanMessage
+                      glog
+                      quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_WorkerMessage
@@ -114,9 +123,9 @@ target_link_libraries(quickstep_queryexecution_WorkerSelectionPolicy
 add_library(quickstep_queryexecution ../empty_src.cpp QueryExecutionModule.hpp)
 target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_Foreman
-                      quickstep_queryexecution_ForemanMessage
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_WorkOrdersContainer
@@ -135,7 +144,6 @@ target_link_libraries(Foreman_unittest
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_Foreman
-                      quickstep_queryexecution_ForemanMessage
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
                       quickstep_queryexecution_QueryExecutionTypedefs

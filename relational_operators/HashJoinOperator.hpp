@@ -31,6 +31,10 @@
 
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
+
+namespace tmb { class MessageBus; }
+
 namespace quickstep {
 
 class CatalogDatabase;
@@ -117,7 +121,9 @@ class HashJoinOperator : public RelationalOperator {
 
   ~HashJoinOperator() override {}
 
-  bool getAllWorkOrders(WorkOrdersContainer *container) override;
+  bool getAllWorkOrders(WorkOrdersContainer *container,
+                        const tmb::client_id foreman_client_id,
+                        tmb::MessageBus *bus) override;
 
   void feedInputBlock(const block_id input_block_id,
                       const relation_id input_relation_id) override {
@@ -139,6 +145,15 @@ class HashJoinOperator : public RelationalOperator {
 
   const relation_id getOutputRelationID() const override {
     return output_relation_.getID();
+  }
+
+  void doneFeedingInputBlocks(const relation_id rel_id) override {
+    // The HashJoinOperator depends on BuildHashOperator too, but it
+    // should ignore a doneFeedingInputBlocks() message that comes
+    // after completion of BuildHashOperator. Therefore we need this check.
+    if (probe_relation_.getID() == rel_id) {
+      done_feeding_input_relation_ = true;
+    }
   }
 
  private:
