@@ -73,6 +73,8 @@ void ParseHelpCommand::execute() {
       }
     }
   }
+  // This will be printed if there was no suggested keyword.
+  printf("(The 'help' feature is experimental and incomplete at this time.)\n");
 }
 
 const map<string, string>& ParseHelpCommand::getHelpMessageMap() {
@@ -81,7 +83,8 @@ const map<string, string>& ParseHelpCommand::getHelpMessageMap() {
     // TODO(marc): There's very likely a better way to create and specify these
     //             help messages. Below is only  a placeholder for a future enhancement.
     help_messages_["create"] = "CREATE TABLE";
-    help_messages_["type"] = "INT | LONG | FLOAT | DOUBLE | VARCHAR | CHAR | DateTime | interval";
+    help_messages_["type"] = 
+        "INT | LONG | FLOAT | DOUBLE | VARCHAR | CHAR | DateTime | interval";
     help_messages_["blockproperties"] = "[BLOCKPROPERTIES]";
   }
   return help_messages_;

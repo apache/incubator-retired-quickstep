@@ -120,8 +120,8 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 %%
 
 <INITIAL>{
-  \. {
-    /* A dot character represents a non-SQL command. */
+  \.|\\ {
+    /* A dot or forward slash character represents a system command. */
     BEGIN(CONDITION_COMMAND);
   }
 
