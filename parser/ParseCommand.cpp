@@ -83,7 +83,7 @@ const map<string, string>& ParseHelpCommand::getHelpMessageMap() {
     // TODO(marc): There's very likely a better way to create and specify these
     //             help messages. Below is only  a placeholder for a future enhancement.
     help_messages_["create"] = "CREATE TABLE";
-    help_messages_["type"] = 
+    help_messages_["type"] =
         "INT | LONG | FLOAT | DOUBLE | VARCHAR | CHAR | DateTime | interval";
     help_messages_["blockproperties"] = "[BLOCKPROPERTIES]";
   }
