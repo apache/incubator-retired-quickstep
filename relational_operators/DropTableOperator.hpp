@@ -70,6 +70,8 @@ class DropTableOperator : public RelationalOperator {
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
+  void updateCatalogOnCompletion() override;
+
  private:
   const CatalogRelation &relation_;
   CatalogDatabase *database_;

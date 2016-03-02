@@ -47,15 +47,21 @@ bool DropTableOperator::getAllWorkOrders(
         new DropTableWorkOrder(std::move(relation_blocks)),
         op_index_);
 
-    // TODO(zuyu): move the following code to a better place.
-    const relation_id rel_id = relation_.getID();
-    if (only_drop_blocks_) {
-      database_->getRelationByIdMutable(rel_id)->clearBlocks();
-    } else {
-      database_->dropRelationById(rel_id);
-    }
+    database_->setStatus(CatalogDatabase::Status::kPendingBlockDeletions);
   }
+
   return work_generated_;
+}
+
+void DropTableOperator::updateCatalogOnCompletion() {
+  const relation_id rel_id = relation_.getID();
+  if (only_drop_blocks_) {
+    database_->getRelationByIdMutable(rel_id)->clearBlocks();
+  } else {
+    database_->dropRelationById(rel_id);
+  }
+
+  database_->setStatus(CatalogDatabase::Status::kConsistent);
 }
 
 void DropTableWorkOrder::execute(QueryContext *query_context,

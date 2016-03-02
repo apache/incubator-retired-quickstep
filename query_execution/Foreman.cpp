@@ -482,7 +482,11 @@ void Foreman::processOperator(const dag_node_index index,
 void Foreman::markOperatorFinished(const dag_node_index index) {
   execution_finished_[index] = true;
   ++num_operators_finished_;
-  const relation_id output_rel = query_dag_->getNodePayload(index).getOutputRelationID();
+
+  RelationalOperator *op = query_dag_->getNodePayloadMutable(index);
+  op->updateCatalogOnCompletion();
+
+  const relation_id output_rel = op->getOutputRelationID();
   for (const pair<dag_node_index, bool> &dependent_link : query_dag_->getDependents(index)) {
     const dag_node_index dependent_op_index = dependent_link.first;
     RelationalOperator *dependent_op = query_dag_->getNodePayloadMutable(dependent_op_index);

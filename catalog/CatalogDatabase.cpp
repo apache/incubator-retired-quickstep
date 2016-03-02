@@ -53,7 +53,9 @@ bool CatalogDatabase::ProtoIsValid(const serialization::CatalogDatabase &proto) 
   return true;
 }
 
-CatalogDatabase::CatalogDatabase(const serialization::CatalogDatabase &proto) : name_(proto.name()) {
+CatalogDatabase::CatalogDatabase(const serialization::CatalogDatabase &proto)
+    : name_(proto.name()),
+      status_(Status::kConsistent) {
   DCHECK(ProtoIsValid(proto))
       << "Attempted to create CatalogDatabase from an invalid proto description:\n"
       << proto.DebugString();
