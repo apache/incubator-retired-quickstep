@@ -519,19 +519,28 @@ std::size_t SMAIndexSubBlock::EstimateBytesPerTuple(
 }
 
 bool SMAIndexSubBlock::bulkAddEntries(const TupleIdSequence &tuples) {
-  // TODO(marc): Handle bulk insertion.
-  header_->index_consistent = false;
+  DCHECK(initialized_);
+  if (header_->index_consistent) {
+    for (const tuple_id &tuple : tuples) {
+      addEntry(tuple);      
+    }
+  }
   return true;  // There will always be space for the entry.
 }
 
 void SMAIndexSubBlock::bulkRemoveEntries(const TupleIdSequence &tuples) {
-  // TODO(marc): Handle bulk deletion.
   header_->index_consistent = false;
 }
 
 bool SMAIndexSubBlock::addEntry(const tuple_id tuple) {
-  header_->index_consistent = false;
-  return true;  // There will always be space to insert the entry.
+  DCHECK(initialized_);
+  if (header_->index_consistent) {
+    addTuple(tuple);
+  }
+
+  // There will always be space to insert the entry,
+  // even if we did not call addTuple().
+  return true;
 }
 
 void SMAIndexSubBlock::removeEntry(const tuple_id tuple) {

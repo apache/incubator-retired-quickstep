@@ -960,10 +960,10 @@ TEST_F(SMAIndexSubBlockTest, TestEvaluatePredicateCost) {
   tuple_id new_tuple = generateAndInsertTuple(0x1337, false, "suffix");
   predicate.reset(generateNumericComparisonPredicate<LongType>(ComparisonID::kLess, 0, min));
   EXPECT_TRUE(index_->addEntry(new_tuple));
-  EXPECT_TRUE(index_->requiresRebuild());
+  EXPECT_FALSE(index_->requiresRebuild());
 
   // Inconsistent indices should have a high evaluation cost.
-  EXPECT_EQ(predicate_cost::kInfinite, index_->estimatePredicateEvaluationCost(*predicate));
+  EXPECT_EQ(predicate_cost::kConstantTime, index_->estimatePredicateEvaluationCost(*predicate));
 }
 
 TEST_F(SMAIndexSubBlockTest, TestGetMatchesForPredicate) {
