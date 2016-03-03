@@ -285,6 +285,9 @@ int main(int argc, char* argv[]) {
     parser_wrapper->feedNextBuffer(command_string);
 
     bool quitting = false;
+    // A parse error should reset the parser. This is because the thrown quickstep
+    // SqlError does not do the proper reset work of the YYABORT macro.
+    bool reset_parser = false;
     for (;;) {
       ParseResult result = parser_wrapper->getNextStatement();
       if (result.condition == ParseResult::kSuccess) {
@@ -303,6 +306,7 @@ int main(int argc, char* argv[]) {
           query_handle.reset(query_processor->generateQueryHandle(*result.parsed_statement));
         } catch (const quickstep::SqlError &sql_error) {
           fprintf(stderr, "%s", sql_error.formatMessage(*command_string).c_str());
+          reset_parser = true;
           break;
         }
 
@@ -344,15 +348,16 @@ int main(int argc, char* argv[]) {
         if (result.condition == ParseResult::kError) {
           fprintf(stderr, "%s", result.error_message.c_str());
         }
-        // A parse error should reset the parser as it will reset
-        // the parser to an initial state.
-        parser_wrapper.reset(new SqlParserWrapper());
+        reset_parser = true;
         break;
       }
     }
 
     if (quitting) {
       break;
+    } else if (reset_parser) {
+      parser_wrapper.reset(new SqlParserWrapper());
+      reset_parser = false;
     }
   }
 
