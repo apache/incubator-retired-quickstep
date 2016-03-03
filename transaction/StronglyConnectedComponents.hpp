@@ -42,13 +42,13 @@ class StronglyConnectedComponents {
   /**
    * @brief Constructor for StronglyConnectedComponents.
    *
-   * @param directed_graph Pointer to the directed graph which the 
-   *        algortihm runs.
+   * @param directed_graph Const reference to the directed graph which the 
+   *        algorithm runs.
    **/
-  explicit StronglyConnectedComponents(DirectedGraph *directed_graph);
+  explicit StronglyConnectedComponents(const DirectedGraph &directed_graph);
 
   /**
-   * @brief Enumaretes strongly connected components.
+   * @brief Enumerates strongly connected components.
    * @info This method should be called before calling any other method.
    **/
   void findStronglyConnectedComponents();
@@ -80,8 +80,8 @@ class StronglyConnectedComponents {
   // Applies DFS to the node whic has id v.
   void depthFirstSearch(DirectedGraph::NodeId v);
 
-  // Pointer to the graph.
-  DirectedGraph *directed_graph_;
+  // Const reference to the graph.
+  const DirectedGraph &directed_graph_;
 
   // is_marked[v] == true if depth first search traversed the node with id v.
   std::vector<bool> is_marked_;
@@ -98,6 +98,7 @@ class StronglyConnectedComponents {
 
   // Keeps track of the current index number of depth first search traversal.
   std::uint64_t preorder_counter_;
+
   // Keeps track of the current number of the strongly connected component.
   std::uint64_t no_of_components_;
 

@@ -23,17 +23,17 @@ namespace quickstep {
 
 namespace transaction {
 
-StronglyConnectedComponents::StronglyConnectedComponents(DirectedGraph *directed_graph)
+StronglyConnectedComponents::StronglyConnectedComponents(const DirectedGraph &directed_graph)
   : directed_graph_(directed_graph)
-  , is_marked_(directed_graph_->count())
-  , component_ids_(directed_graph_->count())
-  , low_ids_(directed_graph_->count())
+  , is_marked_(directed_graph_.count())
+  , component_ids_(directed_graph_.count())
+  , low_ids_(directed_graph_.count())
   , preorder_counter_(0)
   , no_of_components_(0) {
 }
 
 void StronglyConnectedComponents::findStronglyConnectedComponents() {
-  for (DirectedGraph::NodeId v = 0; v < directed_graph_->count(); ++v) {
+  for (DirectedGraph::NodeId v = 0; v < directed_graph_.count(); ++v) {
     if (!is_marked_[v]) {
       depthFirstSearch(v);
     }
@@ -62,7 +62,7 @@ void StronglyConnectedComponents::depthFirstSearch(DirectedGraph::NodeId v) {
   // 1-) Apply DFS if w is not marked (recursively).
   // 2-) If low id of w is smaller than minimum number
   //     we have seen so far, update our minimum.
-  for (DirectedGraph::NodeId w : directed_graph_->getAdjacentNodes(v)) {
+  for (DirectedGraph::NodeId w : directed_graph_.getAdjacentNodes(v)) {
     if (!is_marked_[w]) {
       depthFirstSearch(w);
     }
@@ -95,7 +95,7 @@ void StronglyConnectedComponents::depthFirstSearch(DirectedGraph::NodeId v) {
 
     // Set the low id to the more than max number posssible
     // which is the (no_nodes + 1).
-    low_ids_[w] = directed_graph_->count();
+    low_ids_[w] = directed_graph_.count();
     stack_.pop();
   } while (w != v);
 

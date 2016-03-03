@@ -20,7 +20,8 @@ add_library(quickstep_transaction
             TransactionModule.hpp)
 target_link_libraries(quickstep_transaction
                       quickstep_transaction_DirectedGraph
-                      quickstep_transaction_StronglyConnectedComponents)
+                      quickstep_transaction_StronglyConnectedComponents
+                      quickstep_transaction_Transaction)
 
 add_executable(DirectedGraph_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/DirectedGraph_unittest.cpp")

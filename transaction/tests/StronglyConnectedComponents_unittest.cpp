@@ -37,7 +37,7 @@ class StronglyConnectedComponentsTestWithOneNode : public testing::Test {
     tid1 = new TransactionId(1);
     nid1 = wait_for_graph->addNode(tid1);
 
-    scc = std::make_unique<StronglyConnectedComponents>(wait_for_graph.get());
+    scc = std::make_unique<StronglyConnectedComponents>(*wait_for_graph);
     scc->findStronglyConnectedComponents();
   }
 
@@ -66,7 +66,7 @@ class StronglyConnectedComponentsTestWithTwoNodesCycle : public testing::Test {
     wait_for_graph->addEdge(nid1, nid2);
     wait_for_graph->addEdge(nid2, nid1);
 
-    scc = std::make_unique<StronglyConnectedComponents>(wait_for_graph.get());
+    scc = std::make_unique<StronglyConnectedComponents>(*wait_for_graph);
     scc->findStronglyConnectedComponents();
   }
 
@@ -147,7 +147,7 @@ class StronglyConnectedComponentsTest : public testing::Test {
 
     wait_for_graph->addEdge(nid12, nid10);
 
-    scc = std::make_unique<StronglyConnectedComponents>(wait_for_graph.get());
+    scc = std::make_unique<StronglyConnectedComponents>(*wait_for_graph);
     scc->findStronglyConnectedComponents();
   }
 
