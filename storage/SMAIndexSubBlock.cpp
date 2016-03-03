@@ -241,6 +241,8 @@ void initializeTypedValueForSum(SMAEntry *entry) {
     new (&entry->sum_aggregate) TypedValue(static_cast<std::int64_t>(0));
   } else if (sum_type == kDouble) {
     new (&entry->sum_aggregate) TypedValue(static_cast<double>(0.0));
+  } else {
+    DCHECK(false) << "initializeTypedValueForSum called with unsummable type.";
   }
 }
 
@@ -311,7 +313,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
       entries_(nullptr),
       total_attributes_(tuple_store.getRelation().size()),
       attribute_to_entry_(nullptr),
-      indexed_attributes_(0),
+      num_indexed_attributes_(0),
       initialized_(false),
       add_operations_(new UncheckedBinaryOperator*[kNumTypeIDs]),
       less_comparisons_(new UncheckedComparator*[kNumTypeIDs]),
@@ -319,10 +321,10 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
   CHECK(DescriptionIsValid(relation_, description_))
       << "Attempted to construct an SMAIndexSubBlock from an invalid description.";
 
-  indexed_attributes_ = description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id);
+  num_indexed_attributes_ = description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id);
 
   CHECK((sizeof(sma_internal::SMAHeader)
-            + (indexed_attributes_ * sizeof(SMAEntry))) <= sub_block_memory_size_)
+            + (num_indexed_attributes_ * sizeof(SMAEntry))) <= sub_block_memory_size_)
       << "Attempted to create SMAIndexSubBlock without enough space allocated.";
 
   header_ = reinterpret_cast<SMAHeader*>(sub_block_memory_);
@@ -344,13 +346,17 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
 
   // Iterate through each attribute which is being indexed.
   for (std::size_t indexed_attribute_num = 0;
-       indexed_attribute_num < indexed_attributes_;
+       indexed_attribute_num < num_indexed_attributes_;
        ++indexed_attribute_num) {
     const attribute_id attribute = description_.GetExtension(
         SMAIndexSubBlockDescription::indexed_attribute_id,
         indexed_attribute_num);
 
-    const Type &attribute_type = tuple_store_.getRelation().getAttributeById(attribute)->getType();
+    const CatalogAttribute *catalog_attribute
+        = tuple_store_.getRelation().getAttributeById(attribute);
+    CHECK(catalog_attribute != nullptr) << "Indexed attribute did not exist.";
+
+    const Type &attribute_type = catalog_attribute->getType();
     SMAEntry *entry = entries_ + indexed_attribute_num;
 
     // Initialize the operator map.
@@ -385,8 +391,10 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
     } else {
       // If the data held by min/max is out of line, we must retrieve it as we initialize.
       if (!TypedValue::RepresentedInline(entry->type_id)) {
-        // First, set to 0 so that we don't try to free invalid memory on copy.
-        // Next, copy from the tuple store. This will copy and give us ownership of out of line data.
+        // If the data held by min/max is out of line (i.e. a variable
+        // attribute which is stored on the heap or in a variable length storage
+        // area), then we must store store our own copy of the typed value by
+        // calling 'ensureNotReference'.
         if (entry->min_entry_ref.valid) {
           new (&entry->min_entry_ref.value) TypedValue();
           entry->min_entry_ref.value = tuple_store
@@ -430,9 +438,9 @@ SMAIndexSubBlock::~SMAIndexSubBlock() {
 }
 
 void SMAIndexSubBlock::resetEntry(SMAEntry *entry,
-                                  attribute_id attribute,
+                                  attribute_id attr_id,
                                   const Type &attribute_type) {
-  entry->attribute = attribute;
+  entry->attribute = attr_id;
   entry->type_id = attribute_type.getTypeID();
 
   // Clearing min/max will free any out of line data.
@@ -444,14 +452,16 @@ void SMAIndexSubBlock::resetEntry(SMAEntry *entry,
     entry->max_entry_ref.value.clear();
     entry->max_entry_ref.valid = false;
   }
-  sma_internal::initializeTypedValueForSum(entry);
+  if (sma_internal::canSum(entry->type_id)) {
+    sma_internal::initializeTypedValueForSum(entry);
+  }
 }
 
 void SMAIndexSubBlock::resetEntries() {
   freeOutOfLineData();
 
   for (std::size_t indexed_attribute_num = 0;
-       indexed_attribute_num < indexed_attributes_;
+       indexed_attribute_num < num_indexed_attributes_;
        ++indexed_attribute_num) {
     const attribute_id attribute = description_.GetExtension(
         SMAIndexSubBlockDescription::indexed_attribute_id,
@@ -465,7 +475,7 @@ void SMAIndexSubBlock::resetEntries() {
 void SMAIndexSubBlock::freeOutOfLineData() {
   // For each entry, clear the min and max typed values (frees out of line data).
   for (std::size_t indexed_attribute_num = 0;
-       indexed_attribute_num < indexed_attributes_;
+       indexed_attribute_num < num_indexed_attributes_;
        ++indexed_attribute_num) {
     SMAEntry &entry = entries_[indexed_attribute_num];
     if (!TypedValue::RepresentedInline(entry.type_id)) {
@@ -514,11 +524,13 @@ std::size_t SMAIndexSubBlock::EstimateBytesPerTuple(
 }
 
 bool SMAIndexSubBlock::bulkAddEntries(const TupleIdSequence &tuples) {
+  // TODO(marc): Handle bulk insertion.
   header_->index_consistent = false;
   return true;  // There will always be space for the entry.
 }
 
 void SMAIndexSubBlock::bulkRemoveEntries(const TupleIdSequence &tuples) {
+  // TODO(marc): Handle bulk deletion.
   header_->index_consistent = false;
 }
 
@@ -550,7 +562,7 @@ bool SMAIndexSubBlock::rebuild() {
 }
 
 void SMAIndexSubBlock::addTuple(tuple_id tuple) {
-  for (std::size_t index = 0; index < indexed_attributes_; ++index) {
+  for (std::size_t index = 0; index < num_indexed_attributes_; ++index) {
     SMAEntry *entry = entries_ + index;
     TypedValue tuple_value = tuple_store_.getAttributeValueTyped(tuple, entry->attribute);
 

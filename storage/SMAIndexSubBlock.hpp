@@ -402,8 +402,11 @@ class SMAIndexSubBlock : public IndexSubBlock {
   // A value of -1 indicates that that attribute is not indexed.
   int *attribute_to_entry_;
   // Number of indexed attributes.
-  std::size_t indexed_attributes_;
+  std::size_t num_indexed_attributes_;
   // True if the index has gone through the initialization process.
+  // The key aspect of initialization is the creation of the comparators and
+  // binary operators which are used to update the SMAEntries on insertion
+  // and deletion.
   bool initialized_;
 
   // An array of pointers to necessary add operations for updating SUM.
