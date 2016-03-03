@@ -673,6 +673,7 @@ target_link_libraries(quickstep_storage_SMAIndexSubBlock
                       quickstep_expressions_scalar_Scalar
                       quickstep_expressions_scalar_ScalarAttribute
                       quickstep_storage_IndexSubBlock
+                      quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_storage_SubBlockTypeRegistry
                       quickstep_storage_SubBlockTypeRegistryMacros
@@ -690,8 +691,7 @@ target_link_libraries(quickstep_storage_SMAIndexSubBlock
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_types_operations_comparisons_ComparisonUtil
-                      quickstep_utility_Macros
-                      quickstep_utility_ScopedBuffer)
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_SplitRowStoreTupleStorageSubBlock
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_expressions_predicate_PredicateCost
