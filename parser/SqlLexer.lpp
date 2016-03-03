@@ -112,7 +112,6 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 
 %x CONDITION_SQL
 %x CONDITION_COMMAND
-%x CONDITION_COMMAND_STRING
 %x CONDITION_STRING_SINGLE_QUOTED
 %x CONDITION_STRING_SINGLE_QUOTED_ESCAPED
 %x CONDITION_STRING_DOUBLE_QUOTED
@@ -120,13 +119,16 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 %%
 
 <INITIAL>{
-  [.\\] {
-    /* A dot or forward slash character represents a system command. */
+  \\[a-zA-Z]+ {
+    /* A forward slash character represents a system command. */
     BEGIN(CONDITION_COMMAND);
+    yylval->string_value_ = new quickstep::ParseString(
+        yylloc->first_line, yylloc->first_column, std::string(yytext, yyleng));
+    return TOKEN_COMMAND;
   }
 
-  [^.\\] {
-    /* Place the char back and process SQL normally. */
+  [^\\] {
+    /* This is a SQL command. Place the char back and process normally. */
     yyless(0);
     yycolumn--;
     BEGIN(CONDITION_SQL);
@@ -134,30 +136,19 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 }
 
 <CONDITION_COMMAND>{
-  [a-zA-Z]+ {
-    BEGIN(CONDITION_COMMAND_STRING);
+  [a-zA-Z0-9\-\.:]+ {
+    /* This is a command argument. */
     yylval->string_value_ = new quickstep::ParseString(
         yylloc->first_line, yylloc->first_column, std::string(yytext, yyleng));
     return TOKEN_COMMAND;
   }
 
-  ([^a-zA-Z].*[\n\r])|[\n\r] {
-    /* Anything else is an invalid escape command. Consume up through newline. */
-    yycolumn = 0;
-    BEGIN(INITIAL);
-    quickstep_yyerror(NULL, yyscanner, NULL, "Invalid command, try '.help'");
-    return TOKEN_LEX_ERROR;
-  }
-}
-
-<CONDITION_COMMAND_STRING>{
-  [^\n\r]+ {
-    yylval->string_value_ = new quickstep::ParseString(
-        yylloc->first_line, yylloc->first_column, std::string(yytext, yyleng));
-    return TOKEN_COMMAND_STRING;
+  [ \t]+ {
+    /* Ignore whitespace. */
   }
 
-  [\n\r] {
+  [\n\r]+ {
+    /* Newline reverts the lexer to the initial state. */
     yycolumn = 0;
     BEGIN(INITIAL);
     return '\n';
@@ -413,8 +404,8 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 
 } /* CONDITION_SQL */
 
-<INITIAL,CONDITION_COMMAND,CONDITION_COMMAND_STRING,CONDITION_SQL><<EOF>> {
-  /* All conditions except for string-extracting conditions. */
+<INITIAL,CONDITION_COMMAND,CONDITION_SQL><<EOF>> {
+  /* All conditions except for mutli-state string extracting conditions. */
   BEGIN(INITIAL);
   return TOKEN_EOF;
 }

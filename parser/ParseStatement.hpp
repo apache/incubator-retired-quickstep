@@ -889,13 +889,15 @@ class ParseStatementQuit : public ParseStatement {
  * @brief Class to hold the parsed command name and an optional argument string.
  * @details Commands are non-sql statements which can be issued to quickstep.
  *          They are entered into the CLI as '.command-name command-string\n'.
+ *          The command string is split up into words using whitespace as
+ *          a delimiter.
  */
 class ParseCommand : public ParseStatement {
  public:
   ParseCommand(const int line_number,
                const int column_number,
                ParseString *command,
-               ParseString *arguments)
+               PtrVector<ParseString> *arguments)
       : ParseStatement(line_number, column_number),
         command_(command),
         arguments_(arguments) {  }
@@ -922,9 +924,9 @@ class ParseCommand : public ParseStatement {
   }
 
   /**
-   * @return The optional argument string to the command. Nullptr if blank.
+   * @return The optional argument strings to the command. Possibly empty.
    */
-  const ParseString* arguments() const {
+  const PtrVector<ParseString>* arguments() const {
     return arguments_.get();
   }
 
@@ -939,15 +941,15 @@ class ParseCommand : public ParseStatement {
     inline_field_names->push_back("command");
     inline_field_values->push_back(command_->value());
 
-    if (arguments_) {
-      non_container_child_field_names->push_back("arguments");
-      non_container_child_fields->push_back(arguments_.get());
+    for (const ParseString &argument : *arguments_) {
+      non_container_child_field_names->push_back("argument");
+      non_container_child_fields->push_back(&argument);
     }
   }
 
  private:
   std::unique_ptr<ParseString> command_;
-  std::unique_ptr<ParseString> arguments_;
+  std::unique_ptr<PtrVector<ParseString>> arguments_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseCommand);
 };
