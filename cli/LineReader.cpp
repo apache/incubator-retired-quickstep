@@ -171,6 +171,9 @@ std::string LineReader::getNextCommand() {
               // If the dot or forward slash begins the line, begin a command search.
               if (scan_position == 0) {
                 line_state = kCommand;
+              } else {
+                // This is a regular character, so skip over it.
+                scan_position = special_char_location + 1;
               }
               break;
             default:
