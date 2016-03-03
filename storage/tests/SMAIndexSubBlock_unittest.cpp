@@ -25,39 +25,34 @@
 #include <string>
 #include <vector>
 
-#include "gtest/gtest.h"
-#include "glog/logging.h"
-
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/predicate/ComparisonPredicate.hpp"
-#include "expressions/predicate/TrivialPredicates.hpp"
-#include "expressions/scalar/Scalar.hpp"
+#include "expressions/predicate/PredicateCost.hpp"
 #include "expressions/scalar/ScalarAttribute.hpp"
 #include "expressions/scalar/ScalarLiteral.hpp"
 #include "storage/CompressedColumnStoreTupleStorageSubBlock.hpp"
-#include "storage/CompressedTupleStorageSubBlock.hpp"
 #include "storage/SMAIndexSubBlock.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageBlockLayout.pb.h"
-#include "storage/StorageErrors.hpp"
 #include "storage/TupleIdSequence.hpp"
 #include "storage/tests/MockTupleStorageSubBlock.hpp"
 #include "types/CharType.hpp"
 #include "types/DoubleType.hpp"
 #include "types/FloatType.hpp"
 #include "types/LongType.hpp"
-#include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
-#include "types/TypedValue.hpp"
 #include "types/TypeID.hpp"
+#include "types/TypedValue.hpp"
 #include "types/VarCharType.hpp"
 #include "types/containers/Tuple.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
-#include "types/operations/comparisons/ComparisonUtil.hpp"
 #include "utility/ScopedBuffer.hpp"
+
+#include "gtest/gtest.h"
 
 using std::binary_search;
 using std::int64_t;

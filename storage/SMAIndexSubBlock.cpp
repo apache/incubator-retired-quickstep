@@ -19,25 +19,24 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
-#include <iterator>
-#include <utility>
 #include <exception>
+#include <memory>
+#include <new>
+#include <string>
+#include <utility>
+#include <vector>
 
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
-#include "compression/CompressionDictionary.hpp"
 #include "expressions/predicate/ComparisonPredicate.hpp"
-#include "expressions/predicate/Predicate.hpp"
 #include "expressions/predicate/PredicateCost.hpp"
 #include "expressions/scalar/Scalar.hpp"
 #include "expressions/scalar/ScalarAttribute.hpp"
-#include "storage/CompressedTupleStorageSubBlock.hpp"
 #include "storage/StorageBlockLayout.pb.h"
-#include "storage/StorageConstants.hpp"
-#include "storage/StorageErrors.hpp"
 #include "storage/SubBlockTypeRegistry.hpp"
 #include "storage/TupleIdSequence.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
+#include "types/IntervalLit.hpp"
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
@@ -49,10 +48,6 @@
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "types/operations/comparisons/ComparisonUtil.hpp"
-#include "utility/BitVector.hpp"
-#include "utility/Macros.hpp"
-#include "utility/PtrVector.hpp"
-#include "utility/ScopedBuffer.hpp"
 
 #include "glog/logging.h"
 

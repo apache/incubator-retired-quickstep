@@ -17,25 +17,22 @@
 #ifndef QUICKSTEP_STORAGE_SMA_INDEX_SUB_BLOCK_HPP_
 #define QUICKSTEP_STORAGE_SMA_INDEX_SUB_BLOCK_HPP_
 
+#include <stdint.h>
 #include <cstddef>
-#include <exception>
 #include <iostream>
-#include <string>
-#include <vector>
 
-#include "catalog/CatalogAttribute.hpp"
+#include "catalog/CatalogTypedefs.hpp"
 #include "expressions/predicate/PredicateCost.hpp"
 #include "storage/IndexSubBlock.hpp"
-#include "storage/StorageConstants.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "storage/SubBlockTypeRegistryMacros.hpp"
+#include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
-#include "types/operations/comparisons/ComparisonID.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
-#include "utility/BitVector.hpp"
+#include "types/operations/comparisons/ComparisonID.hpp"
 #include "utility/Macros.hpp"
-#include "utility/PtrVector.hpp"
 
 #include "glog/logging.h"
 
