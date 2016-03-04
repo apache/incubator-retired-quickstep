@@ -522,7 +522,7 @@ bool SMAIndexSubBlock::bulkAddEntries(const TupleIdSequence &tuples) {
   DCHECK(initialized_);
   if (header_->index_consistent) {
     for (const tuple_id &tuple : tuples) {
-      addEntry(tuple);      
+      addEntry(tuple);
     }
   }
   return true;  // There will always be space for the entry.
