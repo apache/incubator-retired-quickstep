@@ -25,8 +25,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <thread>  // NOLINT(build/c++11)
-
 
 #include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE.
 #include "cli/DropRelation.hpp"
@@ -39,6 +37,7 @@ typedef quickstep::LineReaderLineNoise LineReaderImpl;
 typedef quickstep::LineReaderDumb LineReaderImpl;
 #endif
 
+#include "cli/DefaultsConfigurator.hpp"
 #include "cli/InputParserUtil.hpp"
 #include "cli/PrintToScreen.hpp"
 #include "parser/ParseStatement.hpp"
@@ -86,6 +85,7 @@ using std::vector;
 
 using quickstep::Address;
 using quickstep::CatalogRelation;
+using quickstep::DefaultsConfigurator;
 using quickstep::DropRelation;
 using quickstep::Foreman;
 using quickstep::InputParserUtil;
@@ -142,9 +142,9 @@ int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   google::InitGoogleLogging(argv[0]);
 
-  // Detect the hardware concurrency level. Note this call will return 0
-  // if it fails (which it may on some machines/environments).
-  const unsigned int num_hw_threads = std::thread::hardware_concurrency();
+  // Detect the hardware concurrency level.
+  const std::size_t num_hw_threads =
+      DefaultsConfigurator::GetNumHardwareThreads();
 
   // Use the command-line value if that was supplied, else use the value
   // that we computed above, provided it did return a valid value.
@@ -182,8 +182,6 @@ int main(int argc, char* argv[]) {
   const client_id main_thread_client_id = bus.Connect();
   bus.RegisterClientAsSender(main_thread_client_id, kPoisonMessage);
 
-  Foreman foreman(&bus);
-
   // Setup the paths used by StorageManager.
   string fixed_storage_path(quickstep::FLAGS_storage_path);
   if (!fixed_storage_path.empty()
@@ -209,6 +207,10 @@ int main(int argc, char* argv[]) {
   const vector<int> worker_cpu_affinities =
       InputParserUtil::ParseWorkerAffinities(real_num_workers,
                                              quickstep::FLAGS_worker_affinities);
+
+  const std::size_t num_numa_nodes_covered =
+      DefaultsConfigurator::GetNumNUMANodesCoveredByWorkers(worker_cpu_affinities);
+  Foreman foreman(&bus, num_numa_nodes_covered);
 
   if (quickstep::FLAGS_preload_buffer_pool) {
     quickstep::PreloaderThread preloader(*query_processor->getDefaultDatabase(),

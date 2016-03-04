@@ -57,13 +57,13 @@ class Foreman : public Thread {
    * @brief Constructor.
    *
    * @param bus A pointer to the TMB.
-   * @param cpu_id The ID of the CPU to which the Foreman thread can be pinned.
    * @param num_numa_nodes The number of NUMA nodes in the system.
+   * @param cpu_id The ID of the CPU to which the Foreman thread can be pinned.
    *
    * @note If cpu_id is not specified, Foreman thread can be possibly moved
    *       around on different CPUs by the OS.
   **/
-  explicit Foreman(MessageBus *bus, const int cpu_id = -1, const int num_numa_nodes = 1)
+  explicit Foreman(MessageBus *bus, const int num_numa_nodes = 1, const int cpu_id = -1)
       : bus_(bus),
         cpu_id_(cpu_id),
         query_context_(nullptr),
