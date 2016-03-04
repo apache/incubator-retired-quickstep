@@ -28,6 +28,8 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 #include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
@@ -35,8 +37,14 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class CatalogDatabase;
+class CatalogRelationSchema;
 class StorageManager;
 class WorkOrdersContainer;
+
+struct TupleReference;
+
+template <typename, bool, bool, bool, bool> class HashTable;
+typedef HashTable<TupleReference, true, false, false, true> JoinHashTable;
 
 /** \addtogroup RelationalOperators
  *  @{
@@ -80,6 +88,9 @@ class BuildHashOperator : public RelationalOperator {
   ~BuildHashOperator() override {}
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
@@ -118,36 +129,42 @@ class BuildHashWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @param rel_id The id of the relation to build hash table on.
+   * @param input_relation The relation to build hash table on.
    * @param join_key_attributes The IDs of equijoin attributes in
    *        input_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
    * @param build_block_id The block id.
-   * @param hash_table_index The index of the JoinHashTable in QueryContext.
+   * @param hash_table The JoinHashTable to use.
+   * @param storage_manager The StorageManager to use.
    **/
-  BuildHashWorkOrder(const relation_id rel_id,
+  BuildHashWorkOrder(const CatalogRelationSchema &input_relation,
                      const std::vector<attribute_id> &join_key_attributes,
                      const bool any_join_key_attributes_nullable,
                      const block_id build_block_id,
-                     const QueryContext::join_hash_table_id hash_table_index)
-      : rel_id_(rel_id),
+                     JoinHashTable *hash_table,
+                     StorageManager *storage_manager)
+      : input_relation_(input_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         build_block_id_(build_block_id),
-        hash_table_index_(hash_table_index) {}
+        hash_table_(hash_table),
+        storage_manager_(storage_manager) {
+    DCHECK(hash_table_ != nullptr);
+    DCHECK(storage_manager_ != nullptr);
+  }
 
   ~BuildHashWorkOrder() override {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
-  const relation_id rel_id_;
+  const CatalogRelationSchema &input_relation_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
   const block_id build_block_id_;
-  const QueryContext::join_hash_table_id hash_table_index_;
+
+  JoinHashTable *hash_table_;
+  StorageManager *storage_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(BuildHashWorkOrder);
 };

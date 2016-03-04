@@ -182,8 +182,6 @@ int main(int argc, char* argv[]) {
   const client_id main_thread_client_id = bus.Connect();
   bus.RegisterClientAsSender(main_thread_client_id, kPoisonMessage);
 
-  Foreman foreman(&bus);
-
   // Setup the paths used by StorageManager.
   string fixed_storage_path(quickstep::FLAGS_storage_path);
   if (!fixed_storage_path.empty()
@@ -221,6 +219,10 @@ int main(int argc, char* argv[]) {
     printf("DONE\n");
   }
 
+  Foreman foreman(&bus,
+                  query_processor->getDefaultDatabase(),
+                  query_processor->getStorageManager());
+
   // Get the NUMA affinities for workers.
   vector<int> cpu_numa_nodes = InputParserUtil::GetNUMANodesForCPUs();
   if (cpu_numa_nodes.empty()) {
@@ -248,12 +250,8 @@ int main(int argc, char* argv[]) {
     }
     worker_numa_nodes.push_back(numa_node_id);
 
-    workers.push_back(new Worker(worker_idx,
-                                 query_context,
-                                 &bus,
-                                 query_processor->getDefaultDatabase(),
-                                 query_processor->getStorageManager(),
-                                 worker_cpu_affinities[worker_idx]));
+    workers.push_back(
+        new Worker(worker_idx, &bus, worker_cpu_affinities[worker_idx]));
     worker_client_ids.push_back(workers.back().getBusClientID());
   }
 

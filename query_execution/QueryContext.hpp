@@ -154,17 +154,21 @@ class QueryContext {
    **/
   inline AggregationOperationState* getAggregationState(const aggregation_state_id id) {
     DCHECK_LT(id, aggregation_states_.size());
+    DCHECK(aggregation_states_[id]);
     return aggregation_states_[id].get();
   }
 
   /**
-   * @brief Destroy the given AggregationOperationState.
+   * @brief Release the given AggregationOperationState.
    *
    * @param id The id of the AggregationOperationState to destroy.
+   *
+   * @return The AggregationOperationState, alreadly created in the constructor.
    **/
-  inline void destroyAggregationState(const aggregation_state_id id) {
+  inline AggregationOperationState* releaseAggregationState(const aggregation_state_id id) {
     DCHECK_LT(id, aggregation_states_.size());
-    aggregation_states_[id].reset();
+    DCHECK(aggregation_states_[id]);
+    return aggregation_states_[id].release();
   }
 
   /**
@@ -265,9 +269,9 @@ class QueryContext {
    *
    * @return The SortConfiguration, alreadly created in the constructor.
    **/
-  inline const SortConfiguration* getSortConfig(const sort_config_id id) {
+  inline const SortConfiguration& getSortConfig(const sort_config_id id) {
     DCHECK_LT(id, sort_configs_.size());
-    return sort_configs_[id].get();
+    return *sort_configs_[id];
   }
 
   /**
