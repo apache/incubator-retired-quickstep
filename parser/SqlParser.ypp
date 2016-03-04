@@ -68,7 +68,6 @@ typedef struct YYLTYPE {
 #include "parser/ParseAttributeDefinition.hpp"
 #include "parser/ParseBasicExpressions.hpp"
 #include "parser/ParseBlockProperties.hpp"
-#include "parser/ParseCommand.hpp"
 #include "parser/ParseExpression.hpp"
 #include "parser/ParseGeneratorTableReference.hpp"
 #include "parser/ParseGroupBy.hpp"
@@ -153,6 +152,7 @@ typedef void* yyscan_t;
   quickstep::PtrList<quickstep::ParseAssignment> *assignment_list_;
 
   quickstep::ParseCommand *command_;
+  quickstep::PtrVector<quickstep::ParseString> *command_argument_list_;
 
   quickstep::ParseStatement *statement_;
   quickstep::ParseStatementSelect *select_statement_;
@@ -192,7 +192,7 @@ typedef void* yyscan_t;
 void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string &feature);
 %}
 
-%token <string_value_> TOKEN_COMMAND_STRING;
+%token <string_value_> TOKEN_COMMAND;
 %token <string_value_> TOKEN_NAME;
 %token <string_value_> TOKEN_STRING_SINGLE_QUOTED;
 %token <string_value_> TOKEN_STRING_DOUBLE_QUOTED;
@@ -249,7 +249,6 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_FULL;
 %token TOKEN_GROUP;
 %token TOKEN_HAVING;
-%token TOKEN_HELP;
 %token TOKEN_INDEX;
 %token TOKEN_INNER;
 %token TOKEN_INSERT;
@@ -478,6 +477,9 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <command_>
   command
+
+%type <command_argument_list_>
+  command_argument_list
 
 /*
 %type <int_val>
@@ -1576,11 +1578,18 @@ boolean_value:
 
 /* Command Statments */
 command:
-  TOKEN_HELP TOKEN_COMMAND_STRING {
-    $$ = new quickstep::ParseHelpCommand(@1.first_line, @1.first_column, $2);
+  TOKEN_COMMAND command_argument_list {
+    $$ = new quickstep::ParseCommand(@1.first_line, @1.first_column, $1, $2);
+  };
+
+command_argument_list:
+  command_argument_list TOKEN_COMMAND {
+    quickstep::PtrVector<quickstep::ParseString> *argument_list = $1;
+    argument_list->push_back($2);
+    $$ = argument_list;
   }
-  | TOKEN_HELP {
-    $$ = new quickstep::ParseHelpCommand(@1.first_line, @1.first_column, nullptr);
+  | { /* Epsilon, an empy match. */
+    $$ = new quickstep::PtrVector<quickstep::ParseString>();
   }
 
 %%

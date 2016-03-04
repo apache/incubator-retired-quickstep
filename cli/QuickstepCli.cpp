@@ -41,7 +41,6 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 
 #include "cli/InputParserUtil.hpp"
 #include "cli/PrintToScreen.hpp"
-#include "parser/ParseCommand.hpp"
 #include "parser/ParseStatement.hpp"
 #include "parser/SqlParserWrapper.hpp"
 #include "query_execution/Foreman.hpp"
@@ -272,7 +271,7 @@ int main(int argc, char* argv[]) {
 
   LineReaderImpl line_reader("quickstep> ",
                              "      ...> ");
-  SqlParserWrapper parser_wrapper;
+  std::unique_ptr<SqlParserWrapper> parser_wrapper(new SqlParserWrapper());
   std::chrono::time_point<std::chrono::steady_clock> start, end;
 
   for (;;) {
@@ -283,11 +282,14 @@ int main(int argc, char* argv[]) {
       break;
     }
 
-    parser_wrapper.feedNextBuffer(command_string);
+    parser_wrapper->feedNextBuffer(command_string);
 
     bool quitting = false;
+    // A parse error should reset the parser. This is because the thrown quickstep
+    // SqlError does not do the proper reset work of the YYABORT macro.
+    bool reset_parser = false;
     for (;;) {
-      ParseResult result = parser_wrapper.getNextStatement();
+      ParseResult result = parser_wrapper->getNextStatement();
       if (result.condition == ParseResult::kSuccess) {
         if (result.parsed_statement->getStatementType() == ParseStatement::kQuit) {
           quitting = true;
@@ -295,9 +297,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (result.parsed_statement->getStatementType() == ParseStatement::kCommand) {
-          const ParseCommand *command = static_cast<const ParseCommand*>(result.parsed_statement);
-          ParseCommand *mutable_command = const_cast<ParseCommand*>(command);
-          mutable_command->execute();
+          // TODO(marc): Add executer to this parsed command statement.
           continue;
         }
 
@@ -306,6 +306,7 @@ int main(int argc, char* argv[]) {
           query_handle.reset(query_processor->generateQueryHandle(*result.parsed_statement));
         } catch (const quickstep::SqlError &sql_error) {
           fprintf(stderr, "%s", sql_error.formatMessage(*command_string).c_str());
+          reset_parser = true;
           break;
         }
 
@@ -347,12 +348,16 @@ int main(int argc, char* argv[]) {
         if (result.condition == ParseResult::kError) {
           fprintf(stderr, "%s", result.error_message.c_str());
         }
+        reset_parser = true;
         break;
       }
     }
 
     if (quitting) {
       break;
+    } else if (reset_parser) {
+      parser_wrapper.reset(new SqlParserWrapper());
+      reset_parser = false;
     }
   }
 
