@@ -166,11 +166,9 @@ class SortRunGenerationWorkOrder : public WorkOrder {
       : input_relation_(input_relation),
         input_block_id_(input_block_id),
         sort_config_(sort_config),
-        output_destination_(output_destination),
-        storage_manager_(storage_manager) {
+        output_destination_(DCHECK_NOTNULL(output_destination)),
+        storage_manager_(DCHECK_NOTNULL(storage_manager)) {
     DCHECK(sort_config_.isValid());
-    DCHECK(output_destination_ != nullptr);
-    DCHECK(storage_manager_ != nullptr);
   }
 
   ~SortRunGenerationWorkOrder() {}

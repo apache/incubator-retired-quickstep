@@ -334,13 +334,10 @@ class TextSplitWorkOrder : public WorkOrder {
                      MessageBus *bus)
       : filename_(filename),
         process_escape_sequences_(process_escape_sequences),
-        storage_manager_(storage_manager),
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
         operator_index_(operator_index),
         foreman_client_id_(foreman_client_id),
-        bus_(bus) {
-    DCHECK(storage_manager_ != nullptr);
-    DCHECK(bus_ != nullptr);
-  }
+        bus_(DCHECK_NOTNULL(bus)) {}
 
   /**
    * @exception TextScanReadError The text file could not be opened for

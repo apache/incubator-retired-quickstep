@@ -105,9 +105,7 @@ class SaveBlocksWorkOrder : public WorkOrder {
                       StorageManager *storage_manager)
       : save_block_id_(save_block_id),
         force_(force),
-        storage_manager_(storage_manager) {
-    DCHECK(storage_manager_ != nullptr);
-  }
+        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
 
   ~SaveBlocksWorkOrder() override {}
 
