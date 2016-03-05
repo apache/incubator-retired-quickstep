@@ -116,9 +116,10 @@ class StorageBlockBase {
         block_memory_(block_memory),
         block_memory_size_(block_memory_size)
 #ifdef QUICKSTEP_DEBUG
-        , ref_count_(0)  // initialize the atomic using direct initialization
+        , ref_count_(0)  // Initialize the atomic using direct initialization.
 #endif
-  {   // breaking the style guidelines to call atomic direct initialization only when compiled with QUICKSTEP_DEBUG defined
+  {   // We are breaking the style guidelines to call direct initialization
+      // on the atomic variable only when compiled with QUICKSTEP_DEBUG defined.
   }
 
   const block_id id_;
