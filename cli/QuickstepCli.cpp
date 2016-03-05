@@ -210,7 +210,6 @@ int main(int argc, char* argv[]) {
 
   const std::size_t num_numa_nodes_covered =
       DefaultsConfigurator::GetNumNUMANodesCoveredByWorkers(worker_cpu_affinities);
-  Foreman foreman(&bus, num_numa_nodes_covered);
 
   if (quickstep::FLAGS_preload_buffer_pool) {
     quickstep::PreloaderThread preloader(*query_processor->getDefaultDatabase(),
@@ -222,6 +221,11 @@ int main(int argc, char* argv[]) {
     preloader.join();
     printf("DONE\n");
   }
+
+  Foreman foreman(&bus,
+                  query_processor->getDefaultDatabase(),
+                  query_processor->getStorageManager(),
+                  num_numa_nodes_covered);
 
   // Get the NUMA affinities for workers.
   vector<int> cpu_numa_nodes = InputParserUtil::GetNUMANodesForCPUs();
@@ -250,12 +254,8 @@ int main(int argc, char* argv[]) {
     }
     worker_numa_nodes.push_back(numa_node_id);
 
-    workers.push_back(new Worker(worker_idx,
-                                 query_context,
-                                 &bus,
-                                 query_processor->getDefaultDatabase(),
-                                 query_processor->getStorageManager(),
-                                 worker_cpu_affinities[worker_idx]));
+    workers.push_back(
+        new Worker(worker_idx, &bus, worker_cpu_affinities[worker_idx]));
     worker_client_ids.push_back(workers.back().getBusClientID());
   }
 
