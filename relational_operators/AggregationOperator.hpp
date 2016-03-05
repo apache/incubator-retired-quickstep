@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -28,8 +28,15 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
+#include "tmb/id_typedefs.h"
+
+namespace tmb { class MessageBus; }
+
 namespace quickstep {
 
+class AggregationOperationState;
 class CatalogDatabase;
 class StorageManager;
 class WorkOrdersContainer;
@@ -65,7 +72,12 @@ class AggregationOperator : public RelationalOperator {
 
   ~AggregationOperator() override {}
 
-  bool getAllWorkOrders(WorkOrdersContainer *container) override;
+  bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
+                        const tmb::client_id foreman_client_id,
+                        tmb::MessageBus *bus) override;
 
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override {
     input_relation_block_ids_.push_back(input_block_id);
@@ -97,23 +109,23 @@ class AggregationWorkOrder : public WorkOrder {
    * @brief Constructor
    *
    * @param input_block_id The block id.
-   * @param aggr_state_index The index of the AggregationState in QueryContext.
+   * @param state The AggregationState to use.
    **/
   AggregationWorkOrder(
       const block_id input_block_id,
-      const QueryContext::aggregation_state_id aggr_state_index)
+      AggregationOperationState *state)
       : input_block_id_(input_block_id),
-        aggr_state_index_(aggr_state_index) {}
+        state_(state) {
+    DCHECK(state_ != nullptr);
+  }
 
   ~AggregationWorkOrder() override {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   const block_id input_block_id_;
-  const QueryContext::aggregation_state_id aggr_state_index_;
+  AggregationOperationState *state_;
 
   DISALLOW_COPY_AND_ASSIGN(AggregationWorkOrder);
 };

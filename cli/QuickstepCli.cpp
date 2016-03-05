@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -91,6 +91,7 @@ using quickstep::Foreman;
 using quickstep::InputParserUtil;
 using quickstep::MessageBusImpl;
 using quickstep::MessageStyle;
+using quickstep::ParseCommand;
 using quickstep::ParseResult;
 using quickstep::ParseStatement;
 using quickstep::PrintToScreen;
@@ -181,8 +182,6 @@ int main(int argc, char* argv[]) {
   const client_id main_thread_client_id = bus.Connect();
   bus.RegisterClientAsSender(main_thread_client_id, kPoisonMessage);
 
-  Foreman foreman(&bus);
-
   // Setup the paths used by StorageManager.
   string fixed_storage_path(quickstep::FLAGS_storage_path);
   if (!fixed_storage_path.empty()
@@ -196,8 +195,7 @@ int main(int argc, char* argv[]) {
   // Setup QueryProcessor, including CatalogDatabase and StorageManager.
   std::unique_ptr<QueryProcessor> query_processor;
   try {
-    // TODO(zuyu): Remove passing 'bus' once WorkOrder serialization is done.
-    query_processor.reset(new QueryProcessor(catalog_path, fixed_storage_path, foreman.getBusClientID(), &bus));
+    query_processor.reset(new QueryProcessor(catalog_path, fixed_storage_path));
   } catch (const std::exception &e) {
     LOG(FATAL) << "FATAL ERROR DURING STARTUP: " << e.what();
   } catch (...) {
@@ -220,6 +218,10 @@ int main(int argc, char* argv[]) {
     preloader.join();
     printf("DONE\n");
   }
+
+  Foreman foreman(&bus,
+                  query_processor->getDefaultDatabase(),
+                  query_processor->getStorageManager());
 
   // Get the NUMA affinities for workers.
   vector<int> cpu_numa_nodes = InputParserUtil::GetNUMANodesForCPUs();
@@ -248,12 +250,8 @@ int main(int argc, char* argv[]) {
     }
     worker_numa_nodes.push_back(numa_node_id);
 
-    workers.push_back(new Worker(worker_idx,
-                                 query_context,
-                                 &bus,
-                                 query_processor->getDefaultDatabase(),
-                                 query_processor->getStorageManager(),
-                                 worker_cpu_affinities[worker_idx]));
+    workers.push_back(
+        new Worker(worker_idx, &bus, worker_cpu_affinities[worker_idx]));
     worker_client_ids.push_back(workers.back().getBusClientID());
   }
 
@@ -271,7 +269,7 @@ int main(int argc, char* argv[]) {
 
   LineReaderImpl line_reader("quickstep> ",
                              "      ...> ");
-  SqlParserWrapper parser_wrapper;
+  std::unique_ptr<SqlParserWrapper> parser_wrapper(new SqlParserWrapper());
   std::chrono::time_point<std::chrono::steady_clock> start, end;
 
   for (;;) {
@@ -282,15 +280,23 @@ int main(int argc, char* argv[]) {
       break;
     }
 
-    parser_wrapper.feedNextBuffer(command_string);
+    parser_wrapper->feedNextBuffer(command_string);
 
     bool quitting = false;
+    // A parse error should reset the parser. This is because the thrown quickstep
+    // SqlError does not do the proper reset work of the YYABORT macro.
+    bool reset_parser = false;
     for (;;) {
-      ParseResult result = parser_wrapper.getNextStatement();
+      ParseResult result = parser_wrapper->getNextStatement();
       if (result.condition == ParseResult::kSuccess) {
         if (result.parsed_statement->getStatementType() == ParseStatement::kQuit) {
           quitting = true;
           break;
+        }
+
+        if (result.parsed_statement->getStatementType() == ParseStatement::kCommand) {
+          // TODO(marc): Add executer to this parsed command statement.
+          continue;
         }
 
         std::unique_ptr<QueryHandle> query_handle;
@@ -298,6 +304,7 @@ int main(int argc, char* argv[]) {
           query_handle.reset(query_processor->generateQueryHandle(*result.parsed_statement));
         } catch (const quickstep::SqlError &sql_error) {
           fprintf(stderr, "%s", sql_error.formatMessage(*command_string).c_str());
+          reset_parser = true;
           break;
         }
 
@@ -309,6 +316,7 @@ int main(int argc, char* argv[]) {
           query_context.reset(new QueryContext(query_handle->getQueryContextProto(),
                                                query_processor->getDefaultDatabase(),
                                                query_processor->getStorageManager(),
+                                               foreman.getBusClientID(),
                                                &bus));
           foreman.setQueryContext(query_context.get());
           foreman.start();
@@ -338,12 +346,16 @@ int main(int argc, char* argv[]) {
         if (result.condition == ParseResult::kError) {
           fprintf(stderr, "%s", result.error_message.c_str());
         }
+        reset_parser = true;
         break;
       }
     }
 
     if (quitting) {
       break;
+    } else if (reset_parser) {
+      parser_wrapper.reset(new SqlParserWrapper());
+      reset_parser = false;
     }
   }
 

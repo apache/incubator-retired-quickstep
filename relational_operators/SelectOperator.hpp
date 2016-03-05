@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -18,7 +18,6 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_SELECT_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_SELECT_OPERATOR_HPP_
 
-#include <cstddef>
 #include <memory>
 #include <vector>
 
@@ -30,10 +29,19 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
+#include "tmb/id_typedefs.h"
+
+namespace tmb { class MessageBus; }
+
 namespace quickstep {
 
 class CatalogDatabase;
 class CatalogRelationSchema;
+class InsertDestination;
+class Predicate;
+class Scalar;
 class StorageManager;
 class WorkOrdersContainer;
 
@@ -121,7 +129,12 @@ class SelectOperator : public RelationalOperator {
 
   ~SelectOperator() override {}
 
-  bool getAllWorkOrders(WorkOrdersContainer *container) override;
+  bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
+                        const tmb::client_id foreman_client_id,
+                        tmb::MessageBus *bus) override;
 
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override {
     input_relation_block_ids_.push_back(input_block_id);
@@ -174,33 +187,38 @@ class SelectWorkOrder : public WorkOrder {
    * @note Reference parameters simple_selection and selection are NOT owned by
    *       this class and must remain valid until after execute() is called.
    *
-   * @param input_relation_id The id of the relation to perform selection over.
-   * @param output_destination_index The index of the InsertDestination in the
-   *        QueryContext to insert the selection results.
-   * @param predicate_index The index of selection predicate in QueryContext.
-   *        All tuples matching pred will be selected (or kInvalidPredicateId to
-   *        select all tuples).
-   * @param selection_index The group index of Scalars in QueryContext, which
-   *        will be evaluated to project input tuples.
-   * @param simple_selection The list of attribute ids, used if
-   *        simple_projection is true.
-   * @param simple_projection Whether the Select is simple.
+   * @param input_relation The relation to perform selection over.
    * @param input_block_id The block id.
+   * @param predicate All tuples matching \c predicate will be selected (or NULL
+   *        to select all tuples).
+   * @param simple_projection Whether the Select is simple.
+   * @param simple_selection The list of attribute ids, used if \c
+   *        simple_projection is true.
+   * @param selection A list of Scalars which will be evaluated to project
+   *        input tuples, used if \c simple_projection is false.
+   * @param output_destination The InsertDestination to insert the selection
+   *        results.
+   * @param storage_manager The StorageManager to use.
    **/
-  SelectWorkOrder(const relation_id input_relation_id,
-                  const QueryContext::insert_destination_id output_destination_index,
-                  const QueryContext::predicate_id predicate_index,
-                  const QueryContext::scalar_group_id selection_index,
-                  const std::vector<attribute_id> &simple_selection,
+  SelectWorkOrder(const CatalogRelationSchema &input_relation,
+                  const block_id input_block_id,
+                  const Predicate *predicate,
                   const bool simple_projection,
-                  const block_id input_block_id)
-      : input_relation_id_(input_relation_id),
-        output_destination_index_(output_destination_index),
-        predicate_index_(predicate_index),
-        selection_index_(selection_index),
-        simple_selection_(simple_selection),
+                  const std::vector<attribute_id> &simple_selection,
+                  const std::vector<std::unique_ptr<const Scalar>> *selection,
+                  InsertDestination *output_destination,
+                  StorageManager *storage_manager)
+      : input_relation_(input_relation),
+        input_block_id_(input_block_id),
+        predicate_(predicate),
         simple_projection_(simple_projection),
-        input_block_id_(input_block_id) {}
+        simple_selection_(simple_selection),
+        selection_(selection),
+        output_destination_(output_destination),
+        storage_manager_(storage_manager) {
+    DCHECK(output_destination_ != nullptr);
+    DCHECK(storage_manager_ != nullptr);
+  }
 
   ~SelectWorkOrder() override {}
 
@@ -212,20 +230,19 @@ class SelectWorkOrder : public WorkOrder {
    *            destination) when this exception is thrown, causing potential
    *            inconsistency.
    **/
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
-  const relation_id input_relation_id_;
-  const QueryContext::insert_destination_id output_destination_index_;
-  const QueryContext::predicate_id predicate_index_;
-
-  const QueryContext::scalar_group_id selection_index_;
-  const std::vector<attribute_id> &simple_selection_;
-  const bool simple_projection_;
-
+  const CatalogRelationSchema &input_relation_;
   const block_id input_block_id_;
+  const Predicate *predicate_;
+
+  const bool simple_projection_;
+  const std::vector<attribute_id> &simple_selection_;
+  const std::vector<std::unique_ptr<const Scalar>> *selection_;
+
+  InsertDestination *output_destination_;
+  StorageManager *storage_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(SelectWorkOrder);
 };

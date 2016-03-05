@@ -38,6 +38,7 @@ class CatalogRelation;
 class Comparison;
 class ParseExpression;
 class ParseFunctionCall;
+class ParseGeneratorTableReference;
 class ParseOrderBy;
 class ParsePredicate;
 class ParseSelect;
@@ -46,6 +47,7 @@ class ParseSimpleTableReference;
 class ParseStatement;
 class ParseStatementCopyFrom;
 class ParseStatementCreateTable;
+class ParseStatementCreateIndex;
 class ParseStatementDelete;
 class ParseStatementDropTable;
 class ParseStatementInsert;
@@ -57,6 +59,7 @@ class ParseTableReferenceSignature;
 class ParseTreeNode;
 template <class T>
 class PtrList;
+class StorageBlockLayoutDescription;
 class Type;
 
 }  // namespace quickstep
@@ -160,6 +163,26 @@ class Resolver {
       const ParseStatementCreateTable &create_table_statement);
 
   /**
+   * @brief Resolves a CREATE INDEX query and returns a logical plan.
+   *
+   * @param create_index_statement THE CREATE INDEX parse tree.
+   * @return A logical plan for the CREATE INDEX query.
+   */
+  logical::LogicalPtr resolveCreateIndex(
+      const ParseStatementCreateIndex &create_index_statement);
+
+  /**
+   * @brief Resolves the BLOCK PROPERTIES of a CREATE TABLE statement to a
+   *        proto message describing the user input.
+   *
+   * @param create_table_statement The create table statement.
+   * @return A pointer to a user-owned Proto message describing the block. Note
+   *         that this message may be invalid.
+   */
+  StorageBlockLayoutDescription* resolveBlockProperties(
+      const ParseStatementCreateTable &create_table_statement);
+
+  /**
    * @brief Resolves a DELETE query and returns a logical plan.
    *
    * @param delete_statement The DELETE parse tree.
@@ -243,12 +266,13 @@ class Resolver {
 
   /**
    * @brief Resolves a table reference item, which can be a base table,
-   *        a subquery table, or a joined table defined by a join chain.
+   *        a generator table, a subquery table, or a joined table defined by
+   *        a join chain.
    *
    * @param table_reference The parse table reference to be resolved.
    * @param name_resolver The name resolver to be updated with new tables
    *                      visible from this table reference item.
-   * @return The logical plan to derived the table.
+   * @return The logical plan to derive the table.
    */
   logical::LogicalPtr resolveTableReference(const ParseTableReference &table_reference,
                                             NameResolver *name_resolver);
@@ -263,6 +287,17 @@ class Resolver {
    */
   logical::LogicalPtr resolveSimpleTableReference(
       const ParseString &table_name, const ParseString *reference_alias);
+
+  /**
+   * @brief Resolves a generator table reference and links the corresponding
+   *        generator function. The table is not added into the NameResolver.
+   *
+   * @param table_reference The parse table reference to be resolved.
+   * @return The logical plan for the generator table reference.
+   */
+  logical::LogicalPtr resolveGeneratorTableReference(
+      const ParseGeneratorTableReference &table_reference,
+      const ParseString *reference_alias);
 
   /**
    * @brief Renames the output columns from \p logical_plan based on the table signature

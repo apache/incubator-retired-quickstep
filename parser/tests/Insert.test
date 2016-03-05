@@ -52,3 +52,18 @@ INSERT INTO test VALUES ('\'sdfs')
 ERROR: syntax error (1 : 29)
 INSERT INTO test VALUES ('\'sdfs')
                             ^
+==
+
+INSERT INTO test VALUES (e'\999');
+--
+ERROR: bad numeric escape sequence (must be octal or hex) (1 : 32)
+INSERT INTO test VALUES (e'\999');
+                               ^
+==
+
+INSERT INTO test VALUES ('some_string');
+--
+InsertStatement[relation_name=test]
++-tuple=
+  +-Literal
+    +-StringLiteral[value=some_string]

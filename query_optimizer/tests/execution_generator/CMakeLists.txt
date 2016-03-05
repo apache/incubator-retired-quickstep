@@ -43,3 +43,8 @@ add_test(quickstep_queryoptimizer_tests_executiongenerator_update
          "${CMAKE_CURRENT_SOURCE_DIR}/Update.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Update.test"
          "${CMAKE_CURRENT_BINARY_DIR}/")
+add_test(quickstep_queryoptimizer_tests_executiongenerator_tablegenerator
+         "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/TableGenerator.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/TableGenerator.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/")

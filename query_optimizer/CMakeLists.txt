@@ -1,5 +1,5 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -71,6 +71,7 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_queryoptimizer_expressions_ScalarLiteral
                       quickstep_queryoptimizer_physical_Aggregate
                       quickstep_queryoptimizer_physical_CopyFrom
+                      quickstep_queryoptimizer_physical_CreateIndex
                       quickstep_queryoptimizer_physical_CreateTable
                       quickstep_queryoptimizer_physical_DeleteTuples
                       quickstep_queryoptimizer_physical_DropTable
@@ -83,11 +84,13 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_queryoptimizer_physical_Selection
                       quickstep_queryoptimizer_physical_SharedSubplanReference
                       quickstep_queryoptimizer_physical_Sort
+                      quickstep_queryoptimizer_physical_TableGenerator
                       quickstep_queryoptimizer_physical_TableReference
                       quickstep_queryoptimizer_physical_TopLevelPlan
                       quickstep_queryoptimizer_physical_UpdateTable
                       quickstep_relationaloperators_AggregationOperator
                       quickstep_relationaloperators_BuildHashOperator
+                      quickstep_relationaloperators_CreateIndexOperator
                       quickstep_relationaloperators_CreateTableOperator
                       quickstep_relationaloperators_DeleteOperator
                       quickstep_relationaloperators_DestroyHashOperator
@@ -101,6 +104,7 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_relationaloperators_SelectOperator
                       quickstep_relationaloperators_SortMergeRunOperator
                       quickstep_relationaloperators_SortRunGenerationOperator
+                      quickstep_relationaloperators_TableGeneratorOperator
                       quickstep_relationaloperators_TextScanOperator
                       quickstep_relationaloperators_UpdateOperator
                       quickstep_storage_AggregationOperationState_proto
@@ -118,6 +122,7 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_utility_SqlError)
 target_link_libraries(quickstep_queryoptimizer_LogicalGenerator
                       glog
+                      quickstep_parser_ParseStatement
                       quickstep_queryoptimizer_logical_Logical
                       quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_rules_CollapseProject
@@ -135,16 +140,15 @@ target_link_libraries(quickstep_queryoptimizer_Optimizer
                       quickstep_queryoptimizer_LogicalGenerator
                       quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_PhysicalGenerator
-                      quickstep_utility_Macros
-                      tmb)
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_OptimizerContext
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryoptimizer_expressions_ExprId
-                      quickstep_utility_Macros
-                      tmb)
-target_link_libraries(quickstep_queryoptimizer_OptimizerTree
-                      quickstep_utility_TreeStringSerializable
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_OptimizerTree
+                      quickstep_storage_StorageBlockLayout_proto
+                      quickstep_utility_Macros
+                      quickstep_utility_TreeStringSerializable)
 target_link_libraries(quickstep_queryoptimizer_PhysicalGenerator
                       quickstep_queryoptimizer_LogicalToPhysicalMapper
                       quickstep_queryoptimizer_logical_Logical
@@ -174,8 +178,7 @@ target_link_libraries(quickstep_queryoptimizer_QueryProcessor
                       quickstep_queryoptimizer_Optimizer
                       quickstep_queryoptimizer_QueryHandle
                       quickstep_storage_StorageManager
-                      quickstep_utility_Macros
-                      tmb)
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_Validator
                       glog
                       quickstep_queryoptimizer_expressions_AttributeReference

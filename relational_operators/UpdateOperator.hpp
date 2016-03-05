@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -19,6 +19,8 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_UPDATE_OPERATOR_HPP_
 
 #include <cstddef>
+#include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
@@ -30,6 +32,8 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 #include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
@@ -37,6 +41,10 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class CatalogDatabase;
+class CatalogRelationSchema;
+class InsertDestination;
+class Predicate;
+class Scalar;
 class StorageManager;
 class WorkOrdersContainer;
 
@@ -65,8 +73,6 @@ class UpdateOperator : public RelationalOperator {
    * @param update_group_index The index of a update group (the map of
    *        attribute_ids to Scalars) which should be evaluated to get the new
    *        value for the corresponding attribute.
-   * @param foreman_client_id The TMB client ID of the Foreman thread.
-   * @param bus A pointer to the TMB.
    *
    * @warning The constructed InsertDestination should belong to relation, but
    *          must NOT contain any pre-existing blocks.
@@ -74,21 +80,22 @@ class UpdateOperator : public RelationalOperator {
   UpdateOperator(const CatalogRelation &relation,
                  const QueryContext::insert_destination_id relocation_destination_index,
                  const QueryContext::predicate_id predicate_index,
-                 const QueryContext::update_group_id update_group_index,
-                 const tmb::client_id foreman_client_id,
-                 tmb::MessageBus *bus)
+                 const QueryContext::update_group_id update_group_index)
       : relation_(relation),
         relocation_destination_index_(relocation_destination_index),
         predicate_index_(predicate_index),
         update_group_index_(update_group_index),
         input_blocks_(relation.getBlocksSnapshot()),
-        foreman_client_id_(foreman_client_id),
-        bus_(bus),
         started_(false) {}
 
   ~UpdateOperator() override {}
 
-  bool getAllWorkOrders(WorkOrdersContainer *container) override;
+  bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
+                        const tmb::client_id foreman_client_id,
+                        tmb::MessageBus *bus) override;
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
     return relocation_destination_index_;
@@ -106,10 +113,6 @@ class UpdateOperator : public RelationalOperator {
 
   const std::vector<block_id> input_blocks_;
 
-  const tmb::client_id foreman_client_id_;
-  // TODO(zuyu): Remove 'bus_' once WorkOrder serialization is done.
-  tmb::MessageBus *bus_;
-
   bool started_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateOperator);
@@ -123,52 +126,56 @@ class UpdateWorkOrder : public WorkOrder {
   /**
    * @brief Constructor
    *
-   * @param rel_id The id of the relation to perform the UPDATE over.
-   * @param relocation_destination_index The index of the InsertDestination in
-   *        the QueryContext to relocate tuples which can not be updated
-   *        in-place.
-   * @param predicate_index The index of predicate in QueryContext. All tuples
-   *        matching pred will be updated (or kInvalidPredicateId to update all
-   *        tuples).
-   * @param update_group_index The index of a update group (the map of
-   *        attribute_ids to Scalars) which should be evaluated to get the new
-   *        value for the corresponding attribute.
+   * @param relation The relation to perform the UPDATE over.
+   * @param predicate All tuples matching \c predicate will be updated (or NULL
+   *        to update all tuples).
+   * @param assignments The assignments (the map of attribute_ids to Scalars)
+   *        which should be evaluated to get the new value for the corresponding
+   *        attribute.
    * @param input_block_id The block id.
+   * @param relocation_destination The InsertDestination to relocate tuples
+   *        which can not be updated in-place.
+   * @param storage_manager The StorageManager to use.
    * @param update_operator_index The index of the Update Operator in the query
    *        plan DAG.
    * @param foreman_input_queue The input queue in Foreman.
    * @param bus A pointer to the TMB.
    **/
-  UpdateWorkOrder(const relation_id rel_id,
-                  const QueryContext::insert_destination_id relocation_destination_index,
-                  const QueryContext::predicate_id predicate_index,
-                  const QueryContext::update_group_id update_group_index,
+  UpdateWorkOrder(const CatalogRelationSchema &relation,
                   const block_id input_block_id,
+                  const Predicate *predicate,
+                  const std::unordered_map<attribute_id, std::unique_ptr<const Scalar>> &assignments,
+                  InsertDestination *relocation_destination,
+                  StorageManager *storage_manager,
                   const std::size_t update_operator_index,
                   const tmb::client_id foreman_client_id,
                   MessageBus *bus)
-      : rel_id_(rel_id),
-        relocation_destination_index_(relocation_destination_index),
-        predicate_index_(predicate_index),
-        update_group_index_(update_group_index),
+      : relation_(relation),
         input_block_id_(input_block_id),
+        predicate_(predicate),
+        assignments_(assignments),
+        relocation_destination_(relocation_destination),
+        storage_manager_(storage_manager),
         update_operator_index_(update_operator_index),
         foreman_client_id_(foreman_client_id),
-        bus_(bus) {}
+        bus_(bus) {
+    DCHECK(relocation_destination_ != nullptr);
+    DCHECK(storage_manager != nullptr);
+    DCHECK(bus_ != nullptr);
+  }
 
   ~UpdateWorkOrder() override {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
-  const relation_id rel_id_;
-  const QueryContext::insert_destination_id relocation_destination_index_;
-  const QueryContext::predicate_id predicate_index_;
-  const QueryContext::update_group_id update_group_index_;
-
+  const CatalogRelationSchema &relation_;
   const block_id input_block_id_;
+  const Predicate *predicate_;
+  const std::unordered_map<attribute_id, std::unique_ptr<const Scalar>> &assignments_;
+
+  InsertDestination *relocation_destination_;
+  StorageManager *storage_manager_;
 
   const std::size_t update_operator_index_;
   const tmb::client_id foreman_client_id_;

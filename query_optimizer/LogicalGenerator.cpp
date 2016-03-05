@@ -20,6 +20,8 @@
 #include <memory>
 #include <vector>
 
+#include "parser/ParseStatement.hpp"
+
 #include "query_optimizer/Validator.hpp"
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/resolver/Resolver.hpp"
@@ -43,6 +45,7 @@ LogicalGenerator::~LogicalGenerator() {}
 L::LogicalPtr LogicalGenerator::generatePlan(
     const ParseStatement &parse_statement) {
   resolver::Resolver resolver(optimizer_context_);
+  DVLOG(4) << "Parse tree:\n" << parse_statement.toString();
   logical_plan_ = resolver.resolve(parse_statement);
   DVLOG(4) << "Initial logical plan:\n" << logical_plan_->toString();
 

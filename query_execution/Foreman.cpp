@@ -420,7 +420,13 @@ bool Foreman::fetchNormalWorkOrders(const dag_node_index index) {
     }
     const size_t num_pending_workorders_before =
         workorders_container_->getNumNormalWorkOrders(index);
-    done_gen_[index] = query_dag_->getNodePayloadMutable(index)->getAllWorkOrders(workorders_container_.get());
+    done_gen_[index] =
+        query_dag_->getNodePayloadMutable(index)->getAllWorkOrders(workorders_container_.get(),
+                                                                   catalog_database_,
+                                                                   query_context_,
+                                                                   storage_manager_,
+                                                                   foreman_client_id_,
+                                                                   bus_);
 
     // TODO(shoban): It would be a good check to see if operator is making
     // useful progress, i.e., the operator either generates work orders to
@@ -479,7 +485,11 @@ void Foreman::processOperator(const dag_node_index index,
 void Foreman::markOperatorFinished(const dag_node_index index) {
   execution_finished_[index] = true;
   ++num_operators_finished_;
-  const relation_id output_rel = query_dag_->getNodePayload(index).getOutputRelationID();
+
+  RelationalOperator *op = query_dag_->getNodePayloadMutable(index);
+  op->updateCatalogOnCompletion();
+
+  const relation_id output_rel = op->getOutputRelationID();
   for (const pair<dag_node_index, bool> &dependent_link : query_dag_->getDependents(index)) {
     const dag_node_index dependent_op_index = dependent_link.first;
     RelationalOperator *dependent_op = query_dag_->getNodePayloadMutable(dependent_op_index);

@@ -16,7 +16,6 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <utility>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -27,10 +26,6 @@
 #include "utility/Macros.hpp"
 
 namespace quickstep {
-
-class CatalogDatabase;
-class QueryContext;
-class StorageManager;
 
 class MockNUMAWorkOrder : public WorkOrder {
  public:
@@ -45,9 +40,7 @@ class MockNUMAWorkOrder : public WorkOrder {
     return id_;
   }
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override {}
+  void execute() override {}
 
  private:
   const int id_;

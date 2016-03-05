@@ -24,9 +24,15 @@
 #include "relational_operators/RelationalOperator.hpp"
 #include "utility/Macros.hpp"
 
+#include "tmb/id_typedefs.h"
+
+namespace tmb { class MessageBus; }
+
 namespace quickstep {
 
 class CatalogDatabase;
+class QueryContext;
+class StorageManager;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -57,7 +63,12 @@ class CreateTableOperator : public RelationalOperator {
   /**
    * @note no WorkOrder generated for this operator.
    **/
-  bool getAllWorkOrders(WorkOrdersContainer *container) override;
+  bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
+                        const tmb::client_id foreman_client_id,
+                        tmb::MessageBus *bus) override;
 
  private:
   std::unique_ptr<CatalogRelation> relation_;

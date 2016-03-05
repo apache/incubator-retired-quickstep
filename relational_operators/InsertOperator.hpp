@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -18,15 +18,26 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_INSERT_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_INSERT_OPERATOR_HPP_
 
+#include <memory>
+
+#include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
+#include "types/containers/Tuple.hpp"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
+
+#include "tmb/id_typedefs.h"
+
+namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
 class CatalogDatabase;
+class InsertDestination;
 class StorageManager;
 class WorkOrdersContainer;
 
@@ -57,7 +68,12 @@ class InsertOperator : public RelationalOperator {
 
   ~InsertOperator() override {}
 
-  bool getAllWorkOrders(WorkOrdersContainer *container) override;
+  bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
+                        const tmb::client_id foreman_client_id,
+                        tmb::MessageBus *bus) override;
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
     return output_destination_index_;
@@ -84,15 +100,18 @@ class InsertWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @param output_destination_index The index of the InsertDestination in the
-   *        QueryContext to insert the tuple.
-   * @param tuple_index The index of the tuple to insert in the QueryContext.
+   * @note InsertWorkOrder takes ownership of \c tuple.
+   *
+   * @param output_destination The InsertDestination to insert the tuple.
+   * @param tuple The tuple to insert.
    **/
-  InsertWorkOrder(
-      const QueryContext::insert_destination_id output_destination_index,
-      const QueryContext::tuple_id tuple_index)
-      : output_destination_index_(output_destination_index),
-        tuple_index_(tuple_index) {}
+  InsertWorkOrder(InsertDestination *output_destination,
+                  Tuple *tuple)
+      : output_destination_(output_destination),
+        tuple_(tuple) {
+    DCHECK(output_destination_ != nullptr);
+    DCHECK(tuple_ != nullptr);
+  }
 
   ~InsertWorkOrder() override {}
 
@@ -100,13 +119,11 @@ class InsertWorkOrder : public WorkOrder {
    * @exception TupleTooLargeForBlock The tuple was too large to insert into an
    *            empty block provided by output_destination_index_ in query_context.
    **/
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
-  const QueryContext::insert_destination_id output_destination_index_;
-  const QueryContext::tuple_id tuple_index_;
+  InsertDestination *output_destination_;
+  std::unique_ptr<Tuple> tuple_;
 
   DISALLOW_COPY_AND_ASSIGN(InsertWorkOrder);
 };

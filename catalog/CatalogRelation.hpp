@@ -203,6 +203,38 @@ class CatalogRelation : public CatalogRelationSchema {
   }
 
   /**
+   * @brief Check if an index by the given name exists already
+   *
+   * TODO (ssaurabh): Provide a better interface to query indices.
+   *
+   * @param The query index name
+   * @return true, if the index with the given name exists, otherwise false.
+   **/
+  bool hasIndexWithName(const std::string& name) {
+    SpinSharedMutexExclusiveLock<false> lock(indices_mutex);
+    std::vector<std::string>::iterator it = std::find(indices_.begin(), indices_.end(), name);
+    if (it != indices_.end()) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /**
+   * @brief Create an index with a given name
+   *
+   * TODO (ssaurabh): This is only a placeholder implementation
+   * that just adds an index name into an indicies vector. This
+   * will be replaced by a full-fledged index data structure.
+   *
+   * @param The index to create
+   **/
+  void addIndex(const std::string& name) {
+    SpinSharedMutexExclusiveLock<false> lock(indices_mutex);
+    indices_.emplace_back(name);
+  }
+
+  /**
    * @brief Serialize the relation as Protocol Buffer.
    *
    * @return The Protocol Buffer representation of the relation.
@@ -283,6 +315,13 @@ class CatalogRelation : public CatalogRelationSchema {
   // A relation may or may not have a Partition Scheme
   // assosiated with it.
   std::unique_ptr<PartitionScheme> partition_scheme_;
+
+  // A list of indices belonging to the relation.
+  // TODO(ssaurabh): This is only a placeholder that stores index names
+  // until a full-fledged index implementation is provided in future.
+  std::vector<std::string> indices_;
+  // The mutex used to protect 'indices_' from concurrent access.
+  mutable SpinSharedMutex<false> indices_mutex;
 
 #ifdef QUICKSTEP_HAVE_LIBNUMA
   // NUMA placement scheme object which has the mapping between the partitions

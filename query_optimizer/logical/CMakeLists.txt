@@ -1,5 +1,5 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 add_library(quickstep_queryoptimizer_logical_Aggregate Aggregate.cpp Aggregate.hpp)
 add_library(quickstep_queryoptimizer_logical_BinaryJoin BinaryJoin.cpp BinaryJoin.hpp)
 add_library(quickstep_queryoptimizer_logical_CopyFrom CopyFrom.cpp CopyFrom.hpp)
+add_library(quickstep_queryoptimizer_logical_CreateIndex CreateIndex.cpp CreateIndex.hpp)
 add_library(quickstep_queryoptimizer_logical_CreateTable CreateTable.cpp CreateTable.hpp)
 add_library(quickstep_queryoptimizer_logical_DeleteTuples DeleteTuples.cpp DeleteTuples.hpp)
 add_library(quickstep_queryoptimizer_logical_DropTable DropTable.cpp DropTable.hpp)
@@ -35,6 +36,7 @@ add_library(quickstep_queryoptimizer_logical_SharedSubplanReference
             SharedSubplanReference.hpp)
 add_library(quickstep_queryoptimizer_logical_Sort Sort.cpp Sort.hpp)
 add_library(quickstep_queryoptimizer_logical_TableReference TableReference.cpp TableReference.hpp)
+add_library(quickstep_queryoptimizer_logical_TableGenerator ../../empty_src.cpp TableGenerator.hpp)
 add_library(quickstep_queryoptimizer_logical_TopLevelPlan TopLevelPlan.cpp TopLevelPlan.hpp)
 add_library(quickstep_queryoptimizer_logical_UpdateTable UpdateTable.cpp UpdateTable.hpp)
 
@@ -66,12 +68,21 @@ target_link_libraries(quickstep_queryoptimizer_logical_CopyFrom
                       quickstep_queryoptimizer_logical_LogicalType
                       quickstep_utility_Macros
                       quickstep_utility_StringUtil)
+target_link_libraries(quickstep_queryoptimizer_logical_CreateIndex
+                      glog
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_logical_Logical
+                      quickstep_queryoptimizer_logical_LogicalType
+                      quickstep_utility_Cast
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_logical_CreateTable
                       glog
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_logical_Logical
                       quickstep_queryoptimizer_logical_LogicalType
+                      quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_logical_DeleteTuples
@@ -175,6 +186,16 @@ target_link_libraries(quickstep_queryoptimizer_logical_Sort
                       quickstep_queryoptimizer_logical_LogicalType
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_logical_TableGenerator
+                      quickstep_expressions_tablegenerator_GeneratorFunctionHandle
+                      quickstep_queryoptimizer_OptimizerContext
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExprId
+                      quickstep_queryoptimizer_logical_Logical
+                      quickstep_queryoptimizer_logical_LogicalType
+                      quickstep_utility_Cast
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_logical_TableReference
                       glog
                       quickstep_queryoptimizer_OptimizerContext
@@ -210,6 +231,7 @@ target_link_libraries(quickstep_queryoptimizer_logical
                       quickstep_queryoptimizer_logical_Aggregate
                       quickstep_queryoptimizer_logical_BinaryJoin
                       quickstep_queryoptimizer_logical_CopyFrom
+                      quickstep_queryoptimizer_logical_CreateIndex
                       quickstep_queryoptimizer_logical_CreateTable
                       quickstep_queryoptimizer_logical_DeleteTuples
                       quickstep_queryoptimizer_logical_DropTable
@@ -225,6 +247,7 @@ target_link_libraries(quickstep_queryoptimizer_logical
                       quickstep_queryoptimizer_logical_Project
                       quickstep_queryoptimizer_logical_SharedSubplanReference
                       quickstep_queryoptimizer_logical_Sort
+                      quickstep_queryoptimizer_logical_TableGenerator
                       quickstep_queryoptimizer_logical_TableReference
                       quickstep_queryoptimizer_logical_TopLevelPlan
                       quickstep_queryoptimizer_logical_UpdateTable)

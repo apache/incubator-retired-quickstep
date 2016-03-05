@@ -25,6 +25,8 @@
 #include "parser/ParseAssignment.hpp"
 #include "parser/ParseAttributeDefinition.hpp"
 #include "parser/ParseBasicExpressions.hpp"
+#include "parser/ParseBlockProperties.hpp"
+#include "parser/ParseKeyValue.hpp"
 #include "parser/ParsePredicate.hpp"
 #include "parser/ParseSelect.hpp"
 #include "parser/ParseString.hpp"
@@ -52,13 +54,15 @@ class ParseStatement : public ParseTreeNode {
    **/
   enum StatementType {
     kCreateTable,
+    kCreateIndex,
     kDropTable,
     kSelect,
     kInsert,
     kCopyFrom,
     kUpdate,
     kDelete,
-    kQuit
+    kQuit,
+    kCommand
   };
 
   /**
@@ -95,14 +99,17 @@ class ParseStatementCreateTable : public ParseStatement {
    * @param attribute_definition_list The list of definitions for the
    *        attributes in the new relation, which becomes owned by this
    *        ParseStatementCreateTable.
+   * @param opt_block_properties Optional physical properties of the block.
    **/
   ParseStatementCreateTable(const int line_number,
                             const int column_number,
                             ParseString *relation_name,
-                            PtrList<ParseAttributeDefinition> *attribute_definition_list)
+                            PtrList<ParseAttributeDefinition> *attribute_definition_list,
+                            ParseBlockProperties *opt_block_properties)
       : ParseStatement(line_number, column_number),
         relation_name_(relation_name),
-        attribute_definition_list_(attribute_definition_list) {
+        attribute_definition_list_(attribute_definition_list),
+        opt_block_properties_(opt_block_properties) {
   }
 
   ~ParseStatementCreateTable() override {
@@ -132,6 +139,15 @@ class ParseStatementCreateTable : public ParseStatement {
     return *attribute_definition_list_;
   }
 
+  /**
+   * @brief Get a pointer to the BlockProperties.
+   *
+   * @return The BlockProperties or nullptr if not specified.
+   **/
+  const ParseBlockProperties* opt_block_properties() const {
+    return opt_block_properties_.get();
+  }
+
  protected:
   void getFieldStringItems(
       std::vector<std::string> *inline_field_names,
@@ -148,13 +164,143 @@ class ParseStatementCreateTable : public ParseStatement {
     for (const ParseAttributeDefinition& attribute_definition : *attribute_definition_list_) {
       container_child_fields->back().push_back(&attribute_definition);
     }
+
+    if (opt_block_properties_) {
+      container_child_field_names->push_back("block_properties");
+      container_child_fields->emplace_back();
+      container_child_fields->back().push_back(opt_block_properties_.get());
+    }
   }
 
  private:
   std::unique_ptr<ParseString> relation_name_;
   std::unique_ptr<PtrList<ParseAttributeDefinition> > attribute_definition_list_;
+  std::unique_ptr<ParseBlockProperties> opt_block_properties_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseStatementCreateTable);
+};
+
+  /**
+   * @brief The parsed representation of a CREATE INDEX statement.
+   **/
+class ParseStatementCreateIndex : public ParseStatement {
+ public:
+    /**
+     * @brief Constructor.
+     *
+     * @param index_name The name of the index to create.
+     * @param relation_name The name of the relation to create index upon.
+     * @param attribute_name_list A list of attributes of the relation
+     *                            on which the index has to be created.
+     *                            If specified as null, then index is created
+     *                            on all the attributes.
+     * @param index_type The type of index to create.
+     * @param index_property_list A list of properties for the index that modify
+     *                            the default properties of the index.
+     **/
+    ParseStatementCreateIndex(const int line_number,
+                              const int column_number,
+                              ParseString *index_name,
+                              ParseString *relation_name,
+                              PtrList<ParseString> *attribute_name_list,
+                              ParseString *index_type,
+                              PtrList<ParseKeyValue> *index_property_list)
+      : ParseStatement(line_number, column_number),
+        index_name_(index_name),
+        relation_name_(relation_name),
+        attribute_name_list_(attribute_name_list),
+        index_type_(index_type),
+        index_property_list_(index_property_list) {
+    }
+
+    ~ParseStatementCreateIndex() override {
+    }
+
+    StatementType getStatementType() const override {
+      return kCreateIndex;
+    }
+
+    std::string getName() const override { return "CreateIndexStatement"; }
+
+    /**
+     * @brief Get the name of the index to create.
+     *
+     * @return The index's name.
+     **/
+    const ParseString* index_name() const {
+      return index_name_.get();
+    }
+
+    /**
+     * @brief Get the name of the relation to create index upon.
+     *
+     * @return The relation's name.
+     **/
+    const ParseString* relation_name() const {
+      return relation_name_.get();
+    }
+
+    /**
+     * @brief Get the list of attributes on which index is supposed to be defined.
+     *
+     * @return The list of attributes on which index is to be built.
+     **/
+    const PtrList<ParseString>& attribute_name_list() const {
+      return *attribute_name_list_;
+    }
+
+    /**
+     * @brief Get the type of the index to be created.
+     *
+     * @return The index's type.
+     **/
+    const ParseString* index_type() const {
+      return index_type_.get();
+    }
+
+
+ protected:
+    void getFieldStringItems(
+       std::vector<std::string> *inline_field_names,
+       std::vector<std::string> *inline_field_values,
+       std::vector<std::string> *non_container_child_field_names,
+       std::vector<const ParseTreeNode*> *non_container_child_fields,
+       std::vector<std::string> *container_child_field_names,
+       std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override {
+      inline_field_names->push_back("index_name");
+      inline_field_values->push_back(index_name_->value());
+
+      inline_field_names->push_back("relation_name");
+      inline_field_values->push_back(relation_name_->value());
+
+      inline_field_names->push_back("index_type");
+      inline_field_values->push_back(index_type_->value());
+
+      if (attribute_name_list_.get() != nullptr) {
+        container_child_field_names->push_back("attribute_name_list");
+        container_child_fields->emplace_back();
+        for (const ParseString& attribute_name : *attribute_name_list_) {
+          container_child_fields->back().push_back(&attribute_name);
+        }
+      }
+
+      if (index_property_list_.get() != nullptr) {
+        container_child_field_names->push_back("index_property_list");
+        container_child_fields->emplace_back();
+        for (const ParseKeyValue& index_property : *index_property_list_) {
+          container_child_fields->back().push_back(&index_property);
+        }
+      }
+    }
+
+ private:
+    std::unique_ptr<ParseString> index_name_;
+    std::unique_ptr<ParseString> relation_name_;
+    std::unique_ptr<PtrList<ParseString> > attribute_name_list_;
+    std::unique_ptr<ParseString> index_type_;
+    std::unique_ptr<PtrList<ParseKeyValue> > index_property_list_;
+
+    DISALLOW_COPY_AND_ASSIGN(ParseStatementCreateIndex);
 };
 
 /**
@@ -737,6 +883,75 @@ class ParseStatementQuit : public ParseStatement {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ParseStatementQuit);
+};
+
+/**
+ * @brief Class to hold the parsed command name and an optional argument string.
+ * @details Commands are non-sql statements which can be issued to quickstep.
+ *          They are entered into the CLI as '.command-name command-string\n'.
+ *          The command string is split up into words using whitespace as
+ *          a delimiter.
+ */
+class ParseCommand : public ParseStatement {
+ public:
+  ParseCommand(const int line_number,
+               const int column_number,
+               ParseString *command,
+               PtrVector<ParseString> *arguments)
+      : ParseStatement(line_number, column_number),
+        command_(command),
+        arguments_(arguments) {  }
+
+  /**
+   * @return The name of this class.
+   */
+  std::string getName() const override {
+    return "ParseCommand";
+  }
+
+  /**
+   * @brief All ParseCommands are ParseStatements of the type command.
+   */
+  StatementType getStatementType() const override {
+    return kCommand;
+  }
+
+  /**
+   * @return The name of the command.
+   */
+  const ParseString* command() const {
+    return command_.get();
+  }
+
+  /**
+   * @return The optional argument strings to the command. Possibly empty.
+   */
+  const PtrVector<ParseString>* arguments() const {
+    return arguments_.get();
+  }
+
+ protected:
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<const ParseTreeNode*> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override {
+    inline_field_names->push_back("command");
+    inline_field_values->push_back(command_->value());
+
+    for (const ParseString &argument : *arguments_) {
+      non_container_child_field_names->push_back("argument");
+      non_container_child_fields->push_back(&argument);
+    }
+  }
+
+ private:
+  std::unique_ptr<ParseString> command_;
+  std::unique_ptr<PtrVector<ParseString>> arguments_;
+
+  DISALLOW_COPY_AND_ASSIGN(ParseCommand);
 };
 
 /** @} */

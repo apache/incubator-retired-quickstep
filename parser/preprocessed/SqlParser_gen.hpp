@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.0.4.  */
+/* A Bison parser, made by GNU Bison 3.0.2.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,109 +45,111 @@ extern int quickstep_yydebug;
 # define YYTOKENTYPE
   enum yytokentype
   {
-    TOKEN_NAME = 258,
-    TOKEN_STRING_SINGLE_QUOTED = 259,
-    TOKEN_STRING_DOUBLE_QUOTED = 260,
-    TOKEN_UNSIGNED_NUMVAL = 261,
-    TOKEN_OR = 262,
-    TOKEN_AND = 263,
-    TOKEN_NOT = 264,
-    TOKEN_EQ = 265,
-    TOKEN_LT = 266,
-    TOKEN_LEQ = 267,
-    TOKEN_GT = 268,
-    TOKEN_GEQ = 269,
-    TOKEN_NEQ = 270,
-    TOKEN_LIKE = 271,
-    TOKEN_BETWEEN = 272,
-    TOKEN_IS = 273,
-    UNARY_PLUS = 274,
-    UNARY_MINUS = 275,
-    TOKEN_ADD = 276,
-    TOKEN_ALL = 277,
-    TOKEN_ALTER = 278,
-    TOKEN_AS = 279,
-    TOKEN_ASC = 280,
-    TOKEN_BIGINT = 281,
-    TOKEN_BIT = 282,
-    TOKEN_BLOOM_FILTER = 283,
-    TOKEN_CSB_TREE = 284,
-    TOKEN_BY = 285,
-    TOKEN_CHARACTER = 286,
-    TOKEN_CHECK = 287,
-    TOKEN_COLUMN = 288,
-    TOKEN_CONSTRAINT = 289,
-    TOKEN_COPY = 290,
-    TOKEN_CREATE = 291,
-    TOKEN_DATE = 292,
-    TOKEN_DATETIME = 293,
-    TOKEN_DECIMAL = 294,
-    TOKEN_DEFAULT = 295,
-    TOKEN_DELETE = 296,
-    TOKEN_DELIMITER = 297,
-    TOKEN_DESC = 298,
-    TOKEN_DISTINCT = 299,
-    TOKEN_DOUBLE = 300,
-    TOKEN_DROP = 301,
-    TOKEN_ESCAPE_STRINGS = 302,
-    TOKEN_FALSE = 303,
-    TOKEN_FIRST = 304,
-    TOKEN_FLOAT = 305,
-    TOKEN_FOREIGN = 306,
-    TOKEN_FROM = 307,
-    TOKEN_FULL = 308,
-    TOKEN_GROUP = 309,
-    TOKEN_HAVING = 310,
-    TOKEN_INDEX = 311,
-    TOKEN_INNER = 312,
-    TOKEN_INSERT = 313,
-    TOKEN_INTEGER = 314,
-    TOKEN_INTERVAL = 315,
-    TOKEN_INTO = 316,
-    TOKEN_JOIN = 317,
-    TOKEN_KEY = 318,
-    TOKEN_LAST = 319,
-    TOKEN_LEFT = 320,
-    TOKEN_LIMIT = 321,
-    TOKEN_LONG = 322,
-    TOKEN_NULL = 323,
-    TOKEN_NULLS = 324,
-    TOKEN_OFF = 325,
-    TOKEN_ON = 326,
-    TOKEN_ORDER = 327,
-    TOKEN_OUTER = 328,
-    TOKEN_PRIMARY = 329,
-    TOKEN_QUIT = 330,
-    TOKEN_REAL = 331,
-    TOKEN_REFERENCES = 332,
-    TOKEN_RIGHT = 333,
-    TOKEN_ROW_DELIMITER = 334,
-    TOKEN_SELECT = 335,
-    TOKEN_SET = 336,
-    TOKEN_SMALLINT = 337,
-    TOKEN_TABLE = 338,
-    TOKEN_TIME = 339,
-    TOKEN_TIMESTAMP = 340,
-    TOKEN_TRUE = 341,
-    TOKEN_UNIQUE = 342,
-    TOKEN_UPDATE = 343,
-    TOKEN_USING = 344,
-    TOKEN_VALUES = 345,
-    TOKEN_VARCHAR = 346,
-    TOKEN_WHERE = 347,
-    TOKEN_WITH = 348,
-    TOKEN_YEARMONTH = 349,
-    TOKEN_EOF = 350,
-    TOKEN_LEX_ERROR = 351
+    TOKEN_COMMAND = 258,
+    TOKEN_NAME = 259,
+    TOKEN_STRING_SINGLE_QUOTED = 260,
+    TOKEN_STRING_DOUBLE_QUOTED = 261,
+    TOKEN_UNSIGNED_NUMVAL = 262,
+    TOKEN_OR = 263,
+    TOKEN_AND = 264,
+    TOKEN_NOT = 265,
+    TOKEN_EQ = 266,
+    TOKEN_LT = 267,
+    TOKEN_LEQ = 268,
+    TOKEN_GT = 269,
+    TOKEN_GEQ = 270,
+    TOKEN_NEQ = 271,
+    TOKEN_LIKE = 272,
+    TOKEN_BETWEEN = 273,
+    TOKEN_IS = 274,
+    UNARY_PLUS = 275,
+    UNARY_MINUS = 276,
+    TOKEN_ADD = 277,
+    TOKEN_ALL = 278,
+    TOKEN_ALTER = 279,
+    TOKEN_AS = 280,
+    TOKEN_ASC = 281,
+    TOKEN_BIGINT = 282,
+    TOKEN_BIT = 283,
+    TOKEN_BLOCKPROPERTIES = 284,
+    TOKEN_BLOOM_FILTER = 285,
+    TOKEN_CSB_TREE = 286,
+    TOKEN_BY = 287,
+    TOKEN_CHARACTER = 288,
+    TOKEN_CHECK = 289,
+    TOKEN_COLUMN = 290,
+    TOKEN_CONSTRAINT = 291,
+    TOKEN_COPY = 292,
+    TOKEN_CREATE = 293,
+    TOKEN_DATE = 294,
+    TOKEN_DATETIME = 295,
+    TOKEN_DECIMAL = 296,
+    TOKEN_DEFAULT = 297,
+    TOKEN_DELETE = 298,
+    TOKEN_DELIMITER = 299,
+    TOKEN_DESC = 300,
+    TOKEN_DISTINCT = 301,
+    TOKEN_DOUBLE = 302,
+    TOKEN_DROP = 303,
+    TOKEN_ESCAPE_STRINGS = 304,
+    TOKEN_FALSE = 305,
+    TOKEN_FIRST = 306,
+    TOKEN_FLOAT = 307,
+    TOKEN_FOREIGN = 308,
+    TOKEN_FROM = 309,
+    TOKEN_FULL = 310,
+    TOKEN_GROUP = 311,
+    TOKEN_HAVING = 312,
+    TOKEN_INDEX = 313,
+    TOKEN_INNER = 314,
+    TOKEN_INSERT = 315,
+    TOKEN_INTEGER = 316,
+    TOKEN_INTERVAL = 317,
+    TOKEN_INTO = 318,
+    TOKEN_JOIN = 319,
+    TOKEN_KEY = 320,
+    TOKEN_LAST = 321,
+    TOKEN_LEFT = 322,
+    TOKEN_LIMIT = 323,
+    TOKEN_LONG = 324,
+    TOKEN_NULL = 325,
+    TOKEN_NULLS = 326,
+    TOKEN_OFF = 327,
+    TOKEN_ON = 328,
+    TOKEN_ORDER = 329,
+    TOKEN_OUTER = 330,
+    TOKEN_PRIMARY = 331,
+    TOKEN_QUIT = 332,
+    TOKEN_REAL = 333,
+    TOKEN_REFERENCES = 334,
+    TOKEN_RIGHT = 335,
+    TOKEN_ROW_DELIMITER = 336,
+    TOKEN_SELECT = 337,
+    TOKEN_SET = 338,
+    TOKEN_SMALLINT = 339,
+    TOKEN_TABLE = 340,
+    TOKEN_TIME = 341,
+    TOKEN_TIMESTAMP = 342,
+    TOKEN_TRUE = 343,
+    TOKEN_UNIQUE = 344,
+    TOKEN_UPDATE = 345,
+    TOKEN_USING = 346,
+    TOKEN_VALUES = 347,
+    TOKEN_VARCHAR = 348,
+    TOKEN_WHERE = 349,
+    TOKEN_WITH = 350,
+    TOKEN_YEARMONTH = 351,
+    TOKEN_EOF = 352,
+    TOKEN_LEX_ERROR = 353
   };
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-
+typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 106 "../SqlParser.ypp" /* yacc.c:1915  */
+#line 109 "../SqlParser.ypp" /* yacc.c:1909  */
 
   quickstep::ParseString *string_value_;
 
@@ -186,12 +188,15 @@ union YYSTYPE
   quickstep::PtrList<quickstep::ParseKeyValue> *key_value_list_;
   quickstep::ParseKeyStringValue *key_string_value_;
   quickstep::ParseKeyStringList *key_string_list_;
-  quickstep::ParseKeyLiteralValue *key_literal_value_;
+  quickstep::ParseKeyIntegerValue *key_integer_value_;
 
   quickstep::ParseCopyFromParams *copy_from_params_;
 
   quickstep::ParseAssignment *assignment_;
   quickstep::PtrList<quickstep::ParseAssignment> *assignment_list_;
+
+  quickstep::ParseCommand *command_;
+  quickstep::PtrVector<quickstep::ParseString> *command_argument_list_;
 
   quickstep::ParseStatement *statement_;
   quickstep::ParseStatementSelect *select_statement_;
@@ -200,6 +205,7 @@ union YYSTYPE
   quickstep::ParseStatementDelete *delete_statement_;
   quickstep::ParseStatementCopyFrom *copy_from_statement_;
   quickstep::ParseStatementCreateTable *create_table_statement_;
+  quickstep::ParseBlockProperties *block_properties_;
   quickstep::ParseStatementDropTable *drop_table_statement_;
   quickstep::ParseStatementQuit *quit_statement_;
 
@@ -223,10 +229,8 @@ union YYSTYPE
   quickstep::PtrVector<quickstep::ParseSubqueryTableReference> *with_list_;
   quickstep::ParseSubqueryTableReference *with_list_element_;
 
-#line 227 "SqlParser_gen.hpp" /* yacc.c:1915  */
+#line 233 "SqlParser_gen.hpp" /* yacc.c:1909  */
 };
-
-typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif

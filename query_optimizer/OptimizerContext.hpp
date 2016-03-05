@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -26,10 +26,6 @@
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "utility/Macros.hpp"
 
-#include "tmb/id_typedefs.h"
-
-namespace tmb { class MessageBus; }
-
 namespace quickstep {
 
 class CatalogDatabase;
@@ -53,39 +49,24 @@ class OptimizerContext {
   /**
    * @brief Constructor.
    *
-   * @param foreman_client_id The TMB client ID of the Foreman thread.
    * @param query_id The query ID.
    * @param catalog_database The catalog database where this query is executed.
    * @param storage_manager The storage manager to use for allocating storage
    *        blocks.
-   * @param bus A pointer to the TMB.
    */
-  OptimizerContext(const tmb::client_id foreman_client_id,
-                   const std::size_t query_id,
+  OptimizerContext(const std::size_t query_id,
                    CatalogDatabase *catalog_database,
-                   StorageManager *storage_manager,
-                   tmb::MessageBus *bus)
-      : foreman_client_id_(foreman_client_id),
-        query_id_(query_id),
+                   StorageManager *storage_manager)
+      : query_id_(query_id),
         current_expr_id_(-1),
         catalog_database_(catalog_database),
         storage_manager_(storage_manager),
-        bus_(bus),
         is_catalog_changed_(false) {}
 
   /**
    * @brief Destructor.
    */
   ~OptimizerContext() {}
-
-  /**
-   * @brief Get the TMB client ID of Foreman thread.
-   *
-   * @return TMB client ID of foreman thread.
-   **/
-  tmb::client_id getForemanClientID() const {
-    return foreman_client_id_;
-  }
 
   /**
    * @return Const pointer to the catalog database
@@ -117,15 +98,6 @@ class OptimizerContext {
   std::size_t query_id() const { return query_id_; }
 
   /**
-   * @brief Get a pointer to the TMB.
-   *
-   * @return A pointer to the TMB.
-   **/
-  tmb::MessageBus* getMessageBus() {
-    return bus_;
-  }
-
-  /**
    * @brief Gets the next ExprId.
    *
    * @return A new ExprId.
@@ -146,17 +118,12 @@ class OptimizerContext {
   bool is_catalog_changed() const { return is_catalog_changed_; }
 
  private:
-  const tmb::client_id foreman_client_id_;
-
   const std::size_t query_id_;
 
   expressions::ExprId current_expr_id_;
 
   CatalogDatabase *catalog_database_;
   StorageManager *storage_manager_;
-
-  // TODO(zuyu): Remove 'bus_' once WorkOrder serialization is done.
-  tmb::MessageBus *bus_;
 
   bool is_catalog_changed_;
 

@@ -1,5 +1,5 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -52,8 +52,7 @@ target_link_libraries(quickstep_queryoptimizer_tests_OptimizerTest
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_utility_Cast
-                      quickstep_utility_Macros
-                      tmb)
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_tests_TestDatabaseLoader
                       glog
                       quickstep_catalog_Catalog
@@ -130,5 +129,4 @@ target_link_libraries(quickstep_queryoptimizer_tests_OptimizerTextTest
                       quickstep_utility_Macros
                       quickstep_utility_SqlError
                       quickstep_utility_TextBasedTestDriver
-                      tmb
                       ${LIBS})
