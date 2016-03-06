@@ -115,10 +115,12 @@ TEST(TemplateUtilTest, TemplateUtilTest) {
 //  RunTest(true, true, true, true, true, true, "{ c1 c2 c3 c4 c5 c6 } 10 xyz");
 //  RunTest(false, false, true, true, false, false, "{ c3 c4 } 10 xyz");
 //  RunTest(false, false, false, false, false, false, "{ } 10 xyz");
-  SomeArgType arg("abc");
-  std::string result = concat(std::forward_as_tuple(1, 2.5, std::move(arg)), GenSeq<3>::type());
-  EXPECT_TRUE(result == "1 2.5 abc");
 
+  SomeArgType arg("xyz");
+  std::unique_ptr<BaseClass> base(
+      CreateBoolInstantiatedInstanceInner<SomeClass, BaseClass, false, false, true, true, false, false>(
+          std::forward_as_tuple(10, std::move(arg)),
+          typename GenSeq<2>::type()));
 }
 
 }  // namespace quickstep
