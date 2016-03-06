@@ -32,7 +32,7 @@ namespace quickstep {
  * Seq is defined here for C++11 compatibility. For C++14 and above,
  * std::integer_sequence can be used to achieve the same functionality.
  */
-template<size_t ...>
+template<std::size_t ...>
 struct Seq {};
 
 /**
@@ -42,10 +42,10 @@ struct Seq {};
  * GenSeq is defined here for C++11 compatibility. For C++14 and above,
  * std::make_interger_sequence can be used to achieve the same functionality.
  */
-template<size_t N, size_t ...S>
+template<std::size_t N, std::size_t ...S>
 struct GenSeq : GenSeq<N-1, N-1, S...> {};
 
-template<size_t ...S>
+template<std::size_t ...S>
 struct GenSeq<0, S...> {
   typedef Seq<S...> type;
 };
@@ -56,7 +56,7 @@ struct GenSeq<0, S...> {
  *        ready. Instantiate the template and create (i.e. new) an instance.
  */
 template <template <bool ...> class T, class ReturnT,
-          bool ...bool_values, size_t ...i,
+          bool ...bool_values, std::size_t ...i,
           typename Tuple>
 inline ReturnT* CreateBoolInstantiatedInstanceInner(Tuple&& args, Seq<i...>&& indices) {
   return new T<bool_values...>(std::get<i>(std::forward<Tuple>(args))...);
