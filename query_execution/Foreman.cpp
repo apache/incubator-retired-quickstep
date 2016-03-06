@@ -423,7 +423,7 @@ bool Foreman::fetchNormalWorkOrders(const dag_node_index index) {
     done_gen_[index] =
         query_dag_->getNodePayloadMutable(index)->getAllWorkOrders(workorders_container_.get(),
                                                                    catalog_database_,
-                                                                   query_context_,
+                                                                   query_context_.get(),
                                                                    storage_manager_,
                                                                    foreman_client_id_,
                                                                    bus_);
