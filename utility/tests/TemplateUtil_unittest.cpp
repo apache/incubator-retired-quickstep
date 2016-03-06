@@ -105,9 +105,9 @@ std::string concat(int x, float y, SomeArgType &&z) {
   return oss.str();
 }
 
-template <typename ...Args, size_t ...i>
-std::string concat(std::tuple<Args...> &&args, Seq<i...> &&indices) {
-  return concat(std::forward<Args>(std::get<i>(args))...);
+template <typename Tuple, size_t ...i>
+std::string concat(Tuple &&args, Seq<i...> &&indices) {
+  return concat(std::get<i>(std::forward<Tuple>(args))...);
 }
 
 TEST(TemplateUtilTest, TemplateUtilTest) {
