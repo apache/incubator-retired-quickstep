@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_UTILITY_TEMPLATE_UTIL_HPP_
 #define QUICKSTEP_UTILITY_TEMPLATE_UTIL_HPP_
 
+#include <tuple>
 #include <utility>
 
 namespace quickstep {
@@ -56,10 +57,10 @@ struct GenSeq<0, S...> {
  *        ready. Instantiate the template and create (i.e. new) an instance.
  */
 template <template <bool ...> class T, class ReturnT,
-          bool ...bool_values, typename ArgsTuple,
-          std::size_t ...i>
-inline ReturnT* CreateBoolInstantiatedInstanceInner(ArgsTuple&& args, Seq<i...>&& indices) {
-  return new T<bool_values...>(std::get<i>(std::forward<ArgsTuple>(args))...);
+          bool ...bool_values, std::size_t ...i,
+          typename Tuple>
+inline ReturnT* CreateBoolInstantiatedInstanceInner(Tuple&& args, Seq<i...>&& indices) {
+  return new T<bool_values...>(std::get<i>(std::forward<Tuple>(args))...);
 }
 
 /**
@@ -69,15 +70,15 @@ inline ReturnT* CreateBoolInstantiatedInstanceInner(ArgsTuple&& args, Seq<i...>&
  */
 template <template <bool ...> class T, class ReturnT,
           bool ...bool_values,
-          typename ArgsTuple>
-inline ReturnT* CreateBoolInstantiatedInstance(ArgsTuple&& args) {
+          typename Tuple>
+inline ReturnT* CreateBoolInstantiatedInstance(Tuple&& args) {
   // Note that the constructor arguments have been forwarded as a tuple (args).
   // Here we generate a compile-time index sequence (i.e. typename GenSeq<n_args>::type())
   // for the tuple, so that the tuple can be unpacked as a sequence of constructor
   // parameters in CreateBoolInstantiatedInstanceInner.
-  constexpr std::size_t n_args = std::tuple_size<ArgsTuple>::value;
+  constexpr std::size_t n_args = std::tuple_size<Tuple>::value;
   return CreateBoolInstantiatedInstanceInner<T, ReturnT, bool_values...>(
-      std::forward<ArgsTuple>(args), typename GenSeq<n_args>::type());
+      std::forward<Tuple>(args), typename GenSeq<n_args>::type());
 }
 
 /**
@@ -138,15 +139,15 @@ inline ReturnT* CreateBoolInstantiatedInstance(ArgsTuple&& args) {
  */
 template <template <bool ...> class T, class ReturnT,
           bool ...bool_values, typename ...Bools,
-          typename ArgsTuple>
+          typename Tuple>
 inline ReturnT* CreateBoolInstantiatedInstance(
-    ArgsTuple&& args, bool tparam, Bools ...rest_tparams) {
+    Tuple&& args, bool tparam, Bools ...rest_tparams) {
   if (tparam) {
     return CreateBoolInstantiatedInstance<T, ReturnT, bool_values..., true>(
-        std::forward<ArgsTuple>(args), rest_tparams...);
+        std::forward<Tuple>(args), rest_tparams...);
   } else {
     return CreateBoolInstantiatedInstance<T, ReturnT, bool_values..., false>(
-        std::forward<ArgsTuple>(args), rest_tparams...);
+        std::forward<Tuple>(args), rest_tparams...);
   }
 }
 

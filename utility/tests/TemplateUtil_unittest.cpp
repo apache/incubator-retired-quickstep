@@ -20,6 +20,8 @@
 #include <memory>
 #include <string>
 #include <sstream>
+#include <tuple>
+#include <utility>
 
 #include "utility/Macros.hpp"
 
@@ -89,25 +91,14 @@ class SomeClass : public BaseClass {
   SomeArgType a2_;
 };
 
-//void RunTest(bool c1, bool c2, bool c3, bool c4, bool c5, bool c6, std::string expected) {
-//  // arg should be perfectly forwarded.
-//  SomeArgType arg("xyz");
-//
-//  std::unique_ptr<BaseClass> base(
-//      CreateBoolInstantiatedInstance<SomeClass, BaseClass>(std::forward_as_tuple(10, std::move(arg)),
-//                                                           c1, c2, c3, c4, c5, c6));
-//  EXPECT_TRUE(base->toString() == expected);
-//}
+void RunTest(bool c1, bool c2, bool c3, bool c4, bool c5, bool c6, std::string expected) {
+  // arg should be perfectly forwarded.
+  SomeArgType arg("xyz");
 
-std::string concat(int x, float y, SomeArgType &&z) {
-  std::ostringstream oss;
-  oss << x << " " << y << " " << z.toString();
-  return oss.str();
-}
-
-template <typename Tuple, size_t ...i>
-std::string concat(Tuple &&args, Seq<i...> &&indices) {
-  return concat(std::get<i>(std::forward<Tuple>(args))...);
+  std::unique_ptr<BaseClass> base(
+      CreateBoolInstantiatedInstance<SomeClass, BaseClass>(std::forward_as_tuple(10, std::move(arg)),
+                                                           c1, c2, c3, c4, c5, c6));
+  EXPECT_TRUE(base->toString() == expected);
 }
 
 TEST(TemplateUtilTest, TemplateUtilTest) {
