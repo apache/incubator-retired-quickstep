@@ -56,10 +56,10 @@ struct GenSeq<0, S...> {
  *        ready. Instantiate the template and create (i.e. new) an instance.
  */
 template <template <bool ...> class T, class ReturnT,
-          bool ...bool_values, std::size_t ...i,
-          typename Tuple>
-inline ReturnT* CreateBoolInstantiatedInstanceInner(Tuple&& args, Seq<i...>&& indices) {
-  return new T<bool_values...>(std::get<i>(std::forward<Tuple>(args))...);
+          bool ...bool_values, typename ArgsTuple,
+          std::size_t ...i>
+inline ReturnT* CreateBoolInstantiatedInstanceInner(ArgsTuple&& args, Seq<i...>&& indices) {
+  return new T<bool_values...>(std::get<i>(std::forward<ArgsTuple>(args))...);
 }
 
 /**

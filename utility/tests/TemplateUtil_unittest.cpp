@@ -120,7 +120,7 @@ TEST(TemplateUtilTest, TemplateUtilTest) {
   std::unique_ptr<BaseClass> base(
       CreateBoolInstantiatedInstanceInner<SomeClass, BaseClass, false, false, true, true, false, false>(
           std::forward_as_tuple(10, std::move(arg)),
-          typename GenSeq<2>::type()));
+          GenSeq<2>::type()));
 }
 
 }  // namespace quickstep
