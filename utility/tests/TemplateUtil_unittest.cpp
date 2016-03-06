@@ -99,15 +99,26 @@ class SomeClass : public BaseClass {
 //  EXPECT_TRUE(base->toString() == expected);
 //}
 
+std::string concat(int x, float y, SomeArgType &&z) {
+  std::ostringstream oss;
+  oss << x << " " << y << " " << z.toString();
+  return oss.str();
+}
+
+template <typename ...Args, size_t ...i>
+std::string concat(std::tuple<Args...> &&args, Seq<i...> &&indices) {
+  return concat(std::forward<Args>(std::get<i>(args))...);
+}
+
 TEST(TemplateUtilTest, TemplateUtilTest) {
 //  RunTest(true, false, true, false, true, false, "{ c1 c3 c5 } 10 xyz");
 //  RunTest(true, true, true, true, true, true, "{ c1 c2 c3 c4 c5 c6 } 10 xyz");
 //  RunTest(false, false, true, true, false, false, "{ c3 c4 } 10 xyz");
 //  RunTest(false, false, false, false, false, false, "{ } 10 xyz");
-  std::tuple<int, float, std::string> value(1, 2.5, "abc");
-  EXPECT_TRUE(std::get<0>(value) == 1);
-  EXPECT_TRUE(std::get<1>(value) == 2.5);
-  EXPECT_TRUE(std::get<2>(value) == std::string("abc"));
+  SomeArgType arg("abc");
+  std::string result = concat(std::forward_as_tuple(1, 2.5, std::move(arg)), GenSeq<3>::type());
+  EXPECT_TRUE(result == "1 2.5 abc");
+
 }
 
 }  // namespace quickstep
