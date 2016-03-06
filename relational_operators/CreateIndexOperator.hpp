@@ -23,6 +23,8 @@
 #include "relational_operators/RelationalOperator.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 #include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
@@ -55,7 +57,7 @@ class CreateIndexOperator : public RelationalOperator {
    **/
   CreateIndexOperator(CatalogRelation *relation,
                       const std::string &index_name)
-      : relation_(relation),
+      : relation_(DCHECK_NOTNULL(relation)),
         index_name_(index_name),
         work_generated_(false) {}
 

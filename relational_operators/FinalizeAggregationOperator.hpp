@@ -109,11 +109,8 @@ class FinalizeAggregationWorkOrder : public WorkOrder {
    */
   FinalizeAggregationWorkOrder(AggregationOperationState *state,
                                InsertDestination *output_destination)
-      : state_(state),
-        output_destination_(output_destination) {
-    DCHECK(state_ != nullptr);
-    DCHECK(output_destination_ != nullptr);
-  }
+      : state_(DCHECK_NOTNULL(state)),
+        output_destination_(DCHECK_NOTNULL(output_destination)) {}
 
   ~FinalizeAggregationWorkOrder() override {}
 

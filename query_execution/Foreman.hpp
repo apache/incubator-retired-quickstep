@@ -61,8 +61,8 @@ class Foreman : public Thread {
    * @param bus A pointer to the TMB.
    * @param catalog_database The catalog database where this query is executed.
    * @param storage_manager The StorageManager to use.
-   * @param cpu_id The ID of the CPU to which the Foreman thread can be pinned.
    * @param num_numa_nodes The number of NUMA nodes in the system.
+   * @param cpu_id The ID of the CPU to which the Foreman thread can be pinned.
    *
    * @note If cpu_id is not specified, Foreman thread can be possibly moved
    *       around on different CPUs by the OS.

@@ -120,9 +120,7 @@ class TableGeneratorWorkOrder : public WorkOrder {
   TableGeneratorWorkOrder(const GeneratorFunctionHandle &function_handle,
                           InsertDestination *output_destination)
       : function_handle_(function_handle),
-        output_destination_(output_destination) {
-    DCHECK(output_destination_ != nullptr);
-  }
+        output_destination_(DCHECK_NOTNULL(output_destination)) {}
 
   ~TableGeneratorWorkOrder() override {}
 

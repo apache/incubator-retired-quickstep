@@ -107,11 +107,8 @@ class InsertWorkOrder : public WorkOrder {
    **/
   InsertWorkOrder(InsertDestination *output_destination,
                   Tuple *tuple)
-      : output_destination_(output_destination),
-        tuple_(tuple) {
-    DCHECK(output_destination_ != nullptr);
-    DCHECK(tuple_ != nullptr);
-  }
+      : output_destination_(DCHECK_NOTNULL(output_destination)),
+        tuple_(DCHECK_NOTNULL(tuple)) {}
 
   ~InsertWorkOrder() override {}
 
