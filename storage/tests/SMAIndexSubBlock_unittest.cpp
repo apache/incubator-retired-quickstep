@@ -76,31 +76,31 @@ typedef sma_internal::Selectivity Selectivity;
 namespace sma_test {
   // Handy comparison functions which are used in the unit tests.
 
-  bool longs_equal(TypedValue left, TypedValue right) {
+  bool longsEqual(TypedValue left, TypedValue right) {
     return ComparisonFactory::GetComparison(ComparisonID::kEqual)
         .compareTypedValuesChecked(left, LongType::InstanceNonNullable(),
                                    right, LongType::InstanceNonNullable());
   }
 
-  bool floats_equal(TypedValue left, TypedValue right) {
+  bool floatsEqual(TypedValue left, TypedValue right) {
     return ComparisonFactory::GetComparison(ComparisonID::kEqual)
         .compareTypedValuesChecked(left, FloatType::InstanceNonNullable(),
                                    right, FloatType::InstanceNonNullable());
   }
 
-  bool doubles_equal(TypedValue left, TypedValue right) {
+  bool doublesEqual(TypedValue left, TypedValue right) {
     return ComparisonFactory::GetComparison(ComparisonID::kEqual)
         .compareTypedValuesChecked(left, DoubleType::InstanceNonNullable(),
                                    right, DoubleType::InstanceNonNullable());
   }
 
-  bool chars_equal(TypedValue left, TypedValue right) {
+  bool charsEqual(TypedValue left, TypedValue right) {
     return ComparisonFactory::GetComparison(ComparisonID::kEqual)
         .compareTypedValuesChecked(left, CharType::Instance(80, false),
                                    right, CharType::Instance(80, false));
   }
 
-  bool varchars_equal(TypedValue left, TypedValue right) {
+  bool varcharsEqual(TypedValue left, TypedValue right) {
     return ComparisonFactory::GetComparison(ComparisonID::kEqual)
         .compareTypedValuesChecked(left, TypeFactory::GetType(kVarChar, 8, false),
                                    right, TypeFactory::GetType(kVarChar, 8, false));
@@ -307,6 +307,8 @@ const char SMAIndexSubBlockTest::kCharAttrNullValue[] = "_NULLSTRING";
 
 TEST_F(SMAIndexSubBlockTest, DescriptionIsValidTest) {
   std::unique_ptr<IndexSubBlockDescription> index_description_;
+  // valid_attrs contains attribute ids which should register as
+  // a valid DescriptionIsValid.
   vector<attribute_id> valid_attrs({0, 1, 2, 3, 4, 5, 6});
   // Try to create an index on each of the attributes. Make sure that each
   // of the attributes which can be indexed on is marked valid.
@@ -333,21 +335,17 @@ TEST_F(SMAIndexSubBlockTest, DescriptionIsValidTest) {
 }
 
 TEST_F(SMAIndexSubBlockTest, TestConstructor) {
-  // Use the test fixture class to create a proper description.
+  // Calling this method has the side effect of creating an index description
+  // which is the real reason for calling createIndex here.
   createIndex({0, 1, 2}, kIndexSubBlockSize);
-  memset(index_memory_.get(), 0, kIndexSubBlockSize);
 
-  // Create a new index on a zero-d stretch of memory.
-  index_.reset(new SMAIndexSubBlock(*tuple_store_,
-                                    *index_description_,
-                                    true,
-                                    index_memory_.get(),
-                                    kIndexSubBlockSize));
   EXPECT_TRUE(index_->requiresRebuild());
   EXPECT_TRUE(index_->rebuild());
   EXPECT_FALSE(index_->requiresRebuild());
 
   // Reset will cause the Index to go through its delete routine.
+  index_.reset(nullptr);
+
   // Creating a block on the same memory should cause the index to retrieve
   // the previously written values.
   index_.reset(new SMAIndexSubBlock(*tuple_store_,
@@ -386,26 +384,26 @@ TEST_F(SMAIndexSubBlockTest, TestRebuild) {
   // Check min ids and values.
   EXPECT_EQ(0, entry0->min_entry_ref.entry_ref_tuple);
   EXPECT_EQ(0, entry2->min_entry_ref.entry_ref_tuple);
-  EXPECT_TRUE(sma_test::longs_equal(entry0->min_entry_ref.value,
+  EXPECT_TRUE(sma_test::longsEqual(entry0->min_entry_ref.value,
                                     tuple_store_->getAttributeValueTyped(0, 0)));
 
-  EXPECT_TRUE(sma_test::floats_equal(entry2->min_entry_ref.value,
+  EXPECT_TRUE(sma_test::floatsEqual(entry2->min_entry_ref.value,
                                      tuple_store_->getAttributeValueTyped(0, 2)));
 
   // Check max ids and values.
   tuple_id max_id = (max - min)/step;
   EXPECT_EQ(max_id, entry0->max_entry_ref.entry_ref_tuple);
   EXPECT_EQ(max_id, entry2->max_entry_ref.entry_ref_tuple);
-  EXPECT_TRUE(sma_test::longs_equal(entry0->max_entry_ref.value,
+  EXPECT_TRUE(sma_test::longsEqual(entry0->max_entry_ref.value,
                                     tuple_store_->getAttributeValueTyped(max_id, 0)));
-  EXPECT_TRUE(sma_test::floats_equal(entry2->max_entry_ref.value,
+  EXPECT_TRUE(sma_test::floatsEqual(entry2->max_entry_ref.value,
                                      tuple_store_->getAttributeValueTyped(max_id, 2)));
 
   // Check sums.
-  EXPECT_TRUE(sma_test::longs_equal(entry0->sum_aggregate, TypedValue(sum_0)));
-  EXPECT_TRUE(sma_test::doubles_equal(entry2->sum_aggregate, TypedValue(sum_2)));
+  EXPECT_TRUE(sma_test::longsEqual(entry0->sum_aggregate, TypedValue(sum_0)));
+  EXPECT_TRUE(sma_test::doublesEqual(entry2->sum_aggregate, TypedValue(sum_2)));
 
-  // Check count.
+  // Check count. This count includes nulls (it's the count of the total # of rows).
   EXPECT_EQ(static_cast<std::size_t>(max_id + 1), index_->getCount());
 }
 
@@ -432,7 +430,7 @@ TEST_F(SMAIndexSubBlockTest, TestRebuildWithNulls) {
   // Check min ids and values.
   tuple_id min_tuple = 1;
   EXPECT_EQ(min_tuple, entry1->min_entry_ref.entry_ref_tuple);
-  EXPECT_TRUE(sma_test::longs_equal(entry1->min_entry_ref.value,
+  EXPECT_TRUE(sma_test::longsEqual(entry1->min_entry_ref.value,
                                     tuple_store_->getAttributeValueTyped(min_tuple, 1)));
 
   // Check max ids and values.
@@ -440,11 +438,11 @@ TEST_F(SMAIndexSubBlockTest, TestRebuildWithNulls) {
   // The math figures out what the max tuple id is (sometimes the expected max will be null).
   tuple_id max_tuple = ((num_tuples - 1) % 4) == 0 ? num_tuples - 2 : num_tuples - 1;
   EXPECT_EQ(max_tuple, entry1->max_entry_ref.entry_ref_tuple);
-  EXPECT_TRUE(sma_test::longs_equal(entry1->max_entry_ref.value,
+  EXPECT_TRUE(sma_test::longsEqual(entry1->max_entry_ref.value,
                                     tuple_store_->getAttributeValueTyped(max_tuple, 1)));
 
   // Check sums.
-  EXPECT_TRUE(sma_test::longs_equal(entry1->sum_aggregate, TypedValue(sum_1)));
+  EXPECT_TRUE(sma_test::longsEqual(entry1->sum_aggregate, TypedValue(sum_1)));
 
   // Check count.
   EXPECT_EQ(static_cast<std::size_t>(num_tuples), index_->getCount());
@@ -494,11 +492,11 @@ TEST_F(SMAIndexSubBlockTest, TestWithVariableLengthAttrs) {
   // Check min ids and values.
   EXPECT_EQ(min_id, entry4->min_entry_ref.entry_ref_tuple);
   EXPECT_EQ(max_id, entry4->max_entry_ref.entry_ref_tuple);
-  EXPECT_TRUE(sma_test::chars_equal(
+  EXPECT_TRUE(sma_test::charsEqual(
       entry4->min_entry_ref.value,
       tuple_store_->getAttributeValueTyped(entry4->min_entry_ref.entry_ref_tuple, 4)));
 
-  EXPECT_TRUE(sma_test::chars_equal(
+  EXPECT_TRUE(sma_test::charsEqual(
       entry4->max_entry_ref.value,
       tuple_store_->getAttributeValueTyped(entry4->max_entry_ref.entry_ref_tuple, 4)));
 
@@ -514,11 +512,11 @@ TEST_F(SMAIndexSubBlockTest, TestWithVariableLengthAttrs) {
   // Check min ids and values.
   EXPECT_EQ(min_id, entry5->min_entry_ref.entry_ref_tuple);
   EXPECT_EQ(max_id, entry5->max_entry_ref.entry_ref_tuple);
-  EXPECT_TRUE(sma_test::chars_equal(
+  EXPECT_TRUE(sma_test::charsEqual(
       entry5->min_entry_ref.value,
       tuple_store_->getAttributeValueTyped(entry5->min_entry_ref.entry_ref_tuple, 5)));
 
-  EXPECT_TRUE(sma_test::chars_equal(
+  EXPECT_TRUE(sma_test::charsEqual(
       entry5->max_entry_ref.value,
       tuple_store_->getAttributeValueTyped(entry5->max_entry_ref.entry_ref_tuple, 5)));
 
@@ -534,11 +532,11 @@ TEST_F(SMAIndexSubBlockTest, TestWithVariableLengthAttrs) {
   // Check min ids and values.
   EXPECT_EQ(min_id, entry6->min_entry_ref.entry_ref_tuple);
   EXPECT_EQ(max_id, entry6->max_entry_ref.entry_ref_tuple);
-  EXPECT_TRUE(sma_test::varchars_equal(
+  EXPECT_TRUE(sma_test::varcharsEqual(
       entry6->min_entry_ref.value,
       tuple_store_->getAttributeValueTyped(entry6->min_entry_ref.entry_ref_tuple, 6)));
 
-  EXPECT_TRUE(sma_test::varchars_equal(
+  EXPECT_TRUE(sma_test::varcharsEqual(
       entry6->max_entry_ref.value,
       tuple_store_->getAttributeValueTyped(entry6->max_entry_ref.entry_ref_tuple, 6)));
 
@@ -556,21 +554,21 @@ TEST_F(SMAIndexSubBlockTest, TestWithVariableLengthAttrs) {
   // Ensure that the attributes are as they were before the rebuild process.
   EXPECT_EQ(kChar, getEntryForAttribute(4)->type_id);
 
-  SMAEntry* nentry6 = getEntryForAttribute(6);
-  EXPECT_EQ(kVarChar, nentry6->type_id);
-  EXPECT_EQ(6, nentry6->attribute);
-  EXPECT_TRUE(nentry6->min_entry_ref.valid);
-  EXPECT_TRUE(nentry6->max_entry_ref.valid);
-  EXPECT_EQ(min_id, nentry6->min_entry_ref.entry_ref_tuple);
-  EXPECT_EQ(max_id, nentry6->max_entry_ref.entry_ref_tuple);
-  ASSERT_EQ(kVarChar, nentry6->max_entry_ref.value.getTypeID());
-  ASSERT_EQ(kVarChar, nentry6->min_entry_ref.value.getTypeID());
-  EXPECT_TRUE(sma_test::varchars_equal(
-      nentry6->min_entry_ref.value,
-      tuple_store_->getAttributeValueTyped(nentry6->min_entry_ref.entry_ref_tuple, 6)));
-  EXPECT_TRUE(sma_test::varchars_equal(
-      nentry6->max_entry_ref.value,
-      tuple_store_->getAttributeValueTyped(nentry6->max_entry_ref.entry_ref_tuple, 6)));
+  SMAEntry* rebuilt_entry6 = getEntryForAttribute(6);
+  EXPECT_EQ(kVarChar, rebuilt_entry6->type_id);
+  EXPECT_EQ(6, rebuilt_entry6->attribute);
+  EXPECT_TRUE(rebuilt_entry6->min_entry_ref.valid);
+  EXPECT_TRUE(rebuilt_entry6->max_entry_ref.valid);
+  EXPECT_EQ(min_id, rebuilt_entry6->min_entry_ref.entry_ref_tuple);
+  EXPECT_EQ(max_id, rebuilt_entry6->max_entry_ref.entry_ref_tuple);
+  ASSERT_EQ(kVarChar, rebuilt_entry6->max_entry_ref.value.getTypeID());
+  ASSERT_EQ(kVarChar, rebuilt_entry6->min_entry_ref.value.getTypeID());
+  EXPECT_TRUE(sma_test::varcharsEqual(
+      rebuilt_entry6->min_entry_ref.value,
+      tuple_store_->getAttributeValueTyped(rebuilt_entry6->min_entry_ref.entry_ref_tuple, 6)));
+  EXPECT_TRUE(sma_test::varcharsEqual(
+      rebuilt_entry6->max_entry_ref.value,
+      tuple_store_->getAttributeValueTyped(rebuilt_entry6->max_entry_ref.entry_ref_tuple, 6)));
 
   // Check count.
   EXPECT_EQ(static_cast<std::size_t>(max), index_->getCount());
@@ -669,11 +667,11 @@ TEST_F(SMAIndexSubBlockTest, TestWithCompressedColumnStore) {
   EXPECT_TRUE(entry1->min_entry_ref.valid);
 
   // Check min ids and values.
-  EXPECT_TRUE(sma_test::varchars_equal(
+  EXPECT_TRUE(sma_test::varcharsEqual(
       entry1->min_entry_ref.value,
       compressed_tuple_store->getAttributeValueTyped(entry1->min_entry_ref.entry_ref_tuple, 1)));
 
-  EXPECT_TRUE(sma_test::varchars_equal(
+  EXPECT_TRUE(sma_test::varcharsEqual(
       entry1->max_entry_ref.value,
       compressed_tuple_store->getAttributeValueTyped(entry1->max_entry_ref.entry_ref_tuple, 1)));
 
@@ -696,11 +694,11 @@ TEST_F(SMAIndexSubBlockTest, TestWithCompressedColumnStore) {
   EXPECT_TRUE(entry0->min_entry_ref.valid);
 
   // Check min ids and values.
-  EXPECT_TRUE(sma_test::longs_equal(
+  EXPECT_TRUE(sma_test::longsEqual(
       entry0->min_entry_ref.value,
       compressed_tuple_store->getAttributeValueTyped(entry0->min_entry_ref.entry_ref_tuple, 0)));
 
-  EXPECT_TRUE(sma_test::longs_equal(
+  EXPECT_TRUE(sma_test::longsEqual(
       entry0->max_entry_ref.value,
       compressed_tuple_store->getAttributeValueTyped(entry0->max_entry_ref.entry_ref_tuple, 0)));
 
@@ -716,6 +714,8 @@ TEST_F(SMAIndexSubBlockTest, TestExtractComparison) {
   // the index can compute on.
   const attribute_id indexed_attr = 0;
   const std::int64_t comparison_lit = 123;
+  // The helper 'generate' function creates predicates of the form 'attribute comparison literal'.
+  // These will not require the SMA to flip the comparison.
   std::unique_ptr<ComparisonPredicate> predicate(
       generateNumericComparisonPredicate<LongType>(ComparisonID::kEqual, indexed_attr, comparison_lit));
   std::unique_ptr<SMAPredicate> smapredicate(SMAPredicate::ExtractSMAPredicate(*predicate));
@@ -733,7 +733,8 @@ TEST_F(SMAIndexSubBlockTest, TestExtractComparison) {
   EXPECT_EQ(ComparisonID::kLess, smapredicate->comparison);
   EXPECT_EQ(comparison_lit, smapredicate->literal.getLiteral<std::int64_t>());
 
-  // Make a comparison which it must flip.
+  // We must test the case where the SMA must flip the predicate.
+  // Make a comparison of the form 'literal comparison attribute'.
   ScalarAttribute *scalar_attribute = new ScalarAttribute(*relation_->getAttributeById(indexed_attr));
   ScalarLiteral *scalar_literal
       = new ScalarLiteral(LongType::InstanceNonNullable().makeValue(&comparison_lit),
@@ -764,6 +765,15 @@ TEST_F(SMAIndexSubBlockTest, TestGetSelectivity) {
   std::unique_ptr<UncheckedComparator> longs_less(
       ComparisonFactory::GetComparison(ComparisonID::kLess)
           .makeUncheckedComparatorForTypes(LongType::InstanceNonNullable(), LongType::InstanceNonNullable()));
+
+  // The following tests all use the same test logic.
+  // You can think of this first test as follows:
+  // The first argument of getSelectivity is x, the third is lo, the forth is hi.
+  // What we are testing is if x falls between lo and hi. Since x is set to 'smallest'
+  // the comparison looks something like:
+  // x     lo     hi
+  // on a number line.
+  // Since x falls outside the range of hi/lo, it should select nothing.
 
   // Test with equals.
   EXPECT_EQ(Selectivity::kNone,
@@ -915,7 +925,7 @@ TEST_F(SMAIndexSubBlockTest, TestEvaluatePredicateCost) {
   // Create the index on all the attributes.
   createIndex({0, 1, 2, 3, 4, 5}, kIndexSubBlockSize);
   const int min = 250, max = 500;
-  for (unsigned i = min; i <= max; ++i) {
+  for (std::size_t i = min; i <= max; ++i) {
     if (i % 10 == 0) {
       generateAndInsertTuple(i, true, "suffix");
     } else {
@@ -970,7 +980,7 @@ TEST_F(SMAIndexSubBlockTest, TestGetMatchesForPredicate) {
   // Create the index on all the attributes.
   createIndex({0, 1, 2, 3, 4, 5}, kIndexSubBlockSize);
   const int min = 250, max = 500;
-  for (unsigned i = min; i <= max; ++i) {
+  for (std::size_t i = min; i <= max; ++i) {
     if (i % 10 == 0) {
       generateAndInsertTuple(i, true, "suffix");
     } else {
