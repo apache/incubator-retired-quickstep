@@ -48,6 +48,7 @@
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "types/operations/comparisons/ComparisonUtil.hpp"
+#include "utility/PtrVector.hpp"
 
 #include "glog/logging.h"
 
@@ -227,7 +228,7 @@ bool canSum(TypeID type) {
  *        of the sum. Does nothing if the entry's type cannot be summed.
  * @note We ignore clearing any old data held in the previous sum because Double
  *       and Long types are always represented inline.
- *       
+ *
  * @param entry A pointer to the entry to modify.
  */
 void initializeTypedValueForSum(SMAEntry *entry) {
@@ -310,9 +311,9 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
       attribute_to_entry_(nullptr),
       num_indexed_attributes_(0),
       initialized_(false),
-      add_operations_(new UncheckedBinaryOperator*[kNumTypeIDs]),
-      less_comparisons_(new UncheckedComparator*[kNumTypeIDs]),
-      equal_comparisons_(new UncheckedComparator*[kNumTypeIDs]) {
+      add_operations_(),
+      less_comparisons_(),
+      equal_comparisons_() {
   CHECK(DescriptionIsValid(relation_, description_))
       << "Attempted to construct an SMAIndexSubBlock from an invalid description.";
 
@@ -334,10 +335,10 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
     header_->index_consistent = false;
   }
 
-  // Zero the comparator arrays so we don't try to reference invalid memory later.
-  memset(less_comparisons_, 0, sizeof(UncheckedComparator*) * kNumTypeIDs);
-  memset(equal_comparisons_, 0, sizeof(UncheckedComparator*) * kNumTypeIDs);
-  memset(add_operations_, 0, sizeof(UncheckedBinaryOperator*) * kNumTypeIDs);
+  // Set comparators to null.
+  less_comparisons_.getInternalVectorMutable()->assign(kNumTypeIDs, nullptr);
+  equal_comparisons_.getInternalVectorMutable()->assign(kNumTypeIDs, nullptr);
+  add_operations_.getInternalVectorMutable()->assign(kNumTypeIDs, nullptr);
 
   // Iterate through each attribute which is being indexed.
   for (std::size_t indexed_attribute_num = 0;
@@ -358,24 +359,24 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
     if (sma_internal::canSum(attribute_type.getTypeID())) {
       TypeID attr_typeid = attribute_type.getTypeID();
       TypeID attr_sum_typeid = sma_internal::getTypeForSum(attr_typeid);
-      if (add_operations_[attr_typeid] == nullptr) {
-        add_operations_[attr_typeid]
-          = BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
+      if (add_operations_.elementIsNullAt(attr_typeid)) {
+        add_operations_.replaceElement(attr_typeid,
+          BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
               .makeUncheckedBinaryOperatorForTypes(TypeFactory::GetType(attr_typeid),
-                                                   TypeFactory::GetType(attr_sum_typeid));
+                                                   TypeFactory::GetType(attr_sum_typeid)));
       }
     }
 
     // Initialize comparison map. Maps attribute type to comparison function.
     int attr_typeid = static_cast<int>(attribute_type.getTypeID());
-    if (less_comparisons_[attr_typeid] == nullptr) {
-      DCHECK(equal_comparisons_[attr_typeid] == nullptr);
-      less_comparisons_[attr_typeid]
-          = ComparisonFactory::GetComparison(ComparisonID::kLess)
-              .makeUncheckedComparatorForTypes(attribute_type, attribute_type);
-      equal_comparisons_[attr_typeid]
-          = ComparisonFactory::GetComparison(ComparisonID::kEqual)
-              .makeUncheckedComparatorForTypes(attribute_type, attribute_type);
+    if (less_comparisons_.elementIsNullAt(attr_typeid)) {
+      DCHECK(equal_comparisons_.elementIsNullAt(attr_typeid));
+      less_comparisons_.replaceElement(attr_typeid,
+          ComparisonFactory::GetComparison(ComparisonID::kLess)
+              .makeUncheckedComparatorForTypes(attribute_type, attribute_type));
+      equal_comparisons_.replaceElement(attr_typeid,
+          ComparisonFactory::GetComparison(ComparisonID::kEqual)
+              .makeUncheckedComparatorForTypes(attribute_type, attribute_type));
     }
 
     // Map the attribute's id to its entry's index.
@@ -411,24 +412,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
 SMAIndexSubBlock::~SMAIndexSubBlock() {
   // Any typed values which have out of line data must be cleared.
   freeOutOfLineData();
-
-  // Clear any operators which have been allocated.
-  for (int i = 0; i < kNumTypeIDs; ++i) {
-    if (add_operations_[i] != nullptr) {
-      delete add_operations_[i];
-    }
-    if (equal_comparisons_[i] != nullptr) {
-      delete equal_comparisons_[i];
-    }
-    if (less_comparisons_[i] != nullptr) {
-      delete less_comparisons_[i];
-    }
-  }
-
-  // Delete the operator arrays.
-  delete[] add_operations_;
-  delete[] equal_comparisons_;
-  delete[] less_comparisons_;
+  // Delete the entry index.
   delete[] attribute_to_entry_;
 }
 
@@ -576,7 +560,7 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
     }
 
     if (sma_internal::canSum(entry->type_id)) {
-      entry->sum_aggregate = add_operations_[entry->type_id]->applyToTypedValues(tuple_value, entry->sum_aggregate);
+      entry->sum_aggregate = add_operations_[entry->type_id].applyToTypedValues(tuple_value, entry->sum_aggregate);
     }
 
     // If the entries are valid, we can do comparison, otherwise, we skip the
@@ -588,7 +572,7 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
       entry->min_entry_ref.entry_ref_tuple = tuple;
       entry->min_entry_ref.valid = true;
     } else {
-      if (less_comparisons_[entry->type_id]->compareTypedValues(tuple_value, entry->min_entry_ref.value)) {
+      if (less_comparisons_[entry->type_id].compareTypedValues(tuple_value, entry->min_entry_ref.value)) {
         entry->min_entry_ref.value = tuple_value;
         entry->min_entry_ref.value.ensureNotReference();
         entry->min_entry_ref.entry_ref_tuple = tuple;
@@ -602,7 +586,7 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
       entry->max_entry_ref.entry_ref_tuple = tuple;
       entry->max_entry_ref.valid = true;
     } else {
-      if (less_comparisons_[entry->type_id]->compareTypedValues(entry->max_entry_ref.value, tuple_value)) {
+      if (less_comparisons_[entry->type_id].compareTypedValues(entry->max_entry_ref.value, tuple_value)) {
         entry->max_entry_ref.value = tuple_value;
         entry->max_entry_ref.value.ensureNotReference();
         entry->max_entry_ref.entry_ref_tuple = tuple;
@@ -630,8 +614,8 @@ Selectivity SMAIndexSubBlock::selectivityForPredicate(const ComparisonPredicate 
     sma_predicate->comparison,
     entry->min_entry_ref.value,
     entry->max_entry_ref.value,
-    less_comparisons_[entry->type_id],
-    equal_comparisons_[entry->type_id]);
+    &less_comparisons_[entry->type_id],
+    &equal_comparisons_[entry->type_id]);
 }
 
 predicate_cost_t SMAIndexSubBlock::estimatePredicateEvaluationCost(

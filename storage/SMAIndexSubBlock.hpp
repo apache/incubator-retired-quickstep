@@ -33,6 +33,7 @@
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "utility/Macros.hpp"
+#include "utility/PtrVector.hpp"
 
 #include "glog/logging.h"
 
@@ -412,7 +413,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   //    For example: add_operations_[AttributeTypeID]->applyWithTypedValues(
   //                                          TypedValue of the attributes type,
   //                                          TypedValue of the sum type)
-  UncheckedBinaryOperator** add_operations_;
+  PtrVector<UncheckedBinaryOperator, true> add_operations_;
 
   // An array of pointers to necessary comparison operations for updating MIN/MAX.
   // Essentially, it maps between TypeID and the pointer to the correct
@@ -420,8 +421,8 @@ class SMAIndexSubBlock : public IndexSubBlock {
   //    For example: add_operations_[AttributeTypeID]->applyWithTypedValues(
   //                                          TypedValue of the attributes type,
   //                                          TypedValue of the attributes type)
-  UncheckedComparator** less_comparisons_;
-  UncheckedComparator** equal_comparisons_;
+  PtrVector<UncheckedComparator, true> less_comparisons_;
+  PtrVector<UncheckedComparator, true> equal_comparisons_;
 
   friend class SMAIndexSubBlockTest;
 

@@ -691,7 +691,8 @@ target_link_libraries(quickstep_storage_SMAIndexSubBlock
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_types_operations_comparisons_ComparisonUtil
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      quickstep_utility_PtrVector)
 target_link_libraries(quickstep_storage_SplitRowStoreTupleStorageSubBlock
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_expressions_predicate_PredicateCost
