@@ -351,6 +351,7 @@ target_link_libraries(TemplateUtil_unittest
                       glog
                       gtest
                       gtest_main
+                      quickstep_utility_Macros
                       quickstep_utility_TemplateUtil)
 add_test(TemplateUtil_unittest TemplateUtil_unittest)
 
