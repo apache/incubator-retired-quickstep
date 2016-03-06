@@ -41,7 +41,7 @@ struct Seq {};
  *        Seq<1,2,...,N>.
  *
  * GenSeq is defined here for C++11 compatibility. For C++14 and above,
- * std::make_interger_sequence can be used to achieve the same functionality.
+ * std::make_integer_sequence can be used to achieve the same functionality.
  */
 template<std::size_t N, std::size_t ...S>
 struct GenSeq : GenSeq<N-1, N-1, S...> {};
