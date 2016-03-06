@@ -140,8 +140,7 @@ inline ReturnT* CreateBoolInstantiatedInstance(Tuple&& args) {
 template <template <bool ...> class T, class ReturnT,
           bool ...bool_values, typename ...Bools,
           typename Tuple>
-inline ReturnT* CreateBoolInstantiatedInstance(
-    Tuple&& args, bool tparam, Bools ...rest_tparams) {
+inline ReturnT* CreateBoolInstantiatedInstance(Tuple&& args, bool tparam, Bools ...rest_tparams) {
   if (tparam) {
     return CreateBoolInstantiatedInstance<T, ReturnT, bool_values..., true>(
         std::forward<Tuple>(args), rest_tparams...);
