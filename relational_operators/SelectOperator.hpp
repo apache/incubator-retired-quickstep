@@ -214,11 +214,8 @@ class SelectWorkOrder : public WorkOrder {
         simple_projection_(simple_projection),
         simple_selection_(simple_selection),
         selection_(selection),
-        output_destination_(output_destination),
-        storage_manager_(storage_manager) {
-    DCHECK(output_destination_ != nullptr);
-    DCHECK(storage_manager_ != nullptr);
-  }
+        output_destination_(DCHECK_NOTNULL(output_destination)),
+        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
 
   ~SelectWorkOrder() override {}
 

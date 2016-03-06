@@ -83,9 +83,7 @@ class DestroyHashWorkOrder : public WorkOrder {
   DestroyHashWorkOrder(const QueryContext::join_hash_table_id hash_table_index,
                        QueryContext *query_context)
       : hash_table_index_(hash_table_index),
-        query_context_(query_context) {
-    DCHECK(query_context_ != nullptr);
-  }
+        query_context_(DCHECK_NOTNULL(query_context)) {}
 
   ~DestroyHashWorkOrder() override {}
 

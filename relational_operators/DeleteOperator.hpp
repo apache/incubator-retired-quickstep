@@ -141,13 +141,10 @@ class DeleteWorkOrder : public WorkOrder {
       : input_relation_(input_relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
-        storage_manager_(storage_manager),
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
         delete_operator_index_(delete_operator_index),
         foreman_client_id_(foreman_client_id),
-        bus_(bus) {
-    DCHECK(storage_manager_ != nullptr);
-    DCHECK(bus_ != nullptr);
-  }
+        bus_(DCHECK_NOTNULL(bus)) {}
 
   ~DeleteWorkOrder() override {}
 

@@ -88,11 +88,13 @@ target_link_libraries(quickstep_relationaloperators_BuildHashOperator
                       quickstep_utility_Macros
                       tmb)
 target_link_libraries(quickstep_relationaloperators_CreateIndexOperator
+                      glog
                       quickstep_catalog_CatalogRelation
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_utility_Macros
                       tmb)
 target_link_libraries(quickstep_relationaloperators_CreateTableOperator
+                      glog
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_relationaloperators_RelationalOperator

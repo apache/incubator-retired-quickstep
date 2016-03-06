@@ -100,9 +100,7 @@ class DropTableWorkOrder : public WorkOrder {
   DropTableWorkOrder(std::vector<block_id> &&blocks,
                      StorageManager *storage_manager)
       : blocks_(std::move(blocks)),
-        storage_manager_(storage_manager) {
-    DCHECK(storage_manager_ != nullptr);
-  }
+        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
 
   ~DropTableWorkOrder() override {}
 
