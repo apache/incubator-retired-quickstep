@@ -28,12 +28,15 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 #include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
+class AggregationOperationState;
 class CatalogDatabase;
 class StorageManager;
 class WorkOrdersContainer;
@@ -70,6 +73,9 @@ class AggregationOperator : public RelationalOperator {
   ~AggregationOperator() override {}
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
@@ -103,23 +109,20 @@ class AggregationWorkOrder : public WorkOrder {
    * @brief Constructor
    *
    * @param input_block_id The block id.
-   * @param aggr_state_index The index of the AggregationState in QueryContext.
+   * @param state The AggregationState to use.
    **/
-  AggregationWorkOrder(
-      const block_id input_block_id,
-      const QueryContext::aggregation_state_id aggr_state_index)
+  AggregationWorkOrder(const block_id input_block_id,
+                       AggregationOperationState *state)
       : input_block_id_(input_block_id),
-        aggr_state_index_(aggr_state_index) {}
+        state_(DCHECK_NOTNULL(state)) {}
 
   ~AggregationWorkOrder() override {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   const block_id input_block_id_;
-  const QueryContext::aggregation_state_id aggr_state_index_;
+  AggregationOperationState *state_;
 
   DISALLOW_COPY_AND_ASSIGN(AggregationWorkOrder);
 };

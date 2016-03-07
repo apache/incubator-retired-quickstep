@@ -18,16 +18,23 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_CREATE_INDEX_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_CREATE_INDEX_OPERATOR_HPP_
 
-#include <memory>
 #include <string>
 
-#include "catalog/CatalogRelation.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
+
+#include "tmb/id_typedefs.h"
+
+namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
 class CatalogRelation;
+class CatalogDatabase;
+class QueryContext;
+class StorageManager;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -49,8 +56,8 @@ class CreateIndexOperator : public RelationalOperator {
    * @param index_name The index to create.
    **/
   CreateIndexOperator(CatalogRelation *relation,
-                      const std::string index_name)
-      : relation_(relation),
+                      const std::string &index_name)
+      : relation_(DCHECK_NOTNULL(relation)),
         index_name_(index_name),
         work_generated_(false) {}
 
@@ -60,12 +67,15 @@ class CreateIndexOperator : public RelationalOperator {
    * @note no WorkOrder generated for this operator.
    **/
   bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
  private:
   CatalogRelation *relation_;
-  std::string index_name_;
+  const std::string &index_name_;
   bool work_generated_;
 
   DISALLOW_COPY_AND_ASSIGN(CreateIndexOperator);

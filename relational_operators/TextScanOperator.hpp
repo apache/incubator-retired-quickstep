@@ -25,6 +25,7 @@
 #include <exception>
 #include <string>
 
+#include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
@@ -36,6 +37,8 @@
 #include "utility/Macros.hpp"
 #include "utility/ThreadSafeQueue.hpp"
 
+#include "glog/logging.h"
+
 #include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
@@ -44,6 +47,7 @@ namespace quickstep {
 
 class CatalogDatabase;
 class CatalogRelationSchema;
+class InsertDestination;
 class StorageManager;
 class WorkOrdersContainer;
 
@@ -151,6 +155,9 @@ class TextScanOperator : public RelationalOperator {
   ~TextScanOperator() override {}
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
@@ -197,14 +204,15 @@ class TextScanWorkOrder : public WorkOrder {
    *        the text file.
    * @param process_escape_sequences Whether to decode escape sequences in the
    *        text file.
-   * @param output_destination_index The index of the InsertDestination in the
-   *        QueryContext to insert tuples.
+   * @param output_destination The InsertDestination to insert tuples.
+   * @param storage_manager The StorageManager to use.
    **/
   TextScanWorkOrder(
       const std::string &filename,
       const char field_terminator,
       const bool process_escape_sequences,
-      const QueryContext::insert_destination_id output_destination_index);
+      InsertDestination *output_destination,
+      StorageManager *storage_manager);
 
   /**
    * @brief Constructor.
@@ -215,15 +223,16 @@ class TextScanWorkOrder : public WorkOrder {
    *        the text file.
    * @param process_escape_sequences Whether to decode escape sequences in the
    *        text file.
-   * @param output_destination_index The index of the InsertDestination in the
-   *        QueryContext to write the read tuples.
+   * @param output_destination The InsertDestination to write the read tuples.
+   * @param storage_manager The StorageManager to use.
    */
   TextScanWorkOrder(
       const block_id text_blob,
       const std::size_t text_size,
       const char field_terminator,
       const bool process_escape_sequences,
-      const QueryContext::insert_destination_id output_destination_index);
+      InsertDestination *output_destination,
+      StorageManager *storage_manager);
 
   ~TextScanWorkOrder() override {}
 
@@ -237,9 +246,7 @@ class TextScanWorkOrder : public WorkOrder {
    * @exception TupleTooLargeForBlock A tuple in the text file was too large
    *            to fit in a StorageBlock.
    **/
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   // Parse up to three octal digits (0-7) starting at '*start_pos' in
@@ -295,7 +302,9 @@ class TextScanWorkOrder : public WorkOrder {
   const block_id text_blob_;
   const std::size_t text_size_;
   const bool process_escape_sequences_;
-  const QueryContext::insert_destination_id output_destination_index_;
+
+  InsertDestination *output_destination_;
+  StorageManager *storage_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(TextScanWorkOrder);
 };
@@ -309,6 +318,9 @@ class TextSplitWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    * @param filename File to split into row-aligned blobs.
+   * @param process_escape_sequences Whether to decode escape sequences in the
+   *        text file.
+   * @param storage_manager The StorageManager to use.
    * @param operator_index Operator index of the current operator. This is used
    *                       to send new-work available message to Foreman.
    * @param foreman_client_id The TMB client ID of the foreman thread.
@@ -316,33 +328,32 @@ class TextSplitWorkOrder : public WorkOrder {
    */
   TextSplitWorkOrder(const std::string filename,
                      const bool process_escape_sequences,
+                     StorageManager *storage_manager,
                      const std::size_t operator_index,
                      const tmb::client_id foreman_client_id,
                      MessageBus *bus)
       : filename_(filename),
         process_escape_sequences_(process_escape_sequences),
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
         operator_index_(operator_index),
         foreman_client_id_(foreman_client_id),
-        bus_(bus) {}
+        bus_(DCHECK_NOTNULL(bus)) {}
 
   /**
    * @exception TextScanReadError The text file could not be opened for
    *            reading.
    */
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   // Allocate a new blob.
-  void allocateBlob(StorageManager *storage_manager);
+  void allocateBlob();
 
   // Find the last row terminator in current blob.
   std::size_t findLastRowTerminator();
 
   // Send the blob info to its operator via TMB.
-  void sendBlobInfoToOperator(StorageManager *storage_manager,
-                              const bool write_row_aligned);
+  void sendBlobInfoToOperator(const bool write_row_aligned);
 
   // Get the writeable address (unwritten chunk) in current blob.
   inline char* writeableBlobAddress() {
@@ -356,9 +367,11 @@ class TextSplitWorkOrder : public WorkOrder {
 
   const std::string filename_;  // File to split.
   const bool process_escape_sequences_;
+
+  StorageManager *storage_manager_;
+
   const std::size_t operator_index_;  // Opeartor index.
   const tmb::client_id foreman_client_id_;  // Foreman TMB client ID.
-
   MessageBus *bus_;
 
   MutableBlobReference text_blob_;  // Mutable reference to current blob.

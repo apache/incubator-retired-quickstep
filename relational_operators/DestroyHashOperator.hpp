@@ -23,6 +23,8 @@
 #include "relational_operators/WorkOrder.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 #include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
@@ -54,6 +56,9 @@ class DestroyHashOperator : public RelationalOperator {
   ~DestroyHashOperator() override {}
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
@@ -73,18 +78,20 @@ class DestroyHashWorkOrder : public WorkOrder {
    * @brief Constructor.
    *
    * @param hash_table_index The index of the JoinHashTable in QueryContext.
+   * @param query_context The QueryContext to use.
    **/
-  explicit DestroyHashWorkOrder(const QueryContext::join_hash_table_id hash_table_index)
-      : hash_table_index_(hash_table_index) {}
+  DestroyHashWorkOrder(const QueryContext::join_hash_table_id hash_table_index,
+                       QueryContext *query_context)
+      : hash_table_index_(hash_table_index),
+        query_context_(DCHECK_NOTNULL(query_context)) {}
 
   ~DestroyHashWorkOrder() override {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   const QueryContext::join_hash_table_id hash_table_index_;
+  QueryContext *query_context_;
 
   DISALLOW_COPY_AND_ASSIGN(DestroyHashWorkOrder);
 };

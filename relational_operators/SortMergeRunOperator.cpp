@@ -22,13 +22,11 @@
 #include <utility>
 #include <vector>
 
-#include "catalog/CatalogDatabase.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/SortMergeRunOperator.pb.h"
 #include "relational_operators/SortMergeRunOperatorHelpers.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
-#include "utility/SortConfiguration.hpp"
 
 #include "glog/logging.h"
 
@@ -44,6 +42,9 @@ using merge_run_operator::MergeTree;
 
 bool SortMergeRunOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
+    CatalogDatabase *catalog_database,
+    QueryContext *query_context,
+    StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
     tmb::MessageBus *bus) {
   if (input_relation_is_stored_) {
@@ -66,23 +67,32 @@ bool SortMergeRunOperator::getAllWorkOrders(
     }
   }
   // Generate runs from merge tree.
-  return generateWorkOrders(container, foreman_client_id, bus);
+  return generateWorkOrders(container, query_context, storage_manager, foreman_client_id, bus);
 }
 
 WorkOrder *SortMergeRunOperator::createWorkOrder(
     merge_run_operator::MergeTree::MergeJob *job,
+    QueryContext *query_context,
+    StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
     tmb::MessageBus *bus) {
   DCHECK(!job->runs.empty());
+  DCHECK(query_context != nullptr);
+
+  InsertDestination *output_destination =
+      query_context->getInsertDestination(job->is_final_level
+                                              ? output_destination_index_
+                                              : run_block_destination_index_);
+
   // Create a work order from the merge job from merge tree.
   return new SortMergeRunWorkOrder(
-      sort_config_index_,
+      query_context->getSortConfig(sort_config_index_),
+      job->level > 0 ? run_relation_ : input_relation_,
       std::move(job->runs),
       top_k_,
       job->level,
-      job->level > 0 ? run_relation_.getID() : input_relation_.getID(),
-      job->is_final_level ? output_destination_index_
-                          : run_block_destination_index_,
+      output_destination,
+      storage_manager,
       op_index_,
       foreman_client_id,
       bus);
@@ -90,6 +100,8 @@ WorkOrder *SortMergeRunOperator::createWorkOrder(
 
 bool SortMergeRunOperator::generateWorkOrders(
     WorkOrdersContainer *container,
+    QueryContext *query_context,
+    StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
     tmb::MessageBus *bus) {
   std::vector<MergeTree::MergeJob> jobs;
@@ -101,7 +113,11 @@ bool SortMergeRunOperator::generateWorkOrders(
        job_id != jobs.size();
        ++job_id) {
     // Add work order for each merge job.
-    container->addNormalWorkOrder(createWorkOrder(&jobs[job_id], foreman_client_id, bus),
+    container->addNormalWorkOrder(createWorkOrder(&jobs[job_id],
+                                                  query_context,
+                                                  storage_manager,
+                                                  foreman_client_id,
+                                                  bus),
                                   op_index_);
   }
 
@@ -225,33 +241,15 @@ void SortMergeRunOperator::receiveFeedbackMessage(
                              run_output.getBlocksMutable());
 }
 
-void SortMergeRunWorkOrder::execute(QueryContext *query_context,
-                                    CatalogDatabase *catalog_database,
-                                    StorageManager *storage_manager) {
-  DCHECK(query_context != nullptr);
-  DCHECK(catalog_database != nullptr);
-  DCHECK(storage_manager != nullptr);
-
-  CatalogRelation *run_relation
-      = catalog_database->getRelationByIdMutable(run_relation_id_);
-  DCHECK(run_relation != nullptr);
-
-  InsertDestination *output_destination =
-      query_context->getInsertDestination(output_destination_index_);
-  DCHECK(output_destination != nullptr);
-
-  const SortConfiguration *sort_config = query_context->getSortConfig(sort_config_index_);
-  DCHECK(sort_config != nullptr);
-  DCHECK(sort_config->isValid());
-
+void SortMergeRunWorkOrder::execute() {
   // Merge input runs.
-  merge_run_operator::RunMerger run_merger(*sort_config,
+  merge_run_operator::RunMerger run_merger(sort_config_,
                                            std::move(input_runs_),
                                            top_k_,
-                                           *run_relation,
-                                           output_destination,
+                                           run_relation_,
+                                           output_destination_,
                                            merge_level_,
-                                           storage_manager);
+                                           storage_manager_);
   run_merger.doMerge();
 
   // Serialize completion message with output run.

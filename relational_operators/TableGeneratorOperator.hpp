@@ -29,6 +29,8 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 #include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
@@ -36,6 +38,8 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class CatalogDatabase;
+class GeneratorFunctionHandle;
+class InsertDestination;
 class StorageManager;
 class WorkOrdersContainer;
 
@@ -71,6 +75,9 @@ class TableGeneratorOperator : public RelationalOperator {
   ~TableGeneratorOperator() override {}
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
@@ -106,26 +113,22 @@ class TableGeneratorWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @param output_destination_index The index of the InsertDestination in the
-   *        QueryContext to insert the generated output.
-   * @param generator_function_index The index of the GeneratorFunctionHandle in
-   *        the QueryContext.
+   * @param generator_function The GeneratorFunctionHandle to use.
+   * @param output_destination The InsertDestination to insert the generated
+   *        output.
    **/
-  TableGeneratorWorkOrder(const QueryContext::insert_destination_id output_destination_index,
-                          const QueryContext::generator_function_id generator_function_index)
-      : output_destination_index_(output_destination_index),
-        generator_function_index_(generator_function_index) {
-  }
+  TableGeneratorWorkOrder(const GeneratorFunctionHandle &function_handle,
+                          InsertDestination *output_destination)
+      : function_handle_(function_handle),
+        output_destination_(DCHECK_NOTNULL(output_destination)) {}
 
   ~TableGeneratorWorkOrder() override {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
-  const QueryContext::insert_destination_id output_destination_index_;
-  const QueryContext::generator_function_id generator_function_index_;
+  const GeneratorFunctionHandle &function_handle_;
+  InsertDestination *output_destination_;
 
   DISALLOW_COPY_AND_ASSIGN(TableGeneratorWorkOrder);
 };

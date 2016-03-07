@@ -140,9 +140,18 @@ inline unsigned DetectRowTerminator(const char *search_string,
 
 bool TextScanOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
+    CatalogDatabase *catalog_database,
+    QueryContext *query_context,
+    StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
     tmb::MessageBus *bus) {
+  DCHECK(query_context != nullptr);
+
   const std::vector<std::string> files = utility::file::GlobExpand(file_pattern_);
+
+  InsertDestination *output_destination =
+      query_context->getInsertDestination(output_destination_index_);
+
   if (parallelize_load_) {
     // Parallel implementation: Split work orders are generated for each file
     // being bulk-loaded. (More than one file can be loaded, because we support
@@ -155,6 +164,7 @@ bool TextScanOperator::getAllWorkOrders(
           container->addNormalWorkOrder(
               new TextSplitWorkOrder(file,
                                      process_escape_sequences_,
+                                     storage_manager,
                                      op_index_,
                                      foreman_client_id,
                                      bus),
@@ -172,7 +182,8 @@ bool TextScanOperator::getAllWorkOrders(
                                     blob_work.size,
                                     field_terminator_,
                                     process_escape_sequences_,
-                                    output_destination_index_),
+                                    output_destination,
+                                    storage_manager),
               op_index_);
         }
         // Done if all split work orders are completed, and no blobs are left to
@@ -190,7 +201,8 @@ bool TextScanOperator::getAllWorkOrders(
             new TextScanWorkOrder(file,
                                   field_terminator_,
                                   process_escape_sequences_,
-                                  output_destination_index_),
+                                  output_destination,
+                                  storage_manager),
             op_index_);
       }
       work_generated_ = true;
@@ -220,40 +232,39 @@ void TextScanOperator::receiveFeedbackMessage(const WorkOrder::FeedbackMessage &
 TextScanWorkOrder::TextScanWorkOrder(const std::string &filename,
                                      const char field_terminator,
                                      const bool process_escape_sequences,
-                                     const QueryContext::insert_destination_id output_destination_index)
+                                     InsertDestination *output_destination,
+                                     StorageManager *storage_manager)
     : is_file_(true),
       filename_(filename),
       field_terminator_(field_terminator),
       text_blob_(0),
       text_size_(0),
       process_escape_sequences_(process_escape_sequences),
-      output_destination_index_(output_destination_index) {
+      output_destination_(output_destination),
+      storage_manager_(storage_manager) {
+  DCHECK(output_destination_ != nullptr);
+  DCHECK(storage_manager_ != nullptr);
 }
 
 TextScanWorkOrder::TextScanWorkOrder(const block_id text_blob,
                                      const std::size_t text_size,
                                      const char field_terminator,
                                      const bool process_escape_sequences,
-                                     const QueryContext::insert_destination_id output_destination_index)
+                                     InsertDestination *output_destination,
+                                     StorageManager *storage_manager)
     : is_file_(false),
       field_terminator_(field_terminator),
       text_blob_(text_blob),
       text_size_(text_size),
       process_escape_sequences_(process_escape_sequences),
-      output_destination_index_(output_destination_index) {
+      output_destination_(output_destination),
+      storage_manager_(storage_manager) {
+  DCHECK(output_destination_ != nullptr);
+  DCHECK(storage_manager_ != nullptr);
 }
 
-void TextScanWorkOrder::execute(QueryContext *query_context,
-                                CatalogDatabase *catalog_database,
-                                StorageManager *storage_manager) {
-  DCHECK(query_context != nullptr);
-  DCHECK(storage_manager != nullptr);
-
-  InsertDestination *destination =
-      query_context->getInsertDestination(output_destination_index_);
-  DCHECK(destination != nullptr);
-
-  const CatalogRelationSchema &relation = destination->getRelation();
+void TextScanWorkOrder::execute() {
+  const CatalogRelationSchema &relation = output_destination_->getRelation();
 
   string current_row_string;
   if (is_file_) {
@@ -268,13 +279,13 @@ void TextScanWorkOrder::execute(QueryContext *query_context,
       have_row = readRowFromFile(file, &current_row_string);
       if (have_row) {
         Tuple tuple = parseRow(current_row_string, relation);
-        destination->insertTupleInBatch(tuple);
+        output_destination_->insertTupleInBatch(tuple);
       }
     } while (have_row);
 
     std::fclose(file);
   } else {
-    BlobReference blob = storage_manager->getBlob(text_blob_);
+    BlobReference blob = storage_manager_->getBlob(text_blob_);
     const char *blob_pos = static_cast<const char*>(blob->getMemory());
     const char *blob_end = blob_pos + text_size_;
     bool have_row = false;
@@ -283,7 +294,7 @@ void TextScanWorkOrder::execute(QueryContext *query_context,
       have_row = readRowFromBlob(&blob_pos, blob_end, &current_row_string);
       if (have_row) {
         Tuple tuple = parseRow(current_row_string, relation);
-        destination->insertTupleInBatch(tuple);
+        output_destination_->insertTupleInBatch(tuple);
       }
     } while (have_row);
   }
@@ -558,9 +569,7 @@ Tuple TextScanWorkOrder::parseRow(const std::string &row_string, const CatalogRe
   return Tuple(std::move(attribute_values));
 }
 
-void TextSplitWorkOrder::execute(QueryContext *query_context,
-                                 CatalogDatabase *catalog_database,
-                                 StorageManager *storage_manager) {
+void TextSplitWorkOrder::execute() {
   std::FILE *file = std::fopen(filename_.c_str(), "r");
   if (!file) {
     throw TextScanReadError(filename_);
@@ -570,7 +579,7 @@ void TextSplitWorkOrder::execute(QueryContext *query_context,
   do {
     // Allocate new blob, if current is empty.
     if (0 == remainingBlobBytes()) {
-      allocateBlob(storage_manager);
+      allocateBlob();
     }
 
     // Read the into the unwritten part of blob.
@@ -580,7 +589,7 @@ void TextSplitWorkOrder::execute(QueryContext *query_context,
     written_ += bytes;
 
     // Write the current blob to queue for processing.
-    sendBlobInfoToOperator(storage_manager, !eof /* write_row_aligned */);
+    sendBlobInfoToOperator(!eof /* write_row_aligned */);
   } while (!eof);
 
   std::fclose(file);
@@ -595,9 +604,9 @@ void TextSplitWorkOrder::execute(QueryContext *query_context,
 }
 
 // Allocate new blob.
-void TextSplitWorkOrder::allocateBlob(StorageManager *storage_manager) {
-  text_blob_id_ = storage_manager->createBlob(FLAGS_textscan_split_blob_size);
-  text_blob_ = storage_manager->getBlobMutable(text_blob_id_);
+void TextSplitWorkOrder::allocateBlob() {
+  text_blob_id_ = storage_manager_->createBlob(FLAGS_textscan_split_blob_size);
+  text_blob_ = storage_manager_->getBlobMutable(text_blob_id_);
   blob_size_ = text_blob_->size();
   written_ = 0;
 }
@@ -623,8 +632,7 @@ std::size_t TextSplitWorkOrder::findLastRowTerminator() {
   return found;
 }
 
-void TextSplitWorkOrder::sendBlobInfoToOperator(StorageManager *storage_manager,
-                                                const bool write_row_aligned) {
+void TextSplitWorkOrder::sendBlobInfoToOperator(const bool write_row_aligned) {
   std::size_t text_len = written_;
   std::string residue;
   if (write_row_aligned) {
@@ -681,7 +689,7 @@ void TextSplitWorkOrder::sendBlobInfoToOperator(StorageManager *storage_manager,
 
   if (residue.size()) {
     // Allocate new blob, and copy residual bytes from last blob.
-    allocateBlob(storage_manager);
+    allocateBlob();
     std::memcpy(writeableBlobAddress(), residue.data(), residue.size());
     written_ += residue.size();
   }

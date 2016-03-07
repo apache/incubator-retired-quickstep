@@ -87,18 +87,21 @@ class TextScanOperatorTest : public ::testing::Test {
     const std::size_t op_index = 0;
     op->informAllBlockingDependenciesMet();
     op->getAllWorkOrders(&container,
+                         db_.get(),
+                         query_context_.get(),
+                         storage_manager_.get(),
                          tmb::kClientIdNone /* foreman_client_id */,
                          nullptr /* TMB */);
 
     while (container.hasNormalWorkOrder(op_index)) {
       WorkOrder *work_order = container.getNormalWorkOrder(op_index);
-      work_order->execute(query_context_.get(), db_.get(), storage_manager_.get());
+      work_order->execute();
       delete work_order;
     }
 
     while (container.hasRebuildWorkOrder(op_index)) {
       WorkOrder *work_order = container.getRebuildWorkOrder(op_index);
-      work_order->execute(query_context_.get(), db_.get(), storage_manager_.get());
+      work_order->execute();
       delete work_order;
     }
   }

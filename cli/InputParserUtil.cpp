@@ -17,6 +17,7 @@
 #include "cli/InputParserUtil.hpp"
 
 #include <cstddef>
+#include <iostream>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -57,16 +58,16 @@ std::vector<int> InputParserUtil::ParseWorkerAffinities(
   }
 
   if (affinities.size() < static_cast<std::size_t>(num_workers)) {
-    LOG(WARNING) << "--num_workers is " << num_workers << ", but only "
-                 << "specified " << affinities.size() << " CPU affinities "
-                 << "with --worker_affinities. "
-                 << (num_workers - affinities.size()) << " workers will be "
-                 << "unaffinitized.\n";
+    std::cout << "--num_workers is " << num_workers << ", but only "
+              << "specified " << affinities.size() << " CPU affinities "
+              << "with --worker_affinities. "
+              << (num_workers - affinities.size()) << " workers will be "
+              << "unaffinitized.\n";
     affinities.resize(num_workers, -1);
   } else if (affinities.size() > static_cast<std::size_t>(num_workers)) {
-    LOG(WARNING) << "--num_workers is " << num_workers << ", but specified "
-                 << affinities.size() << " CPU affinities with "
-                 << "--worker_affinities. Extra affinities will be ignored.\n";
+    std::cout << "--num_workers is " << num_workers << ", but specified "
+              << affinities.size() << " CPU affinities with "
+              << "--worker_affinities. Extra affinities will be ignored.\n";
     affinities.resize(num_workers);
   }
 
