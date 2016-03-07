@@ -31,7 +31,7 @@ namespace quickstep {
 /**
  * @brief Represents a compile-time sequence of integers.
  *
- * Seq is defined here for C++11 compatibility. For C++14 and above,
+ * Sequence is defined here for C++11 compatibility. For C++14 and above,
  * std::integer_sequence can be used to achieve the same functionality.
  *
  * TODO(jianqiao): directly use std::integer_sequence if having C++14 support.
@@ -40,19 +40,19 @@ template<std::size_t ...>
 struct Sequence {};
 
 /**
- * @brief The helper class for creating Seq. GenerateSequence<N>::type is equivalent to
- *        Sequence<1,2,...,N>.
+ * @brief The helper class for creating Sequence. MakeSequence<N>::type is
+ *        equivalent to Sequence<1,2,...,N>.
  *
- * GenSeq is defined here for C++11 compatibility. For C++14 and above,
+ * MakeSequence is defined here for C++11 compatibility. For C++14 and above,
  * std::make_index_sequence can be used to achieve the same functionality.
  *
  * TODO(jianqiao): directly use std::make_index_sequence if having C++14 support.
  */
 template<std::size_t N, std::size_t ...S>
-struct GenerateSequence : GenerateSequence<N-1, N-1, S...> {};
+struct MakeSequence : MakeSequence<N-1, N-1, S...> {};
 
 template<std::size_t ...S>
-struct GenerateSequence<0, S...> {
+struct MakeSequence<0, S...> {
   typedef Sequence<S...> type;
 };
 
@@ -79,12 +79,12 @@ template <template <bool ...> class T, class ReturnT,
           typename Tuple>
 inline ReturnT* CreateBoolInstantiatedInstance(Tuple &&args) {
   // Note that the constructor arguments have been forwarded as a tuple (args).
-  // Here we generate a compile-time index sequence (i.e. typename GenSeq<n_args>::type())
+  // Here we generate a compile-time index sequence (i.e. typename MakeSequence<n_args>::type())
   // for the tuple, so that the tuple can be unpacked as a sequence of constructor
   // parameters in CreateBoolInstantiatedInstanceInner.
   constexpr std::size_t n_args = std::tuple_size<Tuple>::value;
   return CreateBoolInstantiatedInstanceInner<T, ReturnT, bool_values...>(
-      std::forward<Tuple>(args), typename GenerateSequence<n_args>::type());
+      std::forward<Tuple>(args), typename MakeSequence<n_args>::type());
 }
 
 /**
