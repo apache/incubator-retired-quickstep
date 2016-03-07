@@ -104,6 +104,7 @@ void ExecutionGeneratorTestRunner::runTestCase(
 
         foreman_->start();
         foreman_->join();
+        query_context_.reset(nullptr);
 
         const CatalogRelation *query_result_relation = query_handle.getQueryResultRelation();
         if (query_result_relation) {

@@ -21,6 +21,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -43,6 +44,7 @@ using std::int64_t;
 using std::min;
 using std::numeric_limits;
 using std::pair;
+using std::string;
 using std::strlen;
 using std::unique_ptr;
 using std::vector;
@@ -759,6 +761,19 @@ void CheckComparisonSerialization(const Comparison &comparison) {
     case ComparisonID::kGreaterOrEqual:
       EXPECT_EQ(serialization::Comparison::GREATER_OR_EQUAL, proto.comparison_id());
       break;
+    case ComparisonID::kLike:
+      EXPECT_EQ(serialization::Comparison::LIKE, proto.comparison_id());
+      break;
+    case ComparisonID::kNotLike:
+      EXPECT_EQ(serialization::Comparison::NOT_LIKE, proto.comparison_id());
+      break;
+    case ComparisonID::kRegexMatch:
+      EXPECT_EQ(serialization::Comparison::REGEX_MATCH, proto.comparison_id());
+      break;
+    case ComparisonID::kNotRegexMatch:
+      EXPECT_EQ(serialization::Comparison::NOT_REGEX_MATCH, proto.comparison_id());
+      break;
+
     default:
       FATAL_ERROR("operation is an unknown Comparison in CheckComparisonSerialization");
   }
@@ -773,6 +788,10 @@ TEST_F(ComparisonTest, ComparisonProtoSerializationTest) {
   CheckComparisonSerialization(ComparisonFactory::GetComparison(ComparisonID::kLessOrEqual));
   CheckComparisonSerialization(ComparisonFactory::GetComparison(ComparisonID::kGreater));
   CheckComparisonSerialization(ComparisonFactory::GetComparison(ComparisonID::kGreaterOrEqual));
+  CheckComparisonSerialization(ComparisonFactory::GetComparison(ComparisonID::kLike));
+  CheckComparisonSerialization(ComparisonFactory::GetComparison(ComparisonID::kNotLike));
+  CheckComparisonSerialization(ComparisonFactory::GetComparison(ComparisonID::kRegexMatch));
+  CheckComparisonSerialization(ComparisonFactory::GetComparison(ComparisonID::kNotRegexMatch));
 }
 
 // The 6 basic comparisons all have the same applicability to types. This
@@ -886,6 +905,86 @@ TEST_F(ComparisonTest, CanComparePartialTypesTest) {
       ComparisonFactory::GetComparison(ComparisonID::kGreater));
   CheckBasicComparisonApplicableToPartialTypes(
       ComparisonFactory::GetComparison(ComparisonID::kGreaterOrEqual));
+}
+
+TEST_F(ComparisonTest, PatternMatchingComparisonTest) {
+  const Comparison &like_comp =
+      ComparisonFactory::GetComparison(ComparisonID::kLike);
+  const Comparison &not_like_comp =
+      ComparisonFactory::GetComparison(ComparisonID::kNotLike);
+  const Comparison &regex_comp =
+      ComparisonFactory::GetComparison(ComparisonID::kRegexMatch);
+  const Comparison &not_regex_comp =
+      ComparisonFactory::GetComparison(ComparisonID::kRegexMatch);
+
+  // Check canCompareTypes method
+  for (const TypeID tid1 : {kChar, kVarChar}) {
+    const Type &t1 = TypeFactory::GetType(tid1, 10, false);
+    for (const TypeID tid2 : {kChar, kVarChar}) {
+      const Type &t2 = TypeFactory::GetType(tid2, 10, false);
+      EXPECT_TRUE(like_comp.canCompareTypes(t1, t2));
+      EXPECT_TRUE(not_like_comp.canCompareTypes(t1, t2));
+      EXPECT_TRUE(regex_comp.canCompareTypes(t1, t2));
+      EXPECT_TRUE(not_regex_comp.canCompareTypes(t1, t2));
+    }
+  }
+
+  string text = "abc123\nXYZ\\n 127.0.0.1 @xxx.com";
+  vector<string> matched_like_patterns = {
+      "%",
+      "abc%",
+      "%127.0.0.1%",
+      "%@x_x_c%",
+      "%\n%\\% @%",
+      "abc%_%_3%" };
+  vector<string> not_matched_like_patterns = {
+      "abc",
+      "%127__0.0.1%",
+      "abc%_%_2",
+      "%\\nXYZ%" };
+  vector<string> matched_regex_patterns = {
+      ".*\\d+.*",
+      "abc[^x]+xxx\\..*",
+      ".*\\d+\\.\\d+\\.\\d+\\.\\d+.*",
+      ".*\n[a-zA-Z]{3}.*" };
+  vector<string> not_matched_regex_patterns = {
+      ".*\\d{4}.*",
+      ".*XYZ\n .*",
+      ".*(\\d+\\.)*" };
+
+  for (const TypeID tid1 : {kChar, kVarChar}) {
+    const Type &t1 = TypeFactory::GetType(tid1, 32, false);
+    const TypedValue text_value(tid1, text.c_str(), text.size() + 1);
+    for (const TypeID tid2 : {kChar, kVarChar}) {
+      const Type &t2 = TypeFactory::GetType(tid2, 32, false);
+
+      for (const string &sp : matched_like_patterns) {
+        const TypedValue pattern_value(tid2, sp.c_str(), sp.size() + 1);
+        EXPECT_TRUE(like_comp.compareTypedValuesChecked(text_value, t1, pattern_value, t2));
+        EXPECT_FALSE(not_like_comp.compareTypedValuesChecked(text_value, t1, pattern_value, t2));
+      }
+
+      for (const string &sp : not_matched_like_patterns) {
+        const TypedValue pattern_value(tid2, sp.c_str(), sp.size() + 1);
+
+        EXPECT_FALSE(like_comp.compareTypedValuesChecked(text_value, t1, pattern_value, t2));
+        EXPECT_TRUE(not_like_comp.compareTypedValuesChecked(text_value, t1, pattern_value, t2));
+      }
+
+      for (const string &sp : matched_regex_patterns) {
+        const TypedValue pattern_value(tid2, sp.c_str(), sp.size() + 1);
+        EXPECT_TRUE(regex_comp.compareTypedValuesChecked(text_value, t1, pattern_value, t2));
+        EXPECT_FALSE(not_regex_comp.compareTypedValuesChecked(text_value, t1, pattern_value, t2));
+      }
+
+      for (const string &sp : not_matched_regex_patterns) {
+        const TypedValue pattern_value(tid2, sp.c_str(), sp.size() + 1);
+
+        EXPECT_FALSE(regex_comp.compareTypedValuesChecked(text_value, t1, pattern_value, t2));
+        EXPECT_TRUE(not_regex_comp.compareTypedValuesChecked(text_value, t1, pattern_value, t2));
+      }
+    }
+  }
 }
 
 }  // namespace quickstep

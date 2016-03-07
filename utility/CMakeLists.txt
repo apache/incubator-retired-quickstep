@@ -165,6 +165,7 @@ add_library(quickstep_utility_StringUtil StringUtil.cpp StringUtil.hpp)
 # Note that TextBasedTest.{hpp, cpp} are not in this static library.
 # Any tests that use them need to include them in the
 # executable.
+add_library(quickstep_utility_TemplateUtil ../empty_src.cpp TemplateUtil.hpp)
 add_library(quickstep_utility_TextBasedTestDriver
             textbased_test/TextBasedTestDriver.cpp
             textbased_test/TextBasedTestDriver.hpp

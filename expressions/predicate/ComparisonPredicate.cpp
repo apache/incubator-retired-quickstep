@@ -127,7 +127,9 @@ TupleIdSequence* ComparisonPredicate::getAllMatches(
 
   if (fast_comparator_.get() == nullptr) {
     return GenerateSequenceForStaticResult(accessor, filter, existence_map, static_result_);
-  } else if (sub_blocks_ref != nullptr) {
+  } else if (sub_blocks_ref != nullptr && comparison_.isBasicComparison()) {
+    // NOTE(Jianqiao): sub-block indices only apply to basic comparisons.
+
     // Try to find a method faster than a simple scan to evaluate this
     // comparison.
     std::size_t fastest_subblock = std::numeric_limits<std::size_t>::max();

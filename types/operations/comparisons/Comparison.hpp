@@ -323,6 +323,107 @@ class UncheckedComparator {
  protected:
   UncheckedComparator() {
   }
+
+  /**
+   * @brief Default implementation of the compareColumnVectors method.
+   **/
+  template <bool left_nullable, bool right_nullable>
+  inline TupleIdSequence* compareColumnVectorsDefaultImpl(
+      const ColumnVector &left,
+      const ColumnVector &right,
+      const TupleIdSequence *filter,
+      const TupleIdSequence *existence_bitmap) const;
+
+  /**
+   * @brief Default implementation of the compareColumnVectorAndStaticValue method.
+   **/
+  template <bool left_nullable, bool right_nullable>
+  inline TupleIdSequence* compareColumnVectorAndStaticValueDefaultImpl(
+      const ColumnVector &left,
+      const TypedValue &right,
+      const TupleIdSequence *filter,
+      const TupleIdSequence *existence_bitmap) const;
+
+  /**
+   * @brief Default implementation of the compareStaticValueAndColumnVector method.
+   **/
+  template <bool left_nullable, bool right_nullable>
+  inline TupleIdSequence* compareStaticValueAndColumnVectorDefaultImpl(
+      const TypedValue &left,
+      const ColumnVector &right,
+      const TupleIdSequence *filter,
+      const TupleIdSequence *existence_bitmap) const;
+
+#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
+  /**
+   * @brief Default implementation of the compareSingleValueAccessor method.
+   **/
+  template <bool left_nullable, bool right_nullable>
+  inline TupleIdSequence* compareSingleValueAccessorDefaultImpl(
+      ValueAccessor *accessor,
+      const attribute_id left_id,
+      const attribute_id right_id,
+      const TupleIdSequence *filter) const;
+
+  /**
+   * @brief Default implementation of the compareValueAccessorAndStaticValue method.
+   **/
+  template <bool left_nullable, bool right_nullable>
+  inline TupleIdSequence* compareValueAccessorAndStaticValueDefaultImpl(
+      ValueAccessor *left_accessor,
+      const attribute_id left_id,
+      const TypedValue &right,
+      const TupleIdSequence *filter) const;
+
+  /**
+   * @brief Default implementation of the compareStaticValueAndValueAccessor method.
+   **/
+  template <bool left_nullable, bool right_nullable>
+  inline TupleIdSequence* compareStaticValueAndValueAccessorDefaultImpl(
+      const TypedValue &left,
+      ValueAccessor *right_accessor,
+      const attribute_id right_id,
+      const TupleIdSequence *filter) const;
+
+  /**
+   * @brief Default implementation of the compareColumnVectorAndValueAccessor method.
+   **/
+  template <bool left_nullable, bool right_nullable>
+  inline TupleIdSequence* compareColumnVectorAndValueAccessorDefaultImpl(
+      const ColumnVector &left,
+      ValueAccessor *right_accessor,
+      const attribute_id right_id,
+      const TupleIdSequence *filter,
+      const TupleIdSequence *existence_bitmap) const;
+
+  /**
+   * @brief Default implementation of the compareValueAccessorAndColumnVector method.
+   **/
+  template <bool left_nullable, bool right_nullable>
+  inline TupleIdSequence* compareValueAccessorAndColumnVectorDefaultImpl(
+      ValueAccessor *left_accessor,
+      const attribute_id left_id,
+      const ColumnVector &right,
+      const TupleIdSequence *filter,
+      const TupleIdSequence *existence_bitmap) const;
+
+  /**
+   * @brief Default implementation of the accumulateValueAccessor method.
+   **/
+  template <bool value_nullable>
+  inline TypedValue accumulateValueAccessorDefaultImpl(
+      const TypedValue &current,
+      ValueAccessor *accessor,
+      const attribute_id value_accessor_id) const;
+#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
+
+  /**
+   * @brief Default implementation of the accumulateColumnVector method.
+   **/
+  template <bool value_nullable>
+  inline TypedValue accumulateColumnVectorDefaultImpl(
+      const TypedValue &current,
+      const ColumnVector &column_vector) const;
 };
 
 /**
@@ -414,6 +515,26 @@ class Comparison : public Operation {
    **/
   inline ComparisonID getComparisonID() const {
     return comparison_id_;
+  }
+
+
+  /**
+   * @brief Whether this comparison is one of the 6 basic comparisons
+   *        (e.g. =, <>, <, <=, >, >=).
+   *
+   * @note There is a tight coupling between basic comparisons and subblock
+   *       indices. This method can be used to prevent non-basic comparisons
+   *       from entering subblock indexing related logic.
+   *
+   * @return Whether this is a basic comparison.
+   */
+  bool isBasicComparison() const {
+    return (comparison_id_ == ComparisonID::kEqual
+            || comparison_id_ == ComparisonID::kNotEqual
+            || comparison_id_ == ComparisonID::kLess
+            || comparison_id_ == ComparisonID::kLessOrEqual
+            || comparison_id_ == ComparisonID::kGreater
+            || comparison_id_ == ComparisonID::kGreaterOrEqual);
   }
 
   /**

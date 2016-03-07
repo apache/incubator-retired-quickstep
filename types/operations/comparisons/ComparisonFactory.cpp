@@ -1,6 +1,7 @@
 /**
- *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *   University of Wisconsin—Madison.
+ *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -27,6 +28,7 @@
 #include "types/operations/comparisons/LessComparison.hpp"
 #include "types/operations/comparisons/LessOrEqualComparison.hpp"
 #include "types/operations/comparisons/NotEqualComparison.hpp"
+#include "types/operations/comparisons/PatternMatchingComparison.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -47,6 +49,11 @@ const Comparison& ComparisonFactory::GetComparison(const ComparisonID id) {
       return GreaterComparison::Instance();
     case ComparisonID::kGreaterOrEqual:
       return GreaterOrEqualComparison::Instance();
+    case ComparisonID::kLike:  // Fall through.
+    case ComparisonID::kNotLike:
+    case ComparisonID::kRegexMatch:
+    case ComparisonID::kNotRegexMatch:
+      return PatternMatchingComparison::Instance(id);
     default:
       break;  // Prevent compiler from complaining about unhandled case.
   }
@@ -85,6 +92,14 @@ const Comparison& ComparisonFactory::ReconstructFromProto(const serialization::C
       return GetComparison(ComparisonID::kGreater);
     case serialization::Comparison::GREATER_OR_EQUAL:
       return GetComparison(ComparisonID::kGreaterOrEqual);
+    case serialization::Comparison::LIKE:
+      return GetComparison(ComparisonID::kLike);
+    case serialization::Comparison::NOT_LIKE:
+      return GetComparison(ComparisonID::kNotLike);
+    case serialization::Comparison::REGEX_MATCH:
+      return GetComparison(ComparisonID::kRegexMatch);
+    case serialization::Comparison::NOT_REGEX_MATCH:
+      return GetComparison(ComparisonID::kNotRegexMatch);
     default:
       FATAL_ERROR("Unrecognized ComparisonID in ComparisonFactory::ReconstructFromProto");
   }
