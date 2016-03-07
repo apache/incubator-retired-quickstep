@@ -79,9 +79,9 @@ namespace sma_internal {
  * @return Selectivity of an equals predicate.
  */
 Selectivity getSelectivity_E(const TypedValue &literal,
-                                    const TypedValue &min,
-                                    const TypedValue &max,
-                                    const UncheckedComparator *less_comparator) {
+                             const TypedValue &min,
+                             const TypedValue &max,
+                             const UncheckedComparator *less_comparator) {
   if (less_comparator->compareTypedValues(literal, min) ||
       less_comparator->compareTypedValues(max, literal)) {
     return Selectivity::kNone;
@@ -93,10 +93,10 @@ Selectivity getSelectivity_E(const TypedValue &literal,
  * @return Selectivity of a less predicate.
  */
 Selectivity getSelectivity_L(const TypedValue &literal,
-                                    const TypedValue &min,
-                                    const TypedValue &max,
-                                    const UncheckedComparator *less_comparator,
-                                    const UncheckedComparator *equals_comparator) {
+                             const TypedValue &min,
+                             const TypedValue &max,
+                             const UncheckedComparator *less_comparator,
+                             const UncheckedComparator *equals_comparator) {
   if (less_comparator->compareTypedValues(max, literal)) {
     return Selectivity::kAll;
   } else if (less_comparator->compareTypedValues(literal, min) ||
@@ -110,10 +110,10 @@ Selectivity getSelectivity_L(const TypedValue &literal,
  * @return Selectivity of a less equals predicate.
  */
 Selectivity getSelectivity_LE(const TypedValue &literal,
-                                     const TypedValue &min,
-                                     const TypedValue &max,
-                                     const UncheckedComparator *less_comparator,
-                                     const UncheckedComparator *equals_comparator) {
+                              const TypedValue &min,
+                              const TypedValue &max,
+                              const UncheckedComparator *less_comparator,
+                              const UncheckedComparator *equals_comparator) {
   if (less_comparator->compareTypedValues(max, literal) ||
       equals_comparator->compareTypedValues(max, literal)) {
     return Selectivity::kAll;
@@ -127,10 +127,10 @@ Selectivity getSelectivity_LE(const TypedValue &literal,
  * @return Selectivity of an greater predicate.
  */
 Selectivity getSelectivity_G(const TypedValue &literal,
-                                    const TypedValue &min,
-                                    const TypedValue &max,
-                                    const UncheckedComparator *less_comparator,
-                                    const UncheckedComparator *equals_comparator) {
+                             const TypedValue &min,
+                             const TypedValue &max,
+                             const UncheckedComparator *less_comparator,
+                             const UncheckedComparator *equals_comparator) {
   if (less_comparator->compareTypedValues(literal, min)) {
     return Selectivity::kAll;
   } else if (less_comparator->compareTypedValues(max, literal) ||
@@ -144,10 +144,10 @@ Selectivity getSelectivity_G(const TypedValue &literal,
  * @return Selectivity of a greater or equals predicate.
  */
 Selectivity getSelectivity_GE(const TypedValue &literal,
-                                     const TypedValue &min,
-                                     const TypedValue &max,
-                                     const UncheckedComparator *less_comparator,
-                                     const UncheckedComparator *equals_comparator) {
+                              const TypedValue &min,
+                              const TypedValue &max,
+                              const UncheckedComparator *less_comparator,
+                              const UncheckedComparator *equals_comparator) {
   if (less_comparator->compareTypedValues(literal, min) ||
       equals_comparator->compareTypedValues(literal, min)) {
     return Selectivity::kAll;
