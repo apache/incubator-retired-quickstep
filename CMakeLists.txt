@@ -605,7 +605,7 @@ if (UNIX)
   include_directories("${THIRD_PARTY_SOURCE_DIR}/benchmark/include")
 endif()
 
-# Add required cmake-controlled third-party libraries (farmhash, gflags, and glog).
+# Add required cmake-controlled third-party libraries (farmhash, gflags, glog, and re2).
 add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/farmhash" "${CMAKE_CURRENT_BINARY_DIR}/third_party/farmhash")
 
 add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/gflags" "${CMAKE_CURRENT_BINARY_DIR}/third_party/gflags")
@@ -622,6 +622,9 @@ else()
   include_directories(${THIRD_PARTY_SOURCE_DIR}/glog/src)
   include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party)
 endif()
+
+add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/re2_cmake" "${CMAKE_CURRENT_BINARY_DIR}/third_party/re2")
+include_directories("${THIRD_PARTY_SOURCE_DIR}/re2")
 
 # Add optional linenoise command-line editing library.
 if (USE_LINENOISE)
@@ -677,6 +680,7 @@ target_link_libraries(quickstep_cli_shell
                       gflags_nothreads-static
                       glog
                       quickstep_catalog_CatalogRelation
+                      quickstep_cli_DefaultsConfigurator
                       quickstep_cli_DropRelation
                       quickstep_cli_InputParserUtil
                       quickstep_cli_LineReader

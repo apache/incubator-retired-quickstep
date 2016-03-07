@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -24,16 +24,23 @@
 #include "storage/AggregationOperationState.hpp"
 #include "storage/StorageBlockInfo.hpp"
 
-#include "glog/logging.h"
+#include "tmb/id_typedefs.h"
 
 namespace quickstep {
 
-bool AggregationOperator::getAllWorkOrders(WorkOrdersContainer *container) {
+bool AggregationOperator::getAllWorkOrders(
+    WorkOrdersContainer *container,
+    CatalogDatabase *catalog_database,
+    QueryContext *query_context,
+    StorageManager *storage_manager,
+    const tmb::client_id foreman_client_id,
+    tmb::MessageBus *bus) {
   if (input_relation_is_stored_) {
     if (!started_) {
       for (const block_id input_block_id : input_relation_block_ids_) {
         container->addNormalWorkOrder(
-            new AggregationWorkOrder(input_block_id, aggr_state_index_),
+            new AggregationWorkOrder(input_block_id,
+                                     query_context->getAggregationState(aggr_state_index_)),
             op_index_);
       }
       started_ = true;
@@ -42,7 +49,8 @@ bool AggregationOperator::getAllWorkOrders(WorkOrdersContainer *container) {
   } else {
     while (num_workorders_generated_ < input_relation_block_ids_.size()) {
       container->addNormalWorkOrder(
-          new AggregationWorkOrder(input_relation_block_ids_[num_workorders_generated_], aggr_state_index_),
+          new AggregationWorkOrder(input_relation_block_ids_[num_workorders_generated_],
+                                   query_context->getAggregationState(aggr_state_index_)),
           op_index_);
       ++num_workorders_generated_;
     }
@@ -50,14 +58,8 @@ bool AggregationOperator::getAllWorkOrders(WorkOrdersContainer *container) {
   }
 }
 
-void AggregationWorkOrder::execute(QueryContext *query_context,
-                                   CatalogDatabase *catalog_database,
-                                   StorageManager *storage_manager) {
-  DCHECK(query_context != nullptr);
-  AggregationOperationState *state = query_context->getAggregationState(aggr_state_index_);
-  DCHECK(state != nullptr);
-
-  state->aggregateBlock(input_block_id_);
+void AggregationWorkOrder::execute() {
+  state_->aggregateBlock(input_block_id_);
 }
 
 }  // namespace quickstep

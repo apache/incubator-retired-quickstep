@@ -151,6 +151,9 @@ typedef void* yyscan_t;
   quickstep::ParseAssignment *assignment_;
   quickstep::PtrList<quickstep::ParseAssignment> *assignment_list_;
 
+  quickstep::ParseCommand *command_;
+  quickstep::PtrVector<quickstep::ParseString> *command_argument_list_;
+
   quickstep::ParseStatement *statement_;
   quickstep::ParseStatementSelect *select_statement_;
   quickstep::ParseStatementUpdate *update_statement_;
@@ -189,6 +192,7 @@ typedef void* yyscan_t;
 void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string &feature);
 %}
 
+%token <string_value_> TOKEN_COMMAND;
 %token <string_value_> TOKEN_NAME;
 %token <string_value_> TOKEN_STRING_SINGLE_QUOTED;
 %token <string_value_> TOKEN_STRING_DOUBLE_QUOTED;
@@ -472,6 +476,12 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %type <with_list_element_>
   with_list_element
 
+%type <command_>
+  command
+
+%type <command_argument_list_>
+  command_argument_list
+
 /*
 %type <int_val>
   join                  // unimplemented
@@ -502,6 +512,14 @@ start:
     YYACCEPT;
   }
   | sql_statement TOKEN_EOF {
+    *parsedStatement = $1;
+    YYACCEPT;
+  }
+  | command '\n' {
+    *parsedStatement = $1;
+    YYACCEPT;
+  }
+  | command TOKEN_EOF {
     *parsedStatement = $1;
     YYACCEPT;
   }
@@ -1562,6 +1580,22 @@ boolean_value:
   | TOKEN_OFF {
     $$ = false;
   };
+
+/* Command Statments */
+command:
+  TOKEN_COMMAND command_argument_list {
+    $$ = new quickstep::ParseCommand(@1.first_line, @1.first_column, $1, $2);
+  };
+
+command_argument_list:
+  command_argument_list TOKEN_COMMAND {
+    quickstep::PtrVector<quickstep::ParseString> *argument_list = $1;
+    argument_list->push_back($2);
+    $$ = argument_list;
+  }
+  | { /* Epsilon, an empy match. */
+    $$ = new quickstep::PtrVector<quickstep::ParseString>();
+  }
 
 %%
 

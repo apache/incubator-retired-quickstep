@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -29,8 +29,14 @@
 
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
+
+namespace tmb { class MessageBus; }
+
 namespace quickstep {
 
+class CatalogDatabase;
+class StorageManager;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -61,12 +67,30 @@ class RelationalOperator {
    *
    * @param container A pointer to a WorkOrdersContainer to be used to store the
    *        generated WorkOrders.
+   * @param catalog_database The catalog database where this query is executed.
+   * @param query_context The QueryContext that stores query execution states.
+   * @param storage_manager The StorageManager to use.
+   * @param foreman_client_id The TMB client ID of the Foreman thread.
+   * @param bus A pointer to the TMB.
    *
    * @return Whether the operator has finished generating work orders. If \c
    *         false, the execution engine will invoke this method after at least
    *         one pending work order has finished executing.
    **/
-  virtual bool getAllWorkOrders(WorkOrdersContainer *container) = 0;
+  virtual bool getAllWorkOrders(WorkOrdersContainer *container,
+                                CatalogDatabase *catalog_database,
+                                QueryContext *query_context,
+                                StorageManager *storage_manager,
+                                const tmb::client_id foreman_client_id,
+                                tmb::MessageBus *bus) = 0;
+
+  /**
+   * @brief Update Catalog upon the completion of this RelationalOperator, if
+   *        necessary.
+   *
+   **/
+  virtual void updateCatalogOnCompletion() {
+  }
 
   /**
    * @brief Inform this RelationalOperator that ALL the dependencies which break

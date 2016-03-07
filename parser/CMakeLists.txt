@@ -316,6 +316,10 @@ if (COMPILER_HAS_WNO_DEPRECATED_REGISTER)
   set_target_properties(quickstep_parser_SqlLexer PROPERTIES COMPILE_FLAGS "-Wno-deprecated-register")
 endif()
 
+# GCC will make a warning for unsigned-signed comparisons which are inherent
+# in the lexer. For this, we turn off the sign compare.
+set_target_properties(quickstep_parser_SqlLexer PROPERTIES COMPILE_FLAGS "-Wno-sign-compare")
+
 add_subdirectory(tests)
 
 # Module all-in-one library:

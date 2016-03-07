@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -21,11 +21,16 @@
 #include <utility>
 #include <vector>
 
-#include "catalog/CatalogTypedefs.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
+
+#include "tmb/id_typedefs.h"
+
+namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
@@ -62,7 +67,14 @@ class DropTableOperator : public RelationalOperator {
 
   ~DropTableOperator() override {}
 
-  bool getAllWorkOrders(WorkOrdersContainer *container) override;
+  bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
+                        const tmb::client_id foreman_client_id,
+                        tmb::MessageBus *bus) override;
+
+  void updateCatalogOnCompletion() override;
 
  private:
   const CatalogRelation &relation_;
@@ -83,18 +95,21 @@ class DropTableWorkOrder : public WorkOrder {
    * @brief Constructor.
    *
    * @param blocks The blocks to drop.
+   * @param storage_manager The StorageManager to use.
    **/
-  explicit DropTableWorkOrder(std::vector<block_id> &&blocks)
-      : blocks_(std::move(blocks)) {}
+  DropTableWorkOrder(std::vector<block_id> &&blocks,
+                     StorageManager *storage_manager)
+      : blocks_(std::move(blocks)),
+        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
 
   ~DropTableWorkOrder() override {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   const std::vector<block_id> blocks_;
+
+  StorageManager *storage_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(DropTableWorkOrder);
 };

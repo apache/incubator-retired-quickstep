@@ -15,15 +15,20 @@
  *   limitations under the License.
  **/
 
-#include <memory>
-#include <string>
+#include "relational_operators/CreateIndexOperator.hpp"
 
 #include "catalog/CatalogRelation.hpp"
-#include "relational_operators/CreateIndexOperator.hpp"
+
+#include "tmb/id_typedefs.h"
 
 namespace quickstep {
 
-bool CreateIndexOperator::getAllWorkOrders(WorkOrdersContainer *container) {
+bool CreateIndexOperator::getAllWorkOrders(WorkOrdersContainer *container,
+                                           CatalogDatabase *catalog_database,
+                                           QueryContext *query_context,
+                                           StorageManager *storage_manager,
+                                           const tmb::client_id foreman_client_id,
+                                           tmb::MessageBus *bus) {
   if (!work_generated_) {
     work_generated_ = true;
     relation_->addIndex(index_name_);

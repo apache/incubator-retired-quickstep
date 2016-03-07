@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -27,11 +27,17 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
 
-#include "glog/logging.h"
+#include "tmb/id_typedefs.h"
 
 namespace quickstep {
 
-bool DropTableOperator::getAllWorkOrders(WorkOrdersContainer *container) {
+bool DropTableOperator::getAllWorkOrders(
+    WorkOrdersContainer *container,
+    CatalogDatabase *catalog_database,
+    QueryContext *query_context,
+    StorageManager *storage_manager,
+    const tmb::client_id foreman_client_id,
+    tmb::MessageBus *bus) {
   if (blocking_dependencies_met_ && !work_generated_) {
     work_generated_ = true;
 
@@ -39,27 +45,30 @@ bool DropTableOperator::getAllWorkOrders(WorkOrdersContainer *container) {
 
     // DropTableWorkOrder only drops blocks, if any.
     container->addNormalWorkOrder(
-        new DropTableWorkOrder(std::move(relation_blocks)),
+        new DropTableWorkOrder(std::move(relation_blocks), storage_manager),
         op_index_);
 
-    // TODO(zuyu): move the following code to a better place.
-    const relation_id rel_id = relation_.getID();
-    if (only_drop_blocks_) {
-      database_->getRelationByIdMutable(rel_id)->clearBlocks();
-    } else {
-      database_->dropRelationById(rel_id);
-    }
+    database_->setStatus(CatalogDatabase::Status::kPendingBlockDeletions);
   }
+
   return work_generated_;
 }
 
-void DropTableWorkOrder::execute(QueryContext *query_context,
-                                 CatalogDatabase *database,
-                                 StorageManager *storage_manager) {
-  DCHECK(storage_manager != nullptr);
+void DropTableOperator::updateCatalogOnCompletion() {
+  const relation_id rel_id = relation_.getID();
+  if (only_drop_blocks_) {
+    database_->getRelationByIdMutable(rel_id)->clearBlocks();
+  } else {
+    database_->dropRelationById(rel_id);
+  }
 
+  database_->setStatus(CatalogDatabase::Status::kConsistent);
+}
+
+
+void DropTableWorkOrder::execute() {
   for (const block_id block : blocks_) {
-    storage_manager->deleteBlockOrBlobFile(block);
+    storage_manager_->deleteBlockOrBlobFile(block);
   }
 }
 

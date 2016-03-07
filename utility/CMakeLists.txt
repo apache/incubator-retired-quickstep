@@ -226,6 +226,7 @@ target_link_libraries(quickstep_utility_ShardedLockManager
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_utility_StringUtil
                       glog)
+target_link_libraries(quickstep_utility_TemplateUtil)
 target_link_libraries(quickstep_utility_TextBasedTestDriver
                       glog
                       gtest
@@ -264,6 +265,7 @@ target_link_libraries(quickstep_utility
                       quickstep_utility_SortConfiguration_proto
                       quickstep_utility_SqlError
                       quickstep_utility_StringUtil
+                      quickstep_utility_TemplateUtil
                       quickstep_utility_TextBasedTestDriver
                       quickstep_utility_ThreadSafeQueue
                       quickstep_utility_TreeStringSerializable
@@ -343,6 +345,15 @@ target_link_libraries(TreeStringSerializable_unittest
                       gtest_main
                       quickstep_utility_TreeStringSerializable)
 add_test(TreeStringSerializable_unittest TreeStringSerializable_unittest)
+
+add_executable(TemplateUtil_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/TemplateUtil_unittest.cpp")
+target_link_libraries(TemplateUtil_unittest
+                      glog
+                      gtest
+                      gtest_main
+                      quickstep_utility_Macros
+                      quickstep_utility_TemplateUtil)
+add_test(TemplateUtil_unittest TemplateUtil_unittest)
 
 # Benchmarks:
 if (UNIX)

@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -48,8 +48,6 @@
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "utility/Cast.hpp"
 
-#include "tmb/id_typedefs.h"
-
 namespace quickstep {
 namespace optimizer {
 
@@ -61,11 +59,9 @@ OptimizerTest::OptimizerTest()
     : catalog_(new Catalog),
       catalog_database_(
           new CatalogDatabase(catalog_.get(), "TestDatabase" /* name */, 0)),
-      optimizer_context_(new OptimizerContext(tmb::kClientIdNone /* foreman_client_id */,
-                                              0 /* query_id */,
+      optimizer_context_(new OptimizerContext(0 /* query_id */,
                                               catalog_database_.get(),
-                                              nullptr /* storage_manager */,
-                                              nullptr /* TMB */)),
+                                              nullptr /* storage_manager */)),
       physical_generator_(new PhysicalGenerator()) {}
 
 E::AliasPtr OptimizerTest::createAlias(const E::ExpressionPtr &expression,
