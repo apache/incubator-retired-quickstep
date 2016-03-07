@@ -31,7 +31,7 @@ namespace quickstep {
 
 class SomeArgType {
  public:
-  explicit SomeArgType(std::string value)
+  explicit SomeArgType(const std::string &value)
       : value_(value) {
   }
 
