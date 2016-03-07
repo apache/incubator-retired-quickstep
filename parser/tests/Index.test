@@ -43,20 +43,3 @@ CREATE INDEX test ON test USING arbitrary
 ERROR: syntax error (1 : 33)
 CREATE INDEX test ON test USING arbitrary
                                 ^
-==
-
-# Check support for Bloom Filter index
-CREATE INDEX test ON test USING BLOOMFILTER
---
-ERROR: Bloom Filter Index is not supported yet (1 : 33)
-CREATE INDEX test ON test USING BLOOMFILTER
-                                ^
-==
-
-# Check support for CSB Tree index
-CREATE INDEX test ON test USING CSBTREE
---
-ERROR: CSB Tree Index is not supported yet (1 : 33)
-CREATE INDEX test ON test USING CSBTREE
-                                ^
-==

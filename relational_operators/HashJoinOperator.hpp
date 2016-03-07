@@ -20,21 +20,30 @@
 
 #include <cstddef>
 #include <vector>
+#include <memory>
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
+#include "storage/HashTable.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
+
+namespace tmb { class MessageBus; }
+
 namespace quickstep {
 
 class CatalogDatabase;
 class CatalogRelationSchema;
+class InsertDestination;
+class Predicate;
+class Scalar;
 class StorageManager;
 class WorkOrdersContainer;
 
@@ -117,7 +126,12 @@ class HashJoinOperator : public RelationalOperator {
 
   ~HashJoinOperator() override {}
 
-  bool getAllWorkOrders(WorkOrdersContainer *container) override;
+  bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
+                        const tmb::client_id foreman_client_id,
+                        tmb::MessageBus *bus) override;
 
   void feedInputBlock(const block_id input_block_id,
                       const relation_id input_relation_id) override {
@@ -178,45 +192,45 @@ class HashJoinWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @param build_relation_id The id of relation that the hash table was
-   *        originally built on (i.e. the inner relation in the join).
-   * @param probe_relation_id The id of relation to probe the hash table with
-   *        (i.e. the outer relation in the join).
-   * @param join_key_attributes The IDs of equijoin attributes in
+   * @param build_relation The relation that the hash table was originally built
+   *        on (i.e. the inner relation in the join).
+   * @param probe_relation The relation to probe the hash table with (i.e. the
+   *        outer relation in the join).
+   * @param join_key_attributes The IDs of equijoin attributes in \c
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param output_destination_index The index of the InsertDestination in the
-   *        QueryContext to insert the join results.
-   * @param hash_table_index The index of the JoinHashTable in QueryContext.
+   * @param lookup_block_id The block id of the probe_relation.
    * @param residual_predicate If non-null, apply as an additional filter to
    *        pairs of tuples that match the hash-join (i.e. key equality)
    *        predicate. Effectively, this makes the join predicate the
    *        conjunction of the key-equality predicate and residual_predicate.
-   * @param selection_index The group index of Scalars in QueryContext,
-   *        corresponding to the relation attributes in InsertDestination
-   *        referred by output_destination_index in QueryContext. Each Scalar is
-   *        evaluated for the joined tuples, and the resulting value is inserted
-   *        into the join result.
-   * @param lookup_block_id The block id of the probe_relation.
+   * @param selection A list of Scalars corresponding to the relation attributes
+   *        in \c output_destination. Each Scalar is evaluated for the joined
+   *        tuples, and the resulting value is inserted into the join result.
+   * @param output_destination The InsertDestination to insert the join results.
+   * @param hash_table The JoinHashTable to use.
+   * @param storage_manager The StorageManager to use.
    **/
-  HashJoinWorkOrder(const relation_id build_relation_id,
-                    const relation_id probe_relation_id,
+  HashJoinWorkOrder(const CatalogRelationSchema &build_relation,
+                    const CatalogRelationSchema &probe_relation,
                     const std::vector<attribute_id> &join_key_attributes,
                     const bool any_join_key_attributes_nullable,
-                    const QueryContext::insert_destination_id output_destination_index,
-                    const QueryContext::join_hash_table_id hash_table_index,
-                    const QueryContext::predicate_id residual_predicate_index,
-                    const QueryContext::scalar_group_id selection_index,
-                    const block_id lookup_block_id)
-      : build_relation_id_(build_relation_id),
-        probe_relation_id_(probe_relation_id),
+                    const block_id lookup_block_id,
+                    const Predicate *residual_predicate,
+                    const std::vector<std::unique_ptr<const Scalar>> &selection,
+                    InsertDestination *output_destination,
+                    JoinHashTable *hash_table,
+                    StorageManager *storage_manager)
+      : build_relation_(build_relation),
+        probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        output_destination_index_(output_destination_index),
-        hash_table_index_(hash_table_index),
-        residual_predicate_index_(residual_predicate_index),
-        selection_index_(selection_index),
-        block_id_(lookup_block_id) {}
+        block_id_(lookup_block_id),
+        residual_predicate_(residual_predicate),
+        selection_(selection),
+        output_destination_(DCHECK_NOTNULL(output_destination)),
+        hash_table_(DCHECK_NOTNULL(hash_table)),
+        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
 
   ~HashJoinWorkOrder() override {}
 
@@ -228,26 +242,22 @@ class HashJoinWorkOrder : public WorkOrder {
    *            destination) when this exception is thrown, causing potential
    *            inconsistency.
    **/
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) override;
+  void execute() override;
 
  private:
   template <typename CollectorT>
-  void executeWithCollectorType(QueryContext *query_context,
-                                CatalogDatabase *catalog_database,
-                                StorageManager *storage_manager);
+  void executeWithCollectorType();
 
-  const relation_id build_relation_id_;
-  const relation_id probe_relation_id_;
+  const CatalogRelationSchema &build_relation_, &probe_relation_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const QueryContext::insert_destination_id output_destination_index_;
-  const QueryContext::join_hash_table_id hash_table_index_;
-  const QueryContext::predicate_id residual_predicate_index_;
-  const QueryContext::scalar_group_id selection_index_;
-
   const block_id block_id_;
+  const Predicate *residual_predicate_;
+  const std::vector<std::unique_ptr<const Scalar>> &selection_;
+
+  InsertDestination *output_destination_;
+  JoinHashTable *hash_table_;
+  StorageManager *storage_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(HashJoinWorkOrder);
 };

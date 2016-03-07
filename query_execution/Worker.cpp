@@ -57,8 +57,7 @@ void Worker::run() {
       case kRebuildWorkOrderMessage: {
         WorkerMessage message(*static_cast<const WorkerMessage*>(tagged_message.message()));
         DCHECK(message.getWorkOrder() != nullptr);
-        message.getWorkOrder()->execute(
-            query_context_.get(), catalog_database_, storage_manager_);
+        message.getWorkOrder()->execute();
 
         sendWorkOrderCompleteMessage(annotated_msg.sender,
                                      message.getRelationalOpIndex(),

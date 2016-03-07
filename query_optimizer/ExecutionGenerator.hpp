@@ -35,6 +35,7 @@
 #include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
 #include "query_optimizer/physical/CopyFrom.hpp"
+#include "query_optimizer/physical/CreateIndex.hpp"
 #include "query_optimizer/physical/CreateTable.hpp"
 #include "query_optimizer/physical/DeleteTuples.hpp"
 #include "query_optimizer/physical/DropTable.hpp"
@@ -45,6 +46,7 @@
 #include "query_optimizer/physical/Selection.hpp"
 #include "query_optimizer/physical/SharedSubplanReference.hpp"
 #include "query_optimizer/physical/Sort.hpp"
+#include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
@@ -249,6 +251,13 @@ class ExecutionGenerator {
   void convertCopyFrom(const physical::CopyFromPtr &physical_plan);
 
   /**
+   * @brief Converts a CreateIndex to a CreateIndex operator.
+   *
+   * @param physical_plan The CreateIndex to be converted.
+   */
+  void convertCreateIndex(const physical::CreateIndexPtr &physical_plan);
+
+  /**
    * @brief Converts a CreateTable to a CreateTable operator.
    *
    * @param physical_plan The CreateTable to be converted.
@@ -301,6 +310,13 @@ class ExecutionGenerator {
    * @param physical_plan The Sort to be converted.
    */
   void convertSort(const physical::SortPtr &physical_plan);
+
+  /**
+   * @brief Converts a physical TableGenerator to a TableGeneratorOperator.
+   *
+   * @param physical_plan The TableGenerator to be converted.
+   */
+  void convertTableGenerator(const physical::TableGeneratorPtr &physical_plan);
 
   /**
    * @brief Converts a list of NamedExpressions in the optimizer expression

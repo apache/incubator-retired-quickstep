@@ -19,7 +19,6 @@
 #define QUICKSTEP_QUERY_EXECUTION_WORKER_HPP_
 
 #include <cstddef>
-#include <memory>
 
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "threading/Thread.hpp"
@@ -29,10 +28,6 @@
 #include "tmb/message_bus.h"
 
 namespace quickstep {
-
-class CatalogDatabase;
-class QueryContext;
-class StorageManager;
 
 /** \addtogroup QueryExecution
  *  @{
@@ -47,26 +42,17 @@ class Worker : public Thread {
    * @brief Constructor
    *
    * @param worker_id The unique ID of this worker thread.
-   * @param query_context The QueryContext that stores query execution states.
    * @param bus A pointer to the TMB.
-   * @param catalog_database The catalog database where this query is executed.
-   * @param storage_manager The StorageManager to use.
    * @param cpu_id The ID of the CPU to which this worker thread can be pinned.
    *
    * @note If cpu_id is not specified, worker thread can be possibly moved
    *       around on different CPUs by the OS.
    **/
   Worker(std::size_t worker_id,
-         const std::unique_ptr<QueryContext> &query_context,
          MessageBus *bus,
-         CatalogDatabase *catalog_database,
-         StorageManager *storage_manager,
          int cpu_id = -1)
       : worker_id_(worker_id),
-        query_context_(query_context),
         bus_(bus),
-        catalog_database_(catalog_database),
-        storage_manager_(storage_manager),
         cpu_id_(cpu_id) {
     DEBUG_ASSERT(bus_ != nullptr);
     worker_client_id_ = bus_->Connect();
@@ -117,11 +103,7 @@ class Worker : public Thread {
                                     const bool is_rebuild_work_order);
 
   const std::size_t worker_id_;
-  const std::unique_ptr<QueryContext> &query_context_;
   MessageBus *bus_;
-
-  CatalogDatabase *catalog_database_;
-  StorageManager *storage_manager_;
 
   const int cpu_id_;
   client_id worker_client_id_;

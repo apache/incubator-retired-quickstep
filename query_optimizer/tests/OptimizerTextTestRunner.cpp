@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -32,8 +32,6 @@
 
 #include "glog/logging.h"
 
-#include "tmb/id_typedefs.h"
-
 namespace quickstep {
 namespace optimizer {
 
@@ -49,11 +47,9 @@ void OptimizerTextTestRunner::runTestCase(const std::string &input,
   sql_parser_.feedNextBuffer(new std::string(input));
   ParseResult result = sql_parser_.getNextStatement();
 
-  OptimizerContext optimizer_context(tmb::kClientIdNone /* foreman_client_id */,
-                                     0 /* query_id */,
+  OptimizerContext optimizer_context(0 /* query_id */,
                                      test_database_loader_.catalog_database(),
-                                     nullptr /* storage_manager */,
-                                     nullptr /* TMB */);
+                                     nullptr /* storage_manager */);
   if (result.condition != ParseResult::kSuccess) {
     *output = result.error_message;
   } else {

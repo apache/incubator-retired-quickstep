@@ -66,6 +66,8 @@ target_link_libraries(quickstep_queryexecution_QueryContext
                       quickstep_expressions_ExpressionFactories
                       quickstep_expressions_predicate_Predicate
                       quickstep_expressions_scalar_Scalar
+                      quickstep_expressions_tablegenerator_GeneratorFunctionFactory
+                      quickstep_expressions_tablegenerator_GeneratorFunctionHandle
                       quickstep_queryexecution_QueryContext_proto
                       quickstep_storage_AggregationOperationState
                       quickstep_storage_HashTable
@@ -77,6 +79,7 @@ target_link_libraries(quickstep_queryexecution_QueryContext
                       quickstep_utility_SortConfiguration)
 target_link_libraries(quickstep_queryexecution_QueryContext_proto
                       quickstep_expressions_Expressions_proto
+                      quickstep_expressions_tablegenerator_GeneratorFunction_proto
                       quickstep_storage_AggregationOperationState_proto
                       quickstep_storage_HashTable_proto
                       quickstep_storage_InsertDestination_proto

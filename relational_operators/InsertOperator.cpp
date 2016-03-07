@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -22,34 +22,34 @@
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "storage/InsertDestination.hpp"
-#include "types/containers/Tuple.hpp"
 
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
+
 namespace quickstep {
 
-bool InsertOperator::getAllWorkOrders(WorkOrdersContainer *container) {
+bool InsertOperator::getAllWorkOrders(
+    WorkOrdersContainer *container,
+    CatalogDatabase *catalog_database,
+    QueryContext *query_context,
+    StorageManager *storage_manager,
+    const tmb::client_id foreman_client_id,
+    tmb::MessageBus *bus) {
   if (blocking_dependencies_met_ && !work_generated_) {
+    DCHECK(query_context != nullptr);
+
     work_generated_ = true;
     container->addNormalWorkOrder(
-        new InsertWorkOrder(output_destination_index_, tuple_index_),
+        new InsertWorkOrder(query_context->getInsertDestination(output_destination_index_),
+                            query_context->releaseTuple(tuple_index_)),
         op_index_);
   }
   return work_generated_;
 }
 
-void InsertWorkOrder::execute(QueryContext *query_context,
-                              CatalogDatabase *catalog_database,
-                              StorageManager *storage_manager) {
-  DCHECK(query_context != nullptr);
-
-  InsertDestination *output_destination =
-      query_context->getInsertDestination(output_destination_index_);
-  DCHECK(output_destination != nullptr);
-
-  std::unique_ptr<Tuple> tuple(query_context->releaseTuple(tuple_index_));
-
-  output_destination->insertTuple(*tuple);
+void InsertWorkOrder::execute() {
+  output_destination_->insertTuple(*tuple_);
 }
 
 }  // namespace quickstep

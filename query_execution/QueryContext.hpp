@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/predicate/Predicate.hpp"
 #include "expressions/scalar/Scalar.hpp"
+#include "expressions/table_generator/GeneratorFunctionHandle.hpp"
 #include "storage/AggregationOperationState.hpp"
 #include "storage/HashTable.hpp"
 #include "storage/InsertDestination.hpp"
@@ -35,6 +36,8 @@
 #include "utility/SortConfiguration.hpp"
 
 #include "glog/logging.h"
+
+#include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
 
@@ -58,6 +61,11 @@ class QueryContext {
    * @brief A unique identifier for an AggregationOperationState per query.
    **/
   typedef std::uint32_t aggregation_state_id;
+
+  /**
+   * @brief A unique identifier for a GeneratorFunctionHandle per query.
+   **/
+  typedef std::uint32_t generator_function_id;
 
   /**
    * @brief A unique identifier for an InsertDestination per query.
@@ -113,11 +121,13 @@ class QueryContext {
    * @param database The Database to resolve relation and attribute references
    *        in.
    * @param storage_manager The StorageManager to use.
+   * @param foreman_client_id The TMB client ID of the Foreman thread.
    * @param bus A pointer to the TMB.
    **/
   QueryContext(const serialization::QueryContext &proto,
                CatalogDatabase *database,
                StorageManager *storage_manager,
+               const tmb::client_id foreman_client_id,
                tmb::MessageBus *bus);
 
   ~QueryContext() {}
@@ -144,17 +154,34 @@ class QueryContext {
    **/
   inline AggregationOperationState* getAggregationState(const aggregation_state_id id) {
     DCHECK_LT(id, aggregation_states_.size());
+    DCHECK(aggregation_states_[id]);
     return aggregation_states_[id].get();
   }
 
   /**
-   * @brief Destroy the given AggregationOperationState.
+   * @brief Release the given AggregationOperationState.
    *
    * @param id The id of the AggregationOperationState to destroy.
+   *
+   * @return The AggregationOperationState, alreadly created in the constructor.
    **/
-  inline void destroyAggregationState(const aggregation_state_id id) {
+  inline AggregationOperationState* releaseAggregationState(const aggregation_state_id id) {
     DCHECK_LT(id, aggregation_states_.size());
-    aggregation_states_[id].reset();
+    DCHECK(aggregation_states_[id]);
+    return aggregation_states_[id].release();
+  }
+
+  /**
+   * @brief Get the GeneratorFunctionHandle.
+   *
+   * @param id The GeneratorFunctionHandle id in the query.
+   *
+   * @return The GeneratorFunctionHandle, alreadly created in the constructor.
+   **/
+  inline const GeneratorFunctionHandle& getGeneratorFunctionHandle(
+      const generator_function_id id) {
+    DCHECK_LT(static_cast<std::size_t>(id), generator_functions_.size());
+    return *generator_functions_[id];
   }
 
   /**
@@ -242,9 +269,9 @@ class QueryContext {
    *
    * @return The SortConfiguration, alreadly created in the constructor.
    **/
-  inline const SortConfiguration* getSortConfig(const sort_config_id id) {
+  inline const SortConfiguration& getSortConfig(const sort_config_id id) {
     DCHECK_LT(id, sort_configs_.size());
-    return sort_configs_[id].get();
+    return *sort_configs_[id];
   }
 
   /**
@@ -279,6 +306,7 @@ class QueryContext {
 
  private:
   std::vector<std::unique_ptr<AggregationOperationState>> aggregation_states_;
+  std::vector<std::unique_ptr<const GeneratorFunctionHandle>> generator_functions_;
   std::vector<std::unique_ptr<InsertDestination>> insert_destinations_;
   std::vector<std::unique_ptr<JoinHashTable>> join_hash_tables_;
   std::vector<std::unique_ptr<const Predicate>> predicates_;

@@ -25,6 +25,7 @@
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "threading/Mutex.hpp"
 #include "threading/SharedMutex.hpp"
 #include "threading/SpinSharedMutex.hpp"
 #include "utility/Macros.hpp"
@@ -135,6 +136,11 @@ class CatalogDatabase {
   typedef std::unordered_map<std::string, CatalogRelation*>::size_type size_type;
   typedef PtrVector<CatalogRelation, true>::const_skip_iterator const_iterator;
 
+  enum class Status {
+    kConsistent = 0,
+    kPendingBlockDeletions,
+  };
+
   /**
    * @brief Create a new database.
    *
@@ -143,7 +149,10 @@ class CatalogDatabase {
    * @param id This database's ID (defaults to -1, which means invalid/unset).
    **/
   CatalogDatabase(Catalog *parent, const std::string &name, const database_id id = -1)
-      : parent_(parent), id_(id), name_(name) {
+      : parent_(parent),
+        id_(id),
+        name_(name),
+        status_(Status::kConsistent) {
   }
 
   /**
@@ -204,6 +213,36 @@ class CatalogDatabase {
    **/
   const std::string& getName() const {
     return name_;
+  }
+
+  /**
+   * @brief Get this database's status.
+   *
+   * @return This database's status.
+   **/
+  Status status() const {
+    SpinSharedMutexSharedLock<false> lock(status_mutex_);
+    return status_;
+  }
+
+  /**
+   * @brief Whether this database is consistent.
+   *
+   * @return True if it is consistent. Otherwise, false.
+   **/
+  bool isStatusConsistent() const {
+    SpinSharedMutexSharedLock<false> lock(status_mutex_);
+    return status_ == Status::kConsistent;
+  }
+
+  /**
+   * @brief Set this database's status.
+   *
+   * @param status The status to set.
+   **/
+  void setStatus(const Status status) {
+    SpinSharedMutexExclusiveLock<false> lock(status_mutex_);
+    status_ = status;
   }
 
   /**
@@ -408,6 +447,10 @@ class CatalogDatabase {
 
   // The database name.
   const std::string name_;
+
+  // Indicate the status of this database (i.e., consistent or not).
+  Status status_;
+  mutable SpinSharedMutex<false> status_mutex_;
 
   // A vector of relations. NULL if the relation has dropped from the database.
   PtrVector<CatalogRelation, true> rel_vec_;

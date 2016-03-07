@@ -32,15 +32,12 @@
 #include "threading/ThreadIDBasedMap.hpp"
 #include "utility/Macros.hpp"
 
+#include "tmb/message_bus.h"
 #include "tmb/tagged_message.h"
 
 #include "glog/logging.h"
 
 namespace quickstep {
-
-class CatalogDatabase;
-class QueryContext;
-class StorageManager;
 
 /** \addtogroup RelationalOperators
  *  @{
@@ -72,9 +69,7 @@ class RebuildWorkOrder : public WorkOrder {
 
   ~RebuildWorkOrder() {}
 
-  void execute(QueryContext *query_context,
-               CatalogDatabase *catalog_database,
-               StorageManager *storage_manager) {
+  void execute() {
     if (!block_ref_->rebuild()) {
       LOG_WARNING("Rebuilding of StorageBlock with ID: "
                   << block_ref_->getID() << " invalidated one or more "

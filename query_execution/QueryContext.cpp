@@ -1,6 +1,7 @@
+
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -26,6 +27,8 @@
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/ExpressionFactories.hpp"
+#include "expressions/table_generator/GeneratorFunctionFactory.hpp"
+#include "expressions/table_generator/GeneratorFunctionHandle.hpp"
 #include "query_execution/QueryContext.pb.h"
 #include "storage/AggregationOperationState.hpp"
 #include "storage/HashTable.hpp"
@@ -37,6 +40,8 @@
 
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
+
 using std::move;
 using std::unique_ptr;
 using std::vector;
@@ -46,6 +51,7 @@ namespace quickstep {
 QueryContext::QueryContext(const serialization::QueryContext &proto,
                            CatalogDatabase *database,
                            StorageManager *storage_manager,
+                           const tmb::client_id foreman_client_id,
                            tmb::MessageBus *bus) {
   DCHECK(ProtoIsValid(proto, *database))
       << "Attempted to create QueryContext from an invalid proto description:\n"
@@ -56,6 +62,14 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
         AggregationOperationState::ReconstructFromProto(proto.aggregation_states(i),
                                                         *database,
                                                         storage_manager));
+  }
+
+  for (int i = 0; i < proto.generator_functions_size(); ++i) {
+    const GeneratorFunctionHandle *func_handle =
+        GeneratorFunctionFactory::Instance().reconstructFromProto(proto.generator_functions(i));
+    DCHECK(func_handle != nullptr);
+    generator_functions_.emplace_back(
+        std::unique_ptr<const GeneratorFunctionHandle>(func_handle));
   }
 
   for (int i = 0; i < proto.join_hash_tables_size(); ++i) {
@@ -71,6 +85,7 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
                                                 database->getRelationByIdMutable(
                                                     insert_destination_proto.relation_id()),
                                                 storage_manager,
+                                                foreman_client_id,
                                                 bus));
   }
 
@@ -123,6 +138,17 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
   for (int i = 0; i < proto.aggregation_states_size(); ++i) {
     if (!AggregationOperationState::ProtoIsValid(proto.aggregation_states(i), database)) {
       return false;
+    }
+  }
+
+  // Each GeneratorFunctionHandle object is serialized as a function name with
+  // a list of arguments. Here checks that the arguments are valid TypedValue's.
+  for (int i = 0; i < proto.generator_functions_size(); ++i) {
+    const serialization::GeneratorFunctionHandle &func_proto = proto.generator_functions(i);
+    for (int j = 0; j < func_proto.args_size(); ++j) {
+      if (!TypedValue::ProtoIsValid(func_proto.args(j))) {
+        return false;
+      }
     }
   }
 

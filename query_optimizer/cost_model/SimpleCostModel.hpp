@@ -26,6 +26,7 @@
 #include "query_optimizer/physical/HashJoin.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/Selection.hpp"
+#include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
 #include "utility/Macros.hpp"
@@ -63,6 +64,10 @@ class SimpleCostModel : public CostModel {
   // Returns the estimated cardinality of the input plan.
   std::size_t estimateCardinalityForSelection(
       const physical::SelectionPtr &physical_plan);
+
+  // Returns the estimated cardinality of the input plan.
+  std::size_t estimateCardinalityForTableGenerator(
+      const physical::TableGeneratorPtr &physical_plan);
 
   // Returns the larger value of the estimated cardinalities of two
   // input plans.

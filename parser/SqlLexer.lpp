@@ -39,17 +39,19 @@ class Comparison;
 class ParseAssignment;
 class ParseAttribute;
 class ParseAttributeDefinition;
+class ParseBlockProperties;
 class ParseColumnConstraint;
+class ParseCommand;
 struct ParseCopyFromParams;
 class ParseDataType;
 class ParseExpression;
 class ParseFunctionCall;
 class ParseGroupBy;
 class ParseHaving;
-class ParseKeyValue;
+class ParseKeyIntegerValue;
 class ParseKeyStringValue;
 class ParseKeyStringList;
-class ParseKeyLiteralValue;
+class ParseKeyValue;
 class ParseLimit;
 class ParseOrderBy;
 class ParseOrderByItem;
@@ -77,7 +79,6 @@ class ParseTableReference;
 class ParseTableReferenceSignature;
 class Type;
 class UnaryOperation;
-
 
 }  // namespace quickstep
 
@@ -109,133 +110,176 @@ exact_numeric_literal ({unsigned_integer}(\.{unsigned_integer}?)?)|(\.{unsigned_
 approximate_numeric_literal {exact_numeric_literal}[eE]{signed_integer}
 unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 
+%x CONDITION_SQL
+%x CONDITION_COMMAND
 %x CONDITION_STRING_SINGLE_QUOTED
 %x CONDITION_STRING_SINGLE_QUOTED_ESCAPED
 %x CONDITION_STRING_DOUBLE_QUOTED
 
 %%
 
-"add"              return TOKEN_ADD;
-"all"              return TOKEN_ALL;
-"alter"            return TOKEN_ALTER;
-"and"              return TOKEN_AND;
-"as"               return TOKEN_AS;
-"asc"              return TOKEN_ASC;
-"ascending"        return TOKEN_ASC;
-"between"          return TOKEN_BETWEEN;
-"bigint"           return TOKEN_BIGINT;
-"bit"              return TOKEN_BIT;
-"bloomfilter"      return TOKEN_BLOOM_FILTER;
-"csbtree"          return TOKEN_CSB_TREE;
-"by"               return TOKEN_BY;
-"char"             return TOKEN_CHARACTER;
-"character"        return TOKEN_CHARACTER;
-"check"            return TOKEN_CHECK;
-"column"           return TOKEN_COLUMN;
-"constraint"       return TOKEN_CONSTRAINT;
-"copy"             return TOKEN_COPY;
-"create"           return TOKEN_CREATE;
-"date"             return TOKEN_DATE;
-"datetime"         return TOKEN_DATETIME;
-"decimal"          return TOKEN_DECIMAL;
-"default"          return TOKEN_DEFAULT;
-"delete"           return TOKEN_DELETE;
-"delimiter"        return TOKEN_DELIMITER;
-"desc"             return TOKEN_DESC;
-"descending"       return TOKEN_DESC;
-"distinct"         return TOKEN_DISTINCT;
-"double"           return TOKEN_DOUBLE;
-"drop"             return TOKEN_DROP;
-"escape_strings"   return TOKEN_ESCAPE_STRINGS;
-"false"            return TOKEN_FALSE;
-"first"            return TOKEN_FIRST;
-"float"            return TOKEN_FLOAT;
-"foreign"          return TOKEN_FOREIGN;
-"from"             return TOKEN_FROM;
-"full"             return TOKEN_FULL;
-"group"            return TOKEN_GROUP;
-"having"           return TOKEN_HAVING;
-"index"            return TOKEN_INDEX;
-"inner"            return TOKEN_INNER;
-"insert"           return TOKEN_INSERT;
-"int"              return TOKEN_INTEGER;
-"integer"          return TOKEN_INTEGER;
-"interval"         return TOKEN_INTERVAL;
-"into"             return TOKEN_INTO;
-"is"               return TOKEN_IS;
-"join"             return TOKEN_JOIN;
-"key"              return TOKEN_KEY;
-"last"             return TOKEN_LAST;
-"left"             return TOKEN_LEFT;
-"like"             return TOKEN_LIKE;
-"limit"            return TOKEN_LIMIT;
-"long"             return TOKEN_LONG;
-"not"              return TOKEN_NOT;
-"null"             return TOKEN_NULL;
-"nulls"             return TOKEN_NULLS;
-"off"              return TOKEN_OFF;
-"on"               return TOKEN_ON;
-"or"               return TOKEN_OR;
-"order"            return TOKEN_ORDER;
-"outer"            return TOKEN_OUTER;
-"primary"          return TOKEN_PRIMARY;
-"quit"             return TOKEN_QUIT;
-"real"             return TOKEN_REAL;
-"references"       return TOKEN_REFERENCES;
-"right"            return TOKEN_RIGHT;
-"row_delimiter"    return TOKEN_ROW_DELIMITER;
-"select"           return TOKEN_SELECT;
-"set"              return TOKEN_SET;
-"smallint"         return TOKEN_SMALLINT;
-"table"            return TOKEN_TABLE;
-"time"             return TOKEN_TIME;
-"timestamp"        return TOKEN_TIMESTAMP;
-"true"             return TOKEN_TRUE;
-"unique"           return TOKEN_UNIQUE;
-"update"           return TOKEN_UPDATE;
-"using"            return TOKEN_USING;
-"values"           return TOKEN_VALUES;
-"varchar"          return TOKEN_VARCHAR;
-"where"            return TOKEN_WHERE;
-"with"             return TOKEN_WITH;
-"yearmonth"        return TOKEN_YEARMONTH;
+<INITIAL>{
+  \\[a-zA-Z]+ {
+    /* A forward slash character represents a system command. */
+    BEGIN(CONDITION_COMMAND);
+    yylval->string_value_ = new quickstep::ParseString(
+        yylloc->first_line, yylloc->first_column, std::string(yytext, yyleng));
+    return TOKEN_COMMAND;
+  }
 
-"="                return TOKEN_EQ;
-"!="               return TOKEN_NEQ;
-"<>"               return TOKEN_NEQ;
-"<"                return TOKEN_LT;
-">"                return TOKEN_GT;
-"<="               return TOKEN_LEQ;
-">="               return TOKEN_GEQ;
-
-[-+*/%(),.;]       return yytext[0];
-[\[\]]             return yytext[0];
-
- /**
-  * Quoted strings. Prefacing a string with an 'e' or 'E' causes escape
-  * sequences to be processed (as in PostgreSQL).
-  **/
-[eE]\' {
-  yylval->string_value_ = new quickstep::ParseString(yylloc->first_line, yylloc->first_column);
-  BEGIN(CONDITION_STRING_SINGLE_QUOTED_ESCAPED);
+  [^\\] {
+    /* This is a SQL command. Place the char back and process normally. */
+    yyless(0);
+    yycolumn--;
+    BEGIN(CONDITION_SQL);
+  }
 }
 
-\' {
-  yylval->string_value_ = new quickstep::ParseString(yylloc->first_line, yylloc->first_column);
-  BEGIN(CONDITION_STRING_SINGLE_QUOTED);
+<CONDITION_COMMAND>{
+  [a-zA-Z0-9\-\.:]+ {
+    /* This is a command argument. */
+    yylval->string_value_ = new quickstep::ParseString(
+        yylloc->first_line, yylloc->first_column, std::string(yytext, yyleng));
+    return TOKEN_COMMAND;
+  }
+
+  [ \t]+ {
+    /* Ignore whitespace. */
+  }
+
+  [\n\r]+ {
+    /* Newline reverts the lexer to the initial state. */
+    yycolumn = 0;
+    BEGIN(INITIAL);
+    return '\n';
+  }
 }
 
-\" {
-  yylval->string_value_ = new quickstep::ParseString(yylloc->first_line, yylloc->first_column);
-  BEGIN(CONDITION_STRING_DOUBLE_QUOTED);
-}
+<CONDITION_SQL>{
+  "add"              return TOKEN_ADD;
+  "all"              return TOKEN_ALL;
+  "alter"            return TOKEN_ALTER;
+  "and"              return TOKEN_AND;
+  "as"               return TOKEN_AS;
+  "asc"              return TOKEN_ASC;
+  "ascending"        return TOKEN_ASC;
+  "between"          return TOKEN_BETWEEN;
+  "bigint"           return TOKEN_BIGINT;
+  "bit"              return TOKEN_BIT;
+  "blockproperties"  return TOKEN_BLOCKPROPERTIES;
+  "bloomfilter"      return TOKEN_BLOOM_FILTER;
+  "csbtree"          return TOKEN_CSB_TREE;
+  "by"               return TOKEN_BY;
+  "char"             return TOKEN_CHARACTER;
+  "character"        return TOKEN_CHARACTER;
+  "check"            return TOKEN_CHECK;
+  "column"           return TOKEN_COLUMN;
+  "constraint"       return TOKEN_CONSTRAINT;
+  "copy"             return TOKEN_COPY;
+  "create"           return TOKEN_CREATE;
+  "date"             return TOKEN_DATE;
+  "datetime"         return TOKEN_DATETIME;
+  "decimal"          return TOKEN_DECIMAL;
+  "default"          return TOKEN_DEFAULT;
+  "delete"           return TOKEN_DELETE;
+  "delimiter"        return TOKEN_DELIMITER;
+  "desc"             return TOKEN_DESC;
+  "descending"       return TOKEN_DESC;
+  "distinct"         return TOKEN_DISTINCT;
+  "double"           return TOKEN_DOUBLE;
+  "drop"             return TOKEN_DROP;
+  "escape_strings"   return TOKEN_ESCAPE_STRINGS;
+  "false"            return TOKEN_FALSE;
+  "first"            return TOKEN_FIRST;
+  "float"            return TOKEN_FLOAT;
+  "foreign"          return TOKEN_FOREIGN;
+  "from"             return TOKEN_FROM;
+  "full"             return TOKEN_FULL;
+  "group"            return TOKEN_GROUP;
+  "having"           return TOKEN_HAVING;
+  "index"            return TOKEN_INDEX;
+  "inner"            return TOKEN_INNER;
+  "insert"           return TOKEN_INSERT;
+  "int"              return TOKEN_INTEGER;
+  "integer"          return TOKEN_INTEGER;
+  "interval"         return TOKEN_INTERVAL;
+  "into"             return TOKEN_INTO;
+  "is"               return TOKEN_IS;
+  "join"             return TOKEN_JOIN;
+  "key"              return TOKEN_KEY;
+  "last"             return TOKEN_LAST;
+  "left"             return TOKEN_LEFT;
+  "like"             return TOKEN_LIKE;
+  "limit"            return TOKEN_LIMIT;
+  "long"             return TOKEN_LONG;
+  "not"              return TOKEN_NOT;
+  "null"             return TOKEN_NULL;
+  "nulls"            return TOKEN_NULLS;
+  "off"              return TOKEN_OFF;
+  "on"               return TOKEN_ON;
+  "or"               return TOKEN_OR;
+  "order"            return TOKEN_ORDER;
+  "outer"            return TOKEN_OUTER;
+  "primary"          return TOKEN_PRIMARY;
+  "quit"             return TOKEN_QUIT;
+  "real"             return TOKEN_REAL;
+  "references"       return TOKEN_REFERENCES;
+  "right"            return TOKEN_RIGHT;
+  "row_delimiter"    return TOKEN_ROW_DELIMITER;
+  "select"           return TOKEN_SELECT;
+  "set"              return TOKEN_SET;
+  "smallint"         return TOKEN_SMALLINT;
+  "table"            return TOKEN_TABLE;
+  "time"             return TOKEN_TIME;
+  "timestamp"        return TOKEN_TIMESTAMP;
+  "true"             return TOKEN_TRUE;
+  "unique"           return TOKEN_UNIQUE;
+  "update"           return TOKEN_UPDATE;
+  "using"            return TOKEN_USING;
+  "values"           return TOKEN_VALUES;
+  "varchar"          return TOKEN_VARCHAR;
+  "where"            return TOKEN_WHERE;
+  "with"             return TOKEN_WITH;
+  "yearmonth"        return TOKEN_YEARMONTH;
+
+  "="                return TOKEN_EQ;
+  "!="               return TOKEN_NEQ;
+  "<>"               return TOKEN_NEQ;
+  "<"                return TOKEN_LT;
+  ">"                return TOKEN_GT;
+  "<="               return TOKEN_LEQ;
+  ">="               return TOKEN_GEQ;
+
+  [-+*/%(),.;]       return yytext[0];
+  [\[\]]             return yytext[0];
+
+   /**
+    * Quoted strings. Prefacing a string with an 'e' or 'E' causes escape
+    * sequences to be processed (as in PostgreSQL).
+    **/
+  [eE]\' {
+    yylval->string_value_ = new quickstep::ParseString(yylloc->first_line, yylloc->first_column);
+    BEGIN(CONDITION_STRING_SINGLE_QUOTED_ESCAPED);
+  }
+
+  \' {
+    yylval->string_value_ = new quickstep::ParseString(yylloc->first_line, yylloc->first_column);
+    BEGIN(CONDITION_STRING_SINGLE_QUOTED);
+  }
+
+  \" {
+    yylval->string_value_ = new quickstep::ParseString(yylloc->first_line, yylloc->first_column);
+    BEGIN(CONDITION_STRING_DOUBLE_QUOTED);
+  }
+
+} /* CONDITION_SQL */
 
  /* Catch an unterminated string. */
 <CONDITION_STRING_SINGLE_QUOTED,CONDITION_STRING_SINGLE_QUOTED_ESCAPED,CONDITION_STRING_DOUBLE_QUOTED>{
   <<EOF>> {
     delete yylval->string_value_;
-    quickstep_yyerror(NULL, yyscanner, NULL, "unterminated string");
     BEGIN(INITIAL);
+    quickstep_yyerror(NULL, yyscanner, NULL, "unterminated string");
     return TOKEN_LEX_ERROR;
   }
 }
@@ -248,8 +292,8 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
     std::sscanf(yytext + 1, "%o", &code);
     if (code > 0xff) {
       delete yylval->string_value_;
-      quickstep_yyerror(NULL, yyscanner, NULL, "octal escape sequence out of 1-byte range");
       BEGIN(INITIAL);
+      quickstep_yyerror(NULL, yyscanner, NULL, "octal escape sequence out of 1-byte range");
       return TOKEN_LEX_ERROR;
     }
     yylval->string_value_->push_back(code);
@@ -263,8 +307,8 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   \\[0-9]+ {
     /* A numeric escape sequence that isn't correctly specified. */
     delete yylval->string_value_;
-    quickstep_yyerror(NULL, yyscanner, NULL, "bad numeric escape sequence (must be octal or hex)");
     BEGIN(INITIAL);
+    quickstep_yyerror(NULL, yyscanner, NULL, "bad numeric escape sequence (must be octal or hex)");
     return TOKEN_LEX_ERROR;
   }
   \\b {
@@ -294,8 +338,8 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   \\ {
     /* This should only be encountered right before an EOF. */
     delete yylval->string_value_;
-    quickstep_yyerror(NULL, yyscanner, NULL, "unfinished escape sequence");
     BEGIN(INITIAL);
+    quickstep_yyerror(NULL, yyscanner, NULL, "unfinished escape sequence");
     return TOKEN_LEX_ERROR;
   }
 }
@@ -307,7 +351,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   }
   \' {
     /* End string */
-    BEGIN(INITIAL);
+    BEGIN(CONDITION_SQL);
     return TOKEN_STRING_SINGLE_QUOTED;
   }
 }
@@ -319,7 +363,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   }
   \" {
     /* End string */
-    BEGIN(INITIAL);
+    BEGIN(CONDITION_SQL);
     return TOKEN_STRING_DOUBLE_QUOTED;
   }
 }
@@ -339,27 +383,35 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   yylval->string_value_->append(yytext, yyleng);
 }
 
-[A-Za-z][A-Za-z0-9_]* {
-  yylval->string_value_ = new quickstep::ParseString(
-      yylloc->first_line, yylloc->first_column, std::string(yytext, yyleng));
-  return TOKEN_NAME;
+<CONDITION_SQL>{
+  [A-Za-z][A-Za-z0-9_]* {
+    yylval->string_value_ = new quickstep::ParseString(
+        yylloc->first_line, yylloc->first_column, std::string(yytext, yyleng));
+    return TOKEN_NAME;
+  }
+
+  {unsigned_numeric_literal} {
+    yylval->numeric_literal_value_ = new quickstep::NumericParseLiteralValue(
+        yylloc->first_line, yylloc->first_column, yytext);
+    return TOKEN_UNSIGNED_NUMVAL;
+  }
+
+  "--".* /* comment */
+
+  [\n] { yycolumn = 0; }
+
+  [ \r\t]+ ; /* ignore white space */
+
+} /* CONDITION_SQL */
+
+<INITIAL,CONDITION_COMMAND,CONDITION_SQL><<EOF>> {
+  /* All conditions except for mutli-state string extracting conditions. */
+  BEGIN(INITIAL);
+  return TOKEN_EOF;
 }
 
-{unsigned_numeric_literal} {
-  yylval->numeric_literal_value_ = new quickstep::NumericParseLiteralValue(
-      yylloc->first_line, yylloc->first_column, yytext);
-  return TOKEN_UNSIGNED_NUMVAL;
-}
-
-[\n] { yycolumn = 0; }
-
-[ \r\t]+ ; /* ignore white space */
-
-"--".* /* comment */
-
-<<EOF>>  return TOKEN_EOF;
-
-. {
+<*>. {
+  BEGIN(INITIAL);
   quickstep_yyerror(NULL, yyscanner, NULL, "illegal character");
   return TOKEN_LEX_ERROR;
 }

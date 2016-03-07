@@ -51,7 +51,7 @@ std::string LineReader::getNextCommand() {
       case kNormal:
         // A semicolon to end the SQL command, or any character which might
         // put us into a different mode.
-        special_char_location = multiline_buffer.find_first_of(";'\"-eE", scan_position);
+        special_char_location = multiline_buffer.find_first_of(";'\"-eE.\\", scan_position);
         break;
       case kSingleQuote:
         // A single quote which ends the string (note that two successive
@@ -77,7 +77,8 @@ std::string LineReader::getNextCommand() {
         special_char_location = multiline_buffer.find_first_of("\"\\", scan_position);
         break;
       case kComment:
-        // A newline which ends the comment and resumes normal SQL parsing.
+      case kCommand:  // Fall Through.
+        // A newline which ends the command and comment and resumes normal SQL parsing.
         special_char_location = multiline_buffer.find_first_of('\n', scan_position);
         break;
     }
@@ -165,6 +166,16 @@ std::string LineReader::getNextCommand() {
                 scan_position = special_char_location + 1;
               }
               break;
+            case '.':
+            case '\\':  //  Fall Through.
+              // If the dot or forward slash begins the line, begin a command search.
+              if (scan_position == 0) {
+                line_state = kCommand;
+              } else {
+                // This is a regular character, so skip over it.
+                scan_position = special_char_location + 1;
+              }
+              break;
             default:
               FATAL_ERROR("Unexpected special character in LineReader::getNextCommand()");
           }
@@ -193,6 +204,18 @@ std::string LineReader::getNextCommand() {
           } else {
             // Skip past an escape character.
             scan_position = special_char_location + 2;
+          }
+          break;
+        case kCommand:
+          if (multiline_buffer[special_char_location] == '\n') {
+            // Command finished. Return it.
+            leftover_ = multiline_buffer.substr(special_char_location + 1);
+            // Clear 'leftover_' if it is blank to avoid counting the remaining
+            // lines in the previous command in computing the positions of each parser node.
+            if (std::all_of(leftover_.begin(), leftover_.end(), ::isspace)) {
+              leftover_.clear();
+            }
+            return multiline_buffer.substr(0, special_char_location + 1);
           }
           break;
       }
