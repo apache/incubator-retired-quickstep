@@ -40,8 +40,8 @@ template<std::size_t ...>
 struct Sequence {};
 
 /**
- * @brief The helper class for creating Seq. GenSeq<N>::type is equivalent to
- *        Seq<1,2,...,N>.
+ * @brief The helper class for creating Seq. GenerateSequence<N>::type is equivalent to
+ *        Sequence<1,2,...,N>.
  *
  * GenSeq is defined here for C++11 compatibility. For C++14 and above,
  * std::make_index_sequence can be used to achieve the same functionality.
@@ -64,8 +64,8 @@ struct GenerateSequence<0, S...> {
 template <template <bool ...> class T, class ReturnT,
           bool ...bool_values, std::size_t ...i,
           typename Tuple>
-inline ReturnT* CreateBoolInstantiatedInstanceInner(
-    Tuple  &&args, GenerateSequence<i...> &&indices) {
+inline ReturnT* CreateBoolInstantiatedInstanceInner(Tuple &&args,
+                                                    GenerateSequence<i...> &&indices) {
   return new T<bool_values...>(std::get<i>(std::forward<Tuple>(args))...);
 }
 
@@ -146,8 +146,9 @@ inline ReturnT* CreateBoolInstantiatedInstance(Tuple &&args) {
 template <template <bool ...> class T, class ReturnT,
           bool ...bool_values, typename ...Bools,
           typename Tuple>
-inline ReturnT* CreateBoolInstantiatedInstance(
-    Tuple &&args, const bool tparam, const Bools ...rest_tparams) {
+inline ReturnT* CreateBoolInstantiatedInstance(Tuple &&args,
+                                               const bool tparam,
+                                               const Bools ...rest_tparams) {
   if (tparam) {
     return CreateBoolInstantiatedInstance<T, ReturnT, bool_values..., true>(
         std::forward<Tuple>(args), rest_tparams...);
