@@ -100,7 +100,7 @@ void RunTest(const bool c1, const bool c2, const bool c3,
   std::unique_ptr<BaseClass> base(
       CreateBoolInstantiatedInstance<SomeClass, BaseClass>(std::forward_as_tuple(10, std::move(arg)),
                                                            c1, c2, c3, c4, c5, c6));
-  EXPECT_STREQ(expect.c_str(), base->toString().c_str());
+  EXPECT_STREQ(expected.c_str(), base->toString().c_str());
 }
 
 TEST(TemplateUtilTest, TemplateUtilTest) {

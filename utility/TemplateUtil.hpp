@@ -65,7 +65,7 @@ template <template <bool ...> class T, class ReturnT,
           bool ...bool_values, std::size_t ...i,
           typename Tuple>
 inline ReturnT* CreateBoolInstantiatedInstanceInner(Tuple &&args,
-                                                    GenerateSequence<i...> &&indices) {
+                                                    Sequence<i...> &&indices) {
   return new T<bool_values...>(std::get<i>(std::forward<Tuple>(args))...);
 }
 
