@@ -28,11 +28,15 @@ bool CreateIndexOperator::getAllWorkOrders(WorkOrdersContainer *container,
                                            StorageManager *storage_manager,
                                            const tmb::client_id foreman_client_id,
                                            tmb::MessageBus *bus) {
+  if (!work_generated_) {
+    work_generated_ = true;
+    relation_->addIndex(index_name_, index_descriptions_);
+  }
   return true;
 }
 
 void CreateIndexOperator::updateCatalogOnCompletion() {
-  relation_->addIndex(index_name_);
+  relation_->addIndex(index_name_, index_descriptions_);
 }
 
 }  // namespace quickstep

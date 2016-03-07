@@ -160,8 +160,7 @@ target_link_libraries(quickstep_parser_ParseIndexProperties
                       glog
                       quickstep_parser_ParseKeyValue
                       quickstep_parser_ParseString
-                      quickstep_parser_ParseTreeNode
-                      quickstep_storage_StorageBlockLayout
+                      quickstep_parser_ParseTreeNode                      
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_Macros
                       quickstep_utility_PtrList
@@ -284,7 +283,6 @@ target_link_libraries(quickstep_parser_SqlParser
                       quickstep_parser_ParseGeneratorTableReference
                       quickstep_parser_ParseGroupBy
                       quickstep_parser_ParseHaving
-                      quickstep_parser_ParseIndexProperties
                       quickstep_parser_ParseKeyValue
                       quickstep_parser_ParseLimit
                       quickstep_parser_ParseLiteralValue

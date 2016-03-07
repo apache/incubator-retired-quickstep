@@ -807,16 +807,59 @@ void ExecutionGenerator::convertCreateIndex(
   // CreateIndex is converted to a CreateIndex operator.
   const CatalogRelationInfo *input_relation_info =
       findRelationInfoOutputByPhysical(physical_plan->input());
+  // NOTE: the object pointed to by input_relation is owned by CatalogRelation
   CatalogRelation *input_relation =
       optimizer_context_->catalog_database()->getRelationByIdMutable(
             input_relation_info->relation->getID());
+
+  // check if any index with the specified name already exists
   if (input_relation->hasIndexWithName(physical_plan->index_name())) {
     THROW_SQL_ERROR() << "The relation " << input_relation->getName()
-            << " already has an index named "<< physical_plan->index_name();
-  } else {
-    execution_plan_->addRelationalOperator(
-       new CreateIndexOperator(input_relation, physical_plan->index_name()));
+    << " already has an index named "<< physical_plan->index_name();
   }
+
+  // assertion: must have at least one attribute specified to build index upon
+  DEBUG_ASSERT(physical_plan->index_attributes().size() > 0);
+
+  // convert attribute references to a vector of pointers to catalog attributes
+  std::vector<const CatalogAttribute*> index_attributes;
+  for (const E::AttributeReferencePtr &attribute : physical_plan->index_attributes()) {
+    const CatalogAttribute *catalog_attribute
+      = input_relation->getAttributeByName(attribute->attribute_name());
+    DEBUG_ASSERT(catalog_attribute != nullptr);
+    if (catalog_attribute != nullptr) {
+      index_attributes.emplace_back(catalog_attribute);
+    }
+  }
+
+  // corresponding to each attribute, create a copy of index description
+  std::vector<const IndexSubBlockDescription> index_descriptions;
+  for (const CatalogAttribute* catalog_attribute : index_attributes) {
+    IndexSubBlockDescription index_description(*physical_plan->index_description());
+    switch (index_description.sub_block_type()) {
+      case IndexSubBlockDescription_IndexSubBlockType_CSB_TREE:
+        index_description.AddExtension(CSBTreeIndexSubBlockDescription::indexed_attribute_id,
+                                       catalog_attribute->getID());
+        break;
+      case IndexSubBlockDescription_IndexSubBlockType_BLOOM_FILTER:
+        index_description.AddExtension(BloomFilterIndexSubBlockDescription::indexed_attribute_id,
+                                       catalog_attribute->getID());
+        break;
+      default:
+        break;
+    }
+    // check if the given index description already exists in the relation
+    if (input_relation->hasIndexWithDescription(index_description)) {
+      THROW_SQL_ERROR() << "The relation " << input_relation->getName()
+      << " already defines this index on "<< catalog_attribute->getName();
+    } else {
+      index_descriptions.emplace_back(index_description);
+    }
+  }
+
+  execution_plan_->addRelationalOperator(new CreateIndexOperator(input_relation,
+                                                                 physical_plan->index_name(),
+                                                                 index_descriptions));
 }
 
 void ExecutionGenerator::convertCreateTable(

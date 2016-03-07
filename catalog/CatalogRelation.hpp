@@ -28,6 +28,7 @@
 #include "catalog/CatalogConfig.h"
 #include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/IndexScheme.hpp"
 #include "catalog/PartitionScheme.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageBlockLayout.hpp"
@@ -170,6 +171,44 @@ class CatalogRelation : public CatalogRelationSchema {
 #endif
 
   /**
+   * @brief Check if an index scheme is available for the relation.
+   *
+   * @return True if the relation has a index scheme, false otherwise.
+   **/
+  bool hasIndexScheme() const {
+    return index_scheme_.get() != nullptr;
+  }
+
+  /**
+   * @brief Get the index scheme of the catalog relation.
+   * @warning This is only safe if hasIndexScheme() is true.
+   *
+   * @return A const reference to the index scheme of the relation.
+   **/
+  const IndexScheme& getIndexScheme() const {
+    return *index_scheme_;
+  }
+
+  /**
+   * @brief Set the index scheme for the catalog relation.
+   * @warning This method should be called only once when a relation is
+   *          is first created.
+   *
+   * @param index_scheme The index scheme object for a relation, which
+   *        becomes owned by this relation.
+   **/
+  void setIndexScheme(IndexScheme* index_scheme);
+
+  /**
+   * @brief Get a mutable index scheme of the relation.
+   *
+   * @return A pointer to the index scheme.
+   **/
+  IndexScheme* getIndexSchemeMutable() {
+    return index_scheme_.get();
+  }
+
+  /**
    * @brief Register a StorageBlock as belonging to this relation.
    * @note Blocks are ordered in the same order they are added (preserving order
    *       for full-table sorts).
@@ -203,35 +242,83 @@ class CatalogRelation : public CatalogRelationSchema {
   }
 
   /**
-   * @brief Check if an index by the given name exists already
+   * @brief Check whether an index with the given exists or not.
    *
-   * TODO (ssaurabh): Provide a better interface to query indices.
-   *
-   * @param The query index name
-   * @return true, if the index with the given name exists, otherwise false.
+   * @param index_name Name of the index to be checked.
+   * @return Whether the index exists or not.
    **/
-  bool hasIndexWithName(const std::string& name) {
-    SpinSharedMutexExclusiveLock<false> lock(indices_mutex);
-    std::vector<std::string>::iterator it = std::find(indices_.begin(), indices_.end(), name);
-    if (it != indices_.end()) {
-      return true;
-    } else {
+  bool hasIndexWithName(const std::string &index_name) const {
+    if (index_scheme_.get() == nullptr) {
       return false;
+    } else {
+      return index_scheme_->hasIndexWithName(index_name);
     }
   }
 
   /**
-   * @brief Create an index with a given name
+   * @brief Check whether an index with the given description
+   *        containing the same attribute id and index type
+   *        exists or not in the index map.
    *
-   * TODO (ssaurabh): This is only a placeholder implementation
-   * that just adds an index name into an indicies vector. This
-   * will be replaced by a full-fledged index data structure.
-   *
-   * @param The index to create
+   * @param index_descripton Index Description to check against.
+   * @return Whether a similar index description was already defined or not.
    **/
-  void addIndex(const std::string& name) {
-    SpinSharedMutexExclusiveLock<false> lock(indices_mutex);
-    indices_.emplace_back(name);
+  bool hasIndexWithDescription(const IndexSubBlockDescription &index_description) const {
+    if (index_scheme_.get() == nullptr) {
+      return false;
+    } else {
+      return index_scheme_->hasIndexWithDescription(index_description);
+    }
+  }
+
+  /**
+   * @brief Add an index to the index_map.
+   *
+   * @param index_name Name of the index to be added.
+   * @param index_description Corresponding description of the index.
+   * @return Whether the index was added successfully or not
+   **/
+  bool addIndex(const std::string &index_name, const std::vector<const IndexSubBlockDescription> &index_descriptions) {
+    // create an index_scheme, if it does not exist
+    if (index_scheme_.get() == nullptr) {
+      index_scheme_.reset(new IndexScheme());
+    }
+
+    // verify that index with the given name does not exist
+    if (index_scheme_->hasIndexWithName(index_name)) {
+      return false;
+    }
+
+    // verify that index with similar description does not exist
+    std::vector<const IndexSubBlockDescription>::iterator itr;
+    for (itr = index_descriptions.begin(); itr != index_descriptions.end(); ++itr) {
+      if (index_scheme_->hasIndexWithDescription(*itr)) {
+        return false;
+      }
+    }
+
+    // acquire the lock and add the index
+    {
+      SpinSharedMutexExclusiveLock<false> lock(index_scheme_mutex);
+      {
+        SpinSharedMutexExclusiveLock<false> lock(layout_mutex_);
+        StorageBlockLayoutDescription *layout = default_layout_->getDescriptionMutable();
+        for (itr = index_descriptions.begin(); itr != index_descriptions.end(); ++itr) {
+          // add a new index
+          layout->add_index_description();
+          std::size_t num_indicies = layout->index_description_size();
+          // update the description of newly added index
+          // whose (position = num_indices - 1)
+          layout->mutable_index_description(num_indicies - 1)->CopyFrom(*itr);
+        }
+        // update the Storage Block headers
+        default_layout_->finalize();
+      }
+      // update the index_scheme
+      index_scheme_->addIndexMapEntry(index_name, index_descriptions);
+    }
+
+    return true;  // index added successfully, lock released
   }
 
   /**
@@ -310,18 +397,19 @@ class CatalogRelation : public CatalogRelationSchema {
 
   // The default layout for newly-created blocks.
   mutable std::unique_ptr<StorageBlockLayout> default_layout_;
+  // Mutex for locking the storage block layout.
+  mutable SpinSharedMutex<false> layout_mutex_;
 
   // Partition Scheme associated with the Catalog Relation.
   // A relation may or may not have a Partition Scheme
   // assosiated with it.
   std::unique_ptr<PartitionScheme> partition_scheme_;
 
-  // A list of indices belonging to the relation.
-  // TODO(ssaurabh): This is only a placeholder that stores index names
-  // until a full-fledged index implementation is provided in future.
-  std::vector<std::string> indices_;
-  // The mutex used to protect 'indices_' from concurrent access.
-  mutable SpinSharedMutex<false> indices_mutex;
+  // Index scheme associated with this relation.
+  // Defines a set of indices defined for this relation.
+  std::unique_ptr<IndexScheme> index_scheme_;
+  // Mutex for locking the index scheme.
+  mutable SpinSharedMutex<false> index_scheme_mutex;
 
 #ifdef QUICKSTEP_HAVE_LIBNUMA
   // NUMA placement scheme object which has the mapping between the partitions

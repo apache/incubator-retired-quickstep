@@ -1,6 +1,6 @@
 /**
- *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -23,8 +23,10 @@
 #include <vector>
 
 #include "query_optimizer/OptimizerTree.hpp"
+#include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/logical/LogicalType.hpp"
+#include "storage/StorageBlockLayout.pb.h"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -59,18 +61,32 @@ class CreateIndex : public Logical {
    */
   const std::string& index_name() const { return index_name_; }
 
+  /**
+   * @return The list of attributes to build index upon.
+   */
+  const std::vector<expressions::AttributeReferencePtr>& index_attributes() const {
+    return index_attributes_;
+  }
+
+  /**
+   * @return Shared pointer to the index properties.
+   */
+  const std::shared_ptr<const IndexSubBlockDescription> index_description() const {
+    return index_description_;
+  }
+
   LogicalPtr copyWithNewChildren(
       const std::vector<LogicalPtr> &new_children) const override {
     DCHECK_EQ(getNumChildren(), new_children.size());
-    return Create(new_children[0], index_name_);
+    return Create(new_children[0], index_name_, index_attributes_, index_description_);
   }
 
   std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {
-    return {};
+    return index_attributes_;
   }
 
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override {
-    return {};
+    return index_attributes_;
   }
 
   /**
@@ -79,12 +95,16 @@ class CreateIndex : public Logical {
    *
    * @param input The input produces the relation to create index upon.
    * @param index_name The name of the index to create.
+   * @param index_attributes Set of attributes to create index upon.
+   * @param index_description A proto block describing the set of properties for this index
    * @return An immutable CreateIndex node.
    */
   static CreateIndexPtr Create(
       const LogicalPtr &input,
-      const std::string &relation_name) {
-    return CreateIndexPtr(new CreateIndex(input, relation_name));
+      const std::string &index_name,
+      const std::vector<expressions::AttributeReferencePtr> &index_attributes,
+      const std::shared_ptr<const IndexSubBlockDescription> &index_description) {
+    return CreateIndexPtr(new CreateIndex(input, index_name, index_attributes, index_description));
   }
 
  protected:
@@ -99,13 +119,20 @@ class CreateIndex : public Logical {
  private:
   CreateIndex(
       const LogicalPtr &input,
-      const std::string &index_name)
-      : input_(input), index_name_(index_name) {
+      const std::string &index_name,
+      const std::vector<expressions::AttributeReferencePtr> &index_attributes,
+      const std::shared_ptr<const IndexSubBlockDescription> &index_description)
+      : input_(input),
+        index_name_(index_name),
+        index_attributes_(index_attributes),
+        index_description_(index_description) {
         addChild(input_);
   }
 
   LogicalPtr input_;
   std::string index_name_;
+  std::vector<expressions::AttributeReferencePtr> index_attributes_;
+  std::shared_ptr<const IndexSubBlockDescription> index_description_;
 
   DISALLOW_COPY_AND_ASSIGN(CreateIndex);
 };

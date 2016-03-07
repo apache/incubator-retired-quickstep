@@ -202,12 +202,12 @@ class ParseStatementCreateIndex : public ParseStatement {
                               const int column_number,
                               ParseString *index_name,
                               ParseString *relation_name,
-                              PtrList<ParseString> *attribute_name_list,
+                              PtrList<ParseAttribute> *attribute_list,
                               ParseString *index_type)
       : ParseStatement(line_number, column_number),
         index_name_(index_name),
         relation_name_(relation_name),
-        attribute_name_list_(attribute_name_list),
+        attribute_list_(attribute_list),
         index_type_(index_type) {
           initializeIndexType();
     }
@@ -231,7 +231,7 @@ class ParseStatementCreateIndex : public ParseStatement {
                               const int column_number,
                               ParseString *index_name,
                               ParseString *relation_name,
-                              PtrList<ParseString> *attribute_name_list,
+                              PtrList<ParseAttribute> *attribute_list,
                               ParseString *index_type,
                               const int index_properties_line_number,
                               const int index_properties_column_number,
@@ -239,7 +239,7 @@ class ParseStatementCreateIndex : public ParseStatement {
     : ParseStatement(line_number, column_number),
       index_name_(index_name),
       relation_name_(relation_name),
-      attribute_name_list_(attribute_name_list),
+      attribute_list_(attribute_list),
       index_type_(index_type) {
         initializeIndexType();
         opt_custom_properties_node_.reset(new ParseIndexProperties(index_properties_line_number,
@@ -280,8 +280,8 @@ class ParseStatementCreateIndex : public ParseStatement {
      *
      * @return The list of attributes on which index is to be built.
      **/
-    const PtrList<ParseString>& attribute_name_list() const {
-      return *attribute_name_list_;
+    const PtrList<ParseAttribute>* attribute_list() const {
+      return attribute_list_.get();
     }
 
     /**
@@ -331,11 +331,11 @@ class ParseStatementCreateIndex : public ParseStatement {
       inline_field_names->push_back("index_type");
       inline_field_values->push_back(index_type_->value());
 
-      if (attribute_name_list_.get() != nullptr) {
-        container_child_field_names->push_back("attribute_name_list");
+      if (attribute_list_.get() != nullptr) {
+        container_child_field_names->push_back("attribute_list");
         container_child_fields->emplace_back();
-        for (const ParseString& attribute_name : *attribute_name_list_) {
-          container_child_fields->back().push_back(&attribute_name);
+        for (const ParseAttribute& attribute : *attribute_list_) {
+          container_child_fields->back().push_back(&attribute);
         }
       }
 
@@ -349,7 +349,7 @@ class ParseStatementCreateIndex : public ParseStatement {
  private:
     std::unique_ptr<ParseString> index_name_;
     std::unique_ptr<ParseString> relation_name_;
-    std::unique_ptr<PtrList<ParseString> > attribute_name_list_;
+    std::unique_ptr<PtrList<ParseAttribute> > attribute_list_;
     std::unique_ptr<ParseString> index_type_;
     std::unique_ptr<IndexProperties> index_properties_;
     std::unique_ptr<ParseIndexProperties> opt_custom_properties_node_;

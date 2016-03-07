@@ -41,7 +41,7 @@ namespace quickstep {
  */
 
 /**
- * TODO (@ssaurabh): Improve Documentation
+ * @brief Base class for different types of indices and their associated properties
  */
 class IndexProperties {
  public:
@@ -120,7 +120,7 @@ class IndexProperties {
 };
 
 /**
- * TODO (@ssaurabh): Improve Documentation
+ * @brief Implementation of index properties for Bloom Filter Index
  */
 class BloomFilterIndexProperties : public IndexProperties {
  public:
@@ -135,7 +135,9 @@ class BloomFilterIndexProperties : public IndexProperties {
     valid_property_map_[kBloomFilterNumHashes] = ParseKeyValue::KeyValueType::kStringInteger;
     valid_property_map_[kBloomFilterProjectElementCount] = ParseKeyValue::KeyValueType::kStringInteger;
 
-    is_index_description_valid_ = true;
+    // TODO(@ssaurabh): This flag will be turned on, once bloom filter index is implemented
+    is_index_description_valid_ = false;
+    reason_for_invalid_description_ = "Bloom Filter index is not yet implemented";
     invalid_property_node_ = nullptr;
 
     index_sub_block_description_.reset(new IndexSubBlockDescription());
@@ -199,19 +201,20 @@ class BloomFilterIndexProperties : public IndexProperties {
 };
 
 /**
- * TODO (@ssaurabh): Improve Documentation
+ * @brief Implementation of index properties for CSB Tree Index
  */
 class CSBTreeIndexProperties : public IndexProperties {
  public:
   CSBTreeIndexProperties() {
-    is_index_description_valid_ = false;
-    reason_for_invalid_description_ = "CSBTree index is not yet implemented";
+    is_index_description_valid_ = true;
+    reason_for_invalid_description_ = "";
     invalid_property_node_ = nullptr;
-    index_sub_block_description_.reset(nullptr);
+    index_sub_block_description_.reset(new IndexSubBlockDescription());
+    index_sub_block_description_->set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
   }
 
   bool addCustomProperties(const PtrList<ParseKeyValue> *key_value_list) override {
-    return false;
+    return true;
   }
 };
 

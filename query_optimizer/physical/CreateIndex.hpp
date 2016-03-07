@@ -23,8 +23,10 @@
 #include <vector>
 
 #include "query_optimizer/OptimizerTree.hpp"
+#include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
+#include "storage/StorageBlockLayout.pb.h"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -61,18 +63,32 @@ class CreateIndex : public Physical {
    */
   const std::string& index_name() const { return index_name_; }
 
+  /**
+   * @return The list of attributes to build index upon.
+   */
+  const std::vector<expressions::AttributeReferencePtr>& index_attributes() const {
+    return index_attributes_;
+  }
+
+  /**
+   * @return Shared pointer to the index properties.
+   */
+  const std::shared_ptr<const IndexSubBlockDescription> index_description() const {
+    return index_description_;
+  }
+
   PhysicalPtr copyWithNewChildren(
       const std::vector<PhysicalPtr> &new_children) const override {
     DCHECK_EQ(getNumChildren(), new_children.size());
-    return Create(new_children[0], index_name_);
+    return Create(new_children[0], index_name_, index_attributes_, index_description_);
   }
 
   std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {
-    return {};
+    return index_attributes_;
   }
 
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override {
-    return {};
+    return index_attributes_;
   }
 
   bool maybeCopyWithPrunedExpressions(
@@ -85,14 +101,18 @@ class CreateIndex : public Physical {
    * @brief Creates a CreateIndex physical node that represents an operation to
    *        create a new index.
    *
-   * @param input The input produces the relation to create index upon
+   * @param input The input produces the relation to create index upon.
    * @param index_name The name of the index to create.
+   * @param index_attributes Set of attributes to create index upon.
+   * @param index_description A proto block describing the set of properties for this index
    * @return An immutable CreateIndex node.
    */
   static CreateIndexPtr Create(
       const PhysicalPtr &input,
-      const std::string &index_name) {
-    return CreateIndexPtr(new CreateIndex(input, index_name));
+      const std::string &index_name,
+      const std::vector<expressions::AttributeReferencePtr> &index_attributes,
+      const std::shared_ptr<const IndexSubBlockDescription> &index_description) {
+    return CreateIndexPtr(new CreateIndex(input, index_name, index_attributes, index_description));
   }
 
  protected:
@@ -107,13 +127,20 @@ class CreateIndex : public Physical {
  private:
   CreateIndex(
       const PhysicalPtr &input,
-      const std::string &index_name)
-      : input_(input), index_name_(index_name) {
+      const std::string &index_name,
+      const std::vector<expressions::AttributeReferencePtr> &index_attributes,
+      const std::shared_ptr<const IndexSubBlockDescription> &index_description)
+      : input_(input),
+        index_name_(index_name),
+        index_attributes_(index_attributes),
+        index_description_(index_description) {
         addChild(input_);
   }
 
   PhysicalPtr input_;
   std::string index_name_;
+  std::vector<expressions::AttributeReferencePtr> index_attributes_;
+  std::shared_ptr<const IndexSubBlockDescription> index_description_;
 
   DISALLOW_COPY_AND_ASSIGN(CreateIndex);
 };

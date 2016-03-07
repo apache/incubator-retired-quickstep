@@ -596,13 +596,44 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
 
 L::LogicalPtr Resolver::resolveCreateIndex(
     const ParseStatementCreateIndex &create_index_statement) {
-  // Resolve relation name.
+  // Resolve relation reference
   const L::LogicalPtr input = resolveSimpleTableReference(
       *create_index_statement.relation_name(), nullptr /* reference_alias */);
 
   const std::string index_name = create_index_statement.index_name()->value();
-  std::shared_ptr<const IndexSubBlockDescription> index_description_shared;
 
+  // Resolve attribute references
+  const PtrList<ParseAttribute> *index_attributes = create_index_statement.attribute_list();
+  const std::vector<E::AttributeReferencePtr> relation_attributes =
+  input->getOutputAttributes();
+  std::vector<E::AttributeReferencePtr> resolved_attributes;
+  if (index_attributes == nullptr) {
+    // specify to build index on all the attributes, if no attribute was specified
+    for (const E::AttributeReferencePtr &relation_attribute : relation_attributes) {
+      resolved_attributes.emplace_back(relation_attribute);
+    }
+  } else {
+    // otherwise specify to build index on the attributes that were given
+    for (const ParseAttribute &index_attribute : *index_attributes) {
+      bool is_resolved = false;
+      for (const E::AttributeReferencePtr &relation_attribute : relation_attributes) {
+        std::string relation_attr_name = relation_attribute->attribute_name();
+        std::string index_attr_name = index_attribute.attr_name()->value();
+        if (relation_attr_name.compare(index_attr_name) == 0) {
+          is_resolved = true;
+          resolved_attributes.emplace_back(relation_attribute);
+          break;
+        }
+      }
+      if (!is_resolved) {
+        THROW_SQL_ERROR_AT(&index_attribute)<< "Attribute "<< index_attribute.attr_name()->value()
+        << " is undefined for the relation "<< create_index_statement.relation_name()->value();
+      }
+    }
+  }
+
+  // Resolve index properties
+  std::shared_ptr<const IndexSubBlockDescription> index_description_shared;
   if (create_index_statement.getIndexProperties()->hasValidIndexDescription()) {
     // create a deep copy of the index description and pass its ownership to the shared ptr
     std::unique_ptr<IndexSubBlockDescription> index_description(new IndexSubBlockDescription());
@@ -620,7 +651,8 @@ L::LogicalPtr Resolver::resolveCreateIndex(
         << create_index_statement.getIndexProperties()->getReasonForInvalidIndexDescription();
     }
   }
-  return L::CreateIndex::Create(input, index_name);
+
+  return L::CreateIndex::Create(input, index_name, resolved_attributes, index_description_shared);
 }
 
 L::LogicalPtr Resolver::resolveDelete(

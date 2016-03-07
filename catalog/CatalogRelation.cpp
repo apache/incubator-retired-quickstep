@@ -93,9 +93,9 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelation &proto)
     }
   }
 
-  // Deserializing the indices of the relation
-  for (int i = 0; i < proto.index_size(); i++) {
-    indices_.push_back(proto.index(i));
+  // Deserializing the index scheme defined for the relation, if any
+  if (proto.has_index_scheme()) {
+    setIndexScheme(IndexScheme::DeserializeIndexScheme(proto.index_scheme()));
   }
 
   // Deserializing the partition scheme for the relation.
@@ -135,6 +135,10 @@ void CatalogRelation::setPartitionScheme(PartitionScheme* partition_scheme) {
   partition_scheme_.reset(partition_scheme);
 }
 
+void CatalogRelation::setIndexScheme(IndexScheme* index_scheme) {
+  index_scheme_.reset(index_scheme);
+}
+
 serialization::CatalogRelation CatalogRelation::getProto() const {
   serialization::CatalogRelation proto;
 
@@ -149,8 +153,8 @@ serialization::CatalogRelation CatalogRelation::getProto() const {
     }
   }
 
-  for (std::vector<std::string>::const_iterator it = indices_.begin(); it != indices_.end(); ++it) {
-    proto.add_index(*it);
+  if (hasIndexScheme()) {
+    proto.mutable_index_scheme()->CopyFrom(index_scheme_->getProto());
   }
 
   for (PtrVector<CatalogAttribute, true>::const_iterator it = attr_vec_.begin();
