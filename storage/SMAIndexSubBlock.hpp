@@ -264,18 +264,16 @@ class SMAIndexSubBlock : public IndexSubBlock {
   /**
    * @brief Updates the index to reflect the removal of a single tuple.
    *
-   * @param tuple The id of the tuple which is going to be removed (i.e. it still
-   *        exists within the storage block.
+   * @param tuple The id of the tuple which is going to be removed.
    */
   void removeEntry(const tuple_id tuple) override;
 
   /**
    * @brief Updates the index to reflect the addition of several tuples.
    *
-   * @param tuples The ids of the tuple which have been added (i.e. they exist within
-   *        the storage block).
+   * @param tuples The ids of the tuple which have been added.
    *
-   * @return \c true if successful.
+   * @return \c true if successful, false otherwise.
    */
   bool bulkAddEntries(const TupleIdSequence &tuples) override;
 
@@ -288,14 +286,15 @@ class SMAIndexSubBlock : public IndexSubBlock {
   void bulkRemoveEntries(const TupleIdSequence &tuples) override;
 
   /**
-   * @brief Gives an estimate of how long it will take to respond to a query.
+   * @brief Gives an estimate of how long it will take to evaluate the predicate
+   *        on this StorageBlock.
    * 
    * The SMA index will detect if one of the following cases is true:
    *   1) Complete match: all the tuples in this subblock will match the predicate
    *   2) Empty match:    none of the tuples will match
    *   3) Partial match:  some of the tuples may match
    * If there is a partial match, the SMA index is of no use. However, in a
-   * Complete or Empty match, the SMA index can speed up the selection process
+   * Complete or empty match, the SMA index can speed up the selection process
    * and should be used.
    *
    * @param predicate A simple predicate too be evaluated.
@@ -322,17 +321,9 @@ class SMAIndexSubBlock : public IndexSubBlock {
   /**
    * @brief Update the index to reflect the current state of the storage block.
    *
-   * @return \c true if successful.
+   * @return \c true if successful. False otherwise.
    */
   bool rebuild() override;
-
-  /**
-   * @brief Returns if the index is consistent. Rebuilding will ensure this
-   *        returns true.
-   *
-   * @return \c true if inconsistent (rebuild to return true).
-   */
-  bool requiresRebuild() const;
 
   /**
    * @brief Given an attribute, quickly check to see if the SMA index contains an
@@ -345,7 +336,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   bool hasEntryForAttribute(attribute_id attribute) const;
 
   /**
-   * @brief Returns the number of tuples, the aggregate COUNT, of the storage sub block.
+   * @brief Returns the number of tuples of the storage sub block.
    *
    * @return Number of tuples in the sub block.
    */
@@ -354,7 +345,9 @@ class SMAIndexSubBlock : public IndexSubBlock {
   }
 
  private:
-  inline sma_internal::Selectivity selectivityForPredicate(const ComparisonPredicate &predicate) const;
+  bool requiresRebuild() const;
+
+  inline sma_internal::Selectivity getSelectivityForPredicate(const ComparisonPredicate &predicate) const;
 
   // Retrieves an entry, first checking if the given attribute is indexed.
   inline const sma_internal::SMAEntry* getEntryChecked(attribute_id attribute) const {
@@ -371,7 +364,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
 
   // Retrieves an entry, not checking if the given attribute is indexed.
   // Warning: This should not be used unless the attribute is indexed.
-  inline const sma_internal::SMAEntry* getEntry(attribute_id attribute) const {
+  inline const sma_internal::SMAEntry* getEntryUnchecked(attribute_id attribute) const {
     return entries_ + attribute_to_entry_[attribute];
   }
 
@@ -381,7 +374,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
 
   // Sets all entries to a zero'd and invalid state.
   // This is called prior to a rebuild.
-  void resetEntries();
+  void resetAllEntries();
 
   void addTuple(tuple_id tuple);
 
@@ -418,7 +411,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   // An array of pointers to necessary comparison operations for updating MIN/MAX.
   // Essentially, it maps between TypeID and the pointer to the correct
   // operator for that type.
-  //    For example: add_operations_[AttributeTypeID]->applyWithTypedValues(
+  //    For example: less_comparisons_[AttributeTypeID]->compareTypedValues(
   //                                          TypedValue of the attributes type,
   //                                          TypedValue of the attributes type)
   PtrVector<UncheckedComparator, true> less_comparisons_;
@@ -428,6 +421,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
 
   DISALLOW_COPY_AND_ASSIGN(SMAIndexSubBlock);
 };
+
 } /* namespace quickstep */
 
 #endif /* QUICKSTEP_STORAGE_SMA_INDEX_SUB_BLOCK_HPP_ */

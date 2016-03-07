@@ -296,6 +296,11 @@ class SMAIndexSubBlockTest : public ::testing::Test {
     return const_cast<SMAEntry*>(index_->getEntryChecked(attribute));
   }
 
+  bool requiresRebuild() const {
+    CHECK(index_) << "SMA not yet built!";
+    return !index_->header_->index_consistent;
+  }
+
   std::unique_ptr<CatalogRelation> relation_;
   std::unique_ptr<MockTupleStorageSubBlock> tuple_store_;
   ScopedBuffer index_memory_;
@@ -339,9 +344,9 @@ TEST_F(SMAIndexSubBlockTest, TestConstructor) {
   // which is the real reason for calling createIndex here.
   createIndex({0, 1, 2}, kIndexSubBlockSize);
 
-  EXPECT_TRUE(index_->requiresRebuild());
+  EXPECT_TRUE(requiresRebuild());
   EXPECT_TRUE(index_->rebuild());
-  EXPECT_FALSE(index_->requiresRebuild());
+  EXPECT_FALSE(requiresRebuild());
 
   // Reset will cause the Index to go through its delete routine.
   index_.reset(nullptr);
@@ -353,7 +358,7 @@ TEST_F(SMAIndexSubBlockTest, TestConstructor) {
                                     false,
                                     index_memory_.get(),
                                     kIndexSubBlockSize));
-  EXPECT_FALSE(index_->requiresRebuild());
+  EXPECT_FALSE(requiresRebuild());
 }
 
 TEST_F(SMAIndexSubBlockTest, TestRebuild) {
@@ -481,64 +486,64 @@ TEST_F(SMAIndexSubBlockTest, TestWithVariableLengthAttrs) {
   EXPECT_TRUE(index_->rebuild());
 
   // Test attribute 4, a nullable 4 character char.
-  SMAEntry* entry4 = getEntryForAttribute(4);
-  EXPECT_EQ(kChar, entry4->type_id);
-  EXPECT_EQ(4, entry4->attribute);
+  SMAEntry* nullable_char_entry_4 = getEntryForAttribute(4);
+  EXPECT_EQ(kChar, nullable_char_entry_4->type_id);
+  EXPECT_EQ(4, nullable_char_entry_4->attribute);
 
   // Min and Max values should be valid at this point.
-  EXPECT_TRUE(entry4->max_entry_ref.valid);
-  EXPECT_TRUE(entry4->min_entry_ref.valid);
+  EXPECT_TRUE(nullable_char_entry_4->max_entry_ref.valid);
+  EXPECT_TRUE(nullable_char_entry_4->min_entry_ref.valid);
 
   // Check min ids and values.
-  EXPECT_EQ(min_id, entry4->min_entry_ref.entry_ref_tuple);
-  EXPECT_EQ(max_id, entry4->max_entry_ref.entry_ref_tuple);
+  EXPECT_EQ(min_id, nullable_char_entry_4->min_entry_ref.entry_ref_tuple);
+  EXPECT_EQ(max_id, nullable_char_entry_4->max_entry_ref.entry_ref_tuple);
   EXPECT_TRUE(sma_test::charsEqual(
-      entry4->min_entry_ref.value,
-      tuple_store_->getAttributeValueTyped(entry4->min_entry_ref.entry_ref_tuple, 4)));
+      nullable_char_entry_4->min_entry_ref.value,
+      tuple_store_->getAttributeValueTyped(nullable_char_entry_4->min_entry_ref.entry_ref_tuple, 4)));
 
   EXPECT_TRUE(sma_test::charsEqual(
-      entry4->max_entry_ref.value,
-      tuple_store_->getAttributeValueTyped(entry4->max_entry_ref.entry_ref_tuple, 4)));
+      nullable_char_entry_4->max_entry_ref.value,
+      tuple_store_->getAttributeValueTyped(nullable_char_entry_4->max_entry_ref.entry_ref_tuple, 4)));
 
   // Test attribute 5, an 80 character char.
-  SMAEntry* entry5 = getEntryForAttribute(5);
-  EXPECT_EQ(kChar, entry5->type_id);
-  EXPECT_EQ(5, entry5->attribute);
+  SMAEntry* char_entry_5 = getEntryForAttribute(5);
+  EXPECT_EQ(kChar, char_entry_5->type_id);
+  EXPECT_EQ(5, char_entry_5->attribute);
 
   // Min and Max values should be valid at this point.
-  EXPECT_TRUE(entry5->max_entry_ref.valid);
-  EXPECT_TRUE(entry5->min_entry_ref.valid);
+  EXPECT_TRUE(char_entry_5->max_entry_ref.valid);
+  EXPECT_TRUE(char_entry_5->min_entry_ref.valid);
 
   // Check min ids and values.
-  EXPECT_EQ(min_id, entry5->min_entry_ref.entry_ref_tuple);
-  EXPECT_EQ(max_id, entry5->max_entry_ref.entry_ref_tuple);
+  EXPECT_EQ(min_id, char_entry_5->min_entry_ref.entry_ref_tuple);
+  EXPECT_EQ(max_id, char_entry_5->max_entry_ref.entry_ref_tuple);
   EXPECT_TRUE(sma_test::charsEqual(
-      entry5->min_entry_ref.value,
-      tuple_store_->getAttributeValueTyped(entry5->min_entry_ref.entry_ref_tuple, 5)));
+      char_entry_5->min_entry_ref.value,
+      tuple_store_->getAttributeValueTyped(char_entry_5->min_entry_ref.entry_ref_tuple, 5)));
 
   EXPECT_TRUE(sma_test::charsEqual(
-      entry5->max_entry_ref.value,
-      tuple_store_->getAttributeValueTyped(entry5->max_entry_ref.entry_ref_tuple, 5)));
+      char_entry_5->max_entry_ref.value,
+      tuple_store_->getAttributeValueTyped(char_entry_5->max_entry_ref.entry_ref_tuple, 5)));
 
   // Test attribute 6, an 8 character varchar.
-  SMAEntry* entry6 = getEntryForAttribute(6);
-  EXPECT_EQ(kVarChar, entry6->type_id);
-  EXPECT_EQ(6, entry6->attribute);
+  SMAEntry* varchar_entry_6 = getEntryForAttribute(6);
+  EXPECT_EQ(kVarChar, varchar_entry_6->type_id);
+  EXPECT_EQ(6, varchar_entry_6->attribute);
 
   // Min and Max values should be valid at this point.
-  EXPECT_TRUE(entry6->max_entry_ref.valid);
-  EXPECT_TRUE(entry6->min_entry_ref.valid);
+  EXPECT_TRUE(varchar_entry_6->max_entry_ref.valid);
+  EXPECT_TRUE(varchar_entry_6->min_entry_ref.valid);
 
   // Check min ids and values.
-  EXPECT_EQ(min_id, entry6->min_entry_ref.entry_ref_tuple);
-  EXPECT_EQ(max_id, entry6->max_entry_ref.entry_ref_tuple);
+  EXPECT_EQ(min_id, varchar_entry_6->min_entry_ref.entry_ref_tuple);
+  EXPECT_EQ(max_id, varchar_entry_6->max_entry_ref.entry_ref_tuple);
   EXPECT_TRUE(sma_test::varcharsEqual(
-      entry6->min_entry_ref.value,
-      tuple_store_->getAttributeValueTyped(entry6->min_entry_ref.entry_ref_tuple, 6)));
+      varchar_entry_6->min_entry_ref.value,
+      tuple_store_->getAttributeValueTyped(varchar_entry_6->min_entry_ref.entry_ref_tuple, 6)));
 
   EXPECT_TRUE(sma_test::varcharsEqual(
-      entry6->max_entry_ref.value,
-      tuple_store_->getAttributeValueTyped(entry6->max_entry_ref.entry_ref_tuple, 6)));
+      varchar_entry_6->max_entry_ref.value,
+      tuple_store_->getAttributeValueTyped(varchar_entry_6->max_entry_ref.entry_ref_tuple, 6)));
 
   // Try kicking the index out of memory and then getting the variable length
   // attributes back.
@@ -549,7 +554,7 @@ TEST_F(SMAIndexSubBlockTest, TestWithVariableLengthAttrs) {
                                     false,
                                     index_memory_.get(),
                                     kIndexSubBlockSize));
-  ASSERT_FALSE(index_->requiresRebuild());
+  ASSERT_FALSE(requiresRebuild());
 
   // Ensure that the attributes are as they were before the rebuild process.
   EXPECT_EQ(kChar, getEntryForAttribute(4)->type_id);
@@ -970,7 +975,7 @@ TEST_F(SMAIndexSubBlockTest, TestEvaluatePredicateCost) {
   tuple_id new_tuple = generateAndInsertTuple(0x1337, false, "suffix");
   predicate.reset(generateNumericComparisonPredicate<LongType>(ComparisonID::kLess, 0, min));
   EXPECT_TRUE(index_->addEntry(new_tuple));
-  EXPECT_FALSE(index_->requiresRebuild());
+  EXPECT_FALSE(requiresRebuild());
 
   // Inconsistent indices should have a high evaluation cost.
   EXPECT_EQ(predicate_cost::kConstantTime, index_->estimatePredicateEvaluationCost(*predicate));

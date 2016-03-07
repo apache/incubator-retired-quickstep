@@ -90,7 +90,7 @@ Selectivity getSelectivity_E(const TypedValue &literal,
 }
 
 /**
- * @return Selectivity of a less predicate.
+ * @return Selectivity of a less than predicate.
  */
 Selectivity getSelectivity_L(const TypedValue &literal,
                              const TypedValue &min,
@@ -107,7 +107,7 @@ Selectivity getSelectivity_L(const TypedValue &literal,
 }
 
 /**
- * @return Selectivity of a less equals predicate.
+ * @return Selectivity of a less than equals predicate.
  */
 Selectivity getSelectivity_LE(const TypedValue &literal,
                               const TypedValue &min,
@@ -124,7 +124,7 @@ Selectivity getSelectivity_LE(const TypedValue &literal,
 }
 
 /**
- * @return Selectivity of an greater predicate.
+ * @return Selectivity of a greater than predicate.
  */
 Selectivity getSelectivity_G(const TypedValue &literal,
                              const TypedValue &min,
@@ -141,7 +141,7 @@ Selectivity getSelectivity_G(const TypedValue &literal,
 }
 
 /**
- * @return Selectivity of a greater or equals predicate.
+ * @return Selectivity of a greater than or equals predicate.
  */
 Selectivity getSelectivity_GE(const TypedValue &literal,
                               const TypedValue &min,
@@ -436,7 +436,7 @@ void SMAIndexSubBlock::resetEntry(SMAEntry *entry,
   }
 }
 
-void SMAIndexSubBlock::resetEntries() {
+void SMAIndexSubBlock::resetAllEntries() {
   freeOutOfLineData();
 
   for (std::size_t indexed_attribute_num = 0;
@@ -532,7 +532,7 @@ void SMAIndexSubBlock::removeEntry(const tuple_id tuple) {
 }
 
 bool SMAIndexSubBlock::rebuild() {
-  resetEntries();
+  resetAllEntries();
   header_->count_aggregate = 0;
   if (tuple_store_.isPacked()) {
     for (tuple_id tid = 0; tid <= tuple_store_.getMaxTupleID(); ++tid) {
@@ -553,6 +553,11 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
   for (std::size_t index = 0; index < num_indexed_attributes_; ++index) {
     SMAEntry *entry = entries_ + index;
     TypedValue tuple_value = tuple_store_.getAttributeValueTyped(tuple, entry->attribute);
+
+    // TODO(marc) There should be a seperate COUNT tallied for attributes
+    //            which can have null values. This is because the COUNT
+    //            stored for the SMA currently counts all rows, regardless
+    //            of NULL.
 
     // Ignore all nulls.
     if (tuple_value.isNull()) {
@@ -597,7 +602,7 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
   header_->count_aggregate++;
 }
 
-Selectivity SMAIndexSubBlock::selectivityForPredicate(const ComparisonPredicate &predicate) const {
+Selectivity SMAIndexSubBlock::getSelectivityForPredicate(const ComparisonPredicate &predicate) const {
   if (!header_->index_consistent) {
     return Selectivity::kUnknown;
   }
@@ -621,7 +626,7 @@ Selectivity SMAIndexSubBlock::selectivityForPredicate(const ComparisonPredicate 
 predicate_cost_t SMAIndexSubBlock::estimatePredicateEvaluationCost(
     const ComparisonPredicate &predicate) const {
   DCHECK(initialized_);
-  Selectivity selectivity = selectivityForPredicate(predicate);
+  Selectivity selectivity = getSelectivityForPredicate(predicate);
   if (selectivity == Selectivity::kAll || selectivity == Selectivity::kNone) {
     return predicate_cost::kConstantTime;
   }
@@ -635,7 +640,7 @@ TupleIdSequence* SMAIndexSubBlock::getMatchesForPredicate(
     LOG(FATAL) << "SMAIndex cannot evaluate filters.";
   }
 
-  Selectivity selectivity = selectivityForPredicate(predicate);
+  Selectivity selectivity = getSelectivityForPredicate(predicate);
   if (selectivity == Selectivity::kAll) {
     TupleIdSequence* tidseq = new TupleIdSequence(tuple_store_.numTuples());
 
@@ -656,10 +661,6 @@ TupleIdSequence* SMAIndexSubBlock::getMatchesForPredicate(
   }
   LOG(FATAL) << "SMAIndex failed to evaluate predicate. The SMA should not have been used";
   return nullptr;
-}
-
-bool SMAIndexSubBlock::requiresRebuild() const {
-  return !header_->index_consistent;
 }
 
 bool SMAIndexSubBlock::hasEntryForAttribute(attribute_id attribute) const {
