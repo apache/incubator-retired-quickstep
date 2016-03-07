@@ -25,18 +25,18 @@
 
 #include "utility/Macros.hpp"
 
-#include "glog/logging.h"
 #include "gtest/gtest.h"
 
 namespace quickstep {
 
 class SomeArgType {
  public:
-  explicit SomeArgType(std::string value) : value_(value) {
+  explicit SomeArgType(std::string value)
+      : value_(value) {
   }
 
-  SomeArgType(SomeArgType &&arg) {
-    value_ = std::move(arg.value_);
+  explicit SomeArgType(SomeArgType &&arg)
+      : value_(std::move(arg.value_)) {
   }
 
   std::string toString() const {
@@ -44,7 +44,7 @@ class SomeArgType {
   }
 
  private:
-  std::string value_;
+  const std::string value_;
 
   DISALLOW_COPY_AND_ASSIGN(SomeArgType);
 };
@@ -57,7 +57,7 @@ class BaseClass {
 template <bool c1, bool c2, bool c3, bool c4, bool c5, bool c6>
 class SomeClass : public BaseClass {
  public:
-  SomeClass(int a1, SomeArgType &&a2)
+  SomeClass(const int a1, SomeArgType &&a2)
       : a1_(a1), a2_(std::forward<SomeArgType>(a2)) {
   }
 
@@ -87,18 +87,20 @@ class SomeClass : public BaseClass {
   }
 
  private:
-  int a1_;
-  SomeArgType a2_;
+  const int a1_;
+  const SomeArgType a2_;
 };
 
-void RunTest(bool c1, bool c2, bool c3, bool c4, bool c5, bool c6, std::string expected) {
+void RunTest(const bool c1, const bool c2, const bool c3,
+             const bool c4, const bool c5, const bool c6,
+             const std::string &expected) {
   // arg should be perfectly forwarded.
   SomeArgType arg("xyz");
 
   std::unique_ptr<BaseClass> base(
       CreateBoolInstantiatedInstance<SomeClass, BaseClass>(std::forward_as_tuple(10, std::move(arg)),
                                                            c1, c2, c3, c4, c5, c6));
-  EXPECT_TRUE(base->toString() == expected);
+  EXPECT_STREQ(expect.c_str(), base->toString().c_str());
 }
 
 TEST(TemplateUtilTest, TemplateUtilTest) {
