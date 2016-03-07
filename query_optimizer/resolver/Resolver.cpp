@@ -600,12 +600,12 @@ L::LogicalPtr Resolver::resolveCreateIndex(
   const L::LogicalPtr input = resolveSimpleTableReference(
       *create_index_statement.relation_name(), nullptr /* reference_alias */);
 
-  const std::string index_name = create_index_statement.index_name()->value();
+  const std::string &index_name = create_index_statement.index_name()->value();
 
   // Resolve attribute references
   const PtrList<ParseAttribute> *index_attributes = create_index_statement.attribute_list();
-  const std::vector<E::AttributeReferencePtr> relation_attributes =
-  input->getOutputAttributes();
+  const std::vector<E::AttributeReferencePtr> &relation_attributes =
+      input->getOutputAttributes();
   std::vector<E::AttributeReferencePtr> resolved_attributes;
   if (index_attributes == nullptr) {
     // specify to build index on all the attributes, if no attribute was specified
@@ -617,8 +617,8 @@ L::LogicalPtr Resolver::resolveCreateIndex(
     for (const ParseAttribute &index_attribute : *index_attributes) {
       bool is_resolved = false;
       for (const E::AttributeReferencePtr &relation_attribute : relation_attributes) {
-        std::string relation_attr_name = relation_attribute->attribute_name();
-        std::string index_attr_name = index_attribute.attr_name()->value();
+        const std::string &relation_attr_name = relation_attribute->attribute_name();
+        const std::string &index_attr_name = index_attribute.attr_name()->value();
         if (relation_attr_name.compare(index_attr_name) == 0) {
           is_resolved = true;
           resolved_attributes.emplace_back(relation_attribute);
@@ -634,12 +634,12 @@ L::LogicalPtr Resolver::resolveCreateIndex(
 
   // Resolve index properties
   std::shared_ptr<const IndexSubBlockDescription> index_description_shared;
-  if (create_index_statement.getIndexProperties()->hasValidIndexDescription()) {
+  if (create_index_statement.getIndexProperties()->isIndexDescriptionValid()) {
     // create a deep copy of the index description and pass its ownership to the shared ptr
     std::unique_ptr<IndexSubBlockDescription> index_description(new IndexSubBlockDescription());
     index_description->CopyFrom(*create_index_statement.getIndexProperties()->getIndexDescription());
     index_description_shared.reset(index_description.release());
-    DEBUG_ASSERT(index_description_shared.get() != nullptr);
+    DCHECK(index_description_shared != nullptr);
   } else {
     if (create_index_statement.getIndexProperties()->getInvalidPropertyNode() != nullptr) {
       // if exact location is known in the parser, the error is thrown at that specific node

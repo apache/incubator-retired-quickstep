@@ -93,9 +93,9 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelation &proto)
     }
   }
 
-  // Deserializing the index scheme defined for the relation, if any
+  // Deserializing the index scheme defined for the relation, if any.
   if (proto.has_index_scheme()) {
-    setIndexScheme(IndexScheme::DeserializeIndexScheme(proto.index_scheme()));
+    index_scheme_.reset(IndexScheme::ReconstructFromProto(proto.index_scheme()));
   }
 
   // Deserializing the partition scheme for the relation.
@@ -135,9 +135,6 @@ void CatalogRelation::setPartitionScheme(PartitionScheme* partition_scheme) {
   partition_scheme_.reset(partition_scheme);
 }
 
-void CatalogRelation::setIndexScheme(IndexScheme* index_scheme) {
-  index_scheme_.reset(index_scheme);
-}
 
 serialization::CatalogRelation CatalogRelation::getProto() const {
   serialization::CatalogRelation proto;

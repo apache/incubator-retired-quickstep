@@ -36,6 +36,7 @@ add_library(quickstep_catalog_CatalogRelationSchema
             CatalogRelationSchema.hpp)
 add_library(quickstep_catalog_CatalogTypedefs ../empty_src.cpp CatalogTypedefs.hpp)
 add_library(quickstep_catalog_IndexScheme IndexScheme.cpp IndexScheme.hpp)
+add_library(quickstep_catalog_PartitionScheme PartitionScheme.cpp PartitionScheme.hpp)
 if(QUICKSTEP_HAVE_LIBNUMA)
   add_library(quickstep_catalog_NUMAPlacementScheme NUMAPlacementScheme.cpp NUMAPlacementScheme.hpp)
 endif()
@@ -82,11 +83,12 @@ target_link_libraries(quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_Catalog_proto
-                      quickstep_catalog_PartitionScheme
                       quickstep_catalog_IndexScheme
+                      quickstep_catalog_PartitionScheme
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageBlockLayout
                       quickstep_storage_StorageBlockLayout_proto
+                      quickstep_storage_StorageConstants
                       quickstep_threading_Mutex
                       quickstep_threading_SharedMutex
                       quickstep_threading_SpinSharedMutex

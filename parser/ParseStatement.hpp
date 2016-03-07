@@ -209,7 +209,7 @@ class ParseStatementCreateIndex : public ParseStatement {
         relation_name_(relation_name),
         attribute_list_(attribute_list),
         index_type_(index_type) {
-          initializeIndexType();
+      initializeIndexType();
     }
 
     /**
@@ -224,8 +224,7 @@ class ParseStatementCreateIndex : public ParseStatement {
      * @param index_type The type of index to create.
      * @param index_properties_line_number
      * @param index_properties_column_number
-     * @param index_properties
-     * TODO(ssaurabh) Fix comments
+     * @param opt_index_properties Optional index properties that were specified.
      **/
     ParseStatementCreateIndex(const int line_number,
                               const int column_number,
@@ -236,16 +235,16 @@ class ParseStatementCreateIndex : public ParseStatement {
                               const int index_properties_line_number,
                               const int index_properties_column_number,
                               PtrList<ParseKeyValue> *opt_index_properties)
-    : ParseStatement(line_number, column_number),
-      index_name_(index_name),
-      relation_name_(relation_name),
-      attribute_list_(attribute_list),
-      index_type_(index_type) {
-        initializeIndexType();
-        opt_custom_properties_node_.reset(new ParseIndexProperties(index_properties_line_number,
+      : ParseStatement(line_number, column_number),
+        index_name_(index_name),
+        relation_name_(relation_name),
+        attribute_list_(attribute_list),
+        index_type_(index_type) {
+      initializeIndexType();
+      custom_properties_node_.reset(new ParseIndexProperties(index_properties_line_number,
                                                                    index_properties_column_number,
                                                                    opt_index_properties));
-        index_properties_->addCustomProperties(opt_custom_properties_node_->getKeyValueList());
+      index_properties_->addCustomProperties(custom_properties_node_->getKeyValueList());
     }
 
     ~ParseStatementCreateIndex() override {
@@ -303,15 +302,11 @@ class ParseStatementCreateIndex : public ParseStatement {
     }
 
     const ParseIndexProperties* getCustomPropertiesNode() const {
-      return opt_custom_properties_node_.get();
+      return custom_properties_node_.get();
     }
 
-    const bool doesDefineCustomProperties() const {
-      if (opt_custom_properties_node_) {
-        return true;
-      } else {
-        return false;
-      }
+    const bool hasCustomProperties() const {
+      return custom_properties_node_ != nullptr;
     }
 
  protected:
@@ -331,18 +326,18 @@ class ParseStatementCreateIndex : public ParseStatement {
       inline_field_names->push_back("index_type");
       inline_field_values->push_back(index_type_->value());
 
-      if (attribute_list_.get() != nullptr) {
+      if (attribute_list_ != nullptr) {
         container_child_field_names->push_back("attribute_list");
         container_child_fields->emplace_back();
-        for (const ParseAttribute& attribute : *attribute_list_) {
+        for (const ParseAttribute &attribute : *attribute_list_) {
           container_child_fields->back().push_back(&attribute);
         }
       }
 
-      if (opt_custom_properties_node_.get() != nullptr) {
+      if (custom_properties_node_ != nullptr) {
         container_child_field_names->push_back("index_property_list");
         container_child_fields->emplace_back();
-        container_child_fields->back().push_back(opt_custom_properties_node_.get());
+        container_child_fields->back().push_back(custom_properties_node_.get());
       }
     }
 
@@ -352,7 +347,8 @@ class ParseStatementCreateIndex : public ParseStatement {
     std::unique_ptr<PtrList<ParseAttribute> > attribute_list_;
     std::unique_ptr<ParseString> index_type_;
     std::unique_ptr<IndexProperties> index_properties_;
-    std::unique_ptr<ParseIndexProperties> opt_custom_properties_node_;
+    // Optional custom properties for the index can be specified during creation.
+    std::unique_ptr<ParseIndexProperties> custom_properties_node_;
 
     void initializeIndexType() {
       int index_type_enum_val = std::stoi(index_type_->value());
@@ -364,10 +360,9 @@ class ParseStatementCreateIndex : public ParseStatement {
           index_properties_.reset(new CSBTreeIndexProperties());
           break;
         default:
+          LOG(FATAL) << "Unknown index subblock type.";
           break;
       }
-      // index_type must match one of the already defined indices
-      DEBUG_ASSERT(index_properties_.get() != nullptr);
     }
 
     DISALLOW_COPY_AND_ASSIGN(ParseStatementCreateIndex);

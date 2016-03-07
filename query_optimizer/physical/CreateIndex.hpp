@@ -104,7 +104,7 @@ class CreateIndex : public Physical {
    * @param input The input produces the relation to create index upon.
    * @param index_name The name of the index to create.
    * @param index_attributes Set of attributes to create index upon.
-   * @param index_description A proto block describing the set of properties for this index
+   * @param index_description A proto block describing the set of properties for this index.
    * @return An immutable CreateIndex node.
    */
   static CreateIndexPtr Create(
@@ -134,7 +134,7 @@ class CreateIndex : public Physical {
         index_name_(index_name),
         index_attributes_(index_attributes),
         index_description_(index_description) {
-        addChild(input_);
+      addChild(input_);
   }
 
   PhysicalPtr input_;

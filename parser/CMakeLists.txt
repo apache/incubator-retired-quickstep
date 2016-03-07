@@ -90,8 +90,8 @@ add_library(quickstep_parser_ParseExpression ../empty_src.cpp ParseExpression.hp
 add_library(quickstep_parser_ParseGeneratorTableReference ParseGeneratorTableReference.cpp ParseGeneratorTableReference.hpp)
 add_library(quickstep_parser_ParseGroupBy ParseGroupBy.cpp ParseGroupBy.hpp)
 add_library(quickstep_parser_ParseHaving ParseHaving.cpp ParseHaving.hpp)
-add_library(quickstep_parser_ParseKeyValue ../empty_src.cpp ParseKeyValue.hpp)
 add_library(quickstep_parser_ParseIndexProperties ParseIndexProperties.cpp ParseIndexProperties.hpp)
+add_library(quickstep_parser_ParseKeyValue ../empty_src.cpp ParseKeyValue.hpp)
 add_library(quickstep_parser_ParseLimit ParseLimit.cpp ParseLimit.hpp)
 add_library(quickstep_parser_ParseLiteralValue ParseLiteralValue.cpp ParseLiteralValue.hpp)
 add_library(quickstep_parser_ParseOrderBy ParseOrderBy.cpp ParseOrderBy.hpp)
@@ -160,7 +160,7 @@ target_link_libraries(quickstep_parser_ParseIndexProperties
                       glog
                       quickstep_parser_ParseKeyValue
                       quickstep_parser_ParseString
-                      quickstep_parser_ParseTreeNode                      
+                      quickstep_parser_ParseTreeNode
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_Macros
                       quickstep_utility_PtrList

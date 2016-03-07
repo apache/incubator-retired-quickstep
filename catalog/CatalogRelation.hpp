@@ -32,6 +32,7 @@
 #include "catalog/PartitionScheme.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageBlockLayout.hpp"
+#include "storage/StorageConstants.hpp"
 #include "threading/Mutex.hpp"
 #include "threading/SharedMutex.hpp"
 #include "threading/SpinSharedMutex.hpp"
@@ -176,7 +177,7 @@ class CatalogRelation : public CatalogRelationSchema {
    * @return True if the relation has a index scheme, false otherwise.
    **/
   bool hasIndexScheme() const {
-    return index_scheme_.get() != nullptr;
+    return index_scheme_ != nullptr;
   }
 
   /**
@@ -193,6 +194,7 @@ class CatalogRelation : public CatalogRelationSchema {
    * @brief Set the index scheme for the catalog relation.
    * @warning This method should be called only once when a relation is
    *          is first created.
+   * @note setIndexScheme takes ownership of the passed index_scheme
    *
    * @param index_scheme The index scheme object for a relation, which
    *        becomes owned by this relation.
@@ -248,11 +250,8 @@ class CatalogRelation : public CatalogRelationSchema {
    * @return Whether the index exists or not.
    **/
   bool hasIndexWithName(const std::string &index_name) const {
-    if (index_scheme_.get() == nullptr) {
-      return false;
-    } else {
-      return index_scheme_->hasIndexWithName(index_name);
-    }
+    SpinSharedMutexExclusiveLock<false> lock(index_scheme_mutex);
+    return index_scheme_ && index_scheme_->hasIndexWithName(index_name);
   }
 
   /**
@@ -264,11 +263,8 @@ class CatalogRelation : public CatalogRelationSchema {
    * @return Whether a similar index description was already defined or not.
    **/
   bool hasIndexWithDescription(const IndexSubBlockDescription &index_description) const {
-    if (index_scheme_.get() == nullptr) {
-      return false;
-    } else {
-      return index_scheme_->hasIndexWithDescription(index_description);
-    }
+    SpinSharedMutexExclusiveLock<false> lock(index_scheme_mutex);
+    return index_scheme_ && index_scheme_->hasIndexWithDescription(index_description);
   }
 
   /**
@@ -278,47 +274,40 @@ class CatalogRelation : public CatalogRelationSchema {
    * @param index_description Corresponding description of the index.
    * @return Whether the index was added successfully or not
    **/
-  bool addIndex(const std::string &index_name, const std::vector<const IndexSubBlockDescription> &index_descriptions) {
-    // create an index_scheme, if it does not exist
-    if (index_scheme_.get() == nullptr) {
+  bool addIndex(const std::string &index_name, const std::vector<IndexSubBlockDescription> &index_descriptions) {
+    // Create an index_scheme, if it does not exist.
+    if (index_scheme_ == nullptr) {
       index_scheme_.reset(new IndexScheme());
     }
 
-    // verify that index with the given name does not exist
+    // Verify that index with the given name does not exist.
     if (index_scheme_->hasIndexWithName(index_name)) {
       return false;
     }
 
-    // verify that index with similar description does not exist
-    std::vector<const IndexSubBlockDescription>::iterator itr;
-    for (itr = index_descriptions.begin(); itr != index_descriptions.end(); ++itr) {
-      if (index_scheme_->hasIndexWithDescription(*itr)) {
+    // Verify that index with similar description does not exist.
+    for (auto it = index_descriptions.begin(); it != index_descriptions.end(); ++it) {
+      if (index_scheme_->hasIndexWithDescription(*it)) {
         return false;
       }
     }
 
-    // acquire the lock and add the index
+    // Acquire the lock and add the index.
     {
       SpinSharedMutexExclusiveLock<false> lock(index_scheme_mutex);
       {
         SpinSharedMutexExclusiveLock<false> lock(layout_mutex_);
         StorageBlockLayoutDescription *layout = default_layout_->getDescriptionMutable();
-        for (itr = index_descriptions.begin(); itr != index_descriptions.end(); ++itr) {
-          // add a new index
-          layout->add_index_description();
-          std::size_t num_indicies = layout->index_description_size();
-          // update the description of newly added index
-          // whose (position = num_indices - 1)
-          layout->mutable_index_description(num_indicies - 1)->CopyFrom(*itr);
+        for (auto it = index_descriptions.begin(); it != index_descriptions.end(); ++it) {
+          layout->add_index_description()->MergeFrom(*it);
         }
-        // update the Storage Block headers
         default_layout_->finalize();
       }
-      // update the index_scheme
+      // Update the index_scheme.
       index_scheme_->addIndexMapEntry(index_name, index_descriptions);
     }
 
-    return true;  // index added successfully, lock released
+    return true;  // Index added successfully, lock released.
   }
 
   /**
@@ -398,7 +387,7 @@ class CatalogRelation : public CatalogRelationSchema {
   // The default layout for newly-created blocks.
   mutable std::unique_ptr<StorageBlockLayout> default_layout_;
   // Mutex for locking the storage block layout.
-  mutable SpinSharedMutex<false> layout_mutex_;
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> layout_mutex_;
 
   // Partition Scheme associated with the Catalog Relation.
   // A relation may or may not have a Partition Scheme
@@ -409,7 +398,7 @@ class CatalogRelation : public CatalogRelationSchema {
   // Defines a set of indices defined for this relation.
   std::unique_ptr<IndexScheme> index_scheme_;
   // Mutex for locking the index scheme.
-  mutable SpinSharedMutex<false> index_scheme_mutex;
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> index_scheme_mutex;
 
 #ifdef QUICKSTEP_HAVE_LIBNUMA
   // NUMA placement scheme object which has the mapping between the partitions
