@@ -236,7 +236,6 @@ void Join::addHashJoin(const logical::ProjectPtr &logical_project,
 
     bool pull_up_selection = true;
     // Do not pull up the Selection if original join attributes have been changed to non-attributes.
-    std::vector<E::AttributeReferencePtr> new_left_join_attributes;
     for (const E::ExpressionPtr &new_join_expression : join_attributes) {
       if (!E::SomeAttributeReference::Matches(new_join_expression)) {
         pull_up_selection = false;
