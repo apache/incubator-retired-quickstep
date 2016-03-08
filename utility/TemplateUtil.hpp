@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_UTILITY_TEMPLATE_UTIL_HPP_
 #define QUICKSTEP_UTILITY_TEMPLATE_UTIL_HPP_
 
+#include <cstddef>
 #include <tuple>
 #include <utility>
 
@@ -30,25 +31,29 @@ namespace quickstep {
 /**
  * @brief Represents a compile-time sequence of integers.
  *
- * Seq is defined here for C++11 compatibility. For C++14 and above,
+ * Sequence is defined here for C++11 compatibility. For C++14 and above,
  * std::integer_sequence can be used to achieve the same functionality.
+ *
+ * TODO(jianqiao): directly use std::integer_sequence if having C++14 support.
  */
 template<std::size_t ...>
-struct Seq {};
+struct Sequence {};
 
 /**
- * @brief The helper class for creating Seq. GenSeq<N>::type is equivalent to
- *        Seq<1,2,...,N>.
+ * @brief The helper class for creating Sequence. MakeSequence<N>::type is
+ *        equivalent to Sequence<1,2,...,N>.
  *
- * GenSeq is defined here for C++11 compatibility. For C++14 and above,
- * std::make_integer_sequence can be used to achieve the same functionality.
+ * MakeSequence is defined here for C++11 compatibility. For C++14 and above,
+ * std::make_index_sequence can be used to achieve the same functionality.
+ *
+ * TODO(jianqiao): directly use std::make_index_sequence if having C++14 support.
  */
 template<std::size_t N, std::size_t ...S>
-struct GenSeq : GenSeq<N-1, N-1, S...> {};
+struct MakeSequence : MakeSequence<N-1, N-1, S...> {};
 
 template<std::size_t ...S>
-struct GenSeq<0, S...> {
-  typedef Seq<S...> type;
+struct MakeSequence<0, S...> {
+  typedef Sequence<S...> type;
 };
 
 
@@ -59,7 +64,8 @@ struct GenSeq<0, S...> {
 template <template <bool ...> class T, class ReturnT,
           bool ...bool_values, std::size_t ...i,
           typename Tuple>
-inline ReturnT* CreateBoolInstantiatedInstanceInner(Tuple&& args, Seq<i...>&& indices) {
+inline ReturnT* CreateBoolInstantiatedInstanceInner(Tuple &&args,
+                                                    Sequence<i...> &&indices) {
   return new T<bool_values...>(std::get<i>(std::forward<Tuple>(args))...);
 }
 
@@ -71,14 +77,14 @@ inline ReturnT* CreateBoolInstantiatedInstanceInner(Tuple&& args, Seq<i...>&& in
 template <template <bool ...> class T, class ReturnT,
           bool ...bool_values,
           typename Tuple>
-inline ReturnT* CreateBoolInstantiatedInstance(Tuple&& args) {
+inline ReturnT* CreateBoolInstantiatedInstance(Tuple &&args) {
   // Note that the constructor arguments have been forwarded as a tuple (args).
-  // Here we generate a compile-time index sequence (i.e. typename GenSeq<n_args>::type())
+  // Here we generate a compile-time index sequence (i.e. typename MakeSequence<n_args>::type())
   // for the tuple, so that the tuple can be unpacked as a sequence of constructor
   // parameters in CreateBoolInstantiatedInstanceInner.
   constexpr std::size_t n_args = std::tuple_size<Tuple>::value;
   return CreateBoolInstantiatedInstanceInner<T, ReturnT, bool_values...>(
-      std::forward<Tuple>(args), typename GenSeq<n_args>::type());
+      std::forward<Tuple>(args), typename MakeSequence<n_args>::type());
 }
 
 /**
@@ -88,7 +94,7 @@ inline ReturnT* CreateBoolInstantiatedInstance(Tuple&& args) {
  * where all template parameters are bools:
  * --
  * template <bool c1, bool c2, bool c3>
- * class SomeClass : BaseClass {
+ * class SomeClass : public BaseClass {
  *   // This simple function will be invoked in computationally-intensive loops.
  *   inline SomeType someSimpleFunction(...) {
  *     if (c1) {
@@ -140,7 +146,9 @@ inline ReturnT* CreateBoolInstantiatedInstance(Tuple&& args) {
 template <template <bool ...> class T, class ReturnT,
           bool ...bool_values, typename ...Bools,
           typename Tuple>
-inline ReturnT* CreateBoolInstantiatedInstance(Tuple&& args, bool tparam, Bools ...rest_tparams) {
+inline ReturnT* CreateBoolInstantiatedInstance(Tuple &&args,
+                                               const bool tparam,
+                                               const Bools ...rest_tparams) {
   if (tparam) {
     return CreateBoolInstantiatedInstance<T, ReturnT, bool_values..., true>(
         std::forward<Tuple>(args), rest_tparams...);
