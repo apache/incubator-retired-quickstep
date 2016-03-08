@@ -32,7 +32,7 @@ namespace transaction {
 /**
  * @brief Type that represents id of a transaction.
  **/
-using TransactionId = std::uint64_t;
+using transaction_id = std::uint64_t;
 
 /**
  * @brief Enum class for transaction internal status.
@@ -53,7 +53,7 @@ class Transaction {
    *
    * @param tid Id of this transaction.
    **/
-  explicit Transaction(TransactionId tid)
+  explicit Transaction(transaction_id tid)
     : tid_(tid) {
   }
 
@@ -62,12 +62,12 @@ class Transaction {
    *
    * @return Transaction id of this.
    **/
-  inline TransactionId getTransactionId() const {
+  inline transaction_id gettransaction_id() const {
     return tid_;
   }
 
   /**
-   * @brief Setter for transaction status.
+   * @brief Setter for the transaction status.
    *
    * @param status New status of the transaction.
    **/
@@ -75,6 +75,11 @@ class Transaction {
     status_ = status_;
   }
 
+  /**
+   * @brief Getter for the transaction status.
+   *
+   * @return Status of the transaction.
+   **/
   TransactionStatus getStatus() const {
     return status_;
   }
@@ -91,16 +96,18 @@ class Transaction {
 
   /**
    * @brief Helper hasher class for transaction.
-   *
    **/
   struct TransactionHasher {
     std::size_t operator()(const Transaction &transaction) const {
-      return std::hash<TransactionId>()(transaction.tid_);
+      return std::hash<transaction_id>()(transaction.tid_);
     }
   };
 
  private:
-  TransactionId tid_;
+  // Unique id for the transaction.
+  transaction_id tid_;
+
+  // Transaction's running status.
   TransactionStatus status_;
 };
 

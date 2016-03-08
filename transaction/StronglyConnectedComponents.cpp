@@ -26,16 +26,16 @@ namespace transaction {
 StronglyConnectedComponents::StronglyConnectedComponents(
     const DirectedGraph &directed_graph)
     : directed_graph_(directed_graph),
-      is_marked_(directed_graph_.count(), false),
-      component_ids_(directed_graph_.count(), 0),
-      low_ids_(directed_graph_.count(), 0),
+      is_marked_(directed_graph_.getNumNodes(), false),
+      component_ids_(directed_graph_.getNumNodes(), 0),
+      low_ids_(directed_graph_.getNumNodes(), 0),
       preorder_counter_(0),
       no_of_components_(0) {
   findStronglyConnectedComponents();
 }
 
 void StronglyConnectedComponents::findStronglyConnectedComponents() {
-  for (DirectedGraph::node_id v = 0; v < directed_graph_.count(); ++v) {
+  for (DirectedGraph::node_id v = 0; v < directed_graph_.getNumNodes(); ++v) {
     if (!is_marked_[v]) {
       depthFirstSearch(v);
     }
@@ -58,7 +58,7 @@ void StronglyConnectedComponents::depthFirstSearch(DirectedGraph::node_id v) {
   std::uint64_t min = low_ids_[v];
 
   // Push the node to the stack.
-  stack_.push(v);
+  traversal_stack_.push(v);
 
   // For every adjacent node w:
   // 1-) Apply DFS if w is not marked (recursively).
@@ -89,7 +89,7 @@ void StronglyConnectedComponents::depthFirstSearch(DirectedGraph::node_id v) {
   DirectedGraph::node_id w;
   do {
     // Until we get our node, pop from stack.
-    w = stack_.top();
+    w = traversal_stack_.top();
 
     // Make component id of the node on the top
     // equals to current number of component counter.
@@ -97,20 +97,12 @@ void StronglyConnectedComponents::depthFirstSearch(DirectedGraph::node_id v) {
 
     // Set the low id to the more than max number posssible
     // which is the (no_nodes + 1).
-    low_ids_[w] = directed_graph_.count();
-    stack_.pop();
+    low_ids_[w] = directed_graph_.getNumNodes();
+    traversal_stack_.pop();
   } while (w != v);
 
   // Increment current no of component counter.
   no_of_components_++;
-}
-
-std::uint64_t StronglyConnectedComponents::getComponentId(DirectedGraph::node_id node_id) const {
-  return component_ids_[node_id];
-}
-
-std::size_t StronglyConnectedComponents::getTotalComponents() const {
-  return no_of_components_;
 }
 
 std::unordered_map<std::uint64_t, std::vector<DirectedGraph::node_id>>

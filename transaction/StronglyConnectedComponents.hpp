@@ -53,9 +53,11 @@ class StronglyConnectedComponents {
    * @brief Getter for the component id of the node.
    *
    * @param node_id Id of the node in the graph.
-   * @return Component id of the node.
+   * @return Id of the component to which the given node belongs.
    **/
-  std::uint64_t getComponentId(DirectedGraph::node_id node_id) const;
+  inline std::uint64_t getComponentId(DirectedGraph::node_id node_id) const {
+    return component_ids_[node_id];
+  }
 
   /**
    * @brief Getter for total number of strongly connected components.
@@ -63,7 +65,9 @@ class StronglyConnectedComponents {
    *
    * @return Total number of strongly connected components.
    **/
-  std::size_t getTotalComponents() const;
+  inline std::size_t getTotalComponents() const {
+    return no_of_components_;
+  }
 
   /**
    * @brief Gets a component id to list of node ids mapping.
@@ -87,14 +91,15 @@ class StronglyConnectedComponents {
   std::vector<bool> is_marked_;
 
   // component_ids_[v] == i if strongly connected component
-  // which the node with id is in, has id i.
+  // which the node with id v belongs to, has id i.
   std::vector<std::uint64_t> component_ids_;
 
-  // low_ids_[v] == i if lowest traversal id seen by the node v equals i.
+  // low_ids_[v] == i if lowest traversal id seen by the node
+  // with id v equals i.
   std::vector<std::uint64_t> low_ids_;
 
   // Keeps track of the nodes in the current traversal of the graph.
-  std::stack<DirectedGraph::node_id> stack_;
+  std::stack<DirectedGraph::node_id> traversal_stack_;
 
   // Keeps track of the current index number of depth first search traversal.
   std::uint64_t preorder_counter_;

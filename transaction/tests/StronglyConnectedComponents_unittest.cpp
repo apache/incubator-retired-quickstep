@@ -34,7 +34,7 @@ class StronglyConnectedComponentsTestWithOneNode : public testing::Test {
 
   StronglyConnectedComponentsTestWithOneNode() {
     wait_for_graph = std::make_unique<DirectedGraph>();
-    tid1 = new TransactionId(1);
+    tid1 = new transaction_id(1);
     nid1 = wait_for_graph->addNodeUnchecked(tid1);
 
     scc = std::make_unique<StronglyConnectedComponents>(*wait_for_graph);
@@ -43,7 +43,7 @@ class StronglyConnectedComponentsTestWithOneNode : public testing::Test {
   std::unique_ptr<DirectedGraph> wait_for_graph;
   std::unique_ptr<StronglyConnectedComponents> scc;
 
-  TransactionId *tid1;
+  transaction_id *tid1;
 
   NID nid1;
 
@@ -56,8 +56,8 @@ class StronglyConnectedComponentsTestWithTwoNodesCycle : public testing::Test {
 
   StronglyConnectedComponentsTestWithTwoNodesCycle() {
     wait_for_graph = std::make_unique<DirectedGraph>();
-    tid1 = new TransactionId(1);
-    tid2 = new TransactionId(2);
+    tid1 = new transaction_id(1);
+    tid2 = new transaction_id(2);
 
     nid1 = wait_for_graph->addNodeUnchecked(tid1);
     nid2 = wait_for_graph->addNodeUnchecked(tid2);
@@ -71,8 +71,8 @@ class StronglyConnectedComponentsTestWithTwoNodesCycle : public testing::Test {
   std::unique_ptr<DirectedGraph> wait_for_graph;
   std::unique_ptr<StronglyConnectedComponents> scc;
 
-  TransactionId *tid1;
-  TransactionId *tid2;
+  transaction_id *tid1;
+  transaction_id *tid2;
 
   NID nid1;
   NID nid2;
@@ -87,18 +87,18 @@ class StronglyConnectedComponentsTest : public testing::Test {
   StronglyConnectedComponentsTest() {
     // Creates a graph with predefined structure.
     wait_for_graph = std::make_unique<DirectedGraph>();
-    tid1 = new TransactionId(1);
-    tid2 = new TransactionId(2);
-    tid3 = new TransactionId(3);
-    tid4 = new TransactionId(4);
-    tid5 = new TransactionId(5);
-    tid6 = new TransactionId(6);
-    tid7 = new TransactionId(7);
-    tid8 = new TransactionId(8);
-    tid9 = new TransactionId(9);
-    tid10 = new TransactionId(10);
-    tid11 = new TransactionId(11);
-    tid12 = new TransactionId(12);
+    tid1 = new transaction_id(1);
+    tid2 = new transaction_id(2);
+    tid3 = new transaction_id(3);
+    tid4 = new transaction_id(4);
+    tid5 = new transaction_id(5);
+    tid6 = new transaction_id(6);
+    tid7 = new transaction_id(7);
+    tid8 = new transaction_id(8);
+    tid9 = new transaction_id(9);
+    tid10 = new transaction_id(10);
+    tid11 = new transaction_id(11);
+    tid12 = new transaction_id(12);
 
     nid1 = wait_for_graph->addNodeUnchecked(tid1);
     nid2 = wait_for_graph->addNodeUnchecked(tid2);
@@ -151,18 +151,18 @@ class StronglyConnectedComponentsTest : public testing::Test {
   std::unique_ptr<DirectedGraph> wait_for_graph;
   std::unique_ptr<StronglyConnectedComponents> scc;
 
-  TransactionId *tid1;
-  TransactionId *tid2;
-  TransactionId *tid3;
-  TransactionId *tid4;
-  TransactionId *tid5;
-  TransactionId *tid6;
-  TransactionId *tid7;
-  TransactionId *tid8;
-  TransactionId *tid9;
-  TransactionId *tid10;
-  TransactionId *tid11;
-  TransactionId *tid12;
+  transaction_id *tid1;
+  transaction_id *tid2;
+  transaction_id *tid3;
+  transaction_id *tid4;
+  transaction_id *tid5;
+  transaction_id *tid6;
+  transaction_id *tid7;
+  transaction_id *tid8;
+  transaction_id *tid9;
+  transaction_id *tid10;
+  transaction_id *tid11;
+  transaction_id *tid12;
 
   NID nid1;
   NID nid2;

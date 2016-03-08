@@ -29,33 +29,33 @@ namespace transaction {
 
 TEST(DirectedGraphTest, AddNode) {
   DirectedGraph wait_for_graph;
-  TransactionId *tid3 = new TransactionId(3);
-  TransactionId *tid4 = new TransactionId(4);
-  TransactionId *tid5 = new TransactionId(5);
-  TransactionId *tid6 = new TransactionId(6);
+  transaction_id *tid3 = new transaction_id(3);
+  transaction_id *tid4 = new transaction_id(4);
+  transaction_id *tid5 = new transaction_id(5);
+  transaction_id *tid6 = new transaction_id(6);
 
-  EXPECT_EQ(0u, wait_for_graph.count());
+  EXPECT_EQ(0u, wait_for_graph.getNumNodes());
 
   wait_for_graph.addNodeUnchecked(tid3);
 
-  EXPECT_EQ(1u, wait_for_graph.count());
+  EXPECT_EQ(1u, wait_for_graph.getNumNodes());
 
   wait_for_graph.addNodeUnchecked(tid4);
 
-  EXPECT_EQ(2u, wait_for_graph.count());
+  EXPECT_EQ(2u, wait_for_graph.getNumNodes());
 
   wait_for_graph.addNodeUnchecked(tid5);
   wait_for_graph.addNodeUnchecked(tid6);
 
-  EXPECT_EQ(4u, wait_for_graph.count());
+  EXPECT_EQ(4u, wait_for_graph.getNumNodes());
 }
 
 TEST(DirectedGraphTest, AddEdge) {
   DirectedGraph wait_for_graph;
-  TransactionId *tid3 = new TransactionId(3);
-  TransactionId *tid4 = new TransactionId(4);
-  TransactionId *tid5 = new TransactionId(5);
-  TransactionId *tid6 = new TransactionId(6);
+  transaction_id *tid3 = new transaction_id(3);
+  transaction_id *tid4 = new transaction_id(4);
+  transaction_id *tid5 = new transaction_id(5);
+  transaction_id *tid6 = new transaction_id(6);
 
   using NID = DirectedGraph::node_id;
   NID nid3 = wait_for_graph.addNodeUnchecked(tid3);
@@ -80,10 +80,10 @@ TEST(DirectedGraphTest, AddEdge) {
 
 TEST(DirectedGraphTest, GetAdjacentNodes) {
   DirectedGraph wait_for_graph;
-  TransactionId *tid3 = new TransactionId(3);
-  TransactionId *tid4 = new TransactionId(4);
-  TransactionId *tid5 = new TransactionId(5);
-  TransactionId *tid6 = new TransactionId(6);
+  transaction_id *tid3 = new transaction_id(3);
+  transaction_id *tid4 = new transaction_id(4);
+  transaction_id *tid5 = new transaction_id(5);
+  transaction_id *tid6 = new transaction_id(6);
 
   using NID = DirectedGraph::node_id;
   NID nid3 = wait_for_graph.addNodeUnchecked(tid3);
