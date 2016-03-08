@@ -35,7 +35,7 @@ class SomeArgType {
       : value_(value) {
   }
 
-  explicit SomeArgType(SomeArgType &&arg)
+  SomeArgType(SomeArgType &&arg)
       : value_(std::move(arg.value_)) {
   }
 
