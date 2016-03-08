@@ -722,20 +722,23 @@ TEST_F(ForemanTest, TwoNodesDAGPartiallyFilledBlocksTest) {
   const MockOperator &op1 = static_cast<const MockOperator&>(query_plan_->getQueryPlanDAG().getNodePayload(id1));
   const MockOperator &op2 = static_cast<const MockOperator&>(query_plan_->getQueryPlanDAG().getNodePayload(id2));
 
-  // Set up the QueryContext.
   unique_ptr<StorageManager> storage_manager(new StorageManager("./"));
-  unique_ptr<QueryContext> query_context(
-      new QueryContext(query_context_proto, db.get(), storage_manager.get(), foreman_->getBusClientID(), &bus_));
 
-  // NOTE(zuyu): An operator generally has no ideas about partially filled blocks, but Foreman does.
+  foreman_.reset(
+      new Foreman(&bus_, db.get(), storage_manager.get()));
+  foreman_->setWorkerDirectory(workers_.get());
+
+  foreman_->setQueryPlan(query_plan_->getQueryPlanDAGMutable());
+  foreman_->reconstructQueryContextFromProto(query_context_proto);
+
+  // NOTE(zuyu): An operator generally has no ideas about partially filled
+  // blocks, but InsertDestination in QueryContext does.
   // Mock to add partially filled blocks in the InsertDestination.
-  InsertDestination *insert_destination = query_context->getInsertDestination(insert_destination_index);
+  InsertDestination *insert_destination =
+      foreman_->query_context_->getInsertDestination(insert_destination_index);
   DCHECK(insert_destination != nullptr);
   MutableBlockReference block_ref;
   static_cast<BlockPoolInsertDestination*>(insert_destination)->available_block_refs_.push_back(move(block_ref));
-
-  foreman_->setQueryPlan(query_plan_->getQueryPlanDAGMutable());
-  foreman_->setQueryContext(query_context.get());
 
   // Make sure queues are empty initially.
   EXPECT_EQ(0, getWorkerInputQueueSize());

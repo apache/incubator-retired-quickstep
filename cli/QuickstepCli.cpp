@@ -44,7 +44,6 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #include "parser/SqlParserWrapper.hpp"
 #include "query_execution/Foreman.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
-#include "query_execution/QueryContext.hpp"
 #include "query_execution/Worker.hpp"
 #include "query_execution/WorkerDirectory.hpp"
 #include "query_execution/WorkerMessage.hpp"
@@ -96,7 +95,6 @@ using quickstep::ParseResult;
 using quickstep::ParseStatement;
 using quickstep::PrintToScreen;
 using quickstep::PtrVector;
-using quickstep::QueryContext;
 using quickstep::QueryHandle;
 using quickstep::QueryPlan;
 using quickstep::QueryProcessor;
@@ -238,9 +236,6 @@ int main(int argc, char* argv[]) {
   PtrVector<Worker> workers;
   vector<client_id> worker_client_ids;
 
-  // TODO(zuyu): Construct QueryContext in Shiftboss to avoid Worker's access.
-  std::unique_ptr<QueryContext> query_context;
-
   // Initialize the worker threads.
   DCHECK_EQ(static_cast<std::size_t>(real_num_workers),
             worker_cpu_affinities.size());
@@ -315,14 +310,10 @@ int main(int argc, char* argv[]) {
         DCHECK(query_handle->getQueryPlanMutable() != nullptr);
         foreman.setQueryPlan(query_handle->getQueryPlanMutable()->getQueryPlanDAGMutable());
 
+        foreman.reconstructQueryContextFromProto(query_handle->getQueryContextProto());
+
         try {
           start = std::chrono::steady_clock::now();
-          query_context.reset(new QueryContext(query_handle->getQueryContextProto(),
-                                               query_processor->getDefaultDatabase(),
-                                               query_processor->getStorageManager(),
-                                               foreman.getBusClientID(),
-                                               &bus));
-          foreman.setQueryContext(query_context.get());
           foreman.start();
           foreman.join();
           end = std::chrono::steady_clock::now();
