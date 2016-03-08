@@ -19,6 +19,7 @@
 #define QUICKSTEP_TRANSACTION_TRANSACTION_HPP_
 
 #include <cstdint>
+#include <functional>
 
 namespace quickstep {
 
@@ -61,16 +62,22 @@ class Transaction {
    *
    * @return Transaction id of this.
    **/
-  TransactionId getTransactionId() const;
+  inline TransactionId getTransactionId() const {
+    return tid_;
+  }
 
   /**
    * @brief Setter for transaction status.
    *
    * @param status New status of the transaction.
    **/
-  void setStatus(TransactionStatus status);
+  inline void setStatus(TransactionStatus status) {
+    status_ = status_;
+  }
 
-  TransactionStatus getStatus() const;
+  TransactionStatus getStatus() const {
+    return status_;
+  }
 
   /**
    * @brief Equality operator for Transaction class.
@@ -78,21 +85,23 @@ class Transaction {
    * @param other Other transaction to be compared with.
    * @return True if other tid and this tid are equal, false otherwise.
    **/
-  bool operator==(const Transaction &other) const;
+  bool operator==(const Transaction &other) const {
+    return tid_ == other.tid_;
+  }
 
   /**
    * @brief Helper hasher class for transaction.
    *
    **/
   struct TransactionHasher {
-    std::size_t operator()(const Transaction &transaction) const;
+    std::size_t operator()(const Transaction &transaction) const {
+      return std::hash<TransactionId>()(transaction.tid_);
+    }
   };
 
  private:
   TransactionId tid_;
   TransactionStatus status_;
-  // std::unique_ptr<QueryPlan> query_plan_;
-  // std::unique_ptr<TransactionThread> thread_;
 };
 
 /** @} */
@@ -101,4 +110,4 @@ class Transaction {
 
 }  // namespace quickstep
 
-#endif
+#endif  // QUICKSTEP_TRANSACTION_TRANSACTION_HPP_

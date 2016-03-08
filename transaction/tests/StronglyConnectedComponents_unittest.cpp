@@ -38,7 +38,6 @@ class StronglyConnectedComponentsTestWithOneNode : public testing::Test {
     nid1 = wait_for_graph->addNodeUnchecked(tid1);
 
     scc = std::make_unique<StronglyConnectedComponents>(*wait_for_graph);
-    scc->findStronglyConnectedComponents();
   }
 
   std::unique_ptr<DirectedGraph> wait_for_graph;
@@ -63,11 +62,10 @@ class StronglyConnectedComponentsTestWithTwoNodesCycle : public testing::Test {
     nid1 = wait_for_graph->addNodeUnchecked(tid1);
     nid2 = wait_for_graph->addNodeUnchecked(tid2);
 
-    wait_for_graph->addEdge(nid1, nid2);
-    wait_for_graph->addEdge(nid2, nid1);
+    wait_for_graph->addEdgeUnchecked(nid1, nid2);
+    wait_for_graph->addEdgeUnchecked(nid2, nid1);
 
     scc = std::make_unique<StronglyConnectedComponents>(*wait_for_graph);
-    scc->findStronglyConnectedComponents();
   }
 
   std::unique_ptr<DirectedGraph> wait_for_graph;
@@ -115,40 +113,39 @@ class StronglyConnectedComponentsTest : public testing::Test {
     nid11 = wait_for_graph->addNodeUnchecked(tid11);
     nid12 = wait_for_graph->addNodeUnchecked(tid12);
 
-    wait_for_graph->addEdge(nid1, nid2);
+    wait_for_graph->addEdgeUnchecked(nid1, nid2);
 
-    wait_for_graph->addEdge(nid2, nid3);
-    wait_for_graph->addEdge(nid2, nid4);
-    wait_for_graph->addEdge(nid2, nid5);
+    wait_for_graph->addEdgeUnchecked(nid2, nid3);
+    wait_for_graph->addEdgeUnchecked(nid2, nid4);
+    wait_for_graph->addEdgeUnchecked(nid2, nid5);
 
-    wait_for_graph->addEdge(nid3, nid6);
+    wait_for_graph->addEdgeUnchecked(nid3, nid6);
 
-    wait_for_graph->addEdge(nid4, nid5);
-    wait_for_graph->addEdge(nid4, nid7);
+    wait_for_graph->addEdgeUnchecked(nid4, nid5);
+    wait_for_graph->addEdgeUnchecked(nid4, nid7);
 
-    wait_for_graph->addEdge(nid5, nid2);
-    wait_for_graph->addEdge(nid5, nid6);
-    wait_for_graph->addEdge(nid5, nid7);
+    wait_for_graph->addEdgeUnchecked(nid5, nid2);
+    wait_for_graph->addEdgeUnchecked(nid5, nid6);
+    wait_for_graph->addEdgeUnchecked(nid5, nid7);
 
-    wait_for_graph->addEdge(nid6, nid3);
-    wait_for_graph->addEdge(nid6, nid8);
+    wait_for_graph->addEdgeUnchecked(nid6, nid3);
+    wait_for_graph->addEdgeUnchecked(nid6, nid8);
 
-    wait_for_graph->addEdge(nid7, nid8);
-    wait_for_graph->addEdge(nid7, nid10);
+    wait_for_graph->addEdgeUnchecked(nid7, nid8);
+    wait_for_graph->addEdgeUnchecked(nid7, nid10);
 
-    wait_for_graph->addEdge(nid8, nid7);
+    wait_for_graph->addEdgeUnchecked(nid8, nid7);
 
-    wait_for_graph->addEdge(nid9, nid7);
+    wait_for_graph->addEdgeUnchecked(nid9, nid7);
 
-    wait_for_graph->addEdge(nid10, nid9);
-    wait_for_graph->addEdge(nid10, nid11);
+    wait_for_graph->addEdgeUnchecked(nid10, nid9);
+    wait_for_graph->addEdgeUnchecked(nid10, nid11);
 
-    wait_for_graph->addEdge(nid11, nid12);
+    wait_for_graph->addEdgeUnchecked(nid11, nid12);
 
-    wait_for_graph->addEdge(nid12, nid10);
+    wait_for_graph->addEdgeUnchecked(nid12, nid10);
 
     scc = std::make_unique<StronglyConnectedComponents>(*wait_for_graph);
-    scc->findStronglyConnectedComponents();
   }
 
   std::unique_ptr<DirectedGraph> wait_for_graph;

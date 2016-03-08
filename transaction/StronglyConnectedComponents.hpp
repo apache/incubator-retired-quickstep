@@ -111,4 +111,4 @@ class StronglyConnectedComponents {
 
 }  // namespace quickstep
 
-#endif // QUICKSTEP_TRANSACTION_STRONGLY_CONNECTED_COMPONENTS_HPP_
+#endif  // QUICKSTEP_TRANSACTION_STRONGLY_CONNECTED_COMPONENTS_HPP_

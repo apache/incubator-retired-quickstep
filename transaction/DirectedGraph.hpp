@@ -77,10 +77,10 @@ class DirectedGraph {
    * @return Id of the newly created node.
    **/
   inline node_id addNodeCheckExists(TransactionId *data) {
-    for (std::vector<DirectedGraphNode>::const_iterator 
-	   it = nodes_.cbegin(), end = nodes_.cend();
-	 it != end;
-	 ++it) {
+    for (std::vector<DirectedGraphNode>::const_iterator
+           it = nodes_.cbegin(), end = nodes_.cend();
+         it != end;
+         ++it) {
       CHECK(*data != it->getData());
     }
     nodes_.emplace_back(data);
@@ -88,7 +88,7 @@ class DirectedGraph {
   }
 
   /**
-   * @brief Adds an edge between nodes. It does not check whether the 
+   * @brief Adds an edge between nodes. It does not check whether the
    *        parameters are valid node ids.
    * @warning Does not check arguments are legit. It may cause
    *          out of range errors.
@@ -101,7 +101,7 @@ class DirectedGraph {
   }
 
   /**
-   * @brief Adds an edge between nodes. It checks whether the 
+   * @brief Adds an edge between nodes. It checks whether the
    *        parameters are valid node ids.
    *
    * @param fromNode The node that edge is orginated.
@@ -203,4 +203,4 @@ class DirectedGraph {
 
 }  // namespace quickstep
 
-#endif // QUICKSTEP_TRANSACTION_DIRECTED_GRAPH_HPP_
+#endif  // QUICKSTEP_TRANSACTION_DIRECTED_GRAPH_HPP_

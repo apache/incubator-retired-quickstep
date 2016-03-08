@@ -63,10 +63,10 @@ TEST(DirectedGraphTest, AddEdge) {
   NID nid4 = wait_for_graph.addNodeUnchecked(tid4);
   NID nid5 = wait_for_graph.addNodeUnchecked(tid5);
 
-  wait_for_graph.addEdge(nid3, nid5);
-  wait_for_graph.addEdge(nid6, nid4);
-  wait_for_graph.addEdge(nid3, nid6);
-  wait_for_graph.addEdge(nid4, nid6);
+  wait_for_graph.addEdgeUnchecked(nid3, nid5);
+  wait_for_graph.addEdgeUnchecked(nid6, nid4);
+  wait_for_graph.addEdgeUnchecked(nid3, nid6);
+  wait_for_graph.addEdgeUnchecked(nid4, nid6);
 
   EXPECT_TRUE(wait_for_graph.hasEdge(nid3, nid5));
   EXPECT_TRUE(wait_for_graph.hasEdge(nid6, nid4));
@@ -94,13 +94,13 @@ TEST(DirectedGraphTest, GetAdjacentNodes) {
   std::vector<NID> result1 = wait_for_graph.getAdjacentNodes(nid3);
   EXPECT_EQ(0u, result1.size());
 
-  wait_for_graph.addEdge(nid3, nid4);
-  wait_for_graph.addEdge(nid3, nid5);
+  wait_for_graph.addEdgeUnchecked(nid3, nid4);
+  wait_for_graph.addEdgeUnchecked(nid3, nid5);
 
   std::vector<NID> result2 = wait_for_graph.getAdjacentNodes(nid3);
   EXPECT_EQ(2u, result2.size());
 
-  wait_for_graph.addEdge(nid3, nid6);
+  wait_for_graph.addEdgeUnchecked(nid3, nid6);
   std::vector<NID> result3 = wait_for_graph.getAdjacentNodes(nid3);
   EXPECT_EQ(3u, result3.size());
 }

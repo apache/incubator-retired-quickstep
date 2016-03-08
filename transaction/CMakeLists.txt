@@ -20,10 +20,11 @@ add_library(quickstep_transaction_StronglyConnectedComponents
             StronglyConnectedComponents.cpp
             StronglyConnectedComponents.hpp)
 add_library(quickstep_transaction_Transaction
-            Transaction.cpp
+            ../empty_src.cpp
             Transaction.hpp)
 
 target_link_libraries(quickstep_transaction_DirectedGraph
+	              glog
                       quickstep_transaction_Transaction
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_transaction_StronglyConnectedComponents
