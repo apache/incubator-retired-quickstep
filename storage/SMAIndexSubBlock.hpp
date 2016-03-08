@@ -20,6 +20,7 @@
 #include <stdint.h>
 #include <cstddef>
 #include <iostream>
+#include <memory>
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/predicate/PredicateCost.hpp"
@@ -39,6 +40,10 @@
 
 namespace quickstep {
 
+/**
+ * @brief 'Small Materialized Aggregates' Index. This  class holds count, min,
+ *        max, and sum aggregates for attributes in a block.
+ */
 class SMAIndexSubBlock;
 
 QUICKSTEP_DECLARE_SUB_BLOCK_TYPE_REGISTERED(SMAIndexSubBlock);
@@ -354,7 +359,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
     DCHECK(attribute > -1) << "Attribute Id must be >= 0";
 
     if (total_attributes_ > static_cast<std::size_t>(attribute)) {
-      int index = attribute_to_entry_[attribute];
+      int index = attribute_to_entry_.get()[attribute];
       if (index != -1) {
         return entries_ + index;
       }
@@ -365,7 +370,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   // Retrieves an entry, not checking if the given attribute is indexed.
   // Warning: This should not be used unless the attribute is indexed.
   inline const sma_internal::SMAEntry* getEntryUnchecked(attribute_id attribute) const {
-    return entries_ + attribute_to_entry_[attribute];
+    return entries_ + attribute_to_entry_.get()[attribute];
   }
 
   // Resets a single entry to a zero and invalid state.
@@ -391,7 +396,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   // For example SMAEntry &entry =
   //                 entries_[attribute_to_entry_[someAttribute->getID()]]
   // A value of -1 indicates that that attribute is not indexed.
-  int *attribute_to_entry_;
+  std::unique_ptr<int> attribute_to_entry_;
   // Number of indexed attributes.
   std::size_t num_indexed_attributes_;
   // True if the index has gone through the initialization process.

@@ -308,7 +308,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
       header_(nullptr),
       entries_(nullptr),
       total_attributes_(tuple_store.getRelation().size()),
-      attribute_to_entry_(nullptr),
+      attribute_to_entry_(new int[tuple_store.getRelation().size()]),
       num_indexed_attributes_(0),
       initialized_(false),
       add_operations_(),
@@ -325,10 +325,10 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
 
   header_ = reinterpret_cast<SMAHeader*>(sub_block_memory_);
   entries_ = reinterpret_cast<SMAEntry*>(header_ + 1);
-  attribute_to_entry_ = new int[total_attributes_];
+
   // Set each attribute to invalid.
   for (std::size_t i = 0; i < total_attributes_; ++i) {
-    attribute_to_entry_[i] = -1;
+    attribute_to_entry_.get()[i] = -1;
   }
 
   if (new_block) {
@@ -380,7 +380,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
     }
 
     // Map the attribute's id to its entry's index.
-    attribute_to_entry_[attribute] = indexed_attribute_num;
+    attribute_to_entry_.get()[attribute] = indexed_attribute_num;
 
     if (!header_->index_consistent) {
       resetEntry(entry, attribute, attribute_type);
@@ -412,8 +412,6 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
 SMAIndexSubBlock::~SMAIndexSubBlock() {
   // Any typed values which have out of line data must be cleared.
   freeOutOfLineData();
-  // Delete the entry index.
-  delete[] attribute_to_entry_;
 }
 
 void SMAIndexSubBlock::resetEntry(SMAEntry *entry,
@@ -665,7 +663,7 @@ TupleIdSequence* SMAIndexSubBlock::getMatchesForPredicate(
 
 bool SMAIndexSubBlock::hasEntryForAttribute(attribute_id attribute) const {
   return total_attributes_ > static_cast<std::size_t>(attribute) &&
-      attribute_to_entry_[attribute] != -1;
+      attribute_to_entry_.get()[attribute] != -1;
 }
 
 }  // namespace quickstep
