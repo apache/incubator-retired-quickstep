@@ -88,27 +88,41 @@ class DirectedGraph {
   }
 
   /**
-   * @brief Adds an edge between nodes.
-   * @warning Does not check arguments are legit.
-   *          It may cause out of range errors.
+   * @brief Adds an edge between nodes. It does not check whether the 
+   *        parameters are valid node ids.
+   * @warning Does not check arguments are legit. It may cause
+   *          out of range errors.
    *
    * @param fromNode The node that edge is orginated.
    * @param toNode The node that edge is ended.
-   */
-  inline void addEdge(node_id from_node, node_id to_node) {
+   **/
+  inline void addEdgeUnchecked(node_id from_node, node_id to_node) {
+    nodes_[from_node].addOutgoingEdge(to_node);
+  }
+
+  /**
+   * @brief Adds an edge between nodes. It checks whether the 
+   *        parameters are valid node ids.
+   *
+   * @param fromNode The node that edge is orginated.
+   * @param toNode The node that edge is ended.
+   **/
+  inline void addEdgeCheckExists(node_id from_node, node_id to_node) {
+    CHECK(from_node < count() && to_node < count());
     nodes_[from_node].addOutgoingEdge(to_node);
   }
 
   /**
    * @brief Check whether there is a directed edge.
-   * @warning Does not check argument are legit.
-   *          It may cause out of range errors.
+   * @warning When parameters are not valid ids, it may cause
+   *          out of range errors.
    *
    * @param fromNode Id of the node that edge is originated from.
    * @param toNode Id of the node that edge is ended.
    * @return True if there is an edge, false otherwise.
-   */
+   **/
   inline bool hasEdge(node_id from_node, node_id to_node) const {
+    DCHECK(from_node < count() && to_node < count());
     return nodes_[from_node].hasOutgoingEdge(to_node);
   }
 
@@ -118,7 +132,7 @@ class DirectedGraph {
    *
    * @param node Id of the node that the data is got from.
    * @return Id of the transaction that this node contains.
-   */
+   **/
   inline TransactionId getDataFromNode(node_id node) const {
     return nodes_[node].getData();
   }
@@ -127,7 +141,7 @@ class DirectedGraph {
    * @brief Calculate how many nodes the graph has.
    *
    * @return The number of nodes the graph has.
-   */
+   **/
   inline std::size_t count() const {
     return nodes_.size();
   }
@@ -137,7 +151,7 @@ class DirectedGraph {
    *
    * @param id Id of the corresponding node.
    * @return Vector of node ids that id has edges to.
-   */
+   **/
   inline std::vector<node_id> getAdjacentNodes(node_id id) const {
     return nodes_[id].getOutgoingEdges();
   }
