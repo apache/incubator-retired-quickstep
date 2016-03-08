@@ -25,7 +25,6 @@
 #include "cli/PrintToScreen.hpp"
 #include "parser/ParseStatement.hpp"
 #include "query_execution/Foreman.hpp"
-#include "query_execution/QueryContext.hpp"
 #include "query_execution/Worker.hpp"
 #include "query_optimizer/ExecutionGenerator.hpp"
 #include "query_optimizer/LogicalGenerator.hpp"
@@ -94,12 +93,7 @@ void ExecutionGeneratorTestRunner::runTestCase(
         foreman_->setQueryPlan(
             query_handle.getQueryPlanMutable()->getQueryPlanDAGMutable());
 
-        query_context_.reset(new QueryContext(query_handle.getQueryContextProto(),
-                                              test_database_loader_.catalog_database(),
-                                              test_database_loader_.storage_manager(),
-                                              foreman_->getBusClientID(),
-                                              &bus_));
-        foreman_->setQueryContext(query_context_.get());
+        foreman_->reconstructQueryContextFromProto(query_handle.getQueryContextProto());
 
         foreman_->start();
         foreman_->join();

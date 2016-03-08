@@ -13,7 +13,12 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-select * from test where int_col < 5 order by int_col desc, long_col asc limit 5
+SELECT *
+FROM test
+WHERE int_col < 5
+ORDER BY int_col DESC,
+         long_col ASC
+LIMIT 5;
 --
 +-----------+--------------------+---------------+------------------------+--------------------+
 |int_col    |long_col            |float_col      |double_col              |char_col            |
@@ -27,7 +32,11 @@ select * from test where int_col < 5 order by int_col desc, long_col asc limit 5
 ==
 
 # Simple SELECT.
-select * from test where int_col < 10 and long_col < 100 and double_col < 0
+SELECT *
+FROM test
+WHERE int_col < 10
+  AND long_col < 100
+  AND double_col < 0;
 --
 +-----------+--------------------+---------------+------------------------+--------------------+
 |int_col    |long_col            |float_col      |double_col              |char_col            |
@@ -40,7 +49,10 @@ select * from test where int_col < 10 and long_col < 100 and double_col < 0
 +-----------+--------------------+---------------+------------------------+--------------------+
 ==
 
-select * from test  where int_col < 10 and long_col < 100
+SELECT *
+FROM test
+WHERE int_col < 10
+  AND long_col < 100;
 --
 +-----------+--------------------+---------------+------------------------+--------------------+
 |int_col    |long_col            |float_col      |double_col              |char_col            |
@@ -57,8 +69,12 @@ select * from test  where int_col < 10 and long_col < 100
 +-----------+--------------------+---------------+------------------------+--------------------+
 ==
 
-
-select int_col, int_col+100 as alias_col, char_col as char_col from test  where int_col < 10 and long_col < 100
+SELECT int_col,
+       int_col+100 AS alias_col,
+       char_col AS char_col
+FROM test
+WHERE int_col < 10
+  AND long_col < 100;
 --
 +-----------+-----------+--------------------+
 |int_col    |alias_col  |char_col            |
@@ -76,13 +92,18 @@ select int_col, int_col+100 as alias_col, char_col as char_col from test  where 
 ==
 
 # Nested queries.
-select * from (select *
-               from  (select *
-                      from (select *
-                            from test
-                            where long_col < 100) a
-                      where double_col<0) a
-               where long_col < 200) a where int_col < 10
+SELECT *
+FROM
+  (SELECT *
+   FROM
+     (SELECT *
+      FROM
+        (SELECT *
+         FROM test
+         WHERE long_col < 100) a
+      WHERE double_col<0) a
+   WHERE long_col < 200) a
+WHERE int_col < 10;
 --
 +-----------+--------------------+---------------+------------------------+--------------------+
 |int_col    |long_col            |float_col      |double_col              |char_col            |
@@ -95,17 +116,30 @@ select * from (select *
 +-----------+--------------------+---------------+------------------------+--------------------+
 ==
 
-with subquery1 as (select * from test where int_col < 10),
-     subquery2 as (select * from subquery1 where long_col < 100)
-select * from subquery2 where double_col < 0
+WITH subquery1 AS
+  (SELECT *
+   FROM test
+   WHERE int_col < 10),
+     subquery2 AS
+  (SELECT *
+   FROM subquery1
+   WHERE long_col < 100)
+SELECT *
+FROM subquery2
+WHERE double_col < 0;
 --
 [same as above]
 ==
 
-select NULL, 1/NULL, int_col+NULL, int_col+long_col, float_col+NULL, -NULL
-from test
-where long_col < 100
-order by 4 nulls last
+SELECT NULL,
+       1/NULL,
+       int_col+NULL,
+       int_col+long_col,
+       float_col+NULL,
+       -NULL
+FROM test
+WHERE long_col < 100
+ORDER BY 4 NULLS LAST;
 --
 +----+--------+--------------+--------------------+----------------+-----+
 |NULL|(1/NULL)|(int_col+NULL)|(int_col+long_col)  |(float_col+NULL)|-NULL|
@@ -123,13 +157,17 @@ order by 4 nulls last
 +----+--------+--------------+--------------------+----------------+-----+
 ==
 
-select int_col "
+SELECT int_col "
 this
 
 is multi-line
 
 column name
-" from test where int_col < 10 and long_col < 100 and double_col < 0
+"
+FROM test
+WHERE int_col < 10
+  AND long_col < 100
+  AND double_col < 0;
 --
 +----------------------------------+
 |
@@ -149,7 +187,11 @@ column name
 ==
 
 # Alias support.
-select int_col+100 as alias_col, char_col as char_col from test  where int_col < 10 and long_col < 100
+SELECT int_col+100 AS alias_col,
+       char_col AS char_col
+FROM test
+WHERE int_col < 10
+  AND long_col < 100;
 --
 +-----------+--------------------+
 |alias_col  |char_col            |
@@ -167,18 +209,25 @@ select int_col+100 as alias_col, char_col as char_col from test  where int_col <
 ==
 
 # The execution engine currently does not support self-join.
-select a.int_col, a.int_col*b.int_col, b.long_col
-from test as a, test as b
-where a.int_col*b.int_col=b.long_col
+SELECT a.int_col,
+       a.int_col*b.int_col,
+       b.long_col
+FROM test AS a,
+     test AS b
+WHERE a.int_col*b.int_col = b.long_col;
 --
 ERROR: NestedLoopsJoin does not support self-join yet
 ==
 
 # The nested loops join is not a self-join, because the predicate "a.int_col<10" is pushed under the join, which results
 # in a new relation.
-select a.int_col, a.int_col*b.int_col, b.long_col
-from test as a, test as b
-where a.long_col< 100 and a.int_col*b.int_col=b.long_col
+SELECT a.int_col,
+       a.int_col*b.int_col,
+       b.long_col
+FROM test AS a,
+     test AS b
+WHERE a.long_col < 100
+  AND a.int_col*b.int_col = b.long_col;
 --
 +-----------+---------------------+--------------------+
 |int_col    |(a.int_col*b.int_col)|long_col            |
@@ -196,17 +245,22 @@ where a.long_col< 100 and a.int_col*b.int_col=b.long_col
 ==
 
 # Hash join does not support the self-join.
-select a.int_col, b.int_col
-from test as a, test as b
-where a.int_col=b.int_col
+SELECT a.int_col,
+       b.int_col
+FROM test AS a,
+     test AS b
+WHERE a.int_col = b.int_col;
 --
 ERROR: Self-join is not supported
 ==
 
 # This is not a self-join, because there is a Select under the HashJoin for "a.long_col < 50".
-select a.int_col, b.int_col
-from test as a, test as b
-where a.long_col < 50 and a.int_col=b.int_col
+SELECT a.int_col,
+       b.int_col
+FROM test AS a,
+     test AS b
+WHERE a.long_col < 50
+  AND a.int_col = b.int_col;
 --
 +-----------+-----------+
 |int_col    |int_col    |
@@ -222,17 +276,23 @@ where a.long_col < 50 and a.int_col=b.int_col
 ==
 
 # Hash join does not support a join predicate with two different types of attributes.
-select a.int_col, b.long_col
-from test as a, test as b
-where a.int_col=b.long_col
+SELECT a.int_col,
+       b.long_col
+FROM test AS a,
+     test AS b
+WHERE a.int_col = b.long_col;
 --
 ERROR: Equality join predicate between two attributes of different types is not allowed in HashJoin
 ==
 
 # Join with char-type attributes.
-select a.char_col, b.char_col, a.int_col
-from test as a, test as b
-where a.char_col=b.char_col and a.long_col < 100
+SELECT a.char_col,
+       b.char_col,
+       a.int_col
+FROM test AS a,
+     test AS b
+WHERE a.char_col = b.char_col
+  AND a.long_col < 100;
 --
 +--------------------+--------------------+-----------+
 |char_col            |char_col            |int_col    |
@@ -251,9 +311,12 @@ where a.char_col=b.char_col and a.long_col < 100
 ==
 
 # Cross-product
-select a.int_col, b.int_col
-from test as a, test as b
-where a.int_col between 0 and 3 and b.int_col between 0 and 3
+SELECT a.int_col,
+       b.int_col
+FROM test AS a,
+     test AS b
+WHERE a.int_col BETWEEN 0 AND 3
+  AND b.int_col BETWEEN 0 AND 3;
 --
 +-----------+-----------+
 |int_col    |int_col    |
@@ -263,17 +326,26 @@ where a.int_col between 0 and 3 and b.int_col between 0 and 3
 ==
 
 # Mixed multiple nested loops joins and hash joins
-select a.int_col, b.int_col, c.float_col, d.float_col+a.int_col, d.float_col, b.double_col, c.int_col
-from test as a,
-     test as b,
-     test as c,
-     (select a.float_col from test as a, test as b where a.int_col<5) as d
-where a.int_col=b.int_col and 
-      a.long_col=b.long_col and
-      c.float_col>d.float_col+a.int_col and 
-      d.float_col <= 1 and
-      a.int_col between 0 and 5 and
-      c.float_col>4.7
+SELECT a.int_col,
+       b.int_col,
+       c.float_col,
+       d.float_col+a.int_col,
+       d.float_col,
+       b.double_col,
+       c.int_col
+FROM test AS a,
+     test AS b,
+     test AS c,
+  (SELECT a.float_col
+   FROM test AS a,
+        test AS b
+   WHERE a.int_col < 5) AS d
+WHERE a.int_col = b.int_col
+  AND a.long_col = b.long_col
+  AND c.float_col > d.float_col+a.int_col
+  AND d.float_col <= 1
+  AND a.int_col BETWEEN 0 AND 5
+  AND c.float_col > 4.7;
 --
 +-----------+-----------+---------------+-----------------------+---------------+------------------------+-----------+
 |int_col    |int_col    |float_col      |(d.float_col+a.int_col)|float_col      |double_col              |int_col    |
@@ -333,7 +405,12 @@ where a.int_col=b.int_col and
 
 # FIXME(qzeng): Inner nested-loops join has no output column, causing query
 # result to be INCORRECT.
-SELECT COUNT(*) FROM (SELECT a.float_col FROM test a, test b WHERE a.float_col > 1) c
+SELECT COUNT(*)
+FROM
+  (SELECT a.float_col
+   FROM test a,
+        test b
+   WHERE a.float_col > 1) c;
 --
 +--------------------+
 |COUNT(*)            |
@@ -342,14 +419,14 @@ SELECT COUNT(*) FROM (SELECT a.float_col FROM test a, test b WHERE a.float_col >
 +--------------------+
 ==
 
-select date '2000-02-29' + interval '1 year',
-       date '1998-03-31' + interval '1 month',
-       date '2000-03-31' - interval '1 month',
-       date '2000-01-31' + interval '1 month',
-       date '2000-02-29' + interval '1 day',
-       date '2000-02-29' - interval '1 year'
-from test
-where int_col = 2
+SELECT DATE '2000-02-29' + INTERVAL '1 year',
+       DATE '1998-03-31' + INTERVAL '1 month',
+       DATE '2000-03-31' - INTERVAL '1 month',
+       DATE '2000-01-31' + INTERVAL '1 month',
+       DATE '2000-02-29' + INTERVAL '1 day',
+       DATE '2000-02-29' - INTERVAL '1 year'
+FROM test
+WHERE int_col = 2;
 --
 +----------------------------------------------------+-----------------------------------------------------+-----------------------------------------------------+-----------------------------------------------------+--------------------------------------------------+----------------------------------------------------+
 |(Datetime('2000-02-29')+YearMonthInterval('1 year'))|(Datetime('1998-03-31')+YearMonthInterval('1 month'))|(Datetime('2000-03-31')-YearMonthInterval('1 month'))|(Datetime('2000-01-31')+YearMonthInterval('1 month'))|(Datetime('2000-02-29')+DatetimeInterval('1 day'))|(Datetime('2000-02-29')-YearMonthInterval('1 year'))|
@@ -358,10 +435,10 @@ where int_col = 2
 +----------------------------------------------------+-----------------------------------------------------+-----------------------------------------------------+-----------------------------------------------------+--------------------------------------------------+----------------------------------------------------+
 ==
 
-select date '2000-02-29' - date '2000-02-28',
-       date '2000-02-29' - date '1999-02-28'
-from test
-where int_col = 2
+SELECT DATE '2000-02-29' - DATE '2000-02-28',
+       DATE '2000-02-29' - DATE '1999-02-28'
+FROM test
+WHERE int_col = 2;
 --
 +-----------------------------------------------+-----------------------------------------------+
 |(Datetime('2000-02-29')-Datetime('2000-02-28'))|(Datetime('2000-02-29')-Datetime('1999-02-28'))|
@@ -370,12 +447,12 @@ where int_col = 2
 +-----------------------------------------------+-----------------------------------------------+
 ==
 
-select interval '1 year' + interval '1 month',
-       interval '1 year' + interval '13 month',
-       interval '21 day' + interval '14 day',
-       interval '21 day' * 4
-from test
-where int_col = 2
+SELECT INTERVAL '1 year' + INTERVAL '1 month',
+       INTERVAL '1 year' + INTERVAL '13 month',
+       INTERVAL '21 day' + INTERVAL '14 day',
+       INTERVAL '21 day' * 4
+FROM test
+WHERE int_col = 2;
 --
 +----------------------------------------------------------+-----------------------------------------------------------+-------------------------------------------------------+----------------------------------------+
 |(YearMonthInterval('1 year')+YearMonthInterval('1 month'))|(YearMonthInterval('1 year')+YearMonthInterval('13 month'))|(DatetimeInterval('21 day')+DatetimeInterval('14 day'))|(DatetimeInterval('21 day')*4)          |
@@ -384,9 +461,9 @@ where int_col = 2
 +----------------------------------------------------------+-----------------------------------------------------------+-------------------------------------------------------+----------------------------------------+
 ==
 
-select date '+1980-02-29' + interval '1 year'
-from test
-where int_col = 2
+SELECT DATE '+1980-02-29' + INTERVAL '1 year'
+FROM test
+WHERE int_col = 2;
 --
 +-----------------------------------------------------+
 |(Datetime('+1980-02-29')+YearMonthInterval('1 year'))|
@@ -395,40 +472,48 @@ where int_col = 2
 +-----------------------------------------------------+
 ==
 
-select int_col
-from test
-group by int_col
+SELECT int_col
+FROM test
+GROUP BY int_col;
 --
 ERROR: GROUP BY without any aggregate expression is not supported yet
 ==
 
-select count(*), count(1), count(0),
-       sum(int_col)/count(*), avg(int_col+0)*count(1),
-       max(double_col+100), min(float_col+1) from test
+SELECT COUNT(*),
+       COUNT(1),
+       COUNT(0),
+       SUM(int_col) / COUNT(*),
+       AVG(int_col+0) * COUNT(1),
+       MAX(double_col+100),
+       MIN(float_col+1)
+FROM test;
 --
 +--------------------+--------------------+--------------------+-----------------------+---------------------------+------------------------+------------------+
-|count(*)            |count(1)            |count(0)            |(sum(int_col)/count(*))|(avg((int_col+0))*count(1))|max((double_col+100))   |min((float_col+1))|
+|COUNT(*)            |COUNT(1)            |COUNT(0)            |(SUM(int_col)/COUNT(*))|(AVG((int_col+0))*COUNT(1))|MAX((double_col+100))   |MIN((float_col+1))|
 +--------------------+--------------------+--------------------+-----------------------+---------------------------+------------------------+------------------+
 |                  25|                  25|                  25|                      0|        -20.454545454545457|      217.57550765359252|                 1|
 +--------------------+--------------------+--------------------+-----------------------+---------------------------+------------------------+------------------+
 ==
 
-select count(null) from test
+SELECT COUNT(NULL)
+FROM test;
 --
 +--------------------+
-|count(NULL)         |
+|COUNT(NULL)         |
 +--------------------+
 |                   0|
 +--------------------+
 ==
 
-select long_col/100 as group_col, count(*), sum(int_col)
-from test
-group by group_col
-having min(float_col) > 0
+SELECT long_col/100 AS group_col,
+       COUNT(*),
+       SUM(int_col)
+FROM test
+GROUP BY group_col
+HAVING MIN(float_col) > 0;
 --
 +--------------------+--------------------+--------------------+
-|group_col           |count(*)            |sum(int_col)        |
+|group_col           |COUNT(*)            |SUM(int_col)        |
 +--------------------+--------------------+--------------------+
 |                   1|                   5|                   2|
 |                   2|                   3|                 -16|
@@ -438,14 +523,19 @@ having min(float_col) > 0
 +--------------------+--------------------+--------------------+
 ==
 
-select count(*), long_col/100 as group_col1, long_col/50 as group_col2
-from test
-group by group_col1, group_col2
-having count(*) > 0 and group_col2 > 5
-order by group_col1, group_col2
+SELECT COUNT(*),
+       long_col/100 AS group_col1,
+       long_col/50 AS group_col2
+FROM test
+GROUP BY group_col1,
+         group_col2
+HAVING COUNT(*) > 0
+AND group_col2 > 5
+ORDER BY group_col1,
+         group_col2;
 --
 +--------------------+--------------------+--------------------+
-|count(*)            |group_col1          |group_col2          |
+|COUNT(*)            |group_col1          |group_col2          |
 +--------------------+--------------------+--------------------+
 |                   1|                   3|                   6|
 |                   1|                   3|                   7|
@@ -460,7 +550,7 @@ order by group_col1, group_col2
 # SELECT COUNT(*)
 # FROM test
 # WHERE double_col < 0
-#   AND long_col > (SELECT avg(long_col) FROM test)
+#   AND long_col > (SELECT AVG(long_col) FROM test)
 
 # TODO(team): Fix Issue #9 to enable COUNT(*).
 SELECT COUNT(long_col)
