@@ -20,9 +20,9 @@
 
 #include <algorithm>
 #include <memory>
+#include <stack>
 #include <unordered_map>
 #include <unordered_set>
-#include <stack>
 #include <vector>
 
 #include "transaction/Transaction.hpp"
@@ -43,7 +43,7 @@ namespace transaction {
  */
 class DirectedGraph {
  public:
-  using NodeId = std::uint64_t;
+  typedef std::uint64_t node_id;
 
   /**
    * @brief Default constructor
