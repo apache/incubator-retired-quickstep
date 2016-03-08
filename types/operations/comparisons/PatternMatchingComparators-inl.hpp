@@ -91,9 +91,9 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
     const char *pattern = static_cast<const char *>(static_value.getDataPtr());
     std::string regex_pattern;
     re2::StringPiece pattern_piece;
-    int orig_pattern_len = strnlen(pattern, right_length_);
+    std::size_t orig_pattern_len = strnlen(pattern, right_length_);
     if (is_like_pattern) {
-      regex_pattern = transformLikeToRegex(pattern, orig_pattern_len);
+      regex_pattern = this->transformLikeToRegex(pattern, orig_pattern_len);
       pattern_piece.set(regex_pattern.c_str(), regex_pattern.size());
     } else {
       pattern_piece.set(pattern, orig_pattern_len);
@@ -221,9 +221,9 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
     const char *pattern = static_cast<const char *>(static_value.getDataPtr());
     std::string regex_pattern;
     re2::StringPiece pattern_piece;
-    int orig_pattern_len = strnlen(pattern, right_length_);
+    std::size_t orig_pattern_len = strnlen(pattern, right_length_);
     if (is_like_pattern) {
-      regex_pattern = transformLikeToRegex(pattern, orig_pattern_len);
+      regex_pattern = this->transformLikeToRegex(pattern, orig_pattern_len);
       pattern_piece.set(regex_pattern.c_str(), regex_pattern.size());
     } else {
       pattern_piece.set(pattern, orig_pattern_len);
@@ -305,7 +305,7 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
 template <bool is_like_pattern, bool is_negation,
           bool left_nullable, bool right_nullable>
 TypedValue PatternMatchingUncheckedComparator<is_like_pattern, is_negation,
-                                                    left_nullable, right_nullable>
+                                              left_nullable, right_nullable>
     ::accumulateValueAccessor(
         const TypedValue &current,
         ValueAccessor *accessor,
@@ -319,7 +319,7 @@ TypedValue PatternMatchingUncheckedComparator<is_like_pattern, is_negation,
 template <bool is_like_pattern, bool is_negation,
           bool left_nullable, bool right_nullable>
 TypedValue PatternMatchingUncheckedComparator<is_like_pattern, is_negation,
-                                                    left_nullable, right_nullable>
+                                              left_nullable, right_nullable>
     ::accumulateColumnVector(
         const TypedValue &current,
         const ColumnVector &column_vector) const {

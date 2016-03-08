@@ -57,6 +57,7 @@ const PatternMatchingComparison& PatternMatchingComparison::Instance(ComparisonI
                << kComparisonNames[static_cast<typename std::underlying_type<ComparisonID>::type>(sub_type)]
                << " for PatternMatchinComparison::Instance()";
   }
+  QUICKSTEP_UNREACHABLE();
 }
 
 bool PatternMatchingComparison::canCompareTypes(const Type &left,
