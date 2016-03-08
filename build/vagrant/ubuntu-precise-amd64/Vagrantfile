@@ -1,0 +1,35 @@
+# This file copyright (c) 2015, Pivotal Software, Inc.
+# All rights reserved.
+# See file CREDITS.txt for details.
+
+# Basic Vagrant config (API version 2)
+Vagrant.configure(2) do |config|
+  # Base box: Ubuntu 12.04 LTS "Precise" for x86-64
+  config.vm.box = "hashicorp/precise64"
+
+  # Give a reasonable amount of cpu and memory to the VM
+  config.vm.provider "virtualbox" do |vb|
+    vb.memory = 8192
+    vb.cpus = 4
+  end
+
+  # Share the project source dir with the VM
+  config.vm.synced_folder "../../..", "/quickstep"
+
+  # Install development packages just like in our Travis config.
+  config.vm.provision "shell", inline: <<-SHELL
+    sudo apt-get update
+    sudo apt-get install -y python-software-properties
+    sudo add-apt-repository -y ppa:ubuntu-toolchain-r/test
+    wget -O - http://llvm.org/apt/llvm-snapshot.gpg.key|sudo apt-key add -
+    sudo add-apt-repository -y 'deb http://llvm.org/apt/jessie/ llvm-toolchain-jessie-3.7 main'
+    sudo apt-get update
+    sudo apt-get install -y \
+        build-essential gcc-4.9 g++-4.9 clang-3.7 gdb cmake git \
+        protobuf-compiler libprotobuf-dev flex bison libnuma-dev
+    sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.9 20
+    sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.9 20
+    sudo update-alternatives --install /usr/bin/clang clang /usr/bin/clang-3.7 20
+    sudo update-alternatives --install /usr/bin/clang++ clang++ /usr/bin/clang++-3.7 20
+  SHELL
+end
