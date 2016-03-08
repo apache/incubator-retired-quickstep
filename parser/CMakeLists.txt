@@ -95,6 +95,7 @@ add_library(quickstep_parser_ParseLiteralValue ParseLiteralValue.cpp ParseLitera
 add_library(quickstep_parser_ParseOrderBy ParseOrderBy.cpp ParseOrderBy.hpp)
 add_library(quickstep_parser_ParsePredicate ParsePredicate.cpp ParsePredicate.hpp)
 add_library(quickstep_parser_ParserUtil ParserUtil.cpp ParserUtil.hpp)
+add_library(quickstep_parser_ParseSample ParseSample.cpp ParseSample.hpp)
 add_library(quickstep_parser_ParseSelect ../empty_src.cpp ParseSelect.hpp)
 add_library(quickstep_parser_ParseSelectionClause ParseSelectionClause.cpp ParseSelectionClause.hpp)
 add_library(quickstep_parser_ParseSimpleTableReference ParseSimpleTableReference.cpp ParseSimpleTableReference.hpp)
@@ -183,6 +184,11 @@ target_link_libraries(quickstep_parser_ParsePredicate
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_utility_Macros
                       quickstep_utility_PtrList)
+
+target_link_libraries(quickstep_parser_ParseSample
+                      quickstep_parser_ParseLiteralValue
+                      quickstep_parser_ParseTreeNode
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_parser_ParseSelect
                       glog
                       quickstep_parser_ParseGroupBy
@@ -203,6 +209,7 @@ target_link_libraries(quickstep_parser_ParseSelectionClause
                       quickstep_utility_PtrList)
 target_link_libraries(quickstep_parser_ParseSimpleTableReference
                       quickstep_parser_ParseString
+                      quickstep_parser_ParseSample
                       quickstep_parser_ParseTableReference
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_parser_ParseStatement
@@ -269,6 +276,7 @@ target_link_libraries(quickstep_parser_SqlParser
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseOrderBy
                       quickstep_parser_ParsePredicate
+                      quickstep_parser_ParseSample
                       quickstep_parser_ParseSelect
                       quickstep_parser_ParseSelectionClause
                       quickstep_parser_ParseSimpleTableReference
@@ -338,6 +346,7 @@ target_link_libraries(quickstep_parser
                       quickstep_parser_ParseOrderBy
                       quickstep_parser_ParsePredicate
                       quickstep_parser_ParserUtil
+                      quickstep_parser_ParseSample
                       quickstep_parser_ParseSelect
                       quickstep_parser_ParseSelectionClause
                       quickstep_parser_ParseSimpleTableReference
