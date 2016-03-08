@@ -39,8 +39,8 @@ namespace transaction {
  */
 
 /**
- * @brief Class for representing a directed graph. Vertices are
- *        transaction ids, edges are wait-for relations.
+ * @brief Class for representing a directed graph. Vertices are  transaction 
+ *        ids, edges are wait-for relations.
  **/
 class DirectedGraph {
  public:
@@ -203,4 +203,4 @@ class DirectedGraph {
 
 }  // namespace quickstep
 
-#endif
+#endif // QUICKSTEP_TRANSACTION_DIRECTED_GRAPH_HPP_

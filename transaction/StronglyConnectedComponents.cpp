@@ -23,13 +23,15 @@ namespace quickstep {
 
 namespace transaction {
 
-StronglyConnectedComponents::StronglyConnectedComponents(const DirectedGraph &directed_graph)
-  : directed_graph_(directed_graph)
-  , is_marked_(directed_graph_.count())
-  , component_ids_(directed_graph_.count())
-  , low_ids_(directed_graph_.count())
-  , preorder_counter_(0)
-  , no_of_components_(0) {
+StronglyConnectedComponents::StronglyConnectedComponents(
+    const DirectedGraph &directed_graph)
+    : directed_graph_(directed_graph),
+      is_marked_(directed_graph_.count(), false),
+      component_ids_(directed_graph_.count(), 0),
+      low_ids_(directed_graph_.count(), 0),
+      preorder_counter_(0),
+      no_of_components_(0) {
+  findStronglyConnectedComponents();
 }
 
 void StronglyConnectedComponents::findStronglyConnectedComponents() {
@@ -107,7 +109,7 @@ std::uint64_t StronglyConnectedComponents::getComponentId(DirectedGraph::node_id
   return component_ids_[node_id];
 }
 
-std::uint64_t StronglyConnectedComponents::getTotalComponents() const {
+std::size_t StronglyConnectedComponents::getTotalComponents() const {
   return no_of_components_;
 }
 

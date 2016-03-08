@@ -34,24 +34,20 @@ namespace transaction {
  */
 
 /**
- * @brief Class for applying Tarjan's strongly connected components
- *        algorithm to the 
+ * @brief Class for applying Tarjan's strongly connected components algorithm
+ *        to a directed graph. The class finds and stores information to
+ *        identify components and nodes-to-component mapping. For all nodes
+ *        v, w in a strongly connected component, there is a path from v to w,
+ *        and a path from w to v.
  **/
 class StronglyConnectedComponents {
  public:
   /**
-   * @brief Constructor for StronglyConnectedComponents.
+   * @brief Constructor.
    *
-   * @param directed_graph Const reference to the directed graph which the 
-   *        algorithm runs.
+   * @param directed_graph The directed graph which the algorithm runs.
    **/
   explicit StronglyConnectedComponents(const DirectedGraph &directed_graph);
-
-  /**
-   * @brief Enumerates strongly connected components.
-   * @info This method should be called before calling any other method.
-   **/
-  void findStronglyConnectedComponents();
 
   /**
    * @brief Getter for the component id of the node.
@@ -67,7 +63,7 @@ class StronglyConnectedComponents {
    *
    * @return Total number of strongly connected components.
    **/
-  std::uint64_t getTotalComponents() const;
+  std::size_t getTotalComponents() const;
 
   /**
    * @brief Gets a component id to list of node ids mapping.
@@ -77,6 +73,10 @@ class StronglyConnectedComponents {
   std::unordered_map<std::uint64_t, std::vector<DirectedGraph::node_id>> getComponentMapping() const;
 
  private:
+  // Enumarates all strongly connected components, and stores node-to-component
+  // mapping in the graph.
+  void findStronglyConnectedComponents();
+
   // Applies DFS to the node whic has id v.
   void depthFirstSearch(DirectedGraph::node_id v);
 
@@ -111,4 +111,4 @@ class StronglyConnectedComponents {
 
 }  // namespace quickstep
 
-#endif
+#endif // QUICKSTEP_TRANSACTION_STRONGLY_CONNECTED_COMPONENTS_HPP_
