@@ -209,10 +209,10 @@ class PatternMatchingUncheckedComparator : public UncheckedComparator {
       char c = like_pattern[i];
       switch (c) {
         case '_':
-          regex_pattern.push_back('.');
+          regex_pattern.append("(.|\n)");
           break;
         case '%':
-          regex_pattern.append(".*");
+          regex_pattern.append("(.|\n)*");
           break;
         default:
           // Escape special characters

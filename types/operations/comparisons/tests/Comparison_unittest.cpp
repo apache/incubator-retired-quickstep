@@ -915,7 +915,7 @@ TEST_F(ComparisonTest, PatternMatchingComparisonTest) {
   const Comparison &regex_comp =
       ComparisonFactory::GetComparison(ComparisonID::kRegexMatch);
   const Comparison &not_regex_comp =
-      ComparisonFactory::GetComparison(ComparisonID::kRegexMatch);
+      ComparisonFactory::GetComparison(ComparisonID::kNotRegexMatch);
 
   // Check canCompareTypes method
   for (const TypeID tid1 : {kChar, kVarChar}) {
@@ -934,8 +934,8 @@ TEST_F(ComparisonTest, PatternMatchingComparisonTest) {
       "%",
       "abc%",
       "%127.0.0.1%",
-      "%@x_x_c%",
-      "%\n%\\% @%",
+      "%123_XYZ%",
+      "%\\% @%",
       "abc%_%_3%" };
   vector<string> not_matched_like_patterns = {
       "abc",
@@ -943,18 +943,19 @@ TEST_F(ComparisonTest, PatternMatchingComparisonTest) {
       "abc%_%_2",
       "%\\nXYZ%" };
   vector<string> matched_regex_patterns = {
-      ".*\\d+.*",
+      "(.|\n)*",
       "abc[^x]+xxx\\..*",
-      ".*\\d+\\.\\d+\\.\\d+\\.\\d+.*",
-      ".*\n[a-zA-Z]{3}.*" };
+      "(.|\n)*\\d+\\.\\d+\\.\\d+\\.\\d+.*",
+      "(.|\n)*[a-zA-Z]{3}.*" };
   vector<string> not_matched_regex_patterns = {
+      ".*",
       ".*\\d{4}.*",
-      ".*XYZ\n .*",
-      ".*(\\d+\\.)*" };
+      "(.|\n)*XYZ\n .*" };
 
   for (const TypeID tid1 : {kChar, kVarChar}) {
     const Type &t1 = TypeFactory::GetType(tid1, 32, false);
     const TypedValue text_value(tid1, text.c_str(), text.size() + 1);
+
     for (const TypeID tid2 : {kChar, kVarChar}) {
       const Type &t2 = TypeFactory::GetType(tid2, 32, false);
 
