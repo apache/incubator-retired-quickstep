@@ -37,32 +37,50 @@ namespace transaction {
  */
 
 /**
- * @brief Class for representing a directed graph.
- *        Vertices are transaction ids, edges are
- *        wait-for relations.
- */
+ * @brief Class for representing a directed graph. Vertices are
+ *        transaction ids, edges are wait-for relations.
+ **/
 class DirectedGraph {
  public:
   typedef std::uint64_t node_id;
 
   /**
    * @brief Default constructor
-   */
+   **/
   DirectedGraph() {}
 
   /**
-   * @brief Adds node with given transaction id.
-   * @warning It does not check whether transaction id
-   *          is already in the graph.
-   * @warning Pointer ownership will pass to the graph,
-   *          threfore it should not be deleted.
+   * @brief Adds a new node to the graph with the given transaction id.
+   *        It does not check whether the transaction id is valid or not.
+   * @warning Pointer ownership will pass to the graph, therefore it
+   *          should not be deleted.
    *
-   * @param data Pointer to the transaction id that
-   *        will be contained in the node.
-   *
+   * @param data Pointer to the transaction id that will be contained
+   *        in the node.
    * @return Id of the newly created node.
-   */
-  inline NodeId addNode(TransactionId *data) {
+   **/
+  inline node_id addNodeUnchecked(TransactionId *data) {
+    nodes_.emplace_back(data);
+    return nodes_.size() - 1;
+  }
+
+  /**
+   * @brief Adds a new node to the graph with the given transaction id.
+   *        It checks whether the transaction id is valid or not.
+   * @warning Pointer ownership will pass to the graph, therefore it
+   *          should not be deleted.
+   *
+   * @param data Pointer to the transaction id that will be contained
+   *        in the node.
+   * @return Id of the newly created node.
+   **/
+  inline node_id addNodeCheckExists(TransactionId *data) {
+    for (const std::vector<DirectedGraphNode>::const_iter 
+	   it = nodes_.begin(), end = nodes_.end();
+	 it != end;
+	 ++it) {
+      CHECK(*data != *(it->data_));
+    }
     nodes_.emplace_back(data);
     return nodes_.size() - 1;
   }
@@ -86,7 +104,6 @@ class DirectedGraph {
    *
    * @param fromNode Id of the node that edge is originated from.
    * @param toNode Id of the node that edge is ended.
-   *
    * @return True if there is an edge, false otherwise.
    */
   inline bool hasEdge(NodeId from_node, NodeId to_node) const {
