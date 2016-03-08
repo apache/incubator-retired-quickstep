@@ -135,6 +135,7 @@ extern const char *kTupleStorageSubBlockTypeNames[];
  **/
 enum IndexSubBlockType {
   kCSBTree = 0,
+  kSMA,
   kBloomFilter,
   kNumIndexSubBlockTypes  // Not an actual IndexSubBlockType, exists for counting purposes.
 };

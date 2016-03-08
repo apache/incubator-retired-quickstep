@@ -61,6 +61,7 @@ message CompressedColumnStoreTupleStorageSubBlockDescription {
 message IndexSubBlockDescription {
   enum IndexSubBlockType {
     CSB_TREE = 0;
+    SMA = 1;
   }
 
   required IndexSubBlockType sub_block_type = 1;
@@ -73,6 +74,12 @@ message IndexSubBlockDescription {
 message CSBTreeIndexSubBlockDescription {
   extend IndexSubBlockDescription {
     repeated int32 indexed_attribute_id = 32;
+  }
+}
+
+message SMAIndexSubBlockDescription {
+  extend IndexSubBlockDescription {
+    repeated int32 indexed_attribute_id = 128;
   }
 }
 
