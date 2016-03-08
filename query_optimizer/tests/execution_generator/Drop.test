@@ -13,9 +13,9 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-drop table test;
-select * from test
+DROP TABLE test;
+SELECT * FROM test
 --
 ERROR: Unrecognized relation test (2 : 15)
-select * from test
+SELECT * FROM test
               ^

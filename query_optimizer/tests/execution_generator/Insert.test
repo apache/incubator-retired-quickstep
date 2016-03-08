@@ -13,10 +13,10 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-insert into test values (100, 2, 1.1, 1.3, 'foo');
-insert into test values (100, 3, 1.2, 1.4, 'foofoo');
-insert into test values (null, 3, 1.2, NULL, 'foofoo');
-select * from test where int_col=100
+INSERT INTO TEST VALUES (100, 2, 1.1, 1.3, 'foo');
+INSERT INTO TEST VALUES (100, 3, 1.2, 1.4, 'foofoo');
+INSERT INTO TEST VALUES (null, 3, 1.2, NULL, 'foofoo');
+SELECT * FROM test WHERE int_col = 100;
 --
 +-----------+--------------------+---------------+------------------------+--------------------+
 |int_col    |long_col            |float_col      |double_col              |char_col            |
