@@ -39,6 +39,7 @@ add_library(quickstep_queryexecution_WorkerSelectionPolicy ../empty_src.cpp Work
 # Link dependencies:
 target_link_libraries(quickstep_queryexecution_Foreman
                       glog
+                      gtest
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryExecutionMessages_proto
