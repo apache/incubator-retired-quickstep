@@ -239,10 +239,6 @@ class PatternMatchingUncheckedComparator : public UncheckedComparator {
   const std::size_t right_length_;
 };
 
-
-
-
-
 /** @} */
 
 }  // namespace quickstep

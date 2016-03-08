@@ -102,6 +102,7 @@ UncheckedComparator* PatternMatchingComparison::makeUncheckedComparatorForTypes(
     case ComparisonID::kNotRegexMatch:
       is_like_pattern = false;
       is_negation = true;
+      break;
     default:
       LOG(FATAL) << "Unhandled ComparisonID: "
                  << kComparisonNames[static_cast<typename std::underlying_type<ComparisonID>::type>(sub_type)]

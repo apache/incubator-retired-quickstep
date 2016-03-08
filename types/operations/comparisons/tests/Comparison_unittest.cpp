@@ -966,7 +966,6 @@ TEST_F(ComparisonTest, PatternMatchingComparisonTest) {
 
       for (const string &sp : not_matched_like_patterns) {
         const TypedValue pattern_value(tid2, sp.c_str(), sp.size() + 1);
-
         EXPECT_FALSE(like_comp.compareTypedValuesChecked(text_value, t1, pattern_value, t2));
         EXPECT_TRUE(not_like_comp.compareTypedValuesChecked(text_value, t1, pattern_value, t2));
       }
@@ -979,7 +978,6 @@ TEST_F(ComparisonTest, PatternMatchingComparisonTest) {
 
       for (const string &sp : not_matched_regex_patterns) {
         const TypedValue pattern_value(tid2, sp.c_str(), sp.size() + 1);
-
         EXPECT_FALSE(regex_comp.compareTypedValuesChecked(text_value, t1, pattern_value, t2));
         EXPECT_TRUE(not_regex_comp.compareTypedValuesChecked(text_value, t1, pattern_value, t2));
       }
