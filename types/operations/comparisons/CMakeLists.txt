@@ -81,6 +81,7 @@ target_link_libraries(quickstep_types_operations_comparisons_Comparison
                       quickstep_storage_TupleIdSequence
                       quickstep_storage_ValueAccessor
                       quickstep_storage_ValueAccessorUtil
+                      quickstep_types_TypedValue
                       quickstep_types_containers_ColumnVector
                       quickstep_types_containers_ColumnVectorUtil
                       quickstep_types_operations_Operation
@@ -164,11 +165,17 @@ target_link_libraries(quickstep_types_operations_comparisons_PatternMatchingComp
                       glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_storage_TupleIdSequence
+                      quickstep_storage_ValueAccessor
+                      quickstep_storage_ValueAccessorUtil
                       quickstep_types_TypedValue
+                      quickstep_types_containers_ColumnVector
+                      quickstep_types_containers_ColumnVectorUtil
+                      quickstep_types_operations_comparisons_Comparison
                       quickstep_types_port_strnlen
-                      quickstep_utility_Macros
                       re2)
 target_link_libraries(quickstep_types_operations_comparisons_PatternMatchingComparison
+                      quickstep_types_Type
+                      quickstep_types_TypeID
                       quickstep_types_operations_comparisons_PatternMatchingComparators
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_types_operations_comparisons_ComparisonID

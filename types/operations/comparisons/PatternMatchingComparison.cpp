@@ -17,8 +17,8 @@
 
 #include "types/operations/comparisons/PatternMatchingComparison.hpp"
 
+#include <cstddef>
 #include <memory>
-#include <stddef.h>
 #include <tuple>
 #include <type_traits>
 
