@@ -25,8 +25,6 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <thread>  // NOLINT(build/c++11)
-
 
 #include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE.
 #include "cli/DropRelation.hpp"
@@ -39,14 +37,13 @@ typedef quickstep::LineReaderLineNoise LineReaderImpl;
 typedef quickstep::LineReaderDumb LineReaderImpl;
 #endif
 
+#include "cli/DefaultsConfigurator.hpp"
 #include "cli/InputParserUtil.hpp"
 #include "cli/PrintToScreen.hpp"
-#include "parser/ParseCommand.hpp"
 #include "parser/ParseStatement.hpp"
 #include "parser/SqlParserWrapper.hpp"
 #include "query_execution/Foreman.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
-#include "query_execution/QueryContext.hpp"
 #include "query_execution/Worker.hpp"
 #include "query_execution/WorkerDirectory.hpp"
 #include "query_execution/WorkerMessage.hpp"
@@ -87,6 +84,7 @@ using std::vector;
 
 using quickstep::Address;
 using quickstep::CatalogRelation;
+using quickstep::DefaultsConfigurator;
 using quickstep::DropRelation;
 using quickstep::Foreman;
 using quickstep::InputParserUtil;
@@ -97,7 +95,6 @@ using quickstep::ParseResult;
 using quickstep::ParseStatement;
 using quickstep::PrintToScreen;
 using quickstep::PtrVector;
-using quickstep::QueryContext;
 using quickstep::QueryHandle;
 using quickstep::QueryPlan;
 using quickstep::QueryProcessor;
@@ -143,9 +140,9 @@ int main(int argc, char* argv[]) {
   gflags::ParseCommandLineFlags(&argc, &argv, true);
   google::InitGoogleLogging(argv[0]);
 
-  // Detect the hardware concurrency level. Note this call will return 0
-  // if it fails (which it may on some machines/environments).
-  const unsigned int num_hw_threads = std::thread::hardware_concurrency();
+  // Detect the hardware concurrency level.
+  const std::size_t num_hw_threads =
+      DefaultsConfigurator::GetNumHardwareThreads();
 
   // Use the command-line value if that was supplied, else use the value
   // that we computed above, provided it did return a valid value.
@@ -183,8 +180,6 @@ int main(int argc, char* argv[]) {
   const client_id main_thread_client_id = bus.Connect();
   bus.RegisterClientAsSender(main_thread_client_id, kPoisonMessage);
 
-  Foreman foreman(&bus);
-
   // Setup the paths used by StorageManager.
   string fixed_storage_path(quickstep::FLAGS_storage_path);
   if (!fixed_storage_path.empty()
@@ -211,6 +206,9 @@ int main(int argc, char* argv[]) {
       InputParserUtil::ParseWorkerAffinities(real_num_workers,
                                              quickstep::FLAGS_worker_affinities);
 
+  const std::size_t num_numa_nodes_covered =
+      DefaultsConfigurator::GetNumNUMANodesCoveredByWorkers(worker_cpu_affinities);
+
   if (quickstep::FLAGS_preload_buffer_pool) {
     quickstep::PreloaderThread preloader(*query_processor->getDefaultDatabase(),
                                          query_processor->getStorageManager(),
@@ -222,6 +220,11 @@ int main(int argc, char* argv[]) {
     printf("DONE\n");
   }
 
+  Foreman foreman(&bus,
+                  query_processor->getDefaultDatabase(),
+                  query_processor->getStorageManager(),
+                  num_numa_nodes_covered);
+
   // Get the NUMA affinities for workers.
   vector<int> cpu_numa_nodes = InputParserUtil::GetNUMANodesForCPUs();
   if (cpu_numa_nodes.empty()) {
@@ -232,9 +235,6 @@ int main(int argc, char* argv[]) {
   vector<int> worker_numa_nodes;
   PtrVector<Worker> workers;
   vector<client_id> worker_client_ids;
-
-  // TODO(zuyu): Construct QueryContext in Shiftboss to avoid Worker's access.
-  std::unique_ptr<QueryContext> query_context;
 
   // Initialize the worker threads.
   DCHECK_EQ(static_cast<std::size_t>(real_num_workers),
@@ -249,12 +249,8 @@ int main(int argc, char* argv[]) {
     }
     worker_numa_nodes.push_back(numa_node_id);
 
-    workers.push_back(new Worker(worker_idx,
-                                 query_context,
-                                 &bus,
-                                 query_processor->getDefaultDatabase(),
-                                 query_processor->getStorageManager(),
-                                 worker_cpu_affinities[worker_idx]));
+    workers.push_back(
+        new Worker(worker_idx, &bus, worker_cpu_affinities[worker_idx]));
     worker_client_ids.push_back(workers.back().getBusClientID());
   }
 
@@ -272,7 +268,7 @@ int main(int argc, char* argv[]) {
 
   LineReaderImpl line_reader("quickstep> ",
                              "      ...> ");
-  SqlParserWrapper parser_wrapper;
+  std::unique_ptr<SqlParserWrapper> parser_wrapper(new SqlParserWrapper());
   std::chrono::time_point<std::chrono::steady_clock> start, end;
 
   for (;;) {
@@ -283,11 +279,14 @@ int main(int argc, char* argv[]) {
       break;
     }
 
-    parser_wrapper.feedNextBuffer(command_string);
+    parser_wrapper->feedNextBuffer(command_string);
 
     bool quitting = false;
+    // A parse error should reset the parser. This is because the thrown quickstep
+    // SqlError does not do the proper reset work of the YYABORT macro.
+    bool reset_parser = false;
     for (;;) {
-      ParseResult result = parser_wrapper.getNextStatement();
+      ParseResult result = parser_wrapper->getNextStatement();
       if (result.condition == ParseResult::kSuccess) {
         if (result.parsed_statement->getStatementType() == ParseStatement::kQuit) {
           quitting = true;
@@ -295,9 +294,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (result.parsed_statement->getStatementType() == ParseStatement::kCommand) {
-          const ParseCommand *command = static_cast<const ParseCommand*>(result.parsed_statement);
-          ParseCommand *mutable_command = const_cast<ParseCommand*>(command);
-          mutable_command->execute();
+          // TODO(marc): Add executer to this parsed command statement.
           continue;
         }
 
@@ -306,20 +303,17 @@ int main(int argc, char* argv[]) {
           query_handle.reset(query_processor->generateQueryHandle(*result.parsed_statement));
         } catch (const quickstep::SqlError &sql_error) {
           fprintf(stderr, "%s", sql_error.formatMessage(*command_string).c_str());
+          reset_parser = true;
           break;
         }
 
         DCHECK(query_handle->getQueryPlanMutable() != nullptr);
         foreman.setQueryPlan(query_handle->getQueryPlanMutable()->getQueryPlanDAGMutable());
 
+        foreman.reconstructQueryContextFromProto(query_handle->getQueryContextProto());
+
         try {
           start = std::chrono::steady_clock::now();
-          query_context.reset(new QueryContext(query_handle->getQueryContextProto(),
-                                               query_processor->getDefaultDatabase(),
-                                               query_processor->getStorageManager(),
-                                               foreman.getBusClientID(),
-                                               &bus));
-          foreman.setQueryContext(query_context.get());
           foreman.start();
           foreman.join();
           end = std::chrono::steady_clock::now();
@@ -347,12 +341,16 @@ int main(int argc, char* argv[]) {
         if (result.condition == ParseResult::kError) {
           fprintf(stderr, "%s", result.error_message.c_str());
         }
+        reset_parser = true;
         break;
       }
     }
 
     if (quitting) {
       break;
+    } else if (reset_parser) {
+      parser_wrapper.reset(new SqlParserWrapper());
+      reset_parser = false;
     }
   }
 

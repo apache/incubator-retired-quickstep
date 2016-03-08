@@ -60,10 +60,17 @@ else()
                         quickstep_utility_Macros)
 endif()
 
+add_library(quickstep_cli_DefaultsConfigurator ../empty_src.cpp DefaultsConfigurator.hpp)
 add_library(quickstep_cli_InputParserUtil InputParserUtil.cpp InputParserUtil.hpp)
 add_library(quickstep_cli_PrintToScreen PrintToScreen.cpp PrintToScreen.hpp)
 
 # Link dependencies:
+target_link_libraries(quickstep_cli_DefaultsConfigurator
+                      quickstep_utility_Macros)
+if(QUICKSTEP_HAVE_LIBNUMA)
+  target_link_libraries(quickstep_cli_DefaultsConfigurator
+                      ${LIBNUMA_LIBRARY})
+endif() 
 target_link_libraries(quickstep_cli_InputParserUtil
                       glog
                       quickstep_utility_Macros
@@ -89,6 +96,7 @@ target_link_libraries(quickstep_cli_PrintToScreen
 add_library(quickstep_cli ../empty_src.cpp CliModule.hpp)
 
 target_link_libraries(quickstep_cli
+                      quickstep_cli_DefaultsConfigurator
                       quickstep_cli_DropRelation
                       quickstep_cli_InputParserUtil
                       quickstep_cli_LineReader

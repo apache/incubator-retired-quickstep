@@ -1428,10 +1428,15 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     bool done;
     WorkOrdersContainer container(kOpIndex + 1, 0);
     do {
-      done = merge_op_->getAllWorkOrders(&container, foreman_client_id_, &bus_);
+      done = merge_op_->getAllWorkOrders(&container,
+                                         db_.get(),
+                                         query_context_.get(),
+                                         storage_manager_.get(),
+                                         foreman_client_id_,
+                                         &bus_);
       while (container.hasNormalWorkOrder(kOpIndex)) {
         std::unique_ptr<WorkOrder> order(container.getNormalWorkOrder(kOpIndex));
-        order->execute(query_context_.get(), db_.get(), storage_manager_.get());
+        order->execute();
         checkAndDispatchFeedbackMessages(1);
       }
     } while (!done);
@@ -1444,13 +1449,18 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     do {
       if (!done) {
         // Find work orders to execute, if not done already.
-        done = merge_op_->getAllWorkOrders(&container, foreman_client_id_, &bus_);
+        done = merge_op_->getAllWorkOrders(&container,
+                                           db_.get(),
+                                           query_context_.get(),
+                                           storage_manager_.get(),
+                                           foreman_client_id_,
+                                           &bus_);
       }
 
       executed = false;
       if (container.hasNormalWorkOrder(kOpIndex)) {
         std::unique_ptr<WorkOrder> order(container.getNormalWorkOrder(kOpIndex));
-        order->execute(query_context_.get(), db_.get(), storage_manager_.get());
+        order->execute();
         checkAndDispatchFeedbackMessages(1);
         executed = true;
       }

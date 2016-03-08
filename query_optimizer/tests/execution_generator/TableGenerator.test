@@ -126,6 +126,28 @@ SELECT i, j, i+j FROM generate_series(1, 5) AS gs1(i), generate_series(0, 1, 0.5
 +-----------+------------------------+------------------------+
 ==
 
+# Use generate_series: join alias
+SELECT *
+FROM (SELECT i FROM generate_series(1, 10) as GS(i)) AS R(r1),
+     (SELECT i FROM generate_series(1, 10) as GS(i)) AS S(s1)
+WHERE R.r1 = S.s1;
+--
++-----------+-----------+
+|r1         |s1         |
++-----------+-----------+
+|          1|          1|
+|          2|          2|
+|          3|          3|
+|          4|          4|
+|          5|          5|
+|          6|          6|
+|          7|          7|
+|          8|          8|
+|          9|          9|
+|         10|         10|
++-----------+-----------+
+==
+
 # Use generate_series: filter
 SELECT i, j, k
 FROM generate_series(1, 9) AS gs1(i),

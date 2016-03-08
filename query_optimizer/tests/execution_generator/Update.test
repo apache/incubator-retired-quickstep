@@ -14,10 +14,17 @@
 #   limitations under the License.
 
 # Both assignments need coercion.
-update test
-set float_col=2, double_col=float_col/2
-where int_col < -10;
-select float_col, float_col/2, double_col from test where int_col < -20 or int_col > 20
+UPDATE test
+SET float_col = 2,
+    double_col = float_col/2
+WHERE int_col < -10;
+
+SELECT float_col,
+       float_col/2,
+       double_col
+FROM test
+WHERE int_col < -20
+   OR int_col > 20;
 --
 +---------------+---------------+------------------------+
 |float_col      |(float_col/2)  |double_col              |

@@ -60,6 +60,7 @@
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
 #include "types/containers/Tuple.hpp"
+#include "utility/SortConfiguration.hpp"
 #include "utility/SortConfiguration.pb.h"
 
 #include "glog/logging.h"
@@ -278,10 +279,15 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
 
   void executeOperator(RelationalOperator *op) {
     WorkOrdersContainer container(kOpIndex + 1, 0);
-    op->getAllWorkOrders(&container, thread_client_id_, &bus_);
+    op->getAllWorkOrders(&container,
+                         db_.get(),
+                         query_context_.get(),
+                         storage_manager_.get(),
+                         thread_client_id_,
+                         &bus_);
     while (container.hasNormalWorkOrder(kOpIndex)) {
       std::unique_ptr<WorkOrder> order(container.getNormalWorkOrder(kOpIndex));
-      order->execute(query_context_.get(), db_.get(), storage_manager_.get());
+      order->execute();
     }
   }
 

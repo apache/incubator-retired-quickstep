@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
+#include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "query_execution/WorkerMessage.hpp"
@@ -35,12 +36,17 @@
 #include "utility/DAG.hpp"
 #include "utility/Macros.hpp"
 
+#include "gtest/gtest_prod.h"
+
 #include "tmb/message_bus.h"
 
 namespace quickstep {
 
-class QueryContext;
+class CatalogDatabase;
+class StorageManager;
 class WorkerDirectory;
+
+namespace serialization { class QueryContext; }
 
 /** \addtogroup QueryExecution
  *  @{
@@ -57,16 +63,23 @@ class Foreman : public Thread {
    * @brief Constructor.
    *
    * @param bus A pointer to the TMB.
-   * @param cpu_id The ID of the CPU to which the Foreman thread can be pinned.
+   * @param catalog_database The catalog database where this query is executed.
+   * @param storage_manager The StorageManager to use.
    * @param num_numa_nodes The number of NUMA nodes in the system.
+   * @param cpu_id The ID of the CPU to which the Foreman thread can be pinned.
    *
    * @note If cpu_id is not specified, Foreman thread can be possibly moved
    *       around on different CPUs by the OS.
   **/
-  explicit Foreman(MessageBus *bus, const int cpu_id = -1, const int num_numa_nodes = 1)
+  Foreman(MessageBus *bus,
+          CatalogDatabase *catalog_database,
+          StorageManager *storage_manager,
+          const int cpu_id = -1,
+          const int num_numa_nodes = 1)
       : bus_(bus),
+        catalog_database_(catalog_database),
+        storage_manager_(storage_manager),
         cpu_id_(cpu_id),
-        query_context_(nullptr),
         num_operators_finished_(0),
         max_msgs_per_worker_(1),
         num_numa_nodes_(num_numa_nodes) {
@@ -103,13 +116,13 @@ class Foreman : public Thread {
   }
 
   /**
-   * @brief Set the QueryContext for the query to be executed.
+   * @brief Reconstruct the QueryContext for the query to be executed.
    *
-   * @param query_context A pointer to the QueryContext.
+   * @param proto The serialized QueryContext.
    **/
-  // TODO(zuyu): Remove this API once the Shiftboss is introduced.
-  inline void setQueryContext(QueryContext *query_context) {
-    query_context_ = query_context;
+  inline void reconstructQueryContextFromProto(const serialization::QueryContext &proto) {
+    query_context_.reset(
+        new QueryContext(proto, catalog_database_, storage_manager_, foreman_client_id_, bus_));
   }
 
   /**
@@ -460,6 +473,8 @@ class Foreman : public Thread {
   void getRebuildWorkOrders(const dag_node_index index, WorkOrdersContainer *container);
 
   MessageBus *bus_;
+  CatalogDatabase *catalog_database_;
+  StorageManager *storage_manager_;
 
   client_id foreman_client_id_;
 
@@ -468,7 +483,7 @@ class Foreman : public Thread {
 
   DAG<RelationalOperator, bool> *query_dag_;
 
-  QueryContext *query_context_;
+  std::unique_ptr<QueryContext> query_context_;
 
   // Number of operators who've finished their execution.
   std::size_t num_operators_finished_;
@@ -510,6 +525,7 @@ class Foreman : public Thread {
   WorkerDirectory *workers_;
 
   friend class ForemanTest;
+  FRIEND_TEST(ForemanTest, TwoNodesDAGPartiallyFilledBlocksTest);
 
   DISALLOW_COPY_AND_ASSIGN(Foreman);
 };

@@ -24,6 +24,8 @@
 #include "relational_operators/RelationalOperator.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 #include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
@@ -31,6 +33,8 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class CatalogDatabase;
+class QueryContext;
+class StorageManager;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -52,8 +56,8 @@ class CreateTableOperator : public RelationalOperator {
    **/
   CreateTableOperator(CatalogRelation *relation,
                       CatalogDatabase *database)
-      : relation_(relation),
-        database_(database),
+      : relation_(DCHECK_NOTNULL(relation)),
+        database_(DCHECK_NOTNULL(database)),
         work_generated_(false) {}
 
   ~CreateTableOperator() override {}
@@ -62,6 +66,9 @@ class CreateTableOperator : public RelationalOperator {
    * @note no WorkOrder generated for this operator.
    **/
   bool getAllWorkOrders(WorkOrdersContainer *container,
+                        CatalogDatabase *catalog_database,
+                        QueryContext *query_context,
+                        StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 

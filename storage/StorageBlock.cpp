@@ -38,6 +38,7 @@
 #include "storage/IndexSubBlock.hpp"
 #include "storage/InsertDestinationInterface.hpp"
 #include "storage/PackedRowStoreTupleStorageSubBlock.hpp"
+#include "storage/SMAIndexSubBlock.hpp"
 #include "storage/SplitRowStoreTupleStorageSubBlock.hpp"
 #include "storage/StorageBlockBase.hpp"
 #include "storage/StorageBlockInfo.hpp"
@@ -879,6 +880,12 @@ IndexSubBlock* StorageBlock::CreateIndexSubBlock(
                                       new_block,
                                       sub_block_memory,
                                       sub_block_memory_size);
+    case IndexSubBlockDescription::SMA:
+      return new SMAIndexSubBlock(tuple_store,
+                                  description,
+                                  new_block,
+                                  sub_block_memory,
+                                  sub_block_memory_size);
     default:
       if (new_block) {
         FATAL_ERROR("A StorageBlockLayout provided an unknown IndexBlockType.");

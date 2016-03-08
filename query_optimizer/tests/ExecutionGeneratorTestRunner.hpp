@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -26,7 +26,6 @@
 
 #include "parser/SqlParserWrapper.hpp"
 #include "query_execution/Foreman.hpp"
-#include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/Worker.hpp"
 #include "query_execution/WorkerDirectory.hpp"
@@ -62,12 +61,10 @@ class ExecutionGeneratorTestRunner : public TextBasedTestRunner {
 
     bus_.Initialize();
 
-    foreman_.reset(new Foreman(&bus_));
-    worker_.reset(new Worker(0,
-                             query_context_,
-                             &bus_,
-                             test_database_loader_.catalog_database(),
-                             test_database_loader_.storage_manager()));
+    foreman_.reset(new Foreman(&bus_,
+                               test_database_loader_.catalog_database(),
+                               test_database_loader_.storage_manager()));
+    worker_.reset(new Worker(0, &bus_));
 
     std::vector<client_id> worker_client_ids;
     worker_client_ids.push_back(worker_->getBusClientID());
@@ -113,7 +110,6 @@ class ExecutionGeneratorTestRunner : public TextBasedTestRunner {
   MessageBusImpl bus_;
   std::unique_ptr<Foreman> foreman_;
   std::unique_ptr<Worker> worker_;
-  std::unique_ptr<QueryContext> query_context_;
 
   std::unique_ptr<WorkerDirectory> workers_;
 

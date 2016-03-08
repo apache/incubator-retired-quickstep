@@ -45,7 +45,7 @@ extern int quickstep_yydebug;
 # define YYTOKENTYPE
   enum yytokentype
   {
-    TOKEN_COMMAND_STRING = 258,
+    TOKEN_COMMAND = 258,
     TOKEN_NAME = 259,
     TOKEN_STRING_SINGLE_QUOTED = 260,
     TOKEN_STRING_DOUBLE_QUOTED = 261,
@@ -100,48 +100,47 @@ extern int quickstep_yydebug;
     TOKEN_FULL = 310,
     TOKEN_GROUP = 311,
     TOKEN_HAVING = 312,
-    TOKEN_HELP = 313,
-    TOKEN_INDEX = 314,
-    TOKEN_INNER = 315,
-    TOKEN_INSERT = 316,
-    TOKEN_INTEGER = 317,
-    TOKEN_INTERVAL = 318,
-    TOKEN_INTO = 319,
-    TOKEN_JOIN = 320,
-    TOKEN_KEY = 321,
-    TOKEN_LAST = 322,
-    TOKEN_LEFT = 323,
-    TOKEN_LIMIT = 324,
-    TOKEN_LONG = 325,
-    TOKEN_NULL = 326,
-    TOKEN_NULLS = 327,
-    TOKEN_OFF = 328,
-    TOKEN_ON = 329,
-    TOKEN_ORDER = 330,
-    TOKEN_OUTER = 331,
-    TOKEN_PRIMARY = 332,
-    TOKEN_QUIT = 333,
-    TOKEN_REAL = 334,
-    TOKEN_REFERENCES = 335,
-    TOKEN_RIGHT = 336,
-    TOKEN_ROW_DELIMITER = 337,
-    TOKEN_SELECT = 338,
-    TOKEN_SET = 339,
-    TOKEN_SMALLINT = 340,
-    TOKEN_TABLE = 341,
-    TOKEN_TIME = 342,
-    TOKEN_TIMESTAMP = 343,
-    TOKEN_TRUE = 344,
-    TOKEN_UNIQUE = 345,
-    TOKEN_UPDATE = 346,
-    TOKEN_USING = 347,
-    TOKEN_VALUES = 348,
-    TOKEN_VARCHAR = 349,
-    TOKEN_WHERE = 350,
-    TOKEN_WITH = 351,
-    TOKEN_YEARMONTH = 352,
-    TOKEN_EOF = 353,
-    TOKEN_LEX_ERROR = 354
+    TOKEN_INDEX = 313,
+    TOKEN_INNER = 314,
+    TOKEN_INSERT = 315,
+    TOKEN_INTEGER = 316,
+    TOKEN_INTERVAL = 317,
+    TOKEN_INTO = 318,
+    TOKEN_JOIN = 319,
+    TOKEN_KEY = 320,
+    TOKEN_LAST = 321,
+    TOKEN_LEFT = 322,
+    TOKEN_LIMIT = 323,
+    TOKEN_LONG = 324,
+    TOKEN_NULL = 325,
+    TOKEN_NULLS = 326,
+    TOKEN_OFF = 327,
+    TOKEN_ON = 328,
+    TOKEN_ORDER = 329,
+    TOKEN_OUTER = 330,
+    TOKEN_PRIMARY = 331,
+    TOKEN_QUIT = 332,
+    TOKEN_REAL = 333,
+    TOKEN_REFERENCES = 334,
+    TOKEN_RIGHT = 335,
+    TOKEN_ROW_DELIMITER = 336,
+    TOKEN_SELECT = 337,
+    TOKEN_SET = 338,
+    TOKEN_SMALLINT = 339,
+    TOKEN_TABLE = 340,
+    TOKEN_TIME = 341,
+    TOKEN_TIMESTAMP = 342,
+    TOKEN_TRUE = 343,
+    TOKEN_UNIQUE = 344,
+    TOKEN_UPDATE = 345,
+    TOKEN_USING = 346,
+    TOKEN_VALUES = 347,
+    TOKEN_VARCHAR = 348,
+    TOKEN_WHERE = 349,
+    TOKEN_WITH = 350,
+    TOKEN_YEARMONTH = 351,
+    TOKEN_EOF = 352,
+    TOKEN_LEX_ERROR = 353
   };
 #endif
 
@@ -150,7 +149,7 @@ extern int quickstep_yydebug;
 typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 110 "../SqlParser.ypp" /* yacc.c:1909  */
+#line 109 "../SqlParser.ypp" /* yacc.c:1909  */
 
   quickstep::ParseString *string_value_;
 
@@ -197,6 +196,7 @@ union YYSTYPE
   quickstep::PtrList<quickstep::ParseAssignment> *assignment_list_;
 
   quickstep::ParseCommand *command_;
+  quickstep::PtrVector<quickstep::ParseString> *command_argument_list_;
 
   quickstep::ParseStatement *statement_;
   quickstep::ParseStatementSelect *select_statement_;
