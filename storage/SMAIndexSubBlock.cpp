@@ -78,10 +78,10 @@ namespace sma_internal {
 /**
  * @return Selectivity of an equals predicate.
  */
-Selectivity getSelectivity_E(const TypedValue &literal,
-                             const TypedValue &min,
-                             const TypedValue &max,
-                             const UncheckedComparator *less_comparator) {
+Selectivity getSelectivityForEquals(const TypedValue &literal,
+                                    const TypedValue &min,
+                                    const TypedValue &max,
+                                    const UncheckedComparator *less_comparator) {
   if (less_comparator->compareTypedValues(literal, min) ||
       less_comparator->compareTypedValues(max, literal)) {
     return Selectivity::kNone;
@@ -92,11 +92,11 @@ Selectivity getSelectivity_E(const TypedValue &literal,
 /**
  * @return Selectivity of a less than predicate.
  */
-Selectivity getSelectivity_L(const TypedValue &literal,
-                             const TypedValue &min,
-                             const TypedValue &max,
-                             const UncheckedComparator *less_comparator,
-                             const UncheckedComparator *equals_comparator) {
+Selectivity getSelectivityForLess(const TypedValue &literal,
+                                  const TypedValue &min,
+                                  const TypedValue &max,
+                                  const UncheckedComparator *less_comparator,
+                                  const UncheckedComparator *equals_comparator) {
   if (less_comparator->compareTypedValues(max, literal)) {
     return Selectivity::kAll;
   } else if (less_comparator->compareTypedValues(literal, min) ||
@@ -109,11 +109,11 @@ Selectivity getSelectivity_L(const TypedValue &literal,
 /**
  * @return Selectivity of a less than equals predicate.
  */
-Selectivity getSelectivity_LE(const TypedValue &literal,
-                              const TypedValue &min,
-                              const TypedValue &max,
-                              const UncheckedComparator *less_comparator,
-                              const UncheckedComparator *equals_comparator) {
+Selectivity getSelectivityForLessOrEquals(const TypedValue &literal,
+                                          const TypedValue &min,
+                                          const TypedValue &max,
+                                          const UncheckedComparator *less_comparator,
+                                          const UncheckedComparator *equals_comparator) {
   if (less_comparator->compareTypedValues(max, literal) ||
       equals_comparator->compareTypedValues(max, literal)) {
     return Selectivity::kAll;
@@ -126,11 +126,11 @@ Selectivity getSelectivity_LE(const TypedValue &literal,
 /**
  * @return Selectivity of a greater than predicate.
  */
-Selectivity getSelectivity_G(const TypedValue &literal,
-                             const TypedValue &min,
-                             const TypedValue &max,
-                             const UncheckedComparator *less_comparator,
-                             const UncheckedComparator *equals_comparator) {
+Selectivity getSelectivityForGreater(const TypedValue &literal,
+                                     const TypedValue &min,
+                                     const TypedValue &max,
+                                     const UncheckedComparator *less_comparator,
+                                     const UncheckedComparator *equals_comparator) {
   if (less_comparator->compareTypedValues(literal, min)) {
     return Selectivity::kAll;
   } else if (less_comparator->compareTypedValues(max, literal) ||
@@ -143,11 +143,11 @@ Selectivity getSelectivity_G(const TypedValue &literal,
 /**
  * @return Selectivity of a greater than or equals predicate.
  */
-Selectivity getSelectivity_GE(const TypedValue &literal,
-                              const TypedValue &min,
-                              const TypedValue &max,
-                              const UncheckedComparator *less_comparator,
-                              const UncheckedComparator *equals_comparator) {
+Selectivity getSelectivityForGreaterOrEquals(const TypedValue &literal,
+                                             const TypedValue &min,
+                                             const TypedValue &max,
+                                             const UncheckedComparator *less_comparator,
+                                             const UncheckedComparator *equals_comparator) {
   if (less_comparator->compareTypedValues(literal, min) ||
       equals_comparator->compareTypedValues(literal, min)) {
     return Selectivity::kAll;
@@ -165,15 +165,15 @@ Selectivity getSelectivity(const TypedValue &literal,
                            const UncheckedComparator *equals_comparator) {
   switch (comparison) {
     case ComparisonID::kEqual:
-      return getSelectivity_E(literal, min, max, less_comparator);
+      return getSelectivityForEquals(literal, min, max, less_comparator);
     case ComparisonID::kLess:
-      return getSelectivity_L(literal, min, max, less_comparator, equals_comparator);
+      return getSelectivityForLess(literal, min, max, less_comparator, equals_comparator);
     case ComparisonID::kLessOrEqual:
-      return getSelectivity_LE(literal, min, max, less_comparator, equals_comparator);
+      return getSelectivityForLessOrEquals(literal, min, max, less_comparator, equals_comparator);
     case ComparisonID::kGreater:
-      return getSelectivity_G(literal, min, max, less_comparator, equals_comparator);
+      return getSelectivityForGreater(literal, min, max, less_comparator, equals_comparator);
     case ComparisonID::kGreaterOrEqual:
-      return getSelectivity_GE(literal, min, max, less_comparator, equals_comparator);
+      return getSelectivityForGreaterOrEquals(literal, min, max, less_comparator, equals_comparator);
     default:
       return Selectivity::kUnknown;
   }
@@ -219,7 +219,7 @@ TypeID getTypeForSum(TypeID type) {
  * @param type A type id.
  * @return True if the type can be summed.
  */
-bool canSum(TypeID type) {
+bool canApplySumToType(TypeID type) {
   return getTypeForSum(type) != kNullType;
 }
 
@@ -297,12 +297,12 @@ void initializeTypedValueForMinMax(SMAEntry *entry) {
 
 SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
                                    const IndexSubBlockDescription &description,
-                                   const bool new_block,
+                                   const bool is_new_block,
                                    void *sub_block_memory,
                                    const std::size_t sub_block_memory_size)
     : IndexSubBlock(tuple_store,
                     description,
-                    new_block,
+                    is_new_block,
                     sub_block_memory,
                     sub_block_memory_size),
       header_(nullptr),
@@ -310,10 +310,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
       total_attributes_(tuple_store.getRelation().size()),
       attribute_to_entry_(new int[tuple_store.getRelation().size()]),
       num_indexed_attributes_(0),
-      initialized_(false),
-      add_operations_(),
-      less_comparisons_(),
-      equal_comparisons_() {
+      initialized_(false) {
   CHECK(DescriptionIsValid(relation_, description_))
       << "Attempted to construct an SMAIndexSubBlock from an invalid description.";
 
@@ -331,7 +328,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
     attribute_to_entry_.get()[i] = -1;
   }
 
-  if (new_block) {
+  if (is_new_block) {
     header_->index_consistent = false;
   }
 
@@ -356,7 +353,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
     SMAEntry *entry = entries_ + indexed_attribute_num;
 
     // Initialize the operator map.
-    if (sma_internal::canSum(attribute_type.getTypeID())) {
+    if (sma_internal::canApplySumToType(attribute_type.getTypeID())) {
       TypeID attr_typeid = attribute_type.getTypeID();
       TypeID attr_sum_typeid = sma_internal::getTypeForSum(attr_typeid);
       if (add_operations_.elementIsNullAt(attr_typeid)) {
@@ -415,7 +412,7 @@ SMAIndexSubBlock::~SMAIndexSubBlock() {
 }
 
 void SMAIndexSubBlock::resetEntry(SMAEntry *entry,
-                                  attribute_id attr_id,
+                                  const attribute_id attr_id,
                                   const Type &attribute_type) {
   entry->attribute = attr_id;
   entry->type_id = attribute_type.getTypeID();
@@ -429,7 +426,7 @@ void SMAIndexSubBlock::resetEntry(SMAEntry *entry,
     entry->max_entry_ref.value.clear();
     entry->max_entry_ref.valid = false;
   }
-  if (sma_internal::canSum(entry->type_id)) {
+  if (sma_internal::canApplySumToType(entry->type_id)) {
     sma_internal::initializeTypedValueForSum(entry);
   }
 }
@@ -562,7 +559,7 @@ void SMAIndexSubBlock::addTuple(tuple_id tuple) {
       continue;
     }
 
-    if (sma_internal::canSum(entry->type_id)) {
+    if (sma_internal::canApplySumToType(entry->type_id)) {
       entry->sum_aggregate = add_operations_[entry->type_id].applyToTypedValues(tuple_value, entry->sum_aggregate);
     }
 

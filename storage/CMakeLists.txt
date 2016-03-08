@@ -635,34 +635,6 @@ target_link_libraries(quickstep_storage_PreloaderThread
                       quickstep_threading_Thread
                       quickstep_threading_ThreadUtil
                       quickstep_utility_Macros)
-target_link_libraries(quickstep_storage_SeparateChainingHashTable
-                      quickstep_storage_HashTable
-                      quickstep_storage_HashTableBase
-                      quickstep_storage_HashTableKeyManager
-                      quickstep_storage_StorageBlob
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_storage_StorageConstants
-                      quickstep_storage_StorageManager
-                      quickstep_threading_SpinSharedMutex
-                      quickstep_types_Type
-                      quickstep_types_TypedValue
-                      quickstep_utility_Alignment
-                      quickstep_utility_Macros
-                      quickstep_utility_PrimeNumber)
-target_link_libraries(quickstep_storage_SimpleScalarSeparateChainingHashTable
-                      glog
-                      quickstep_storage_HashTable
-                      quickstep_storage_HashTableBase
-                      quickstep_storage_StorageBlob
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_storage_StorageConstants
-                      quickstep_storage_StorageManager
-                      quickstep_threading_SpinSharedMutex
-                      quickstep_types_Type
-                      quickstep_types_TypedValue
-                      quickstep_utility_Alignment
-                      quickstep_utility_Macros
-                      quickstep_utility_PrimeNumber)
 target_link_libraries(quickstep_storage_SMAIndexSubBlock
                       glog
                       quickstep_catalog_CatalogAttribute
@@ -693,6 +665,34 @@ target_link_libraries(quickstep_storage_SMAIndexSubBlock
                       quickstep_types_operations_comparisons_ComparisonUtil
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector)
+target_link_libraries(quickstep_storage_SeparateChainingHashTable
+                      quickstep_storage_HashTable
+                      quickstep_storage_HashTableBase
+                      quickstep_storage_HashTableKeyManager
+                      quickstep_storage_StorageBlob
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageConstants
+                      quickstep_storage_StorageManager
+                      quickstep_threading_SpinSharedMutex
+                      quickstep_types_Type
+                      quickstep_types_TypedValue
+                      quickstep_utility_Alignment
+                      quickstep_utility_Macros
+                      quickstep_utility_PrimeNumber)
+target_link_libraries(quickstep_storage_SimpleScalarSeparateChainingHashTable
+                      glog
+                      quickstep_storage_HashTable
+                      quickstep_storage_HashTableBase
+                      quickstep_storage_StorageBlob
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageConstants
+                      quickstep_storage_StorageManager
+                      quickstep_threading_SpinSharedMutex
+                      quickstep_types_Type
+                      quickstep_types_TypedValue
+                      quickstep_utility_Alignment
+                      quickstep_utility_Macros
+                      quickstep_utility_PrimeNumber)
 target_link_libraries(quickstep_storage_SplitRowStoreTupleStorageSubBlock
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_expressions_predicate_PredicateCost
@@ -880,9 +880,9 @@ target_link_libraries(quickstep_storage
                       quickstep_storage_PackedRowStoreTupleStorageSubBlock
                       quickstep_storage_PackedRowStoreValueAccessor
                       quickstep_storage_PreloaderThread
+                      quickstep_storage_SMAIndexSubBlock
                       quickstep_storage_SeparateChainingHashTable
                       quickstep_storage_SimpleScalarSeparateChainingHashTable
-                      quickstep_storage_SMAIndexSubBlock
                       quickstep_storage_SplitRowStoreTupleStorageSubBlock
                       quickstep_storage_SplitRowStoreValueAccessor
                       quickstep_storage_StorageBlob
@@ -1208,27 +1208,6 @@ target_link_libraries(PackedRowStoreTupleStorageSubBlock_unittest
                       ${LIBS})
 add_test(PackedRowStoreTupleStorageSubBlock_unittest PackedRowStoreTupleStorageSubBlock_unittest)
 
-add_executable(SeparateChainingHashTable_unittest
-               "${CMAKE_CURRENT_SOURCE_DIR}/tests/SeparateChainingHashTable_unittest.cpp")
-target_link_libraries(SeparateChainingHashTable_unittest
-                      gtest
-                      gtest_main
-                      quickstep_storage_SeparateChainingHashTable
-                      quickstep_storage_tests_HashTable_unittest_common
-                      ${LIBS})
-add_test(SeparateChainingHashTable_unittest SeparateChainingHashTable_unittest)
-
-add_executable(SimpleScalarSeparateChainingHashTable_unittest
-               "${CMAKE_CURRENT_SOURCE_DIR}/tests/SimpleScalarSeparateChainingHashTable_unittest.cpp")
-target_link_libraries(SimpleScalarSeparateChainingHashTable_unittest
-                      gtest
-                      gtest_main
-                      quickstep_storage_SimpleScalarSeparateChainingHashTable
-                      quickstep_storage_tests_HashTable_unittest_common
-                      ${LIBS})
-add_test(SimpleScalarSeparateChainingHashTable_unittest
-         SimpleScalarSeparateChainingHashTable_unittest)
-
 add_executable(SMAIndexSubBlock_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/SMAIndexSubBlock_unittest.cpp")
 target_link_libraries(SMAIndexSubBlock_unittest
                       gtest
@@ -1266,6 +1245,27 @@ target_link_libraries(SMAIndexSubBlock_unittest
                       quickstep_utility_ScopedBuffer
                       ${LIBS})
 add_test(SMAIndexSubBlock_unittest SMAIndexSubBlock_unittest)
+
+add_executable(SeparateChainingHashTable_unittest
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/SeparateChainingHashTable_unittest.cpp")
+target_link_libraries(SeparateChainingHashTable_unittest
+                      gtest
+                      gtest_main
+                      quickstep_storage_SeparateChainingHashTable
+                      quickstep_storage_tests_HashTable_unittest_common
+                      ${LIBS})
+add_test(SeparateChainingHashTable_unittest SeparateChainingHashTable_unittest)
+
+add_executable(SimpleScalarSeparateChainingHashTable_unittest
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/SimpleScalarSeparateChainingHashTable_unittest.cpp")
+target_link_libraries(SimpleScalarSeparateChainingHashTable_unittest
+                      gtest
+                      gtest_main
+                      quickstep_storage_SimpleScalarSeparateChainingHashTable
+                      quickstep_storage_tests_HashTable_unittest_common
+                      ${LIBS})
+add_test(SimpleScalarSeparateChainingHashTable_unittest
+         SimpleScalarSeparateChainingHashTable_unittest)
 
 add_executable(SplitRowStoreTupleStorageSubBlock_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/SplitRowStoreTupleStorageSubBlock_unittest.cpp")

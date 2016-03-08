@@ -375,7 +375,9 @@ class SMAIndexSubBlock : public IndexSubBlock {
 
   // Resets a single entry to a zero and invalid state.
   // This should be called before rebuilding, or while initializing.
-  void resetEntry(sma_internal::SMAEntry *entry, attribute_id attribute, const Type &attribute_type);
+  void resetEntry(sma_internal::SMAEntry *entry,
+                  const attribute_id attribute,
+                  const Type &attribute_type);
 
   // Sets all entries to a zero'd and invalid state.
   // This is called prior to a rebuild.
