@@ -85,8 +85,8 @@ UncheckedComparator* PatternMatchingComparison::makeUncheckedComparatorForTypes(
 
   bool is_like_pattern;
   bool is_negation;
-
-  switch (getComparisonID()) {
+  ComparisonID sub_type = getComparisonID();
+  switch (sub_type) {
     case ComparisonID::kLike:
       is_like_pattern = true;
       is_negation = false;
@@ -104,7 +104,7 @@ UncheckedComparator* PatternMatchingComparison::makeUncheckedComparatorForTypes(
       is_negation = true;
     default:
       LOG(FATAL) << "Unhandled ComparisonID: "
-                 << kComparisonNames[static_cast<typename std::underlying_type<ComparisonID>::type>(getComparisonID())]
+                 << kComparisonNames[static_cast<typename std::underlying_type<ComparisonID>::type>(sub_type)]
                  << " in PatternMatchinComparison::makeUncheckedComparatorForTypes()";
   }
 
@@ -114,7 +114,7 @@ UncheckedComparator* PatternMatchingComparison::makeUncheckedComparatorForTypes(
   size_t left_max_length = left.maximumByteLength() - (left_null_terminated ? 1 : 0);
   size_t right_max_length = right.maximumByteLength() - (right_null_terminated ? 1 : 0);
 
-  return CreateBoolSpecializedInstance<PatternMatchingUncheckedComparator, UncheckedComparator>(
+  return CreateBoolInstantiatedInstance<PatternMatchingUncheckedComparator, UncheckedComparator>(
       std::forward_as_tuple(left_max_length, right_max_length),
       is_like_pattern, is_negation,
       left.isNullable(), right.isNullable());
