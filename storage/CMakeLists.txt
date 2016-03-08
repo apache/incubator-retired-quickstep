@@ -189,11 +189,11 @@ add_library(quickstep_storage_PackedRowStoreValueAccessor
             ../empty_src.cpp
             PackedRowStoreValueAccessor.hpp)
 add_library(quickstep_storage_PreloaderThread PreloaderThread.cpp PreloaderThread.hpp)
+add_library(quickstep_storage_SMAIndexSubBlock SMAIndexSubBlock.cpp SMAIndexSubBlock.hpp)
 add_library(quickstep_storage_SeparateChainingHashTable ../empty_src.cpp SeparateChainingHashTable.hpp)
 add_library(quickstep_storage_SimpleScalarSeparateChainingHashTable
             SimpleScalarSeparateChainingHashTable.cpp
             SimpleScalarSeparateChainingHashTable.hpp)
-add_library(quickstep_storage_SMAIndexSubBlock SMAIndexSubBlock.cpp SMAIndexSubBlock.hpp)
 add_library(quickstep_storage_SplitRowStoreTupleStorageSubBlock
             SplitRowStoreTupleStorageSubBlock.cpp
             SplitRowStoreTupleStorageSubBlock.hpp)
