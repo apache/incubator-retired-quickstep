@@ -746,6 +746,58 @@ class HashTable : public HashTableBase<resizable,
                                            FunctorT *functor) const;
 
   /**
+   * @brief Apply the functor to each key with a match in the hash table.
+   *
+   * @param accessor A ValueAccessor which will be used to access keys.
+   *        beginIteration() should be called on accessor before calling this
+   *        method.
+   * @param key_attr_id The attribute ID of the keys to be read from accessor.
+   * @param check_for_null_keys If true, each key will be checked to see if it
+   *        is null before looking it up (null keys are skipped). This must be
+   *        set to true if some of the keys that will be read from accessor may
+   *        be null.
+   * @param functor A pointer to a functor which should provide an operator that
+   *        takes 1 argument: const ValueAccessor&. The operator will be called
+   *        only once for a key from accessor if there is a match.
+   */
+  template <typename FunctorT>
+  void runOverKeysFromValueAccessorIfMatchFound(ValueAccessor *accessor,
+                                                const attribute_id key_attr_id,
+                                                const bool check_for_null_keys,
+                                                FunctorT *functor) const {
+    return runOverKeysFromValueAccessor<true>(accessor,
+                                              key_attr_id,
+                                              check_for_null_keys,
+                                              functor);
+  }
+
+  /**
+   * @brief Apply the functor to each key with a match in the hash table.
+   *
+   * @param accessor A ValueAccessor which will be used to access keys.
+   *        beginIteration() should be called on accessor before calling this
+   *        method.
+   * @param key_attr_id The attribute ID of the keys to be read from accessor.
+   * @param check_for_null_keys If true, each key will be checked to see if it
+   *        is null before looking it up (null keys are skipped). This must be
+   *        set to true if some of the keys that will be read from accessor may
+   *        be null.
+   * @param functor A pointer to a functor which should provide an operator that
+   *        takes 1 argument: const ValueAccessor&. The operator will be called
+   *        only once for a key from accessor if there is a match.
+   */
+  template <typename FunctorT>
+  void runOverKeysFromValueAccessorIfMatchFoundCompositeKey(ValueAccessor *accessor,
+                                                            const std::vector<attribute_id> &key_attr_ids,
+                                                            const bool check_for_null_keys,
+                                                            FunctorT *functor) const {
+    return runOverKeysFromValueAccessorCompositeKey<true>(accessor,
+                                                          key_attr_ids,
+                                                          check_for_null_keys,
+                                                          functor);
+  }
+
+  /**
    * @brief Apply a functor to each key, value pair in this hash table.
    *
    * @warning This method assumes that no concurrent calls to put(),
@@ -1671,6 +1723,7 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
     }
   });
 }
+
 
 template <typename ValueT,
           bool resizable,

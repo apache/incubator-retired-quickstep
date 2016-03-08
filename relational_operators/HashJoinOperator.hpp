@@ -340,7 +340,7 @@ class HashSemiJoinWorkOrder : public WorkOrder {
   void execute() override;
 
  private:
-  void executeWithoutResidualPredicate() {}
+  void executeWithoutResidualPredicate();
 
   void executeWithResidualPredicate() {}
 
