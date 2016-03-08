@@ -21,16 +21,12 @@
 #include <cstddef>
 #include <cstring>
 #include <functional>
-#include <map>
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "types/TypedValue.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
 #include "types/port/strnlen.hpp"
 #include "utility/Macros.hpp"
-
-#include "re2/stringpiece.h"
-#include "re2/re2.h"
 
 #include "glog/logging.h"
 
