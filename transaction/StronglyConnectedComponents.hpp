@@ -59,7 +59,7 @@ class StronglyConnectedComponents {
    * @param node_id Id of the node in the graph.
    * @return Component id of the node.
    **/
-  std::uint64_t getComponentId(DirectedGraph::NodeId node_id) const;
+  std::uint64_t getComponentId(DirectedGraph::node_id node_id) const;
 
   /**
    * @brief Getter for total number of strongly connected components.
@@ -74,11 +74,11 @@ class StronglyConnectedComponents {
    *
    * @return Mapping of component ids to list of nodes.
    **/
-  std::unordered_map<std::uint64_t, std::vector<DirectedGraph::NodeId>> getComponentMapping() const;
+  std::unordered_map<std::uint64_t, std::vector<DirectedGraph::node_id>> getComponentMapping() const;
 
  private:
   // Applies DFS to the node whic has id v.
-  void depthFirstSearch(DirectedGraph::NodeId v);
+  void depthFirstSearch(DirectedGraph::node_id v);
 
   // Const reference to the graph.
   const DirectedGraph &directed_graph_;
@@ -94,7 +94,7 @@ class StronglyConnectedComponents {
   std::vector<std::uint64_t> low_ids_;
 
   // Keeps track of the nodes in the current traversal of the graph.
-  std::stack<DirectedGraph::NodeId> stack_;
+  std::stack<DirectedGraph::node_id> stack_;
 
   // Keeps track of the current index number of depth first search traversal.
   std::uint64_t preorder_counter_;

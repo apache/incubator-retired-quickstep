@@ -36,16 +36,16 @@ TEST(DirectedGraphTest, AddNode) {
 
   EXPECT_EQ(0u, wait_for_graph.count());
 
-  wait_for_graph.addNode(tid3);
+  wait_for_graph.addNodeUnchecked(tid3);
 
   EXPECT_EQ(1u, wait_for_graph.count());
 
-  wait_for_graph.addNode(tid4);
+  wait_for_graph.addNodeUnchecked(tid4);
 
   EXPECT_EQ(2u, wait_for_graph.count());
 
-  wait_for_graph.addNode(tid5);
-  wait_for_graph.addNode(tid6);
+  wait_for_graph.addNodeUnchecked(tid5);
+  wait_for_graph.addNodeUnchecked(tid6);
 
   EXPECT_EQ(4u, wait_for_graph.count());
 }
@@ -57,11 +57,11 @@ TEST(DirectedGraphTest, AddEdge) {
   TransactionId *tid5 = new TransactionId(5);
   TransactionId *tid6 = new TransactionId(6);
 
-  using NID = DirectedGraph::NodeId;
-  NID nid3 = wait_for_graph.addNode(tid3);
-  NID nid6 = wait_for_graph.addNode(tid6);
-  NID nid4 = wait_for_graph.addNode(tid4);
-  NID nid5 = wait_for_graph.addNode(tid5);
+  using NID = DirectedGraph::node_id;
+  NID nid3 = wait_for_graph.addNodeUnchecked(tid3);
+  NID nid6 = wait_for_graph.addNodeUnchecked(tid6);
+  NID nid4 = wait_for_graph.addNodeUnchecked(tid4);
+  NID nid5 = wait_for_graph.addNodeUnchecked(tid5);
 
   wait_for_graph.addEdge(nid3, nid5);
   wait_for_graph.addEdge(nid6, nid4);
@@ -85,11 +85,11 @@ TEST(DirectedGraphTest, GetAdjacentNodes) {
   TransactionId *tid5 = new TransactionId(5);
   TransactionId *tid6 = new TransactionId(6);
 
-  using NID = DirectedGraph::NodeId;
-  NID nid3 = wait_for_graph.addNode(tid3);
-  NID nid6 = wait_for_graph.addNode(tid6);
-  NID nid4 = wait_for_graph.addNode(tid4);
-  NID nid5 = wait_for_graph.addNode(tid5);
+  using NID = DirectedGraph::node_id;
+  NID nid3 = wait_for_graph.addNodeUnchecked(tid3);
+  NID nid6 = wait_for_graph.addNodeUnchecked(tid6);
+  NID nid4 = wait_for_graph.addNodeUnchecked(tid4);
+  NID nid5 = wait_for_graph.addNodeUnchecked(tid5);
 
   std::vector<NID> result1 = wait_for_graph.getAdjacentNodes(nid3);
   EXPECT_EQ(0u, result1.size());

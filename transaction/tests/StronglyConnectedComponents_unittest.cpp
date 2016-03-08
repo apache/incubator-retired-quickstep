@@ -30,12 +30,12 @@ namespace transaction {
 
 class StronglyConnectedComponentsTestWithOneNode : public testing::Test {
  protected:
-  using NID = DirectedGraph::NodeId;
+  using NID = DirectedGraph::node_id;
 
   StronglyConnectedComponentsTestWithOneNode() {
     wait_for_graph = std::make_unique<DirectedGraph>();
     tid1 = new TransactionId(1);
-    nid1 = wait_for_graph->addNode(tid1);
+    nid1 = wait_for_graph->addNodeUnchecked(tid1);
 
     scc = std::make_unique<StronglyConnectedComponents>(*wait_for_graph);
     scc->findStronglyConnectedComponents();
@@ -53,15 +53,15 @@ class StronglyConnectedComponentsTestWithOneNode : public testing::Test {
 
 class StronglyConnectedComponentsTestWithTwoNodesCycle : public testing::Test {
  protected:
-  using NID = DirectedGraph::NodeId;
+  using NID = DirectedGraph::node_id;
 
   StronglyConnectedComponentsTestWithTwoNodesCycle() {
     wait_for_graph = std::make_unique<DirectedGraph>();
     tid1 = new TransactionId(1);
     tid2 = new TransactionId(2);
 
-    nid1 = wait_for_graph->addNode(tid1);
-    nid2 = wait_for_graph->addNode(tid2);
+    nid1 = wait_for_graph->addNodeUnchecked(tid1);
+    nid2 = wait_for_graph->addNodeUnchecked(tid2);
 
     wait_for_graph->addEdge(nid1, nid2);
     wait_for_graph->addEdge(nid2, nid1);
@@ -84,7 +84,7 @@ class StronglyConnectedComponentsTestWithTwoNodesCycle : public testing::Test {
 
 class StronglyConnectedComponentsTest : public testing::Test {
  protected:
-  using NID = DirectedGraph::NodeId;
+  using NID = DirectedGraph::node_id;
 
   StronglyConnectedComponentsTest() {
     // Creates a graph with predefined structure.
@@ -102,18 +102,18 @@ class StronglyConnectedComponentsTest : public testing::Test {
     tid11 = new TransactionId(11);
     tid12 = new TransactionId(12);
 
-    nid1 = wait_for_graph->addNode(tid1);
-    nid2 = wait_for_graph->addNode(tid2);
-    nid3 = wait_for_graph->addNode(tid3);
-    nid4 = wait_for_graph->addNode(tid4);
-    nid5 = wait_for_graph->addNode(tid5);
-    nid6 = wait_for_graph->addNode(tid6);
-    nid7 = wait_for_graph->addNode(tid7);
-    nid8 = wait_for_graph->addNode(tid8);
-    nid9 = wait_for_graph->addNode(tid9);
-    nid10 = wait_for_graph->addNode(tid10);
-    nid11 = wait_for_graph->addNode(tid11);
-    nid12 = wait_for_graph->addNode(tid12);
+    nid1 = wait_for_graph->addNodeUnchecked(tid1);
+    nid2 = wait_for_graph->addNodeUnchecked(tid2);
+    nid3 = wait_for_graph->addNodeUnchecked(tid3);
+    nid4 = wait_for_graph->addNodeUnchecked(tid4);
+    nid5 = wait_for_graph->addNodeUnchecked(tid5);
+    nid6 = wait_for_graph->addNodeUnchecked(tid6);
+    nid7 = wait_for_graph->addNodeUnchecked(tid7);
+    nid8 = wait_for_graph->addNodeUnchecked(tid8);
+    nid9 = wait_for_graph->addNodeUnchecked(tid9);
+    nid10 = wait_for_graph->addNodeUnchecked(tid10);
+    nid11 = wait_for_graph->addNodeUnchecked(tid11);
+    nid12 = wait_for_graph->addNodeUnchecked(tid12);
 
     wait_for_graph->addEdge(nid1, nid2);
 

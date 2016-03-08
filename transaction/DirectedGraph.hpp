@@ -28,6 +28,8 @@
 #include "transaction/Transaction.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 namespace quickstep {
 
 namespace transaction {
@@ -75,11 +77,11 @@ class DirectedGraph {
    * @return Id of the newly created node.
    **/
   inline node_id addNodeCheckExists(TransactionId *data) {
-    for (const std::vector<DirectedGraphNode>::const_iter 
-	   it = nodes_.begin(), end = nodes_.end();
+    for (std::vector<DirectedGraphNode>::const_iterator 
+	   it = nodes_.cbegin(), end = nodes_.cend();
 	 it != end;
 	 ++it) {
-      CHECK(*data != *(it->data_));
+      CHECK(*data != it->getData());
     }
     nodes_.emplace_back(data);
     return nodes_.size() - 1;
@@ -93,7 +95,7 @@ class DirectedGraph {
    * @param fromNode The node that edge is orginated.
    * @param toNode The node that edge is ended.
    */
-  inline void addEdge(NodeId from_node, NodeId to_node) {
+  inline void addEdge(node_id from_node, node_id to_node) {
     nodes_[from_node].addOutgoingEdge(to_node);
   }
 
@@ -106,7 +108,7 @@ class DirectedGraph {
    * @param toNode Id of the node that edge is ended.
    * @return True if there is an edge, false otherwise.
    */
-  inline bool hasEdge(NodeId from_node, NodeId to_node) const {
+  inline bool hasEdge(node_id from_node, node_id to_node) const {
     return nodes_[from_node].hasOutgoingEdge(to_node);
   }
 
@@ -117,7 +119,7 @@ class DirectedGraph {
    * @param node Id of the node that the data is got from.
    * @return Id of the transaction that this node contains.
    */
-  inline TransactionId getDataFromNode(NodeId node) const {
+  inline TransactionId getDataFromNode(node_id node) const {
     return nodes_[node].getData();
   }
 
@@ -136,7 +138,7 @@ class DirectedGraph {
    * @param id Id of the corresponding node.
    * @return Vector of node ids that id has edges to.
    */
-  inline std::vector<NodeId> getAdjacentNodes(NodeId id) const {
+  inline std::vector<node_id> getAdjacentNodes(node_id id) const {
     return nodes_[id].getOutgoingEdges();
   }
 
@@ -147,16 +149,16 @@ class DirectedGraph {
     explicit DirectedGraphNode(TransactionId *data)
       : data_(data) {}
 
-    inline void addOutgoingEdge(NodeId to_node) {
+    inline void addOutgoingEdge(node_id to_node) {
       outgoing_edges_.insert(to_node);
     }
 
-    inline bool hasOutgoingEdge(NodeId to_node) const {
+    inline bool hasOutgoingEdge(node_id to_node) const {
       return outgoing_edges_.count(to_node) == 1;
     }
 
-    inline std::vector<NodeId> getOutgoingEdges() const {
-      std::vector<NodeId> result;
+    inline std::vector<node_id> getOutgoingEdges() const {
+      std::vector<node_id> result;
       std::copy(outgoing_edges_.begin(), outgoing_edges_.end(),
                 std::back_inserter(result));
       return result;
@@ -171,7 +173,7 @@ class DirectedGraph {
     std::unique_ptr<TransactionId> data_;
 
     // Endpoint nodes of outgoing edges originated from this node.
-    std::unordered_set<NodeId> outgoing_edges_;
+    std::unordered_set<node_id> outgoing_edges_;
   };
 
   // Buffer of nodes that are created. NodeId is the index of that
