@@ -13,8 +13,8 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-delete from test where int_col+float_col>0;
-select int_col+float_col from test
+DELETE FROM test WHERE int_col+float_col > 0;
+SELECT int_col+float_col FROM test;
 --
 +-------------------+
 |(int_col+float_col)|
