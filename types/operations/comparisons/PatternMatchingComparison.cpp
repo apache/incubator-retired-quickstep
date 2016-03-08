@@ -18,7 +18,9 @@
 #include "types/operations/comparisons/PatternMatchingComparison.hpp"
 
 #include <memory>
-#include <utility>
+#include <stddef.h>
+#include <tuple>
+#include <type_traits>
 
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
@@ -32,6 +34,7 @@
 namespace quickstep {
 
 const PatternMatchingComparison& PatternMatchingComparison::Instance(ComparisonID sub_type) {
+  // Create a static instance for each sub-type of pattern matching comparison.
   switch (sub_type) {
   case ComparisonID::kLike: {
     static PatternMatchingComparison instance(ComparisonID::kLike);
@@ -58,6 +61,7 @@ const PatternMatchingComparison& PatternMatchingComparison::Instance(ComparisonI
 
 bool PatternMatchingComparison::canCompareTypes(const Type &left,
                                                 const Type &right) const {
+  // Pattern matching comparison can only apply to CHAR or VARCHAR types.
   if ((left.getTypeID() == TypeID::kChar || left.getTypeID() == TypeID::kVarChar)
       && (right.getTypeID() == TypeID::kChar || right.getTypeID() == TypeID::kVarChar)) {
     return true;
@@ -82,6 +86,13 @@ bool PatternMatchingComparison::compareTypedValuesChecked(const TypedValue &left
 UncheckedComparator* PatternMatchingComparison::makeUncheckedComparatorForTypes(const Type &left,
                                                                                 const Type &right) const {
   DCHECK(canCompareTypes(left, right));
+
+  // Configure parameters for the pattern matching comparator.
+  bool left_null_terminated = (left.getTypeID() == TypeID::kVarChar);
+  bool right_null_terminated = (right.getTypeID() == TypeID::kVarChar);
+
+  size_t left_max_length = left.maximumByteLength() - (left_null_terminated ? 1 : 0);
+  size_t right_max_length = right.maximumByteLength() - (right_null_terminated ? 1 : 0);
 
   bool is_like_pattern;
   bool is_negation;
@@ -108,12 +119,6 @@ UncheckedComparator* PatternMatchingComparison::makeUncheckedComparatorForTypes(
                  << kComparisonNames[static_cast<typename std::underlying_type<ComparisonID>::type>(sub_type)]
                  << " in PatternMatchinComparison::makeUncheckedComparatorForTypes()";
   }
-
-  bool left_null_terminated = (left.getTypeID() == TypeID::kVarChar);
-  bool right_null_terminated = (right.getTypeID() == TypeID::kVarChar);
-
-  size_t left_max_length = left.maximumByteLength() - (left_null_terminated ? 1 : 0);
-  size_t right_max_length = right.maximumByteLength() - (right_null_terminated ? 1 : 0);
 
   return CreateBoolInstantiatedInstance<PatternMatchingUncheckedComparator, UncheckedComparator>(
       std::forward_as_tuple(left_max_length, right_max_length),

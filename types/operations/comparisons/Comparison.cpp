@@ -17,16 +17,14 @@
 
 #include "types/operations/comparisons/Comparison.hpp"
 
-#include "types/operations/comparisons/Comparison-inl.hpp"
-#include "types/operations/Operation.pb.h"
 #include "types/TypedValue.hpp"
+#include "types/operations/Operation.pb.h"
 
-#include "glog/logging.h"
+#include "types/operations/comparisons/Comparison-inl.hpp"
 
-using std::strcmp;
+#include "utility/Macros.hpp"
 
 namespace quickstep {
-
 
 TupleIdSequence* UncheckedComparator::compareColumnVectors(
     const ColumnVector &left,
@@ -137,7 +135,6 @@ TypedValue UncheckedComparator::accumulateColumnVector(
               "UncheckedComparator::accumulateColumnVector()");
   return accumulateColumnVectorDefaultImpl<true>(current, column_vector);
 }
-
 
 serialization::Comparison Comparison::getProto() const {
   serialization::Comparison proto;

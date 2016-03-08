@@ -21,9 +21,10 @@
 #include <type_traits>
 
 #include "catalog/CatalogTypedefs.hpp"
-#include "types/operations/comparisons/ComparisonID.hpp"
+#include "types/TypedValue.hpp"
 #include "types/operations/Operation.hpp"
 #include "types/operations/Operation.pb.h"
+#include "types/operations/comparisons/ComparisonID.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -31,7 +32,6 @@ namespace quickstep {
 class ColumnVector;
 class TupleIdSequence;
 class Type;
-class TypedValue;
 class ValueAccessor;
 
 /** \addtogroup Types

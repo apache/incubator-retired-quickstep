@@ -21,7 +21,6 @@
 #include "types/operations/comparisons/Comparison.hpp"
 
 #include <cstddef>
-#include <cstring>
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "storage/TupleIdSequence.hpp"
@@ -31,9 +30,11 @@
 #include "storage/ValueAccessorUtil.hpp"
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
+#include "types/TypedValue.hpp"
 #include "types/containers/ColumnVector.hpp"
 #include "types/containers/ColumnVectorUtil.hpp"
-#include "utility/Macros.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 
@@ -139,8 +140,8 @@ TupleIdSequence* UncheckedComparator::compareColumnVectorAndStaticValueDefaultIm
     DCHECK((existence_bitmap == nullptr)
            || (existence_bitmap->numTuples() == column_vector.size()));
     DCHECK((filter == nullptr)
-            || ((existence_bitmap == nullptr) ? (filter->length() == column_vector.size())
-                                              : (filter->length() == existence_bitmap->length())));
+           || ((existence_bitmap == nullptr) ? (filter->length() == column_vector.size())
+                                             : (filter->length() == existence_bitmap->length())));
     TupleIdSequence *result = new TupleIdSequence(
         (existence_bitmap == nullptr) ? column_vector.size()
                                       : existence_bitmap->length());
@@ -223,8 +224,8 @@ TupleIdSequence* UncheckedComparator::compareStaticValueAndColumnVectorDefaultIm
     DCHECK((existence_bitmap == nullptr)
            || (existence_bitmap->numTuples() == column_vector.size()));
     DCHECK((filter == nullptr)
-            || ((existence_bitmap == nullptr) ? (filter->length() == column_vector.size())
-                                              : (filter->length() == existence_bitmap->length())));
+           || ((existence_bitmap == nullptr) ? (filter->length() == column_vector.size())
+                                             : (filter->length() == existence_bitmap->length())));
     TupleIdSequence *result = new TupleIdSequence(
         (existence_bitmap == nullptr) ? column_vector.size()
                                       : existence_bitmap->length());
@@ -539,8 +540,8 @@ TupleIdSequence* UncheckedComparator::compareValueAccessorAndColumnVectorDefault
       DCHECK((existence_bitmap == nullptr)
              || (existence_bitmap->numTuples() == column_vector.size()));
       DCHECK((filter == nullptr)
-         || ((existence_bitmap == nullptr) ? (filter->length() == column_vector.size())
-                                           : (filter->length() == existence_bitmap->length())));
+             || ((existence_bitmap == nullptr) ? (filter->length() == column_vector.size())
+                                               : (filter->length() == existence_bitmap->length())));
       TupleIdSequence *result = new TupleIdSequence(
           (existence_bitmap == nullptr) ? column_vector.size()
                                         : existence_bitmap->length());

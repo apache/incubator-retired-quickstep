@@ -26,7 +26,6 @@ namespace quickstep {
 
 class Type;
 class TypedValue;
-class UncheckedComparator;
 
 /** \addtogroup Types
  *  @{

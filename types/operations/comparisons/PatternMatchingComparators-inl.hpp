@@ -34,7 +34,6 @@
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVector.hpp"
 #include "types/containers/ColumnVectorUtil.hpp"
-#include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/Comparison-inl.hpp"
 
 #include "glog/logging.h"
@@ -50,9 +49,11 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
         const ColumnVector &right,
         const TupleIdSequence *filter,
         const TupleIdSequence *existence_bitmap) const {
+  // Use default implementation.
   return compareColumnVectorsDefaultImpl<left_nullable, right_nullable>(
       left, right, filter, existence_bitmap);
 }
+
 
 template <bool is_like_pattern, bool is_negation,
           bool left_nullable, bool right_nullable>
@@ -63,6 +64,9 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
         const TypedValue &static_value,
         const TupleIdSequence *filter,
         const TupleIdSequence *existence_bitmap) const {
+  // Specialized implementation for matching a ColumnVector of strings to a
+  // single pattern. In this situation, the pattern will be compiled only once
+  // in advance and then matched by each of the string in the ColumnVector.
   return InvokeOnColumnVector(
       column_vector,
       [&](const auto &column_vector) -> TupleIdSequence* {  // NOLINT(build/c++11)
@@ -72,10 +76,10 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
     static constexpr bool short_circuit = false;
 #endif
     DCHECK((existence_bitmap == nullptr)
-            || (existence_bitmap->numTuples() == column_vector.size()));
+           || (existence_bitmap->numTuples() == column_vector.size()));
     DCHECK((filter == nullptr)
-            || ((existence_bitmap == nullptr) ? (filter->length() == column_vector.size())
-                                              : (filter->length() == existence_bitmap->length())));
+           || ((existence_bitmap == nullptr) ? (filter->length() == column_vector.size())
+                                             : (filter->length() == existence_bitmap->length())));
     TupleIdSequence *result = new TupleIdSequence(
         (existence_bitmap == nullptr) ? column_vector.size()
                                       : existence_bitmap->length());
@@ -168,6 +172,7 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
         const ColumnVector &right,
         const TupleIdSequence *filter,
         const TupleIdSequence *existence_bitmap) const {
+  // Use default implementation.
   return compareStaticValueAndColumnVectorDefaultImpl<left_nullable, right_nullable>(
       left, right, filter, existence_bitmap);
 }
@@ -182,6 +187,7 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
         const attribute_id left_id,
         const attribute_id right_id,
         const TupleIdSequence *filter) const {
+  // Use default implementation.
   return compareSingleValueAccessorDefaultImpl<left_nullable, right_nullable>(
       accessor, left_id, right_id, filter);
 }
@@ -195,6 +201,9 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
         const attribute_id value_accessor_attr_id,
         const TypedValue &static_value,
         const TupleIdSequence *filter) const {
+  // Specialized implementation for matching a ValueAccessor of strings to a
+  // single pattern. In this situation, the pattern will be compiled only once
+  // in advance and then matched by each of the string in the ValueAccessor.
   return InvokeOnValueAccessorMaybeTupleIdSequenceAdapter(
       accessor,
       [&](auto *accessor) -> TupleIdSequence* {  // NOLINT(build/c++11)
@@ -258,6 +267,7 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
         ValueAccessor *right_accessor,
         const attribute_id right_id,
         const TupleIdSequence *filter) const {
+  // Use default implementation.
   return compareStaticValueAndValueAccessorDefaultImpl<left_nullable, right_nullable>(
       left, right_accessor, right_id, filter);
 }
@@ -272,6 +282,7 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
         const attribute_id right_id,
         const TupleIdSequence *filter,
         const TupleIdSequence *existence_bitmap) const {
+  // Use default implementation.
   return compareColumnVectorAndValueAccessorDefaultImpl<left_nullable, right_nullable>(
       left, right_accessor, right_id, filter, existence_bitmap);
 }
@@ -286,6 +297,7 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
         const ColumnVector &right,
         const TupleIdSequence *filter,
         const TupleIdSequence *existence_bitmap) const {
+  // Use default implementation.
   return compareValueAccessorAndColumnVectorDefaultImpl<left_nullable, right_nullable>(
       left_accessor, left_id, right, filter, existence_bitmap);
 }
@@ -298,6 +310,7 @@ TypedValue PatternMatchingUncheckedComparator<is_like_pattern, is_negation,
         const TypedValue &current,
         ValueAccessor *accessor,
         const attribute_id value_accessor_id) const {
+  // Use default implementation.
   return accumulateValueAccessorDefaultImpl<left_nullable>(
       current, accessor, value_accessor_id);
 }
@@ -310,6 +323,7 @@ TypedValue PatternMatchingUncheckedComparator<is_like_pattern, is_negation,
     ::accumulateColumnVector(
         const TypedValue &current,
         const ColumnVector &column_vector) const {
+  // Use default implementation.
   return accumulateColumnVectorDefaultImpl<left_nullable>(
       current, column_vector);
 }
