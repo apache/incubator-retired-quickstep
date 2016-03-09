@@ -1,7 +1,18 @@
 /**
- * This file copyright (c) 2011-2015, Quickstep Technologies LLC.
- * All rights reserved.
- * See file CREDITS.txt for details.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *   University of Wisconsin—Madison.
+ *
+ *   Licensed under the Apache License, Version 2.0 (the "License");
+ *   you may not use this file except in compliance with the License.
+ *   You may obtain a copy of the License at
+ *
+ *       http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *   Unless required by applicable law or agreed to in writing, software
+ *   distributed under the License is distributed on an "AS IS" BASIS,
+ *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *   See the License for the specific language governing permissions and
+ *   limitations under the License.
  **/
 
 #ifndef QUICKSTEP_PARSER_PARSE_SAMPLE_HPP_
@@ -28,16 +39,18 @@ class ParseSample : public ParseTreeNode {
  public:
   /**
    * @brief Constructor.
-   *
-   * @param line_number The line number of " SAMPLE" in the SQL statement.
-   * @param column_number The column number of " SAMPLE" in the SQL statement.
-   * @param limit_expression The  SAMPLE value expression.
+   * @param line_number The line number of "SAMPLE" in the SQL statement.
+   * @param column_number The column number of "SAMPLE" in the SQL statement.
+   * @param is_block_sample The flag indicating whether the sample type is block or tuple sample
+   * @param percentage  The percentage of data to sample.
    */
-  ParseSample(int line_number, int column_number, bool is_block_sample,NumericParseLiteralValue *percentage)
+  ParseSample(const int line_number,
+              const int column_number,
+              const bool is_block_sample,
+              NumericParseLiteralValue *percentage)
       : ParseTreeNode(line_number, column_number),
-        percentage_(percentage),is_block_sample_(is_block_sample) {
-  
- }
+        percentage_(percentage),
+        is_block_sample_(is_block_sample) {}
 
   /**
    * @brief Destructor.
@@ -45,21 +58,22 @@ class ParseSample : public ParseTreeNode {
   ~ParseSample() override {}
 
   /**
-   * @brief Gets the SAMPLE SAMPLE expression.
+   * @brief Get the SAMPLE percentage.
    *
-   * @return SAMPLE expression
+   * @return SAMPLE percentage
    */
-  const NumericParseLiteralValue* getPercentage() const {
+  const NumericParseLiteralValue* percentage() const {
     return percentage_.get();
   }
-  
-  const bool getIsBlockSample() const {
+
+  const bool is_block_sample() const {
     return is_block_sample_;
   }
+
   std::string getName() const override {
     return "SAMPLE";
   }
-  
+
  protected:
   void getFieldStringItems(std::vector<std::string> *inline_field_names,
                            std::vector<std::string> *inline_field_values,
@@ -70,7 +84,7 @@ class ParseSample : public ParseTreeNode {
 
  private:
   std::unique_ptr<NumericParseLiteralValue> percentage_;
-  bool is_block_sample_;
+  const bool is_block_sample_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseSample);
 };
@@ -79,4 +93,4 @@ class ParseSample : public ParseTreeNode {
 
 }  // namespace quickstep
 
-#endif // QUICKSTEP_PARSER_PARSE_SAMPLE_HPP_
+#endif  // QUICKSTEP_PARSER_PARSE_SAMPLE_HPP_

@@ -46,7 +46,6 @@ class ParseSubqueryTableReference : public ParseTableReference {
    * @param column_number The column number of the first token of the table subquery.
    * @param subquery_expr The subquery expression.
    */
-  
   ParseSubqueryTableReference(const int line_number,
                               const int column_number,
                               ParseSubqueryExpression *subquery_expr)

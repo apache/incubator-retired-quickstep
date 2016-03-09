@@ -208,8 +208,8 @@ target_link_libraries(quickstep_parser_ParseSelectionClause
                       quickstep_utility_Macros
                       quickstep_utility_PtrList)
 target_link_libraries(quickstep_parser_ParseSimpleTableReference
-                      quickstep_parser_ParseString
                       quickstep_parser_ParseSample
+                      quickstep_parser_ParseString
                       quickstep_parser_ParseTableReference
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_parser_ParseStatement

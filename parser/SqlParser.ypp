@@ -1149,49 +1149,24 @@ opt_sample_clause:
   {
     $$ = NULL;
   }
-  | TOKEN_BLOCKSAMPLE TOKEN_UNSIGNED_NUMVAL TOKEN_PERCENT{
-    if ($2->float_like()) {
-      delete $2;
-      $$ = NULL;
-      quickstep_yyerror(&@2, yyscanner, NULL, "SAMPLE value must be an integer");
-      YYERROR;
-    } else {
-      if ($2->long_value() <= 0 || $2->long_value() >100) {
-        delete $2;
-        $$ = NULL;
-        quickstep_yyerror(&@2, yyscanner, NULL, "SAMPLE PERCENT must be between 1 and 100");
-        YYERROR;
-      } else {
-        $$ = new quickstep::ParseSample(@1.first_line, @1.first_column,true, $2);
-      }
-    }
+  | TOKEN_BLOCKSAMPLE TOKEN_UNSIGNED_NUMVAL TOKEN_PERCENT {
+    $$ = new quickstep::ParseSample(@1.first_line, @1.first_column, true, $2);
   }
-  | TOKEN_TUPLESAMPLE TOKEN_UNSIGNED_NUMVAL TOKEN_PERCENT{
-    if ($2->float_like()) {
-      delete $2;
-      $$ = NULL;
-      quickstep_yyerror(&@2, yyscanner, NULL, "SAMPLE value must be an integer");
-      YYERROR;
-    } else {
-      if ($2->long_value() <= 0 || $2->long_value() >100) {
-        delete $2;
-        $$ = NULL;
-        quickstep_yyerror(&@2, yyscanner, NULL, "SAMPLE PERCENT must be between 1 and 100");
-        YYERROR;
-      } else {
-        $$ = new quickstep::ParseSample(@1.first_line, @1.first_column,false, $2);
-        
-      }
-    }
+  | TOKEN_TUPLESAMPLE TOKEN_UNSIGNED_NUMVAL TOKEN_PERCENT {
+    $$ = new quickstep::ParseSample(@1.first_line, @1.first_column, false, $2);
   };
+
 table_reference:
   subquery_expression table_reference_signature {
     $$ = new quickstep::ParseSubqueryTableReference(@1.first_line, @1.first_column, $1);
     $$->set_table_reference_signature($2);
   }
   | any_name opt_sample_clause table_reference_signature {
-    $$ = new quickstep::ParseSimpleTableReference(@1.first_line, @1.first_column, $1,$2);
-    $$->set_table_reference_signature($3  );
+    $$ = new quickstep::ParseSimpleTableReference(@1.first_line, @1.first_column, $1, $2);
+    $$->set_table_reference_signature($3);
+  }
+  | any_name opt_sample_clause {
+    $$ = new quickstep::ParseSimpleTableReference(@1.first_line, @1.first_column, $1, $2);
   }
   | function_call table_reference_signature {
     $$ = new quickstep::ParseGeneratorTableReference(@1.first_line, @1.first_column, $1);
@@ -1199,9 +1174,6 @@ table_reference:
   }
   | function_call {
     $$ = new quickstep::ParseGeneratorTableReference(@1.first_line, @1.first_column, $1);
-  }
-  | any_name opt_sample_clause{
-    $$ = new quickstep::ParseSimpleTableReference(@1.first_line, @1.first_column, $1,$2);
   };
 
 table_reference_signature:

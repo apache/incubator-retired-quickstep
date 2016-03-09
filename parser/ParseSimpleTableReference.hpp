@@ -22,8 +22,8 @@
 #include <string>
 #include <vector>
 
-#include "parser/ParseString.hpp"
 #include "parser/ParseSample.hpp"
+#include "parser/ParseString.hpp"
 #include "parser/ParseTableReference.hpp"
 #include "utility/Macros.hpp"
 
@@ -40,7 +40,6 @@ class ParseTreeNode;
  */
 class ParseSimpleTableReference : public ParseTableReference {
  public:
-  
   /**
    * @brief Constructor. Takes ownership of \p table_name.
    *
@@ -49,14 +48,13 @@ class ParseSimpleTableReference : public ParseTableReference {
    * @param table_name The table name.
    * @param sample  The sampling type and percent associated with the table reference
    */
- 
   ParseSimpleTableReference(const int line_number,
                             const int column_number,
                             ParseString *table_name,
                             ParseSample *sample)
       : ParseTableReference(line_number, column_number),
-        table_name_(table_name), sample_(sample) {
-  }
+        table_name_(table_name),
+        sample_(sample) {}
 
   /**
    * @brief Destructor.
@@ -73,8 +71,12 @@ class ParseSimpleTableReference : public ParseTableReference {
    * @return The table name.
    */
   const ParseString* table_name() const { return table_name_.get(); }
+
+  /**
+   * @return The ssample type and percentage.
+   */
   const ParseSample* sample() const { return sample_.get(); }
-  
+
  protected:
   void getFieldStringItems(
       std::vector<std::string> *inline_field_names,
