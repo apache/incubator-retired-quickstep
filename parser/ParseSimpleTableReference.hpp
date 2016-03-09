@@ -73,7 +73,7 @@ class ParseSimpleTableReference : public ParseTableReference {
   const ParseString* table_name() const { return table_name_.get(); }
 
   /**
-   * @return The ssample type and percentage.
+   * @return The sample type and percentage.
    */
   const ParseSample* sample() const { return sample_.get(); }
 

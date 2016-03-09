@@ -66,6 +66,11 @@ class ParseSample : public ParseTreeNode {
     return percentage_.get();
   }
 
+  /**
+   * @brief Get the block_sample indicating flag.
+   *
+   * @return the sample type
+   */
   const bool is_block_sample() const {
     return is_block_sample_;
   }
