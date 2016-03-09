@@ -33,7 +33,7 @@ namespace quickstep {
  */
 
 /**
- * @brief A parsed representation of BLOCK SAMPLE.
+ * @brief A parsed representation of block/tuple sample.
  */
 class ParseSample : public ParseTreeNode {
  public:
@@ -41,7 +41,7 @@ class ParseSample : public ParseTreeNode {
    * @brief Constructor.
    * @param line_number The line number of "SAMPLE" in the SQL statement.
    * @param column_number The column number of "SAMPLE" in the SQL statement.
-   * @param is_block_sample The flag indicating whether the sample type is block or tuple sample
+   * @param is_block_sample The flag indicating whether this is block sample or tuple sample.
    * @param percentage  The percentage of data to sample.
    */
   ParseSample(const int line_number,
@@ -58,18 +58,18 @@ class ParseSample : public ParseTreeNode {
   ~ParseSample() override {}
 
   /**
-   * @brief Get the SAMPLE percentage.
+   * @brief Get the sample percentage.
    *
-   * @return SAMPLE percentage
+   * @return The sample percentage.
    */
   const NumericParseLiteralValue* percentage() const {
     return percentage_.get();
   }
 
   /**
-   * @brief Get the block_sample indicating flag.
+   * @brief Get the sample type indicating flag.
    *
-   * @return the sample type
+   * @return True if this is a block sample. False if this is a tuple sample.
    */
   const bool is_block_sample() const {
     return is_block_sample_;
