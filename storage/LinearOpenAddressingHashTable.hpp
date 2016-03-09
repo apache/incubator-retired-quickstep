@@ -151,6 +151,9 @@ class LinearOpenAddressingHashTable : public HashTable<ValueT,
                                    const ValueT **value,
                                    std::size_t *entry_num) const override;
 
+  bool hasKey(const TypedValue &key) const override;
+  bool hasCompositeKey(const std::vector<TypedValue> &key) const override;
+
   void resize(const std::size_t extra_buckets,
               const std::size_t extra_variable_storage,
               const std::size_t retry_num = 0) override;
@@ -1096,6 +1099,75 @@ bool LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_co
     }
   }
 
+  return false;
+}
+
+template <typename ValueT,
+          bool resizable,
+          bool serializable,
+          bool force_key_copy,
+          bool allow_duplicate_keys>
+bool LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
+    ::hasKey(const TypedValue &key) const {
+  DEBUG_ASSERT(this->key_types_.size() == 1);
+  DEBUG_ASSERT(key.isPlausibleInstanceOf(this->key_types_.front()->getSignature()));
+
+  const std::size_t hash_code = this->AdjustHash(key.getHash());
+  for (std::size_t bucket_num = hash_code % header_->num_buckets;
+       bucket_num < header_->num_buckets + header_->num_overflow_buckets;
+       ++bucket_num) {
+    const char *bucket = static_cast<const char*>(hash_buckets_) + bucket_num * bucket_size_;
+    const std::size_t bucket_hash
+        = reinterpret_cast<const std::atomic<std::size_t>*>(bucket)->load(std::memory_order_relaxed);
+    if (bucket_hash == kEmptyHash) {
+      // Hit an empty bucket, so the search is finished
+      // without finding any match.
+      return false;
+    }
+
+    // None of the get methods should be called while inserts are still taking
+    // place.
+    DEBUG_ASSERT(bucket_hash != kPendingHash);
+
+    if ((bucket_hash == hash_code) && key_manager_.scalarKeyCollisionCheck(key, bucket)) {
+      // Match located.
+      return true;
+    }
+  }
+  return false;
+}
+
+template <typename ValueT,
+          bool resizable,
+          bool serializable,
+          bool force_key_copy,
+          bool allow_duplicate_keys>
+bool LinearOpenAddressingHashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
+    ::hasCompositeKey(const std::vector<TypedValue> &key) const {
+  DEBUG_ASSERT(this->key_types_.size() == key.size());
+
+  const std::size_t hash_code = this->AdjustHash(this->hashCompositeKey(key));
+  for (std::size_t bucket_num = hash_code % header_->num_buckets;
+       bucket_num < header_->num_buckets + header_->num_overflow_buckets;
+       ++bucket_num) {
+    const char *bucket = static_cast<const char*>(hash_buckets_) + bucket_num * bucket_size_;
+    const std::size_t bucket_hash
+        = reinterpret_cast<const std::atomic<std::size_t>*>(bucket)->load(std::memory_order_relaxed);
+    if (bucket_hash == kEmptyHash) {
+      // Hit an empty bucket, so the search is finished
+      // without finding any match.
+      return false;
+    }
+
+    // None of the get methods should be called while inserts are still taking
+    // place.
+    DEBUG_ASSERT(bucket_hash != kPendingHash);
+
+    if ((bucket_hash == hash_code) && key_manager_.compositeKeyCollisionCheck(key, bucket)) {
+      // Match located.
+      return true;
+    }
+  }
   return false;
 }
 
