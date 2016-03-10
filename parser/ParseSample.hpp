@@ -44,7 +44,7 @@ class ParseSample : public ParseTreeNode {
    * @param line_number The line number of "SAMPLE" in the SQL statement.
    * @param column_number The column number of "SAMPLE" in the SQL statement.
    * @param is_block_sample The flag indicating whether this is block sample or tuple sample.
-   * @param percentage  The percentage of data to sample.
+   * @param percentage The percentage of data to sample.
    */
   ParseSample(const int line_number,
               const int column_number,
