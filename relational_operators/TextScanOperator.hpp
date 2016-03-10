@@ -327,7 +327,7 @@ class TextSplitWorkOrder : public WorkOrder {
    *        to Foreman.
    * @param bus A pointer to the TMB.
    */
-  TextSplitWorkOrder(const std::string filename,
+  TextSplitWorkOrder(const std::string &filename,
                      const bool process_escape_sequences,
                      StorageManager *storage_manager,
                      const std::size_t operator_index,

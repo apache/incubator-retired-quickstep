@@ -1,0 +1,244 @@
+//   Copyright 2011-2015 Quickstep Technologies LLC.
+//   Copyright 2015-2016 Pivotal Software, Inc.
+//
+//   Licensed under the Apache License, Version 2.0 (the "License");
+//   you may not use this file except in compliance with the License.
+//   You may obtain a copy of the License at
+//
+//       http://www.apache.org/licenses/LICENSE-2.0
+//
+//   Unless required by applicable law or agreed to in writing, software
+//   distributed under the License is distributed on an "AS IS" BASIS,
+//   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+//   See the License for the specific language governing permissions and
+//   limitations under the License.
+
+syntax = "proto2";
+
+package quickstep.serialization;
+
+import "relational_operators/SortMergeRunOperator.proto";
+import "relational_operators/TextScanOperator.proto";
+
+enum WorkOrderType {
+  AGGREGATION = 1;
+  BUILD_HASH = 2;
+  CREATE_INDEX = 3;  // Placeholder.
+  CREATE_TABLE = 4;  // Placeholder.
+  DELETE = 5;
+  DESTROY_HASH = 6;
+  DROP_TABLE = 7;
+  FINALIZE_AGGREGATION = 8;
+  HASH_JOIN = 9;
+  INSERT = 10;
+  NESTED_LOOP_JOIN = 11;
+  SAMPLE = 12;
+  SAVE_BLOCKS = 13;
+  SELECT = 14;
+  SORT_MERGE_RUN = 15;
+  SORT_RUN_GENERATION = 16;
+  TABLE_GENERATOR = 17;
+  TEXT_SCAN = 18;
+  TEXT_SPLIT = 19;
+  UPDATE = 20;
+}
+
+message WorkOrder {
+  required WorkOrderType work_order_type = 1;
+
+  // The convention for extension numbering is that extensions for a particular
+  // WorkOrderID should begin from (operator_type + 1) * 16.
+  extensions 16 to max;
+}
+
+message AggregationWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional uint32 aggr_state_index = 16;
+    optional fixed64 block_id = 17;
+  }
+}
+
+message BuildHashWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional int32 relation_id = 32;
+    repeated int32 join_key_attributes = 33;
+    optional bool any_join_key_attributes_nullable = 34;
+    optional uint32 join_hash_table_index = 35;
+    optional fixed64 block_id = 36;
+  }
+}
+
+message DeleteWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional uint64 operator_index = 96;
+    optional int32 relation_id = 97;
+    optional int32 predicate_index = 98;
+    optional fixed64 block_id = 99;
+  }
+}
+
+message DestroyHashWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional uint32 join_hash_table_index = 112;
+  }
+}
+
+message DropTableWorkOrder {
+  extend WorkOrder {
+    // If set, CatalogCache will drop the relation.
+    optional int32 relation_id = 128;
+    // Optional, and maybe empty.
+    repeated fixed64 block_ids = 129;
+  }
+}
+
+message FinalizeAggregationWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional uint32 aggr_state_index = 144;
+    optional int32 insert_destination_index = 145;
+  }
+}
+
+message HashJoinWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional int32 build_relation_id = 160;
+    optional int32 probe_relation_id = 161;
+    repeated int32 join_key_attributes = 162;
+    optional bool any_join_key_attributes_nullable = 163;
+    optional int32 insert_destination_index = 164;
+    optional uint32 join_hash_table_index = 165;
+    optional int32 residual_predicate_index = 166;
+    optional int32 selection_index = 167;
+    optional fixed64 block_id = 168;
+  }
+}
+
+message InsertWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional int32 insert_destination_index = 176;
+    optional uint32 tuple_index = 177;
+  }
+}
+
+message NestedLoopsJoinWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional int32 left_relation_id = 192;
+    optional int32 right_relation_id = 193;
+    optional fixed64 left_block_id = 194;
+    optional fixed64 right_block_id = 195;
+    optional int32 insert_destination_index = 196;
+    optional int32 join_predicate_index = 197;
+    optional int32 selection_index = 198;
+  }
+}
+
+message SampleWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional int32 relation_id = 208;
+    optional fixed64 block_id = 209;
+    optional bool is_block_sample = 210;
+    optional int32 percentage = 211;
+    optional int32 insert_destination_index = 212;
+  }
+}
+
+message SaveBlocksWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional fixed64 block_id = 224;
+    optional bool force = 225;
+  }
+}
+
+message SelectWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional int32 relation_id = 240;
+    optional int32 insert_destination_index = 241;
+    optional int32 predicate_index = 242;
+    optional fixed64 block_id = 243;
+    optional bool simple_projection = 244;
+
+    // When 'simple_projection' is true.
+    repeated int32 simple_selection = 245;
+
+    // Otherwise.
+    optional int32 selection_index = 246;
+  }
+}
+
+message SortMergeRunWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional uint64 operator_index = 256;
+    optional uint64 sort_config_index = 257;
+    repeated Run runs = 258;
+    optional uint64 top_k = 259;
+    optional uint64 merge_level = 260;
+    optional int32 relation_id = 261;
+    optional int32 insert_destination_index = 262;
+  }
+}
+
+message SortRunGenerationWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional uint64 sort_config_index = 272;
+    optional int32 relation_id = 273;
+    optional int32 insert_destination_index = 274;
+    optional fixed64 block_id = 275;
+  }
+}
+
+message TableGeneratorWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional int32 generator_function_index = 288;
+    optional int32 insert_destination_index = 289;
+  }
+}
+
+message TextScanWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional uint32 field_terminator = 304;  // For one-byte char.
+    optional bool process_escape_sequences = 305;
+    optional int32 insert_destination_index = 306;
+
+    // Either
+    optional string filename = 307;
+
+    // Or
+    optional TextBlob text_blob = 308;
+  }
+}
+
+message TextSplitWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional uint64 operator_index = 320;
+    optional string filename = 321;
+    optional bool process_escape_sequences = 322;
+  }
+}
+
+message UpdateWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional uint64 operator_index = 336;
+    optional int32 relation_id = 337;
+    optional int32 insert_destination_index = 338;
+    optional int32 predicate_index = 339;
+    optional uint32 update_group_index = 340;
+    optional fixed64 block_id = 341;
+  }
+}

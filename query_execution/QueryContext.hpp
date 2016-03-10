@@ -147,6 +147,17 @@ class QueryContext {
                            const CatalogDatabaseLite &database);
 
   /**
+   * @brief Whether the given AggregationOperationState id is valid.
+   *
+   * @param id The AggregationOperationState id.
+   *
+   * @return True if valid, otherwise false.
+   **/
+  bool isValidAggregationStateId(const aggregation_state_id id) const {
+    return id < aggregation_states_.size();
+  }
+
+  /**
    * @brief Get the AggregationOperationState.
    *
    * @param id The AggregationOperationState id in the query.
@@ -173,6 +184,17 @@ class QueryContext {
   }
 
   /**
+   * @brief Whether the given GeneratorFunctionHandle id is valid.
+   *
+   * @param id The GeneratorFunctionHandle id.
+   *
+   * @return True if valid, otherwise false.
+   **/
+  bool isValidGeneratorFunctionId(const generator_function_id id) const {
+    return id < generator_functions_.size();
+  }
+
+  /**
    * @brief Get the GeneratorFunctionHandle.
    *
    * @param id The GeneratorFunctionHandle id in the query.
@@ -183,6 +205,19 @@ class QueryContext {
       const generator_function_id id) {
     DCHECK_LT(static_cast<std::size_t>(id), generator_functions_.size());
     return *generator_functions_[id];
+  }
+
+  /**
+   * @brief Whether the given InsertDestination id is valid.
+   *
+   * @param id The InsertDestination id.
+   *
+   * @return True if valid, otherwise false.
+   **/
+  bool isValidInsertDestinationId(const insert_destination_id id) const {
+    return id != kInvalidInsertDestinationId
+        && id >= 0
+        && static_cast<std::size_t>(id) < insert_destinations_.size();
   }
 
   /**
@@ -210,6 +245,17 @@ class QueryContext {
   }
 
   /**
+   * @brief Whether the given JoinHashTable id is valid.
+   *
+   * @param id The JoinHashTable id.
+   *
+   * @return True if valid, otherwise false.
+   **/
+  bool isValidJoinHashTableId(const join_hash_table_id id) const {
+    return id < join_hash_tables_.size();
+  }
+
+  /**
    * @brief Get the JoinHashTable.
    *
    * @param id The JoinHashTable id in the query.
@@ -232,6 +278,18 @@ class QueryContext {
   }
 
   /**
+   * @brief Whether the given Predicate id is valid or no predicate.
+   *
+   * @param id The Predicate id.
+   *
+   * @return True if valid or no predicate, otherwise false.
+   **/
+  bool isValidPredicate(const predicate_id id) const {
+    return (id == kInvalidPredicateId)  // No predicate.
+        || (id >= 0 && static_cast<std::size_t>(id) < predicates_.size());
+  }
+
+  /**
    * @brief Get the const Predicate.
    *
    * @param id The Predicate id in the query.
@@ -250,6 +308,19 @@ class QueryContext {
   }
 
   /**
+   * @brief Whether the given Scalar group id is valid.
+   *
+   * @param id The Scalar group id.
+   *
+   * @return True if valid, otherwise false.
+   **/
+  bool isValidScalarGroupId(const scalar_group_id id) const {
+    return id != kInvalidScalarGroupId
+        && id >= 0
+        && static_cast<std::size_t>(id) < scalar_groups_.size();
+  }
+
+  /**
    * @brief Get the group of Scalars.
    *
    * @param id The Scalar group id in the query.
@@ -261,6 +332,17 @@ class QueryContext {
     DCHECK_GE(id, 0);
     DCHECK_LT(static_cast<std::size_t>(id), scalar_groups_.size());
     return scalar_groups_[id];
+  }
+
+ /**
+   * @brief Whether the given SortConfiguration id is valid.
+   *
+   * @param id The SortConfiguration id.
+   *
+   * @return True if valid, otherwise false.
+   **/
+  bool isValidSortConfigId(const sort_config_id id) const {
+    return id < sort_configs_.size();
   }
 
   /**
@@ -276,6 +358,17 @@ class QueryContext {
   }
 
   /**
+   * @brief Whether the given Tuple id is valid.
+   *
+   * @param id The Tuple id.
+   *
+   * @return True if valid, otherwise false.
+   **/
+  bool isValidTupleId(const tuple_id id) const {
+    return id < tuples_.size();
+  }
+
+  /**
    * @brief Release the ownership of the Tuple referenced by the id.
    *
    * @note Each id should use only once.
@@ -288,6 +381,17 @@ class QueryContext {
     DCHECK_LT(id, tuples_.size());
     DCHECK(tuples_[id]);
     return tuples_[id].release();
+  }
+
+  /**
+   * @brief Whether the given update assignments group id is valid.
+   *
+   * @param id The group id of the update assignments.
+   *
+   * @return True if valid, otherwise false.
+   **/
+  bool isValidUpdateGroupId(const update_group_id id) const {
+    return static_cast<std::size_t>(id) < update_groups_.size();
   }
 
   /**
