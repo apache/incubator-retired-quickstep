@@ -377,17 +377,79 @@ void HashSemiJoinWorkOrder::execute() {
   }
 }
 
-void HashSemiJoinWorkOrder::executeWithoutResidualPredicate() {
-  DCHECK(residual_predicate_ == nullptr);
-
-  /*const relation_id build_relation_id = build_relation_.getID();
-  const relation_id probe_relation_id = probe_relation_.getID();*/
+void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
+  const relation_id build_relation_id = build_relation_.getID();
+  const relation_id probe_relation_id = probe_relation_.getID();
 
   BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                           probe_relation_);
+  const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
 
-  const TupleStorageSubBlock &probe_store =
-      probe_block->getTupleStorageSubBlock();
+  std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
+
+  // TODO(harshad) - Make this function work with both types of collectors.
+  MapBasedJoinedTupleCollector collector;
+  if (join_key_attributes_.size() == 1) {
+    hash_table_.getAllFromValueAccessor(
+        probe_accessor.get(),
+        join_key_attributes_.front(),
+        any_join_key_attributes_nullable_,
+        &collector);
+  } else {
+    hash_table_.getAllFromValueAccessorCompositeKey(
+        probe_accessor.get(),
+        join_key_attributes_,
+        any_join_key_attributes_nullable_,
+        &collector);
+  }
+
+  TupleIdSequence filter(probe_store.getMaxTupleID() + 1);
+  filter.setRange(0, filter.length(), false);
+  for (const std::pair<const block_id, std::vector<std::pair<tuple_id, tuple_id>>>
+           &build_block_entry : *collector.getJoinedTuples()) {
+    BlockReference build_block = storage_manager_->getBlock(build_block_entry.first,
+                                                            build_relation_);
+    const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
+    std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
+    for (const std::pair<tuple_id, tuple_id> &hash_match
+         : build_block_entry.second) {
+      if (filter.get(hash_match.second)) {
+        continue;
+      }
+      if (residual_predicate_->matchesForJoinedTuples(*build_accessor,
+                                                      build_relation_id,
+                                                      hash_match.first,
+                                                      *probe_accessor,
+                                                      probe_relation_id,
+                                                      hash_match.second)) {
+        filter.set(hash_match.second, true);
+      }
+    }
+  }
+
+  SubBlocksReference sub_blocks_ref(probe_store,
+                                    probe_block->getIndices(),
+                                    probe_block->getIndicesConsistent());
+
+  std::unique_ptr<ValueAccessor> probe_accessor_with_filter(
+      probe_store.createValueAccessor(&filter));
+  ColumnVectorsValueAccessor temp_result;
+  for (PtrList<Scalar>::const_iterator selection_it = selection_.begin();
+       selection_it != selection_.end();
+       ++selection_it) {
+    temp_result.addColumn(selection_it->getAllValues(probe_accessor_with_filter.get(),
+                                                     &sub_blocks_ref));
+  }
+
+  output_destination_->bulkInsertTuples(&temp_result);
+}
+
+void HashSemiJoinWorkOrder::executeWithoutResidualPredicate() {
+  DCHECK(residual_predicate_ == nullptr);
+
+  BlockReference probe_block = storage_manager_->getBlock(block_id_,
+                                                          probe_relation_);
+  const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
 
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
   SemiAntiJoinTupleCollector collector(probe_store);

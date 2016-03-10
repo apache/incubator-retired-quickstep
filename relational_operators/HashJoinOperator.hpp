@@ -324,8 +324,8 @@ class HashSemiJoinWorkOrder : public WorkOrder {
                         const block_id lookup_block_id,
                         InsertDestination *output_destination,
                         StorageManager *storage_manager)
-     // :  build_relation_(build_relation),
-      : probe_relation_(probe_relation),
+     :  build_relation_(build_relation),
+        probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         hash_table_(hash_table),
@@ -342,9 +342,9 @@ class HashSemiJoinWorkOrder : public WorkOrder {
  private:
   void executeWithoutResidualPredicate();
 
-  void executeWithResidualPredicate() {}
+  void executeWithResidualPredicate();
 
-  // const CatalogRelationSchema &build_relation_;
+  const CatalogRelationSchema &build_relation_;
   const CatalogRelationSchema &probe_relation_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
