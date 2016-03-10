@@ -39,6 +39,8 @@ class ParseSample : public ParseTreeNode {
  public:
   /**
    * @brief Constructor.
+   * @note This constructor takes ownership of \c percentage.
+   *
    * @param line_number The line number of "SAMPLE" in the SQL statement.
    * @param column_number The column number of "SAMPLE" in the SQL statement.
    * @param is_block_sample The flag indicating whether this is block sample or tuple sample.
@@ -62,7 +64,7 @@ class ParseSample : public ParseTreeNode {
    *
    * @return The sample percentage.
    */
-  const NumericParseLiteralValue* percentage() const {
+  NumericParseLiteralValue* percentage() const {
     return percentage_.get();
   }
 
@@ -71,7 +73,7 @@ class ParseSample : public ParseTreeNode {
    *
    * @return True if this is a block sample. False if this is a tuple sample.
    */
-  const bool is_block_sample() const {
+  bool is_block_sample() const {
     return is_block_sample_;
   }
 

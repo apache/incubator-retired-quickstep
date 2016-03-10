@@ -41,7 +41,9 @@ class ParseTreeNode;
 class ParseSimpleTableReference : public ParseTableReference {
  public:
   /**
-   * @brief Constructor. Takes ownership of \p table_name.
+   * @brief Constructor. 
+   * @note Takes ownership of \p table_name.
+   * @note Takes ownership of \p sample.
    *
    * @param line_number The line number of the first token of the table reference.
    * @param column_number The column number of the first token of the table reference.
