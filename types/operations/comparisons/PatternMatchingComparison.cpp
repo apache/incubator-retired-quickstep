@@ -36,38 +36,36 @@ namespace quickstep {
 const PatternMatchingComparison& PatternMatchingComparison::Instance(ComparisonID sub_type) {
   // Create a static instance for each sub-type of pattern matching comparison.
   switch (sub_type) {
-  case ComparisonID::kLike: {
-    static PatternMatchingComparison instance(ComparisonID::kLike);
-    return instance;
+    case ComparisonID::kLike: {
+      static PatternMatchingComparison instance(ComparisonID::kLike);
+      return instance;
+    }
+    case ComparisonID::kNotLike: {
+      static PatternMatchingComparison instance(ComparisonID::kNotLike);
+      return instance;
+    }
+    case ComparisonID::kRegexMatch: {
+      static PatternMatchingComparison instance(ComparisonID::kRegexMatch);
+      return instance;
+    }
+    case ComparisonID::kNotRegexMatch: {
+      static PatternMatchingComparison instance(ComparisonID::kNotRegexMatch);
+      return instance;
+    }
+    default:
+      LOG(FATAL) << "Invalid ComparisonID: "
+                 << kComparisonNames[static_cast<typename std::underlying_type<ComparisonID>::type>(sub_type)]
+                 << " for PatternMatchinComparison::Instance()";
   }
-  case ComparisonID::kNotLike: {
-    static PatternMatchingComparison instance(ComparisonID::kNotLike);
-    return instance;
-  }
-  case ComparisonID::kRegexMatch: {
-    static PatternMatchingComparison instance(ComparisonID::kRegexMatch);
-    return instance;
-  }
-  case ComparisonID::kNotRegexMatch: {
-    static PatternMatchingComparison instance(ComparisonID::kNotRegexMatch);
-    return instance;
-  }
-  default:
-    LOG(FATAL) << "Invalid ComparisonID: "
-               << kComparisonNames[static_cast<typename std::underlying_type<ComparisonID>::type>(sub_type)]
-               << " for PatternMatchinComparison::Instance()";
-  }
+
   QUICKSTEP_UNREACHABLE();
 }
 
 bool PatternMatchingComparison::canCompareTypes(const Type &left,
                                                 const Type &right) const {
   // Pattern matching comparison can only apply to CHAR or VARCHAR types.
-  if ((left.getTypeID() == TypeID::kChar || left.getTypeID() == TypeID::kVarChar)
-      && (right.getTypeID() == TypeID::kChar || right.getTypeID() == TypeID::kVarChar)) {
-    return true;
-  }
-  return false;
+  return ((left.getTypeID() == TypeID::kChar || left.getTypeID() == TypeID::kVarChar)
+          && (right.getTypeID() == TypeID::kChar || right.getTypeID() == TypeID::kVarChar));
 }
 
 bool PatternMatchingComparison::canComparePartialTypes(const Type *left_type,
@@ -89,11 +87,11 @@ UncheckedComparator* PatternMatchingComparison::makeUncheckedComparatorForTypes(
   DCHECK(canCompareTypes(left, right));
 
   // Configure parameters for the pattern matching comparator.
-  bool left_null_terminated = (left.getTypeID() == TypeID::kVarChar);
-  bool right_null_terminated = (right.getTypeID() == TypeID::kVarChar);
+  const bool left_null_terminated = (left.getTypeID() == TypeID::kVarChar);
+  const bool right_null_terminated = (right.getTypeID() == TypeID::kVarChar);
 
-  size_t left_max_length = left.maximumByteLength() - (left_null_terminated ? 1 : 0);
-  size_t right_max_length = right.maximumByteLength() - (right_null_terminated ? 1 : 0);
+  const std::size_t left_max_length = left.maximumByteLength() - (left_null_terminated ? 1 : 0);
+  const std::size_t right_max_length = right.maximumByteLength() - (right_null_terminated ? 1 : 0);
 
   bool is_like_pattern;
   bool is_negation;

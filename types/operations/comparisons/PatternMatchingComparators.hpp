@@ -203,9 +203,9 @@ class PatternMatchingUncheckedComparator : public UncheckedComparator {
    * @return The transformed regular expression pattern.
    */
   inline std::string transformLikeToRegex(const char *like_pattern,
-                                          const size_t len) const {
+                                          const std::size_t len) const {
     std::string regex_pattern;
-    for (size_t i = 0; i < len; i++) {
+    for (std::size_t i = 0; i < len; i++) {
       char c = like_pattern[i];
       switch (c) {
         case '_':
