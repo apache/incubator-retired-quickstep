@@ -42,13 +42,12 @@ class ParseSimpleTableReference : public ParseTableReference {
  public:
   /**
    * @brief Constructor. 
-   * @note Takes ownership of \p table_name.
-   * @note Takes ownership of \p sample.
+   * @note Takes ownership of \p table_name and \p sample.
    *
    * @param line_number The line number of the first token of the table reference.
    * @param column_number The column number of the first token of the table reference.
    * @param table_name The table name.
-   * @param sample  The sampling type and percent associated with the table reference
+   * @param sample The sampling type and percentage associated with the table reference.
    */
   ParseSimpleTableReference(const int line_number,
                             const int column_number,
