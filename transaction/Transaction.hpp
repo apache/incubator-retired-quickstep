@@ -62,7 +62,7 @@ class Transaction {
    *
    * @return Transaction id of this.
    **/
-  inline transaction_id gettransaction_id() const {
+  inline transaction_id getTransactionId() const {
     return tid_;
   }
 
@@ -80,7 +80,7 @@ class Transaction {
    *
    * @return Status of the transaction.
    **/
-  TransactionStatus getStatus() const {
+  inline TransactionStatus getStatus() const {
     return status_;
   }
 
@@ -90,7 +90,7 @@ class Transaction {
    * @param other Other transaction to be compared with.
    * @return True if other tid and this tid are equal, false otherwise.
    **/
-  bool operator==(const Transaction &other) const {
+  inline bool operator==(const Transaction &other) const {
     return tid_ == other.tid_;
   }
 

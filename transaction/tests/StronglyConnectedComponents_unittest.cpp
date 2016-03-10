@@ -17,6 +17,8 @@
 
 #include "transaction/StronglyConnectedComponents.hpp"
 
+#include <cstdint>
+#include <utility>
 #include <vector>
 
 #include "transaction/DirectedGraph.hpp"
@@ -28,257 +30,203 @@ namespace quickstep {
 
 namespace transaction {
 
-class StronglyConnectedComponentsTestWithOneNode : public testing::Test {
- protected:
-  using NID = DirectedGraph::node_id;
+class GraphConfiguration {
+ public:
+  GraphConfiguration(DirectedGraph *graph,
+                     std::size_t no_transaction,
+                     const std::vector<std::pair<transaction_id,
+                                                 transaction_id>> &mapping)
+    : graph_(graph) {
+    for (std::size_t index = 0; index < no_transaction; ++index) {
+      std::unique_ptr<transaction_id> tid =
+        std::make_unique<transaction_id>(transaction_id(index));
+      transaction_list_.push_back(*tid);
+      DirectedGraph::node_id nid = graph->addNodeUnchecked(tid.release());
+      node_id_list_.push_back(nid);
+    }
 
-  StronglyConnectedComponentsTestWithOneNode() {
-    wait_for_graph = std::make_unique<DirectedGraph>();
-    tid1 = new transaction_id(1);
-    nid1 = wait_for_graph->addNodeUnchecked(tid1);
-
-    scc = std::make_unique<StronglyConnectedComponents>(*wait_for_graph);
+    for (const std::pair<transaction_id, transaction_id> &edge : mapping) {
+      transaction_id pending = edge.first;
+      transaction_id owner = edge.second;
+      graph_->addEdgeUnchecked(pending, owner);
+    }
   }
 
-  std::unique_ptr<DirectedGraph> wait_for_graph;
-  std::unique_ptr<StronglyConnectedComponents> scc;
+  const std::vector<DirectedGraph::node_id>& getNodesList() const {
+    return node_id_list_;
+  }
 
-  transaction_id *tid1;
+ private:
+  std::vector<transaction_id> transaction_list_;
+  std::vector<DirectedGraph::node_id> node_id_list_;
+  DirectedGraph *graph_;
+};
 
-  NID nid1;
+class StronglyConnectedComponentsTestWithOneNode : public testing::Test {
+ protected:
+  StronglyConnectedComponentsTestWithOneNode() {
+    wait_for_graph_ = std::make_unique<DirectedGraph>();
+    std::vector<std::pair<transaction_id, transaction_id>> edge_mapping;
 
-  std::uint64_t total_components;
+    // Configure the graph with just 1 node.
+    graph_configuration_ =
+      std::make_unique<GraphConfiguration>(wait_for_graph_.get(),
+                                           1,
+                                           edge_mapping);
+    scc_ = std::make_unique<StronglyConnectedComponents>(*wait_for_graph_);
+  }
+
+  std::unique_ptr<GraphConfiguration> graph_configuration_;
+  std::unique_ptr<DirectedGraph> wait_for_graph_;
+  std::unique_ptr<StronglyConnectedComponents> scc_;
 };
 
 class StronglyConnectedComponentsTestWithTwoNodesCycle : public testing::Test {
  protected:
-  using NID = DirectedGraph::node_id;
-
   StronglyConnectedComponentsTestWithTwoNodesCycle() {
-    wait_for_graph = std::make_unique<DirectedGraph>();
-    tid1 = new transaction_id(1);
-    tid2 = new transaction_id(2);
+    wait_for_graph_ = std::make_unique<DirectedGraph>();
 
-    nid1 = wait_for_graph->addNodeUnchecked(tid1);
-    nid2 = wait_for_graph->addNodeUnchecked(tid2);
+    // Create 2 nodes with cycle.
+    std::vector<std::pair<transaction_id, transaction_id>> edge_mapping =
+      {{0, 1},
+       {1, 0}};
+    graph_configuration_ =
+      std::make_unique<GraphConfiguration>(wait_for_graph_.get(),
+                                           2,
+                                           edge_mapping);
 
-    wait_for_graph->addEdgeUnchecked(nid1, nid2);
-    wait_for_graph->addEdgeUnchecked(nid2, nid1);
-
-    scc = std::make_unique<StronglyConnectedComponents>(*wait_for_graph);
+    // Run the SCC algorithm.
+    scc_ = std::make_unique<StronglyConnectedComponents>(*wait_for_graph_);
   }
 
-  std::unique_ptr<DirectedGraph> wait_for_graph;
-  std::unique_ptr<StronglyConnectedComponents> scc;
-
-  transaction_id *tid1;
-  transaction_id *tid2;
-
-  NID nid1;
-  NID nid2;
-
-  std::uint64_t total_components;
+  std::unique_ptr<GraphConfiguration> graph_configuration_;
+  std::unique_ptr<DirectedGraph> wait_for_graph_;
+  std::unique_ptr<StronglyConnectedComponents> scc_;
 };
 
 class StronglyConnectedComponentsTest : public testing::Test {
  protected:
-  using NID = DirectedGraph::node_id;
-
   StronglyConnectedComponentsTest() {
-    // Creates a graph with predefined structure.
-    wait_for_graph = std::make_unique<DirectedGraph>();
-    tid1 = new transaction_id(1);
-    tid2 = new transaction_id(2);
-    tid3 = new transaction_id(3);
-    tid4 = new transaction_id(4);
-    tid5 = new transaction_id(5);
-    tid6 = new transaction_id(6);
-    tid7 = new transaction_id(7);
-    tid8 = new transaction_id(8);
-    tid9 = new transaction_id(9);
-    tid10 = new transaction_id(10);
-    tid11 = new transaction_id(11);
-    tid12 = new transaction_id(12);
+    // Prepare the graph.
+    wait_for_graph_ = std::make_unique<DirectedGraph>();
 
-    nid1 = wait_for_graph->addNodeUnchecked(tid1);
-    nid2 = wait_for_graph->addNodeUnchecked(tid2);
-    nid3 = wait_for_graph->addNodeUnchecked(tid3);
-    nid4 = wait_for_graph->addNodeUnchecked(tid4);
-    nid5 = wait_for_graph->addNodeUnchecked(tid5);
-    nid6 = wait_for_graph->addNodeUnchecked(tid6);
-    nid7 = wait_for_graph->addNodeUnchecked(tid7);
-    nid8 = wait_for_graph->addNodeUnchecked(tid8);
-    nid9 = wait_for_graph->addNodeUnchecked(tid9);
-    nid10 = wait_for_graph->addNodeUnchecked(tid10);
-    nid11 = wait_for_graph->addNodeUnchecked(tid11);
-    nid12 = wait_for_graph->addNodeUnchecked(tid12);
+    // Create edges.
+    std::vector<std::pair<transaction_id, transaction_id>> edge_mapping =
+      {{0, 1},
+       {1, 2}, {1, 3}, {1, 4},
+       {2, 5},
+       {3, 4}, {3, 6},
+       {4, 1}, {4, 5}, {4, 6},
+       {5, 2}, {5, 7},
+       {6, 7}, {6, 9},
+       {7, 6},
+       {8, 6},
+       {9, 8}, {9, 10},
+       {10, 11}, {11, 9}};
 
-    wait_for_graph->addEdgeUnchecked(nid1, nid2);
+    // Configure the graph.
+    graph_configuration_ =
+      std::make_unique<GraphConfiguration>(wait_for_graph_.get(),
+                                           12,
+                                           edge_mapping);
 
-    wait_for_graph->addEdgeUnchecked(nid2, nid3);
-    wait_for_graph->addEdgeUnchecked(nid2, nid4);
-    wait_for_graph->addEdgeUnchecked(nid2, nid5);
-
-    wait_for_graph->addEdgeUnchecked(nid3, nid6);
-
-    wait_for_graph->addEdgeUnchecked(nid4, nid5);
-    wait_for_graph->addEdgeUnchecked(nid4, nid7);
-
-    wait_for_graph->addEdgeUnchecked(nid5, nid2);
-    wait_for_graph->addEdgeUnchecked(nid5, nid6);
-    wait_for_graph->addEdgeUnchecked(nid5, nid7);
-
-    wait_for_graph->addEdgeUnchecked(nid6, nid3);
-    wait_for_graph->addEdgeUnchecked(nid6, nid8);
-
-    wait_for_graph->addEdgeUnchecked(nid7, nid8);
-    wait_for_graph->addEdgeUnchecked(nid7, nid10);
-
-    wait_for_graph->addEdgeUnchecked(nid8, nid7);
-
-    wait_for_graph->addEdgeUnchecked(nid9, nid7);
-
-    wait_for_graph->addEdgeUnchecked(nid10, nid9);
-    wait_for_graph->addEdgeUnchecked(nid10, nid11);
-
-    wait_for_graph->addEdgeUnchecked(nid11, nid12);
-
-    wait_for_graph->addEdgeUnchecked(nid12, nid10);
-
-    scc = std::make_unique<StronglyConnectedComponents>(*wait_for_graph);
+    // Run the SCC algorithm.
+    scc_ = std::make_unique<StronglyConnectedComponents>(*wait_for_graph_);
   }
 
-  std::unique_ptr<DirectedGraph> wait_for_graph;
-  std::unique_ptr<StronglyConnectedComponents> scc;
-
-  transaction_id *tid1;
-  transaction_id *tid2;
-  transaction_id *tid3;
-  transaction_id *tid4;
-  transaction_id *tid5;
-  transaction_id *tid6;
-  transaction_id *tid7;
-  transaction_id *tid8;
-  transaction_id *tid9;
-  transaction_id *tid10;
-  transaction_id *tid11;
-  transaction_id *tid12;
-
-  NID nid1;
-  NID nid2;
-  NID nid3;
-  NID nid4;
-  NID nid5;
-  NID nid6;
-  NID nid7;
-  NID nid8;
-  NID nid9;
-  NID nid10;
-  NID nid11;
-  NID nid12;
-
-  std::uint64_t nid1_component;
-  std::uint64_t nid2_component;
-  std::uint64_t nid3_component;
-  std::uint64_t nid4_component;
-  std::uint64_t nid5_component;
-  std::uint64_t nid6_component;
-  std::uint64_t nid7_component;
-  std::uint64_t nid8_component;
-  std::uint64_t nid9_component;
-  std::uint64_t nid10_component;
-  std::uint64_t nid11_component;
-  std::uint64_t nid12_component;
-
-  std::uint64_t total_components;
+  std::unique_ptr<GraphConfiguration> graph_configuration_;
+  std::unique_ptr<DirectedGraph> wait_for_graph_;
+  std::unique_ptr<StronglyConnectedComponents> scc_;
 };
 
 TEST_F(StronglyConnectedComponentsTestWithOneNode, TotalNumberOfComponents) {
-  total_components = scc->getTotalComponents();
+  std::uint64_t total_components = scc_->getTotalComponents();
 
   EXPECT_EQ(1u, total_components);
 }
 
 TEST_F(StronglyConnectedComponentsTestWithOneNode, GetComponentId) {
-  std::uint64_t nid1_component = scc->getComponentId(nid1);
-  EXPECT_EQ(0u, nid1_component);
+  std::uint64_t nid0_component =
+    scc_->getComponentId(graph_configuration_->getNodesList()[0]);
+
+  EXPECT_EQ(0u, nid0_component);
 }
 
 
 TEST_F(StronglyConnectedComponentsTestWithOneNode, GetComponentsMapping) {
-  std::unordered_map<std::uint64_t, std::vector<NID>> mapping
-      = scc->getComponentMapping();
-  std::vector<NID> component_no_0 = mapping[0];
+  std::unordered_map<std::uint64_t, std::vector<DirectedGraph::node_id>>
+    mapping = scc_->getComponentMapping();
+  std::vector<DirectedGraph::node_id> component_no_0 = mapping[0];
+
   EXPECT_EQ(1u, component_no_0.size());
 }
 
 TEST_F(StronglyConnectedComponentsTestWithTwoNodesCycle, TotalNumberOfComponents) {
-  total_components = scc->getTotalComponents();
+  std::uint64_t total_components = scc_->getTotalComponents();
 
   EXPECT_EQ(1u, total_components);
 }
 
 TEST_F(StronglyConnectedComponentsTestWithTwoNodesCycle, GetComponentId) {
-  EXPECT_EQ(0u, scc->getComponentId(nid1));
-  EXPECT_EQ(0u, scc->getComponentId(nid2));
+  DirectedGraph::node_id nid0 = DirectedGraph::node_id(0);
+  DirectedGraph::node_id nid1 = DirectedGraph::node_id(1);
+
+  // Since two nodes make a cycle, they should have same component id.
+  EXPECT_EQ(0u, scc_->getComponentId(nid0));
+  EXPECT_EQ(0u, scc_->getComponentId(nid1));
 }
 
 TEST_F(StronglyConnectedComponentsTestWithTwoNodesCycle, GetComponentsMapping) {
-  std::unordered_map<std::uint64_t, std::vector<NID>>
-      mapping = scc->getComponentMapping();
-  std::vector<NID> component_no_0 = mapping[0];
+  std::unordered_map<std::uint64_t, std::vector<DirectedGraph::node_id>>
+      mapping = scc_->getComponentMapping();
+  std::vector<DirectedGraph::node_id> component_no_0 = mapping[0];
+
+  // Since there are 2 nodes, and they are in the same SC component,
+  // the component size is 2.
   EXPECT_EQ(2u, component_no_0.size());
 }
 
 TEST_F(StronglyConnectedComponentsTest, TotalNumberOfComponents) {
-  total_components = scc->getTotalComponents();
+  std::size_t total_components = scc_->getTotalComponents();
+
   EXPECT_EQ(4u, total_components);
 }
 
 TEST_F(StronglyConnectedComponentsTest, GetComponentId) {
-  nid1_component = scc->getComponentId(nid1);
-  nid2_component = scc->getComponentId(nid2);
-  nid3_component = scc->getComponentId(nid3);
-  nid4_component = scc->getComponentId(nid4);
-  nid5_component = scc->getComponentId(nid5);
-  nid6_component = scc->getComponentId(nid6);
-  nid7_component = scc->getComponentId(nid7);
-  nid8_component = scc->getComponentId(nid8);
-  nid9_component = scc->getComponentId(nid9);
-  nid10_component = scc->getComponentId(nid10);
-  nid11_component = scc->getComponentId(nid11);
-  nid12_component = scc->getComponentId(nid12);
+  std::vector<DirectedGraph::node_id> nid_list;
+  for (DirectedGraph::node_id nid = 0;
+       nid < wait_for_graph_->getNumNodes();
+       ++nid) {
+    nid_list.push_back(scc_->getComponentId(nid));
+  }
 
-  EXPECT_EQ(3u, nid1_component);
+  // Check the result are as expected.
+  EXPECT_EQ(3u, nid_list[0]);
 
-  EXPECT_EQ(2u, nid2_component);
-  EXPECT_EQ(2u, nid4_component);
-  EXPECT_EQ(2u, nid5_component);
+  EXPECT_EQ(2u, nid_list[1]);
+  EXPECT_EQ(2u, nid_list[3]);
+  EXPECT_EQ(2u, nid_list[4]);
 
-  EXPECT_EQ(1u, nid3_component);
-  EXPECT_EQ(1u, nid6_component);
+  EXPECT_EQ(1u, nid_list[2]);
+  EXPECT_EQ(1u, nid_list[5]);
 
-  EXPECT_EQ(0u, nid7_component);
-  EXPECT_EQ(0u, nid8_component);
-  EXPECT_EQ(0u, nid9_component);
-  EXPECT_EQ(0u, nid10_component);
-  EXPECT_EQ(0u, nid11_component);
-  EXPECT_EQ(0u, nid12_component);
+  EXPECT_EQ(0u, nid_list[6]);
+  EXPECT_EQ(0u, nid_list[7]);
+  EXPECT_EQ(0u, nid_list[8]);
+  EXPECT_EQ(0u, nid_list[9]);
+  EXPECT_EQ(0u, nid_list[10]);
+  EXPECT_EQ(0u, nid_list[11]);
 }
 
 TEST_F(StronglyConnectedComponentsTest, GetComponentsMapping) {
-  std::unordered_map<std::uint64_t, std::vector<NID>>
-      mapping = scc->getComponentMapping();
+  std::unordered_map<std::uint64_t, std::vector<DirectedGraph::node_id>>
+      mapping = scc_->getComponentMapping();
 
-  std::vector<NID> component_no_0 = mapping[0];
-  std::vector<NID> component_no_1 = mapping[1];
-  std::vector<NID> component_no_2 = mapping[2];
-  std::vector<NID> component_no_3 = mapping[3];
-
-  EXPECT_EQ(6u, component_no_0.size());
-  EXPECT_EQ(2u, component_no_1.size());
-  EXPECT_EQ(3u, component_no_2.size());
-  EXPECT_EQ(1u, component_no_3.size());
+  // Check the components' size are OK.
+  EXPECT_EQ(6u, mapping[0].size());
+  EXPECT_EQ(2u, mapping[1].size());
+  EXPECT_EQ(3u, mapping[2].size());
+  EXPECT_EQ(1u, mapping[3].size());
 }
 
 }  // namespace transaction

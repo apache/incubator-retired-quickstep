@@ -78,9 +78,7 @@ class DirectedGraph {
    **/
   inline node_id addNodeCheckExists(transaction_id *data) {
     for (std::vector<DirectedGraphNode>::const_iterator
-           it = nodes_.cbegin(), end = nodes_.cend();
-         it != end;
-         ++it) {
+           it = nodes_.cbegin(); it != nodes_.cend(); ++it) {
       CHECK(*data != it->getData());
     }
     nodes_.emplace_back(data);
@@ -190,7 +188,7 @@ class DirectedGraph {
     std::unordered_set<node_id> outgoing_edges_;
   };
 
-  // Buffer of nodes that are created. NodeId is the index of that
+  // The list of nodes that are created. NodeId is the index of that
   // node in this buffer.
   std::vector<DirectedGraphNode> nodes_;
 
