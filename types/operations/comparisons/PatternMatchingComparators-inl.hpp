@@ -106,7 +106,6 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
         for (std::size_t cv_pos = 0;
              cv_pos < column_vector.size();
              ++cv_pos) {
-          DCHECK(existence_it != existence_bitmap->end());
           if (filter->get(*existence_it)) {
             const void *cv_value
                 = column_vector.template getUntypedValue<left_nullable>(cv_pos);
@@ -116,7 +115,6 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
           }
           ++existence_it;
         }
-        DCHECK(existence_it == existence_bitmap->end());
       } else {
         for (TupleIdSequence::const_iterator filter_it = filter->begin();
              filter_it != filter->end();
@@ -134,7 +132,6 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
         for (std::size_t cv_pos = 0;
              cv_pos < column_vector.size();
              ++cv_pos) {
-          DCHECK(existence_it != existence_bitmap->end());
           const void *cv_value
               = column_vector.template getUntypedValue<left_nullable>(cv_pos);
           result->set(*existence_it,
@@ -142,7 +139,6 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
                           && this->matchDataPtrWithPattern(cv_value, re2_pattern));
           ++existence_it;
         }
-        DCHECK(existence_it == existence_bitmap->end());
       } else {
         for (std::size_t pos = 0;
              pos < column_vector.size();

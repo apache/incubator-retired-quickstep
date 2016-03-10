@@ -70,7 +70,6 @@ TupleIdSequence* UncheckedComparator::compareColumnVectorsDefaultImpl(
           for (std::size_t cv_pos = 0;
                cv_pos < left_column_vector.size();
                ++cv_pos) {
-            DCHECK(existence_it != existence_bitmap->end());
             result->set(*existence_it,
                         filter->get(*existence_it)
                             && this->compareDataPtrs(
@@ -78,7 +77,6 @@ TupleIdSequence* UncheckedComparator::compareColumnVectorsDefaultImpl(
                                 right_column_vector.template getUntypedValue<right_nullable>(cv_pos)));
             ++existence_it;
           }
-          DCHECK(existence_it == existence_bitmap->end());
         } else {
           for (TupleIdSequence::const_iterator filter_it = filter->begin();
                filter_it != filter->end();
@@ -95,14 +93,12 @@ TupleIdSequence* UncheckedComparator::compareColumnVectorsDefaultImpl(
           for (std::size_t cv_pos = 0;
                cv_pos < left_column_vector.size();
                ++cv_pos) {
-            DCHECK(existence_it != existence_bitmap->end());
             result->set(*existence_it,
                         this->compareDataPtrs(
                             left_column_vector.template getUntypedValue<left_nullable>(cv_pos),
                             right_column_vector.template getUntypedValue<right_nullable>(cv_pos)));
             ++existence_it;
           }
-          DCHECK(existence_it == existence_bitmap->end());
         } else {
           for (std::size_t pos = 0;
                pos < left_column_vector.size();
@@ -155,7 +151,6 @@ TupleIdSequence* UncheckedComparator::compareColumnVectorAndStaticValueDefaultIm
         for (std::size_t cv_pos = 0;
              cv_pos < column_vector.size();
              ++cv_pos) {
-          DCHECK(existence_it != existence_bitmap->end());
           result->set(*existence_it,
                       filter->get(*existence_it)
                           && this->compareDataPtrWithTypedValue(
@@ -163,7 +158,6 @@ TupleIdSequence* UncheckedComparator::compareColumnVectorAndStaticValueDefaultIm
                               right));
           ++existence_it;
         }
-        DCHECK(existence_it == existence_bitmap->end());
       } else {
         for (TupleIdSequence::const_iterator filter_it = filter->begin();
              filter_it != filter->end();
@@ -180,14 +174,12 @@ TupleIdSequence* UncheckedComparator::compareColumnVectorAndStaticValueDefaultIm
         for (std::size_t cv_pos = 0;
              cv_pos < column_vector.size();
              ++cv_pos) {
-          DCHECK(existence_it != existence_bitmap->end());
           result->set(*existence_it,
                       this->compareDataPtrWithTypedValue(
                           column_vector.template getUntypedValue<left_nullable>(cv_pos),
                           right));
           ++existence_it;
         }
-        DCHECK(existence_it == existence_bitmap->end());
       } else {
         for (std::size_t pos = 0;
              pos < column_vector.size();
@@ -239,7 +231,6 @@ TupleIdSequence* UncheckedComparator::compareStaticValueAndColumnVectorDefaultIm
         for (std::size_t cv_pos = 0;
              cv_pos < column_vector.size();
              ++cv_pos) {
-          DCHECK(existence_it != existence_bitmap->end());
           result->set(*existence_it,
                       filter->get(*existence_it)
                           && this->compareTypedValueWithDataPtr(
@@ -247,7 +238,6 @@ TupleIdSequence* UncheckedComparator::compareStaticValueAndColumnVectorDefaultIm
                               column_vector.template getUntypedValue<right_nullable>(cv_pos)));
           ++existence_it;
         }
-        DCHECK(existence_it == existence_bitmap->end());
       } else {
         for (TupleIdSequence::const_iterator filter_it = filter->begin();
              filter_it != filter->end();
@@ -264,14 +254,12 @@ TupleIdSequence* UncheckedComparator::compareStaticValueAndColumnVectorDefaultIm
         for (std::size_t cv_pos = 0;
              cv_pos < column_vector.size();
              ++cv_pos) {
-          DCHECK(existence_it != existence_bitmap->end());
           result->set(*existence_it,
                       this->compareTypedValueWithDataPtr(
                           left,
                           column_vector.template getUntypedValue<right_nullable>(cv_pos)));
           ++existence_it;
         }
-        DCHECK(existence_it == existence_bitmap->end());
       } else {
         for (std::size_t pos = 0;
              pos < column_vector.size();
@@ -460,7 +448,6 @@ TupleIdSequence* UncheckedComparator::compareColumnVectorAndValueAccessorDefault
           for (std::size_t cv_pos = 0;
                cv_pos < column_vector.size();
                ++cv_pos) {
-            DCHECK(existence_it != existence_bitmap->end());
             result->set(*existence_it,
                         filter->get(*existence_it)
                             && this->compareDataPtrs(
@@ -469,7 +456,6 @@ TupleIdSequence* UncheckedComparator::compareColumnVectorAndValueAccessorDefault
                                     right_id, *existence_it)));
             ++existence_it;
           }
-          DCHECK(existence_it == existence_bitmap->end());
         } else {
           for (TupleIdSequence::const_iterator filter_it = filter->begin();
                filter_it != filter->end();
@@ -487,7 +473,6 @@ TupleIdSequence* UncheckedComparator::compareColumnVectorAndValueAccessorDefault
           for (std::size_t cv_pos = 0;
                cv_pos < column_vector.size();
                ++cv_pos) {
-            DCHECK(existence_it != existence_bitmap->end());
             result->set(*existence_it,
                         this->compareDataPtrs(
                             column_vector.template getUntypedValue<left_nullable>(cv_pos),
@@ -495,7 +480,6 @@ TupleIdSequence* UncheckedComparator::compareColumnVectorAndValueAccessorDefault
                                 right_id, *existence_it)));
             ++existence_it;
           }
-          DCHECK(existence_it == existence_bitmap->end());
         } else {
           right_accessor->beginIteration();
           std::size_t cv_pos = 0;
@@ -551,7 +535,6 @@ TupleIdSequence* UncheckedComparator::compareValueAccessorAndColumnVectorDefault
           for (std::size_t cv_pos = 0;
                cv_pos < column_vector.size();
                ++cv_pos) {
-            DCHECK(existence_it != existence_bitmap->end());
             result->set(*existence_it,
                         filter->get(*existence_it)
                             && this->compareDataPtrs(
@@ -560,7 +543,6 @@ TupleIdSequence* UncheckedComparator::compareValueAccessorAndColumnVectorDefault
                                 column_vector.template getUntypedValue<right_nullable>(cv_pos)));
             ++existence_it;
           }
-          DCHECK(existence_it == existence_bitmap->end());
         } else {
           for (TupleIdSequence::const_iterator filter_it = filter->begin();
                filter_it != filter->end();
@@ -578,7 +560,6 @@ TupleIdSequence* UncheckedComparator::compareValueAccessorAndColumnVectorDefault
           for (std::size_t cv_pos = 0;
                cv_pos < column_vector.size();
                ++cv_pos) {
-            DCHECK(existence_it != existence_bitmap->end());
             result->set(*existence_it,
                         this->compareDataPtrs(
                             left_accessor->template getUntypedValueAtAbsolutePosition<left_nullable>(
@@ -586,7 +567,6 @@ TupleIdSequence* UncheckedComparator::compareValueAccessorAndColumnVectorDefault
                             column_vector.template getUntypedValue<right_nullable>(cv_pos)));
             ++existence_it;
           }
-          DCHECK(existence_it == existence_bitmap->end());
         } else {
           left_accessor->beginIteration();
           std::size_t cv_pos = 0;
