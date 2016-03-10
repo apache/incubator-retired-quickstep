@@ -45,10 +45,8 @@
 
 #include "gtest/gtest.h"
 
-#include "tmb/address.h"
 #include "tmb/id_typedefs.h"
 #include "tmb/message_bus.h"
-#include "tmb/message_style.h"
 #include "tmb/tagged_message.h"
 
 using std::move;
@@ -228,6 +226,7 @@ class ForemanTest : public ::testing::Test {
     query_plan_.reset(new QueryPlan());
 
     bus_.Initialize();
+
     foreman_.reset(new Foreman(&bus_, db_.get(), storage_manager_.get()));
 
     // This thread acts both as Foreman as well as Worker. Foreman connects to
@@ -241,9 +240,6 @@ class ForemanTest : public ::testing::Test {
     bus_.RegisterClientAsReceiver(worker_client_id_, kWorkOrderMessage);
     bus_.RegisterClientAsReceiver(worker_client_id_, kRebuildWorkOrderMessage);
     bus_.RegisterClientAsReceiver(worker_client_id_, kPoisonMessage);
-
-    // Cache foreman's address.
-    foreman_address_.AddRecipient(foreman_->getBusClientID());
 
     std::vector<client_id> worker_client_ids;
     worker_client_ids.push_back(worker_client_id_);
@@ -323,9 +319,6 @@ class ForemanTest : public ::testing::Test {
 
   unique_ptr<Foreman> foreman_;
   MessageBusImpl bus_;
-
-  Address foreman_address_;
-  MessageStyle single_receiver_style_;
 
   client_id worker_client_id_;
 
