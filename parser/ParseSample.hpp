@@ -64,7 +64,7 @@ class ParseSample : public ParseTreeNode {
    *
    * @return The sample percentage.
    */
-  NumericParseLiteralValue* percentage() const {
+  const NumericParseLiteralValue* percentage() const {
     return percentage_.get();
   }
 
