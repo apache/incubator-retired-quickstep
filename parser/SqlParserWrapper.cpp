@@ -44,6 +44,7 @@ class ParseKeyStringList;
 class ParseKeyLiteralValue;
 class ParseLiteralValue;
 class ParsePredicate;
+class ParseSample;
 class ParseScalarLiteral;
 class ParseSelection;
 class ParseSelectionItem;

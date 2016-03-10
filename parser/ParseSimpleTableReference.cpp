@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "parser/ParseSample.hpp"
 #include "parser/ParseTableReference.hpp"
 
 namespace quickstep {
@@ -41,6 +42,10 @@ void ParseSimpleTableReference::getFieldStringItems(
                                            container_child_fields);
   inline_field_names->push_back("table");
   inline_field_values->push_back(table_name_->value());
+  if (sample_ != nullptr) {
+    non_container_child_field_names->push_back("sample");
+    non_container_child_fields->push_back(sample_.get());
+  }
 }
 
 }  // namespace quickstep

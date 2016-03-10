@@ -56,6 +56,7 @@ class ParseLimit;
 class ParseOrderBy;
 class ParseOrderByItem;
 class ParsePredicate;
+class ParseSample;
 class ParseScalarLiteral;
 class ParseSelect;
 class ParseSelectionClause;
@@ -167,6 +168,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "bigint"           return TOKEN_BIGINT;
   "bit"              return TOKEN_BIT;
   "blockproperties"  return TOKEN_BLOCKPROPERTIES;
+  "blocksample"      return TOKEN_BLOCKSAMPLE;
   "bloomfilter"      return TOKEN_BLOOM_FILTER;
   "csbtree"          return TOKEN_CSB_TREE;
   "by"               return TOKEN_BY;
@@ -220,6 +222,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "or"               return TOKEN_OR;
   "order"            return TOKEN_ORDER;
   "outer"            return TOKEN_OUTER;
+  "percent"          return TOKEN_PERCENT;
   "primary"          return TOKEN_PRIMARY;
   "quit"             return TOKEN_QUIT;
   "real"             return TOKEN_REAL;
@@ -233,6 +236,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "time"             return TOKEN_TIME;
   "timestamp"        return TOKEN_TIMESTAMP;
   "true"             return TOKEN_TRUE;
+  "tuplesample"      return TOKEN_TUPLESAMPLE;
   "unique"           return TOKEN_UNIQUE;
   "update"           return TOKEN_UPDATE;
   "using"            return TOKEN_USING;
