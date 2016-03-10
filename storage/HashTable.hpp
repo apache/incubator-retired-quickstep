@@ -1820,17 +1820,17 @@ void HashTable<ValueT,
       TypedValue key = accessor->getTypedValue(key_attr_id);
       if (check_for_null_keys && key.isNull()) {
         if (!run_if_match_found) {
-          (*functor)(accessor);
+          (*functor)(*accessor);
           continue;
         }
       }
       if (run_if_match_found) {
         if (hasKey(key)) {
-          (*functor)(accessor);
+          (*functor)(*accessor);
         }
       } else {
         if (!hasKey(key)) {
-          (*functor)(accessor);
+          (*functor)(*accessor);
         }
       }
     }
@@ -1867,17 +1867,17 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
       }
       if (null_key) {
         if (!run_if_match_found) {
-          (*functor)(accessor);
+          (*functor)(*accessor);
           continue;
         }
       }
 
       if (run_if_match_found) {
         if (hasCompositeKey(key_vector)) {
-          (*functor)(accessor);
+          (*functor)(*accessor);
         }
       } else if (!hasCompositeKey(key_vector)) {
-        (*functor)(accessor);
+        (*functor)(*accessor);
       }
     }
   });  // NOLINT(whitespace/parens)

@@ -35,6 +35,7 @@
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
+#include "storage/SubBlocksReference.hpp"
 #include "storage/TupleReference.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
 #include "storage/ValueAccessor.hpp"
@@ -379,8 +380,8 @@ void HashSemiJoinWorkOrder::execute() {
 void HashSemiJoinWorkOrder::executeWithoutResidualPredicate() {
   DCHECK(residual_predicate_ == nullptr);
 
-  const relation_id build_relation_id = build_relation_.getID();
-  const relation_id probe_relation_id = probe_relation_.getID();
+  /*const relation_id build_relation_id = build_relation_.getID();
+  const relation_id probe_relation_id = probe_relation_.getID();*/
 
   BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                           probe_relation_);
@@ -395,14 +396,14 @@ void HashSemiJoinWorkOrder::executeWithoutResidualPredicate() {
     hash_table_.runOverKeysFromValueAccessorIfMatchNotFound(
         probe_accessor.get(),
         join_key_attributes_.front(),
-        key_nullable_,
+        any_join_key_attributes_nullable_,
         &collector);
   } else {
     // Call the collector to set the bit to 0 for every key without a match.
     hash_table_.runOverKeysFromValueAccessorIfMatchNotFoundCompositeKey(
         probe_accessor.get(),
         join_key_attributes_,
-        key_nullable_,
+        any_join_key_attributes_nullable_,
         &collector);
   }
 

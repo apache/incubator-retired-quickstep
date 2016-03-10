@@ -187,6 +187,17 @@ class StorageBlock : public StorageBlockBase {
   }
 
   /**
+   * @brief Get the flag vector indicating for each IndexSubBlock
+   *        whether it is consistent.
+   *
+   * @return The flag vector indicating for each IndexSubBlock
+   *         whether it is consistent.
+   */
+  const std::vector<bool>& getIndicesConsistent() const {
+    return indices_consistent_;
+  }
+
+  /**
    * @brief Get one of this block's IndexSubBlocks.
    *
    * @param index_id The ID of the IndexSubBlock. This is simply a serial
@@ -198,6 +209,15 @@ class StorageBlock : public StorageBlockBase {
   inline const IndexSubBlock& getIndexSubBlock(const std::size_t index_id) const {
     DEBUG_ASSERT(index_id < indices_.size());
     return indices_[index_id];
+  }
+
+  /**
+   * @brief Get the IndexSubBlock vector.
+   *
+   * @return The IndexSubBlock vector.
+   */
+  const PtrVector<IndexSubBlock>& getIndices() const {
+    return indices_;
   }
 
   /**

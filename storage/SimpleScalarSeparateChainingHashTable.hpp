@@ -182,9 +182,9 @@ class SimpleScalarSeparateChainingHashTable : public HashTable<ValueT,
     return getNextEntryForKey(key.front(), hash_code, value, entry_num);
   }
 
-  bool hasKey(const TypedValue &key) const;
+  bool hasKey(const TypedValue &key) const override;
 
-  bool hasCompositeKey(const std::vector<TypedValue> &key) const {
+  bool hasCompositeKey(const std::vector<TypedValue> &key) const override {
     return false;
   }
 
