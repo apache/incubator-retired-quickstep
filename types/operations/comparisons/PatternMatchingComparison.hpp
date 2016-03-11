@@ -40,6 +40,8 @@ class PatternMatchingComparison : public Comparison {
    * @brief Get a reference to the singleton instance of the specified pattern
    *        matching operation with regard to the ComparisonID.
    *
+   * @param sub_type The specified type of the pattern matching, which can be
+   *        kLike, kNotLike, kRegexMatch or kNotRegexMatch.
    * @return A reference to the singleton instance of the specified pattern
    *         matching operation.
    **/

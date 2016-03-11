@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 
+#include "parser/ParseSample.hpp"
 #include "parser/ParseString.hpp"
 #include "parser/ParseTableReference.hpp"
 #include "utility/Macros.hpp"
@@ -40,18 +41,21 @@ class ParseTreeNode;
 class ParseSimpleTableReference : public ParseTableReference {
  public:
   /**
-   * @brief Constructor. Takes ownership of \p table_name.
+   * @brief Constructor. 
+   * @note Takes ownership of \p table_name and \p sample.
    *
    * @param line_number The line number of the first token of the table reference.
    * @param column_number The column number of the first token of the table reference.
    * @param table_name The table name.
+   * @param sample The sampling type and percentage associated with the table reference.
    */
   ParseSimpleTableReference(const int line_number,
                             const int column_number,
-                            ParseString *table_name)
+                            ParseString *table_name,
+                            ParseSample *sample)
       : ParseTableReference(line_number, column_number),
-        table_name_(table_name) {
-  }
+        table_name_(table_name),
+        sample_(sample) {}
 
   /**
    * @brief Destructor.
@@ -69,6 +73,11 @@ class ParseSimpleTableReference : public ParseTableReference {
    */
   const ParseString* table_name() const { return table_name_.get(); }
 
+  /**
+   * @return The sample type and percentage.
+   */
+  const ParseSample* sample() const { return sample_.get(); }
+
  protected:
   void getFieldStringItems(
       std::vector<std::string> *inline_field_names,
@@ -80,7 +89,7 @@ class ParseSimpleTableReference : public ParseTableReference {
 
  private:
   std::unique_ptr<ParseString> table_name_;
-
+  std::unique_ptr<ParseSample> sample_;
   DISALLOW_COPY_AND_ASSIGN(ParseSimpleTableReference);
 };
 

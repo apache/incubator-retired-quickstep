@@ -33,7 +33,7 @@
 
 namespace quickstep {
 
-const PatternMatchingComparison& PatternMatchingComparison::Instance(ComparisonID sub_type) {
+const PatternMatchingComparison& PatternMatchingComparison::Instance(const ComparisonID sub_type) {
   // Create a static instance for each sub-type of pattern matching comparison.
   switch (sub_type) {
     case ComparisonID::kLike: {
@@ -95,7 +95,7 @@ UncheckedComparator* PatternMatchingComparison::makeUncheckedComparatorForTypes(
 
   bool is_like_pattern;
   bool is_negation;
-  ComparisonID sub_type = getComparisonID();
+  const ComparisonID sub_type = getComparisonID();
   switch (sub_type) {
     case ComparisonID::kLike:
       is_like_pattern = true;
