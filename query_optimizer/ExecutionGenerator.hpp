@@ -43,6 +43,7 @@
 #include "query_optimizer/physical/InsertTuple.hpp"
 #include "query_optimizer/physical/NestedLoopsJoin.hpp"
 #include "query_optimizer/physical/Physical.hpp"
+#include "query_optimizer/physical/Sample.hpp"
 #include "query_optimizer/physical/Selection.hpp"
 #include "query_optimizer/physical/SharedSubplanReference.hpp"
 #include "query_optimizer/physical/Sort.hpp"
@@ -211,6 +212,12 @@ class ExecutionGenerator {
    **/
   bool convertSimpleProjection(const QueryContext::scalar_group_id project_expressions_group_index,
                                std::vector<attribute_id> *attributes) const;
+  /**
+   * @brief Converts a Sampling to a Sample operator.
+   *
+   * @param physical_plan The Sample to be converted.
+   */
+  void convertSample(const physical::SamplePtr &physical_plan);
 
   /**
    * @brief Converts a Selection to a Select operator.

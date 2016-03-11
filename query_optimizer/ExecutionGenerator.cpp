@@ -61,6 +61,7 @@
 #include "query_optimizer/physical/PatternMatcher.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
+#include "query_optimizer/physical/Sample.hpp"
 #include "query_optimizer/physical/Selection.hpp"
 #include "query_optimizer/physical/SharedSubplanReference.hpp"
 #include "query_optimizer/physical/Sort.hpp"
@@ -80,6 +81,7 @@
 #include "relational_operators/InsertOperator.hpp"
 #include "relational_operators/NestedLoopsJoinOperator.hpp"
 #include "relational_operators/RelationalOperator.hpp"
+#include "relational_operators/SampleOperator.hpp"
 #include "relational_operators/SaveBlocksOperator.hpp"
 #include "relational_operators/SelectOperator.hpp"
 #include "relational_operators/SortMergeRunOperator.hpp"
@@ -215,6 +217,9 @@ void ExecutionGenerator::generatePlanInternal(
     case P::PhysicalType::kNestedLoopsJoin:
       return convertNestedLoopsJoin(
           std::static_pointer_cast<const P::NestedLoopsJoin>(physical_plan));
+    case P::PhysicalType::kSample:
+      return convertSample(
+          std::static_pointer_cast<const P::Sample>(physical_plan));
     case P::PhysicalType::kSelection:
       return convertSelection(
           std::static_pointer_cast<const P::Selection>(physical_plan));
@@ -356,6 +361,45 @@ bool ExecutionGenerator::convertSimpleProjection(
   }
 
   return true;
+}
+
+void ExecutionGenerator::convertSample(
+  const P::SamplePtr &physical_sample) {
+  // Create InsertDestination proto.
+  const CatalogRelation *output_relation = nullptr;
+  const QueryContext::insert_destination_id insert_destination_index =
+      query_context_proto_->insert_destinations_size();
+  S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
+  createTemporaryCatalogRelation(physical_sample,
+                                 &output_relation,
+                                 insert_destination_proto);
+
+  // Create and add a Sample operator.
+  const CatalogRelationInfo *input_relation_info =
+      findRelationInfoOutputByPhysical(physical_sample->input());
+  DCHECK(input_relation_info != nullptr);
+
+  SampleOperator *sp = new SampleOperator(*input_relation_info->relation,
+                                        *output_relation,
+                                        insert_destination_index,
+                                        input_relation_info->isStoredRelation(),
+                                        physical_sample->is_block_sample(),
+                                        physical_sample->percentage());
+  const QueryPlan::DAGNodeIndex sample_index =
+      execution_plan_->addRelationalOperator(sp);
+  insert_destination_proto->set_relational_op_index(sample_index);
+
+  if (!input_relation_info->isStoredRelation()) {
+    execution_plan_->addDirectDependency(sample_index,
+                                         input_relation_info->producer_operator_index,
+                                         false /* is_pipeline_breaker */);
+  }
+  physical_to_output_relation_map_.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple(physical_sample),
+      std::forward_as_tuple(sample_index,
+                            output_relation));
+  temporary_relation_info_vec_.emplace_back(sample_index, output_relation);
 }
 
 void ExecutionGenerator::convertSelection(

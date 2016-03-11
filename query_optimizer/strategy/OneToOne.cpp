@@ -1,4 +1,4 @@
-/**
+  /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
  *
@@ -31,6 +31,7 @@
 #include "query_optimizer/logical/DropTable.hpp"
 #include "query_optimizer/logical/InsertTuple.hpp"
 #include "query_optimizer/logical/LogicalType.hpp"
+#include "query_optimizer/logical/Sample.hpp"
 #include "query_optimizer/logical/SharedSubplanReference.hpp"
 #include "query_optimizer/logical/Sort.hpp"
 #include "query_optimizer/logical/TableGenerator.hpp"
@@ -43,6 +44,7 @@
 #include "query_optimizer/physical/DeleteTuples.hpp"
 #include "query_optimizer/physical/DropTable.hpp"
 #include "query_optimizer/physical/InsertTuple.hpp"
+#include "query_optimizer/physical/Sample.hpp"
 #include "query_optimizer/physical/SharedSubplanReference.hpp"
 #include "query_optimizer/physical/Sort.hpp"
 #include "query_optimizer/physical/TableGenerator.hpp"
@@ -132,6 +134,15 @@ bool OneToOne::generatePlan(const L::LogicalPtr &logical_input,
       *physical_output = P::InsertTuple::Create(
           physical_mapper_->createOrGetPhysicalFromLogical(insert_tuple->input()),
           insert_tuple->column_values());
+      return true;
+    }
+    case L::LogicalType::kSample: {
+      const L::SamplePtr sample =
+          std::static_pointer_cast<const L::Sample>(logical_input);
+      *physical_output = P::Sample::Create(
+          physical_mapper_->createOrGetPhysicalFromLogical(sample->input()),
+          sample->is_block_sample(),
+          sample->percentage());
       return true;
     }
     case L::LogicalType::kSort: {

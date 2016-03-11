@@ -334,6 +334,21 @@ class StorageBlock : public StorageBlockBase {
                     InsertDestinationInterface *destination) const;
 
   /**
+   * @brief Perform a random SAMPLE on this StorageBlock . The 
+   *
+   * @param is_block_sample Flag to indicate if the Sampling method is a tuple sample
+   *        or block sample.
+   * @param percentage The percentage of tuples to be sampled.Used only when the sample
+   *        method is tuple sample.            
+   *
+   * @return Randomly sampled tuples whose count is determined by the  
+   *         sampling percentage. In the case of block sample the entire
+   *         block is returned.
+   **/
+  void selectSample(const bool is_block_sample,
+                    const int percentage,
+                    InsertDestinationInterface *destination) const;
+  /**
    * @brief Perform non GROUP BY aggregation on the tuples in the this storage
    *        block, returning the aggregated result (for this block) in an
    *        AggregationState.

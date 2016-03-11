@@ -40,6 +40,7 @@ enum class PhysicalType {
   kInsertTuple,
   kNestedLoopsJoin,
   kSelection,
+  kSample,
   kSharedSubplanReference,
   kSort,
   kTableGenerator,

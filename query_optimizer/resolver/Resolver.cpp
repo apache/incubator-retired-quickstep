@@ -81,6 +81,7 @@
 #include "query_optimizer/logical/InsertTuple.hpp"
 #include "query_optimizer/logical/MultiwayCartesianJoin.hpp"
 #include "query_optimizer/logical/Project.hpp"
+#include "query_optimizer/logical/Sample.hpp"
 #include "query_optimizer/logical/SharedSubplanReference.hpp"
 #include "query_optimizer/logical/Sort.hpp"
 #include "query_optimizer/logical/TableGenerator.hpp"
@@ -1209,6 +1210,15 @@ L::LogicalPtr Resolver::resolveTableReference(const ParseTableReference &table_r
         logical_plan = RenameOutputColumns(logical_plan, *reference_signature);
       }
 
+      /** 
+       * Create a logical sample operator. Applicable only if \p the table is materialized.
+       * Sampling  from subquery table references is not supported.
+       */
+      if (simple_table_reference.sample() != nullptr) {
+          logical_plan = L::Sample::Create(logical_plan,
+            simple_table_reference.sample()->is_block_sample(),
+            simple_table_reference.sample()->percentage()->long_value());
+      }
       name_resolver->addRelation(reference_alias, logical_plan);
       break;
     }
