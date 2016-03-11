@@ -45,7 +45,7 @@ class PatternMatchingComparison : public Comparison {
    * @return A reference to the singleton instance of the specified pattern
    *         matching operation.
    **/
-  static const PatternMatchingComparison& Instance(ComparisonID sub_type);
+  static const PatternMatchingComparison& Instance(const ComparisonID sub_type);
 
   bool canCompareTypes(const Type &left, const Type &right) const override;
 
@@ -61,7 +61,8 @@ class PatternMatchingComparison : public Comparison {
                                                        const Type &right) const override;
 
  private:
-  explicit PatternMatchingComparison(ComparisonID sub_type) : Comparison(sub_type) {
+  explicit PatternMatchingComparison(const ComparisonID sub_type)
+      : Comparison(sub_type) {
   }
 
   DISALLOW_COPY_AND_ASSIGN(PatternMatchingComparison);
