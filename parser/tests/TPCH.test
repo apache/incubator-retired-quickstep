@@ -146,9 +146,9 @@ ORDER BY
   p_partkey
 LIMIT 100
 --
-ERROR: LIKE predicates is not supported yet (20 : 14)
-  AND p_type LIKE '%NICKEL'
-             ^
+ERROR: syntax error (25 : 5)
+    SELECT
+    ^
 ==
 
 # Query 3
@@ -719,9 +719,9 @@ ORDER BY
   custdist desc,
   c_count DESC
 --
-ERROR: syntax error (12 : 27)
-        AND o_comment NOT LIKE '%special%requests%'
-                          ^
+ERROR: OUTER JOIN is not supported yet (10 : 16)
+      customer LEFT OUTER JOIN orders ON
+               ^
 ==
 
 # Query 14

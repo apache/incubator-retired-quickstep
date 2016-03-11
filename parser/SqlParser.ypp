@@ -78,6 +78,7 @@ typedef struct YYLTYPE {
 #include "parser/ParseOrderBy.hpp"
 #include "parser/ParsePredicate.hpp"
 #include "parser/ParserUtil.hpp"
+#include "parser/ParseSample.hpp"
 #include "parser/ParseSelect.hpp"
 #include "parser/ParseSelectionClause.hpp"
 #include "parser/ParseSimpleTableReference.hpp"
@@ -178,6 +179,8 @@ typedef void* yyscan_t;
   quickstep::ParseOrderBy *opt_order_by_clause_;
   bool *order_direction_;
   quickstep::ParseLimit *opt_limit_clause_;
+  
+  quickstep::ParseSample *opt_sample_clause_;
 
   quickstep::PtrList<quickstep::ParseOrderByItem> *order_commalist_;
   quickstep::ParseOrderByItem *order_item_;
@@ -204,7 +207,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %right TOKEN_NOT
 %right TOKEN_EQ
 %nonassoc TOKEN_LT TOKEN_LEQ TOKEN_GT TOKEN_GEQ TOKEN_NEQ
-%nonassoc TOKEN_LIKE
+%nonassoc TOKEN_LIKE TOKEN_REGEXP
 %nonassoc TOKEN_BETWEEN
 %nonassoc TOKEN_IS
 %left '+' '-'
@@ -221,6 +224,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_BIGINT;
 %token TOKEN_BIT;
 %token TOKEN_BLOCKPROPERTIES;
+%token TOKEN_BLOCKSAMPLE;
 %token TOKEN_BLOOM_FILTER;
 %token TOKEN_CSB_TREE;
 %token TOKEN_BY;
@@ -269,10 +273,12 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_OR;
 %token TOKEN_ORDER;
 %token TOKEN_OUTER;
+%token TOKEN_PERCENT;
 %token TOKEN_PRIMARY;
 %token TOKEN_QUIT;
 %token TOKEN_REAL;
 %token TOKEN_REFERENCES;
+%token TOKEN_REGEXP;
 %token TOKEN_RIGHT;
 %token TOKEN_ROW_DELIMITER;
 %token TOKEN_SELECT;
@@ -282,6 +288,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_TIME;
 %token TOKEN_TIMESTAMP;
 %token TOKEN_TRUE;
+%token TOKEN_TUPLESAMPLE;
 %token TOKEN_UNIQUE;
 %token TOKEN_UPDATE;
 %token TOKEN_USING;
@@ -467,6 +474,9 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <opt_limit_clause_>
   opt_limit_clause
+
+%type <opt_sample_clause_>
+  opt_sample_clause
 
 %type <with_list_>
   opt_with_clause
@@ -1136,14 +1146,28 @@ subquery_expression:
     $$ = new quickstep::ParseSubqueryExpression(@1.first_line, @1.first_column, $2);
   };
 
+opt_sample_clause:
+  {
+    $$ = NULL;
+  }
+  | TOKEN_BLOCKSAMPLE TOKEN_UNSIGNED_NUMVAL TOKEN_PERCENT {
+    $$ = new quickstep::ParseSample(@1.first_line, @1.first_column, true, $2);
+  }
+  | TOKEN_TUPLESAMPLE TOKEN_UNSIGNED_NUMVAL TOKEN_PERCENT {
+    $$ = new quickstep::ParseSample(@1.first_line, @1.first_column, false, $2);
+  };
+
 table_reference:
   subquery_expression table_reference_signature {
     $$ = new quickstep::ParseSubqueryTableReference(@1.first_line, @1.first_column, $1);
     $$->set_table_reference_signature($2);
   }
-  | any_name table_reference_signature {
-    $$ = new quickstep::ParseSimpleTableReference(@1.first_line, @1.first_column, $1);
-    $$->set_table_reference_signature($2);
+  | any_name opt_sample_clause table_reference_signature {
+    $$ = new quickstep::ParseSimpleTableReference(@1.first_line, @1.first_column, $1, $2);
+    $$->set_table_reference_signature($3);
+  }
+  | any_name opt_sample_clause {
+    $$ = new quickstep::ParseSimpleTableReference(@1.first_line, @1.first_column, $1, $2);
   }
   | function_call table_reference_signature {
     $$ = new quickstep::ParseGeneratorTableReference(@1.first_line, @1.first_column, $1);
@@ -1151,9 +1175,6 @@ table_reference:
   }
   | function_call {
     $$ = new quickstep::ParseGeneratorTableReference(@1.first_line, @1.first_column, $1);
-  }
-  | any_name {
-    $$ = new quickstep::ParseSimpleTableReference(@1.first_line, @1.first_column, $1);
   };
 
 table_reference_signature:
@@ -1338,20 +1359,12 @@ predicate_expression_base:
     NotSupported(&@2, yyscanner, "NULL comparison predicates");
     YYERROR;
   }
-  | add_expression TOKEN_LIKE TOKEN_STRING_SINGLE_QUOTED {
-    delete $1;
-    delete $3;
-    $$ = nullptr;
-    NotSupported(&@2, yyscanner, "LIKE predicates");
-    YYERROR;
-  }
   | add_expression comparison_operation add_expression {
     $$ = new quickstep::ParsePredicateComparison(@2.first_line, @2.first_column, *$2, $1, $3);
   }
   | '(' or_expression ')' {
     $$ = $2;
   };
-
 
 /* Scalars */
 add_expression:
@@ -1511,6 +1524,18 @@ comparison_operation:
   }
   | TOKEN_GEQ {
     $$ = &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kGreaterOrEqual);
+  }
+  | TOKEN_LIKE {
+    $$ =  &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kLike);
+  }
+  | TOKEN_NOT TOKEN_LIKE {
+    $$ =  &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kNotLike);
+  }
+  | TOKEN_REGEXP {
+    $$ =  &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kRegexMatch);
+  }
+  | TOKEN_NOT TOKEN_REGEXP {
+    $$ =  &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kNotRegexMatch);
   };
 
 unary_operation:

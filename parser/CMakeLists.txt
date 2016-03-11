@@ -90,21 +90,22 @@ add_library(quickstep_parser_ParseExpression ../empty_src.cpp ParseExpression.hp
 add_library(quickstep_parser_ParseGeneratorTableReference ParseGeneratorTableReference.cpp ParseGeneratorTableReference.hpp)
 add_library(quickstep_parser_ParseGroupBy ParseGroupBy.cpp ParseGroupBy.hpp)
 add_library(quickstep_parser_ParseHaving ParseHaving.cpp ParseHaving.hpp)
+add_library(quickstep_parser_ParseKeyValue ../empty_src.cpp ParseKeyValue.hpp)
 add_library(quickstep_parser_ParseLimit ParseLimit.cpp ParseLimit.hpp)
 add_library(quickstep_parser_ParseLiteralValue ParseLiteralValue.cpp ParseLiteralValue.hpp)
 add_library(quickstep_parser_ParseOrderBy ParseOrderBy.cpp ParseOrderBy.hpp)
 add_library(quickstep_parser_ParsePredicate ParsePredicate.cpp ParsePredicate.hpp)
-add_library(quickstep_parser_ParserUtil ParserUtil.cpp ParserUtil.hpp)
+add_library(quickstep_parser_ParseSample ParseSample.cpp ParseSample.hpp)
 add_library(quickstep_parser_ParseSelect ../empty_src.cpp ParseSelect.hpp)
 add_library(quickstep_parser_ParseSelectionClause ParseSelectionClause.cpp ParseSelectionClause.hpp)
 add_library(quickstep_parser_ParseSimpleTableReference ParseSimpleTableReference.cpp ParseSimpleTableReference.hpp)
 add_library(quickstep_parser_ParseStatement ../empty_src.cpp ParseStatement.hpp)
 add_library(quickstep_parser_ParseString ParseString.cpp ParseString.hpp)
-add_library(quickstep_parser_ParseKeyValue ../empty_src.cpp ParseKeyValue.hpp)
 add_library(quickstep_parser_ParseSubqueryExpression ParseSubqueryExpression.cpp ParseSubqueryExpression.hpp)
 add_library(quickstep_parser_ParseSubqueryTableReference ParseSubqueryTableReference.cpp ParseSubqueryTableReference.hpp)
 add_library(quickstep_parser_ParseTableReference ParseTableReference.cpp ParseTableReference.hpp)
 add_library(quickstep_parser_ParseTreeNode ../empty_src.cpp ParseTreeNode.hpp)
+add_library(quickstep_parser_ParserUtil ParserUtil.cpp ParserUtil.hpp)
 add_library(quickstep_parser_SqlParserWrapper SqlParserWrapper.cpp SqlParserWrapper.hpp)
 add_library(quickstep_parser_SqlParser ${BISON_SqlParser_OUTPUTS})
 add_library(quickstep_parser_SqlLexer ${FLEX_SqlLexer_OUTPUTS})
@@ -183,6 +184,11 @@ target_link_libraries(quickstep_parser_ParsePredicate
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_utility_Macros
                       quickstep_utility_PtrList)
+
+target_link_libraries(quickstep_parser_ParseSample
+                      quickstep_parser_ParseLiteralValue
+                      quickstep_parser_ParseTreeNode
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_parser_ParseSelect
                       glog
                       quickstep_parser_ParseGroupBy
@@ -202,6 +208,7 @@ target_link_libraries(quickstep_parser_ParseSelectionClause
                       quickstep_utility_Macros
                       quickstep_utility_PtrList)
 target_link_libraries(quickstep_parser_ParseSimpleTableReference
+                      quickstep_parser_ParseSample
                       quickstep_parser_ParseString
                       quickstep_parser_ParseTableReference
                       quickstep_utility_Macros)
@@ -269,6 +276,7 @@ target_link_libraries(quickstep_parser_SqlParser
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseOrderBy
                       quickstep_parser_ParsePredicate
+                      quickstep_parser_ParseSample
                       quickstep_parser_ParseSelect
                       quickstep_parser_ParseSelectionClause
                       quickstep_parser_ParseSimpleTableReference
@@ -338,6 +346,7 @@ target_link_libraries(quickstep_parser
                       quickstep_parser_ParseOrderBy
                       quickstep_parser_ParsePredicate
                       quickstep_parser_ParserUtil
+                      quickstep_parser_ParseSample
                       quickstep_parser_ParseSelect
                       quickstep_parser_ParseSelectionClause
                       quickstep_parser_ParseSimpleTableReference
