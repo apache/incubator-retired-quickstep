@@ -437,8 +437,8 @@ class HashAntiJoinWorkOrder : public WorkOrder {
 /**
  * @brief An outer join WorkOrder produced by the HashJoinOperator.
  **/
-/* class HashOuterJoinWorkOrder : public WorkOrder {
- public:*/
+ class HashOuterJoinWorkOrder : public WorkOrder {
+ public:
   /**
    * @brief Constructor.
    * TODO(harshad) - Sync the doxygen.
@@ -469,7 +469,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
    *        the build relation.
    * @param lookup_block_id The block id of the probe_relation.
    **/
-  /*HashOuterJoinWorkOrder(const CatalogRelationSchema &build_relation,
+  HashOuterJoinWorkOrder(const CatalogRelationSchema &build_relation,
                          const CatalogRelationSchema &probe_relation,
                          const std::vector<attribute_id> &join_key_attributes,
                          const bool any_join_key_attributes_nullable,
@@ -494,7 +494,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
 
   ~HashOuterJoinWorkOrder() override {}
 
-  void execute() override {}
+  void execute() override;
 
  private:
   const CatalogRelationSchema &build_relation_;
@@ -512,7 +512,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
   StorageManager *storage_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(HashOuterJoinWorkOrder);
-};*/
+};
 /** @} */
 
 }  // namespace quickstep

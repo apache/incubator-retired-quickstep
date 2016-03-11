@@ -203,6 +203,38 @@ class SemiAntiJoinTupleCollector {
   std::unique_ptr<TupleIdSequence> filter_;
 };
 
+class OuterJoinTupleCollector {
+ public:
+  OuterJoinTupleCollector(const TupleStorageSubBlock &tuple_store) {
+    filter_.reset(tuple_store.getExistenceMap());
+  }
+
+  template <typename ValueAccessorT>
+  inline void operator()(const ValueAccessorT &accessor,
+                         const TupleReference &tref) {
+    joined_tuples_[tref.block].emplace_back(tref.tuple, accessor.getCurrentPosition());
+  }
+
+  template <typename ValueAccessorT>
+  inline void hasMatch(const ValueAccessorT &accessor) {
+    filter_->set(accessor.getCurrentPosition(), false);
+  }
+
+  inline std::unordered_map<block_id, std::vector<std::pair<tuple_id, tuple_id>>>*
+      getJoinedTupleMap() {
+    return &joined_tuples_;
+  }
+
+  const TupleIdSequence* filter() const {
+    return filter_.get();
+  }
+
+ private:
+  std::unordered_map<block_id, std::vector<std::pair<tuple_id, tuple_id>>> joined_tuples_;
+  // BitVector on the probe relation. 1 if the corresponding tuple has no match.
+  std::unique_ptr<TupleIdSequence> filter_;
+};
+
 }  // namespace
 
 bool HashJoinOperator::getAllWorkOrders(
@@ -484,6 +516,94 @@ void HashSemiJoinWorkOrder::executeWithoutResidualPredicate() {
   }
 
   output_destination_->bulkInsertTuples(&temp_result);
+}
+
+void HashOuterJoinWorkOrder::execute() {
+  const relation_id build_relation_id = build_relation_.getID();
+  const relation_id probe_relation_id = probe_relation_.getID();
+
+  BlockReference probe_block = storage_manager_->getBlock(block_id_,
+                                                          probe_relation_);
+  const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
+
+  std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
+  OuterJoinTupleCollector collector(probe_store);
+  if (join_key_attributes_.size() == 1) {
+    hash_table_.getAllFromValueAccessorWithExtraWorkForFirstMatch(
+        probe_accessor.get(),
+        join_key_attributes_.front(),
+        any_join_key_attributes_nullable_,
+        &collector);
+  } else {
+    hash_table_.getAllFromValueAccessorCompositeKeyWithExtraWorkForFirstMatch(
+        probe_accessor.get(),
+        join_key_attributes_,
+        any_join_key_attributes_nullable_,
+        &collector);
+  }
+
+  for (const std::pair<const block_id, std::vector<std::pair<tuple_id, tuple_id>>>
+           &build_block_entry : *collector.getJoinedTupleMap()) {
+    BlockReference build_block = storage_manager_->getBlock(build_block_entry.first,
+                                                            build_relation_);
+    const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
+
+    std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
+    ColumnVectorsValueAccessor temp_result;
+    for (PtrList<Scalar>::const_iterator selection_it = selection_on_probe_.begin();
+         selection_it != selection_on_probe_.end();
+         ++selection_it) {
+      temp_result.addColumn(selection_it->getAllValuesForJoin(build_relation_id,
+                                                              build_accessor.get(),
+                                                              probe_relation_id,
+                                                              probe_accessor.get(),
+                                                              build_block_entry.second));
+    }
+    for (PtrList<Scalar>::const_iterator selection_it = selection_on_build_.begin();
+         selection_it != selection_on_build_.end();
+         ++selection_it) {
+      temp_result.addColumn(selection_it->getAllValuesForJoin(build_relation_id,
+                                                              build_accessor.get(),
+                                                              probe_relation_id,
+                                                              probe_accessor.get(),
+                                                              build_block_entry.second));
+    }
+
+    output_destination_->bulkInsertTuples(&temp_result);
+  }
+
+  SubBlocksReference sub_blocks_ref(probe_store,
+                                    probe_block->getIndices(),
+                                    probe_block->getIndicesConsistent());
+
+  const TupleIdSequence *filter = collector.filter();
+  const TupleIdSequence::size_type num_tuples_without_matches = filter->size();
+  if (num_tuples_without_matches > 0) {
+    std::unique_ptr<ValueAccessor> probe_accessor_with_filter(
+        probe_store.createValueAccessor(filter));
+    ColumnVectorsValueAccessor temp_result;
+    for (PtrList<Scalar>::const_iterator selection_it = selection_on_probe_.begin();
+         selection_it != selection_on_probe_.end();
+         ++selection_it) {
+      temp_result.addColumn(selection_it->getAllValues(probe_accessor_with_filter.get(),
+                                                       &sub_blocks_ref));
+    }
+
+    for (const Type *selection_on_build_type : selection_on_build_types_) {
+      if (NativeColumnVector::UsableForType(*selection_on_build_type)) {
+        NativeColumnVector *result = new NativeColumnVector(*selection_on_build_type,
+                                                            num_tuples_without_matches);
+        result->fillWithNulls();
+        temp_result.addColumn(result);
+      } else {
+        IndirectColumnVector *result = new IndirectColumnVector(*selection_on_build_type,
+                                                                num_tuples_without_matches);
+        result->fillWithValue(TypedValue(selection_on_build_type->getTypeID()));
+        temp_result.addColumn(result);
+      }
+    }
+    output_destination_->bulkInsertTuples(&temp_result);
+  }
 }
 
 }  // namespace quickstep
