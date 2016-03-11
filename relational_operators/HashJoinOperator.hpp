@@ -412,12 +412,18 @@ class HashAntiJoinWorkOrder : public WorkOrder {
 
   ~HashAntiJoinWorkOrder() override {}
 
-  void execute() override;
+  void execute() override {
+    if (residual_predicate_ == nullptr) {
+      executeWithoutResidualPredicate();
+    } else {
+      executeWithResidualPredicate();
+    }
+  }
 
  private:
-  void executeWithoutResidualPredicate() {}
+  void executeWithoutResidualPredicate();
 
-  void executeWithResidualPredicate() {}
+  void executeWithResidualPredicate();
 
   const CatalogRelationSchema &build_relation_;
   const CatalogRelationSchema &probe_relation_;
