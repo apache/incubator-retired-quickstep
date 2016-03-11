@@ -1429,7 +1429,6 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     WorkOrdersContainer container(kOpIndex + 1, 0);
     do {
       done = merge_op_->getAllWorkOrders(&container,
-                                         db_.get(),
                                          query_context_.get(),
                                          storage_manager_.get(),
                                          foreman_client_id_,
@@ -1450,7 +1449,6 @@ class SortMergeRunOperatorTest : public ::testing::Test {
       if (!done) {
         // Find work orders to execute, if not done already.
         done = merge_op_->getAllWorkOrders(&container,
-                                           db_.get(),
                                            query_context_.get(),
                                            storage_manager_.get(),
                                            foreman_client_id_,

@@ -31,7 +31,6 @@ namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
-class CatalogDatabase;
 class StorageManager;
 class WorkOrdersContainer;
 
@@ -56,7 +55,6 @@ class DestroyHashOperator : public RelationalOperator {
   ~DestroyHashOperator() override {}
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
-                        CatalogDatabase *catalog_database,
                         QueryContext *query_context,
                         StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,

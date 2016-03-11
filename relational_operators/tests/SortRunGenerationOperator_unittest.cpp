@@ -280,7 +280,6 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
   void executeOperator(RelationalOperator *op) {
     WorkOrdersContainer container(kOpIndex + 1, 0);
     op->getAllWorkOrders(&container,
-                         db_.get(),
                          query_context_.get(),
                          storage_manager_.get(),
                          thread_client_id_,

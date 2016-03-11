@@ -36,7 +36,6 @@ namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
-class CatalogDatabase;
 class InsertDestination;
 class StorageManager;
 class WorkOrdersContainer;
@@ -69,7 +68,6 @@ class InsertOperator : public RelationalOperator {
   ~InsertOperator() override {}
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
-                        CatalogDatabase *catalog_database,
                         QueryContext *query_context,
                         StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
