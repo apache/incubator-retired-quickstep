@@ -404,14 +404,8 @@ class StorageManager {
    *        requested size.
    *
    * @param slots Number of slots to make room for.
-   * @param locked_block_id Reference to the block id for which room is being made.
-   *                        The parent has a lock in the sharded lock manager for the 
-   *                        "locked_block_id,"  so need to pass this through to the 
-   *                        EvictionPolicy to avoid a deadlock if the block that is
-   *                        being cleared out hashes to the same hash entry.
    */
-  void makeRoomForBlock(const size_t slots,
-                        const block_id locked_block_id);
+  void makeRoomForBlock(const size_t slots);
 
   /**
    * @brief Load a block from the persistent storage into memory.

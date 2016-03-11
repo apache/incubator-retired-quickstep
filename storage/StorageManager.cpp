@@ -365,7 +365,6 @@ void* StorageManager::allocateSlots(const std::size_t num_slots,
       = MAP_PRIVATE | MAP_ANONYMOUS | MAP_ALIGNED_SUPER;
 #endif
 
-  makeRoomForBlock(num_slots, locked_block_id);
   void *slots = nullptr;
 
 #if defined(QUICKSTEP_HAVE_MMAP_LINUX_HUGETLB) || defined(QUICKSTEP_HAVE_MMAP_BSD_SUPERPAGE)
@@ -460,6 +459,9 @@ MutableBlockReference StorageManager::getBlockInternal(
     }
   }
 
+  std::size_t num_slots = file_manager_->numSlots(block);
+  makeRoomForBlock(num_slots);
+
   // Note that there is no way for the block to be evicted between the call to
   // loadBlock and the call to EvictionPolicy::blockReferenced from
   // MutableBlockReference's constructor; this is because EvictionPolicy
@@ -533,24 +535,10 @@ MutableBlobReference StorageManager::getBlobInternal(const block_id blob,
   return ret;
 }
 
-void StorageManager::makeRoomForBlock(const size_t slots,
-                                      const block_id locked_block_id) {
+void StorageManager::makeRoomForBlock(const size_t slots) {
   while (total_memory_usage_ + slots > max_memory_usage_) {
     block_id block_index;
     EvictionPolicy::Status status = eviction_policy_->chooseBlockToEvict(&block_index);
-
-    if ((status == EvictionPolicy::Status::kOk) &&  // Have a valid "block_index."
-        (locked_block_id != kInvalidBlockId) &&
-        (lock_manager_.get(locked_block_id) == lock_manager_.get(block_index))) {
-      // We have a collision in the shared lock manager, where the caller of
-      // this function has acquired a lock, and we are trying to evict a block
-      // that hashes to the same location. This will cause a self-deadlock.
-
-      // For now simply treat this situation as the case where there is not
-      // enough memory and we temporarily go over the memory limit.
-      // TODO(jmp): find another block to evict, if possible.
-      break;
-    }
 
     if (status == EvictionPolicy::Status::kOk) {
       SpinSharedMutexExclusiveLock<false> eviction_lock(*lock_manager_.get(block_index));
