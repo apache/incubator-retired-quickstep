@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
+#include "query_execution/ForemanLite.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
@@ -32,10 +33,10 @@
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
-#include "threading/Thread.hpp"
 #include "utility/DAG.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
 #include "gtest/gtest_prod.h"
 
 #include "tmb/message_bus.h"
@@ -57,7 +58,7 @@ namespace serialization { class QueryContext; }
  *        workorders. It also pipelines the intermediate output it receives to
  *        the relational operators which need it.
  **/
-class Foreman : public Thread {
+class Foreman final : public ForemanLite {
  public:
   /**
    * @brief Constructor.
@@ -65,27 +66,23 @@ class Foreman : public Thread {
    * @param bus A pointer to the TMB.
    * @param catalog_database The catalog database where this query is executed.
    * @param storage_manager The StorageManager to use.
-   * @param num_numa_nodes The number of NUMA nodes in the system.
    * @param cpu_id The ID of the CPU to which the Foreman thread can be pinned.
+   * @param num_numa_nodes The number of NUMA nodes in the system.
    *
    * @note If cpu_id is not specified, Foreman thread can be possibly moved
    *       around on different CPUs by the OS.
   **/
-  Foreman(MessageBus *bus,
+  Foreman(tmb::MessageBus *bus,
           CatalogDatabase *catalog_database,
           StorageManager *storage_manager,
           const int cpu_id = -1,
           const int num_numa_nodes = 1)
-      : bus_(bus),
-        catalog_database_(catalog_database),
-        storage_manager_(storage_manager),
-        cpu_id_(cpu_id),
+      : ForemanLite(bus, cpu_id),
+        catalog_database_(DCHECK_NOTNULL(catalog_database)),
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
         num_operators_finished_(0),
         max_msgs_per_worker_(1),
         num_numa_nodes_(num_numa_nodes) {
-    DEBUG_ASSERT(bus != nullptr);
-    foreman_client_id_ = bus_->Connect();
-
     bus_->RegisterClientAsSender(foreman_client_id_, kWorkOrderMessage);
     bus_->RegisterClientAsSender(foreman_client_id_, kRebuildWorkOrderMessage);
     // NOTE : Right now, foreman thread doesn't send poison messages. In the
@@ -132,15 +129,6 @@ class Foreman : public Thread {
    **/
   void setWorkerDirectory(WorkerDirectory *workers) {
     workers_ = workers;
-  }
-
-  /**
-   * @brief Get the TMB client ID of Foreman thread.
-   *
-   * @return TMB client ID of foreman thread.
-   **/
-  client_id getBusClientID() const {
-    return foreman_client_id_;
   }
 
   /**
@@ -472,14 +460,8 @@ class Foreman : public Thread {
    **/
   void getRebuildWorkOrders(const dag_node_index index, WorkOrdersContainer *container);
 
-  MessageBus *bus_;
   CatalogDatabase *catalog_database_;
   StorageManager *storage_manager_;
-
-  client_id foreman_client_id_;
-
-  // The ID of the CPU that the Foreman thread can optionally be pinned to.
-  int cpu_id_;
 
   DAG<RelationalOperator, bool> *query_dag_;
 

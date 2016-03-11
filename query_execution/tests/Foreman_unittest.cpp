@@ -45,10 +45,8 @@
 
 #include "gtest/gtest.h"
 
-#include "tmb/address.h"
 #include "tmb/id_typedefs.h"
 #include "tmb/message_bus.h"
-#include "tmb/message_style.h"
 #include "tmb/tagged_message.h"
 
 using std::move;
@@ -222,10 +220,14 @@ class ForemanTest : public ::testing::Test {
   // as a separate class, so we can't access Foreman's private members in
   // TEST_F.
   virtual void SetUp() {
+    db_.reset(new CatalogDatabase(nullptr /* catalog */, "database"));
+    storage_manager_.reset(new StorageManager("./"));
+
     query_plan_.reset(new QueryPlan());
 
     bus_.Initialize();
-    foreman_.reset(new Foreman(&bus_, nullptr /* catalog_database */, nullptr /* storage_manager */));
+
+    foreman_.reset(new Foreman(&bus_, db_.get(), storage_manager_.get()));
 
     // This thread acts both as Foreman as well as Worker. Foreman connects to
     // the bus in its constructor.
@@ -238,9 +240,6 @@ class ForemanTest : public ::testing::Test {
     bus_.RegisterClientAsReceiver(worker_client_id_, kWorkOrderMessage);
     bus_.RegisterClientAsReceiver(worker_client_id_, kRebuildWorkOrderMessage);
     bus_.RegisterClientAsReceiver(worker_client_id_, kPoisonMessage);
-
-    // Cache foreman's address.
-    foreman_address_.AddRecipient(foreman_->getBusClientID());
 
     std::vector<client_id> worker_client_ids;
     worker_client_ids.push_back(worker_client_id_);
@@ -313,13 +312,13 @@ class ForemanTest : public ::testing::Test {
     return bus_.CountQueuedMessagesForClient(worker_client_id_);
   }
 
+  unique_ptr<CatalogDatabase> db_;
+  unique_ptr<StorageManager> storage_manager_;
+
   unique_ptr<QueryPlan> query_plan_;
 
   unique_ptr<Foreman> foreman_;
   MessageBusImpl bus_;
-
-  Address foreman_address_;
-  MessageStyle single_receiver_style_;
 
   client_id worker_client_id_;
 
@@ -696,11 +695,9 @@ TEST_F(ForemanTest, TwoNodesDAGPartiallyFilledBlocksTest) {
   // Create a non-blocking link.
   query_plan_->addDirectDependency(id2, id1, false);
 
-  unique_ptr<CatalogDatabase> db(new CatalogDatabase(nullptr /* catalog */, "database"));
-
-  // Create a relation, owned by db.
+  // Create a relation, owned by db_.
   CatalogRelation *relation = new CatalogRelation(nullptr /* catalog_database */, "test_relation");
-  const relation_id output_relation_id = db->addRelation(relation);
+  const relation_id output_relation_id = db_->addRelation(relation);
 
   // Setup the InsertDestination proto in the query context proto.
   serialization::QueryContext query_context_proto;
@@ -721,12 +718,6 @@ TEST_F(ForemanTest, TwoNodesDAGPartiallyFilledBlocksTest) {
 
   const MockOperator &op1 = static_cast<const MockOperator&>(query_plan_->getQueryPlanDAG().getNodePayload(id1));
   const MockOperator &op2 = static_cast<const MockOperator&>(query_plan_->getQueryPlanDAG().getNodePayload(id2));
-
-  unique_ptr<StorageManager> storage_manager(new StorageManager("./"));
-
-  foreman_.reset(
-      new Foreman(&bus_, db.get(), storage_manager.get()));
-  foreman_->setWorkerDirectory(workers_.get());
 
   foreman_->setQueryPlan(query_plan_->getQueryPlanDAGMutable());
   foreman_->reconstructQueryContextFromProto(query_context_proto);
