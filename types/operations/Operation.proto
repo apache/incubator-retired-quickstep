@@ -27,6 +27,10 @@ message Comparison {
     LESS_OR_EQUAL = 3;
     GREATER = 4;
     GREATER_OR_EQUAL = 5;
+    LIKE = 6;
+    NOT_LIKE = 7;
+    REGEX_MATCH = 8;
+    NOT_REGEX_MATCH = 9;
   }
 
   required ComparisonID comparison_id = 1;

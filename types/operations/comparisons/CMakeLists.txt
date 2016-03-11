@@ -19,7 +19,7 @@ add_library(quickstep_types_operations_comparisons_AsciiStringComparators
             AsciiStringComparators.hpp
             AsciiStringComparators-inl.hpp)
 add_library(quickstep_types_operations_comparisons_BasicComparison BasicComparison.cpp BasicComparison.hpp)
-add_library(quickstep_types_operations_comparisons_Comparison Comparison.cpp Comparison.hpp)
+add_library(quickstep_types_operations_comparisons_Comparison Comparison.cpp Comparison.hpp Comparison-inl.hpp)
 add_library(quickstep_types_operations_comparisons_ComparisonFactory ComparisonFactory.cpp ComparisonFactory.hpp)
 add_library(quickstep_types_operations_comparisons_ComparisonID ComparisonID.cpp ComparisonID.hpp)
 add_library(quickstep_types_operations_comparisons_ComparisonUtil ../../../empty_src.cpp ComparisonUtil.hpp)
@@ -41,6 +41,13 @@ add_library(quickstep_types_operations_comparisons_LiteralComparators
 add_library(quickstep_types_operations_comparisons_NotEqualComparison
             NotEqualComparison.cpp
             NotEqualComparison.hpp)
+add_library(quickstep_types_operations_comparisons_PatternMatchingComparators
+            ../../../empty_src.cpp
+            PatternMatchingComparators.hpp
+            PatternMatchingComparators-inl.hpp)
+add_library(quickstep_types_operations_comparisons_PatternMatchingComparison
+            PatternMatchingComparison.cpp
+            PatternMatchingComparison.hpp)
 
 # Link dependencies:
 target_link_libraries(quickstep_types_operations_comparisons_AsciiStringComparators
@@ -74,6 +81,7 @@ target_link_libraries(quickstep_types_operations_comparisons_Comparison
                       quickstep_storage_TupleIdSequence
                       quickstep_storage_ValueAccessor
                       quickstep_storage_ValueAccessorUtil
+                      quickstep_types_TypedValue
                       quickstep_types_containers_ColumnVector
                       quickstep_types_containers_ColumnVectorUtil
                       quickstep_types_operations_Operation
@@ -90,7 +98,10 @@ target_link_libraries(quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_LessComparison
                       quickstep_types_operations_comparisons_LessOrEqualComparison
                       quickstep_types_operations_comparisons_NotEqualComparison
+                      quickstep_types_operations_comparisons_PatternMatchingComparison
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_types_operations_comparisons_ComparisonID
+                      glog)
 target_link_libraries(quickstep_types_operations_comparisons_ComparisonUtil
                       glog
                       quickstep_catalog_CatalogTypedefs
@@ -150,6 +161,26 @@ target_link_libraries(quickstep_types_operations_comparisons_NotEqualComparison
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_types_operations_comparisons_LiteralComparators
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_types_operations_comparisons_PatternMatchingComparators
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_storage_TupleIdSequence
+                      quickstep_storage_ValueAccessor
+                      quickstep_storage_ValueAccessorUtil
+                      quickstep_types_TypedValue
+                      quickstep_types_containers_ColumnVector
+                      quickstep_types_containers_ColumnVectorUtil
+                      quickstep_types_operations_comparisons_Comparison
+                      quickstep_types_port_strnlen
+                      re2)
+target_link_libraries(quickstep_types_operations_comparisons_PatternMatchingComparison
+                      quickstep_types_Type
+                      quickstep_types_TypeID
+                      quickstep_types_operations_comparisons_PatternMatchingComparators
+                      quickstep_types_operations_comparisons_Comparison
+                      quickstep_types_operations_comparisons_ComparisonID
+                      quickstep_utility_TemplateUtil
+                      quickstep_utility_Macros)
 
 # Module all-in-one library:
 add_library(quickstep_types_operations_comparisons ../../../empty_src.cpp)
@@ -166,7 +197,9 @@ target_link_libraries(quickstep_types_operations_comparisons
                       quickstep_types_operations_comparisons_LessComparison
                       quickstep_types_operations_comparisons_LessOrEqualComparison
                       quickstep_types_operations_comparisons_LiteralComparators
-                      quickstep_types_operations_comparisons_NotEqualComparison)
+                      quickstep_types_operations_comparisons_NotEqualComparison
+                      quickstep_types_operations_comparisons_PatternMatchingComparators
+                      quickstep_types_operations_comparisons_PatternMatchingComparison)
 
 # Tests:
 add_executable(Comparison_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/Comparison_unittest.cpp")

@@ -20,6 +20,8 @@
 
 #include <type_traits>
 
+#include "glog/logging.h"
+
 namespace quickstep {
 
 /** \addtogroup Types
@@ -36,6 +38,10 @@ enum class ComparisonID {
   kLessOrEqual,
   kGreater,
   kGreaterOrEqual,
+  kLike,
+  kNotLike,
+  kRegexMatch,
+  kNotRegexMatch,
   kNumComparisonIDs  // Not a real ComparisonID, exists for counting purposes.
 };
 
@@ -74,6 +80,11 @@ inline ComparisonID flipComparisonID(const ComparisonID comparison) {
       return ComparisonID::kLess;
     case ComparisonID::kGreaterOrEqual:
       return ComparisonID::kLessOrEqual;
+    case ComparisonID::kLike:
+    case ComparisonID::kNotLike:
+    case ComparisonID::kRegexMatch:
+    case ComparisonID::kNotRegexMatch:
+      LOG(FATAL) << "Cannot flip pattern matching comparison.";
     default:
       return comparison;
   }

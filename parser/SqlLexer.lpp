@@ -227,6 +227,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "quit"             return TOKEN_QUIT;
   "real"             return TOKEN_REAL;
   "references"       return TOKEN_REFERENCES;
+  "regexp"           return TOKEN_REGEXP;
   "right"            return TOKEN_RIGHT;
   "row_delimiter"    return TOKEN_ROW_DELIMITER;
   "select"           return TOKEN_SELECT;

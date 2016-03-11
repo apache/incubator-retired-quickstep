@@ -1,0 +1,158 @@
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#   University of Wisconsin—Madison.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+# Initialize tables
+CREATE TABLE foo (name VARCHAR(24),
+                  email VARCHAR(24));
+
+INSERT INTO foo VALUES('aaa', 'aaa@gmail.com');
+INSERT INTO foo VALUES('bbb', 'BBB@outlook.com');
+INSERT INTO foo VALUES('ccc', 'ccc@gmail.com');
+INSERT INTO foo VALUES('ddd', 'delta@wisc.edu');
+INSERT INTO foo VALUES('eee', 'eee@wisc.edu');
+INSERT INTO foo VALUES('eef', 'fff@cs.wisc.edu');
+
+CREATE TABLE bar (pattern VARCHAR(24),
+                  organization VARCHAR(24));
+
+INSERT INTO bar VALUES('%@gmail.com', 'Google');
+INSERT INTO bar VALUES('%@outlook.com', 'Microsoft');
+INSERT INTO bar VALUES('%@wisc.edu', 'UW Madison');
+INSERT INTO bar VALUES('%@cs.wisc.edu', 'UW Madison CS');
+
+
+SELECT *
+FROM foo
+WHERE email LIKE '%@gmail.com';
+--
++------------------------+------------------------+
+|name                    |email                   |
++------------------------+------------------------+
+|                     aaa|           aaa@gmail.com|
+|                     ccc|           ccc@gmail.com|
++------------------------+------------------------+
+==
+
+SELECT *
+FROM foo
+WHERE email NOT LIKE '%@gmail.com';
+--
++------------------------+------------------------+
+|name                    |email                   |
++------------------------+------------------------+
+|                     bbb|         BBB@outlook.com|
+|                     ddd|          delta@wisc.edu|
+|                     eee|            eee@wisc.edu|
+|                     eef|         fff@cs.wisc.edu|
++------------------------+------------------------+
+==
+
+SELECT *
+FROM foo
+WHERE name LIKE 'ee_';
+--
++------------------------+------------------------+
+|name                    |email                   |
++------------------------+------------------------+
+|                     eee|            eee@wisc.edu|
+|                     eef|         fff@cs.wisc.edu|
++------------------------+------------------------+
+==
+
+SELECT *
+FROM foo
+WHERE email REGEXP '.*(gmail|outlook).*';
+--
++------------------------+------------------------+
+|name                    |email                   |
++------------------------+------------------------+
+|                     aaa|           aaa@gmail.com|
+|                     bbb|         BBB@outlook.com|
+|                     ccc|           ccc@gmail.com|
++------------------------+------------------------+
+==
+
+SELECT *
+FROM foo
+WHERE email NOT REGEXP '.*(gmail|outlook).*';
+--
++------------------------+------------------------+
+|name                    |email                   |
++------------------------+------------------------+
+|                     ddd|          delta@wisc.edu|
+|                     eee|            eee@wisc.edu|
+|                     eef|         fff@cs.wisc.edu|
++------------------------+------------------------+
+==
+
+SELECT *
+FROM foo
+WHERE email REGEXP '[a-z]+\@.*';
+--
++------------------------+------------------------+
+|name                    |email                   |
++------------------------+------------------------+
+|                     aaa|           aaa@gmail.com|
+|                     ccc|           ccc@gmail.com|
+|                     ddd|          delta@wisc.edu|
+|                     eee|            eee@wisc.edu|
+|                     eef|         fff@cs.wisc.edu|
++------------------------+------------------------+
+==
+
+SELECT *
+FROM foo
+WHERE name REGEXP '.[ace].'
+  AND email LIKE '%wisc%';
+--
++------------------------+------------------------+
+|name                    |email                   |
++------------------------+------------------------+
+|                     eee|            eee@wisc.edu|
+|                     eef|         fff@cs.wisc.edu|
++------------------------+------------------------+
+==
+
+SELECT *
+FROM foo
+WHERE name REGEXP '.[ace].'
+  OR email LIKE '%wisc%';
+--
++------------------------+------------------------+
+|name                    |email                   |
++------------------------+------------------------+
+|                     aaa|           aaa@gmail.com|
+|                     ccc|           ccc@gmail.com|
+|                     ddd|          delta@wisc.edu|
+|                     eee|            eee@wisc.edu|
+|                     eef|         fff@cs.wisc.edu|
++------------------------+------------------------+
+==
+
+SELECT name, email, organization
+FROM foo, bar
+WHERE email LIKE pattern
+  AND name NOT LIKE 'd%';
+--
++------------------------+------------------------+------------------------+
+|name                    |email                   |organization            |
++------------------------+------------------------+------------------------+
+|                     aaa|           aaa@gmail.com|                  Google|
+|                     bbb|         BBB@outlook.com|               Microsoft|
+|                     ccc|           ccc@gmail.com|                  Google|
+|                     eee|            eee@wisc.edu|              UW Madison|
+|                     eef|         fff@cs.wisc.edu|           UW Madison CS|
++------------------------+------------------------+------------------------+
+==

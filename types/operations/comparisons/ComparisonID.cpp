@@ -25,7 +25,11 @@ const char *kComparisonNames[] = {
   "Less",
   "LessOrEqual",
   "Greater",
-  "GreaterOrEqual"
+  "GreaterOrEqual",
+  "kLike",
+  "kNotLike",
+  "kRegexMatch",
+  "kNotRegexMatch"
 };
 
 const char *kComparisonShortNames[] = {
@@ -34,7 +38,11 @@ const char *kComparisonShortNames[] = {
   "<",
   "<=",
   ">",
-  ">="
+  ">=",
+  "LIKE",
+  "NOT LIKE",
+  "REGEXP",
+  "NOT REGEXP"
 };
 
 }  // namespace quickstep

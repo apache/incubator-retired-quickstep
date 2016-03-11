@@ -207,7 +207,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %right TOKEN_NOT
 %right TOKEN_EQ
 %nonassoc TOKEN_LT TOKEN_LEQ TOKEN_GT TOKEN_GEQ TOKEN_NEQ
-%nonassoc TOKEN_LIKE
+%nonassoc TOKEN_LIKE TOKEN_REGEXP
 %nonassoc TOKEN_BETWEEN
 %nonassoc TOKEN_IS
 %left '+' '-'
@@ -278,6 +278,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_QUIT;
 %token TOKEN_REAL;
 %token TOKEN_REFERENCES;
+%token TOKEN_REGEXP;
 %token TOKEN_RIGHT;
 %token TOKEN_ROW_DELIMITER;
 %token TOKEN_SELECT;
@@ -1358,20 +1359,12 @@ predicate_expression_base:
     NotSupported(&@2, yyscanner, "NULL comparison predicates");
     YYERROR;
   }
-  | add_expression TOKEN_LIKE TOKEN_STRING_SINGLE_QUOTED {
-    delete $1;
-    delete $3;
-    $$ = nullptr;
-    NotSupported(&@2, yyscanner, "LIKE predicates");
-    YYERROR;
-  }
   | add_expression comparison_operation add_expression {
     $$ = new quickstep::ParsePredicateComparison(@2.first_line, @2.first_column, *$2, $1, $3);
   }
   | '(' or_expression ')' {
     $$ = $2;
   };
-
 
 /* Scalars */
 add_expression:
@@ -1531,6 +1524,18 @@ comparison_operation:
   }
   | TOKEN_GEQ {
     $$ = &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kGreaterOrEqual);
+  }
+  | TOKEN_LIKE {
+    $$ =  &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kLike);
+  }
+  | TOKEN_NOT TOKEN_LIKE {
+    $$ =  &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kNotLike);
+  }
+  | TOKEN_REGEXP {
+    $$ =  &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kRegexMatch);
+  }
+  | TOKEN_NOT TOKEN_REGEXP {
+    $$ =  &quickstep::ComparisonFactory::GetComparison(quickstep::ComparisonID::kNotRegexMatch);
   };
 
 unary_operation:
