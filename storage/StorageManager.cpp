@@ -448,6 +448,7 @@ MutableBlockReference StorageManager::getBlockInternal(
     const block_id block,
     const CatalogRelationSchema &relation,
     const int numa_node) {
+  std::size_t num_slots;
   MutableBlockReference ret;
   {
     SpinSharedMutexSharedLock<false> eviction_lock(*lock_manager_.get(block));
@@ -457,9 +458,9 @@ MutableBlockReference StorageManager::getBlockInternal(
       DEBUG_ASSERT(!it->second.block->isBlob());
       ret = MutableBlockReference(static_cast<StorageBlock*>(it->second.block), eviction_policy_.get());
     }
+    num_slots = file_manager_->numSlots(block);
   }
 
-  std::size_t num_slots = file_manager_->numSlots(block);
   makeRoomForBlock(num_slots);
 
   // Note that there is no way for the block to be evicted between the call to
