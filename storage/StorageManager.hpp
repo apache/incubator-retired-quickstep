@@ -208,6 +208,8 @@ class StorageManager {
    **/
   bool blockOrBlobIsLoaded(const block_id block) const;
 
+  bool saveBlockOrBlobLocked(const block_id block, const bool force);
+
   /**
    * @brief Save a block or blob in memory to the persistent storage.
    *

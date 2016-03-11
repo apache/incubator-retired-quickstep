@@ -53,7 +53,7 @@ void SaveBlocksWorkOrder::execute() {
   // It may happen that the block gets saved to disk as a result of an eviction,
   // before this invocation. In either case, we don't care about the return
   // value of saveBlockOrBlob.
-  storage_manager_->saveBlockOrBlob(save_block_id_, force_);
+  storage_manager_->saveBlockOrBlobLocked(save_block_id_, force_);
 }
 
 }  // namespace quickstep
