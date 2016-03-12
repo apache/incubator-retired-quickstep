@@ -36,7 +36,6 @@ namespace quickstep {
 
 bool SortRunGenerationOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
-    CatalogDatabase *catalog_database,
     QueryContext *query_context,
     StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
