@@ -221,20 +221,6 @@ class Foreman final : public ForemanLite {
                               const dag_node_index start_operator_index);
 
   /**
-   * @brief Generate a WorkerMessage of the given type.
-   *
-   * @param workorder A pointer to a WorkOrder to be embedded in the message.
-   * @param index The index of the RelationalOperator in the DAG, that generated
-   *              the workorder.
-   * @param type The type of the WorkerMessage to be generated.
-   *
-   * @return A pointer to the created message.
-   **/
-  WorkerMessage* generateWorkerMessage(WorkOrder *workorder,
-                                       const dag_node_index index,
-                                       const WorkerMessage::WorkerMessageType type);
-
-  /**
    * @brief Initialize all the local vectors and maps. If the operator has an
    *        InsertDestination, pass the bus address and Foreman's TMB client ID
    *        to it.
