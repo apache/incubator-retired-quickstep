@@ -468,11 +468,10 @@ MutableBlockReference StorageManager::getBlockInternal(
     if (it != blocks_.end()) {
       DEBUG_ASSERT(!it->second.block->isBlob());
       ret = MutableBlockReference(static_cast<StorageBlock*>(it->second.block), eviction_policy_.get());
+    } else {
+      num_slots = file_manager_->numSlots(block);
     }
-    num_slots = file_manager_->numSlots(block);
   }
-
-  makeRoomForBlock(num_slots);
 
   // Note that there is no way for the block to be evicted between the call to
   // loadBlock and the call to EvictionPolicy::blockReferenced from
@@ -480,6 +479,8 @@ MutableBlockReference StorageManager::getBlockInternal(
   // doesn't know about the block until blockReferenced is called, so
   // chooseBlockToEvict shouldn't return the block.
   if (!ret.valid()) {
+    makeRoomForBlock(num_slots);
+
     SpinSharedMutexExclusiveLock<false> io_lock(*lock_manager_.get(block));
     {
       // Check one more time if the block got loaded in memory by someone else.
