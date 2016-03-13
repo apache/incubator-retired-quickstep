@@ -462,13 +462,17 @@ MutableBlockReference StorageManager::getBlockInternal(
   std::size_t num_slots;
   MutableBlockReference ret;
   {
+    // First, see if the block is in the buffer pool. If it is, we can return
+    // a reference to it immediately.
     SpinSharedMutexSharedLock<false> eviction_lock(*lock_manager_.get(block));
     SpinSharedMutexSharedLock<false> read_lock(blocks_shared_mutex_);
     std::unordered_map<block_id, BlockHandle>::iterator it = blocks_.find(block);
     if (it != blocks_.end()) {
-      DEBUG_ASSERT(!it->second.block->isBlob());
+      DCHECK(!it->second.block->isBlob());
       ret = MutableBlockReference(static_cast<StorageBlock*>(it->second.block), eviction_policy_.get());
     } else {
+      // The block was not loaded. Taking advantage of the shared lock on the
+      // buffer pool, retrieve the size of the block's file.
       num_slots = file_manager_->numSlots(block);
     }
   }
@@ -479,6 +483,9 @@ MutableBlockReference StorageManager::getBlockInternal(
   // doesn't know about the block until blockReferenced is called, so
   // chooseBlockToEvict shouldn't return the block.
   if (!ret.valid()) {
+    // Call a best-effort method to evict blocks until the size of our buffer
+    // pool falls below the current buffer pool size plus the size of the 
+    // block we are going to retrieve.
     makeRoomForBlock(num_slots);
 
     SpinSharedMutexExclusiveLock<false> io_lock(*lock_manager_.get(block));
@@ -487,7 +494,7 @@ MutableBlockReference StorageManager::getBlockInternal(
       SpinSharedMutexSharedLock<false> read_lock(blocks_shared_mutex_);
       std::unordered_map<block_id, BlockHandle>::iterator it = blocks_.find(block);
       if (it != blocks_.end()) {
-        DEBUG_ASSERT(!it->second.block->isBlob());
+        DCHECK(!it->second.block->isBlob());
         ret = MutableBlockReference(static_cast<StorageBlock*>(it->second.block), eviction_policy_.get());
         return ret;
       }

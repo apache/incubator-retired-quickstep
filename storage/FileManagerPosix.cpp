@@ -38,6 +38,8 @@
 #include "utility/Macros.hpp"
 #include "utility/StringUtil.hpp"
 
+#include "glog/logging.h"
+
 using std::size_t;
 using std::sscanf;
 using std::strerror;
@@ -86,6 +88,7 @@ size_t FileManagerPosix::numSlots(const block_id block) const {
   }
 
   if ((file_stat.st_size % kSlotSizeBytes) != 0) {
+    LOG(ERROR) << "Size of file " << filename.c_str() << " was not integral.";
     throw CorruptPersistentStorage();
   }
 
