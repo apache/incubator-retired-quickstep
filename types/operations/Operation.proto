@@ -77,6 +77,7 @@ message BinaryOperation {
     SUBTRACT = 1;
     MULTIPLY = 2;
     DIVIDE = 3;
+    MODULO = 4;
   }
 
   required BinaryOperationID operation_id = 1;

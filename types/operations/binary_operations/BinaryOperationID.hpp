@@ -34,6 +34,7 @@ enum class BinaryOperationID {
   kSubtract,
   kMultiply,
   kDivide,
+  kModulo,
   kNumBinaryOperationIDs  // Not a real BinaryOperationID, exists for counting purposes.
 };
 

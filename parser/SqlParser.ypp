@@ -1558,7 +1558,10 @@ add_operation:
   };
 
 multiply_operation:
-  '*' {
+  '%' {
+    $$ = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kModulo);
+  }
+  | '*' {
     $$ = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kMultiply);
   }
   | '/' {

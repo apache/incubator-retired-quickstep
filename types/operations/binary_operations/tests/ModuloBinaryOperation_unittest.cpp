@@ -1,5 +1,4 @@
 /**
- *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
@@ -15,23 +14,19 @@
  *   limitations under the License.
  **/
 
-#include "types/operations/binary_operations/BinaryOperationID.hpp"
+#include <initializer_list>
+#include <utility>
+
+#include "types/Type.hpp"
+#include "types/TypeFactory.hpp"
+#include "types/TypeID.hpp"
+#include "types/operations/binary_operations/BinaryOperation.hpp"
+#include "types/operations/binary_operations/ModuloBinaryOperation.hpp"
+#include "types/operations/binary_operations/tests/BinaryOperationTestUtil.hpp"
+
+#include "gtest/gtest.h"
 
 namespace quickstep {
 
-const char *kBinaryOperationNames[] = {
-  "Add",
-  "Subtract",
-  "Multiply",
-  "Divide",
-  "Modulo"
-};
-
-const char *kBinaryOperationShortNames[] = {
-  "+",
-  "-",
-  "*",
-  "/"
-};
 
 }  // namespace quickstep

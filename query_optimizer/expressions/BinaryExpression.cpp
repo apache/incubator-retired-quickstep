@@ -60,6 +60,8 @@ std::string BinaryExpression::getName() const {
       return "Multiply";
     case BinaryOperationID::kDivide:
       return "Divide";
+    case BinaryOperationID::kModulo:
+      return "Modulo";
     default:
       LOG(FATAL) << "Unknown binary operation";
   }

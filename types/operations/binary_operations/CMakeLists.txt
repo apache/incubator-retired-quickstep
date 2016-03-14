@@ -35,6 +35,9 @@ add_library(quickstep_types_operations_binaryoperations_BinaryOperationID
 add_library(quickstep_types_operations_binaryoperations_DivideBinaryOperation
             DivideBinaryOperation.cpp
             DivideBinaryOperation.hpp)
+add_library(quickstep_types_operations_binaryoperations_ModuloBinaryOperation
+            ModuloBinaryOperation.cpp
+            ModuloBinaryOperation.hpp)
 add_library(quickstep_types_operations_binaryoperations_MultiplyBinaryOperation
             MultiplyBinaryOperation.cpp
             MultiplyBinaryOperation.hpp)
@@ -100,10 +103,31 @@ target_link_libraries(quickstep_types_operations_binaryoperations_BinaryOperatio
                       quickstep_types_operations_binaryoperations_AddBinaryOperation
                       quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_types_operations_binaryoperations_DivideBinaryOperation
+                      quickstep_types_operations_binaryoperations_ModuloBinaryOperation
                       quickstep_types_operations_binaryoperations_MultiplyBinaryOperation
                       quickstep_types_operations_binaryoperations_SubtractBinaryOperation
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_types_operations_binaryoperations_DivideBinaryOperation
+                      glog
+                      quickstep_types_DateOperatorOverloads
+                      quickstep_types_DatetimeIntervalType
+                      quickstep_types_DoubleType
+                      quickstep_types_FloatType
+                      quickstep_types_IntType
+                      quickstep_types_IntervalLit
+                      quickstep_types_LongType
+                      quickstep_types_Type
+                      quickstep_types_TypeErrors
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
+                      quickstep_types_YearMonthIntervalType
+                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperation
+                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperators
+                      quickstep_types_operations_binaryoperations_BinaryOperationID
+                      quickstep_utility_EqualsAnyConstant
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_types_operations_binaryoperations_ModuloBinaryOperation
                       glog
                       quickstep_types_DateOperatorOverloads
                       quickstep_types_DatetimeIntervalType
@@ -172,6 +196,7 @@ target_link_libraries(quickstep_types_operations_binaryoperations
                       quickstep_types_operations_binaryoperations_BinaryOperationFactory
                       quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_types_operations_binaryoperations_DivideBinaryOperation
+                      quickstep_types_operations_binaryoperations_ModuloBinaryOperation
                       quickstep_types_operations_binaryoperations_MultiplyBinaryOperation
                       quickstep_types_operations_binaryoperations_SubtractBinaryOperation)
 
@@ -192,6 +217,7 @@ add_executable(BinaryOperation_tests
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/AddBinaryOperation_unittest.cpp"
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/BinaryOperation_unittest.cpp"
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/DivideBinaryOperation_unittest.cpp"
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/ModuloBinaryOperation_unittest.cpp"
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/MultiplyBinaryOperation_unittest.cpp"
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/SubtractBinaryOperation_unittest.cpp")
 target_link_libraries(BinaryOperation_tests
@@ -211,6 +237,7 @@ target_link_libraries(BinaryOperation_tests
                       quickstep_types_operations_binaryoperations_BinaryOperationFactory
                       quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_types_operations_binaryoperations_DivideBinaryOperation
+                      quickstep_types_operations_binaryoperations_ModuloBinaryOperation
                       quickstep_types_operations_binaryoperations_MultiplyBinaryOperation
                       quickstep_types_operations_binaryoperations_SubtractBinaryOperation
                       quickstep_types_operations_binaryoperations_tests_BinaryOperationTestUtil

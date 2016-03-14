@@ -38,6 +38,9 @@ serialization::BinaryOperation BinaryOperation::getProto() const {
     case BinaryOperationID::kDivide:
       proto.set_operation_id(serialization::BinaryOperation::DIVIDE);
       break;
+    case BinaryOperationID::kModulo:
+      proto.set_operation_id(serialization::BinaryOperation::MODULO);
+      break;
     default:
       FATAL_ERROR("Unrecognized BinaryOperationID");
   }

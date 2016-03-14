@@ -373,6 +373,7 @@ TEST_F(ScalarTest, ScalarBinaryExpressionSerializationTest) {
   checkScalarBinaryExpressionSerialization(BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kSubtract));
   checkScalarBinaryExpressionSerialization(BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kMultiply));
   checkScalarBinaryExpressionSerialization(BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kDivide));
+  checkScalarBinaryExpressionSerialization(BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kModulo));
 }
 
 }  // namespace quickstep
