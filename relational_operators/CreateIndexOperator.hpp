@@ -57,8 +57,7 @@ class CreateIndexOperator : public RelationalOperator {
   CreateIndexOperator(CatalogRelation *relation,
                       const std::string &index_name)
       : relation_(DCHECK_NOTNULL(relation)),
-        index_name_(index_name),
-        work_generated_(false) {}
+        index_name_(index_name) {}
 
   ~CreateIndexOperator() override {}
 
@@ -71,10 +70,11 @@ class CreateIndexOperator : public RelationalOperator {
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
+  void updateCatalogOnCompletion() override;
+
  private:
   CatalogRelation *relation_;
   const std::string &index_name_;
-  bool work_generated_;
 
   DISALLOW_COPY_AND_ASSIGN(CreateIndexOperator);
 };
