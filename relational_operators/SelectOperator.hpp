@@ -43,7 +43,10 @@ class InsertDestination;
 class Predicate;
 class Scalar;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
+
+namespace serialization { class WorkOrder; }
 
 /** \addtogroup RelationalOperators
  *  @{
@@ -136,6 +139,8 @@ class SelectOperator : public RelationalOperator {
                         const tmb::client_id agent_client_id,
                         tmb::MessageBus *bus) override;
 
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
+
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override {
     input_relation_block_ids_.push_back(input_block_id);
   }
@@ -155,9 +160,15 @@ class SelectOperator : public RelationalOperator {
   }
 
  private:
-  const CatalogRelation &input_relation_;
+  /**
+   * @brief Create Work Order proto.
+   *
+   * @param block The block id used in the Work Order.
+   **/
+  serialization::WorkOrder* createWorkOrderProto(const block_id block);
 
-  const CatalogRelation &output_relation_;
+  const CatalogRelation &input_relation_, &output_relation_;
+
   const QueryContext::insert_destination_id output_destination_index_;
   const QueryContext::predicate_id predicate_index_;
 

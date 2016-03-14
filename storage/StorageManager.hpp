@@ -489,6 +489,7 @@ class StorageManager {
   static constexpr std::size_t kLockManagerNumShards = 256;
   ShardedLockManager<block_id, kLockManagerNumShards, SpinSharedMutex<false>> lock_manager_;
 
+  friend class Shiftboss;
   FRIEND_TEST(StorageManagerTest, DifferentNUMANodeBlobTestWithEviction);
   FRIEND_TEST(StorageManagerTest, EvictFromSameShardTest);
 

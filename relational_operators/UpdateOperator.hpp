@@ -45,6 +45,7 @@ class InsertDestination;
 class Predicate;
 class Scalar;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -96,6 +97,8 @@ class UpdateOperator : public RelationalOperator {
                         const tmb::client_id agent_client_id,
                         tmb::MessageBus *bus) override;
 
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
+
   QueryContext::insert_destination_id getInsertDestinationID() const override {
     return relocation_destination_index_;
   }
@@ -123,7 +126,7 @@ class UpdateOperator : public RelationalOperator {
 class UpdateWorkOrder : public WorkOrder {
  public:
   /**
-   * @brief Constructor
+   * @brief Constructor used in the single-node version.
    *
    * @param relation The relation to perform the UPDATE over.
    * @param predicate All tuples matching \c predicate will be updated (or NULL
@@ -151,7 +154,7 @@ class UpdateWorkOrder : public WorkOrder {
                   const std::size_t update_operator_index,
                   const tmb::client_id foreman_client_id,
                   const tmb::client_id agent_client_id,
-                  MessageBus *bus)
+                  tmb::MessageBus *bus)
       : relation_(relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
@@ -178,7 +181,7 @@ class UpdateWorkOrder : public WorkOrder {
 
   const std::size_t update_operator_index_;
   const tmb::client_id foreman_client_id_, agent_client_id_;
-  MessageBus *bus_;
+  tmb::MessageBus *bus_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateWorkOrder);
 };

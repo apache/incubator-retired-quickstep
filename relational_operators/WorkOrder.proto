@@ -89,8 +89,6 @@ message DestroyHashWorkOrder {
 
 message DropTableWorkOrder {
   extend WorkOrder {
-    // If set, CatalogCache will drop the relation.
-    optional int32 relation_id = 128;
     // Optional, and maybe empty.
     repeated fixed64 block_ids = 129;
   }

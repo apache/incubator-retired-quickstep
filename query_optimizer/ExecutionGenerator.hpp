@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -21,6 +21,8 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -54,6 +56,8 @@
 #include "query_optimizer/physical/UpdateTable.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 namespace quickstep {
 
 class CatalogAttribute;
@@ -61,6 +65,7 @@ class CatalogRelation;
 class Predicate;
 
 namespace serialization {
+class CatalogDatabase;
 class InsertDestination;
 }  // namespace serialization
 
@@ -85,10 +90,11 @@ class ExecutionGenerator {
    */
   ExecutionGenerator(OptimizerContext *optimizer_context,
                      QueryHandle *query_handle)
-      : optimizer_context_(optimizer_context),
-        query_handle_(query_handle),
+      : optimizer_context_(DCHECK_NOTNULL(optimizer_context)),
+        query_handle_(DCHECK_NOTNULL(query_handle)),
         execution_plan_(query_handle->getQueryPlanMutable()),
-        query_context_proto_(query_handle->getQueryContextProtoMutable()) {
+        query_context_proto_(query_handle->getQueryContextProtoMutable()),
+        catalog_database_cache_proto_(query_handle->getCatalogDatabaseCacheProtoMutable()) {
     setupCostModel();
   }
 
@@ -367,6 +373,10 @@ class ExecutionGenerator {
   QueryHandle *query_handle_;
   QueryPlan *execution_plan_;  // A part of QueryHandle.
   serialization::QueryContext *query_context_proto_;  // A part of QueryHandle.
+  serialization::CatalogDatabase *catalog_database_cache_proto_;  // A part of QueryHandle.
+
+  // Used to add CatalogRelationSchema proto in 'catalog_database_cache_proto_'.
+  std::unordered_set<relation_id> relation_ids_;
 
   /**
    * @brief Used to generate distinct relation names for temporary relations.

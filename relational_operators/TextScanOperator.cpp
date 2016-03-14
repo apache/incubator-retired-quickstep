@@ -33,8 +33,10 @@
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionUtil.hpp"
+#include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/TextScanOperator.pb.h"
+#include "relational_operators/WorkOrder.pb.h"
 #include "storage/InsertDestination.hpp"
 #include "storage/StorageBlob.hpp"
 #include "storage/StorageBlockInfo.hpp"
@@ -204,6 +206,81 @@ bool TextScanOperator::getAllWorkOrders(
                                   output_destination,
                                   storage_manager),
             op_index_);
+      }
+      work_generated_ = true;
+    }
+    return work_generated_;
+  }
+}
+
+bool TextScanOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  const std::vector<std::string> files = utility::file::GlobExpand(file_pattern_);
+  if (parallelize_load_) {
+    // Parallel implementation: Split work orders are generated for each file
+    // being bulk-loaded. (More than one file can be loaded, because we support
+    // glob() semantics in file name.) These work orders read the input file,
+    // and split them in the blobs that can be parsed independently.
+    if (blocking_dependencies_met_) {
+      if (!work_generated_) {
+        work_generated_ = true;
+
+        // First, generate text-split work orders.
+        for (const string &file : files) {
+          serialization::WorkOrder *proto = new serialization::WorkOrder;
+          proto->set_work_order_type(serialization::TEXT_SPLIT);
+
+          proto->SetExtension(serialization::TextSplitWorkOrder::operator_index, op_index_);
+          proto->SetExtension(serialization::TextSplitWorkOrder::filename, file);
+          proto->SetExtension(serialization::TextSplitWorkOrder::process_escape_sequences,
+                              process_escape_sequences_);
+
+          container->addWorkOrderProto(proto, op_index_);
+
+          ++num_split_work_orders_;
+        }
+        return false;
+      } else {
+        // Check if there are blobs to parse.
+        while (!text_blob_queue_.empty()) {
+          const TextBlob blob_work = text_blob_queue_.popOne();
+
+          serialization::WorkOrder *proto = new serialization::WorkOrder;
+          proto->set_work_order_type(serialization::TEXT_SCAN);
+
+          proto->SetExtension(serialization::TextScanWorkOrder::field_terminator, field_terminator_);
+          proto->SetExtension(serialization::TextScanWorkOrder::process_escape_sequences,
+                              process_escape_sequences_);
+          proto->SetExtension(serialization::TextScanWorkOrder::insert_destination_index,
+                              output_destination_index_);
+
+          serialization::TextBlob *text_blob_proto =
+              proto->MutableExtension(serialization::TextScanWorkOrder::text_blob);
+          text_blob_proto->set_blob_id(blob_work.blob_id);
+          text_blob_proto->set_size(blob_work.size);
+
+          container->addWorkOrderProto(proto, op_index_);
+        }
+        // Done if all split work orders are completed, and no blobs are left to
+        // process.
+        return num_done_split_work_orders_.load(std::memory_order_acquire) == num_split_work_orders_ &&
+               text_blob_queue_.empty();
+      }
+    }
+    return false;
+  } else {
+    // Serial implementation.
+    if (blocking_dependencies_met_ && !work_generated_) {
+      for (const string &file : files) {
+        serialization::WorkOrder *proto = new serialization::WorkOrder;
+        proto->set_work_order_type(serialization::TEXT_SCAN);
+
+        proto->SetExtension(serialization::TextScanWorkOrder::field_terminator, field_terminator_);
+        proto->SetExtension(serialization::TextScanWorkOrder::process_escape_sequences,
+                            process_escape_sequences_);
+        proto->SetExtension(serialization::TextScanWorkOrder::insert_destination_index, output_destination_index_);
+        proto->SetExtension(serialization::TextScanWorkOrder::filename, file);
+
+        container->addWorkOrderProto(proto, op_index_);
       }
       work_generated_ = true;
     }

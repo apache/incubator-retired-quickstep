@@ -52,6 +52,7 @@ class WorkOrderFactory {
    * @param query_context A pointer to QueryContext.
    * @param storage_manager The StorageManager to use.
    * @param foreman_client_id The TMB client id of Foreman.
+   * @param shiftboss_client_id The TMB client id of Shiftboss.
    * @param bus A pointer to the TMB.
    *
    * @return A new WorkOrder reconstructed from the supplied Protocol Buffer.
@@ -61,6 +62,7 @@ class WorkOrderFactory {
                                          QueryContext *query_context,
                                          StorageManager *storage_manager,
                                          const tmb::client_id foreman_client_id,
+                                         const tmb::client_id shiftboss_client_id,
                                          tmb::MessageBus *bus);
 
   /**

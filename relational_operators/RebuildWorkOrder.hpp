@@ -45,7 +45,7 @@ namespace quickstep {
 class RebuildWorkOrder : public WorkOrder {
  public:
   /**
-   * @brief Constructor.
+   * @brief Constructor used in the single-node version.
    *
    * @param block_ref A MutableBlockReference to the storage block which needs
    *        to be rebuilt.
@@ -53,14 +53,17 @@ class RebuildWorkOrder : public WorkOrder {
    *        query plan DAG that produced the output block.
    * @param input_relation_id The ID of the CatalogRelation to which the given
    *        storage block belongs to.
-   * @param foreman_input_queue A pointer to the Foreman's input queue.
+   * @param foreman_client_id The TMB client ID of the Foreman thread.
+   * @param agent_client_id The TMB client ID of the agent that sends messages
+   *        to Foreman.
+   * @param bus A pointer to the TMB.
    **/
   RebuildWorkOrder(MutableBlockReference &&block_ref,
                    const std::size_t input_operator_index,
                    const relation_id input_relation_id,
                    const client_id foreman_client_id,
                    const client_id agent_client_id,
-                   MessageBus *bus)
+                   tmb::MessageBus *bus)
       : block_ref_(std::move(block_ref)),
         input_operator_index_(input_operator_index),
         input_relation_id_(input_relation_id),
@@ -108,7 +111,7 @@ class RebuildWorkOrder : public WorkOrder {
   const relation_id input_relation_id_;
   const client_id foreman_client_id_, agent_client_id_;
 
-  MessageBus *bus_;
+  tmb::MessageBus *bus_;
 
   DISALLOW_COPY_AND_ASSIGN(RebuildWorkOrder);
 };

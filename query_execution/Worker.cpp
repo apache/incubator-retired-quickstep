@@ -49,6 +49,9 @@ void Worker::run() {
     // message is received.
     const AnnotatedMessage annotated_msg = bus_->Receive(worker_client_id_, 0, true);
     const TaggedMessage &tagged_message = annotated_msg.tagged_message;
+    LOG(INFO) << "Worker " << worker_id_
+              << " received the typed '" << tagged_message.message_type()
+              << "' message from TMB Client " << annotated_msg.sender;
     switch (tagged_message.message_type()) {
       case kWorkOrderMessage:  // Fall through.
       case kRebuildWorkOrderMessage: {
@@ -81,12 +84,16 @@ void Worker::sendWorkOrderCompleteMessage(const tmb::client_id receiver,
   char *proto_bytes = static_cast<char*>(std::malloc(proto_length));
   CHECK(proto.SerializeToArray(proto_bytes, proto_length));
 
-  TaggedMessage message(static_cast<const void*>(proto_bytes),
-                        proto_length,
-                        is_rebuild_work_order ? kRebuildWorkOrderCompleteMessage
-                                              : kWorkOrderCompleteMessage);
+  const QueryExecutionMessageType message_type =
+      is_rebuild_work_order ? kRebuildWorkOrderCompleteMessage
+                            : kWorkOrderCompleteMessage;
+
+  TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, message_type);
   std::free(proto_bytes);
 
+  LOG(INFO) << "Worker " << worker_id_ << " sent " << (is_rebuild_work_order ? "Rebuild" : "")
+            << "WorkOrderCompleteMessage (typed '" << message_type
+            << "') to TMB Client " << receiver;
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(bus_,
                                          worker_client_id_,

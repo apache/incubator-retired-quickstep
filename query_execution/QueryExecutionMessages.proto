@@ -16,6 +16,38 @@ syntax = "proto2";
 
 package quickstep.serialization;
 
+import "catalog/Catalog.proto";
+import "query_execution/QueryContext.proto";
+import "relational_operators/WorkOrder.proto";
+
+message ShiftbossRegistrationMessage {
+  // The total Work Order processing capacity in Shiftboss, which equals to the
+  // sum of the capacity of each worker managed by Shiftboss.
+  required uint64 work_order_capacity = 1;
+}
+
+message ShiftbossRegistrationResponseMessage {
+}
+
+message SqlQueryMessage {
+  required string sql_query = 1;
+}
+
+message ShiftbossInitiateMessage {
+  required uint64 query_id = 1;
+  required CatalogDatabase catalog_database_cache = 2;
+  required QueryContext query_context = 3;
+}
+
+message ShiftbossInitiateResponseMessage {
+  required uint64 query_id = 1;
+}
+
+message WorkOrderMessage {
+  required uint64 operator_index = 1;
+  required WorkOrder work_order = 2;
+}
+
 // Used for both Normal WorkOrders and RebuildWorkOrders.
 // NOTE(zuyu): we might need to seperate the completion messages to contain
 // run-time information for Foreman to make better decisions on scheduling
@@ -23,6 +55,17 @@ package quickstep.serialization;
 message WorkOrderCompletionMessage {
   required uint64 operator_index = 1;
   required uint64 worker_id = 2;
+}
+
+message InitiateRebuildMessage {
+  required uint64 operator_index = 1;
+  required uint64 insert_destination_index = 2;
+  required  int32 relation_id = 3;
+}
+
+message InitiateRebuildResponseMessage {
+  required uint64 operator_index = 1;
+  required uint64 num_rebuild_work_orders = 2;
 }
 
 message CatalogRelationNewBlockMessage {
@@ -41,4 +84,21 @@ message DataPipelineMessage {
 
 message WorkOrdersAvailableMessage {
   required uint64 operator_index = 1;
+}
+
+message QueryExecutionSuccessMessage {
+  optional CatalogRelation query_result_relation = 1;
+}
+
+message QueryExecutionErrorMessage {
+  required string error_message = 1;
+}
+
+message QueryResultRelationMessage {
+  required int32 relation_id = 1;
+  repeated fixed64 blocks = 2 [packed=true];
+}
+
+message QueryResultRelationResponseMessage {
+  required int32 relation_id = 1;
 }

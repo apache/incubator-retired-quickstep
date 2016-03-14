@@ -42,10 +42,17 @@ namespace serialization { class CatalogDatabase; }
  */
 
 /**
- * @brief A database cache used in the distributed version.
+ * @brief A database cache used in the distributed version and managed by
+ *        Shiftboss.
  **/
 class CatalogDatabaseCache : public CatalogDatabaseLite {
  public:
+  /**
+   * @brief Constructor.
+   **/
+  CatalogDatabaseCache() {
+  }
+
   /**
    * @brief Constructor. Reconstruct a database cache from its serialized
    *        Protocol Buffer form.

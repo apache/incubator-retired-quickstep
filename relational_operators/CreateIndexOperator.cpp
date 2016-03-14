@@ -33,6 +33,10 @@ bool CreateIndexOperator::getAllWorkOrders(WorkOrdersContainer *container,
   return true;
 }
 
+bool CreateIndexOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  return true;
+}
+
 void CreateIndexOperator::updateCatalogOnCompletion() {
   relation_->addIndex(index_name_, std::move(index_description_));
 }

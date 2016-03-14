@@ -60,6 +60,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
                                                   QueryContext *query_context,
                                                   StorageManager *storage_manager,
                                                   const tmb::client_id foreman_client_id,
+                                                  const tmb::client_id shiftboss_client_id,
                                                   tmb::MessageBus *bus) {
   DCHECK(query_context != nullptr);
   DCHECK(ProtoIsValid(proto, catalog_database, *query_context))
@@ -103,6 +104,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           storage_manager,
           proto.GetExtension(serialization::DeleteWorkOrder::operator_index),
           foreman_client_id,
+          shiftboss_client_id,
           bus);
     }
     case serialization::DESTROY_HASH: {
@@ -250,6 +252,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           storage_manager,
           proto.GetExtension(serialization::SortMergeRunWorkOrder::operator_index),
           foreman_client_id,
+          shiftboss_client_id,
           bus);
     }
     case serialization::SORT_RUN_GENERATION: {
@@ -304,6 +307,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           storage_manager,
           proto.GetExtension(serialization::TextSplitWorkOrder::operator_index),
           foreman_client_id,
+          shiftboss_client_id,
           bus);
     }
     case serialization::UPDATE: {
@@ -321,6 +325,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           storage_manager,
           proto.GetExtension(serialization::UpdateWorkOrder::operator_index),
           foreman_client_id,
+          shiftboss_client_id,
           bus);
     }
     default:

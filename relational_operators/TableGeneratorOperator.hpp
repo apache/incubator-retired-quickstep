@@ -40,6 +40,7 @@ namespace quickstep {
 class GeneratorFunctionHandle;
 class InsertDestination;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -79,6 +80,8 @@ class TableGeneratorOperator : public RelationalOperator {
                         const tmb::client_id foreman_client_id,
                         const tmb::client_id agent_client_id,
                         tmb::MessageBus *bus) override;
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override {
   }

@@ -35,6 +35,10 @@ bool CreateTableOperator::getAllWorkOrders(
   return true;
 }
 
+bool CreateTableOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  return true;
+}
+
 void CreateTableOperator::updateCatalogOnCompletion() {
   database_->addRelation(relation_.release());
 }

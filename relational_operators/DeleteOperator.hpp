@@ -41,7 +41,10 @@ namespace quickstep {
 class CatalogRelationSchema;
 class Predicate;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
+
+namespace serialization { class WorkOrder; }
 
 /** \addtogroup RelationalOperators
  *  @{
@@ -65,13 +68,13 @@ class DeleteOperator : public RelationalOperator {
   DeleteOperator(const CatalogRelation &relation,
                  const QueryContext::predicate_id predicate_index,
                  const bool relation_is_stored)
-     :  relation_(relation),
-        predicate_index_(predicate_index),
-        relation_is_stored_(relation_is_stored),
-        started_(false),
-        relation_block_ids_(relation_is_stored ? relation.getBlocksSnapshot()
-                                               : std::vector<block_id>()),
-        num_workorders_generated_(0) {}
+     : relation_(relation),
+       predicate_index_(predicate_index),
+       relation_is_stored_(relation_is_stored),
+       started_(false),
+       relation_block_ids_(relation_is_stored ? relation.getBlocksSnapshot()
+                                              : std::vector<block_id>()),
+       num_workorders_generated_(0) {}
 
   ~DeleteOperator() override {}
 
@@ -81,6 +84,8 @@ class DeleteOperator : public RelationalOperator {
                         const tmb::client_id foreman_client_id,
                         const tmb::client_id agent_client_id,
                         tmb::MessageBus *bus) override;
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   const relation_id getOutputRelationID() const override {
     return relation_.getID();
@@ -99,6 +104,13 @@ class DeleteOperator : public RelationalOperator {
   }
 
  private:
+  /**
+   * @brief Create Work Order proto.
+   *
+   * @param block The block id used in the Work Order.
+   **/
+  serialization::WorkOrder* createWorkOrderProto(const block_id block);
+
   const CatalogRelation &relation_;
   const QueryContext::predicate_id predicate_index_;
 
@@ -118,7 +130,7 @@ class DeleteOperator : public RelationalOperator {
 class DeleteWorkOrder : public WorkOrder {
  public:
   /**
-   * @brief Constructor.
+   * @brief Constructor used in the single-node version.
    *
    * @param input_relation The relation to perform the DELETE over.
    * @param input_block_id The block Id.
@@ -139,7 +151,7 @@ class DeleteWorkOrder : public WorkOrder {
                   const std::size_t delete_operator_index,
                   const tmb::client_id foreman_client_id,
                   const tmb::client_id agent_client_id,
-                  MessageBus *bus)
+                  tmb::MessageBus *bus)
       : input_relation_(input_relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
@@ -162,7 +174,7 @@ class DeleteWorkOrder : public WorkOrder {
 
   const std::size_t delete_operator_index_;
   const tmb::client_id foreman_client_id_, agent_client_id_;
-  MessageBus *bus_;
+  tmb::MessageBus *bus_;
 
   DISALLOW_COPY_AND_ASSIGN(DeleteWorkOrder);
 };

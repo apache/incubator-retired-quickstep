@@ -1,5 +1,5 @@
 /**
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -19,8 +19,8 @@
 
 #include <cstddef>
 #include <memory>
-#include <utility>
 
+#include "catalog/Catalog.pb.h"
 #include "query_execution/QueryContext.pb.h"
 #include "query_optimizer/QueryPlan.hpp"
 #include "utility/Macros.hpp"
@@ -41,7 +41,7 @@ class QueryHandle {
   /**
    * @brief Constructor.
    *
-   * @param The given query id.
+   * @param query_id The given query id.
    */
   explicit QueryHandle(const std::size_t query_id)
       : query_id_(query_id),
@@ -81,6 +81,20 @@ class QueryHandle {
   }
 
   /**
+   * @return The catalog database cache in the protobuf format.
+   */
+  const serialization::CatalogDatabase& getCatalogDatabaseCacheProto() const {
+    return catalog_database_cache_proto_;
+  }
+
+  /**
+   * @return The mutable catalog database cache in the protobuf format.
+   */
+  serialization::CatalogDatabase* getCatalogDatabaseCacheProtoMutable() {
+    return &catalog_database_cache_proto_;
+  }
+
+  /**
    * @brief Get the query result relation.
    */
   const CatalogRelation* getQueryResultRelation() const {
@@ -100,6 +114,9 @@ class QueryHandle {
   std::unique_ptr<QueryPlan> query_plan_;
 
   serialization::QueryContext query_context_proto_;
+
+  // TODO(zuyu): Use Catalog once we support multiple databases.
+  serialization::CatalogDatabase catalog_database_cache_proto_;
 
   // NOTE(zuyu): The relation gets created by the optimizer,
   //             and deleted by the Cli shell.

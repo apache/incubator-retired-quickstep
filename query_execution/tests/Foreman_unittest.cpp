@@ -167,6 +167,10 @@ class MockOperator: public RelationalOperator {
     return num_calls_get_workorders_ == max_getworkorder_iters_;
   }
 
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override {
+    return true;
+  }
+
   void feedInputBlock(const block_id input_block_id,
                       const relation_id input_relation_id) override {
     ++num_calls_feedblock_;

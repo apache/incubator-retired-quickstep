@@ -36,6 +36,7 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -83,6 +84,27 @@ class RelationalOperator {
                                 const tmb::client_id foreman_client_id,
                                 const tmb::client_id agent_client_id,
                                 tmb::MessageBus *bus) = 0;
+
+  /**
+   * @brief For the distributed version, generate all the next WorkOrder protos
+   *        for this RelationalOperator
+   *
+   * @note If a RelationalOperator has blocking dependencies, it should not
+   *       generate workorders unless all of the blocking dependencies have been
+   *       met.
+   *
+   * @note If a RelationalOperator is not parallelizeable on a block-level, then
+   *       only one WorkOrder consisting of all the work for this
+   *       RelationalOperator should be generated.
+   *
+   * @param container A pointer to a WorkOrderProtosContainer to be used to
+   *        store the generated WorkOrder protos.
+   *
+   * @return Whether the operator has finished generating work order protos. If
+   *         \c false, the execution engine will invoke this method after at
+   *         least one pending work order has finished executing.
+   **/
+  virtual bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) = 0;
 
   /**
    * @brief Update Catalog upon the completion of this RelationalOperator, if

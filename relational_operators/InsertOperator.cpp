@@ -20,7 +20,9 @@
 #include <memory>
 
 #include "query_execution/QueryContext.hpp"
+#include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
+#include "relational_operators/WorkOrder.pb.h"
 #include "storage/InsertDestination.hpp"
 
 #include "glog/logging.h"
@@ -47,6 +49,22 @@ bool InsertOperator::getAllWorkOrders(
   }
   return work_generated_;
 }
+
+bool InsertOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  if (blocking_dependencies_met_ && !work_generated_) {
+    work_generated_ = true;
+
+    serialization::WorkOrder *proto = new serialization::WorkOrder;
+    proto->set_work_order_type(serialization::INSERT);
+    proto->SetExtension(serialization::InsertWorkOrder::insert_destination_index, output_destination_index_);
+    proto->SetExtension(serialization::InsertWorkOrder::tuple_index, tuple_index_);
+
+    container->addWorkOrderProto(proto, op_index_);
+  }
+
+  return work_generated_;
+}
+
 
 void InsertWorkOrder::execute() {
   output_destination_->insertTuple(*tuple_);

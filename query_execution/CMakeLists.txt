@@ -21,6 +21,7 @@ QS_PROTOBUF_GENERATE_CPP(queryexecution_QueryExecutionMessages_proto_srcs
 
 # Declare micro-libs:
 add_library(quickstep_queryexecution_Foreman Foreman.cpp Foreman.hpp)
+add_library(quickstep_queryexecution_ForemanDistributed ForemanDistributed.cpp ForemanDistributed.hpp)
 add_library(quickstep_queryexecution_ForemanLite ../empty_src.cpp ForemanLite.hpp)
 add_library(quickstep_queryexecution_QueryContext QueryContext.cpp QueryContext.hpp)
 add_library(quickstep_queryexecution_QueryContext_proto
@@ -31,6 +32,9 @@ add_library(quickstep_queryexecution_QueryExecutionMessages_proto
             ${queryexecution_QueryExecutionMessages_proto_hdrs})
 add_library(quickstep_queryexecution_QueryExecutionTypedefs ../empty_src.cpp QueryExecutionTypedefs.hpp)
 add_library(quickstep_queryexecution_QueryExecutionUtil ../empty_src.cpp QueryExecutionUtil.hpp)
+add_library(quickstep_queryexecution_Shiftboss Shiftboss.cpp Shiftboss.hpp)
+add_library(quickstep_queryexecution_ShiftbossDirectory ../empty_src.cpp ShiftbossDirectory.hpp)
+add_library(quickstep_queryexecution_WorkOrderProtosContainer ../empty_src.cpp WorkOrderProtosContainer.hpp)
 add_library(quickstep_queryexecution_WorkOrdersContainer WorkOrdersContainer.cpp WorkOrdersContainer.hpp)
 add_library(quickstep_queryexecution_Worker Worker.cpp Worker.hpp)
 add_library(quickstep_queryexecution_WorkerDirectory ../empty_src.cpp WorkerDirectory.hpp)
@@ -58,6 +62,31 @@ target_link_libraries(quickstep_queryexecution_Foreman
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_InsertDestination
                       quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_threading_ThreadUtil
+                      quickstep_utility_DAG
+                      quickstep_utility_Macros
+                      tmb)
+target_link_libraries(quickstep_queryexecution_ForemanDistributed
+                      glog
+                      gtest
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_Catalog_proto
+                      quickstep_queryexecution_ForemanLite
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryexecution_QueryExecutionMessages_proto
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_QueryExecutionUtil
+                      quickstep_queryexecution_ShiftbossDirectory
+                      quickstep_queryexecution_WorkOrderProtosContainer
+                      quickstep_queryoptimizer_QueryHandle
+                      quickstep_queryoptimizer_QueryPlan
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_relationaloperators_WorkOrder_proto
                       quickstep_storage_StorageBlockInfo
                       quickstep_threading_ThreadUtil
                       quickstep_utility_DAG
@@ -99,6 +128,9 @@ target_link_libraries(quickstep_queryexecution_QueryContext_proto
                       quickstep_utility_SortConfiguration_proto
                       ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_queryexecution_QueryExecutionMessages_proto
+                      quickstep_catalog_Catalog_proto
+                      quickstep_queryexecution_QueryContext_proto
+                      quickstep_relationaloperators_WorkOrder_proto
                       ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_queryexecution_QueryExecutionTypedefs
                       tmb)
@@ -106,6 +138,33 @@ target_link_libraries(quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_utility_Macros
                       tmb)
+target_link_libraries(quickstep_queryexecution_Shiftboss
+                      glog
+                      quickstep_catalog_CatalogDatabaseCache
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryExecutionMessages_proto
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_QueryExecutionUtil
+                      quickstep_queryexecution_WorkerDirectory
+                      quickstep_queryexecution_WorkerMessage
+                      quickstep_relationaloperators_RebuildWorkOrder
+                      quickstep_relationaloperators_WorkOrderFactory
+                      quickstep_storage_InsertDestination
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_threading_Thread
+                      quickstep_threading_ThreadUtil
+                      quickstep_utility_Macros
+                      tmb)
+target_link_libraries(quickstep_queryexecution_ShiftbossDirectory
+                      quickstep_utility_Macros
+                      tmb)
+target_link_libraries(quickstep_queryexecution_WorkOrderProtosContainer
+                      glog
+                      quickstep_relationaloperators_WorkOrder_proto
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryexecution_WorkOrdersContainer
                       glog
                       quickstep_relationaloperators_WorkOrder
@@ -133,12 +192,16 @@ target_link_libraries(quickstep_queryexecution_WorkerSelectionPolicy
 add_library(quickstep_queryexecution ../empty_src.cpp QueryExecutionModule.hpp)
 target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_Foreman
+                      quickstep_queryexecution_ForemanDistributed
                       quickstep_queryexecution_ForemanLite
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
                       quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
+                      quickstep_queryexecution_Shiftboss
+                      quickstep_queryexecution_ShiftbossDirectory
+                      quickstep_queryexecution_WorkOrderProtosContainer
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_queryexecution_Worker
                       quickstep_queryexecution_WorkerDirectory

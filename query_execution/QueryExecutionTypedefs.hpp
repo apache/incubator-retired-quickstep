@@ -18,6 +18,8 @@
 #ifndef QUICKSTEP_QUERY_EXECUTION_QUERY_EXECUTION_TYPEDEFS_HPP_
 #define QUICKSTEP_QUERY_EXECUTION_QUERY_EXECUTION_TYPEDEFS_HPP_
 
+#include <cstddef>
+
 #include "tmb/address.h"
 #include "tmb/id_typedefs.h"
 #include "tmb/message_style.h"
@@ -30,6 +32,8 @@ namespace quickstep {
  *  @{
  */
 
+constexpr std::size_t kInvalidShiftbossIndex = static_cast<std::size_t>(-1);
+
 typedef tmb::Address Address;
 typedef tmb::AnnotatedMessage AnnotatedMessage;
 typedef tmb::MessageBus MessageBus;
@@ -41,8 +45,17 @@ typedef tmb::client_id client_id;
 typedef tmb::message_type_id message_type_id;
 
 enum QueryExecutionMessageType : message_type_id {
+  kShiftbossRegistrationMessage,
+  kShiftbossRegistrationResponseMessage,
+  kDistributedCliRegistrationMessage,
+  kDistributedCliRegistrationResponseMessage,
+  kSqlQueryMessage,
+  kShiftbossInitiateMessage,
+  kShiftbossInitiateResponseMessage,
   kWorkOrderMessage,  // From Foreman to Worker.
   kWorkOrderCompleteMessage,  // From Worker to Foreman.
+  kInitiateRebuildMessage,
+  kInitiateRebuildResponseMessage,
   kCatalogRelationNewBlockMessage,  // From InsertDestination to Foreman.
   kDataPipelineMessage,  // From InsertDestination or some WorkOrders to Foreman.
   kWorkOrdersAvailableMessage,  // From some WorkOrders to Foreman.
@@ -50,6 +63,10 @@ enum QueryExecutionMessageType : message_type_id {
                               // their corresponding RelationalOperators.
   kRebuildWorkOrderMessage,  // From Foreman to Worker.
   kRebuildWorkOrderCompleteMessage,  // From Worker to Foreman.
+  kQueryExecutionSuccessMessage,
+  kQueryExecutionErrorMessage,
+  kQueryResultRelationMessage,
+  kQueryResultRelationResponseMessage,
   kPoisonMessage,  // From the CLI shell to Foreman, then from Foreman to Workers.
 };
 

@@ -18,7 +18,9 @@
 #include "relational_operators/FinalizeAggregationOperator.hpp"
 
 #include "query_execution/QueryContext.hpp"
+#include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
+#include "relational_operators/WorkOrder.pb.h"
 #include "storage/AggregationOperationState.hpp"
 
 #include "glog/logging.h"
@@ -45,6 +47,23 @@ bool FinalizeAggregationOperator::getAllWorkOrders(
   }
   return started_;
 }
+
+bool FinalizeAggregationOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  if (blocking_dependencies_met_ && !started_) {
+    started_ = true;
+
+    serialization::WorkOrder *proto = new serialization::WorkOrder;
+    proto->set_work_order_type(serialization::FINALIZE_AGGREGATION);
+    proto->SetExtension(serialization::FinalizeAggregationWorkOrder::aggr_state_index,
+                        aggr_state_index_);
+    proto->SetExtension(serialization::FinalizeAggregationWorkOrder::insert_destination_index,
+                        output_destination_index_);
+
+    container->addWorkOrderProto(proto, op_index_);
+  }
+  return started_;
+}
+
 
 void FinalizeAggregationWorkOrder::execute() {
   state_->finalizeAggregate(output_destination_);

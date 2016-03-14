@@ -37,6 +37,7 @@ namespace quickstep {
 class CatalogRelation;
 class QueryContext;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -73,6 +74,11 @@ class CreateIndexOperator : public RelationalOperator {
                         const tmb::client_id foreman_client_id,
                         const tmb::client_id agent_client_id,
                         tmb::MessageBus *bus) override;
+
+  /**
+   * @note no WorkOrder generated for this operator.
+   **/
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   void updateCatalogOnCompletion() override;
 
