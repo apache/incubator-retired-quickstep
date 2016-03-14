@@ -484,7 +484,7 @@ MutableBlockReference StorageManager::getBlockInternal(
   // chooseBlockToEvict shouldn't return the block.
   if (!ret.valid()) {
     // Call a best-effort method to evict blocks until the size of our buffer
-    // pool falls below the current buffer pool size plus the size of the 
+    // pool falls below the current buffer pool size plus the size of the
     // block we are going to retrieve.
     makeRoomForBlock(num_slots);
 
