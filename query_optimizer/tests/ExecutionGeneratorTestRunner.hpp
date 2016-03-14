@@ -81,11 +81,10 @@ class ExecutionGeneratorTestRunner : public TextBasedTestRunner {
   }
 
   ~ExecutionGeneratorTestRunner() {
-    WorkerMessage poison_message(WorkerMessage::PoisonMessage());
-    TaggedMessage poison_tagged_message;
-    poison_tagged_message.set_message(&poison_message,
-                                      sizeof(poison_message),
-                                      quickstep::kPoisonMessage);
+    std::unique_ptr<WorkerMessage> poison_message(WorkerMessage::PoisonMessage());
+    TaggedMessage poison_tagged_message(poison_message.get(),
+                                        sizeof(*poison_message),
+                                        quickstep::kPoisonMessage);
 
     Address worker_address;
     MessageStyle single_receiver_style;
