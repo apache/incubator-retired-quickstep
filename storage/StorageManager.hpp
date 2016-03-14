@@ -208,6 +208,19 @@ class StorageManager {
    **/
   bool blockOrBlobIsLoaded(const block_id block) const;
 
+  /**
+   * @brief Saves a block or blob in memory to the persistent storage. 
+   * @details Acquires a write lock on the specified block before saving.
+   * 
+   * @param block The id of the block or blob to save.
+   * @param force Force the block to the persistent storage, even if it is not
+   *        dirty (by default, only actually write dirty blocks to the
+   *        persistent storage).
+   * 
+   * @return False if the block is not found in the memory. True if the block is
+   *         successfully saved to the persistent storage OR the block is clean
+   *         and force is false.
+   */
   bool saveBlockOrBlobLocked(const block_id block, const bool force);
 
   /**

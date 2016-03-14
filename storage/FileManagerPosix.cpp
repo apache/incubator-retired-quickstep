@@ -88,8 +88,7 @@ size_t FileManagerPosix::numSlots(const block_id block) const {
   }
 
   if ((file_stat.st_size % kSlotSizeBytes) != 0) {
-    LOG(ERROR) << "Size of file " << filename.c_str() << " was not integral.";
-    throw CorruptPersistentStorage();
+    LOG(FATAL) << "The file " << filename << " was corrupted.";
   }
 
   return static_cast<size_t>(file_stat.st_size) / kSlotSizeBytes;

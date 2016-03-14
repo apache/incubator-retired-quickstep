@@ -254,11 +254,6 @@ StorageBlob* StorageManager::loadBlob(const block_id blob,
 }
 
 bool StorageManager::saveBlockOrBlobLocked(const block_id block, const bool force) {
-  // TODO(chasseur): This lock is held for the entire duration of this call
-  // (including I/O), but really we only need to prevent the eviction of the
-  // particular entry in 'blocks_' for the specified 'block'. If and when we
-  // switch blocks_ to something with more fine-grained locking, this should
-  // be revisited.
   SpinSharedMutexExclusiveLock<false> io_lock(*lock_manager_.get(block));
   return saveBlockOrBlob(block, force);
 }
