@@ -65,10 +65,9 @@ namespace quickstep {
           }
         }
       } else {
-        /**
-         * Add all the blocks for tuple sampling which would handle 
-         * the sampling from each block
-         */ 
+        
+        // Add all the blocks for tuple sampling which would handle 
+        // the sampling from each block
         for (const block_id input_block_id : input_relation_block_ids_) {
           container->addNormalWorkOrder(
               new SampleWorkOrder(input_relation_,

@@ -1,4 +1,4 @@
-  /**
+/**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
  *

@@ -112,21 +112,7 @@ class SampleOperator : public RelationalOperator {
   const relation_id getOutputRelationID() const override {
     return output_relation_.getID();
   }
-
-  /**
-   * @return  The percentage of data to be sampled.
-   */
-  int percentage() const {
-    return percentage_;
-  }
-
-  /**
-   * @return Flag indicating the sample type.
-   */
-  bool is_block_sample() const {
-    return is_block_sample_;
-  }
-
+ 
  private:
   const CatalogRelationSchema &input_relation_;
   const CatalogRelation &output_relation_;

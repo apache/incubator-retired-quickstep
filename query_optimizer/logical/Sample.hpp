@@ -69,11 +69,13 @@ class Sample : public Logical {
   LogicalPtr copyWithNewChildren(
       const std::vector<LogicalPtr> &new_children) const override;
 
-  std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {
-      return input_->getOutputAttributes();
-    }
+  std::vector<expressions::AttributeReferencePtr>
+  getOutputAttributes() const override {
+    return input_->getOutputAttributes();
+  }
 
-  std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override {
+  std::vector<expressions::AttributeReferencePtr>
+  getReferencedAttributes() const override {
     return input_->getReferencedAttributes();
   }
 
@@ -81,40 +83,41 @@ class Sample : public Logical {
    * @brief Creates a Sample operator that samples the data from the
    *        relation produced by \p input.
    * @param input The input operator to this Sample.
+   * @param is_block_sample Flag indicating the sampling type(block/tuple)
+   * @param percentage The percentage of tuples/blocks to be sampled
+   *
    * @return An immutable Sample.
    */
-  static SamplePtr Create(
-      const LogicalPtr &input,
-      const bool is_block_sample,
-      const int percentage) {
+  static SamplePtr Create(const LogicalPtr &input,
+                          const bool is_block_sample,
+                          const int percentage) {
     return SamplePtr(new Sample(input, is_block_sample, percentage));
   }
 
  protected:
-  void getFieldStringItems(
-      std::vector<std::string> *inline_field_names,
-      std::vector<std::string> *inline_field_values,
-      std::vector<std::string> *non_container_child_field_names,
-      std::vector<OptimizerTreeBaseNodePtr> *non_container_child_fields,
-      std::vector<std::string> *container_child_field_names,
-      std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const override;
+   void getFieldStringItems(
+       std::vector<std::string> *inline_field_names,
+       std::vector<std::string> *inline_field_values,
+       std::vector<std::string> *non_container_child_field_names,
+       std::vector<OptimizerTreeBaseNodePtr> *non_container_child_fields,
+       std::vector<std::string> *container_child_field_names,
+       std::vector<std::vector<OptimizerTreeBaseNodePtr>>
+           *container_child_fields) const override;
 
  private:
-  Sample(
-      const LogicalPtr &input,
-      const bool is_block_sample,
-      const int percentage)
-      : input_(input),
-        is_block_sample_(is_block_sample),
-        percentage_(percentage) {
-    addChild(input);
-  }
+   Sample(const LogicalPtr &input, 
+          const bool is_block_sample,
+          const int percentage)
+       : input_(input), 
+         is_block_sample_(is_block_sample),
+         percentage_(percentage) {
+     addChild(input);
+   }
 
   LogicalPtr input_;
   const bool is_block_sample_;
   const int percentage_;
-  std::vector<expressions::NamedExpressionPtr> project_expressions_;
-
+  
   DISALLOW_COPY_AND_ASSIGN(Sample);
 };
 

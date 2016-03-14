@@ -363,13 +363,13 @@ bool ExecutionGenerator::convertSimpleProjection(
   return true;
 }
 
-void ExecutionGenerator::convertSample(
-  const P::SamplePtr &physical_sample) {
+void ExecutionGenerator::convertSample(const P::SamplePtr &physical_sample) {
   // Create InsertDestination proto.
   const CatalogRelation *output_relation = nullptr;
   const QueryContext::insert_destination_id insert_destination_index =
       query_context_proto_->insert_destinations_size();
-  S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
+  S::InsertDestination *insert_destination_proto =
+      query_context_proto_->add_insert_destinations();
   createTemporaryCatalogRelation(physical_sample,
                                  &output_relation,
                                  insert_destination_proto);
@@ -380,11 +380,11 @@ void ExecutionGenerator::convertSample(
   DCHECK(input_relation_info != nullptr);
 
   SampleOperator *sp = new SampleOperator(*input_relation_info->relation,
-                                        *output_relation,
-                                        insert_destination_index,
-                                        input_relation_info->isStoredRelation(),
-                                        physical_sample->is_block_sample(),
-                                        physical_sample->percentage());
+                                          *output_relation,
+                                          insert_destination_index,
+                                          input_relation_info->isStoredRelation(),
+                                          physical_sample->is_block_sample(),
+                                          physical_sample->percentage());
   const QueryPlan::DAGNodeIndex sample_index =
       execution_plan_->addRelationalOperator(sp);
   insert_destination_proto->set_relational_op_index(sample_index);

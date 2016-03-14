@@ -326,13 +326,10 @@ void StorageBlock::selectSample(const bool is_block_sample,
                                 const int percentage,
                                 InsertDestinationInterface *destination) const {
   std::unique_ptr<ValueAccessor> accessor;
-  accessor.reset(tuple_store_->createValueAccessor());
-
-  /**
-   * Bulk insert if the sampling method is block sample or if the sample 
-   * percent is 100
-   */
+  // Bulk insert if the sampling method is block sample or if the sample 
+  // percent is 100
   if (is_block_sample || percentage == 100) {
+    accessor.reset(tuple_store_->createValueAccessor());
     destination->bulkInsertTuples(accessor.get());
   } else {
     int needed_percentage = percentage;
@@ -341,47 +338,41 @@ void StorageBlock::selectSample(const bool is_block_sample,
     std::unique_ptr<TupleIdSequence> sequence;
     // Get the tuple id sequence
     sequence.reset(tuple_store_->getExistenceMap());
-
-    /**
-     * Initilize a new TupleIdSequence from the existing sequence 
-     * But with a default bit vector of all zeros
-     */  
-    std::unique_ptr<TupleIdSequence> sequence_mask(new
-                                     TupleIdSequence(sequence->length()));
+    
+    // Initialize a new TupleIdSequence from the existing sequence 
+    // but with a default bit vector of all zeros
+    std::unique_ptr<TupleIdSequence> sequence_mask(
+        new TupleIdSequence(sequence->length()));
     std::unordered_map<std::size_t, std::size_t> tuple_index_mapping;
     std::size_t number_of_tuples = 0;
     bool invert_bits = false;
 
-    /**
-     * If we have to set more number of 1 in the TupleIdSequence
-     * calculate the number of 0's to be set(corresponding to the
-     * rows that will not be picked) and set those rows to 1.
-     */
+    // If we have to set more number of 1 in the TupleIdSequence
+    // calculate the number of 0's to be set(corresponding to the
+    // rows that will not be picked) and set those rows to 1.
     if (percentage > 50) {
         needed_percentage = 100-percentage;
         invert_bits = true;
     }
     number_of_tuples = sequence->length()*needed_percentage/100;
 
-    /**
-     * Total possible tuple id space (N) is given by the length of
-     * TupleIdSequence
-     * Generate a random number between 0 and N
-     */
+    // Total possible tuple id space (N) is given by the length of
+    // TupleIdSequence
+    // Generate a random number between 0 and N
     for (std::size_t n = 0; n < number_of_tuples; n++) {
         std::uniform_real_distribution<> dis(0, sequence->length() - (n+1));
         std::size_t random_number = dis(gen);
         if (tuple_index_mapping.find(random_number) == tuple_index_mapping.end()) {
-            sequence_mask->set(random_number, true);
+          sequence_mask->set(random_number, true);
         } else {
             sequence_mask->set(tuple_index_mapping[random_number], true);
         }
         tuple_index_mapping[random_number] = sequence->length()-(n+1);
     }
 
-    //  Since the bits set correspond to actual zeros invert the bitvector
+    // Since the bits set correspond to actual zeros invert the bitvector
     if (invert_bits) {
-     sequence_mask->invert();
+      sequence_mask->invert();
     }
     accessor.reset(tuple_store_->createValueAccessor(sequence_mask.get()));
     destination->bulkInsertTuples(accessor.get());

@@ -213,7 +213,7 @@ class ExecutionGenerator {
   bool convertSimpleProjection(const QueryContext::scalar_group_id project_expressions_group_index,
                                std::vector<attribute_id> *attributes) const;
   /**
-   * @brief Converts a Sampling to a Sample operator.
+   * @brief Converts a Sample(block/tuple) and sample percentage to a Sample operator.
    *
    * @param physical_plan The Sample to be converted.
    */

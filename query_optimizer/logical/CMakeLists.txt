@@ -169,8 +169,7 @@ target_link_libraries(quickstep_queryoptimizer_logical_Project
                       quickstep_queryoptimizer_logical_LogicalType
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
-target_link_libraries(
-quickstep_queryoptimizer_logical_Sample
+target_link_libraries(quickstep_queryoptimizer_logical_Sample
                       glog
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference

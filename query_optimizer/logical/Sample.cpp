@@ -38,14 +38,14 @@ LogicalPtr Sample::copyWithNewChildren(
   return Sample::Create(new_children[0], is_block_sample_, percentage_);
 }
 
-
 void Sample::getFieldStringItems(
     std::vector<std::string> *inline_field_names,
     std::vector<std::string> *inline_field_values,
     std::vector<std::string> *non_container_child_field_names,
     std::vector<OptimizerTreeBaseNodePtr> *non_container_child_fields,
     std::vector<std::string> *container_child_field_names,
-    std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const {
+    std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields)
+    const {
 
     non_container_child_field_names->push_back("input");
     non_container_child_fields->push_back(input_);
