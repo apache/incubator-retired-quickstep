@@ -34,7 +34,6 @@ namespace quickstep {
 
   bool SampleOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
-    CatalogDatabase *catalog_database,
     QueryContext *query_context,
     StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
@@ -65,8 +64,7 @@ namespace quickstep {
           }
         }
       } else {
-        
-        // Add all the blocks for tuple sampling which would handle 
+        // Add all the blocks for tuple sampling which would handle
         // the sampling from each block
         for (const block_id input_block_id : input_relation_block_ids_) {
           container->addNormalWorkOrder(

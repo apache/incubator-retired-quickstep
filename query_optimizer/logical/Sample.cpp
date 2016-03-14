@@ -46,7 +46,6 @@ void Sample::getFieldStringItems(
     std::vector<std::string> *container_child_field_names,
     std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields)
     const {
-
     non_container_child_field_names->push_back("input");
     non_container_child_fields->push_back(input_);
 

@@ -89,7 +89,6 @@ class SampleOperator : public RelationalOperator {
   ~SampleOperator() override {}
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
-                        CatalogDatabase *catalog_database,
                         QueryContext *query_context,
                         StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
@@ -112,7 +111,7 @@ class SampleOperator : public RelationalOperator {
   const relation_id getOutputRelationID() const override {
     return output_relation_.getID();
   }
- 
+
  private:
   const CatalogRelationSchema &input_relation_;
   const CatalogRelation &output_relation_;

@@ -326,7 +326,7 @@ void StorageBlock::selectSample(const bool is_block_sample,
                                 const int percentage,
                                 InsertDestinationInterface *destination) const {
   std::unique_ptr<ValueAccessor> accessor;
-  // Bulk insert if the sampling method is block sample or if the sample 
+  // Bulk insert if the sampling method is block sample or if the sample
   // percent is 100
   if (is_block_sample || percentage == 100) {
     accessor.reset(tuple_store_->createValueAccessor());
@@ -338,8 +338,7 @@ void StorageBlock::selectSample(const bool is_block_sample,
     std::unique_ptr<TupleIdSequence> sequence;
     // Get the tuple id sequence
     sequence.reset(tuple_store_->getExistenceMap());
-    
-    // Initialize a new TupleIdSequence from the existing sequence 
+    // Initialize a new TupleIdSequence from the existing sequence
     // but with a default bit vector of all zeros
     std::unique_ptr<TupleIdSequence> sequence_mask(
         new TupleIdSequence(sequence->length()));

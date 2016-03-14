@@ -46,7 +46,6 @@ typedef std::shared_ptr<const Sample> SamplePtr;
 class Sample : public Logical {
  public:
   LogicalType getLogicalType() const override { return LogicalType::kSample; }
-
   std::string getName() const override { return "SAMPLE"; }
 
   /**
@@ -88,36 +87,35 @@ class Sample : public Logical {
    *
    * @return An immutable Sample.
    */
-  static SamplePtr Create(const LogicalPtr &input,
-                          const bool is_block_sample,
+  static SamplePtr Create(const LogicalPtr &input, const bool is_block_sample,
                           const int percentage) {
     return SamplePtr(new Sample(input, is_block_sample, percentage));
   }
 
  protected:
-   void getFieldStringItems(
-       std::vector<std::string> *inline_field_names,
-       std::vector<std::string> *inline_field_values,
-       std::vector<std::string> *non_container_child_field_names,
-       std::vector<OptimizerTreeBaseNodePtr> *non_container_child_fields,
-       std::vector<std::string> *container_child_field_names,
-       std::vector<std::vector<OptimizerTreeBaseNodePtr>>
-           *container_child_fields) const override;
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<OptimizerTreeBaseNodePtr> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<OptimizerTreeBaseNodePtr>>
+          *container_child_fields) const override;
 
  private:
-   Sample(const LogicalPtr &input, 
+  Sample(const LogicalPtr &input,
           const bool is_block_sample,
           const int percentage)
-       : input_(input), 
+       : input_(input),
          is_block_sample_(is_block_sample),
          percentage_(percentage) {
      addChild(input);
-   }
+  }
 
   LogicalPtr input_;
   const bool is_block_sample_;
   const int percentage_;
-  
+
   DISALLOW_COPY_AND_ASSIGN(Sample);
 };
 
