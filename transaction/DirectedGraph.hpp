@@ -21,7 +21,6 @@
 #include <algorithm>
 #include <memory>
 #include <stack>
-#include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
@@ -39,7 +38,7 @@ namespace transaction {
  */
 
 /**
- * @brief Class for representing a directed graph. Vertices are  transaction 
+ * @brief Class for representing a directed graph. Vertices are transaction 
  *        ids, edges are wait-for relations.
  **/
 class DirectedGraph {

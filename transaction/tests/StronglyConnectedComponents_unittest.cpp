@@ -17,7 +17,10 @@
 
 #include "transaction/StronglyConnectedComponents.hpp"
 
+#include <cstddef>
 #include <cstdint>
+#include <memory>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -65,7 +68,7 @@ class GraphConfiguration {
 class StronglyConnectedComponentsTestWithOneNode : public testing::Test {
  protected:
   StronglyConnectedComponentsTestWithOneNode() {
-    wait_for_graph_ = std::make_unique<DirectedGraph>();
+    wait_for_graph_.reset(new DirectedGraph());
     std::vector<std::pair<transaction_id, transaction_id>> edge_mapping;
 
     // Configure the graph with just 1 node.
@@ -84,7 +87,7 @@ class StronglyConnectedComponentsTestWithOneNode : public testing::Test {
 class StronglyConnectedComponentsTestWithTwoNodesCycle : public testing::Test {
  protected:
   StronglyConnectedComponentsTestWithTwoNodesCycle() {
-    wait_for_graph_ = std::make_unique<DirectedGraph>();
+    wait_for_graph_.reset(new DirectedGraph());
 
     // Create 2 nodes with cycle.
     std::vector<std::pair<transaction_id, transaction_id>> edge_mapping =
@@ -108,7 +111,7 @@ class StronglyConnectedComponentsTest : public testing::Test {
  protected:
   StronglyConnectedComponentsTest() {
     // Prepare the graph.
-    wait_for_graph_ = std::make_unique<DirectedGraph>();
+    wait_for_graph_.reset(new DirectedGraph());
 
     // Create edges.
     std::vector<std::pair<transaction_id, transaction_id>> edge_mapping =
@@ -199,23 +202,15 @@ TEST_F(StronglyConnectedComponentsTest, GetComponentId) {
        ++nid) {
     nid_list.push_back(scc_->getComponentId(nid));
   }
+  EXPECT_EQ(12u, nid_list.size());
 
   // Check the result are as expected.
-  EXPECT_EQ(3u, nid_list[0]);
+  const std::vector<std::uint64_t> expected_components_ids =
+    {3, 2, 1, 2, 2, 1, 0, 0, 0, 0, 0, 0};
 
-  EXPECT_EQ(2u, nid_list[1]);
-  EXPECT_EQ(2u, nid_list[3]);
-  EXPECT_EQ(2u, nid_list[4]);
-
-  EXPECT_EQ(1u, nid_list[2]);
-  EXPECT_EQ(1u, nid_list[5]);
-
-  EXPECT_EQ(0u, nid_list[6]);
-  EXPECT_EQ(0u, nid_list[7]);
-  EXPECT_EQ(0u, nid_list[8]);
-  EXPECT_EQ(0u, nid_list[9]);
-  EXPECT_EQ(0u, nid_list[10]);
-  EXPECT_EQ(0u, nid_list[11]);
+  for (std::size_t i = 0; i < expected_components_ids.size(); ++i) {
+    EXPECT_EQ(expected_components_ids[i], nid_list[i]);
+  }
 }
 
 TEST_F(StronglyConnectedComponentsTest, GetComponentsMapping) {

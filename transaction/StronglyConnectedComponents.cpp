@@ -17,6 +17,9 @@
 
 #include "transaction/StronglyConnectedComponents.hpp"
 
+#include <cstdint>
+#include <stack>
+#include <unordered_map>
 #include <vector>
 
 namespace quickstep {

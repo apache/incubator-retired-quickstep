@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_TRANSACTION_TRANSACTION_HPP_
 #define QUICKSTEP_TRANSACTION_TRANSACTION_HPP_
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 

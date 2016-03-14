@@ -18,9 +18,11 @@
 #ifndef QUICKSTEP_TRANSACTION_STRONGLY_CONNECTED_COMPONENTS_HPP_
 #define QUICKSTEP_TRANSACTION_STRONGLY_CONNECTED_COMPONENTS_HPP_
 
+#include <cstddef>
+#include <cstdint>
 #include <stack>
-#include <vector>
 #include <unordered_map>
+#include <vector>
 
 #include "transaction/DirectedGraph.hpp"
 #include "utility/Macros.hpp"
