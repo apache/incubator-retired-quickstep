@@ -41,6 +41,8 @@ const BinaryOperation& BinaryOperationFactory::GetBinaryOperation(const BinaryOp
       return MultiplyBinaryOperation::Instance();
     case BinaryOperationID::kDivide:
       return DivideBinaryOperation::Instance();
+    case BinaryOperationID::kModulo:
+      return DivideBinaryOperation::Instance();
     default:
       break;  // Prevent compiler from complaining about unhandled case.
   }
@@ -77,6 +79,8 @@ const BinaryOperation& BinaryOperationFactory::ReconstructFromProto(
       return GetBinaryOperation(BinaryOperationID::kMultiply);
     case serialization::BinaryOperation::DIVIDE:
       return GetBinaryOperation(BinaryOperationID::kDivide);
+    case serialization::BinaryOperation::MODULO:
+      return GetBinaryOperation(BinaryOperationID::kModulo);
     default:
       FATAL_ERROR("Unrecognized BinaryOperationID in "
                   "BinaryOperationFactory::ReconstructFromProto");
