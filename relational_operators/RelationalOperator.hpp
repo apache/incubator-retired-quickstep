@@ -35,7 +35,6 @@ namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
-class CatalogDatabase;
 class StorageManager;
 class WorkOrdersContainer;
 
@@ -67,7 +66,6 @@ class RelationalOperator {
    *
    * @param container A pointer to a WorkOrdersContainer to be used to store the
    *        generated WorkOrders.
-   * @param catalog_database The catalog database where this query is executed.
    * @param query_context The QueryContext that stores query execution states.
    * @param storage_manager The StorageManager to use.
    * @param foreman_client_id The TMB client ID of the Foreman thread.
@@ -78,7 +76,6 @@ class RelationalOperator {
    *         one pending work order has finished executing.
    **/
   virtual bool getAllWorkOrders(WorkOrdersContainer *container,
-                                CatalogDatabase *catalog_database,
                                 QueryContext *query_context,
                                 StorageManager *storage_manager,
                                 const tmb::client_id foreman_client_id,
