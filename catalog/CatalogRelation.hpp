@@ -191,17 +191,6 @@ class CatalogRelation : public CatalogRelationSchema {
   }
 
   /**
-   * @brief Set the index scheme for the catalog relation.
-   * @warning This method should be called only once when a relation is
-   *          is first created.
-   * @note setIndexScheme takes ownership of the passed index_scheme
-   *
-   * @param index_scheme The index scheme object for a relation, which
-   *        becomes owned by this relation.
-   **/
-  void setIndexScheme(IndexScheme* index_scheme);
-
-  /**
    * @brief Get a mutable index scheme of the relation.
    *
    * @return A pointer to the index scheme.

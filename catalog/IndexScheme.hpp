@@ -116,13 +116,12 @@ class IndexScheme {
   bool hasIndexWithDescription(const IndexSubBlockDescription &index_description) const {
     // Iterate through every vector of descriptions corresponding to all keys in the index map.
     for (auto cit = index_map_.cbegin(); cit != index_map_.cend(); ++cit) {
-      std::vector<IndexSubBlockDescription> index_descriptions = cit->second;
-      for (auto index_description_itr = index_descriptions.cbegin();
-           index_description_itr != index_descriptions.cend();
-           ++index_description_itr) {
-        const IndexSubBlockDescription &stored_description = *index_description_itr;
+      const std::vector<IndexSubBlockDescription> &index_descriptions = cit->second;
+      for (auto index_description_it = index_descriptions.cbegin();
+           index_description_it != index_descriptions.cend();
+           ++index_description_it) {
         // Check if the stored description matches as the given description.
-        if (areIndexDescriptionsSimilar(stored_description, index_description)) {
+        if (areIndexDescriptionsSimilar(*index_description_it, index_description)) {
           return true;
         }
       }
@@ -159,16 +158,15 @@ class IndexScheme {
                         const std::vector<IndexSubBlockDescription> &index_descriptions) {
     if (index_map_.find(index_name) != index_map_.end()) {
       return false;  // index_name is already present!
-    } else {
-      // Value for this index_map key is the list of index descriptions provided.
-      std::vector<IndexSubBlockDescription> index_sub_block_descriptions;
-      for (std::size_t i = 0; i < index_descriptions.size(); ++i) {
-        // Make a copy of the index_description before putting it in the map.
-        index_sub_block_descriptions.emplace_back(index_descriptions[i]);
-      }
-      index_map_[index_name] = index_sub_block_descriptions;
-      return true;
     }
+    // Value for this index_map key is the list of index descriptions provided.
+    std::vector<IndexSubBlockDescription> index_sub_block_descriptions;
+    for (std::size_t i = 0; i < index_descriptions.size(); ++i) {
+      // Make a copy of the index_description before putting it in the map.
+      index_sub_block_descriptions.emplace_back(index_descriptions[i]);
+    }
+    index_map_[index_name] = index_sub_block_descriptions;
+    return true;
   }
 
  private:

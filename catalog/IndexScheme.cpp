@@ -64,13 +64,12 @@ IndexScheme* IndexScheme::ReconstructFromProto(const serialization::IndexScheme 
 
   for (int index_num = 0; index_num < proto.index_entries_size(); ++index_num) {
     serialization::IndexScheme_IndexEntry index_entry = proto.index_entries(index_num);
-    std::string index_name = index_entry.index_name();
     std::vector<IndexSubBlockDescription> index_descriptions;
     for (int i = 0; i < index_entry.index_description_size(); ++i) {
       index_descriptions.emplace_back(index_entry.index_description(i));
     }
     // store the index_name and corresponding list of index descriptions in map
-    index_scheme->index_map_[index_name] = index_descriptions;
+    index_scheme->index_map_[index_entry.index_name()] = std::move(index_descriptions);
   }
   return index_scheme.release();
 }
@@ -84,12 +83,12 @@ serialization::IndexScheme IndexScheme::getProto() const {
 
     // populate the details of the index entry
     index_entry->set_index_name(cit->first);
-    std::vector<IndexSubBlockDescription> index_descriptions = cit->second;
-    for (auto index_description_itr = index_descriptions.begin();
-         index_description_itr != index_descriptions.end();
-         ++index_description_itr) {
+    const std::vector<IndexSubBlockDescription> &index_descriptions = cit->second;
+    for (auto index_description_it = index_descriptions.begin();
+         index_description_it != index_descriptions.end();
+         ++index_description_it) {
       // add each index description to the index entry
-      index_entry->add_index_description()->MergeFrom(*index_description_itr);
+      index_entry->add_index_description()->MergeFrom(*index_description_it);
     }
   }
   return proto;
