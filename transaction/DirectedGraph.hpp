@@ -171,7 +171,7 @@ class DirectedGraph {
     inline std::vector<node_id> getOutgoingEdges() const {
       // TODO(hakan): Benchmark this version and the alternative which the
       //              function returns const reference and the uniqueness
-      //              is imposed in the outgoing_edges_ as a vector. 
+      //              is imposed in the outgoing_edges_ as a vector.
       std::vector<node_id> result;
       std::copy(outgoing_edges_.begin(), outgoing_edges_.end(),
                 std::back_inserter(result));
