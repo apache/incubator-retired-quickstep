@@ -37,7 +37,7 @@ class WorkerMessage {
   };
 
   /**
-   * @brief A static named constructor for generating rebuild WorkOrder messages.
+   * @brief A static factory method for generating rebuild WorkOrder messages.
    *
    * @param rebuild_workorder The rebuild WorkOrder to be executed by the worker.
    * @param relational_op_index The index of the relational operator in the
@@ -48,7 +48,7 @@ class WorkerMessage {
   }
 
   /**
-   * @brief A static named constructor for generating WorkOrder messages.
+   * @brief A static factory method for generating WorkOrder messages.
    *
    * @param workorder The work order to be executed by the worker.
    * @param relational_op_index The index of the relational operator in the
@@ -60,7 +60,7 @@ class WorkerMessage {
   }
 
   /**
-   * @brief A static named constructor for generating a poison message.
+   * @brief A static factory method for generating a poison message.
    **/
   static WorkerMessage* PoisonMessage() {
     return new WorkerMessage(nullptr, 0, kPoison);
