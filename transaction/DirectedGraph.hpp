@@ -125,12 +125,12 @@ class DirectedGraph {
 
   /**
    * @brief Get data (transaction id) contained in the node.
-   * @warning Does not check index validity.
    *
    * @param node Id of the node that the data is got from.
    * @return Id of the transaction that this node contains.
    **/
   inline transaction_id getDataFromNode(node_id node) const {
+    DCHECK(node < getNumNodes());
     return nodes_[node].getData();
   }
 
