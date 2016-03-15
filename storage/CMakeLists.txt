@@ -560,6 +560,7 @@ target_link_libraries(quickstep_storage_InsertDestination
                       gtest
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_Catalog_proto
                       quickstep_catalog_PartitionScheme
                       quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
@@ -582,6 +583,7 @@ target_link_libraries(quickstep_storage_InsertDestinationInterface
                       quickstep_catalog_CatalogTypedefs
                       quickstep_types_containers_Tuple)
 target_link_libraries(quickstep_storage_InsertDestination_proto
+                      quickstep_catalog_Catalog_proto
                       quickstep_storage_StorageBlockLayout_proto
                       ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_storage_LinearOpenAddressingHashTable

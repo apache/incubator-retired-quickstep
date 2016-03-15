@@ -143,7 +143,6 @@ TEST_F(TextScanOperatorTest, ScanTest) {
 
   output_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
   output_destination_proto->set_relation_id(relation_->getID());
-  output_destination_proto->set_need_to_add_blocks_from_relation(false);
   output_destination_proto->set_relational_op_index(kOpIndex);
 
   std::unique_ptr<TextScanOperator> text_scan_op(

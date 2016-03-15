@@ -707,7 +707,6 @@ TEST_F(ForemanTest, TwoNodesDAGPartiallyFilledBlocksTest) {
 
   insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(false);
   insert_destination_proto->set_relational_op_index(id1);
 
   MockOperator *op1_mutable =

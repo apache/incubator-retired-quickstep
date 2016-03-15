@@ -1239,7 +1239,6 @@ class SortMergeRunOperatorTest : public ::testing::Test {
 
     insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
     insert_destination_proto->set_relation_id(result_table_id);
-    insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
 
     // Create run_table_, owned by db_.
@@ -1259,7 +1258,6 @@ class SortMergeRunOperatorTest : public ::testing::Test {
 
     insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
     insert_destination_proto->set_relation_id(run_table_id);
-    insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
 
     // Set up the QueryContext.
