@@ -33,15 +33,15 @@ namespace transaction {
 /**
  * @brief Type that represents id of a transaction.
  **/
-using transaction_id = std::uint64_t;
+typedef std::uint64_t transaction_id;
 
 /**
  * @brief Enum class for transaction internal status.
  **/
 enum class TransactionStatus {
-  kRUNNING = 0,
-  kABORTED,
-  kCOMMITTED
+  kRunning = 0,
+  kAborted,
+  kCommitted
 };
 
 /**
