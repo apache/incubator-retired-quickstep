@@ -43,8 +43,8 @@ class WorkerMessage {
    * @param relational_op_index The index of the relational operator in the
    *        query plan DAG that generated the given rebuild WorkOrder.
    **/
-  static WorkerMessage RebuildWorkOrderMessage(WorkOrder *rebuild_workorder, std::size_t relational_op_index) {
-    return WorkerMessage(rebuild_workorder, relational_op_index, kRebuildWorkOrder);
+  static WorkerMessage* RebuildWorkOrderMessage(WorkOrder *rebuild_workorder, const std::size_t relational_op_index) {
+    return new WorkerMessage(rebuild_workorder, relational_op_index, kRebuildWorkOrder);
   }
 
   /**
@@ -55,15 +55,15 @@ class WorkerMessage {
    *                            query plan DAG that generated the given
    *                            workorder.
    **/
-  static WorkerMessage WorkOrderMessage(WorkOrder *workorder, std::size_t relational_op_index) {
-    return WorkerMessage(workorder, relational_op_index, kWorkOrder);
+  static WorkerMessage* WorkOrderMessage(WorkOrder *workorder, const std::size_t relational_op_index) {
+    return new WorkerMessage(workorder, relational_op_index, kWorkOrder);
   }
 
   /**
    * @brief A static named constructor for generating a poison message.
    **/
-  static WorkerMessage PoisonMessage() {
-    return WorkerMessage(nullptr, 0, kPoison);
+  static WorkerMessage* PoisonMessage() {
+    return new WorkerMessage(nullptr, 0, kPoison);
   }
 
   /**
@@ -84,7 +84,7 @@ class WorkerMessage {
    * @brief Get the index of the relational operator in the DAG that generated
    *        the workorder.
    **/
-  inline const std::size_t getRelationalOpIndex() const {
+  inline std::size_t getRelationalOpIndex() const {
     return relational_op_index_;
   }
 
@@ -114,8 +114,8 @@ class WorkerMessage {
   }
 
   WorkOrder *work_unit_;
-  std::size_t relational_op_index_;
-  WorkerMessageType type_;
+  const std::size_t relational_op_index_;
+  const WorkerMessageType type_;
 };
 
 }  // namespace quickstep
