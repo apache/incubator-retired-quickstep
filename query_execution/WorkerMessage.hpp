@@ -37,30 +37,36 @@ class WorkerMessage {
   };
 
   /**
-   * @brief A static named constructor for generating rebuild WorkOrder messages.
+   * @brief A static factory method for generating rebuild WorkOrder messages.
    *
    * @param rebuild_workorder The rebuild WorkOrder to be executed by the worker.
    * @param relational_op_index The index of the relational operator in the
    *        query plan DAG that generated the given rebuild WorkOrder.
+   *
+   * @return The constructed RebuildWorkOrderMessage.
    **/
   static WorkerMessage* RebuildWorkOrderMessage(WorkOrder *rebuild_workorder, const std::size_t relational_op_index) {
     return new WorkerMessage(rebuild_workorder, relational_op_index, kRebuildWorkOrder);
   }
 
   /**
-   * @brief A static named constructor for generating WorkOrder messages.
+   * @brief A static factory method for generating WorkOrder messages.
    *
    * @param workorder The work order to be executed by the worker.
    * @param relational_op_index The index of the relational operator in the
    *                            query plan DAG that generated the given
    *                            workorder.
+   *
+   * @return The constructed WorkOrderMessage.
    **/
   static WorkerMessage* WorkOrderMessage(WorkOrder *workorder, const std::size_t relational_op_index) {
     return new WorkerMessage(workorder, relational_op_index, kWorkOrder);
   }
 
   /**
-   * @brief A static named constructor for generating a poison message.
+   * @brief A static factory method for generating a poison message.
+   *
+   * @return The constructed PoisonMessage.
    **/
   static WorkerMessage* PoisonMessage() {
     return new WorkerMessage(nullptr, 0, kPoison);
