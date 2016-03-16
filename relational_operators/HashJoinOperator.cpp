@@ -420,6 +420,8 @@ void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
 
   // TODO(harshad) - Make this function work with both types of collectors.
+  // We collect all the matching probe relation tuples, as there's a residual
+  // preidcate that needs to be applied after collecting these matches.
   MapBasedJoinedTupleCollector collector;
   if (join_key_attributes_.size() == 1) {
     hash_table_.getAllFromValueAccessor(
@@ -435,17 +437,31 @@ void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
         &collector);
   }
 
+  // Get a filter for tuples in the given probe block.
   TupleIdSequence filter(probe_store.getMaxTupleID() + 1);
   filter.setRange(0, filter.length(), false);
-  for (const std::pair<const block_id, std::vector<std::pair<tuple_id, tuple_id>>>
+  for (const std::pair<const block_id,
+                       std::vector<std::pair<tuple_id, tuple_id>>>
            &build_block_entry : *collector.getJoinedTuples()) {
-    BlockReference build_block = storage_manager_->getBlock(build_block_entry.first,
-                                                            build_relation_);
-    const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
-    std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
+    // First element of the pair build_block_entry is the build block ID
+    // 2nd element of the pair is a vector of pairs, in each of which -
+    // 1st element is a matching tuple ID from the inner (build) relation.
+    // 2nd element is a matching tuple ID from the outer (probe) relation.
+
+    // Get the block from the build relation for this pair of matched tuples.
+    BlockReference build_block =
+        storage_manager_->getBlock(build_block_entry.first, build_relation_);
+    const TupleStorageSubBlock &build_store =
+        build_block->getTupleStorageSubBlock();
+    std::unique_ptr<ValueAccessor> build_accessor(
+        build_store.createValueAccessor());
     for (const std::pair<tuple_id, tuple_id> &hash_match
          : build_block_entry.second) {
+      // For each pair, 1st element is a tuple ID from the build relation in the
+      // given build block, 2nd element is a tuple ID from the probe relation.
       if (filter.get(hash_match.second)) {
+        // We have already found matches for this tuple that belongs to the
+        // probe side, skip it.
         continue;
       }
       if (residual_predicate_->matchesForJoinedTuples(*build_accessor,
@@ -469,8 +485,8 @@ void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
   for (PtrList<Scalar>::const_iterator selection_it = selection_.begin();
        selection_it != selection_.end();
        ++selection_it) {
-    temp_result.addColumn(selection_it->getAllValues(probe_accessor_with_filter.get(),
-                                                     &sub_blocks_ref));
+    temp_result.addColumn(selection_it->getAllValues(
+        probe_accessor_with_filter.get(), &sub_blocks_ref));
   }
 
   output_destination_->bulkInsertTuples(&temp_result);
@@ -485,6 +501,12 @@ void HashSemiJoinWorkOrder::executeWithoutResidualPredicate() {
 
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
   SemiAntiJoinTupleCollector collector(probe_store);
+  // We collect all the probe relation tuples which have at least one matching
+  // tuple in the build relation. As a performance optimization, the hash table
+  // just looks for the existence of the probing key in the hash table and sets
+  // the bit for the probing key in the collector. The optimization is correct
+  // because there is no residual predicate in this case, unlike
+  // executeWithResidualPredicate().
   if (join_key_attributes_.size() == 1u) {
     // Call the collector to set the bit to 0 for every key without a match.
     hash_table_.runOverKeysFromValueAccessorIfMatchNotFound(
@@ -509,10 +531,9 @@ void HashSemiJoinWorkOrder::executeWithoutResidualPredicate() {
       probe_store.createValueAccessor(collector.filter()));
   ColumnVectorsValueAccessor temp_result;
   for (PtrList<Scalar>::const_iterator selection_it = selection_.begin();
-       selection_it != selection_.end();
-       ++selection_it) {
-    temp_result.addColumn(selection_it->getAllValues(probe_accessor_with_filter.get(),
-                                                     &sub_blocks_ref));
+       selection_it != selection_.end(); ++selection_it) {
+    temp_result.addColumn(selection_it->getAllValues(
+        probe_accessor_with_filter.get(), &sub_blocks_ref));
   }
 
   output_destination_->bulkInsertTuples(&temp_result);
@@ -521,15 +542,14 @@ void HashSemiJoinWorkOrder::executeWithoutResidualPredicate() {
 void HashAntiJoinWorkOrder::executeWithoutResidualPredicate() {
   DEBUG_ASSERT(residual_predicate_ == nullptr);
 
-  /*const relation_id build_relation_id = build_relation_.getID();
-  const relation_id probe_relation_id = probe_relation_.getID();*/
-
   BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                           probe_relation_);
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
 
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
   SemiAntiJoinTupleCollector collector(probe_store);
+  // We probe the hash table to find the keys which have an entry in the
+  // hash table.
   if (join_key_attributes_.size() == 1) {
     // Call the collector to set the bit to 0 for every key with a match.
     hash_table_.runOverKeysFromValueAccessorIfMatchFound(
@@ -554,10 +574,9 @@ void HashAntiJoinWorkOrder::executeWithoutResidualPredicate() {
       probe_store.createValueAccessor(collector.filter()));
   ColumnVectorsValueAccessor temp_result;
   for (PtrList<Scalar>::const_iterator selection_it = selection_.begin();
-       selection_it != selection_.end();
-       ++selection_it) {
-    temp_result.addColumn(selection_it->getAllValues(probe_accessor_with_filter.get(),
-                                                     &sub_blocks_ref));
+       selection_it != selection_.end(); ++selection_it) {
+    temp_result.addColumn(selection_it->getAllValues(
+        probe_accessor_with_filter.get(), &sub_blocks_ref));
   }
 
   output_destination_->bulkInsertTuples(&temp_result);
@@ -574,6 +593,7 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
   // TODO(harshad) - Make the following code work with both types of collectors.
   MapBasedJoinedTupleCollector collector;
+  // We probe the hash table and get all the matches.
   if (join_key_attributes_.size() == 1) {
     hash_table_.getAllFromValueAccessor(
         probe_accessor.get(),
@@ -588,9 +608,14 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
         &collector);
   }
 
+  // Create a filter for all the tuples from the given probe block.
   std::unique_ptr<TupleIdSequence> filter(probe_store.getExistenceMap());
   for (const std::pair<const block_id, std::vector<std::pair<tuple_id, tuple_id>>>
            &build_block_entry : *collector.getJoinedTuples()) {
+    // First element of the pair build_block_entry is the build block ID
+    // 2nd element of the pair is a vector of pairs, in each of which -
+    // 1st element is a matching tuple ID from the inner (build) relation.
+    // 2nd element is a matching tuple ID from the outer (probe) relation.
     BlockReference build_block = storage_manager_->getBlock(build_block_entry.first,
                                                             build_relation_);
     const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
@@ -598,6 +623,7 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
     for (const std::pair<tuple_id, tuple_id> &hash_match
          : build_block_entry.second) {
       if (!filter->get(hash_match.second)) {
+        // We have already seen this tuple, skip it.
         continue;
       }
       if (residual_predicate_->matchesForJoinedTuples(*build_accessor,
@@ -606,6 +632,8 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
                                                       *probe_accessor,
                                                       probe_relation_id,
                                                       hash_match.second)) {
+        // Note that the filter marks a match as false, as needed by the anti
+        // join definition.
         filter->set(hash_match.second, false);
       }
     }
