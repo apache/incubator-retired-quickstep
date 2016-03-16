@@ -87,7 +87,6 @@ class TextScanOperatorTest : public ::testing::Test {
     const std::size_t op_index = 0;
     op->informAllBlockingDependenciesMet();
     op->getAllWorkOrders(&container,
-                         db_.get(),
                          query_context_.get(),
                          storage_manager_.get(),
                          tmb::kClientIdNone /* foreman_client_id */,

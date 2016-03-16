@@ -230,7 +230,6 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
     WorkOrdersContainer container(1, 0);
     const std::size_t op_index = 0;
     op->getAllWorkOrders(&container,
-                         db_.get(),
                          query_context_.get(),
                          storage_manager_.get(),
                          tmb::kClientIdNone /* foreman_client_id */,
