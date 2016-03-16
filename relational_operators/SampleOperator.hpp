@@ -1,6 +1,6 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
- *   University of Wisconsin—Madison.
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -40,23 +40,20 @@ namespace quickstep {
 class CatalogDatabase;
 class CatalogRelationSchema;
 class InsertDestination;
-class Predicate;
-class Scalar;
 class StorageManager;
 class WorkOrdersContainer;
-
 
 /** \addtogroup RelationalOperators
  *  @{
  */
 
 /**
- * @brief An operator which performs sample (block or tuple) over a relation.
+ * @brief An operator which performs sampling at the block or tuple level over a relation.
  **/
 class SampleOperator : public RelationalOperator {
  public:
   /**
-   * @brief Constructor for Sample with the sampling percentage and type of samplng
+   * @brief Constructor for SampleOperator  with the sampling percentage and type of sampling.
    *
    * @param input_relation The relation to perform sampling over.
    * @param output_relation The output relation.
@@ -65,24 +62,24 @@ class SampleOperator : public RelationalOperator {
    * @param input_relation_is_stored If input_relation is a stored relation and
    *        is fully available to the operator before it can start generating
    *        workorders.
-   * @param is_block_sample Flag indicating whether the sample type is block or tuple
-   * @param percentage The percentage of data to be sampled
+   * @param is_block_sample Flag indicating whether the sample type is block or tuple.
+   * @param percentage The percentage of data to be sampled.
    * 
    **/
   SampleOperator(const CatalogRelation &input_relation,
-                 const CatalogRelation &output_relation,
+                 const CatalogRelationSchema &output_relation,
                  const QueryContext::insert_destination_id output_destination_index,
-                 bool input_relation_is_stored,
+                 const bool input_relation_is_stored,
                  const bool is_block_sample,
                  const int percentage)
       : input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         input_relation_is_stored_(input_relation_is_stored),
-        input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
-                                                           : std::vector<block_id>()),
         is_block_sample_(is_block_sample),
         percentage_(percentage),
+        input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
+                                                           : std::vector<block_id>()),
         num_workorders_generated_(0),
         started_(false) {}
 
@@ -113,13 +110,13 @@ class SampleOperator : public RelationalOperator {
   }
 
  private:
-  const CatalogRelationSchema &input_relation_;
-  const CatalogRelation &output_relation_;
+  const CatalogRelation &input_relation_;
+  const CatalogRelationSchema &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
   const bool input_relation_is_stored_;
-  std::vector<block_id> input_relation_block_ids_;
   const bool is_block_sample_;
   const int percentage_;
+  std::vector<block_id> input_relation_block_ids_;
 
   // A single workorder is generated for each block of input relation.
   std::vector<block_id>::size_type num_workorders_generated_;

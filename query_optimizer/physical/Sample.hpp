@@ -1,6 +1,6 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
- *   University of Wisconsin—Madison.
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -51,6 +51,23 @@ class Sample : public Physical {
 
   std::string getName() const override { return " SAMPLE"; }
 
+  std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {
+    return input_->getOutputAttributes();
+  }
+
+  std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override {
+    return input_->getReferencedAttributes();
+  }
+
+  PhysicalPtr copyWithNewChildren(
+    const std::vector<PhysicalPtr> &new_children) const override;
+
+  bool maybeCopyWithPrunedExpressions(
+      const expressions::UnorderedNamedExpressionSet &referenced_expressions,
+      PhysicalPtr *output) const override {
+    return false;
+  }
+
   /**
    * @return the sample percentage.
    */
@@ -70,36 +87,17 @@ class Sample : public Physical {
    */
   const PhysicalPtr& input() const { return children()[0]; }
 
-  PhysicalPtr copyWithNewChildren(
-    const std::vector<PhysicalPtr> &new_children) const override;
-
-  std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {
-    return input_->getOutputAttributes();
-  }
-
-  std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override {
-    return input_->getReferencedAttributes();
-  }
-
-  bool maybeCopyWithPrunedExpressions(
-      const expressions::UnorderedNamedExpressionSet &referenced_expressions,
-      PhysicalPtr *output) const override {
-    return false;
-  }
-
   /**
-   * @brief Creates a Sample.
+   * @brief Creates a SamplePtr.
    * @param input The input node.
    * @param is_block_sample Flag indicating if the sample is block or tuple level
    * @param percentage The percentage of rows or blocks to be sampled 
    * @return An immutable Sample.
    */
-  static SamplePtr Create(
-      const PhysicalPtr &input,
-      const bool is_block_sample,
-      const int percentage) {
-    return SamplePtr(
-     new Sample(input, is_block_sample, percentage));
+  static SamplePtr Create(const PhysicalPtr &input,
+                          const bool is_block_sample,
+                          const int percentage) {
+    return SamplePtr(new Sample(input, is_block_sample, percentage));
   }
 
  protected:
@@ -125,7 +123,7 @@ class Sample : public Physical {
   const int percentage_;
   const bool is_block_sample_;
   const PhysicalPtr input_;
-  std::vector<expressions::AttributeReferencePtr> output_attributes_;
+
   DISALLOW_COPY_AND_ASSIGN(Sample);
 };
 
@@ -135,4 +133,4 @@ class Sample : public Physical {
 }  // namespace optimizer
 }  // namespace quickstep
 
-#endif /* QUICKSTEP_QUERY_OPTIMIZER_SAMPLE_HPP_ */
+#endif  // QUICKSTEP_QUERY_OPTIMIZER_SAMPLE_HPP_

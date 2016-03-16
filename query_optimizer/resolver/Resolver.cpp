@@ -1210,7 +1210,7 @@ L::LogicalPtr Resolver::resolveTableReference(const ParseTableReference &table_r
         logical_plan = RenameOutputColumns(logical_plan, *reference_signature);
       }
       // Create a logical sample operator. Applicable only if \p the table is materialized.
-      // Sampling  from subquery table references is not supported.
+      // Sampling from subquery table references is not supported.
       if (simple_table_reference.sample() != nullptr) {
         logical_plan = L::Sample::Create(logical_plan,
         simple_table_reference.sample()->is_block_sample(),

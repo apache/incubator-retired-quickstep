@@ -226,14 +226,18 @@ target_link_libraries(quickstep_relationaloperators_RelationalOperator
                       tmb)
 target_link_libraries(quickstep_relationaloperators_SampleOperator
                       glog
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext                                 
                       quickstep_relationaloperators_RelationalOperator
+                      quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_InsertDestination
                       quickstep_storage_StorageBlock
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
                       quickstep_utility_Macros
-                      quickstep_utility_PtrList)                      
+                      tmb)                      
 target_link_libraries(quickstep_relationaloperators_SaveBlocksOperator
                       glog
                       quickstep_catalog_CatalogTypedefs

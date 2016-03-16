@@ -200,6 +200,13 @@ class ExecutionGenerator {
   void convertTableReference(const physical::TableReferencePtr &physical_plan);
 
   /**
+   * @brief Converts a Sample(block/tuple) and sample percentage to a Sample operator.
+   *
+   * @param physical_plan The Sample to be converted.
+   */
+  void convertSample(const physical::SamplePtr &physical_plan);
+
+  /**
    * @brief Attempt to convert a group of scalar projection expressions into a
    *        simple vector of attribute IDs.
    *
@@ -212,12 +219,6 @@ class ExecutionGenerator {
    **/
   bool convertSimpleProjection(const QueryContext::scalar_group_id project_expressions_group_index,
                                std::vector<attribute_id> *attributes) const;
-  /**
-   * @brief Converts a Sample(block/tuple) and sample percentage to a Sample operator.
-   *
-   * @param physical_plan The Sample to be converted.
-   */
-  void convertSample(const physical::SamplePtr &physical_plan);
 
   /**
    * @brief Converts a Selection to a Select operator.

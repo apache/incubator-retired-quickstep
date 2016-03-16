@@ -1,6 +1,6 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
- *   University of Wisconsin—Madison.
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -12,7 +12,8 @@
  *   distributed under the License is distributed on an "AS IS" BASIS,
  *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *   See the License for the specific language governing permissions and
- */
+ *   limitations under the License.
+ **/
 
 #include "relational_operators/SampleOperator.hpp"
 
@@ -32,7 +33,7 @@
 
 namespace quickstep {
 
-  bool SampleOperator::getAllWorkOrders(
+bool SampleOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
     QueryContext *query_context,
     StorageManager *storage_manager,
@@ -42,17 +43,16 @@ namespace quickstep {
 
   InsertDestination *output_destination =
       query_context->getInsertDestination(output_destination_index_);
-
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_real_distribution<> dis(0, 1);
-  double probability = static_cast<double> (percentage_)/100;
+  std::random_device random_device;
+  std::mt19937 generator(random_device());
+  std::uniform_real_distribution<> distribution(0, 1);
+  const double probability = static_cast<double>(percentage_) / 100;
   if (input_relation_is_stored_) {
     if (!started_) {
       // If the sampling is by block choose blocks randomly
       if (is_block_sample_) {
         for (const block_id input_block_id : input_relation_block_ids_) {
-          if (dis(gen) <= probability) {
+          if (distribution(generator) <= probability) {
             container->addNormalWorkOrder(
                 new SampleWorkOrder(input_relation_,
                                     input_block_id,
@@ -74,7 +74,7 @@ namespace quickstep {
                                   percentage_,
                                   output_destination,
                                   storage_manager),
-                op_index_);
+              op_index_);
         }
       }
       started_ = true;
@@ -82,32 +82,29 @@ namespace quickstep {
     return started_;
   } else {
       if (is_block_sample_) {
-        if (dis(gen) <= probability) {
           while (num_workorders_generated_ < input_relation_block_ids_.size()) {
-            container->addNormalWorkOrder(
-                new SampleWorkOrder(
-                                    input_relation_,
-                                    input_relation_block_ids_[num_workorders_generated_],
-                                    is_block_sample_,
-                                    percentage_,
-                                    output_destination,
-                                    storage_manager),
-                op_index_);
+            if (distribution(generator) <= probability) {
+              container->addNormalWorkOrder(
+                  new SampleWorkOrder(input_relation_,
+                                      input_relation_block_ids_[num_workorders_generated_],
+                                      is_block_sample_,
+                                      percentage_,
+                                      output_destination,
+                                      storage_manager),
+                  op_index_);
             ++num_workorders_generated_;
           }
         }
       } else  {
-          while (num_workorders_generated_ < input_relation_block_ids_.size()) {
-            container->addNormalWorkOrder(
-                new SampleWorkOrder(
-                                    input_relation_,
-                                    input_relation_block_ids_[num_workorders_generated_],
-                                    is_block_sample_,
-                                    percentage_,
-                                    output_destination,
-                                    storage_manager),
-                op_index_);
-            ++num_workorders_generated_;
+        while (num_workorders_generated_ < input_relation_block_ids_.size()) {
+          container->addNormalWorkOrder(
+              new SampleWorkOrder(input_relation_,
+                                  input_relation_block_ids_[num_workorders_generated_],
+                                  is_block_sample_,
+                                  percentage_, output_destination,
+                                  storage_manager),
+              op_index_);
+          ++num_workorders_generated_;
         }
       }
     return done_feeding_input_relation_;
@@ -117,7 +114,7 @@ void SampleWorkOrder::execute() {
   BlockReference block(
       storage_manager_->getBlock(input_block_id_, input_relation_));
 
-  block->selectSample(is_block_sample_, percentage_, output_destination_);
+  block->sample(is_block_sample_, percentage_, output_destination_);
 }
 
 }  // namespace quickstep

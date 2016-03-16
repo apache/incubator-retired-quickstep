@@ -1,6 +1,6 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
- *   University of Wisconsin—Madison.
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
@@ -46,43 +47,47 @@ typedef std::shared_ptr<const Sample> SamplePtr;
 class Sample : public Logical {
  public:
   LogicalType getLogicalType() const override { return LogicalType::kSample; }
+
   std::string getName() const override { return "SAMPLE"; }
 
+  LogicalPtr copyWithNewChildren(
+      const std::vector<LogicalPtr> &new_children) const override;
+
+  std::vector<expressions::AttributeReferencePtr>
+      getOutputAttributes() const override {
+    return input_->getOutputAttributes();
+  }
+
+  std::vector<expressions::AttributeReferencePtr>
+      getReferencedAttributes() const override {
+    return input_->getReferencedAttributes();
+  }
+
   /**
-   * @return  The percentage of data to be sampled.
+   * @return The percentage of data to be sampled.
    */
   int percentage() const {
     return percentage_;
   }
+
   /**
    * @return Flag indicating the sample type.
    */
   bool is_block_sample() const {
     return is_block_sample_;
   }
+
   /**
    * @return The input operator.
    */
   const LogicalPtr& input() const { return input_; }
 
-  LogicalPtr copyWithNewChildren(
-      const std::vector<LogicalPtr> &new_children) const override;
-
-  std::vector<expressions::AttributeReferencePtr>
-  getOutputAttributes() const override {
-    return input_->getOutputAttributes();
-  }
-
-  std::vector<expressions::AttributeReferencePtr>
-  getReferencedAttributes() const override {
-    return input_->getReferencedAttributes();
-  }
-
   /**
    * @brief Creates a Sample operator that samples the data from the
    *        relation produced by \p input.
    * @param input The input operator to this Sample.
-   * @param is_block_sample Flag indicating the sampling type(block/tuple)
+   * @param is_block_sample Flag indicating if the sampling is either a block or
+   *                        tuple level sampling 
    * @param percentage The percentage of tuples/blocks to be sampled
    *
    * @return An immutable Sample.
@@ -104,11 +109,11 @@ class Sample : public Logical {
 
  private:
   Sample(const LogicalPtr &input,
-          const bool is_block_sample,
-          const int percentage)
-       : input_(input),
-         is_block_sample_(is_block_sample),
-         percentage_(percentage) {
+         const bool is_block_sample,
+         const int percentage)
+      : input_(input),
+        is_block_sample_(is_block_sample),
+        percentage_(percentage) {
      addChild(input);
   }
 
@@ -125,4 +130,4 @@ class Sample : public Logical {
 }  // namespace optimizer
 }  // namespace quickstep
 
-#endif /* QUICKSTEP_QUERY_OPTIMIZER_LOGICAL_SAMPLE_HPP_ */
+#endif  // QUICKSTEP_QUERY_OPTIMIZER_LOGICAL_SAMPLE_HPP_
