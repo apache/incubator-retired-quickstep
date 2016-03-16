@@ -253,13 +253,13 @@ StorageBlob* StorageManager::loadBlob(const block_id blob,
   return static_cast<StorageBlob*>(handle.block);
 }
 
-bool StorageManager::saveBlockOrBlobLocked(const block_id block, const bool force) {
+bool StorageManager::saveBlockOrBlob(const block_id block, const bool force) {
   SpinSharedMutexExclusiveLock<false> io_lock(*lock_manager_.get(block));
   return saveBlockOrBlob(block, force);
 }
 
 
-bool StorageManager::saveBlockOrBlob(const block_id block, const bool force) {
+bool StorageManager::saveBlockOrBlobLocked(const block_id block, const bool force) {
   // TODO(chasseur): This lock is held for the entire duration of this call
   // (including I/O), but really we only need to prevent the eviction of the
   // particular entry in 'blocks_' for the specified 'block'. If and when we
@@ -325,8 +325,8 @@ void StorageManager::deleteBlockOrBlobFile(const block_id block) {
 block_id StorageManager::allocateNewBlockOrBlob(const std::size_t num_slots,
                                                 BlockHandle *handle,
                                                 const int numa_node) {
-  DCHECK(num_slots > 0);
-  DCHECK(handle != nullptr);
+  DCHECK_GT(num_slots, 0);
+  DCHECK_NE(handle, nullptr);
 
   handle->block_memory = allocateSlots(num_slots, numa_node, kInvalidBlockId);
   handle->block_memory_size = num_slots;
@@ -340,7 +340,7 @@ StorageManager::BlockHandle StorageManager::loadBlockOrBlob(
   // mutex in the lock manager. The caller has ensured that the block is not
   // already loaded before this function gets called.
   size_t num_slots = file_manager_->numSlots(block);
-  DCHECK(num_slots != 0);
+  DCHECK_NE(num_slots, 0);
   void* block_buffer = allocateSlots(num_slots, numa_node, block);
 
   const bool status = file_manager_->readBlockOrBlob(block, block_buffer, kSlotSizeBytes * num_slots);
