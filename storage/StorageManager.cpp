@@ -254,12 +254,15 @@ StorageBlob* StorageManager::loadBlob(const block_id blob,
 }
 
 bool StorageManager::saveBlockOrBlob(const block_id block, const bool force) {
-  SpinSharedMutexExclusiveLock<false> io_lock(*lock_manager_.get(block));
-  return saveBlockOrBlob(block, force);
+  // TODO(marc): Is this lock necessary? I need some time to analyze the storage
+  // manager code in depth to understand what locks need to be held. Until then,
+  // this should not be merged.
+  SpinSharedMutexSharedLock<false> read_lock(*lock_manager_.get(block));
+  return saveBlockOrBlobInternal(block, force);
 }
 
 
-bool StorageManager::saveBlockOrBlobLocked(const block_id block, const bool force) {
+bool StorageManager::saveBlockOrBlobInternal(const block_id block, const bool force) {
   // TODO(chasseur): This lock is held for the entire duration of this call
   // (including I/O), but really we only need to prevent the eviction of the
   // particular entry in 'blocks_' for the specified 'block'. If and when we
@@ -326,7 +329,7 @@ block_id StorageManager::allocateNewBlockOrBlob(const std::size_t num_slots,
                                                 BlockHandle *handle,
                                                 const int numa_node) {
   DCHECK_GT(num_slots, 0);
-  DCHECK_NE(handle, nullptr);
+  DCHECK_NOTNULL(handle);
 
   handle->block_memory = allocateSlots(num_slots, numa_node, kInvalidBlockId);
   handle->block_memory_size = num_slots;
@@ -570,7 +573,7 @@ void StorageManager::makeRoomForBlock(const size_t slots) {
         // Someone sneaked in and referenced the block before we could evict it.
         continue;
       }
-      if (saveBlockOrBlob(block->getID())) {
+      if (saveBlockOrBlobInternal(block->getID(), false)) {
         evictBlockOrBlob(block->getID());
       }  // else : Someone sneaked in and evicted the block before we could.
     } else {
