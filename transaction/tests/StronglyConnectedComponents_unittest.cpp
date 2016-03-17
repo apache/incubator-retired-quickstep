@@ -30,7 +30,6 @@
 #include "gtest/gtest.h"
 
 namespace quickstep {
-
 namespace transaction {
 
 class GraphConfiguration {
@@ -225,5 +224,4 @@ TEST_F(StronglyConnectedComponentsTest, GetComponentsMapping) {
 }
 
 }  // namespace transaction
-
 }  // namespace quickstep

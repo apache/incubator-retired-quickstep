@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -39,6 +41,10 @@ typedef int numa_node_id;
 // This depends on all the above id types being typedefed to int, except for
 // partition_id.
 const int kCatalogMaxID = INT_MAX;
+
+// Catalog ids use negative values as invalid ids. Mark -1 as constant invalid
+// id for the catalog ids.
+constexpr int kInvalidCatalogId = -1;
 
 /** @} */
 
