@@ -264,6 +264,7 @@ class CatalogRelation : public CatalogRelationSchema {
    * @return Whether the index was added successfully or not
    **/
   bool addIndex(const std::string &index_name, const std::vector<IndexSubBlockDescription> &index_descriptions) {
+    SpinSharedMutexExclusiveLock<false> lock(index_scheme_mutex);
     // Create an index_scheme, if it does not exist.
     if (index_scheme_ == nullptr) {
       index_scheme_.reset(new IndexScheme());
@@ -281,20 +282,14 @@ class CatalogRelation : public CatalogRelationSchema {
       }
     }
 
-    // Acquire the lock and add the index.
-    {
-      SpinSharedMutexExclusiveLock<false> lock(index_scheme_mutex);
-      {
-        SpinSharedMutexExclusiveLock<false> lock(layout_mutex_);
-        StorageBlockLayoutDescription *layout = default_layout_->getDescriptionMutable();
-        for (auto it = index_descriptions.begin(); it != index_descriptions.end(); ++it) {
-          layout->add_index_description()->MergeFrom(*it);
-        }
-        default_layout_->finalize();
-      }
-      // Update the index_scheme.
-      index_scheme_->addIndexMapEntry(index_name, index_descriptions);
+    StorageBlockLayoutDescription *layout = default_layout_->getDescriptionMutable();
+    for (auto it = index_descriptions.begin(); it != index_descriptions.end(); ++it) {
+      layout->add_index_description()->MergeFrom(*it);
     }
+    default_layout_->finalize();
+
+    // Update the index_scheme.
+    index_scheme_->addIndexMapEntry(index_name, index_descriptions);
 
     return true;  // Index added successfully, lock released.
   }
@@ -375,8 +370,6 @@ class CatalogRelation : public CatalogRelationSchema {
 
   // The default layout for newly-created blocks.
   mutable std::unique_ptr<StorageBlockLayout> default_layout_;
-  // Mutex for locking the storage block layout.
-  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> layout_mutex_;
 
   // Partition Scheme associated with the Catalog Relation.
   // A relation may or may not have a Partition Scheme

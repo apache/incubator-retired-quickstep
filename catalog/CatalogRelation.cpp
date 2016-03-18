@@ -128,7 +128,9 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelation &proto)
   if (proto.has_index_scheme()) {
     index_scheme_.reset(IndexScheme::ReconstructFromProto(proto.index_scheme()));
     // Ensure that indices present in the block layout are the same as in the index scheme.
-    DCHECK_EQ(proto.default_layout().index_description_size(), index_scheme_->getNumIndices());
+    const std::size_t num_indices_expected = index_scheme_->getNumIndices();
+    const std::size_t num_indices_checked = proto.default_layout().index_description_size();
+    DCHECK(num_indices_expected == num_indices_checked);
     for (int i = 0; i < proto.default_layout().index_description_size(); ++i) {
       const IndexSubBlockDescription &description_checked = proto.default_layout().index_description(i);
       DCHECK(index_scheme_->hasIndexWithDescription(description_checked))
