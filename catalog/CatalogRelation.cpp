@@ -93,11 +93,6 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelation &proto)
     }
   }
 
-  // Deserializing the index scheme defined for the relation, if any.
-  if (proto.has_index_scheme()) {
-    index_scheme_.reset(IndexScheme::ReconstructFromProto(proto.index_scheme()));
-  }
-
   // Deserializing the partition scheme for the relation.
   // This should be done after the attributes are added and before the
   // blocks of the relation are added.
@@ -128,6 +123,18 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelation &proto)
   DCHECK(StorageBlockLayout::DescriptionIsValid(*this, proto.default_layout()));
 
   default_layout_.reset(new StorageBlockLayout(*this, proto.default_layout()));
+
+  // Deserializing the index scheme defined for the relation, if any.
+  if (proto.has_index_scheme()) {
+    index_scheme_.reset(IndexScheme::ReconstructFromProto(proto.index_scheme()));
+    // Ensure that indices present in the block layout are the same as in the index scheme.
+    DCHECK_EQ(proto.default_layout().index_description_size(), index_scheme_->getNumIndices());
+    for (int i = 0; i < proto.default_layout().index_description_size(); ++i) {
+      const IndexSubBlockDescription &description_checked = proto.default_layout().index_description(i);
+      DCHECK(index_scheme_->hasIndexWithDescription(description_checked))
+      << "Block layout defines some indices not present in the catalog";
+    }
+  }
 }
 
 void CatalogRelation::setPartitionScheme(PartitionScheme* partition_scheme) {

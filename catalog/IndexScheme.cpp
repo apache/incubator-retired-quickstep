@@ -37,14 +37,14 @@
 namespace quickstep {
 
 bool IndexScheme::ProtoIsValid(const serialization::IndexScheme &proto) {
-  // Check that proto is fully initialized
+  // Check that proto is fully initialized.
   if (!proto.IsInitialized()) {
     return false;
   }
 
-  // Check that each index entry contains initialized valid index descriptions
+  // Check that each index entry contains initialized valid index descriptions.
   for (int i = 0; i < proto.index_entries_size(); ++i) {
-    serialization::IndexScheme_IndexEntry index_entry = proto.index_entries(i);
+    const serialization::IndexScheme_IndexEntry &index_entry = proto.index_entries(i);
     for (int j = 0; j < index_entry.index_description_size(); ++j) {
       IndexSubBlockDescription index_description = index_entry.index_description(j);
       if (!index_description.IsInitialized()) {
@@ -63,31 +63,35 @@ IndexScheme* IndexScheme::ReconstructFromProto(const serialization::IndexScheme 
   std::unique_ptr<IndexScheme> index_scheme(new IndexScheme());
 
   for (int index_num = 0; index_num < proto.index_entries_size(); ++index_num) {
-    serialization::IndexScheme_IndexEntry index_entry = proto.index_entries(index_num);
+    const serialization::IndexScheme_IndexEntry &index_entry = proto.index_entries(index_num);
     std::vector<IndexSubBlockDescription> index_descriptions;
     for (int i = 0; i < index_entry.index_description_size(); ++i) {
       index_descriptions.emplace_back(index_entry.index_description(i));
     }
-    // store the index_name and corresponding list of index descriptions in map
-    index_scheme->index_map_[index_entry.index_name()] = std::move(index_descriptions);
+    // Make sure that index with same name does not already exist.
+    DCHECK(index_scheme->index_map_.find(index_entry.index_name())
+           == index_scheme->index_map_.end())
+        << "Attempted to create IndexScheme from proto with duplicate index names.";
+    // Store the index_name and corresponding list of index descriptions in map.
+    index_scheme->index_map_.emplace(index_entry.index_name(), std::move(index_descriptions));
   }
   return index_scheme.release();
 }
 
 serialization::IndexScheme IndexScheme::getProto() const {
   serialization::IndexScheme proto;
-  // set the entries of the index scheme
+  // Set the entries of the index scheme.
   for (auto cit = index_map_.cbegin(); cit != index_map_.cend(); ++cit) {
-    // create an index entry
+    // Create an index entry.
     serialization::IndexScheme_IndexEntry *index_entry = proto.add_index_entries();
 
-    // populate the details of the index entry
+    // Populate the details of the index entry.
     index_entry->set_index_name(cit->first);
     const std::vector<IndexSubBlockDescription> &index_descriptions = cit->second;
     for (auto index_description_it = index_descriptions.begin();
          index_description_it != index_descriptions.end();
          ++index_description_it) {
-      // add each index description to the index entry
+      // Add each index description to the index entry.
       index_entry->add_index_description()->MergeFrom(*index_description_it);
     }
   }

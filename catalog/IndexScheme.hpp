@@ -54,7 +54,7 @@ class IndexScheme {
   }
 
   /**
-   * @brief Virtual destructor.
+   * @brief Destructor.
    **/
   ~IndexScheme() {
   }
@@ -120,8 +120,8 @@ class IndexScheme {
       for (auto index_description_it = index_descriptions.cbegin();
            index_description_it != index_descriptions.cend();
            ++index_description_it) {
-        // Check if the stored description matches as the given description.
-        if (areIndexDescriptionsSimilar(*index_description_it, index_description)) {
+        // Check if the stored description matches the given description.
+        if (areIndexDescriptionsSame(*index_description_it, index_description)) {
           return true;
         }
       }
@@ -130,21 +130,47 @@ class IndexScheme {
   }
 
   /**
-   * @brief Check whether two index descriptions are similar or not.
-   *        Two index descriptions are similar if they have same
+   * @brief Check whether two index descriptions are same or not.
+   *        Two index descriptions are same if they have any matching
    *        attributes ids and same index type.
    *
-   * @param desc_a First index description.
-   * @param desc_b Second index description.
+   * @param description_expected First index description.
+   * @param description_checked Second index description.
    * @return Whether the two index_descriptions are similar or not.
    **/
-  bool areIndexDescriptionsSimilar(const IndexSubBlockDescription &desc_a,
-                                   const IndexSubBlockDescription &desc_b) const {
-    if (desc_a.sub_block_type() != desc_b.sub_block_type()) {
+  bool areIndexDescriptionsSame(const IndexSubBlockDescription &description_expected,
+                                   const IndexSubBlockDescription &description_checked) const {
+    if (description_expected.sub_block_type() != description_checked.sub_block_type()) {
       return false;
     }
-    // TODO(@ssaurabh): add condition to check for matching attribute ids for both indices
-    return true;
+
+    // Determine the type of attribute_extension based on the index type.
+    auto *attribute_extension = &(CSBTreeIndexSubBlockDescription::indexed_attribute_id);  // default
+    switch (description_expected.sub_block_type()) {
+      case IndexSubBlockDescription_IndexSubBlockType_CSB_TREE:
+        break;
+      case IndexSubBlockDescription_IndexSubBlockType_BLOOM_FILTER:
+        attribute_extension = &(BloomFilterIndexSubBlockDescription::indexed_attribute_id);
+        break;
+      case IndexSubBlockDescription_IndexSubBlockType_SMA:
+        attribute_extension = &(SMAIndexSubBlockDescription::indexed_attribute_id);
+      default:
+        break;
+    }
+
+    // Check if there are matching attribute ids for both indices of same type.
+    // Create a hash map of attribute ids in description_expected,
+    // and probe the hash map for duplicates using the attribute ids from description_checked.
+    std::unordered_map<std::int32_t, bool> existence_map;
+    for (int i = 0; i < description_expected.ExtensionSize(*attribute_extension); ++i) {
+      existence_map.emplace(description_expected.GetExtension(*attribute_extension, i), true);
+    }
+    for (int i = 0; i < description_checked.ExtensionSize(*attribute_extension); ++i) {
+      if (existence_map.find(description_checked.GetExtension(*attribute_extension, i)) != existence_map.end()) {
+        return true;  // there is a matching attribute id with same index type.
+      }
+    }
+    return false;
   }
 
   /**

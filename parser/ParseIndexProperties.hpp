@@ -60,6 +60,12 @@ class IndexProperties {
   }
 
   /**
+   * @brief Virtual Destructor
+   */
+  virtual ~IndexProperties() {
+  }
+
+  /**
    * @brief Checks whether this instance describes a valid index or not.
    *
    * @return True if index description is valid, false otherwise.
@@ -165,6 +171,9 @@ class BloomFilterIndexProperties : public IndexProperties {
     valid_property_map_[kBloomFilterSizeInBytes] = ParseKeyValue::KeyValueType::kStringInteger;
     valid_property_map_[kBloomFilterNumHashes] = ParseKeyValue::KeyValueType::kStringInteger;
     valid_property_map_[kBloomFilterProjectElementCount] = ParseKeyValue::KeyValueType::kStringInteger;
+  }
+
+  ~BloomFilterIndexProperties() {
   }
 
   bool isIndexDescriptionValid() const override {
@@ -302,6 +311,9 @@ class CSBTreeIndexProperties : public IndexProperties {
       invalid_property_node_(nullptr) {
     index_sub_block_description_.reset(new IndexSubBlockDescription());
     index_sub_block_description_->set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
+  }
+
+  ~CSBTreeIndexProperties() {
   }
 
   bool isIndexDescriptionValid() const override {

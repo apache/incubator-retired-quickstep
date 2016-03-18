@@ -239,7 +239,7 @@ class CatalogRelation : public CatalogRelationSchema {
    * @return Whether the index exists or not.
    **/
   bool hasIndexWithName(const std::string &index_name) const {
-    SpinSharedMutexExclusiveLock<false> lock(index_scheme_mutex);
+    SpinSharedMutexSharedLock<false> lock(index_scheme_mutex);
     return index_scheme_ && index_scheme_->hasIndexWithName(index_name);
   }
 
@@ -252,7 +252,7 @@ class CatalogRelation : public CatalogRelationSchema {
    * @return Whether a similar index description was already defined or not.
    **/
   bool hasIndexWithDescription(const IndexSubBlockDescription &index_description) const {
-    SpinSharedMutexExclusiveLock<false> lock(index_scheme_mutex);
+    SpinSharedMutexSharedLock<false> lock(index_scheme_mutex);
     return index_scheme_ && index_scheme_->hasIndexWithDescription(index_description);
   }
 
