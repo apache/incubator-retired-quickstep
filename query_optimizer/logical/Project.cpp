@@ -35,7 +35,7 @@ namespace E = ::quickstep::optimizer::expressions;
 
 LogicalPtr Project::copyWithNewChildren(
     const std::vector<LogicalPtr> &new_children) const {
-  DCHECK_EQ(new_children.size(), children().size());
+  DCHECK_EQ(children().size(), new_children.size());
   return Project::Create(new_children[0], project_expressions_);
 }
 
