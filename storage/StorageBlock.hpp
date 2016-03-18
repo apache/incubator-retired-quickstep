@@ -311,6 +311,25 @@ class StorageBlock : public StorageBlockBase {
       ValueAccessor *accessor);
 
   /**
+   * @brief Perform a random sampling of data on  the StorageBlock. The number 
+   *       of records sampled is determined by the sample percentage in case of
+   *       tuple sample. For block sample all the records in a block are taken.
+   *
+   * @param is_block_sample Flag to indicate if the Sampling method is a tuple
+   *                        sample or block sample.
+   * @param percentage The percentage of tuples to be sampled.Used only when the
+   *                   sampling method is tuple sample.            
+   * @param destination Where to insert the tuples resulting from the SAMPLE.
+   *
+   * @return Randomly sampled tuples whose count is determined by the  
+   *         sampling percentage. In the case of block sample the entire
+   *         block is returned.
+   **/
+  void sample(const bool is_block_sample,
+              const int percentage,
+              InsertDestinationInterface *destination) const;
+
+  /**
    * @brief Perform a SELECT query on this StorageBlock.
    *
    * @param selection A list of scalars, which will be evaluated to obtain

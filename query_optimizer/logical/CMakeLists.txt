@@ -31,6 +31,7 @@ add_library(quickstep_queryoptimizer_logical_MultiwayCartesianJoin MultiwayCarte
 add_library(quickstep_queryoptimizer_logical_NestedLoopsJoin ../../empty_src.cpp NestedLoopsJoin.hpp)
 add_library(quickstep_queryoptimizer_logical_PatternMatcher ../../empty_src.cpp PatternMatcher.hpp)
 add_library(quickstep_queryoptimizer_logical_Project Project.cpp Project.hpp)
+add_library(quickstep_queryoptimizer_logical_Sample Sample.cpp Sample.hpp)
 add_library(quickstep_queryoptimizer_logical_SharedSubplanReference
             SharedSubplanReference.cpp
             SharedSubplanReference.hpp)
@@ -168,6 +169,16 @@ target_link_libraries(quickstep_queryoptimizer_logical_Project
                       quickstep_queryoptimizer_logical_LogicalType
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_logical_Sample
+                      glog
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_expressions_NamedExpression
+                      quickstep_queryoptimizer_logical_Logical
+                      quickstep_queryoptimizer_logical_LogicalType
+                      quickstep_utility_Cast
+                      quickstep_utility_Macros)                      
 target_link_libraries(quickstep_queryoptimizer_logical_SharedSubplanReference
                       glog
                       quickstep_queryoptimizer_OptimizerTree
@@ -245,6 +256,7 @@ target_link_libraries(quickstep_queryoptimizer_logical
                       quickstep_queryoptimizer_logical_NestedLoopsJoin
                       quickstep_queryoptimizer_logical_PatternMatcher
                       quickstep_queryoptimizer_logical_Project
+                      quickstep_queryoptimizer_logical_Sample
                       quickstep_queryoptimizer_logical_SharedSubplanReference
                       quickstep_queryoptimizer_logical_Sort
                       quickstep_queryoptimizer_logical_TableGenerator
