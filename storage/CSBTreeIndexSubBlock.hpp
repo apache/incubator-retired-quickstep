@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -24,11 +24,12 @@
 #include <memory>
 #include <vector>
 
+#include "catalog/CatalogTypedefs.hpp"
 #include "expressions/predicate/PredicateCost.hpp"
 #include "storage/IndexSubBlock.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageConstants.hpp"
 #include "storage/SubBlockTypeRegistryMacros.hpp"
-#include "types/TypedValue.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "utility/BitVector.hpp"
@@ -37,14 +38,14 @@
 
 namespace quickstep {
 
-class CSBTreeIndexSubBlockTest;
-class CSBTreePrettyPrinter;
 class CSBTreeIndexSubBlock;
+class CatalogRelationSchema;
 class ComparisonPredicate;
 class IndexSubBlockDescription;
-template <typename T, bool null_allowed> class PtrVector;
-class ScopedBuffer;
+class TupleIdSequence;
+class TupleStorageSubBlock;
 class Type;
+class TypedValue;
 
 QUICKSTEP_DECLARE_SUB_BLOCK_TYPE_REGISTERED(CSBTreeIndexSubBlock);
 

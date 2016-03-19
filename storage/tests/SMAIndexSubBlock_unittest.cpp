@@ -17,12 +17,12 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <limits>
 #include <memory>
 #include <set>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "catalog/CatalogAttribute.hpp"
@@ -52,6 +52,7 @@
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "utility/ScopedBuffer.hpp"
 
+#include "glog/logging.h"
 #include "gtest/gtest.h"
 
 using std::binary_search;
@@ -168,8 +169,7 @@ class SMAIndexSubBlockTest : public ::testing::Test {
     index_description_.reset(new IndexSubBlockDescription());
     index_description_->set_sub_block_type(IndexSubBlockDescription::SMA);
     for (std::size_t i = 0; i < indexed_attrs.size(); ++i) {
-      index_description_->AddExtension(SMAIndexSubBlockDescription::indexed_attribute_id,
-                                       indexed_attrs[i]);
+      index_description_->add_indexed_attribute_ids(indexed_attrs[i]);
     }
     index_memory_.reset(index_memory_size);
     index_.reset(new SMAIndexSubBlock(*tuple_store_,
@@ -322,9 +322,7 @@ TEST_F(SMAIndexSubBlockTest, DescriptionIsValidTest) {
         new IndexSubBlockDescription());
     index_description_->set_sub_block_type(
         IndexSubBlockDescription::SMA);
-    index_description_->AddExtension(
-        SMAIndexSubBlockDescription::indexed_attribute_id,
-        attr.getID());
+    index_description_->add_indexed_attribute_ids(attr.getID());
     if (std::find(valid_attrs.begin(), valid_attrs.end(), attr.getID()) != valid_attrs.end()) {
       EXPECT_TRUE(SMAIndexSubBlock::DescriptionIsValid(
           *relation_,
@@ -615,8 +613,8 @@ TEST_F(SMAIndexSubBlockTest, TestWithCompressedColumnStore) {
   // Create an index on the compressed tuple store.
   IndexSubBlockDescription compressed_index_description;
   compressed_index_description.set_sub_block_type(IndexSubBlockDescription::SMA);
-  compressed_index_description.AddExtension(SMAIndexSubBlockDescription::indexed_attribute_id, 0);
-  compressed_index_description.AddExtension(SMAIndexSubBlockDescription::indexed_attribute_id, 1);
+  compressed_index_description.add_indexed_attribute_ids(0);
+  compressed_index_description.add_indexed_attribute_ids(1);
 
   // Compressed blocks should be valid.
   ASSERT_TRUE(SMAIndexSubBlock::DescriptionIsValid(*relation_, compressed_index_description));
