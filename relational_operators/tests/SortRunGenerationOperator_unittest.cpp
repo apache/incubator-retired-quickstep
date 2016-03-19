@@ -303,7 +303,6 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
 
     insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
     insert_destination_proto->set_relation_id(result_table_->getID());
-    insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
 
     // Setup the SortConfiguration proto.

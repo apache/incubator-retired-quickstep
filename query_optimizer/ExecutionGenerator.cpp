@@ -283,7 +283,6 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
 
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_rel_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(true);
 }
 
 void ExecutionGenerator::dropAllTemporaryRelations() {
@@ -777,7 +776,11 @@ void ExecutionGenerator::convertCopyFrom(
 
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation->getID());
-  insert_destination_proto->set_need_to_add_blocks_from_relation(true);
+
+  const vector<block_id> blocks(physical_plan->catalog_relation()->getBlocksSnapshot());
+  for (const block_id block : blocks) {
+    insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+  }
 
   const QueryPlan::DAGNodeIndex scan_operator_index =
       execution_plan_->addRelationalOperator(
@@ -957,7 +960,12 @@ void ExecutionGenerator::convertInsertTuple(
 
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(input_relation->getID());
-  insert_destination_proto->set_need_to_add_blocks_from_relation(true);
+
+  const vector<block_id> blocks(input_relation->getBlocksSnapshot());
+  for (const block_id block : blocks) {
+    insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+  }
+
 
   const QueryPlan::DAGNodeIndex insert_operator_index =
       execution_plan_->addRelationalOperator(
@@ -996,7 +1004,6 @@ void ExecutionGenerator::convertUpdateTable(
 
   relocation_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   relocation_destination_proto->set_relation_id(input_rel_id);
-  relocation_destination_proto->set_need_to_add_blocks_from_relation(false);
 
   // Convert the predicate proto.
   QueryContext::predicate_id execution_predicate_index = QueryContext::kInvalidPredicateId;
