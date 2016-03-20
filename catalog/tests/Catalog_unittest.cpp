@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -43,6 +43,7 @@ QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(CSBTreeIndexSubBlock);
 QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(CompressedColumnStoreTupleStorageSubBlock);
 QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(CompressedPackedRowStoreTupleStorageSubBlock);
 QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(PackedRowStoreTupleStorageSubBlock);
+QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(SMAIndexSubBlock);
 QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(SplitRowStoreTupleStorageSubBlock);
 
 class CatalogTest : public ::testing::Test {
@@ -123,22 +124,10 @@ class CatalogTest : public ::testing::Test {
       const IndexSubBlockDescription &expected,
       const IndexSubBlockDescription &checked) {
     EXPECT_EQ(expected.sub_block_type(), checked.sub_block_type());
-    switch (expected.sub_block_type()) {
-      case IndexSubBlockDescription::CSB_TREE:
-        ASSERT_EQ(
-            expected.ExtensionSize(CSBTreeIndexSubBlockDescription::indexed_attribute_id),
-            checked.ExtensionSize(CSBTreeIndexSubBlockDescription::indexed_attribute_id));
 
-        for (int i = 0;
-             i < expected.ExtensionSize(CSBTreeIndexSubBlockDescription::indexed_attribute_id);
-             ++i) {
-          EXPECT_EQ(
-              expected.GetExtension(CSBTreeIndexSubBlockDescription::indexed_attribute_id, i),
-              checked.GetExtension(CSBTreeIndexSubBlockDescription::indexed_attribute_id, i));
-        }
-        break;
-      default:
-        FATAL_ERROR("Unknown IndexSubBlockType encountered in CompareIndexSubBlockDescription");
+    ASSERT_EQ(expected.indexed_attribute_ids_size(), checked.indexed_attribute_ids_size());
+    for (int i = 0; i < expected.indexed_attribute_ids_size(); ++i) {
+      EXPECT_EQ(expected.indexed_attribute_ids(i), checked.indexed_attribute_ids(i));
     }
   }
 

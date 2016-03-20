@@ -53,3 +53,14 @@ add_test(quickstep_queryoptimizer_tests_executiongenerator_update
          "${CMAKE_CURRENT_SOURCE_DIR}/Update.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Update.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Update/")
+
+# Create the folders where the unit tests will store their data blocks for the
+# duration of their test.
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Create)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Delete)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Drop)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Insert)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Select)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/StringPatternMatching)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/TableGenerator)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Update)

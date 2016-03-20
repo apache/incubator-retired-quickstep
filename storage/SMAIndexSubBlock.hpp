@@ -17,8 +17,8 @@
 #ifndef QUICKSTEP_STORAGE_SMA_INDEX_SUB_BLOCK_HPP_
 #define QUICKSTEP_STORAGE_SMA_INDEX_SUB_BLOCK_HPP_
 
-#include <stdint.h>
 #include <cstddef>
+#include <cstdint>
 #include <iostream>
 #include <memory>
 
@@ -29,9 +29,6 @@
 #include "storage/SubBlockTypeRegistryMacros.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
-#include "types/operations/binary_operations/BinaryOperation.hpp"
-#include "types/operations/comparisons/Comparison.hpp"
-#include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
@@ -40,12 +37,19 @@
 
 namespace quickstep {
 
+class CatalogRelationSchema;
+class ComparisonPredicate;
+class IndexSubBlockDescription;
+class TupleIdSequence;
+class TupleStorageSubBlock;
+class Type;
+class UncheckedBinaryOperator;
+class UncheckedComparator;
+
 /**
- * @brief 'Small Materialized Aggregates' Index. This  class holds count, min,
+ * @brief 'Small Materialized Aggregates' Index. This class holds count, min,
  *        max, and sum aggregates for attributes in a block.
  */
-class SMAIndexSubBlock;
-
 QUICKSTEP_DECLARE_SUB_BLOCK_TYPE_REGISTERED(SMAIndexSubBlock);
 
 /**
@@ -82,7 +86,7 @@ enum class Selectivity {
  * @param max The maximum value associated with that attribute.
  * @param less_comparator The less comparator for the attribute type.
  * @param equals_comparator  The equals comparator for the attribute type.
- * 
+ *
  * @return Selectivity of this predicate.
  */
 Selectivity getSelectivity(const TypedValue &literal,
@@ -176,7 +180,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
  public:
   /**
    * @brief Constructor.
-   * 
+   *
    * @param tuple_store The TupleStorageSubBlock whose contents are indexed by
    *                    this IndexSubBlock.
    * @param description A description containing any parameters needed to
@@ -195,11 +199,11 @@ class SMAIndexSubBlock : public IndexSubBlock {
 
   /**
    * @brief Frees data associated with variable length attributes.
-   * 
+   *
    * Several of the data structures in this index are on the heap, therefore it is
    * important that the destructor be called when evicted. The variables which
    * are held out of line (on the heap_ are the variable length TypedValues and
-   * the comparators. 
+   * the comparators.
    */
   ~SMAIndexSubBlock();
 
@@ -293,7 +297,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   /**
    * @brief Gives an estimate of how long it will take to evaluate the predicate
    *        on this StorageBlock.
-   * 
+   *
    * The SMA index will detect if one of the following cases is true:
    *   1) Complete match: all the tuples in this subblock will match the predicate
    *   2) Empty match:    none of the tuples will match
@@ -303,7 +307,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
    * and should be used.
    *
    * @param predicate A simple predicate too be evaluated.
-   * 
+   *
    * @return The cost associated with the type of match. Empty matches are constant,
    *         partial matches require a scan, and complete matches require something
    *         less than a regular scan (because we don't need to do the comparison
@@ -335,7 +339,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
    *        entry for it.
    *
    * @param attribute The ID of the attribute to check.
-   * 
+   *
    * @return \c true if this index contains an entry.
    */
   bool hasEntryForAttribute(attribute_id attribute) const;
@@ -400,7 +404,7 @@ class SMAIndexSubBlock : public IndexSubBlock {
   // A value of -1 indicates that that attribute is not indexed.
   std::unique_ptr<int> attribute_to_entry_;
   // Number of indexed attributes.
-  std::size_t num_indexed_attributes_;
+  const std::size_t num_indexed_attributes_;
   // True if the index has gone through the initialization process.
   // The key aspect of initialization is the creation of the comparators and
   // binary operators which are used to update the SMAEntries on insertion
@@ -429,6 +433,6 @@ class SMAIndexSubBlock : public IndexSubBlock {
   DISALLOW_COPY_AND_ASSIGN(SMAIndexSubBlock);
 };
 
-} /* namespace quickstep */
+}  // namespace quickstep
 
-#endif /* QUICKSTEP_STORAGE_SMA_INDEX_SUB_BLOCK_HPP_ */
+#endif  // QUICKSTEP_STORAGE_SMA_INDEX_SUB_BLOCK_HPP_

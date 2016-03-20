@@ -38,6 +38,7 @@ add_library(quickstep_relationaloperators_NestedLoopsJoinOperator
             NestedLoopsJoinOperator.hpp)
 add_library(quickstep_relationaloperators_RebuildWorkOrder ../empty_src.cpp RebuildWorkOrder.hpp)
 add_library(quickstep_relationaloperators_RelationalOperator ../empty_src.cpp RelationalOperator.hpp)
+add_library(quickstep_relationaloperators_SampleOperator SampleOperator.cpp SampleOperator.hpp)
 add_library(quickstep_relationaloperators_SaveBlocksOperator SaveBlocksOperator.cpp SaveBlocksOperator.hpp)
 add_library(quickstep_relationaloperators_SelectOperator SelectOperator.cpp SelectOperator.hpp)
 add_library(quickstep_relationaloperators_SortMergeRunOperator SortMergeRunOperator.cpp
@@ -223,6 +224,20 @@ target_link_libraries(quickstep_relationaloperators_RelationalOperator
                       quickstep_storage_StorageBlockInfo
                       quickstep_utility_Macros
                       tmb)
+target_link_libraries(quickstep_relationaloperators_SampleOperator
+                      glog
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext                                 
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_InsertDestination
+                      quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_utility_Macros
+                      tmb)                      
 target_link_libraries(quickstep_relationaloperators_SaveBlocksOperator
                       glog
                       quickstep_catalog_CatalogTypedefs
@@ -383,6 +398,7 @@ target_link_libraries(quickstep_relationaloperators
                       quickstep_relationaloperators_NestedLoopsJoinOperator
                       quickstep_relationaloperators_RebuildWorkOrder
                       quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_SampleOperator
                       quickstep_relationaloperators_SaveBlocksOperator
                       quickstep_relationaloperators_SelectOperator
                       quickstep_relationaloperators_SortMergeRunOperator

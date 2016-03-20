@@ -507,7 +507,7 @@ MutableBlockReference StorageManager::getBlockInternal(
     //   To deal with this case, we pass the block information for "block"
     //   though the call chain, and check for a collision in the the
     //   "ShardedLockManager" in the function "makeRoomForBlock."
-    //   If a collistion is detected we avoid a self-deadlock.
+    //   If a collision is detected we avoid a self-deadlock.
     ret = MutableBlockReference(loadBlock(block, relation, numa_node), eviction_policy_.get());
   }
 

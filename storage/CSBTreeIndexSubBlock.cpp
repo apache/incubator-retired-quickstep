@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -27,9 +27,9 @@
 
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
+#include "catalog/CatalogTypedefs.hpp"
 #include "compression/CompressionDictionary.hpp"
 #include "expressions/predicate/ComparisonPredicate.hpp"
-#include "expressions/predicate/Predicate.hpp"
 #include "expressions/predicate/PredicateCost.hpp"
 #include "expressions/scalar/Scalar.hpp"
 #include "expressions/scalar/ScalarAttribute.hpp"
@@ -41,7 +41,6 @@
 #include "storage/TupleIdSequence.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
 #include "types/Type.hpp"
-#include "types/TypeFactory.hpp"
 #include "types/TypedValue.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
@@ -248,15 +247,12 @@ CSBTreeIndexSubBlock::CSBTreeIndexSubBlock(const TupleStorageSubBlock &tuple_sto
     FATAL_ERROR("Attempted to construct a CSBTreeIndexSubBlock from an invalid description.");
   }
 
-  const int num_indexed_attributes
-      = description_.ExtensionSize(CSBTreeIndexSubBlockDescription::indexed_attribute_id);
+  const int num_indexed_attributes = description_.indexed_attribute_ids_size();
   if (num_indexed_attributes > 1) {
     key_is_composite_ = true;
   } else {
     key_is_composite_ = false;
-    attribute_id key_id = description_.GetExtension(
-        CSBTreeIndexSubBlockDescription::indexed_attribute_id,
-        0);
+    const attribute_id key_id = description_.indexed_attribute_ids(0);
     key_type_ = &(relation_.getAttributeById(key_id)->getType());
   }
 
@@ -266,9 +262,7 @@ CSBTreeIndexSubBlock::CSBTreeIndexSubBlock(const TupleStorageSubBlock &tuple_sto
   for (int indexed_attribute_num = 0;
        indexed_attribute_num < num_indexed_attributes;
        ++indexed_attribute_num) {
-    attribute_id indexed_attribute_id
-        = description_.GetExtension(CSBTreeIndexSubBlockDescription::indexed_attribute_id,
-                                    indexed_attribute_num);
+    const attribute_id indexed_attribute_id = description_.indexed_attribute_ids(indexed_attribute_num);
     indexed_attribute_ids_.push_back(indexed_attribute_id);
 
     // TODO(chasseur): Support a composite key with compressed parts.
@@ -317,18 +311,16 @@ bool CSBTreeIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema &relat
   }
 
   // Make sure at least one key attribute is specified.
-  if (description.ExtensionSize(CSBTreeIndexSubBlockDescription::indexed_attribute_id) == 0) {
+  if (description.indexed_attribute_ids_size() == 0) {
     return false;
   }
 
   // TODO(chasseur): Consider checking key-length here.
   // Check that all key attributes exist and are fixed-length.
   for (int indexed_attribute_num = 0;
-       indexed_attribute_num < description.ExtensionSize(CSBTreeIndexSubBlockDescription::indexed_attribute_id);
+       indexed_attribute_num < description.indexed_attribute_ids_size();
        ++indexed_attribute_num) {
-    attribute_id indexed_attribute_id
-        = description.GetExtension(CSBTreeIndexSubBlockDescription::indexed_attribute_id,
-                                   indexed_attribute_num);
+    const attribute_id indexed_attribute_id = description.indexed_attribute_ids(indexed_attribute_num);
     if (!relation.hasAttributeWithId(indexed_attribute_id)) {
       return false;
     }
@@ -351,10 +343,10 @@ std::size_t CSBTreeIndexSubBlock::EstimateBytesPerTuple(
 
   size_t key_length = 0;
   for (int indexed_attribute_num = 0;
-       indexed_attribute_num < description.ExtensionSize(CSBTreeIndexSubBlockDescription::indexed_attribute_id);
+       indexed_attribute_num < description.indexed_attribute_ids_size();
        ++indexed_attribute_num) {
-    key_length += relation.getAttributeById(
-        description.GetExtension(CSBTreeIndexSubBlockDescription::indexed_attribute_id, indexed_attribute_num))
+    key_length +=
+        relation.getAttributeById(description.indexed_attribute_ids(indexed_attribute_num))
             ->getType().maximumByteLength();
   }
 
