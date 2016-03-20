@@ -254,9 +254,6 @@ StorageBlob* StorageManager::loadBlob(const block_id blob,
 }
 
 bool StorageManager::saveBlockOrBlob(const block_id block, const bool force) {
-  // TODO(marc): Is this lock necessary? I need some time to analyze the storage
-  // manager code in depth to understand what locks need to be held. Until then,
-  // this should not be merged.
   SpinSharedMutexSharedLock<false> read_lock(*lock_manager_.get(block));
   return saveBlockOrBlobInternal(block, force);
 }
@@ -328,8 +325,8 @@ void StorageManager::deleteBlockOrBlobFile(const block_id block) {
 block_id StorageManager::allocateNewBlockOrBlob(const std::size_t num_slots,
                                                 BlockHandle *handle,
                                                 const int numa_node) {
-  DCHECK_GT(num_slots, 0);
-  DCHECK_NOTNULL(handle);
+  DCHECK_GT(num_slots, 0u);
+  DEBUG_ASSERT(handle != nullptr);
 
   handle->block_memory = allocateSlots(num_slots, numa_node, kInvalidBlockId);
   handle->block_memory_size = num_slots;
@@ -343,7 +340,7 @@ StorageManager::BlockHandle StorageManager::loadBlockOrBlob(
   // mutex in the lock manager. The caller has ensured that the block is not
   // already loaded before this function gets called.
   size_t num_slots = file_manager_->numSlots(block);
-  DCHECK_NE(num_slots, 0);
+  DCHECK_NE(num_slots, 0u);
   void* block_buffer = allocateSlots(num_slots, numa_node, block);
 
   const bool status = file_manager_->readBlockOrBlob(block, block_buffer, kSlotSizeBytes * num_slots);
