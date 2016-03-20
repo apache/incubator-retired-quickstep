@@ -85,7 +85,7 @@ class StorageManager {
    *        storage.
    * @param max_memory_usage The maximum amount of memory that the storage
    *                         manager should use for cached blocks in slots. If
-   *                         an block is requested that is not currently in
+   *                         a block is requested that is not currently in
    *                         memory and there are already max_memory_usage slots
    *                         in use in memory, then the storage manager will
    *                         attempt to evict enough blocks to make room for the
