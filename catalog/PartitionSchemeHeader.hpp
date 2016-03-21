@@ -254,16 +254,21 @@ class RangePartitionSchemeHeader : public PartitionSchemeHeader {
    **/
   partition_id getPartitionId(
       const TypedValue &value_of_attribute) const override {
-    partition_id part_id = 0;
-    for (part_id = 0; part_id < num_partitions_ - 1; ++part_id) {
-      const TypedValue &partition_delimiter =
-          partition_range_boundaries_[part_id];
-      if (less_unchecked_comparator_->compareTypedValues(
-              value_of_attribute, partition_delimiter)) {
-        return part_id;
+    partition_id start = 0, end = partition_range_boundaries_.size() - 1;
+    if (!less_unchecked_comparator_->compareTypedValues(value_of_attribute, partition_range_boundaries_[end])) {
+      return num_partitions_ - 1;
+    }
+
+    while (start < end) {
+      const partition_id mid = start + ((end - start) >> 1);
+      if (less_unchecked_comparator_->compareTypedValues(value_of_attribute, partition_range_boundaries_[mid])) {
+        end = mid;
+      } else {
+        start = mid + 1;
       }
     }
-    return part_id;
+
+    return start;
   }
 
   serialization::PartitionSchemeHeader getProto() const override;
