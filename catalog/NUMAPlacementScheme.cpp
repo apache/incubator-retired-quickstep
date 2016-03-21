@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -21,7 +21,6 @@
 #include <utility>
 
 #include "catalog/Catalog.pb.h"
-#include "catalog/PartitionScheme.hpp"
 
 #include "glog/logging.h"
 
@@ -61,17 +60,12 @@ serialization::NUMAPlacementScheme NUMAPlacementScheme::getProto() const {
   return proto;
 }
 
-NUMAPlacementScheme* NUMAPlacementScheme::DeserializeNUMAPlacementScheme(
+NUMAPlacementScheme* NUMAPlacementScheme::ReconstructFromProto(
     const serialization::NUMAPlacementScheme &proto,
-    const serialization::PartitionScheme &partition_proto) {
-  DCHECK(PartitionScheme::ProtoIsValid(partition_proto))
-      << "Attempted to create NUMAPlacementScheme from an invalid partition proto description:\n"
-      << proto.DebugString();
-
-  NUMAPlacementScheme *placement_scheme;
+    const std::size_t num_partitions) {
   // This call to the constructor will populate the values of partition-to-NUMA
   // node map.
-  placement_scheme = new NUMAPlacementScheme(partition_proto.num_partitions());
+  NUMAPlacementScheme *placement_scheme = new NUMAPlacementScheme(num_partitions);
 
   DCHECK(ProtoIsValid(proto))
       << "Attempted to create NUMAPlacementScheme from an invalid proto description:\n"

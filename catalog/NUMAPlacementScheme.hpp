@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -96,7 +96,7 @@ class NUMAPlacementScheme {
    *
    * @return Total number of NUMA nodes available in the system.
    **/
-  inline const std::size_t getNumNUMANodes() const {
+  inline std::size_t getNumNUMANodes() const {
     return num_numa_nodes_;
   }
 
@@ -107,7 +107,7 @@ class NUMAPlacementScheme {
    *
    * @return The NUMA node on which the partition is placed.
    **/
-  inline const numa_node_id getNUMANodeForPartition(partition_id part_id)
+  inline numa_node_id getNUMANodeForPartition(const partition_id part_id)
       const {
     auto partition_to_numa_node_map_iter =
         partition_to_numa_node_map_.find(part_id);
@@ -141,7 +141,7 @@ class NUMAPlacementScheme {
    *
    * @return The NUMA node id associated with the block.
    **/
-  inline const numa_node_id getNUMANodeForBlock(const block_id block) const {
+  inline numa_node_id getNUMANodeForBlock(const block_id block) const {
     auto block_to_numa_node_map_iter = block_to_numa_node_map_.find(block);
     DCHECK(block_to_numa_node_map_iter != block_to_numa_node_map_.end());
     return block_to_numa_node_map_iter->second;
@@ -175,11 +175,11 @@ class NUMAPlacementScheme {
    *                        ParitionScheme. This is needed for number of
    *                        partitions.
    *
-   * @return The deserialied NUMA Placement Scheme object.
+   * @return The deserialized NUMA Placement Scheme object.
    **/
-  static NUMAPlacementScheme *DeserializeNUMAPlacementScheme(
+  static NUMAPlacementScheme* ReconstructFromProto(
       const serialization::NUMAPlacementScheme &proto,
-      const serialization::PartitionScheme &partition_proto);
+      const std::size_t num_partitions);
 
  private:
   // Number of NUMA nodes available in the system.
