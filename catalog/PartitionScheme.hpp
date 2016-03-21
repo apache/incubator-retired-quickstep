@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -21,15 +21,16 @@
 #include <cstddef>
 #include <memory>
 #include <unordered_set>
+#include <utility>
 #include <vector>
 
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/PartitionSchemeHeader.hpp"
 #include "storage/StorageBlockInfo.hpp"
+#include "threading/Mutex.hpp"
+#include "threading/SharedMutex.hpp"
 #include "threading/SpinSharedMutex.hpp"
-#include "types/TypedValue.hpp"
-#include "types/operations/comparisons/Comparison.hpp"
-#include "types/operations/comparisons/LessComparison.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -43,33 +44,47 @@ class Type;
  */
 
 /**
- * @brief The Partition Scheme abstract base class which stores the
- *        partitioning information for a particular relation.
+ * @brief The class which stores the partitioning information and partitioned
+ *        blocks for a particular relation.
  **/
 class PartitionScheme {
  public:
-  enum PartitionType {
-    kHash = 0,
-    kRange
-  };
+  /**
+   * @brief Constructor.
+   * @note The constructor takes ownership of \c header.
+   *
+   * @param header The partition header.
+   * @param blocks_in_partition All blocks in partitions.
+   **/
+  explicit PartitionScheme(PartitionSchemeHeader *header)
+      : header_(DCHECK_NOTNULL(header)),
+        blocks_in_partition_(header_->getNumPartitions()),
+        blocks_in_partition_mutexes_(header_->getNumPartitions()) {}
+
+  /**
+   * @brief Constructor.
+   * @note The constructor takes ownership of \c header.
+   *
+   * @param header The partition header.
+   * @param blocks_in_partition All blocks in partitions.
+   **/
+  PartitionScheme(PartitionSchemeHeader *header,
+                  std::vector<std::unordered_set<block_id>> &&blocks_in_partition)
+      : header_(DCHECK_NOTNULL(header)),
+        blocks_in_partition_(std::move(blocks_in_partition)),
+        blocks_in_partition_mutexes_(header_->getNumPartitions()) {}
 
   /**
    * @brief Reconstruct a Partition Scheme from its serialized
    *        Protocol Buffer form.
    *
    * @param proto The Protocol Buffer serialization of a Partition Scheme,
-   *              previously produced by getProto().
+   *        previously produced by getProto().
    * @param attr_type The attribute type of the partitioning attribute.
-   * @return The deserialied partition scheme object.
+   * @return The deserialized partition scheme object.
    **/
-  static PartitionScheme* DeserializePartitionScheme(
-      const serialization::PartitionScheme &proto, const Type &attr_type);
-
-  /**
-   * @brief Virtual destructor.
-   **/
-  virtual ~PartitionScheme() {
-  }
+  static PartitionScheme* ReconstructFromProto(const serialization::PartitionScheme &proto,
+                                               const Type &attr_type);
 
   /**
    * @brief Check whether a serialization::PartitionScheme is fully-formed and
@@ -82,46 +97,13 @@ class PartitionScheme {
   static bool ProtoIsValid(const serialization::PartitionScheme &proto);
 
   /**
-   * @brief Calculate the partition id into which the attribute value should
-   *        be inserted.
-   *
-   * @param value_of_attribute The attribute value for which the
-   *                           partition id is to be determined.
-   * @return The partition id of the partition for the attribute value.
-   **/
-  // TODO(gerald): Make this method more efficient since currently this is
-  // done for each and every tuple. We can go through the entire set of tuples
-  // once using a value accessor and create bitmaps for each partition with
-  // tuples that correspond to those partitions.
-  virtual const partition_id getPartitionId(
-      const TypedValue &value_of_attribute) const = 0;
-
-  /**
-   * @brief Get the partition type of the relation.
-   *
-   * @return The partition type used to partition the relation.
-   **/
-  inline const PartitionType getPartitionType() const {
-    return partition_type_;
-  }
-
-  /**
-   * @brief Get the number of partitions for the relation.
-   *
-   * @return The number of partitions the relation is partitioned into.
-   **/
-  inline const std::size_t getNumPartitions() const {
-    return num_partitions_;
-  }
-
-  /**
    * @brief Get the partitioning attribute for the relation.
    *
    * @return The partitioning attribute with which the relation
    *         is partitioned into.
    **/
-  inline const attribute_id getPartitionAttributeId() const {
-    return partition_attribute_id_;
+  const PartitionSchemeHeader& getPartitionSchemeHeader() const {
+    return *header_;
   }
 
   /**
@@ -132,7 +114,7 @@ class PartitionScheme {
    **/
   inline void addBlockToPartition(const block_id block,
                                   const partition_id part_id) {
-    DCHECK_LT(part_id, num_partitions_);
+    DCHECK_LT(part_id, header_->getNumPartitions());
     SpinSharedMutexExclusiveLock<false> lock(
         blocks_in_partition_mutexes_[part_id]);
     blocks_in_partition_[part_id].insert(block);
@@ -146,7 +128,7 @@ class PartitionScheme {
    **/
   inline void removeBlockFromPartition(const block_id block,
                                        const partition_id part_id) {
-    DCHECK_LT(part_id, num_partitions_);
+    DCHECK_LT(part_id, header_->getNumPartitions());
     SpinSharedMutexExclusiveLock<false> lock(
         blocks_in_partition_mutexes_[part_id]);
     std::unordered_set<block_id> &blocks_in_partition =
@@ -161,9 +143,9 @@ class PartitionScheme {
    * @return The block_ids of blocks belonging to this partition at the moment
    *         when this method is called.
    **/
-  inline const std::vector<block_id> getBlocksInPartition(
+  inline std::vector<block_id> getBlocksInPartition(
       const partition_id part_id) const {
-    DCHECK_LT(part_id, num_partitions_);
+    DCHECK_LT(part_id, header_->getNumPartitions());
     SpinSharedMutexSharedLock<false> lock(
         blocks_in_partition_mutexes_[part_id]);
     return std::vector<block_id>(blocks_in_partition_[part_id].begin(),
@@ -175,7 +157,7 @@ class PartitionScheme {
    *
    * @return The Protocol Buffer representation of Partition Scheme.
    **/
-  virtual serialization::PartitionScheme getProto() const;
+  serialization::PartitionScheme getProto() const;
 
   /**
    * @brief Get the partition id for a block.
@@ -186,174 +168,17 @@ class PartitionScheme {
    *         found in any partition, then the maximum finite value for the type
    *         std::size_t is returned.
    **/
-  const partition_id getPartitionForBlock(block_id block) const;
+  partition_id getPartitionForBlock(const block_id block) const;
 
- protected:
-  /**
-   * @brief Constructor.
-   *
-   * @param type The type of partitioning to be used to partition the
-   *             relation.
-   * @param num_partitions The number of partitions to be created.
-   * @param attribute The attribute on which the partitioning happens.
-   **/
-  PartitionScheme(const PartitionType type,
-                  const std::size_t num_partitions,
-                  const attribute_id attr_id);
+ private:
+  std::unique_ptr<const PartitionSchemeHeader> header_;
 
-  // The number of partitions.
-  const std::size_t num_partitions_;
-  // The attribute of partioning.
-  const attribute_id partition_attribute_id_;
-  // The type of partitioning: Hash or Range.
-  const PartitionScheme::PartitionType partition_type_;
   // The unordered set of blocks per partition.
   std::vector<std::unordered_set<block_id>> blocks_in_partition_;
   // Mutexes for locking each partition separately.
   mutable std::vector<SpinSharedMutex<false>> blocks_in_partition_mutexes_;
 
- private:
   DISALLOW_COPY_AND_ASSIGN(PartitionScheme);
-};
-
-/**
- * @brief Implementation of PartitionScheme that partitions the tuples in a
- *        relation based on a hash function on the partitioning attribute.
-**/
-class HashPartitionScheme : public PartitionScheme {
- public:
-  /**
-   * @brief Constructor.
-   *
-   * @param num_partitions The number of partitions to be created.
-   * @param attribute The attribute on which the partitioning happens.
-   **/
-  HashPartitionScheme(std::size_t num_partitions, attribute_id attribute)
-      : PartitionScheme(PartitionType::kHash, num_partitions, attribute) {
-  }
-
-  /**
-   * @brief Destructor.
-   **/
-  ~HashPartitionScheme() override {
-  }
-
-  /**
-   * @brief Calulate the partition id into which the attribute value
-   *        should be inserted.
-   *
-   * @param value_of_attribute The attribute value for which the
-   *                           partition id is to be determined.
-   * @return The partition id of the partition for the attribute value.
-   **/
-  const partition_id getPartitionId(
-      const TypedValue &value_of_attribute) const override {
-    // TODO(gerald): Optimize for the case where the number of partitions is a
-    // power of 2. We can just mask out the lower-order hash bits rather than
-    // doing a division operation.
-    return value_of_attribute.getHash() % num_partitions_;
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(HashPartitionScheme);
-};
-
-class RangePartitionScheme : public PartitionScheme {
- public:
-  /**
-   * @brief Constructor.
-   *
-   * @param partition_attribute_type The type of CatalogAttribute that is used
-   *                                 for partitioning.
-   * @param num_partitions The number of partitions to be created.
-   * @param attribute The attribute_id on which the partitioning happens.
-   * @param partition_range The mapping between the partition ids and the upper
-   *                        bound of the range boundaries. If two ranges R1 and
-   *                        R2 are separated by a boundary value V, then V
-   *                        would fall into range R2. For creating a range
-   *                        partition scheme with n partitions, you need to
-   *                        specify n-1 boundary values. The first partition
-   *                        will have all the values less than the first
-   *                        boundary and the last partition would have all
-   *                        values greater than or equal to the last boundary
-   *                        value.
-   **/
-  RangePartitionScheme(const Type &partition_attribute_type,
-                       const std::size_t num_partitions,
-                       const attribute_id attribute,
-                       const std::vector<TypedValue> &partition_range)
-      : PartitionScheme(PartitionType::kRange, num_partitions, attribute),
-        partition_range_boundary_(partition_range) {
-    DCHECK_EQ(num_partitions - 1, partition_range.size());
-    const Comparison &less_comparison_op(LessComparison::Instance());
-    less_unchecked_comparator_.reset(
-        less_comparison_op.makeUncheckedComparatorForTypes(
-            partition_attribute_type, partition_attribute_type));
-#ifdef QUICKSTEP_DEBUG
-    checkPartitionRangeBoundaries();
-#endif
-  }
-
-  /**
-   * @brief Destructor.
-   **/
-  ~RangePartitionScheme() override {
-  }
-
-  /**
-   * @brief Check if the partition range boundaries are in ascending order.
-   **/
-  void checkPartitionRangeBoundaries() {
-    for (partition_id part_id = 0; part_id < num_partitions_ - 2; ++part_id) {
-      if (less_unchecked_comparator_->compareTypedValues(
-              partition_range_boundary_[part_id + 1],
-              partition_range_boundary_[part_id])) {
-        FATAL_ERROR("Partition boundaries are not in ascending order.");
-      }
-    }
-  }
-
-  /**
-   * @brief Calulate the partition id into which the attribute value
-   *        should be inserted.
-   *
-   * @param value_of_attribute The attribute value for which the
-   *                           partition id is to be determined.
-   * @return The partition id of the partition for the attribute value.
-   **/
-  const partition_id getPartitionId(
-      const TypedValue &value_of_attribute) const override {
-    partition_id part_id = 0;
-    for (part_id = 0; part_id < num_partitions_ - 1; ++part_id) {
-      const TypedValue &partition_delimiter =
-          partition_range_boundary_[part_id];
-      if (less_unchecked_comparator_->compareTypedValues(
-              value_of_attribute, partition_delimiter)) {
-        return part_id;
-      }
-    }
-    return part_id;
-  }
-
-  /**
-   * @brief Get the range boundaries for partitions.
-   *
-   * @return The vector of range boundaries for partitions.
-   **/
-  inline const std::vector<TypedValue>& getPartitionRangeBoundaries() const {
-    return partition_range_boundary_;
-  }
-
-  serialization::PartitionScheme getProto() const override;
-
- private:
-  // The boundaries for each range in the RangePartitionScheme.
-  // The upper bound of the range is stored here.
-  const std::vector<TypedValue> partition_range_boundary_;
-  // A comparator to compare two TypedValues.
-  std::unique_ptr<UncheckedComparator> less_unchecked_comparator_;
-
-  DISALLOW_COPY_AND_ASSIGN(RangePartitionScheme);
 };
 
 /** @} */

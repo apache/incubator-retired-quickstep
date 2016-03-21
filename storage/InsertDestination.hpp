@@ -26,7 +26,7 @@
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
-#include "catalog/PartitionScheme.hpp"
+#include "catalog/PartitionSchemeHeader.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
@@ -402,7 +402,25 @@ class BlockPoolInsertDestination : public InsertDestination {
 
 class PartitionAwareInsertDestination : public InsertDestination {
  public:
-  PartitionAwareInsertDestination(StorageManager *storage_manager,
+  /**
+   * @brief Constructor.
+   *
+   * @note PartitionAwareInsertDestination takes ownership of \c
+   *       partition_scheme_header.
+   *
+   * @param partition_scheme_header The partitioned scheme header information.
+   * @param storage_manager The StorageManager to use.
+   * @param relation The relation to insert tuples into.
+   * @param layout The layout to use for any newly-created blocks. If NULL,
+   *        defaults to relation's default layout.
+   * @param partitions The blocks in partitions.
+   * @param relational_op_index The index of the relational operator in the
+   *        QueryPlan DAG that has outputs.
+   * @param foreman_client_id The TMB client ID of the Foreman thread.
+   * @param bus A pointer to the TMB.
+   **/
+  PartitionAwareInsertDestination(PartitionSchemeHeader *partition_scheme_header,
+                                  StorageManager *storage_manager,
                                   CatalogRelation *relation,
                                   const StorageBlockLayout *layout,
                                   std::vector<std::vector<block_id>> &&partitions,
@@ -427,11 +445,9 @@ class PartitionAwareInsertDestination : public InsertDestination {
   }
 
   void getPartiallyFilledBlocks(std::vector<MutableBlockReference> *partial_blocks) override {
-    const PartitionScheme &partition_scheme = relation_->getPartitionScheme();
-    const std::size_t num_partitions = partition_scheme.getNumPartitions();
     // Iterate through each partition and return the partially filled blocks
     // in each partition.
-    for (partition_id part_id = 0; part_id < num_partitions; ++part_id) {
+    for (partition_id part_id = 0; part_id < partition_scheme_header_->getNumPartitions(); ++part_id) {
       getPartiallyFilledBlocksInPartition(partial_blocks, part_id);
     }
   }
@@ -504,6 +520,8 @@ class PartitionAwareInsertDestination : public InsertDestination {
   const std::vector<block_id>& getTouchedBlocksInternalInPartition(partition_id part_id);
 
  private:
+  std::unique_ptr<const PartitionSchemeHeader> partition_scheme_header_;
+
   // A vector of available block references for each partition.
   std::vector< std::vector<MutableBlockReference> > available_block_refs_;
   // A vector of available block ids for each partition.
