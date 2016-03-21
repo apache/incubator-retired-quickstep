@@ -558,10 +558,12 @@ target_link_libraries(quickstep_storage_IndexSubBlock
 target_link_libraries(quickstep_storage_InsertDestination
                       glog
                       gtest
+                      quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_Catalog_proto
                       quickstep_catalog_PartitionScheme
+                      quickstep_catalog_PartitionSchemeHeader
                       quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil

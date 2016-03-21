@@ -21,7 +21,7 @@
 #include <memory>
 
 #include "catalog/NUMAPlacementScheme.hpp"
-#include "catalog/PartitionScheme.hpp"
+#include "catalog/PartitionSchemeHeader.hpp"
 #include "storage/StorageBlockInfo.hpp"
 
 #include "gtest/gtest.h"
@@ -77,10 +77,10 @@ TEST(NUMAPlacementSchemeTest, NUMAPlacementSchemeSerializationTest) {
   // Number of partitions in the Catalog Relation.
   std::size_t num_partitions = 64;
 
-  // Create a HashPartitionScheme object with 64 partitions and attribute 0 as
-  // the partitioning attribute.
-  std::unique_ptr<PartitionScheme> partition_scheme(
-      new HashPartitionScheme(num_partitions, 0));
+  // Create a HashPartitionSchemeHeader object with 64 partitions and attribute
+  //  0 as the partitioning attribute.
+  std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
+      new HashPartitionSchemeHeader(num_partitions, 0));
 
   // Create a NUMAPlacementScheme object with the num_partitions.
   std::unique_ptr<NUMAPlacementScheme> placement_scheme(
@@ -106,7 +106,7 @@ TEST(NUMAPlacementSchemeTest, NUMAPlacementSchemeSerializationTest) {
   std::unique_ptr<NUMAPlacementScheme> placement_scheme_from_proto;
   placement_scheme_from_proto.reset(
       NUMAPlacementScheme::ReconstructFromProto(
-          placement_scheme->getProto(), partition_scheme->getNumPartitions()));
+          placement_scheme->getProto(), partition_scheme_header->getNumPartitions()));
 
   // Check if the number of NUMA nodes is the same in both the placement scheme
   // objects.

@@ -24,8 +24,10 @@
 #include <vector>
 
 #include "catalog/Catalog.pb.h"
+#include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/PartitionScheme.hpp"
+#include "catalog/PartitionSchemeHeader.hpp"
 #include "storage/InsertDestination.pb.h"
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
@@ -47,6 +49,8 @@ using std::vector;
 namespace tmb { class MessageBus; }
 
 namespace quickstep {
+
+class Type;
 
 InsertDestination::InsertDestination(StorageManager *storage_manager,
                                      CatalogRelation *relation,
@@ -102,26 +106,31 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
                                             bus);
     }
     case serialization::InsertDestinationType::PARTITION_AWARE: {
+      const serialization::PartitionScheme &proto_partition_scheme =
+          proto.GetExtension(serialization::PartitionAwareInsertDestination::partition_scheme);
+
       vector<vector<block_id>> partitions;
-      for (int partition_index = 0;
-           partition_index < proto.ExtensionSize(serialization::PartitionAwareInsertDestination::partitions);
-           ++partition_index) {
+      for (int partition_index = 0; partition_index < proto_partition_scheme.partitions_size(); ++partition_index) {
         vector<block_id> partition;
-        const serialization::Partition &proto_partition =
-            proto.GetExtension(serialization::PartitionAwareInsertDestination::partitions, partition_index);
+        const serialization::Partition &proto_partition = proto_partition_scheme.partitions(partition_index);
         for (int block_index = 0; block_index < proto_partition.blocks_size(); ++block_index) {
           partition.push_back(proto_partition.blocks(block_index));
         }
         partitions.push_back(move(partition));
       }
 
-      return new PartitionAwareInsertDestination(storage_manager,
-                                                 relation,
-                                                 layout,
-                                                 move(partitions),
-                                                 proto.relational_op_index(),
-                                                 foreman_client_id,
-                                                 bus);
+      const serialization::PartitionSchemeHeader &proto_partition_scheme_header = proto_partition_scheme.header();
+      const Type &attr_type =
+          relation->getAttributeById(proto_partition_scheme_header.partition_attribute_id())->getType();
+      return new PartitionAwareInsertDestination(
+          PartitionSchemeHeader::ReconstructFromProto(proto_partition_scheme_header, attr_type),
+          storage_manager,
+          relation,
+          layout,
+          move(partitions),
+          proto.relational_op_index(),
+          foreman_client_id,
+          bus);
     }
     default: {
       LOG(FATAL) << "Unrecognized InsertDestinationType in proto";
@@ -327,7 +336,8 @@ const std::vector<block_id>& BlockPoolInsertDestination::getTouchedBlocksInterna
   return done_block_ids_;
 }
 
-PartitionAwareInsertDestination::PartitionAwareInsertDestination(StorageManager *storage_manager,
+PartitionAwareInsertDestination::PartitionAwareInsertDestination(PartitionSchemeHeader *partition_scheme_header,
+                                                                 StorageManager *storage_manager,
                                                                  CatalogRelation *relation,
                                                                  const StorageBlockLayout *layout,
                                                                  vector<vector<block_id>> &&partitions,
@@ -335,13 +345,11 @@ PartitionAwareInsertDestination::PartitionAwareInsertDestination(StorageManager 
                                                                  const tmb::client_id foreman_client_id,
                                                                  tmb::MessageBus *bus)
     : InsertDestination(storage_manager, relation, layout, relational_op_index, foreman_client_id, bus),
-      available_block_ids_(move(partitions)) {
-  DEBUG_ASSERT(relation->hasPartitionScheme());
-  const PartitionScheme &partition_scheme = relation->getPartitionScheme();
-  const std::size_t num_partitions = partition_scheme.getNumPartitions();
-  available_block_refs_.resize(num_partitions);
-  done_block_ids_.resize(num_partitions);
-  mutexes_for_partition_ = new SpinMutex[num_partitions];
+      partition_scheme_header_(DCHECK_NOTNULL(partition_scheme_header)),
+      available_block_refs_(partition_scheme_header_->getNumPartitions()),
+      available_block_ids_(move(partitions)),
+      done_block_ids_(partition_scheme_header_->getNumPartitions()),
+      mutexes_for_partition_(new SpinMutex[partition_scheme_header_->getNumPartitions()]) {
 }
 
 MutableBlockReference PartitionAwareInsertDestination::createNewBlock() {
@@ -349,7 +357,7 @@ MutableBlockReference PartitionAwareInsertDestination::createNewBlock() {
 }
 
 MutableBlockReference PartitionAwareInsertDestination::createNewBlockInPartition(const partition_id part_id) {
-  DEBUG_ASSERT(part_id >= 0 && part_id < relation_->getPartitionScheme().getNumPartitions());
+  DCHECK_LT(part_id, partition_scheme_header_->getNumPartitions());
   // Create a new block.
   block_id new_id = storage_manager_->createBlock(*relation_, *layout_);
   relation_->addBlock(new_id);
@@ -361,7 +369,7 @@ MutableBlockReference PartitionAwareInsertDestination::createNewBlockInPartition
 const std::vector<block_id>& PartitionAwareInsertDestination::getTouchedBlocksInternal() {
   // Iterate through each partition and get all the touched blocks.
   for (std::size_t part_id = 0;
-       part_id < relation_->getPartitionScheme().getNumPartitions();
+       part_id < partition_scheme_header_->getNumPartitions();
        ++part_id) {
     done_block_ids_[part_id] = getTouchedBlocksInternalInPartition(part_id);
     all_partitions_done_block_ids_.insert(
@@ -382,13 +390,13 @@ const std::vector<block_id>& PartitionAwareInsertDestination::getTouchedBlocksIn
 }
 
 attribute_id PartitionAwareInsertDestination::getPartitioningAttribute() const {
-  return relation_->getPartitionScheme().getPartitionAttributeId();
+  return partition_scheme_header_->getPartitionAttributeId();
 }
 
 void PartitionAwareInsertDestination::insertTuple(const Tuple &tuple) {
-  const PartitionScheme &part_scheme = relation_->getPartitionScheme();
   const partition_id part_id =
-      part_scheme.getPartitionId(tuple.getAttributeValue(part_scheme.getPartitionAttributeId()));
+      partition_scheme_header_->getPartitionId(
+          tuple.getAttributeValue(partition_scheme_header_->getPartitionAttributeId()));
 
   MutableBlockReference output_block = getBlockForInsertionInPartition(part_id);
 
@@ -407,9 +415,9 @@ void PartitionAwareInsertDestination::insertTuple(const Tuple &tuple) {
 }
 
 void PartitionAwareInsertDestination::insertTupleInBatch(const Tuple &tuple) {
-  const PartitionScheme &part_scheme = relation_->getPartitionScheme();
-  partition_id part_id = part_scheme.getPartitionId(
-      tuple.getAttributeValue(part_scheme.getPartitionAttributeId()));
+  const partition_id part_id =
+      partition_scheme_header_->getPartitionId(
+          tuple.getAttributeValue(partition_scheme_header_->getPartitionAttributeId()));
 
   MutableBlockReference output_block = getBlockForInsertionInPartition(part_id);
 
@@ -428,8 +436,8 @@ void PartitionAwareInsertDestination::insertTupleInBatch(const Tuple &tuple) {
 }
 
 void PartitionAwareInsertDestination::bulkInsertTuples(ValueAccessor *accessor, bool always_mark_full) {
-  const PartitionScheme &part_scheme = relation_->getPartitionScheme();
-  const std::size_t num_partitions = part_scheme.getNumPartitions();
+  const std::size_t num_partitions = partition_scheme_header_->getNumPartitions();
+  const attribute_id partition_attribute_id = partition_scheme_header_->getPartitionAttributeId();
 
   InvokeOnAnyValueAccessor(
       accessor,
@@ -446,8 +454,9 @@ void PartitionAwareInsertDestination::bulkInsertTuples(ValueAccessor *accessor, 
     // set a bit in the appropriate TupleIdSequence.
     accessor->beginIteration();
     while (accessor->next()) {
-      TypedValue attr_val = accessor->getTypedValue(part_scheme.getPartitionAttributeId());
-      partition_membership[part_scheme.getPartitionId(attr_val)]->set(accessor->getCurrentPosition(), true);
+      TypedValue attr_val = accessor->getTypedValue(partition_attribute_id);
+      partition_membership[partition_scheme_header_->getPartitionId(attr_val)]
+          ->set(accessor->getCurrentPosition(), true);
     }
 
     // For each partition, create an adapter around Value Accessor and
@@ -480,9 +489,8 @@ void PartitionAwareInsertDestination::bulkInsertTuples(ValueAccessor *accessor, 
 
 void PartitionAwareInsertDestination::bulkInsertTuplesWithRemappedAttributes(
     const std::vector<attribute_id> &attribute_map, ValueAccessor *accessor, bool always_mark_full) {
-
-  const PartitionScheme &part_scheme = relation_->getPartitionScheme();
-  const std::size_t num_partitions = part_scheme.getNumPartitions();
+  const std::size_t num_partitions = partition_scheme_header_->getNumPartitions();
+  const attribute_id partition_attribute_id = partition_scheme_header_->getPartitionAttributeId();
 
   InvokeOnAnyValueAccessor(
       accessor,
@@ -499,8 +507,9 @@ void PartitionAwareInsertDestination::bulkInsertTuplesWithRemappedAttributes(
     // set a bit in the appropriate TupleIdSequence.
     accessor->beginIteration();
     while (accessor->next()) {
-      TypedValue attr_val = accessor->getTypedValue(attribute_map[part_scheme.getPartitionAttributeId()]);
-      partition_membership[part_scheme.getPartitionId(attr_val)]->set(accessor->getCurrentPosition(), true);
+      TypedValue attr_val = accessor->getTypedValue(attribute_map[partition_attribute_id]);
+      partition_membership[partition_scheme_header_->getPartitionId(attr_val)]
+          ->set(accessor->getCurrentPosition(), true);
     }
 
     // For each partition, create an adapter around Value Accessor and
@@ -536,10 +545,11 @@ void PartitionAwareInsertDestination::insertTuplesFromVector(std::vector<Tuple>:
   if (begin == end) {
     return;
   }
-  const PartitionScheme &part_scheme = relation_->getPartitionScheme();
+
+  const attribute_id partition_attribute_id = partition_scheme_header_->getPartitionAttributeId();
   for (; begin != end; ++begin) {
     const partition_id part_id =
-        part_scheme.getPartitionId(begin->getAttributeValue(part_scheme.getPartitionAttributeId()));
+        partition_scheme_header_->getPartitionId(begin->getAttributeValue(partition_attribute_id));
     MutableBlockReference dest_block = getBlockForInsertionInPartition(part_id);
     // FIXME(chasseur): Deal with TupleTooLargeForBlock exception.
     while (!dest_block->insertTupleInBatch(*begin)) {
@@ -555,7 +565,7 @@ MutableBlockReference PartitionAwareInsertDestination::getBlockForInsertion() {
 }
 
 MutableBlockReference PartitionAwareInsertDestination::getBlockForInsertionInPartition(const partition_id part_id) {
-  DEBUG_ASSERT(part_id >= 0 && part_id < relation_->getPartitionScheme().getNumPartitions());
+  DCHECK_LT(part_id, partition_scheme_header_->getNumPartitions());
   SpinMutexLock lock(mutexes_for_partition_[part_id]);
   if (available_block_refs_[part_id].empty()) {
     if (available_block_ids_[part_id].empty()) {
@@ -580,8 +590,8 @@ void PartitionAwareInsertDestination::returnBlock(MutableBlockReference &&block,
 void PartitionAwareInsertDestination::returnBlockInPartition(MutableBlockReference &&block,
                                                              const bool full,
                                                              const partition_id part_id) {
+  DCHECK_LT(part_id, partition_scheme_header_->getNumPartitions());
   {
-    DEBUG_ASSERT(part_id >= 0 && part_id < relation_->getPartitionScheme().getNumPartitions());
     SpinMutexLock lock(mutexes_for_partition_[part_id]);
     if (full) {
       done_block_ids_[part_id].push_back(block->getID());
