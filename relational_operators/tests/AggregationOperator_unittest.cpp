@@ -138,7 +138,7 @@ class AggregationOperatorTest : public ::testing::Test {
     MutableBlockReference storage_block;
     for (tuple_id i = 0; i < kNumTuples; i += kNumTuplesPerBlock) {
       // Create block
-      block_id block_id = storage_manager_->createBlock(*table_, layout.get());
+      block_id block_id = storage_manager_->createBlock(*table_, *layout);
       storage_block = storage_manager_->getBlockMutable(block_id, *table_);
       table_->addBlock(block_id);
 

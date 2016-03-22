@@ -84,7 +84,7 @@ class InsertDestination : public InsertDestinationInterface {
    **/
   InsertDestination(StorageManager *storage_manager,
                     CatalogRelation *relation,
-                    StorageBlockLayout *layout,
+                    const StorageBlockLayout *layout,
                     const std::size_t relational_op_index,
                     const tmb::client_id foreman_client_id,
                     tmb::MessageBus *bus);
@@ -257,7 +257,7 @@ class InsertDestination : public InsertDestinationInterface {
   CatalogRelation *relation_;
 
   // NOTE(zuyu): null means to use the default layout in the CatalogRelation.
-  std::unique_ptr<StorageBlockLayout> layout_;
+  std::unique_ptr<const StorageBlockLayout> layout_;
   const std::size_t relational_op_index_;
 
   tmb::client_id foreman_client_id_;
@@ -285,7 +285,7 @@ class AlwaysCreateBlockInsertDestination : public InsertDestination {
  public:
   AlwaysCreateBlockInsertDestination(StorageManager *storage_manager,
                                      CatalogRelation *relation,
-                                     StorageBlockLayout *layout,
+                                     const StorageBlockLayout *layout,
                                      const std::size_t relational_op_index,
                                      const tmb::client_id foreman_client_id,
                                      tmb::MessageBus *bus)
@@ -337,7 +337,7 @@ class BlockPoolInsertDestination : public InsertDestination {
    **/
   BlockPoolInsertDestination(StorageManager *storage_manager,
                              CatalogRelation *relation,
-                             StorageBlockLayout *layout,
+                             const StorageBlockLayout *layout,
                              const std::size_t relational_op_index,
                              const tmb::client_id foreman_client_id,
                              tmb::MessageBus *bus)
@@ -359,7 +359,7 @@ class BlockPoolInsertDestination : public InsertDestination {
    **/
   BlockPoolInsertDestination(StorageManager *storage_manager,
                              CatalogRelation *relation,
-                             StorageBlockLayout *layout,
+                             const StorageBlockLayout *layout,
                              std::vector<block_id> &&blocks,
                              const std::size_t relational_op_index,
                              const tmb::client_id foreman_client_id,
@@ -402,7 +402,7 @@ class PartitionAwareInsertDestination : public InsertDestination {
  public:
   PartitionAwareInsertDestination(StorageManager *storage_manager,
                                   CatalogRelation *relation,
-                                  StorageBlockLayout *layout,
+                                  const StorageBlockLayout *layout,
                                   std::vector<std::vector<block_id>> &&partitions,
                                   const std::size_t relational_op_index,
                                   const tmb::client_id foreman_client_id,

@@ -243,7 +243,7 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
     expect_num_tuples_ = 0;
     for (std::size_t bid = 0; bid < num_blocks; ++bid) {
       // Create block.
-      block_id block_id = storage_manager_->createBlock(*input_table_, nullptr);
+      block_id block_id = storage_manager_->createBlock(*input_table_, input_table_->getDefaultStorageBlockLayout());
       storage_block = storage_manager_->getBlockMutable(block_id, *input_table_);
       input_table_->addBlock(block_id);
 

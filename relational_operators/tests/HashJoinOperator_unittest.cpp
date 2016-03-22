@@ -132,7 +132,7 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
     MutableBlockReference storage_block;
     for (tuple_id i = 0; i < kNumDimTuples; i += kBlockSize) {
       // Create block.
-      block_id block_id = storage_manager_->createBlock(*dim_table_, dim_layout.get());
+      block_id block_id = storage_manager_->createBlock(*dim_table_, *dim_layout);
       storage_block = storage_manager_->getBlockMutable(block_id, *dim_table_);
       dim_table_->addBlock(block_id);
 
@@ -152,7 +152,7 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
     // Insert tuples to fact table.
     for (tuple_id i = 0; i < kNumFactTuples; i += kBlockSize) {
       // Create block
-      block_id block_id = storage_manager_->createBlock(*fact_table_, fact_layout.get());
+      block_id block_id = storage_manager_->createBlock(*fact_table_, *fact_layout);
       storage_block = storage_manager_->getBlockMutable(block_id, *fact_table_);
       fact_table_->addBlock(block_id);
 

@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -92,7 +92,7 @@ class StorageBlockSortTest : public ::testing::Test {
     table_->addAttribute(new CatalogAttribute(table_.get(), "col-4", int_type));
 
     std::unique_ptr<StorageBlockLayout> layout(StorageBlockLayout::GenerateDefaultLayout(*table_, false));
-    block_id_ = storage_manager_->createBlock(*table_, layout.get());
+    block_id_ = storage_manager_->createBlock(*table_, *layout);
     MutableBlockReference block = storage_manager_->getBlockMutable(block_id_, *table_);
     table_->addBlock(block_id_);
 
