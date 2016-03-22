@@ -138,7 +138,7 @@ class AggregationOperatorTest : public ::testing::Test {
     MutableBlockReference storage_block;
     for (tuple_id i = 0; i < kNumTuples; i += kNumTuplesPerBlock) {
       // Create block
-      block_id block_id = storage_manager_->createBlock(*table_, layout.get());
+      block_id block_id = storage_manager_->createBlock(*table_, *layout);
       storage_block = storage_manager_->getBlockMutable(block_id, *table_);
       table_->addBlock(block_id);
 
@@ -246,7 +246,6 @@ class AggregationOperatorTest : public ::testing::Test {
 
     insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
     insert_destination_proto->set_relation_id(result_table_->getID());
-    insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
 
     finalize_op_.reset(
@@ -327,7 +326,6 @@ class AggregationOperatorTest : public ::testing::Test {
 
     insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
     insert_destination_proto->set_relation_id(result_table_->getID());
-    insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
 
     finalize_op_.reset(

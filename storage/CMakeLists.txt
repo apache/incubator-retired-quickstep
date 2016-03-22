@@ -439,14 +439,15 @@ target_link_libraries(quickstep_storage_CountedReference
 target_link_libraries(quickstep_storage_CSBTreeIndexSubBlock
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
+                      quickstep_catalog_CatalogTypedefs
                       quickstep_compression_CompressionDictionary
                       quickstep_expressions_predicate_ComparisonPredicate
-                      quickstep_expressions_predicate_Predicate
                       quickstep_expressions_predicate_PredicateCost
                       quickstep_expressions_scalar_Scalar
                       quickstep_expressions_scalar_ScalarAttribute
                       quickstep_storage_CompressedTupleStorageSubBlock
                       quickstep_storage_IndexSubBlock
+                      quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_storage_StorageConstants
                       quickstep_storage_StorageErrors
@@ -455,7 +456,6 @@ target_link_libraries(quickstep_storage_CSBTreeIndexSubBlock
                       quickstep_storage_TupleIdSequence
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_types_Type
-                      quickstep_types_TypeFactory
                       quickstep_types_TypedValue
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_types_operations_comparisons_ComparisonFactory
@@ -560,6 +560,7 @@ target_link_libraries(quickstep_storage_InsertDestination
                       gtest
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_Catalog_proto
                       quickstep_catalog_PartitionScheme
                       quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
@@ -582,6 +583,7 @@ target_link_libraries(quickstep_storage_InsertDestinationInterface
                       quickstep_catalog_CatalogTypedefs
                       quickstep_types_containers_Tuple)
 target_link_libraries(quickstep_storage_InsertDestination_proto
+                      quickstep_catalog_Catalog_proto
                       quickstep_storage_StorageBlockLayout_proto
                       ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_storage_LinearOpenAddressingHashTable
@@ -662,7 +664,6 @@ target_link_libraries(quickstep_storage_SMAIndexSubBlock
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
-                      quickstep_types_operations_comparisons_ComparisonUtil
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector)
 target_link_libraries(quickstep_storage_SeparateChainingHashTable
@@ -782,8 +783,6 @@ target_link_libraries(quickstep_storage_StorageManager
                       gflags_nothreads-static
                       glog
                       gtest
-                      quickstep_catalog_CatalogRelation
-                      quickstep_catalog_CatalogRelationSchema
                       quickstep_storage_CountedReference
                       quickstep_storage_EvictionPolicy
                       quickstep_storage_FileManager
@@ -793,6 +792,7 @@ target_link_libraries(quickstep_storage_StorageManager
                       quickstep_storage_StorageBlockBase
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageBlockLayout
+                      quickstep_storage_StorageBlockLayout_proto
                       quickstep_storage_StorageConstants
                       quickstep_storage_StorageErrors
                       quickstep_threading_SpinSharedMutex
@@ -802,6 +802,10 @@ target_link_libraries(quickstep_storage_StorageManager
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
 target_link_libraries(quickstep_storage_StorageManager
                       quickstep_storage_FileManagerHdfs)
+endif()
+if (QUICKSTEP_HAVE_LIBNUMA)
+  target_link_libraries(quickstep_storage_StorageManager
+                        ${LIBNUMA_LIBRARY})
 endif()
 target_link_libraries(quickstep_storage_SubBlockTypeRegistry
                       quickstep_storage_StorageBlockLayout_proto
@@ -1106,13 +1110,12 @@ target_link_libraries(CSBTreeIndexSubBlock_unittest
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_predicate_ComparisonPredicate
-                      quickstep_expressions_predicate_TrivialPredicates
-                      quickstep_expressions_scalar_Scalar
                       quickstep_expressions_scalar_ScalarAttribute
                       quickstep_expressions_scalar_ScalarLiteral
                       quickstep_storage_CSBTreeIndexSubBlock
                       quickstep_storage_CompressedPackedRowStoreTupleStorageSubBlock
                       quickstep_storage_CompressedTupleStorageSubBlock
+                      quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_storage_StorageErrors
                       quickstep_storage_TupleIdSequence
@@ -1120,7 +1123,6 @@ target_link_libraries(CSBTreeIndexSubBlock_unittest
                       quickstep_types_CharType
                       quickstep_types_FloatType
                       quickstep_types_LongType
-                      quickstep_types_Type
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID
                       quickstep_types_TypedValue
@@ -1130,8 +1132,8 @@ target_link_libraries(CSBTreeIndexSubBlock_unittest
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_types_operations_comparisons_ComparisonUtil
+                      quickstep_utility_BitVector
                       quickstep_utility_Macros
-                      quickstep_utility_PtrVector
                       quickstep_utility_ScopedBuffer
                       ${LIBS})
 add_test(CSBTreeIndexSubBlock_unittest CSBTreeIndexSubBlock_unittest)
@@ -1217,21 +1219,18 @@ target_link_libraries(SMAIndexSubBlock_unittest
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_predicate_ComparisonPredicate
-                      quickstep_expressions_scalar_Scalar
                       quickstep_expressions_scalar_ScalarAttribute
                       quickstep_expressions_scalar_ScalarLiteral
                       quickstep_storage_CompressedColumnStoreTupleStorageSubBlock
-                      quickstep_storage_CompressedTupleStorageSubBlock
                       quickstep_storage_SMAIndexSubBlock
+                      quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageBlockLayout_proto
-                      quickstep_storage_StorageErrors
                       quickstep_storage_TupleIdSequence
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_types_CharType
                       quickstep_types_DoubleType
                       quickstep_types_FloatType
                       quickstep_types_LongType
-                      quickstep_types_Type
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID
                       quickstep_types_TypedValue
@@ -1240,8 +1239,6 @@ target_link_libraries(SMAIndexSubBlock_unittest
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
-                      quickstep_types_operations_comparisons_ComparisonUtil
-                      quickstep_utility_Macros
                       quickstep_utility_ScopedBuffer
                       ${LIBS})
 add_test(SMAIndexSubBlock_unittest SMAIndexSubBlock_unittest)

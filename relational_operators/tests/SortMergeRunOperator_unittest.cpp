@@ -312,7 +312,7 @@ TEST_F(RunTest, IterateTuples) {
   MutableBlockReference storage_block;
   for (tuple_id i = 0; i < kNumTuples; i += kNumTuplesPerBlock) {
     // Create block
-    block_id block_id = storage_manager_->createBlock(*table_, nullptr);
+    block_id block_id = storage_manager_->createBlock(*table_, table_->getDefaultStorageBlockLayout());
     storage_block = storage_manager_->getBlockMutable(block_id, *table_);
     table_->addBlock(block_id);
     run_.push_back(block_id);
@@ -328,7 +328,7 @@ TEST_F(RunTest, IterateTuples) {
     storage_block->rebuild();
 
     // Create empty block
-    block_id = storage_manager_->createBlock(*table_, nullptr);
+    block_id = storage_manager_->createBlock(*table_, table_->getDefaultStorageBlockLayout());
     storage_block = storage_manager_->getBlockMutable(block_id, *table_);
     table_->addBlock(block_id);
     run_.push_back(block_id);
@@ -494,7 +494,7 @@ class RunMergerTest : public ::testing::Test {
       for (std::size_t id = 0; id < kNumBlocksPerRun; ++id) {
         std::string run_name = "run[" + std::to_string(run_id) + "]";
         // Create block.
-        block_id block_id = storage_manager_->createBlock(*table_, nullptr);
+        block_id block_id = storage_manager_->createBlock(*table_, table_->getDefaultStorageBlockLayout());
         storage_block = storage_manager_->getBlockMutable(block_id, *table_);
         table_->addBlock(block_id);
         input_runs_.back().push_back(block_id);
@@ -1239,7 +1239,6 @@ class SortMergeRunOperatorTest : public ::testing::Test {
 
     insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
     insert_destination_proto->set_relation_id(result_table_id);
-    insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
 
     // Create run_table_, owned by db_.
@@ -1259,7 +1258,6 @@ class SortMergeRunOperatorTest : public ::testing::Test {
 
     insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
     insert_destination_proto->set_relation_id(run_table_id);
-    insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
 
     // Set up the QueryContext.
@@ -1364,7 +1362,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
       }
 
       // Create block.
-      block_id block_id = storage_manager_->createBlock(*input_table_, nullptr);
+      block_id block_id = storage_manager_->createBlock(*input_table_, input_table_->getDefaultStorageBlockLayout());
       storage_block = storage_manager_->getBlockMutable(block_id, *input_table_);
       input_table_->addBlock(block_id);
 

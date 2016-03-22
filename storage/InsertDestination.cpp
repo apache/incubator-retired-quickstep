@@ -23,11 +23,13 @@
 #include <utility>
 #include <vector>
 
+#include "catalog/Catalog.pb.h"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/PartitionScheme.hpp"
 #include "storage/InsertDestination.pb.h"
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
+#include "storage/StorageBlockLayout.hpp"
 #include "storage/StorageManager.hpp"
 #include "storage/TupleIdSequence.hpp"
 #include "storage/ValueAccessorUtil.hpp"
@@ -39,13 +41,16 @@
 
 #include "tmb/id_typedefs.h"
 
+using std::move;
+using std::vector;
+
 namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
 InsertDestination::InsertDestination(StorageManager *storage_manager,
                                      CatalogRelation *relation,
-                                     StorageBlockLayout *layout,
+                                     const StorageBlockLayout *layout,
                                      const std::size_t relational_op_index,
                                      const tmb::client_id foreman_client_id,
                                      tmb::MessageBus *bus)
@@ -55,6 +60,9 @@ InsertDestination::InsertDestination(StorageManager *storage_manager,
       relational_op_index_(relational_op_index),
       foreman_client_id_(foreman_client_id),
       bus_(bus) {
+  if (layout_ == nullptr) {
+    layout_.reset(StorageBlockLayout::GenerateDefaultLayout(*relation, relation->isVariableLength()));
+  }
 }
 
 InsertDestination* InsertDestination::ReconstructFromProto(const serialization::InsertDestination &proto,
@@ -80,34 +88,40 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
                                                     bus);
     }
     case serialization::InsertDestinationType::BLOCK_POOL: {
-      BlockPoolInsertDestination *insert_destination =
-          new BlockPoolInsertDestination(storage_manager,
-                                         relation,
-                                         layout,
-                                         proto.relational_op_index(),
-                                         foreman_client_id,
-                                         bus);
-
-      if (proto.need_to_add_blocks_from_relation()) {
-        insert_destination->addAllBlocksFromRelation();
+      vector<block_id> blocks;
+      for (int i = 0; i < proto.ExtensionSize(serialization::BlockPoolInsertDestination::blocks); ++i) {
+        blocks.push_back(proto.GetExtension(serialization::BlockPoolInsertDestination::blocks, i));
       }
 
-      return insert_destination;
+      return new BlockPoolInsertDestination(storage_manager,
+                                            relation,
+                                            layout,
+                                            move(blocks),
+                                            proto.relational_op_index(),
+                                            foreman_client_id,
+                                            bus);
     }
     case serialization::InsertDestinationType::PARTITION_AWARE: {
-      PartitionAwareInsertDestination *insert_destination =
-          new PartitionAwareInsertDestination(storage_manager,
-                                              relation,
-                                              layout,
-                                              proto.relational_op_index(),
-                                              foreman_client_id,
-                                              bus);
-
-      if (proto.need_to_add_blocks_from_relation()) {
-        insert_destination->addAllBlocksFromRelation();
+      vector<vector<block_id>> partitions;
+      for (int partition_index = 0;
+           partition_index < proto.ExtensionSize(serialization::PartitionAwareInsertDestination::partitions);
+           ++partition_index) {
+        vector<block_id> partition;
+        const serialization::Partition &proto_partition =
+            proto.GetExtension(serialization::PartitionAwareInsertDestination::partitions, partition_index);
+        for (int block_index = 0; block_index < proto_partition.blocks_size(); ++block_index) {
+          partition.push_back(proto_partition.blocks(block_index));
+        }
+        partitions.push_back(move(partition));
       }
 
-      return insert_destination;
+      return new PartitionAwareInsertDestination(storage_manager,
+                                                 relation,
+                                                 layout,
+                                                 move(partitions),
+                                                 proto.relational_op_index(),
+                                                 foreman_client_id,
+                                                 bus);
     }
     default: {
       LOG(FATAL) << "Unrecognized InsertDestinationType in proto";
@@ -228,7 +242,7 @@ void InsertDestination::insertTuplesFromVector(std::vector<Tuple>::const_iterato
 }
 
 MutableBlockReference AlwaysCreateBlockInsertDestination::createNewBlock() {
-  const block_id new_id = storage_manager_->createBlock(*relation_, layout_.get());
+  const block_id new_id = storage_manager_->createBlock(*relation_, *layout_);
   relation_->addBlock(new_id);
   return storage_manager_->getBlockMutable(new_id, *relation_);
 }
@@ -253,19 +267,9 @@ void AlwaysCreateBlockInsertDestination::returnBlock(MutableBlockReference &&blo
 }
 
 MutableBlockReference BlockPoolInsertDestination::createNewBlock() {
-  block_id new_id = storage_manager_->createBlock(*relation_, layout_.get());
+  block_id new_id = storage_manager_->createBlock(*relation_, *layout_);
   relation_->addBlock(new_id);
   return storage_manager_->getBlockMutable(new_id, *relation_);
-}
-
-void BlockPoolInsertDestination::addAllBlocksFromRelation() {
-  SpinMutexLock lock(mutex_);
-  DEBUG_ASSERT(available_block_refs_.empty());
-  std::vector<block_id> available_blocks;
-  available_blocks = relation_->getBlocksSnapshot();
-  for (const block_id id : available_blocks) {
-    available_block_ids_.push_back(id);
-  }
 }
 
 void BlockPoolInsertDestination::getPartiallyFilledBlocks(std::vector<MutableBlockReference> *partial_blocks) {
@@ -325,16 +329,17 @@ const std::vector<block_id>& BlockPoolInsertDestination::getTouchedBlocksInterna
 
 PartitionAwareInsertDestination::PartitionAwareInsertDestination(StorageManager *storage_manager,
                                                                  CatalogRelation *relation,
-                                                                 StorageBlockLayout *layout,
+                                                                 const StorageBlockLayout *layout,
+                                                                 vector<vector<block_id>> &&partitions,
                                                                  const std::size_t relational_op_index,
                                                                  const tmb::client_id foreman_client_id,
                                                                  tmb::MessageBus *bus)
-    : InsertDestination(storage_manager, relation, layout, relational_op_index, foreman_client_id, bus) {
+    : InsertDestination(storage_manager, relation, layout, relational_op_index, foreman_client_id, bus),
+      available_block_ids_(move(partitions)) {
   DEBUG_ASSERT(relation->hasPartitionScheme());
   const PartitionScheme &partition_scheme = relation->getPartitionScheme();
   const std::size_t num_partitions = partition_scheme.getNumPartitions();
   available_block_refs_.resize(num_partitions);
-  available_block_ids_.resize(num_partitions);
   done_block_ids_.resize(num_partitions);
   mutexes_for_partition_ = new SpinMutex[num_partitions];
 }
@@ -346,25 +351,11 @@ MutableBlockReference PartitionAwareInsertDestination::createNewBlock() {
 MutableBlockReference PartitionAwareInsertDestination::createNewBlockInPartition(const partition_id part_id) {
   DEBUG_ASSERT(part_id >= 0 && part_id < relation_->getPartitionScheme().getNumPartitions());
   // Create a new block.
-  block_id new_id = storage_manager_->createBlock(*relation_, layout_.get());
+  block_id new_id = storage_manager_->createBlock(*relation_, *layout_);
   relation_->addBlock(new_id);
   // Add the new block to it's corresponding partition.
   relation_->getPartitionSchemeMutable()->addBlockToPartition(new_id, part_id);
   return storage_manager_->getBlockMutable(new_id, *relation_);
-}
-
-void PartitionAwareInsertDestination::addAllBlocksFromRelation() {
-  const PartitionScheme &partition_scheme = relation_->getPartitionScheme();
-  const std::size_t num_partitions = partition_scheme.getNumPartitions();
-  // starting a new scope for SpinMutexLock
-  {
-    SpinMutexLock lock(mutex_);
-    // Iterate through each partition and add all the blocks present in it.
-    for (std::size_t partition_num = 0; partition_num < num_partitions; ++partition_num) {
-      DEBUG_ASSERT(available_block_ids_[partition_num].empty());
-      available_block_ids_[partition_num] = partition_scheme.getBlocksInPartition(partition_num);
-    }
-  }
 }
 
 const std::vector<block_id>& PartitionAwareInsertDestination::getTouchedBlocksInternal() {

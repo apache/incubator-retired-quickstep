@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -92,7 +92,6 @@ void TestDatabaseLoader::loadTestRelation() {
                                          0 /* dummy op index */,
                                          tmb::kClientIdNone /* foreman_client_id */,
                                          nullptr /* TMB */);
-  destination.addAllBlocksFromRelation();
   int sign = 1;
   for (int x = 0; x < 25; ++x) {
     // Column values: ((-1)^x*x, x^2, sqrt(x), (-1)^x*x*sqrt(x),

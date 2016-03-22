@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -102,11 +102,11 @@ TEST(NUMAPlacementSchemeTest, NUMAPlacementSchemeSerializationTest) {
   // Create a new placement scheme object from the protobuf version of the
   // previously created placement scheme object. Note that serialization is done
   // using getProto() and deserialization is done using
-  // DeserializeNUMAPlacementScheme() methods respectively.
+  // ReconstructFromProto() methods, respectively.
   std::unique_ptr<NUMAPlacementScheme> placement_scheme_from_proto;
   placement_scheme_from_proto.reset(
-      NUMAPlacementScheme::DeserializeNUMAPlacementScheme(
-          placement_scheme->getProto(), partition_scheme->getProto()));
+      NUMAPlacementScheme::ReconstructFromProto(
+          placement_scheme->getProto(), partition_scheme->getNumPartitions()));
 
   // Check if the number of NUMA nodes is the same in both the placement scheme
   // objects.

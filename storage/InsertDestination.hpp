@@ -85,7 +85,7 @@ class InsertDestination : public InsertDestinationInterface {
    **/
   InsertDestination(StorageManager *storage_manager,
                     CatalogRelation *relation,
-                    StorageBlockLayout *layout,
+                    const StorageBlockLayout *layout,
                     const std::size_t relational_op_index,
                     const tmb::client_id foreman_client_id,
                     tmb::MessageBus *bus);
@@ -258,7 +258,7 @@ class InsertDestination : public InsertDestinationInterface {
   CatalogRelation *relation_;
 
   // NOTE(zuyu): null means to use the default layout in the CatalogRelation.
-  std::unique_ptr<StorageBlockLayout> layout_;
+  std::unique_ptr<const StorageBlockLayout> layout_;
   const std::size_t relational_op_index_;
 
   tmb::client_id foreman_client_id_;
@@ -287,7 +287,7 @@ class AlwaysCreateBlockInsertDestination : public InsertDestination {
  public:
   AlwaysCreateBlockInsertDestination(StorageManager *storage_manager,
                                      CatalogRelation *relation,
-                                     StorageBlockLayout *layout,
+                                     const StorageBlockLayout *layout,
                                      const std::size_t relational_op_index,
                                      const tmb::client_id foreman_client_id,
                                      tmb::MessageBus *bus)
@@ -325,25 +325,55 @@ class AlwaysCreateBlockInsertDestination : public InsertDestination {
  **/
 class BlockPoolInsertDestination : public InsertDestination {
  public:
+  /**
+   * @brief Constructor.
+   *
+   * @param storage_manager The StorageManager to use.
+   * @param relation The relation to insert tuples into.
+   * @param layout The layout to use for any newly-created blocks. If NULL,
+   *        defaults to relation's default layout.
+   * @param relational_op_index The index of the relational operator in the
+   *        QueryPlan DAG that has outputs.
+   * @param foreman_client_id The TMB client ID of the Foreman thread.
+   * @param bus A pointer to the TMB.
+   **/
   BlockPoolInsertDestination(StorageManager *storage_manager,
                              CatalogRelation *relation,
-                             StorageBlockLayout *layout,
+                             const StorageBlockLayout *layout,
                              const std::size_t relational_op_index,
                              const tmb::client_id foreman_client_id,
                              tmb::MessageBus *bus)
       : InsertDestination(storage_manager, relation, layout, relational_op_index, foreman_client_id, bus) {
   }
 
-  ~BlockPoolInsertDestination() override {
+  /**
+   * @brief Constructor.
+   *
+   * @param storage_manager The StorageManager to use.
+   * @param relation The relation to insert tuples into.
+   * @param layout The layout to use for any newly-created blocks. If NULL,
+   *        defaults to relation's default layout.
+   * @blocks The existing blocks used for insertions.
+   * @param relational_op_index The index of the relational operator in the
+   *        QueryPlan DAG that has outputs.
+   * @param foreman_client_id The TMB client ID of the Foreman thread.
+   * @param bus A pointer to the TMB.
+   **/
+  BlockPoolInsertDestination(StorageManager *storage_manager,
+                             CatalogRelation *relation,
+                             const StorageBlockLayout *layout,
+                             std::vector<block_id> &&blocks,
+                             const std::size_t relational_op_index,
+                             const tmb::client_id foreman_client_id,
+                             tmb::MessageBus *bus)
+      : InsertDestination(storage_manager, relation, layout, relational_op_index, foreman_client_id, bus),
+        available_block_ids_(std::move(blocks)) {
+    // TODO(chasseur): Once block fill statistics are available, replace this
+    // with something smarter.
   }
 
-  // TODO(chasseur): Once block fill statistics are available, replace this
-  // with something smarter.
-  /**
-   * @brief Fill block pool with all the blocks belonging to the relation.
-   * @warning Call only ONCE, before using getBlockForInsertion().
-   **/
-  void addAllBlocksFromRelation();
+  ~BlockPoolInsertDestination() override {
+  }
 
  protected:
   MutableBlockReference getBlockForInsertion() override;
@@ -374,7 +404,8 @@ class PartitionAwareInsertDestination : public InsertDestination {
  public:
   PartitionAwareInsertDestination(StorageManager *storage_manager,
                                   CatalogRelation *relation,
-                                  StorageBlockLayout *layout,
+                                  const StorageBlockLayout *layout,
+                                  std::vector<std::vector<block_id>> &&partitions,
                                   const std::size_t relational_op_index,
                                   const tmb::client_id foreman_client_id,
                                   tmb::MessageBus *bus);
@@ -386,7 +417,6 @@ class PartitionAwareInsertDestination : public InsertDestination {
   /**
    * @brief Manually add a block to the pool.
    * @warning Call only ONCE for each block to add to the pool.
-   * @warning Do not use in combination with addAllBlocksFromRelation().
    *
    * @param bid The ID of the block to add to the pool.
    * @part_id The partition to add the block to.
@@ -395,8 +425,6 @@ class PartitionAwareInsertDestination : public InsertDestination {
     SpinMutexLock lock(mutexes_for_partition_[part_id]);
     available_block_ids_[part_id].push_back(bid);
   }
-
-  void addAllBlocksFromRelation();
 
   void getPartiallyFilledBlocks(std::vector<MutableBlockReference> *partial_blocks) override {
     const PartitionScheme &partition_scheme = relation_->getPartitionScheme();

@@ -132,7 +132,7 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
     MutableBlockReference storage_block;
     for (tuple_id i = 0; i < kNumDimTuples; i += kBlockSize) {
       // Create block.
-      block_id block_id = storage_manager_->createBlock(*dim_table_, dim_layout.get());
+      block_id block_id = storage_manager_->createBlock(*dim_table_, *dim_layout);
       storage_block = storage_manager_->getBlockMutable(block_id, *dim_table_);
       dim_table_->addBlock(block_id);
 
@@ -152,7 +152,7 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
     // Insert tuples to fact table.
     for (tuple_id i = 0; i < kNumFactTuples; i += kBlockSize) {
       // Create block
-      block_id block_id = storage_manager_->createBlock(*fact_table_, fact_layout.get());
+      block_id block_id = storage_manager_->createBlock(*fact_table_, *fact_layout);
       storage_block = storage_manager_->getBlockMutable(block_id, *fact_table_);
       fact_table_->addBlock(block_id);
 
@@ -316,7 +316,6 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
 
   insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(false);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
   unique_ptr<HashJoinOperator> prober(
@@ -459,7 +458,6 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
 
   insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(false);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
   unique_ptr<HashJoinOperator> prober(
@@ -610,7 +608,6 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
 
   insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(false);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
   unique_ptr<HashJoinOperator> prober(
@@ -746,7 +743,6 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
 
   insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(false);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
   unique_ptr<HashJoinOperator> prober(
@@ -912,7 +908,6 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
 
   insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(false);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
   std::vector<attribute_id> fact_key_attrs;
@@ -1083,7 +1078,6 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
 
   insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(false);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
   // Include a residual predicate that selects a subset of the joined tuples.

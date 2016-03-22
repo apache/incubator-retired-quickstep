@@ -43,6 +43,7 @@
 #include "query_optimizer/physical/InsertTuple.hpp"
 #include "query_optimizer/physical/NestedLoopsJoin.hpp"
 #include "query_optimizer/physical/Physical.hpp"
+#include "query_optimizer/physical/Sample.hpp"
 #include "query_optimizer/physical/Selection.hpp"
 #include "query_optimizer/physical/SharedSubplanReference.hpp"
 #include "query_optimizer/physical/Sort.hpp"
@@ -198,6 +199,13 @@ class ExecutionGenerator {
    * @param physical_plan The TableReference node.
    */
   void convertTableReference(const physical::TableReferencePtr &physical_plan);
+
+  /**
+   * @brief Converts a Sample(block/tuple) and sample percentage to a Sample operator.
+   *
+   * @param physical_plan The Sample to be converted.
+   */
+  void convertSample(const physical::SamplePtr &physical_plan);
 
   /**
    * @brief Attempt to convert a group of scalar projection expressions into a

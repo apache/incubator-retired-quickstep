@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -52,8 +52,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "catalog/CatalogRelation.hpp"
-#include "catalog/CatalogRelationSchema.hpp"
 #include "storage/CountedReference.hpp"
 #include "storage/EvictionPolicy.hpp"
 #include "storage/FileManagerLocal.hpp"
@@ -62,6 +60,7 @@
 #include "storage/StorageBlockBase.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageBlockLayout.hpp"
+#include "storage/StorageBlockLayout.pb.h"
 #include "storage/StorageConstants.hpp"
 #include "storage/StorageErrors.hpp"
 #include "threading/SpinSharedMutex.hpp"
@@ -154,14 +153,10 @@ StorageManager::~StorageManager() {
   }
 }
 
-block_id StorageManager::createBlock(const CatalogRelation &relation,
-                                     const StorageBlockLayout *layout,
+block_id StorageManager::createBlock(const CatalogRelationSchema &relation,
+                                     const StorageBlockLayout &layout,
                                      const int numa_node) {
-  if (layout == NULL) {
-    layout = &(relation.getDefaultStorageBlockLayout());
-  }
-
-  size_t num_slots = layout->getDescription().num_slots();
+  const size_t num_slots = layout.getDescription().num_slots();
 
   BlockHandle new_block_handle;
   const block_id new_block_id =
@@ -169,7 +164,7 @@ block_id StorageManager::createBlock(const CatalogRelation &relation,
 
   new_block_handle.block = new StorageBlock(relation,
                                             new_block_id,
-                                            *layout,
+                                            layout,
                                             true,
                                             new_block_handle.block_memory,
                                             kSlotSizeBytes * num_slots);
@@ -490,7 +485,7 @@ MutableBlockReference StorageManager::getBlockInternal(
     //   To deal with this case, we pass the block information for "block"
     //   though the call chain, and check for a collision in the the
     //   "ShardedLockManager" in the function "makeRoomForBlock."
-    //   If a collistion is detected we avoid a self-deadlock.
+    //   If a collision is detected we avoid a self-deadlock.
     ret = MutableBlockReference(loadBlock(block, relation, numa_node), eviction_policy_.get());
   }
 

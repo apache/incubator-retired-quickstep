@@ -1,6 +1,6 @@
 /**
- *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -15,7 +15,7 @@
  *   limitations under the License.
  **/
 
-#include "query_optimizer/logical/Project.hpp"
+#include "query_optimizer/logical/Sample.hpp"
 
 #include <string>
 #include <vector>
@@ -33,29 +33,13 @@ namespace logical {
 
 namespace E = ::quickstep::optimizer::expressions;
 
-LogicalPtr Project::copyWithNewChildren(
+LogicalPtr Sample::copyWithNewChildren(
     const std::vector<LogicalPtr> &new_children) const {
   DCHECK_EQ(children().size(), new_children.size());
-  return Project::Create(new_children[0], project_expressions_);
+  return Sample::Create(new_children[0], is_block_sample_, percentage_);
 }
 
-std::vector<E::AttributeReferencePtr> Project::getOutputAttributes() const {
-  return ToRefVector(project_expressions_);
-}
-
-std::vector<E::AttributeReferencePtr> Project::getReferencedAttributes() const {
-  std::vector<E::AttributeReferencePtr> referenced_attributes;
-  for (const E::NamedExpressionPtr &project_expression : project_expressions_) {
-    const std::vector<E::AttributeReferencePtr> referenced_attributes_in_expression =
-        project_expression->getReferencedAttributes();
-    referenced_attributes.insert(referenced_attributes.end(),
-                                 referenced_attributes_in_expression.begin(),
-                                 referenced_attributes_in_expression.end());
-  }
-  return referenced_attributes;
-}
-
-void Project::getFieldStringItems(
+void Sample::getFieldStringItems(
     std::vector<std::string> *inline_field_names,
     std::vector<std::string> *inline_field_values,
     std::vector<std::string> *non_container_child_field_names,
@@ -65,9 +49,11 @@ void Project::getFieldStringItems(
   non_container_child_field_names->push_back("input");
   non_container_child_fields->push_back(input_);
 
-  container_child_field_names->push_back("project_list");
-  container_child_fields->push_back(
-      CastSharedPtrVector<OptimizerTreeBase>(project_expressions_));
+  inline_field_names->push_back("percentage");
+  inline_field_values->push_back(std::to_string(percentage_));
+
+  inline_field_names->push_back("is_block_sample");
+  inline_field_values->push_back(std::to_string(is_block_sample_));
 }
 
 }  // namespace logical

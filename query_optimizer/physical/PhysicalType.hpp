@@ -39,6 +39,7 @@ enum class PhysicalType {
   kHashJoin,
   kInsertTuple,
   kNestedLoopsJoin,
+  kSample,
   kSelection,
   kSharedSubplanReference,
   kSort,

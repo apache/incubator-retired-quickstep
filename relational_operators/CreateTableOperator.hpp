@@ -57,8 +57,7 @@ class CreateTableOperator : public RelationalOperator {
   CreateTableOperator(CatalogRelation *relation,
                       CatalogDatabase *database)
       : relation_(DCHECK_NOTNULL(relation)),
-        database_(DCHECK_NOTNULL(database)),
-        work_generated_(false) {}
+        database_(DCHECK_NOTNULL(database)) {}
 
   ~CreateTableOperator() override {}
 
@@ -71,11 +70,11 @@ class CreateTableOperator : public RelationalOperator {
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
+  void updateCatalogOnCompletion() override;
+
  private:
   std::unique_ptr<CatalogRelation> relation_;
   CatalogDatabase *database_;
-
-  bool work_generated_;
 
   DISALLOW_COPY_AND_ASSIGN(CreateTableOperator);
 };

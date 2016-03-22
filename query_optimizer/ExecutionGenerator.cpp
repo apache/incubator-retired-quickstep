@@ -61,6 +61,7 @@
 #include "query_optimizer/physical/PatternMatcher.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
+#include "query_optimizer/physical/Sample.hpp"
 #include "query_optimizer/physical/Selection.hpp"
 #include "query_optimizer/physical/SharedSubplanReference.hpp"
 #include "query_optimizer/physical/Sort.hpp"
@@ -83,6 +84,7 @@
 #include "relational_operators/NestedLoopsJoinOperator.hpp"
 #include "relational_operators/PrintToScreenOperator.hpp"
 #include "relational_operators/RelationalOperator.hpp"
+#include "relational_operators/SampleOperator.hpp"
 #include "relational_operators/SaveBlocksOperator.hpp"
 #include "relational_operators/SelectOperator.hpp"
 #include "relational_operators/SortMergeRunOperator.hpp"
@@ -219,6 +221,9 @@ void ExecutionGenerator::generatePlanInternal(
     case P::PhysicalType::kNestedLoopsJoin:
       return convertNestedLoopsJoin(
           std::static_pointer_cast<const P::NestedLoopsJoin>(physical_plan));
+    case P::PhysicalType::kSample:
+      return convertSample(
+          std::static_pointer_cast<const P::Sample>(physical_plan));
     case P::PhysicalType::kSelection:
       return convertSelection(
           std::static_pointer_cast<const P::Selection>(physical_plan));
@@ -285,7 +290,6 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
 
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_rel_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(true);
 }
 
 void ExecutionGenerator::dropAllTemporaryRelations() {
@@ -343,6 +347,45 @@ void ExecutionGenerator::convertTableReference(
       std::forward_as_tuple(physical_table_reference),
       std::forward_as_tuple(CatalogRelationInfo::kInvalidOperatorIndex,
                             catalog_relation));
+}
+
+void ExecutionGenerator::convertSample(const P::SamplePtr &physical_sample) {
+  // Create InsertDestination proto.
+  const CatalogRelation *output_relation = nullptr;
+  const QueryContext::insert_destination_id insert_destination_index =
+      query_context_proto_->insert_destinations_size();
+  S::InsertDestination *insert_destination_proto =
+      query_context_proto_->add_insert_destinations();
+  createTemporaryCatalogRelation(physical_sample,
+                                 &output_relation,
+                                 insert_destination_proto);
+
+  // Create and add a Sample operator.
+  const CatalogRelationInfo *input_relation_info =
+      findRelationInfoOutputByPhysical(physical_sample->input());
+  DCHECK(input_relation_info != nullptr);
+
+  SampleOperator *sample_op = new SampleOperator(*input_relation_info->relation,
+                                                 *output_relation,
+                                                 insert_destination_index,
+                                                 input_relation_info->isStoredRelation(),
+                                                 physical_sample->is_block_sample(),
+                                                 physical_sample->percentage());
+  const QueryPlan::DAGNodeIndex sample_index =
+      execution_plan_->addRelationalOperator(sample_op);
+  insert_destination_proto->set_relational_op_index(sample_index);
+
+  if (!input_relation_info->isStoredRelation()) {
+    execution_plan_->addDirectDependency(sample_index,
+                                         input_relation_info->producer_operator_index,
+                                         false /* is_pipeline_breaker */);
+  }
+  physical_to_output_relation_map_.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple(physical_sample),
+      std::forward_as_tuple(sample_index,
+                            output_relation));
+  temporary_relation_info_vec_.emplace_back(sample_index, output_relation);
 }
 
 bool ExecutionGenerator::convertSimpleProjection(
@@ -740,7 +783,11 @@ void ExecutionGenerator::convertCopyFrom(
 
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation->getID());
-  insert_destination_proto->set_need_to_add_blocks_from_relation(true);
+
+  const vector<block_id> blocks(physical_plan->catalog_relation()->getBlocksSnapshot());
+  for (const block_id block : blocks) {
+    insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+  }
 
   const QueryPlan::DAGNodeIndex scan_operator_index =
       execution_plan_->addRelationalOperator(
@@ -920,7 +967,12 @@ void ExecutionGenerator::convertInsertTuple(
 
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(input_relation->getID());
-  insert_destination_proto->set_need_to_add_blocks_from_relation(true);
+
+  const vector<block_id> blocks(input_relation->getBlocksSnapshot());
+  for (const block_id block : blocks) {
+    insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+  }
+
 
   const QueryPlan::DAGNodeIndex insert_operator_index =
       execution_plan_->addRelationalOperator(
@@ -959,7 +1011,6 @@ void ExecutionGenerator::convertUpdateTable(
 
   relocation_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   relocation_destination_proto->set_relation_id(input_rel_id);
-  relocation_destination_proto->set_need_to_add_blocks_from_relation(false);
 
   // Convert the predicate proto.
   QueryContext::predicate_id execution_predicate_index = QueryContext::kInvalidPredicateId;
