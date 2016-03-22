@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -102,14 +102,16 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelation &proto)
   // This should be done after the attributes are added and before the
   // blocks of the relation are added.
   if (proto.has_partition_scheme()) {
-    const Type& attr_type = getAttributeById(proto.partition_scheme().partition_attribute_id())->getType();
-    setPartitionScheme(PartitionScheme::DeserializePartitionScheme(proto.partition_scheme(), attr_type));
+    const serialization::PartitionScheme &proto_partition_scheme = proto.partition_scheme();
+    const Type &attr_type = getAttributeById(proto_partition_scheme.partition_attribute_id())->getType();
+    setPartitionScheme(PartitionScheme::DeserializePartitionScheme(proto_partition_scheme, attr_type));
 
     // Deserializing the NUMA placement scheme for the relation.
 #ifdef QUICKSTEP_HAVE_LIBNUMA
     if (proto.has_placement_scheme()) {
       setNUMAPlacementScheme(
-          NUMAPlacementScheme::DeserializeNUMAPlacementScheme(proto.placement_scheme(), proto.partition_scheme()));
+          NUMAPlacementScheme::ReconstructFromProto(proto.placement_scheme(),
+                                                    proto_partition_scheme.num_partitions()));
     }
 #endif
   }

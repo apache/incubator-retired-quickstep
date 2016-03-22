@@ -29,6 +29,7 @@
 #include "storage/InsertDestination.pb.h"
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
+#include "storage/StorageBlockLayout.hpp"
 #include "storage/StorageManager.hpp"
 #include "storage/TupleIdSequence.hpp"
 #include "storage/ValueAccessorUtil.hpp"
@@ -49,7 +50,7 @@ namespace quickstep {
 
 InsertDestination::InsertDestination(StorageManager *storage_manager,
                                      CatalogRelation *relation,
-                                     StorageBlockLayout *layout,
+                                     const StorageBlockLayout *layout,
                                      const std::size_t relational_op_index,
                                      const tmb::client_id foreman_client_id,
                                      tmb::MessageBus *bus)
@@ -59,6 +60,9 @@ InsertDestination::InsertDestination(StorageManager *storage_manager,
       relational_op_index_(relational_op_index),
       foreman_client_id_(foreman_client_id),
       bus_(bus) {
+  if (layout_ == nullptr) {
+    layout_.reset(StorageBlockLayout::GenerateDefaultLayout(*relation, relation->isVariableLength()));
+  }
 }
 
 InsertDestination* InsertDestination::ReconstructFromProto(const serialization::InsertDestination &proto,
@@ -238,7 +242,7 @@ void InsertDestination::insertTuplesFromVector(std::vector<Tuple>::const_iterato
 }
 
 MutableBlockReference AlwaysCreateBlockInsertDestination::createNewBlock() {
-  const block_id new_id = storage_manager_->createBlock(*relation_, layout_.get());
+  const block_id new_id = storage_manager_->createBlock(*relation_, *layout_);
   relation_->addBlock(new_id);
   return storage_manager_->getBlockMutable(new_id, *relation_);
 }
@@ -263,7 +267,7 @@ void AlwaysCreateBlockInsertDestination::returnBlock(MutableBlockReference &&blo
 }
 
 MutableBlockReference BlockPoolInsertDestination::createNewBlock() {
-  block_id new_id = storage_manager_->createBlock(*relation_, layout_.get());
+  block_id new_id = storage_manager_->createBlock(*relation_, *layout_);
   relation_->addBlock(new_id);
   return storage_manager_->getBlockMutable(new_id, *relation_);
 }
@@ -325,7 +329,7 @@ const std::vector<block_id>& BlockPoolInsertDestination::getTouchedBlocksInterna
 
 PartitionAwareInsertDestination::PartitionAwareInsertDestination(StorageManager *storage_manager,
                                                                  CatalogRelation *relation,
-                                                                 StorageBlockLayout *layout,
+                                                                 const StorageBlockLayout *layout,
                                                                  vector<vector<block_id>> &&partitions,
                                                                  const std::size_t relational_op_index,
                                                                  const tmb::client_id foreman_client_id,
@@ -347,7 +351,7 @@ MutableBlockReference PartitionAwareInsertDestination::createNewBlock() {
 MutableBlockReference PartitionAwareInsertDestination::createNewBlockInPartition(const partition_id part_id) {
   DEBUG_ASSERT(part_id >= 0 && part_id < relation_->getPartitionScheme().getNumPartitions());
   // Create a new block.
-  block_id new_id = storage_manager_->createBlock(*relation_, layout_.get());
+  block_id new_id = storage_manager_->createBlock(*relation_, *layout_);
   relation_->addBlock(new_id);
   // Add the new block to it's corresponding partition.
   relation_->getPartitionSchemeMutable()->addBlockToPartition(new_id, part_id);
