@@ -803,6 +803,10 @@ if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
 target_link_libraries(quickstep_storage_StorageManager
                       quickstep_storage_FileManagerHdfs)
 endif()
+if (QUICKSTEP_HAVE_LIBNUMA)
+  target_link_libraries(quickstep_storage_StorageManager
+                        ${LIBNUMA_LIBRARY})
+endif()
 target_link_libraries(quickstep_storage_SubBlockTypeRegistry
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_Macros)
