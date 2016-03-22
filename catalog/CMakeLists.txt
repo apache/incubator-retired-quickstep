@@ -1,5 +1,5 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -107,7 +107,6 @@ target_link_libraries(quickstep_catalog_NUMAPlacementScheme
                       glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_Catalog_proto
-                      quickstep_catalog_PartitionScheme
                       quickstep_storage_StorageBlockInfo
                       quickstep_utility_Macros
                       ${LIBNUMA_LIBRARY})
