@@ -783,8 +783,6 @@ target_link_libraries(quickstep_storage_StorageManager
                       gflags_nothreads-static
                       glog
                       gtest
-                      quickstep_catalog_CatalogRelation
-                      quickstep_catalog_CatalogRelationSchema
                       quickstep_storage_CountedReference
                       quickstep_storage_EvictionPolicy
                       quickstep_storage_FileManager
@@ -794,6 +792,7 @@ target_link_libraries(quickstep_storage_StorageManager
                       quickstep_storage_StorageBlockBase
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageBlockLayout
+                      quickstep_storage_StorageBlockLayout_proto
                       quickstep_storage_StorageConstants
                       quickstep_storage_StorageErrors
                       quickstep_threading_SpinSharedMutex
