@@ -39,6 +39,7 @@ add_library(quickstep_queryoptimizer_logical_TableReference TableReference.cpp T
 add_library(quickstep_queryoptimizer_logical_TableGenerator ../../empty_src.cpp TableGenerator.hpp)
 add_library(quickstep_queryoptimizer_logical_TopLevelPlan TopLevelPlan.cpp TopLevelPlan.hpp)
 add_library(quickstep_queryoptimizer_logical_UpdateTable UpdateTable.cpp UpdateTable.hpp)
+add_library(quickstep_queryoptimizer_logical_WindowAggregate WindowAggregate.cpp WindowAggregate.hpp)
 
 # Link dependencies:
 target_link_libraries(quickstep_queryoptimizer_logical_Aggregate
@@ -224,6 +225,17 @@ target_link_libraries(quickstep_queryoptimizer_logical_UpdateTable
                       quickstep_queryoptimizer_logical_LogicalType
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_logical_WindowAggregate
+                      glog
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_expressions_Alias
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_expressions_NamedExpression
+                      quickstep_queryoptimizer_logical_Logical
+                      quickstep_queryoptimizer_logical_LogicalType
+                      quickstep_utility_Cast
+                      quickstep_utility_Macros)
 
 # Module all-in-one library:
 add_library(quickstep_queryoptimizer_logical ../../empty_src.cpp OptimizerLogicalModule.hpp)
@@ -250,4 +262,5 @@ target_link_libraries(quickstep_queryoptimizer_logical
                       quickstep_queryoptimizer_logical_TableGenerator
                       quickstep_queryoptimizer_logical_TableReference
                       quickstep_queryoptimizer_logical_TopLevelPlan
-                      quickstep_queryoptimizer_logical_UpdateTable)
+                      quickstep_queryoptimizer_logical_UpdateTable
+                      quickstep_queryoptimizer_logical_WindowAggregate)

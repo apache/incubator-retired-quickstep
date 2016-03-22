@@ -87,6 +87,7 @@
 #include "query_optimizer/logical/TableReference.hpp"
 #include "query_optimizer/logical/TopLevelPlan.hpp"
 #include "query_optimizer/logical/UpdateTable.hpp"
+#include "query_optimizer/logical/WindowAggregate.hpp"
 #include "query_optimizer/resolver/NameResolver.hpp"
 #include "storage/StorageBlockLayout.pb.h"
 #include "storage/StorageConstants.hpp"
@@ -301,9 +302,11 @@ L::LogicalPtr Resolver::resolve(const ParseStatement &parse_query) {
           ++index;
         }
       }
-      logical_plan_ =
-          resolveSelect(*select_statement.select_query(),
-                        "" /* select_name */);
+      logical_plan_ = select_statement.select_query()->window()
+                          ? resolveWindow(*select_statement.select_query(),
+                                          "" /* select_name */)
+                          : resolveSelect(*select_statement.select_query(),
+                                          "" /* select_name */);
       if (select_statement.with_clause() != nullptr) {
         // Report an error if there is a WITH query that is not actually used.
         if (!with_queries_info_.unreferenced_query_indexes.empty()) {
@@ -1024,6 +1027,117 @@ L::LogicalPtr Resolver::resolveSelect(
     THROW_SQL_ERROR_AT(select_query.limit())
         << "LIMIT is not supported without ORDER BY";
   }
+
+  logical_plan = L::Project::Create(logical_plan, select_list_expressions);
+
+  return logical_plan;
+}
+
+L::LogicalPtr Resolver::resolveWindow(
+    const ParseSelect &select_query,
+    const std::string &select_name) {
+  const ParseWindow &window_clause = *select_query.window();
+
+  // Create a new name scope. We currently do not support correlated query.
+  std::unique_ptr<NameResolver> name_resolver(new NameResolver());
+
+  // Resolve FROM clause.
+  L::LogicalPtr logical_plan;
+  logical_plan =
+      resolveFromClause(select_query.from_list(), name_resolver.get());
+
+  QueryAggregationInfo query_aggregation_info(
+      (select_query.group_by() != nullptr));
+
+  // Resolve SELECT-list clause.
+  std::vector<E::NamedExpressionPtr> select_list_expressions;
+  std::vector<bool> has_aggregate_per_expression;
+  resolveSelectClause(select_query.selection(),
+                      select_name,
+                      *name_resolver,
+                      &query_aggregation_info,
+                      &select_list_expressions,
+                      &has_aggregate_per_expression);
+  DCHECK_EQ(has_aggregate_per_expression.size(),
+            select_list_expressions.size());
+
+  SelectListInfo select_list_info(select_list_expressions,
+                                  has_aggregate_per_expression);
+
+  E::AttributeReferencePtr window_attribute =
+      name_resolver->lookup(window_clause.window_attribute().attr_name(),
+                            window_clause.window_attribute().rel_name());
+
+  const Type *window_duration_type = nullptr;
+  const TypedValue window_duration_value =
+      window_clause.window_duration().concretize(nullptr,
+                                                 &window_duration_type);
+  E::ScalarLiteralPtr window_duration =
+      E::ScalarLiteral::Create(window_duration_value, *window_duration_type);
+  const Type *emit_duration_type = nullptr;
+  const TypedValue emit_duration_value =
+      window_clause.emit_duration().concretize(nullptr,
+                                                 &emit_duration_type);
+  E::ScalarLiteralPtr emit_duration =
+      E::ScalarLiteral::Create(emit_duration_value, *emit_duration_type);
+  const Type *age_duration_type = nullptr;
+  const TypedValue age_duration_value =
+      window_clause.age_duration().concretize(nullptr,
+                                                 &age_duration_type);
+  E::ScalarLiteralPtr age_duration =
+      E::ScalarLiteral::Create(age_duration_value, *age_duration_type);
+
+  // Resolve PARTITION BY.
+  std::vector<E::NamedExpressionPtr> grouping_expressions;
+  if (window_clause.grouping_expressions() != nullptr) {
+    for (const ParseExpression &unresolved_group_by_expression :
+         *window_clause.grouping_expressions()) {
+      ExpressionResolutionInfo expr_resolution_info(
+          *name_resolver, "PARTITION BY clause" /* clause_name */,
+          &select_list_info);
+      E::ScalarPtr group_by_scalar = resolveExpression(
+          unresolved_group_by_expression,
+          nullptr,  // No Type hint.
+          &expr_resolution_info);
+
+      // Rewrite it to a reference to a SELECT-list expression
+      // if it is an ordinal reference.
+      rewriteIfOrdinalReference(&unresolved_group_by_expression,
+                                expr_resolution_info,
+                                &select_list_info,
+                                &group_by_scalar);
+
+      if (group_by_scalar->isConstant()) {
+        THROW_SQL_ERROR_AT(&unresolved_group_by_expression)
+            << "Constant expression not allowed in GROUP BY";
+      }
+
+      // If the group by expression is not a named expression,
+      // wrap it with an Alias.
+      E::NamedExpressionPtr group_by_expression;
+      if (!E::SomeNamedExpression::MatchesWithConditionalCast(group_by_scalar,
+                                                              &group_by_expression)) {
+        const std::string internal_alias =
+            GenerateGroupingAttributeAlias(grouping_expressions.size());
+        group_by_expression = E::Alias::Create(
+            context_->nextExprId(),
+            group_by_scalar,
+            "" /* attribute_name */,
+            internal_alias,
+            "$groupby" /* relation_name */);
+      }
+      grouping_expressions.push_back(group_by_expression);
+    }
+  }
+
+  logical_plan =
+      L::WindowAggregate::Create(logical_plan,
+                                 window_attribute,
+                                 window_duration,
+                                 emit_duration,
+                                 age_duration,
+                                 grouping_expressions,
+                                 query_aggregation_info.aggregate_expressions);
 
   logical_plan = L::Project::Create(logical_plan, select_list_expressions);
 

@@ -22,6 +22,7 @@
 #include <memory>
 #include <unordered_map>
 #include <utility>
+#include <chrono>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -155,6 +156,49 @@ class Foreman final : public ForemanLite {
  private:
   typedef DAG<RelationalOperator, bool>::size_type_nodes dag_node_index;
 
+
+    typedef std::chrono::steady_clock clock;
+
+    // Helper class to store the timer information of each operator.
+    // Instances of the this class are can be sorted by firing time of for each
+    // operator, which helps in implementing a timer dispatch mechanism.
+    class RelationalOperatorTimer {
+     public:
+      RelationalOperatorTimer(const dag_node_index op_index,
+                              const std::chrono::milliseconds &time_period)
+          : fire_time_(clock::now()),
+            time_period_(time_period),
+            op_index_(op_index) {}
+
+      RelationalOperatorTimer(const RelationalOperatorTimer &copy) = default;
+
+      RelationalOperatorTimer &operator=(const RelationalOperatorTimer &copy) =
+          default;
+
+      // Update the fire point to one time period in the future.
+      void updateFireTime() {
+        fire_time_ = clock::now() + time_period_;
+      }
+
+      bool operator<(const RelationalOperatorTimer &right) const {
+        // To create a min-heap, implement greater than comparison here.
+        return fire_time_ > right.fire_time_;
+      }
+
+      const std::chrono::time_point<clock> fire_time() const {
+        return fire_time_;
+      }
+
+      const dag_node_index op_index() const { return op_index_; }
+
+     private:
+      std::chrono::time_point<clock> fire_time_;
+      std::chrono::milliseconds time_period_;
+      dag_node_index op_index_;
+    };
+
+
+
   /**
    * @brief Check if the current query has finished its execution.
    *
@@ -221,25 +265,17 @@ class Foreman final : public ForemanLite {
                               const dag_node_index start_operator_index);
 
   /**
-   * @brief Generate a WorkerMessage of the given type.
-   *
-   * @param workorder A pointer to a WorkOrder to be embedded in the message.
-   * @param index The index of the RelationalOperator in the DAG, that generated
-   *              the workorder.
-   * @param type The type of the WorkerMessage to be generated.
-   *
-   * @return A pointer to the created message.
-   **/
-  WorkerMessage* generateWorkerMessage(WorkOrder *workorder,
-                                       const dag_node_index index,
-                                       const WorkerMessage::WorkerMessageType type);
-
-  /**
    * @brief Initialize all the local vectors and maps. If the operator has an
    *        InsertDestination, pass the bus address and Foreman's TMB client ID
    *        to it.
    **/
   void initializeState();
+
+     /**
+     * @brief Initialize the timer.
+     **/
+  void initializeTimer();
+
 
   /**
    * @brief Initialize the Foreman before starting the event loop. This binds
@@ -288,6 +324,11 @@ class Foreman final : public ForemanLite {
    * @param message Feedback message from work order.
    **/
   void processFeedbackMessage(const WorkOrder::FeedbackMessage &message);
+
+  /**
+   * @brief Process pending timer events and update the timer to future events.
+   **/
+  void processTimerEvents();
 
   /**
    * @brief Clear some of the vectors used for a single run of a query.
@@ -501,6 +542,7 @@ class Foreman final : public ForemanLite {
   std::vector<int> queued_workorders_per_op_;
 
   std::unique_ptr<WorkOrdersContainer> workorders_container_;
+  std::vector<RelationalOperatorTimer> op_timer_heap_;
 
   const int num_numa_nodes_;
 

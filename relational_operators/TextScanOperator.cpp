@@ -232,7 +232,8 @@ TextScanWorkOrder::TextScanWorkOrder(const std::string &filename,
                                      const char field_terminator,
                                      const bool process_escape_sequences,
                                      InsertDestination *output_destination,
-                                     StorageManager *storage_manager)
+                                     StorageManager *storage_manager,
+                                     const bool return_block_as_full)
     : is_file_(true),
       filename_(filename),
       field_terminator_(field_terminator),
@@ -240,10 +241,12 @@ TextScanWorkOrder::TextScanWorkOrder(const std::string &filename,
       text_size_(0),
       process_escape_sequences_(process_escape_sequences),
       output_destination_(output_destination),
-      storage_manager_(storage_manager) {
-  DCHECK(output_destination_ != nullptr);
-  DCHECK(storage_manager_ != nullptr);
-}
+      storage_manager_(storage_manager),
+      return_block_as_full_(return_block_as_full)
+      	  {
+	DCHECK(output_destination_ != nullptr);
+		DCHECK(storage_manager_ != nullptr);
+      }
 
 TextScanWorkOrder::TextScanWorkOrder(const block_id text_blob,
                                      const std::size_t text_size,
@@ -264,7 +267,7 @@ TextScanWorkOrder::TextScanWorkOrder(const block_id text_blob,
 
 void TextScanWorkOrder::execute() {
   const CatalogRelationSchema &relation = output_destination_->getRelation();
-
+  MutableBlockReference output_block = output_destination_->getBlockForInsertion();
   string current_row_string;
   if (is_file_) {
     FILE *file = std::fopen(filename_.c_str(), "r");
@@ -278,7 +281,10 @@ void TextScanWorkOrder::execute() {
       have_row = readRowFromFile(file, &current_row_string);
       if (have_row) {
         Tuple tuple = parseRow(current_row_string, relation);
-        output_destination_->insertTupleInBatch(tuple);
+        while (!output_block->insertTupleInBatch(tuple)) {
+        	output_destination_->returnBlock(std::move(output_block), true);
+                 output_block = output_destination_->getBlockForInsertion();
+               }
       }
     } while (have_row);
 
@@ -293,10 +299,14 @@ void TextScanWorkOrder::execute() {
       have_row = readRowFromBlob(&blob_pos, blob_end, &current_row_string);
       if (have_row) {
         Tuple tuple = parseRow(current_row_string, relation);
-        output_destination_->insertTupleInBatch(tuple);
+        while (!output_block->insertTupleInBatch(tuple)) {
+        	output_destination_->returnBlock(std::move(output_block), true);
+                 output_block = output_destination_->getBlockForInsertion();
+               }
       }
     } while (have_row);
   }
+  output_destination_->returnBlock(std::move(output_block), return_block_as_full_);
 }
 
 char TextScanWorkOrder::ParseOctalLiteral(const std::string &row_string,

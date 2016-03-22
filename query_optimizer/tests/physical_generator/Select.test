@@ -1586,3 +1586,203 @@ TopLevelPlan
 |     +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
 +-output_attributes=
   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+==
+
+select avg(float_col) from Test window 10 on int_col emit 2 age 60
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=WindowAggregate
+| | +-input=TableReference[relation_name=Test]
+| | | +-AttributeReference[id=0,name=int_col,relation=Test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=Test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=Test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=Test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=Test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=Test,
+| | |   type=VarChar(20) NULL]
+| | +-window_attribute=AttributeReference[id=0,name=int_col,relation=Test,
+| | | type=Int NULL]
+| | +-window_duration=Literal[value=10,type=Int]
+| | +-emit_duration=Literal[value=2,type=Int]
+| | +-age_duration=Literal[value=60,type=Int]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Double NULL]
+| |     +-AggregateFunction[function=AVG]
+| |       +-AttributeReference[id=2,name=float_col,relation=Test,type=Float]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=avg(float_col),relation=,type=Double NULL]
+|     +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|       type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=avg(float_col),relation=,
+    type=Double NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=Selection
+| +-input=WindowAggregate
+| | +-input=TableReference[relation=Test]
+| | | +-AttributeReference[id=0,name=int_col,relation=Test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=Test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=Test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=Test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=Test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=Test,
+| | |   type=VarChar(20) NULL]
+| | +-window_attribute=AttributeReference[id=0,name=int_col,relation=Test,
+| | | type=Int NULL]
+| | +-window_duration=Literal[value=10,type=Int]
+| | +-emit_duration=Literal[value=2,type=Int]
+| | +-age_duration=Literal[value=60,type=Int]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Double NULL]
+| |     +-AggregateFunction[function=AVG]
+| |       +-AttributeReference[id=2,name=float_col,relation=Test,type=Float]
+| +-project_expressions=
+|   +-Alias[id=6,name=,alias=avg(float_col),relation=,type=Double NULL]
+|     +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|       type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=avg(float_col),relation=,
+    type=Double NULL]
+==
+
+select avg(float_col) from Test
+window interval '10 seconds' on int_col
+emit interval '2 seconds'
+age interval '60 seconds';
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=WindowAggregate
+| | +-input=TableReference[relation_name=Test]
+| | | +-AttributeReference[id=0,name=int_col,relation=Test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=Test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=Test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=Test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=Test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=Test,
+| | |   type=VarChar(20) NULL]
+| | +-window_attribute=AttributeReference[id=0,name=int_col,relation=Test,
+| | | type=Int NULL]
+| | +-window_duration=Literal[value=00:00:10,type=DatetimeInterval]
+| | +-emit_duration=Literal[value=00:00:02,type=DatetimeInterval]
+| | +-age_duration=Literal[value=00:01:00,type=DatetimeInterval]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Double NULL]
+| |     +-AggregateFunction[function=AVG]
+| |       +-AttributeReference[id=2,name=float_col,relation=Test,type=Float]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=avg(float_col),relation=,type=Double NULL]
+|     +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|       type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=avg(float_col),relation=,
+    type=Double NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=Selection
+| +-input=WindowAggregate
+| | +-input=TableReference[relation=Test]
+| | | +-AttributeReference[id=0,name=int_col,relation=Test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=Test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=Test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=Test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=Test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=Test,
+| | |   type=VarChar(20) NULL]
+| | +-window_attribute=AttributeReference[id=0,name=int_col,relation=Test,
+| | | type=Int NULL]
+| | +-window_duration=Literal[value=00:00:10,type=DatetimeInterval]
+| | +-emit_duration=Literal[value=00:00:02,type=DatetimeInterval]
+| | +-age_duration=Literal[value=00:01:00,type=DatetimeInterval]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Double NULL]
+| |     +-AggregateFunction[function=AVG]
+| |       +-AttributeReference[id=2,name=float_col,relation=Test,type=Float]
+| +-project_expressions=
+|   +-Alias[id=6,name=,alias=avg(float_col),relation=,type=Double NULL]
+|     +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|       type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=avg(float_col),relation=,
+    type=Double NULL]
+==
+
+select avg(float_col) from Test
+window 10 on int_col
+partition by long_col, char_col
+emit 2 age 60
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=WindowAggregate
+| | +-input=TableReference[relation_name=Test]
+| | | +-AttributeReference[id=0,name=int_col,relation=Test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=Test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=Test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=Test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=Test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=Test,
+| | |   type=VarChar(20) NULL]
+| | +-window_attribute=AttributeReference[id=0,name=int_col,relation=Test,
+| | | type=Int NULL]
+| | +-window_duration=Literal[value=10,type=Int]
+| | +-emit_duration=Literal[value=2,type=Int]
+| | +-age_duration=Literal[value=60,type=Int]
+| | +-grouping_expressions=
+| | | +-AttributeReference[id=1,name=long_col,relation=Test,type=Long]
+| | | +-AttributeReference[id=4,name=char_col,relation=Test,type=Char(20)]
+| | +-aggregate_expressions=
+| |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Double NULL]
+| |     +-AggregateFunction[function=AVG]
+| |       +-AttributeReference[id=2,name=float_col,relation=Test,type=Float]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=avg(float_col),relation=,type=Double NULL]
+|     +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|       type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=avg(float_col),relation=,
+    type=Double NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=Selection
+| +-input=WindowAggregate
+| | +-input=TableReference[relation=Test]
+| | | +-AttributeReference[id=0,name=int_col,relation=Test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=Test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=Test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=Test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=Test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=Test,
+| | |   type=VarChar(20) NULL]
+| | +-window_attribute=AttributeReference[id=0,name=int_col,relation=Test,
+| | | type=Int NULL]
+| | +-window_duration=Literal[value=10,type=Int]
+| | +-emit_duration=Literal[value=2,type=Int]
+| | +-age_duration=Literal[value=60,type=Int]
+| | +-grouping_expressions=
+| | | +-AttributeReference[id=1,name=long_col,relation=Test,type=Long]
+| | | +-AttributeReference[id=4,name=char_col,relation=Test,type=Char(20)]
+| | +-aggregate_expressions=
+| |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Double NULL]
+| |     +-AggregateFunction[function=AVG]
+| |       +-AttributeReference[id=2,name=float_col,relation=Test,type=Float]
+| +-project_expressions=
+|   +-Alias[id=6,name=,alias=avg(float_col),relation=,type=Double NULL]
+|     +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|       type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=avg(float_col),relation=,
+    type=Double NULL]

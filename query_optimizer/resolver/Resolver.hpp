@@ -289,6 +289,7 @@ class Resolver {
       const ParseString &table_name, const ParseString *reference_alias);
 
   /**
+
    * @brief Resolves a generator table reference and links the corresponding
    *        generator function. The table is not added into the NameResolver.
    *
@@ -298,6 +299,17 @@ class Resolver {
   logical::LogicalPtr resolveGeneratorTableReference(
       const ParseGeneratorTableReference &table_reference,
       const ParseString *reference_alias);
+
+  /**
+   * @brief Resolves the window clause in the SELECT statemnt.
+   *
+   * @param select_statement Parsed SELECT statement.
+   * @param select_name Name of the SELECT statement.
+   */
+  logical::LogicalPtr resolveWindow(
+      const ParseSelect &select_statement,
+      const std::string &select_name);
+
 
   /**
    * @brief Renames the output columns from \p logical_plan based on the table signature

@@ -18,7 +18,9 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_RELATIONAL_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_RELATIONAL_OPERATOR_HPP_
 
+#include <chrono>
 #include <cstddef>
+#include <utility>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -87,6 +89,18 @@ class RelationalOperator {
    *
    **/
   virtual void updateCatalogOnCompletion() {
+  }
+
+  /**
+   * @brief Register for timer for getAllWorkOrders requests.
+   *
+   * @return Pair with time duration of requests and boolean set to true for
+   *         registering the request, else boolean is set to false.
+   **/
+  virtual std::pair<std::chrono::milliseconds, bool>
+  registerTimeWorkOrderRequest() {
+    // Defaults to not registing timed requests.
+    return std::make_pair(std::chrono::milliseconds(), false);
   }
 
   /**

@@ -165,9 +165,9 @@ TEST_F(TextScanOperatorTest, ScanTest) {
   text_scan_op.reset(nullptr);
 
   MemStream print_stream;
-  PrintToScreen::PrintRelation(*relation_,
-                               storage_manager_.get(),
-                               print_stream.file());
+  PrintToScreen printer(*relation_,
+                        storage_manager_.get());
+  printer.printRelation(print_stream.file());
   std::string printed(print_stream.str());
 
   EXPECT_EQ(golden_string, printed);

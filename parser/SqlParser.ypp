@@ -74,6 +74,7 @@ typedef struct YYLTYPE {
 #include "parser/ParseHaving.hpp"
 #include "parser/ParseKeyValue.hpp"
 #include "parser/ParseLimit.hpp"
+#include "parser/ParseWindow.hpp"
 #include "parser/ParseLiteralValue.hpp"
 #include "parser/ParseOrderBy.hpp"
 #include "parser/ParsePredicate.hpp"
@@ -172,6 +173,7 @@ typedef void* yyscan_t;
 
   quickstep::ParseFunctionCall *function_call_;
   quickstep::PtrList<quickstep::ParseExpression> *expression_list_;
+  quickstep::PtrList<quickstep::ParseExpression> *window_partition_by_list_;
 
   quickstep::ParseSelect *select_query_;
   quickstep::ParseGroupBy *opt_group_by_clause_;
@@ -179,8 +181,10 @@ typedef void* yyscan_t;
   quickstep::ParseOrderBy *opt_order_by_clause_;
   bool *order_direction_;
   quickstep::ParseLimit *opt_limit_clause_;
-  
   quickstep::ParseSample *opt_sample_clause_;
+ 
+  quickstep::ParseWindow *opt_window_clause_;
+
 
   quickstep::PtrList<quickstep::ParseOrderByItem> *order_commalist_;
   quickstep::ParseOrderByItem *order_item_;
@@ -216,6 +220,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %left '.'
 
 %token TOKEN_ADD;
+%token TOKEN_AGE;
 %token TOKEN_ALL;
 %token TOKEN_ALTER;
 %token TOKEN_AND;
@@ -245,6 +250,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_DOUBLE;
 %token TOKEN_DROP;
 %token TOKEN_ESCAPE_STRINGS;
+%token TOKEN_EMIT;
 %token TOKEN_FALSE;
 %token TOKEN_FIRST;
 %token TOKEN_FLOAT;
@@ -275,6 +281,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_OUTER;
 %token TOKEN_PERCENT;
 %token TOKEN_PRIMARY;
+%token TOKEN_PARTITION;
 %token TOKEN_QUIT;
 %token TOKEN_REAL;
 %token TOKEN_REFERENCES;
@@ -296,6 +303,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_VARCHAR;
 %token TOKEN_WHERE;
 %token TOKEN_WITH;
+%token TOKEN_WINDOW;
 %token TOKEN_YEARMONTH;
 %token TOKEN_EOF;
 %token TOKEN_LEX_ERROR;
@@ -477,6 +485,21 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <opt_sample_clause_>
   opt_sample_clause
+
+%type <opt_window_clause_>
+  opt_window_clause
+
+%type <window_partition_by_list_>
+  opt_window_partition
+
+%type <literal_value_>
+  window_duration
+  emit_duration
+  age_duration
+
+%type <attribute_>
+  window_attribute
+
 
 %type <with_list_>
   opt_with_clause
@@ -1021,8 +1044,8 @@ with_list_element:
 
 select_query:
   TOKEN_SELECT opt_all_distinct selection from_clause opt_where_clause opt_group_by_clause opt_having_clause
-      opt_order_by_clause opt_limit_clause {
-    $$ = new quickstep::ParseSelect(@1.first_line, @1.first_column, $3, $4, $5, $6, $7, $8, $9);
+      opt_order_by_clause opt_limit_clause opt_window_clause {
+    $$ = new quickstep::ParseSelect(@1.first_line, @1.first_column, $3, $4, $5, $6, $7, $8, $9, $10);
   };
 
 opt_all_distinct:
@@ -1248,6 +1271,42 @@ opt_limit_clause:
       }
     }
   }
+
+opt_window_clause:
+  {
+    $$ = nullptr;
+  }
+  | window_duration window_attribute opt_window_partition emit_duration age_duration {
+    $$ = new quickstep::ParseWindow(@1.first_line, @1.first_column, $2, $3, $1, $4, $5);
+  };
+
+window_duration:
+  TOKEN_WINDOW literal_value {
+    $$ = $2;
+  };
+
+window_attribute:
+  TOKEN_ON attribute_ref {
+    $$ = $2;
+  };
+
+opt_window_partition:
+  {
+    $$ = nullptr;
+  }
+  | TOKEN_PARTITION TOKEN_BY expression_list {
+    $$ = $3;
+  };
+
+emit_duration:
+  TOKEN_EMIT literal_value {
+    $$ = $2;
+  };
+
+age_duration:
+  TOKEN_AGE literal_value {
+    $$ = $2;
+  };
 
 order_commalist:
   order_item {

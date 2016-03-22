@@ -47,7 +47,8 @@ enum class LogicalType {
   kTableGenerator,
   kTableReference,
   kTopLevelPlan,
-  kUpdateTable
+  kUpdateTable,
+  kWindowAggregate,
 };
 
 /** @} */

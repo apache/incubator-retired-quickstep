@@ -100,9 +100,9 @@ void ExecutionGeneratorTestRunner::runTestCase(
 
         const CatalogRelation *query_result_relation = query_handle.getQueryResultRelation();
         if (query_result_relation) {
-            PrintToScreen::PrintRelation(*query_result_relation,
-                                         test_database_loader_.storage_manager(),
-                                         output_stream.file());
+            PrintToScreen printer(*query_result_relation,
+                                  test_database_loader_.storage_manager());
+            printer.printRelation(output_stream.file());
             DropRelation::Drop(*query_result_relation,
                                test_database_loader_.catalog_database(),
                                test_database_loader_.storage_manager());

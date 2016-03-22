@@ -30,6 +30,7 @@
 #include "parser/ParseSelectionClause.hpp"
 #include "parser/ParseTableReference.hpp"
 #include "parser/ParseTreeNode.hpp"
+#include "parser/ParseWindow.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrList.hpp"
 
@@ -68,7 +69,8 @@ class ParseSelect : public ParseTreeNode {
               ParseGroupBy *group_by,
               ParseHaving *having,
               ParseOrderBy *order_by,
-              ParseLimit *limit)
+              ParseLimit *limit,
+              ParseWindow *window)
       : ParseTreeNode(line_number, column_number),
         selection_(selection),
         from_list_(from_list),
@@ -76,8 +78,8 @@ class ParseSelect : public ParseTreeNode {
         group_by_(group_by),
         having_(having),
         order_by_(order_by),
-        limit_(limit) {
-  }
+        limit_(limit),
+        window_(window) {}
 
   ~ParseSelect() override {
   }
@@ -152,6 +154,13 @@ class ParseSelect : public ParseTreeNode {
    */
   const ParseLimit* limit() const { return limit_.get(); }
 
+  /**
+   * @brief Gets the parsed WINDOW.
+   *
+   * @return The parsed WINDOW.
+   */
+  const ParseWindow* window() const { return window_.get(); }
+
  protected:
   void getFieldStringItems(
       std::vector<std::string> *inline_field_names,
@@ -195,6 +204,11 @@ class ParseSelect : public ParseTreeNode {
       non_container_child_field_names->push_back("limit");
       non_container_child_fields->push_back(limit_.get());
     }
+
+    if (window_ != nullptr) {
+      non_container_child_field_names->push_back("window");
+      non_container_child_fields->push_back(window_.get());
+    }
   }
 
  private:
@@ -205,6 +219,7 @@ class ParseSelect : public ParseTreeNode {
   std::unique_ptr<ParseHaving> having_;
   std::unique_ptr<ParseOrderBy> order_by_;
   std::unique_ptr<ParseLimit> limit_;
+  std::unique_ptr<ParseWindow> window_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseSelect);
 };

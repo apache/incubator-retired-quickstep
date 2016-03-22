@@ -53,6 +53,7 @@ namespace quickstep {
 class CatalogRelationSchema;
 class StorageManager;
 class ValueAccessor;
+class TextScanOperator;
 
 namespace merge_run_operator {
 class RunCreator;
@@ -273,6 +274,7 @@ class InsertDestination : public InsertDestinationInterface {
   // lead to unsorted results. InsertDestination API changed while sort was
   // being implemented.
   friend class merge_run_operator::RunCreator;
+  friend class TextScanWorkOrder;
 
   DISALLOW_COPY_AND_ASSIGN(InsertDestination);
 };

@@ -19,6 +19,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <algorithm>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -56,6 +57,7 @@ void Foreman::initialize() {
     ThreadUtil::BindToCPU(cpu_id_);
   }
   initializeState();
+  initializeTimer();
 
   DEBUG_ASSERT(query_dag_ != nullptr);
   const dag_node_index dag_size = query_dag_->size();
@@ -71,6 +73,48 @@ void Foreman::initialize() {
   // Dispatch the WorkOrders generated so far.
   dispatchWorkerMessages(0, 0);
 }
+
+void Foreman::initializeTimer() {
+  // Query the operators to see if they need timed getAllWorkOrders() calls.
+  for (dag_node_index i = 0; i < query_dag_->size(); ++i) {
+    RelationalOperator *op = query_dag_->getNodePayloadMutable(i);
+    std::pair<std::chrono::milliseconds, bool> timer =
+        op->registerTimeWorkOrderRequest();
+    if (timer.second) {
+      // Add the operator to the timer heap.
+      op_timer_heap_.emplace_back(i, timer.first);
+    }
+  }
+  // Initialize the timer heap.
+  std::make_heap(op_timer_heap_.begin(), op_timer_heap_.end());
+}
+
+void Foreman::processTimerEvents() {
+  auto now = clock::now();
+  while (!op_timer_heap_.empty() && op_timer_heap_.front().fire_time() < now) {
+    // Move the top entry to the end.
+    std::pop_heap(op_timer_heap_.begin(), op_timer_heap_.end());
+
+    // Check if current op_index has completed.
+    dag_node_index op_index =  op_timer_heap_.back().op_index();
+    if (done_gen_[op_index]) {
+      // Operator is done. Remove the operator for the event heap.
+      op_timer_heap_.pop_back();
+    } else {
+      // Process the operator.
+      processOperator(op_index, true);
+      // Dispatch work order events.
+      dispatchWorkerMessages(0, op_index);
+
+      // Update fire point.
+      op_timer_heap_.back().updateFireTime();
+
+      // Re-insert the operator into the heap.
+      std::push_heap(op_timer_heap_.begin(), op_timer_heap_.end());
+    }
+  }
+}
+
 
 void Foreman::processWorkOrderCompleteMessage(const dag_node_index op_index,
                                               const size_t worker_id) {
@@ -182,6 +226,9 @@ void Foreman::run() {
   while (!checkQueryExecutionFinished()) {
     // Receive() causes this thread to sleep until next message is received.
     AnnotatedMessage annotated_msg = bus_->Receive(foreman_client_id_, 0, true);
+    processTimerEvents();
+
+
     const TaggedMessage &tagged_message = annotated_msg.tagged_message;
     switch (tagged_message.message_type()) {
       case kWorkOrderCompleteMessage: {
@@ -267,23 +314,6 @@ void Foreman::dispatchWorkerMessages(
   }
 }
 
-WorkerMessage* Foreman::generateWorkerMessage(
-    WorkOrder *workorder,
-    const dag_node_index index,
-    const WorkerMessage::WorkerMessageType type) {
-  std::unique_ptr<WorkerMessage> worker_message;
-  switch (type) {
-    case WorkerMessage::kWorkOrder :
-      return new WorkerMessage(WorkerMessage::WorkOrderMessage(workorder, index));
-    case WorkerMessage::kRebuildWorkOrder:
-      return new WorkerMessage(
-          WorkerMessage::RebuildWorkOrderMessage(workorder, index));
-    default:
-      FATAL_ERROR("Called Foreman::generateWorkerMessage() with invalid "
-                  "WorkerMesageType argument");
-  }
-}
-
 void Foreman::initializeState() {
   const dag_node_index dag_size = query_dag_->size();
   num_operators_finished_ = 0;
@@ -333,7 +363,6 @@ void Foreman::initializeState() {
 WorkerMessage* Foreman::getNextWorkerMessage(
     const dag_node_index start_operator_index, const int numa_node) {
   // Default policy: Operator with lowest index first.
-  std::unique_ptr<WorkerMessage> worker_message;
   WorkOrder *work_order = nullptr;
   size_t num_operators_checked = 0;
   for (dag_node_index index = start_operator_index;
@@ -348,18 +377,13 @@ WorkerMessage* Foreman::getNextWorkerMessage(
       if (work_order != nullptr) {
         // A WorkOrder found on the given NUMA node.
         ++queued_workorders_per_op_[index];
-        worker_message.reset(generateWorkerMessage(
-            work_order, index, WorkerMessage::kWorkOrder));
-        return worker_message.release();
+        return WorkerMessage::WorkOrderMessage(work_order, index);
       } else {
         // Normal workorder not found on this node. Look for a rebuild workorder
         // on this NUMA node.
-        work_order = workorders_container_->getRebuildWorkOrderForNUMANode(index,
-                                                                 numa_node);
+        work_order = workorders_container_->getRebuildWorkOrderForNUMANode(index, numa_node);
         if (work_order != nullptr) {
-          worker_message.reset(generateWorkerMessage(
-              work_order, index, WorkerMessage::kRebuildWorkOrder));
-          return worker_message.release();
+          return WorkerMessage::RebuildWorkOrderMessage(work_order, index);
         }
       }
     }
@@ -368,16 +392,12 @@ WorkerMessage* Foreman::getNextWorkerMessage(
     work_order = workorders_container_->getNormalWorkOrder(index);
     if (work_order != nullptr) {
       ++queued_workorders_per_op_[index];
-      worker_message.reset(generateWorkerMessage(
-          work_order, index, WorkerMessage::kWorkOrder));
-      return worker_message.release();
+      return WorkerMessage::WorkOrderMessage(work_order, index);
     } else {
       // Normal WorkOrder not found, look for a RebuildWorkOrder.
       work_order = workorders_container_->getRebuildWorkOrder(index);
       if (work_order != nullptr) {
-        worker_message.reset(generateWorkerMessage(
-            work_order, index, WorkerMessage::kRebuildWorkOrder));
-        return worker_message.release();
+        return WorkerMessage::RebuildWorkOrderMessage(work_order, index);
       }
     }
   }
@@ -395,8 +415,7 @@ void Foreman::sendWorkerMessage(const std::size_t worker_id,
   } else {
     FATAL_ERROR("Invalid WorkerMessageType");
   }
-  TaggedMessage worker_tagged_message;
-  worker_tagged_message.set_message(&message, sizeof(message), type);
+  TaggedMessage worker_tagged_message(&message, sizeof(message), type);
 
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(bus_,

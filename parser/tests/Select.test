@@ -1369,3 +1369,65 @@ SelectStatement
   |     +-NumericLiteral[numeric_string=.1e1,float_like=true]
   +-from_clause=
     +-TableReference[table=test]
+==
+
+select avg(attr1) from test window 10 on attr emit 2 age 60;
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-FunctionCall[name=avg]
+  |     +-AttributeReference[attribute_name=attr1]
+  +-window=WINDOW
+  | +-window_attribute=AttributeReference[attribute_name=attr]
+  | +-window_duration=NumericLiteral[numeric_string=10,float_like=false]
+  | +-emit_duration=NumericLiteral[numeric_string=2,float_like=false]
+  | +-age_duration=NumericLiteral[numeric_string=60,float_like=false]
+  | +-partition_by=
+  |   +-[]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select avg(attr1) from test
+window interval '10 seconds' on attr
+emit interval '2 seconds'
+age interval '60 seconds';
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-FunctionCall[name=avg]
+  |     +-AttributeReference[attribute_name=attr1]
+  +-window=WINDOW
+  | +-window_attribute=AttributeReference[attribute_name=attr]
+  | +-window_duration=StringLiteral[value=10 seconds,
+  | | explicit_type=DatetimeInterval]
+  | +-emit_duration=StringLiteral[value=2 seconds,explicit_type=DatetimeInterval]
+  | +-age_duration=StringLiteral[value=60 seconds,explicit_type=DatetimeInterval]
+  | +-partition_by=
+  |   +-[]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+select avg(attr1) from test window 10 on attr partition by attr2, attr3 emit 2 age 60;
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-FunctionCall[name=avg]
+  |     +-AttributeReference[attribute_name=attr1]
+  +-window=WINDOW
+  | +-window_attribute=AttributeReference[attribute_name=attr]
+  | +-window_duration=NumericLiteral[numeric_string=10,float_like=false]
+  | +-emit_duration=NumericLiteral[numeric_string=2,float_like=false]
+  | +-age_duration=NumericLiteral[numeric_string=60,float_like=false]
+  | +-partition_by=
+  |   +-AttributeReference[attribute_name=attr2]
+  |   +-AttributeReference[attribute_name=attr3]
+  +-from_clause=
+    +-TableReference[table=test]

@@ -68,6 +68,7 @@
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
+#include "query_optimizer/physical/WindowAggregate.hpp"
 #include "relational_operators/AggregationOperator.hpp"
 #include "relational_operators/BuildHashOperator.hpp"
 #include "relational_operators/CreateIndexOperator.hpp"
@@ -78,7 +79,9 @@
 #include "relational_operators/FinalizeAggregationOperator.hpp"
 #include "relational_operators/HashJoinOperator.hpp"
 #include "relational_operators/InsertOperator.hpp"
+#include "relational_operators/MonitoredTextScanOperator.hpp"
 #include "relational_operators/NestedLoopsJoinOperator.hpp"
+#include "relational_operators/PrintToScreenOperator.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/SaveBlocksOperator.hpp"
 #include "relational_operators/SelectOperator.hpp"
@@ -87,6 +90,7 @@
 #include "relational_operators/TableGeneratorOperator.hpp"
 #include "relational_operators/TextScanOperator.hpp"
 #include "relational_operators/UpdateOperator.hpp"
+#include "relational_operators/WindowAggregationOperator.hpp"
 #include "storage/AggregationOperationState.pb.h"
 #include "storage/HashTable.pb.h"
 #include "storage/HashTableFactory.hpp"
@@ -233,6 +237,9 @@ void ExecutionGenerator::generatePlanInternal(
     case P::PhysicalType::kUpdateTable:
       return convertUpdateTable(
           std::static_pointer_cast<const P::UpdateTable>(physical_plan));
+    case P::PhysicalType::kWindowAggregate:
+      return convertWindowAggregate(
+          std::static_pointer_cast<const P::WindowAggregate>(physical_plan));
     default:
       LOG(FATAL) << "Unknown physical plan node "
                  << physical_plan->getShortString();
@@ -1122,6 +1129,149 @@ void ExecutionGenerator::convertAggregate(
       std::forward_as_tuple(physical_plan),
       std::forward_as_tuple(finalize_aggregation_operator_index, output_relation));
   temporary_relation_info_vec_.emplace_back(finalize_aggregation_operator_index,
+                                            output_relation);
+}
+
+namespace {
+
+// Convert the TypedValue to seconds. Only supports INT and DATETIME INTERVAL
+// for now.
+std::int32_t ToSecs(const TypedValue &value, const std::string &var) {
+  std::int32_t secs = 0;
+  if (value.getTypeID() == TypeID::kDatetimeInterval) {
+    const DatetimeIntervalLit int_lit =
+        value.getLiteral<DatetimeIntervalLit>();
+    secs = int_lit.interval_ticks / int_lit.kTicksPerSecond;
+  } else if (value.getTypeID() == TypeID::kInt) {
+    secs = value.getLiteral<int>();
+  } else {
+    LOG(ERROR) << "Unsupported type for " << var;
+  }
+  return secs;
+}
+
+}  // namespace
+
+void ExecutionGenerator::convertWindowAggregate(
+    const P::WindowAggregatePtr &physical_plan) {
+  const CatalogRelationInfo *input_relation_info =
+      findRelationInfoOutputByPhysical(physical_plan->input());
+
+  // Create monitored text scan.
+  const QueryContext::insert_destination_id input_insert_destination_index =
+      query_context_proto_->insert_destinations_size();
+  S::InsertDestination *input_insert_destination_proto =
+      query_context_proto_->add_insert_destinations();
+  input_insert_destination_proto->set_insert_destination_type(
+      S::InsertDestinationType::BLOCK_POOL);
+  input_insert_destination_proto->set_relation_id(
+      input_relation_info->relation->getID());
+  input_insert_destination_proto->set_need_to_add_blocks_from_relation(true);
+  //TODO SIDDHARTH COMMENTED BELOW LINES
+  //input_insert_destination_proto->set_foreman_client_id(
+    //  optimizer_context_->getForemanClientID());
+  const TypedValue emit_duration_value =
+      physical_plan->emit_duration()->value();
+  const QueryPlan::DAGNodeIndex monitored_text_scan_operator_index =
+      execution_plan_->addRelationalOperator(new MonitoredTextScanOperator(
+          "/tmp/" + input_relation_info->relation->getName() + "-input/*" /* watch folder. */,
+          ToSecs(emit_duration_value, "emit duraion"),
+          '|' /* column delimiter. */,
+          false /* process escape sequences */,
+          input_relation_info->relation->getID(),
+          input_insert_destination_index));
+  input_insert_destination_proto->set_relational_op_index(
+      monitored_text_scan_operator_index);
+
+  // Create window aggregation.
+  std::vector<const AggregateFunction *> agg_funcs;
+  std::vector<std::vector<std::unique_ptr<const Scalar>>> agg_args;
+
+  for (const E::AliasPtr &named_aggregate_expression : physical_plan->aggregate_expressions()) {
+    const E::AggregateFunctionPtr unnamed_aggregate_expression =
+        std::static_pointer_cast<const E::AggregateFunction>(named_aggregate_expression->expression());
+    // Set the AggregateFunction.
+    agg_funcs.push_back(
+        &unnamed_aggregate_expression->getAggregate());
+
+    // Add each of the aggregate's arguments.
+    agg_args.emplace_back();
+    for (const E::ScalarPtr &argument : unnamed_aggregate_expression->getArguments()) {
+      unique_ptr<const Scalar> concretized_argument(argument->concretize(attribute_substitution_map_));
+      agg_args.back().emplace_back(concretized_argument.release());
+    }
+  }
+
+  // Construct grouping expressions.
+  std::vector<std::unique_ptr<const Scalar>> grouping_expressions;
+  for (const E::NamedExpressionPtr &grouping_expression : physical_plan->grouping_expressions()) {
+    unique_ptr<const Scalar> execution_group_by_expression;
+    E::AliasPtr alias;
+    if (E::SomeAlias::MatchesWithConditionalCast(grouping_expression, &alias)) {
+      E::ScalarPtr scalar;
+      // NOTE(zuyu): For aggregate expressions, all child expressions of an
+      // Alias should be a Scalar.
+      CHECK(E::SomeScalar::MatchesWithConditionalCast(alias->expression(), &scalar))
+          << alias->toString();
+      execution_group_by_expression.reset(scalar->concretize(attribute_substitution_map_));
+    } else {
+      execution_group_by_expression.reset(
+          grouping_expression->concretize(attribute_substitution_map_));
+    }
+    grouping_expressions.emplace_back(execution_group_by_expression.release());
+  }
+
+  DCHECK_EQ(input_relation_info->relation->getName(),
+            physical_plan->window_attribute()->relation_name());
+  const CatalogAttribute &window_attr =
+      *input_relation_info->relation->getAttributeByName(
+          physical_plan->window_attribute()->attribute_name());
+
+  // Create InsertDestination proto.
+  const CatalogRelation *output_relation = nullptr;
+  const QueryContext::insert_destination_id insert_destination_index =
+      query_context_proto_->insert_destinations_size();
+  S::InsertDestination *insert_destination_proto =
+      query_context_proto_->add_insert_destinations();
+  createTemporaryCatalogRelation(
+      physical_plan, &output_relation, insert_destination_proto);
+
+  const TypedValue &window_duration_value = physical_plan->window_duration()->value();
+  const TypedValue &age_duration_value = physical_plan->age_duration()->value();
+  const QueryPlan::DAGNodeIndex window_aggregation_operator_index =
+      execution_plan_->addRelationalOperator(new WindowAggregationOperator(
+          *input_relation_info->relation,
+          false /* relation is stored. */,
+          agg_funcs,
+          std::move(agg_args),
+          std::move(grouping_expressions),
+          window_attr,
+          window_duration_value,
+          ToSecs(age_duration_value, "age duration"),
+          output_relation->getID(),
+          insert_destination_index,
+          HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type),
+          optimizer_context_->storage_manager()));
+  insert_destination_proto->set_relational_op_index(window_aggregation_operator_index);
+  DCHECK(input_relation_info->isStoredRelation());
+  execution_plan_->addDirectDependency(window_aggregation_operator_index,
+                                       monitored_text_scan_operator_index,
+                                       false /* is pipeline breaker. */);
+
+  // Create print-to-screen operator.
+  const QueryPlan::DAGNodeIndex print_to_screen_operator_index =
+      execution_plan_->addRelationalOperator(new PrintToScreenOperator(
+          *output_relation,
+          false /* is relation stored. */));
+  execution_plan_->addDirectDependency(print_to_screen_operator_index,
+                                       window_aggregation_operator_index,
+                                       false /* is pipeline breaker. */);
+
+  physical_to_output_relation_map_.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple(physical_plan),
+      std::forward_as_tuple(window_aggregation_operator_index, output_relation));
+  temporary_relation_info_vec_.emplace_back(window_aggregation_operator_index,
                                             output_relation);
 }
 

@@ -50,6 +50,7 @@
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
+#include "query_optimizer/physical/WindowAggregate.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -303,6 +304,13 @@ class ExecutionGenerator {
    * @param physical_plan The Aggregate to be converted.
    */
   void convertAggregate(const physical::AggregatePtr &physical_plan);
+
+  /**
+   * @brief Converts an WindowAggregate to an WindowAggregate.
+   *
+   * @param physical_plan The UpdateTable to be converted.
+   */
+  void convertWindowAggregate(const physical::WindowAggregatePtr &physical_plan);
 
   /**
    * @brief Converts a physical Sort to SortRunGeneration and SortMergeRun.

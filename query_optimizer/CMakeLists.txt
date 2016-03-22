@@ -88,6 +88,7 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_queryoptimizer_physical_TableReference
                       quickstep_queryoptimizer_physical_TopLevelPlan
                       quickstep_queryoptimizer_physical_UpdateTable
+                      quickstep_queryoptimizer_physical_WindowAggregate
                       quickstep_relationaloperators_AggregationOperator
                       quickstep_relationaloperators_BuildHashOperator
                       quickstep_relationaloperators_CreateIndexOperator
@@ -98,7 +99,9 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_relationaloperators_FinalizeAggregationOperator
                       quickstep_relationaloperators_HashJoinOperator
                       quickstep_relationaloperators_InsertOperator
+                      quickstep_relationaloperators_MonitoredTextScanOperator
                       quickstep_relationaloperators_NestedLoopsJoinOperator
+                      quickstep_relationaloperators_PrintToScreenOperator
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_relationaloperators_SaveBlocksOperator
                       quickstep_relationaloperators_SelectOperator
@@ -107,6 +110,7 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_relationaloperators_TableGeneratorOperator
                       quickstep_relationaloperators_TextScanOperator
                       quickstep_relationaloperators_UpdateOperator
+                      quickstep_relationaloperators_WindowAggregationOperator
                       quickstep_storage_AggregationOperationState_proto
                       quickstep_storage_HashTableFactory
                       quickstep_storage_HashTable_proto

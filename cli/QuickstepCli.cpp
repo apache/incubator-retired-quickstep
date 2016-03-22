@@ -320,9 +320,9 @@ int main(int argc, char* argv[]) {
 
           const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
           if (query_result_relation) {
-            PrintToScreen::PrintRelation(*query_result_relation,
-                                         query_processor->getStorageManager(),
-                                         stdout);
+
+        	PrintToScreen printer(*query_result_relation,query_processor->getStorageManager());
+        	printer.printRelation(stdout);
 
             DropRelation::Drop(*query_result_relation,
                                query_processor->getDefaultDatabase(),
@@ -361,12 +361,10 @@ int main(int argc, char* argv[]) {
   style.Broadcast(true);
   Address address;
   address.All(true);
-  WorkerMessage poison_message(WorkerMessage::PoisonMessage());
-  TaggedMessage poison_tagged_message;
-  poison_tagged_message.set_message(
-      &poison_message,
-      sizeof(poison_message),
-      quickstep::kPoisonMessage);
+  std::unique_ptr<WorkerMessage> poison_message(WorkerMessage::PoisonMessage());
+  TaggedMessage poison_tagged_message(poison_message.get(),
+                                      sizeof(*poison_message),
+                                      kPoisonMessage);
 
   const tmb::MessageBus::SendStatus send_status =
       bus.Send(main_thread_client_id,

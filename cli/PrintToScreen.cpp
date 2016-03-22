@@ -26,11 +26,11 @@
 #include "catalog/CatalogRelation.hpp"
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
+#include "types/TypedValue.hpp"
 #include "storage/StorageManager.hpp"
 #include "storage/TupleIdSequence.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
 #include "types/Type.hpp"
-#include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
 
 #include "gflags/gflags.h"
@@ -46,18 +46,11 @@ DEFINE_bool(printing_enabled, true,
             "If true, print query results to screen normally. If false, skip "
             "printing output (e.g. for benchmarking).");
 
-void PrintToScreen::PrintRelation(const CatalogRelation &relation,
-                                  StorageManager *storage_manager,
-                                  FILE *out) {
-  if (!FLAGS_printing_enabled) {
-    return;
-  }
 
-  vector<int> column_widths;
-  column_widths.reserve(relation.size());
-
-  for (CatalogRelation::const_iterator attr_it = relation.begin();
-       attr_it != relation.end();
+void PrintToScreen::computeColumnWidths() {
+  column_widths_.reserve(relation_.size());
+  for (CatalogRelation::const_iterator attr_it = relation_.begin();
+       attr_it != relation_.end();
        ++attr_it) {
     // Printed column needs to be wide enough to print:
     //   1. The attribute name (in the printed "header").
@@ -66,53 +59,77 @@ void PrintToScreen::PrintRelation(const CatalogRelation &relation,
     // We pick the largest of these 3 widths as the column width.
     int column_width = static_cast<int>(attr_it->getDisplayName().length());
     column_width = column_width < attr_it->getType().getPrintWidth()
-                   ? attr_it->getType().getPrintWidth()
-                   : column_width;
+                       ? attr_it->getType().getPrintWidth()
+                       : column_width;
     column_width = attr_it->getType().isNullable() && (column_width < 4)
-                   ? 4
-                   : column_width;
-    column_widths.push_back(column_width);
+                       ? 4
+                       : column_width;
+    column_widths_.push_back(column_width);
+  }
+}
+
+void PrintToScreen::printRelation(FILE *out) {
+
+	if (!FLAGS_printing_enabled) {
+	    return;
+	  }
+
+	  printHeader(out);
+
+	  std::vector<block_id> blocks = relation_.getBlocksSnapshot();
+	  for (const block_id current_block_id : blocks) {
+	    printBlock(current_block_id, out);
+	  }
+
+	  printHBar(out);
+}
+
+
+void PrintToScreen::printHeader(FILE *out) const {
+  if (!FLAGS_printing_enabled) {
+    return;
   }
 
-  printHBar(column_widths, out);
+  printHBar(out);
 
   fputc('|', out);
-  vector<int>::const_iterator width_it = column_widths.begin();
-  CatalogRelation::const_iterator attr_it = relation.begin();
-  for (; width_it != column_widths.end(); ++width_it, ++attr_it) {
-    fprintf(out,
-            "%-*s|",
-            *width_it,
-            attr_it->getDisplayName().c_str());
+  vector<int>::const_iterator width_it = column_widths_.begin();
+  CatalogRelation::const_iterator attr_it = relation_.begin();
+  for (; width_it != column_widths_.end(); ++width_it, ++attr_it) {
+    fprintf(out, "%-*s|", *width_it, attr_it->getDisplayName().c_str());
   }
   fputc('\n', out);
 
-  printHBar(column_widths, out);
-
-  std::vector<block_id> blocks = relation.getBlocksSnapshot();
-  for (const block_id current_block_id : blocks) {
-    BlockReference block = storage_manager->getBlock(current_block_id, relation);
-    const TupleStorageSubBlock &tuple_store = block->getTupleStorageSubBlock();
-
-    if (tuple_store.isPacked()) {
-      for (tuple_id tid = 0; tid <= tuple_store.getMaxTupleID(); ++tid) {
-        printTuple(tuple_store, tid, column_widths, out);
-      }
-    } else {
-      std::unique_ptr<TupleIdSequence> existence_map(tuple_store.getExistenceMap());
-      for (tuple_id tid : *existence_map) {
-        printTuple(tuple_store, tid, column_widths, out);
-      }
-    }
-  }
-
-  printHBar(column_widths, out);
+  printHBar(out);
 }
 
-void PrintToScreen::printHBar(const vector<int> &column_widths,
-                              FILE *out) {
+void PrintToScreen::printBlock(block_id bid, FILE *out) {
+  if (!FLAGS_printing_enabled) {
+    return;
+  }
+
+  BlockReference block = storage_manager_->getBlock(bid, relation_);
+  const TupleStorageSubBlock &tuple_store = block->getTupleStorageSubBlock();
+
+  if (tuple_store.isPacked()) {
+    for (tuple_id tid = 0; tid <= tuple_store.getMaxTupleID(); ++tid) {
+      printTuple(tuple_store, tid, out);
+    }
+  } else {
+    std::unique_ptr<TupleIdSequence> existence_map(
+        tuple_store.getExistenceMap());
+    for (tuple_id tid : *existence_map) {
+      printTuple(tuple_store, tid, out);
+    }
+  }
+}
+
+
+
+
+void PrintToScreen::printHBar(FILE *out) const {
   fputc('+', out);
-  for (const int width : column_widths) {
+  for (const int width : column_widths_) {
     for (int i = 0; i < width; ++i) {
       fputc('-', out);
     }
@@ -123,21 +140,18 @@ void PrintToScreen::printHBar(const vector<int> &column_widths,
 
 void PrintToScreen::printTuple(const TupleStorageSubBlock &tuple_store,
                                const tuple_id tid,
-                               const vector<int> &column_widths,
-                               FILE *out) {
+                               FILE *out) const {
   DEBUG_ASSERT(tuple_store.hasTupleWithID(tid));
   fputc('|', out);
 
   const CatalogRelationSchema &relation = tuple_store.getRelation();
-  vector<int>::const_iterator width_it = column_widths.begin();
+  vector<int>::const_iterator width_it = column_widths_.begin();
   CatalogRelation::const_iterator attr_it = relation.begin();
   for (; attr_it != relation.end(); ++attr_it, ++width_it) {
-    TypedValue value(tuple_store.getAttributeValueTyped(tid, attr_it->getID()));
+    TypedValue value(
+        tuple_store.getAttributeValueTyped(tid, attr_it->getID()));
     if (value.isNull()) {
-      fprintf(out,
-              "%*s",
-              *width_it,
-              "NULL");
+      fprintf(out, "%*s", *width_it, "NULL");
     } else {
       attr_it->getType().printValueToFile(value, out, *width_it);
     }

@@ -37,6 +37,7 @@
 #include "query_optimizer/logical/TableReference.hpp"
 #include "query_optimizer/logical/TopLevelPlan.hpp"
 #include "query_optimizer/logical/UpdateTable.hpp"
+#include "query_optimizer/logical/WindowAggregate.hpp"
 #include "query_optimizer/physical/CopyFrom.hpp"
 #include "query_optimizer/physical/CreateIndex.hpp"
 #include "query_optimizer/physical/CreateTable.hpp"
@@ -49,6 +50,7 @@
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
+#include "query_optimizer/physical/WindowAggregate.hpp"
 
 namespace quickstep {
 namespace optimizer {
@@ -179,6 +181,19 @@ bool OneToOne::generatePlan(const L::LogicalPtr &logical_input,
           update_table->assignees(),
           update_table->assignment_expressions(),
           update_table->predicate());
+      return true;
+    }
+    case L::LogicalType::kWindowAggregate: {
+      const L::WindowAggregatePtr window =
+          std::static_pointer_cast<const L::WindowAggregate>(logical_input);
+      *physical_output = P::WindowAggregate::Create(
+          physical_mapper_->createOrGetPhysicalFromLogical(window->input()),
+          window->window_attribute(),
+          window->window_duration(),
+          window->emit_duration(),
+          window->age_duration(),
+          window->grouping_expressions(),
+          window->aggregate_expressions());
       return true;
     }
     default:

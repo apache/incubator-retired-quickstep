@@ -40,21 +40,51 @@ class TupleStorageSubBlock;
  **/
 class PrintToScreen {
  public:
-  static void PrintRelation(const CatalogRelation &relation,
-                            StorageManager *storage_manager,
-                            FILE *out);
+
+
+	/**
+	   * @brief Print all the tuples in the relation.
+	   * @param out FILE pointer to print the tuples to.
+	   **/
+	  void printRelation(FILE *out);
+
+
+  /**
+     * @brief Print the header containing the column names to the relation.
+     * @param out FILE pointer to print the header to.
+     **/
+    void printHeader(FILE *out) const;
+
+    PrintToScreen(const CatalogRelation &relation,
+                   StorageManager *storage_manager)
+         : relation_(relation), storage_manager_(storage_manager) {
+       computeColumnWidths();
+     }
+
+    /**
+     * @brief Print the tuples in a block of a relation.
+     * @param block Block ID whose tuples are to be printed.
+     * @param out FILE pointer to print the tuples to.
+     **/
+    void printBlock(block_id block, FILE *out);
+
 
  private:
-  // Undefined default constructor. Class is all-static and should not be
-  // instantiated.
-  PrintToScreen();
 
-  static void printHBar(const std::vector<int> &column_widths,
-                        FILE *out);
-  static void printTuple(const TupleStorageSubBlock &tuple_store,
-                         const tuple_id tid,
-                         const std::vector<int> &column_widths,
-                         FILE *out);
+
+  // Computes the widths of each column based on the types.
+  void computeColumnWidths();
+
+  void printHBar(FILE *out) const;
+
+    // Print the tuple to output.
+    void printTuple(const TupleStorageSubBlock &tuple_store,
+                    const tuple_id tid,
+                    FILE *out) const;
+
+  const CatalogRelation &relation_;  // Relation to print.
+  std::vector<int> column_widths_;  // Precomputed column-widths.
+  StorageManager *storage_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(PrintToScreen);
 };
