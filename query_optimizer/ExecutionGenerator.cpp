@@ -833,20 +833,7 @@ void ExecutionGenerator::convertCreateIndex(
   std::vector<IndexSubBlockDescription> index_descriptions;
   for (const CatalogAttribute* catalog_attribute : index_attributes) {
     IndexSubBlockDescription index_description(*physical_plan->index_description());
-    switch (index_description.sub_block_type()) {
-      case IndexSubBlockDescription_IndexSubBlockType_CSB_TREE:
-        index_description.AddExtension(CSBTreeIndexSubBlockDescription::indexed_attribute_id,
-                                       catalog_attribute->getID());
-        break;
-      case IndexSubBlockDescription_IndexSubBlockType_BLOOM_FILTER:
-        index_description.AddExtension(BloomFilterIndexSubBlockDescription::indexed_attribute_id,
-                                       catalog_attribute->getID());
-        break;
-      default:
-        LOG(FATAL) << "Unknown index subblock type.";
-        break;
-    }
-
+    index_description.add_indexed_attribute_ids(catalog_attribute->getID());
     if (input_relation->hasIndexWithDescription(index_description)) {
       // Check if the given index description already exists in the relation.
       THROW_SQL_ERROR() << "The relation " << input_relation->getName()

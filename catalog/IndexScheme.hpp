@@ -139,7 +139,7 @@ class IndexScheme {
    * @return Whether the two index_descriptions are similar or not.
    **/
   bool areIndexDescriptionsSame(const IndexSubBlockDescription &description_expected,
-                                   const IndexSubBlockDescription &description_checked) const {
+                                const IndexSubBlockDescription &description_checked) const {
     if (description_expected.sub_block_type() != description_checked.sub_block_type()) {
       return false;
     }
