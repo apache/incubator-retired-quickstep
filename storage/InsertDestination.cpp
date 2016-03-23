@@ -18,6 +18,7 @@
 #include "storage/InsertDestination.hpp"
 
 #include <cstddef>
+#include <cstdlib>
 #include <memory>
 #include <type_traits>
 #include <utility>
@@ -26,8 +27,10 @@
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogRelation.hpp"
-#include "catalog/PartitionScheme.hpp"
 #include "catalog/PartitionSchemeHeader.hpp"
+#include "query_execution/QueryExecutionMessages.pb.h"
+#include "query_execution/QueryExecutionTypedefs.hpp"
+#include "query_execution/QueryExecutionUtil.hpp"
 #include "storage/InsertDestination.pb.h"
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
@@ -43,10 +46,10 @@
 
 #include "tmb/id_typedefs.h"
 
+using std::free;
+using std::malloc;
 using std::move;
 using std::vector;
-
-namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
@@ -63,7 +66,7 @@ InsertDestination::InsertDestination(StorageManager *storage_manager,
       layout_(layout),
       relational_op_index_(relational_op_index),
       foreman_client_id_(foreman_client_id),
-      bus_(bus) {
+      bus_(DCHECK_NOTNULL(bus)) {
   if (layout_ == nullptr) {
     layout_.reset(StorageBlockLayout::GenerateDefaultLayout(*relation, relation->isVariableLength()));
   }
@@ -252,7 +255,29 @@ void InsertDestination::insertTuplesFromVector(std::vector<Tuple>::const_iterato
 
 MutableBlockReference AlwaysCreateBlockInsertDestination::createNewBlock() {
   const block_id new_id = storage_manager_->createBlock(*relation_, *layout_);
-  relation_->addBlock(new_id);
+
+  // Notify Foreman to add the newly created block id in the master Catalog.
+  serialization::CatalogRelationNewBlockMessage proto;
+  proto.set_relation_id(relation_->getID());
+  proto.set_block_id(new_id);
+
+  const size_t proto_length = proto.ByteSize();
+  char *proto_bytes = static_cast<char*>(malloc(proto_length));
+  CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+  TaggedMessage tagged_msg(static_cast<const void *>(proto_bytes),
+                           proto_length,
+                           kCatalogRelationNewBlockMessage);
+  free(proto_bytes);
+
+  const tmb::MessageBus::SendStatus send_status =
+      QueryExecutionUtil::SendTMBMessage(bus_,
+                                         foreman_client_id_,
+                                         foreman_client_id_,
+                                         move(tagged_msg));
+  CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
+      << "CatalogRelationNewBlockMessage could not be sent from InsertDestination to Foreman.";
+
   return storage_manager_->getBlockMutable(new_id, *relation_);
 }
 
@@ -276,8 +301,30 @@ void AlwaysCreateBlockInsertDestination::returnBlock(MutableBlockReference &&blo
 }
 
 MutableBlockReference BlockPoolInsertDestination::createNewBlock() {
-  block_id new_id = storage_manager_->createBlock(*relation_, *layout_);
-  relation_->addBlock(new_id);
+  const block_id new_id = storage_manager_->createBlock(*relation_, *layout_);
+
+  // Notify Foreman to add the newly created block id in the master Catalog.
+  serialization::CatalogRelationNewBlockMessage proto;
+  proto.set_relation_id(relation_->getID());
+  proto.set_block_id(new_id);
+
+  const size_t proto_length = proto.ByteSize();
+  char *proto_bytes = static_cast<char*>(malloc(proto_length));
+  CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+  TaggedMessage tagged_msg(static_cast<const void *>(proto_bytes),
+                           proto_length,
+                           kCatalogRelationNewBlockMessage);
+  free(proto_bytes);
+
+  const tmb::MessageBus::SendStatus send_status =
+      QueryExecutionUtil::SendTMBMessage(bus_,
+                                         foreman_client_id_,
+                                         foreman_client_id_,
+                                         move(tagged_msg));
+  CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
+      << "CatalogRelationNewBlockMessage could not be sent from InsertDestination to Foreman.";
+
   return storage_manager_->getBlockMutable(new_id, *relation_);
 }
 
@@ -359,10 +406,31 @@ MutableBlockReference PartitionAwareInsertDestination::createNewBlock() {
 MutableBlockReference PartitionAwareInsertDestination::createNewBlockInPartition(const partition_id part_id) {
   DCHECK_LT(part_id, partition_scheme_header_->getNumPartitions());
   // Create a new block.
-  block_id new_id = storage_manager_->createBlock(*relation_, *layout_);
-  relation_->addBlock(new_id);
-  // Add the new block to it's corresponding partition.
-  relation_->getPartitionSchemeMutable()->addBlockToPartition(new_id, part_id);
+  const block_id new_id = storage_manager_->createBlock(*relation_, *layout_);
+
+  // Notify Foreman to add the newly created block id in the master Catalog.
+  serialization::CatalogRelationNewBlockMessage proto;
+  proto.set_relation_id(relation_->getID());
+  proto.set_block_id(new_id);
+  proto.set_partition_id(part_id);
+
+  const size_t proto_length = proto.ByteSize();
+  char *proto_bytes = static_cast<char*>(malloc(proto_length));
+  CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+  TaggedMessage tagged_msg(static_cast<const void *>(proto_bytes),
+                           proto_length,
+                           kCatalogRelationNewBlockMessage);
+  free(proto_bytes);
+
+  const tmb::MessageBus::SendStatus send_status =
+      QueryExecutionUtil::SendTMBMessage(bus_,
+                                         foreman_client_id_,
+                                         foreman_client_id_,
+                                         move(tagged_msg));
+  CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
+      << "CatalogRelationNewBlockMessage could not be sent from InsertDestination to Foreman.";
+
   return storage_manager_->getBlockMutable(new_id, *relation_);
 }
 

@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -18,13 +18,14 @@
 #ifndef QUICKSTEP_QUERY_OPTIMIZER_TESTS_TEST_DATABASE_LOADER_HPP_
 #define QUICKSTEP_QUERY_OPTIMIZER_TESTS_TEST_DATABASE_LOADER_HPP_
 
-#include <cstddef>
-#include <memory>
 #include <string>
 
 #include "catalog/CatalogDatabase.hpp"
+#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "storage/StorageManager.hpp"
 #include "utility/Macros.hpp"
+
+#include "tmb/id_typedefs.h"
 
 namespace quickstep {
 
@@ -49,12 +50,18 @@ class TestDatabaseLoader {
    *                     Can be empty if the test query is not executed
    *                     in the query engine.
    */
-  explicit TestDatabaseLoader(const std::string& storage_path = "")
+  explicit TestDatabaseLoader(const std::string &storage_path = "")
       : catalog_database_(nullptr /* parent */,
                           "TestDatabase" /* name */,
                           0 /* id */),
         storage_manager_(storage_path),
-        test_relation_(nullptr) {}
+        test_relation_(nullptr) {
+    bus_.Initialize();
+
+    foreman_client_id_ = bus_.Connect();
+    bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
+  }
 
   ~TestDatabaseLoader() {
     clear();
@@ -112,6 +119,14 @@ class TestDatabaseLoader {
   void clear();
 
  private:
+  /**
+   * @brief Simulate Foreman to add all new blocks to the relation.
+   */
+  void processCatalogRelationNewBlockMessages();
+
+  MessageBusImpl bus_;
+  tmb::client_id foreman_client_id_;
+
   CatalogDatabase catalog_database_;
   StorageManager storage_manager_;
   // Owned by catalog_database_.
