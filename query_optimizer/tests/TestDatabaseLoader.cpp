@@ -88,9 +88,9 @@ void TestDatabaseLoader::loadTestRelation() {
   CHECK(test_relation_ != nullptr);
   CHECK(!test_relation_->hasAttributeWithName("vchar_col"));
 
-  BlockPoolInsertDestination destination(&storage_manager_,
-                                         test_relation_,
+  BlockPoolInsertDestination destination(*test_relation_,
                                          nullptr,
+                                         &storage_manager_,
                                          0 /* dummy op index */,
                                          foreman_client_id_,
                                          &bus_);

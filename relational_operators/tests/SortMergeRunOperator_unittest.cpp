@@ -182,9 +182,9 @@ class RunTest : public ::testing::Test {
     table_->setDefaultStorageBlockLayout(StorageBlockLayout::GenerateDefaultLayout(*table_, false));
 
     insert_destination_.reset(
-        new BlockPoolInsertDestination(storage_manager_.get(),
-                                       table_.get(),
+        new BlockPoolInsertDestination(*table_,
                                        nullptr,
+                                       storage_manager_.get(),
                                        kOpIndex,
                                        thread_client_id_,
                                        &bus_));
@@ -414,9 +414,9 @@ class RunMergerTest : public ::testing::Test {
     table_->setDefaultStorageBlockLayout(StorageBlockLayout::GenerateDefaultLayout(*table_, false));
 
     insert_destination_.reset(
-        new BlockPoolInsertDestination(storage_manager_.get(),
-                                       table_.get(),
+        new BlockPoolInsertDestination(*table_,
                                        nullptr,
+                                       storage_manager_.get(),
                                        kOpIndex,
                                        thread_client_id_,
                                        &bus_));
