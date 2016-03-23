@@ -449,7 +449,7 @@ MutableBlockReference StorageManager::getBlockInternal(
     const block_id block,
     const CatalogRelationSchema &relation,
     const int numa_node) {
-  std::size_t num_slots;
+  std::size_t num_slots = 0u;
   MutableBlockReference ret;
   {
     // First, see if the block is in the buffer pool. If it is, we can return
@@ -473,11 +473,6 @@ MutableBlockReference StorageManager::getBlockInternal(
   // doesn't know about the block until blockReferenced is called, so
   // chooseBlockToEvict shouldn't return the block.
   if (!ret.valid()) {
-    // Call a best-effort method to evict blocks until the size of our buffer
-    // pool falls below the current buffer pool size plus the size of the
-    // block we are going to retrieve.
-    makeRoomForBlock(num_slots);
-
     SpinSharedMutexExclusiveLock<false> io_lock(*lock_manager_.get(block));
     {
       // Check one more time if the block got loaded in memory by someone else.
@@ -489,6 +484,12 @@ MutableBlockReference StorageManager::getBlockInternal(
         return ret;
       }
     }
+
+    // Call a best-effort method to evict blocks until the size of our buffer
+    // pool falls below the current buffer pool size plus the size of the
+    // block we are going to retrieve.
+    makeRoomForBlock(num_slots);
+
     // No other thread loaded the block before us.
     // But going forward be careful as there is a potential self-deadlock
     // situation here -- we are holding an Exclusive lock (io_lock)
