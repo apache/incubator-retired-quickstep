@@ -103,15 +103,19 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelation &proto)
   // blocks of the relation are added.
   if (proto.has_partition_scheme()) {
     const serialization::PartitionScheme &proto_partition_scheme = proto.partition_scheme();
-    const Type &attr_type = getAttributeById(proto_partition_scheme.partition_attribute_id())->getType();
-    setPartitionScheme(PartitionScheme::DeserializePartitionScheme(proto_partition_scheme, attr_type));
+
+    const attribute_id partition_attribute_id = proto_partition_scheme.header().partition_attribute_id();
+    DCHECK(hasAttributeWithId(partition_attribute_id));
+    const Type &attr_type = attr_vec_[partition_attribute_id].getType();
+
+    setPartitionScheme(PartitionScheme::ReconstructFromProto(proto_partition_scheme, attr_type));
 
     // Deserializing the NUMA placement scheme for the relation.
 #ifdef QUICKSTEP_HAVE_LIBNUMA
     if (proto.has_placement_scheme()) {
       setNUMAPlacementScheme(
           NUMAPlacementScheme::ReconstructFromProto(proto.placement_scheme(),
-                                                    proto_partition_scheme.num_partitions()));
+                                                    proto_partition_scheme.header().num_partitions()));
     }
 #endif
   }

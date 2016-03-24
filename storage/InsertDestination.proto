@@ -50,6 +50,6 @@ message BlockPoolInsertDestination {
 
 message PartitionAwareInsertDestination {
   extend InsertDestination {
-    repeated Partition partitions = 48;
+    optional PartitionScheme partition_scheme = 48;
   }
 }

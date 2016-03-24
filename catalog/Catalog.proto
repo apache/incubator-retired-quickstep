@@ -27,24 +27,37 @@ message CatalogAttribute {
   optional string display_name = 3;
 }
 
+// TODO(zuyu): Move PartitionScheme to a dedicate proto file.
+message PartitionSchemeHeader {
+  enum PartitionType {
+    HASH = 0;
+    RANGE = 1;
+  }
+
+  required PartitionType partition_type = 1;
+
+  required uint64 num_partitions = 2;
+  required uint32 partition_attribute_id = 3;
+
+  // The convention for extension numbering is that extensions for a particular
+  // PartitionType should begin from (partition_type + 1) * 16.
+  extensions 16 to max;
+}
+
+message RangePartitionSchemeHeader {
+  extend PartitionSchemeHeader {
+    // All required.
+    repeated TypedValue partition_range_boundaries = 32;
+  }
+}
+
 message Partition {
   repeated fixed64 blocks = 1 [packed=true];
 }
 
 message PartitionScheme {
-  required uint32 num_partitions = 1;
-  required uint32 partition_attribute_id = 2;
-
-  enum PartitionType {
-    HASH_PARTITION = 0;
-    RANGE_PARTITION = 1;
-  }
-
-  required PartitionType partition_type = 3;
-
-  repeated Partition partitions = 4;
-
-  repeated TypedValue partition_range_boundary = 5;
+  required PartitionSchemeHeader header = 1;
+  repeated Partition partitions = 2;
 }
 
 message NUMAPlacementScheme {
