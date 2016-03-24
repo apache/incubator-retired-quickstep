@@ -22,6 +22,7 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "catalog/Catalog.pb.h"
@@ -51,12 +52,6 @@ class IndexScheme {
    * @brief Constructor.
    **/
   IndexScheme() {
-  }
-
-  /**
-   * @brief Destructor.
-   **/
-  ~IndexScheme() {
   }
 
   /**
@@ -91,7 +86,7 @@ class IndexScheme {
    *
    * @return The number of indices defined for the relation.
    **/
-  inline const std::size_t getNumIndices() const {
+  inline std::size_t getNumIndices() const {
     return index_map_.size();
   }
 
@@ -144,33 +139,12 @@ class IndexScheme {
       return false;
     }
 
-    // Determine the type of attribute_extension based on the index type.
-    auto *attribute_extension = &(CSBTreeIndexSubBlockDescription::indexed_attribute_id);  // default
-    switch (description_expected.sub_block_type()) {
-      case IndexSubBlockDescription_IndexSubBlockType_CSB_TREE:
-        break;
-      case IndexSubBlockDescription_IndexSubBlockType_BLOOM_FILTER:
-        attribute_extension = &(BloomFilterIndexSubBlockDescription::indexed_attribute_id);
-        break;
-      case IndexSubBlockDescription_IndexSubBlockType_SMA:
-        attribute_extension = &(SMAIndexSubBlockDescription::indexed_attribute_id);
-      default:
-        break;
-    }
+    // Serialize the two protobuf index descriptions and compare.
+    std::string serialized_description_expected, serialized_description_checked;
+    description_expected.SerializeToString(&serialized_description_expected);
+    description_checked.SerializeToString(&serialized_description_checked);
 
-    // Check if there are matching attribute ids for both indices of same type.
-    // Create a hash map of attribute ids in description_expected,
-    // and probe the hash map for duplicates using the attribute ids from description_checked.
-    std::unordered_map<std::int32_t, bool> existence_map;
-    for (int i = 0; i < description_expected.ExtensionSize(*attribute_extension); ++i) {
-      existence_map.emplace(description_expected.GetExtension(*attribute_extension, i), true);
-    }
-    for (int i = 0; i < description_checked.ExtensionSize(*attribute_extension); ++i) {
-      if (existence_map.find(description_checked.GetExtension(*attribute_extension, i)) != existence_map.end()) {
-        return true;  // there is a matching attribute id with same index type.
-      }
-    }
-    return false;
+    return (serialized_description_expected.compare(serialized_description_checked) == 0);
   }
 
   /**

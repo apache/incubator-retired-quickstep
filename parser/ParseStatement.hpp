@@ -305,7 +305,7 @@ class ParseStatementCreateIndex : public ParseStatement {
       return custom_properties_node_.get();
     }
 
-    const bool hasCustomProperties() const {
+    bool hasCustomProperties() const {
       return custom_properties_node_ != nullptr;
     }
 
@@ -344,14 +344,14 @@ class ParseStatementCreateIndex : public ParseStatement {
  private:
     std::unique_ptr<ParseString> index_name_;
     std::unique_ptr<ParseString> relation_name_;
-    std::unique_ptr<PtrList<ParseAttribute> > attribute_list_;
+    std::unique_ptr<PtrList<ParseAttribute>> attribute_list_;
     std::unique_ptr<ParseString> index_type_;
     std::unique_ptr<IndexProperties> index_properties_;
     // Optional custom properties for the index can be specified during creation.
     std::unique_ptr<ParseIndexProperties> custom_properties_node_;
 
     void initializeIndexType() {
-      int index_type_enum_val = std::stoi(index_type_->value());
+      const int index_type_enum_val = std::stoi(index_type_->value());
       switch (index_type_enum_val) {
         case IndexSubBlockType::kBloomFilter:
           index_properties_.reset(new BloomFilterIndexProperties());

@@ -84,7 +84,7 @@ class IndexProperties {
    *
    * @return The string describing the reason for invalid index
    **/
-  virtual const std::string getReasonForInvalidIndexDescription() const = 0;
+  virtual std::string getReasonForInvalidIndexDescription() const = 0;
 
   /**
    * @brief Returns a protobuf object representing the index description.
@@ -133,6 +133,7 @@ class IndexProperties {
   std::unique_ptr<IndexSubBlockDescription> index_sub_block_description_;
 };
 
+
 /**
  * @brief Implementation of index properties for Bloom Filter Index
  */
@@ -173,7 +174,7 @@ class BloomFilterIndexProperties : public IndexProperties {
     valid_property_map_[kBloomFilterProjectElementCount] = ParseKeyValue::KeyValueType::kStringInteger;
   }
 
-  ~BloomFilterIndexProperties() {
+  ~BloomFilterIndexProperties() override {
   }
 
   bool isIndexDescriptionValid() const override {
@@ -184,7 +185,7 @@ class BloomFilterIndexProperties : public IndexProperties {
     return invalid_property_node_;
   }
 
-  const std::string getReasonForInvalidIndexDescription() const override {
+  std::string getReasonForInvalidIndexDescription() const override {
     switch (invalid_index_type_) {
       case InvalidIndexType::kNone:
         return "";
@@ -291,6 +292,7 @@ class BloomFilterIndexProperties : public IndexProperties {
   }
 };
 
+
 /**
  * @brief Implementation of index properties for CSB Tree Index.
  */
@@ -313,7 +315,7 @@ class CSBTreeIndexProperties : public IndexProperties {
     index_sub_block_description_->set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
   }
 
-  ~CSBTreeIndexProperties() {
+  ~CSBTreeIndexProperties() override {
   }
 
   bool isIndexDescriptionValid() const override {
@@ -324,7 +326,7 @@ class CSBTreeIndexProperties : public IndexProperties {
     return invalid_property_node_;
   }
 
-  const std::string getReasonForInvalidIndexDescription() const override {
+  std::string getReasonForInvalidIndexDescription() const override {
     switch (invalid_index_type_) {
       case InvalidIndexType::kNone:
         return "";
@@ -350,6 +352,7 @@ class CSBTreeIndexProperties : public IndexProperties {
   InvalidIndexType invalid_index_type_;
   const ParseKeyValue *invalid_property_node_;  // referred object owned by ParseIndexProperties class.
 };
+
 
 /**
  * @brief Encapsulates the IndexProperties key-value list. Makes the job

@@ -21,7 +21,6 @@
 
 namespace quickstep {
   // Initialize constants for various index properties.
-
   const char *BloomFilterIndexProperties::kBloomFilterSizeInBytes = "size";
   const char *BloomFilterIndexProperties::kBloomFilterNumHashes = "num_hashes";
   const char *BloomFilterIndexProperties::kBloomFilterProjectElementCount = "projected_element_count";

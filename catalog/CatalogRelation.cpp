@@ -115,15 +115,6 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelation &proto)
 #endif
   }
 
-  // Deserializing the blocks of the relation.
-  for (int i = 0; i < proto.blocks_size(); ++i) {
-    blocks_.emplace_back(static_cast<block_id>(proto.blocks(i)));
-  }
-
-  DCHECK(StorageBlockLayout::DescriptionIsValid(*this, proto.default_layout()));
-
-  default_layout_.reset(new StorageBlockLayout(*this, proto.default_layout()));
-
   // Deserializing the index scheme defined for the relation, if any.
   if (proto.has_index_scheme()) {
     index_scheme_.reset(IndexScheme::ReconstructFromProto(proto.index_scheme()));
@@ -137,6 +128,14 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelation &proto)
       << "Block layout defines some indices not present in the catalog";
     }
   }
+
+  // Deserializing the blocks of the relation.
+  for (int i = 0; i < proto.blocks_size(); ++i) {
+    blocks_.emplace_back(static_cast<block_id>(proto.blocks(i)));
+  }
+
+  DCHECK(StorageBlockLayout::DescriptionIsValid(*this, proto.default_layout()));
+  default_layout_.reset(new StorageBlockLayout(*this, proto.default_layout()));
 }
 
 void CatalogRelation::setPartitionScheme(PartitionScheme* partition_scheme) {
@@ -144,13 +143,12 @@ void CatalogRelation::setPartitionScheme(PartitionScheme* partition_scheme) {
   partition_scheme_.reset(partition_scheme);
 }
 
-
 serialization::CatalogRelation CatalogRelation::getProto() const {
   serialization::CatalogRelation proto;
 
   proto.set_name(name_);
   proto.set_temporary(temporary_);
-  proto.mutable_default_layout()->CopyFrom(getDefaultStorageBlockLayout().getDescription());
+  proto.mutable_default_layout()->MergeFrom(getDefaultStorageBlockLayout().getDescription());
 
   {
     SpinSharedMutexSharedLock<false> lock(blocks_mutex_);

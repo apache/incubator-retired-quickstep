@@ -46,7 +46,7 @@ bool IndexScheme::ProtoIsValid(const serialization::IndexScheme &proto) {
   for (int i = 0; i < proto.index_entries_size(); ++i) {
     const serialization::IndexScheme_IndexEntry &index_entry = proto.index_entries(i);
     for (int j = 0; j < index_entry.index_description_size(); ++j) {
-      IndexSubBlockDescription index_description = index_entry.index_description(j);
+      const IndexSubBlockDescription &index_description = index_entry.index_description(j);
       if (!index_description.IsInitialized()) {
         return false;
       }

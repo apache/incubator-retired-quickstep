@@ -842,7 +842,7 @@ void ExecutionGenerator::convertCreateIndex(
       // Check if the given index description is valid.
       THROW_SQL_ERROR() << "The index with given properties cannot be created.";
     } else {
-      index_descriptions.emplace_back(index_description);
+      index_descriptions.push_back(std::move(index_description));
     }
   }
 
