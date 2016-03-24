@@ -112,7 +112,7 @@ class WindowAggregationOperatorTest : public ::testing::Test {
     MutableBlockReference storage_block;
     for (tuple_id i = 0; i < kNumBlocks; ++i) {
       // Create block
-      block_id block_id = storage_manager_->createBlock(*table_, layout.get());
+      block_id block_id = storage_manager_->createBlock(*table_, *layout);
       storage_block = storage_manager_->getBlockMutable(block_id, *table_);
       table_->addBlock(block_id);
 
@@ -187,14 +187,15 @@ class WindowAggregationOperatorTest : public ::testing::Test {
     insert_destination_proto->set_insert_destination_type(
         serialization::InsertDestinationType::BLOCK_POOL);
     insert_destination_proto->set_relation_id(output_relation_id);
-    insert_destination_proto->set_need_to_add_blocks_from_relation(false);
+    //TODO SIDDHARTH SURESH REMOVING LINE BELOW
+    //insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
-   // insert_destination_proto->set_foreman_client_id(tmb::kClientIdNone);
+    //insert_destination_proto->set_foreman_client_id(tmb::kClientIdNone);
 
     // Set up the QueryContext.
    //TODO SIDDHARTH COMMENTED BELOW 
-   //query_context_.reset(new QueryContext(
-      //  query_context_proto, db_.get(), storage_manager_.get(), &bus_));
+   query_context_.reset(new QueryContext(
+        query_context_proto, db_.get(), storage_manager_.get(), tmb::kClientIdNone, nullptr));
 
     // Create Operators.
     std::vector<std::unique_ptr<const Scalar>> grouping;
@@ -219,20 +220,21 @@ class WindowAggregationOperatorTest : public ::testing::Test {
   }
 
   void execute() {
- //COMMENTED BELOW SIDDHARTH TODO  
-/* 
+
    const std::size_t op_index = 0;
 
  WorkOrdersContainer op_container(1, 0);
-    op_->getAllWorkOrders(&op_container);
+    op_->getAllWorkOrders(&op_container, query_context_.get(), storage_manager_.get(),
+            tmb::kClientIdNone /* foreman_client_id */,
+            nullptr /* TMB */);
 
  
     while (op_container.hasNormalWorkOrder(op_index)) {
       WorkOrder *wu = op_container.getNormalWorkOrder(op_index);
-      wu->execute(query_context_.get(), db_.get(), storage_manager_.get());
+      wu->execute();
       delete wu;
     }
-*/
+
   }
 
 

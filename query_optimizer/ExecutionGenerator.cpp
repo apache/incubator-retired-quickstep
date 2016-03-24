@@ -1217,8 +1217,9 @@ void ExecutionGenerator::convertWindowAggregate(
       S::InsertDestinationType::BLOCK_POOL);
   input_insert_destination_proto->set_relation_id(
       input_relation_info->relation->getID());
-  input_insert_destination_proto->set_need_to_add_blocks_from_relation(true);
-  //TODO SIDDHARTH COMMENTED BELOW LINES
+//TODO SIDDHARTH COMMENTED BELOW LINES
+  //input_insert_destination_proto->set_need_to_add_blocks_from_relation(true);
+  
   //input_insert_destination_proto->set_foreman_client_id(
     //  optimizer_context_->getForemanClientID());
   const TypedValue emit_duration_value =
@@ -1299,8 +1300,8 @@ void ExecutionGenerator::convertWindowAggregate(
           window_attr,
           window_duration_value,
           ToSecs(age_duration_value, "age duration"),
-          output_relation->getID(),
           insert_destination_index,
+          output_relation->getID(),
           HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type),
           optimizer_context_->storage_manager()));
   insert_destination_proto->set_relational_op_index(window_aggregation_operator_index);

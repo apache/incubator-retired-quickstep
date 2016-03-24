@@ -208,10 +208,9 @@ target_link_libraries(quickstep_relationaloperators_NestedLoopsJoinOperator
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_storage_ValueAccessor
                       quickstep_types_containers_ColumnVectorsValueAccessor
-#<<<<<<< HEAD
                       quickstep_utility_Macros
                       tmb)
-#commentNew
+
 target_link_libraries(quickstep_relationaloperators_PrintToScreenOperator
                       glog
                       quickstep_catalog_CatalogRelation
@@ -223,7 +222,6 @@ target_link_libraries(quickstep_relationaloperators_PrintToScreenOperator
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_StorageBlockInfo
                       quickstep_utility_Macros)
-#>>>>>>> 4f2ef9e4e1c5f24348ec07feadacc0899188519b
 
 target_link_libraries(quickstep_relationaloperators_RebuildWorkOrder
                       glog
