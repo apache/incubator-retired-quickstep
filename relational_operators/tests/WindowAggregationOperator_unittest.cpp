@@ -189,13 +189,9 @@ class WindowAggregationOperatorTest : public ::testing::Test {
     insert_destination_proto->set_insert_destination_type(
         serialization::InsertDestinationType::BLOCK_POOL);
     insert_destination_proto->set_relation_id(output_relation_id);
-    //TODO SIDDHARTH SURESH REMOVING LINE BELOW
-    //insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
-    //insert_destination_proto->set_foreman_client_id(tmb::kClientIdNone);
 
     // Set up the QueryContext.
-   //TODO SIDDHARTH COMMENTED BELOW 
    query_context_.reset(new QueryContext(
         query_context_proto, db_.get(), storage_manager_.get(), client_id_, &bus_));
 
@@ -278,7 +274,7 @@ class WindowAggregationOperatorTest : public ::testing::Test {
       }
       total_tuples += sub_block.numTuples();
     }
- //   EXPECT_EQ(kNumWindows * kNumBlocks, (unsigned)total_tuples);
+    EXPECT_EQ((std::int32_t)kNumWindows * kNumBlocks, (std::int32_t)total_tuples);
   }
 
   template <class FinalDataType>
