@@ -81,6 +81,8 @@ class WindowAggregationOperatorTest : public ::testing::Test {
   virtual void SetUp() {
     bus_.Initialize();
     client_id_ = bus_.Connect();
+    bus_.RegisterClientAsSender(client_id_, kDataPipelineMessage);
+    bus_.RegisterClientAsReceiver(client_id_, kDataPipelineMessage);
     thread_id_map_ = ClientIDMap::Instance();
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
@@ -195,7 +197,7 @@ class WindowAggregationOperatorTest : public ::testing::Test {
     // Set up the QueryContext.
    //TODO SIDDHARTH COMMENTED BELOW 
    query_context_.reset(new QueryContext(
-        query_context_proto, db_.get(), storage_manager_.get(), tmb::kClientIdNone, nullptr));
+        query_context_proto, db_.get(), storage_manager_.get(), client_id_, &bus_));
 
     // Create Operators.
     std::vector<std::unique_ptr<const Scalar>> grouping;
@@ -225,7 +227,7 @@ class WindowAggregationOperatorTest : public ::testing::Test {
 
  WorkOrdersContainer op_container(1, 0);
     op_->getAllWorkOrders(&op_container, query_context_.get(), storage_manager_.get(),
-            tmb::kClientIdNone /* foreman_client_id */,
+    		client_id_ /* foreman_client_id */,
             nullptr /* TMB */);
 
  
@@ -248,7 +250,7 @@ class WindowAggregationOperatorTest : public ::testing::Test {
 
     const std::vector<block_id> result =
         insert_destination->getTouchedBlocks();
-    std::size_t total_tuples = 0;
+    std::int32_t total_tuples = 0;
     for (size_t bid = 0; bid < result.size(); ++bid) {
       BlockReference block = storage_manager_->getBlock(
           result[bid], insert_destination->getRelation());
@@ -276,7 +278,7 @@ class WindowAggregationOperatorTest : public ::testing::Test {
       }
       total_tuples += sub_block.numTuples();
     }
-   // EXPECT_EQ(kNumWindows * kNumBlocks, total_tuples);
+ //   EXPECT_EQ(kNumWindows * kNumBlocks, (unsigned)total_tuples);
   }
 
   template <class FinalDataType>
