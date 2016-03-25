@@ -1306,6 +1306,7 @@ void ExecutionGenerator::convertWindowAggregate(
           optimizer_context_->storage_manager()));
   insert_destination_proto->set_relational_op_index(window_aggregation_operator_index);
   DCHECK(input_relation_info->isStoredRelation());
+
   execution_plan_->addDirectDependency(window_aggregation_operator_index,
                                        monitored_text_scan_operator_index,
                                        false /* is pipeline breaker. */);

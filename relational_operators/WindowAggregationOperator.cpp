@@ -144,10 +144,11 @@ bool WindowAggregationOperator::getAllWorkOrders(
     }
     return started_;
   } else {
+	input_relation_block_ids_=input_relation_.getBlocksSnapshot();
     while (num_workorders_generated_ < input_relation_block_ids_.size()) {
-      container->addNormalWorkOrder(
+    	container->addNormalWorkOrder(
           new WindowAggregationWorkOrder(
-              input_relation_block_ids_[num_workorders_generated_],
+        		  input_relation_block_ids_[num_workorders_generated_],
               input_relation_.getID(),
               output_dest_id_,
 	      &state_,
