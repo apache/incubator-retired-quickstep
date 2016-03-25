@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "catalog/CatalogAttribute.hpp"
+#include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "storage/StorageBlockLayout.hpp"
@@ -36,6 +37,7 @@ namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
+class CatalogDatabase;
 class CatalogRelation;
 class QueryContext;
 class StorageManager;
@@ -61,12 +63,13 @@ class CreateIndexOperator : public RelationalOperator {
    * @param index_descriptions Set of index_descriptions associated with this index.
    **/
   CreateIndexOperator(CatalogRelation *relation,
+                      CatalogDatabase *database,
                       const std::string &index_name,
                       const std::vector<IndexSubBlockDescription> &index_descriptions)
       : relation_(DCHECK_NOTNULL(relation)),
+        database_(DCHECK_NOTNULL(database)),
         index_name_(index_name),
-        index_descriptions_(index_descriptions),
-        work_generated_(false) {}
+        index_descriptions_(index_descriptions) {}
 
   ~CreateIndexOperator() override {}
 
@@ -83,9 +86,9 @@ class CreateIndexOperator : public RelationalOperator {
 
  private:
   CatalogRelation *relation_;
+  CatalogDatabase *database_;
   const std::string &index_name_;
   const std::vector<IndexSubBlockDescription> index_descriptions_;
-  bool work_generated_;
 
   DISALLOW_COPY_AND_ASSIGN(CreateIndexOperator);
 };

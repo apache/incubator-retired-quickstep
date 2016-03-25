@@ -17,20 +17,14 @@
 
 #include "catalog/IndexScheme.hpp"
 
+#include <cstddef>
 #include <memory>
 #include <string>
-#include <unordered_map>
-#include <utility>
 #include <vector>
 
 #include "catalog/Catalog.pb.h"
-#include "catalog/CatalogTypedefs.hpp"
-#include "storage/StorageBlockInfo.hpp"
-#include "threading/SpinSharedMutex.hpp"
-#include "types/TypedValue.hpp"
-#include "types/operations/comparisons/Comparison.hpp"
-#include "types/operations/comparisons/LessComparison.hpp"
-#include "utility/Macros.hpp"
+#include "storage/IndexSubBlockDescriptionFactory.hpp"
+#include "storage/StorageBlockLayout.pb.h"
 
 #include "glog/logging.h"
 
@@ -47,7 +41,7 @@ bool IndexScheme::ProtoIsValid(const serialization::IndexScheme &proto) {
     const serialization::IndexScheme_IndexEntry &index_entry = proto.index_entries(i);
     for (int j = 0; j < index_entry.index_description_size(); ++j) {
       const IndexSubBlockDescription &index_description = index_entry.index_description(j);
-      if (!index_description.IsInitialized()) {
+      if (!IndexSubBlockDescriptionFactory::ProtoIsValid(index_description)) {
         return false;
       }
     }

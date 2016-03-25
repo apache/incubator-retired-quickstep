@@ -45,7 +45,7 @@ void CreateIndex::getFieldStringItems(
   container_child_fields->push_back(CastSharedPtrVector<OptimizerTreeBase>(index_attributes_));
 
   inline_field_names->push_back("serialized_index_description");
-  inline_field_values->push_back(index_description_->SerializeAsString());
+  inline_field_values->push_back(index_description_->DebugString());
 }
 
 }  // namespace physical

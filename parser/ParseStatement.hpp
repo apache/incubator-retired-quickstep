@@ -359,6 +359,8 @@ class ParseStatementCreateIndex : public ParseStatement {
         case IndexSubBlockType::kCSBTree:
           index_properties_.reset(new CSBTreeIndexProperties());
           break;
+        case IndexSubBlockType::kSMA:
+          LOG(FATAL) << "Currently cannot create this index subblock type using CREATE INDEX.";
         default:
           LOG(FATAL) << "Unknown index subblock type.";
           break;

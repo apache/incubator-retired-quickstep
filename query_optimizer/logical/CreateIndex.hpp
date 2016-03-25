@@ -71,7 +71,7 @@ class CreateIndex : public Logical {
   /**
    * @return Shared pointer to the index properties.
    */
-  const std::shared_ptr<const IndexSubBlockDescription> index_description() const {
+  std::shared_ptr<const IndexSubBlockDescription> index_description() const {
     return index_description_;
   }
 
@@ -126,12 +126,12 @@ class CreateIndex : public Logical {
         index_name_(index_name),
         index_attributes_(index_attributes),
         index_description_(index_description) {
-        addChild(input_);
+    addChild(input_);
   }
 
-  LogicalPtr input_;
-  std::string index_name_;
-  std::vector<expressions::AttributeReferencePtr> index_attributes_;
+  const LogicalPtr input_;
+  const std::string index_name_;
+  const std::vector<expressions::AttributeReferencePtr> index_attributes_;
   std::shared_ptr<const IndexSubBlockDescription> index_description_;
 
   DISALLOW_COPY_AND_ASSIGN(CreateIndex);

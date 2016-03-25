@@ -36,7 +36,6 @@ add_library(quickstep_catalog_CatalogRelationSchema
             CatalogRelationSchema.hpp)
 add_library(quickstep_catalog_CatalogTypedefs ../empty_src.cpp CatalogTypedefs.hpp)
 add_library(quickstep_catalog_IndexScheme IndexScheme.cpp IndexScheme.hpp)
-add_library(quickstep_catalog_PartitionScheme PartitionScheme.cpp PartitionScheme.hpp)
 if(QUICKSTEP_HAVE_LIBNUMA)
   add_library(quickstep_catalog_NUMAPlacementScheme NUMAPlacementScheme.cpp NUMAPlacementScheme.hpp)
 endif()
@@ -96,13 +95,9 @@ target_link_libraries(quickstep_catalog_CatalogRelation
                       quickstep_utility_PtrVector)
 target_link_libraries(quickstep_catalog_IndexScheme
                       glog
-                      quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_Catalog_proto
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_threading_SpinSharedMutex
-                      quickstep_types_TypedValue
-                      quickstep_types_operations_comparisons_Comparison
-                      quickstep_types_operations_comparisons_LessComparison
+                      quickstep_storage_IndexSubBlockDescriptionFactory
+                      quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_Macros)
 
 if(QUICKSTEP_HAVE_LIBNUMA)

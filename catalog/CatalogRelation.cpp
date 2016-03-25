@@ -121,8 +121,8 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelation &proto)
     // Ensure that indices present in the block layout are the same as in the index scheme.
     const std::size_t num_indices_expected = index_scheme_->getNumIndices();
     const std::size_t num_indices_checked = proto.default_layout().index_description_size();
-    DCHECK(num_indices_expected == num_indices_checked);
-    for (int i = 0; i < proto.default_layout().index_description_size(); ++i) {
+    DCHECK_EQ(num_indices_expected, num_indices_checked);
+    for (std::size_t i = 0; i < num_indices_checked; ++i) {
       const IndexSubBlockDescription &description_checked = proto.default_layout().index_description(i);
       DCHECK(index_scheme_->hasIndexWithDescription(description_checked))
       << "Block layout defines some indices not present in the catalog";
@@ -158,7 +158,7 @@ serialization::CatalogRelation CatalogRelation::getProto() const {
   }
 
   if (hasIndexScheme()) {
-    proto.mutable_index_scheme()->CopyFrom(index_scheme_->getProto());
+    proto.mutable_index_scheme()->MergeFrom(index_scheme_->getProto());
   }
 
   for (PtrVector<CatalogAttribute, true>::const_iterator it = attr_vec_.begin();

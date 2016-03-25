@@ -239,7 +239,7 @@ class CatalogRelation : public CatalogRelationSchema {
    * @return Whether the index exists or not.
    **/
   bool hasIndexWithName(const std::string &index_name) const {
-    SpinSharedMutexSharedLock<false> lock(index_scheme_mutex);
+    SpinSharedMutexSharedLock<false> lock(index_scheme_mutex_);
     return index_scheme_ && index_scheme_->hasIndexWithName(index_name);
   }
 
@@ -252,7 +252,7 @@ class CatalogRelation : public CatalogRelationSchema {
    * @return Whether a similar index description was already defined or not.
    **/
   bool hasIndexWithDescription(const IndexSubBlockDescription &index_description) const {
-    SpinSharedMutexSharedLock<false> lock(index_scheme_mutex);
+    SpinSharedMutexSharedLock<false> lock(index_scheme_mutex_);
     return index_scheme_ && index_scheme_->hasIndexWithDescription(index_description);
   }
 
@@ -264,7 +264,7 @@ class CatalogRelation : public CatalogRelationSchema {
    * @return Whether the index was added successfully or not
    **/
   bool addIndex(const std::string &index_name, const std::vector<IndexSubBlockDescription> &index_descriptions) {
-    SpinSharedMutexExclusiveLock<false> lock(index_scheme_mutex);
+    SpinSharedMutexExclusiveLock<false> lock(index_scheme_mutex_);
     // Create an index_scheme, if it does not exist.
     if (index_scheme_ == nullptr) {
       index_scheme_.reset(new IndexScheme());
@@ -280,6 +280,13 @@ class CatalogRelation : public CatalogRelationSchema {
       if (index_scheme_->hasIndexWithDescription(*it)) {
         return false;
       }
+    }
+
+    // Verify that the CatalogRelation has a valid layout.
+    // This check is also required for some unit tests on catalog.
+    if (default_layout_ == nullptr) {
+      // Calling this function initializes the default_layout_.
+      getDefaultStorageBlockLayout();
     }
 
     StorageBlockLayoutDescription *layout = default_layout_->getDescriptionMutable();
@@ -380,7 +387,7 @@ class CatalogRelation : public CatalogRelationSchema {
   // Defines a set of indices defined for this relation.
   std::unique_ptr<IndexScheme> index_scheme_;
   // Mutex for locking the index scheme.
-  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> index_scheme_mutex;
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> index_scheme_mutex_;
 
 #ifdef QUICKSTEP_HAVE_LIBNUMA
   // NUMA placement scheme object which has the mapping between the partitions

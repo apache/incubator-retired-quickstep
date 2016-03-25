@@ -19,6 +19,7 @@
 #include <limits>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "catalog/Catalog.hpp"
 #include "catalog/CatalogAttribute.hpp"
@@ -502,6 +503,42 @@ TEST_F(CatalogTest, CatalogSplitRowStoreSerializationTest) {
       TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
 
   rel->setDefaultStorageBlockLayout(new StorageBlockLayout(*rel, layout_description));
+
+  checkCatalogSerialization();
+}
+
+TEST_F(CatalogTest, CatalogIndexTest) {
+  CatalogRelation* const rel = createCatalogRelation("rel");
+  StorageBlockLayoutDescription layout_description(rel->getDefaultStorageBlockLayout().getDescription());
+
+  rel->addAttribute(new CatalogAttribute(nullptr, "attr_idx1", TypeFactory::GetType(kInt)));
+  rel->addAttribute(new CatalogAttribute(nullptr, "attr_idx2", TypeFactory::GetType(kInt)));
+
+  layout_description.mutable_tuple_store_description()->set_sub_block_type(
+      TupleStorageSubBlockDescription::PACKED_ROW_STORE);
+
+  rel->setDefaultStorageBlockLayout(new StorageBlockLayout(*rel, layout_description));
+
+  std::vector<IndexSubBlockDescription> index_descriptions;
+  IndexSubBlockDescription index_description;
+  index_description.set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
+  index_description.add_indexed_attribute_ids(rel->getAttributeByName("attr_idx1")->getID());
+  index_descriptions.emplace_back(index_description);
+
+  EXPECT_TRUE(rel->addIndex("idx1", index_descriptions));
+  EXPECT_TRUE(rel->hasIndexWithName("idx1"));
+  // Adding an index with duplicate name should return false.
+  EXPECT_FALSE(rel->addIndex("idx1", index_descriptions));
+  // Adding an index of same type with different name on the same attribute should return false.
+  EXPECT_FALSE(rel->addIndex("idx2", index_descriptions));
+
+  index_descriptions.clear();
+  index_description.set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
+  index_description.add_indexed_attribute_ids(rel->getAttributeByName("attr_idx2")->getID());
+  index_descriptions.emplace_back(index_description);
+
+  EXPECT_TRUE(rel->addIndex("idx2", index_descriptions));
+  EXPECT_TRUE(rel->hasIndexWithName("idx2"));
 
   checkCatalogSerialization();
 }

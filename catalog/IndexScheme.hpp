@@ -22,16 +22,10 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 #include "catalog/Catalog.pb.h"
-#include "catalog/CatalogTypedefs.hpp"
-#include "storage/StorageBlockInfo.hpp"
-#include "threading/SpinSharedMutex.hpp"
-#include "types/TypedValue.hpp"
-#include "types/operations/comparisons/Comparison.hpp"
-#include "types/operations/comparisons/LessComparison.hpp"
+#include "storage/StorageBlockLayout.pb.h"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -173,9 +167,9 @@ class IndexScheme {
   // A map of index names to their index description.
   std::unordered_map<std::string, std::vector<IndexSubBlockDescription>> index_map_;
 
- private:
   DISALLOW_COPY_AND_ASSIGN(IndexScheme);
 };
+
 /** @} */
 
 }  // namespace quickstep

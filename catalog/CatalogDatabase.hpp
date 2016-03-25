@@ -139,6 +139,7 @@ class CatalogDatabase {
   enum class Status {
     kConsistent = 0,
     kPendingBlockDeletions,
+    kPendingIndexAdditions
   };
 
   /**

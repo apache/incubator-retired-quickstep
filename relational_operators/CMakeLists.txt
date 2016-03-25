@@ -91,6 +91,7 @@ target_link_libraries(quickstep_relationaloperators_BuildHashOperator
 target_link_libraries(quickstep_relationaloperators_CreateIndexOperator
                       glog
                       quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_storage_StorageBlockLayout
@@ -231,7 +232,7 @@ target_link_libraries(quickstep_relationaloperators_SampleOperator
                       glog
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
-                      quickstep_queryexecution_QueryContext                                 
+                      quickstep_queryexecution_QueryContext
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_WorkOrder
@@ -240,7 +241,7 @@ target_link_libraries(quickstep_relationaloperators_SampleOperator
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
                       quickstep_utility_Macros
-                      tmb)                      
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_SaveBlocksOperator
                       glog
                       quickstep_catalog_CatalogTypedefs

@@ -811,16 +811,15 @@ void ExecutionGenerator::convertCreateIndex(
       optimizer_context_->catalog_database()->getRelationByIdMutable(
             input_relation_info->relation->getID());
 
-  // Check if any index with the specified name already exists
+  // Check if any index with the specified name already exists.
   if (input_relation->hasIndexWithName(physical_plan->index_name())) {
     THROW_SQL_ERROR() << "The relation " << input_relation->getName()
-    << " already has an index named "<< physical_plan->index_name();
+        << " already has an index named "<< physical_plan->index_name();
   }
 
-  // Assertion: must have at least one attribute specified to build index upon.
   DCHECK_GT(physical_plan->index_attributes().size(), 0u);
 
-  // convert attribute references to a vector of pointers to catalog attributes
+  // Convert attribute references to a vector of pointers to catalog attributes.
   std::vector<const CatalogAttribute*> index_attributes;
   for (const E::AttributeReferencePtr &attribute : physical_plan->index_attributes()) {
     const CatalogAttribute *catalog_attribute
@@ -847,6 +846,7 @@ void ExecutionGenerator::convertCreateIndex(
   }
 
   execution_plan_->addRelationalOperator(new CreateIndexOperator(input_relation,
+                                                                 optimizer_context_->catalog_database(),
                                                                  physical_plan->index_name(),
                                                                  index_descriptions));
 }

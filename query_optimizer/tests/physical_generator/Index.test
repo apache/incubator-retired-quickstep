@@ -1,0 +1,58 @@
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+[default optimized_logical_plan physical_plan]
+CREATE INDEX csbIndex ON test(int_col) USING CSBTREE
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=CreateIndex[index_name=csbIndex,
+| serialized_index_description=sub_block_type: CSB_TREE
+]
+| +-relation=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-index_attributes=
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=CreateIndex[index_name=csbIndex,
+| serialized_index_description=sub_block_type: CSB_TREE
+]
+| +-relation=TableReference[relation=Test,alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-index_attributes=
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+==
+
+# Bloom filter index is not currently implemented.
+CREATE INDEX bloomIndex ON test(int_col) USING BLOOMFILTER
+--
+ERROR: Bloom Filter index is not yet implemented (1 : 48)
+...INDEX bloomIndex ON test(int_col) USING BLOOMFILTER
+                                           ^

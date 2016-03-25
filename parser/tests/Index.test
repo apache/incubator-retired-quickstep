@@ -37,9 +37,18 @@ CREATE INDEX test ON test
                          ^
 ==
 
-# Currently supported indexes (bloom_filter)
+# Currently supported indices (csbtree, bloomfilter)
+# Unsupported indices should result in syntax error
 CREATE INDEX test ON test USING arbitrary
 --
 ERROR: syntax error (1 : 33)
 CREATE INDEX test ON test USING arbitrary
                                 ^
+==
+CREATE INDEX bloomIndex ON test USING BLOOMFILTER
+--
+CreateIndexStatement[index_name=bloomIndex,relation_name=test,index_type=2]
+==
+CREATE INDEX csbIndex ON test USING CSBTREE
+--
+CreateIndexStatement[index_name=csbIndex,relation_name=test,index_type=0]

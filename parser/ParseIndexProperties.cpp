@@ -17,8 +17,6 @@
 
 #include "parser/ParseIndexProperties.hpp"
 
-#include <string>
-
 namespace quickstep {
   // Initialize constants for various index properties.
   const char *BloomFilterIndexProperties::kBloomFilterSizeInBytes = "size";

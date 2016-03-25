@@ -20,7 +20,6 @@
 
 #include <cstdint>
 #include <memory>
-#include <set>
 #include <string>
 #include <vector>
 #include <unordered_map>
@@ -47,16 +46,33 @@ class IndexProperties {
  public:
   typedef std::unordered_map<const char*, ParseKeyValue::KeyValueType> valid_property_map_type;
 
+  // An enum specifying the reason for an invalid index description, if any.
+  enum class InvalidIndexType {
+    kNone = 0,
+    kUnimplemented,
+    kDuplicateKey,
+    kInvalidKey,
+    kSizeIsFloat,
+    kSizeIsNegative,
+    kNumHashesIsFloat,
+    kNumHashesIsNegative,
+    kProjectedCountIsFloat,
+    kProjectedCountIsNegative
+  };
+
   /**
    * @brief Constructor.
    *
-   * @param is_index_description_valid Boolean flag that indicates whether
-   *                                   an index is valid or not.
-   * @param reason_for_invalid_description Printable reason for invalid index.
-   * @param invalid_property_node Parse node that may be caused the index
-   *                              to become valid.
+   * @param index_sub_block_description A pointer to an IndexSubBlockDescription proto object.
+   * @param invalid_index_type An enum describing the validity of index.
+   * @param invalid_property_node A pointer to an invalid ParseKeyValue node, if any.
    **/
-  IndexProperties() {
+  IndexProperties(IndexSubBlockDescription *index_sub_block_description,
+                  const InvalidIndexType &invalid_index_type,
+                  const ParseKeyValue *invalid_property_node)
+      : index_sub_block_description_(index_sub_block_description),
+        invalid_index_type_(invalid_index_type),
+        invalid_property_node_(invalid_property_node) {
   }
 
   /**
@@ -87,15 +103,6 @@ class IndexProperties {
   virtual std::string getReasonForInvalidIndexDescription() const = 0;
 
   /**
-   * @brief Returns a protobuf object representing the index description.
-   *
-   * @return An IndexSubBlockDescription object.
-   **/
-  const IndexSubBlockDescription* getIndexDescription() const {
-    return index_sub_block_description_.get();
-  }
-
-  /**
    * @brief Modifies the index description given a set of custom properties
    *        specified as a key-value list of properties.
    *
@@ -104,6 +111,15 @@ class IndexProperties {
    *         and was applied correctly, otherwise returns false.
    **/
   virtual bool addCustomProperties(const PtrList<ParseKeyValue> *key_value_list) = 0;
+
+  /**
+   * @brief Returns a protobuf object representing the index description.
+   *
+   * @return An IndexSubBlockDescription object.
+   **/
+  const IndexSubBlockDescription* getIndexDescription() const {
+    return index_sub_block_description_.get();
+  }
 
   /**
    * @brief A helper function that checks whether the given list of custom properties
@@ -131,6 +147,24 @@ class IndexProperties {
 
  protected:
   std::unique_ptr<IndexSubBlockDescription> index_sub_block_description_;
+  InvalidIndexType invalid_index_type_;
+  const ParseKeyValue *invalid_property_node_;  // referred object owned by ParseIndexProperties class.
+
+  /**
+   * @brief A setter function that be used to invalidate the index.
+   *
+   * @param invalid_index_type An enum corresponding to the reason, which invalidated the index.
+   * @param invalid_property_node Pointer to the node, which may have caused invalidation.
+   **/
+  void setIndexDescriptionAsInvalid(const InvalidIndexType invalid_index_type,
+                                    const ParseKeyValue *invalid_property_node) {
+    invalid_index_type_ = invalid_index_type;
+    invalid_property_node_ = invalid_property_node;
+    index_sub_block_description_.reset();
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(IndexProperties);
 };
 
 
@@ -139,20 +173,6 @@ class IndexProperties {
  */
 class BloomFilterIndexProperties : public IndexProperties {
  public:
-  // An enum specifying the reason for an invalid index description, if any.
-  enum class InvalidIndexType {
-    kNone,
-    kUnimplemented,
-    kDuplicateKey,
-    kInvalidKey,
-    kSizeIsFloat,
-    kSizeIsNegative,
-    kNumHashesIsFloat,
-    kNumHashesIsNegative,
-    kProjectedCountIsFloat,
-    kProjectedCountIsNegative
-  };
-
   // Index properties associated with this index.
 
   static const char *kBloomFilterSizeInBytes;    // is of type integer
@@ -163,9 +183,9 @@ class BloomFilterIndexProperties : public IndexProperties {
    * @brief Constructor.
    **/
   BloomFilterIndexProperties()
-      : invalid_index_type_(InvalidIndexType::kUnimplemented),
-        invalid_property_node_(nullptr) {
-    index_sub_block_description_.reset(new IndexSubBlockDescription());
+      : IndexProperties(new IndexSubBlockDescription(),
+                        InvalidIndexType::kUnimplemented,
+                        nullptr) {
     index_sub_block_description_->set_sub_block_type(IndexSubBlockDescription::BLOOM_FILTER);
 
     // Initialize the valid_property_map_ for this index with appropriate type for each property.
@@ -280,16 +300,9 @@ class BloomFilterIndexProperties : public IndexProperties {
   }
 
  private:
-  InvalidIndexType invalid_index_type_;
   valid_property_map_type valid_property_map_;  // a map of index property constants and their associated type.
-  const ParseKeyValue *invalid_property_node_;  // referred object owned by ParseIndexProperties class.
 
-  void setIndexDescriptionAsInvalid(InvalidIndexType invalid_index_type,
-                                    const ParseKeyValue *invalid_property_node) {
-    invalid_index_type_ = invalid_index_type;
-    invalid_property_node_ = invalid_property_node;
-    index_sub_block_description_.reset();
-  }
+  DISALLOW_COPY_AND_ASSIGN(BloomFilterIndexProperties);
 };
 
 
@@ -298,20 +311,13 @@ class BloomFilterIndexProperties : public IndexProperties {
  */
 class CSBTreeIndexProperties : public IndexProperties {
  public:
-  // An enum specifying the reason for an invalid index description, if any.
-  enum class InvalidIndexType {
-    kNone,
-    kUnimplemented,
-    kInvalidKey
-  };
-
   /**
    * @brief Constructor.
    **/
   CSBTreeIndexProperties()
-    : invalid_index_type_(InvalidIndexType::kNone),
-      invalid_property_node_(nullptr) {
-    index_sub_block_description_.reset(new IndexSubBlockDescription());
+    : IndexProperties(new IndexSubBlockDescription(),
+                      InvalidIndexType::kNone,
+                      nullptr) {
     index_sub_block_description_->set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
   }
 
@@ -349,8 +355,7 @@ class CSBTreeIndexProperties : public IndexProperties {
   }
 
  private:
-  InvalidIndexType invalid_index_type_;
-  const ParseKeyValue *invalid_property_node_;  // referred object owned by ParseIndexProperties class.
+  DISALLOW_COPY_AND_ASSIGN(CSBTreeIndexProperties);
 };
 
 
@@ -371,7 +376,7 @@ class ParseIndexProperties : public ParseTreeNode {
                        const int column_number,
                        PtrList<ParseKeyValue> *key_value_list)
       : ParseTreeNode(line_number, column_number),
-      key_value_list_(key_value_list) {
+    key_value_list_(key_value_list) {
   }
 
   std::string getName() const override { return "IndexProperties"; }

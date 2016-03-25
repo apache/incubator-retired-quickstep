@@ -596,24 +596,24 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
 
 L::LogicalPtr Resolver::resolveCreateIndex(
     const ParseStatementCreateIndex &create_index_statement) {
-  // Resolve relation reference
+  // Resolve relation reference.
   const L::LogicalPtr input = resolveSimpleTableReference(
       *create_index_statement.relation_name(), nullptr /* reference_alias */);
 
   const std::string &index_name = create_index_statement.index_name()->value();
 
-  // Resolve attribute references
+  // Resolve attribute references.
   const PtrList<ParseAttribute> *index_attributes = create_index_statement.attribute_list();
   const std::vector<E::AttributeReferencePtr> &relation_attributes =
       input->getOutputAttributes();
   std::vector<E::AttributeReferencePtr> resolved_attributes;
   if (index_attributes == nullptr) {
-    // specify to build index on all the attributes, if no attribute was specified
+    // Specify to build index on all the attributes, if no attribute was specified.
     for (const E::AttributeReferencePtr &relation_attribute : relation_attributes) {
       resolved_attributes.emplace_back(relation_attribute);
     }
   } else {
-    // otherwise specify to build index on the attributes that were given
+    // Otherwise specify to build index on the attributes that were given.
     for (const ParseAttribute &index_attribute : *index_attributes) {
       bool is_resolved = false;
       for (const E::AttributeReferencePtr &relation_attribute : relation_attributes) {
@@ -626,29 +626,30 @@ L::LogicalPtr Resolver::resolveCreateIndex(
         }
       }
       if (!is_resolved) {
-        THROW_SQL_ERROR_AT(&index_attribute)<< "Attribute "<< index_attribute.attr_name()->value()
-        << " is undefined for the relation "<< create_index_statement.relation_name()->value();
+        THROW_SQL_ERROR_AT(&index_attribute) << "Attribute "<< index_attribute.attr_name()->value()
+            << " is undefined for the relation "<< create_index_statement.relation_name()->value();
       }
     }
   }
 
-  // Resolve index properties
+  // Resolve index properties.
   std::shared_ptr<const IndexSubBlockDescription> index_description_shared;
-  if (create_index_statement.getIndexProperties()->isIndexDescriptionValid()) {
-    // create a deep copy of the index description and pass its ownership to the shared ptr
+  const IndexProperties *index_properties = create_index_statement.getIndexProperties();
+  if (index_properties->isIndexDescriptionValid()) {
+    // Create a deep copy of the index description and pass its ownership to the shared ptr.
     std::unique_ptr<IndexSubBlockDescription> index_description(new IndexSubBlockDescription());
-    index_description->CopyFrom(*create_index_statement.getIndexProperties()->getIndexDescription());
+    index_description->CopyFrom(*index_properties->getIndexDescription());
     index_description_shared.reset(index_description.release());
     DCHECK(index_description_shared != nullptr);
   } else {
-    if (create_index_statement.getIndexProperties()->getInvalidPropertyNode() != nullptr) {
-      // if exact location is known in the parser, the error is thrown at that specific node
-      THROW_SQL_ERROR_AT(create_index_statement.getIndexProperties()->getInvalidPropertyNode())
-        << create_index_statement.getIndexProperties()->getReasonForInvalidIndexDescription();
+    if (index_properties->getInvalidPropertyNode() != nullptr) {
+      // If exact location is known in the parser, the error is thrown at that specific node.
+      THROW_SQL_ERROR_AT(index_properties->getInvalidPropertyNode())
+          << index_properties->getReasonForInvalidIndexDescription();
     } else {
-      // else the error is thrown at the index name node
+      // Else the error is thrown at the index name node.
       THROW_SQL_ERROR_AT(create_index_statement.index_type())
-        << create_index_statement.getIndexProperties()->getReasonForInvalidIndexDescription();
+         << index_properties->getReasonForInvalidIndexDescription();
     }
   }
 
