@@ -106,7 +106,6 @@ add_library(quickstep_parser_ParseSubqueryTableReference ParseSubqueryTableRefer
 add_library(quickstep_parser_ParseTableReference ParseTableReference.cpp ParseTableReference.hpp)
 add_library(quickstep_parser_ParseTreeNode ../empty_src.cpp ParseTreeNode.hpp)
 add_library(quickstep_parser_ParserUtil ParserUtil.cpp ParserUtil.hpp)
-
 add_library(quickstep_parser_ParseWindow ../empty_src.cpp ParseWindow.hpp)
 add_library(quickstep_parser_SqlParserWrapper SqlParserWrapper.cpp SqlParserWrapper.hpp)
 add_library(quickstep_parser_SqlParser ${BISON_SqlParser_OUTPUTS})

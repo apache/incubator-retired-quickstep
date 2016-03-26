@@ -164,8 +164,7 @@ TEST_F(TextScanOperatorTest, ScanTest) {
   text_scan_op.reset(nullptr);
 
   MemStream print_stream;
-  PrintToScreen printer(*relation_,
-                        storage_manager_.get());
+  PrintToScreen printer(*relation_, storage_manager_.get());
   printer.printRelation(print_stream.file());
   std::string printed(print_stream.str());
 

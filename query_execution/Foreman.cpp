@@ -227,8 +227,6 @@ void Foreman::run() {
     // Receive() causes this thread to sleep until next message is received.
     AnnotatedMessage annotated_msg = bus_->Receive(foreman_client_id_, 0, true);
     processTimerEvents();
-
-
     const TaggedMessage &tagged_message = annotated_msg.tagged_message;
     switch (tagged_message.message_type()) {
       case kWorkOrderCompleteMessage: {

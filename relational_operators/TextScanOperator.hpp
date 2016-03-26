@@ -302,7 +302,6 @@ class TextScanWorkOrder : public WorkOrder {
   const std::size_t text_size_;
   const bool process_escape_sequences_;
 
-
   InsertDestination *output_destination_;
   StorageManager *storage_manager_;
   const bool return_block_as_full_ = false;

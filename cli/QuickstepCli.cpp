@@ -320,7 +320,6 @@ int main(int argc, char* argv[]) {
 
           const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
           if (query_result_relation) {
-
         	PrintToScreen printer(*query_result_relation,query_processor->getStorageManager());
         	printer.printRelation(stdout);
 

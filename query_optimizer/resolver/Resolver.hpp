@@ -289,7 +289,6 @@ class Resolver {
       const ParseString &table_name, const ParseString *reference_alias);
 
   /**
-
    * @brief Resolves a generator table reference and links the corresponding
    *        generator function. The table is not added into the NameResolver.
    *

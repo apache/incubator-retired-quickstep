@@ -182,9 +182,7 @@ typedef void* yyscan_t;
   bool *order_direction_;
   quickstep::ParseLimit *opt_limit_clause_;
   quickstep::ParseSample *opt_sample_clause_;
- 
   quickstep::ParseWindow *opt_window_clause_;
-
 
   quickstep::PtrList<quickstep::ParseOrderByItem> *order_commalist_;
   quickstep::ParseOrderByItem *order_item_;

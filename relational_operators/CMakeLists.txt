@@ -476,10 +476,8 @@ target_link_libraries(quickstep_relationaloperators
                       quickstep_relationaloperators_SortMergeRunOperatorHelpers
                       quickstep_relationaloperators_SortMergeRunOperator_proto
                       quickstep_relationaloperators_SortRunGenerationOperator
-#<<<<<<< HEAD
                       quickstep_relationaloperators_TableGeneratorOperator
- #                     quickstep_relationaloperators_MonitoredTextScanOperator
-#>>>>>>> 4f2ef9e4e1c5f24348ec07feadacc0899188519b
+                      quickstep_relationaloperators_MonitoredTextScanOperator
                       quickstep_relationaloperators_TextScanOperator
                       quickstep_relationaloperators_TextScanOperator_proto
                       quickstep_relationaloperators_UpdateOperator
