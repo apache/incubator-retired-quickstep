@@ -224,9 +224,16 @@ void Foreman::run() {
 
   // Event loop
   while (!checkQueryExecutionFinished()) {
-    // Receive() causes this thread to sleep until next message is received.
+
 	processTimerEvents();
-	AnnotatedMessage annotated_msg = bus_->Receive(foreman_client_id_, 0, true);
+	AnnotatedMessage annotated_msg;
+	// makes a non blocking call to check for user input.
+	if (!bus_->ReceiveIfAvailable(
+	            foreman_client_id_, &annotated_msg, 0, true)) {
+	      // Yield CPU for a short while and retry.
+	      ThreadUtil::Yield();
+	      continue;
+	    }
     const TaggedMessage &tagged_message = annotated_msg.tagged_message;
     switch (tagged_message.message_type()) {
       case kWorkOrderCompleteMessage: {
