@@ -1217,11 +1217,6 @@ void ExecutionGenerator::convertWindowAggregate(
       S::InsertDestinationType::BLOCK_POOL);
   input_insert_destination_proto->set_relation_id(
       input_relation_info->relation->getID());
-//TODO SIDDHARTH COMMENTED BELOW LINES
-  //input_insert_destination_proto->set_need_to_add_blocks_from_relation(true);
-  
-  //input_insert_destination_proto->set_foreman_client_id(
-    //  optimizer_context_->getForemanClientID());
   const TypedValue emit_duration_value =
       physical_plan->emit_duration()->value();
   const QueryPlan::DAGNodeIndex monitored_text_scan_operator_index =
