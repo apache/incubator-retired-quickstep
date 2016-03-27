@@ -76,3 +76,10 @@ CREATE INDEX bloomIndex ON test USING BLOOMFILTER;
 ERROR: Bloom Filter index is not yet implemented (1 : 39)
 CREATE INDEX bloomIndex ON test USING BLOOMFILTER;
                                       ^
+==
+# SMA Index creation is not supported using CREATE INDEX
+CREATE INDEX smaIndex ON test USING SMA
+--
+ERROR: syntax error (1 : 37)
+CREATE INDEX smaIndex ON test USING SMA
+                                    ^

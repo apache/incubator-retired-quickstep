@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -823,7 +825,7 @@ void ExecutionGenerator::convertCreateIndex(
   std::vector<const CatalogAttribute*> index_attributes;
   for (const E::AttributeReferencePtr &attribute : physical_plan->index_attributes()) {
     const CatalogAttribute *catalog_attribute
-      = input_relation->getAttributeByName(attribute->attribute_name());
+        = input_relation->getAttributeByName(attribute->attribute_name());
     DCHECK(catalog_attribute != nullptr);
     index_attributes.emplace_back(catalog_attribute);
   }
@@ -836,7 +838,7 @@ void ExecutionGenerator::convertCreateIndex(
     if (input_relation->hasIndexWithDescription(index_description)) {
       // Check if the given index description already exists in the relation.
       THROW_SQL_ERROR() << "The relation " << input_relation->getName()
-      << " already defines this index on "<< catalog_attribute->getName();
+          << " already defines this index on "<< catalog_attribute->getName();
     } else if (!index_description.IsInitialized()) {
       // Check if the given index description is valid.
       THROW_SQL_ERROR() << "The index with given properties cannot be created.";

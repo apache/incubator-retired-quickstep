@@ -29,13 +29,11 @@ bool CreateIndexOperator::getAllWorkOrders(WorkOrdersContainer *container,
                                            StorageManager *storage_manager,
                                            const tmb::client_id foreman_client_id,
                                            tmb::MessageBus *bus) {
-  database_->setStatus(CatalogDatabase::Status::kPendingIndexAdditions);
   return true;
 }
 
 void CreateIndexOperator::updateCatalogOnCompletion() {
   relation_->addIndex(index_name_, index_descriptions_);
-  database_->setStatus(CatalogDatabase::Status::kConsistent);
 }
 
 }  // namespace quickstep

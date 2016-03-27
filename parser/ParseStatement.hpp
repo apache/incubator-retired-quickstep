@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -193,9 +195,9 @@ class ParseStatementCreateIndex : public ParseStatement {
      * @param index_name The name of the index to create.
      * @param relation_name The name of the relation to create index upon.
      * @param attribute_name_list A list of attributes of the relation
-     *                            on which the index has to be created.
-     *                            If specified as null, then index is created
-     *                            on all the attributes.
+     *        on which the index has to be created.
+     *        If specified as null, then index is created
+     *        on all the attributes.
      * @param index_type The type of index to create.
      **/
     ParseStatementCreateIndex(const int line_number,
@@ -204,11 +206,11 @@ class ParseStatementCreateIndex : public ParseStatement {
                               ParseString *relation_name,
                               PtrList<ParseAttribute> *attribute_list,
                               ParseString *index_type)
-      : ParseStatement(line_number, column_number),
-        index_name_(index_name),
-        relation_name_(relation_name),
-        attribute_list_(attribute_list),
-        index_type_(index_type) {
+        : ParseStatement(line_number, column_number),
+          index_name_(index_name),
+          relation_name_(relation_name),
+          attribute_list_(attribute_list),
+          index_type_(index_type) {
       initializeIndexType();
     }
 
@@ -218,9 +220,9 @@ class ParseStatementCreateIndex : public ParseStatement {
      * @param index_name The name of the index to create.
      * @param relation_name The name of the relation to create index upon.
      * @param attribute_name_list A list of attributes of the relation
-     *                            on which the index has to be created.
-     *                            If specified as null, then index is created
-     *                            on all the attributes.
+     *        on which the index has to be created.
+     *        If specified as null, then index is created
+     *        on all the attributes.
      * @param index_type The type of index to create.
      * @param index_properties_line_number
      * @param index_properties_column_number
@@ -235,11 +237,11 @@ class ParseStatementCreateIndex : public ParseStatement {
                               const int index_properties_line_number,
                               const int index_properties_column_number,
                               PtrList<ParseKeyValue> *opt_index_properties)
-      : ParseStatement(line_number, column_number),
-        index_name_(index_name),
-        relation_name_(relation_name),
-        attribute_list_(attribute_list),
-        index_type_(index_type) {
+        : ParseStatement(line_number, column_number),
+          index_name_(index_name),
+          relation_name_(relation_name),
+          attribute_list_(attribute_list),
+          index_type_(index_type) {
       initializeIndexType();
       custom_properties_node_.reset(new ParseIndexProperties(index_properties_line_number,
                                                                    index_properties_column_number,
@@ -324,7 +326,20 @@ class ParseStatementCreateIndex : public ParseStatement {
       inline_field_values->push_back(relation_name_->value());
 
       inline_field_names->push_back("index_type");
-      inline_field_values->push_back(index_type_->value());
+      const int index_type_enum_val = std::stoi(index_type_->value());
+      switch (index_type_enum_val) {
+        case IndexSubBlockType::kCSBTree:
+          inline_field_values->push_back("csb_tree");
+          break;
+        case IndexSubBlockType::kBloomFilter:
+          inline_field_values->push_back("bloom_filter");
+          break;
+        case IndexSubBlockType::kSMA:
+          inline_field_values->push_back("sma");
+          break;
+        default:
+          inline_field_values->push_back("unkown");
+      }
 
       if (attribute_list_ != nullptr) {
         container_child_field_names->push_back("attribute_list");
@@ -348,7 +363,7 @@ class ParseStatementCreateIndex : public ParseStatement {
     std::unique_ptr<ParseString> index_type_;
     std::unique_ptr<IndexProperties> index_properties_;
     // Optional custom properties for the index can be specified during creation.
-    std::unique_ptr<ParseIndexProperties> custom_properties_node_;
+    std::unique_ptr<const ParseIndexProperties> custom_properties_node_;
 
     void initializeIndexType() {
       const int index_type_enum_val = std::stoi(index_type_->value());

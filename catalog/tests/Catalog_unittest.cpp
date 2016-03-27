@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -15,6 +17,7 @@
  *   limitations under the License.
  **/
 
+#include <algorithm>
 #include <cstddef>
 #include <limits>
 #include <sstream>
@@ -160,6 +163,19 @@ class CatalogTest : public ::testing::Test {
          it1 != expected.end();
          ++it1, ++it2) {
       CompareCatalogAttribute(*it1, *it2);
+    }
+
+    ASSERT_EQ((expected.index_scheme_ != nullptr), (checked.index_scheme_ != nullptr));
+
+    if (expected.index_scheme_ != nullptr && checked.index_scheme_ != nullptr) {
+      ASSERT_EQ(expected.index_scheme_->getNumIndices(), checked.index_scheme_->getNumIndices());
+
+      std::string expected_index_scheme_serialized_proto, checked_index_scheme_serialized_proto;
+      expected.index_scheme_->getProto().SerializeToString(&expected_index_scheme_serialized_proto);
+      checked.index_scheme_->getProto().SerializeToString(&checked_index_scheme_serialized_proto);
+      std::sort(expected_index_scheme_serialized_proto.begin(), expected_index_scheme_serialized_proto.end());
+      std::sort(checked_index_scheme_serialized_proto.begin(), checked_index_scheme_serialized_proto.end());
+      EXPECT_EQ(expected_index_scheme_serialized_proto, checked_index_scheme_serialized_proto);
     }
   }
 

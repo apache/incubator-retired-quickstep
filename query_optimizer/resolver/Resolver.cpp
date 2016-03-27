@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -635,7 +637,7 @@ L::LogicalPtr Resolver::resolveCreateIndex(
   // Resolve index properties.
   std::shared_ptr<const IndexSubBlockDescription> index_description_shared;
   const IndexProperties *index_properties = create_index_statement.getIndexProperties();
-  if (index_properties->isIndexDescriptionValid()) {
+  if (index_properties->isIndexPropertyValid()) {
     // Create a deep copy of the index description and pass its ownership to the shared ptr.
     std::unique_ptr<IndexSubBlockDescription> index_description(new IndexSubBlockDescription());
     index_description->CopyFrom(*index_properties->getIndexDescription());

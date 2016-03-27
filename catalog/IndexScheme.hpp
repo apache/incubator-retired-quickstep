@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_CATALOG_INDEX_SCHEME_HPP_
 #define QUICKSTEP_CATALOG_INDEX_SCHEME_HPP_
 
+#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <string>
@@ -133,10 +134,12 @@ class IndexScheme {
       return false;
     }
 
-    // Serialize the two protobuf index descriptions and compare.
+    // Serialize and sort the two protobuf index descriptions and compare.
     std::string serialized_description_expected, serialized_description_checked;
     description_expected.SerializeToString(&serialized_description_expected);
     description_checked.SerializeToString(&serialized_description_checked);
+    std::sort(serialized_description_expected.begin(), serialized_description_expected.end());
+    std::sort(serialized_description_checked.begin(), serialized_description_checked.end());
 
     return (serialized_description_expected.compare(serialized_description_checked) == 0);
   }
@@ -144,6 +147,8 @@ class IndexScheme {
   /**
    * @brief Adds a new index entry to the index map.
    * @warning Must call before hasIndexWithName() and hasIndexWithDescription().
+   * @note This method assumes that the caller has already acquired the
+   *       necessary locks before invoking it.
    *
    * @param index_name The name of index to add (key)
    * @param index_description The index description for this index (value)
@@ -159,7 +164,7 @@ class IndexScheme {
       // Make a copy of the index_description before putting it in the map.
       index_sub_block_descriptions.emplace_back(index_descriptions[i]);
     }
-    index_map_[index_name] = index_sub_block_descriptions;
+    index_map_.emplace(std::make_pair(index_name, index_sub_block_descriptions));
     return true;
   }
 
