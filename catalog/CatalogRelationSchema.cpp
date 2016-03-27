@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -20,7 +20,9 @@
 #include <cstddef>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
+#include "catalog/Catalog.pb.h"
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogErrors.hpp"
 #include "types/Type.hpp"
@@ -35,7 +37,73 @@ using std::unordered_map;
 
 namespace quickstep {
 
+CatalogRelationSchema::CatalogRelationSchema(const serialization::CatalogRelationSchema &proto)
+    : parent_(nullptr),
+      id_(proto.relation_id()),
+      name_(proto.name()),
+      temporary_(proto.temporary()),
+      num_nullable_attributes_(0),
+      num_variable_length_attributes_(0),
+      max_byte_length_(0),
+      min_byte_length_(0),
+      estimated_byte_length_(0),
+      fixed_byte_length_(0),
+      max_variable_byte_length_(0),
+      min_variable_byte_length_(0),
+      min_variable_byte_length_excluding_nullable_(0),
+      estimated_variable_byte_length_(0),
+      current_nullable_attribute_index_(-1),
+      current_variable_length_attribute_index_(-1) {
+  DCHECK(ProtoIsValid(proto))
+      << "Attempted to create CatalogRelationSchema from an invalid proto description:\n"
+      << proto.DebugString();
+
+  // Deserializing the attributes for the relation schema.
+  for (int i = 0; i < proto.attributes_size(); ++i) {
+    if (proto.attributes(i).IsInitialized()) {
+      addAttribute(new CatalogAttribute(proto.attributes(i)));
+    } else {
+      attr_vec_.push_back(nullptr);
+    }
+  }
+}
+
 CatalogRelationSchema::~CatalogRelationSchema() {
+}
+
+bool CatalogRelationSchema::ProtoIsValid(const serialization::CatalogRelationSchema &proto) {
+  if (!proto.IsInitialized()
+      || proto.relation_id() == static_cast<relation_id>(-1)) {
+    return false;
+  }
+
+  for (int i = 0; i < proto.attributes_size(); ++i) {
+    if (!CatalogAttribute::ProtoIsValid(proto.attributes(i))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+serialization::CatalogRelationSchema CatalogRelationSchema::getProto() const {
+  serialization::CatalogRelationSchema proto;
+
+  proto.set_relation_id(id_);
+  proto.set_name(name_);
+  proto.set_temporary(temporary_);
+
+  for (PtrVector<CatalogAttribute, true>::const_iterator it = attr_vec_.begin();
+       it != attr_vec_.end();
+       ++it) {
+    if (it.isNull()) {
+      proto.add_attributes();
+    } else {
+      proto.add_attributes()->MergeFrom(it->getProto());
+    }
+  }
+
+  return proto;
 }
 
 const CatalogAttribute* CatalogRelationSchema::getAttributeByName(

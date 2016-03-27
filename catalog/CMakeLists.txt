@@ -109,6 +109,7 @@ target_link_libraries(quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogErrors
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_Catalog_proto
                       quickstep_types_Type
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector

@@ -80,22 +80,31 @@ message IndexScheme {
   repeated IndexEntry index_entries = 1;
 }
 
+message CatalogRelationSchema {
+  required int32 relation_id = 1;
+  required string name = 2;
+  required bool temporary = 3;
+
+  repeated CatalogAttribute attributes = 4;
+
+  extensions 16 to max;
+}
+
 message CatalogRelation {
-  required string name = 1;
-  required bool temporary = 2;
+  extend CatalogRelationSchema {
+    // Required.
+    optional StorageBlockLayoutDescription default_layout = 16;
 
-  required StorageBlockLayoutDescription default_layout = 3;
-
-  repeated fixed64 blocks = 4 [packed=true];
-  repeated CatalogAttribute attributes = 5;
-  optional IndexScheme index_scheme = 6;
-  optional PartitionScheme partition_scheme = 7;
-  optional NUMAPlacementScheme placement_scheme = 8;
+    repeated fixed64 blocks = 17 [packed=true];
+    optional IndexScheme index_scheme = 18;
+    optional PartitionScheme partition_scheme = 19;
+    optional NUMAPlacementScheme placement_scheme = 20;
+  }
 }
 
 message CatalogDatabase {
   required string name = 1;
-  repeated CatalogRelation relations = 2;
+  repeated CatalogRelationSchema relations = 2;
   repeated int32 null_relations = 3;
 }
 
