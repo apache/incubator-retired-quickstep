@@ -848,7 +848,6 @@ void ExecutionGenerator::convertCreateIndex(
   }
 
   execution_plan_->addRelationalOperator(new CreateIndexOperator(input_relation,
-                                                                 optimizer_context_->catalog_database(),
                                                                  physical_plan->index_name(),
                                                                  index_descriptions));
 }

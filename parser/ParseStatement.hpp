@@ -195,9 +195,8 @@ class ParseStatementCreateIndex : public ParseStatement {
      * @param index_name The name of the index to create.
      * @param relation_name The name of the relation to create index upon.
      * @param attribute_name_list A list of attributes of the relation
-     *        on which the index has to be created.
-     *        If specified as null, then index is created
-     *        on all the attributes.
+     *        on which the index has to be created. If specified as null,
+     *        then index is created on all the attributes.
      * @param index_type The type of index to create.
      **/
     ParseStatementCreateIndex(const int line_number,
@@ -220,9 +219,8 @@ class ParseStatementCreateIndex : public ParseStatement {
      * @param index_name The name of the index to create.
      * @param relation_name The name of the relation to create index upon.
      * @param attribute_name_list A list of attributes of the relation
-     *        on which the index has to be created.
-     *        If specified as null, then index is created
-     *        on all the attributes.
+     *        on which the index has to be created. If specified as null,
+     *        then index is created on all the attributes.
      * @param index_type The type of index to create.
      * @param index_properties_line_number
      * @param index_properties_column_number
@@ -329,7 +327,7 @@ class ParseStatementCreateIndex : public ParseStatement {
       const int index_type_enum_val = std::stoi(index_type_->value());
       switch (index_type_enum_val) {
         case IndexSubBlockType::kCSBTree:
-          inline_field_values->push_back("csb_tree");
+          inline_field_values->push_back("cs_b_tree");
           break;
         case IndexSubBlockType::kBloomFilter:
           inline_field_values->push_back("bloom_filter");

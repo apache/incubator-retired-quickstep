@@ -164,7 +164,7 @@ class IndexScheme {
       // Make a copy of the index_description before putting it in the map.
       index_sub_block_descriptions.emplace_back(index_descriptions[i]);
     }
-    index_map_.emplace(std::make_pair(index_name, index_sub_block_descriptions));
+    index_map_.emplace(index_name, std::move(index_sub_block_descriptions));
     return true;
   }
 

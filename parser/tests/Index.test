@@ -58,4 +58,4 @@ CreateIndexStatement[index_name=bloomIndex,relation_name=test,
 ==
 CREATE INDEX csbIndex ON test USING CSBTREE
 --
-CreateIndexStatement[index_name=csbIndex,relation_name=test,index_type=csb_tree]
+CreateIndexStatement[index_name=csbIndex,relation_name=test,index_type=cs_b_tree]

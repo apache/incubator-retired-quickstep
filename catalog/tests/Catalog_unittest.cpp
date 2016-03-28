@@ -167,7 +167,7 @@ class CatalogTest : public ::testing::Test {
 
     ASSERT_EQ((expected.index_scheme_ != nullptr), (checked.index_scheme_ != nullptr));
 
-    if (expected.index_scheme_ != nullptr && checked.index_scheme_ != nullptr) {
+    if (checked.index_scheme_ != nullptr) {
       ASSERT_EQ(expected.index_scheme_->getNumIndices(), checked.index_scheme_->getNumIndices());
 
       std::string expected_index_scheme_serialized_proto, checked_index_scheme_serialized_proto;

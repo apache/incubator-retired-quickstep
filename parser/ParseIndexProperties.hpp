@@ -83,6 +83,23 @@ class IndexProperties {
   }
 
   /**
+   * @brief Returns printable string that specifies reason for invalid index instance.
+   *
+   * @return The string describing the reason for invalid index
+   **/
+  virtual std::string getReasonForInvalidIndexDescription() const = 0;
+
+  /**
+   * @brief Modifies the index description given a set of custom properties
+   *        specified as a key-value list of properties.
+   *
+   * @param key_value_list Key Value list of custom properties.
+   * @return Returns true if the given set of custom properties was valid
+   *         and was applied correctly, otherwise returns false.
+   **/
+  virtual bool addCustomProperties(const PtrList<ParseKeyValue> *key_value_list) = 0;
+
+  /**
    * @brief Checks whether this instance describes a valid index or not.
    *
    * @return True if index description is valid, false otherwise.
@@ -99,23 +116,6 @@ class IndexProperties {
   const ParseKeyValue* getInvalidPropertyNode() const {
     return invalid_property_node_;
   }
-
-  /**
-   * @brief Returns printable string that specifies reason for invalid index instance.
-   *
-   * @return The string describing the reason for invalid index
-   **/
-  virtual std::string getReasonForInvalidIndexDescription() const = 0;
-
-  /**
-   * @brief Modifies the index description given a set of custom properties
-   *        specified as a key-value list of properties.
-   *
-   * @param key_value_list Key Value list of custom properties.
-   * @return Returns true if the given set of custom properties was valid
-   *         and was applied correctly, otherwise returns false.
-   **/
-  virtual bool addCustomProperties(const PtrList<ParseKeyValue> *key_value_list) = 0;
 
   /**
    * @brief Returns a protobuf object representing the index description.
@@ -171,7 +171,6 @@ class IndexProperties {
  private:
   DISALLOW_COPY_AND_ASSIGN(IndexProperties);
 };
-
 
 /**
  * @brief Implementation of index properties for Bloom Filter Index
@@ -302,7 +301,6 @@ class BloomFilterIndexProperties : public IndexProperties {
   DISALLOW_COPY_AND_ASSIGN(BloomFilterIndexProperties);
 };
 
-
 /**
  * @brief Implementation of index properties for CSB Tree Index.
  */
@@ -344,7 +342,6 @@ class CSBTreeIndexProperties : public IndexProperties {
  private:
   DISALLOW_COPY_AND_ASSIGN(CSBTreeIndexProperties);
 };
-
 
 /**
  * @brief Encapsulates the IndexProperties key-value list. Makes the job

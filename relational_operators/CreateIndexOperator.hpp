@@ -63,11 +63,9 @@ class CreateIndexOperator : public RelationalOperator {
    * @param index_descriptions Set of index_descriptions associated with this index.
    **/
   CreateIndexOperator(CatalogRelation *relation,
-                      CatalogDatabase *database,
                       const std::string &index_name,
                       const std::vector<IndexSubBlockDescription> &index_descriptions)
       : relation_(DCHECK_NOTNULL(relation)),
-        database_(DCHECK_NOTNULL(database)),
         index_name_(index_name),
         index_descriptions_(index_descriptions) {}
 
@@ -86,7 +84,6 @@ class CreateIndexOperator : public RelationalOperator {
 
  private:
   CatalogRelation *relation_;
-  CatalogDatabase *database_;
   const std::string &index_name_;
   const std::vector<IndexSubBlockDescription> index_descriptions_;
 
