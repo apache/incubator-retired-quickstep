@@ -70,6 +70,7 @@ target_link_libraries(quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_Catalog_proto
+                      quickstep_storage_StorageConstants
                       quickstep_threading_Mutex
                       quickstep_threading_SharedMutex
                       quickstep_threading_SpinSharedMutex

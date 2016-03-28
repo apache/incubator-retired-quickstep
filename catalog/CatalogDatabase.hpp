@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -25,6 +25,7 @@
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "storage/StorageConstants.hpp"
 #include "threading/Mutex.hpp"
 #include "threading/SharedMutex.hpp"
 #include "threading/SpinSharedMutex.hpp"
@@ -450,7 +451,7 @@ class CatalogDatabase {
 
   // Indicate the status of this database (i.e., consistent or not).
   Status status_;
-  mutable SpinSharedMutex<false> status_mutex_;
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> status_mutex_;
 
   // A vector of relations. NULL if the relation has dropped from the database.
   PtrVector<CatalogRelation, true> rel_vec_;
@@ -462,7 +463,7 @@ class CatalogDatabase {
   std::unordered_map<std::string, CatalogRelation*> rel_map_;
 
   // Concurrency protection for 'rel_vec_' and 'rel_map_'.
-  mutable SpinSharedMutex<false> relations_mutex_;
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> relations_mutex_;
 
   friend class Catalog;
 
