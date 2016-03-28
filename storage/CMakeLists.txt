@@ -172,6 +172,7 @@ add_library(quickstep_storage_HashTableBase ../empty_src.cpp HashTableBase.hpp)
 add_library(quickstep_storage_HashTableFactory HashTableFactory.cpp HashTableFactory.hpp)
 add_library(quickstep_storage_HashTableKeyManager ../empty_src.cpp HashTableKeyManager.hpp)
 add_library(quickstep_storage_IndexSubBlock ../empty_src.cpp IndexSubBlock.hpp)
+add_library(quickstep_storage_IndexSubBlockDescriptionFactory ../empty_src.cpp IndexSubBlockDescriptionFactory.hpp)
 add_library(quickstep_storage_InsertDestination InsertDestination.cpp InsertDestination.hpp)
 add_library(quickstep_storage_InsertDestinationInterface
             ../empty_src.cpp
@@ -556,6 +557,9 @@ target_link_libraries(quickstep_storage_IndexSubBlock
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_storage_IndexSubBlockDescriptionFactory                      
+                      quickstep_storage_StorageBlockLayout
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_InsertDestination
                       glog
                       gtest
@@ -879,6 +883,7 @@ target_link_libraries(quickstep_storage
                       quickstep_storage_HashTableFactory
                       quickstep_storage_HashTableKeyManager
                       quickstep_storage_IndexSubBlock
+                      quickstep_storage_IndexSubBlockDescriptionFactory
                       quickstep_storage_InsertDestination
                       quickstep_storage_InsertDestinationInterface
                       quickstep_storage_InsertDestination_proto

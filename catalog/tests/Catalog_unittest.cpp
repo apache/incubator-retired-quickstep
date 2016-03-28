@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -15,10 +17,12 @@
  *   limitations under the License.
  **/
 
+#include <algorithm>
 #include <cstddef>
 #include <limits>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "catalog/Catalog.hpp"
 #include "catalog/CatalogAttribute.hpp"
@@ -159,6 +163,19 @@ class CatalogTest : public ::testing::Test {
          it1 != expected.end();
          ++it1, ++it2) {
       CompareCatalogAttribute(*it1, *it2);
+    }
+
+    ASSERT_EQ((expected.index_scheme_ != nullptr), (checked.index_scheme_ != nullptr));
+
+    if (checked.index_scheme_ != nullptr) {
+      ASSERT_EQ(expected.index_scheme_->getNumIndices(), checked.index_scheme_->getNumIndices());
+
+      std::string expected_index_scheme_serialized_proto, checked_index_scheme_serialized_proto;
+      expected.index_scheme_->getProto().SerializeToString(&expected_index_scheme_serialized_proto);
+      checked.index_scheme_->getProto().SerializeToString(&checked_index_scheme_serialized_proto);
+      std::sort(expected_index_scheme_serialized_proto.begin(), expected_index_scheme_serialized_proto.end());
+      std::sort(checked_index_scheme_serialized_proto.begin(), checked_index_scheme_serialized_proto.end());
+      EXPECT_EQ(expected_index_scheme_serialized_proto, checked_index_scheme_serialized_proto);
     }
   }
 
@@ -502,6 +519,42 @@ TEST_F(CatalogTest, CatalogSplitRowStoreSerializationTest) {
       TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
 
   rel->setDefaultStorageBlockLayout(new StorageBlockLayout(*rel, layout_description));
+
+  checkCatalogSerialization();
+}
+
+TEST_F(CatalogTest, CatalogIndexTest) {
+  CatalogRelation* const rel = createCatalogRelation("rel");
+  StorageBlockLayoutDescription layout_description(rel->getDefaultStorageBlockLayout().getDescription());
+
+  rel->addAttribute(new CatalogAttribute(nullptr, "attr_idx1", TypeFactory::GetType(kInt)));
+  rel->addAttribute(new CatalogAttribute(nullptr, "attr_idx2", TypeFactory::GetType(kInt)));
+
+  layout_description.mutable_tuple_store_description()->set_sub_block_type(
+      TupleStorageSubBlockDescription::PACKED_ROW_STORE);
+
+  rel->setDefaultStorageBlockLayout(new StorageBlockLayout(*rel, layout_description));
+
+  std::vector<IndexSubBlockDescription> index_descriptions;
+  IndexSubBlockDescription index_description;
+  index_description.set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
+  index_description.add_indexed_attribute_ids(rel->getAttributeByName("attr_idx1")->getID());
+  index_descriptions.emplace_back(index_description);
+
+  EXPECT_TRUE(rel->addIndex("idx1", index_descriptions));
+  EXPECT_TRUE(rel->hasIndexWithName("idx1"));
+  // Adding an index with duplicate name should return false.
+  EXPECT_FALSE(rel->addIndex("idx1", index_descriptions));
+  // Adding an index of same type with different name on the same attribute should return false.
+  EXPECT_FALSE(rel->addIndex("idx2", index_descriptions));
+
+  index_descriptions.clear();
+  index_description.set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
+  index_description.add_indexed_attribute_ids(rel->getAttributeByName("attr_idx2")->getID());
+  index_descriptions.emplace_back(index_description);
+
+  EXPECT_TRUE(rel->addIndex("idx2", index_descriptions));
+  EXPECT_TRUE(rel->hasIndexWithName("idx2"));
 
   checkCatalogSerialization();
 }

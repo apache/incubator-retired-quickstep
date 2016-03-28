@@ -1,5 +1,7 @@
 //   Copyright 2011-2015 Quickstep Technologies LLC.
 //   Copyright 2015-2016 Pivotal Software, Inc.
+//   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+//    University of Wisconsin—Madison.
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -70,6 +72,14 @@ message NUMAPlacementScheme {
   repeated BlockToNUMANodeEntry block_to_numa_node_map = 2;
 }
 
+message IndexScheme {
+  message IndexEntry {
+    required string index_name = 1;
+    repeated IndexSubBlockDescription index_description = 2;
+  }
+  repeated IndexEntry index_entries = 1;
+}
+
 message CatalogRelation {
   required string name = 1;
   required bool temporary = 2;
@@ -78,7 +88,7 @@ message CatalogRelation {
 
   repeated fixed64 blocks = 4 [packed=true];
   repeated CatalogAttribute attributes = 5;
-  repeated string index = 6;
+  optional IndexScheme index_scheme = 6;
   optional PartitionScheme partition_scheme = 7;
   optional NUMAPlacementScheme placement_scheme = 8;
 }

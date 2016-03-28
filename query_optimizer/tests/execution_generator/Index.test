@@ -1,0 +1,49 @@
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+CREATE TABLE foo3 (col1 INT, col2 INT);
+CREATE INDEX idx1 ON foo3(col1) USING CSBTREE;
+SELECT * FROM foo3;
+--
++-----------+-----------+
+|col1       |col2       |
++-----------+-----------+
++-----------+-----------+
+==
+CREATE INDEX idx2 ON foo3(col1) USING CSBTREE;
+--
+ERROR: The relation foo3 already defines this index on col1
+==
+CREATE INDEX idx2 ON foo3(col2) USING CSBTREE;
+SELECT * FROM foo3;
+--
++-----------+-----------+
+|col1       |col2       |
++-----------+-----------+
++-----------+-----------+
+==
+# Bloom filter index is not currently implemented.
+CREATE INDEX bloomIndex ON test(int_col) USING BLOOMFILTER
+--
+ERROR: Bloom Filter index is not yet implemented (1 : 48)
+...INDEX bloomIndex ON test(int_col) USING BLOOMFILTER
+                                           ^
+==
+# SMA Index creation is not supported using CREATE INDEX
+CREATE INDEX smaIndex ON test USING SMA
+--
+ERROR: syntax error (1 : 37)
+CREATE INDEX smaIndex ON test USING SMA
+                                    ^

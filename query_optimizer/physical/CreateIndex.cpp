@@ -35,11 +35,17 @@ void CreateIndex::getFieldStringItems(
     std::vector<OptimizerTreeBaseNodePtr> *non_container_child_fields,
     std::vector<std::string> *container_child_field_names,
     std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const {
-  inline_field_names->push_back("index");
+  inline_field_names->push_back("index_name");
   inline_field_values->push_back(index_name_);
 
-  non_container_child_field_names->push_back("input");
+  non_container_child_field_names->push_back("relation");
   non_container_child_fields->push_back(input_);
+
+  container_child_field_names->push_back("index_attributes");
+  container_child_fields->push_back(CastSharedPtrVector<OptimizerTreeBase>(index_attributes_));
+
+  inline_field_names->push_back("serialized_index_description");
+  inline_field_values->push_back(index_description_->DebugString());
 }
 
 }  // namespace physical

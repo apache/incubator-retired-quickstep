@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -93,11 +95,6 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelation &proto)
     }
   }
 
-  // Deserializing the indices of the relation
-  for (int i = 0; i < proto.index_size(); i++) {
-    indices_.push_back(proto.index(i));
-  }
-
   // Deserializing the partition scheme for the relation.
   // This should be done after the attributes are added and before the
   // blocks of the relation are added.
@@ -120,13 +117,26 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelation &proto)
 #endif
   }
 
+  // Deserializing the index scheme defined for the relation, if any.
+  if (proto.has_index_scheme()) {
+    index_scheme_.reset(IndexScheme::ReconstructFromProto(proto.index_scheme()));
+    // Ensure that indices present in the block layout are the same as in the index scheme.
+    const std::size_t num_indices_expected = index_scheme_->getNumIndices();
+    const std::size_t num_indices_checked = proto.default_layout().index_description_size();
+    DCHECK_EQ(num_indices_expected, num_indices_checked);
+    for (std::size_t i = 0; i < num_indices_checked; ++i) {
+      const IndexSubBlockDescription &description_checked = proto.default_layout().index_description(i);
+      DCHECK(index_scheme_->hasIndexWithDescription(description_checked))
+      << "Block layout defines some indices not present in the catalog";
+    }
+  }
+
   // Deserializing the blocks of the relation.
   for (int i = 0; i < proto.blocks_size(); ++i) {
     blocks_.emplace_back(static_cast<block_id>(proto.blocks(i)));
   }
 
   DCHECK(StorageBlockLayout::DescriptionIsValid(*this, proto.default_layout()));
-
   default_layout_.reset(new StorageBlockLayout(*this, proto.default_layout()));
 }
 
@@ -140,7 +150,7 @@ serialization::CatalogRelation CatalogRelation::getProto() const {
 
   proto.set_name(name_);
   proto.set_temporary(temporary_);
-  proto.mutable_default_layout()->CopyFrom(getDefaultStorageBlockLayout().getDescription());
+  proto.mutable_default_layout()->MergeFrom(getDefaultStorageBlockLayout().getDescription());
 
   {
     SpinSharedMutexSharedLock<false> lock(blocks_mutex_);
@@ -149,8 +159,8 @@ serialization::CatalogRelation CatalogRelation::getProto() const {
     }
   }
 
-  for (std::vector<std::string>::const_iterator it = indices_.begin(); it != indices_.end(); ++it) {
-    proto.add_index(*it);
+  if (hasIndexScheme()) {
+    proto.mutable_index_scheme()->MergeFrom(index_scheme_->getProto());
   }
 
   for (PtrVector<CatalogAttribute, true>::const_iterator it = attr_vec_.begin();

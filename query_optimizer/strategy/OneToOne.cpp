@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -102,8 +104,11 @@ bool OneToOne::generatePlan(const L::LogicalPtr &logical_input,
     case L::LogicalType::kCreateIndex: {
       const L::CreateIndexPtr create_index =
           std::static_pointer_cast<const L::CreateIndex>(logical_input);
-      *physical_output = P::CreateIndex::Create(
-          physical_mapper_->createOrGetPhysicalFromLogical(create_index->input()), create_index->index_name());
+      *physical_output = P::CreateIndex::Create(physical_mapper_->createOrGetPhysicalFromLogical(
+                                                                    create_index->input()),
+                                                create_index->index_name(),
+                                                create_index->index_attributes(),
+                                                create_index->index_description());
       return true;
     }
     case L::LogicalType::kCreateTable: {

@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -810,13 +812,44 @@ void ExecutionGenerator::convertCreateIndex(
   CatalogRelation *input_relation =
       optimizer_context_->catalog_database()->getRelationByIdMutable(
             input_relation_info->relation->getID());
+
+  // Check if any index with the specified name already exists.
   if (input_relation->hasIndexWithName(physical_plan->index_name())) {
     THROW_SQL_ERROR() << "The relation " << input_relation->getName()
-            << " already has an index named "<< physical_plan->index_name();
-  } else {
-    execution_plan_->addRelationalOperator(
-       new CreateIndexOperator(input_relation, physical_plan->index_name()));
+        << " already has an index named "<< physical_plan->index_name();
   }
+
+  DCHECK_GT(physical_plan->index_attributes().size(), 0u);
+
+  // Convert attribute references to a vector of pointers to catalog attributes.
+  std::vector<const CatalogAttribute*> index_attributes;
+  for (const E::AttributeReferencePtr &attribute : physical_plan->index_attributes()) {
+    const CatalogAttribute *catalog_attribute
+        = input_relation->getAttributeByName(attribute->attribute_name());
+    DCHECK(catalog_attribute != nullptr);
+    index_attributes.emplace_back(catalog_attribute);
+  }
+
+  // Corresponding to each attribute, create a copy of index description.
+  std::vector<IndexSubBlockDescription> index_descriptions;
+  for (const CatalogAttribute* catalog_attribute : index_attributes) {
+    IndexSubBlockDescription index_description(*physical_plan->index_description());
+    index_description.add_indexed_attribute_ids(catalog_attribute->getID());
+    if (input_relation->hasIndexWithDescription(index_description)) {
+      // Check if the given index description already exists in the relation.
+      THROW_SQL_ERROR() << "The relation " << input_relation->getName()
+          << " already defines this index on "<< catalog_attribute->getName();
+    } else if (!index_description.IsInitialized()) {
+      // Check if the given index description is valid.
+      THROW_SQL_ERROR() << "The index with given properties cannot be created.";
+    } else {
+      index_descriptions.push_back(std::move(index_description));
+    }
+  }
+
+  execution_plan_->addRelationalOperator(new CreateIndexOperator(input_relation,
+                                                                 physical_plan->index_name(),
+                                                                 index_descriptions));
 }
 
 void ExecutionGenerator::convertCreateTable(
