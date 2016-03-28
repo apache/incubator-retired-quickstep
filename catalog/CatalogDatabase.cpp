@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include <cstring>
 #include <string>
 #include <unordered_map>
+#include <utility>
 
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogErrors.hpp"
@@ -85,7 +86,7 @@ const CatalogRelation* CatalogDatabase::getRelationByName(const string &rel_name
 
 CatalogRelation* CatalogDatabase::getRelationByNameMutable(const string &rel_name) {
   SpinSharedMutexSharedLock<false> lock(relations_mutex_);
-  std::unordered_map<string, CatalogRelation*>::const_iterator it = rel_map_.find(ToLower(rel_name));
+  std::unordered_map<string, CatalogRelation*>::iterator it = rel_map_.find(ToLower(rel_name));
   if (it == rel_map_.end()) {
     return nullptr;
   } else {
