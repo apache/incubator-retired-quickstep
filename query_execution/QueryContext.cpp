@@ -82,7 +82,7 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
     const serialization::InsertDestination &insert_destination_proto = proto.insert_destinations(i);
     insert_destinations_.emplace_back(
         InsertDestination::ReconstructFromProto(insert_destination_proto,
-                                                database->getRelationByIdMutable(
+                                                *database->getRelationByIdMutable(
                                                     insert_destination_proto.relation_id()),
                                                 storage_manager,
                                                 foreman_client_id,

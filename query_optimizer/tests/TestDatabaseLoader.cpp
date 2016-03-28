@@ -17,14 +17,18 @@
 
 #include "query_optimizer/tests/TestDatabaseLoader.hpp"
 
+#include <cmath>
+#include <cstdint>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "catalog/Catalog.hpp"
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogRelation.hpp"
+#include "query_execution/QueryExecutionMessages.pb.h"
+#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "storage/InsertDestination.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
@@ -35,8 +39,6 @@
 #include "types/containers/Tuple.hpp"
 
 #include "glog/logging.h"
-
-#include "tmb/id_typedefs.h"
 
 namespace quickstep {
 namespace optimizer {
@@ -86,12 +88,12 @@ void TestDatabaseLoader::loadTestRelation() {
   CHECK(test_relation_ != nullptr);
   CHECK(!test_relation_->hasAttributeWithName("vchar_col"));
 
-  BlockPoolInsertDestination destination(&storage_manager_,
-                                         test_relation_,
+  BlockPoolInsertDestination destination(*test_relation_,
                                          nullptr,
+                                         &storage_manager_,
                                          0 /* dummy op index */,
-                                         tmb::kClientIdNone /* foreman_client_id */,
-                                         nullptr /* TMB */);
+                                         foreman_client_id_,
+                                         &bus_);
   int sign = 1;
   for (int x = 0; x < 25; ++x) {
     // Column values: ((-1)^x*x, x^2, sqrt(x), (-1)^x*x*sqrt(x),
@@ -128,6 +130,21 @@ void TestDatabaseLoader::loadTestRelation() {
     destination.insertTuple(tuple);
 
     sign = -sign;
+  }
+
+  processCatalogRelationNewBlockMessages();
+}
+
+void TestDatabaseLoader::processCatalogRelationNewBlockMessages() {
+  AnnotatedMessage msg;
+  while (bus_.ReceiveIfAvailable(foreman_client_id_, &msg)) {
+    const TaggedMessage &tagged_message = msg.tagged_message;
+    if (tagged_message.message_type() == kCatalogRelationNewBlockMessage) {
+      serialization::CatalogRelationNewBlockMessage proto;
+      CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+      test_relation_->addBlock(proto.block_id());
+    }
   }
 }
 
