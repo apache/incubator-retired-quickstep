@@ -65,7 +65,7 @@ bool CatalogRelation::ProtoIsValid(const serialization::CatalogRelationSchema &p
     if (proto.HasExtension(serialization::CatalogRelation::placement_scheme)) {
       // Check if the NUMA placement scheme protobuf is valid.
       if (!NUMAPlacementScheme::ProtoIsValid(
-              proto.GetExension(serialization::CatalogRelation::placement_scheme))) {
+              proto.GetExtension(serialization::CatalogRelation::placement_scheme))) {
         return false;
       }
     }
@@ -169,6 +169,12 @@ serialization::CatalogRelationSchema CatalogRelation::getProto() const {
   if (hasPartitionScheme()) {
     proto.MutableExtension(serialization::CatalogRelation::partition_scheme)
         ->MergeFrom(partition_scheme_->getProto());
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+    if (hasNUMAPlacementScheme()) {
+      proto.MutableExtension(serialization::CatalogRelation::placement_scheme)
+          ->MergeFrom(placement_scheme_->getProto());
+    }
+#endif
   }
 
   return proto;
