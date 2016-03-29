@@ -55,7 +55,8 @@ bool CatalogDatabase::ProtoIsValid(const serialization::CatalogDatabase &proto) 
 }
 
 CatalogDatabase::CatalogDatabase(const serialization::CatalogDatabase &proto)
-    : name_(proto.name()),
+    : parent_(nullptr),
+      name_(proto.name()),
       status_(Status::kConsistent) {
   DCHECK(ProtoIsValid(proto))
       << "Attempted to create CatalogDatabase from an invalid proto description:\n"
