@@ -90,6 +90,7 @@ add_library(quickstep_parser_ParseExpression ../empty_src.cpp ParseExpression.hp
 add_library(quickstep_parser_ParseGeneratorTableReference ParseGeneratorTableReference.cpp ParseGeneratorTableReference.hpp)
 add_library(quickstep_parser_ParseGroupBy ParseGroupBy.cpp ParseGroupBy.hpp)
 add_library(quickstep_parser_ParseHaving ParseHaving.cpp ParseHaving.hpp)
+add_library(quickstep_parser_ParseIndexProperties ParseIndexProperties.cpp ParseIndexProperties.hpp)
 add_library(quickstep_parser_ParseKeyValue ../empty_src.cpp ParseKeyValue.hpp)
 add_library(quickstep_parser_ParseLimit ParseLimit.cpp ParseLimit.hpp)
 add_library(quickstep_parser_ParseLiteralValue ParseLiteralValue.cpp ParseLiteralValue.hpp)
@@ -156,6 +157,15 @@ target_link_libraries(quickstep_parser_ParseHaving
                       quickstep_parser_ParsePredicate
                       quickstep_parser_ParseTreeNode
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_parser_ParseIndexProperties
+                      glog
+                      quickstep_parser_ParseKeyValue
+                      quickstep_parser_ParseString
+                      quickstep_parser_ParseTreeNode
+                      quickstep_storage_StorageBlockLayout_proto
+                      quickstep_utility_Macros
+                      quickstep_utility_PtrList
+                      quickstep_utility_StringUtil)
 target_link_libraries(quickstep_parser_ParseLimit
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseTreeNode
@@ -220,12 +230,14 @@ target_link_libraries(quickstep_parser_ParseStatement
                       quickstep_parser_ParseAttributeDefinition
                       quickstep_parser_ParseBasicExpressions
                       quickstep_parser_ParseBlockProperties
+                      quickstep_parser_ParseIndexProperties
                       quickstep_parser_ParseKeyValue
                       quickstep_parser_ParsePredicate
                       quickstep_parser_ParseSelect
                       quickstep_parser_ParseString
                       quickstep_parser_ParseSubqueryTableReference
                       quickstep_parser_ParseTreeNode
+                      quickstep_storage_StorageBlockInfo
                       quickstep_utility_Macros
                       quickstep_utility_PtrList
                       quickstep_utility_PtrVector)
@@ -273,10 +285,10 @@ target_link_libraries(quickstep_parser_SqlParser
                       quickstep_parser_ParseAttributeDefinition
                       quickstep_parser_ParseBasicExpressions
                       quickstep_parser_ParseBlockProperties
+                      quickstep_parser_ParseExpression
                       quickstep_parser_ParseGeneratorTableReference
                       quickstep_parser_ParseGroupBy
                       quickstep_parser_ParseHaving
-                      quickstep_parser_ParseExpression
                       quickstep_parser_ParseKeyValue
                       quickstep_parser_ParseLimit
                       quickstep_parser_ParseLiteralValue
@@ -348,6 +360,7 @@ target_link_libraries(quickstep_parser
                       quickstep_parser_ParseGeneratorTableReference
                       quickstep_parser_ParseGroupBy
                       quickstep_parser_ParseHaving
+                      quickstep_parser_ParseIndexProperties
                       quickstep_parser_ParseLimit
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseOrderBy

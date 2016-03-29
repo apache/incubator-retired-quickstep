@@ -39,6 +39,7 @@
 #include "expressions/scalar/ScalarLiteral.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
+#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/BuildHashOperator.hpp"
 #include "relational_operators/DestroyHashOperator.hpp"
@@ -97,6 +98,12 @@ constexpr int kOpIndex = 0;
 class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> {
  protected:
   virtual void SetUp() {
+    bus_.Initialize();
+
+    foreman_client_id_ = bus_.Connect();
+    bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
+
     storage_manager_.reset(new StorageManager("./test_data/"));
 
     // Create a database.
@@ -232,8 +239,8 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
     op->getAllWorkOrders(&container,
                          query_context_.get(),
                          storage_manager_.get(),
-                         tmb::kClientIdNone /* foreman_client_id */,
-                         nullptr /* TMB */);
+                         foreman_client_id_,
+                         &bus_);
 
     while (container.hasNormalWorkOrder(op_index)) {
       WorkOrder *work_order = container.getNormalWorkOrder(op_index);
@@ -241,6 +248,9 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
       delete work_order;
     }
   }
+
+  MessageBusImpl bus_;
+  tmb::client_id foreman_client_id_;
 
   unique_ptr<QueryContext> query_context_;
   std::unique_ptr<StorageManager> storage_manager_;
@@ -334,8 +344,8 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
   query_context_.reset(new QueryContext(query_context_proto,
                                         db_.get(),
                                         storage_manager_.get(),
-                                        tmb::kClientIdNone /* foreman_client_id */,
-                                        nullptr /* TMB */));
+                                        foreman_client_id_,
+                                        &bus_));
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
@@ -476,8 +486,8 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
   query_context_.reset(new QueryContext(query_context_proto,
                                         db_.get(),
                                         storage_manager_.get(),
-                                        tmb::kClientIdNone /* foreman_client_id */,
-                                        nullptr /* TMB */));
+                                        foreman_client_id_,
+                                        &bus_));
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
@@ -626,8 +636,8 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
   query_context_.reset(new QueryContext(query_context_proto,
                                         db_.get(),
                                         storage_manager_.get(),
-                                        tmb::kClientIdNone /* foreman_client_id */,
-                                        nullptr /* TMB */));
+                                        foreman_client_id_,
+                                        &bus_));
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
@@ -761,8 +771,8 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
   query_context_.reset(new QueryContext(query_context_proto,
                                         db_.get(),
                                         storage_manager_.get(),
-                                        tmb::kClientIdNone /* foreman_client_id */,
-                                        nullptr /* TMB */));
+                                        foreman_client_id_,
+                                        &bus_));
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
@@ -930,8 +940,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   query_context_.reset(new QueryContext(query_context_proto,
                                         db_.get(),
                                         storage_manager_.get(),
-                                        tmb::kClientIdNone /* foreman_client_id */,
-                                        nullptr /* TMB */));
+                                        foreman_client_id_,
+                                        &bus_));
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
@@ -1110,8 +1120,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   query_context_.reset(new QueryContext(query_context_proto,
                                         db_.get(),
                                         storage_manager_.get(),
-                                        tmb::kClientIdNone /* foreman_client_id */,
-                                        nullptr /* TMB */));
+                                        foreman_client_id_,
+                                        &bus_));
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());

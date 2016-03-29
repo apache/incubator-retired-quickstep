@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -28,9 +30,11 @@
 #include "catalog/CatalogConfig.h"
 #include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/IndexScheme.hpp"
 #include "catalog/PartitionScheme.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageBlockLayout.hpp"
+#include "storage/StorageConstants.hpp"
 #include "threading/Mutex.hpp"
 #include "threading/SharedMutex.hpp"
 #include "threading/SpinSharedMutex.hpp"
@@ -83,7 +87,7 @@ class CatalogRelation : public CatalogRelationSchema {
    * @param proto The Protocol Buffer serialization of a relation,
    *        previously produced by getProto().
    **/
-  explicit CatalogRelation(const serialization::CatalogRelation &proto);
+  explicit CatalogRelation(const serialization::CatalogRelationSchema &proto);
 
   /**
    * @brief Destructor which recursively destroys children.
@@ -91,13 +95,15 @@ class CatalogRelation : public CatalogRelationSchema {
   ~CatalogRelation() override {
   }
 
+  serialization::CatalogRelationSchema getProto() const override;
+
   /**
    * @brief Check if a partition scheme is available for the relation.
    *
    * @return True if the relation has a partition scheme, false otherwise.
    **/
   bool hasPartitionScheme() const {
-    return partition_scheme_.get() != nullptr;
+    return partition_scheme_ != nullptr;
   }
 
   /**
@@ -136,7 +142,7 @@ class CatalogRelation : public CatalogRelationSchema {
    * @return True if the relation has a NUMA placement scheme, false otherwise.
    **/
   bool hasNUMAPlacementScheme() const {
-    return placement_scheme_.get() != nullptr;
+    return placement_scheme_ != nullptr;
   }
 
   /**
@@ -168,6 +174,34 @@ class CatalogRelation : public CatalogRelationSchema {
     placement_scheme_.reset(placement_scheme);
   }
 #endif
+
+  /**
+   * @brief Check if an index scheme is available for the relation.
+   *
+   * @return True if the relation has a index scheme, false otherwise.
+   **/
+  bool hasIndexScheme() const {
+    return index_scheme_ != nullptr;
+  }
+
+  /**
+   * @brief Get the index scheme of the catalog relation.
+   * @warning This is only safe if hasIndexScheme() is true.
+   *
+   * @return A const reference to the index scheme of the relation.
+   **/
+  const IndexScheme& getIndexScheme() const {
+    return *index_scheme_;
+  }
+
+  /**
+   * @brief Get a mutable index scheme of the relation.
+   *
+   * @return A pointer to the index scheme.
+   **/
+  IndexScheme* getIndexSchemeMutable() {
+    return index_scheme_.get();
+  }
 
   /**
    * @brief Register a StorageBlock as belonging to this relation.
@@ -203,43 +237,73 @@ class CatalogRelation : public CatalogRelationSchema {
   }
 
   /**
-   * @brief Check if an index by the given name exists already
+   * @brief Check whether an index with the given exists or not.
    *
-   * TODO (ssaurabh): Provide a better interface to query indices.
-   *
-   * @param The query index name
-   * @return true, if the index with the given name exists, otherwise false.
+   * @param index_name Name of the index to be checked.
+   * @return Whether the index exists or not.
    **/
-  bool hasIndexWithName(const std::string& name) {
-    SpinSharedMutexExclusiveLock<false> lock(indices_mutex);
-    std::vector<std::string>::iterator it = std::find(indices_.begin(), indices_.end(), name);
-    if (it != indices_.end()) {
-      return true;
-    } else {
+  bool hasIndexWithName(const std::string &index_name) const {
+    SpinSharedMutexSharedLock<false> lock(index_scheme_mutex_);
+    return index_scheme_ && index_scheme_->hasIndexWithName(index_name);
+  }
+
+  /**
+   * @brief Check whether an index with the given description
+   *        containing the same attribute id and index type
+   *        exists or not in the index map.
+   *
+   * @param index_descripton Index Description to check against.
+   * @return Whether a similar index description was already defined or not.
+   **/
+  bool hasIndexWithDescription(const IndexSubBlockDescription &index_description) const {
+    SpinSharedMutexSharedLock<false> lock(index_scheme_mutex_);
+    return index_scheme_ && index_scheme_->hasIndexWithDescription(index_description);
+  }
+
+  /**
+   * @brief Add an index to the index_map.
+   *
+   * @param index_name Name of the index to be added.
+   * @param index_description Corresponding description of the index.
+   * @return Whether the index was added successfully or not
+   **/
+  bool addIndex(const std::string &index_name, const std::vector<IndexSubBlockDescription> &index_descriptions) {
+    SpinSharedMutexExclusiveLock<false> lock(index_scheme_mutex_);
+    // Create an index_scheme, if it does not exist.
+    if (index_scheme_ == nullptr) {
+      index_scheme_.reset(new IndexScheme());
+    }
+
+    // Verify that index with the given name does not exist.
+    if (index_scheme_->hasIndexWithName(index_name)) {
       return false;
     }
-  }
 
-  /**
-   * @brief Create an index with a given name
-   *
-   * TODO (ssaurabh): This is only a placeholder implementation
-   * that just adds an index name into an indicies vector. This
-   * will be replaced by a full-fledged index data structure.
-   *
-   * @param The index to create
-   **/
-  void addIndex(const std::string& name) {
-    SpinSharedMutexExclusiveLock<false> lock(indices_mutex);
-    indices_.emplace_back(name);
-  }
+    // Verify that index with similar description does not exist.
+    for (auto it = index_descriptions.begin(); it != index_descriptions.end(); ++it) {
+      if (index_scheme_->hasIndexWithDescription(*it)) {
+        return false;
+      }
+    }
 
-  /**
-   * @brief Serialize the relation as Protocol Buffer.
-   *
-   * @return The Protocol Buffer representation of the relation.
-   **/
-  serialization::CatalogRelation getProto() const;
+    // Verify that the CatalogRelation has a valid layout.
+    // This check is also required for some unit tests on catalog.
+    if (default_layout_ == nullptr) {
+      // Calling this function initializes the default_layout_.
+      getDefaultStorageBlockLayout();
+    }
+
+    StorageBlockLayoutDescription *layout = default_layout_->getDescriptionMutable();
+    for (auto it = index_descriptions.begin(); it != index_descriptions.end(); ++it) {
+      layout->add_index_description()->MergeFrom(*it);
+    }
+    default_layout_->finalize();
+
+    // Update the index_scheme.
+    index_scheme_->addIndexMapEntry(index_name, index_descriptions);
+
+    return true;  // Index added successfully, lock released.
+  }
 
   /**
    * @brief Check whether a serialization::CatalogRelation is fully-formed and
@@ -249,7 +313,7 @@ class CatalogRelation : public CatalogRelationSchema {
    *        originally generated by getProto().
    * @return Whether proto is fully-formed and valid.
    **/
-  static bool ProtoIsValid(const serialization::CatalogRelation &proto);
+  static bool ProtoIsValid(const serialization::CatalogRelationSchema &proto);
 
   /**
    * @brief Get the number of child blocks.
@@ -316,12 +380,11 @@ class CatalogRelation : public CatalogRelationSchema {
   // assosiated with it.
   std::unique_ptr<PartitionScheme> partition_scheme_;
 
-  // A list of indices belonging to the relation.
-  // TODO(ssaurabh): This is only a placeholder that stores index names
-  // until a full-fledged index implementation is provided in future.
-  std::vector<std::string> indices_;
-  // The mutex used to protect 'indices_' from concurrent access.
-  mutable SpinSharedMutex<false> indices_mutex;
+  // Index scheme associated with this relation.
+  // Defines a set of indices defined for this relation.
+  std::unique_ptr<IndexScheme> index_scheme_;
+  // Mutex for locking the index scheme.
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> index_scheme_mutex_;
 
 #ifdef QUICKSTEP_HAVE_LIBNUMA
   // NUMA placement scheme object which has the mapping between the partitions

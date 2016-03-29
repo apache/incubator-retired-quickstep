@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -43,30 +45,27 @@ namespace quickstep {
 
 class Type;
 
-bool CatalogRelation::ProtoIsValid(const serialization::CatalogRelation &proto) {
+bool CatalogRelation::ProtoIsValid(const serialization::CatalogRelationSchema &proto) {
   // Check that proto is fully initialized.
-  if (!proto.IsInitialized()) {
+  if (!CatalogRelationSchema::ProtoIsValid(proto) ||
+      !proto.HasExtension(serialization::CatalogRelation::default_layout)) {
     return false;
   }
 
-  for (int i = 0; i < proto.attributes_size(); ++i) {
-    if (!CatalogAttribute::ProtoIsValid(proto.attributes(i))) {
-      return false;
-    }
-  }
-
   // Check if the proto of the relation has a partition scheme.
-  if (proto.has_partition_scheme()) {
+  if (proto.HasExtension(serialization::CatalogRelation::partition_scheme)) {
     // Check if the partition scheme protobuf is valid.
-    if (!PartitionScheme::ProtoIsValid(proto.partition_scheme())) {
+    if (!PartitionScheme::ProtoIsValid(
+            proto.GetExtension(serialization::CatalogRelation::partition_scheme))) {
       return false;
     }
 
 #ifdef QUICKSTEP_HAVE_LIBNUMA
     // Check if the proto of the relation has a NUMA placement scheme.
-    if (proto.has_placement_scheme()) {
+    if (proto.HasExtension(serialization::CatalogRelation::placement_scheme)) {
       // Check if the NUMA placement scheme protobuf is valid.
-      if (!NUMAPlacementScheme::ProtoIsValid(proto.placement_scheme())) {
+      if (!NUMAPlacementScheme::ProtoIsValid(
+              proto.GetExtension(serialization::CatalogRelation::placement_scheme))) {
         return false;
       }
     }
@@ -77,32 +76,19 @@ bool CatalogRelation::ProtoIsValid(const serialization::CatalogRelation &proto) 
   return true;
 }
 
-CatalogRelation::CatalogRelation(const serialization::CatalogRelation &proto)
-    : CatalogRelationSchema(nullptr, proto.name(), -1, proto.temporary()),
+CatalogRelation::CatalogRelation(const serialization::CatalogRelationSchema &proto)
+    : CatalogRelationSchema(proto),
       default_layout_(nullptr) {
   DCHECK(ProtoIsValid(proto))
       << "Attempted to create CatalogRelation from an invalid proto description:\n"
       << proto.DebugString();
 
-  // Deserializing the attributes for the relation.
-  for (int i = 0; i < proto.attributes_size(); ++i) {
-    if (proto.attributes(i).IsInitialized()) {
-      addAttribute(new CatalogAttribute(proto.attributes(i)));
-    } else {
-      attr_vec_.push_back(nullptr);
-    }
-  }
-
-  // Deserializing the indices of the relation
-  for (int i = 0; i < proto.index_size(); i++) {
-    indices_.push_back(proto.index(i));
-  }
-
   // Deserializing the partition scheme for the relation.
   // This should be done after the attributes are added and before the
   // blocks of the relation are added.
-  if (proto.has_partition_scheme()) {
-    const serialization::PartitionScheme &proto_partition_scheme = proto.partition_scheme();
+  if (proto.HasExtension(serialization::CatalogRelation::partition_scheme)) {
+    const serialization::PartitionScheme &proto_partition_scheme =
+        proto.GetExtension(serialization::CatalogRelation::partition_scheme);
 
     const attribute_id partition_attribute_id = proto_partition_scheme.header().partition_attribute_id();
     DCHECK(hasAttributeWithId(partition_attribute_id));
@@ -112,46 +98,48 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelation &proto)
 
     // Deserializing the NUMA placement scheme for the relation.
 #ifdef QUICKSTEP_HAVE_LIBNUMA
-    if (proto.has_placement_scheme()) {
+    if (proto.HasExtension(serialization::CatalogRelation::placement_scheme)) {
       setNUMAPlacementScheme(
-          NUMAPlacementScheme::ReconstructFromProto(proto.placement_scheme(),
-                                                    proto_partition_scheme.header().num_partitions()));
+          NUMAPlacementScheme::ReconstructFromProto(
+              proto.GetExtension(serialization::CatalogRelation::placement_scheme),
+              proto_partition_scheme.header().num_partitions()));
     }
 #endif
   }
 
-  // Deserializing the blocks of the relation.
-  for (int i = 0; i < proto.blocks_size(); ++i) {
-    blocks_.emplace_back(static_cast<block_id>(proto.blocks(i)));
-  }
+  const StorageBlockLayoutDescription &proto_default_layout =
+      proto.GetExtension(serialization::CatalogRelation::default_layout);
+  DCHECK(StorageBlockLayout::DescriptionIsValid(*this, proto_default_layout));
 
-  DCHECK(StorageBlockLayout::DescriptionIsValid(*this, proto.default_layout()));
-
-  default_layout_.reset(new StorageBlockLayout(*this, proto.default_layout()));
-}
-
-void CatalogRelation::setPartitionScheme(PartitionScheme* partition_scheme) {
-  DCHECK_EQ(0u, size_blocks());
-  partition_scheme_.reset(partition_scheme);
-}
-
-serialization::CatalogRelation CatalogRelation::getProto() const {
-  serialization::CatalogRelation proto;
-
-  proto.set_name(name_);
-  proto.set_temporary(temporary_);
-  proto.mutable_default_layout()->CopyFrom(getDefaultStorageBlockLayout().getDescription());
-
-  {
-    SpinSharedMutexSharedLock<false> lock(blocks_mutex_);
-    for (const block_id block : blocks_) {
-      proto.add_blocks(block);
+  // Deserializing the index scheme defined for the relation, if any.
+  if (proto.HasExtension(serialization::CatalogRelation::index_scheme)) {
+    index_scheme_.reset(
+        IndexScheme::ReconstructFromProto(proto.GetExtension(serialization::CatalogRelation::index_scheme)));
+    // Ensure that indices present in the block layout are the same as in the index scheme.
+    const std::size_t num_indices_expected = index_scheme_->getNumIndices();
+    const std::size_t num_indices_checked = proto_default_layout.index_description_size();
+    DCHECK_EQ(num_indices_expected, num_indices_checked);
+    for (std::size_t i = 0; i < num_indices_checked; ++i) {
+      const IndexSubBlockDescription &description_checked = proto_default_layout.index_description(i);
+      DCHECK(index_scheme_->hasIndexWithDescription(description_checked))
+          << "Block layout defines some indices not present in the catalog";
     }
   }
 
-  for (std::vector<std::string>::const_iterator it = indices_.begin(); it != indices_.end(); ++it) {
-    proto.add_index(*it);
+  // Deserializing the blocks of the relation.
+  for (int i = 0; i < proto.ExtensionSize(serialization::CatalogRelation::blocks); ++i) {
+    blocks_.emplace_back(static_cast<block_id>(proto.GetExtension(serialization::CatalogRelation::blocks, i)));
   }
+
+  default_layout_.reset(new StorageBlockLayout(*this, proto_default_layout));
+}
+
+serialization::CatalogRelationSchema CatalogRelation::getProto() const {
+  serialization::CatalogRelationSchema proto;
+
+  proto.set_relation_id(id_);
+  proto.set_name(name_);
+  proto.set_temporary(temporary_);
 
   for (PtrVector<CatalogAttribute, true>::const_iterator it = attr_vec_.begin();
        it != attr_vec_.end();
@@ -159,16 +147,42 @@ serialization::CatalogRelation CatalogRelation::getProto() const {
     if (it.isNull()) {
       proto.add_attributes();
     } else {
-      proto.add_attributes()->CopyFrom(it->getProto());
+      proto.add_attributes()->MergeFrom(it->getProto());
     }
+  }
+
+  proto.MutableExtension(serialization::CatalogRelation::default_layout)
+      ->MergeFrom(getDefaultStorageBlockLayout().getDescription());
+
+  {
+    SpinSharedMutexSharedLock<false> lock(blocks_mutex_);
+    for (const block_id block : blocks_) {
+      proto.AddExtension(serialization::CatalogRelation::blocks, block);
+    }
+  }
+
+  if (hasIndexScheme()) {
+    proto.MutableExtension(serialization::CatalogRelation::index_scheme)->MergeFrom(index_scheme_->getProto());
   }
 
   // The partition scheme of the relation is stored in the protocol buffer format.
   if (hasPartitionScheme()) {
-    proto.mutable_partition_scheme()->CopyFrom(partition_scheme_->getProto());
+    proto.MutableExtension(serialization::CatalogRelation::partition_scheme)
+        ->MergeFrom(partition_scheme_->getProto());
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+    if (hasNUMAPlacementScheme()) {
+      proto.MutableExtension(serialization::CatalogRelation::placement_scheme)
+          ->MergeFrom(placement_scheme_->getProto());
+    }
+#endif
   }
 
   return proto;
+}
+
+void CatalogRelation::setPartitionScheme(PartitionScheme* partition_scheme) {
+  DCHECK_EQ(0u, size_blocks());
+  partition_scheme_.reset(partition_scheme);
 }
 
 void CatalogRelation::setDefaultStorageBlockLayout(StorageBlockLayout *default_layout) {
@@ -177,7 +191,7 @@ void CatalogRelation::setDefaultStorageBlockLayout(StorageBlockLayout *default_l
 }
 
 const StorageBlockLayout& CatalogRelation::getDefaultStorageBlockLayout() const {
-  if (default_layout_.get() == nullptr) {
+  if (default_layout_ == nullptr) {
     default_layout_.reset(StorageBlockLayout::GenerateDefaultLayout(*this, isVariableLength()));
   }
 

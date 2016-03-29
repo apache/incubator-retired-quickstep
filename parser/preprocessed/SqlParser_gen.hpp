@@ -173,6 +173,7 @@ union YYSTYPE
 
   quickstep::ParseScalarLiteral *scalar_literal_;
   quickstep::ParseAttribute *attribute_;
+  quickstep::PtrList<quickstep::ParseAttribute> *attribute_list_;
 
   quickstep::ParsePredicate *predicate_;
 
@@ -232,9 +233,7 @@ union YYSTYPE
   bool *order_direction_;
   quickstep::ParseLimit *opt_limit_clause_;
   quickstep::ParseSample *opt_sample_clause_;
- 
   quickstep::ParseWindow *opt_window_clause_;
-
 
   quickstep::PtrList<quickstep::ParseOrderByItem> *order_commalist_;
   quickstep::ParseOrderByItem *order_item_;
@@ -242,7 +241,7 @@ union YYSTYPE
   quickstep::PtrVector<quickstep::ParseSubqueryTableReference> *with_list_;
   quickstep::ParseSubqueryTableReference *with_list_element_;
 
-#line 246 "SqlParser_gen.hpp" /* yacc.c:1909  */
+#line 245 "SqlParser_gen.hpp" /* yacc.c:1909  */
 };
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1

@@ -123,6 +123,7 @@ typedef void* yyscan_t;
 
   quickstep::ParseScalarLiteral *scalar_literal_;
   quickstep::ParseAttribute *attribute_;
+  quickstep::PtrList<quickstep::ParseAttribute> *attribute_list_;
 
   quickstep::ParsePredicate *predicate_;
 
@@ -328,6 +329,10 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %type <attribute_>
   attribute_ref
 
+%type <attribute_list_>
+  attribute_ref_list
+  opt_column_list
+
 %type <predicate_>
   predicate_expression_base
   not_expression
@@ -440,7 +445,6 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <string_list_>
   name_commalist
-  opt_column_list
 
 %type <comparison_>
   comparison_operation
@@ -637,7 +641,11 @@ create_table_statement:
 
 create_index_statement:
   TOKEN_CREATE TOKEN_INDEX any_name TOKEN_ON any_name opt_column_list TOKEN_USING index_type opt_index_properties {
-    $$ = new quickstep::ParseStatementCreateIndex(@1.first_line, @1.first_column, $3, $5, $6, $8, $9);
+    if ($9) {
+      $$ = new quickstep::ParseStatementCreateIndex(@1.first_line, @1.first_column, $3, $5, $6, $8, @9.first_line, @9.first_column, $9);
+    } else {
+      $$ = new quickstep::ParseStatementCreateIndex(@1.first_line, @1.first_column, $3, $5, $6, $8);
+    }
   };
 
 drop_table_statement:
@@ -860,11 +868,8 @@ opt_column_list:
   {
     $$ = nullptr;
   }
-  | '(' name_commalist ')' {
-    delete $2;
-    $$ = nullptr;
-    NotSupported(&@1, yyscanner, "list of column names in CREATE INDEX statement");
-    YYERROR;
+  | '(' attribute_ref_list ')' {
+    $$ = $2;
   };
 
 opt_block_properties:
@@ -902,7 +907,7 @@ key_string_value:
   }
   | any_name TOKEN_ALL {
     // This is a special case to handle the COMPRESS ALL option of the BLOCK PROPERTIES.
-    $$ = new quickstep::ParseKeyStringValue(@1.first_line, @1.first_column, $1, 
+    $$ = new quickstep::ParseKeyStringValue(@1.first_line, @1.first_column, $1,
         new quickstep::ParseString(@2.first_line, @2.first_column, "ALL"));
   }
 
@@ -1561,6 +1566,16 @@ attribute_ref:
   | any_name '.' any_name {
     $$ = new quickstep::ParseAttribute(@1.first_line, @1.first_column, $3, $1);
   };
+
+attribute_ref_list:
+  attribute_ref {
+    $$ = new quickstep::PtrList<quickstep::ParseAttribute>();
+    $$->push_back($1);
+  }
+  | attribute_ref_list ',' attribute_ref {
+    $$ = $1;
+    $$->push_back($3);
+  }
 
 /* Operations from libtypes */
 comparison_operation:

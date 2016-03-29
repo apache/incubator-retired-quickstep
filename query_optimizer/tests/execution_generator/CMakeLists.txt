@@ -28,6 +28,11 @@ add_test(quickstep_queryoptimizer_tests_executiongenerator_drop
          "${CMAKE_CURRENT_SOURCE_DIR}/Drop.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Drop.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Drop/")
+ add_test(quickstep_queryoptimizer_tests_executiongenerator_index
+          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
+          "${CMAKE_CURRENT_SOURCE_DIR}/Index.test"
+          "${CMAKE_CURRENT_BINARY_DIR}/Index.test"
+          "${CMAKE_CURRENT_BINARY_DIR}/Index/")
 add_test(quickstep_queryoptimizer_tests_executiongenerator_insert
          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Insert.test"
@@ -59,6 +64,7 @@ add_test(quickstep_queryoptimizer_tests_executiongenerator_update
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Create)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Delete)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Drop)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Index)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Insert)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Select)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/StringPatternMatching)

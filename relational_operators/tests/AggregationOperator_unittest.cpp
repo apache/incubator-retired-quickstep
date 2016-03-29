@@ -39,6 +39,7 @@
 #include "expressions/scalar/ScalarLiteral.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
+#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/AggregationOperator.hpp"
 #include "relational_operators/FinalizeAggregationOperator.hpp"
@@ -105,6 +106,12 @@ class AggregationOperatorTest : public ::testing::Test {
   static const int kPlaceholder = 0xbeef;
 
   virtual void SetUp() {
+    bus_.Initialize();
+
+    foreman_client_id_ = bus_.Connect();
+    bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
+
     storage_manager_.reset(new StorageManager(kStoragePath));
 
     // Create a database.
@@ -255,8 +262,8 @@ class AggregationOperatorTest : public ::testing::Test {
     query_context_.reset(new QueryContext(query_context_proto,
                                           db_.get(),
                                           storage_manager_.get(),
-                                          tmb::kClientIdNone /* foreman_client_id */,
-                                          nullptr /* TMB */));
+                                          foreman_client_id_,
+                                          &bus_));
 
     // Note: We treat these two operators as different query plan DAGs. The
     // index for each operator should be set, so that the WorkOrdersContainer
@@ -335,8 +342,8 @@ class AggregationOperatorTest : public ::testing::Test {
     query_context_.reset(new QueryContext(query_context_proto,
                                           db_.get(),
                                           storage_manager_.get(),
-                                          tmb::kClientIdNone /* foreman_client_id */,
-                                          nullptr /* TMB */));
+                                          foreman_client_id_,
+                                          &bus_));
 
     // Note: We treat these two operators as different query plan DAGs. The
     // index for each operator should be set, so that the WorkOrdersContainer
@@ -351,8 +358,8 @@ class AggregationOperatorTest : public ::testing::Test {
     op_->getAllWorkOrders(&op_container,
                           query_context_.get(),
                           storage_manager_.get(),
-                          tmb::kClientIdNone /* foreman_client_id */,
-                          nullptr /* TMB */);
+                          foreman_client_id_,
+                          &bus_);
 
     while (op_container.hasNormalWorkOrder(op_index)) {
       WorkOrder *work_order = op_container.getNormalWorkOrder(op_index);
@@ -367,8 +374,8 @@ class AggregationOperatorTest : public ::testing::Test {
     finalize_op_->getAllWorkOrders(&finalize_op_container,
                                    query_context_.get(),
                                    storage_manager_.get(),
-                                   tmb::kClientIdNone /* foreman_client_id */,
-                                   nullptr /* TMB */);
+                                   foreman_client_id_,
+                                   &bus_);
 
     while (finalize_op_container.hasNormalWorkOrder(finalize_op_index)) {
       WorkOrder *work_order = finalize_op_container.getNormalWorkOrder(finalize_op_index);
@@ -454,6 +461,9 @@ class AggregationOperatorTest : public ::testing::Test {
     execute();
     checkGroupByResult(check_fn, num_tuples);
   }
+
+  MessageBusImpl bus_;
+  tmb::client_id foreman_client_id_;
 
   std::unique_ptr<QueryContext> query_context_;
   std::unique_ptr<StorageManager> storage_manager_;

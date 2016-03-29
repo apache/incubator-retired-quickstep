@@ -33,6 +33,7 @@
 #include "expressions/scalar/ScalarAttribute.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
+#include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/RelationalOperator.hpp"
@@ -150,6 +151,9 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
     thread_client_id_ = bus_.Connect();
     bus_.RegisterClientAsSender(thread_client_id_, kDataPipelineMessage);
     bus_.RegisterClientAsReceiver(thread_client_id_, kDataPipelineMessage);
+
+    bus_.RegisterClientAsSender(thread_client_id_, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsReceiver(thread_client_id_, kCatalogRelationNewBlockMessage);
 
     thread_id_map_ = ClientIDMap::Instance();
     // Usually the worker thread makes the following call. In this test setup,
@@ -287,6 +291,21 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
     while (container.hasNormalWorkOrder(kOpIndex)) {
       std::unique_ptr<WorkOrder> order(container.getNormalWorkOrder(kOpIndex));
       order->execute();
+      processCatalogRelationNewBlockMessages();
+    }
+  }
+
+  void processCatalogRelationNewBlockMessages() {
+    AnnotatedMessage msg;
+    while (bus_.ReceiveIfAvailable(thread_client_id_, &msg)) {
+      const TaggedMessage &tagged_message = msg.tagged_message;
+      if (tagged_message.message_type() == kCatalogRelationNewBlockMessage) {
+        serialization::CatalogRelationNewBlockMessage proto;
+        CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+        CatalogRelation *relation = db_->getRelationByIdMutable(proto.relation_id());
+        relation->addBlock(proto.block_id());
+      }
     }
   }
 

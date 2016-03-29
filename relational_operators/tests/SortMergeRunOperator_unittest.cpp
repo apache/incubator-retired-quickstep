@@ -36,6 +36,7 @@
 #include "expressions/scalar/ScalarAttribute.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
+#include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/RelationalOperator.hpp"
@@ -161,6 +162,9 @@ class RunTest : public ::testing::Test {
     bus_.RegisterClientAsSender(thread_client_id_, kDataPipelineMessage);
     bus_.RegisterClientAsReceiver(thread_client_id_, kDataPipelineMessage);
 
+    bus_.RegisterClientAsSender(thread_client_id_, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsReceiver(thread_client_id_, kCatalogRelationNewBlockMessage);
+
     thread_id_map_ = ClientIDMap::Instance();
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
@@ -178,9 +182,9 @@ class RunTest : public ::testing::Test {
     table_->setDefaultStorageBlockLayout(StorageBlockLayout::GenerateDefaultLayout(*table_, false));
 
     insert_destination_.reset(
-        new BlockPoolInsertDestination(storage_manager_.get(),
-                                       table_.get(),
+        new BlockPoolInsertDestination(*table_,
                                        nullptr,
+                                       storage_manager_.get(),
                                        kOpIndex,
                                        thread_client_id_,
                                        &bus_));
@@ -379,6 +383,9 @@ class RunMergerTest : public ::testing::Test {
     bus_.RegisterClientAsSender(thread_client_id_, kDataPipelineMessage);
     bus_.RegisterClientAsReceiver(thread_client_id_, kDataPipelineMessage);
 
+    bus_.RegisterClientAsSender(thread_client_id_, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsReceiver(thread_client_id_, kCatalogRelationNewBlockMessage);
+
     thread_id_map_ = ClientIDMap::Instance();
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
@@ -407,9 +414,9 @@ class RunMergerTest : public ::testing::Test {
     table_->setDefaultStorageBlockLayout(StorageBlockLayout::GenerateDefaultLayout(*table_, false));
 
     insert_destination_.reset(
-        new BlockPoolInsertDestination(storage_manager_.get(),
-                                       table_.get(),
+        new BlockPoolInsertDestination(*table_,
                                        nullptr,
+                                       storage_manager_.get(),
                                        kOpIndex,
                                        thread_client_id_,
                                        &bus_));
@@ -1204,6 +1211,9 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     bus_.RegisterClientAsReceiver(foreman_client_id_, kWorkOrderFeedbackMessage);
     bus_.RegisterClientAsReceiver(foreman_client_id_, kDataPipelineMessage);
 
+    bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
+
     storage_manager_.reset(new StorageManager(kStoragePath));
 
     // Create a database.
@@ -1401,25 +1411,38 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     }
   }
 
-  // Check and dispatch feedback messages to SortMergeRunOperator.
-  void checkAndDispatchFeedbackMessages(std::size_t expected = 0) {
+  void processMessages(const std::size_t num_expected_feedback_messages = 0) {
     AnnotatedMessage msg;
-    std::size_t num_receieved = 0;
+    std::size_t num_receieved_feedback_messages = 0;
     do {
       if (bus_.ReceiveIfAvailable(foreman_client_id_, &msg)) {
-        // Note that this function only deals with feedback messages and it is
-        // safe to discard other kinds of messages (e.g. pipeline) in this
-        // funtion.
-        if (msg.tagged_message.message_type() == kWorkOrderFeedbackMessage) {
-          WorkOrder::FeedbackMessage feedback_msg(
-              const_cast<void *>(msg.tagged_message.message()),
-              msg.tagged_message.message_bytes());
-          EXPECT_EQ(kOpIndex, feedback_msg.header().rel_op_index);
-          merge_op_->receiveFeedbackMessage(feedback_msg);
-          num_receieved++;
+        const TaggedMessage &tagged_message = msg.tagged_message;
+        switch (tagged_message.message_type()) {
+          case kWorkOrderFeedbackMessage: {
+            // Dispatch feedback messages to SortMergeRunOperator.
+            WorkOrder::FeedbackMessage feedback_msg(
+                const_cast<void *>(tagged_message.message()),
+                tagged_message.message_bytes());
+            EXPECT_EQ(kOpIndex, feedback_msg.header().rel_op_index);
+            merge_op_->receiveFeedbackMessage(feedback_msg);
+            ++num_receieved_feedback_messages;
+            break;
+          }
+          case kCatalogRelationNewBlockMessage: {
+            serialization::CatalogRelationNewBlockMessage proto;
+            CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+            CatalogRelation *relation = db_->getRelationByIdMutable(proto.relation_id());
+            relation->addBlock(proto.block_id());
+            break;
+          }
+          default:
+            // It is safe to discard other kinds of messages (e.g. pipeline) in
+            // this funtion.
+            break;
         }
       }
-    } while (num_receieved < expected);
+    } while (num_receieved_feedback_messages < num_expected_feedback_messages);
   }
 
   void executeOperatorUntilDone() {
@@ -1434,7 +1457,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
       while (container.hasNormalWorkOrder(kOpIndex)) {
         std::unique_ptr<WorkOrder> order(container.getNormalWorkOrder(kOpIndex));
         order->execute();
-        checkAndDispatchFeedbackMessages(1);
+        processMessages(1);
       }
     } while (!done);
   }
@@ -1457,7 +1480,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
       if (container.hasNormalWorkOrder(kOpIndex)) {
         std::unique_ptr<WorkOrder> order(container.getNormalWorkOrder(kOpIndex));
         order->execute();
-        checkAndDispatchFeedbackMessages(1);
+        processMessages(1);
         executed = true;
       }
     } while (container.hasNormalWorkOrder(kOpIndex) || executed);

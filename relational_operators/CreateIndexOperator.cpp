@@ -17,6 +17,7 @@
 
 #include "relational_operators/CreateIndexOperator.hpp"
 
+#include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogRelation.hpp"
 
 #include "tmb/id_typedefs.h"
@@ -32,7 +33,7 @@ bool CreateIndexOperator::getAllWorkOrders(WorkOrdersContainer *container,
 }
 
 void CreateIndexOperator::updateCatalogOnCompletion() {
-  relation_->addIndex(index_name_);
+  relation_->addIndex(index_name_, index_descriptions_);
 }
 
 }  // namespace quickstep
