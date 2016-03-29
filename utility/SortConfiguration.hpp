@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -26,7 +26,7 @@
 
 namespace quickstep {
 
-class CatalogDatabase;
+class CatalogDatabaseLite;
 
 namespace serialization { class SortConfiguration; }
 
@@ -86,7 +86,7 @@ class SortConfiguration {
    *         Buffer.
    **/
   static SortConfiguration* ReconstructFromProto(const serialization::SortConfiguration &proto,
-                                                 const CatalogDatabase &database);
+                                                 const CatalogDatabaseLite &database);
 
   /**
    * @brief Check whether a serialization::SortConfiguration is fully-formed and
@@ -100,7 +100,7 @@ class SortConfiguration {
    * @return Whether proto is fully-formed and valid.
    **/
   static bool ProtoIsValid(const serialization::SortConfiguration &proto,
-                           const CatalogDatabase &database);
+                           const CatalogDatabaseLite &database);
 
   /**
    * @brief Get the vector of sort ordering for each ORDER BY column.

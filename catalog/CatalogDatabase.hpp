@@ -189,8 +189,10 @@ class CatalogDatabase : public CatalogDatabaseLite {
     return hasRelationWithIdUnsafe(id);
   }
 
-  const CatalogRelationSchema* getRelationSchemaById(const relation_id id) const override {
-    return getRelationById(id);
+  const CatalogRelationSchema& getRelationSchemaById(const relation_id id) const override {
+    SpinSharedMutexSharedLock<false> lock(relations_mutex_);
+    DCHECK(hasRelationWithIdUnsafe(id));
+    return rel_vec_[id];
   }
 
   /**

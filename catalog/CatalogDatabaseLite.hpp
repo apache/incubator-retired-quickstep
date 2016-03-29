@@ -66,7 +66,7 @@ class CatalogDatabaseLite {
    * @param id The id to search for.
    * @return The relation schema with the given ID.
    **/
-  virtual const CatalogRelationSchema* getRelationSchemaById(const relation_id id) const = 0;
+  virtual const CatalogRelationSchema& getRelationSchemaById(const relation_id id) const = 0;
 
   /**
    * @brief Drop (delete) a relation by id.

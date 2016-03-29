@@ -208,7 +208,8 @@ void Foreman::run() {
 
         const block_id block = proto.block_id();
 
-        CatalogRelation *relation = catalog_database_->getRelationByIdMutable(proto.relation_id());
+        CatalogRelation *relation =
+            static_cast<CatalogDatabase*>(catalog_database_)->getRelationByIdMutable(proto.relation_id());
         relation->addBlock(block);
 
         if (proto.has_partition_id()) {
