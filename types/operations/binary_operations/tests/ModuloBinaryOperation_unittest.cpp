@@ -33,9 +33,8 @@ TEST(ModuloBinaryOperationTest, ResultTypeForPartialArgumentTypesTest) {
   EXPECT_EQ(nullptr,
             ModuloBinaryOperation::Instance().resultTypeForPartialArgumentTypes(nullptr, nullptr));
 
-  // Double has highest precedence of numeric types, and dividing an interval
-  // type by a numeric type yields the same interval type.
-  for (const TypeID type_id : {kDouble, kDatetimeInterval, kYearMonthInterval}) {
+  // Double has highest precedence of numeric types.
+  for (const TypeID type_id : {kDouble}) {
     const Type *result_type = ModuloBinaryOperation::Instance().resultTypeForPartialArgumentTypes(
         &TypeFactory::GetType(type_id, false),
         nullptr);
@@ -50,7 +49,7 @@ TEST(ModuloBinaryOperationTest, ResultTypeForPartialArgumentTypesTest) {
   }
 
   // Other types for left argument are ambiguous or inapplicable.
-  for (const TypeID type_id : {kInt, kLong, kFloat, kDatetime}) {
+  for (const TypeID type_id : {kInt, kLong, kFloat, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
     EXPECT_EQ(nullptr,
               ModuloBinaryOperation::Instance().resultTypeForPartialArgumentTypes(
                   &TypeFactory::GetType(type_id, false),
@@ -71,11 +70,8 @@ TEST(ModuloBinaryOperationTest, ResultTypeForPartialArgumentTypesTest) {
                   nullptr));
   }
 
-  // Can't determine a return type from just the divisor (only kInt and kLong types
-  // are allowed as the divisor, but the result may be a numeric type OR an
-  // interval type).
-  for (const TypeID type_id
-       : {kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
+  // Can't determine a return type from just the divisor.
+  for (const TypeID type_id : {kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
     EXPECT_EQ(nullptr,
               ModuloBinaryOperation::Instance().resultTypeForPartialArgumentTypes(
                   nullptr,
@@ -107,13 +103,13 @@ TEST(ModuloBinaryOperationTest, PartialTypeSignatureIsPlausibleTest) {
   // Result type known, both argument types unknown.
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndUnknownArguments(
       ModuloBinaryOperation::Instance(),
-      {kInt, kLong, kFloat, kDouble, kDatetimeInterval, kYearMonthInterval});
+      {kInt, kLong, kFloat, kDouble});
 
   // --------------------------------------------------------------------------
   // Result type unknown, left argument type known.
   BinaryOperationTestUtil::CheckPlausibilityWithUnknownResultAndSingleKnownArgument(
       ModuloBinaryOperation::Instance(),
-      {kInt, kLong, kFloat, kDouble, kDatetimeInterval, kYearMonthInterval},
+      {kInt, kLong, kFloat, kDouble},
       true,
       false);
 
@@ -138,9 +134,9 @@ TEST(ModuloBinaryOperationTest, PartialTypeSignatureIsPlausibleTest) {
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
       ModuloBinaryOperation::Instance(), kDatetime, {}, true, false);
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
-      ModuloBinaryOperation::Instance(), kDatetimeInterval, {kDatetimeInterval}, true, false);
+      ModuloBinaryOperation::Instance(), kDatetimeInterval, {}, true, false);
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
-      ModuloBinaryOperation::Instance(), kYearMonthInterval, {kYearMonthInterval}, true, false);
+      ModuloBinaryOperation::Instance(), kYearMonthInterval, {}, true, false);
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
       ModuloBinaryOperation::Instance(), kChar, {}, true, false);
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
@@ -159,11 +155,9 @@ TEST(ModuloBinaryOperationTest, PartialTypeSignatureIsPlausibleTest) {
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
       ModuloBinaryOperation::Instance(), kDatetime, {}, false, true);
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
-      ModuloBinaryOperation::Instance(),
-      kDatetimeInterval, {kInt, kLong, kFloat, kDouble}, false, true);
+      ModuloBinaryOperation::Instance(), kDatetimeInterval, {}, false, true);
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
-      ModuloBinaryOperation::Instance(),
-      kYearMonthInterval, {kInt, kLong, kFloat, kDouble}, false, true);
+      ModuloBinaryOperation::Instance(), kYearMonthInterval, {}, false, true);
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
       ModuloBinaryOperation::Instance(), kChar, {}, false, true);
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
@@ -194,33 +188,18 @@ TEST(ModuloBinaryOperationTest, PushDownTypeHintTest) {
     EXPECT_TRUE(result_type->equals(*hints.second));
   }
 
-  // A result of an interval type means that the left argument should be the
-  // same interval type and the right could be any numeric type.
-  for (const TypeID type_id : {kDatetimeInterval, kYearMonthInterval}) {
+  // Can't produce non-numeric types.
+  for (const TypeID type_id : {kDatetime, kDatetimeInterval, kYearMonthInterval}) {
     result_type = &TypeFactory::GetType(type_id, false);
     hints = ModuloBinaryOperation::Instance().pushDownTypeHint(result_type);
-    ASSERT_NE(hints.first, nullptr);
-    EXPECT_TRUE(result_type->equals(*hints.first));
+    EXPECT_EQ(nullptr, hints.first);
     EXPECT_EQ(nullptr, hints.second);
 
     result_type = &TypeFactory::GetType(type_id, true);
     hints = ModuloBinaryOperation::Instance().pushDownTypeHint(result_type);
-    ASSERT_NE(hints.first, nullptr);
-    EXPECT_TRUE(result_type->equals(*hints.first));
+    EXPECT_EQ(nullptr, hints.first);
     EXPECT_EQ(nullptr, hints.second);
   }
-
-  // Division can't produce a Datetime or a string.
-  result_type = &TypeFactory::GetType(kDatetime, false);
-  hints = ModuloBinaryOperation::Instance().pushDownTypeHint(result_type);
-  EXPECT_EQ(nullptr, hints.first);
-  EXPECT_EQ(nullptr, hints.second);
-
-  result_type = &TypeFactory::GetType(kDatetime, true);
-  hints = ModuloBinaryOperation::Instance().pushDownTypeHint(result_type);
-  EXPECT_EQ(nullptr, hints.first);
-  EXPECT_EQ(nullptr, hints.second);
-
   for (const TypeID type_id : {kChar, kVarChar}) {
     result_type = &TypeFactory::GetType(type_id, 10, false);
     hints = ModuloBinaryOperation::Instance().pushDownTypeHint(result_type);

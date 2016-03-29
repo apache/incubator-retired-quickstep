@@ -239,8 +239,8 @@ TypedValue DivideBinaryOperation::applyToChecked(const TypedValue &left,
     case kFloat:
     case kDouble: {
       if (right_type.getSuperTypeID() == Type::kNumeric) {
-        return applyToCheckedNumericHelper<std::divides>(left, left_type,
-                                                         right, right_type);
+        return applyToCheckedNumericHelper<DivideFunctor>(left, left_type,
+                                                          right, right_type);
       }
       break;
     }

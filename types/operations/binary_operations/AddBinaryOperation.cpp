@@ -234,8 +234,8 @@ TypedValue AddBinaryOperation::applyToChecked(const TypedValue &left,
         case kLong:
         case kFloat:
         case kDouble:
-          return applyToCheckedNumericHelper<std::plus>(left, left_type,
-                                                        right, right_type);
+          return applyToCheckedNumericHelper<AddFunctor>(left, left_type,
+                                                         right, right_type);
         default:
           break;
       }
