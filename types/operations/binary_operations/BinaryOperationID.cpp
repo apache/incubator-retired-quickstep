@@ -31,7 +31,8 @@ const char *kBinaryOperationShortNames[] = {
   "+",
   "-",
   "*",
-  "/"
+  "/",
+  "%"
 };
 
 }  // namespace quickstep
