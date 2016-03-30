@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -24,7 +24,7 @@
 #include <utility>
 #include <vector>
 
-#include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogDatabaseLite.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/ExpressionFactories.hpp"
@@ -137,7 +137,7 @@ AggregationOperationState::AggregationOperationState(
 
 AggregationOperationState* AggregationOperationState::ReconstructFromProto(
     const serialization::AggregationOperationState &proto,
-    const CatalogDatabase &database,
+    const CatalogDatabaseLite &database,
     StorageManager *storage_manager) {
   DCHECK(ProtoIsValid(proto, database));
 
@@ -175,7 +175,7 @@ AggregationOperationState* AggregationOperationState::ReconstructFromProto(
                                                database));
   }
 
-  return new AggregationOperationState(*database.getRelationById(proto.relation_id()),
+  return new AggregationOperationState(database.getRelationSchemaById(proto.relation_id()),
                                        aggregate_functions,
                                        std::move(arguments),
                                        std::move(group_by_expressions),
@@ -186,7 +186,7 @@ AggregationOperationState* AggregationOperationState::ReconstructFromProto(
 }
 
 bool AggregationOperationState::ProtoIsValid(const serialization::AggregationOperationState &proto,
-                                             const CatalogDatabase &database) {
+                                             const CatalogDatabaseLite &database) {
   if (!proto.IsInitialized() ||
       !database.hasRelationWithId(proto.relation_id()) ||
       (proto.aggregates_size() <= 0)) {

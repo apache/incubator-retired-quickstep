@@ -1,5 +1,5 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -215,6 +215,7 @@ target_link_libraries(quickstep_utility_SqlError
 target_link_libraries(quickstep_utility_SortConfiguration
                       glog
                       quickstep_expressions_ExpressionFactories
+                      quickstep_expressions_Expressions_proto
                       quickstep_expressions_scalar_Scalar
                       quickstep_utility_PtrVector
                       quickstep_utility_SortConfiguration_proto)

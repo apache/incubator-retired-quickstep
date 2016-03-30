@@ -43,7 +43,7 @@ namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
-class CatalogDatabase;
+class CatalogDatabaseLite;
 class StorageManager;
 
 namespace serialization { class QueryContext; }
@@ -125,7 +125,7 @@ class QueryContext {
    * @param bus A pointer to the TMB.
    **/
   QueryContext(const serialization::QueryContext &proto,
-               CatalogDatabase *database,
+               CatalogDatabaseLite *database,
                StorageManager *storage_manager,
                const tmb::client_id foreman_client_id,
                tmb::MessageBus *bus);
@@ -143,7 +143,7 @@ class QueryContext {
    * @return Whether proto is fully-formed and valid.
    **/
   static bool ProtoIsValid(const serialization::QueryContext &proto,
-                           const CatalogDatabase &database);
+                           const CatalogDatabaseLite &database);
 
   /**
    * @brief Get the AggregationOperationState.

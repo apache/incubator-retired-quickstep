@@ -29,6 +29,7 @@ add_library(quickstep_catalog_Catalog Catalog.cpp Catalog.hpp)
 add_library(quickstep_catalog_Catalog_proto ${catalog_Catalog_proto_srcs})
 add_library(quickstep_catalog_CatalogAttribute CatalogAttribute.cpp CatalogAttribute.hpp)
 add_library(quickstep_catalog_CatalogDatabase CatalogDatabase.cpp CatalogDatabase.hpp)
+add_library(quickstep_catalog_CatalogDatabaseLite ../empty_src.cpp CatalogDatabaseLite.hpp)
 add_library(quickstep_catalog_CatalogErrors ../empty_src.cpp CatalogErrors.hpp)
 add_library(quickstep_catalog_CatalogRelation CatalogRelation.cpp CatalogRelation.hpp)
 add_library(quickstep_catalog_CatalogRelationSchema
@@ -66,16 +67,21 @@ target_link_libraries(quickstep_catalog_CatalogAttribute
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_catalog_CatalogDatabase
                       glog
+                      quickstep_catalog_CatalogDatabaseLite
                       quickstep_catalog_CatalogErrors
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_Catalog_proto
+                      quickstep_storage_StorageConstants
                       quickstep_threading_Mutex
                       quickstep_threading_SharedMutex
                       quickstep_threading_SpinSharedMutex
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector
                       quickstep_utility_StringUtil)
+target_link_libraries(quickstep_catalog_CatalogDatabaseLite
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_catalog_CatalogRelation
                       glog
                       quickstep_catalog_CatalogAttribute
@@ -150,6 +156,7 @@ target_link_libraries(quickstep_catalog
                       quickstep_catalog_Catalog_proto
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogDatabaseLite
                       quickstep_catalog_CatalogErrors
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogRelationSchema

@@ -961,8 +961,8 @@ void ExecutionGenerator::convertInsertTuple(
 
   const CatalogRelationInfo *input_relation_info =
       findRelationInfoOutputByPhysical(physical_plan->input());
-  CatalogRelation *input_relation =
-      optimizer_context_->catalog_database()->getRelationByIdMutable(
+  const CatalogRelation &input_relation =
+      *optimizer_context_->catalog_database()->getRelationById(
           input_relation_info->relation->getID());
 
   // Construct the tuple proto to be inserted.
@@ -976,13 +976,13 @@ void ExecutionGenerator::convertInsertTuple(
   // FIXME(qzeng): A better way is using a traits struct to look up whether a storage
   //               block supports ad-hoc insertion instead of hard-coding the block types.
   const StorageBlockLayout &storage_block_layout =
-      input_relation->getDefaultStorageBlockLayout();
+      input_relation.getDefaultStorageBlockLayout();
   if (storage_block_layout.getDescription().tuple_store_description().sub_block_type() ==
       TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE ||
       storage_block_layout.getDescription().tuple_store_description().sub_block_type() ==
             TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE) {
     THROW_SQL_ERROR() << "INSERT statement is not supported for the relation "
-                      << input_relation->getName()
+                      << input_relation.getName()
                       << ", because its storage blocks do not support ad-hoc insertion";
   }
 
@@ -992,9 +992,9 @@ void ExecutionGenerator::convertInsertTuple(
   S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
 
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
-  insert_destination_proto->set_relation_id(input_relation->getID());
+  insert_destination_proto->set_relation_id(input_relation.getID());
 
-  const vector<block_id> blocks(input_relation->getBlocksSnapshot());
+  const vector<block_id> blocks(input_relation.getBlocksSnapshot());
   for (const block_id block : blocks) {
     insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
   }
@@ -1002,7 +1002,7 @@ void ExecutionGenerator::convertInsertTuple(
 
   const QueryPlan::DAGNodeIndex insert_operator_index =
       execution_plan_->addRelationalOperator(
-          new InsertOperator(*input_relation,
+          new InsertOperator(input_relation,
                              insert_destination_index,
                              tuple_index));
   insert_destination_proto->set_relational_op_index(insert_operator_index);
@@ -1078,7 +1078,7 @@ void ExecutionGenerator::convertUpdateTable(
   const QueryPlan::DAGNodeIndex update_operator_index =
       execution_plan_->addRelationalOperator(
           new UpdateOperator(
-              *optimizer_context_->catalog_database()->getRelationByIdMutable(input_rel_id),
+              *optimizer_context_->catalog_database()->getRelationById(input_rel_id),
               relocation_destination_index,
               execution_predicate_index,
               update_group_index));

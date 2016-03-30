@@ -220,7 +220,7 @@ add_library(quickstep_storage_ValueAccessorUtil ../empty_src.cpp ValueAccessorUt
 # Link dependencies:
 target_link_libraries(quickstep_storage_AggregationOperationState
                       glog
-                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogDatabaseLite
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_ExpressionFactories
@@ -557,7 +557,7 @@ target_link_libraries(quickstep_storage_IndexSubBlock
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_utility_Macros)
-target_link_libraries(quickstep_storage_IndexSubBlockDescriptionFactory                      
+target_link_libraries(quickstep_storage_IndexSubBlockDescriptionFactory
                       quickstep_storage_StorageBlockLayout
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_InsertDestination

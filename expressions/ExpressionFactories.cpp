@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -22,8 +22,8 @@
 #include <utility>
 #include <vector>
 
-#include "catalog/CatalogDatabase.hpp"
-#include "catalog/CatalogRelation.hpp"
+#include "catalog/CatalogDatabaseLite.hpp"
+#include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/Expressions.pb.h"
 #include "expressions/predicate/ComparisonPredicate.hpp"
@@ -52,7 +52,7 @@ namespace quickstep {
 class Type;
 
 Predicate* PredicateFactory::ReconstructFromProto(const serialization::Predicate &proto,
-                                                  const CatalogDatabase &database) {
+                                                  const CatalogDatabaseLite &database) {
   DCHECK(ProtoIsValid(proto, database))
       << "Attempted to create Predicate from an invalid proto description:\n"
       << proto.DebugString();
@@ -98,7 +98,7 @@ Predicate* PredicateFactory::ReconstructFromProto(const serialization::Predicate
 }
 
 bool PredicateFactory::ProtoIsValid(const serialization::Predicate &proto,
-                                    const CatalogDatabase &database) {
+                                    const CatalogDatabaseLite &database) {
   // Check that proto is fully initialized.
   if (!proto.IsInitialized()) {
     return false;
@@ -147,7 +147,7 @@ bool PredicateFactory::ProtoIsValid(const serialization::Predicate &proto,
 }
 
 Scalar* ScalarFactory::ReconstructFromProto(const serialization::Scalar &proto,
-                                            const CatalogDatabase &database) {
+                                            const CatalogDatabaseLite &database) {
   DCHECK(ProtoIsValid(proto, database))
       << "Attempted to create Scalar from an invalid proto description:\n"
       << proto.DebugString();
@@ -161,7 +161,7 @@ Scalar* ScalarFactory::ReconstructFromProto(const serialization::Scalar &proto,
       const relation_id rel_id = proto.GetExtension(serialization::ScalarAttribute::relation_id);
 
       DCHECK(database.hasRelationWithId(rel_id));
-      return new ScalarAttribute(*database.getRelationById(rel_id)->getAttributeById(
+      return new ScalarAttribute(*database.getRelationSchemaById(rel_id).getAttributeById(
           proto.GetExtension(serialization::ScalarAttribute::attribute_id)));
     }
     case serialization::Scalar::UNARY_EXPRESSION: {
@@ -214,7 +214,7 @@ Scalar* ScalarFactory::ReconstructFromProto(const serialization::Scalar &proto,
 }
 
 bool ScalarFactory::ProtoIsValid(const serialization::Scalar &proto,
-                                 const CatalogDatabase &database) {
+                                 const CatalogDatabaseLite &database) {
   // Check that proto is fully initialized.
   if (!proto.IsInitialized()) {
     return false;
@@ -235,7 +235,7 @@ bool ScalarFactory::ProtoIsValid(const serialization::Scalar &proto,
         const attribute_id attr_id = proto.GetExtension(serialization::ScalarAttribute::attribute_id);
 
         return database.hasRelationWithId(rel_id)
-               && database.getRelationById(rel_id)->hasAttributeWithId(attr_id);
+               && database.getRelationSchemaById(rel_id).hasAttributeWithId(attr_id);
       }
       break;
     }

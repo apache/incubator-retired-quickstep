@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@
 namespace quickstep {
 
 class AggregateFunction;
-class CatalogDatabase;
+class CatalogDatabaseLite;
 class CatalogRelationSchema;
 class InsertDestination;
 class StorageManager;
@@ -79,7 +79,7 @@ class AggregationOperationState {
    * @param arguments For each entry in aggregate_functions, a corresponding
    *        list of argument expressions to that aggregate. This is moved-from,
    *        with AggregationOperationState taking ownership.
-   * @param group_by A list of expressions to compute the GROUP BY values. If 
+   * @param group_by A list of expressions to compute the GROUP BY values. If
    *        empty, no grouping is used. This is moved-from, with
    *        AggregationOperationState taking ownership.
    * @param predicate The predicate to be applied prior to aggregation. nullptr
@@ -120,7 +120,7 @@ class AggregationOperationState {
    **/
   static AggregationOperationState* ReconstructFromProto(
       const serialization::AggregationOperationState &proto,
-      const CatalogDatabase &database,
+      const CatalogDatabaseLite &database,
       StorageManager *storage_manager);
 
   /**
@@ -134,7 +134,7 @@ class AggregationOperationState {
    * @return Whether proto is fully-formed and valid.
    **/
   static bool ProtoIsValid(const serialization::AggregationOperationState &proto,
-                           const CatalogDatabase &database);
+                           const CatalogDatabaseLite &database);
 
   /**
    * @brief Compute aggregates on the tuples of the given storage block,

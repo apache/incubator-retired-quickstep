@@ -43,7 +43,7 @@
 
 namespace quickstep {
 
-class CatalogDatabase;
+class CatalogDatabaseLite;
 class StorageManager;
 class WorkerDirectory;
 
@@ -73,7 +73,7 @@ class Foreman final : public ForemanLite {
    *       around on different CPUs by the OS.
   **/
   Foreman(tmb::MessageBus *bus,
-          CatalogDatabase *catalog_database,
+          CatalogDatabaseLite *catalog_database,
           StorageManager *storage_manager,
           const int cpu_id = -1,
           const int num_numa_nodes = 1)
@@ -449,7 +449,7 @@ class Foreman final : public ForemanLite {
    **/
   void getRebuildWorkOrders(const dag_node_index index, WorkOrdersContainer *container);
 
-  CatalogDatabase *catalog_database_;
+  CatalogDatabaseLite *catalog_database_;
   StorageManager *storage_manager_;
 
   DAG<RelationalOperator, bool> *query_dag_;
