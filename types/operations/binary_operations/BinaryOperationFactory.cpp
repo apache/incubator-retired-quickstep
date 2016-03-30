@@ -23,6 +23,7 @@
 #include "types/operations/binary_operations/AddBinaryOperation.hpp"
 #include "types/operations/binary_operations/BinaryOperationID.hpp"
 #include "types/operations/binary_operations/DivideBinaryOperation.hpp"
+#include "types/operations/binary_operations/ModuloBinaryOperation.hpp"
 #include "types/operations/binary_operations/MultiplyBinaryOperation.hpp"
 #include "types/operations/binary_operations/SubtractBinaryOperation.hpp"
 #include "utility/Macros.hpp"
@@ -42,7 +43,7 @@ const BinaryOperation& BinaryOperationFactory::GetBinaryOperation(const BinaryOp
     case BinaryOperationID::kDivide:
       return DivideBinaryOperation::Instance();
     case BinaryOperationID::kModulo:
-      return DivideBinaryOperation::Instance();
+      return ModuloBinaryOperation::Instance();
     default:
       break;  // Prevent compiler from complaining about unhandled case.
   }

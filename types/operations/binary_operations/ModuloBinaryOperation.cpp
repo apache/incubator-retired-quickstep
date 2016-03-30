@@ -41,28 +41,24 @@ namespace quickstep {
 
 bool ModuloBinaryOperation::canApplyToTypes(const Type &left, const Type &right) const {
   switch (left.getTypeID()) {
-    case kInt: {
-      return (right.getTypeID() == kInt);
+    case kInt: // Fall through
+    case kLong:
+    case kFloat:
+    case kDouble: {
+      return (right.getSuperTypeID() == Type::kNumeric);
     }
-    case kLong: {
-      return (right.getTypeID() == kInt ||
-              right.getTypeID() == kLong);
-    }
+    // TODO(jianqiao): Extend modulo operator to be applicable to DatetimeInterval
+    // and YearMonthInterval.
     default:
       return false;
   }
 }
 
 const Type* ModuloBinaryOperation::resultTypeForArgumentTypes(const Type &left, const Type &right) const {
-  switch (left.getTypeID()) {
-    case kInt: {
-      return &TypeFactory::GetType(kInt, true);
-    }
-    case kLong: {
-      return &TypeFactory::GetType(kLong, true);
-    }
-    default:
-      return nullptr;
+  if (left.getSuperTypeID() == Type::kNumeric && right.getSuperTypeID() == Type::kNumeric) {
+    return TypeFactory::GetUnifyingType(left, right);
+  } else {
+    return nullptr;
   }
 }
 
@@ -74,10 +70,9 @@ const Type* ModuloBinaryOperation::resultTypeForPartialArgumentTypes(
     return nullptr;
   } else if (right == nullptr) {
     switch (left->getTypeID()) {
-      case kInt:
-        return &TypeFactory::GetType(kInt, true);
-      case kLong:
-        return &TypeFactory::GetType(kLong, true);
+      case kDouble:
+        // Double has highest precedence of numeric types.
+        return &TypeFactory::GetType(kDouble, true);
       default:
         // Ambiguous or inapplicable.
         return nullptr;
@@ -112,7 +107,7 @@ bool ModuloBinaryOperation::partialTypeSignatureIsPlausible(
         // that can possibly be returned.
         return QUICKSTEP_EQUALS_ANY_CONSTANT(
             result_type->getTypeID(),
-            kInt, kLong);
+            kInt, kLong, kFloat, kDouble);
       }
     }
 
@@ -122,7 +117,7 @@ bool ModuloBinaryOperation::partialTypeSignatureIsPlausible(
       // the right (divisor) type.
       return QUICKSTEP_EQUALS_ANY_CONSTANT(
           right_argument_type->getTypeID(),
-          kInt, kLong);
+          kInt, kLong, kFloat, kDouble);
     }
 
     // Return type and right (divisor) argument type are known, left (dividend)
@@ -131,11 +126,17 @@ bool ModuloBinaryOperation::partialTypeSignatureIsPlausible(
       case kInt:
         return QUICKSTEP_EQUALS_ANY_CONSTANT(
             result_type->getTypeID(),
-            kInt, kLong);
+            kInt, kLong, kFloat, kDouble);
       case kLong:
         return QUICKSTEP_EQUALS_ANY_CONSTANT(
             result_type->getTypeID(),
-            kLong);
+            kLong, kDouble);
+      case kFloat:
+        return QUICKSTEP_EQUALS_ANY_CONSTANT(
+            result_type->getTypeID(),
+            kFloat, kDouble);
+      case kDouble:
+        return (result_type->getTypeID() == kDouble);
       default:
         return false;
     }
@@ -147,7 +148,7 @@ bool ModuloBinaryOperation::partialTypeSignatureIsPlausible(
         // (dividend) type can be divided.
         return QUICKSTEP_EQUALS_ANY_CONSTANT(
             left_argument_type->getTypeID(),
-            kInt, kLong);
+            kInt, kLong, kFloat, kDouble);
       }
 
       // Result type and left (dividend) argument type are known, but right
@@ -157,9 +158,17 @@ bool ModuloBinaryOperation::partialTypeSignatureIsPlausible(
         case kInt:
           return QUICKSTEP_EQUALS_ANY_CONSTANT(
               result_type->getTypeID(),
-              kInt, kLong);
+              kInt, kLong, kFloat, kDouble);
         case kLong:
-          return (result_type->getTypeID() == kLong);
+          return QUICKSTEP_EQUALS_ANY_CONSTANT(
+              result_type->getTypeID(),
+              kLong, kDouble);
+        case kFloat:
+          return QUICKSTEP_EQUALS_ANY_CONSTANT(
+              result_type->getTypeID(),
+              kFloat, kDouble);
+        case kDouble:
+          return (result_type->getTypeID() == kDouble);
         default:
           return false;
       }
@@ -191,6 +200,8 @@ std::pair<const Type*, const Type*> ModuloBinaryOperation::pushDownTypeHint(
   switch (result_type_hint->getTypeID()) {
     case kInt:
     case kLong:
+    case kFloat:
+    case kDouble:
       return std::pair<const Type*, const Type*>(result_type_hint, result_type_hint);
     default:
       // Inapplicable.
@@ -203,46 +214,19 @@ TypedValue ModuloBinaryOperation::applyToChecked(const TypedValue &left,
                                                  const TypedValue &right,
                                                  const Type &right_type) const {
   switch (left_type.getTypeID()) {
-    case kInt: {
-      if (right_type.getTypeID() == kInt) {
-        // TODO(jmp) Hack
-        /*
-        return applyToCheckedNumericHelper<std::modulus>(left, left_type,
-                                                         right, right_type);
-        */
-        /*
-        return TypedValue(std::modulus<int>(left.getLiteral<IntType::cpptype>(),
-                                            right.getLiteral<IntType::cpptype>()));
-         */
-        // TODO(jmp): Ugly hack
-        return TypedValue(left.getLiteral<IntType::cpptype>() % right.getLiteral<IntType::cpptype>());
-
-        // int
-
-        /*
-        OperationFunctor<IntType::cpptype> operation_functor;
-        return TypedValue(operation_functor(left_coerced.getLiteral<IntType::cpptype>(),
-                                            right_coerced.getLiteral<IntType::cpptype>()));
-         */
-
-      }
-      break;
-    }
+    case kInt:
     case kLong: {
-      if (right_type.getTypeID() == kInt || right_type.getTypeID() == kLong) {
-        // TODO(jmp) Hack
-        /*
-        return applyToCheckedNumericHelper<std::modulus>(left, left_type,
-                                                         right, right_type);
-         */
-      /*
-      return TypedValue(std::modulus<LongType::cpptype>(left.getLiteral<LongType::cpptype>(),
-                                                       right.getLiteral<LongType::cpptype>()));
-
-       */
-      // TODO(jmp): Ugly hack
-      return TypedValue(left.getLiteral<LongType::cpptype>() % right.getLiteral<LongType::cpptype>());
-      // std::int64_t
+      if (right_type.getTypeID() == TypeID::kInt
+          || right_type.getTypeID() == TypeID::kLong) {
+        return applyToCheckedIntegerHelper<IntegerModuloFunctor>(left, left_type,
+                                                                 right, right_type);
+      }
+    }  // Fall through
+    case kFloat:
+    case kDouble: {
+      if (right_type.getSuperTypeID() == Type::kNumeric) {
+        return applyToCheckedNumericHelper<FloatModuloFunctor>(left, left_type,
+                                                               right, right_type);
       }
       break;
     }
@@ -257,15 +241,17 @@ TypedValue ModuloBinaryOperation::applyToChecked(const TypedValue &left,
 UncheckedBinaryOperator* ModuloBinaryOperation::makeUncheckedBinaryOperatorForTypes(const Type &left,
                                                                                     const Type &right) const {
   switch (left.getTypeID()) {
-    case kInt: {
-      if (right.getTypeID() == kInt) {
-        return makeNumericBinaryOperatorOuterHelper<ModuloArithmeticUncheckedBinaryOperator>(left, right);
-      }
-      break;
-    }
+    case kInt:
     case kLong: {
-      if (right.getTypeID() == kInt || right.getTypeID() == kLong) {
-        return makeNumericBinaryOperatorOuterHelper<ModuloArithmeticUncheckedBinaryOperator>(left, right);
+      if (right.getTypeID() == TypeID::kInt
+          || right.getTypeID() == TypeID::kLong) {
+        return makeIntegerBinaryOperatorOuterHelper<IntegerModuloArithmeticUncheckedBinaryOperator>(left, right);
+      }
+    }  // Fall through
+    case kFloat:
+    case kDouble: {
+      if (right.getSuperTypeID() == Type::kNumeric) {
+        return makeNumericBinaryOperatorOuterHelper<FloatModuloArithmeticUncheckedBinaryOperator>(left, right);
       }
       break;
     }

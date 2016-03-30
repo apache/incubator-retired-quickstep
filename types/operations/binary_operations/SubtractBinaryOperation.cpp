@@ -288,8 +288,8 @@ TypedValue SubtractBinaryOperation::applyToChecked(const TypedValue &left,
     case kFloat:
     case kDouble: {
       if (right_type.getSuperTypeID() == Type::kNumeric) {
-        return applyToCheckedNumericHelper<std::minus>(left, left_type,
-                                                       right, right_type);
+        return applyToCheckedNumericHelper<SubtractFunctor>(left, left_type,
+                                                            right, right_type);
       }
       break;
     }

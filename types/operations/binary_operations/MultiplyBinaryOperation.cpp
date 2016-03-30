@@ -218,7 +218,7 @@ TypedValue MultiplyBinaryOperation::applyToChecked(const TypedValue &left,
     case kFloat:
     case kDouble: {
       if (right_type.getSuperTypeID() == Type::kNumeric) {
-        return applyToCheckedNumericHelper<std::multiplies>(left, left_type,
+        return applyToCheckedNumericHelper<MultiplyFunctor>(left, left_type,
                                                             right, right_type);
       } else if (right_type.getTypeID() == kDatetimeInterval) {
         return applyToCheckedIntervalMultiplyNumericHelper<DatetimeIntervalType>(right, right_type,

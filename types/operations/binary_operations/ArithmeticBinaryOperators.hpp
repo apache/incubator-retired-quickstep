@@ -124,20 +124,6 @@ template <typename LeftArgument, typename RightArgument> struct DivideFunctor {
   }
 };
 
-template <typename LeftArgument, typename RightArgument> struct ModuloFunctor {
-  inline auto operator() (const LeftArgument &left, const RightArgument &right) const -> decltype(left / right) {
-    return left / right;
-  }
-};
-
-/*
-template <typename LeftArgument, typename RightArgument> struct ModuloFunctor {
-  inline auto operator() (const LeftArgument &left, const RightArgument &right) const -> decltype(static_cast<int64_t>(left) % static_cast<int64_t>(right)) { // TODO(jmp): Fix this ugly hack
-      return static_cast<int64_t>(left) % static_cast<int64_t>(right); // TODO(jmp): Fix this ugly hack
-  }
-};
-*/
-
 // NOTE(zuyu): The C++ compiler in general converts all integers to floats
 //             when doing the following operations,
 //             but we could like to return double instead.
@@ -155,36 +141,22 @@ struct DivideFunctor<float, std::int64_t> {
   }
 };
 
-/*
-// NOTE(jmp): An ugly hack for now to allow template initialization for modulo on arbitrary numerics
-template <>
-struct ModuloFunctor<std::int64_t, float> {
-  inline double operator() (const std::int64_t &left, const float &right) const {
-    return static_cast<int64_t>(left) / static_cast<int64_t>(right);
+template <typename LeftArgument, typename RightArgument> struct IntegerModuloFunctor {
+  inline auto operator() (const LeftArgument &left, const RightArgument &right) const -> decltype(left % right) {
+    return left % right;
   }
 };
 
-template <>
-struct ModuloFunctor<std::int64_t, double> {
-  inline double operator() (const std::int64_t &left, const float &right) const {
-    return static_cast<int64_t>(left) / static_cast<int64_t>(right);
+// NOTE(jianqiao): The C++11 standard specifies the following type signatures for fmod:
+// (1) (double, double) -> double
+// (2) (float, float) -> float
+// (3) (long double, long double) -> long double
+// (3) (Arithmetic, Arithmetic) -> double
+template <typename LeftArgument, typename RightArgument> struct FloatModuloFunctor {
+  inline auto operator() (const LeftArgument &left, const RightArgument &right) const -> decltype(std::fmod(left, right)) {
+    return std::fmod(left, right);
   }
 };
-
-template <>
-struct ModuloFunctor<float, float> {
-  inline double operator() (const std::int64_t &left, const float &right) const {
-    return static_cast<int64_t>(left) / static_cast<int64_t>(right);
-  }
-};
-
-template <>
-struct ModuloFunctor<double, double> {
-  inline double operator() (const std::int64_t &left, const float &right) const {
-    return static_cast<int64_t>(left) / static_cast<int64_t>(right);
-  }
-}; 
-*/
 
 template <template <typename LeftCppType, typename RightCppType> class OpFunctor,
           typename ResultType,
@@ -842,13 +814,25 @@ using DivideArithmeticUncheckedBinaryOperator
                                         RightCppType, right_nullable>;
 
 /**
- * @brief The UncheckedBinaryOperator for modulo.
+ * @brief The UncheckedBinaryOperator for integer modulo.
  **/
 template <typename ResultType,
           typename LeftCppType, bool left_nullable,
           typename RightCppType, bool right_nullable>
-using ModuloArithmeticUncheckedBinaryOperator
-    = ArithmeticUncheckedBinaryOperator<ModuloFunctor,
+using IntegerModuloArithmeticUncheckedBinaryOperator
+    = ArithmeticUncheckedBinaryOperator<IntegerModuloFunctor,
+                                        ResultType,
+                                        LeftCppType, left_nullable,
+                                        RightCppType, right_nullable>;
+
+/**
+ * @brief The UncheckedBinaryOperator for real number modulo.
+ **/
+template <typename ResultType,
+          typename LeftCppType, bool left_nullable,
+          typename RightCppType, bool right_nullable>
+using FloatModuloArithmeticUncheckedBinaryOperator
+    = ArithmeticUncheckedBinaryOperator<FloatModuloFunctor,
                                         ResultType,
                                         LeftCppType, left_nullable,
                                         RightCppType, right_nullable>;
