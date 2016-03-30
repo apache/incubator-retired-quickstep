@@ -28,6 +28,7 @@ add_library(quickstep_queryoptimizer_physical_NestedLoopsJoin NestedLoopsJoin.cp
 add_library(quickstep_queryoptimizer_physical_PatternMatcher ../../empty_src.cpp PatternMatcher.hpp)
 add_library(quickstep_queryoptimizer_physical_Physical ../../empty_src.cpp Physical.hpp)
 add_library(quickstep_queryoptimizer_physical_PhysicalType ../../empty_src.cpp PhysicalType.hpp)
+add_library(quickstep_queryoptimizer_physical_Sample Sample.cpp Sample.hpp)
 add_library(quickstep_queryoptimizer_physical_Selection Selection.cpp Selection.hpp)
 add_library(quickstep_queryoptimizer_physical_SharedSubplanReference
             SharedSubplanReference.cpp
@@ -71,8 +72,10 @@ target_link_libraries(quickstep_queryoptimizer_physical_CopyFrom
 target_link_libraries(quickstep_queryoptimizer_physical_CreateIndex
                       glog
                       quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_physical_CreateTable
@@ -153,6 +156,16 @@ target_link_libraries(quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExpressionUtil
                       quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_physical_Sample
+                      glog
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_expressions_NamedExpression
+                      quickstep_queryoptimizer_physical_Physical
+                      quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_utility_Cast
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_physical_Selection
                       glog
@@ -246,6 +259,7 @@ target_link_libraries(quickstep_queryoptimizer_physical
                       quickstep_queryoptimizer_physical_PatternMatcher
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_queryoptimizer_physical_Sample
                       quickstep_queryoptimizer_physical_Selection
                       quickstep_queryoptimizer_physical_SharedSubplanReference
                       quickstep_queryoptimizer_physical_Sort

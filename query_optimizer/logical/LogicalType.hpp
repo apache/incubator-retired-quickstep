@@ -42,6 +42,7 @@ enum class LogicalType {
   kMultiwayCartesianJoin,
   kNestedLoopsJoin,
   kProject,
+  kSample,
   kSharedSubplanReference,
   kSort,
   kTableGenerator,

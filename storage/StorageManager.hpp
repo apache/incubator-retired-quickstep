@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -49,7 +49,6 @@ DECLARE_uint64(buffer_pool_slots);
 DECLARE_bool(use_hdfs);
 #endif
 
-class CatalogRelation;
 class CatalogRelationSchema;
 class StorageBlockLayout;
 
@@ -85,7 +84,7 @@ class StorageManager {
    *        storage.
    * @param max_memory_usage The maximum amount of memory that the storage
    *                         manager should use for cached blocks in slots. If
-   *                         an block is requested that is not currently in
+   *                         a block is requested that is not currently in
    *                         memory and there are already max_memory_usage slots
    *                         in use in memory, then the storage manager will
    *                         attempt to evict enough blocks to make room for the
@@ -171,16 +170,15 @@ class StorageManager {
    *
    * @param relation The relation which the new block will belong to (you must
    *                 also call addBlock() on the relation).
-   * @param layout The StorageBlockLayout to use for the new block. If NULL,
-   *               the default layout from relation will be used.
+   * @param layout The StorageBlockLayout to use for the new block.
    * @param numa_node The NUMA node on which the block should be created. The
    *                  default value is -1 and it means that the Catalog
    *                  Relation has no NUMAPlacementScheme associated with it
    *                  and hence the block will be created as per the OS policy.
    * @return The id of the newly-created block.
    **/
-  block_id createBlock(const CatalogRelation &relation,
-                       const StorageBlockLayout *layout,
+  block_id createBlock(const CatalogRelationSchema &relation,
+                       const StorageBlockLayout &layout,
                        const int numa_node = -1);
 
   /**
@@ -210,6 +208,7 @@ class StorageManager {
 
   /**
    * @brief Save a block or blob in memory to the persistent storage.
+   * @details Obtains a read lock on the shard containing the saved block.
    *
    * @param block The id of the block or blob to save.
    * @param force Force the block to the persistent storage, even if it is not
@@ -365,6 +364,20 @@ class StorageManager {
                        const std::size_t num_slots);
 
   /**
+   * @brief Save a block or blob in memory to the persistent storage.
+   * 
+   * @param block The id of the block or blob to save.
+   * @param force Force the block to the persistent storage, even if it is not
+   *        dirty (by default, only actually write dirty blocks to the
+   *        persistent storage).
+   * 
+   * @return False if the block is not found in the memory. True if the block is
+   *         successfully saved to the persistent storage OR the block is clean
+   *         and force is false.
+   */
+  bool saveBlockOrBlobInternal(const block_id block, const bool force);
+
+  /**
    * @brief Evict a block or blob from memory.
    * @note The block is NOT automatically saved, so call saveBlock() first if
    *       necessary.
@@ -404,14 +417,8 @@ class StorageManager {
    *        requested size.
    *
    * @param slots Number of slots to make room for.
-   * @param locked_block_id Reference to the block id for which room is being made.
-   *                        The parent has a lock in the sharded lock manager for the 
-   *                        "locked_block_id,"  so need to pass this through to the 
-   *                        EvictionPolicy to avoid a deadlock if the block that is
-   *                        being cleared out hashes to the same hash entry.
    */
-  void makeRoomForBlock(const size_t slots,
-                        const block_id locked_block_id);
+  void makeRoomForBlock(const size_t slots);
 
   /**
    * @brief Load a block from the persistent storage into memory.

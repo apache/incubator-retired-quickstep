@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -61,6 +63,7 @@
 #include "query_optimizer/physical/PatternMatcher.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
+#include "query_optimizer/physical/Sample.hpp"
 #include "query_optimizer/physical/Selection.hpp"
 #include "query_optimizer/physical/SharedSubplanReference.hpp"
 #include "query_optimizer/physical/Sort.hpp"
@@ -80,6 +83,7 @@
 #include "relational_operators/InsertOperator.hpp"
 #include "relational_operators/NestedLoopsJoinOperator.hpp"
 #include "relational_operators/RelationalOperator.hpp"
+#include "relational_operators/SampleOperator.hpp"
 #include "relational_operators/SaveBlocksOperator.hpp"
 #include "relational_operators/SelectOperator.hpp"
 #include "relational_operators/SortMergeRunOperator.hpp"
@@ -215,6 +219,9 @@ void ExecutionGenerator::generatePlanInternal(
     case P::PhysicalType::kNestedLoopsJoin:
       return convertNestedLoopsJoin(
           std::static_pointer_cast<const P::NestedLoopsJoin>(physical_plan));
+    case P::PhysicalType::kSample:
+      return convertSample(
+          std::static_pointer_cast<const P::Sample>(physical_plan));
     case P::PhysicalType::kSelection:
       return convertSelection(
           std::static_pointer_cast<const P::Selection>(physical_plan));
@@ -278,7 +285,6 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
 
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_rel_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(true);
 }
 
 void ExecutionGenerator::dropAllTemporaryRelations() {
@@ -336,6 +342,45 @@ void ExecutionGenerator::convertTableReference(
       std::forward_as_tuple(physical_table_reference),
       std::forward_as_tuple(CatalogRelationInfo::kInvalidOperatorIndex,
                             catalog_relation));
+}
+
+void ExecutionGenerator::convertSample(const P::SamplePtr &physical_sample) {
+  // Create InsertDestination proto.
+  const CatalogRelation *output_relation = nullptr;
+  const QueryContext::insert_destination_id insert_destination_index =
+      query_context_proto_->insert_destinations_size();
+  S::InsertDestination *insert_destination_proto =
+      query_context_proto_->add_insert_destinations();
+  createTemporaryCatalogRelation(physical_sample,
+                                 &output_relation,
+                                 insert_destination_proto);
+
+  // Create and add a Sample operator.
+  const CatalogRelationInfo *input_relation_info =
+      findRelationInfoOutputByPhysical(physical_sample->input());
+  DCHECK(input_relation_info != nullptr);
+
+  SampleOperator *sample_op = new SampleOperator(*input_relation_info->relation,
+                                                 *output_relation,
+                                                 insert_destination_index,
+                                                 input_relation_info->isStoredRelation(),
+                                                 physical_sample->is_block_sample(),
+                                                 physical_sample->percentage());
+  const QueryPlan::DAGNodeIndex sample_index =
+      execution_plan_->addRelationalOperator(sample_op);
+  insert_destination_proto->set_relational_op_index(sample_index);
+
+  if (!input_relation_info->isStoredRelation()) {
+    execution_plan_->addDirectDependency(sample_index,
+                                         input_relation_info->producer_operator_index,
+                                         false /* is_pipeline_breaker */);
+  }
+  physical_to_output_relation_map_.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple(physical_sample),
+      std::forward_as_tuple(sample_index,
+                            output_relation));
+  temporary_relation_info_vec_.emplace_back(sample_index, output_relation);
 }
 
 bool ExecutionGenerator::convertSimpleProjection(
@@ -733,7 +778,11 @@ void ExecutionGenerator::convertCopyFrom(
 
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation->getID());
-  insert_destination_proto->set_need_to_add_blocks_from_relation(true);
+
+  const vector<block_id> blocks(physical_plan->catalog_relation()->getBlocksSnapshot());
+  for (const block_id block : blocks) {
+    insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+  }
 
   const QueryPlan::DAGNodeIndex scan_operator_index =
       execution_plan_->addRelationalOperator(
@@ -763,13 +812,44 @@ void ExecutionGenerator::convertCreateIndex(
   CatalogRelation *input_relation =
       optimizer_context_->catalog_database()->getRelationByIdMutable(
             input_relation_info->relation->getID());
+
+  // Check if any index with the specified name already exists.
   if (input_relation->hasIndexWithName(physical_plan->index_name())) {
     THROW_SQL_ERROR() << "The relation " << input_relation->getName()
-            << " already has an index named "<< physical_plan->index_name();
-  } else {
-    execution_plan_->addRelationalOperator(
-       new CreateIndexOperator(input_relation, physical_plan->index_name()));
+        << " already has an index named "<< physical_plan->index_name();
   }
+
+  DCHECK_GT(physical_plan->index_attributes().size(), 0u);
+
+  // Convert attribute references to a vector of pointers to catalog attributes.
+  std::vector<const CatalogAttribute*> index_attributes;
+  for (const E::AttributeReferencePtr &attribute : physical_plan->index_attributes()) {
+    const CatalogAttribute *catalog_attribute
+        = input_relation->getAttributeByName(attribute->attribute_name());
+    DCHECK(catalog_attribute != nullptr);
+    index_attributes.emplace_back(catalog_attribute);
+  }
+
+  // Corresponding to each attribute, create a copy of index description.
+  std::vector<IndexSubBlockDescription> index_descriptions;
+  for (const CatalogAttribute* catalog_attribute : index_attributes) {
+    IndexSubBlockDescription index_description(*physical_plan->index_description());
+    index_description.add_indexed_attribute_ids(catalog_attribute->getID());
+    if (input_relation->hasIndexWithDescription(index_description)) {
+      // Check if the given index description already exists in the relation.
+      THROW_SQL_ERROR() << "The relation " << input_relation->getName()
+          << " already defines this index on "<< catalog_attribute->getName();
+    } else if (!index_description.IsInitialized()) {
+      // Check if the given index description is valid.
+      THROW_SQL_ERROR() << "The index with given properties cannot be created.";
+    } else {
+      index_descriptions.push_back(std::move(index_description));
+    }
+  }
+
+  execution_plan_->addRelationalOperator(new CreateIndexOperator(input_relation,
+                                                                 physical_plan->index_name(),
+                                                                 index_descriptions));
 }
 
 void ExecutionGenerator::convertCreateTable(
@@ -913,7 +993,12 @@ void ExecutionGenerator::convertInsertTuple(
 
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(input_relation->getID());
-  insert_destination_proto->set_need_to_add_blocks_from_relation(true);
+
+  const vector<block_id> blocks(input_relation->getBlocksSnapshot());
+  for (const block_id block : blocks) {
+    insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+  }
+
 
   const QueryPlan::DAGNodeIndex insert_operator_index =
       execution_plan_->addRelationalOperator(
@@ -952,7 +1037,6 @@ void ExecutionGenerator::convertUpdateTable(
 
   relocation_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   relocation_destination_proto->set_relation_id(input_rel_id);
-  relocation_destination_proto->set_need_to_add_blocks_from_relation(false);
 
   // Convert the predicate proto.
   QueryContext::predicate_id execution_predicate_index = QueryContext::kInvalidPredicateId;

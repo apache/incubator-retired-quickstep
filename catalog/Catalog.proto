@@ -1,5 +1,7 @@
 //   Copyright 2011-2015 Quickstep Technologies LLC.
-//   Copyright 2015 Pivotal Software, Inc.
+//   Copyright 2015-2016 Pivotal Software, Inc.
+//   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+//    University of Wisconsin—Madison.
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -27,24 +29,37 @@ message CatalogAttribute {
   optional string display_name = 3;
 }
 
-message PartitionScheme {
-  required uint32 num_partitions = 1;
-  required uint32 partition_attribute_id = 2;
-
+// TODO(zuyu): Move PartitionScheme to a dedicate proto file.
+message PartitionSchemeHeader {
   enum PartitionType {
-    HASH_PARTITION = 0;
-    RANGE_PARTITION = 1;
+    HASH = 0;
+    RANGE = 1;
   }
 
-  required PartitionType partition_type = 3;
+  required PartitionType partition_type = 1;
 
-  message Partition {
-    repeated fixed64 blocks = 1;
+  required uint64 num_partitions = 2;
+  required uint32 partition_attribute_id = 3;
+
+  // The convention for extension numbering is that extensions for a particular
+  // PartitionType should begin from (partition_type + 1) * 16.
+  extensions 16 to max;
+}
+
+message RangePartitionSchemeHeader {
+  extend PartitionSchemeHeader {
+    // All required.
+    repeated TypedValue partition_range_boundaries = 32;
   }
+}
 
-  repeated Partition partitions = 4;
+message Partition {
+  repeated fixed64 blocks = 1 [packed=true];
+}
 
-  repeated TypedValue partition_range_boundary = 5;
+message PartitionScheme {
+  required PartitionSchemeHeader header = 1;
+  repeated Partition partitions = 2;
 }
 
 message NUMAPlacementScheme {
@@ -57,22 +72,39 @@ message NUMAPlacementScheme {
   repeated BlockToNUMANodeEntry block_to_numa_node_map = 2;
 }
 
+message IndexScheme {
+  message IndexEntry {
+    required string index_name = 1;
+    repeated IndexSubBlockDescription index_description = 2;
+  }
+  repeated IndexEntry index_entries = 1;
+}
+
+message CatalogRelationSchema {
+  required int32 relation_id = 1;
+  required string name = 2;
+  required bool temporary = 3;
+
+  repeated CatalogAttribute attributes = 4;
+
+  extensions 16 to max;
+}
+
 message CatalogRelation {
-  required string name = 1;
-  required bool temporary = 2;
+  extend CatalogRelationSchema {
+    // Required.
+    optional StorageBlockLayoutDescription default_layout = 16;
 
-  required StorageBlockLayoutDescription default_layout = 3;
-
-  repeated fixed64 blocks = 4 [packed=true];
-  repeated CatalogAttribute attributes = 5;
-  repeated string index = 6;
-  optional PartitionScheme partition_scheme = 7;
-  optional NUMAPlacementScheme placement_scheme = 8;
+    repeated fixed64 blocks = 17 [packed=true];
+    optional IndexScheme index_scheme = 18;
+    optional PartitionScheme partition_scheme = 19;
+    optional NUMAPlacementScheme placement_scheme = 20;
+  }
 }
 
 message CatalogDatabase {
   required string name = 1;
-  repeated CatalogRelation relations = 2;
+  repeated CatalogRelationSchema relations = 2;
   repeated int32 null_relations = 3;
 }
 

@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -81,6 +83,7 @@
 #include "query_optimizer/logical/InsertTuple.hpp"
 #include "query_optimizer/logical/MultiwayCartesianJoin.hpp"
 #include "query_optimizer/logical/Project.hpp"
+#include "query_optimizer/logical/Sample.hpp"
 #include "query_optimizer/logical/SharedSubplanReference.hpp"
 #include "query_optimizer/logical/Sort.hpp"
 #include "query_optimizer/logical/TableGenerator.hpp"
@@ -595,12 +598,64 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
 
 L::LogicalPtr Resolver::resolveCreateIndex(
     const ParseStatementCreateIndex &create_index_statement) {
-  // Resolve relation name.
+  // Resolve relation reference.
   const L::LogicalPtr input = resolveSimpleTableReference(
       *create_index_statement.relation_name(), nullptr /* reference_alias */);
 
-  const std::string index_name = create_index_statement.index_name()->value();
-  return L::CreateIndex::Create(input, index_name);
+  const std::string &index_name = create_index_statement.index_name()->value();
+
+  // Resolve attribute references.
+  const PtrList<ParseAttribute> *index_attributes = create_index_statement.attribute_list();
+  const std::vector<E::AttributeReferencePtr> &relation_attributes =
+      input->getOutputAttributes();
+  std::vector<E::AttributeReferencePtr> resolved_attributes;
+  if (index_attributes == nullptr) {
+    // Specify to build index on all the attributes, if no attribute was specified.
+    for (const E::AttributeReferencePtr &relation_attribute : relation_attributes) {
+      resolved_attributes.emplace_back(relation_attribute);
+    }
+  } else {
+    // Otherwise specify to build index on the attributes that were given.
+    for (const ParseAttribute &index_attribute : *index_attributes) {
+      bool is_resolved = false;
+      for (const E::AttributeReferencePtr &relation_attribute : relation_attributes) {
+        const std::string &relation_attr_name = relation_attribute->attribute_name();
+        const std::string &index_attr_name = index_attribute.attr_name()->value();
+        if (relation_attr_name.compare(index_attr_name) == 0) {
+          is_resolved = true;
+          resolved_attributes.emplace_back(relation_attribute);
+          break;
+        }
+      }
+      if (!is_resolved) {
+        THROW_SQL_ERROR_AT(&index_attribute) << "Attribute "<< index_attribute.attr_name()->value()
+            << " is undefined for the relation "<< create_index_statement.relation_name()->value();
+      }
+    }
+  }
+
+  // Resolve index properties.
+  std::shared_ptr<const IndexSubBlockDescription> index_description_shared;
+  const IndexProperties *index_properties = create_index_statement.getIndexProperties();
+  if (index_properties->isIndexPropertyValid()) {
+    // Create a deep copy of the index description and pass its ownership to the shared ptr.
+    std::unique_ptr<IndexSubBlockDescription> index_description(new IndexSubBlockDescription());
+    index_description->CopyFrom(*index_properties->getIndexDescription());
+    index_description_shared.reset(index_description.release());
+    DCHECK(index_description_shared != nullptr);
+  } else {
+    if (index_properties->getInvalidPropertyNode() != nullptr) {
+      // If exact location is known in the parser, the error is thrown at that specific node.
+      THROW_SQL_ERROR_AT(index_properties->getInvalidPropertyNode())
+          << index_properties->getReasonForInvalidIndexDescription();
+    } else {
+      // Else the error is thrown at the index name node.
+      THROW_SQL_ERROR_AT(create_index_statement.index_type())
+         << index_properties->getReasonForInvalidIndexDescription();
+    }
+  }
+
+  return L::CreateIndex::Create(input, index_name, resolved_attributes, index_description_shared);
 }
 
 L::LogicalPtr Resolver::resolveDelete(
@@ -1208,7 +1263,13 @@ L::LogicalPtr Resolver::resolveTableReference(const ParseTableReference &table_r
       if (reference_signature != nullptr && reference_signature->column_aliases() != nullptr) {
         logical_plan = RenameOutputColumns(logical_plan, *reference_signature);
       }
-
+      // Create a logical sample operator. Applicable only if \p the table is materialized.
+      // Sampling from subquery table references is not supported.
+      if (simple_table_reference.sample() != nullptr) {
+        logical_plan = L::Sample::Create(logical_plan,
+        simple_table_reference.sample()->is_block_sample(),
+        simple_table_reference.sample()->percentage()->long_value());
+      }
       name_resolver->addRelation(reference_alias, logical_plan);
       break;
     }

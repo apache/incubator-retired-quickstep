@@ -17,39 +17,56 @@ add_test(quickstep_queryoptimizer_tests_executiongenerator_create
          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Create.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Create.test"
-         "${CMAKE_CURRENT_BINARY_DIR}/")
+         "${CMAKE_CURRENT_BINARY_DIR}/Create/")
 add_test(quickstep_queryoptimizer_tests_executiongenerator_delete
          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Delete.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Delete.test"
-         "${CMAKE_CURRENT_BINARY_DIR}/")
+         "${CMAKE_CURRENT_BINARY_DIR}/Delete/")
 add_test(quickstep_queryoptimizer_tests_executiongenerator_drop
          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Drop.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Drop.test"
-         "${CMAKE_CURRENT_BINARY_DIR}/")
+         "${CMAKE_CURRENT_BINARY_DIR}/Drop/")
+ add_test(quickstep_queryoptimizer_tests_executiongenerator_index
+          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
+          "${CMAKE_CURRENT_SOURCE_DIR}/Index.test"
+          "${CMAKE_CURRENT_BINARY_DIR}/Index.test"
+          "${CMAKE_CURRENT_BINARY_DIR}/Index/")
 add_test(quickstep_queryoptimizer_tests_executiongenerator_insert
          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Insert.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Insert.test"
-         "${CMAKE_CURRENT_BINARY_DIR}/")
+         "${CMAKE_CURRENT_BINARY_DIR}/Insert/")
 add_test(quickstep_queryoptimizer_tests_executiongenerator_select
          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Select.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Select.test"
-         "${CMAKE_CURRENT_BINARY_DIR}/")
+         "${CMAKE_CURRENT_BINARY_DIR}/Select/")
 add_test(quickstep_queryoptimizer_tests_executiongenerator_stringpatternmatching
          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/StringPatternMatching.test"
          "${CMAKE_CURRENT_BINARY_DIR}/StringPatternMatching.test"
-         "${CMAKE_CURRENT_BINARY_DIR}/")
+         "${CMAKE_CURRENT_BINARY_DIR}/StringPatternMatching/")
 add_test(quickstep_queryoptimizer_tests_executiongenerator_tablegenerator
          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/TableGenerator.test"
          "${CMAKE_CURRENT_BINARY_DIR}/TableGenerator.test"
-         "${CMAKE_CURRENT_BINARY_DIR}/")
+         "${CMAKE_CURRENT_BINARY_DIR}/TableGenerator/")
 add_test(quickstep_queryoptimizer_tests_executiongenerator_update
          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Update.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Update.test"
-         "${CMAKE_CURRENT_BINARY_DIR}/")
+         "${CMAKE_CURRENT_BINARY_DIR}/Update/")
+
+# Create the folders where the unit tests will store their data blocks for the
+# duration of their test.
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Create)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Delete)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Drop)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Index)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Insert)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Select)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/StringPatternMatching)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/TableGenerator)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Update)

@@ -23,9 +23,13 @@
 #include <utility>
 #include <vector>
 
+#include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/PartitionScheme.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
+#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/WorkerDirectory.hpp"
 #include "query_execution/WorkerMessage.hpp"
@@ -198,6 +202,20 @@ void Foreman::run() {
         processRebuildWorkOrderCompleteMessage(proto.operator_index(), proto.worker_id());
         break;
       }
+      case kCatalogRelationNewBlockMessage: {
+        serialization::CatalogRelationNewBlockMessage proto;
+        CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+        const block_id block = proto.block_id();
+
+        CatalogRelation *relation = catalog_database_->getRelationByIdMutable(proto.relation_id());
+        relation->addBlock(block);
+
+        if (proto.has_partition_id()) {
+          relation->getPartitionSchemeMutable()->addBlockToPartition(proto.partition_id(), block);
+        }
+        break;
+      }
       case kDataPipelineMessage: {
         // Possible message senders include InsertDestinations and some
         // operators which modify existing blocks.
@@ -267,23 +285,6 @@ void Foreman::dispatchWorkerMessages(
   }
 }
 
-WorkerMessage* Foreman::generateWorkerMessage(
-    WorkOrder *workorder,
-    const dag_node_index index,
-    const WorkerMessage::WorkerMessageType type) {
-  std::unique_ptr<WorkerMessage> worker_message;
-  switch (type) {
-    case WorkerMessage::kWorkOrder :
-      return new WorkerMessage(WorkerMessage::WorkOrderMessage(workorder, index));
-    case WorkerMessage::kRebuildWorkOrder:
-      return new WorkerMessage(
-          WorkerMessage::RebuildWorkOrderMessage(workorder, index));
-    default:
-      FATAL_ERROR("Called Foreman::generateWorkerMessage() with invalid "
-                  "WorkerMesageType argument");
-  }
-}
-
 void Foreman::initializeState() {
   const dag_node_index dag_size = query_dag_->size();
   num_operators_finished_ = 0;
@@ -333,7 +334,6 @@ void Foreman::initializeState() {
 WorkerMessage* Foreman::getNextWorkerMessage(
     const dag_node_index start_operator_index, const int numa_node) {
   // Default policy: Operator with lowest index first.
-  std::unique_ptr<WorkerMessage> worker_message;
   WorkOrder *work_order = nullptr;
   size_t num_operators_checked = 0;
   for (dag_node_index index = start_operator_index;
@@ -348,18 +348,13 @@ WorkerMessage* Foreman::getNextWorkerMessage(
       if (work_order != nullptr) {
         // A WorkOrder found on the given NUMA node.
         ++queued_workorders_per_op_[index];
-        worker_message.reset(generateWorkerMessage(
-            work_order, index, WorkerMessage::kWorkOrder));
-        return worker_message.release();
+        return WorkerMessage::WorkOrderMessage(work_order, index);
       } else {
         // Normal workorder not found on this node. Look for a rebuild workorder
         // on this NUMA node.
-        work_order = workorders_container_->getRebuildWorkOrderForNUMANode(index,
-                                                                 numa_node);
+        work_order = workorders_container_->getRebuildWorkOrderForNUMANode(index, numa_node);
         if (work_order != nullptr) {
-          worker_message.reset(generateWorkerMessage(
-              work_order, index, WorkerMessage::kRebuildWorkOrder));
-          return worker_message.release();
+          return WorkerMessage::RebuildWorkOrderMessage(work_order, index);
         }
       }
     }
@@ -368,16 +363,12 @@ WorkerMessage* Foreman::getNextWorkerMessage(
     work_order = workorders_container_->getNormalWorkOrder(index);
     if (work_order != nullptr) {
       ++queued_workorders_per_op_[index];
-      worker_message.reset(generateWorkerMessage(
-          work_order, index, WorkerMessage::kWorkOrder));
-      return worker_message.release();
+      return WorkerMessage::WorkOrderMessage(work_order, index);
     } else {
       // Normal WorkOrder not found, look for a RebuildWorkOrder.
       work_order = workorders_container_->getRebuildWorkOrder(index);
       if (work_order != nullptr) {
-        worker_message.reset(generateWorkerMessage(
-            work_order, index, WorkerMessage::kRebuildWorkOrder));
-        return worker_message.release();
+        return WorkerMessage::RebuildWorkOrderMessage(work_order, index);
       }
     }
   }
@@ -395,8 +386,7 @@ void Foreman::sendWorkerMessage(const std::size_t worker_id,
   } else {
     FATAL_ERROR("Invalid WorkerMessageType");
   }
-  TaggedMessage worker_tagged_message;
-  worker_tagged_message.set_message(&message, sizeof(message), type);
+  TaggedMessage worker_tagged_message(&message, sizeof(message), type);
 
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(bus_,

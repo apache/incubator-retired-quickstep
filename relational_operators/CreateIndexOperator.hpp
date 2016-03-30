@@ -19,8 +19,14 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_CREATE_INDEX_OPERATOR_HPP_
 
 #include <string>
+#include <vector>
 
+#include "catalog/CatalogAttribute.hpp"
+#include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogRelation.hpp"
 #include "relational_operators/RelationalOperator.hpp"
+#include "storage/StorageBlockLayout.hpp"
+#include "storage/StorageBlockLayout.pb.h"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -31,6 +37,7 @@ namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
+class CatalogDatabase;
 class CatalogRelation;
 class QueryContext;
 class StorageManager;
@@ -53,12 +60,14 @@ class CreateIndexOperator : public RelationalOperator {
    *
    * @param relation The relation to create index upon.
    * @param index_name The index to create.
+   * @param index_descriptions Set of index_descriptions associated with this index.
    **/
   CreateIndexOperator(CatalogRelation *relation,
-                      const std::string &index_name)
+                      const std::string &index_name,
+                      const std::vector<IndexSubBlockDescription> &index_descriptions)
       : relation_(DCHECK_NOTNULL(relation)),
         index_name_(index_name),
-        work_generated_(false) {}
+        index_descriptions_(index_descriptions) {}
 
   ~CreateIndexOperator() override {}
 
@@ -71,10 +80,12 @@ class CreateIndexOperator : public RelationalOperator {
                         const tmb::client_id foreman_client_id,
                         tmb::MessageBus *bus) override;
 
+  void updateCatalogOnCompletion() override;
+
  private:
   CatalogRelation *relation_;
   const std::string &index_name_;
-  bool work_generated_;
+  const std::vector<IndexSubBlockDescription> index_descriptions_;
 
   DISALLOW_COPY_AND_ASSIGN(CreateIndexOperator);
 };
@@ -83,4 +94,4 @@ class CreateIndexOperator : public RelationalOperator {
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_RELATIONAL_OPERATORS_CREATE_TABLE_OPERATOR_HPP_
+#endif  // QUICKSTEP_RELATIONAL_OPERATORS_CREATE_INDEX_OPERATOR_HPP_

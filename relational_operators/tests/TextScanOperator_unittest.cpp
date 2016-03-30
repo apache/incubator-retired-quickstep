@@ -26,6 +26,8 @@
 #include "cli/PrintToScreen.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
+#include "query_execution/QueryExecutionMessages.pb.h"
+#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/TextScanOperator.hpp"
@@ -58,6 +60,12 @@ constexpr int kOpIndex = 0;
 class TextScanOperatorTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
+    bus_.Initialize();
+
+    foreman_client_id_ = bus_.Connect();
+    bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
+
     db_.reset(new CatalogDatabase(nullptr, "database"));
 
     // Create table with a variety of attribute types.
@@ -89,19 +97,32 @@ class TextScanOperatorTest : public ::testing::Test {
     op->getAllWorkOrders(&container,
                          query_context_.get(),
                          storage_manager_.get(),
-                         tmb::kClientIdNone /* foreman_client_id */,
-                         nullptr /* TMB */);
+                         foreman_client_id_,
+                         &bus_);
 
     while (container.hasNormalWorkOrder(op_index)) {
-      WorkOrder *work_order = container.getNormalWorkOrder(op_index);
+      std::unique_ptr<WorkOrder> work_order(container.getNormalWorkOrder(op_index));
       work_order->execute();
-      delete work_order;
+      processCatalogRelationNewBlockMessages();
     }
 
     while (container.hasRebuildWorkOrder(op_index)) {
-      WorkOrder *work_order = container.getRebuildWorkOrder(op_index);
+      std::unique_ptr<WorkOrder> work_order(container.getRebuildWorkOrder(op_index));
       work_order->execute();
-      delete work_order;
+    }
+  }
+
+  void processCatalogRelationNewBlockMessages() {
+    AnnotatedMessage msg;
+    while (bus_.ReceiveIfAvailable(foreman_client_id_, &msg)) {
+      const TaggedMessage &tagged_message = msg.tagged_message;
+      if (tagged_message.message_type() == kCatalogRelationNewBlockMessage) {
+        serialization::CatalogRelationNewBlockMessage proto;
+        CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+        CatalogRelation *relation = db_->getRelationByIdMutable(proto.relation_id());
+        relation->addBlock(proto.block_id());
+      }
     }
   }
 
@@ -126,6 +147,9 @@ class TextScanOperatorTest : public ::testing::Test {
     return golden_string;
   }
 
+  MessageBusImpl bus_;
+  tmb::client_id foreman_client_id_;
+
   std::unique_ptr<CatalogDatabase> db_;
   CatalogRelation *relation_;
   std::unique_ptr<StorageManager> storage_manager_;
@@ -143,7 +167,6 @@ TEST_F(TextScanOperatorTest, ScanTest) {
 
   output_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
   output_destination_proto->set_relation_id(relation_->getID());
-  output_destination_proto->set_need_to_add_blocks_from_relation(false);
   output_destination_proto->set_relational_op_index(kOpIndex);
 
   std::unique_ptr<TextScanOperator> text_scan_op(
@@ -158,8 +181,8 @@ TEST_F(TextScanOperatorTest, ScanTest) {
   query_context_.reset(new QueryContext(query_context_proto,
                                         db_.get(),
                                         storage_manager_.get(),
-                                        tmb::kClientIdNone /* foreman_client_id */,
-                                        nullptr /* TMB */));
+                                        foreman_client_id_,
+                                        &bus_));
 
   fetchAndExecuteWorkOrders(text_scan_op.get());
   text_scan_op.reset(nullptr);

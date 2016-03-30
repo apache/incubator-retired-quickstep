@@ -140,7 +140,7 @@ size_t FileManagerHdfs::numSlots(const block_id block) const {
   hdfsFreeFileInfo(file_info, 1);
 
   if ((file_size % kSlotSizeBytes) != 0) {
-    throw CorruptPersistentStorage();
+    LOG(FATAL) << "The file " << filename << " was corrupted.";
   }
 
   return file_size / kSlotSizeBytes;

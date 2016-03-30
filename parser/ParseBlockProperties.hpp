@@ -53,7 +53,7 @@ class ParseBlockProperties : public ParseTreeNode {
  public:
   /**
    * @brief Constructor.
-   * 
+   *
    * @param line_number Beginning line number.
    * @param column_number Beginning column number.
    * @param properties PtrList to the KeyValues.
@@ -75,7 +75,7 @@ class ParseBlockProperties : public ParseTreeNode {
    * @brief Returns the first repeated key contained in the key-value list.
    * @details A repeated key is any 2 key-values with case-insensitive matching
    *          key names.
-   *          
+   *
    * @return A pointer to the first repeated key-value or nullptr if there
    *         are no repetitions.
    */
@@ -96,7 +96,7 @@ class ParseBlockProperties : public ParseTreeNode {
    * @brief Returns the first invalid key contained in the key-value list.
    * @details An invalid key-value is a key-value with a key whose case-insensitive
    *          string does not match one of the valid key names.
-   *          
+   *
    * @return A pointer to the first invalid key-value or nullptr if there none.
    */
   const ParseKeyValue* getFirstInvalidKeyValue() const {
@@ -114,7 +114,7 @@ class ParseBlockProperties : public ParseTreeNode {
 
   /**
    * @brief Gets the ParseString value of the type property.
-   * 
+   *
    * @return ParseString value of the type property or nullptr if the type
    *         was incorrect ParseKeyValue type or not specified.
    */
@@ -132,7 +132,7 @@ class ParseBlockProperties : public ParseTreeNode {
 
   /**
    * @brief Gets the ParseString value of the sort property.
-   * 
+   *
    * @return ParseString value of the sort property or nullptr if the type
    *         was not a ParseKeyStringValue or was not specified.
    */
@@ -151,7 +151,7 @@ class ParseBlockProperties : public ParseTreeNode {
   /**
    * @brief Get the list of compressed column names.
    * @note Check compressAll() first to see if all columns are to be compressed.
-   * 
+   *
    * @return A list of column names to compress.
    */
   const PtrList<ParseString>* getCompressed() const {

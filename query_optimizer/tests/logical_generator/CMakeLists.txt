@@ -13,12 +13,17 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-add_test(quickstep_queryoptimizer_tests_logicalgenerator_select
-         "../quickstep_queryoptimizer_tests_OptimizerTextTest"
-         "${CMAKE_CURRENT_SOURCE_DIR}/Select.test"
-         "${CMAKE_CURRENT_BINARY_DIR}/Select.test")
-
 add_test(quickstep_queryoptimizer_tests_logicalgenerator_create
          "../quickstep_queryoptimizer_tests_OptimizerTextTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Create.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Create.test")
+
+ add_test(quickstep_queryoptimizer_tests_logicalgenerator_index
+          "../quickstep_queryoptimizer_tests_OptimizerTextTest"
+          "${CMAKE_CURRENT_SOURCE_DIR}/Index.test"
+          "${CMAKE_CURRENT_BINARY_DIR}/Index.test")
+
+add_test(quickstep_queryoptimizer_tests_logicalgenerator_select
+        "../quickstep_queryoptimizer_tests_OptimizerTextTest"
+        "${CMAKE_CURRENT_SOURCE_DIR}/Select.test"
+        "${CMAKE_CURRENT_BINARY_DIR}/Select.test")

@@ -85,6 +85,8 @@ class Foreman final : public ForemanLite {
         num_numa_nodes_(num_numa_nodes) {
     bus_->RegisterClientAsSender(foreman_client_id_, kWorkOrderMessage);
     bus_->RegisterClientAsSender(foreman_client_id_, kRebuildWorkOrderMessage);
+    // NOTE(zuyu): For the single-node version, act as the sender on behalf of InsertDestinations.
+    bus_->RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
     // NOTE : Right now, foreman thread doesn't send poison messages. In the
     // future if foreman needs to abort a worker thread, this registration
     // should be useful.
@@ -94,6 +96,7 @@ class Foreman final : public ForemanLite {
                                    kWorkOrderCompleteMessage);
     bus_->RegisterClientAsReceiver(foreman_client_id_,
                                    kRebuildWorkOrderCompleteMessage);
+    bus_->RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
     bus_->RegisterClientAsReceiver(foreman_client_id_, kDataPipelineMessage);
     bus_->RegisterClientAsReceiver(foreman_client_id_,
                                    kWorkOrdersAvailableMessage);
@@ -219,20 +222,6 @@ class Foreman final : public ForemanLite {
    **/
   void dispatchWorkerMessages(const std::size_t start_worker_index,
                               const dag_node_index start_operator_index);
-
-  /**
-   * @brief Generate a WorkerMessage of the given type.
-   *
-   * @param workorder A pointer to a WorkOrder to be embedded in the message.
-   * @param index The index of the RelationalOperator in the DAG, that generated
-   *              the workorder.
-   * @param type The type of the WorkerMessage to be generated.
-   *
-   * @return A pointer to the created message.
-   **/
-  WorkerMessage* generateWorkerMessage(WorkOrder *workorder,
-                                       const dag_node_index index,
-                                       const WorkerMessage::WorkerMessageType type);
 
   /**
    * @brief Initialize all the local vectors and maps. If the operator has an
