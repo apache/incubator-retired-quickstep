@@ -78,6 +78,7 @@ target_link_libraries(quickstep_queryoptimizer_strategy_OneToOne
                       quickstep_queryoptimizer_logical_CreateTable
                       quickstep_queryoptimizer_logical_DeleteTuples
                       quickstep_queryoptimizer_logical_DropTable
+                      quickstep_queryoptimizer_logical_InsertSelection
                       quickstep_queryoptimizer_logical_InsertTuple
                       quickstep_queryoptimizer_logical_Logical
                       quickstep_queryoptimizer_logical_Logical
@@ -94,6 +95,7 @@ target_link_libraries(quickstep_queryoptimizer_strategy_OneToOne
                       quickstep_queryoptimizer_physical_CreateTable
                       quickstep_queryoptimizer_physical_DeleteTuples
                       quickstep_queryoptimizer_physical_DropTable
+                      quickstep_queryoptimizer_physical_InsertSelection
                       quickstep_queryoptimizer_physical_InsertTuple
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_Sample

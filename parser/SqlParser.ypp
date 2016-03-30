@@ -485,7 +485,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
   opt_sample_clause
 
 %type <with_list_>
-  opt_with_clause
+  with_clause
   with_list
 
 %type <with_list_element_>
@@ -937,8 +937,15 @@ insert_statement:
     YYERROR;
   }
   | TOKEN_INSERT TOKEN_INTO any_name TOKEN_VALUES '(' literal_value_commalist ')' {
-    $$ = new quickstep::ParseStatementInsert(@1.first_line, @1.first_column, $3, $6);
-  };
+    $$ = new quickstep::ParseStatementInsertTuple(@1.first_line, @1.first_column, $3, $6);
+  }
+  | TOKEN_INSERT TOKEN_INTO any_name select_query {
+    $$ = new quickstep::ParseStatementInsertSelection(@1.first_line, @2.first_column, $3, $4, nullptr);
+  }
+  | with_clause TOKEN_INSERT TOKEN_INTO any_name select_query {
+    $$ = new quickstep::ParseStatementInsertSelection(@1.first_line, @2.first_column, $4, $5, $1);
+  }
+  ;
 
 copy_from_statement:
   TOKEN_COPY any_name TOKEN_FROM TOKEN_STRING_SINGLE_QUOTED opt_copy_from_params {
@@ -998,15 +1005,15 @@ assignment_item:
 
 /* Select Queries */
 select_statement:
-  opt_with_clause select_query {
+  select_query {
+    $$ = new quickstep::ParseStatementSelect(@1.first_line, @1.first_column, $1, nullptr);
+  }
+  | with_clause select_query {
     $$ = new quickstep::ParseStatementSelect(@1.first_line, @1.first_column, $2, $1);
   };
 
-opt_with_clause:
-  {
-    $$ = nullptr;
-  }
-  | TOKEN_WITH with_list {
+with_clause:
+  TOKEN_WITH with_list {
     $$ = $2;
   }
 

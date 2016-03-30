@@ -71,6 +71,8 @@ class ParseStatementCreateTable;
 class ParseStatementDelete;
 class ParseStatementDropTable;
 class ParseStatementInsert;
+class ParseStatementInsertTuple;
+class ParseStatementInsertSelection;
 class ParseStatementSelect;
 class ParseStatementQuit;
 class ParseStatementUpdate;
