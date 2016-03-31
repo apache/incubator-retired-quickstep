@@ -535,25 +535,22 @@ TEST_F(CatalogTest, CatalogIndexTest) {
 
   rel->setDefaultStorageBlockLayout(new StorageBlockLayout(*rel, layout_description));
 
-  std::vector<IndexSubBlockDescription> index_descriptions;
   IndexSubBlockDescription index_description;
   index_description.set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
   index_description.add_indexed_attribute_ids(rel->getAttributeByName("attr_idx1")->getID());
-  index_descriptions.emplace_back(index_description);
 
-  EXPECT_TRUE(rel->addIndex("idx1", index_descriptions));
+  EXPECT_TRUE(rel->addIndex("idx1", std::move(index_description)));
   EXPECT_TRUE(rel->hasIndexWithName("idx1"));
   // Adding an index with duplicate name should return false.
-  EXPECT_FALSE(rel->addIndex("idx1", index_descriptions));
+  EXPECT_FALSE(rel->addIndex("idx1", std::move(index_description)));
   // Adding an index of same type with different name on the same attribute should return false.
-  EXPECT_FALSE(rel->addIndex("idx2", index_descriptions));
+  EXPECT_FALSE(rel->addIndex("idx2", std::move(index_description)));
 
-  index_descriptions.clear();
+  index_description.Clear();
   index_description.set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
   index_description.add_indexed_attribute_ids(rel->getAttributeByName("attr_idx2")->getID());
-  index_descriptions.emplace_back(index_description);
 
-  EXPECT_TRUE(rel->addIndex("idx2", index_descriptions));
+  EXPECT_TRUE(rel->addIndex("idx2", std::move(index_description)));
   EXPECT_TRUE(rel->hasIndexWithName("idx2"));
 
   checkCatalogSerialization();

@@ -1,6 +1,6 @@
 /**
- *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -19,13 +19,9 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_CREATE_INDEX_OPERATOR_HPP_
 
 #include <string>
-#include <vector>
 
-#include "catalog/CatalogAttribute.hpp"
-#include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "relational_operators/RelationalOperator.hpp"
-#include "storage/StorageBlockLayout.hpp"
 #include "storage/StorageBlockLayout.pb.h"
 #include "utility/Macros.hpp"
 
@@ -37,7 +33,6 @@ namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
-class CatalogDatabase;
 class CatalogRelation;
 class QueryContext;
 class StorageManager;
@@ -55,19 +50,16 @@ class CreateIndexOperator : public RelationalOperator {
   /**
    * @brief Constructor.
    *
-   * TODO (ssaurabh): Modify the current placeholder implementation to
-   * take an index protobuf message as an input, instead of just name.
-   *
    * @param relation The relation to create index upon.
    * @param index_name The index to create.
-   * @param index_descriptions Set of index_descriptions associated with this index.
+   * @param index_description The index_description associated with this index.
    **/
   CreateIndexOperator(CatalogRelation *relation,
                       const std::string &index_name,
-                      const std::vector<IndexSubBlockDescription> &index_descriptions)
+                      IndexSubBlockDescription &&index_description)  // NOLINT(whitespace/operators)
       : relation_(DCHECK_NOTNULL(relation)),
         index_name_(index_name),
-        index_descriptions_(index_descriptions) {}
+        index_description_(index_description) {}
 
   ~CreateIndexOperator() override {}
 
@@ -85,7 +77,7 @@ class CreateIndexOperator : public RelationalOperator {
  private:
   CatalogRelation *relation_;
   const std::string &index_name_;
-  const std::vector<IndexSubBlockDescription> index_descriptions_;
+  IndexSubBlockDescription index_description_;
 
   DISALLOW_COPY_AND_ASSIGN(CreateIndexOperator);
 };

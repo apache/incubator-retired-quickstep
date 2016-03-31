@@ -75,7 +75,7 @@ message NUMAPlacementScheme {
 message IndexScheme {
   message IndexEntry {
     required string index_name = 1;
-    repeated IndexSubBlockDescription index_description = 2;
+    required IndexSubBlockDescription index_description = 2;
   }
   repeated IndexEntry index_entries = 1;
 }

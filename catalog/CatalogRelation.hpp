@@ -267,7 +267,8 @@ class CatalogRelation : public CatalogRelationSchema {
    * @param index_description Corresponding description of the index.
    * @return Whether the index was added successfully or not
    **/
-  bool addIndex(const std::string &index_name, const std::vector<IndexSubBlockDescription> &index_descriptions) {
+  bool addIndex(const std::string &index_name,
+                IndexSubBlockDescription &&index_description) {  // NOLINT(whitespace/operators)
     SpinSharedMutexExclusiveLock<false> lock(index_scheme_mutex_);
     // Create an index_scheme, if it does not exist.
     if (index_scheme_ == nullptr) {
@@ -280,10 +281,8 @@ class CatalogRelation : public CatalogRelationSchema {
     }
 
     // Verify that index with similar description does not exist.
-    for (auto it = index_descriptions.begin(); it != index_descriptions.end(); ++it) {
-      if (index_scheme_->hasIndexWithDescription(*it)) {
-        return false;
-      }
+    if (index_scheme_->hasIndexWithDescription(index_description)) {
+      return false;
     }
 
     // Verify that the CatalogRelation has a valid layout.
@@ -294,13 +293,11 @@ class CatalogRelation : public CatalogRelationSchema {
     }
 
     StorageBlockLayoutDescription *layout = default_layout_->getDescriptionMutable();
-    for (auto it = index_descriptions.begin(); it != index_descriptions.end(); ++it) {
-      layout->add_index_description()->MergeFrom(*it);
-    }
+    layout->add_index_description()->MergeFrom(index_description);
     default_layout_->finalize();
 
     // Update the index_scheme.
-    index_scheme_->addIndexMapEntry(index_name, index_descriptions);
+    index_scheme_->addIndexMapEntry(index_name, std::move(index_description));
 
     return true;  // Index added successfully, lock released.
   }

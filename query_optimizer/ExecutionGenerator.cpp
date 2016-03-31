@@ -830,26 +830,23 @@ void ExecutionGenerator::convertCreateIndex(
     index_attributes.emplace_back(catalog_attribute);
   }
 
-  // Corresponding to each attribute, create a copy of index description.
-  std::vector<IndexSubBlockDescription> index_descriptions;
+  // Create a copy of index description and add all the specified attributes to it.
+  IndexSubBlockDescription index_description(*physical_plan->index_description());
   for (const CatalogAttribute* catalog_attribute : index_attributes) {
-    IndexSubBlockDescription index_description(*physical_plan->index_description());
     index_description.add_indexed_attribute_ids(catalog_attribute->getID());
-    if (input_relation->hasIndexWithDescription(index_description)) {
-      // Check if the given index description already exists in the relation.
-      THROW_SQL_ERROR() << "The relation " << input_relation->getName()
-          << " already defines this index on "<< catalog_attribute->getName();
-    } else if (!index_description.IsInitialized()) {
-      // Check if the given index description is valid.
-      THROW_SQL_ERROR() << "The index with given properties cannot be created.";
-    } else {
-      index_descriptions.push_back(std::move(index_description));
-    }
   }
-
+  if (input_relation->hasIndexWithDescription(index_description)) {
+    // Check if the given index description already exists in the relation.
+    THROW_SQL_ERROR() << "The relation " << input_relation->getName()
+        << " already defines this index on the given attribute(s).";
+  }
+  if (!index_description.IsInitialized()) {
+    // Check if the given index description is valid.
+    THROW_SQL_ERROR() << "The index with given properties cannot be created.";
+  }
   execution_plan_->addRelationalOperator(new CreateIndexOperator(input_relation,
                                                                  physical_plan->index_name(),
-                                                                 index_descriptions));
+                                                                 std::move(index_description)));
 }
 
 void ExecutionGenerator::convertCreateTable(
