@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_TYPES_OPERATIONS_BINARY_OPERATIONS_ARITHMETIC_BINARY_OPERATORS_HPP_
 #define QUICKSTEP_TYPES_OPERATIONS_BINARY_OPERATIONS_ARITHMETIC_BINARY_OPERATORS_HPP_
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -153,7 +154,8 @@ template <typename LeftArgument, typename RightArgument> struct IntegerModuloFun
 // (3) (long double, long double) -> long double
 // (3) (Arithmetic, Arithmetic) -> double
 template <typename LeftArgument, typename RightArgument> struct FloatModuloFunctor {
-  inline auto operator() (const LeftArgument &left, const RightArgument &right) const -> decltype(std::fmod(left, right)) {
+  inline auto operator() (const LeftArgument &left, const RightArgument &right) const
+      -> decltype(std::fmod(left, right)) {
     return std::fmod(left, right);
   }
 };

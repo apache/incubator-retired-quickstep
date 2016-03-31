@@ -41,7 +41,7 @@ namespace quickstep {
 
 bool ModuloBinaryOperation::canApplyToTypes(const Type &left, const Type &right) const {
   switch (left.getTypeID()) {
-    case kInt: // Fall through
+    case kInt:  // Fall through
     case kLong:
     case kFloat:
     case kDouble: {
