@@ -29,6 +29,7 @@ add_library(quickstep_catalog_Catalog Catalog.cpp Catalog.hpp)
 add_library(quickstep_catalog_Catalog_proto ${catalog_Catalog_proto_srcs})
 add_library(quickstep_catalog_CatalogAttribute CatalogAttribute.cpp CatalogAttribute.hpp)
 add_library(quickstep_catalog_CatalogDatabase CatalogDatabase.cpp CatalogDatabase.hpp)
+add_library(quickstep_catalog_CatalogDatabaseCache CatalogDatabaseCache.cpp CatalogDatabaseCache.hpp)
 add_library(quickstep_catalog_CatalogDatabaseLite ../empty_src.cpp CatalogDatabaseLite.hpp)
 add_library(quickstep_catalog_CatalogErrors ../empty_src.cpp CatalogErrors.hpp)
 add_library(quickstep_catalog_CatalogRelation CatalogRelation.cpp CatalogRelation.hpp)
@@ -79,6 +80,17 @@ target_link_libraries(quickstep_catalog_CatalogDatabase
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector
                       quickstep_utility_StringUtil)
+target_link_libraries(quickstep_catalog_CatalogDatabaseCache
+                      glog
+                      quickstep_catalog_CatalogDatabaseLite
+                      quickstep_catalog_CatalogRelationSchema
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_Catalog_proto
+                      quickstep_storage_StorageConstants
+                      quickstep_threading_Mutex
+                      quickstep_threading_SharedMutex
+                      quickstep_threading_SpinSharedMutex
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_catalog_CatalogDatabaseLite
                       quickstep_catalog_CatalogTypedefs
                       quickstep_utility_Macros)
@@ -156,6 +168,7 @@ target_link_libraries(quickstep_catalog
                       quickstep_catalog_Catalog_proto
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogDatabaseCache
                       quickstep_catalog_CatalogDatabaseLite
                       quickstep_catalog_CatalogErrors
                       quickstep_catalog_CatalogRelation
@@ -181,8 +194,12 @@ target_link_libraries(Catalog_unittest
                       quickstep_catalog_Catalog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogDatabaseCache
                       quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_Catalog_proto
+                      quickstep_catalog_IndexScheme
                       quickstep_storage_StorageBlock
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageBlockLayout
@@ -191,7 +208,8 @@ target_link_libraries(Catalog_unittest
                       quickstep_types_Type
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      quickstep_utility_PtrVector)
 add_test(Catalog_unittest Catalog_unittest)
 
 if(QUICKSTEP_HAVE_LIBNUMA)

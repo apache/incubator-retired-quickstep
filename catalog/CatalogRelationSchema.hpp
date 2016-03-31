@@ -62,7 +62,7 @@ class CatalogRelationSchema {
   /**
    * @brief Destructor which recursively destroys children.
    **/
-  virtual ~CatalogRelationSchema() = 0;
+  virtual ~CatalogRelationSchema() {}
 
   /**
    * @brief Serialize the relation schema as Protocol Buffer.

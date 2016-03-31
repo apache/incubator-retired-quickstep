@@ -20,15 +20,20 @@
 #include <algorithm>
 #include <cstddef>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <string>
 #include <vector>
 
 #include "catalog/Catalog.hpp"
+#include "catalog/Catalog.pb.h"
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogDatabaseCache.hpp"
 #include "catalog/CatalogRelation.hpp"
+#include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/IndexScheme.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageBlockLayout.hpp"
 #include "storage/StorageBlockLayout.pb.h"
@@ -37,6 +42,7 @@
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
 #include "utility/Macros.hpp"
+#include "utility/PtrVector.hpp"
 
 #include "gtest/gtest.h"
 
@@ -187,6 +193,27 @@ class CatalogTest : public ::testing::Test {
          it1 != expected.end();
          ++it1, ++it2) {
       CompareCatalogRelation(*it1, *it2);
+    }
+  }
+
+  void compareCatalogDatabaseCache(const CatalogDatabaseCache &cache) {
+    ASSERT_EQ(db_->size(), cache.size());
+    for (const CatalogRelationSchema &expected : *db_) {
+      const relation_id rel_id = expected.getID();
+
+      ASSERT_TRUE(cache.hasRelationWithId(rel_id));
+      const CatalogRelationSchema &checked = cache.getRelationSchemaById(rel_id);
+
+      EXPECT_EQ(rel_id, checked.getID());
+      EXPECT_EQ(expected.getName(), checked.getName());
+      EXPECT_EQ(expected.isTemporary(), checked.isTemporary());
+
+      ASSERT_EQ(expected.size(), checked.size());
+      for (auto cit_expected = expected.begin(), cit_checked = checked.begin();
+           cit_expected != expected.end();
+           ++cit_expected, ++cit_checked) {
+        CompareCatalogAttribute(*cit_expected, *cit_checked);
+      }
     }
   }
 
@@ -557,6 +584,38 @@ TEST_F(CatalogTest, CatalogIndexTest) {
   EXPECT_TRUE(rel->hasIndexWithName("idx2"));
 
   checkCatalogSerialization();
+}
+
+TEST_F(CatalogTest, CatalogDatabaseCacheTest) {
+  CatalogRelationSchema* const rel = createCatalogRelation("rel");
+
+  rel->addAttribute(new CatalogAttribute(nullptr, "attr_int", TypeFactory::GetType(kInt), -1 /* id */, "int"));
+  rel->addAttribute(new CatalogAttribute(nullptr, "attr_long", TypeFactory::GetType(kLong)));
+  rel->addAttribute(
+      new CatalogAttribute(nullptr, "attr_float", TypeFactory::GetType(kFloat), -1 /* id */, "float"));
+  rel->addAttribute(new CatalogAttribute(nullptr, "attr_double", TypeFactory::GetType(kDouble)));
+
+  CatalogDatabaseCache cache(db_->getProto());
+  compareCatalogDatabaseCache(cache);
+
+  // CatalogRelactionSchema changes.
+  const std::size_t str_type_length = 8;
+  rel->addAttribute(
+      new CatalogAttribute(nullptr, "char_length_8", TypeFactory::GetType(kChar, str_type_length)));
+  rel->addAttribute(
+      new CatalogAttribute(nullptr,
+                           "var_char_length_8",
+                           TypeFactory::GetType(kVarChar, str_type_length),
+                           -1 /* id */,
+                           "vchar_8"));
+
+  // Update the cache after the schema changed.
+  cache.update(db_->getProto());
+  compareCatalogDatabaseCache(cache);
+
+  // Test dropping relations in the cache.
+  cache.dropRelationById(rel->getID());
+  ASSERT_EQ(0u, cache.size());
 }
 
 }  // namespace quickstep

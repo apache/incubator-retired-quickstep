@@ -68,9 +68,6 @@ CatalogRelationSchema::CatalogRelationSchema(const serialization::CatalogRelatio
   }
 }
 
-CatalogRelationSchema::~CatalogRelationSchema() {
-}
-
 bool CatalogRelationSchema::ProtoIsValid(const serialization::CatalogRelationSchema &proto) {
   if (!proto.IsInitialized()
       || proto.relation_id() == static_cast<relation_id>(-1)) {
