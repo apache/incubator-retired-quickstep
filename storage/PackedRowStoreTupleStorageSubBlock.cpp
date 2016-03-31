@@ -143,46 +143,72 @@ tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *acc
   InvokeOnAnyValueAccessor(
       accessor,
       [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+
+    const std::size_t num_attrs = relation_.size();
+    // We keep track of the total size of a tuple in the case that we do a
+    // 'fast path' insertion later in the code.
+    std::size_t attrs_total_size = 0;
+    // Create a vector containing the maximum sizes of the to-be extracted
+    // attributes.
+    // NOTE(Marc): This is an optimization so that we need not use an iterator
+    // object in the following inner loops.
+    std::vector<std::size_t> attrs_max_size;
+    for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
+         attr_it != relation_.end();
+         ++attr_it) {
+      attrs_max_size.push_back(attr_it->getType().maximumByteLength());
+      attrs_total_size += attrs_max_size.back();
+    }
+
     if (num_nullable_attrs != 0) {
+      // Index i of null_attr_idxs is an index greater than 0 if the i-th
+      // attribute of this relation is nullable, -1 otherwise.
+      std::vector<int> null_attr_idxs;
+      for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
+           attr_it != relation_.end(); ++attr_it) {
+        null_attr_idxs.push_back(
+            relation_.getNullableAttributeIndex(attr_it->getID()));
+      }
+
       while (this->hasSpaceToInsert<true>(1) && accessor->next()) {
-        attribute_id accessor_attr_id = 0;
-        for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
-             attr_it != relation_.end();
-             ++attr_it) {
-          const std::size_t attr_size = attr_it->getType().maximumByteLength();
-          const int nullable_idx = relation_.getNullableAttributeIndex(
-              attr_it->getID());
-          if (nullable_idx != -1) {
+        for (std::size_t curr_attr = 0; curr_attr < num_attrs; ++curr_attr) {
+          // If this attribute is nullable, check for a returned null value.
+          if (null_attr_idxs[curr_attr] != -1) {
             const void *attr_value
-                = accessor->template getUntypedValue<true>(accessor_attr_id);
+                = accessor->template getUntypedValue<true>(curr_attr);
             if (attr_value == nullptr) {
-              null_bitmap_->setBit(header_->num_tuples * num_nullable_attrs + nullable_idx,
+              null_bitmap_->setBit(header_->num_tuples * num_nullable_attrs + null_attr_idxs[curr_attr],
                                    true);
             } else {
-              memcpy(dest_addr, attr_value, attr_size);
+              memcpy(dest_addr, attr_value, attrs_max_size[curr_attr]);
             }
           } else {
             memcpy(dest_addr,
-                   accessor->template getUntypedValue<false>(accessor_attr_id),
-                   attr_size);
+                   accessor->template getUntypedValue<false>(curr_attr),
+                   attrs_max_size[curr_attr]);
           }
-          ++accessor_attr_id;
-          dest_addr += attr_size;
+          dest_addr += attrs_max_size[curr_attr];
         }
         ++(header_->num_tuples);
       }
     } else {
+      // If the accessor is from a packed row store, we can optimize the
+      // memcpy by avoiding iterating over each attribute.
+      const bool fast_copy =
+          (accessor->getImplementationType() ==
+              ValueAccessor::Implementation::kCompressedPackedRowStore);
       while (this->hasSpaceToInsert<false>(1) && accessor->next()) {
-        attribute_id accessor_attr_id = 0;
-        for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
-             attr_it != relation_.end();
-             ++attr_it) {
-          const std::size_t attr_size = attr_it->getType().maximumByteLength();
+        if (fast_copy) {
           memcpy(dest_addr,
-                 accessor->template getUntypedValue<false>(accessor_attr_id),
-                 attr_size);
-          ++accessor_attr_id;
-          dest_addr += attr_size;
+                 accessor->template getUntypedValue<false>(0),
+                 attrs_total_size);
+        } else {
+          for (std::size_t curr_attr = 0; curr_attr < num_attrs; ++curr_attr) {
+            memcpy(dest_addr,
+                   accessor->template getUntypedValue<false>(curr_attr),
+                   attrs_max_size[curr_attr]);
+            dest_addr += attrs_max_size[curr_attr];
+          }
         }
         ++(header_->num_tuples);
       }
@@ -205,46 +231,57 @@ tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribu
   InvokeOnAnyValueAccessor(
       accessor,
       [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+
+    const std::size_t num_attrs = relation_.size();
+    // Create a vector containing the maximum sizes of the to-be extracted
+    // attributes.
+    // NOTE(Marc): This is an optimization so that we need not use an iterator
+    // object in the following inner loops.
+    std::vector<std::size_t> attrs_max_size;
+    for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
+         attr_it != relation_.end();
+         ++attr_it) {
+      attrs_max_size.push_back(attr_it->getType().maximumByteLength());
+    }
+
     if (num_nullable_attrs != 0) {
+      // Index i of null_attr_idxs is an index greater than 0 if the i-th
+      // attribute of this relation is nullable, -1 otherwise.
+      std::vector<int> null_attr_idxs;
+      for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
+           attr_it != relation_.end(); ++attr_it) {
+        null_attr_idxs.push_back(
+            relation_.getNullableAttributeIndex(attr_it->getID()));
+      }
+
       while (this->hasSpaceToInsert<true>(1) && accessor->next()) {
-        std::vector<attribute_id>::const_iterator attribute_map_it = attribute_map.begin();
-        for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
-             attr_it != relation_.end();
-             ++attr_it) {
-          const std::size_t attr_size = attr_it->getType().maximumByteLength();
-          const int nullable_idx = relation_.getNullableAttributeIndex(
-              attr_it->getID());
-          if (nullable_idx != -1) {
+        for (std::size_t curr_attr = 0; curr_attr < num_attrs; ++curr_attr) {
+          // If this attribute is nullable, check for a returned null value.
+          if (null_attr_idxs[curr_attr] != -1) {
             const void *attr_value
-                = accessor->template getUntypedValue<true>(*attribute_map_it);
+                = accessor->template getUntypedValue<true>(attribute_map[curr_attr]);
             if (attr_value == nullptr) {
-              null_bitmap_->setBit(header_->num_tuples * num_nullable_attrs + nullable_idx,
+              null_bitmap_->setBit(header_->num_tuples * num_nullable_attrs + null_attr_idxs[curr_attr],
                                    true);
             } else {
-              memcpy(dest_addr, attr_value, attr_size);
+              memcpy(dest_addr, attr_value, attrs_max_size[curr_attr]);
             }
           } else {
             memcpy(dest_addr,
-                   accessor->template getUntypedValue<false>(*attribute_map_it),
-                   attr_size);
+                   accessor->template getUntypedValue<false>(attribute_map[curr_attr]),
+                   attrs_max_size[curr_attr]);
           }
-          ++attribute_map_it;
-          dest_addr += attr_size;
+          dest_addr += attrs_max_size[curr_attr];
         }
         ++(header_->num_tuples);
       }
     } else {
       while (this->hasSpaceToInsert<false>(1) && accessor->next()) {
-        std::vector<attribute_id>::const_iterator attribute_map_it = attribute_map.begin();
-        for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
-             attr_it != relation_.end();
-             ++attr_it) {
-          const std::size_t attr_size = attr_it->getType().maximumByteLength();
+        for (std::size_t curr_attr = 0; curr_attr < num_attrs; ++curr_attr) {
           memcpy(dest_addr,
-                 accessor->template getUntypedValue<false>(*attribute_map_it),
-                 attr_size);
-          ++attribute_map_it;
-          dest_addr += attr_size;
+                 accessor->template getUntypedValue<false>(attribute_map[curr_attr]),
+                 attrs_max_size[curr_attr]);
+          dest_addr += attrs_max_size[curr_attr];
         }
         ++(header_->num_tuples);
       }
