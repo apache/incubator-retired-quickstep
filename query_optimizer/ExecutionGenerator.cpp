@@ -130,7 +130,7 @@ static const bool aggregate_hashtable_type_dummy
     = gflags::RegisterFlagValidator(&FLAGS_aggregate_hashtable_type,
                                     &ValidateHashTableImplTypeString);
 
-DEFINE_bool(parallelize_load, false, "Parallelize loading data files.");
+DEFINE_bool(parallelize_load, true, "Parallelize loading data files.");
 
 namespace E = ::quickstep::optimizer::expressions;
 namespace P = ::quickstep::optimizer::physical;
