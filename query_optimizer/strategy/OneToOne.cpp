@@ -31,6 +31,7 @@
 #include "query_optimizer/logical/CreateTable.hpp"
 #include "query_optimizer/logical/DeleteTuples.hpp"
 #include "query_optimizer/logical/DropTable.hpp"
+#include "query_optimizer/logical/InsertSelection.hpp"
 #include "query_optimizer/logical/InsertTuple.hpp"
 #include "query_optimizer/logical/LogicalType.hpp"
 #include "query_optimizer/logical/Sample.hpp"
@@ -45,6 +46,7 @@
 #include "query_optimizer/physical/CreateTable.hpp"
 #include "query_optimizer/physical/DeleteTuples.hpp"
 #include "query_optimizer/physical/DropTable.hpp"
+#include "query_optimizer/physical/InsertSelection.hpp"
 #include "query_optimizer/physical/InsertTuple.hpp"
 #include "query_optimizer/physical/Sample.hpp"
 #include "query_optimizer/physical/SharedSubplanReference.hpp"
@@ -131,6 +133,14 @@ bool OneToOne::generatePlan(const L::LogicalPtr &logical_input,
       const L::DropTablePtr drop_table =
           std::static_pointer_cast<const L::DropTable>(logical_input);
       *physical_output = P::DropTable::Create(drop_table->catalog_relation());
+      return true;
+    }
+    case L::LogicalType::kInsertSelection: {
+      const L::InsertSelectionPtr insert_selection =
+          std::static_pointer_cast<const L::InsertSelection>(logical_input);
+      *physical_output = P::InsertSelection::Create(
+          physical_mapper_->createOrGetPhysicalFromLogical(insert_selection->destination()),
+          physical_mapper_->createOrGetPhysicalFromLogical(insert_selection->selection()));
       return true;
     }
     case L::LogicalType::kInsertTuple: {
