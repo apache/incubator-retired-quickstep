@@ -58,11 +58,11 @@ TEST_F(AggregationOperationStateProtoTest, InvalidRelationIdTest) {
   EXPECT_FALSE(AggregationOperationState::ProtoIsValid(proto, *database_.get()));
 }
 
-TEST_F(AggregationOperationStateProtoTest, InvalidAggregateSizeTest) {
+TEST_F(AggregationOperationStateProtoTest, ZeroAggregateSizeTest) {
   serialization::AggregationOperationState proto;
   proto.set_relation_id(rel_id_);
   proto.set_estimated_num_entries(0);
-  EXPECT_FALSE(AggregationOperationState::ProtoIsValid(proto, *database_.get()));
+  EXPECT_TRUE(AggregationOperationState::ProtoIsValid(proto, *database_.get()));
 }
 
 }  // namespace quickstep

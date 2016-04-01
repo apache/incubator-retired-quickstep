@@ -1099,13 +1099,6 @@ void ExecutionGenerator::convertUpdateTable(
 
 void ExecutionGenerator::convertAggregate(
     const P::AggregatePtr &physical_plan) {
-  // TODO(quickstep-team): The AggregationOperator and FinalizeAggregationOperator
-  //                       should be able to handle GROUP BY without aggregate expressions,
-  //                       or we may implement a DISTINCT operator.
-  if (physical_plan->aggregate_expressions().empty()) {
-    THROW_SQL_ERROR() << "GROUP BY without any aggregate expression is not supported yet";
-  }
-
   // Create aggr state proto.
   const QueryContext::aggregation_state_id aggr_state_index =
       query_context_proto_->aggregation_states_size();
