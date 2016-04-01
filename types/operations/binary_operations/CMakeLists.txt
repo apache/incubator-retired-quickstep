@@ -1,5 +1,7 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -35,6 +37,9 @@ add_library(quickstep_types_operations_binaryoperations_BinaryOperationID
 add_library(quickstep_types_operations_binaryoperations_DivideBinaryOperation
             DivideBinaryOperation.cpp
             DivideBinaryOperation.hpp)
+add_library(quickstep_types_operations_binaryoperations_ModuloBinaryOperation
+            ModuloBinaryOperation.cpp
+            ModuloBinaryOperation.hpp)
 add_library(quickstep_types_operations_binaryoperations_MultiplyBinaryOperation
             MultiplyBinaryOperation.cpp
             MultiplyBinaryOperation.hpp)
@@ -100,6 +105,7 @@ target_link_libraries(quickstep_types_operations_binaryoperations_BinaryOperatio
                       quickstep_types_operations_binaryoperations_AddBinaryOperation
                       quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_types_operations_binaryoperations_DivideBinaryOperation
+                      quickstep_types_operations_binaryoperations_ModuloBinaryOperation
                       quickstep_types_operations_binaryoperations_MultiplyBinaryOperation
                       quickstep_types_operations_binaryoperations_SubtractBinaryOperation
                       quickstep_utility_Macros)
@@ -118,6 +124,18 @@ target_link_libraries(quickstep_types_operations_binaryoperations_DivideBinaryOp
                       quickstep_types_TypeID
                       quickstep_types_TypedValue
                       quickstep_types_YearMonthIntervalType
+                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperation
+                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperators
+                      quickstep_types_operations_binaryoperations_BinaryOperationID
+                      quickstep_utility_EqualsAnyConstant
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_types_operations_binaryoperations_ModuloBinaryOperation
+                      glog
+                      quickstep_types_Type
+                      quickstep_types_TypeErrors
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
                       quickstep_types_operations_binaryoperations_ArithmeticBinaryOperation
                       quickstep_types_operations_binaryoperations_ArithmeticBinaryOperators
                       quickstep_types_operations_binaryoperations_BinaryOperationID
@@ -172,6 +190,7 @@ target_link_libraries(quickstep_types_operations_binaryoperations
                       quickstep_types_operations_binaryoperations_BinaryOperationFactory
                       quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_types_operations_binaryoperations_DivideBinaryOperation
+                      quickstep_types_operations_binaryoperations_ModuloBinaryOperation
                       quickstep_types_operations_binaryoperations_MultiplyBinaryOperation
                       quickstep_types_operations_binaryoperations_SubtractBinaryOperation)
 
@@ -192,6 +211,7 @@ add_executable(BinaryOperation_tests
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/AddBinaryOperation_unittest.cpp"
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/BinaryOperation_unittest.cpp"
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/DivideBinaryOperation_unittest.cpp"
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/ModuloBinaryOperation_unittest.cpp"
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/MultiplyBinaryOperation_unittest.cpp"
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/SubtractBinaryOperation_unittest.cpp")
 target_link_libraries(BinaryOperation_tests
@@ -211,6 +231,7 @@ target_link_libraries(BinaryOperation_tests
                       quickstep_types_operations_binaryoperations_BinaryOperationFactory
                       quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_types_operations_binaryoperations_DivideBinaryOperation
+                      quickstep_types_operations_binaryoperations_ModuloBinaryOperation
                       quickstep_types_operations_binaryoperations_MultiplyBinaryOperation
                       quickstep_types_operations_binaryoperations_SubtractBinaryOperation
                       quickstep_types_operations_binaryoperations_tests_BinaryOperationTestUtil

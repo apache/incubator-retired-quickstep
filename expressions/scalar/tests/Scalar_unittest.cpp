@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -373,6 +375,7 @@ TEST_F(ScalarTest, ScalarBinaryExpressionSerializationTest) {
   checkScalarBinaryExpressionSerialization(BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kSubtract));
   checkScalarBinaryExpressionSerialization(BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kMultiply));
   checkScalarBinaryExpressionSerialization(BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kDivide));
+  checkScalarBinaryExpressionSerialization(BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kModulo));
 }
 
 }  // namespace quickstep

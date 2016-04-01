@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -37,6 +39,9 @@ serialization::BinaryOperation BinaryOperation::getProto() const {
       break;
     case BinaryOperationID::kDivide:
       proto.set_operation_id(serialization::BinaryOperation::DIVIDE);
+      break;
+    case BinaryOperationID::kModulo:
+      proto.set_operation_id(serialization::BinaryOperation::MODULO);
       break;
     default:
       FATAL_ERROR("Unrecognized BinaryOperationID");

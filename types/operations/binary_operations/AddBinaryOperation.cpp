@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -17,7 +19,6 @@
 
 #include "types/operations/binary_operations/AddBinaryOperation.hpp"
 
-#include <functional>
 #include <string>
 #include <utility>
 
@@ -234,8 +235,8 @@ TypedValue AddBinaryOperation::applyToChecked(const TypedValue &left,
         case kLong:
         case kFloat:
         case kDouble:
-          return applyToCheckedNumericHelper<std::plus>(left, left_type,
-                                                        right, right_type);
+          return applyToCheckedNumericHelper<AddFunctor>(left, left_type,
+                                                         right, right_type);
         default:
           break;
       }
