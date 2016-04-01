@@ -37,7 +37,7 @@ using std::ofstream;
 namespace quickstep {
 
 QueryHandle* QueryProcessor::generateQueryHandle(const ParseStatement &statement) {
-  std::unique_ptr<QueryHandle> query_handle(new QueryHandle());
+  std::unique_ptr<QueryHandle> query_handle(new QueryHandle(query_id_));
 
   optimizer::Optimizer optimizer(query_id_, getDefaultDatabase(), storage_manager_.get());
   optimizer.generateQueryHandle(statement, query_handle.get());
