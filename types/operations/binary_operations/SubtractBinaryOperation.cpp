@@ -19,7 +19,6 @@
 
 #include "types/operations/binary_operations/SubtractBinaryOperation.hpp"
 
-#include <functional>
 #include <string>
 #include <utility>
 

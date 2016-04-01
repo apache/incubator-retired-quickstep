@@ -131,19 +131,11 @@ target_link_libraries(quickstep_types_operations_binaryoperations_DivideBinaryOp
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_types_operations_binaryoperations_ModuloBinaryOperation
                       glog
-                      quickstep_types_DateOperatorOverloads
-                      quickstep_types_DatetimeIntervalType
-                      quickstep_types_DoubleType
-                      quickstep_types_FloatType
-                      quickstep_types_IntType
-                      quickstep_types_IntervalLit
-                      quickstep_types_LongType
                       quickstep_types_Type
                       quickstep_types_TypeErrors
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID
                       quickstep_types_TypedValue
-                      quickstep_types_YearMonthIntervalType
                       quickstep_types_operations_binaryoperations_ArithmeticBinaryOperation
                       quickstep_types_operations_binaryoperations_ArithmeticBinaryOperators
                       quickstep_types_operations_binaryoperations_BinaryOperationID

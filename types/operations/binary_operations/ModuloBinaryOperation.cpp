@@ -18,22 +18,13 @@
 
 #include "types/operations/binary_operations/ModuloBinaryOperation.hpp"
 
-#include <functional>
 #include <string>
 #include <utility>
 
-#include "types/DateOperatorOverloads.hpp"
-#include "types/DatetimeIntervalType.hpp"
-#include "types/DoubleType.hpp"
-#include "types/FloatType.hpp"
-#include "types/IntType.hpp"
-#include "types/IntervalLit.hpp"
-#include "types/LongType.hpp"
 #include "types/Type.hpp"
 #include "types/TypeErrors.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
-#include "types/YearMonthIntervalType.hpp"
 #include "types/operations/binary_operations/ArithmeticBinaryOperators.hpp"
 #include "utility/EqualsAnyConstant.hpp"
 
