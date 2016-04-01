@@ -28,7 +28,6 @@
 #include "utility/Macros.hpp"
 
 namespace quickstep {
-
 namespace transaction {
 
 /** \addtogroup Transaction
@@ -115,7 +114,6 @@ class StronglyConnectedComponents {
 /** @} */
 
 }  // namespace transaction
-
 }  // namespace quickstep
 
 #endif  // QUICKSTEP_TRANSACTION_STRONGLY_CONNECTED_COMPONENTS_HPP_

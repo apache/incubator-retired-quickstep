@@ -24,7 +24,6 @@
 #include "gtest/gtest.h"
 
 namespace quickstep {
-
 namespace transaction {
 
 TEST(DirectedGraphTest, AddNode) {
@@ -127,5 +126,4 @@ TEST(DirectedGraphTest, GetAdjacentNodes) {
 }
 
 }  // namespace transaction
-
 }  // namespace quickstep

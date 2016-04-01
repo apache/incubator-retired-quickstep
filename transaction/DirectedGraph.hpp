@@ -19,6 +19,8 @@
 #define QUICKSTEP_TRANSACTION_DIRECTED_GRAPH_HPP_
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <stack>
 #include <unordered_set>
@@ -30,7 +32,6 @@
 #include "glog/logging.h"
 
 namespace quickstep {
-
 namespace transaction {
 
 /** \addtogroup Transaction
@@ -200,7 +201,6 @@ class DirectedGraph {
 /** @} */
 
 }  // namespace transaction
-
 }  // namespace quickstep
 
 #endif  // QUICKSTEP_TRANSACTION_DIRECTED_GRAPH_HPP_
