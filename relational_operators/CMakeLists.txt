@@ -91,7 +91,8 @@ target_link_libraries(quickstep_relationaloperators_BuildHashOperator
 target_link_libraries(quickstep_relationaloperators_CreateIndexOperator
                       glog
                       quickstep_catalog_CatalogRelation
-                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_RelationalOperator                      
+                      quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_Macros
                       tmb)
 target_link_libraries(quickstep_relationaloperators_CreateTableOperator
@@ -230,7 +231,7 @@ target_link_libraries(quickstep_relationaloperators_SampleOperator
                       glog
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
-                      quickstep_queryexecution_QueryContext                                 
+                      quickstep_queryexecution_QueryContext
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_WorkOrder
@@ -239,7 +240,7 @@ target_link_libraries(quickstep_relationaloperators_SampleOperator
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
                       quickstep_utility_Macros
-                      tmb)                      
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_SaveBlocksOperator
                       glog
                       quickstep_catalog_CatalogTypedefs
@@ -436,6 +437,7 @@ target_link_libraries(AggregationOperator_unittest
                       quickstep_expressions_scalar_ScalarLiteral
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_AggregationOperator
                       quickstep_relationaloperators_FinalizeAggregationOperator
@@ -482,6 +484,7 @@ target_link_libraries(HashJoinOperator_unittest
                       quickstep_expressions_scalar_ScalarLiteral
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_BuildHashOperator
                       quickstep_relationaloperators_DestroyHashOperator
@@ -528,6 +531,7 @@ target_link_libraries(SortMergeRunOperator_unittest
                       quickstep_expressions_scalar_ScalarAttribute
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_RelationalOperator
@@ -578,6 +582,7 @@ target_link_libraries(SortRunGenerationOperator_unittest
                       quickstep_expressions_scalar_ScalarAttribute
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_RelationalOperator
@@ -622,6 +627,8 @@ target_link_libraries(TextScanOperator_unittest
                       quickstep_cli_PrintToScreen
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryexecution_QueryExecutionMessages_proto
+                      quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_relationaloperators_TextScanOperator

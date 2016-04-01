@@ -1,5 +1,5 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -30,8 +30,8 @@ add_library(quickstep_expressions_Expressions_proto
 
 target_link_libraries(quickstep_expressions_ExpressionFactories
                       glog
-                      quickstep_catalog_CatalogDatabase
-                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogDatabaseLite
+                      quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_Expressions_proto
                       quickstep_expressions_predicate_ComparisonPredicate

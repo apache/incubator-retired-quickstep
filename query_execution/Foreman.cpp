@@ -23,9 +23,13 @@
 #include <utility>
 #include <vector>
 
+#include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/PartitionScheme.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
+#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/WorkerDirectory.hpp"
 #include "query_execution/WorkerMessage.hpp"
@@ -196,6 +200,21 @@ void Foreman::run() {
         CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
 
         processRebuildWorkOrderCompleteMessage(proto.operator_index(), proto.worker_id());
+        break;
+      }
+      case kCatalogRelationNewBlockMessage: {
+        serialization::CatalogRelationNewBlockMessage proto;
+        CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+        const block_id block = proto.block_id();
+
+        CatalogRelation *relation =
+            static_cast<CatalogDatabase*>(catalog_database_)->getRelationByIdMutable(proto.relation_id());
+        relation->addBlock(block);
+
+        if (proto.has_partition_id()) {
+          relation->getPartitionSchemeMutable()->addBlockToPartition(proto.partition_id(), block);
+        }
         break;
       }
       case kDataPipelineMessage: {

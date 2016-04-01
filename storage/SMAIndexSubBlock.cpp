@@ -22,7 +22,6 @@
 #include <exception>
 #include <memory>
 #include <new>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -47,7 +46,6 @@
 #include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
-#include "types/operations/comparisons/ComparisonUtil.hpp"
 #include "utility/PtrVector.hpp"
 
 #include "glog/logging.h"
@@ -309,12 +307,10 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
       entries_(nullptr),
       total_attributes_(tuple_store.getRelation().size()),
       attribute_to_entry_(new int[tuple_store.getRelation().size()]),
-      num_indexed_attributes_(0),
+      num_indexed_attributes_(description.indexed_attribute_ids_size()),
       initialized_(false) {
   CHECK(DescriptionIsValid(relation_, description_))
       << "Attempted to construct an SMAIndexSubBlock from an invalid description.";
-
-  num_indexed_attributes_ = description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id);
 
   CHECK((sizeof(sma_internal::SMAHeader)
             + (num_indexed_attributes_ * sizeof(SMAEntry))) <= sub_block_memory_size_)
@@ -341,9 +337,7 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
   for (std::size_t indexed_attribute_num = 0;
        indexed_attribute_num < num_indexed_attributes_;
        ++indexed_attribute_num) {
-    const attribute_id attribute = description_.GetExtension(
-        SMAIndexSubBlockDescription::indexed_attribute_id,
-        indexed_attribute_num);
+    const attribute_id attribute = description_.indexed_attribute_ids(indexed_attribute_num);
 
     const CatalogAttribute *catalog_attribute
         = tuple_store_.getRelation().getAttributeById(attribute);
@@ -437,9 +431,7 @@ void SMAIndexSubBlock::resetAllEntries() {
   for (std::size_t indexed_attribute_num = 0;
        indexed_attribute_num < num_indexed_attributes_;
        ++indexed_attribute_num) {
-    const attribute_id attribute = description_.GetExtension(
-        SMAIndexSubBlockDescription::indexed_attribute_id,
-        indexed_attribute_num);
+    const attribute_id attribute = description_.indexed_attribute_ids(indexed_attribute_num);
 
     const Type &attribute_type = tuple_store_.getRelation().getAttributeById(attribute)->getType();
     resetEntry(entries_ + indexed_attribute_num, attribute, attribute_type);
@@ -472,15 +464,14 @@ bool SMAIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema &relation,
     return false;
   }
   // Must have at least one indexed attribute.
-  if (description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id) == 0) {
+  if (description.indexed_attribute_ids_size() == 0) {
     return false;
   }
   // Check that all key attributes exist.
   for (int indexed_attribute_num = 0;
-       indexed_attribute_num < description.ExtensionSize(SMAIndexSubBlockDescription::indexed_attribute_id);
+       indexed_attribute_num < description.indexed_attribute_ids_size();
        ++indexed_attribute_num) {
-    attribute_id indexed_attribute_id = description.GetExtension(
-        SMAIndexSubBlockDescription::indexed_attribute_id, indexed_attribute_num);
+    const attribute_id indexed_attribute_id = description.indexed_attribute_ids(indexed_attribute_num);
     if (!relation.hasAttributeWithId(indexed_attribute_id)) {
       return false;
     }

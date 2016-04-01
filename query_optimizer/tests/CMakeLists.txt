@@ -55,10 +55,11 @@ target_link_libraries(quickstep_queryoptimizer_tests_OptimizerTest
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_tests_TestDatabaseLoader
                       glog
-                      quickstep_catalog_Catalog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
+                      quickstep_queryexecution_QueryExecutionMessages_proto
+                      quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_storage_InsertDestination
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager

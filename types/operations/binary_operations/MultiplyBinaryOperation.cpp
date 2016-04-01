@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -17,7 +19,6 @@
 
 #include "types/operations/binary_operations/MultiplyBinaryOperation.hpp"
 
-#include <functional>
 #include <string>
 #include <utility>
 
@@ -218,7 +219,7 @@ TypedValue MultiplyBinaryOperation::applyToChecked(const TypedValue &left,
     case kFloat:
     case kDouble: {
       if (right_type.getSuperTypeID() == Type::kNumeric) {
-        return applyToCheckedNumericHelper<std::multiplies>(left, left_type,
+        return applyToCheckedNumericHelper<MultiplyFunctor>(left, left_type,
                                                             right, right_type);
       } else if (right_type.getTypeID() == kDatetimeInterval) {
         return applyToCheckedIntervalMultiplyNumericHelper<DatetimeIntervalType>(right, right_type,

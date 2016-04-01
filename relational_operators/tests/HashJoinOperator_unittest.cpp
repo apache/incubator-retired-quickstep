@@ -39,6 +39,7 @@
 #include "expressions/scalar/ScalarLiteral.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
+#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/BuildHashOperator.hpp"
 #include "relational_operators/DestroyHashOperator.hpp"
@@ -97,6 +98,12 @@ constexpr int kOpIndex = 0;
 class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> {
  protected:
   virtual void SetUp() {
+    bus_.Initialize();
+
+    foreman_client_id_ = bus_.Connect();
+    bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
+
     storage_manager_.reset(new StorageManager("./test_data/"));
 
     // Create a database.
@@ -132,7 +139,7 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
     MutableBlockReference storage_block;
     for (tuple_id i = 0; i < kNumDimTuples; i += kBlockSize) {
       // Create block.
-      block_id block_id = storage_manager_->createBlock(*dim_table_, dim_layout.get());
+      block_id block_id = storage_manager_->createBlock(*dim_table_, *dim_layout);
       storage_block = storage_manager_->getBlockMutable(block_id, *dim_table_);
       dim_table_->addBlock(block_id);
 
@@ -152,7 +159,7 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
     // Insert tuples to fact table.
     for (tuple_id i = 0; i < kNumFactTuples; i += kBlockSize) {
       // Create block
-      block_id block_id = storage_manager_->createBlock(*fact_table_, fact_layout.get());
+      block_id block_id = storage_manager_->createBlock(*fact_table_, *fact_layout);
       storage_block = storage_manager_->getBlockMutable(block_id, *fact_table_);
       fact_table_->addBlock(block_id);
 
@@ -232,8 +239,8 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
     op->getAllWorkOrders(&container,
                          query_context_.get(),
                          storage_manager_.get(),
-                         tmb::kClientIdNone /* foreman_client_id */,
-                         nullptr /* TMB */);
+                         foreman_client_id_,
+                         &bus_);
 
     while (container.hasNormalWorkOrder(op_index)) {
       WorkOrder *work_order = container.getNormalWorkOrder(op_index);
@@ -241,6 +248,9 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
       delete work_order;
     }
   }
+
+  MessageBusImpl bus_;
+  tmb::client_id foreman_client_id_;
 
   unique_ptr<QueryContext> query_context_;
   std::unique_ptr<StorageManager> storage_manager_;
@@ -316,7 +326,6 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
 
   insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(false);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
   unique_ptr<HashJoinOperator> prober(
@@ -335,8 +344,8 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
   query_context_.reset(new QueryContext(query_context_proto,
                                         db_.get(),
                                         storage_manager_.get(),
-                                        tmb::kClientIdNone /* foreman_client_id */,
-                                        nullptr /* TMB */));
+                                        foreman_client_id_,
+                                        &bus_));
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
@@ -459,7 +468,6 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
 
   insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(false);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
   unique_ptr<HashJoinOperator> prober(
@@ -478,8 +486,8 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
   query_context_.reset(new QueryContext(query_context_proto,
                                         db_.get(),
                                         storage_manager_.get(),
-                                        tmb::kClientIdNone /* foreman_client_id */,
-                                        nullptr /* TMB */));
+                                        foreman_client_id_,
+                                        &bus_));
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
@@ -610,7 +618,6 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
 
   insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(false);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
   unique_ptr<HashJoinOperator> prober(
@@ -629,8 +636,8 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
   query_context_.reset(new QueryContext(query_context_proto,
                                         db_.get(),
                                         storage_manager_.get(),
-                                        tmb::kClientIdNone /* foreman_client_id */,
-                                        nullptr /* TMB */));
+                                        foreman_client_id_,
+                                        &bus_));
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
@@ -746,7 +753,6 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
 
   insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(false);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
   unique_ptr<HashJoinOperator> prober(
@@ -765,8 +771,8 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
   query_context_.reset(new QueryContext(query_context_proto,
                                         db_.get(),
                                         storage_manager_.get(),
-                                        tmb::kClientIdNone /* foreman_client_id */,
-                                        nullptr /* TMB */));
+                                        foreman_client_id_,
+                                        &bus_));
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
@@ -912,7 +918,6 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
 
   insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(false);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
   std::vector<attribute_id> fact_key_attrs;
@@ -935,8 +940,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   query_context_.reset(new QueryContext(query_context_proto,
                                         db_.get(),
                                         storage_manager_.get(),
-                                        tmb::kClientIdNone /* foreman_client_id */,
-                                        nullptr /* TMB */));
+                                        foreman_client_id_,
+                                        &bus_));
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
@@ -1083,7 +1088,6 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
 
   insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation_id);
-  insert_destination_proto->set_need_to_add_blocks_from_relation(false);
   insert_destination_proto->set_relational_op_index(kOpIndex);
 
   // Include a residual predicate that selects a subset of the joined tuples.
@@ -1116,8 +1120,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   query_context_.reset(new QueryContext(query_context_proto,
                                         db_.get(),
                                         storage_manager_.get(),
-                                        tmb::kClientIdNone /* foreman_client_id */,
-                                        nullptr /* TMB */));
+                                        foreman_client_id_,
+                                        &bus_));
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());

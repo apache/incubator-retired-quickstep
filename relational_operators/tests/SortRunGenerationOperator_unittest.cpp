@@ -33,6 +33,7 @@
 #include "expressions/scalar/ScalarAttribute.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
+#include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/RelationalOperator.hpp"
@@ -151,6 +152,9 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
     bus_.RegisterClientAsSender(thread_client_id_, kDataPipelineMessage);
     bus_.RegisterClientAsReceiver(thread_client_id_, kDataPipelineMessage);
 
+    bus_.RegisterClientAsSender(thread_client_id_, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsReceiver(thread_client_id_, kCatalogRelationNewBlockMessage);
+
     thread_id_map_ = ClientIDMap::Instance();
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
@@ -243,7 +247,7 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
     expect_num_tuples_ = 0;
     for (std::size_t bid = 0; bid < num_blocks; ++bid) {
       // Create block.
-      block_id block_id = storage_manager_->createBlock(*input_table_, nullptr);
+      block_id block_id = storage_manager_->createBlock(*input_table_, input_table_->getDefaultStorageBlockLayout());
       storage_block = storage_manager_->getBlockMutable(block_id, *input_table_);
       input_table_->addBlock(block_id);
 
@@ -287,6 +291,21 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
     while (container.hasNormalWorkOrder(kOpIndex)) {
       std::unique_ptr<WorkOrder> order(container.getNormalWorkOrder(kOpIndex));
       order->execute();
+      processCatalogRelationNewBlockMessages();
+    }
+  }
+
+  void processCatalogRelationNewBlockMessages() {
+    AnnotatedMessage msg;
+    while (bus_.ReceiveIfAvailable(thread_client_id_, &msg)) {
+      const TaggedMessage &tagged_message = msg.tagged_message;
+      if (tagged_message.message_type() == kCatalogRelationNewBlockMessage) {
+        serialization::CatalogRelationNewBlockMessage proto;
+        CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+        CatalogRelation *relation = db_->getRelationByIdMutable(proto.relation_id());
+        relation->addBlock(proto.block_id());
+      }
     }
   }
 
@@ -303,7 +322,6 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
 
     insert_destination_proto->set_insert_destination_type(serialization::InsertDestinationType::BLOCK_POOL);
     insert_destination_proto->set_relation_id(result_table_->getID());
-    insert_destination_proto->set_need_to_add_blocks_from_relation(false);
     insert_destination_proto->set_relational_op_index(kOpIndex);
 
     // Setup the SortConfiguration proto.

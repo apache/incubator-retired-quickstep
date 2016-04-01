@@ -106,7 +106,7 @@ size_t FileManagerWindows::numSlots(const block_id block) const {
   uint64_t file_size = (static_cast<uint64_t>(file_stat.nFileSizeHigh) << 32) | file_stat.nFileSizeLow;
 
   if ((file_size % kSlotSizeBytes) != 0) {
-    throw CorruptPersistentStorage();
+    LOG(FATAL) << "The file " << filename << " was corrupted.";
   }
 
   return static_cast<size_t>(file_size / kSlotSizeBytes);

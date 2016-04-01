@@ -1,5 +1,5 @@
 /**
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "expressions/ExpressionFactories.hpp"
+#include "expressions/Expressions.pb.h"
 #include "expressions/scalar/Scalar.hpp"
 #include "utility/PtrVector.hpp"
 #include "utility/SortConfiguration.pb.h"
@@ -33,7 +34,7 @@ using std::vector;
 namespace quickstep {
 
 SortConfiguration* SortConfiguration::ReconstructFromProto(const serialization::SortConfiguration &proto,
-                                                           const CatalogDatabase &database) {
+                                                           const CatalogDatabaseLite &database) {
   DCHECK(ProtoIsValid(proto, database));
 
   PtrVector<Scalar> order_by;
@@ -52,7 +53,7 @@ SortConfiguration* SortConfiguration::ReconstructFromProto(const serialization::
 }
 
 bool SortConfiguration::ProtoIsValid(const serialization::SortConfiguration &proto,
-                                     const CatalogDatabase &database) {
+                                     const CatalogDatabaseLite &database) {
   for (int i = 0; i < proto.order_by_list_size(); ++i) {
     const serialization::SortConfiguration::OrderBy &order_by_proto = proto.order_by_list(i);
 

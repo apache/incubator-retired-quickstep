@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -15,16 +17,23 @@
  *   limitations under the License.
  **/
 
+#include <algorithm>
 #include <cstddef>
 #include <limits>
+#include <memory>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #include "catalog/Catalog.hpp"
+#include "catalog/Catalog.pb.h"
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogDatabaseCache.hpp"
 #include "catalog/CatalogRelation.hpp"
+#include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/IndexScheme.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageBlockLayout.hpp"
 #include "storage/StorageBlockLayout.pb.h"
@@ -33,6 +42,7 @@
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
 #include "utility/Macros.hpp"
+#include "utility/PtrVector.hpp"
 
 #include "gtest/gtest.h"
 
@@ -43,6 +53,7 @@ QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(CSBTreeIndexSubBlock);
 QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(CompressedColumnStoreTupleStorageSubBlock);
 QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(CompressedPackedRowStoreTupleStorageSubBlock);
 QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(PackedRowStoreTupleStorageSubBlock);
+QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(SMAIndexSubBlock);
 QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(SplitRowStoreTupleStorageSubBlock);
 
 class CatalogTest : public ::testing::Test {
@@ -123,22 +134,10 @@ class CatalogTest : public ::testing::Test {
       const IndexSubBlockDescription &expected,
       const IndexSubBlockDescription &checked) {
     EXPECT_EQ(expected.sub_block_type(), checked.sub_block_type());
-    switch (expected.sub_block_type()) {
-      case IndexSubBlockDescription::CSB_TREE:
-        ASSERT_EQ(
-            expected.ExtensionSize(CSBTreeIndexSubBlockDescription::indexed_attribute_id),
-            checked.ExtensionSize(CSBTreeIndexSubBlockDescription::indexed_attribute_id));
 
-        for (int i = 0;
-             i < expected.ExtensionSize(CSBTreeIndexSubBlockDescription::indexed_attribute_id);
-             ++i) {
-          EXPECT_EQ(
-              expected.GetExtension(CSBTreeIndexSubBlockDescription::indexed_attribute_id, i),
-              checked.GetExtension(CSBTreeIndexSubBlockDescription::indexed_attribute_id, i));
-        }
-        break;
-      default:
-        FATAL_ERROR("Unknown IndexSubBlockType encountered in CompareIndexSubBlockDescription");
+    ASSERT_EQ(expected.indexed_attribute_ids_size(), checked.indexed_attribute_ids_size());
+    for (int i = 0; i < expected.indexed_attribute_ids_size(); ++i) {
+      EXPECT_EQ(expected.indexed_attribute_ids(i), checked.indexed_attribute_ids(i));
     }
   }
 
@@ -171,6 +170,19 @@ class CatalogTest : public ::testing::Test {
          ++it1, ++it2) {
       CompareCatalogAttribute(*it1, *it2);
     }
+
+    ASSERT_EQ((expected.index_scheme_ != nullptr), (checked.index_scheme_ != nullptr));
+
+    if (checked.index_scheme_ != nullptr) {
+      ASSERT_EQ(expected.index_scheme_->getNumIndices(), checked.index_scheme_->getNumIndices());
+
+      std::string expected_index_scheme_serialized_proto, checked_index_scheme_serialized_proto;
+      expected.index_scheme_->getProto().SerializeToString(&expected_index_scheme_serialized_proto);
+      checked.index_scheme_->getProto().SerializeToString(&checked_index_scheme_serialized_proto);
+      std::sort(expected_index_scheme_serialized_proto.begin(), expected_index_scheme_serialized_proto.end());
+      std::sort(checked_index_scheme_serialized_proto.begin(), checked_index_scheme_serialized_proto.end());
+      EXPECT_EQ(expected_index_scheme_serialized_proto, checked_index_scheme_serialized_proto);
+    }
   }
 
   static void CompareCatalogDatabase(const CatalogDatabase &expected, const CatalogDatabase &checked) {
@@ -181,6 +193,27 @@ class CatalogTest : public ::testing::Test {
          it1 != expected.end();
          ++it1, ++it2) {
       CompareCatalogRelation(*it1, *it2);
+    }
+  }
+
+  void compareCatalogDatabaseCache(const CatalogDatabaseCache &cache) {
+    ASSERT_EQ(db_->size(), cache.size());
+    for (const CatalogRelationSchema &expected : *db_) {
+      const relation_id rel_id = expected.getID();
+
+      ASSERT_TRUE(cache.hasRelationWithId(rel_id));
+      const CatalogRelationSchema &checked = cache.getRelationSchemaById(rel_id);
+
+      EXPECT_EQ(rel_id, checked.getID());
+      EXPECT_EQ(expected.getName(), checked.getName());
+      EXPECT_EQ(expected.isTemporary(), checked.isTemporary());
+
+      ASSERT_EQ(expected.size(), checked.size());
+      for (auto cit_expected = expected.begin(), cit_checked = checked.begin();
+           cit_expected != expected.end();
+           ++cit_expected, ++cit_checked) {
+        CompareCatalogAttribute(*cit_expected, *cit_checked);
+      }
     }
   }
 
@@ -515,6 +548,71 @@ TEST_F(CatalogTest, CatalogSplitRowStoreSerializationTest) {
   rel->setDefaultStorageBlockLayout(new StorageBlockLayout(*rel, layout_description));
 
   checkCatalogSerialization();
+}
+
+TEST_F(CatalogTest, CatalogIndexTest) {
+  CatalogRelation* const rel = createCatalogRelation("rel");
+  StorageBlockLayoutDescription layout_description(rel->getDefaultStorageBlockLayout().getDescription());
+
+  rel->addAttribute(new CatalogAttribute(nullptr, "attr_idx1", TypeFactory::GetType(kInt)));
+  rel->addAttribute(new CatalogAttribute(nullptr, "attr_idx2", TypeFactory::GetType(kInt)));
+
+  layout_description.mutable_tuple_store_description()->set_sub_block_type(
+      TupleStorageSubBlockDescription::PACKED_ROW_STORE);
+
+  rel->setDefaultStorageBlockLayout(new StorageBlockLayout(*rel, layout_description));
+
+  IndexSubBlockDescription index_description;
+  index_description.set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
+  index_description.add_indexed_attribute_ids(rel->getAttributeByName("attr_idx1")->getID());
+
+  EXPECT_TRUE(rel->addIndex("idx1", std::move(index_description)));
+  EXPECT_TRUE(rel->hasIndexWithName("idx1"));
+  // Adding an index with duplicate name should return false.
+  EXPECT_FALSE(rel->addIndex("idx1", std::move(index_description)));
+  // Adding an index of same type with different name on the same attribute should return false.
+  EXPECT_FALSE(rel->addIndex("idx2", std::move(index_description)));
+
+  index_description.Clear();
+  index_description.set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
+  index_description.add_indexed_attribute_ids(rel->getAttributeByName("attr_idx2")->getID());
+
+  EXPECT_TRUE(rel->addIndex("idx2", std::move(index_description)));
+  EXPECT_TRUE(rel->hasIndexWithName("idx2"));
+
+  checkCatalogSerialization();
+}
+
+TEST_F(CatalogTest, CatalogDatabaseCacheTest) {
+  CatalogRelationSchema* const rel = createCatalogRelation("rel");
+
+  rel->addAttribute(new CatalogAttribute(nullptr, "attr_int", TypeFactory::GetType(kInt), -1 /* id */, "int"));
+  rel->addAttribute(new CatalogAttribute(nullptr, "attr_long", TypeFactory::GetType(kLong)));
+  rel->addAttribute(
+      new CatalogAttribute(nullptr, "attr_float", TypeFactory::GetType(kFloat), -1 /* id */, "float"));
+  rel->addAttribute(new CatalogAttribute(nullptr, "attr_double", TypeFactory::GetType(kDouble)));
+
+  CatalogDatabaseCache cache(db_->getProto());
+  compareCatalogDatabaseCache(cache);
+
+  // CatalogRelactionSchema changes.
+  const std::size_t str_type_length = 8;
+  rel->addAttribute(
+      new CatalogAttribute(nullptr, "char_length_8", TypeFactory::GetType(kChar, str_type_length)));
+  rel->addAttribute(
+      new CatalogAttribute(nullptr,
+                           "var_char_length_8",
+                           TypeFactory::GetType(kVarChar, str_type_length),
+                           -1 /* id */,
+                           "vchar_8"));
+
+  // Update the cache after the schema changed.
+  cache.update(db_->getProto());
+  compareCatalogDatabaseCache(cache);
+
+  // Test dropping relations in the cache.
+  cache.dropRelationById(rel->getID());
+  ASSERT_EQ(0u, cache.size());
 }
 
 }  // namespace quickstep

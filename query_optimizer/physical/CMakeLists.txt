@@ -72,8 +72,10 @@ target_link_libraries(quickstep_queryoptimizer_physical_CopyFrom
 target_link_libraries(quickstep_queryoptimizer_physical_CreateIndex
                       glog
                       quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_physical_CreateTable

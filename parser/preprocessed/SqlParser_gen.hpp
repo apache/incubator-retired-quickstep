@@ -169,6 +169,7 @@ union YYSTYPE
 
   quickstep::ParseScalarLiteral *scalar_literal_;
   quickstep::ParseAttribute *attribute_;
+  quickstep::PtrList<quickstep::ParseAttribute> *attribute_list_;
 
   quickstep::ParsePredicate *predicate_;
 
@@ -235,7 +236,7 @@ union YYSTYPE
   quickstep::PtrVector<quickstep::ParseSubqueryTableReference> *with_list_;
   quickstep::ParseSubqueryTableReference *with_list_element_;
 
-#line 239 "SqlParser_gen.hpp" /* yacc.c:1915  */
+#line 240 "SqlParser_gen.hpp" /* yacc.c:1915  */
 };
 
 typedef union YYSTYPE YYSTYPE;

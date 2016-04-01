@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -23,8 +23,10 @@
 #include <unordered_map>
 
 #include "catalog/Catalog.pb.h"
+#include "catalog/CatalogDatabaseLite.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "storage/StorageConstants.hpp"
 #include "threading/Mutex.hpp"
 #include "threading/SharedMutex.hpp"
 #include "threading/SpinSharedMutex.hpp"
@@ -32,9 +34,12 @@
 #include "utility/PtrVector.hpp"
 #include "utility/StringUtil.hpp"
 
+#include "glog/logging.h"
+
 namespace quickstep {
 
 class Catalog;
+class CatalogRelationSchema;
 
 /** \addtogroup Catalog
  *  @{
@@ -131,14 +136,14 @@ class RelationIdNotFound : public std::exception {
 /**
  * @brief A single database in the catalog.
  **/
-class CatalogDatabase {
+class CatalogDatabase : public CatalogDatabaseLite {
  public:
   typedef std::unordered_map<std::string, CatalogRelation*>::size_type size_type;
   typedef PtrVector<CatalogRelation, true>::const_skip_iterator const_iterator;
 
   enum class Status {
     kConsistent = 0,
-    kPendingBlockDeletions,
+    kPendingBlockDeletions
   };
 
   /**
@@ -149,8 +154,8 @@ class CatalogDatabase {
    * @param id This database's ID (defaults to -1, which means invalid/unset).
    **/
   CatalogDatabase(Catalog *parent, const std::string &name, const database_id id = -1)
-      : parent_(parent),
-        id_(id),
+      : CatalogDatabaseLite(id),
+        parent_(parent),
         name_(name),
         status_(Status::kConsistent) {
   }
@@ -176,8 +181,24 @@ class CatalogDatabase {
   /**
    * @brief Destructor which recursively destroys children.
    **/
-  ~CatalogDatabase() {
+  ~CatalogDatabase() override {
   }
+
+  bool hasRelationWithId(const relation_id id) const override {
+    SpinSharedMutexSharedLock<false> lock(relations_mutex_);
+    return hasRelationWithIdUnsafe(id);
+  }
+
+  const CatalogRelationSchema& getRelationSchemaById(const relation_id id) const override {
+    SpinSharedMutexSharedLock<false> lock(relations_mutex_);
+    DCHECK(hasRelationWithIdUnsafe(id));
+    return rel_vec_[id];
+  }
+
+  /**
+   * @exception RelationIdNotFound No relation with the given ID exists.
+   **/
+  void dropRelationById(const relation_id id) override;
 
   /**
    * @brief Get the parent catalog.
@@ -185,7 +206,7 @@ class CatalogDatabase {
    * @return Parent catalog.
    **/
   const Catalog& getParent() const {
-    return *parent_;
+    return *DCHECK_NOTNULL(parent_);
   }
 
   /**
@@ -195,15 +216,6 @@ class CatalogDatabase {
    **/
   Catalog* getParentMutable() {
     return parent_;
-  }
-
-  /**
-   * @brief Get this database's ID.
-   *
-   * @return This database's ID.
-   **/
-  database_id getID() const {
-    return id_;
   }
 
   /**
@@ -254,17 +266,6 @@ class CatalogDatabase {
   bool hasRelationWithName(const std::string &rel_name) const {
     SpinSharedMutexSharedLock<false> lock(relations_mutex_);
     return hasRelationWithNameUnsafe(rel_name);
-  }
-
-  /**
-   * @brief Check whether a relation with the given id exists.
-   *
-   * @param id The id to check for.
-   * @return Whether the relation exists.
-   **/
-  bool hasRelationWithId(const relation_id id) const {
-    SpinSharedMutexSharedLock<false> lock(relations_mutex_);
-    return hasRelationWithIdUnsafe(id);
   }
 
   /**
@@ -331,14 +332,6 @@ class CatalogDatabase {
    * @exception RelationNameNotFound No relation with the given name exists.
    **/
   void dropRelationByName(const std::string &rel_name);
-
-  /**
-   * @brief Drop (delete) a relation by id.
-   *
-   * @param id The ID of the relation to drop.
-   * @exception RelationIdNotFound No relation with the given ID exists.
-   **/
-  void dropRelationById(const relation_id id);
 
   /**
    * @brief Serialize the database as Protocol Buffer.
@@ -442,15 +435,12 @@ class CatalogDatabase {
 
   Catalog *parent_;
 
-  // The database id in Catalog.
-  database_id id_;
-
   // The database name.
   const std::string name_;
 
   // Indicate the status of this database (i.e., consistent or not).
   Status status_;
-  mutable SpinSharedMutex<false> status_mutex_;
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> status_mutex_;
 
   // A vector of relations. NULL if the relation has dropped from the database.
   PtrVector<CatalogRelation, true> rel_vec_;
@@ -462,7 +452,7 @@ class CatalogDatabase {
   std::unordered_map<std::string, CatalogRelation*> rel_map_;
 
   // Concurrency protection for 'rel_vec_' and 'rel_map_'.
-  mutable SpinSharedMutex<false> relations_mutex_;
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> relations_mutex_;
 
   friend class Catalog;
 

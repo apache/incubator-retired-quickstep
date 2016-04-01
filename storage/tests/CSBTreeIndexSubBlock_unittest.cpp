@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -33,13 +33,12 @@
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/predicate/ComparisonPredicate.hpp"
-#include "expressions/predicate/TrivialPredicates.hpp"
-#include "expressions/scalar/Scalar.hpp"
 #include "expressions/scalar/ScalarAttribute.hpp"
 #include "expressions/scalar/ScalarLiteral.hpp"
+#include "storage/CSBTreeIndexSubBlock.hpp"
 #include "storage/CompressedPackedRowStoreTupleStorageSubBlock.hpp"
 #include "storage/CompressedTupleStorageSubBlock.hpp"
-#include "storage/CSBTreeIndexSubBlock.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageBlockLayout.pb.h"
 #include "storage/StorageErrors.hpp"
 #include "storage/TupleIdSequence.hpp"
@@ -47,7 +46,6 @@
 #include "types/CharType.hpp"
 #include "types/FloatType.hpp"
 #include "types/LongType.hpp"
-#include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypedValue.hpp"
 #include "types/TypeID.hpp"
@@ -57,6 +55,8 @@
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "types/operations/comparisons/ComparisonUtil.hpp"
+#include "utility/BitVector.hpp"
+#include "utility/Macros.hpp"
 #include "utility/ScopedBuffer.hpp"
 
 using std::binary_search;
@@ -170,8 +170,7 @@ class CSBTreeIndexSubBlockTest : public ::testing::Test {
     for (vector<attribute_id>::const_iterator attr_it = index_attrs.begin();
          attr_it != index_attrs.end();
          ++attr_it) {
-      index_description_->AddExtension(CSBTreeIndexSubBlockDescription::indexed_attribute_id,
-                                       *attr_it);
+      index_description_->add_indexed_attribute_ids(*attr_it);
     }
 
     index_memory_.reset(index_memory_size);
@@ -1406,7 +1405,7 @@ TEST_F(CSBTreeIndexSubBlockTest, NullableCompositeKeyRebuildTest) {
 
 TEST_F(CSBTreeIndexSubBlockDeathTest, UnsetSubBlockTypeTest) {
   index_description_.reset(new IndexSubBlockDescription());
-  index_description_->AddExtension(CSBTreeIndexSubBlockDescription::indexed_attribute_id, 0);
+  index_description_->add_indexed_attribute_ids(0);
 
   index_memory_.reset(kIndexSubBlockSize);
 
@@ -1486,7 +1485,7 @@ TEST_F(CSBTreeIndexSubBlockTest, TruncatedCompressedKeyTest) {
   // Create an index on the compressed tuple store.
   IndexSubBlockDescription compressed_index_description;
   compressed_index_description.set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
-  compressed_index_description.AddExtension(CSBTreeIndexSubBlockDescription::indexed_attribute_id, 0);
+  compressed_index_description.add_indexed_attribute_ids(0);
 
   index_memory_.reset(kIndexSubBlockSize);
   std::memset(index_memory_.get(), 0x0, kIndexSubBlockSize);
@@ -1709,7 +1708,7 @@ TEST_F(CSBTreeIndexSubBlockTest, DictionaryCompressedKeyTest) {
   // Create an index on the compressed tuple store.
   IndexSubBlockDescription compressed_index_description;
   compressed_index_description.set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
-  compressed_index_description.AddExtension(CSBTreeIndexSubBlockDescription::indexed_attribute_id, 0);
+  compressed_index_description.add_indexed_attribute_ids(0);
 
   index_memory_.reset(kIndexSubBlockSize);
   std::memset(index_memory_.get(), 0x0, kIndexSubBlockSize);

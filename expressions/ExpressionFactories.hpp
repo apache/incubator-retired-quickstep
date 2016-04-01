@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -22,7 +22,7 @@
 
 namespace quickstep {
 
-class CatalogDatabase;
+class CatalogDatabaseLite;
 class Predicate;
 class Scalar;
 
@@ -51,7 +51,7 @@ class PredicateFactory {
    * @return A new Predicate reconstructed from the supplied Protocol Buffer.
    **/
   static Predicate* ReconstructFromProto(const serialization::Predicate &proto,
-                                         const CatalogDatabase &database);
+                                         const CatalogDatabaseLite &database);
 
   /**
    * @brief Check whether a serialization::Predicate is fully-formed and
@@ -64,7 +64,7 @@ class PredicateFactory {
    * @return Whether proto is fully-formed and valid.
    **/
   static bool ProtoIsValid(const serialization::Predicate &proto,
-                           const CatalogDatabase &database);
+                           const CatalogDatabaseLite &database);
 
  private:
   // Undefined default constructor. Class is all-static and should not be
@@ -89,7 +89,7 @@ class ScalarFactory {
    * @return A new Scalar reconstructed from the supplied Protocol Buffer.
    **/
   static Scalar* ReconstructFromProto(const serialization::Scalar &proto,
-                                      const CatalogDatabase &database);
+                                      const CatalogDatabaseLite &database);
 
   /**
    * @brief Check whether a serialization::Scalar is fully-formed and
@@ -102,7 +102,7 @@ class ScalarFactory {
    * @return Whether proto is fully-formed and valid.
    **/
   static bool ProtoIsValid(const serialization::Scalar &proto,
-                           const CatalogDatabase &database);
+                           const CatalogDatabaseLite &database);
 
  private:
   // Undefined default constructor. Class is all-static and should not be
