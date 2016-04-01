@@ -90,11 +90,8 @@ target_link_libraries(quickstep_relationaloperators_BuildHashOperator
                       tmb)
 target_link_libraries(quickstep_relationaloperators_CreateIndexOperator
                       glog
-                      quickstep_catalog_CatalogAttribute
-                      quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
-                      quickstep_relationaloperators_RelationalOperator
-                      quickstep_storage_StorageBlockLayout
+                      quickstep_relationaloperators_RelationalOperator                      
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_Macros
                       tmb)
