@@ -30,6 +30,7 @@
 #include "parser/ParseBlockProperties.hpp"
 #include "parser/ParseIndexProperties.hpp"
 #include "parser/ParseKeyValue.hpp"
+#include "parser/ParsePartitionClause.hpp"
 #include "parser/ParsePredicate.hpp"
 #include "parser/ParseSelect.hpp"
 #include "parser/ParseString.hpp"
@@ -109,11 +110,13 @@ class ParseStatementCreateTable : public ParseStatement {
                             const int column_number,
                             ParseString *relation_name,
                             PtrList<ParseAttributeDefinition> *attribute_definition_list,
-                            ParseBlockProperties *opt_block_properties)
+                            ParseBlockProperties *opt_block_properties,
+                            ParsePartitionClause *opt_partition_clause)
       : ParseStatement(line_number, column_number),
         relation_name_(relation_name),
         attribute_definition_list_(attribute_definition_list),
-        opt_block_properties_(opt_block_properties) {
+        opt_block_properties_(opt_block_properties),
+        opt_partition_clause_(opt_partition_clause) {
   }
 
   ~ParseStatementCreateTable() override {
@@ -152,6 +155,15 @@ class ParseStatementCreateTable : public ParseStatement {
     return opt_block_properties_.get();
   }
 
+  /**
+   * @brief Get a pointer to the PartitionClause.
+   *
+   * @return The PartitionClause or nullptr if not specified.
+   **/
+  const ParsePartitionClause* opt_partition_clause() const {
+    return opt_partition_clause_.get();
+  }
+
  protected:
   void getFieldStringItems(
       std::vector<std::string> *inline_field_names,
@@ -174,12 +186,19 @@ class ParseStatementCreateTable : public ParseStatement {
       container_child_fields->emplace_back();
       container_child_fields->back().push_back(opt_block_properties_.get());
     }
+
+    if (opt_partition_clause_) {
+      container_child_field_names->push_back("partition_clause");
+      container_child_fields->emplace_back();
+      container_child_fields->back().push_back(opt_partition_clause_.get());
+    }
   }
 
  private:
   std::unique_ptr<ParseString> relation_name_;
   std::unique_ptr<PtrList<ParseAttributeDefinition> > attribute_definition_list_;
   std::unique_ptr<ParseBlockProperties> opt_block_properties_;
+  std::unique_ptr<ParsePartitionClause> opt_partition_clause_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseStatementCreateTable);
 };
