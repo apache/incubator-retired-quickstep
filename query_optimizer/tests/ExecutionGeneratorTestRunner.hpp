@@ -31,7 +31,6 @@
 #include "query_execution/WorkerDirectory.hpp"
 #include "query_execution/WorkerMessage.hpp"
 #include "query_optimizer/tests/TestDatabaseLoader.hpp"
-#include "threading/ThreadIDBasedMap.hpp"
 #include "utility/Macros.hpp"
 #include "utility/textbased_test/TextBasedTestDriver.hpp"
 
@@ -54,8 +53,7 @@ class ExecutionGeneratorTestRunner : public TextBasedTestRunner {
    * @brief Constructor.
    */
   explicit ExecutionGeneratorTestRunner(const std::string &storage_path)
-      : test_database_loader_(storage_path),
-        thread_id_map_(ClientIDMap::Instance()) {
+      : test_database_loader_(storage_path) {
     test_database_loader_.createTestRelation(false /* allow_vchar */);
     test_database_loader_.loadTestRelation();
 
@@ -111,11 +109,6 @@ class ExecutionGeneratorTestRunner : public TextBasedTestRunner {
   std::unique_ptr<Worker> worker_;
 
   std::unique_ptr<WorkerDirectory> workers_;
-
-  // This map is needed for InsertDestination and some operators that send
-  // messages to Foreman directly. To know the reason behind the design of this
-  // map, see the note in InsertDestination.hpp.
-  ClientIDMap *thread_id_map_;
 
   DISALLOW_COPY_AND_ASSIGN(ExecutionGeneratorTestRunner);
 };

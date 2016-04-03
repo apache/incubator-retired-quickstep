@@ -29,7 +29,6 @@
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlock.hpp"
-#include "threading/ThreadIDBasedMap.hpp"
 #include "utility/Macros.hpp"
 
 #include "tmb/message_bus.h"
@@ -60,11 +59,13 @@ class RebuildWorkOrder : public WorkOrder {
                    const std::size_t input_operator_index,
                    const relation_id input_relation_id,
                    const client_id foreman_client_id,
+                   const client_id agent_client_id,
                    MessageBus *bus)
       : block_ref_(std::move(block_ref)),
         input_operator_index_(input_operator_index),
         input_relation_id_(input_relation_id),
         foreman_client_id_(foreman_client_id),
+        agent_client_id_(agent_client_id),
         bus_(bus) {}
 
   ~RebuildWorkOrder() {}
@@ -91,24 +92,21 @@ class RebuildWorkOrder : public WorkOrder {
                                       kDataPipelineMessage);
     std::free(proto_bytes);
 
-    // Refer to InsertDestination::sendBlockFilledMessage for the rationale
-    // behind using the ClientIDMap map.
     const tmb::MessageBus::SendStatus send_status =
         QueryExecutionUtil::SendTMBMessage(bus_,
-                                           ClientIDMap::Instance()->getValue(),
+                                           agent_client_id_,
                                            foreman_client_id_,
                                            std::move(tagged_message));
-    CHECK(send_status == tmb::MessageBus::SendStatus::kOK) << "Message could "
-        " not be sent from thread with TMB client ID " <<
-        ClientIDMap::Instance()->getValue() << " to Foreman with TMB client ID "
-        << foreman_client_id_;
+    CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
+        << "Message could not be sent from the TMB client ID " << agent_client_id_
+        << " to Foreman with TMB client ID " << foreman_client_id_;
   }
 
  private:
   MutableBlockReference block_ref_;
   const std::size_t input_operator_index_;
   const relation_id input_relation_id_;
-  const client_id foreman_client_id_;
+  const client_id foreman_client_id_, agent_client_id_;
 
   MessageBus *bus_;
 

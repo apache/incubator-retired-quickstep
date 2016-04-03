@@ -25,7 +25,6 @@
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/WorkerMessage.hpp"
 #include "relational_operators/WorkOrder.hpp"
-#include "threading/ThreadIDBasedMap.hpp"
 #include "threading/ThreadUtil.hpp"
 
 #include "glog/logging.h"
@@ -45,8 +44,6 @@ void Worker::run() {
   if (cpu_id_ >= 0) {
     ThreadUtil::BindToCPU(cpu_id_);
   }
-  ClientIDMap *thread_id_map = ClientIDMap::Instance();
-  thread_id_map->addValue(worker_client_id_);
   for (;;) {
     // Receive() is a blocking call, causing this thread to sleep until next
     // message is received.
@@ -66,8 +63,6 @@ void Worker::run() {
         break;
       }
       case kPoisonMessage: {
-        // Remove the entry from the thread ID based map for this worker thread.
-        thread_id_map->removeValue();
         return;
       }
     }

@@ -30,8 +30,6 @@
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
-#include "threading/ThreadIDBasedMap.hpp"
-
 
 #include "glog/logging.h"
 
@@ -46,6 +44,7 @@ bool DeleteOperator::getAllWorkOrders(
     QueryContext *query_context,
     StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
+    const tmb::client_id agent_client_id,
     tmb::MessageBus *bus) {
   const Predicate *predicate = query_context->getPredicate(predicate_index_);
 
@@ -60,6 +59,7 @@ bool DeleteOperator::getAllWorkOrders(
                                 storage_manager,
                                 op_index_,
                                 foreman_client_id,
+                                agent_client_id,
                                 bus),
             op_index_);
       }
@@ -75,6 +75,7 @@ bool DeleteOperator::getAllWorkOrders(
                               storage_manager,
                               op_index_,
                               foreman_client_id,
+                              agent_client_id,
                               bus),
           op_index_);
       ++num_workorders_generated_;
@@ -108,13 +109,12 @@ void DeleteWorkOrder::execute() {
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(
           bus_,
-          ClientIDMap::Instance()->getValue(),
+          agent_client_id_,
           foreman_client_id_,
           std::move(tagged_message));
-  CHECK(send_status == tmb::MessageBus::SendStatus::kOK) << "Message could not"
-      " be sent from thread with TMB client ID " <<
-      ClientIDMap::Instance()->getValue() << " to Foreman with TMB client ID "
-      << foreman_client_id_;
+  CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
+      << "Message could not be sent from the TMB client ID " << agent_client_id_
+      << " to Foreman with TMB client ID " << foreman_client_id_;
 }
 
 }  // namespace quickstep

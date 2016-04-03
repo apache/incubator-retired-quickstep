@@ -85,8 +85,6 @@ class Foreman final : public ForemanLite {
         num_numa_nodes_(num_numa_nodes) {
     bus_->RegisterClientAsSender(foreman_client_id_, kWorkOrderMessage);
     bus_->RegisterClientAsSender(foreman_client_id_, kRebuildWorkOrderMessage);
-    // NOTE(zuyu): For the single-node version, act as the sender on behalf of InsertDestinations.
-    bus_->RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
     // NOTE : Right now, foreman thread doesn't send poison messages. In the
     // future if foreman needs to abort a worker thread, this registration
     // should be useful.
@@ -102,6 +100,12 @@ class Foreman final : public ForemanLite {
                                    kWorkOrdersAvailableMessage);
     bus_->RegisterClientAsReceiver(foreman_client_id_,
                                    kWorkOrderFeedbackMessage);
+
+    agent_client_id_ = bus_->Connect();
+    bus_->RegisterClientAsSender(agent_client_id_, kCatalogRelationNewBlockMessage);
+    bus_->RegisterClientAsSender(agent_client_id_, kDataPipelineMessage);
+    bus_->RegisterClientAsSender(agent_client_id_, kWorkOrderFeedbackMessage);
+    bus_->RegisterClientAsSender(agent_client_id_, kWorkOrdersAvailableMessage);
   }
 
   ~Foreman() override {}
@@ -122,7 +126,7 @@ class Foreman final : public ForemanLite {
    **/
   inline void reconstructQueryContextFromProto(const serialization::QueryContext &proto) {
     query_context_.reset(
-        new QueryContext(proto, *catalog_database_, storage_manager_, foreman_client_id_, bus_));
+        new QueryContext(proto, *catalog_database_, storage_manager_, foreman_client_id_, agent_client_id_, bus_));
   }
 
   /**
@@ -451,6 +455,10 @@ class Foreman final : public ForemanLite {
 
   CatalogDatabaseLite *catalog_database_;
   StorageManager *storage_manager_;
+
+  // The sender agent to send messages to Foreman on behalf of
+  // InsertDestinations and some WorkOrders.
+  tmb::client_id agent_client_id_;
 
   DAG<RelationalOperator, bool> *query_dag_;
 

@@ -35,7 +35,6 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageBlockLayout.hpp"
 #include "threading/SpinMutex.hpp"
-#include "threading/ThreadIDBasedMap.hpp"
 #include "types/containers/Tuple.hpp"
 #include "utility/Macros.hpp"
 
@@ -86,6 +85,7 @@ class InsertDestination : public InsertDestinationInterface {
                     StorageManager *storage_manager,
                     const std::size_t relational_op_index,
                     const tmb::client_id foreman_client_id,
+                    const tmb::client_id agent_client_id,
                     tmb::MessageBus *bus);
 
   /**
@@ -103,6 +103,8 @@ class InsertDestination : public InsertDestinationInterface {
    * @param relation The relation to insert tuples into.
    * @param storage_manager The StorageManager to use.
    * @param foreman_client_id The TMB client ID of the Foreman thread.
+   * @param agent_client_id The TMB client ID of the agent that sends messages
+   *        to Foreman.
    * @param bus A pointer to the TMB.
    *
    * @return The constructed InsertDestination.
@@ -111,6 +113,7 @@ class InsertDestination : public InsertDestinationInterface {
                                                  const CatalogRelationSchema &relation,
                                                  StorageManager *storage_manager,
                                                  const tmb::client_id foreman_client_id,
+                                                 const tmb::client_id agent_client_id,
                                                  tmb::MessageBus *bus);
 
   /**
@@ -221,35 +224,14 @@ class InsertDestination : public InsertDestinationInterface {
                                       kDataPipelineMessage);
     std::free(proto_bytes);
 
-    // The reason we use the ClientIDMap is as follows:
-    // InsertDestination needs to send data pipeline messages to Foreman. To
-    // send a TMB message, we need to know the sender and receiver's TMB client
-    // ID. In this case, the sender thread is the worker thread that executes
-    // this function. To figure out the TMB client ID of the executing thread,
-    // there are multiple ways :
-    // 1. Trickle down the worker's client ID all the way from Worker::run()
-    // method until here.
-    // 2. Use thread-local storage - Each worker saves its TMB client ID in the
-    // local storage.
-    // 3. Use a globally accessible map whose key is the caller thread's
-    // process level ID and value is the TMB client ID.
-    //
-    // Option 1 involves modifying the signature of several functions across
-    // different modules. Option 2 was difficult to implement given that Apple's
-    // Clang doesn't allow C++11's thread_local keyword. Therefore we chose
-    // option 3.
-    ClientIDMap *thread_id_map = ClientIDMap::Instance();
-
-    DCHECK(bus_ != nullptr);
     const tmb::MessageBus::SendStatus send_status =
         QueryExecutionUtil::SendTMBMessage(bus_,
-                                           thread_id_map->getValue(),
+                                           agent_client_id_,
                                            foreman_client_id_,
                                            std::move(tagged_message));
-    CHECK(send_status == tmb::MessageBus::SendStatus::kOK) <<
-        "Message could not be sent from thread with TMB client ID "
-        << ClientIDMap::Instance()->getValue() << " to Foreman with TMB client"
-        " ID " << foreman_client_id_;
+    CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
+        << "Message could not be sent from thread with TMB client ID " << agent_client_id_
+        << " to Foreman with TMB client ID " << foreman_client_id_;
   }
 
   StorageManager *storage_manager_;
@@ -258,7 +240,7 @@ class InsertDestination : public InsertDestinationInterface {
   std::unique_ptr<const StorageBlockLayout> layout_;
   const std::size_t relational_op_index_;
 
-  tmb::client_id foreman_client_id_;
+  const tmb::client_id foreman_client_id_, agent_client_id_;
   tmb::MessageBus *bus_;
 
   // TODO(chasseur): If contention is high, finer-grained locking of internal
@@ -281,13 +263,29 @@ class InsertDestination : public InsertDestinationInterface {
  **/
 class AlwaysCreateBlockInsertDestination : public InsertDestination {
  public:
+  /**
+   * @brief Constructor.
+   *
+   * @param relation The relation to insert tuples into.
+   * @param layout The layout to use for any newly-created blocks. If NULL,
+   *        defaults to relation's default layout.
+   * @param storage_manager The StorageManager to use.
+   * @param relational_op_index The index of the relational operator in the
+   *        QueryPlan DAG that has outputs.
+   * @param foreman_client_id The TMB client ID of the Foreman thread.
+   * @param agent_client_id The TMB client ID of the agent that sends messages
+   *        to Foreman.
+   * @param bus A pointer to the TMB.
+   **/
   AlwaysCreateBlockInsertDestination(const CatalogRelationSchema &relation,
                                      const StorageBlockLayout *layout,
                                      StorageManager *storage_manager,
                                      const std::size_t relational_op_index,
                                      const tmb::client_id foreman_client_id,
+                                     const tmb::client_id agent_client_id,
                                      tmb::MessageBus *bus)
-      : InsertDestination(relation, layout, storage_manager, relational_op_index, foreman_client_id, bus) {
+      : InsertDestination(relation, layout, storage_manager, relational_op_index,
+                          foreman_client_id, agent_client_id, bus) {
   }
 
   ~AlwaysCreateBlockInsertDestination() override {
@@ -331,6 +329,8 @@ class BlockPoolInsertDestination : public InsertDestination {
    * @param relational_op_index The index of the relational operator in the
    *        QueryPlan DAG that has outputs.
    * @param foreman_client_id The TMB client ID of the Foreman thread.
+   * @param agent_client_id The TMB client ID of the agent that sends messages
+   *        to Foreman.
    * @param bus A pointer to the TMB.
    **/
   BlockPoolInsertDestination(const CatalogRelationSchema &relation,
@@ -338,8 +338,10 @@ class BlockPoolInsertDestination : public InsertDestination {
                              StorageManager *storage_manager,
                              const std::size_t relational_op_index,
                              const tmb::client_id foreman_client_id,
+                             const tmb::client_id agent_client_id,
                              tmb::MessageBus *bus)
-      : InsertDestination(relation, layout, storage_manager, relational_op_index, foreman_client_id, bus) {
+      : InsertDestination(relation, layout, storage_manager, relational_op_index,
+                          foreman_client_id, agent_client_id, bus) {
   }
 
   /**
@@ -353,6 +355,8 @@ class BlockPoolInsertDestination : public InsertDestination {
    * @param relational_op_index The index of the relational operator in the
    *        QueryPlan DAG that has outputs.
    * @param foreman_client_id The TMB client ID of the Foreman thread.
+   * @param agent_client_id The TMB client ID of the agent that sends messages
+   *        to Foreman.
    * @param bus A pointer to the TMB.
    **/
   BlockPoolInsertDestination(const CatalogRelationSchema &relation,
@@ -361,8 +365,10 @@ class BlockPoolInsertDestination : public InsertDestination {
                              std::vector<block_id> &&blocks,
                              const std::size_t relational_op_index,
                              const tmb::client_id foreman_client_id,
+                             const tmb::client_id agent_client_id,
                              tmb::MessageBus *bus)
-      : InsertDestination(relation, layout, storage_manager, relational_op_index, foreman_client_id, bus),
+      : InsertDestination(relation, layout, storage_manager, relational_op_index,
+                          foreman_client_id, agent_client_id, bus),
         available_block_ids_(std::move(blocks)) {
     // TODO(chasseur): Once block fill statistics are available, replace this
     // with something smarter.
@@ -413,6 +419,8 @@ class PartitionAwareInsertDestination : public InsertDestination {
    * @param relational_op_index The index of the relational operator in the
    *        QueryPlan DAG that has outputs.
    * @param foreman_client_id The TMB client ID of the Foreman thread.
+   * @param agent_client_id The TMB client ID of the agent that sends messages
+   *        to Foreman.
    * @param bus A pointer to the TMB.
    **/
   PartitionAwareInsertDestination(PartitionSchemeHeader *partition_scheme_header,
@@ -422,6 +430,7 @@ class PartitionAwareInsertDestination : public InsertDestination {
                                   std::vector<std::vector<block_id>> &&partitions,
                                   const std::size_t relational_op_index,
                                   const tmb::client_id foreman_client_id,
+                                  const tmb::client_id agent_client_id,
                                   tmb::MessageBus *bus);
 
   ~PartitionAwareInsertDestination() override {

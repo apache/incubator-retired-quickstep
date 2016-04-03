@@ -39,7 +39,6 @@
 #include "storage/StorageBlob.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
-#include "threading/ThreadIDBasedMap.hpp"
 #include "types/Type.hpp"
 #include "types/TypedValue.hpp"
 #include "types/containers/Tuple.hpp"
@@ -143,6 +142,7 @@ bool TextScanOperator::getAllWorkOrders(
     QueryContext *query_context,
     StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
+    const tmb::client_id agent_client_id,
     tmb::MessageBus *bus) {
   DCHECK(query_context != nullptr);
 
@@ -166,6 +166,7 @@ bool TextScanOperator::getAllWorkOrders(
                                      storage_manager,
                                      op_index_,
                                      foreman_client_id,
+                                     agent_client_id,
                                      bus),
               op_index_);
           ++num_split_work_orders_;
@@ -599,7 +600,7 @@ void TextSplitWorkOrder::execute() {
                       nullptr /* payload */,
                       0 /* payload_size */,
                       false /* ownership */);
-  SendFeedbackMessage(bus_, ClientIDMap::Instance()->getValue(), foreman_client_id_, msg);
+  SendFeedbackMessage(bus_, agent_client_id_, foreman_client_id_, msg);
 }
 
 // Allocate new blob.
@@ -658,7 +659,7 @@ void TextSplitWorkOrder::sendBlobInfoToOperator(const bool write_row_aligned) {
                                operator_index_,
                                payload,
                                payload_size);
-  SendFeedbackMessage(bus_, ClientIDMap::Instance()->getValue(), foreman_client_id_, feedback_msg);
+  SendFeedbackMessage(bus_, agent_client_id_, foreman_client_id_, feedback_msg);
 
   // Notify Foreman for the avaiable work order on the blob.
   serialization::WorkOrdersAvailableMessage message_proto;
@@ -678,13 +679,12 @@ void TextSplitWorkOrder::sendBlobInfoToOperator(const bool write_row_aligned) {
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(
           bus_,
-          ClientIDMap::Instance()->getValue(),
+          agent_client_id_,
           foreman_client_id_,
           std::move(tagged_message));
-  CHECK(send_status == tmb::MessageBus::SendStatus::kOK) << "Message could not "
-      "be sent from thread with TMB client ID "
-      << ClientIDMap::Instance()->getValue() << " to Foreman with TMB client "
-      "ID " << foreman_client_id_;
+  CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
+      << "Message could not be sent from the TMB client ID " << agent_client_id_
+      << " to Foreman with TMB client ID " << foreman_client_id_;
 
   if (residue.size()) {
     // Allocate new blob, and copy residual bytes from last blob.

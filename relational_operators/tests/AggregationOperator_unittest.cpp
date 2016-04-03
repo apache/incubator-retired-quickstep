@@ -109,8 +109,10 @@ class AggregationOperatorTest : public ::testing::Test {
     bus_.Initialize();
 
     foreman_client_id_ = bus_.Connect();
-    bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
     bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
+
+    agent_client_id_ = bus_.Connect();
+    bus_.RegisterClientAsSender(agent_client_id_, kCatalogRelationNewBlockMessage);
 
     storage_manager_.reset(new StorageManager(kStoragePath));
 
@@ -263,6 +265,7 @@ class AggregationOperatorTest : public ::testing::Test {
                                           *db_,
                                           storage_manager_.get(),
                                           foreman_client_id_,
+                                          agent_client_id_,
                                           &bus_));
 
     // Note: We treat these two operators as different query plan DAGs. The
@@ -343,6 +346,7 @@ class AggregationOperatorTest : public ::testing::Test {
                                           *db_,
                                           storage_manager_.get(),
                                           foreman_client_id_,
+                                          agent_client_id_,
                                           &bus_));
 
     // Note: We treat these two operators as different query plan DAGs. The
@@ -359,6 +363,7 @@ class AggregationOperatorTest : public ::testing::Test {
                           query_context_.get(),
                           storage_manager_.get(),
                           foreman_client_id_,
+                          agent_client_id_,
                           &bus_);
 
     while (op_container.hasNormalWorkOrder(op_index)) {
@@ -375,6 +380,7 @@ class AggregationOperatorTest : public ::testing::Test {
                                    query_context_.get(),
                                    storage_manager_.get(),
                                    foreman_client_id_,
+                                   agent_client_id_,
                                    &bus_);
 
     while (finalize_op_container.hasNormalWorkOrder(finalize_op_index)) {
@@ -463,7 +469,7 @@ class AggregationOperatorTest : public ::testing::Test {
   }
 
   MessageBusImpl bus_;
-  tmb::client_id foreman_client_id_;
+  tmb::client_id foreman_client_id_, agent_client_id_;
 
   std::unique_ptr<QueryContext> query_context_;
   std::unique_ptr<StorageManager> storage_manager_;

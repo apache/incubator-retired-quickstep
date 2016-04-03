@@ -59,8 +59,10 @@ class TestDatabaseLoader {
     bus_.Initialize();
 
     foreman_client_id_ = bus_.Connect();
-    bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
     bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
+
+    agent_client_id_ = bus_.Connect();
+    bus_.RegisterClientAsSender(agent_client_id_, kCatalogRelationNewBlockMessage);
   }
 
   ~TestDatabaseLoader() {
@@ -125,7 +127,7 @@ class TestDatabaseLoader {
   void processCatalogRelationNewBlockMessages();
 
   MessageBusImpl bus_;
-  tmb::client_id foreman_client_id_;
+  tmb::client_id foreman_client_id_, agent_client_id_;
 
   CatalogDatabase catalog_database_;
   StorageManager storage_manager_;

@@ -144,6 +144,7 @@ class MockOperator: public RelationalOperator {
       QueryContext *query_context,
       StorageManager *storage_manager,
       const tmb::client_id foreman_client_id,
+      const tmb::client_id agent_client_id,
       tmb::MessageBus *bus) override {
     ++num_calls_get_workorders_;
     if (produce_workorders_) {

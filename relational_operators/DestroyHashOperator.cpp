@@ -29,6 +29,7 @@ bool DestroyHashOperator::getAllWorkOrders(
     QueryContext *query_context,
     StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
+    const tmb::client_id agent_client_id,
     tmb::MessageBus *bus) {
   if (blocking_dependencies_met_ && !work_generated_) {
     work_generated_ = true;

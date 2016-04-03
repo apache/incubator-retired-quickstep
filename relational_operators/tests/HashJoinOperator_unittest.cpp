@@ -101,8 +101,10 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
     bus_.Initialize();
 
     foreman_client_id_ = bus_.Connect();
-    bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
     bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
+
+    agent_client_id_ = bus_.Connect();
+    bus_.RegisterClientAsSender(agent_client_id_, kCatalogRelationNewBlockMessage);
 
     storage_manager_.reset(new StorageManager("./test_data/"));
 
@@ -240,6 +242,7 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
                          query_context_.get(),
                          storage_manager_.get(),
                          foreman_client_id_,
+                         agent_client_id_,
                          &bus_);
 
     while (container.hasNormalWorkOrder(op_index)) {
@@ -250,7 +253,7 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
   }
 
   MessageBusImpl bus_;
-  tmb::client_id foreman_client_id_;
+  tmb::client_id foreman_client_id_, agent_client_id_;
 
   unique_ptr<QueryContext> query_context_;
   std::unique_ptr<StorageManager> storage_manager_;
@@ -345,6 +348,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
                                         *db_,
                                         storage_manager_.get(),
                                         foreman_client_id_,
+                                        agent_client_id_,
                                         &bus_));
 
   // Execute the operators.
@@ -487,6 +491,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
                                         *db_,
                                         storage_manager_.get(),
                                         foreman_client_id_,
+                                        agent_client_id_,
                                         &bus_));
 
   // Execute the operators.
@@ -637,6 +642,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
                                         *db_,
                                         storage_manager_.get(),
                                         foreman_client_id_,
+                                        agent_client_id_,
                                         &bus_));
 
   // Execute the operators.
@@ -772,6 +778,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
                                         *db_,
                                         storage_manager_.get(),
                                         foreman_client_id_,
+                                        agent_client_id_,
                                         &bus_));
 
   // Execute the operators.
@@ -941,6 +948,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
                                         *db_,
                                         storage_manager_.get(),
                                         foreman_client_id_,
+                                        agent_client_id_,
                                         &bus_));
 
   // Execute the operators.
@@ -1121,6 +1129,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
                                         *db_,
                                         storage_manager_.get(),
                                         foreman_client_id_,
+                                        agent_client_id_,
                                         &bus_));
 
   // Execute the operators.
