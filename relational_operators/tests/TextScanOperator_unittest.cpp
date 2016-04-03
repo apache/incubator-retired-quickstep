@@ -179,7 +179,7 @@ TEST_F(TextScanOperatorTest, ScanTest) {
 
   // Setup query_context_.
   query_context_.reset(new QueryContext(query_context_proto,
-                                        db_.get(),
+                                        *db_,
                                         storage_manager_.get(),
                                         foreman_client_id_,
                                         &bus_));

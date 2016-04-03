@@ -122,7 +122,7 @@ class Foreman final : public ForemanLite {
    **/
   inline void reconstructQueryContextFromProto(const serialization::QueryContext &proto) {
     query_context_.reset(
-        new QueryContext(proto, catalog_database_, storage_manager_, foreman_client_id_, bus_));
+        new QueryContext(proto, *catalog_database_, storage_manager_, foreman_client_id_, bus_));
   }
 
   /**

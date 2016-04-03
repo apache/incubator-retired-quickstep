@@ -351,7 +351,7 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto,
-                                          db_.get(),
+                                          *db_,
                                           storage_manager_.get(),
                                           thread_client_id_,
                                           &bus_));
