@@ -48,9 +48,9 @@ class WorkOrderProtosContainer {
    * @param num_operators Number of operators in the query DAG.
    **/
   explicit WorkOrderProtosContainer(const std::size_t num_operators)
-      : num_operators_(num_operators) {
-    DCHECK_NE(num_operators_, 0);
-    operator_containers_.resize(num_operators_);
+      : num_operators_(num_operators),
+        operator_containers_(num_operators_) {
+    DCHECK_NE(num_operators_, 0u);
   }
 
   /**
@@ -112,7 +112,7 @@ class WorkOrderProtosContainer {
    **/
   void addWorkOrderProto(serialization::WorkOrder *proto,
                          const std::size_t operator_index) {
-    DCHECK_NOTNULL(proto);
+    DCHECK(proto != nullptr);
     DCHECK_LT(operator_index, num_operators_);
 
     operator_containers_[operator_index].emplace(proto);

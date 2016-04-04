@@ -154,7 +154,7 @@ class ShiftbossDirectory {
    **/
   void decrementNumQueuedWorkOrders(const std::size_t shiftboss_index) {
     DCHECK_LT(shiftboss_index, size());
-    DCHECK_GE(num_queued_work_orders_[shiftboss_index], 1);
+    DCHECK_GE(num_queued_work_orders_[shiftboss_index], 1u);
     --num_queued_work_orders_[shiftboss_index];
   }
 
