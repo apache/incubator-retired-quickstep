@@ -1,5 +1,7 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
 #   Copyright 2015-2016 Pivotal Software, Inc.
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -608,6 +610,7 @@ target_link_libraries(quickstep_storage_LinearOpenAddressingHashTable
 target_link_libraries(quickstep_storage_PackedRowStoreTupleStorageSubBlock
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
+                      quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_predicate_PredicateCost
                       quickstep_storage_PackedRowStoreValueAccessor
                       quickstep_storage_StorageBlockInfo
