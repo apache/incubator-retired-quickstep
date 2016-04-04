@@ -1,5 +1,5 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -13,6 +13,51 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+add_test(quickstep_queryoptimizer_tests_executiongenerator_distributed_create
+         "../quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/Create.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Create.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/DistributedCreate/")
+add_test(quickstep_queryoptimizer_tests_executiongenerator_distributed_delete
+         "../quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/Delete.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Delete.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/DistributedDelete/")
+add_test(quickstep_queryoptimizer_tests_executiongenerator_distributed_drop
+         "../quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/Drop.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Drop.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/DistributedDrop/")
+ add_test(quickstep_queryoptimizer_tests_executiongenerator_distributed_index
+          "../quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest"
+          "${CMAKE_CURRENT_SOURCE_DIR}/Index.test"
+          "${CMAKE_CURRENT_BINARY_DIR}/Index.test"
+          "${CMAKE_CURRENT_BINARY_DIR}/DistributedIndex/")
+add_test(quickstep_queryoptimizer_tests_executiongenerator_distributed_insert
+         "../quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/Insert.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Insert.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/DistributedInsert/")
+add_test(quickstep_queryoptimizer_tests_executiongenerator_distributed_select
+         "../quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/Select.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Select.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/DistributedSelect/")
+add_test(quickstep_queryoptimizer_tests_executiongenerator_distributed_stringpatternmatching
+         "../quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/StringPatternMatching.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/StringPatternMatching.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/DistributedStringPatternMatching/")
+add_test(quickstep_queryoptimizer_tests_executiongenerator_distributed_tablegenerator
+         "../quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/TableGenerator.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/TableGenerator.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/DistributedTableGenerator/")
+add_test(quickstep_queryoptimizer_tests_executiongenerator_distributed_update
+         "../quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/Update.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Update.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/DistributedUpdate/")
 add_test(quickstep_queryoptimizer_tests_executiongenerator_create
          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Create.test"
@@ -61,6 +106,15 @@ add_test(quickstep_queryoptimizer_tests_executiongenerator_update
 
 # Create the folders where the unit tests will store their data blocks for the
 # duration of their test.
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedCreate)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedDelete)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedDrop)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedIndex)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedInsert)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedSelect)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedStringPatternMatching)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedTableGenerator)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedUpdate)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Create)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Delete)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Drop)

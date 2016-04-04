@@ -71,6 +71,12 @@ target_link_libraries(quickstep_queryoptimizer_tests_TestDatabaseLoader
                       quickstep_utility_Macros
                       tmb)
 
+add_executable(quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest
+               DistributedExecutionGeneratorTest.cpp
+               DistributedExecutionGeneratorTestRunner.cpp
+               DistributedExecutionGeneratorTestRunner.hpp
+               "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.cpp"
+               "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.hpp")
 add_executable(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
                ExecutionGeneratorTest.cpp
                ExecutionGeneratorTestRunner.cpp
@@ -84,6 +90,38 @@ add_executable(quickstep_queryoptimizer_tests_OptimizerTextTest
                "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.cpp"
                "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.hpp")
 
+target_link_libraries(quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest
+                      glog
+                      gtest
+                      gtest_main
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_cli_DropRelation
+                      quickstep_cli_PrintToScreen
+                      quickstep_parser_ParseStatement
+                      quickstep_parser_SqlParserWrapper
+                      quickstep_queryexecution_ForemanDistributed
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_QueryExecutionUtil
+                      quickstep_queryexecution_Shiftboss
+                      quickstep_queryexecution_Worker
+                      quickstep_queryexecution_WorkerDirectory
+                      quickstep_queryexecution_WorkerMessage
+                      quickstep_queryoptimizer_ExecutionGenerator
+                      quickstep_queryoptimizer_LogicalGenerator
+                      quickstep_queryoptimizer_OptimizerContext
+                      quickstep_queryoptimizer_PhysicalGenerator
+                      quickstep_queryoptimizer_QueryHandle
+                      quickstep_queryoptimizer_QueryPlan
+                      quickstep_queryoptimizer_physical_Physical
+                      quickstep_queryoptimizer_tests_TestDatabaseLoader
+                      quickstep_utility_Macros
+                      quickstep_utility_MemStream
+                      quickstep_utility_SqlError
+                      quickstep_utility_TextBasedTestDriver
+                      tmb
+                      ${LIBS})
 target_link_libraries(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
                       glog
                       gtest

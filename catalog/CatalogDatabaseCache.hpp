@@ -95,7 +95,7 @@ class CatalogDatabaseCache : public CatalogDatabaseLite {
 
   /**
    * @brief Update the cache from its serialized Protocol Buffer form. If the
-   *        relation schema exists, it will be overwritten.
+   *        relation schema exists, it will be ignored.
    *
    * @param proto The Protocol Buffer serialization of a catalog cache,
    *        previously produced in optimizer.

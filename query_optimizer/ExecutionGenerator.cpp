@@ -185,6 +185,8 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
         temporary_relation_info.producer_operator_index);
   }
 
+  catalog_database_cache_proto_->set_name(optimizer_context_->catalog_database()->getName());
+
   LOG(INFO) << "CatalogDatabaseCacheProto has " << relation_ids_.size() << " relation(s)";
   for (const relation_id rel_id : relation_ids_) {
     const CatalogRelationSchema &relation =

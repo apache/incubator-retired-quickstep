@@ -281,7 +281,7 @@ class SelectWorkOrder : public WorkOrder {
   const Predicate *predicate_;
 
   const bool simple_projection_;
-  const std::vector<attribute_id> &simple_selection_;
+  const std::vector<attribute_id> simple_selection_;
   const std::vector<std::unique_ptr<const Scalar>> *selection_;
 
   InsertDestination *output_destination_;

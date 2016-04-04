@@ -595,6 +595,10 @@ TEST_F(CatalogTest, CatalogDatabaseCacheTest) {
   CatalogDatabaseCache cache(db_->getProto());
   compareCatalogDatabaseCache(cache);
 
+  // Test dropping relations in the cache.
+  cache.dropRelationById(rel->getID());
+  ASSERT_EQ(0u, cache.size());
+
   // CatalogRelactionSchema changes.
   const std::size_t str_type_length = 8;
   rel->addAttribute(
@@ -609,10 +613,6 @@ TEST_F(CatalogTest, CatalogDatabaseCacheTest) {
   // Update the cache after the schema changed.
   cache.update(db_->getProto());
   compareCatalogDatabaseCache(cache);
-
-  // Test dropping relations in the cache.
-  cache.dropRelationById(rel->getID());
-  ASSERT_EQ(0u, cache.size());
 }
 
 }  // namespace quickstep
