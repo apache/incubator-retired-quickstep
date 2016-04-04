@@ -63,7 +63,7 @@ bool SelectOperator::getAllWorkOrders(
                                 input_block_id,
                                 predicate,
                                 simple_projection_,
-                                *simple_selection_,
+                                simple_selection_,
                                 selection,
                                 output_destination,
                                 storage_manager),
@@ -80,7 +80,7 @@ bool SelectOperator::getAllWorkOrders(
               input_relation_block_ids_[num_workorders_generated_],
               predicate,
               simple_projection_,
-              *simple_selection_,
+              simple_selection_,
               selection,
               output_destination,
               storage_manager),
@@ -121,7 +121,7 @@ serialization::WorkOrder* SelectOperator::createWorkOrderProto(const block_id bl
   proto->SetExtension(serialization::SelectWorkOrder::block_id, block);
   proto->SetExtension(serialization::SelectWorkOrder::simple_projection, simple_projection_);
   if (simple_projection_) {
-    for (const attribute_id attr_id : *simple_selection_) {
+    for (const attribute_id attr_id : simple_selection_) {
       proto->AddExtension(serialization::SelectWorkOrder::simple_selection, attr_id);
     }
   }

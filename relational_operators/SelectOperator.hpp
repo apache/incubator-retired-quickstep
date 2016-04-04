@@ -68,6 +68,8 @@ class SelectOperator : public RelationalOperator {
    * @param predicate_index The index of selection predicate in QueryContext.
    *        All tuples matching pred will be selected (or kInvalidPredicateId to
    *        select all tuples).
+   * @param selection A projection list of attribute IDs. The operator takes
+   *        ownership of selection.
    * @param selection_index The group index of Scalars in QueryContext, which
    *        will be evaluated to project input tuples.
    * @param input_relation_is_stored If input_relation is a stored relation and
@@ -78,55 +80,19 @@ class SelectOperator : public RelationalOperator {
                  const CatalogRelation &output_relation,
                  const QueryContext::insert_destination_id output_destination_index,
                  const QueryContext::predicate_id predicate_index,
+                 std::vector<attribute_id> &&selection,
                  const QueryContext::scalar_group_id selection_index,
-                 bool input_relation_is_stored)
+                 const bool input_relation_is_stored)
       : input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         predicate_index_(predicate_index),
         selection_index_(selection_index),
-        simple_selection_(nullptr),
+        simple_selection_(std::move(selection)),
         input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
                                                            : std::vector<block_id>()),
         num_workorders_generated_(0),
-        simple_projection_(false),
-        input_relation_is_stored_(input_relation_is_stored),
-        started_(false) {}
-
-  /**
-   * @brief Constructor for selection with simple projection of attributes.
-   *
-   * @note selection_index_ is invalid, and will not be used for projection.
-   *
-   * @param input_relation The relation to perform selection over.
-   * @param output_relation The output relation.
-   * @param output_destination_index The index of the InsertDestination in the
-   *        QueryContext to insert the selection results.
-   * @param selection A projection list of attribute IDs. The operator takes
-   *        ownership of selection.
-   * @param predicate_index The index of selection predicate in QueryContext.
-   *        All tuples matching pred will be selected (or kInvalidPredicateId to
-   *        select all tuples).
-   * @param input_relation_is_stored If input_relation is a stored relation and
-   *        is fully available to the operator before it can start generating
-   *        workorders.
-   **/
-  SelectOperator(const CatalogRelation &input_relation,
-                 const CatalogRelation &output_relation,
-                 const QueryContext::insert_destination_id output_destination_index,
-                 const QueryContext::predicate_id predicate_index,
-                 std::vector<attribute_id> *selection,
-                 bool input_relation_is_stored)
-      : input_relation_(input_relation),
-        output_relation_(output_relation),
-        output_destination_index_(output_destination_index),
-        predicate_index_(predicate_index),
-        selection_index_(QueryContext::kInvalidScalarGroupId),
-        simple_selection_(selection),
-        input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
-                                                           : std::vector<block_id>()),
-        num_workorders_generated_(0),
-        simple_projection_(true),
+        simple_projection_(!simple_selection_.empty()),
         input_relation_is_stored_(input_relation_is_stored),
         started_(false) {}
 
@@ -173,7 +139,7 @@ class SelectOperator : public RelationalOperator {
   const QueryContext::predicate_id predicate_index_;
 
   const QueryContext::scalar_group_id selection_index_;
-  std::unique_ptr<std::vector<attribute_id> > simple_selection_;
+  const std::vector<attribute_id> simple_selection_;
 
   std::vector<block_id> input_relation_block_ids_;
 
@@ -195,8 +161,8 @@ class SelectWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @note Reference parameters simple_selection and selection are NOT owned by
-   *       this class and must remain valid until after execute() is called.
+   * @note Reference parameter selection is NOT owned by this class and must
+   *       remain valid until after execute() is called.
    *
    * @param input_relation The relation to perform selection over.
    * @param input_block_id The block id.
@@ -231,8 +197,8 @@ class SelectWorkOrder : public WorkOrder {
   /**
    * @brief Constructor for the distributed version.
    *
-   * @note Reference parameters simple_selection and selection are NOT owned by
-   *       this class and must remain valid until after execute() is called.
+   * @note Reference parameter selection is NOT owned by this class and must
+   *       remain valid until after execute() is called.
    *
    * @param input_relation The relation to perform selection over.
    * @param input_block_id The block id.
@@ -263,6 +229,7 @@ class SelectWorkOrder : public WorkOrder {
         selection_(selection),
         output_destination_(DCHECK_NOTNULL(output_destination)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+
   ~SelectWorkOrder() override {}
 
   /**

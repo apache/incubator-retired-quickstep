@@ -503,11 +503,13 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
         }
       }
 
+      /*
       if (proto.GetExtension(serialization::SelectWorkOrder::simple_projection) ==
               query_context.isValidScalarGroupId(
                   proto.GetExtension(serialization::SelectWorkOrder::selection_index))) {
         return false;
       }
+      */
 
       return proto.HasExtension(serialization::SelectWorkOrder::insert_destination_index)
           && query_context.isValidInsertDestinationId(
