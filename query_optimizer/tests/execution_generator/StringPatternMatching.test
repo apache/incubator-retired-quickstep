@@ -144,7 +144,8 @@ WHERE name REGEXP '.[ace].'
 SELECT name, email, organization
 FROM foo, bar
 WHERE email LIKE pattern
-  AND name NOT LIKE 'd%';
+  AND name NOT LIKE 'd%'
+ORDER BY name ASC;
 --
 +------------------------+------------------------+------------------------+
 |name                    |email                   |organization            |
