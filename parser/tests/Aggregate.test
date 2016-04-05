@@ -166,3 +166,53 @@ SelectStatement
   |   +-right_operand=FunctionCall[name=AGG]
   +-from_clause=
     +-TableReference[table=test]
+==
+
+SELECT AGG(DISTINCT x), AGG(y) FROM test GROUP BY z
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-FunctionCall[name=AGG,is_distinct=true]
+  | |   +-AttributeReference[attribute_name=x]
+  | +-SelectListItem
+  |   +-FunctionCall[name=AGG]
+  |     +-AttributeReference[attribute_name=y]
+  +-group_by=GroupBy
+  | +-AttributeReference[attribute_name=z]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+SELECT AGG(DISTINCT FUN(x) + y) * AGG(z)
+FROM test
+GROUP BY z
+HAVING AGG(DISTINCT w) + AGG(s) > 1
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Multiply
+  |     +-left_operand=FunctionCall[name=AGG,is_distinct=true]
+  |     | +-Add
+  |     |   +-left_operand=FunctionCall[name=FUN]
+  |     |   | +-AttributeReference[attribute_name=x]
+  |     |   +-right_operand=AttributeReference[attribute_name=y]
+  |     +-right_operand=FunctionCall[name=AGG]
+  |       +-AttributeReference[attribute_name=z]
+  +-group_by=GroupBy
+  | +-AttributeReference[attribute_name=z]
+  +-having=HAVING
+  | +-Greater
+  |   +-left_operand=Add
+  |   | +-left_operand=FunctionCall[name=AGG,is_distinct=true]
+  |   | | +-AttributeReference[attribute_name=w]
+  |   | +-right_operand=FunctionCall[name=AGG]
+  |   |   +-AttributeReference[attribute_name=s]
+  |   +-right_operand=Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==

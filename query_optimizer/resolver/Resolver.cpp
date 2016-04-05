@@ -1974,7 +1974,8 @@ E::ScalarPtr Resolver::resolveFunctionCall(
   const E::AggregateFunctionPtr aggregate_function
       = E::AggregateFunction::Create(*aggregate,
                                      resolved_arguments,
-                                     expression_resolution_info->query_aggregation_info->has_group_by);
+                                     expression_resolution_info->query_aggregation_info->has_group_by,
+                                     parse_function_call.is_distinct());
   const std::string internal_alias = GenerateAggregateAttributeAlias(
       expression_resolution_info->query_aggregation_info->aggregate_expressions.size());
   const E::AliasPtr aggregate_alias = E::Alias::Create(context_->nextExprId(),

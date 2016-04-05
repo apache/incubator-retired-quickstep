@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -120,6 +122,9 @@ std::string ParseFunctionCall::generateName() const {
   if (star_ != nullptr) {
     name.push_back('*');
   } else {
+    if (is_distinct_) {
+      name.append("DISTINCT ");
+    }
     bool first = true;
     for (const ParseExpression &argument : *arguments_) {
       if (!first) {
@@ -143,6 +148,11 @@ void ParseFunctionCall::getFieldStringItems(
     std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
   inline_field_names->push_back("name");
   inline_field_values->push_back(name_->value());
+
+  if (is_distinct_) {
+    inline_field_names->push_back("is_distinct");
+    inline_field_values->push_back("true");
+  }
 
   if (star_ != nullptr) {
     inline_field_names->push_back("is_star");

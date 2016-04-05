@@ -1465,14 +1465,17 @@ expression_base:
 function_call:
   any_name '(' ')' {
     $$ = new quickstep::ParseFunctionCall(
-        @1.first_line, @1.first_column, $1, new quickstep::PtrList<quickstep::ParseExpression>());
+        @1.first_line, @1.first_column, false, $1, new quickstep::PtrList<quickstep::ParseExpression>());
   }
   | any_name '(' '*' ')' {
     $$ = new quickstep::ParseFunctionCall(
         @1.first_line, @1.first_column, $1, new quickstep::ParseStar(@3.first_line, @3.first_column));
   }
   | any_name '(' expression_list ')' {
-    $$ = new quickstep::ParseFunctionCall(@1.first_line, @1.first_column, $1, $3);
+    $$ = new quickstep::ParseFunctionCall(@1.first_line, @1.first_column, false, $1, $3);
+  };
+  | any_name '(' TOKEN_DISTINCT expression_list ')' {
+    $$ = new quickstep::ParseFunctionCall(@1.first_line, @1.first_column, true, $1, $4);
   };
 
 expression_list:
