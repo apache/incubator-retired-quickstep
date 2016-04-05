@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
-#include "expressions/aggregation/AggregationHandle.hpp"
+#include "expressions/aggregation/AggregationConcreteHandle.hpp"
 #include "storage/HashTableBase.hpp"
 #include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
@@ -32,6 +32,7 @@
 
 namespace quickstep {
 
+class AggregationState;
 class ColumnVector;
 class StorageManager;
 class Type;
@@ -41,7 +42,7 @@ class ValueAccessor;
  *  @{
  */
 
-class AggregationHandleDistinct : public AggregationHandle{
+class AggregationHandleDistinct : public AggregationConcreteHandle {
  public:
   /**
    * @brief Constructor.

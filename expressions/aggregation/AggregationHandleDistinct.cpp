@@ -28,6 +28,8 @@
 
 #include "types/TypedValue.hpp"
 
+#include "glog/logging.h"
+
 namespace quickstep {
 
 class ColumnVector;
