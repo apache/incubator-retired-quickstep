@@ -214,6 +214,17 @@ class CatalogTest : public ::testing::Test {
            ++cit_expected, ++cit_checked) {
         CompareCatalogAttribute(*cit_expected, *cit_checked);
       }
+      const std::vector<std::size_t>& expected_max_lengths =
+          expected.getMaximumAttributeByteLengths();
+      const std::vector<std::size_t>& checked_max_lengths =
+          checked.getMaximumAttributeByteLengths();
+      ASSERT_EQ(expected_max_lengths.size(), checked_max_lengths.size());
+      for (attribute_id len_index = 0;
+           static_cast<std::size_t>(len_index) < expected_max_lengths.size();
+           ++len_index) {
+        EXPECT_EQ(expected_max_lengths[len_index],
+                  checked_max_lengths[len_index]);
+      }
     }
   }
 

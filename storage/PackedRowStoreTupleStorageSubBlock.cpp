@@ -147,20 +147,8 @@ tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *acc
       accessor,
       [&](auto *accessor) -> void {  // NOLINT(build/c++11)
     const std::size_t num_attrs = relation_.size();
-    // We keep track of the total size of a tuple in the case that we do a
-    // 'fast path' insertion later in the code.
-    std::size_t attrs_total_size = 0;
-    // Create a vector containing the maximum sizes of the to-be extracted
-    // attributes.
-    // NOTE(Marc): This is an optimization so that we need not use an iterator
-    // object in the following inner loops.
-    std::vector<std::size_t> attrs_max_size;
-    for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
-         attr_it != relation_.end();
-         ++attr_it) {
-      attrs_max_size.push_back(attr_it->getType().maximumByteLength());
-      attrs_total_size += attrs_max_size.back();
-    }
+    const std::vector<std::size_t> &attrs_max_size =
+        relation_.getMaximumAttributeByteLengths();
 
     if (num_nullable_attrs != 0) {
       while (this->hasSpaceToInsert<true>(1) && accessor->next()) {
@@ -193,6 +181,7 @@ tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *acc
       const bool fast_copy =
           (accessor->getImplementationType() ==
               ValueAccessor::Implementation::kCompressedPackedRowStore);
+      const std::size_t attrs_total_size = relation_.getMaximumByteLength();
       while (this->hasSpaceToInsert<false>(1) && accessor->next()) {
         if (fast_copy) {
           memcpy(dest_addr,
@@ -229,16 +218,8 @@ tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribu
       accessor,
       [&](auto *accessor) -> void {  // NOLINT(build/c++11)
     const std::size_t num_attrs = relation_.size();
-    // Create a vector containing the maximum sizes of the to-be extracted
-    // attributes.
-    // NOTE(Marc): This is an optimization so that we need not use an iterator
-    // object in the following inner loops.
-    std::vector<std::size_t> attrs_max_size;
-    for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
-         attr_it != relation_.end();
-         ++attr_it) {
-      attrs_max_size.push_back(attr_it->getType().maximumByteLength());
-    }
+    const std::vector<std::size_t> &attrs_max_size =
+        relation_.getMaximumAttributeByteLengths();
 
     if (num_nullable_attrs != 0) {
       while (this->hasSpaceToInsert<true>(1) && accessor->next()) {

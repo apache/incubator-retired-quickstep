@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -25,6 +27,7 @@
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogErrors.hpp"
+#include "catalog/CatalogTypedefs.hpp"
 #include "types/Type.hpp"
 #include "utility/PtrVector.hpp"
 #include "utility/StringUtil.hpp"
@@ -52,6 +55,7 @@ CatalogRelationSchema::CatalogRelationSchema(const serialization::CatalogRelatio
       min_variable_byte_length_(0),
       min_variable_byte_length_excluding_nullable_(0),
       estimated_variable_byte_length_(0),
+      max_byte_lengths_(proto.attributes_size()),
       current_nullable_attribute_index_(-1),
       current_variable_length_attribute_index_(-1) {
   DCHECK(ProtoIsValid(proto))
@@ -150,7 +154,7 @@ attribute_id CatalogRelationSchema::addAttribute(CatalogAttribute *new_attr) {
       }
       estimated_variable_byte_length_ += attr_type.estimateAverageByteLength();
     } else {
-      variable_length_attribute_indices_.push_back(-1);
+      variable_length_attribute_indices_.push_back(kInvalidCatalogId);
 
       fixed_length_attribute_offsets_.resize(new_attr->getID() + 1, fixed_byte_length_);
       fixed_byte_length_ += attr_type.maximumByteLength();
@@ -163,10 +167,16 @@ attribute_id CatalogRelationSchema::addAttribute(CatalogAttribute *new_attr) {
       ++num_nullable_attributes_;
       nullable_attribute_indices_.push_back(++current_nullable_attribute_index_);
     } else {
-      nullable_attribute_indices_.push_back(-1);
+      nullable_attribute_indices_.push_back(kInvalidCatalogId);
     }
 
-    return new_attr->getID();
+    const attribute_id attr_id = new_attr->getID();
+    // Ensure that we will not overrun the vector by resizing and initializing
+    // new entries to zero.
+    max_byte_lengths_.resize(attr_id + 1, 0);
+    max_byte_lengths_[attr_id] = attr_type.maximumByteLength();
+
+    return attr_id;
   }
 }
 
