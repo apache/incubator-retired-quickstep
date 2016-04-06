@@ -187,8 +187,7 @@ class BloomFilterIndexProperties : public IndexProperties {
    * @brief Constructor.
    **/
   BloomFilterIndexProperties()
-      : IndexProperties(new IndexSubBlockDescription(),
-                        InvalidIndexType::kUnimplemented) {
+      : IndexProperties(new IndexSubBlockDescription()) {
     index_sub_block_description_->set_sub_block_type(IndexSubBlockDescription::BLOOM_FILTER);
 
     // Initialize the valid_property_map_ for this index with appropriate type for each property.

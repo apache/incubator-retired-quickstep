@@ -93,6 +93,10 @@ const std::size_t kLinearOpenAddressingHashTableNumOverflowBuckets = 64;
 // buckets.
 const double kFixedSizeLinearOpenAddressingHashTableOverflowFactor = 0.0625f;
 
+// A constant that replaces the usage of zero as a magic number
+// to indicate zero-sized blocks or sub-blocks.
+const std::size_t kZeroSize = 0;
+
 /** @} */
 
 }  // namespace quickstep

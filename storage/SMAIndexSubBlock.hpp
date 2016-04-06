@@ -1,5 +1,7 @@
 /**
  *   Copyright 2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -241,6 +243,24 @@ class SMAIndexSubBlock : public IndexSubBlock {
    **/
   static std::size_t EstimateBytesPerTuple(const CatalogRelationSchema &relation,
                                            const IndexSubBlockDescription &description);
+  /**
+   * @brief Estimate the total number of bytes (including any applicable
+   *        overhead) occupied by this IndexSubBlock within the StorageBlock.
+   *        This function is to be used by those indicies whose occupied size
+   *        in the block does not depend on the number of tuples being indexed.
+   * @warning description must be valid. DescriptionIsValid() should be called
+   *          first if necessary.
+   * @note This function will be invoked by StorageBlockLayout::finalize()
+   *       if and only when EstimateBytesPerTuple() returns a zero size.
+   *
+   * @param relation The relation tuples belong to.
+   * @param description A description of the parameters for this type of
+   *        IndexSubBlock.
+   * @return The total number of bytes occupied by this IndexSubBlock within
+   *         the StorageBlock.
+   **/
+  static std::size_t EstimateBytesPerBlock(const CatalogRelationSchema &relation,
+                                             const IndexSubBlockDescription &description);
 
   /**
    * @return The sub block type.

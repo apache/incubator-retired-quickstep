@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -30,6 +32,7 @@
 #include "expressions/predicate/Predicate.hpp"
 #include "expressions/scalar/Scalar.hpp"
 #include "storage/BasicColumnStoreTupleStorageSubBlock.hpp"
+#include "storage/BloomFilterIndexSubBlock.hpp"
 #include "storage/CSBTreeIndexSubBlock.hpp"
 #include "storage/CompressedColumnStoreTupleStorageSubBlock.hpp"
 #include "storage/CompressedPackedRowStoreTupleStorageSubBlock.hpp"
@@ -1018,6 +1021,12 @@ IndexSubBlock* StorageBlock::CreateIndexSubBlock(
     const std::size_t sub_block_memory_size) {
   DEBUG_ASSERT(description.IsInitialized());
   switch (description.sub_block_type()) {
+    case IndexSubBlockDescription::BLOOM_FILTER:
+      return new BloomFilterIndexSubBlock(tuple_store,
+                                          description,
+                                          new_block,
+                                          sub_block_memory,
+                                          sub_block_memory_size);
     case IndexSubBlockDescription::CSB_TREE:
       return new CSBTreeIndexSubBlock(tuple_store,
                                       description,
