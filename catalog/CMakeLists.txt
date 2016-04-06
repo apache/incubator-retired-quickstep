@@ -179,13 +179,6 @@ target_link_libraries(quickstep_catalog
                       quickstep_catalog_PartitionScheme
                       quickstep_catalog_PartitionSchemeHeader)
 
-# Catalog generator program.
-add_executable(quickstep_generate_initial_default_catalog GenerateInitialDefaultCatalog.cpp)
-target_link_libraries(quickstep_generate_initial_default_catalog
-                      quickstep_catalog_Catalog
-                      quickstep_catalog_CatalogDatabase
-                      quickstep_catalog_Catalog_proto)
-
 # Tests:
 add_executable(Catalog_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/Catalog_unittest.cpp")
 target_link_libraries(Catalog_unittest

@@ -194,8 +194,6 @@ int main(int argc, char* argv[]) {
   string catalog_path(fixed_storage_path);
   catalog_path.append("catalog.pb.bin");
   if (quickstep::FLAGS_initialize_db) {  // Initialize the database
-    // TODO(jmp): Refactor to remove the code in catalog/GenerateInitialDefaultCatalog.cpp
-    //            as that may no longer be needed.
     // TODO(jmp): Refactor the code in this file!
     LOG(INFO) << "Initializing the database, creating a new catalog file and storage directory\n";
 
@@ -238,7 +236,9 @@ int main(int argc, char* argv[]) {
   try {
     query_processor.reset(new QueryProcessor(catalog_path, fixed_storage_path));
   } catch (const std::exception &e) {
-    LOG(FATAL) << "FATAL ERROR DURING STARTUP: " << e.what();
+    LOG(FATAL) << "FATAL ERROR DURING STARTUP: "
+               << e.what()
+               << "\nIf you intended to create a new database, please use the \"-initialize_db=true\" command line option.";
   } catch (...) {
     LOG(FATAL) << "NON-STANDARD EXCEPTION DURING STARTUP";
   }
