@@ -17,17 +17,16 @@
 
 #include "storage/StorageBlockLayout.hpp"
 
-#include <stdbool.h>                    // for bool, true, false
-#include <stdio.h>                      // for fprintf, stderr
-#include <cstring>                      // for strlen
-#include <iostream>                     // for operator<<, basic_ostream, etc
-#include <string>                       // for operator==, char_traits, etc
-#include <vector>                       // for vector
+#include <cstring>
+#include <iostream>
+#include <stdbool.h>
+#include <stdio.h>
+#include <string>
+#include <vector>
 
-#include "glog/logging.h"
 #include "gflags/gflags.h"
+#include "glog/logging.h"
 
-#include "build/third_party/gflags/include/gflags/gflags_declare.h"
 #include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogDatabaseLite.hpp"
 #include "catalog/CatalogRelation.hpp"
@@ -37,7 +36,6 @@
 #include "storage/StorageErrors.hpp"
 #include "storage/SubBlockTypeRegistry.hpp"
 #include "utility/Macros.hpp"
-#include "storage/StorageBlockLayout.pb.h"
 
 using std::size_t;
 using std::string;
@@ -47,7 +45,9 @@ using std::vector;
 namespace quickstep {
 
 DEFINE_string(default_storage, "rowstore",
-              "rowstore = (packed/split), columnstore = (column/compressedcolumn), mixed (column/split");
+              "rowstore = (packed/split), "
+              "columnstore = (column/compressedcolumn), "
+              "mixed (column/split");
 
 StorageBlockLayout::StorageBlockLayout(const CatalogRelationSchema &relation,
                                        const StorageBlockLayoutDescription &proto)
