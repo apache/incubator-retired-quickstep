@@ -144,26 +144,13 @@ class AccessMode {
 
   // Compatibility matrix for checking access modes.
   // True means they are compatible.
-  static constexpr bool kLockCompatibilityMatrix[kNumberLocks][kNumberLocks] = {
-/*           NL     IS     IX      S     SIX     X    */
-/*  NL  */ {true , true , true , true , true , true },
-/*  IS  */ {true , true , true , true , true , false},
-/*  IX  */ {true , true , true , false, false, false},
-/*  S   */ {true , true , false, true , false, false},
-/*  SIX */ {true , true , false, false, false, false},
-/*  X   */ {true , false, false, false, false, false}
-  };
-
+  static const bool kLockCompatibilityMatrix[kNumberLocks][kNumberLocks];
   // Type of access, the possible values are
   // NoLock, IsLock, IxLock, SLock, SixLock, XLock
   AccessModeType access_mode_;
 };
 
 /** @} */
-
-// static constexpr fields must be declared here, otherwise gcc
-// gives linkage errors.
-constexpr bool AccessMode::kLockCompatibilityMatrix[][kNumberLocks];
 
 }  // namespace transaction
 }  // namespace quickstep
