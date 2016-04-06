@@ -19,7 +19,6 @@
 
 #include <cstddef>
 #include <memory>
-#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -78,7 +77,7 @@ void Foreman::initialize() {
 
 void Foreman::processWorkOrderCompleteMessage(const dag_node_index op_index,
                                               const size_t worker_id) {
-  --queued_workorders_per_op_[op_index];
+  query_exec_state_->decrementNumQueuedWorkOrders(op_index);
 
   // As the given worker finished executing a WorkOrder, decrement its number
   // of queued WorkOrders.
@@ -128,7 +127,7 @@ void Foreman::processWorkOrderCompleteMessage(const dag_node_index op_index,
 
 void Foreman::processRebuildWorkOrderCompleteMessage(const dag_node_index op_index,
                                                      const size_t worker_id) {
-  --rebuild_status_[op_index].second;
+  query_exec_state_->decrementNumRebuildWorkOrders(op_index);
   workers_->decrementNumQueuedWorkOrders(worker_id);
 
   if (checkRebuildOver(op_index)) {
@@ -183,7 +182,7 @@ void Foreman::run() {
   initialize();
 
   // Event loop
-  while (!checkQueryExecutionFinished()) {
+  while (!query_exec_state_->hasQueryExecutionFinished()) {
     // Receive() causes this thread to sleep until next message is received.
     AnnotatedMessage annotated_msg = bus_->Receive(foreman_client_id_, 0, true);
     const TaggedMessage &tagged_message = annotated_msg.tagged_message;
@@ -288,19 +287,11 @@ void Foreman::dispatchWorkerMessages(
 
 void Foreman::initializeState() {
   const dag_node_index dag_size = query_dag_->size();
-  num_operators_finished_ = 0;
-
-  done_gen_.assign(dag_size, false);
-
-  execution_finished_.assign(dag_size, false);
 
   output_consumers_.resize(dag_size);
   blocking_dependencies_.resize(dag_size);
 
-  rebuild_required_.assign(dag_size, false);
-
-  queued_workorders_per_op_.assign(dag_size, 0);
-
+  query_exec_state_.reset(new QueryExecutionState(dag_size));
   workorders_container_.reset(new WorkOrdersContainer(dag_size, num_numa_nodes_));
 
   for (dag_node_index node_index = 0; node_index < dag_size; ++node_index) {
@@ -308,8 +299,8 @@ void Foreman::initializeState() {
         query_dag_->getNodePayload(node_index).getInsertDestinationID();
     if (insert_destination_index != QueryContext::kInvalidInsertDestinationId) {
       // Rebuild is necessary whenever InsertDestination is present.
-      rebuild_required_[node_index] = true;
-      rebuild_status_[node_index] = std::make_pair(false, 0);
+      query_exec_state_->setRebuildRequired(node_index);
+      query_exec_state_->setRebuildStatus(node_index, 0, false);
     }
 
     for (const pair<dag_node_index, bool> &dependent_link :
@@ -340,7 +331,7 @@ WorkerMessage* Foreman::getNextWorkerMessage(
   for (dag_node_index index = start_operator_index;
        num_operators_checked < query_dag_->size();
        index = (index + 1) % query_dag_->size(), ++num_operators_checked) {
-    if (execution_finished_[index]) {
+    if (query_exec_state_->hasExecutionFinished(index)) {
       continue;
     }
     if (numa_node != -1) {
@@ -348,7 +339,7 @@ WorkerMessage* Foreman::getNextWorkerMessage(
       work_order = workorders_container_->getNormalWorkOrderForNUMANode(index, numa_node);
       if (work_order != nullptr) {
         // A WorkOrder found on the given NUMA node.
-        ++queued_workorders_per_op_[index];
+        query_exec_state_->incrementNumQueuedWorkOrders(index);
         return WorkerMessage::WorkOrderMessage(work_order, index);
       } else {
         // Normal workorder not found on this node. Look for a rebuild workorder
@@ -363,7 +354,7 @@ WorkerMessage* Foreman::getNextWorkerMessage(
     // Try to get a normal WorkOrder from other NUMA nodes.
     work_order = workorders_container_->getNormalWorkOrder(index);
     if (work_order != nullptr) {
-      ++queued_workorders_per_op_[index];
+      query_exec_state_->incrementNumQueuedWorkOrders(index);
       return WorkerMessage::WorkOrderMessage(work_order, index);
     } else {
       // Normal WorkOrder not found, look for a RebuildWorkOrder.
@@ -402,7 +393,7 @@ void Foreman::sendWorkerMessage(const std::size_t worker_id,
 
 bool Foreman::fetchNormalWorkOrders(const dag_node_index index) {
   bool generated_new_workorders = false;
-  if (!done_gen_[index]) {
+  if (!query_exec_state_->hasDoneGenerationWorkOrders(index)) {
     // Do not fetch any work units until all blocking dependencies are met.
     // The releational operator is not aware of blocking dependencies for
     // uncorrelated scalar queries.
@@ -411,13 +402,16 @@ bool Foreman::fetchNormalWorkOrders(const dag_node_index index) {
     }
     const size_t num_pending_workorders_before =
         workorders_container_->getNumNormalWorkOrders(index);
-    done_gen_[index] =
+    const bool done_generation =
         query_dag_->getNodePayloadMutable(index)->getAllWorkOrders(workorders_container_.get(),
                                                                    query_context_.get(),
                                                                    storage_manager_,
                                                                    foreman_client_id_,
                                                                    agent_client_id_,
                                                                    bus_);
+    if (done_generation) {
+      query_exec_state_->setDoneGenerationWorkOrders(index);
+    }
 
     // TODO(shoban): It would be a good check to see if operator is making
     // useful progress, i.e., the operator either generates work orders to
@@ -474,8 +468,7 @@ void Foreman::processOperator(const dag_node_index index,
 }
 
 void Foreman::markOperatorFinished(const dag_node_index index) {
-  execution_finished_[index] = true;
-  ++num_operators_finished_;
+  query_exec_state_->setExecutionFinished(index);
 
   RelationalOperator *op = query_dag_->getNodePayloadMutable(index);
   op->updateCatalogOnCompletion();
@@ -501,10 +494,10 @@ bool Foreman::initiateRebuild(const dag_node_index index) {
 
   getRebuildWorkOrders(index, workorders_container_.get());
 
-  rebuild_status_[index] = std::make_pair(
-      true, workorders_container_->getNumRebuildWorkOrders(index));
+  query_exec_state_->setRebuildStatus(
+      index, workorders_container_->getNumRebuildWorkOrders(index), true);
 
-  return (rebuild_status_[index].second == 0);
+  return (query_exec_state_->getNumRebuildWorkOrders(index) == 0);
 }
 
 void Foreman::getRebuildWorkOrders(const dag_node_index index, WorkOrdersContainer *container) {

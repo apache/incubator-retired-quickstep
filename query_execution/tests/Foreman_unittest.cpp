@@ -26,6 +26,7 @@
 #include "query_execution/Foreman.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
+#include "query_execution/QueryExecutionState.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "query_execution/WorkerDirectory.hpp"
@@ -252,15 +253,15 @@ class ForemanTest : public ::testing::Test {
   }
 
   inline const int getNumWorkOrdersInExecution(const QueryPlan::DAGNodeIndex index) const {
-    return foreman_->queued_workorders_per_op_[index];
+    return foreman_->query_exec_state_->getNumQueuedWorkOrders(index);
   }
 
   inline const int getNumOperatorsFinished() const {
-    return foreman_->num_operators_finished_;
+    return foreman_->query_exec_state_->getNumOperatorsFinished();
   }
 
   inline bool getOperatorFinishedStatus(const QueryPlan::DAGNodeIndex index) const {
-    return foreman_->execution_finished_[index];
+    return foreman_->query_exec_state_->hasExecutionFinished(index);
   }
 
   inline bool popWorkOrderIfAvailable(MockWorkOrder **workorder) {
@@ -280,19 +281,19 @@ class ForemanTest : public ::testing::Test {
   inline bool placeDataPipelineMessage(const QueryPlan::DAGNodeIndex source_operator_index) {
     VLOG(3) << "Place DataPipeline message for Op[" << source_operator_index << "]";
     foreman_->processDataPipelineMessage(source_operator_index, 0 /* block_id */, 0 /* relation_id */);
-    return foreman_->checkQueryExecutionFinished();
+    return foreman_->query_exec_state_->hasQueryExecutionFinished();
   }
 
   inline bool placeWorkOrderCompleteMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place WorkOrderComplete message for Op[" << index << "]";
     foreman_->processWorkOrderCompleteMessage(index, 0 /* worker id */);
-    return foreman_->checkQueryExecutionFinished();
+    return foreman_->query_exec_state_->hasQueryExecutionFinished();
   }
 
   inline bool placeRebuildWorkOrderCompleteMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place RebuildWorkOrderComplete message for Op[" << index << "]";
     foreman_->processRebuildWorkOrderCompleteMessage(index, 0 /* worker id */);
-    return foreman_->checkQueryExecutionFinished();
+    return foreman_->query_exec_state_->hasQueryExecutionFinished();
   }
 
   inline bool placeOutputBlockMessage(const QueryPlan::DAGNodeIndex index) {
@@ -300,12 +301,12 @@ class ForemanTest : public ::testing::Test {
     foreman_->processDataPipelineMessage(index,
                                          BlockIdUtil::GetBlockId(1 /* domain */, 1),
                                          0 /* relation_id */);
-    return foreman_->checkQueryExecutionFinished();
+    return foreman_->query_exec_state_->hasQueryExecutionFinished();
   }
 
   inline bool startForeman() {
     foreman_->initialize();
-    return foreman_->checkQueryExecutionFinished();
+    return foreman_->query_exec_state_->hasQueryExecutionFinished();
   }
 
   inline int getWorkerInputQueueSize() {
