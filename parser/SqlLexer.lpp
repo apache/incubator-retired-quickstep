@@ -194,6 +194,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "double"           return TOKEN_DOUBLE;
   "drop"             return TOKEN_DROP;
   "escape_strings"   return TOKEN_ESCAPE_STRINGS;
+  "extract"          return TOKEN_EXTRACT;
   "false"            return TOKEN_FALSE;
   "first"            return TOKEN_FIRST;
   "float"            return TOKEN_FLOAT;

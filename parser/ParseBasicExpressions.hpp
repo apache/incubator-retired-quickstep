@@ -448,6 +448,69 @@ class ParseFunctionCall : public ParseExpression {
   DISALLOW_COPY_AND_ASSIGN(ParseFunctionCall);
 };
 
+
+/**
+ * @brief Parsed representation of EXTRACT(unit FROM date).
+ */
+class ParseExtractFunction : public ParseExpression {
+ public:
+  /**
+   * @brief Constructor.
+   *
+   * @param line_number The line number of the token "extract" in the statement.
+   * @param column_number The column number of the token "extract in the statement.
+   * @param extract_field The field to extract.
+   * @param source_expression The expression to extract a field from.
+   */
+  ParseExtractFunction(const int line_number,
+                       const int column_number,
+                       ParseString *extract_field,
+                       ParseExpression *date_expression)
+      : ParseExpression(line_number, column_number),
+        extract_field_(extract_field),
+        date_expression_(date_expression) {
+  }
+
+  ExpressionType getExpressionType() const override {
+    return kExtract;
+  }
+
+  std::string getName() const override {
+    return "Extract";
+  }
+
+  /**
+   * @return The field to extract.
+   */
+  const ParseString* extract_field() const {
+    return extract_field_.get();
+  }
+
+  /**
+   * @return The expression to extract a field from.
+   */
+  const ParseExpression* date_expression() const {
+    return date_expression_.get();
+  }
+
+  std::string generateName() const override;
+
+ protected:
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<const ParseTreeNode*> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override;
+
+ private:
+  std::unique_ptr<ParseString> extract_field_;
+  std::unique_ptr<ParseExpression> date_expression_;
+
+  DISALLOW_COPY_AND_ASSIGN(ParseExtractFunction);
+};
+
 /** @} */
 
 }  // namespace quickstep

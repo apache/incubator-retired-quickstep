@@ -2242,6 +2242,34 @@ TopLevelPlan
     relation=,type=YearMonthInterval]
 ==
 
+SELECT EXTRACT(YEAR FROM DATE '2016-01-02 10:20:30') * 10000 +
+       EXTRACT(MONTH FROM DATE '2016-01-02 10:20:30') * 100 +
+       EXTRACT(DAY FROM DATE '2016-01-02 10:20:30') AS date_digits
+FROM generate_series(1, 1);
+--
+TopLevelPlan
++-plan=Project
+| +-input=TableGenerator[function_name=generate_series]
+| | +-AttributeReference[id=0,name=generate_series,relation=generate_series,
+| |   type=Int]
+| +-project_list=
+|   +-Alias[id=1,name=date_digits,relation=,type=Long]
+|     +-Add
+|       +-Add
+|       | +-Multiply
+|       | | +-DateExtract(YEAR)
+|       | | | +-Operand=Literal[value=2016-01-02T10:20:30,type=Datetime]
+|       | | +-Literal[value=10000,type=Int]
+|       | +-Multiply
+|       |   +-DateExtract(MONTH)
+|       |   | +-Operand=Literal[value=2016-01-02T10:20:30,type=Datetime]
+|       |   +-Literal[value=100,type=Int]
+|       +-DateExtract(DAY)
+|         +-Operand=Literal[value=2016-01-02T10:20:30,type=Datetime]
++-output_attributes=
+  +-AttributeReference[id=1,name=date_digits,relation=,type=Long]
+==
+
 select interval '4 day' + interval '5 year'
 from test
 --

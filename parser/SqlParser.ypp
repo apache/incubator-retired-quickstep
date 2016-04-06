@@ -251,6 +251,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_DOUBLE;
 %token TOKEN_DROP;
 %token TOKEN_ESCAPE_STRINGS;
+%token TOKEN_EXTRACT;
 %token TOKEN_FALSE;
 %token TOKEN_FIRST;
 %token TOKEN_FLOAT;
@@ -329,6 +330,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
   unary_expression
   multiply_expression
   add_expression
+  extract_function
 
 %type <attribute_>
   attribute_ref
@@ -1458,6 +1460,9 @@ expression_base:
   | function_call {
     $$ = $1;
   }
+  | extract_function {
+    $$ = $1;
+  }
   | '(' add_expression ')' {
     $$ = $2;
   };
@@ -1476,6 +1481,11 @@ function_call:
   };
   | any_name '(' TOKEN_DISTINCT expression_list ')' {
     $$ = new quickstep::ParseFunctionCall(@1.first_line, @1.first_column, true, $1, $4);
+  };
+
+extract_function:
+  TOKEN_EXTRACT '(' any_name TOKEN_FROM add_expression ')' {
+    $$ = new quickstep::ParseExtractFunction(@1.first_line, @1.first_column, $3, $5);
   };
 
 expression_list:

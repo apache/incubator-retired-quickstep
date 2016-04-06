@@ -632,6 +632,48 @@ ORDER BY group_col1,
 +--------------------+--------------------+--------------------+
 ==
 
+
+CREATE TABLE dates (value DATETIME);
+INSERT INTO dates VALUES (DATE '2016-01-02 10:20:30');
+INSERT INTO dates VALUES (DATE '2016-02-03 11:21:31');
+INSERT INTO dates VALUES (DATE '2016-03-04 12:22:32');
+
+SELECT EXTRACT(YEAR FROM value) * 10000 +
+       EXTRACT(MONTH FROM value) * 100 +
+       EXTRACT(DAY FROM value) AS date_digits
+FROM dates;
+--
++--------------------+
+|date_digits         |
++--------------------+
+|            20160102|
+|            20160203|
+|            20160304|
++--------------------+
+==
+
+SELECT SUM(EXTRACT(SECOND FROM value))
+FROM dates;
+--
++-------------------------------+
+|SUM(EXTRACT(SECOND FROM value))|
++-------------------------------+
+|                             93|
++-------------------------------+
+==
+
+SELECT EXTRACT(hour FROM value + INTERVAL '1 hour')
+FROM dates;
+--
++-----------------------------------------------------+
+|EXTRACT(hour FROM (value+DatetimeInterval('1 hour')))|
++-----------------------------------------------------+
+|                                                   11|
+|                                                   12|
+|                                                   13|
++-----------------------------------------------------+
+==
+
 # TODO(team): Support uncorrelated queries.
 # SELECT COUNT(*)
 # FROM test

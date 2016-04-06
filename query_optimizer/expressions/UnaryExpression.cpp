@@ -37,8 +37,7 @@ namespace optimizer {
 namespace expressions {
 
 std::string UnaryExpression::getName() const {
-  DCHECK(operation_.getUnaryOperationID() == UnaryOperationID::kNegate);
-  return "Negate";
+  return operation_.getName();
 }
 
 ExpressionPtr UnaryExpression::copyWithNewChildren(

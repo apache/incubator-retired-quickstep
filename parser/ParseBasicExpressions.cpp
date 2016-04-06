@@ -165,4 +165,28 @@ void ParseFunctionCall::getFieldStringItems(
   }
 }
 
+std::string ParseExtractFunction::generateName() const {
+  std::string name;
+  name.append("EXTRACT(");
+  name.append(extract_field_->value());
+  name.append(" FROM ");
+  name.append(date_expression_->generateName());
+  name.push_back(')');
+  return name;
+}
+
+void ParseExtractFunction::getFieldStringItems(
+    std::vector<std::string> *inline_field_names,
+    std::vector<std::string> *inline_field_values,
+    std::vector<std::string> *non_container_child_field_names,
+    std::vector<const ParseTreeNode*> *non_container_child_fields,
+    std::vector<std::string> *container_child_field_names,
+    std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
+  inline_field_names->push_back("unit");
+  inline_field_values->push_back(extract_field_->value());
+
+  non_container_child_field_names->push_back("date_expression");
+  non_container_child_fields->push_back(date_expression_.get());
+}
+
 }  // namespace quickstep
