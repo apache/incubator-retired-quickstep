@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -445,6 +445,50 @@ class StorageBlock : public StorageBlockBase {
                         std::unique_ptr<TupleIdSequence> *reuse_matches,
                         std::vector<std::unique_ptr<ColumnVector>>
                             *reuse_group_by_vectors) const;
+
+  /**
+   * @brief Inserts the GROUP BY expressions and aggregation arguments together
+   *        as keys into the distinctify hash table.
+   *
+   * This is the first step for DISTINCT aggregation. It populates the distinctify
+   * hash table so that arguments are distinctified within each GROUP BY group.
+   * Later, a second-round aggregation on the distinctify hash table will be
+   * performed to actually compute the aggregated result for each GROUP BY group.
+   *
+   * @param handle Aggregation handle to compute aggregates with.
+   * @param arguments The arguments to the aggregation function as Scalars.
+   * @param arguments_as_attributes If non-NULL, indicates a valid attribute_id
+   *        for each of the elements in arguments, and is used to elide a copy.
+   *        Has no effect if NULL, or if VECTOR_COPY_ELISION_LEVEL is NONE.
+   * @param group_by The list of GROUP BY attributes/expressions.
+   * @param predicate A predicate for selection. \c nullptr indicates that all
+   *        tuples should be aggregated on.
+   * @param distinctify_hash_table Hash table to store the arguments and GROUP
+   *        BY expressions together as hash table key and a bool constant \c true
+   *        as hash table value. (So the hash table actually serves as a hash set.)
+   * @param reuse_matches This parameter is used to store and reuse tuple-id
+   *        sequence of matches pre-computed in an earlier invocations of
+   *        aggregateGroupBy(). \c reuse_matches is never \c nullptr for ease of
+   *        use.  Current invocation of aggregateGroupBy() will reuse
+   *        TupleIdSequence if passed, otherwise computes a TupleIdSequence based
+   *        on \c predicate and stores in \c reuse_matches. We use
+   *        std::unique_ptr for each of use, since the caller will not have to
+   *        selective free.
+   * @param reuse_group_by_vectors This parameter is used to store and reuse
+   *        GROUP BY attribute vectors pre-computed in an earlier invocation of
+   *        aggregateGroupBy(). \c reuse_group_by_vectors is never \c nullptr
+   *        for ease of use. Current invocation of aggregateGroupBy() will reuse
+   *        ColumnVectors if non-empty, otherwise computes ColumnVectors based
+   *        on \c group_by and stores them in \c reuse_group_by_vectors.
+   */
+  void aggregateDistinct(const AggregationHandle &handle,
+                         const std::vector<std::unique_ptr<const Scalar>> &arguments,
+                         const std::vector<attribute_id> *arguments_as_attributes,
+                         const std::vector<std::unique_ptr<const Scalar>> &group_by,
+                         const Predicate *predicate,
+                         AggregationStateHashTableBase *distinctify_hash_table,
+                         std::unique_ptr<TupleIdSequence> *reuse_matches,
+                         std::vector<std::unique_ptr<ColumnVector>> *reuse_group_by_vectors) const;
 
   /**
    * @brief Perform an UPDATE query over the tuples in this StorageBlock.

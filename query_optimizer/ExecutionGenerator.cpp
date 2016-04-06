@@ -1209,6 +1209,9 @@ void ExecutionGenerator::convertAggregate(
       unique_ptr<const Scalar> concretized_argument(argument->concretize(attribute_substitution_map_));
       aggr_proto->add_argument()->CopyFrom(concretized_argument->getProto());
     }
+
+    // Set whether it is a DISTINCT aggregation.
+    aggr_proto->set_is_distinct(unnamed_aggregate_expression->is_distinct());
   }
 
   std::vector<const Type*> group_by_types;

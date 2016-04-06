@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_AGGREGATION_OPERATION_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_AGGREGATION_OPERATION_HPP_
 
+#include <cstddef>
 #include <memory>
 #include <vector>
 
@@ -79,6 +80,8 @@ class AggregationOperationState {
    * @param arguments For each entry in aggregate_functions, a corresponding
    *        list of argument expressions to that aggregate. This is moved-from,
    *        with AggregationOperationState taking ownership.
+   * @param is_distinct For each entry in aggregate_functions, whether DISTINCT
+   *        should be applied to the entry's arguments.
    * @param group_by A list of expressions to compute the GROUP BY values. If
    *        empty, no grouping is used. This is moved-from, with
    *        AggregationOperationState taking ownership.
@@ -97,6 +100,7 @@ class AggregationOperationState {
   AggregationOperationState(const CatalogRelationSchema &input_relation,
                             const std::vector<const AggregateFunction*> &aggregate_functions,
                             std::vector<std::vector<std::unique_ptr<const Scalar>>> &&arguments,
+                            std::vector<bool> &&is_distinct,
                             std::vector<std::unique_ptr<const Scalar>> &&group_by,
                             const Predicate *predicate,
                             const std::size_t estimated_num_entries,
@@ -153,7 +157,7 @@ class AggregationOperationState {
    * @param output_destination An InsertDestination where the finalized output
    *        tuple(s) from this aggregate are to be written.
    **/
-  void finalizeAggregate(InsertDestination *output_destination) const;
+  void finalizeAggregate(InsertDestination *output_destination);
 
  private:
   // Merge locally (per storage block) aggregated states with global aggregation
@@ -164,8 +168,8 @@ class AggregationOperationState {
   void aggregateBlockSingleState(const block_id input_block);
   void aggregateBlockHashTable(const block_id input_block);
 
-  void finalizeSingleState(InsertDestination *output_destination) const;
-  void finalizeHashTable(InsertDestination *output_destination) const;
+  void finalizeSingleState(InsertDestination *output_destination);
+  void finalizeHashTable(InsertDestination *output_destination);
 
   // Common state for all aggregates in this operation: the input relation, the
   // filter predicate (if any), and the list of GROUP BY expressions (if any).
@@ -177,6 +181,13 @@ class AggregationOperationState {
   // some number of Scalar arguments.
   std::vector<std::unique_ptr<AggregationHandle>> handles_;
   std::vector<std::vector<std::unique_ptr<const Scalar>>> arguments_;
+
+  // For each aggregate, whether DISTINCT should be applied to the aggregate's
+  // arguments.
+  std::vector<bool> is_distinct_;
+
+  // Hash table for obtaining distinct (i.e. unique) arguments.
+  std::vector<std::unique_ptr<AggregationStateHashTableBase>> distinctify_hashtables_;
 
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
   // If all an aggregate's argument expressions are simply attributes in
