@@ -17,18 +17,27 @@
 
 #include "storage/StorageBlockLayout.hpp"
 
-#include <cstring>
-#include <string>
-#include <vector>
+#include <stdbool.h>                    // for bool, true, false
+#include <stdio.h>                      // for fprintf, stderr
+#include <cstring>                      // for strlen
+#include <iostream>                     // for operator<<, basic_ostream, etc
+#include <string>                       // for operator==, char_traits, etc
+#include <vector>                       // for vector
 
 #include "glog/logging.h"
+#include "gflags/gflags.h"
 
+#include "build/third_party/gflags/include/gflags/gflags_declare.h"
+#include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogDatabaseLite.hpp"
+#include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
 #include "storage/StorageBlockLayout.pb.h"
 #include "storage/StorageConstants.hpp"
 #include "storage/StorageErrors.hpp"
 #include "storage/SubBlockTypeRegistry.hpp"
 #include "utility/Macros.hpp"
+#include "storage/StorageBlockLayout.pb.h"
 
 using std::size_t;
 using std::string;
@@ -36,6 +45,9 @@ using std::strlen;
 using std::vector;
 
 namespace quickstep {
+
+DEFINE_string(default_storage, "rowstore",
+              "rowstore = (packed/split), columnstore = (column/compressedcolumn), mixed (column/split");
 
 StorageBlockLayout::StorageBlockLayout(const CatalogRelationSchema &relation,
                                        const StorageBlockLayoutDescription &proto)
@@ -138,17 +150,61 @@ void StorageBlockLayout::copyHeaderTo(void *dest) const {
 
 StorageBlockLayout* StorageBlockLayout::GenerateDefaultLayout(const CatalogRelationSchema &relation,
                                                               const bool relation_variable_length) {
-  StorageBlockLayout *layout = new StorageBlockLayout(relation);
+  // Get the CatalogRelation.
+  // const CatalogRelation *cr = relation.getParent().getRelationByName(relation.getName());
 
+  StorageBlockLayout *layout = new StorageBlockLayout(relation);
   StorageBlockLayoutDescription *description = layout->getDescriptionMutable();
-  description->set_num_slots(1);
+  description->set_num_slots(16);
 
   TupleStorageSubBlockDescription *tuple_store_description = description->mutable_tuple_store_description();
-  if (relation_variable_length) {
-    tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
+
+  if (std::string(FLAGS_default_storage).compare("rowstore") == 0) {
+    //std::cout << "Using rowstore\n";
+    if (relation_variable_length) {
+      tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
+    } else {
+      tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::PACKED_ROW_STORE);
+    }
+
+  } else if (std::string(FLAGS_default_storage).compare("columnstore") == 0) {
+    //std::cout << "Using columnstore\n";
+    if (relation_variable_length) {
+      tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE);
+      // Add sort column.
+      tuple_store_description->SetExtension(
+              CompressedColumnStoreTupleStorageSubBlockDescription::sort_attribute_id, 0); // Default to column 0.
+      // Add every variable length column as sorted.
+      for (auto itr = relation.begin(); itr != relation.end(); ++itr) {
+        if (itr->getType().isVariableLength())
+          tuple_store_description->AddExtension(
+              CompressedColumnStoreTupleStorageSubBlockDescription::compressed_attribute_id, itr->getID());
+      }
+    } else {
+      tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::BASIC_COLUMN_STORE);
+      tuple_store_description->SetExtension(
+              BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id, 0); // Default to column 0.
+    }
+
+
+  } else if (std::string(FLAGS_default_storage).compare("mixed") == 0) {
+    //std::cout << "Using mixed\n";
+    if (relation_variable_length) {
+      tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
+    } else {
+      tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::BASIC_COLUMN_STORE);
+      tuple_store_description->SetExtension(
+              BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id, 0); // Default to column 0.
+    }
   } else {
-    tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::PACKED_ROW_STORE);
+    //std::cout << "\nunrecognized store: " << FLAGS_default_storage << "\n\n";
+    if (relation_variable_length) {
+      tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
+    } else {
+      tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::PACKED_ROW_STORE);
+    }
   }
+  
 
   layout->finalize();
   return layout;

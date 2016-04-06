@@ -778,6 +778,7 @@ target_link_libraries(quickstep_storage_StorageBlockInfo
                       quickstep_utility_StringUtil)
 target_link_libraries(quickstep_storage_StorageBlockLayout
                       glog
+                      gflags_nothreads-static
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageBlockLayout_proto
