@@ -272,29 +272,31 @@ tuple_id BasicColumnStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *a
   InvokeOnAnyValueAccessor(
       accessor,
       [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+    const std::size_t num_attrs = relation_.size();
+    const std::vector<std::size_t> &attrs_max_size =
+        relation_.getMaximumAttributeByteLengths();
+
     if (relation_.hasNullableAttributes()) {
       while (this->hasSpaceToInsert(1) && accessor->next()) {
         attribute_id accessor_attr_id = 0;
         // TODO(chasseur): Column-wise copy is probably preferable to
         // tuple-at-a-time, but will require some API changes.
-        for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
-             attr_it != relation_.end();
-             ++attr_it) {
-          const attribute_id attr_id = attr_it->getID();
-          const std::size_t attr_size = attr_it->getType().maximumByteLength();
-          if (attr_it->getType().isNullable()) {
+        for (std::size_t curr_attr = 0; curr_attr < num_attrs; ++curr_attr) {
+          const std::size_t attr_size = attrs_max_size[curr_attr];
+          // Check if the attribute is nullable.
+          if (relation_.getNullableAttributeIndex(curr_attr) != kInvalidCatalogId) {
             const void *attr_value
                 = accessor->template getUntypedValue<true>(accessor_attr_id);
             if (attr_value == nullptr) {
-              column_null_bitmaps_[attr_id].setBit(header_->num_tuples, true);
+              column_null_bitmaps_[curr_attr].setBit(header_->num_tuples, true);
             } else {
-              memcpy(static_cast<char*>(column_stripes_[attr_id])
+              memcpy(static_cast<char*>(column_stripes_[curr_attr])
                          + header_->num_tuples * attr_size,
                      attr_value,
                      attr_size);
             }
           } else {
-            memcpy(static_cast<char*>(column_stripes_[attr_id])
+            memcpy(static_cast<char*>(column_stripes_[curr_attr])
                        + header_->num_tuples * attr_size,
                    accessor->template getUntypedValue<false>(accessor_attr_id),
                    attr_size);
@@ -306,11 +308,9 @@ tuple_id BasicColumnStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *a
     } else {
       while (this->hasSpaceToInsert(1) && accessor->next()) {
         attribute_id accessor_attr_id = 0;
-        for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
-             attr_it != relation_.end();
-             ++attr_it) {
-          const std::size_t attr_size = attr_it->getType().maximumByteLength();
-          memcpy(static_cast<char*>(column_stripes_[attr_it->getID()])
+        for (std::size_t curr_attr = 0; curr_attr < num_attrs; ++curr_attr) {
+          const std::size_t attr_size = attrs_max_size[curr_attr];
+          memcpy(static_cast<char*>(column_stripes_[curr_attr])
                      + header_->num_tuples * attr_size,
                  accessor->template getUntypedValue<false>(accessor_attr_id),
                  attr_size);
@@ -329,35 +329,37 @@ tuple_id BasicColumnStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *a
 tuple_id BasicColumnStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttributes(
     const std::vector<attribute_id> &attribute_map,
     ValueAccessor *accessor) {
-  DEBUG_ASSERT(attribute_map.size() == relation_.size());
+  DCHECK_EQ(attribute_map.size(), relation_.size());
   const tuple_id original_num_tuples = header_->num_tuples;
 
   InvokeOnAnyValueAccessor(
       accessor,
       [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+    const std::size_t num_attrs = relation_.size();
+    const std::vector<std::size_t> &attrs_max_size =
+        relation_.getMaximumAttributeByteLengths();
+
     if (relation_.hasNullableAttributes()) {
       while (this->hasSpaceToInsert(1) && accessor->next()) {
         std::vector<attribute_id>::const_iterator attribute_map_it = attribute_map.begin();
         // TODO(chasseur): Column-wise copy is probably preferable to
         // tuple-at-a-time, but will require some API changes.
-        for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
-             attr_it != relation_.end();
-             ++attr_it) {
-          const attribute_id attr_id = attr_it->getID();
-          const std::size_t attr_size = attr_it->getType().maximumByteLength();
-          if (attr_it->getType().isNullable()) {
+        for (std::size_t curr_attr = 0; curr_attr < num_attrs; ++curr_attr) {
+          const std::size_t attr_size = attrs_max_size[curr_attr];
+          // Check if the attribute is nullable.
+          if (relation_.getNullableAttributeIndex(curr_attr) != kInvalidCatalogId) {
             const void *attr_value
                 = accessor->template getUntypedValue<true>(*attribute_map_it);
             if (attr_value == nullptr) {
-              column_null_bitmaps_[attr_id].setBit(header_->num_tuples, true);
+              column_null_bitmaps_[curr_attr].setBit(header_->num_tuples, true);
             } else {
-              memcpy(static_cast<char*>(column_stripes_[attr_id])
+              memcpy(static_cast<char*>(column_stripes_[curr_attr])
                          + header_->num_tuples * attr_size,
                      attr_value,
                      attr_size);
             }
           } else {
-            memcpy(static_cast<char*>(column_stripes_[attr_id])
+            memcpy(static_cast<char*>(column_stripes_[curr_attr])
                        + header_->num_tuples * attr_size,
                    accessor->template getUntypedValue<false>(*attribute_map_it),
                    attr_size);
@@ -369,11 +371,9 @@ tuple_id BasicColumnStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttri
     } else {
       while (this->hasSpaceToInsert(1) && accessor->next()) {
         std::vector<attribute_id>::const_iterator attribute_map_it = attribute_map.begin();
-        for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
-             attr_it != relation_.end();
-             ++attr_it) {
-          const std::size_t attr_size = attr_it->getType().maximumByteLength();
-          memcpy(static_cast<char*>(column_stripes_[attr_it->getID()])
+        for (std::size_t curr_attr = 0; curr_attr < num_attrs; ++curr_attr) {
+          const std::size_t attr_size = attrs_max_size[curr_attr];
+          memcpy(static_cast<char*>(column_stripes_[curr_attr])
                      + header_->num_tuples * attr_size,
                  accessor->template getUntypedValue<false>(*attribute_map_it),
                  attr_size);
