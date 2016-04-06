@@ -42,7 +42,7 @@ add_library(quickstep_expressions_aggregation_AggregateFunctionSum
             AggregateFunctionSum.cpp
             AggregateFunctionSum.hpp)
 add_library(quickstep_expressions_aggregation_AggregationConcreteHandle
-            ../../empty_src.cpp
+            AggregationConcreteHandle.cpp
             AggregationConcreteHandle.hpp)
 add_library(quickstep_expressions_aggregation_AggregationHandle
             ../../empty_src.cpp
@@ -144,7 +144,9 @@ target_link_libraries(quickstep_expressions_aggregation_AggregationConcreteHandl
                       glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_aggregation_AggregationHandle
+                      quickstep_storage_HashTable
                       quickstep_storage_HashTableBase
+                      quickstep_storage_HashTableFactory
                       quickstep_types_TypedValue
                       quickstep_types_containers_ColumnVector
                       quickstep_utility_Macros)
@@ -193,7 +195,6 @@ target_link_libraries(quickstep_expressions_aggregation_AggregationHandleDistinc
                       quickstep_expressions_aggregation_AggregationConcreteHandle
                       quickstep_storage_HashTable
                       quickstep_storage_HashTableBase
-                      quickstep_storage_HashTableFactory
                       quickstep_types_TypedValue
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_aggregation_AggregationHandleMax

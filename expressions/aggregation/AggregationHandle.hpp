@@ -72,7 +72,7 @@ inline AggregationState::~AggregationState() {}
  * methods that are used to actually compute the aggregate, storing
  * intermediate results in AggregationState objects.
  *
- * The work-flow for computing an aggregate without GROUP BY is as follows:
+ * I. The work-flow for computing an aggregate without GROUP BY is as follows:
  *     1. Create a global state for the aggregate with createInitialState().
  *     2. For each block in a relation (parallelizable):
  *        a. Call StorageBlock::aggregate() to accumulate results from the
@@ -83,7 +83,7 @@ inline AggregationState::~AggregationState() {}
  *           mergeStates() (this is threadsafe).
  *     3. Generate the final result by calling finalize() on the global state.
  *
- * The work-flow for computing an aggregate with GROUP BY is as follows:
+ * II. The work-flow for computing an aggregate with GROUP BY is as follows:
  *     1. Create a HashTable to hold per-group states by calling
  *        createGroupByHashTable().
  *     2. For each block in a relation (parallelizable):
@@ -266,6 +266,88 @@ class AggregationHandle {
   virtual ColumnVector* finalizeHashTable(
       const AggregationStateHashTableBase &hash_table,
       std::vector<std::vector<TypedValue>> *group_by_keys) const = 0;
+
+  /**
+   * @brief Create a new HashTable for the distinctify step for DISTINCT aggregation.
+   *
+   * Distinctify is the first step for DISTINCT aggregation. This step inserts
+   * the GROUP BY expression values and aggregation arguments together as keys
+   * into the distinctify hash table, so that arguments are distinctified within
+   * each GROUP BY group. Later, a second-round aggregation on the distinctify
+   * hash table will be performed to actually compute the aggregated result for
+   * each GROUP BY group.
+   * 
+   * In the case of single aggregation where there is no GROUP BY expressions,
+   * we simply treat it as a special GROUP BY case that the GROUP BY expression
+   * vector is empty.
+   *
+   * @param hash_table_impl The choice of which concrete HashTable implementation
+   *        to use.
+   * @param key_types The types of the GROUP BY expressions together with the
+   *        types of the aggregation arguments.
+   * @param estimated_num_distinct_keys The estimated number of distinct keys
+   *        (i.e. GROUP BY expressions together with aggregation arguments) for
+   *        the distinctify step. This is used to size the initial HashTable.
+   *        This is an estimate only, and the HashTable will be resized if it
+   *        becomes over-full.
+   * @param storage_manager The StorageManager to use to create the HashTable.
+   *        A StorageBlob will be allocated to serve as the HashTable's in-memory
+   *        storage.
+   * @return A new HashTable instance with the appropriate state type for this
+   *         aggregate as the ValueT.
+   */
+  virtual AggregationStateHashTableBase* createDistinctifyHashTable(
+      const HashTableImplType hash_table_impl,
+      const std::vector<const Type*> &key_types,
+      const std::size_t estimated_num_distinct_keys,
+      StorageManager *storage_manager) const = 0;
+
+  /**
+   * @brief Inserts the GROUP BY expressions and aggregation arguments together
+   * as keys into the distinctify hash table.
+   *
+   * @param accessor The ValueAccessor that will be iterated over to read tuples.
+   * @param key_ids The attribute_ids of the GROUP BY expressions in accessor
+   *        together with the attribute_ids of the arguments to this aggregate
+   *        in accessor, in order.
+   * @param distinctify_hash_table The HashTable to store the GROUP BY expressions
+   *        and the aggregation arguments together as hash table keys and a bool
+   *        constant \c true as hash table value (So the hash table actually
+   *        serves as a hash set). This should have been created by calling
+   *        createDistinctifyHashTable();
+   */
+  virtual void insertValueAccessorIntoDistinctifyHashTable(
+      ValueAccessor *accessor,
+      const std::vector<attribute_id> &key_ids,
+      AggregationStateHashTableBase *distinctify_hash_table) const = 0;
+
+  /**
+   * @brief Perform single (i.e. without GROUP BY) aggregation on the keys from
+   * the distinctify hash table to actually compute the aggregated results.
+   *
+   * @param distinctify_hash_table Hash table which stores the distinctified
+   *        aggregation arguments as hash table keys. This should have been
+   *        created by calling createDistinctifyHashTable();
+   * @return A new AggregationState which contains the aggregated results from
+   *         applying the aggregate to the distinctify hash table.
+   *         Caller is responsible for deleting the returned AggregationState.
+   */
+  virtual AggregationState* aggregateOnDistinctifyHashTableForSingle(
+      const AggregationStateHashTableBase &distinctify_hash_table) const = 0;
+
+  /**
+   * @brief Perform GROUP BY aggregation on the keys from the distinctify hash
+   * table and upserts states into the aggregation hash table.
+   *
+   * @param distinctify_hash_table Hash table which stores the GROUP BY expression
+   *        values and aggregation arguments together as hash table keys.
+   * @param aggregation_hash_table The HashTable to upsert AggregationStates in.
+   *        This should have been created by calling createGroupByHashTable() on
+   *        this same AggregationHandle.
+   */
+  virtual void aggregateOnDistinctifyHashTableForGroupBy(
+      const AggregationStateHashTableBase &distinctify_hash_table,
+      AggregationStateHashTableBase *aggregation_hash_table) const = 0;
 
  protected:
   AggregationHandle() {

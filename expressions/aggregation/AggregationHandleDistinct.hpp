@@ -80,6 +80,19 @@ class AggregationHandleDistinct : public AggregationConcreteHandle {
     LOG(FATAL) << "AggregationHandleDistinct does not support finalize().";
   }
 
+  AggregationState* aggregateOnDistinctifyHashTableForSingle(
+      const AggregationStateHashTableBase &distinctify_hash_table) const override {
+    LOG(FATAL) << "AggregationHandleDistinct does not support "
+               << "aggregateOnDistinctifyHashTableForSingle().";
+  }
+
+  void aggregateOnDistinctifyHashTableForGroupBy(
+      const AggregationStateHashTableBase &distinctify_hash_table,
+      AggregationStateHashTableBase *groupby_hash_table) const override {
+    LOG(FATAL) << "AggregationHandleDistinct does not support "
+               << "aggregateOnDistinctifyHashTableForGroupBy().";
+  }
+
   AggregationStateHashTableBase* createGroupByHashTable(
       const HashTableImplType hash_table_impl,
       const std::vector<const Type*> &group_by_types,

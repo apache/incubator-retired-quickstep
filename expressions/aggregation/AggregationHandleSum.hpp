@@ -133,6 +133,21 @@ class AggregationHandleSum : public AggregationConcreteHandle {
       const AggregationStateHashTableBase &hash_table,
       std::vector<std::vector<TypedValue>> *group_by_keys) const override;
 
+  /**
+   * @brief Implementation of AggregationHandle::aggregateOnDistinctifyHashTableForSingle()
+   *        for SUM aggregation.
+   */
+  AggregationState* aggregateOnDistinctifyHashTableForSingle(
+      const AggregationStateHashTableBase &distinctify_hash_table) const override;
+
+  /**
+   * @brief Implementation of AggregationHandle::aggregateOnDistinctifyHashTableForGroupBy()
+   *        for SUM aggregation.
+   */
+  void aggregateOnDistinctifyHashTableForGroupBy(
+      const AggregationStateHashTableBase &distinctify_hash_table,
+      AggregationStateHashTableBase *aggregation_hash_table) const override;
+
  private:
   friend class AggregateFunctionSum;
 

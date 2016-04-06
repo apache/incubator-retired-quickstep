@@ -22,9 +22,11 @@
 
 #include <cstddef>
 #include <vector>
+#include <utility>
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/aggregation/AggregationHandle.hpp"
+#include "storage/HashTable.hpp"
 #include "storage/HashTableBase.hpp"
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVector.hpp"
@@ -34,6 +36,7 @@
 
 namespace quickstep {
 
+class StorageManager;
 class Type;
 class ValueAccessor;
 
@@ -53,11 +56,35 @@ class ValueAccessor;
  **/
 class AggregationConcreteHandle : public AggregationHandle {
  public:
+  /**
+   * @brief Default implementaion for AggregationHandle::accumulateNullary().
+   */
   AggregationState* accumulateNullary(
       const std::size_t num_tuples) const override {
     LOG(FATAL) << "Called accumulateNullary on an AggregationHandle that "
                << "takes at least one argument.";
   }
+
+  /**
+   * @brief Implementaion for AggregationHandle::createDistinctifyHashTable()
+   *        that creates a new HashTable for the distinctify step for
+   *        DISTINCT aggregation.
+   */
+  AggregationStateHashTableBase* createDistinctifyHashTable(
+      const HashTableImplType hash_table_impl,
+      const std::vector<const Type*> &key_types,
+      const std::size_t estimated_num_distinct_keys,
+      StorageManager *storage_manager) const override;
+
+  /**
+   * @brief Implementaion for AggregationHandle::insertValueAccessorIntoDistinctifyHashTable()
+   *        that inserts the GROUP BY expressions and aggregation arguments together
+   *        as keys into the distinctify hash table.
+   */
+  void insertValueAccessorIntoDistinctifyHashTable(
+      ValueAccessor *accessor,
+      const std::vector<attribute_id> &key_ids,
+      AggregationStateHashTableBase *distinctify_hash_table) const override;
 
  protected:
   AggregationConcreteHandle() {
@@ -79,6 +106,19 @@ class AggregationConcreteHandle : public AggregationHandle {
       ValueAccessor *accessor,
       const attribute_id argument_id,
       const std::vector<attribute_id> &group_by_key_ids,
+      const StateT &default_state,
+      AggregationStateHashTableBase *hash_table) const;
+
+  template <typename HandleT,
+            typename StateT>
+  StateT* aggregateOnDistinctifyHashTableForSingleUnaryHelper(
+      const AggregationStateHashTableBase &distinctify_hash_table) const;
+
+  template <typename HandleT,
+            typename StateT,
+            typename HashTableT>
+  void aggregateOnDistinctifyHashTableForGroupByUnaryHelper(
+      const AggregationStateHashTableBase &distinctify_hash_table,
       const StateT &default_state,
       AggregationStateHashTableBase *hash_table) const;
 
@@ -219,6 +259,68 @@ void AggregationConcreteHandle::aggregateValueAccessorIntoHashTableUnaryHelper(
       true,
       default_state,
       &upserter);
+}
+
+template <typename HandleT,
+          typename StateT>
+StateT* AggregationConcreteHandle::aggregateOnDistinctifyHashTableForSingleUnaryHelper(
+    const AggregationStateHashTableBase &distinctify_hash_table) const {
+  const HandleT& handle = static_cast<const HandleT&>(*this);
+  StateT *state = static_cast<StateT*>(createInitialState());
+
+  // A lambda function which will be called on each key from the distinctify
+  // hash table.
+  const auto aggregate_functor = [&handle, &state](const TypedValue &key,
+                                                   const bool &dumb_placeholder) {
+    // For each (unary) key in the distinctify hash table, aggregate the key
+    // into "state".
+    handle.iterateUnaryInl(state, key);
+  };
+
+  const AggregationStateHashTable<bool> &hash_table =
+      static_cast<const AggregationStateHashTable<bool>&>(distinctify_hash_table);
+  // Invoke the lambda function "aggregate_functor" on each key from the distinctify
+  // hash table.
+  hash_table.forEach(&aggregate_functor);
+
+  return state;
+}
+
+template <typename HandleT,
+          typename StateT,
+          typename HashTableT>
+void AggregationConcreteHandle::aggregateOnDistinctifyHashTableForGroupByUnaryHelper(
+    const AggregationStateHashTableBase &distinctify_hash_table,
+    const StateT &default_state,
+    AggregationStateHashTableBase *aggregation_hash_table) const {
+  const HandleT& handle = static_cast<const HandleT&>(*this);
+  HashTableT *target_hash_table = static_cast<HashTableT*>(aggregation_hash_table);
+
+  // A lambda function which will be called on each key-value pair from the
+  // distinctify hash table.
+  const auto aggregate_functor = [&handle, &target_hash_table, &default_state](
+      std::vector<TypedValue> &key,
+      const bool &dumb_placeholder) {
+    // For each (composite) key vector in the distinctify hash table with size N.
+    // The first N-1 entries are GROUP BY columns and the last entry is the argument
+    // to be aggregated on.
+    const TypedValue argument(std::move(key.back()));
+    key.pop_back();
+
+    // An upserter as lambda function for aggregating the argument into its
+    // GROUP BY group's entry inside aggregation_hash_table.
+    const auto upserter = [&handle, &argument](StateT *state) {
+      handle.iterateUnaryInl(state, argument);
+    };
+
+    target_hash_table->upsertCompositeKey(key, default_state, &upserter);
+  };
+
+  const AggregationStateHashTable<bool> &source_hash_table =
+      static_cast<const AggregationStateHashTable<bool>&>(distinctify_hash_table);
+  // Invoke the lambda function "aggregate_functor" on each composite key vector
+  // from the distinctify hash table.
+  source_hash_table.forEachCompositeKey(&aggregate_functor);
 }
 
 template <typename HandleT,

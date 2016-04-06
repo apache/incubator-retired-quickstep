@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -117,6 +119,26 @@ ColumnVector* AggregationHandleMin::finalizeHashTable(
       type_.getNonNullableVersion(),
       hash_table,
       group_by_keys);
+}
+
+AggregationState* AggregationHandleMin::aggregateOnDistinctifyHashTableForSingle(
+    const AggregationStateHashTableBase &distinctify_hash_table) const {
+  return aggregateOnDistinctifyHashTableForSingleUnaryHelper<
+      AggregationHandleMin,
+      AggregationStateMin>(
+          distinctify_hash_table);
+}
+
+void AggregationHandleMin::aggregateOnDistinctifyHashTableForGroupBy(
+    const AggregationStateHashTableBase &distinctify_hash_table,
+    AggregationStateHashTableBase *aggregation_hash_table) const {
+  aggregateOnDistinctifyHashTableForGroupByUnaryHelper<
+      AggregationHandleMin,
+      AggregationStateMin,
+      AggregationStateHashTable<AggregationStateMin>>(
+          distinctify_hash_table,
+          AggregationStateMin(type_),
+          aggregation_hash_table);
 }
 
 }  // namespace quickstep
