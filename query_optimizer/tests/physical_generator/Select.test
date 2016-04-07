@@ -1586,3 +1586,108 @@ TopLevelPlan
 |     +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
 +-output_attributes=
   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+==
+
+SELECT COUNT(DISTINCT int_col), SUM(float_col)
+FROM test
+GROUP BY long_col
+HAVING AVG(DISTINCT int_col + double_col) > AVG(DISTINCT float_col);
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=Aggregate
+| | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-grouping_expressions=
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-aggregate_expressions=
+| | |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Long]
+| | |   | +-AggregateFunction[function=COUNT,is_distinct=true]
+| | |   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-Alias[id=7,name=,alias=$aggregate1,relation=$aggregate,
+| | |   | type=Double NULL]
+| | |   | +-AggregateFunction[function=SUM]
+| | |   |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | |   +-Alias[id=8,name=,alias=$aggregate2,relation=$aggregate,
+| | |   | type=Double NULL]
+| | |   | +-AggregateFunction[function=AVG,is_distinct=true]
+| | |   |   +-Add
+| | |   |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   |     +-AttributeReference[id=3,name=double_col,relation=test,
+| | |   |       type=Double NULL]
+| | |   +-Alias[id=9,name=,alias=$aggregate3,relation=$aggregate,
+| | |     type=Double NULL]
+| | |     +-AggregateFunction[function=AVG,is_distinct=true]
+| | |       +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-filter_predicate=Greater
+| |   +-AttributeReference[id=8,name=,alias=$aggregate2,relation=$aggregate,
+| |   | type=Double NULL]
+| |   +-AttributeReference[id=9,name=,alias=$aggregate3,relation=$aggregate,
+| |     type=Double NULL]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=COUNT(DISTINCT int_col),relation=,type=Long]
+|   | +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|   |   type=Long]
+|   +-Alias[id=7,name=,alias=SUM(float_col),relation=,type=Double NULL]
+|     +-AttributeReference[id=7,name=,alias=$aggregate1,relation=$aggregate,
+|       type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=COUNT(DISTINCT int_col),relation=,
+  | type=Long]
+  +-AttributeReference[id=7,name=,alias=SUM(float_col),relation=,
+    type=Double NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=Selection
+| +-input=Aggregate
+| | +-input=TableReference[relation=Test,alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-grouping_expressions=
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-aggregate_expressions=
+| |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Long]
+| |   | +-AggregateFunction[function=COUNT,is_distinct=true]
+| |   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   +-Alias[id=7,name=,alias=$aggregate1,relation=$aggregate,type=Double NULL]
+| |   | +-AggregateFunction[function=SUM]
+| |   |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |   +-Alias[id=8,name=,alias=$aggregate2,relation=$aggregate,type=Double NULL]
+| |   | +-AggregateFunction[function=AVG,is_distinct=true]
+| |   |   +-Add
+| |   |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   |     +-AttributeReference[id=3,name=double_col,relation=test,
+| |   |       type=Double NULL]
+| |   +-Alias[id=9,name=,alias=$aggregate3,relation=$aggregate,type=Double NULL]
+| |     +-AggregateFunction[function=AVG,is_distinct=true]
+| |       +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| +-filter_predicate=Greater
+| | +-AttributeReference[id=8,name=,alias=$aggregate2,relation=$aggregate,
+| | | type=Double NULL]
+| | +-AttributeReference[id=9,name=,alias=$aggregate3,relation=$aggregate,
+| |   type=Double NULL]
+| +-project_expressions=
+|   +-Alias[id=6,name=,alias=COUNT(DISTINCT int_col),relation=,type=Long]
+|   | +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|   |   type=Long]
+|   +-Alias[id=7,name=,alias=SUM(float_col),relation=,type=Double NULL]
+|     +-AttributeReference[id=7,name=,alias=$aggregate1,relation=$aggregate,
+|       type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=COUNT(DISTINCT int_col),relation=,
+  | type=Long]
+  +-AttributeReference[id=7,name=,alias=SUM(float_col),relation=,
+    type=Double NULL]

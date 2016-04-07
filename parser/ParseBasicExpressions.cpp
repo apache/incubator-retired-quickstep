@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -120,6 +122,9 @@ std::string ParseFunctionCall::generateName() const {
   if (star_ != nullptr) {
     name.push_back('*');
   } else {
+    if (is_distinct_) {
+      name.append("DISTINCT ");
+    }
     bool first = true;
     for (const ParseExpression &argument : *arguments_) {
       if (!first) {
@@ -144,6 +149,11 @@ void ParseFunctionCall::getFieldStringItems(
   inline_field_names->push_back("name");
   inline_field_values->push_back(name_->value());
 
+  if (is_distinct_) {
+    inline_field_names->push_back("is_distinct");
+    inline_field_values->push_back("true");
+  }
+
   if (star_ != nullptr) {
     inline_field_names->push_back("is_star");
     inline_field_values->push_back("true");
@@ -153,6 +163,30 @@ void ParseFunctionCall::getFieldStringItems(
       non_container_child_fields->push_back(&argument);
     }
   }
+}
+
+std::string ParseExtractFunction::generateName() const {
+  std::string name;
+  name.append("EXTRACT(");
+  name.append(extract_field_->value());
+  name.append(" FROM ");
+  name.append(date_expression_->generateName());
+  name.push_back(')');
+  return name;
+}
+
+void ParseExtractFunction::getFieldStringItems(
+    std::vector<std::string> *inline_field_names,
+    std::vector<std::string> *inline_field_values,
+    std::vector<std::string> *non_container_child_field_names,
+    std::vector<const ParseTreeNode*> *non_container_child_fields,
+    std::vector<std::string> *container_child_field_names,
+    std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
+  inline_field_names->push_back("unit");
+  inline_field_values->push_back(extract_field_->value());
+
+  non_container_child_field_names->push_back("date_expression");
+  non_container_child_fields->push_back(date_expression_.get());
 }
 
 }  // namespace quickstep

@@ -1,5 +1,7 @@
 /**
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -59,7 +61,8 @@ const Type& AggregateFunction::getValueType() const {
 AggregateFunctionPtr AggregateFunction::Create(
     const ::quickstep::AggregateFunction &aggregate,
     const std::vector<ScalarPtr> &arguments,
-    const bool is_vector_aggregate) {
+    const bool is_vector_aggregate,
+    const bool is_distinct) {
 #ifdef QUICKSTEP_DEBUG
   std::vector<const Type*> argument_types;
   for (const ScalarPtr &argument : arguments) {
@@ -69,7 +72,7 @@ AggregateFunctionPtr AggregateFunction::Create(
 #endif  // QUICKSTEP_DEBUG
 
   return AggregateFunctionPtr(
-      new AggregateFunction(aggregate, arguments, is_vector_aggregate));
+      new AggregateFunction(aggregate, arguments, is_vector_aggregate, is_distinct));
 }
 
 ExpressionPtr AggregateFunction::copyWithNewChildren(
@@ -82,7 +85,7 @@ ExpressionPtr AggregateFunction::copyWithNewChildren(
     new_arguments.emplace_back(std::move(expr_as_scalar));
   }
 
-  return Create(aggregate_, new_arguments, is_vector_aggregate_);
+  return Create(aggregate_, new_arguments, is_vector_aggregate_, is_distinct_);
 }
 
 std::vector<AttributeReferencePtr> AggregateFunction::getReferencedAttributes() const {
@@ -106,6 +109,11 @@ void AggregateFunction::getFieldStringItems(
     std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const {
   inline_field_names->push_back("function");
   inline_field_values->push_back(aggregate_.getName());
+
+  if (is_distinct_) {
+    inline_field_names->push_back("is_distinct");
+    inline_field_values->push_back("true");
+  }
 
   container_child_field_names->push_back("");
   container_child_fields->emplace_back(CastSharedPtrVector<OptimizerTreeBase>(arguments_));

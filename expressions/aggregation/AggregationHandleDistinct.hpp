@@ -23,7 +23,7 @@
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
-#include "expressions/aggregation/AggregationHandle.hpp"
+#include "expressions/aggregation/AggregationConcreteHandle.hpp"
 #include "storage/HashTableBase.hpp"
 #include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
@@ -32,6 +32,7 @@
 
 namespace quickstep {
 
+class AggregationState;
 class ColumnVector;
 class StorageManager;
 class Type;
@@ -41,7 +42,7 @@ class ValueAccessor;
  *  @{
  */
 
-class AggregationHandleDistinct : public AggregationHandle{
+class AggregationHandleDistinct : public AggregationConcreteHandle {
  public:
   /**
    * @brief Constructor.
@@ -77,6 +78,19 @@ class AggregationHandleDistinct : public AggregationHandle{
 
   TypedValue finalize(const AggregationState &state) const override {
     LOG(FATAL) << "AggregationHandleDistinct does not support finalize().";
+  }
+
+  AggregationState* aggregateOnDistinctifyHashTableForSingle(
+      const AggregationStateHashTableBase &distinctify_hash_table) const override {
+    LOG(FATAL) << "AggregationHandleDistinct does not support "
+               << "aggregateOnDistinctifyHashTableForSingle().";
+  }
+
+  void aggregateOnDistinctifyHashTableForGroupBy(
+      const AggregationStateHashTableBase &distinctify_hash_table,
+      AggregationStateHashTableBase *groupby_hash_table) const override {
+    LOG(FATAL) << "AggregationHandleDistinct does not support "
+               << "aggregateOnDistinctifyHashTableForGroupBy().";
   }
 
   AggregationStateHashTableBase* createGroupByHashTable(

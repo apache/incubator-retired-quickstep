@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -485,6 +485,95 @@ void StorageBlock::aggregateGroupBy(
                                              key_ids,
                                              hash_table);
 }
+
+void StorageBlock::aggregateDistinct(
+    const AggregationHandle &handle,
+    const std::vector<std::unique_ptr<const Scalar>> &arguments,
+    const std::vector<attribute_id> *arguments_as_attributes,
+    const std::vector<std::unique_ptr<const Scalar>> &group_by,
+    const Predicate *predicate,
+    AggregationStateHashTableBase *distinctify_hash_table,
+    std::unique_ptr<TupleIdSequence> *reuse_matches,
+    std::vector<std::unique_ptr<ColumnVector>> *reuse_group_by_vectors) const {
+  DCHECK_GT(arguments.size(), 0u)
+      << "Called aggregateDistinct() with zero argument expressions";
+  DCHECK((group_by.size() == 0 || reuse_group_by_vectors != nullptr));
+
+  std::vector<attribute_id> key_ids;
+
+  // An intermediate ValueAccessor that stores the materialized 'arguments' for
+  // this aggregate, as well as the GROUP BY expression values.
+  ColumnVectorsValueAccessor temp_result;
+  {
+    std::unique_ptr<ValueAccessor> accessor;
+    if (predicate) {
+      if (!*reuse_matches) {
+        // If there is a filter predicate that hasn't already been evaluated,
+        // evaluate it now and save the results for other aggregates on this
+        // same block.
+        reuse_matches->reset(getMatchesForPredicate(predicate));
+      }
+
+      // Create a filtered ValueAccessor that only iterates over predicate
+      // matches.
+      accessor.reset(tuple_store_->createValueAccessor(reuse_matches->get()));
+    } else {
+      // Create a ValueAccessor that iterates over all tuples in this block
+      accessor.reset(tuple_store_->createValueAccessor());
+    }
+
+#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
+    // If all the arguments to this aggregate are plain relation attributes,
+    // aggregate directly on a ValueAccessor from this block to avoid a copy.
+    if ((arguments_as_attributes != nullptr) && (!arguments_as_attributes->empty())) {
+      DCHECK_EQ(arguments.size(), arguments_as_attributes->size())
+          << "Mismatch between number of arguments and number of attribute_ids";
+      DCHECK_EQ(group_by.size(), 0u);
+      handle.insertValueAccessorIntoDistinctifyHashTable(
+          accessor.get(), *arguments_as_attributes, distinctify_hash_table);
+      return;
+    }
+#endif
+
+    SubBlocksReference sub_blocks_ref(*tuple_store_,
+                                      indices_,
+                                      indices_consistent_);
+    attribute_id attr_id = 0;
+
+    if (!group_by.empty()) {
+      // Put GROUP BY keys into 'temp_result'.
+      if (reuse_group_by_vectors->empty()) {
+        // Compute GROUP BY values from group_by Scalars, and store them in
+        // reuse_group_by_vectors for reuse by other aggregates on this same
+        // block.
+        reuse_group_by_vectors->reserve(group_by.size());
+        for (const std::unique_ptr<const Scalar> &group_by_element : group_by) {
+          reuse_group_by_vectors->emplace_back(
+              group_by_element->getAllValues(accessor.get(), &sub_blocks_ref));
+          temp_result.addColumn(reuse_group_by_vectors->back().get(), false);
+          key_ids.push_back(attr_id++);
+        }
+      } else {
+        // Reuse precomputed GROUP BY values from reuse_group_by_vectors.
+        DCHECK_EQ(group_by.size(), reuse_group_by_vectors->size())
+            << "Wrong number of reuse_group_by_vectors";
+        for (const std::unique_ptr<ColumnVector> &reuse_cv : *reuse_group_by_vectors) {
+          temp_result.addColumn(reuse_cv.get(), false);
+          key_ids.push_back(attr_id++);
+        }
+      }
+    }
+    // Compute argument vectors and add them to 'temp_result'.
+    for (const std::unique_ptr<const Scalar> &argument : arguments) {
+      temp_result.addColumn(argument->getAllValues(accessor.get(), &sub_blocks_ref));
+      key_ids.push_back(attr_id++);
+    }
+  }
+
+  handle.insertValueAccessorIntoDistinctifyHashTable(
+      &temp_result, key_ids, distinctify_hash_table);
+}
+
 
 // TODO(chasseur): Vectorization for updates.
 StorageBlock::UpdateResult StorageBlock::update(

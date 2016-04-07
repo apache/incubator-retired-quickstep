@@ -30,6 +30,7 @@
 #include "parser/ParseBlockProperties.hpp"
 #include "parser/ParseIndexProperties.hpp"
 #include "parser/ParseKeyValue.hpp"
+#include "parser/ParsePartitionClause.hpp"
 #include "parser/ParsePredicate.hpp"
 #include "parser/ParseSelect.hpp"
 #include "parser/ParseString.hpp"
@@ -109,11 +110,13 @@ class ParseStatementCreateTable : public ParseStatement {
                             const int column_number,
                             ParseString *relation_name,
                             PtrList<ParseAttributeDefinition> *attribute_definition_list,
-                            ParseBlockProperties *opt_block_properties)
+                            ParseBlockProperties *opt_block_properties,
+                            ParsePartitionClause *opt_partition_clause)
       : ParseStatement(line_number, column_number),
         relation_name_(relation_name),
         attribute_definition_list_(attribute_definition_list),
-        opt_block_properties_(opt_block_properties) {
+        opt_block_properties_(opt_block_properties),
+        opt_partition_clause_(opt_partition_clause) {
   }
 
   ~ParseStatementCreateTable() override {
@@ -152,6 +155,15 @@ class ParseStatementCreateTable : public ParseStatement {
     return opt_block_properties_.get();
   }
 
+  /**
+   * @brief Get a pointer to the PartitionClause.
+   *
+   * @return The PartitionClause or nullptr if not specified.
+   **/
+  const ParsePartitionClause* opt_partition_clause() const {
+    return opt_partition_clause_.get();
+  }
+
  protected:
   void getFieldStringItems(
       std::vector<std::string> *inline_field_names,
@@ -174,12 +186,19 @@ class ParseStatementCreateTable : public ParseStatement {
       container_child_fields->emplace_back();
       container_child_fields->back().push_back(opt_block_properties_.get());
     }
+
+    if (opt_partition_clause_) {
+      container_child_field_names->push_back("partition_clause");
+      container_child_fields->emplace_back();
+      container_child_fields->back().push_back(opt_partition_clause_.get());
+    }
   }
 
  private:
   std::unique_ptr<ParseString> relation_name_;
   std::unique_ptr<PtrList<ParseAttributeDefinition> > attribute_definition_list_;
   std::unique_ptr<ParseBlockProperties> opt_block_properties_;
+  std::unique_ptr<ParsePartitionClause> opt_partition_clause_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseStatementCreateTable);
 };
@@ -519,33 +538,37 @@ class ParseStatementSelect : public ParseStatement {
 
 /**
  * @brief The parsed representation of an INSERT statement.
+ *
+ * This is an abstract class where each of its subclass represents a concrete
+ * type of insert operation.
  **/
 class ParseStatementInsert : public ParseStatement {
  public:
+  enum class InsertType {
+    kTuple = 0,
+    kSelection
+  };
+
   /**
    * @brief Constructor.
    *
    * @param line_number Line number of the first token of this node in the SQL statement.
    * @param column_number Column number of the first token of this node in the SQL statement.
    * @param relation_name The name of the relation to insert into.
-   * @param literal_values A list of literal values (in attribute-definition
-   *        order) to insert into the specified relation as a new tuple.
-   *        Becomes owned by this ParseStatementInsert.
    **/
   ParseStatementInsert(const int line_number,
                        const int column_number,
-                       ParseString *relation_name,
-                       PtrList<ParseScalarLiteral> *literal_values)
+                       const ParseString *relation_name)
       : ParseStatement(line_number, column_number),
-        relation_name_(relation_name),
-        literal_values_(literal_values) {
+        relation_name_(relation_name) {
   }
 
   /**
-   * @brief Destructor.
+   * @brief Get the insert type of this insert statement.
+   *
+   * @return The insert type of this insert statement.
    */
-  ~ParseStatementInsert() override {
-  }
+  virtual InsertType getInsertType() const = 0;
 
   std::string getName() const override { return "InsertStatement"; }
 
@@ -560,6 +583,43 @@ class ParseStatementInsert : public ParseStatement {
    **/
   const ParseString* relation_name() const {
     return relation_name_.get();
+  }
+
+ private:
+  std::unique_ptr<const ParseString> relation_name_;
+
+  DISALLOW_COPY_AND_ASSIGN(ParseStatementInsert);
+};
+
+
+/**
+ * @brief The parsed representation of an INSERT ... VALUES ... statement.
+ **/
+class ParseStatementInsertTuple : public ParseStatementInsert {
+ public:
+  /**
+   * @brief Constructor.
+   *
+   * @param line_number Line number of the first token of this node in the SQL statement.
+   * @param column_number Column number of the first token of this node in the SQL statement.
+   * @param relation_name The name of the relation to insert into.
+   * @param literal_values A list of literal values (in attribute-definition
+   *        order) to insert into the specified relation as a new tuple.
+   *        Becomes owned by this ParseStatementInsert.
+   **/
+  ParseStatementInsertTuple(const int line_number,
+                            const int column_number,
+                            const ParseString *relation_name,
+                            PtrList<ParseScalarLiteral> *literal_values)
+      : ParseStatementInsert(line_number, column_number, relation_name),
+        literal_values_(literal_values) {
+  }
+
+  ~ParseStatementInsertTuple() override {
+  }
+
+  InsertType getInsertType() const override {
+    return InsertType::kTuple;
   }
 
   /**
@@ -580,7 +640,7 @@ class ParseStatementInsert : public ParseStatement {
       std::vector<std::string> *container_child_field_names,
       std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override {
     inline_field_names->push_back("relation_name");
-    inline_field_values->push_back(relation_name_->value());
+    inline_field_values->push_back(relation_name()->value());
 
     container_child_field_names->push_back("tuple");
     container_child_fields->emplace_back();
@@ -590,10 +650,86 @@ class ParseStatementInsert : public ParseStatement {
   }
 
  private:
-  std::unique_ptr<ParseString> relation_name_;
   std::unique_ptr<PtrList<ParseScalarLiteral> > literal_values_;
 
-  DISALLOW_COPY_AND_ASSIGN(ParseStatementInsert);
+  DISALLOW_COPY_AND_ASSIGN(ParseStatementInsertTuple);
+};
+
+/**
+ * @brief The parsed representation of an INSERT ... SELECT ... statement.
+ **/
+class ParseStatementInsertSelection : public ParseStatementInsert {
+ public:
+  /**
+   * @brief Constructor.
+   *
+   * @param line_number Line number of the first token of this node in the SQL statement.
+   * @param column_number Column number of the first token of this node in the SQL statement.
+   * @param relation_name The name of the relation to insert into.
+   * @param select_query The SELECT query for generating insertion tuples.
+   * @param with_clause The WITH clause of common table query expressions.
+   **/
+  ParseStatementInsertSelection(const int line_number,
+                                const int column_number,
+                                const ParseString *relation_name,
+                                ParseSelect *select_query,
+                                PtrVector<ParseSubqueryTableReference> *with_clause)
+      : ParseStatementInsert(line_number, column_number, relation_name),
+        select_query_(select_query),
+        with_clause_(with_clause) {
+  }
+
+  ~ParseStatementInsertSelection() override {
+  }
+
+  InsertType getInsertType() const override {
+    return InsertType::kSelection;
+  }
+
+  /**
+   * @return Gets the SELECT query.
+   */
+  const ParseSelect* select_query() const {
+    return select_query_.get();
+  }
+
+  /**
+   * @brief Gets the WITH table queries.
+   *
+   * @return The parsed WITH table list.
+   */
+  const PtrVector<ParseSubqueryTableReference>* with_clause() const {
+    return with_clause_.get();
+  }
+
+ protected:
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<const ParseTreeNode*> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override {
+    inline_field_names->push_back("relation_name");
+    inline_field_values->push_back(relation_name()->value());
+
+    non_container_child_field_names->push_back("select_query");
+    non_container_child_fields->push_back(select_query_.get());
+
+    if (with_clause_ != nullptr && !with_clause_->empty()) {
+      container_child_field_names->push_back("with_clause");
+      container_child_fields->emplace_back();
+      for (const ParseSubqueryTableReference &common_subquery : *with_clause_) {
+        container_child_fields->back().push_back(&common_subquery);
+      }
+    }
+  }
+
+ private:
+  std::unique_ptr<ParseSelect> select_query_;
+  std::unique_ptr<PtrVector<ParseSubqueryTableReference>> with_clause_;
+
+  DISALLOW_COPY_AND_ASSIGN(ParseStatementInsertSelection);
 };
 
 /**

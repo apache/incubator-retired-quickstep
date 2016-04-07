@@ -1,0 +1,70 @@
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+CREATE TABLE foo(x INT, y DOUBLE, z INT);
+
+INSERT INTO foo
+SELECT i,
+       (i + 0.5) % 100,
+       i % 3
+FROM generate_series(0, 29999) AS gs(i);
+
+
+SELECT COUNT(*),
+       COUNT(DISTINCT x),
+       COUNT(DISTINCT y),
+       COUNT(DISTINCT z)
+FROM foo;
+--
++--------------------+--------------------+--------------------+--------------------+
+|COUNT(*)            |COUNT(DISTINCT x)   |COUNT(DISTINCT y)   |COUNT(DISTINCT z)   |
++--------------------+--------------------+--------------------+--------------------+
+|               30000|               30000|                 100|                   3|
++--------------------+--------------------+--------------------+--------------------+
+==
+
+SELECT SUM(y),
+       SUM(DISTINCT y),
+       COUNT(DISTINCT y),
+       AVG(DISTINCT y),
+       z
+FROM foo
+GROUP BY z
+ORDER BY z;
+--
++------------------------+------------------------+--------------------+------------------------+-----------+
+|SUM(y)                  |SUM(DISTINCT y)         |COUNT(DISTINCT y)   |AVG(DISTINCT y)         |z          |
++------------------------+------------------------+--------------------+------------------------+-----------+
+|                  500000|                    5000|                 100|                      50|          0|
+|                  500000|                    5000|                 100|                      50|          1|
+|                  500000|                    5000|                 100|                      50|          2|
++------------------------+------------------------+--------------------+------------------------+-----------+
+==
+
+SELECT MAX(x) * SUM(DISTINCT y),
+       COUNT(DISTINCT x % y) + z,
+       z
+FROM foo
+GROUP BY z
+ORDER BY z;
+--
++------------------------+-------------------------+-----------+
+|(MAX(x)*SUM(DISTINCT y))|(COUNT(DISTINCT (x%y))+z)|z          |
++------------------------+-------------------------+-----------+
+|               149985000|                      196|          0|
+|               149990000|                      197|          1|
+|               149995000|                      195|          2|
++------------------------+-------------------------+-----------+
+==

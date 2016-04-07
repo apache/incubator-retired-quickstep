@@ -1,5 +1,7 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
 #   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -436,9 +438,105 @@ ORDER BY
   cust_nation,
   l_year
 --
-ERROR: syntax error (11 : 20)
-      EXTRACT(year FROM l_shipdate) AS l_year,
-                   ^
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=supp_nation]
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=cust_nation]
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=l_year]
+  | +-SelectListItem[alias=revenue]
+  |   +-FunctionCall[name=SUM]
+  |     +-AttributeReference[attribute_name=volume]
+  +-group_by=GroupBy
+  | +-AttributeReference[attribute_name=supp_nation]
+  | +-AttributeReference[attribute_name=cust_nation]
+  | +-AttributeReference[attribute_name=l_year]
+  +-order_by=OrderBy
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  | | +-AttributeReference[attribute_name=supp_nation]
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  | | +-AttributeReference[attribute_name=cust_nation]
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  |   +-AttributeReference[attribute_name=l_year]
+  +-from_clause=
+    +-SubqueryTable
+      +-table_signature=TableSignature[table_alias=shipping]
+      +-SubqueryExpression
+        +-Select
+          +-select_clause=SelectList
+          | +-SelectListItem[alias=supp_nation]
+          | | +-AttributeReference[attribute_name=n_name,relation_name=n1]
+          | +-SelectListItem[alias=cust_nation]
+          | | +-AttributeReference[attribute_name=n_name,relation_name=n2]
+          | +-SelectListItem[alias=l_year]
+          | | +-Extract[unit=year]
+          | |   +-date_expression=AttributeReference[attribute_name=l_shipdate]
+          | +-SelectListItem[alias=volume]
+          |   +-Multiply
+          |     +-left_operand=AttributeReference[attribute_name=l_extendedprice]
+          |     +-right_operand=Subtract
+          |       +-left_operand=Literal
+          |       | +-NumericLiteral[numeric_string=1,float_like=false]
+          |       +-right_operand=AttributeReference[attribute_name=l_discount]
+          +-where_clause=And
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=s_suppkey]
+          | | +-right_operand=AttributeReference[attribute_name=l_suppkey]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=o_orderkey]
+          | | +-right_operand=AttributeReference[attribute_name=l_orderkey]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=c_custkey]
+          | | +-right_operand=AttributeReference[attribute_name=o_custkey]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=s_nationkey]
+          | | +-right_operand=AttributeReference[attribute_name=n_nationkey,
+          | |   relation_name=n1]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=c_nationkey]
+          | | +-right_operand=AttributeReference[attribute_name=n_nationkey,
+          | |   relation_name=n2]
+          | +-Or
+          | | +-And
+          | | | +-Equal
+          | | | | +-left_operand=AttributeReference[attribute_name=n_name,
+          | | | | | relation_name=n1]
+          | | | | +-right_operand=Literal
+          | | | |   +-StringLiteral[value=ETHIOPIA]
+          | | | +-Equal
+          | | |   +-left_operand=AttributeReference[attribute_name=n_name,
+          | | |   | relation_name=n2]
+          | | |   +-right_operand=Literal
+          | | |     +-StringLiteral[value=UNITED STATES]
+          | | +-And
+          | |   +-Equal
+          | |   | +-left_operand=AttributeReference[attribute_name=n_name,
+          | |   | | relation_name=n1]
+          | |   | +-right_operand=Literal
+          | |   |   +-StringLiteral[value=UNITED STATES]
+          | |   +-Equal
+          | |     +-left_operand=AttributeReference[attribute_name=n_name,
+          | |     | relation_name=n2]
+          | |     +-right_operand=Literal
+          | |       +-StringLiteral[value=ETHIOPIA]
+          | +-Between
+          |   +-check_operand=AttributeReference[attribute_name=l_shipdate]
+          |   +-lower_bound_operand=Literal
+          |   | +-StringLiteral[value=1995-01-01,explicit_type=Datetime]
+          |   +-upper_bound_operand=Literal
+          |     +-StringLiteral[value=1996-12-31,explicit_type=Datetime]
+          +-from_clause=
+            +-TableReference[table=supplier]
+            +-TableReference[table=lineitem]
+            +-TableReference[table=orders]
+            +-TableReference[table=customer]
+            +-TableReference[table=nation]
+            | +-table_signature=TableSignature[table_alias=n1]
+            +-TableReference[table=nation]
+              +-table_signature=TableSignature[table_alias=n2]
 ==
 
 # Query 8
@@ -519,9 +617,77 @@ ORDER BY
   nation,
   o_year DESC
 --
-ERROR: syntax error (9 : 20)
-      EXTRACT(year FROM o_orderdate) AS o_year,
-                   ^
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=nation]
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=o_year]
+  | +-SelectListItem[alias=sum_profit]
+  |   +-FunctionCall[name=SUM]
+  |     +-AttributeReference[attribute_name=amount]
+  +-group_by=GroupBy
+  | +-AttributeReference[attribute_name=nation]
+  | +-AttributeReference[attribute_name=o_year]
+  +-order_by=OrderBy
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  | | +-AttributeReference[attribute_name=nation]
+  | +-OrderByItem[is_asc=false,nulls_first=true]
+  |   +-AttributeReference[attribute_name=o_year]
+  +-from_clause=
+    +-SubqueryTable
+      +-table_signature=TableSignature[table_alias=profit]
+      +-SubqueryExpression
+        +-Select
+          +-select_clause=SelectList
+          | +-SelectListItem[alias=nation]
+          | | +-AttributeReference[attribute_name=n_name]
+          | +-SelectListItem[alias=o_year]
+          | | +-Extract[unit=year]
+          | |   +-date_expression=AttributeReference[attribute_name=o_orderdate]
+          | +-SelectListItem[alias=amount]
+          |   +-Subtract
+          |     +-left_operand=Multiply
+          |     | +-left_operand=AttributeReference[
+          |     | | attribute_name=l_extendedprice]
+          |     | +-right_operand=Subtract
+          |     |   +-left_operand=Literal
+          |     |   | +-NumericLiteral[numeric_string=1,float_like=false]
+          |     |   +-right_operand=AttributeReference[attribute_name=l_discount]
+          |     +-right_operand=Multiply
+          |       +-left_operand=AttributeReference[attribute_name=ps_supplycost]
+          |       +-right_operand=AttributeReference[attribute_name=l_quantity]
+          +-where_clause=And
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=s_suppkey]
+          | | +-right_operand=AttributeReference[attribute_name=l_suppkey]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=ps_suppkey]
+          | | +-right_operand=AttributeReference[attribute_name=l_suppkey]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=ps_partkey]
+          | | +-right_operand=AttributeReference[attribute_name=l_partkey]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=p_partkey]
+          | | +-right_operand=AttributeReference[attribute_name=l_partkey]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=o_orderkey]
+          | | +-right_operand=AttributeReference[attribute_name=l_orderkey]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=s_nationkey]
+          | | +-right_operand=AttributeReference[attribute_name=n_nationkey]
+          | +-kLike
+          |   +-left_operand=AttributeReference[attribute_name=p_name]
+          |   +-right_operand=Literal
+          |     +-StringLiteral[value=%ghost%]
+          +-from_clause=
+            +-TableReference[table=part]
+            +-TableReference[table=supplier]
+            +-TableReference[table=lineitem]
+            +-TableReference[table=partsupp]
+            +-TableReference[table=orders]
+            +-TableReference[table=nation]
 ==
 
 # Query 10
@@ -812,9 +978,9 @@ ORDER BY
   p_type,
   p_size
 --
-ERROR: syntax error (5 : 9)
-  COUNT(distinct ps_suppkey) AS supplie...
-        ^
+ERROR: syntax error (13 : 14)
+  AND p_size IN (32, 42, 9, 18, 50, 30, 12,...
+             ^
 ==
 
 # Query 17

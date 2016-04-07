@@ -210,6 +210,7 @@ class AggregationOperatorTest : public ::testing::Test {
     // Add an aggregate.
     serialization::Aggregate *aggr_proto = aggr_state_proto->add_aggregates();
     aggr_proto->mutable_function()->CopyFrom(AggregateFunctionFactory::Get(agg_type).getProto());
+    aggr_proto->set_is_distinct(false);
     if (is_expression) {
       unique_ptr<ScalarBinaryExpression> exp(
           new ScalarBinaryExpression(BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd),
@@ -224,6 +225,7 @@ class AggregationOperatorTest : public ::testing::Test {
     // Add another aggregate.
     aggr_proto = aggr_state_proto->add_aggregates();
     aggr_proto->mutable_function()->CopyFrom(AggregateFunctionFactory::Get(agg_type).getProto());
+    aggr_proto->set_is_distinct(false);
     if (is_expression) {
       unique_ptr<ScalarBinaryExpression> exp(
           new ScalarBinaryExpression(BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kMultiply),
@@ -260,7 +262,7 @@ class AggregationOperatorTest : public ::testing::Test {
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto,
-                                          db_.get(),
+                                          *db_,
                                           storage_manager_.get(),
                                           foreman_client_id_,
                                           &bus_));
@@ -296,6 +298,7 @@ class AggregationOperatorTest : public ::testing::Test {
     // Add an aggregate.
     serialization::Aggregate *aggr_proto = aggr_state_proto->add_aggregates();
     aggr_proto->mutable_function()->CopyFrom(AggregateFunctionFactory::Get(agg_type).getProto());
+    aggr_proto->set_is_distinct(false);
 
     unique_ptr<ScalarAttribute> attr(new ScalarAttribute(*table_->getAttributeByName(stem + "-0")));
     aggr_proto->add_argument()->CopyFrom(attr->getProto());
@@ -303,6 +306,7 @@ class AggregationOperatorTest : public ::testing::Test {
     // Add another aggregate.
     aggr_proto = aggr_state_proto->add_aggregates();
     aggr_proto->mutable_function()->CopyFrom(AggregateFunctionFactory::Get(agg_type).getProto());
+    aggr_proto->set_is_distinct(false);
     attr.reset(new ScalarAttribute(*table_->getAttributeByName(stem + "-1")));
     aggr_proto->add_argument()->CopyFrom(attr->getProto());
 
@@ -340,7 +344,7 @@ class AggregationOperatorTest : public ::testing::Test {
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto,
-                                          db_.get(),
+                                          *db_,
                                           storage_manager_.get(),
                                           foreman_client_id_,
                                           &bus_));

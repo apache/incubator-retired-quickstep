@@ -1272,7 +1272,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto_,
-                                          db_.get(),
+                                          *db_,
                                           storage_manager_.get(),
                                           foreman_client_id_,
                                           &bus_));
@@ -1537,7 +1537,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto_,
-                                          db_.get(),
+                                          *db_,
                                           storage_manager_.get(),
                                           foreman_client_id_,
                                           &bus_));
@@ -1580,7 +1580,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto_,
-                                          db_.get(),
+                                          *db_,
                                           storage_manager_.get(),
                                           foreman_client_id_,
                                           &bus_));

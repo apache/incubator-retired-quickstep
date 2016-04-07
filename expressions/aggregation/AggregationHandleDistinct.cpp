@@ -24,9 +24,10 @@
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "storage/HashTable.hpp"
-#include "storage/HashTableFactory.hpp"
 
 #include "types/TypedValue.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 
@@ -40,7 +41,7 @@ AggregationStateHashTableBase* AggregationHandleDistinct::createGroupByHashTable
     const std::vector<const Type*> &group_by_types,
     const std::size_t estimated_num_groups,
     StorageManager *storage_manager) const {
-  return AggregationStateHashTableFactory<bool>::CreateResizable(
+  return createDistinctifyHashTable(
       hash_table_impl,
       group_by_types,
       estimated_num_groups,
@@ -54,13 +55,10 @@ void AggregationHandleDistinct::aggregateValueAccessorIntoHashTable(
     AggregationStateHashTableBase *hash_table) const {
   DCHECK_EQ(argument_ids.size(), 0u);
 
-  const auto noop_upserter = [](const auto &accessor, const bool *value) -> void {};
-  static_cast<AggregationStateHashTable<bool>*>(hash_table)->upsertValueAccessorCompositeKey(
+  insertValueAccessorIntoDistinctifyHashTable(
       accessor,
       group_by_key_ids,
-      true,
-      true, /* Initial value */
-      &noop_upserter);
+      hash_table);
 }
 
 ColumnVector* AggregationHandleDistinct::finalizeHashTable(

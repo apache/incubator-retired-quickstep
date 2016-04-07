@@ -1,5 +1,5 @@
 /**
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -70,7 +70,7 @@ class RoundRobinWorkerSelectionPolicy : public WorkerSelectionPolicy {
    * @brief Constructor.
    *
    * @param worker_directory The worker directory.
-   * @param start_worker_id The ID of the worker which should be chosen
+   * @param start_worker_thread_index The ID of the worker which should be chosen
    *        initially.
    *
    * @warning If the number of workers change between the constructor and
@@ -78,23 +78,23 @@ class RoundRobinWorkerSelectionPolicy : public WorkerSelectionPolicy {
    *          getNextWorkerID() initially may not be the same as desired.
    **/
   RoundRobinWorkerSelectionPolicy(const WorkerDirectory &worker_directory,
-                                  const std::size_t start_worker_id)
+                                  const std::size_t start_worker_thread_index)
       : WorkerSelectionPolicy(worker_directory) {
-    if (start_worker_id == 0) {
-      previous_worker_id_ = worker_directory.getNumWorkers() - 1;
+    if (start_worker_thread_index == 0) {
+      previous_worker_thread_index_ = worker_directory.getNumWorkers() - 1;
     } else {
-      previous_worker_id_ = start_worker_id - 1;
+      previous_worker_thread_index_ = start_worker_thread_index - 1;
     }
   }
 
   std::size_t getNextWorkerID() override {
-    previous_worker_id_ =
-        (previous_worker_id_ + 1) % worker_directory_.getNumWorkers();
-    return previous_worker_id_;
+    previous_worker_thread_index_ =
+        (previous_worker_thread_index_ + 1) % worker_directory_.getNumWorkers();
+    return previous_worker_thread_index_;
   }
 
  private:
-  std::size_t previous_worker_id_;
+  std::size_t previous_worker_thread_index_;
 
   DISALLOW_COPY_AND_ASSIGN(RoundRobinWorkerSelectionPolicy);
 };

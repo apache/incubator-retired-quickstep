@@ -1,5 +1,5 @@
 /**
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -80,73 +80,73 @@ class WorkerDirectory {
    *       execution and the workorder being executed by the specified worker
    *       at the time this function is called.
    *
-   * @param worker_id The logical ID of the given worker.
+   * @param worker_thread_index The logical ID of the given worker.
    *
    * @return The number of queued workorders.
    **/
   inline const std::size_t getNumQueuedWorkOrders(
-      const std::size_t worker_id) const {
-    DEBUG_ASSERT(worker_id < num_workers_);
-    return num_queued_workorders_[worker_id];
+      const std::size_t worker_thread_index) const {
+    DEBUG_ASSERT(worker_thread_index < num_workers_);
+    return num_queued_workorders_[worker_thread_index];
   }
 
   /**
    * @brief Increment the number of queued workorders for the given worker by 1.
    *
-   * @param worker_id The logical ID of the given worker.
+   * @param worker_thread_index The logical ID of the given worker.
    **/
-  inline void incrementNumQueuedWorkOrders(const std::size_t worker_id) {
-    DEBUG_ASSERT(worker_id < num_workers_);
-    ++num_queued_workorders_[worker_id];
+  inline void incrementNumQueuedWorkOrders(const std::size_t worker_thread_index) {
+    DEBUG_ASSERT(worker_thread_index < num_workers_);
+    ++num_queued_workorders_[worker_thread_index];
   }
 
   /**
    * @brief Decrement the number of queued workorders for the given worker by 1.
    *
-   * @param worker_id The logical ID of the given worker.
+   * @param worker_thread_index The logical ID of the given worker.
    **/
-  inline void decrementNumQueuedWorkOrders(const std::size_t worker_id) {
-    DEBUG_ASSERT(worker_id < num_workers_);
-    DEBUG_ASSERT(num_queued_workorders_[worker_id] >= 1);
-    --num_queued_workorders_[worker_id];
+  inline void decrementNumQueuedWorkOrders(const std::size_t worker_thread_index) {
+    DEBUG_ASSERT(worker_thread_index < num_workers_);
+    DEBUG_ASSERT(num_queued_workorders_[worker_thread_index] >= 1);
+    --num_queued_workorders_[worker_thread_index];
   }
 
   /**
    * @brief Get the NUMA node where the specified worker is pinned to.
    *
-   * @param worker_id The logical ID of the given worker.
+   * @param worker_thread_index The logical ID of the given worker.
    *
    * @return The NUMA node ID where the given worker is pinned. If the worker
    *         hasn't been pinned to any NUMA node, this value is -1.
    **/
-  inline int getNUMANode(const std::size_t worker_id) const {
-    DEBUG_ASSERT(worker_id < num_workers_);
-    return numa_node_ids_[worker_id];
+  inline int getNUMANode(const std::size_t worker_thread_index) const {
+    DEBUG_ASSERT(worker_thread_index < num_workers_);
+    return numa_node_ids_[worker_thread_index];
   }
 
   /**
    * @brief Get the TMB client ID of the specified worker.
    *
-   * @param worker_id The logical ID of the given worker.
+   * @param worker_thread_index The logical ID of the given worker.
    *
    * @return The TMB client ID of the given worker.
    **/
-  inline const client_id getClientID(const std::size_t worker_id) const {
-    DEBUG_ASSERT(worker_id < num_workers_);
-    return client_ids_[worker_id];
+  inline const client_id getClientID(const std::size_t worker_thread_index) const {
+    DEBUG_ASSERT(worker_thread_index < num_workers_);
+    return client_ids_[worker_thread_index];
   }
 
   /**
    * @brief Generate address of a worker.
    *
-   * @param worker_id The logical ID of the given worker.
+   * @param worker_thread_index The logical ID of the given worker.
    *
    * @return TMB Address of the given worker.
    **/
-  inline Address getWorkerAddress(std::size_t worker_id) const {
-    DEBUG_ASSERT(worker_id < num_workers_);
+  inline Address getWorkerAddress(std::size_t worker_thread_index) const {
+    DEBUG_ASSERT(worker_thread_index < num_workers_);
     Address worker_address;
-    worker_address.AddRecipient(client_ids_[worker_id]);
+    worker_address.AddRecipient(client_ids_[worker_thread_index]);
     return worker_address;
   }
 
@@ -185,9 +185,9 @@ class WorkerDirectory {
         std::min_element(std::begin(num_queued_workorders_),
                          std::end(num_queued_workorders_));
     DEBUG_ASSERT(min_element_iter != num_queued_workorders_.end());
-    const std::size_t least_loaded_worker_id =
+    const std::size_t least_loaded_worker_thread_index =
         std::distance(num_queued_workorders_.begin(), min_element_iter);
-    return std::make_pair(least_loaded_worker_id, *min_element_iter);
+    return std::make_pair(least_loaded_worker_thread_index, *min_element_iter);
   }
 
   /**
@@ -212,9 +212,9 @@ class WorkerDirectory {
         std::max_element(std::begin(num_queued_workorders_),
                          std::end(num_queued_workorders_));
     DEBUG_ASSERT(max_element_iter != num_queued_workorders_.end());
-    const std::size_t most_loaded_worker_id =
+    const std::size_t most_loaded_worker_thread_index =
         std::distance(num_queued_workorders_.begin(), max_element_iter);
-    return std::make_pair(most_loaded_worker_id, *max_element_iter);
+    return std::make_pair(most_loaded_worker_thread_index, *max_element_iter);
   }
 
  private:

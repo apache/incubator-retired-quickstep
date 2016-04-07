@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -24,6 +26,7 @@
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
+#include "expressions/aggregation/AggregationConcreteHandle.hpp"
 #include "expressions/aggregation/AggregationHandle.hpp"
 #include "storage/HashTableBase.hpp"
 #include "threading/SpinMutex.hpp"
@@ -78,7 +81,7 @@ class AggregationStateSum : public AggregationState {
 /**
  * @brief An aggregationhandle for sum.
  **/
-class AggregationHandleSum : public AggregationHandle {
+class AggregationHandleSum : public AggregationConcreteHandle {
  public:
   ~AggregationHandleSum() override {
   }
@@ -129,6 +132,21 @@ class AggregationHandleSum : public AggregationHandle {
   ColumnVector* finalizeHashTable(
       const AggregationStateHashTableBase &hash_table,
       std::vector<std::vector<TypedValue>> *group_by_keys) const override;
+
+  /**
+   * @brief Implementation of AggregationHandle::aggregateOnDistinctifyHashTableForSingle()
+   *        for SUM aggregation.
+   */
+  AggregationState* aggregateOnDistinctifyHashTableForSingle(
+      const AggregationStateHashTableBase &distinctify_hash_table) const override;
+
+  /**
+   * @brief Implementation of AggregationHandle::aggregateOnDistinctifyHashTableForGroupBy()
+   *        for SUM aggregation.
+   */
+  void aggregateOnDistinctifyHashTableForGroupBy(
+      const AggregationStateHashTableBase &distinctify_hash_table,
+      AggregationStateHashTableBase *aggregation_hash_table) const override;
 
  private:
   friend class AggregateFunctionSum;

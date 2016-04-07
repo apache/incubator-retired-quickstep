@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -415,6 +417,16 @@ class CatalogRelationSchema {
     return attr_vec_.end_skip();
   }
 
+  /**
+   * @brief Get a vector of the maximum byte lengths for each attribute.
+   * @details An index in the vector corresponds with the attribute's id.
+   *
+   * @return A vector of the maximum byte lengths for each attribute.
+   */
+  const std::vector<std::size_t>& getMaximumAttributeByteLengths() const {
+    return max_byte_lengths_;
+  }
+
  protected:
   /**
    * @brief Create a new relation.
@@ -511,6 +523,7 @@ class CatalogRelationSchema {
               min_variable_byte_length_excluding_nullable_,
               estimated_variable_byte_length_;
   std::vector<std::size_t> fixed_length_attribute_offsets_;
+  std::vector<std::size_t> max_byte_lengths_;
 
   // Entries are -1 for non-nullable attributes.
   std::vector<int> nullable_attribute_indices_;

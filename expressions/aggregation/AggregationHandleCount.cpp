@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -176,6 +178,32 @@ template <bool count_star, bool nullable_type>
       TypeFactory::GetType(kLong),
       hash_table,
       group_by_keys);
+}
+
+template <bool count_star, bool nullable_type>
+AggregationState* AggregationHandleCount<count_star, nullable_type>
+    ::aggregateOnDistinctifyHashTableForSingle(
+        const AggregationStateHashTableBase &distinctify_hash_table) const {
+  DCHECK_EQ(count_star, false);
+  return aggregateOnDistinctifyHashTableForSingleUnaryHelper<
+      AggregationHandleCount<count_star, nullable_type>,
+      AggregationStateCount>(
+          distinctify_hash_table);
+}
+
+template <bool count_star, bool nullable_type>
+void AggregationHandleCount<count_star, nullable_type>
+    ::aggregateOnDistinctifyHashTableForGroupBy(
+        const AggregationStateHashTableBase &distinctify_hash_table,
+        AggregationStateHashTableBase *aggregation_hash_table) const {
+  DCHECK_EQ(count_star, false);
+  aggregateOnDistinctifyHashTableForGroupByUnaryHelper<
+      AggregationHandleCount<count_star, nullable_type>,
+      AggregationStateCount,
+      AggregationStateHashTable<AggregationStateCount>>(
+          distinctify_hash_table,
+          AggregationStateCount(),
+          aggregation_hash_table);
 }
 
 // Explicitly instantiate and compile in the different versions of
