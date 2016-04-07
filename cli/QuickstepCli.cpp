@@ -65,6 +65,7 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #endif
 
 #include "storage/PreloaderThread.hpp"
+#include "threading/ThreadIDBasedMap.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
 #include "utility/SqlError.hpp"
@@ -176,6 +177,10 @@ int main(int argc, char* argv[]) {
               << quickstep::FLAGS_hdfs_num_replications << "\n";
   }
 #endif
+
+  // Initialize the thread ID based map here before the Foreman and workers are
+  // constructed because the initialization isn't thread safe.
+  quickstep::ClientIDMap::Instance();
 
   MessageBusImpl bus;
   bus.Initialize();

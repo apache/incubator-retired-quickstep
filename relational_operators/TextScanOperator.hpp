@@ -157,7 +157,6 @@ class TextScanOperator : public RelationalOperator {
                         QueryContext *query_context,
                         StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
-                        const tmb::client_id agent_client_id,
                         tmb::MessageBus *bus) override;
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
@@ -323,8 +322,6 @@ class TextSplitWorkOrder : public WorkOrder {
    * @param operator_index Operator index of the current operator. This is used
    *                       to send new-work available message to Foreman.
    * @param foreman_client_id The TMB client ID of the foreman thread.
-   * @param agent_client_id The TMB client ID of the agent that sends messages
-   *        to Foreman.
    * @param bus A pointer to the TMB.
    */
   TextSplitWorkOrder(const std::string filename,
@@ -332,14 +329,12 @@ class TextSplitWorkOrder : public WorkOrder {
                      StorageManager *storage_manager,
                      const std::size_t operator_index,
                      const tmb::client_id foreman_client_id,
-                     const tmb::client_id agent_client_id,
                      MessageBus *bus)
       : filename_(filename),
         process_escape_sequences_(process_escape_sequences),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
         operator_index_(operator_index),
         foreman_client_id_(foreman_client_id),
-        agent_client_id_(agent_client_id),
         bus_(DCHECK_NOTNULL(bus)) {}
 
   /**
@@ -374,7 +369,7 @@ class TextSplitWorkOrder : public WorkOrder {
   StorageManager *storage_manager_;
 
   const std::size_t operator_index_;  // Opeartor index.
-  const tmb::client_id foreman_client_id_, agent_client_id_;
+  const tmb::client_id foreman_client_id_;  // Foreman TMB client ID.
   MessageBus *bus_;
 
   MutableBlobReference text_blob_;  // Mutable reference to current blob.

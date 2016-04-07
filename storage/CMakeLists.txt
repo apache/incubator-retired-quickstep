@@ -583,6 +583,7 @@ target_link_libraries(quickstep_storage_InsertDestination
                       quickstep_storage_TupleIdSequence
                       quickstep_storage_ValueAccessorUtil
                       quickstep_threading_SpinMutex
+                      quickstep_threading_ThreadIDBasedMap
                       quickstep_types_TypedValue
                       quickstep_types_containers_Tuple
                       quickstep_utility_Macros

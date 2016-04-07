@@ -61,7 +61,6 @@ bool BuildHashOperator::getAllWorkOrders(
     QueryContext *query_context,
     StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
-    const tmb::client_id agent_client_id,
     tmb::MessageBus *bus) {
   DCHECK(query_context != nullptr);
 

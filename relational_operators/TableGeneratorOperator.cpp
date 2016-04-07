@@ -1,6 +1,6 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
- *     University of Wisconsin—Madison.
+ *   University of Wisconsin—Madison.
  *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
@@ -35,7 +35,6 @@ bool TableGeneratorOperator::getAllWorkOrders(
     QueryContext *query_context,
     StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
-    const tmb::client_id agent_client_id,
     tmb::MessageBus *bus) {
   if (!started_) {
     DCHECK(query_context != nullptr);

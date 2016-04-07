@@ -93,7 +93,6 @@ void TestDatabaseLoader::loadTestRelation() {
                                          &storage_manager_,
                                          0 /* dummy op index */,
                                          foreman_client_id_,
-                                         agent_client_id_,
                                          &bus_);
   int sign = 1;
   for (int x = 0; x < 25; ++x) {

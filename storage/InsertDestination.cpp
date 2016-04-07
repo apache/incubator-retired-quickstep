@@ -60,14 +60,12 @@ InsertDestination::InsertDestination(const CatalogRelationSchema &relation,
                                      StorageManager *storage_manager,
                                      const std::size_t relational_op_index,
                                      const tmb::client_id foreman_client_id,
-                                     const tmb::client_id agent_client_id,
                                      tmb::MessageBus *bus)
     : storage_manager_(storage_manager),
       relation_(relation),
       layout_(layout),
       relational_op_index_(relational_op_index),
       foreman_client_id_(foreman_client_id),
-      agent_client_id_(agent_client_id),
       bus_(DCHECK_NOTNULL(bus)) {
   if (layout_ == nullptr) {
     layout_.reset(StorageBlockLayout::GenerateDefaultLayout(relation, relation.isVariableLength()));
@@ -78,7 +76,6 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
                                                            const CatalogRelationSchema &relation,
                                                            StorageManager *storage_manager,
                                                            const tmb::client_id foreman_client_id,
-                                                           const tmb::client_id agent_client_id,
                                                            tmb::MessageBus *bus) {
   DCHECK(ProtoIsValid(proto, relation));
 
@@ -95,7 +92,6 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
                                                     storage_manager,
                                                     proto.relational_op_index(),
                                                     foreman_client_id,
-                                                    agent_client_id,
                                                     bus);
     }
     case serialization::InsertDestinationType::BLOCK_POOL: {
@@ -110,7 +106,6 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
                                             move(blocks),
                                             proto.relational_op_index(),
                                             foreman_client_id,
-                                            agent_client_id,
                                             bus);
     }
     case serialization::InsertDestinationType::PARTITION_AWARE: {
@@ -138,7 +133,6 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
           move(partitions),
           proto.relational_op_index(),
           foreman_client_id,
-          agent_client_id,
           bus);
     }
     default: {
@@ -278,7 +272,7 @@ MutableBlockReference AlwaysCreateBlockInsertDestination::createNewBlock() {
 
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(bus_,
-                                         agent_client_id_,
+                                         foreman_client_id_,
                                          foreman_client_id_,
                                          move(tagged_msg));
   CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
@@ -325,7 +319,7 @@ MutableBlockReference BlockPoolInsertDestination::createNewBlock() {
 
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(bus_,
-                                         agent_client_id_,
+                                         foreman_client_id_,
                                          foreman_client_id_,
                                          move(tagged_msg));
   CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
@@ -396,10 +390,8 @@ PartitionAwareInsertDestination::PartitionAwareInsertDestination(PartitionScheme
                                                                  vector<vector<block_id>> &&partitions,
                                                                  const std::size_t relational_op_index,
                                                                  const tmb::client_id foreman_client_id,
-                                                                 const tmb::client_id agent_client_id,
                                                                  tmb::MessageBus *bus)
-    : InsertDestination(relation, layout, storage_manager, relational_op_index,
-                        foreman_client_id, agent_client_id, bus),
+    : InsertDestination(relation, layout, storage_manager, relational_op_index, foreman_client_id, bus),
       partition_scheme_header_(DCHECK_NOTNULL(partition_scheme_header)),
       available_block_refs_(partition_scheme_header_->getNumPartitions()),
       available_block_ids_(move(partitions)),
@@ -433,7 +425,7 @@ MutableBlockReference PartitionAwareInsertDestination::createNewBlockInPartition
 
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(bus_,
-                                         agent_client_id_,
+                                         foreman_client_id_,
                                          foreman_client_id_,
                                          move(tagged_msg));
   CHECK(send_status == tmb::MessageBus::SendStatus::kOK)

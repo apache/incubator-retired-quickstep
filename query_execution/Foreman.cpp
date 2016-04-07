@@ -407,7 +407,6 @@ bool Foreman::fetchNormalWorkOrders(const dag_node_index index) {
                                                                    query_context_.get(),
                                                                    storage_manager_,
                                                                    foreman_client_id_,
-                                                                   agent_client_id_,
                                                                    bus_);
     if (done_generation) {
       query_exec_state_->setDoneGenerationWorkOrders(index);
@@ -524,7 +523,6 @@ void Foreman::getRebuildWorkOrders(const dag_node_index index, WorkOrdersContain
                             index,
                             op.getOutputRelationID(),
                             foreman_client_id_,
-                            agent_client_id_,
                             bus_),
         index);
   }

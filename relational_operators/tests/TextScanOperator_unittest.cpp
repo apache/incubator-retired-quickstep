@@ -63,10 +63,8 @@ class TextScanOperatorTest : public ::testing::Test {
     bus_.Initialize();
 
     foreman_client_id_ = bus_.Connect();
+    bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
     bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
-
-    agent_client_id_ = bus_.Connect();
-    bus_.RegisterClientAsSender(agent_client_id_, kCatalogRelationNewBlockMessage);
 
     db_.reset(new CatalogDatabase(nullptr, "database"));
 
@@ -100,7 +98,6 @@ class TextScanOperatorTest : public ::testing::Test {
                          query_context_.get(),
                          storage_manager_.get(),
                          foreman_client_id_,
-                         agent_client_id_,
                          &bus_);
 
     while (container.hasNormalWorkOrder(op_index)) {
@@ -151,7 +148,7 @@ class TextScanOperatorTest : public ::testing::Test {
   }
 
   MessageBusImpl bus_;
-  tmb::client_id foreman_client_id_, agent_client_id_;
+  tmb::client_id foreman_client_id_;
 
   std::unique_ptr<CatalogDatabase> db_;
   CatalogRelation *relation_;
@@ -185,7 +182,6 @@ TEST_F(TextScanOperatorTest, ScanTest) {
                                         *db_,
                                         storage_manager_.get(),
                                         foreman_client_id_,
-                                        agent_client_id_,
                                         &bus_));
 
   fetchAndExecuteWorkOrders(text_scan_op.get());

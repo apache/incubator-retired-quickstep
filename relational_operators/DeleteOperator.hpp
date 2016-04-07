@@ -79,7 +79,6 @@ class DeleteOperator : public RelationalOperator {
                         QueryContext *query_context,
                         StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
-                        const tmb::client_id agent_client_id,
                         tmb::MessageBus *bus) override;
 
   const relation_id getOutputRelationID() const override {
@@ -128,8 +127,6 @@ class DeleteWorkOrder : public WorkOrder {
    * @param delete_operator_index The index of the Delete Operator in the query
    *        plan DAG.
    * @param foreman_client_id The TMB client ID of the Foreman thread.
-   * @param agent_client_id The TMB client ID of the agent that sends messages
-   *        to Foreman.
    * @param bus A pointer to the TMB.
    **/
   DeleteWorkOrder(const CatalogRelationSchema &input_relation,
@@ -138,7 +135,6 @@ class DeleteWorkOrder : public WorkOrder {
                   StorageManager *storage_manager,
                   const std::size_t delete_operator_index,
                   const tmb::client_id foreman_client_id,
-                  const tmb::client_id agent_client_id,
                   MessageBus *bus)
       : input_relation_(input_relation),
         input_block_id_(input_block_id),
@@ -146,7 +142,6 @@ class DeleteWorkOrder : public WorkOrder {
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
         delete_operator_index_(delete_operator_index),
         foreman_client_id_(foreman_client_id),
-        agent_client_id_(agent_client_id),
         bus_(DCHECK_NOTNULL(bus)) {}
 
   ~DeleteWorkOrder() override {}
@@ -161,7 +156,7 @@ class DeleteWorkOrder : public WorkOrder {
   StorageManager *storage_manager_;
 
   const std::size_t delete_operator_index_;
-  const tmb::client_id foreman_client_id_, agent_client_id_;
+  const tmb::client_id foreman_client_id_;
   MessageBus *bus_;
 
   DISALLOW_COPY_AND_ASSIGN(DeleteWorkOrder);

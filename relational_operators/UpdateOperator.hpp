@@ -93,7 +93,6 @@ class UpdateOperator : public RelationalOperator {
                         QueryContext *query_context,
                         StorageManager *storage_manager,
                         const tmb::client_id foreman_client_id,
-                        const tmb::client_id agent_client_id,
                         tmb::MessageBus *bus) override;
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
@@ -137,9 +136,7 @@ class UpdateWorkOrder : public WorkOrder {
    * @param storage_manager The StorageManager to use.
    * @param update_operator_index The index of the Update Operator in the query
    *        plan DAG.
-   * @param foreman_client_id The TMB client ID of the Foreman thread.
-   * @param agent_client_id The TMB client ID of the agent that sends messages
-   *        to Foreman.
+   * @param foreman_input_queue The input queue in Foreman.
    * @param bus A pointer to the TMB.
    **/
   UpdateWorkOrder(const CatalogRelationSchema &relation,
@@ -150,7 +147,6 @@ class UpdateWorkOrder : public WorkOrder {
                   StorageManager *storage_manager,
                   const std::size_t update_operator_index,
                   const tmb::client_id foreman_client_id,
-                  const tmb::client_id agent_client_id,
                   MessageBus *bus)
       : relation_(relation),
         input_block_id_(input_block_id),
@@ -160,7 +156,6 @@ class UpdateWorkOrder : public WorkOrder {
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
         update_operator_index_(update_operator_index),
         foreman_client_id_(foreman_client_id),
-        agent_client_id_(agent_client_id),
         bus_(DCHECK_NOTNULL(bus)) {}
 
   ~UpdateWorkOrder() override {}
@@ -177,7 +172,7 @@ class UpdateWorkOrder : public WorkOrder {
   StorageManager *storage_manager_;
 
   const std::size_t update_operator_index_;
-  const tmb::client_id foreman_client_id_, agent_client_id_;
+  const tmb::client_id foreman_client_id_;
   MessageBus *bus_;
 
   DISALLOW_COPY_AND_ASSIGN(UpdateWorkOrder);

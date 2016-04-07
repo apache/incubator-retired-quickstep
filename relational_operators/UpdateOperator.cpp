@@ -31,6 +31,7 @@
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
+#include "threading/ThreadIDBasedMap.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -46,7 +47,6 @@ bool UpdateOperator::getAllWorkOrders(
     QueryContext *query_context,
     StorageManager *storage_manager,
     const tmb::client_id foreman_client_id,
-    const tmb::client_id agent_client_id,
     tmb::MessageBus *bus) {
   if (blocking_dependencies_met_ && !started_) {
     DCHECK(query_context != nullptr);
@@ -61,7 +61,6 @@ bool UpdateOperator::getAllWorkOrders(
                               storage_manager,
                               op_index_,
                               foreman_client_id,
-                              agent_client_id,
                               bus),
           op_index_);
     }
@@ -103,12 +102,13 @@ void UpdateWorkOrder::execute() {
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(
           bus_,
-          agent_client_id_,
+          ClientIDMap::Instance()->getValue(),
           foreman_client_id_,
           std::move(tagged_message));
-  CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
-      << "Message could not be sent from thread with TMB client ID " << agent_client_id_
-      << " to Foreman with TMB client ID " << foreman_client_id_;
+  CHECK(send_status == tmb::MessageBus::SendStatus::kOK) << "Message could not"
+      " be sent from thread with TMB client ID " <<
+      ClientIDMap::Instance()->getValue() << " to Foreman with TMB client ID "
+      << foreman_client_id_;
 }
 
 }  // namespace quickstep
