@@ -1,5 +1,5 @@
 /**
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -62,29 +62,29 @@ class WorkerDirectoryTest : public ::testing::Test {
     numa_nodes.reserve(kNumWorkers);
     client_ids.reserve(kNumWorkers);
 
-    for (std::size_t worker_id = 0; worker_id < kNumWorkers; ++worker_id) {
-      // NUMA node id = worker_id % 4
-      // Client ID = worker_id * 2 + 1
-      const client_id cid = worker_id * 2 + 1;
-      const int numa_node_id = worker_id % 4;
+    for (std::size_t worker_thread_index = 0; worker_thread_index < kNumWorkers; ++worker_thread_index) {
+      // NUMA node id = worker_thread_index % 4
+      // Client ID = worker_thread_index * 2 + 1
+      const client_id cid = worker_thread_index * 2 + 1;
+      const int numa_node_id = worker_thread_index % 4;
 
       numa_nodes.push_back(numa_node_id);
       client_ids.push_back(cid);
 
-      worker_ids_.push_back(worker_id);
-      actual_workers_[worker_id] = std::make_pair(numa_node_id, cid);
+      worker_thread_indexs_.push_back(worker_thread_index);
+      actual_workers_[worker_thread_index] = std::make_pair(numa_node_id, cid);
     }
     wd_.reset(new WorkerDirectory(kNumWorkers, client_ids, numa_nodes));
 
     // Randomize the order of worker IDs.
-    std::random_shuffle(worker_ids_.begin(), worker_ids_.end());
+    std::random_shuffle(worker_thread_indexs_.begin(), worker_thread_indexs_.end());
   }
 
   // First element is NUMA Node. Second element is client ID.
   // Input is the logical worker ID.
   std::pair<int, client_id> getNUMANodeAndClientIDForWorker(
-      const std::size_t worker_id) {
-    return actual_workers_[worker_id];
+      const std::size_t worker_thread_index) {
+    return actual_workers_[worker_thread_index];
   }
 
   WorkerDirectory* getWorkerDirectory() {
@@ -96,8 +96,8 @@ class WorkerDirectoryTest : public ::testing::Test {
   }
 
   std::vector<size_t>& getRandomizedWorkerIDs() {
-    std::random_shuffle(worker_ids_.begin(), worker_ids_.end());
-    return worker_ids_;
+    std::random_shuffle(worker_thread_indexs_.begin(), worker_thread_indexs_.end());
+    return worker_thread_indexs_;
   }
 
  private:
@@ -107,7 +107,7 @@ class WorkerDirectoryTest : public ::testing::Test {
   // Value = pair <NUMA node ID, client ID> for the worker.
   std::unordered_map<std::size_t, std::pair<int, client_id>> actual_workers_;
 
-  std::vector<std::size_t> worker_ids_;
+  std::vector<std::size_t> worker_thread_indexs_;
 
   const std::size_t kNumWorkers = 100;
 };
@@ -119,12 +119,12 @@ TEST_F(WorkerDirectoryTest, NUMANodeAndClientIDTest) {
 
   EXPECT_EQ(getActualNumWorkers(), wd->getNumWorkers());
 
-  for (std::size_t worker_id : getRandomizedWorkerIDs()) {
+  for (std::size_t worker_thread_index : getRandomizedWorkerIDs()) {
     const std::pair<int, client_id> observed_ids =
-        getNUMANodeAndClientIDForWorker(worker_id);
-    EXPECT_EQ(observed_ids.first, wd->getNUMANode(worker_id));
-    EXPECT_EQ(observed_ids.second, wd->getClientID(worker_id));
-    EXPECT_EQ(0u, wd->getNumQueuedWorkOrders(worker_id));
+        getNUMANodeAndClientIDForWorker(worker_thread_index);
+    EXPECT_EQ(observed_ids.first, wd->getNUMANode(worker_thread_index));
+    EXPECT_EQ(observed_ids.second, wd->getClientID(worker_thread_index));
+    EXPECT_EQ(0u, wd->getNumQueuedWorkOrders(worker_thread_index));
   }
 }
 
@@ -159,38 +159,38 @@ TEST_F(WorkerDirectoryTest, IncrementAndDecrementWorkOrdersTest) {
 
   // Perform the increment or decrement operation as determined by the sequence
   // and check the correctness.
-  std::stack<std::size_t> worker_ids_used;
+  std::stack<std::size_t> worker_thread_indexs_used;
   for (bool to_increment : increment_decrement_sequence) {
     if (to_increment) {
       // Pick a random worker ID and increment its number of workorders.
-      const std::size_t chosen_worker_id = dist(mt);
-      worker_ids_used.push(chosen_worker_id);
-      EXPECT_EQ(actual_num_workorders[chosen_worker_id],
-                wd->getNumQueuedWorkOrders(chosen_worker_id));
-      wd->incrementNumQueuedWorkOrders(chosen_worker_id);
-      ++actual_num_workorders[chosen_worker_id];
-      EXPECT_EQ(actual_num_workorders[chosen_worker_id],
-                wd->getNumQueuedWorkOrders(chosen_worker_id));
+      const std::size_t chosen_worker_thread_index = dist(mt);
+      worker_thread_indexs_used.push(chosen_worker_thread_index);
+      EXPECT_EQ(actual_num_workorders[chosen_worker_thread_index],
+                wd->getNumQueuedWorkOrders(chosen_worker_thread_index));
+      wd->incrementNumQueuedWorkOrders(chosen_worker_thread_index);
+      ++actual_num_workorders[chosen_worker_thread_index];
+      EXPECT_EQ(actual_num_workorders[chosen_worker_thread_index],
+                wd->getNumQueuedWorkOrders(chosen_worker_thread_index));
     } else {
       // For the worker with ID = top of stack, decrement a workorder.
-      const std::size_t chosen_worker_id = worker_ids_used.top();
-      worker_ids_used.pop();
-      EXPECT_EQ(actual_num_workorders[chosen_worker_id],
-                wd->getNumQueuedWorkOrders(chosen_worker_id));
-      wd->decrementNumQueuedWorkOrders(chosen_worker_id);
-      --actual_num_workorders[chosen_worker_id];
-      EXPECT_EQ(actual_num_workorders[chosen_worker_id],
-                wd->getNumQueuedWorkOrders(chosen_worker_id));
+      const std::size_t chosen_worker_thread_index = worker_thread_indexs_used.top();
+      worker_thread_indexs_used.pop();
+      EXPECT_EQ(actual_num_workorders[chosen_worker_thread_index],
+                wd->getNumQueuedWorkOrders(chosen_worker_thread_index));
+      wd->decrementNumQueuedWorkOrders(chosen_worker_thread_index);
+      --actual_num_workorders[chosen_worker_thread_index];
+      EXPECT_EQ(actual_num_workorders[chosen_worker_thread_index],
+                wd->getNumQueuedWorkOrders(chosen_worker_thread_index));
     }
   }
 
   // Stack should be empty.
-  EXPECT_TRUE(worker_ids_used.empty());
+  EXPECT_TRUE(worker_thread_indexs_used.empty());
   // Expect no queued up workorders for any worker.
-  for (const std::size_t random_worker_id : getRandomizedWorkerIDs()) {
-    EXPECT_EQ(0u, wd->getNumQueuedWorkOrders(random_worker_id));
-    EXPECT_EQ(actual_num_workorders[random_worker_id],
-              wd->getNumQueuedWorkOrders(random_worker_id));
+  for (const std::size_t random_worker_thread_index : getRandomizedWorkerIDs()) {
+    EXPECT_EQ(0u, wd->getNumQueuedWorkOrders(random_worker_thread_index));
+    EXPECT_EQ(actual_num_workorders[random_worker_thread_index],
+              wd->getNumQueuedWorkOrders(random_worker_thread_index));
   }
 }
 
@@ -204,21 +204,21 @@ TEST_F(WorkerDirectoryTest, AddWorkerTest) {
   wd->addWorker(new_worker_client_id, new_worker_numa_node);
 
   // The logical ID of the new worker.
-  const std::size_t new_worker_id = getActualNumWorkers();
+  const std::size_t new_worker_thread_index = getActualNumWorkers();
 
   EXPECT_EQ(getActualNumWorkers() + 1, wd->getNumWorkers());
   // Check if the client ID is set correctly.
-  EXPECT_EQ(new_worker_client_id, wd->getClientID(new_worker_id));
+  EXPECT_EQ(new_worker_client_id, wd->getClientID(new_worker_thread_index));
   // Check if the NUMA node ID is set correctly.
-  EXPECT_EQ(new_worker_numa_node, wd->getNUMANode(new_worker_id));
+  EXPECT_EQ(new_worker_numa_node, wd->getNUMANode(new_worker_thread_index));
   // Check if the new worker has no queued up workorders.
-  EXPECT_EQ(0u, wd->getNumQueuedWorkOrders(new_worker_id));
+  EXPECT_EQ(0u, wd->getNumQueuedWorkOrders(new_worker_thread_index));
   // Increment a workorder for the new worker, check if the increment is
   // successful, then perform a decrement and check the correctness.
-  wd->incrementNumQueuedWorkOrders(new_worker_id);
-  EXPECT_EQ(1u, wd->getNumQueuedWorkOrders(new_worker_id));
-  wd->decrementNumQueuedWorkOrders(new_worker_id);
-  EXPECT_EQ(0u, wd->getNumQueuedWorkOrders(new_worker_id));
+  wd->incrementNumQueuedWorkOrders(new_worker_thread_index);
+  EXPECT_EQ(1u, wd->getNumQueuedWorkOrders(new_worker_thread_index));
+  wd->decrementNumQueuedWorkOrders(new_worker_thread_index);
+  EXPECT_EQ(0u, wd->getNumQueuedWorkOrders(new_worker_thread_index));
 }
 
 TEST_F(WorkerDirectoryTest, WorkerLoadTest) {
@@ -231,8 +231,8 @@ TEST_F(WorkerDirectoryTest, WorkerLoadTest) {
   actual_num_workorders.resize(getActualNumWorkers(), 0);
 
   // Loop over workers sequentially and increment workorder of all the workers.
-  for (std::size_t worker_id = 0; worker_id < getActualNumWorkers();
-       ++worker_id) {
+  for (std::size_t worker_thread_index = 0; worker_thread_index < getActualNumWorkers();
+       ++worker_thread_index) {
     const std::pair<std::size_t, std::size_t> &actual_min_loaded_worker =
         getMinElement(actual_num_workorders);
     const std::pair<std::size_t, std::size_t> &actual_max_loaded_worker =
@@ -241,15 +241,15 @@ TEST_F(WorkerDirectoryTest, WorkerLoadTest) {
     EXPECT_EQ(actual_min_loaded_worker, wd->getLeastLoadedWorker());
     EXPECT_EQ(actual_max_loaded_worker, wd->getMostLoadedWorker());
 
-    wd->incrementNumQueuedWorkOrders(worker_id);
-    ++actual_num_workorders[worker_id];
-    EXPECT_EQ(actual_num_workorders[worker_id],
-              wd->getNumQueuedWorkOrders(worker_id));
+    wd->incrementNumQueuedWorkOrders(worker_thread_index);
+    ++actual_num_workorders[worker_thread_index];
+    EXPECT_EQ(actual_num_workorders[worker_thread_index],
+              wd->getNumQueuedWorkOrders(worker_thread_index));
   }
 
   // At this time, every worker has exactly one workorder assigned to it.
   // Now increment workorders in a random order.
-  for (const std::size_t random_worker_id : getRandomizedWorkerIDs()) {
+  for (const std::size_t random_worker_thread_index : getRandomizedWorkerIDs()) {
     const std::pair<std::size_t, std::size_t> actual_min_loaded_worker =
         getMinElement(actual_num_workorders);
     const std::pair<std::size_t, std::size_t> actual_max_loaded_worker =
@@ -258,16 +258,16 @@ TEST_F(WorkerDirectoryTest, WorkerLoadTest) {
     EXPECT_EQ(actual_min_loaded_worker, wd->getLeastLoadedWorker());
     EXPECT_EQ(actual_max_loaded_worker, wd->getMostLoadedWorker());
 
-    wd->incrementNumQueuedWorkOrders(random_worker_id);
-    ++actual_num_workorders[random_worker_id];
-    EXPECT_EQ(actual_num_workorders[random_worker_id],
-              wd->getNumQueuedWorkOrders(random_worker_id));
+    wd->incrementNumQueuedWorkOrders(random_worker_thread_index);
+    ++actual_num_workorders[random_worker_thread_index];
+    EXPECT_EQ(actual_num_workorders[random_worker_thread_index],
+              wd->getNumQueuedWorkOrders(random_worker_thread_index));
   }
 
   // At this time, every worker has two workorders assigned to it.
   // Now decrement workorders in a random order twice.
   for (std::size_t iteration = 0; iteration < 2; ++iteration) {
-    for (const std::size_t random_worker_id : getRandomizedWorkerIDs()) {
+    for (const std::size_t random_worker_thread_index : getRandomizedWorkerIDs()) {
       const std::pair<std::size_t, std::size_t> actual_min_loaded_worker =
           getMinElement(actual_num_workorders);
       const std::pair<std::size_t, std::size_t> actual_max_loaded_worker =
@@ -276,10 +276,10 @@ TEST_F(WorkerDirectoryTest, WorkerLoadTest) {
       EXPECT_EQ(actual_min_loaded_worker, wd->getLeastLoadedWorker());
       EXPECT_EQ(actual_max_loaded_worker, wd->getMostLoadedWorker());
 
-      wd->decrementNumQueuedWorkOrders(random_worker_id);
-      --actual_num_workorders[random_worker_id];
-      EXPECT_EQ(actual_num_workorders[random_worker_id],
-                wd->getNumQueuedWorkOrders(random_worker_id));
+      wd->decrementNumQueuedWorkOrders(random_worker_thread_index);
+      --actual_num_workorders[random_worker_thread_index];
+      EXPECT_EQ(actual_num_workorders[random_worker_thread_index],
+                wd->getNumQueuedWorkOrders(random_worker_thread_index));
     }
   }
   const std::pair<std::size_t, std::size_t> actual_min_loaded_worker =

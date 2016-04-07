@@ -288,18 +288,18 @@ int main(int argc, char* argv[]) {
   // Initialize the worker threads.
   DCHECK_EQ(static_cast<std::size_t>(real_num_workers),
             worker_cpu_affinities.size());
-  for (std::size_t worker_idx = 0;
-       worker_idx < worker_cpu_affinities.size();
-       ++worker_idx) {
+  for (std::size_t worker_thread_index = 0;
+       worker_thread_index < worker_cpu_affinities.size();
+       ++worker_thread_index) {
     int numa_node_id = -1;
-    if (worker_cpu_affinities[worker_idx] >= 0) {
+    if (worker_cpu_affinities[worker_thread_index] >= 0) {
       // This worker can be NUMA affinitized.
-      numa_node_id = cpu_numa_nodes[worker_cpu_affinities[worker_idx]];
+      numa_node_id = cpu_numa_nodes[worker_cpu_affinities[worker_thread_index]];
     }
     worker_numa_nodes.push_back(numa_node_id);
 
     workers.push_back(
-        new Worker(worker_idx, &bus, worker_cpu_affinities[worker_idx]));
+        new Worker(worker_thread_index, &bus, worker_cpu_affinities[worker_thread_index]));
     worker_client_ids.push_back(workers.back().getBusClientID());
   }
 

@@ -76,12 +76,12 @@ void Foreman::initialize() {
 }
 
 void Foreman::processWorkOrderCompleteMessage(const dag_node_index op_index,
-                                              const size_t worker_id) {
+                                              const size_t worker_thread_index) {
   query_exec_state_->decrementNumQueuedWorkOrders(op_index);
 
   // As the given worker finished executing a WorkOrder, decrement its number
   // of queued WorkOrders.
-  workers_->decrementNumQueuedWorkOrders(worker_id);
+  workers_->decrementNumQueuedWorkOrders(worker_thread_index);
 
   // Check if new work orders are available and fetch them if so.
   fetchNormalWorkOrders(op_index);
@@ -122,13 +122,13 @@ void Foreman::processWorkOrderCompleteMessage(const dag_node_index op_index,
   // for the schedulable WorkOrders beginning from 'op_index'. The first
   // candidate worker to receive the next WorkOrder is the one that sent the
   // response message to Foreman.
-  dispatchWorkerMessages(worker_id, op_index);
+  dispatchWorkerMessages(worker_thread_index, op_index);
 }
 
 void Foreman::processRebuildWorkOrderCompleteMessage(const dag_node_index op_index,
-                                                     const size_t worker_id) {
+                                                     const size_t worker_thread_index) {
   query_exec_state_->decrementNumRebuildWorkOrders(op_index);
-  workers_->decrementNumQueuedWorkOrders(worker_id);
+  workers_->decrementNumQueuedWorkOrders(worker_thread_index);
 
   if (checkRebuildOver(op_index)) {
     markOperatorFinished(op_index);
@@ -146,7 +146,7 @@ void Foreman::processRebuildWorkOrderCompleteMessage(const dag_node_index op_ind
   // for the schedulable WorkOrders beginning from 'op_index'. The first
   // candidate worker to receive the next WorkOrder is the one that sent the
   // response message to Foreman.
-  dispatchWorkerMessages(worker_id, op_index);
+  dispatchWorkerMessages(worker_thread_index, op_index);
 }
 
 void Foreman::processDataPipelineMessage(const dag_node_index op_index,
@@ -191,14 +191,14 @@ void Foreman::run() {
         serialization::WorkOrderCompletionMessage proto;
         CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
 
-        processWorkOrderCompleteMessage(proto.operator_index(), proto.worker_id());
+        processWorkOrderCompleteMessage(proto.operator_index(), proto.worker_thread_index());
         break;
       }
       case kRebuildWorkOrderCompleteMessage: {
         serialization::WorkOrderCompletionMessage proto;
         CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
 
-        processRebuildWorkOrderCompleteMessage(proto.operator_index(), proto.worker_id());
+        processRebuildWorkOrderCompleteMessage(proto.operator_index(), proto.worker_thread_index());
         break;
       }
       case kCatalogRelationNewBlockMessage: {
@@ -368,7 +368,7 @@ WorkerMessage* Foreman::getNextWorkerMessage(
   return nullptr;
 }
 
-void Foreman::sendWorkerMessage(const std::size_t worker_id,
+void Foreman::sendWorkerMessage(const std::size_t worker_thread_index,
                                 const WorkerMessage &message) {
   message_type_id type;
   if (message.getType() == WorkerMessage::kRebuildWorkOrder) {
@@ -383,12 +383,12 @@ void Foreman::sendWorkerMessage(const std::size_t worker_id,
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(bus_,
                                          foreman_client_id_,
-                                         workers_->getClientID(worker_id),
+                                         workers_->getClientID(worker_thread_index),
                                          move(worker_tagged_message));
   CHECK(send_status == tmb::MessageBus::SendStatus::kOK) <<
       "Message could not be sent from Foreman with TMB client ID "
       << foreman_client_id_ << " to Foreman with TMB client ID "
-      << workers_->getClientID(worker_id);
+      << workers_->getClientID(worker_thread_index);
 }
 
 bool Foreman::fetchNormalWorkOrders(const dag_node_index index) {

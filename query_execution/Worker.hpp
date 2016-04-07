@@ -41,17 +41,18 @@ class Worker : public Thread {
   /**
    * @brief Constructor
    *
-   * @param worker_id The unique ID of this worker thread.
+   * @param worker_thread_index The unique index of this worker thread in
+   *        WorkerDirectory.
    * @param bus A pointer to the TMB.
    * @param cpu_id The ID of the CPU to which this worker thread can be pinned.
    *
    * @note If cpu_id is not specified, worker thread can be possibly moved
    *       around on different CPUs by the OS.
    **/
-  Worker(std::size_t worker_id,
+  Worker(const std::size_t worker_thread_index,
          MessageBus *bus,
          int cpu_id = -1)
-      : worker_id_(worker_id),
+      : worker_thread_index_(worker_thread_index),
         bus_(bus),
         cpu_id_(cpu_id) {
     DEBUG_ASSERT(bus_ != nullptr);
@@ -102,7 +103,7 @@ class Worker : public Thread {
                                     const std::size_t op_index,
                                     const bool is_rebuild_work_order);
 
-  const std::size_t worker_id_;
+  const std::size_t worker_thread_index_;
   MessageBus *bus_;
 
   const int cpu_id_;
