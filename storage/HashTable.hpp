@@ -751,7 +751,8 @@ class HashTable : public HashTableBase<resizable,
   /**
    * @brief Lookup (multiple) keys from a ValueAccessor, apply a functor to
    *        the matching values and additionally call a hasMatch() function of
-   *        the functor when the first match for a key is found.  Composite key version.
+   *        the functor when the first match for a key is found. Composite key
+   *        version.
    * @warning This method assumes that no concurrent calls to put(),
    *          putCompositeKey(), putValueAccessor(),
    *          putValueAccessorCompositeKey(), upsert(), upsertCompositeKey(),
@@ -761,7 +762,7 @@ class HashTable : public HashTableBase<resizable,
    *          dereferenced). Concurrent calls to getSingle(),
    *          getSingleCompositeKey(), getAll(), getAllCompositeKey(),
    *          getAllFromValueAccessor(), getAllFromValueAccessorCompositeKey(),
-   *          forEach(), and forEachCompositeKey() are safe..
+   *          forEach(), and forEachCompositeKey() are safe.
    *
    * @param accessor A ValueAccessor which will be used to access keys.
    *        beginIteration() should be called on accessor before calling this
@@ -1909,11 +1910,11 @@ void HashTable<ValueT,
       std::size_t entry_num = 0;
       const ValueT *value;
       if (getNextEntryForKey(key, hash_code, &value, &entry_num)) {
-        functor->hasMatch(*accessor);
+        functor->recordMatch(*accessor);
         (*functor)(*accessor, *value);
         if (!allow_duplicate_keys) {
            continue;
-         }
+        }
         while (getNextEntryForKey(key, hash_code, &value, &entry_num)) {
           (*functor)(*accessor, *value);
         }
@@ -1960,7 +1961,7 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
       std::size_t entry_num = 0;
       const ValueT *value;
       if (getNextEntryForCompositeKey(key_vector, hash_code, &value, &entry_num)) {
-        functor->hasMatch(*accessor);
+        functor->recordMatch(*accessor);
         (*functor)(*accessor, *value);
         if (!allow_duplicate_keys) {
           continue;

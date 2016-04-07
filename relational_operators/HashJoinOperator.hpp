@@ -58,14 +58,14 @@ class WorkOrdersContainer;
 class HashJoinOperator : public RelationalOperator {
  public:
   enum class JoinType {
-    kInnerJoin,
+    kInnerJoin = 0,
     kLeftOuterJoin,
     kLeftSemiJoin,
     kLeftAntiJoin
   };
 
   /**
-   * @brief Constructor for a non anti-join.
+   * @brief Constructor.
    *
    * @note This operator can be constructed with an optional parameter
    *       residual_predicate_index that applies an additional filter besides
@@ -101,37 +101,48 @@ class HashJoinOperator : public RelationalOperator {
    *        additional filter to pairs of tuples that match the hash-join (i.e.
    *        key equality) predicate. Effectively, this makes the join predicate
    *        the conjunction of the key-equality predicate and residual predicate.
-   * @param selection_index The group index of Scalars in QueryContext,
-   *        corresponding to the attributes of the relation referred by
+   *        Note that this field is not relevant for anti-join.
+   * @param selection_on_probe_index The group index of Scalars in QueryContext,
+   *        corresponding to the attributes of the probe relation referred by
    *        output_relation_id. Each Scalar is evaluated for the joined tuples,
    *        and the resulting value is inserted into the join result.
+   * @param selection_on_build_index The group index of Scalars in QueryContext,
+   *        corresponding to the attributes of the build relation referred by
+   *        output_relation_id. Each Scalar is evaluated for the joined tuples,
+   *        and the resulting value is inserted into the join result.
+   * @param join_type The type of join corresponding to this operator.
    **/
-  HashJoinOperator(const CatalogRelation &build_relation,
-                   const CatalogRelation &probe_relation,
-                   const bool probe_relation_is_stored,
-                   const std::vector<attribute_id> &join_key_attributes,
-                   const bool any_join_key_attributes_nullable,
-                   const CatalogRelation &output_relation,
-                   const QueryContext::insert_destination_id output_destination_index,
-                   const QueryContext::join_hash_table_id hash_table_index,
-                   const QueryContext::predicate_id residual_predicate_index,
-                   const QueryContext::scalar_group_id selection_index,
-                   const JoinType join_type = JoinType::kInnerJoin)
-    : build_relation_(build_relation),
-      probe_relation_(probe_relation),
-      probe_relation_is_stored_(probe_relation_is_stored),
-      join_key_attributes_(join_key_attributes),
-      any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-      output_relation_(output_relation),
-      output_destination_index_(output_destination_index),
-      hash_table_index_(hash_table_index),
-      residual_predicate_index_(residual_predicate_index),
-      selection_index_(selection_index),
-      // join_type_(join_type),
-      probe_relation_block_ids_(probe_relation_is_stored ? probe_relation.getBlocksSnapshot()
-                                                         : std::vector<block_id>()),
-      num_workorders_generated_(0),
-      started_(false) {}
+  HashJoinOperator(
+      const CatalogRelation &build_relation,
+      const CatalogRelation &probe_relation,
+      const bool probe_relation_is_stored,
+      const std::vector<attribute_id> &join_key_attributes,
+      const bool any_join_key_attributes_nullable,
+      const CatalogRelation &output_relation,
+      const QueryContext::insert_destination_id output_destination_index,
+      const QueryContext::join_hash_table_id hash_table_index,
+      const QueryContext::predicate_id residual_predicate_index,
+      const QueryContext::scalar_group_id selection_on_probe_index,
+      const QueryContext::scalar_group_id selection_on_build_index =
+          QueryContext::kInvalidScalarGroupId,
+      const JoinType join_type = JoinType::kInnerJoin)
+      : build_relation_(build_relation),
+        probe_relation_(probe_relation),
+        probe_relation_is_stored_(probe_relation_is_stored),
+        join_key_attributes_(join_key_attributes),
+        any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
+        output_relation_(output_relation),
+        output_destination_index_(output_destination_index),
+        hash_table_index_(hash_table_index),
+        residual_predicate_index_(residual_predicate_index),
+        selection_on_probe_index_(selection_on_probe_index),
+        selection_on_build_index_(selection_on_build_index),
+        join_type_(join_type),
+        probe_relation_block_ids_(probe_relation_is_stored
+                                      ? probe_relation.getBlocksSnapshot()
+                                      : std::vector<block_id>()),
+        num_workorders_generated_(0),
+        started_(false) {}
 
   ~HashJoinOperator() override {}
 
@@ -173,14 +184,14 @@ class HashJoinOperator : public RelationalOperator {
   }
 
  private:
-  template<class JoinWorkOrderClass>
-  bool getAllNonOuterJoinWorkOrders(WorkOrdersContainer *container) {
-    return false;
-  }
+  template <class JoinWorkOrderClass>
+  bool getAllNonOuterJoinWorkOrders(WorkOrdersContainer *container,
+                                    QueryContext *query_context,
+                                    StorageManager *storage_manager);
 
-  bool getAllOuterJoinWorkOrders(WorkOrdersContainer *container) {
-    return false;
-  }
+  bool getAllOuterJoinWorkOrders(WorkOrdersContainer *container,
+                                 QueryContext *query_context,
+                                 StorageManager *storage_manager);
 
   const CatalogRelation &build_relation_;
   const CatalogRelation &probe_relation_;
@@ -191,8 +202,9 @@ class HashJoinOperator : public RelationalOperator {
   const QueryContext::insert_destination_id output_destination_index_;
   const QueryContext::join_hash_table_id hash_table_index_;
   const QueryContext::predicate_id residual_predicate_index_;
-  const QueryContext::scalar_group_id selection_index_;
-  // const JoinType join_type_;
+  const QueryContext::scalar_group_id selection_on_probe_index_;
+  const QueryContext::scalar_group_id selection_on_build_index_;
+  const JoinType join_type_;
 
   std::vector<block_id> probe_relation_block_ids_;
   std::size_t num_workorders_generated_;
@@ -204,10 +216,8 @@ class HashJoinOperator : public RelationalOperator {
 
 /**
  * @brief An inner join WorkOrder produced by HashJoinOperator.
- *
- * TODO(harshad) Rename this class to HashInnerJoinWorkOrder.
  **/
-class HashJoinWorkOrder : public WorkOrder {
+class HashInnerJoinWorkOrder : public WorkOrder {
  public:
   /**
    * @brief Constructor.
@@ -220,26 +230,26 @@ class HashJoinWorkOrder : public WorkOrder {
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
    * @param lookup_block_id The block id of the probe_relation.
+   * @param selection A list of Scalars corresponding to the relation attributes
+   *        in \c output_destination. Each Scalar is evaluated for the joined
+   *        tuples, and the resulting value is inserted into the join result.
+   * @param hash_table The JoinHashTable to use.
    * @param residual_predicate If non-null, apply as an additional filter to
    *        pairs of tuples that match the hash-join (i.e. key equality)
    *        predicate. Effectively, this makes the join predicate the
    *        conjunction of the key-equality predicate and residual_predicate.
-   * @param selection A list of Scalars corresponding to the relation attributes
-   *        in \c output_destination. Each Scalar is evaluated for the joined
-   *        tuples, and the resulting value is inserted into the join result.
    * @param output_destination The InsertDestination to insert the join results.
-   * @param hash_table The JoinHashTable to use.
    * @param storage_manager The StorageManager to use.
    **/
-  HashJoinWorkOrder(const CatalogRelationSchema &build_relation,
+  HashInnerJoinWorkOrder(const CatalogRelationSchema &build_relation,
                     const CatalogRelationSchema &probe_relation,
                     const std::vector<attribute_id> &join_key_attributes,
                     const bool any_join_key_attributes_nullable,
                     const block_id lookup_block_id,
-                    const Predicate *residual_predicate,
                     const std::vector<std::unique_ptr<const Scalar>> &selection,
+                    const JoinHashTable &hash_table,
+                    const Predicate *residual_predicate,
                     InsertDestination *output_destination,
-                    JoinHashTable *hash_table,
                     StorageManager *storage_manager)
       : build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -248,11 +258,11 @@ class HashJoinWorkOrder : public WorkOrder {
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
         selection_(selection),
+        hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
-        hash_table_(DCHECK_NOTNULL(hash_table)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
 
-  ~HashJoinWorkOrder() override {}
+  ~HashInnerJoinWorkOrder() override {}
 
   /**
    * @exception TupleTooLargeForBlock A tuple produced by this join was too
@@ -275,51 +285,49 @@ class HashJoinWorkOrder : public WorkOrder {
   const Predicate *residual_predicate_;
   const std::vector<std::unique_ptr<const Scalar>> &selection_;
 
+  const JoinHashTable &hash_table_;
   InsertDestination *output_destination_;
-  JoinHashTable *hash_table_;
   StorageManager *storage_manager_;
 
-  DISALLOW_COPY_AND_ASSIGN(HashJoinWorkOrder);
+  DISALLOW_COPY_AND_ASSIGN(HashInnerJoinWorkOrder);
 };
 
 /**
- * @brief A semi-join WorkOrder produced by the HashJoinOperator.
+ * @brief A left semi-join WorkOrder produced by the HashJoinOperator to execute
+ *        EXISTS() clause.
  **/
 class HashSemiJoinWorkOrder : public WorkOrder {
  public:
   /**
    * @brief Constructor.
-   * TODO(harshad) - Sync the doxygen.
    *
-   * @param build_relation_id The id of relation that the hash table was
-   *        originally built on (i.e. the inner relation in the join).
-   * @param probe_relation_id The id of relation to probe the hash table with
-   *        (i.e. the outer relation in the join).
-   * @param join_key_attributes The IDs of equijoin attributes in
+   * @param build_relation The relation that the hash table was originally built
+   *        on (i.e. the inner relation in the join).
+   * @param probe_relation The relation to probe the hash table with (i.e. the
+   *        outer relation in the join).
+   * @param join_key_attributes The IDs of equijoin attributes in \c
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param output_destination_index The index of the InsertDestination in the
-   *        QueryContext to insert the join results.
-   * @param hash_table_index The index of the JoinHashTable in QueryContext.
+   * @param lookup_block_id The block id of the probe_relation.
+   * @param selection A list of Scalars corresponding to the relation attributes
+   *        in \c output_destination. Each Scalar is evaluated for the joined
+   *        tuples, and the resulting value is inserted into the join result.
+   * @param hash_table The JoinHashTable to use.
    * @param residual_predicate If non-null, apply as an additional filter to
    *        pairs of tuples that match the hash-join (i.e. key equality)
    *        predicate. Effectively, this makes the join predicate the
    *        conjunction of the key-equality predicate and residual_predicate.
-   * @param selection_index The group index of Scalars in QueryContext,
-   *        corresponding to the relation attributes in InsertDestination
-   *        referred by output_destination_index in QueryContext. Each Scalar is
-   *        evaluated for the joined tuples, and the resulting value is inserted
-   *        into the join result.
-   * @param lookup_block_id The block id of the probe_relation.
+   * @param output_destination The InsertDestination to insert the join results.
+   * @param storage_manager The StorageManager to use.
    **/
   HashSemiJoinWorkOrder(const CatalogRelationSchema &build_relation,
                         const CatalogRelationSchema &probe_relation,
                         const std::vector<attribute_id> &join_key_attributes,
                         const bool any_join_key_attributes_nullable,
-                        const JoinHashTable &hash_table,
-                        const PtrList<Scalar> &selection,
-                        const Predicate *residual_predicate,
                         const block_id lookup_block_id,
+                        const std::vector<std::unique_ptr<const Scalar>> &selection,
+                        const JoinHashTable &hash_table,
+                        const Predicate *residual_predicate,
                         InsertDestination *output_destination,
                         StorageManager *storage_manager)
      :  build_relation_(build_relation),
@@ -347,7 +355,7 @@ class HashSemiJoinWorkOrder : public WorkOrder {
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
   const JoinHashTable &hash_table_;
-  const PtrList<Scalar> &selection_;
+  const std::vector<std::unique_ptr<const Scalar>> &selection_;
   const Predicate *residual_predicate_;
   const block_id block_id_;
 
@@ -358,7 +366,8 @@ class HashSemiJoinWorkOrder : public WorkOrder {
 };
 
 /**
- * @brief An anti-join WorkOrder produced by the HashJoinOperator.
+ * @brief A left anti-join WorkOrder produced by the HashJoinOperator to execute
+ *        NOT EXISTS() clause.
  **/
 class HashAntiJoinWorkOrder : public WorkOrder {
  public:
@@ -366,45 +375,43 @@ class HashAntiJoinWorkOrder : public WorkOrder {
    * @brief Constructor.
    * TODO(harshad) - Sync the doxygen.
    *
-   * @param build_relation_id The id of relation that the hash table was
-   *        originally built on (i.e. the inner relation in the join).
-   * @param probe_relation_id The id of relation to probe the hash table with
-   *        (i.e. the outer relation in the join).
-   * @param join_key_attributes The IDs of equijoin attributes in
+   * @param build_relation The relation that the hash table was originally built
+   *        on (i.e. the inner relation in the join).
+   * @param probe_relation The relation to probe the hash table with (i.e. the
+   *        outer relation in the join).
+   * @param join_key_attributes The IDs of equijoin attributes in \c
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param output_destination_index The index of the InsertDestination in the
-   *        QueryContext to insert the join results.
-   * @param hash_table_index The index of the JoinHashTable in QueryContext.
+   * @param lookup_block_id The block id of the probe_relation.
+   * @param selection A list of Scalars corresponding to the relation attributes
+   *        in \c output_destination. Each Scalar is evaluated for the joined
+   *        tuples, and the resulting value is inserted into the join result.
+   * @param hash_table The JoinHashTable to use.
    * @param residual_predicate If non-null, apply as an additional filter to
    *        pairs of tuples that match the hash-join (i.e. key equality)
    *        predicate. Effectively, this makes the join predicate the
    *        conjunction of the key-equality predicate and residual_predicate.
-   * @param selection_index The group index of Scalars in QueryContext,
-   *        corresponding to the relation attributes in InsertDestination
-   *        referred by output_destination_index in QueryContext. Each Scalar is
-   *        evaluated for the joined tuples, and the resulting value is inserted
-   *        into the join result.
-   * @param lookup_block_id The block id of the probe_relation.
+   * @param output_destination The InsertDestination to insert the join results.
+   * @param storage_manager The StorageManager to use.
    **/
   HashAntiJoinWorkOrder(const CatalogRelationSchema &build_relation,
                         const CatalogRelationSchema &probe_relation,
                         const std::vector<attribute_id> &join_key_attributes,
                         const bool any_join_key_attributes_nullable,
-                        const JoinHashTable &hash_table,
-                        const PtrList<Scalar> &selection,
-                        const Predicate *residual_predicate,
                         const block_id lookup_block_id,
+                        const std::vector<std::unique_ptr<const Scalar>> &selection,
+                        const JoinHashTable &hash_table,
+                        const Predicate *residual_predicate,
                         InsertDestination *output_destination,
                         StorageManager *storage_manager)
       : build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        hash_table_(hash_table),
         selection_(selection),
         residual_predicate_(residual_predicate),
         block_id_(lookup_block_id),
+        hash_table_(hash_table),
         output_destination_(output_destination),
         storage_manager_(storage_manager) {}
 
@@ -427,10 +434,10 @@ class HashAntiJoinWorkOrder : public WorkOrder {
   const CatalogRelationSchema &probe_relation_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const JoinHashTable &hash_table_;
-  const PtrList<Scalar> &selection_;
+  const std::vector<std::unique_ptr<const Scalar>> &selection_;
   const Predicate *residual_predicate_;
   const block_id block_id_;
+  const JoinHashTable &hash_table_;
 
   InsertDestination *output_destination_;
   StorageManager *storage_manager_;
@@ -439,47 +446,36 @@ class HashAntiJoinWorkOrder : public WorkOrder {
 };
 
 /**
- * @brief An outer join WorkOrder produced by the HashJoinOperator.
+ * @brief A left outer join WorkOrder produced by the HashJoinOperator.
  **/
  class HashOuterJoinWorkOrder : public WorkOrder {
  public:
   /**
    * @brief Constructor.
-   * TODO(harshad) - Sync the doxygen.
    *
-   * @param build_relation_id The id of relation that the hash table was
-   *        originally built on (i.e. the inner relation in the join).
-   * @param probe_relation_id The id of relation to probe the hash table with
-   *        (i.e. the outer relation in the join).
-   * @param join_key_attributes The IDs of equijoin attributes in
+   * @param build_relation The relation that the hash table was originally built
+   *        on (i.e. the inner relation in the join).
+   * @param probe_relation The relation to probe the hash table with (i.e. the
+   *        outer relation in the join).
+   * @param join_key_attributes The IDs of equijoin attributes in \c
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param output_destination_index The index of the InsertDestination in the
-   *        QueryContext to insert the join results.
-   * @param hash_table_index The index of the JoinHashTable in QueryContext.
-   * @param residual_predicate If non-null, apply as an additional filter to
-   *        pairs of tuples that match the hash-join (i.e. key equality)
-   *        predicate. Effectively, this makes the join predicate the
-   *        conjunction of the key-equality predicate and residual_predicate.
-   * @param selection_on_probe_index The group index of Scalars from probe
-   *        relation in QueryContext, corresponding to the relation attributes
-   *        in InsertDestination referred by output_destination_index in
-   *        QueryContext.
-   * @param selection_on_build_index The group index of Scalars from build
-   *        relation in QueryContext, corresponding to the relation attributes
-   *        in InsertDestination referred by output_destination_index in
-   *        QueryContext.
-   * @param selection_on_build_types The Types of the selected attributes from
-   *        the build relation.
+   * @param hash_table The JoinHashTable to use.
+   * @param selection_on_probe A list of Scalars from probe relation,
+   *        corresponding to the relation attributes in \c output_destination.
+   * @param selection_on_build A list of Scalars from build relation,
+   *        corresponding to the relation attributes in \c output_destination.
    * @param lookup_block_id The block id of the probe_relation.
+   * @param output_destination The InsertDestination to insert the join results.
+   * @param storage_manager The StorageManager to use.
    **/
   HashOuterJoinWorkOrder(const CatalogRelationSchema &build_relation,
                          const CatalogRelationSchema &probe_relation,
                          const std::vector<attribute_id> &join_key_attributes,
                          const bool any_join_key_attributes_nullable,
                          const JoinHashTable &hash_table,
-                         const PtrList<Scalar> &selection_on_probe,
-                         const PtrList<Scalar> &selection_on_build,
+                         const std::vector<std::unique_ptr<const Scalar>> &selection_on_probe,
+                         const std::vector<std::unique_ptr<const Scalar>> &selection_on_build,
                          const std::vector<const Type*> &selection_on_build_types,
                          const block_id lookup_block_id,
                          InsertDestination *output_destination,
@@ -506,8 +502,8 @@ class HashAntiJoinWorkOrder : public WorkOrder {
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
   const JoinHashTable &hash_table_;
-  const PtrList<Scalar> &selection_on_probe_;
-  const PtrList<Scalar> &selection_on_build_;
+  const std::vector<std::unique_ptr<const Scalar>> &selection_on_probe_;
+  const std::vector<std::unique_ptr<const Scalar>> &selection_on_build_;
   const std::vector<const Type*> &selection_on_build_types_;
 
   const block_id block_id_;
@@ -517,6 +513,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
 
   DISALLOW_COPY_AND_ASSIGN(HashOuterJoinWorkOrder);
 };
+
 /** @} */
 
 }  // namespace quickstep
