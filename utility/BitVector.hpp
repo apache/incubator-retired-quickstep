@@ -749,6 +749,62 @@ class BitVector {
     return num_bits_;
   }
 
+  // Hack to determine the ratio of runs (sequence of 1 or more tuples) to
+  // the total number of tuples. For example, a sequence of 100 selected tuples,
+  // all of the tuples being in a sequence will have a ratio of 1/100 = .01.
+  // A sequence like 10101010101010 will have a run ratio of 1.
+  const double runRatio() const {
+    double onesCount = 0;
+    double runsCount = 0;
+    bool inRun = false;
+
+    //printf("\n");
+
+    // Iterate through each bit.
+    for (std::size_t i = 0; i < size(); ++i) {
+      if (getBit(i)) {
+        ++onesCount;
+        inRun = true;
+      } else {
+        if (inRun) {
+          inRun = false;
+          runsCount++;
+        }
+      }
+    }
+
+    if (inRun) {
+      runsCount++;
+    }
+
+
+    // for (std::size_t position = 0; position < data_array_size_; ++position) {
+    //   std::size_t word = data_array_[position];
+
+    //   // Iterate through each bit in the word.
+    //   for (std::size_t bit = 0; bit < sizeof(std::size_t) * 8; ++bit) {
+    //     printf ("%lu", word & 0x1U);
+    //     if (word & 0x1U) {
+    //       ++onesCount;
+    //       inRun = true;
+    //     } else {
+    //       if (inRun) {
+    //         inRun = false;
+    //         runsCount++;
+    //       }
+    //     }
+    //     word >>= 1;
+    //   }
+    //   printf("\n");
+    // }
+
+    
+
+    // printf("\n");
+
+    return runsCount / onesCount;
+  }
+
   /**
    * @brief Find the last 0-bit (strictly before the specified position) in
    *        this BitVector.

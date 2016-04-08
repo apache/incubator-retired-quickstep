@@ -195,6 +195,8 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *acce
   const tuple_id original_num_tuples = header_->num_tuples;
   tuple_id pos = 0;
 
+  printf("(rr:%f)\n", accessor->getTupleIdSequenceVirtual()->getInternalBitVector().runRatio());
+
   InvokeOnAnyValueAccessor(
       accessor,
       [&](auto *accessor) -> void {  // NOLINT(build/c++11)
@@ -390,6 +392,8 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribut
   DEBUG_ASSERT(attribute_map.size() == relation_.size());
   const tuple_id original_num_tuples = header_->num_tuples;
   tuple_id pos = 0;
+
+  printf("(rr:%f)\n", accessor->getTupleIdSequenceVirtual()->getInternalBitVector().runRatio());
 
   InvokeOnAnyValueAccessor(
       accessor,

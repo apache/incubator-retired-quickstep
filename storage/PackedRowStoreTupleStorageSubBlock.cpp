@@ -143,6 +143,8 @@ tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *acc
                       + header_->num_tuples * relation_.getFixedByteLength();
   const unsigned num_nullable_attrs = relation_.numNullableAttributes();
 
+  printf("(rr:%f)\n", accessor->getTupleIdSequenceVirtual()->getInternalBitVector().runRatio());
+
   InvokeOnAnyValueAccessor(
       accessor,
       [&](auto *accessor) -> void {  // NOLINT(build/c++11)
@@ -213,6 +215,8 @@ tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribu
   char *dest_addr = static_cast<char*>(tuple_storage_)
                       + header_->num_tuples * relation_.getFixedByteLength();
   const unsigned num_nullable_attrs = relation_.numNullableAttributes();
+
+  printf("(rr:%f)\n", accessor->getTupleIdSequenceVirtual()->getInternalBitVector().runRatio());
 
   InvokeOnAnyValueAccessor(
       accessor,

@@ -576,6 +576,36 @@ TYPED_TEST(BitVectorTest, RegularUnionWithTest) {
   TestFixture::runUnionWithTest(200);
 }
 
+TYPED_TEST(BitVectorTest, RunRatioTest) {
+  std::unique_ptr<TypeParam> bit_vector(this->createBitVector(TestFixture::kBiggerBitSize));
+  bit_vector->clear();
+
+  // Make a pattern which should have a ratio of 1: "010 ... 101".
+  for (size_t i = 0; i < TestFixture::kBiggerBitSize; ++i) {
+    bit_vector->setBit(i, i%2);
+  }
+
+  EXPECT_NEAR(1.0, bit_vector->runRatio(), 0.0001);
+
+  printf("run ratio: %f\n", bit_vector->runRatio());
+
+  bit_vector->clear();
+  // Make a pattern which should have a ratio of 0.5: "110 ... 011".
+  for (size_t i = 0; i < TestFixture::kBiggerBitSize; ++i) {
+    bit_vector->setBit(i, i%3 != 0);
+  }
+
+  EXPECT_NEAR(0.5, bit_vector->runRatio(), 0.0001);
+  printf("run ratio: %f\n", bit_vector->runRatio());
+
+  // Make a word-edge case: [00000011] [110000000] where the RR == 1
+  bit_vector->clear();
+  bit_vector->setBitRange((sizeof(std::size_t) * 8) - 4, 8, true);
+
+  EXPECT_NEAR(0.125, bit_vector->runRatio(), 0.0001);
+  printf("run ratio: %f\n", bit_vector->runRatio());
+}
+
 TYPED_TEST(BitVectorTest, SetBitRangeTest) {
   std::unique_ptr<TypeParam> small_bit_vector(this->createBitVector(TestFixture::kSmallBitSize));
   small_bit_vector->clear();
