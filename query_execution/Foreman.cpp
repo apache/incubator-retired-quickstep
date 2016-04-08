@@ -28,6 +28,7 @@
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "catalog/PartitionScheme.hpp"
+#include "query_execution/StreamCoordinatorThread.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
@@ -42,6 +43,7 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "threading/ThreadUtil.hpp"
 #include "utility/Macros.hpp"
+#include "threading/Thread.hpp"
 
 #include "glog/logging.h"
 
@@ -61,8 +63,7 @@ void Foreman::initialize() {
     ThreadUtil::BindToCPU(cpu_id_);
   }
   initializeState();
-  initializeTimer();
-
+ 
   DEBUG_ASSERT(query_dag_ != nullptr);
   const dag_node_index dag_size = query_dag_->size();
 
@@ -76,47 +77,6 @@ void Foreman::initialize() {
 
   // Dispatch the WorkOrders generated so far.
   dispatchWorkerMessages(0, 0);
-}
-
-void Foreman::initializeTimer() {
-  // Query the operators to see if they need timed getAllWorkOrders() calls.
-  for (dag_node_index i = 0; i < query_dag_->size(); ++i) {
-    RelationalOperator *op = query_dag_->getNodePayloadMutable(i);
-    std::pair<std::chrono::milliseconds, bool> timer =
-        op->registerTimeWorkOrderRequest();
-    if (timer.second) {
-      // Add the operator to the timer heap.
-      op_timer_heap_.emplace_back(i, timer.first);
-    }
-  }
-  // Initialize the timer heap.
-  std::make_heap(op_timer_heap_.begin(), op_timer_heap_.end());
-}
-
-void Foreman::processTimerEvents() {
-  auto now = clock::now();
-  while (!op_timer_heap_.empty() && op_timer_heap_.front().fire_time() < now) {
-    // Move the top entry to the end.
-    std::pop_heap(op_timer_heap_.begin(), op_timer_heap_.end());
-
-    // Check if current op_index has completed.
-    dag_node_index op_index =  op_timer_heap_.back().op_index();
-    if (done_gen_[op_index]) {
-      // Operator is done. Remove the operator for the event heap.
-      op_timer_heap_.pop_back();
-    } else {
-      // Process the operator.
-      processOperator(op_index, true);
-      // Dispatch work order events.
-      dispatchWorkerMessages(0, op_index);
-
-      // Update fire point.
-      op_timer_heap_.back().updateFireTime();
-
-      // Re-insert the operator into the heap.
-      std::push_heap(op_timer_heap_.begin(), op_timer_heap_.end());
-    }
-  }
 }
 
 
@@ -229,15 +189,7 @@ void Foreman::run() {
   // Event loop
   while (!checkQueryExecutionFinished()) {
 
-	processTimerEvents();
-	AnnotatedMessage annotated_msg;
-	// makes a non blocking call to check for user input.
-	if (!bus_->ReceiveIfAvailable(
-	            foreman_client_id_, &annotated_msg, 0, true)) {
-	      // Yield CPU for a short while and retry.
-	      ThreadUtil::Yield();
-	      continue;
-	    }
+    AnnotatedMessage annotated_msg = bus_->Receive(foreman_client_id_, 0, true);
     const TaggedMessage &tagged_message = annotated_msg.tagged_message;
     switch (tagged_message.message_type()) {
       case kWorkOrderCompleteMessage: {
@@ -300,6 +252,17 @@ void Foreman::run() {
         processFeedbackMessage(msg);
         break;
       }
+      case kStreamCoordinatorMessage: {
+    	  serialization::WorkOrdersAvailableMessage proto;
+    	         CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+    	         const dag_node_index op_index = proto.operator_index();
+
+  	    	processOperator(op_index, true);
+  	      // Dispatch work order events.
+  	        dispatchWorkerMessages(0, op_index);
+              break;
+            }
       default:
         LOG(FATAL) << "Unknown message type to Foreman";
     }

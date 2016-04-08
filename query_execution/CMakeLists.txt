@@ -31,6 +31,7 @@ add_library(quickstep_queryexecution_QueryExecutionMessages_proto
             ${queryexecution_QueryExecutionMessages_proto_hdrs})
 add_library(quickstep_queryexecution_QueryExecutionTypedefs ../empty_src.cpp QueryExecutionTypedefs.hpp)
 add_library(quickstep_queryexecution_QueryExecutionUtil ../empty_src.cpp QueryExecutionUtil.hpp)
+add_library(quickstep_queryexecution_StreamCoordinatorThread StreamCoordinatorThread.cpp StreamCoordinatorThread.hpp)
 add_library(quickstep_queryexecution_WorkOrdersContainer WorkOrdersContainer.cpp WorkOrdersContainer.hpp)
 add_library(quickstep_queryexecution_Worker Worker.cpp Worker.hpp)
 add_library(quickstep_queryexecution_WorkerDirectory ../empty_src.cpp WorkerDirectory.hpp)
@@ -44,6 +45,7 @@ target_link_libraries(quickstep_queryexecution_Foreman
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_StreamCoordinatorThread
                       quickstep_catalog_PartitionScheme
                       quickstep_queryexecution_ForemanLite
                       quickstep_queryexecution_QueryContext
@@ -128,6 +130,7 @@ target_link_libraries(quickstep_queryexecution_WorkerDirectory
 target_link_libraries(quickstep_queryexecution_WorkerSelectionPolicy
                       quickstep_queryexecution_WorkerDirectory
                       quickstep_utility_Macros)
+                    
 
 # Module all-in-one library:
 add_library(quickstep_queryexecution ../empty_src.cpp QueryExecutionModule.hpp)
@@ -135,6 +138,7 @@ target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_Foreman
                       quickstep_queryexecution_ForemanLite
                       quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_StreamCoordinatorThread
                       quickstep_queryexecution_QueryContext_proto
                       quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
@@ -144,6 +148,18 @@ target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_WorkerDirectory
                       quickstep_queryexecution_WorkerMessage
                       quickstep_queryexecution_WorkerSelectionPolicy)
+target_link_libraries(quickstep_queryexecution_StreamCoordinatorThread
+                      glog
+                      quickstep_queryexecution_Foreman
+                      quickstep_threading_Thread
+                      quickstep_utility_Macros
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_QueryExecutionMessages_proto
+                      quickstep_queryexecution_QueryExecutionUtil
+                      quickstep_threading_ThreadIDBasedMap
+                      quickstep_types_Type
+                      quickstep_types_TypedValue
+                      tmb)                        
 # Tests:
 add_executable(Foreman_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/Foreman_unittest.cpp")

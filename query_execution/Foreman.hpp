@@ -103,6 +103,7 @@ class Foreman final : public ForemanLite {
                                    kWorkOrdersAvailableMessage);
     bus_->RegisterClientAsReceiver(foreman_client_id_,
                                    kWorkOrderFeedbackMessage);
+    bus_->RegisterClientAsReceiver(foreman_client_id_, kStreamCoordinatorMessage);
   }
 
   ~Foreman() override {}
@@ -157,51 +158,8 @@ class Foreman final : public ForemanLite {
   void run() override;
 
  private:
+  
   typedef DAG<RelationalOperator, bool>::size_type_nodes dag_node_index;
-
-
-    typedef std::chrono::steady_clock clock;
-
-    // Helper class to store the timer information of each operator.
-    // Instances of the this class are can be sorted by firing time of for each
-    // operator, which helps in implementing a timer dispatch mechanism.
-    class RelationalOperatorTimer {
-     public:
-      RelationalOperatorTimer(const dag_node_index op_index,
-                              const std::chrono::milliseconds &time_period)
-          : fire_time_(clock::now()),
-            time_period_(time_period),
-            op_index_(op_index) {}
-
-      RelationalOperatorTimer(const RelationalOperatorTimer &copy) = default;
-
-      RelationalOperatorTimer &operator=(const RelationalOperatorTimer &copy) =
-          default;
-
-      // Update the fire point to one time period in the future.
-      void updateFireTime() {
-        fire_time_ = clock::now() + time_period_;
-      }
-
-      bool operator<(const RelationalOperatorTimer &right) const {
-        // To create a min-heap, implement greater than comparison here.
-        return fire_time_ > right.fire_time_;
-      }
-
-      const std::chrono::time_point<clock> fire_time() const {
-        return fire_time_;
-      }
-
-      const dag_node_index op_index() const { return op_index_; }
-
-     private:
-      std::chrono::time_point<clock> fire_time_;
-      std::chrono::milliseconds time_period_;
-      dag_node_index op_index_;
-    };
-
-
-
   /**
    * @brief Check if the current query has finished its execution.
    *
@@ -274,10 +232,6 @@ class Foreman final : public ForemanLite {
    **/
   void initializeState();
 
-     /**
-     * @brief Initialize the timer.
-     **/
-  void initializeTimer();
 
 
   /**
@@ -328,10 +282,7 @@ class Foreman final : public ForemanLite {
    **/
   void processFeedbackMessage(const WorkOrder::FeedbackMessage &message);
 
-  /**
-   * @brief Process pending timer events and update the timer to future events.
-   **/
-  void processTimerEvents();
+
 
   /**
    * @brief Clear some of the vectors used for a single run of a query.
@@ -545,7 +496,7 @@ class Foreman final : public ForemanLite {
   std::vector<int> queued_workorders_per_op_;
 
   std::unique_ptr<WorkOrdersContainer> workorders_container_;
-  std::vector<RelationalOperatorTimer> op_timer_heap_;
+ 
 
   const int num_numa_nodes_;
 

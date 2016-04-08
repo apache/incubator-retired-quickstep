@@ -43,6 +43,7 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #include "parser/ParseStatement.hpp"
 #include "parser/SqlParserWrapper.hpp"
 #include "query_execution/Foreman.hpp"
+#include "query_execution/StreamCoordinatorThread.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/Worker.hpp"
 #include "query_execution/WorkerDirectory.hpp"
@@ -312,7 +313,13 @@ int main(int argc, char* argv[]) {
 
         foreman.reconstructQueryContextFromProto(query_handle->getQueryContextProto());
 
+        quickstep::StreamCoordinatorThread stream_coordinator(query_handle->getQueryPlanMutable()->getQueryPlanDAGMutable(),&bus, foreman.getBusClientID());
+        stream_coordinator.start();
+
+
         try {
+         
+          
           start = std::chrono::steady_clock::now();
           foreman.start();
           foreman.join();
@@ -336,6 +343,8 @@ int main(int argc, char* argv[]) {
           break;
         }
         printf("Query Complete\n");
+        stream_coordinator.join();
+        
       } else {
         if (result.condition == ParseResult::kError) {
           fprintf(stderr, "%s", result.error_message.c_str());
@@ -343,6 +352,9 @@ int main(int argc, char* argv[]) {
         reset_parser = true;
         break;
       }
+
+      
+
     }
 
     if (quitting) {
@@ -376,6 +388,7 @@ int main(int argc, char* argv[]) {
   for (Worker &worker : workers) {
     worker.join();
   }
+  
 
   return 0;
-}
+  }

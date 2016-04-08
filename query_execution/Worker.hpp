@@ -67,6 +67,7 @@ class Worker : public Thread {
     bus_->RegisterClientAsReceiver(worker_client_id_, kWorkOrderMessage);
     bus_->RegisterClientAsReceiver(worker_client_id_, kRebuildWorkOrderMessage);
     bus_->RegisterClientAsReceiver(worker_client_id_, kPoisonMessage);
+    bus_->RegisterClientAsSender(worker_client_id_, kStreamCoordinatorMessage);
   }
 
   ~Worker() override {}

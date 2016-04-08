@@ -66,6 +66,7 @@ enum QueryExecutionMessageType : message_type_id {
   kRebuildWorkOrderMessage,  // From Foreman to Worker.
   kRebuildWorkOrderCompleteMessage,  // From Worker to Foreman.
   kPoisonMessage,  // From the CLI shell to Foreman, then from Foreman to Workers.
+  kStreamCoordinatorMessage //From stream coordinator to foreman
 };
 
 /** @} */
