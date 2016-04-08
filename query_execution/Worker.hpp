@@ -61,6 +61,7 @@ class Worker : public Thread {
     bus_->RegisterClientAsSender(worker_client_id_, kWorkOrderCompleteMessage);
     bus_->RegisterClientAsSender(worker_client_id_,
                                  kRebuildWorkOrderCompleteMessage);
+    bus_->RegisterClientAsSender(worker_client_id_, kCatalogRelationNewBlockMessage);
     bus_->RegisterClientAsSender(worker_client_id_, kDataPipelineMessage);
     bus_->RegisterClientAsSender(worker_client_id_, kWorkOrdersAvailableMessage);
     bus_->RegisterClientAsSender(worker_client_id_, kWorkOrderFeedbackMessage);

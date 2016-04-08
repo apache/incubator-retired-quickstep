@@ -39,6 +39,7 @@
 #include "storage/TupleIdSequence.hpp"
 #include "storage/ValueAccessorUtil.hpp"
 #include "threading/SpinMutex.hpp"
+#include "threading/ThreadIDBasedMap.hpp"
 #include "types/TypedValue.hpp"
 #include "types/containers/Tuple.hpp"
 
@@ -59,13 +60,14 @@ InsertDestination::InsertDestination(const CatalogRelationSchema &relation,
                                      const StorageBlockLayout *layout,
                                      StorageManager *storage_manager,
                                      const std::size_t relational_op_index,
-                                     const tmb::client_id foreman_client_id,
+                                     const tmb::client_id scheduler_client_id,
                                      tmb::MessageBus *bus)
-    : storage_manager_(storage_manager),
+    : thread_id_map_(*ClientIDMap::Instance()),
+      storage_manager_(storage_manager),
       relation_(relation),
       layout_(layout),
       relational_op_index_(relational_op_index),
-      foreman_client_id_(foreman_client_id),
+      scheduler_client_id_(scheduler_client_id),
       bus_(DCHECK_NOTNULL(bus)) {
   if (layout_ == nullptr) {
     layout_.reset(StorageBlockLayout::GenerateDefaultLayout(relation, relation.isVariableLength()));
@@ -75,7 +77,7 @@ InsertDestination::InsertDestination(const CatalogRelationSchema &relation,
 InsertDestination* InsertDestination::ReconstructFromProto(const serialization::InsertDestination &proto,
                                                            const CatalogRelationSchema &relation,
                                                            StorageManager *storage_manager,
-                                                           const tmb::client_id foreman_client_id,
+                                                           const tmb::client_id scheduler_client_id,
                                                            tmb::MessageBus *bus) {
   DCHECK(ProtoIsValid(proto, relation));
 
@@ -91,7 +93,7 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
                                                     layout,
                                                     storage_manager,
                                                     proto.relational_op_index(),
-                                                    foreman_client_id,
+                                                    scheduler_client_id,
                                                     bus);
     }
     case serialization::InsertDestinationType::BLOCK_POOL: {
@@ -105,7 +107,7 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
                                             storage_manager,
                                             move(blocks),
                                             proto.relational_op_index(),
-                                            foreman_client_id,
+                                            scheduler_client_id,
                                             bus);
     }
     case serialization::InsertDestinationType::PARTITION_AWARE: {
@@ -132,7 +134,7 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
           storage_manager,
           move(partitions),
           proto.relational_op_index(),
-          foreman_client_id,
+          scheduler_client_id,
           bus);
     }
     default: {
@@ -272,8 +274,8 @@ MutableBlockReference AlwaysCreateBlockInsertDestination::createNewBlock() {
 
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(bus_,
-                                         foreman_client_id_,
-                                         foreman_client_id_,
+                                         thread_id_map_.getValue(),
+                                         scheduler_client_id_,
                                          move(tagged_msg));
   CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
       << "CatalogRelationNewBlockMessage could not be sent from InsertDestination to Foreman.";
@@ -319,8 +321,8 @@ MutableBlockReference BlockPoolInsertDestination::createNewBlock() {
 
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(bus_,
-                                         foreman_client_id_,
-                                         foreman_client_id_,
+                                         thread_id_map_.getValue(),
+                                         scheduler_client_id_,
                                          move(tagged_msg));
   CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
       << "CatalogRelationNewBlockMessage could not be sent from InsertDestination to Foreman.";
@@ -389,9 +391,9 @@ PartitionAwareInsertDestination::PartitionAwareInsertDestination(PartitionScheme
                                                                  StorageManager *storage_manager,
                                                                  vector<vector<block_id>> &&partitions,
                                                                  const std::size_t relational_op_index,
-                                                                 const tmb::client_id foreman_client_id,
+                                                                 const tmb::client_id scheduler_client_id,
                                                                  tmb::MessageBus *bus)
-    : InsertDestination(relation, layout, storage_manager, relational_op_index, foreman_client_id, bus),
+    : InsertDestination(relation, layout, storage_manager, relational_op_index, scheduler_client_id, bus),
       partition_scheme_header_(DCHECK_NOTNULL(partition_scheme_header)),
       available_block_refs_(partition_scheme_header_->getNumPartitions()),
       available_block_ids_(move(partitions)),
@@ -425,8 +427,8 @@ MutableBlockReference PartitionAwareInsertDestination::createNewBlockInPartition
 
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(bus_,
-                                         foreman_client_id_,
-                                         foreman_client_id_,
+                                         thread_id_map_.getValue(),
+                                         scheduler_client_id_,
                                          move(tagged_msg));
   CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
       << "CatalogRelationNewBlockMessage could not be sent from InsertDestination to Foreman.";

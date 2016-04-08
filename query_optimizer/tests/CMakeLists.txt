@@ -63,6 +63,7 @@ target_link_libraries(quickstep_queryoptimizer_tests_TestDatabaseLoader
                       quickstep_storage_InsertDestination
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
+                      quickstep_threading_ThreadIDBasedMap
                       quickstep_types_CharType
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID

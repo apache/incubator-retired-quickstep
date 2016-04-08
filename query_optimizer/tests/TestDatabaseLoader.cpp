@@ -92,7 +92,7 @@ void TestDatabaseLoader::loadTestRelation() {
                                          nullptr,
                                          &storage_manager_,
                                          0 /* dummy op index */,
-                                         foreman_client_id_,
+                                         scheduler_client_id_,
                                          &bus_);
   int sign = 1;
   for (int x = 0; x < 25; ++x) {
@@ -137,7 +137,7 @@ void TestDatabaseLoader::loadTestRelation() {
 
 void TestDatabaseLoader::processCatalogRelationNewBlockMessages() {
   AnnotatedMessage msg;
-  while (bus_.ReceiveIfAvailable(foreman_client_id_, &msg)) {
+  while (bus_.ReceiveIfAvailable(scheduler_client_id_, &msg)) {
     const TaggedMessage &tagged_message = msg.tagged_message;
     if (tagged_message.message_type() == kCatalogRelationNewBlockMessage) {
       serialization::CatalogRelationNewBlockMessage proto;

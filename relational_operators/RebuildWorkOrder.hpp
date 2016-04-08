@@ -54,17 +54,18 @@ class RebuildWorkOrder : public WorkOrder {
    *        query plan DAG that produced the output block.
    * @param input_relation_id The ID of the CatalogRelation to which the given
    *        storage block belongs to.
-   * @param foreman_input_queue A pointer to the Foreman's input queue.
+   * @param scheduler_client_id The TMB client ID of the scheduler thread.
+   * @param bus A pointer to the TMB.
    **/
   RebuildWorkOrder(MutableBlockReference &&block_ref,
                    const std::size_t input_operator_index,
                    const relation_id input_relation_id,
-                   const client_id foreman_client_id,
+                   const client_id scheduler_client_id,
                    MessageBus *bus)
       : block_ref_(std::move(block_ref)),
         input_operator_index_(input_operator_index),
         input_relation_id_(input_relation_id),
-        foreman_client_id_(foreman_client_id),
+        scheduler_client_id_(scheduler_client_id),
         bus_(bus) {}
 
   ~RebuildWorkOrder() {}
@@ -96,19 +97,19 @@ class RebuildWorkOrder : public WorkOrder {
     const tmb::MessageBus::SendStatus send_status =
         QueryExecutionUtil::SendTMBMessage(bus_,
                                            ClientIDMap::Instance()->getValue(),
-                                           foreman_client_id_,
+                                           scheduler_client_id_,
                                            std::move(tagged_message));
     CHECK(send_status == tmb::MessageBus::SendStatus::kOK) << "Message could "
         " not be sent from thread with TMB client ID " <<
         ClientIDMap::Instance()->getValue() << " to Foreman with TMB client ID "
-        << foreman_client_id_;
+        << scheduler_client_id_;
   }
 
  private:
   MutableBlockReference block_ref_;
   const std::size_t input_operator_index_;
   const relation_id input_relation_id_;
-  const client_id foreman_client_id_;
+  const client_id scheduler_client_id_;
 
   MessageBus *bus_;
 

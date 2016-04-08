@@ -44,7 +44,7 @@ bool SortMergeRunOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
     QueryContext *query_context,
     StorageManager *storage_manager,
-    const tmb::client_id foreman_client_id,
+    const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
   if (input_relation_is_stored_) {
     // Input blocks (or runs) are from base relation. Only possible when base
@@ -66,14 +66,14 @@ bool SortMergeRunOperator::getAllWorkOrders(
     }
   }
   // Generate runs from merge tree.
-  return generateWorkOrders(container, query_context, storage_manager, foreman_client_id, bus);
+  return generateWorkOrders(container, query_context, storage_manager, scheduler_client_id, bus);
 }
 
 WorkOrder *SortMergeRunOperator::createWorkOrder(
     merge_run_operator::MergeTree::MergeJob *job,
     QueryContext *query_context,
     StorageManager *storage_manager,
-    const tmb::client_id foreman_client_id,
+    const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
   DCHECK(!job->runs.empty());
   DCHECK(query_context != nullptr);
@@ -93,7 +93,7 @@ WorkOrder *SortMergeRunOperator::createWorkOrder(
       output_destination,
       storage_manager,
       op_index_,
-      foreman_client_id,
+      scheduler_client_id,
       bus);
 }
 
@@ -101,7 +101,7 @@ bool SortMergeRunOperator::generateWorkOrders(
     WorkOrdersContainer *container,
     QueryContext *query_context,
     StorageManager *storage_manager,
-    const tmb::client_id foreman_client_id,
+    const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
   std::vector<MergeTree::MergeJob> jobs;
 
@@ -115,7 +115,7 @@ bool SortMergeRunOperator::generateWorkOrders(
     container->addNormalWorkOrder(createWorkOrder(&jobs[job_id],
                                                   query_context,
                                                   storage_manager,
-                                                  foreman_client_id,
+                                                  scheduler_client_id,
                                                   bus),
                                   op_index_);
   }
@@ -262,7 +262,7 @@ void SortMergeRunWorkOrder::execute() {
                       serialized_output.first,
                       serialized_output.second);
   SendFeedbackMessage(
-      bus_, ClientIDMap::Instance()->getValue(), foreman_client_id_, msg);
+      bus_, ClientIDMap::Instance()->getValue(), scheduler_client_id_, msg);
 }
 
 }  // namespace quickstep
