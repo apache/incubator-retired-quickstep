@@ -384,6 +384,7 @@ class BlockPoolInsertDestination : public InsertDestination {
 
  private:
   FRIEND_TEST(ForemanTest, TwoNodesDAGPartiallyFilledBlocksTest);
+  FRIEND_TEST(QueryManagerTest, TwoNodesDAGPartiallyFilledBlocksTest);
 
   // A vector of references to blocks which are loaded in memory.
   std::vector<MutableBlockReference> available_block_refs_;
