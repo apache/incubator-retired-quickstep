@@ -51,12 +51,16 @@
 
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
+
 using std::fprintf;
 using std::fputc;
 using std::fputs;
 using std::size_t;
 using std::string;
 using std::vector;
+
+namespace tmb { class MessageBus; }
 
 namespace quickstep {
 namespace cli {
@@ -194,11 +198,14 @@ void executeDescribeTable(
 /**
  * @brief A helper function that executes a SQL query to obtain a scalar result.
  */
-inline TypedValue executeQueryForSingleResult(const std::string &query_string,
-                                               StorageManager *storage_manager,
-                                               QueryProcessor *query_processor,
-                                               SqlParserWrapper *parser_wrapper,
-                                               Foreman *foreman) {
+inline TypedValue executeQueryForSingleResult(
+    const tmb::client_id main_thread_client_id,
+    const tmb::client_id foreman_client_id,
+    const std::string &query_string,
+    tmb::MessageBus *bus,
+    StorageManager *storage_manager,
+    QueryProcessor *query_processor,
+    SqlParserWrapper *parser_wrapper) {
   parser_wrapper->feedNextBuffer(new std::string(query_string));
 
   ParseResult result = parser_wrapper->getNextStatement();
@@ -210,11 +217,8 @@ inline TypedValue executeQueryForSingleResult(const std::string &query_string,
   DCHECK(query_handle->getQueryPlanMutable() != nullptr);
 
   // Use foreman to execute the query plan.
-  foreman->setQueryPlan(query_handle->getQueryPlanMutable()->getQueryPlanDAGMutable());
-  foreman->reconstructQueryContextFromProto(query_handle->getQueryContextProto());
-
-  foreman->start();
-  foreman->join();
+  QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
+      main_thread_client_id, foreman_client_id, query_handle.get(), bus);
 
   // Retrieve the scalar result from the result relation.
   const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
@@ -246,8 +250,10 @@ inline TypedValue executeQueryForSingleResult(const std::string &query_string,
   return value;
 }
 
-void executeAnalyze(QueryProcessor *query_processor,
-                    Foreman *foreman,
+void executeAnalyze(const tmb::client_id main_thread_client_id,
+                    const tmb::client_id foreman_client_id,
+                    MessageBus *bus,
+                    QueryProcessor *query_processor,
                     FILE *out) {
   const CatalogDatabase &database = *query_processor->getDefaultDatabase();
   StorageManager *storage_manager = query_processor->getStorageManager();
@@ -273,11 +279,13 @@ void executeAnalyze(QueryProcessor *query_processor,
       query_string.append(";");
 
       TypedValue num_distinct_values =
-          executeQueryForSingleResult(query_string,
+          executeQueryForSingleResult(main_thread_client_id,
+                                      foreman_client_id,
+                                      query_string,
+                                      bus,
                                       storage_manager,
                                       query_processor,
-                                      parser_wrapper.get(),
-                                      foreman);
+                                      parser_wrapper.get());
 
       DCHECK(num_distinct_values.getTypeID() == TypeID::kLong);
       mutable_relation->getStatisticsMutable()->setNumDistinctValues(
@@ -291,11 +299,13 @@ void executeAnalyze(QueryProcessor *query_processor,
     query_string.append(";");
 
     TypedValue num_tuples =
-        executeQueryForSingleResult(query_string,
+        executeQueryForSingleResult(main_thread_client_id,
+                                    foreman_client_id,
+                                    query_string,
+                                    bus,
                                     storage_manager,
                                     query_processor,
-                                    parser_wrapper.get(),
-                                    foreman);
+                                    parser_wrapper.get());
 
     DCHECK(num_tuples.getTypeID() == TypeID::kLong);
     mutable_relation->getStatisticsMutable()->setNumTuples(
@@ -312,9 +322,11 @@ void executeAnalyze(QueryProcessor *query_processor,
 
 void executeCommand(const ParseStatement &statement,
                     const CatalogDatabase &catalog_database,
+                    const tmb::client_id main_thread_client_id,
+                    const tmb::client_id foreman_client_id,
+                    MessageBus *bus,
                     StorageManager *storage_manager,
                     QueryProcessor *query_processor,
-                    Foreman *foreman,
                     FILE *out) {
   const ParseCommand &command = static_cast<const ParseCommand &>(statement);
   const PtrVector<ParseString> *arguments = command.arguments();
@@ -328,7 +340,8 @@ void executeCommand(const ParseStatement &statement,
       executeDescribeTable(arguments, catalog_database, out);
     }
   } else if (command_str == C::kAnalyzeCommand) {
-    executeAnalyze(query_processor, foreman, out);
+    executeAnalyze(
+        main_thread_client_id, foreman_client_id, bus, query_processor, out);
   } else {
     THROW_SQL_ERROR_AT(command.command()) << "Invalid Command";
   }

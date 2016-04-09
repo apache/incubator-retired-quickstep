@@ -105,6 +105,7 @@ class ExecutionGenerator {
         execution_plan_(DCHECK_NOTNULL(query_handle->getQueryPlanMutable())),
         query_context_proto_(DCHECK_NOTNULL(query_handle->getQueryContextProtoMutable())),
         execution_heuristics_(new ExecutionHeuristics()) {
+    query_context_proto_->set_query_id(query_handle_->query_id());
 #ifdef QUICKSTEP_DISTRIBUTED
     catalog_database_cache_proto_ = DCHECK_NOTNULL(query_handle->getCatalogDatabaseCacheProtoMutable());
 #endif

@@ -21,9 +21,13 @@
 #include <cstdio>
 #include <string>
 
+#include "tmb/id_typedefs.h"
+
 using std::fprintf;
 using std::fputc;
 using std::string;
+
+namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
@@ -53,6 +57,9 @@ constexpr char kAnalyzeCommand[] = "\\analyze";
   *
   * @param statement The parsed statement from the cli.
   * @param catalog_database The catalog information about the current database.
+  * @param main_thread_client_id The TMB client ID of the main thread.
+  * @param foreman_client_id The TMB client ID of the Foreman thread.
+  * @param bus A pointer to the TMB.
   * @param storage_manager The current StorageManager.
   * @param query_processor The query processor to generate plans for SQL queries.
   * @param foreman The foreman to execute query plans.
@@ -60,9 +67,11 @@ constexpr char kAnalyzeCommand[] = "\\analyze";
 */
 void executeCommand(const ParseStatement &statement,
                     const CatalogDatabase &catalog_database,
+                    const tmb::client_id main_thread_client_id,
+                    const tmb::client_id foreman_client_id,
+                    tmb::MessageBus *bus,
                     StorageManager *storage_manager,
                     QueryProcessor *query_processor,
-                    Foreman *foreman,
                     FILE *out);
 
 /** @} */

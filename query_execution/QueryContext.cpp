@@ -89,13 +89,13 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
 
   for (int i = 0; i < proto.insert_destinations_size(); ++i) {
     const serialization::InsertDestination &insert_destination_proto = proto.insert_destinations(i);
-    insert_destinations_.emplace_back(
-        InsertDestination::ReconstructFromProto(insert_destination_proto,
-                                                database.getRelationSchemaById(
-                                                    insert_destination_proto.relation_id()),
-                                                storage_manager,
-                                                scheduler_client_id,
-                                                bus));
+    insert_destinations_.emplace_back(InsertDestination::ReconstructFromProto(
+        proto.query_id(),
+        insert_destination_proto,
+        database.getRelationSchemaById(insert_destination_proto.relation_id()),
+        storage_manager,
+        scheduler_client_id,
+        bus));
   }
 
   for (int i = 0; i < proto.predicates_size(); ++i) {
@@ -231,7 +231,7 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
     }
   }
 
-  return true;
+  return proto.IsInitialized();
 }
 
 }  // namespace quickstep
