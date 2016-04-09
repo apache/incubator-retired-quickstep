@@ -1,4 +1,3 @@
-
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
@@ -23,10 +22,11 @@
 #include <utility>
 #include <vector>
 
-#include "catalog/CatalogDatabase.hpp"
-#include "catalog/CatalogRelation.hpp"
+#include "catalog/CatalogDatabaseLite.hpp"
+#include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/ExpressionFactories.hpp"
+#include "expressions/table_generator/GeneratorFunction.pb.h"
 #include "expressions/table_generator/GeneratorFunctionFactory.hpp"
 #include "expressions/table_generator/GeneratorFunctionHandle.hpp"
 #include "query_execution/QueryContext.pb.h"
@@ -35,6 +35,7 @@
 #include "storage/HashTableFactory.hpp"
 #include "storage/InsertDestination.hpp"
 #include "storage/InsertDestination.pb.h"
+#include "types/TypedValue.hpp"
 #include "types/containers/Tuple.hpp"
 #include "utility/SortConfiguration.hpp"
 
@@ -49,18 +50,18 @@ using std::vector;
 namespace quickstep {
 
 QueryContext::QueryContext(const serialization::QueryContext &proto,
-                           CatalogDatabase *database,
+                           const CatalogDatabaseLite &database,
                            StorageManager *storage_manager,
-                           const tmb::client_id foreman_client_id,
+                           const tmb::client_id scheduler_client_id,
                            tmb::MessageBus *bus) {
-  DCHECK(ProtoIsValid(proto, *database))
+  DCHECK(ProtoIsValid(proto, database))
       << "Attempted to create QueryContext from an invalid proto description:\n"
       << proto.DebugString();
 
   for (int i = 0; i < proto.aggregation_states_size(); ++i) {
     aggregation_states_.emplace_back(
         AggregationOperationState::ReconstructFromProto(proto.aggregation_states(i),
-                                                        *database,
+                                                        database,
                                                         storage_manager));
   }
 
@@ -82,16 +83,16 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
     const serialization::InsertDestination &insert_destination_proto = proto.insert_destinations(i);
     insert_destinations_.emplace_back(
         InsertDestination::ReconstructFromProto(insert_destination_proto,
-                                                *database->getRelationByIdMutable(
+                                                database.getRelationSchemaById(
                                                     insert_destination_proto.relation_id()),
                                                 storage_manager,
-                                                foreman_client_id,
+                                                scheduler_client_id,
                                                 bus));
   }
 
   for (int i = 0; i < proto.predicates_size(); ++i) {
     predicates_.emplace_back(
-        PredicateFactory::ReconstructFromProto(proto.predicates(i), *database));
+        PredicateFactory::ReconstructFromProto(proto.predicates(i), database));
   }
 
   for (int i = 0; i < proto.scalar_groups_size(); ++i) {
@@ -100,7 +101,7 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
     const serialization::QueryContext::ScalarGroup &scalar_group_proto = proto.scalar_groups(i);
     for (int j = 0; j < scalar_group_proto.scalars_size(); ++j) {
       scalar_group.emplace_back(
-          ScalarFactory::ReconstructFromProto(scalar_group_proto.scalars(j), *database));
+          ScalarFactory::ReconstructFromProto(scalar_group_proto.scalars(j), database));
     }
 
     scalar_groups_.push_back(move(scalar_group));
@@ -108,7 +109,7 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
 
   for (int i = 0; i < proto.sort_configs_size(); ++i) {
     sort_configs_.emplace_back(
-        SortConfiguration::ReconstructFromProto(proto.sort_configs(i), *database));
+        SortConfiguration::ReconstructFromProto(proto.sort_configs(i), database));
   }
 
   for (int i = 0; i < proto.tuples_size(); ++i) {
@@ -124,7 +125,7 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
           update_group_proto.update_assignments(j);
 
       unique_ptr<const Scalar> scalar(
-          ScalarFactory::ReconstructFromProto(update_assignment_proto.scalar(), *database));
+          ScalarFactory::ReconstructFromProto(update_assignment_proto.scalar(), database));
 
       update_group.emplace(update_assignment_proto.attribute_id(), move(scalar));
     }
@@ -134,7 +135,7 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
 }
 
 bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
-                                const CatalogDatabase &database) {
+                                const CatalogDatabaseLite &database) {
   for (int i = 0; i < proto.aggregation_states_size(); ++i) {
     if (!AggregationOperationState::ProtoIsValid(proto.aggregation_states(i), database)) {
       return false;
@@ -164,7 +165,7 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
 
     if (!database.hasRelationWithId(rel_id) ||
         !InsertDestination::ProtoIsValid(insert_destination_proto,
-                                         *database.getRelationById(rel_id))) {
+                                         database.getRelationSchemaById(rel_id))) {
       return false;
     }
   }
@@ -203,13 +204,13 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
     if (!database.hasRelationWithId(rel_id)) {
       return false;
     }
-    const CatalogRelation *rel = database.getRelationById(rel_id);
+    const CatalogRelationSchema &rel = database.getRelationSchemaById(rel_id);
 
     for (int j = 0; j < update_group_proto.update_assignments_size(); ++j) {
       const serialization::QueryContext::UpdateGroup::UpdateAssignment &update_assignment_proto =
           update_group_proto.update_assignments(j);
 
-      if (!rel->hasAttributeWithId(update_assignment_proto.attribute_id()) ||
+      if (!rel.hasAttributeWithId(update_assignment_proto.attribute_id()) ||
           !ScalarFactory::ProtoIsValid(update_assignment_proto.scalar(), database)) {
         return false;
       }

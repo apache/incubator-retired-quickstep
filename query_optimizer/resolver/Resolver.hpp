@@ -30,6 +30,7 @@
 #include "query_optimizer/expressions/Scalar.hpp"
 #include "query_optimizer/logical/Logical.hpp"
 #include "utility/Macros.hpp"
+#include "utility/PtrVector.hpp"
 
 namespace quickstep {
 
@@ -44,13 +45,15 @@ class ParsePredicate;
 class ParseSelect;
 class ParseSelectionClause;
 class ParseSimpleTableReference;
+class ParseSubqueryTableReference;
 class ParseStatement;
 class ParseStatementCopyFrom;
 class ParseStatementCreateTable;
 class ParseStatementCreateIndex;
 class ParseStatementDelete;
 class ParseStatementDropTable;
-class ParseStatementInsert;
+class ParseStatementInsertSelection;
+class ParseStatementInsertTuple;
 class ParseStatementSelect;
 class ParseStatementUpdate;
 class ParseString;
@@ -147,11 +150,14 @@ class Resolver {
    *
    * @param select_statement The SELECT parse tree.
    * @param select_name The name for the SELECT query.
+   * @param type_hints Type hints for the expressions in the SELECT clause. Can
+   *                   be NULL if there is no expectation.
    * @return A logical plan for the SELECT query.
    */
   logical::LogicalPtr resolveSelect(
       const ParseSelect &select_statement,
-      const std::string &select_name);
+      const std::string &select_name,
+      const std::vector<const Type*> *type_hints);
 
   /**
    * @brief Resolves a CREATE TABLE query and returns a logical plan.
@@ -201,13 +207,22 @@ class Resolver {
       const ParseStatementDropTable &drop_table_statement);
 
   /**
-   * @brief Resolves a INSERT query and returns a logical plan.
+   * @brief Resolves an INSERT VALUES query and returns a logical plan.
    *
    * @param insert_statement The INSERT parse tree.
    * @return A logical plan for the INSERT query.
    */
-  logical::LogicalPtr resolveInsert(
-      const ParseStatementInsert &insert_statement);
+  logical::LogicalPtr resolveInsertTuple(
+      const ParseStatementInsertTuple &insert_statement);
+
+  /**
+   * @brief Resolves an INSERT SELECT query and returns a logical plan.
+   *
+   * @param insert_statement The INSERT parse tree.
+   * @return A logical plan for the INSERT query.
+   */
+  logical::LogicalPtr resolveInsertSelection(
+      const ParseStatementInsertSelection &insert_statement);
 
   /**
    * @brief Resolves a COPY FROM query and returns a logical plan.
@@ -228,6 +243,15 @@ class Resolver {
       const ParseStatementUpdate &update_statement);
 
   /**
+   * @brief Resolves WITH clause and stores the resolved information into
+   * the member object with_query_info_ of this class.
+   *
+   * @param with_list The list of subqueries in WITH clause.
+   */
+  void resolveWithClause(
+      const PtrVector<ParseSubqueryTableReference> &with_list);
+
+  /**
    * @brief Resolves SELECT-list expressions and returns the resolved
    *        expressions in \p project_expressions.
    * @warning \p project_expressions will be cleared first.
@@ -235,6 +259,8 @@ class Resolver {
    * @param parse_selection The SELECT parse tree.
    * @param select_name The name of the SELECT query. It is used to populate the
    *                    relation name in the expressions.
+   * @param type_hints Type hints for the expressions in the SELECT clause. Can
+   *                   be NULL if there is no expectation.
    * @param name_resolver NameResolver to resolve the relation/attribute names.
    * @param query_aggregation_info Passed down to each expression to collects
    *                               aggregate expressions.
@@ -246,6 +272,7 @@ class Resolver {
   void resolveSelectClause(
       const ParseSelectionClause &parse_selection,
       const std::string &select_name,
+      const std::vector<const Type*> *type_hints,
       const NameResolver &name_resolver,
       QueryAggregationInfo *query_aggregation_info,
       std::vector<expressions::NamedExpressionPtr> *project_expressions,
@@ -307,7 +334,8 @@ class Resolver {
    */
   logical::LogicalPtr resolveWindow(
       const ParseSelect &select_statement,
-      const std::string &select_name);
+      const std::string &select_name,
+      const std::vector<const Type*> *type_hints);
 
 
   /**

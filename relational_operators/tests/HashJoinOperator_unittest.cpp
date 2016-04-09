@@ -56,6 +56,7 @@
 #include "storage/StorageBlockLayout.pb.h"
 #include "storage/StorageManager.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
+#include "threading/ThreadIDBasedMap.hpp"
 #include "types/CharType.hpp"
 #include "types/IntType.hpp"
 #include "types/LongType.hpp"
@@ -98,7 +99,16 @@ constexpr int kOpIndex = 0;
 class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> {
  protected:
   virtual void SetUp() {
+    thread_id_map_ = ClientIDMap::Instance();
+
     bus_.Initialize();
+
+    const tmb::client_id worker_thread_client_id = bus_.Connect();
+    bus_.RegisterClientAsSender(worker_thread_client_id, kCatalogRelationNewBlockMessage);
+
+    // Usually the worker thread makes the following call. In this test setup,
+    // we don't have a worker thread hence we have to explicitly make the call.
+    thread_id_map_->addValue(worker_thread_client_id);
 
     foreman_client_id_ = bus_.Connect();
     bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
@@ -181,6 +191,10 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
     }
   }
 
+  virtual void TearDown() {
+    thread_id_map_->removeValue();
+  }
+
   StorageBlockLayout* createStorageLayout(const CatalogRelation &relation) {
     StorageBlockLayout *layout = new StorageBlockLayout(relation);
     StorageBlockLayoutDescription *layout_desc = layout->getDescriptionMutable();
@@ -248,6 +262,11 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
       delete work_order;
     }
   }
+
+  // This map is needed for InsertDestination and some WorkOrders that send
+  // messages to Foreman directly. To know the reason behind the design of this
+  // map, see the note in InsertDestination.hpp.
+  ClientIDMap *thread_id_map_;
 
   MessageBusImpl bus_;
   tmb::client_id foreman_client_id_;
@@ -342,7 +361,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
-                                        db_.get(),
+                                        *db_,
                                         storage_manager_.get(),
                                         foreman_client_id_,
                                         &bus_));
@@ -484,7 +503,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
-                                        db_.get(),
+                                        *db_,
                                         storage_manager_.get(),
                                         foreman_client_id_,
                                         &bus_));
@@ -634,7 +653,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
-                                        db_.get(),
+                                        *db_,
                                         storage_manager_.get(),
                                         foreman_client_id_,
                                         &bus_));
@@ -769,7 +788,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
-                                        db_.get(),
+                                        *db_,
                                         storage_manager_.get(),
                                         foreman_client_id_,
                                         &bus_));
@@ -938,7 +957,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
-                                        db_.get(),
+                                        *db_,
                                         storage_manager_.get(),
                                         foreman_client_id_,
                                         &bus_));
@@ -1118,7 +1137,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
-                                        db_.get(),
+                                        *db_,
                                         storage_manager_.get(),
                                         foreman_client_id_,
                                         &bus_));

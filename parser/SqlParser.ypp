@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -64,6 +66,7 @@ typedef struct YYLTYPE {
 #include <string>
 #include <utility>
 
+#include "catalog/PartitionSchemeHeader.hpp"
 #include "parser/ParseAssignment.hpp"
 #include "parser/ParseAttributeDefinition.hpp"
 #include "parser/ParseBasicExpressions.hpp"
@@ -77,6 +80,7 @@ typedef struct YYLTYPE {
 #include "parser/ParseWindow.hpp"
 #include "parser/ParseLiteralValue.hpp"
 #include "parser/ParseOrderBy.hpp"
+#include "parser/ParsePartitionClause.hpp"
 #include "parser/ParsePredicate.hpp"
 #include "parser/ParserUtil.hpp"
 #include "parser/ParseSample.hpp"
@@ -164,6 +168,7 @@ typedef void* yyscan_t;
   quickstep::ParseStatementDelete *delete_statement_;
   quickstep::ParseStatementCopyFrom *copy_from_statement_;
   quickstep::ParseStatementCreateTable *create_table_statement_;
+  quickstep::ParsePartitionClause *partition_clause_;
   quickstep::ParseBlockProperties *block_properties_;
   quickstep::ParseStatementDropTable *drop_table_statement_;
   quickstep::ParseStatementQuit *quit_statement_;
@@ -250,6 +255,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_DROP;
 %token TOKEN_ESCAPE_STRINGS;
 %token TOKEN_EMIT;
+%token TOKEN_EXTRACT;
 %token TOKEN_FALSE;
 %token TOKEN_FIRST;
 %token TOKEN_FLOAT;
@@ -257,6 +263,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_FROM;
 %token TOKEN_FULL;
 %token TOKEN_GROUP;
+%token TOKEN_HASH;
 %token TOKEN_HAVING;
 %token TOKEN_INDEX;
 %token TOKEN_INNER;
@@ -278,10 +285,12 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_OR;
 %token TOKEN_ORDER;
 %token TOKEN_OUTER;
+%token TOKEN_PARTITION;
+%token TOKEN_PARTITIONS;
 %token TOKEN_PERCENT;
 %token TOKEN_PRIMARY;
-%token TOKEN_PARTITION;
 %token TOKEN_QUIT;
+%token TOKEN_RANGE;
 %token TOKEN_REAL;
 %token TOKEN_REFERENCES;
 %token TOKEN_REGEXP;
@@ -310,6 +319,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %type <string_value_>
   any_name
   index_type
+  partition_type
 
 %type <boolean_value_>
   boolean_value
@@ -325,6 +335,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
   unary_expression
   multiply_expression
   add_expression
+  extract_function
 
 %type <attribute_>
   attribute_ref
@@ -434,6 +445,9 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %type <block_properties_>
   opt_block_properties
 
+%type <partition_clause_>
+  opt_partition_clause
+
 %type <statement_>
   create_index_statement
 
@@ -504,7 +518,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 
 %type <with_list_>
-  opt_with_clause
+  with_clause
   with_list
 
 %type <with_list_element_>
@@ -635,8 +649,8 @@ alter_table_statement:
   };
 
 create_table_statement:
-  TOKEN_CREATE TOKEN_TABLE any_name '(' column_def_commalist ')' opt_table_constraint_def_commalist opt_block_properties {
-    $$ = new quickstep::ParseStatementCreateTable(@1.first_line, @1.first_column, $3, $5, $8);
+  TOKEN_CREATE TOKEN_TABLE any_name '(' column_def_commalist ')' opt_table_constraint_def_commalist opt_block_properties opt_partition_clause {
+    $$ = new quickstep::ParseStatementCreateTable(@1.first_line, @1.first_column, $3, $5, $8, $9);
   };
 
 create_index_statement:
@@ -880,6 +894,38 @@ opt_block_properties:
     $$ = new quickstep::ParseBlockProperties(@2.first_line, @2.first_column, $4);
   }
 
+opt_partition_clause:
+  {
+    $$ = nullptr;
+  }
+  | TOKEN_PARTITION TOKEN_BY partition_type '(' name_commalist ')' TOKEN_PARTITIONS TOKEN_UNSIGNED_NUMVAL {
+    if ($8->float_like()) {
+      delete $8;
+      $$ = NULL;
+      quickstep_yyerror(&@8, yyscanner, NULL, "NUMBER OF PARTITIONS must be an integer");
+      YYERROR;
+    } else {
+      if ($8->long_value() <= 0 || $8->long_value() > 64) {
+        delete $8;
+        $$ = NULL;
+        quickstep_yyerror(&@8, yyscanner, NULL, "NUMBER OF PARITIONS must be between 1 and 64");
+        YYERROR;
+      } else {
+        $$ = new quickstep::ParsePartitionClause(@1.first_line, @1.first_column, $3, $5, $8);
+      }
+    }
+  }
+
+partition_type:
+  TOKEN_HASH {
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column,
+           std::to_string(quickstep::PartitionSchemeHeader::PartitionType::kHash));
+  }
+  | TOKEN_RANGE{
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column,
+           std::to_string(quickstep::PartitionSchemeHeader::PartitionType::kRange));
+  };
+
 key_value_list:
   key_value {
     $$ = new quickstep::PtrList<quickstep::ParseKeyValue>();
@@ -956,8 +1002,15 @@ insert_statement:
     YYERROR;
   }
   | TOKEN_INSERT TOKEN_INTO any_name TOKEN_VALUES '(' literal_value_commalist ')' {
-    $$ = new quickstep::ParseStatementInsert(@1.first_line, @1.first_column, $3, $6);
-  };
+    $$ = new quickstep::ParseStatementInsertTuple(@1.first_line, @1.first_column, $3, $6);
+  }
+  | TOKEN_INSERT TOKEN_INTO any_name select_query {
+    $$ = new quickstep::ParseStatementInsertSelection(@1.first_line, @2.first_column, $3, $4, nullptr);
+  }
+  | with_clause TOKEN_INSERT TOKEN_INTO any_name select_query {
+    $$ = new quickstep::ParseStatementInsertSelection(@1.first_line, @2.first_column, $4, $5, $1);
+  }
+  ;
 
 copy_from_statement:
   TOKEN_COPY any_name TOKEN_FROM TOKEN_STRING_SINGLE_QUOTED opt_copy_from_params {
@@ -1017,15 +1070,15 @@ assignment_item:
 
 /* Select Queries */
 select_statement:
-  opt_with_clause select_query {
+  select_query {
+    $$ = new quickstep::ParseStatementSelect(@1.first_line, @1.first_column, $1, nullptr);
+  }
+  | with_clause select_query {
     $$ = new quickstep::ParseStatementSelect(@1.first_line, @1.first_column, $2, $1);
   };
 
-opt_with_clause:
-  {
-    $$ = nullptr;
-  }
-  | TOKEN_WITH with_list {
+with_clause:
+  TOKEN_WITH with_list {
     $$ = $2;
   }
 
@@ -1463,6 +1516,9 @@ expression_base:
   | function_call {
     $$ = $1;
   }
+  | extract_function {
+    $$ = $1;
+  }
   | '(' add_expression ')' {
     $$ = $2;
   };
@@ -1470,14 +1526,22 @@ expression_base:
 function_call:
   any_name '(' ')' {
     $$ = new quickstep::ParseFunctionCall(
-        @1.first_line, @1.first_column, $1, new quickstep::PtrList<quickstep::ParseExpression>());
+        @1.first_line, @1.first_column, false, $1, new quickstep::PtrList<quickstep::ParseExpression>());
   }
   | any_name '(' '*' ')' {
     $$ = new quickstep::ParseFunctionCall(
         @1.first_line, @1.first_column, $1, new quickstep::ParseStar(@3.first_line, @3.first_column));
   }
   | any_name '(' expression_list ')' {
-    $$ = new quickstep::ParseFunctionCall(@1.first_line, @1.first_column, $1, $3);
+    $$ = new quickstep::ParseFunctionCall(@1.first_line, @1.first_column, false, $1, $3);
+  };
+  | any_name '(' TOKEN_DISTINCT expression_list ')' {
+    $$ = new quickstep::ParseFunctionCall(@1.first_line, @1.first_column, true, $1, $4);
+  };
+
+extract_function:
+  TOKEN_EXTRACT '(' any_name TOKEN_FROM add_expression ')' {
+    $$ = new quickstep::ParseExtractFunction(@1.first_line, @1.first_column, $3, $5);
   };
 
 expression_list:
@@ -1630,7 +1694,10 @@ add_operation:
   };
 
 multiply_operation:
-  '*' {
+  '%' {
+    $$ = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kModulo);
+  }
+  | '*' {
     $$ = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kMultiply);
   }
   | '/' {

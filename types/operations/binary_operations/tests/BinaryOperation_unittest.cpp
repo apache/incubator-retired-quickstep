@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -225,7 +227,8 @@ class BinaryOperationTest : public ::testing::Test {
   void checkNumericBinaryOperation(const BinaryOperation &operation) {
     for (const pair<const TypedValue*, const Type*> &left_item : numeric_typed_values_) {
       for (const pair<const TypedValue*, const Type*> &right_item : numeric_typed_values_) {
-        if (operation.getBinaryOperationID() == BinaryOperationID::kDivide &&
+        if ((operation.getBinaryOperationID() == BinaryOperationID::kDivide ||
+             operation.getBinaryOperationID() == BinaryOperationID::kModulo) &&
             !right_item.first->isNull() &&
             TypedValueIsZero(*right_item.first)) {
           // Avoid Divide-by-zero errors.
@@ -1240,6 +1243,9 @@ void CheckBinaryOperationSerialization(const BinaryOperation &operation) {
       break;
     case BinaryOperationID::kDivide:
       EXPECT_EQ(serialization::BinaryOperation::DIVIDE, proto.operation_id());
+      break;
+    case BinaryOperationID::kModulo:
+      EXPECT_EQ(serialization::BinaryOperation::MODULO, proto.operation_id());
       break;
     default:
       FATAL_ERROR("operation is an unknown BinaryOperation in CheckBinaryOperationSerialization");

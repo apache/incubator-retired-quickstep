@@ -1,5 +1,5 @@
 /**
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -49,11 +49,11 @@ class WorkerSelectionPolicyTest : public ::testing::Test {
 
     std::random_device rd;
     mt_.reset(new std::mt19937_64(rd()));
-    for (std::size_t worker_id = 0; worker_id < kNumWorkers; ++worker_id) {
-      // NUMA node id = worker_id % 4
-      // Client ID = worker_id * 2 + 1
-      numa_nodes.push_back(worker_id % 4);
-      client_ids.push_back(worker_id * 2 + 1);
+    for (std::size_t worker_thread_index = 0; worker_thread_index < kNumWorkers; ++worker_thread_index) {
+      // NUMA node id = worker_thread_index % 4
+      // Client ID = worker_thread_index * 2 + 1
+      numa_nodes.push_back(worker_thread_index % 4);
+      client_ids.push_back(worker_thread_index * 2 + 1);
     }
     directory_.reset(new WorkerDirectory(kNumWorkers, client_ids, numa_nodes));
   }
@@ -72,10 +72,10 @@ TEST_F(WorkerSelectionPolicyTest, RoundRobinTest) {
 
   const std::size_t kNumIterations =
       (getWorkerDirectory()->getNumWorkers()) * 2;
-  std::size_t expected_next_worker_id = kStartWorkerID;
+  std::size_t expected_next_worker_thread_index = kStartWorkerID;
   for (std::size_t iteration = 0; iteration < kNumIterations; ++iteration) {
-    EXPECT_EQ(expected_next_worker_id, rr_policy.getNextWorkerID());
-    expected_next_worker_id = (expected_next_worker_id + 1) %
+    EXPECT_EQ(expected_next_worker_thread_index, rr_policy.getNextWorkerID());
+    expected_next_worker_thread_index = (expected_next_worker_thread_index + 1) %
                               (getWorkerDirectory()->getNumWorkers());
   }
 }
@@ -90,11 +90,11 @@ TEST_F(WorkerSelectionPolicyTest, RoundRobinAddWorkerTest) {
   EXPECT_EQ(kStartWorkerID, rr_policy.getNextWorkerID());
 
   // Add a new worker.
-  const std::size_t new_worker_id = getWorkerDirectory()->getNumWorkers();
-  getWorkerDirectory()->addWorker(new_worker_id * 2 + 1 /** client_id **/,
+  const std::size_t new_worker_thread_index = getWorkerDirectory()->getNumWorkers();
+  getWorkerDirectory()->addWorker(new_worker_thread_index * 2 + 1 /** client_id **/,
                                   0 /** NUMA node ID **/);
 
-  EXPECT_EQ(new_worker_id, rr_policy.getNextWorkerID());
+  EXPECT_EQ(new_worker_thread_index, rr_policy.getNextWorkerID());
 }
 
 TEST_F(WorkerSelectionPolicyTest, LoadBalancingTest) {
@@ -107,9 +107,9 @@ TEST_F(WorkerSelectionPolicyTest, LoadBalancingTest) {
   std::mt19937_64 mt(rd());
   std::uniform_int_distribution<std::size_t> dist(0, kMaxLoad);
 
-  for (std::size_t worker_id = 0;
-       worker_id < getWorkerDirectory()->getNumWorkers();
-       ++worker_id) {
+  for (std::size_t worker_thread_index = 0;
+       worker_thread_index < getWorkerDirectory()->getNumWorkers();
+       ++worker_thread_index) {
     // For each worker ..
     const std::size_t worker_load = dist(mt);
     // assign a random load.
@@ -117,7 +117,7 @@ TEST_F(WorkerSelectionPolicyTest, LoadBalancingTest) {
     for (std::size_t workorder_count = 0;
          workorder_count < worker_load;
          ++workorder_count) {
-      getWorkerDirectory()->incrementNumQueuedWorkOrders(worker_id);
+      getWorkerDirectory()->incrementNumQueuedWorkOrders(worker_thread_index);
     }
   }
 
@@ -148,18 +148,18 @@ TEST_F(WorkerSelectionPolicyTest, RandomWorkerPolicyTest) {
   const std::size_t kNumIterations = 100;
 
   for (std::size_t iter = 0; iter < kNumIterations; ++iter) {
-    const std::size_t chosen_worker_id = rand_policy.getNextWorkerID();
-    EXPECT_GE(getWorkerDirectory()->getNumWorkers(), chosen_worker_id);
+    const std::size_t chosen_worker_thread_index = rand_policy.getNextWorkerID();
+    EXPECT_GE(getWorkerDirectory()->getNumWorkers(), chosen_worker_thread_index);
   }
 
   // Add a new worker and repeat the test above.
-  const std::size_t new_worker_id = getWorkerDirectory()->getNumWorkers();
-  getWorkerDirectory()->addWorker(new_worker_id * 2 + 1 /** client_id **/,
+  const std::size_t new_worker_thread_index = getWorkerDirectory()->getNumWorkers();
+  getWorkerDirectory()->addWorker(new_worker_thread_index * 2 + 1 /** client_id **/,
                                   0 /** NUMA node ID **/);
 
   for (std::size_t iter = 0; iter < kNumIterations; ++iter) {
-    const std::size_t chosen_worker_id = rand_policy.getNextWorkerID();
-    EXPECT_GE(getWorkerDirectory()->getNumWorkers(), chosen_worker_id);
+    const std::size_t chosen_worker_thread_index = rand_policy.getNextWorkerID();
+    EXPECT_GE(getWorkerDirectory()->getNumWorkers(), chosen_worker_thread_index);
   }
 }
 

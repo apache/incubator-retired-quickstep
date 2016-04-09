@@ -17,13 +17,15 @@
 
 #include "transaction/StronglyConnectedComponents.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <stack>
 #include <unordered_map>
 #include <vector>
 
-namespace quickstep {
+#include "transaction/DirectedGraph.hpp"
 
+namespace quickstep {
 namespace transaction {
 
 StronglyConnectedComponents::StronglyConnectedComponents(
@@ -118,5 +120,4 @@ std::unordered_map<std::uint64_t, std::vector<DirectedGraph::node_id>>
 }
 
 }  // namespace transaction
-
 }  // namespace quickstep

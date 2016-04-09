@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -64,13 +66,15 @@ class AggregateTest : public StrategyTest {
   }
 
   E::AggregateFunctionPtr createSum(const E::ScalarPtr &argument,
-                                    const bool is_vector_aggregate) {
+                                    const bool is_vector_aggregate,
+                                    const bool is_distinct) {
     std::vector<E::ScalarPtr> args(1, argument);
 
     return E::AggregateFunction::Create(
         AggregateFunctionFactory::Get(AggregationID::kSum),
         args,
-        is_vector_aggregate);
+        is_vector_aggregate,
+        is_distinct);
   }
 
  private:
@@ -78,54 +82,63 @@ class AggregateTest : public StrategyTest {
 };
 
 TEST_F(AggregateTest, BasicTest) {
-  const E::AggregateFunctionPtr sum = createSum(add_literal_0_, true);
-  const E::AliasPtr sum_alias = createAlias(sum,
-                                            "sum" /* attribute_name */,
-                                            "test_relation" /* relation_name */);
-  input_logical_ = L::Aggregate::Create(
-      logical_table_reference_0_,
-      {alias_0_} /* grouping_expressions */,
-      {sum_alias} /* aggregate_expressions */);
-  expected_physical_ = P::Aggregate::Create(
-      physical_table_reference_0_,
-      {alias_0_} /* grouping_expressions */,
-      {sum_alias} /* aggregate_expressions */,
-      nullptr /* filter_predicate */);
-  EXPECT_CORRECT_PHYSICAL();
+  for (const bool is_distinct : {true, false}) {
+    const E::AggregateFunctionPtr sum = createSum(add_literal_0_,
+                                                  true /* is_vector_attribute */,
+                                                  is_distinct);
+    const E::AliasPtr sum_alias = createAlias(sum,
+                                              "sum" /* attribute_name */,
+                                              "test_relation" /* relation_name */);
+    input_logical_ = L::Aggregate::Create(
+        logical_table_reference_0_,
+        {alias_0_} /* grouping_expressions */,
+        {sum_alias} /* aggregate_expressions */);
+    expected_physical_ = P::Aggregate::Create(
+        physical_table_reference_0_,
+        {alias_0_} /* grouping_expressions */,
+        {sum_alias} /* aggregate_expressions */,
+        nullptr /* filter_predicate */);
+    EXPECT_CORRECT_PHYSICAL();
+  }
 }
 
 TEST_F(AggregateTest, PullupSelection) {
-  const E::AggregateFunctionPtr sum = createSum(E::ToRef(alias_add_literal_0_), true);
-  const E::AliasPtr sum_alias = createAlias(sum,
-                                            "sum" /* attribute_name */,
-                                            "test_relation" /* relation_name */);
-  const E::AliasPtr alias_on_alias_reference = E::Alias::Create(
-      optimizer_context()->nextExprId(),
-      E::ToRef(alias_add_literal_0_),
-      "alias_on_alias_reference" /* attribute_name */,
-      "alias_on_alias_reference" /* attribute_alias */,
-      "test_relation" /* relation_name */);
+  for (const bool is_distinct : {true, false}) {
+    const E::AggregateFunctionPtr sum = createSum(E::ToRef(alias_add_literal_0_),
+                                                  true /* is_vector_attribute */,
+                                                  is_distinct);
+    const E::AliasPtr sum_alias = createAlias(sum,
+                                              "sum" /* attribute_name */,
+                                              "test_relation" /* relation_name */);
+    const E::AliasPtr alias_on_alias_reference = E::Alias::Create(
+        optimizer_context()->nextExprId(),
+        E::ToRef(alias_add_literal_0_),
+        "alias_on_alias_reference" /* attribute_name */,
+        "alias_on_alias_reference" /* attribute_alias */,
+        "test_relation" /* relation_name */);
 
-  input_logical_ = L::Aggregate::Create(
-      logical_project_on_filter_0_,
-      {E::ToRef(alias_0_), alias_on_alias_reference} /* grouping_expressions */,
-      {sum_alias} /* aggregate_expressions */);
+    input_logical_ = L::Aggregate::Create(
+        logical_project_on_filter_0_,
+        {E::ToRef(alias_0_), alias_on_alias_reference} /* grouping_expressions */,
+        {sum_alias} /* aggregate_expressions */);
 
-  const E::AggregateFunctionPtr sum_after_pullup = std::static_pointer_cast<const E::AggregateFunction>(
-      sum->copyWithNewChildren({alias_add_literal_0_->expression()}));
-  const E::AliasPtr sum_alias_after_pullup =
-      std::static_pointer_cast<const E::Alias>(sum_alias->copyWithNewChildren({sum_after_pullup}));
-  const E::AliasPtr alias_on_alias_reference_after_pullup =
-      std::static_pointer_cast<const E::Alias>(alias_on_alias_reference->copyWithNewChildren(
-          {alias_add_literal_0_->expression()} /* new_children */));
-  expected_physical_ = P::Aggregate::Create(
-      physical_table_reference_0_,
-      {alias_0_,
-       alias_on_alias_reference_after_pullup} /* grouping_expressions */,
-      {sum_alias_after_pullup} /* aggregate_expressions */,
-      logical_filter_0_->filter_predicate());
+    const E::AggregateFunctionPtr sum_after_pullup =
+        std::static_pointer_cast<const E::AggregateFunction>(
+            sum->copyWithNewChildren({alias_add_literal_0_->expression()}));
+    const E::AliasPtr sum_alias_after_pullup =
+        std::static_pointer_cast<const E::Alias>(sum_alias->copyWithNewChildren({sum_after_pullup}));
+    const E::AliasPtr alias_on_alias_reference_after_pullup =
+        std::static_pointer_cast<const E::Alias>(alias_on_alias_reference->copyWithNewChildren(
+            {alias_add_literal_0_->expression()} /* new_children */));
+    expected_physical_ = P::Aggregate::Create(
+        physical_table_reference_0_,
+        {alias_0_,
+         alias_on_alias_reference_after_pullup} /* grouping_expressions */,
+        {sum_alias_after_pullup} /* aggregate_expressions */,
+        logical_filter_0_->filter_predicate());
 
-  EXPECT_CORRECT_PHYSICAL();
+    EXPECT_CORRECT_PHYSICAL();
+  }
 }
 
 }  // namespace strategy

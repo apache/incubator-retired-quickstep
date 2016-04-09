@@ -34,6 +34,7 @@
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/InsertDestination.pb.h"
 #include "storage/StorageManager.hpp"
+#include "threading/ThreadIDBasedMap.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
 #include "utility/MemStream.hpp"
@@ -60,10 +61,18 @@ constexpr int kOpIndex = 0;
 class TextScanOperatorTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
+    thread_id_map_ = ClientIDMap::Instance();
+
     bus_.Initialize();
 
+    const tmb::client_id worker_thread_client_id = bus_.Connect();
+    bus_.RegisterClientAsSender(worker_thread_client_id, kCatalogRelationNewBlockMessage);
+
+    // Usually the worker thread makes the following call. In this test setup,
+    // we don't have a worker thread hence we have to explicitly make the call.
+    thread_id_map_->addValue(worker_thread_client_id);
+
     foreman_client_id_ = bus_.Connect();
-    bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
     bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
 
     db_.reset(new CatalogDatabase(nullptr, "database"));
@@ -86,6 +95,10 @@ class TextScanOperatorTest : public ::testing::Test {
         new CatalogAttribute(relation_, "varchar_attr", TypeFactory::GetType(kVarChar, 20, true)));
 
     storage_manager_.reset(new StorageManager("./test_data/"));
+  }
+
+  virtual void TearDown() {
+    thread_id_map_->removeValue();
   }
 
   void fetchAndExecuteWorkOrders(RelationalOperator *op) {
@@ -147,6 +160,11 @@ class TextScanOperatorTest : public ::testing::Test {
     return golden_string;
   }
 
+  // This map is needed for InsertDestination and some WorkOrders that send
+  // messages to Foreman directly. To know the reason behind the design of this
+  // map, see the note in InsertDestination.hpp.
+  ClientIDMap *thread_id_map_;
+
   MessageBusImpl bus_;
   tmb::client_id foreman_client_id_;
 
@@ -179,7 +197,7 @@ TEST_F(TextScanOperatorTest, ScanTest) {
 
   // Setup query_context_.
   query_context_.reset(new QueryContext(query_context_proto,
-                                        db_.get(),
+                                        *db_,
                                         storage_manager_.get(),
                                         foreman_client_id_,
                                         &bus_));

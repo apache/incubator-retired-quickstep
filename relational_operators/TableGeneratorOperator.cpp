@@ -34,7 +34,7 @@ bool TableGeneratorOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
     QueryContext *query_context,
     StorageManager *storage_manager,
-    const tmb::client_id foreman_client_id,
+    const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
   if (!started_) {
     DCHECK(query_context != nullptr);

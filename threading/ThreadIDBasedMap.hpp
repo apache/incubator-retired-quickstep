@@ -1,5 +1,5 @@
 /**
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -33,15 +33,17 @@
 #include "threading/WinThreadsAPI.hpp"
 #endif
 
+#include "storage/StorageConstants.hpp"
 #include "threading/Mutex.hpp"
 #include "threading/SharedMutex.hpp"
 #include "threading/SpinSharedMutex.hpp"
+#include "utility/Macros.hpp"
 
 #include "glog/logging.h"
 
 namespace quickstep {
 
-/** \addtogroup QueryExecution
+/** \addtogroup Threading
  *  @{
  */
 /**
@@ -107,12 +109,13 @@ class ThreadIDBasedMap {
    *
    * @return The value for which the key is the caller thread's ID.
    **/
-  const V& getValue() {
+  const V& getValue() const {
     const thread_id_t key = getKey();
     {
       SpinSharedMutexSharedLock<false> lock(map_mutex_);
-      DCHECK(map_.find(key) != map_.end());
-      return map_[key];
+      const auto it = map_.find(key);
+      DCHECK(it != map_.end());
+      return it->second;
     }
   }
 
@@ -149,7 +152,9 @@ class ThreadIDBasedMap {
 
   std::unordered_map<thread_id_t, V> map_;
 
-  SpinSharedMutex<false> map_mutex_;
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> map_mutex_;
+
+  DISALLOW_COPY_AND_ASSIGN(ThreadIDBasedMap);
 };
 
 /** @} */

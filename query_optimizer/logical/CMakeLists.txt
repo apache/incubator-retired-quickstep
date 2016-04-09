@@ -23,6 +23,7 @@ add_library(quickstep_queryoptimizer_logical_DeleteTuples DeleteTuples.cpp Delet
 add_library(quickstep_queryoptimizer_logical_DropTable DropTable.cpp DropTable.hpp)
 add_library(quickstep_queryoptimizer_logical_Filter Filter.cpp Filter.hpp)
 add_library(quickstep_queryoptimizer_logical_HashJoin ../../empty_src.cpp HashJoin.hpp)
+add_library(quickstep_queryoptimizer_logical_InsertSelection InsertSelection.cpp InsertSelection.hpp)
 add_library(quickstep_queryoptimizer_logical_InsertTuple InsertTuple.cpp InsertTuple.hpp)
 add_library(quickstep_queryoptimizer_logical_Join ../../empty_src.cpp Join.hpp)
 add_library(quickstep_queryoptimizer_logical_Logical ../../empty_src.cpp Logical.hpp)
@@ -123,6 +124,13 @@ target_link_libraries(quickstep_queryoptimizer_logical_HashJoin
                       quickstep_queryoptimizer_logical_Logical
                       quickstep_queryoptimizer_logical_LogicalType
                       quickstep_utility_Cast
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_logical_InsertSelection
+                      glog
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_logical_Logical
+                      quickstep_queryoptimizer_logical_LogicalType
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_logical_InsertTuple
                       glog
@@ -261,6 +269,7 @@ target_link_libraries(quickstep_queryoptimizer_logical
                       quickstep_queryoptimizer_logical_DropTable
                       quickstep_queryoptimizer_logical_Filter
                       quickstep_queryoptimizer_logical_HashJoin
+                      quickstep_queryoptimizer_logical_InsertSelection
                       quickstep_queryoptimizer_logical_InsertTuple
                       quickstep_queryoptimizer_logical_Join
                       quickstep_queryoptimizer_logical_Logical

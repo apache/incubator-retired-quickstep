@@ -58,11 +58,11 @@ void Worker::run() {
         WorkerMessage message(*static_cast<const WorkerMessage*>(tagged_message.message()));
         DCHECK(message.getWorkOrder() != nullptr);
         message.getWorkOrder()->execute();
+        delete message.getWorkOrder();
 
         sendWorkOrderCompleteMessage(annotated_msg.sender,
                                      message.getRelationalOpIndex(),
                                      tagged_message.message_type() == kRebuildWorkOrderMessage);
-        delete message.getWorkOrder();
         break;
       }
       case kPoisonMessage: {
@@ -79,7 +79,7 @@ void Worker::sendWorkOrderCompleteMessage(const tmb::client_id receiver,
                                           const bool is_rebuild_work_order) {
   serialization::WorkOrderCompletionMessage proto;
   proto.set_operator_index(op_index);
-  proto.set_worker_id(worker_id_);
+  proto.set_worker_thread_index(worker_thread_index_);
 
   // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
   const size_t proto_length = proto.ByteSize();

@@ -1,5 +1,5 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -118,6 +118,19 @@ if (NOT ALIGNED_MALLOC_FOUND)
                       "aligned memory allocation.")
 endif()
 
+# Check for sysconf on Linux
+include(CheckIncludeFileCXX)
+include(CheckCXXSourceCompiles)
+CHECK_CXX_SOURCE_COMPILES("
+  #include <unistd.h>
+  int main() {
+  return (sysconf(_SC_PAGE_SIZE) > 0 && sysconf(_SC_PHYS_PAGES) > 0);
+  }
+" QUICKSTEP_HAVE_SYSCONF)
+if (NOT QUICKSTEP_HAVE_SYSCONF)
+  check_include_files("windows.h" QUICKSTEP_HAVE_WINDOWS)
+endif()
+
 include(CheckIncludeFileCXX)
 check_include_files("glob.h" QUICKSTEP_HAVE_GLOB)
 if (NOT QUICKSTEP_HAVE_GLOB)
@@ -141,6 +154,7 @@ QS_PROTOBUF_GENERATE_CPP(quickstep_utility_SortConfiguration_proto_srcs
 add_library(quickstep_utility_Alignment ../empty_src.cpp Alignment.hpp)
 add_library(quickstep_utility_BitManipulation ../empty_src.cpp BitManipulation.hpp)
 add_library(quickstep_utility_BitVector ../empty_src.cpp BitVector.hpp)
+add_library(quickstep_utility_CalculateInstalledMemory CalculateInstalledMemory.cpp CalculateInstalledMemory.hpp)
 add_library(quickstep_utility_Cast ../empty_src.cpp Cast.hpp)
 add_library(quickstep_utility_CheckSnprintf ../empty_src.cpp CheckSnprintf.hpp)
 add_library(quickstep_utility_DAG ../empty_src.cpp DAG.hpp)
@@ -185,6 +199,8 @@ target_link_libraries(quickstep_utility_BitVector
                       glog
                       quickstep_utility_BitManipulation
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_utility_CalculateInstalledMemory
+                      glog)
 target_link_libraries(quickstep_utility_CheckSnprintf
                       glog)
 target_link_libraries(quickstep_utility_DAG
@@ -215,6 +231,7 @@ target_link_libraries(quickstep_utility_SqlError
 target_link_libraries(quickstep_utility_SortConfiguration
                       glog
                       quickstep_expressions_ExpressionFactories
+                      quickstep_expressions_Expressions_proto
                       quickstep_expressions_scalar_Scalar
                       quickstep_utility_PtrVector
                       quickstep_utility_SortConfiguration_proto)
@@ -246,6 +263,7 @@ target_link_libraries(quickstep_utility
                       quickstep_utility_Alignment
                       quickstep_utility_BitManipulation
                       quickstep_utility_BitVector
+                      quickstep_utility_CalculateInstalledMemory
                       quickstep_utility_Cast
                       quickstep_utility_CheckSnprintf
                       quickstep_utility_DAG
@@ -279,6 +297,13 @@ target_link_libraries(BitVector_unittest
                       quickstep_utility_BitVector
                       ${LIBS})
 add_test(BitVector_unittest BitVector_unittest)
+
+add_executable(CalculateInstalledMemory_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/CalculateInstalledMemory_unittest.cpp")
+target_link_libraries(CalculateInstalledMemory_unittest
+                      gtest
+                      gtest_main
+                      quickstep_utility_CalculateInstalledMemory)
+add_test(CalculateInstalledMemory_unittest CalculateInstalledMemory_unittest)
 
 add_executable(DAG_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/DAG_unittest.cpp")
 target_link_libraries(DAG_unittest

@@ -203,7 +203,7 @@ class WindowAggregationOperatorTest : public ::testing::Test {
 
     // Set up the QueryContext.
    query_context_.reset(new QueryContext(
-        query_context_proto, db_.get(), storage_manager_.get(), client_id_, &bus_));
+        query_context_proto, *db_, storage_manager_.get(), client_id_, &bus_));
 
     // Create Operators.
     std::vector<std::unique_ptr<const Scalar>> grouping;

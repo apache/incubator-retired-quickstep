@@ -40,6 +40,7 @@
 #include "query_optimizer/physical/DeleteTuples.hpp"
 #include "query_optimizer/physical/DropTable.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
+#include "query_optimizer/physical/InsertSelection.hpp"
 #include "query_optimizer/physical/InsertTuple.hpp"
 #include "query_optimizer/physical/NestedLoopsJoin.hpp"
 #include "query_optimizer/physical/Physical.hpp"
@@ -291,6 +292,13 @@ class ExecutionGenerator {
    * @param physical_plan The DropTable to be converted.
    */
   void convertDropTable(const physical::DropTablePtr &physical_plan);
+
+  /**
+   * @brief Converts an InsertSelection to a Select and a SaveBlocks.
+   *
+   * @param physical_plan The InsertSelection to be converted.
+   */
+  void convertInsertSelection(const physical::InsertSelectionPtr &physical_plan);
 
   /**
    * @brief Converts an InsertTuple to an Insert and a SaveBlocks.

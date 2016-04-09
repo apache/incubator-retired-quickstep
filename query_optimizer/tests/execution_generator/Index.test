@@ -24,9 +24,19 @@ SELECT * FROM foo3;
 ==
 CREATE INDEX idx2 ON foo3(col1) USING CSBTREE;
 --
-ERROR: The relation foo3 already defines this index on col1
+ERROR: The relation foo3 already defines this index on the given attribute(s).
 ==
 CREATE INDEX idx2 ON foo3(col2) USING CSBTREE;
+SELECT * FROM foo3;
+--
++-----------+-----------+
+|col1       |col2       |
++-----------+-----------+
++-----------+-----------+
+==
+# Compound index creation should succeed, even when
+# separate indices are defined on individual attributes.
+CREATE INDEX idx3 ON foo3(col1, col2) USING CSBTREE;
 SELECT * FROM foo3;
 --
 +-----------+-----------+
@@ -41,7 +51,7 @@ ERROR: Bloom Filter index is not yet implemented (1 : 48)
 ...INDEX bloomIndex ON test(int_col) USING BLOOMFILTER
                                            ^
 ==
-# SMA Index creation is not supported using CREATE INDEX
+# SMA Index creation is not supported using CREATE INDEX.
 CREATE INDEX smaIndex ON test USING SMA
 --
 ERROR: syntax error (1 : 37)

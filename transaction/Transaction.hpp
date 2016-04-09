@@ -23,7 +23,6 @@
 #include <functional>
 
 namespace quickstep {
-
 namespace transaction {
 
 /** \addtogroup Transaction
@@ -115,7 +114,6 @@ class Transaction {
 /** @} */
 
 }  // namespace transaction
-
 }  // namespace quickstep
 
 #endif  // QUICKSTEP_TRANSACTION_TRANSACTION_HPP_

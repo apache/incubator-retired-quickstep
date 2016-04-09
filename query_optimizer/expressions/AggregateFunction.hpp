@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -104,6 +106,13 @@ class AggregateFunction : public Expression {
     return arguments_;
   }
 
+  /*
+   * @return Whether this is a DISTINCT aggregation.
+   */
+  inline bool is_distinct() const {
+    return is_distinct_;
+  }
+
   /**
    * @brief Create a new AggregateFunction.
    *
@@ -114,11 +123,13 @@ class AggregateFunction : public Expression {
    *        system.
    * @param arguments A list of arguments to the aggregate function.
    * @param is_vector_aggregate Whether the aggregate has a GROUP BY clause.
+   * @param is_distinct Whether this is a DISTINCT aggregation.
    * @return A new AggregateFunctionPtr.
    **/
   static AggregateFunctionPtr Create(const ::quickstep::AggregateFunction &aggregate,
                                      const std::vector<ScalarPtr> &arguments,
-                                     const bool is_vector_aggregate);
+                                     const bool is_vector_aggregate,
+                                     const bool is_distinct);
 
  protected:
   void getFieldStringItems(
@@ -137,13 +148,16 @@ class AggregateFunction : public Expression {
    * @param arguments The scalar arguments to the aggregate function.
    * @param is_vector_aggregate Indicates whether this aggregation is a vector
    *                            aggregation (i.e. GROUP BY exists).
+   * @param is_distinct Indicates whether this is a DISTINCT aggregation.
    */
   AggregateFunction(const ::quickstep::AggregateFunction &aggregate,
                     const std::vector<ScalarPtr> &arguments,
-                    const bool is_vector_aggregate)
+                    const bool is_vector_aggregate,
+                    const bool is_distinct)
       : aggregate_(aggregate),
         arguments_(arguments),
-        is_vector_aggregate_(is_vector_aggregate) {
+        is_vector_aggregate_(is_vector_aggregate),
+        is_distinct_(is_distinct) {
     for (const ScalarPtr &child : arguments_) {
       addChild(child);
     }
@@ -151,7 +165,8 @@ class AggregateFunction : public Expression {
 
   const ::quickstep::AggregateFunction &aggregate_;
   std::vector<ScalarPtr> arguments_;
-  bool is_vector_aggregate_;
+  const bool is_vector_aggregate_;
+  const bool is_distinct_;
 
   DISALLOW_COPY_AND_ASSIGN(AggregateFunction);
 };

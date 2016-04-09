@@ -25,6 +25,14 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <fstream>
+
+// TODO(jmp): If filesystem shows up in C++-17, we can switch to just using that.
+#ifdef QUICKSTEP_OS_WINDOWS
+#include <filesystem>
+#else
+#include <stdlib.h>
+#endif
 
 #include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE.
 #include "cli/DropRelation.hpp"
@@ -128,13 +136,14 @@ DEFINE_bool(preload_buffer_pool, false,
             "accepting queries (should also set --buffer_pool_slots to be "
             "large enough to accomodate the entire database).");
 DEFINE_string(storage_path, kDefaultStoragePath,
-              "Filesystem path for quickstep database storage.");
+              "Filesystem path to store the Quickstep database.");
 DEFINE_string(worker_affinities, "",
               "A comma-separated list of CPU IDs to pin worker threads to "
               "(leaving this empty will cause all worker threads to inherit "
               "the affinity mask of the Quickstep process, which typically "
               "means that they will all be runable on any CPU according to "
               "the kernel's own scheduling policy).");
+DEFINE_bool(initialize_db, false, "If true, initialize a database.");
 }  // namespace quickstep
 
 int main(int argc, char* argv[]) {
@@ -190,13 +199,53 @@ int main(int argc, char* argv[]) {
 
   string catalog_path(fixed_storage_path);
   catalog_path.append("catalog.pb.bin");
+  if (quickstep::FLAGS_initialize_db) {  // Initialize the database
+    // TODO(jmp): Refactor the code in this file!
+    LOG(INFO) << "Initializing the database, creating a new catalog file and storage directory\n";
+
+    // Create the directory
+    // TODO(jmp): At some point, likely in C++-17, we will just have the
+    //            filesystem path, and we can clean this up
+#ifdef QUICKSTEP_OS_WINDOWS
+    std::filesystem::create_directories(fixed_storage_path);
+    LOG(FATAL) << "Failed when attempting to create the directory: " << fixed_storage_path << "\n";
+    LOG(FATAL) << "Check if the directory already exists. If so, delete it or move it before initializing \n";
+#else
+    {
+      string path_name = "mkdir " + fixed_storage_path;
+      if (std::system(path_name.c_str())) {
+        LOG(FATAL) << "Failed when attempting to create the directory: " << fixed_storage_path << "\n";
+      }
+    }
+#endif
+
+    // Create the default catalog file.
+    std::ofstream catalog_file(catalog_path);
+    if (!catalog_file.good()) {
+      LOG(FATAL) << "ERROR: Unable to open catalog.pb.bin for writing.\n";
+    }
+
+    quickstep::Catalog catalog;
+    catalog.addDatabase(new quickstep::CatalogDatabase(nullptr, "default"));
+
+    if (!catalog.getProto().SerializeToOstream(&catalog_file)) {
+      LOG(FATAL) << "ERROR: Unable to serialize catalog proto to file catalog.pb.bin\n";
+      return 1;
+    }
+
+    // Close the catalog file - it will be reopened below by the QueryProcessor.
+    catalog_file.close();
+  }
 
   // Setup QueryProcessor, including CatalogDatabase and StorageManager.
   std::unique_ptr<QueryProcessor> query_processor;
   try {
     query_processor.reset(new QueryProcessor(catalog_path, fixed_storage_path));
   } catch (const std::exception &e) {
-    LOG(FATAL) << "FATAL ERROR DURING STARTUP: " << e.what();
+    LOG(FATAL) << "FATAL ERROR DURING STARTUP: "
+               << e.what()
+               << "\nIf you intended to create a new database, "
+               << "please use the \"-initialize_db=true\" command line option.";
   } catch (...) {
     LOG(FATAL) << "NON-STANDARD EXCEPTION DURING STARTUP";
   }
@@ -240,18 +289,18 @@ int main(int argc, char* argv[]) {
   // Initialize the worker threads.
   DCHECK_EQ(static_cast<std::size_t>(real_num_workers),
             worker_cpu_affinities.size());
-  for (std::size_t worker_idx = 0;
-       worker_idx < worker_cpu_affinities.size();
-       ++worker_idx) {
+  for (std::size_t worker_thread_index = 0;
+       worker_thread_index < worker_cpu_affinities.size();
+       ++worker_thread_index) {
     int numa_node_id = -1;
-    if (worker_cpu_affinities[worker_idx] >= 0) {
+    if (worker_cpu_affinities[worker_thread_index] >= 0) {
       // This worker can be NUMA affinitized.
-      numa_node_id = cpu_numa_nodes[worker_cpu_affinities[worker_idx]];
+      numa_node_id = cpu_numa_nodes[worker_cpu_affinities[worker_thread_index]];
     }
     worker_numa_nodes.push_back(numa_node_id);
 
     workers.push_back(
-        new Worker(worker_idx, &bus, worker_cpu_affinities[worker_idx]));
+        new Worker(worker_thread_index, &bus, worker_cpu_affinities[worker_thread_index]));
     worker_client_ids.push_back(workers.back().getBusClientID());
   }
 

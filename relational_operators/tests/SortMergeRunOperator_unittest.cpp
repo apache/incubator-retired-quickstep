@@ -158,17 +158,19 @@ class RunTest : public ::testing::Test {
     // Initialize the TMB, register this thread as sender and receiver for
     // appropriate types of messages.
     bus_.Initialize();
-    thread_client_id_ = bus_.Connect();
-    bus_.RegisterClientAsSender(thread_client_id_, kDataPipelineMessage);
-    bus_.RegisterClientAsReceiver(thread_client_id_, kDataPipelineMessage);
 
-    bus_.RegisterClientAsSender(thread_client_id_, kCatalogRelationNewBlockMessage);
-    bus_.RegisterClientAsReceiver(thread_client_id_, kCatalogRelationNewBlockMessage);
+    foreman_client_id_ = bus_.Connect();
+    bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsReceiver(foreman_client_id_, kDataPipelineMessage);
+
+    const tmb::client_id worker_thread_client_id = bus_.Connect();
+    bus_.RegisterClientAsSender(worker_thread_client_id, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsSender(worker_thread_client_id, kDataPipelineMessage);
 
     thread_id_map_ = ClientIDMap::Instance();
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
-    thread_id_map_->addValue(thread_client_id_);
+    thread_id_map_->addValue(worker_thread_client_id);
 
     storage_manager_.reset(new StorageManager(kStoragePath));
     table_.reset(new CatalogRelation(nullptr, kTableName, kTableId));
@@ -186,7 +188,7 @@ class RunTest : public ::testing::Test {
                                        nullptr,
                                        storage_manager_.get(),
                                        kOpIndex,
-                                       thread_client_id_,
+                                       foreman_client_id_,
                                        &bus_));
   }
 
@@ -214,7 +216,7 @@ class RunTest : public ::testing::Test {
   merge_run_operator::Run run_;
 
   MessageBusImpl bus_;
-  tmb::client_id thread_client_id_;
+  tmb::client_id foreman_client_id_;
 
   // This map is needed for InsertDestination and some operators that send
   // messages to Foreman directly. To know the reason behind the design of this
@@ -379,17 +381,18 @@ class RunMergerTest : public ::testing::Test {
     // Initialize the TMB, register this thread as sender and receiver for
     // appropriate types of messages.
     bus_.Initialize();
-    thread_client_id_ = bus_.Connect();
-    bus_.RegisterClientAsSender(thread_client_id_, kDataPipelineMessage);
-    bus_.RegisterClientAsReceiver(thread_client_id_, kDataPipelineMessage);
+    foreman_client_id_ = bus_.Connect();
+    bus_.RegisterClientAsReceiver(foreman_client_id_, kDataPipelineMessage);
+    bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
 
-    bus_.RegisterClientAsSender(thread_client_id_, kCatalogRelationNewBlockMessage);
-    bus_.RegisterClientAsReceiver(thread_client_id_, kCatalogRelationNewBlockMessage);
+    const tmb::client_id worker_thread_client_id = bus_.Connect();
+    bus_.RegisterClientAsSender(worker_thread_client_id, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsSender(worker_thread_client_id, kDataPipelineMessage);
 
     thread_id_map_ = ClientIDMap::Instance();
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
-    thread_id_map_->addValue(thread_client_id_);
+    thread_id_map_->addValue(worker_thread_client_id);
 
     storage_manager_.reset(new StorageManager(kStoragePath));
 
@@ -418,7 +421,7 @@ class RunMergerTest : public ::testing::Test {
                                        nullptr,
                                        storage_manager_.get(),
                                        kOpIndex,
-                                       thread_client_id_,
+                                       foreman_client_id_,
                                        &bus_));
   }
 
@@ -630,7 +633,7 @@ class RunMergerTest : public ::testing::Test {
   std::unique_ptr<Tuple> last_expected_tuple_;  // This is only populated for top-k tests.
 
   MessageBusImpl bus_;
-  tmb::client_id thread_client_id_;
+  tmb::client_id foreman_client_id_;
 
   // This map is needed for InsertDestination and some operators that send
   // messages to Foreman directly. To know the reason behind the design of this
@@ -1198,21 +1201,21 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     // Initialize the TMB, register this thread as sender and receiver for
     // appropriate types of messages.
     bus_.Initialize();
-    worker_client_id_ = bus_.Connect();
-    bus_.RegisterClientAsSender(worker_client_id_, kDataPipelineMessage);
-    bus_.RegisterClientAsSender(worker_client_id_, kWorkOrderFeedbackMessage);
+
+    const tmb::client_id worker_thread_client_id = bus_.Connect();
+    bus_.RegisterClientAsSender(worker_thread_client_id, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsSender(worker_thread_client_id, kDataPipelineMessage);
+    bus_.RegisterClientAsSender(worker_thread_client_id, kWorkOrderFeedbackMessage);
 
     thread_id_map_ = ClientIDMap::Instance();
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
-    thread_id_map_->addValue(worker_client_id_);
+    thread_id_map_->addValue(worker_thread_client_id);
 
     foreman_client_id_ = bus_.Connect();
-    bus_.RegisterClientAsReceiver(foreman_client_id_, kWorkOrderFeedbackMessage);
-    bus_.RegisterClientAsReceiver(foreman_client_id_, kDataPipelineMessage);
-
-    bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
     bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsReceiver(foreman_client_id_, kDataPipelineMessage);
+    bus_.RegisterClientAsReceiver(foreman_client_id_, kWorkOrderFeedbackMessage);
 
     storage_manager_.reset(new StorageManager(kStoragePath));
 
@@ -1272,7 +1275,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto_,
-                                          db_.get(),
+                                          *db_,
                                           storage_manager_.get(),
                                           foreman_client_id_,
                                           &bus_));
@@ -1537,7 +1540,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto_,
-                                          db_.get(),
+                                          *db_,
                                           storage_manager_.get(),
                                           foreman_client_id_,
                                           &bus_));
@@ -1580,7 +1583,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto_,
-                                          db_.get(),
+                                          *db_,
                                           storage_manager_.get(),
                                           foreman_client_id_,
                                           &bus_));
@@ -1667,7 +1670,6 @@ class SortMergeRunOperatorTest : public ::testing::Test {
   std::unique_ptr<Tuple> last_actual_tuple_;
 
   MessageBusImpl bus_;
-  tmb::client_id worker_client_id_;
   tmb::client_id foreman_client_id_;
 
   // This map is needed for InsertDestination and some operators that send

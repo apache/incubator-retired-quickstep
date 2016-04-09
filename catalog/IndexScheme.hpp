@@ -20,10 +20,8 @@
 
 #include <algorithm>
 #include <cstddef>
-#include <memory>
 #include <string>
 #include <unordered_map>
-#include <vector>
 
 #include "catalog/Catalog.pb.h"
 #include "storage/StorageBlockLayout.pb.h"
@@ -103,17 +101,13 @@ class IndexScheme {
    * @param index_descripton Index Description to check against.
    * @return Whether a similar index description was already defined or not.
    **/
-  bool hasIndexWithDescription(const IndexSubBlockDescription &index_description) const {
-    // Iterate through every vector of descriptions corresponding to all keys in the index map.
+  bool hasIndexWithDescription(const IndexSubBlockDescription &index_description_checked) const {
+    // Iterate through every index description corresponding to each key in the index map.
     for (auto cit = index_map_.cbegin(); cit != index_map_.cend(); ++cit) {
-      const std::vector<IndexSubBlockDescription> &index_descriptions = cit->second;
-      for (auto index_description_it = index_descriptions.cbegin();
-           index_description_it != index_descriptions.cend();
-           ++index_description_it) {
-        // Check if the stored description matches the given description.
-        if (areIndexDescriptionsSame(*index_description_it, index_description)) {
-          return true;
-        }
+      const IndexSubBlockDescription &index_description_expected = cit->second;
+      // Check if the stored description matches the given description.
+      if (areIndexDescriptionsSame(index_description_expected, index_description_checked)) {
+        return true;
       }
     }
     return false;
@@ -150,27 +144,22 @@ class IndexScheme {
    * @note This method assumes that the caller has already acquired the
    *       necessary locks before invoking it.
    *
-   * @param index_name The name of index to add (key)
-   * @param index_description The index description for this index (value)
+   * @param index_name The name of index to add (key).
+   * @param index_description The index description for this index (value).
    **/
   bool addIndexMapEntry(const std::string &index_name,
-                        const std::vector<IndexSubBlockDescription> &index_descriptions) {
+                        IndexSubBlockDescription &&index_description) {  // NOLINT(whitespace/operators)
     if (index_map_.find(index_name) != index_map_.end()) {
       return false;  // index_name is already present!
     }
-    // Value for this index_map key is the list of index descriptions provided.
-    std::vector<IndexSubBlockDescription> index_sub_block_descriptions;
-    for (std::size_t i = 0; i < index_descriptions.size(); ++i) {
-      // Make a copy of the index_description before putting it in the map.
-      index_sub_block_descriptions.emplace_back(index_descriptions[i]);
-    }
-    index_map_.emplace(index_name, std::move(index_sub_block_descriptions));
+    // Value for this index_map key is the index description provided.
+    index_map_.emplace(index_name, std::move(index_description));
     return true;
   }
 
  private:
   // A map of index names to their index description.
-  std::unordered_map<std::string, std::vector<IndexSubBlockDescription>> index_map_;
+  std::unordered_map<std::string, IndexSubBlockDescription> index_map_;
 
   DISALLOW_COPY_AND_ASSIGN(IndexScheme);
 };

@@ -156,7 +156,7 @@ class TextScanOperator : public RelationalOperator {
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,
                         StorageManager *storage_manager,
-                        const tmb::client_id foreman_client_id,
+                        const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
@@ -323,20 +323,20 @@ class TextSplitWorkOrder : public WorkOrder {
    * @param storage_manager The StorageManager to use.
    * @param operator_index Operator index of the current operator. This is used
    *                       to send new-work available message to Foreman.
-   * @param foreman_client_id The TMB client ID of the foreman thread.
+   * @param scheduler_client_id The TMB client ID of the scheduler thread.
    * @param bus A pointer to the TMB.
    */
   TextSplitWorkOrder(const std::string filename,
                      const bool process_escape_sequences,
                      StorageManager *storage_manager,
                      const std::size_t operator_index,
-                     const tmb::client_id foreman_client_id,
+                     const tmb::client_id scheduler_client_id,
                      MessageBus *bus)
       : filename_(filename),
         process_escape_sequences_(process_escape_sequences),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
         operator_index_(operator_index),
-        foreman_client_id_(foreman_client_id),
+        scheduler_client_id_(scheduler_client_id),
         bus_(DCHECK_NOTNULL(bus)) {}
 
   /**
@@ -371,7 +371,7 @@ class TextSplitWorkOrder : public WorkOrder {
   StorageManager *storage_manager_;
 
   const std::size_t operator_index_;  // Opeartor index.
-  const tmb::client_id foreman_client_id_;  // Foreman TMB client ID.
+  const tmb::client_id scheduler_client_id_;  // The scheduler's TMB client ID.
   MessageBus *bus_;
 
   MutableBlobReference text_blob_;  // Mutable reference to current blob.

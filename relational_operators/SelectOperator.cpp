@@ -39,7 +39,7 @@ bool SelectOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
     QueryContext *query_context,
     StorageManager *storage_manager,
-    const tmb::client_id foreman_client_id,
+    const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
   DCHECK(query_context != nullptr);
 
@@ -60,7 +60,7 @@ bool SelectOperator::getAllWorkOrders(
                                 input_block_id,
                                 predicate,
                                 simple_projection_,
-                                *simple_selection_,
+                                simple_selection_,
                                 selection,
                                 output_destination,
                                 storage_manager),
@@ -77,7 +77,7 @@ bool SelectOperator::getAllWorkOrders(
               input_relation_block_ids_[num_workorders_generated_],
               predicate,
               simple_projection_,
-              *simple_selection_,
+              simple_selection_,
               selection,
               output_destination,
               storage_manager),
@@ -97,7 +97,7 @@ void SelectWorkOrder::execute() {
                         predicate_,
                         output_destination_);
   } else {
-    block->select(*selection_,
+    block->select(*DCHECK_NOTNULL(selection_),
                   predicate_,
                   output_destination_);
   }

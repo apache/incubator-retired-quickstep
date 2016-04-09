@@ -58,6 +58,7 @@
 #include "query_optimizer/physical/DeleteTuples.hpp"
 #include "query_optimizer/physical/DropTable.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
+#include "query_optimizer/physical/InsertSelection.hpp"
 #include "query_optimizer/physical/InsertTuple.hpp"
 #include "query_optimizer/physical/NestedLoopsJoin.hpp"
 #include "query_optimizer/physical/PatternMatcher.hpp"
@@ -134,7 +135,7 @@ static const bool aggregate_hashtable_type_dummy
     = gflags::RegisterFlagValidator(&FLAGS_aggregate_hashtable_type,
                                     &ValidateHashTableImplTypeString);
 
-DEFINE_bool(parallelize_load, false, "Parallelize loading data files.");
+DEFINE_bool(parallelize_load, true, "Parallelize loading data files.");
 
 namespace E = ::quickstep::optimizer::expressions;
 namespace P = ::quickstep::optimizer::physical;
@@ -217,6 +218,9 @@ void ExecutionGenerator::generatePlanInternal(
     case P::PhysicalType::kHashJoin:
       return convertHashJoin(
           std::static_pointer_cast<const P::HashJoin>(physical_plan));
+    case P::PhysicalType::kInsertSelection:
+      return convertInsertSelection(
+          std::static_pointer_cast<const P::InsertSelection>(physical_plan));
     case P::PhysicalType::kInsertTuple:
       return convertInsertTuple(
           std::static_pointer_cast<const P::InsertTuple>(physical_plan));
@@ -480,14 +484,14 @@ void ExecutionGenerator::convertSelection(
   // Use the "simple" form of the selection operator (a pure projection that
   // doesn't require any expression evaluation or intermediate copies) if
   // possible.
-  std::unique_ptr<std::vector<attribute_id>> attributes(new std::vector<attribute_id>());
+  std::vector<attribute_id> attributes;
   SelectOperator *op
-      = convertSimpleProjection(project_expressions_group_index, attributes.get())
+      = convertSimpleProjection(project_expressions_group_index, &attributes)
         ? new SelectOperator(*input_relation_info->relation,
                              *output_relation,
                              insert_destination_index,
                              execution_predicate_index,
-                             attributes.release(),
+                             move(attributes),
                              input_relation_info->isStoredRelation())
         : new SelectOperator(*input_relation_info->relation,
                              *output_relation,
@@ -785,6 +789,8 @@ void ExecutionGenerator::convertCopyFrom(
 
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_relation->getID());
+  insert_destination_proto->mutable_layout()->MergeFrom(
+      output_relation->getDefaultStorageBlockLayout().getDescription());
 
   const vector<block_id> blocks(physical_plan->catalog_relation()->getBlocksSnapshot());
   for (const block_id block : blocks) {
@@ -837,26 +843,23 @@ void ExecutionGenerator::convertCreateIndex(
     index_attributes.emplace_back(catalog_attribute);
   }
 
-  // Corresponding to each attribute, create a copy of index description.
-  std::vector<IndexSubBlockDescription> index_descriptions;
+  // Create a copy of index description and add all the specified attributes to it.
+  IndexSubBlockDescription index_description(*physical_plan->index_description());
   for (const CatalogAttribute* catalog_attribute : index_attributes) {
-    IndexSubBlockDescription index_description(*physical_plan->index_description());
     index_description.add_indexed_attribute_ids(catalog_attribute->getID());
-    if (input_relation->hasIndexWithDescription(index_description)) {
-      // Check if the given index description already exists in the relation.
-      THROW_SQL_ERROR() << "The relation " << input_relation->getName()
-          << " already defines this index on "<< catalog_attribute->getName();
-    } else if (!index_description.IsInitialized()) {
-      // Check if the given index description is valid.
-      THROW_SQL_ERROR() << "The index with given properties cannot be created.";
-    } else {
-      index_descriptions.push_back(std::move(index_description));
-    }
   }
-
+  if (input_relation->hasIndexWithDescription(index_description)) {
+    // Check if the given index description already exists in the relation.
+    THROW_SQL_ERROR() << "The relation " << input_relation->getName()
+        << " already defines this index on the given attribute(s).";
+  }
+  if (!index_description.IsInitialized()) {
+    // Check if the given index description is valid.
+    THROW_SQL_ERROR() << "The index with given properties cannot be created.";
+  }
   execution_plan_->addRelationalOperator(new CreateIndexOperator(input_relation,
                                                                  physical_plan->index_name(),
-                                                                 index_descriptions));
+                                                                 std::move(index_description)));
 }
 
 void ExecutionGenerator::convertCreateTable(
@@ -968,8 +971,8 @@ void ExecutionGenerator::convertInsertTuple(
 
   const CatalogRelationInfo *input_relation_info =
       findRelationInfoOutputByPhysical(physical_plan->input());
-  CatalogRelation *input_relation =
-      optimizer_context_->catalog_database()->getRelationByIdMutable(
+  const CatalogRelation &input_relation =
+      *optimizer_context_->catalog_database()->getRelationById(
           input_relation_info->relation->getID());
 
   // Construct the tuple proto to be inserted.
@@ -983,13 +986,13 @@ void ExecutionGenerator::convertInsertTuple(
   // FIXME(qzeng): A better way is using a traits struct to look up whether a storage
   //               block supports ad-hoc insertion instead of hard-coding the block types.
   const StorageBlockLayout &storage_block_layout =
-      input_relation->getDefaultStorageBlockLayout();
+      input_relation.getDefaultStorageBlockLayout();
   if (storage_block_layout.getDescription().tuple_store_description().sub_block_type() ==
       TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE ||
       storage_block_layout.getDescription().tuple_store_description().sub_block_type() ==
             TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE) {
     THROW_SQL_ERROR() << "INSERT statement is not supported for the relation "
-                      << input_relation->getName()
+                      << input_relation.getName()
                       << ", because its storage blocks do not support ad-hoc insertion";
   }
 
@@ -999,17 +1002,18 @@ void ExecutionGenerator::convertInsertTuple(
   S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
 
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
-  insert_destination_proto->set_relation_id(input_relation->getID());
+  insert_destination_proto->set_relation_id(input_relation.getID());
+  insert_destination_proto->mutable_layout()->MergeFrom(
+      input_relation.getDefaultStorageBlockLayout().getDescription());
 
-  const vector<block_id> blocks(input_relation->getBlocksSnapshot());
+  const vector<block_id> blocks(input_relation.getBlocksSnapshot());
   for (const block_id block : blocks) {
     insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
   }
 
-
   const QueryPlan::DAGNodeIndex insert_operator_index =
       execution_plan_->addRelationalOperator(
-          new InsertOperator(*input_relation,
+          new InsertOperator(input_relation,
                              insert_destination_index,
                              tuple_index));
   insert_destination_proto->set_relational_op_index(insert_operator_index);
@@ -1024,6 +1028,87 @@ void ExecutionGenerator::convertInsertTuple(
   }
   execution_plan_->addDirectDependency(save_blocks_index,
                                        insert_operator_index,
+                                       false /* is_pipeline_breaker */);
+}
+
+void ExecutionGenerator::convertInsertSelection(
+    const P::InsertSelectionPtr &physical_plan) {
+  // InsertSelection is converted to a Select and a SaveBlocks.
+
+  const CatalogRelationInfo *destination_relation_info =
+      findRelationInfoOutputByPhysical(physical_plan->destination());
+  const CatalogRelation &destination_relation = *destination_relation_info->relation;
+
+  // FIXME(qzeng): A better way is using a traits struct to look up whether a storage
+  //               block supports ad-hoc insertion instead of hard-coding the block types.
+  const StorageBlockLayout &storage_block_layout =
+      destination_relation.getDefaultStorageBlockLayout();
+  if (storage_block_layout.getDescription().tuple_store_description().sub_block_type() ==
+          TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE
+      || storage_block_layout.getDescription().tuple_store_description().sub_block_type() ==
+             TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE) {
+    THROW_SQL_ERROR() << "INSERT statement is not supported for the relation "
+                      << destination_relation.getName()
+                      << ", because its storage blocks do not support ad-hoc insertion";
+  }
+
+  // Create InsertDestination proto.
+  const QueryContext::insert_destination_id insert_destination_index =
+      query_context_proto_->insert_destinations_size();
+  S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
+
+  insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
+  insert_destination_proto->set_relation_id(destination_relation.getID());
+  insert_destination_proto->mutable_layout()->MergeFrom(
+      destination_relation.getDefaultStorageBlockLayout().getDescription());
+
+  const vector<block_id> blocks(destination_relation.getBlocksSnapshot());
+  for (const block_id block : blocks) {
+    insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+  }
+
+  const CatalogRelationInfo *selection_relation_info =
+      findRelationInfoOutputByPhysical(physical_plan->selection());
+
+  // Prepare the attributes, which are output columns of the selection relation.
+  std::vector<attribute_id> attributes;
+  for (E::AttributeReferencePtr attr_ref : physical_plan->selection()->getOutputAttributes()) {
+    unique_ptr<const Scalar> attribute(attr_ref->concretize(attribute_substitution_map_));
+
+    DCHECK_EQ(Scalar::kAttribute, attribute->getDataSource());
+    attributes.push_back(
+        static_cast<const ScalarAttribute*>(attribute.get())->getAttribute().getID());
+  }
+
+  // Create the select operator.
+  // TODO(jianqiao): This select operator is actually redundant. That is,
+  // we may directly set physical_plan_->selection()'s output relation to be
+  // destination_relation, instead of creating an intermediate selection_relation
+  // and then copy the data into destination_relation. One way to achieve this
+  // optimization is to enable specifying a specific output relation for each
+  // physical plan by modifying class Physical.
+  SelectOperator *insert_selection_op =
+      new SelectOperator(*selection_relation_info->relation,
+                         destination_relation,
+                         insert_destination_index,
+                         QueryContext::kInvalidPredicateId,
+                         move(attributes),
+                         selection_relation_info->isStoredRelation());
+
+  const QueryPlan::DAGNodeIndex insert_selection_index =
+      execution_plan_->addRelationalOperator(insert_selection_op);
+  insert_destination_proto->set_relational_op_index(insert_selection_index);
+
+  const QueryPlan::DAGNodeIndex save_blocks_index =
+      execution_plan_->addRelationalOperator(new SaveBlocksOperator());
+
+  if (!selection_relation_info->isStoredRelation()) {
+    execution_plan_->addDirectDependency(insert_selection_index,
+                                         selection_relation_info->producer_operator_index,
+                                         false /* is_pipeline_breaker */);
+  }
+  execution_plan_->addDirectDependency(save_blocks_index,
+                                       insert_selection_index,
                                        false /* is_pipeline_breaker */);
 }
 
@@ -1085,7 +1170,7 @@ void ExecutionGenerator::convertUpdateTable(
   const QueryPlan::DAGNodeIndex update_operator_index =
       execution_plan_->addRelationalOperator(
           new UpdateOperator(
-              *optimizer_context_->catalog_database()->getRelationByIdMutable(input_rel_id),
+              *optimizer_context_->catalog_database()->getRelationById(input_rel_id),
               relocation_destination_index,
               execution_predicate_index,
               update_group_index));
@@ -1106,13 +1191,6 @@ void ExecutionGenerator::convertUpdateTable(
 
 void ExecutionGenerator::convertAggregate(
     const P::AggregatePtr &physical_plan) {
-  // TODO(quickstep-team): The AggregationOperator and FinalizeAggregationOperator
-  //                       should be able to handle GROUP BY without aggregate expressions,
-  //                       or we may implement a DISTINCT operator.
-  if (physical_plan->aggregate_expressions().empty()) {
-    THROW_SQL_ERROR() << "GROUP BY without any aggregate expression is not supported yet";
-  }
-
   // Create aggr state proto.
   const QueryContext::aggregation_state_id aggr_state_index =
       query_context_proto_->aggregation_states_size();
@@ -1138,6 +1216,9 @@ void ExecutionGenerator::convertAggregate(
       unique_ptr<const Scalar> concretized_argument(argument->concretize(attribute_substitution_map_));
       aggr_proto->add_argument()->CopyFrom(concretized_argument->getProto());
     }
+
+    // Set whether it is a DISTINCT aggregation.
+    aggr_proto->set_is_distinct(unnamed_aggregate_expression->is_distinct());
   }
 
   std::vector<const Type*> group_by_types;

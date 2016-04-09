@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -352,14 +354,19 @@ class ParseFunctionCall : public ParseExpression {
    *
    * @param line_number The line number of the first token of the function call.
    * @param column_number The column number of the first token of the first call.
+   * @param is_distinct Whether this function call contains the DISTINCT keyword.
    * @param name The function name.
    * @param arguments The function argument list.
    */
   ParseFunctionCall(const int line_number,
                     const int column_number,
+                    const bool is_distinct,
                     ParseString *name,
                     PtrList<ParseExpression> *arguments)
-      : ParseExpression(line_number, column_number), name_(name), arguments_(arguments) {
+      : ParseExpression(line_number, column_number),
+        is_distinct_(is_distinct),
+        name_(name),
+        arguments_(arguments) {
   }
 
   /**
@@ -373,6 +380,7 @@ class ParseFunctionCall : public ParseExpression {
    */
   ParseFunctionCall(const int line_number, const int column_number, ParseString *name, ParseStar *star)
       : ParseExpression(line_number, column_number),
+        is_distinct_(false),
         name_(name),
         star_(star) {
   }
@@ -389,6 +397,13 @@ class ParseFunctionCall : public ParseExpression {
 
   std::string getName() const override {
     return "FunctionCall";
+  }
+
+  /**
+   * @return Whether this function call contains the DISTINCT keyword.
+   */
+  bool is_distinct() const {
+    return is_distinct_;
   }
 
   /**
@@ -424,12 +439,76 @@ class ParseFunctionCall : public ParseExpression {
       std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override;
 
  private:
+  const bool is_distinct_;
   std::unique_ptr<ParseString> name_;
   // Either <arguments_> or <star_> is NULL.
   std::unique_ptr<PtrList<ParseExpression>> arguments_;
   std::unique_ptr<ParseStar> star_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseFunctionCall);
+};
+
+
+/**
+ * @brief Parsed representation of EXTRACT(unit FROM date).
+ */
+class ParseExtractFunction : public ParseExpression {
+ public:
+  /**
+   * @brief Constructor.
+   *
+   * @param line_number The line number of the token "extract" in the statement.
+   * @param column_number The column number of the token "extract in the statement.
+   * @param extract_field The field to extract.
+   * @param source_expression The expression to extract a field from.
+   */
+  ParseExtractFunction(const int line_number,
+                       const int column_number,
+                       ParseString *extract_field,
+                       ParseExpression *date_expression)
+      : ParseExpression(line_number, column_number),
+        extract_field_(extract_field),
+        date_expression_(date_expression) {
+  }
+
+  ExpressionType getExpressionType() const override {
+    return kExtract;
+  }
+
+  std::string getName() const override {
+    return "Extract";
+  }
+
+  /**
+   * @return The field to extract.
+   */
+  const ParseString* extract_field() const {
+    return extract_field_.get();
+  }
+
+  /**
+   * @return The expression to extract a field from.
+   */
+  const ParseExpression* date_expression() const {
+    return date_expression_.get();
+  }
+
+  std::string generateName() const override;
+
+ protected:
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<const ParseTreeNode*> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override;
+
+ private:
+  std::unique_ptr<ParseString> extract_field_;
+  std::unique_ptr<ParseExpression> date_expression_;
+
+  DISALLOW_COPY_AND_ASSIGN(ParseExtractFunction);
 };
 
 /** @} */

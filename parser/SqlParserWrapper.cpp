@@ -43,6 +43,7 @@ class ParseKeyStringValue;
 class ParseKeyStringList;
 class ParseKeyLiteralValue;
 class ParseLiteralValue;
+class ParsePartitionClause;
 class ParsePredicate;
 class ParseSample;
 class ParseScalarLiteral;

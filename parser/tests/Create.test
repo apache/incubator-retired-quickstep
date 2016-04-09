@@ -139,6 +139,74 @@ CREATE TABLE test (attr INT) CHECK(attr>0)
                              ^
 ==
 
+CREATE TABLE test (attr INT) PARTITION BY HASH(attr) PARTITIONS 4
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+| +-AttributeDefinition[name=attr,type=Int]
++-partition_clause=
+  +-PartitionClause[partition_type=0]
+    +-Number of Partitions=NumericLiteral[numeric_string=4,float_like=false]
+    +-attribute_name_list=
+      +-String[value=attr]
+==
+
+# Empty partitioning attribute is not allowed
+CREATE TABLE test (attr INT) PARTITION BY HASH() PARTITIONS 4
+--
+ERROR: syntax error (1 : 48)
+...TABLE test (attr INT) PARTITION BY HASH() PARTITIONS 4
+                                           ^
+==
+
+# Zero partitions not allowed
+CREATE TABLE test (attr INT) PARTITION BY HASH(attr) PARTITIONS 0
+--
+ERROR: NUMBER OF PARITIONS must be between 1 and 64 (1 : 65)
+...INT) PARTITION BY HASH(attr) PARTITIONS 0
+                                           ^
+==
+
+# Missing number of partitions not allowed
+CREATE TABLE test (attr INT) PARTITION BY HASH(attr) PARTITIONS
+--
+ERROR: syntax error (1 : 64)
+... INT) PARTITION BY HASH(attr) PARTITIONS
+                                           ^
+==
+
+# Missing PARTITIONS attribute not allowed
+CREATE TABLE test (attr INT) PARTITION BY HASH(attr)
+--
+ERROR: syntax error (1 : 53)
+... test (attr INT) PARTITION BY HASH(attr)
+                                           ^
+==
+
+# Missing partitioning type not allowed
+CREATE TABLE test (attr INT) PARTITION BY (attr) PARTITIONS 4
+--
+ERROR: syntax error (1 : 43)
+CREATE TABLE test (attr INT) PARTITION BY (attr) PARTITIONS 4
+                                          ^
+==
+
+# Number of partitions greater than 64 not allowed
+CREATE TABLE test (attr INT) PARTITION BY HASH(attr) PARTITIONS 65
+--
+ERROR: NUMBER OF PARITIONS must be between 1 and 64 (1 : 65)
+...INT) PARTITION BY HASH(attr) PARTITIONS 65
+                                           ^
+==
+
+# Missing PARTITION BY clause not allowed
+CREATE TABLE test (attr INT) PARTITIONS 4
+--
+ERROR: syntax error (1 : 30)
+CREATE TABLE test (attr INT) PARTITIONS 4
+                             ^
+==
+
 CREATE TABLE test (attr INT) WITH BLOCKPROPERTIES
 (TYPE rowstore)
 --

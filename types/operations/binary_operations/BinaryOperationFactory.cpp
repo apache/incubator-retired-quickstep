@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -23,6 +25,7 @@
 #include "types/operations/binary_operations/AddBinaryOperation.hpp"
 #include "types/operations/binary_operations/BinaryOperationID.hpp"
 #include "types/operations/binary_operations/DivideBinaryOperation.hpp"
+#include "types/operations/binary_operations/ModuloBinaryOperation.hpp"
 #include "types/operations/binary_operations/MultiplyBinaryOperation.hpp"
 #include "types/operations/binary_operations/SubtractBinaryOperation.hpp"
 #include "utility/Macros.hpp"
@@ -41,6 +44,8 @@ const BinaryOperation& BinaryOperationFactory::GetBinaryOperation(const BinaryOp
       return MultiplyBinaryOperation::Instance();
     case BinaryOperationID::kDivide:
       return DivideBinaryOperation::Instance();
+    case BinaryOperationID::kModulo:
+      return ModuloBinaryOperation::Instance();
     default:
       break;  // Prevent compiler from complaining about unhandled case.
   }
@@ -77,6 +82,8 @@ const BinaryOperation& BinaryOperationFactory::ReconstructFromProto(
       return GetBinaryOperation(BinaryOperationID::kMultiply);
     case serialization::BinaryOperation::DIVIDE:
       return GetBinaryOperation(BinaryOperationID::kDivide);
+    case serialization::BinaryOperation::MODULO:
+      return GetBinaryOperation(BinaryOperationID::kModulo);
     default:
       FATAL_ERROR("Unrecognized BinaryOperationID in "
                   "BinaryOperationFactory::ReconstructFromProto");

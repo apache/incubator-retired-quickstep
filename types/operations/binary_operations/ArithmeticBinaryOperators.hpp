@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -18,6 +20,7 @@
 #ifndef QUICKSTEP_TYPES_OPERATIONS_BINARY_OPERATIONS_ARITHMETIC_BINARY_OPERATORS_HPP_
 #define QUICKSTEP_TYPES_OPERATIONS_BINARY_OPERATIONS_ARITHMETIC_BINARY_OPERATORS_HPP_
 
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -141,6 +144,23 @@ struct DivideFunctor<float, std::int64_t> {
   }
 };
 
+template <typename LeftArgument, typename RightArgument> struct IntegerModuloFunctor {
+  inline auto operator() (const LeftArgument &left, const RightArgument &right) const -> decltype(left % right) {
+    return left % right;
+  }
+};
+
+// NOTE(jianqiao): The C++11 standard specifies the following type signatures for fmod:
+// (1) (double, double) -> double
+// (2) (float, float) -> float
+// (3) (long double, long double) -> long double
+// (3) (Arithmetic, Arithmetic) -> double
+template <typename LeftArgument, typename RightArgument> struct FloatModuloFunctor {
+  inline auto operator() (const LeftArgument &left, const RightArgument &right) const
+      -> decltype(std::fmod(left, right)) {
+    return std::fmod(left, right);
+  }
+};
 
 template <template <typename LeftCppType, typename RightCppType> class OpFunctor,
           typename ResultType,
@@ -793,6 +813,30 @@ template <typename ResultType,
           typename RightCppType, bool right_nullable>
 using DivideArithmeticUncheckedBinaryOperator
     = ArithmeticUncheckedBinaryOperator<DivideFunctor,
+                                        ResultType,
+                                        LeftCppType, left_nullable,
+                                        RightCppType, right_nullable>;
+
+/**
+ * @brief The UncheckedBinaryOperator for integer modulo.
+ **/
+template <typename ResultType,
+          typename LeftCppType, bool left_nullable,
+          typename RightCppType, bool right_nullable>
+using IntegerModuloArithmeticUncheckedBinaryOperator
+    = ArithmeticUncheckedBinaryOperator<IntegerModuloFunctor,
+                                        ResultType,
+                                        LeftCppType, left_nullable,
+                                        RightCppType, right_nullable>;
+
+/**
+ * @brief The UncheckedBinaryOperator for real number modulo.
+ **/
+template <typename ResultType,
+          typename LeftCppType, bool left_nullable,
+          typename RightCppType, bool right_nullable>
+using FloatModuloArithmeticUncheckedBinaryOperator
+    = ArithmeticUncheckedBinaryOperator<FloatModuloFunctor,
                                         ResultType,
                                         LeftCppType, left_nullable,
                                         RightCppType, right_nullable>;

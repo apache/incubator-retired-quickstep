@@ -40,12 +40,24 @@ class QueryHandle {
  public:
   /**
    * @brief Constructor.
+   *
+   * @param The given query id.
    */
-  QueryHandle()
-      : query_plan_(new QueryPlan()),
+  explicit QueryHandle(const std::size_t query_id)
+      : query_id_(query_id),
+        query_plan_(new QueryPlan()),
         query_result_relation_(nullptr) {}
 
   ~QueryHandle() {}
+
+  /**
+   * @brief Get the query id.
+   *
+   * @return The query id.
+   */
+  std::size_t query_id() const {
+    return query_id_;
+  }
 
   /**
    * @return The mutable query plan.
@@ -83,6 +95,8 @@ class QueryHandle {
   }
 
  private:
+  const std::size_t query_id_;
+
   std::unique_ptr<QueryPlan> query_plan_;
 
   serialization::QueryContext query_context_proto_;

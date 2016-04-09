@@ -82,6 +82,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_logical_DeleteTuples
                       quickstep_queryoptimizer_logical_DropTable
                       quickstep_queryoptimizer_logical_Filter
+                      quickstep_queryoptimizer_logical_InsertSelection
                       quickstep_queryoptimizer_logical_InsertTuple
                       quickstep_queryoptimizer_logical_Logical
                       quickstep_queryoptimizer_logical_MultiwayCartesianJoin
@@ -105,9 +106,11 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
+                      quickstep_types_operations_unaryoperations_DateExtractOperation
                       quickstep_types_operations_unaryoperations_UnaryOperation
                       quickstep_utility_Macros
                       quickstep_utility_PtrList
+                      quickstep_utility_PtrVector
                       quickstep_utility_SqlError
                       quickstep_utility_StringUtil)
 

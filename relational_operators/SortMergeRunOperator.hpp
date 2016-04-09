@@ -125,7 +125,7 @@ class SortMergeRunOperator : public RelationalOperator {
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,
                         StorageManager *storage_manager,
-                        const tmb::client_id foreman_client_id,
+                        const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
 
   void feedInputBlock(const block_id input_block_id,
@@ -168,14 +168,14 @@ class SortMergeRunOperator : public RelationalOperator {
   bool generateWorkOrders(WorkOrdersContainer *container,
                           QueryContext *query_context,
                           StorageManager *storage_manager,
-                          const tmb::client_id foreman_client_id,
+                          const tmb::client_id scheduler_client_id,
                           tmb::MessageBus *bus);
 
   // Create a merge work order for the given merge job.
   WorkOrder *createWorkOrder(merge_run_operator::MergeTree::MergeJob *job,
                              QueryContext *query_context,
                              StorageManager *storage_manager,
-                             const tmb::client_id foreman_client_id,
+                             const tmb::client_id scheduler_client_id,
                              tmb::MessageBus *bus);
 
   const CatalogRelation &input_relation_;
@@ -225,7 +225,7 @@ class SortMergeRunWorkOrder : public WorkOrder {
    * @param storage_manager The StorageManager to use.
    * @param operator_index Merge-run operator index to send feedback messages
    *                       to.
-   * @param foreman_client_id Foreman's TMB client ID.
+   * @param scheduler_client_id The TMB client ID of the scheduler thread.
    * @param bus TMB to send the feedback message on.
    **/
   SortMergeRunWorkOrder(
@@ -237,7 +237,7 @@ class SortMergeRunWorkOrder : public WorkOrder {
       InsertDestination *output_destination,
       StorageManager *storage_manager,
       const std::size_t operator_index,
-      const tmb::client_id foreman_client_id,
+      const tmb::client_id scheduler_client_id,
       MessageBus *bus)
       : sort_config_(sort_config),
         run_relation_(run_relation),
@@ -247,7 +247,7 @@ class SortMergeRunWorkOrder : public WorkOrder {
         output_destination_(DCHECK_NOTNULL(output_destination)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
         operator_index_(operator_index),
-        foreman_client_id_(foreman_client_id),
+        scheduler_client_id_(scheduler_client_id),
         bus_(DCHECK_NOTNULL(bus)) {
     DCHECK(sort_config_.isValid());
   }
@@ -262,7 +262,7 @@ class SortMergeRunWorkOrder : public WorkOrder {
   StorageManager *storage_manager_;
 
   const std::size_t operator_index_;
-  const tmb::client_id foreman_client_id_;
+  const tmb::client_id scheduler_client_id_;
   MessageBus *bus_;
 
   friend class SortMergeRunOperator;

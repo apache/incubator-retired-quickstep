@@ -38,6 +38,7 @@ enum class LogicalType {
   kDropTable,
   kFilter,
   kHashJoin,
+  kInsertSelection,
   kInsertTuple,
   kMultiwayCartesianJoin,
   kNestedLoopsJoin,

@@ -1,5 +1,5 @@
 //   Copyright 2011-2015 Quickstep Technologies LLC.
-//   Copyright 2015 Pivotal Software, Inc.
+//   Copyright 2015-2016 Pivotal Software, Inc.
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ import "storage/HashTable.proto";
 message Aggregate {
   required AggregateFunction function = 1;
   repeated Scalar argument = 2;
+  required bool is_distinct = 3;
 }
 
 message AggregationOperationState {

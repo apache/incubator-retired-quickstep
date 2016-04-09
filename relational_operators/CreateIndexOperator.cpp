@@ -1,6 +1,6 @@
 /**
- *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -17,8 +17,7 @@
 
 #include "relational_operators/CreateIndexOperator.hpp"
 
-#include "catalog/CatalogDatabase.hpp"
-#include "catalog/CatalogRelation.hpp"
+#include <utility>
 
 #include "tmb/id_typedefs.h"
 
@@ -27,13 +26,13 @@ namespace quickstep {
 bool CreateIndexOperator::getAllWorkOrders(WorkOrdersContainer *container,
                                            QueryContext *query_context,
                                            StorageManager *storage_manager,
-                                           const tmb::client_id foreman_client_id,
+                                           const tmb::client_id scheduler_client_id,
                                            tmb::MessageBus *bus) {
   return true;
 }
 
 void CreateIndexOperator::updateCatalogOnCompletion() {
-  relation_->addIndex(index_name_, index_descriptions_);
+  relation_->addIndex(index_name_, std::move(index_description_));
 }
 
 }  // namespace quickstep

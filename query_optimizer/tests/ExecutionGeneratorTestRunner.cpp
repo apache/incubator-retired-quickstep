@@ -80,7 +80,7 @@ void ExecutionGeneratorTestRunner::runTestCase(
     } else {
       std::printf("%s\n", result.parsed_statement->toString().c_str());
       try {
-        QueryHandle query_handle;
+        QueryHandle query_handle(optimizer_context.query_id());
         LogicalGenerator logical_generator(&optimizer_context);
         PhysicalGenerator physical_generator;
         ExecutionGenerator execution_generator(&optimizer_context,
