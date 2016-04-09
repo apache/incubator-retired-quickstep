@@ -93,6 +93,9 @@ class WindowAggregationOperatorTest : public ::testing::Test {
     client_id_ = bus_.Connect();
     bus_.RegisterClientAsSender(client_id_, kDataPipelineMessage);
     bus_.RegisterClientAsReceiver(client_id_, kDataPipelineMessage);
+    bus_.RegisterClientAsSender(client_id_, kCatalogRelationNewBlockMessage);
+    bus_.RegisterClientAsReceiver(client_id_, kCatalogRelationNewBlockMessage);
+
     thread_id_map_ = ClientIDMap::Instance();
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
