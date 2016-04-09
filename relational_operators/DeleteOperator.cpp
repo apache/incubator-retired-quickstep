@@ -45,7 +45,7 @@ bool DeleteOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
     QueryContext *query_context,
     StorageManager *storage_manager,
-    const tmb::client_id foreman_client_id,
+    const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
   const Predicate *predicate = query_context->getPredicate(predicate_index_);
 
@@ -59,7 +59,7 @@ bool DeleteOperator::getAllWorkOrders(
                                 predicate,
                                 storage_manager,
                                 op_index_,
-                                foreman_client_id,
+                                scheduler_client_id,
                                 bus),
             op_index_);
       }
@@ -74,7 +74,7 @@ bool DeleteOperator::getAllWorkOrders(
                               predicate,
                               storage_manager,
                               op_index_,
-                              foreman_client_id,
+                              scheduler_client_id,
                               bus),
           op_index_);
       ++num_workorders_generated_;
@@ -105,16 +105,17 @@ void DeleteWorkOrder::execute() {
                                     kDataPipelineMessage);
   std::free(proto_bytes);
 
+  const tmb::client_id worker_thread_client_id = ClientIDMap::Instance()->getValue();
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(
           bus_,
-          ClientIDMap::Instance()->getValue(),
-          foreman_client_id_,
+          worker_thread_client_id,
+          scheduler_client_id_,
           std::move(tagged_message));
   CHECK(send_status == tmb::MessageBus::SendStatus::kOK) << "Message could not"
       " be sent from thread with TMB client ID " <<
-      ClientIDMap::Instance()->getValue() << " to Foreman with TMB client ID "
-      << foreman_client_id_;
+      worker_thread_client_id << " to Foreman with TMB client ID "
+      << scheduler_client_id_;
 }
 
 }  // namespace quickstep

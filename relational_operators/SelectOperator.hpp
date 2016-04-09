@@ -19,6 +19,7 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_SELECT_OPERATOR_HPP_
 
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
@@ -75,13 +76,12 @@ class SelectOperator : public RelationalOperator {
                  const QueryContext::insert_destination_id output_destination_index,
                  const QueryContext::predicate_id predicate_index,
                  const QueryContext::scalar_group_id selection_index,
-                 bool input_relation_is_stored)
+                 const bool input_relation_is_stored)
       : input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         predicate_index_(predicate_index),
         selection_index_(selection_index),
-        simple_selection_(nullptr),
         input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
                                                            : std::vector<block_id>()),
         num_workorders_generated_(0),
@@ -111,14 +111,14 @@ class SelectOperator : public RelationalOperator {
                  const CatalogRelation &output_relation,
                  const QueryContext::insert_destination_id output_destination_index,
                  const QueryContext::predicate_id predicate_index,
-                 std::vector<attribute_id> *selection,
-                 bool input_relation_is_stored)
+                 std::vector<attribute_id> &&selection,
+                 const bool input_relation_is_stored)
       : input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         predicate_index_(predicate_index),
         selection_index_(QueryContext::kInvalidScalarGroupId),
-        simple_selection_(selection),
+        simple_selection_(std::move(selection)),
         input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
                                                            : std::vector<block_id>()),
         num_workorders_generated_(0),
@@ -131,7 +131,7 @@ class SelectOperator : public RelationalOperator {
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,
                         StorageManager *storage_manager,
-                        const tmb::client_id foreman_client_id,
+                        const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
 
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override {
@@ -160,7 +160,7 @@ class SelectOperator : public RelationalOperator {
   const QueryContext::predicate_id predicate_index_;
 
   const QueryContext::scalar_group_id selection_index_;
-  std::unique_ptr<std::vector<attribute_id> > simple_selection_;
+  const std::vector<attribute_id> simple_selection_;
 
   std::vector<block_id> input_relation_block_ids_;
 
@@ -182,8 +182,8 @@ class SelectWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @note Reference parameters simple_selection and selection are NOT owned by
-   *       this class and must remain valid until after execute() is called.
+   * @note Reference parameter selection is NOT owned by this class and must
+   *       remain valid until after execute() is called.
    *
    * @param input_relation The relation to perform selection over.
    * @param input_block_id The block id.
@@ -233,7 +233,7 @@ class SelectWorkOrder : public WorkOrder {
   const Predicate *predicate_;
 
   const bool simple_projection_;
-  const std::vector<attribute_id> &simple_selection_;
+  const std::vector<attribute_id> simple_selection_;
   const std::vector<std::unique_ptr<const Scalar>> *selection_;
 
   InsertDestination *output_destination_;

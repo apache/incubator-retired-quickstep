@@ -78,7 +78,7 @@ class DeleteOperator : public RelationalOperator {
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,
                         StorageManager *storage_manager,
-                        const tmb::client_id foreman_client_id,
+                        const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
 
   const relation_id getOutputRelationID() const override {
@@ -126,7 +126,7 @@ class DeleteWorkOrder : public WorkOrder {
    * @param storage_manager The StorageManager to use.
    * @param delete_operator_index The index of the Delete Operator in the query
    *        plan DAG.
-   * @param foreman_client_id The TMB client ID of the Foreman thread.
+   * @param scheduler_client_id The TMB client ID of the scheduler thread.
    * @param bus A pointer to the TMB.
    **/
   DeleteWorkOrder(const CatalogRelationSchema &input_relation,
@@ -134,14 +134,14 @@ class DeleteWorkOrder : public WorkOrder {
                   const Predicate *predicate,
                   StorageManager *storage_manager,
                   const std::size_t delete_operator_index,
-                  const tmb::client_id foreman_client_id,
+                  const tmb::client_id scheduler_client_id,
                   MessageBus *bus)
       : input_relation_(input_relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
         delete_operator_index_(delete_operator_index),
-        foreman_client_id_(foreman_client_id),
+        scheduler_client_id_(scheduler_client_id),
         bus_(DCHECK_NOTNULL(bus)) {}
 
   ~DeleteWorkOrder() override {}
@@ -156,7 +156,7 @@ class DeleteWorkOrder : public WorkOrder {
   StorageManager *storage_manager_;
 
   const std::size_t delete_operator_index_;
-  const tmb::client_id foreman_client_id_;
+  const tmb::client_id scheduler_client_id_;
   MessageBus *bus_;
 
   DISALLOW_COPY_AND_ASSIGN(DeleteWorkOrder);

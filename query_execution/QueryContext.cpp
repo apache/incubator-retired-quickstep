@@ -52,7 +52,7 @@ namespace quickstep {
 QueryContext::QueryContext(const serialization::QueryContext &proto,
                            const CatalogDatabaseLite &database,
                            StorageManager *storage_manager,
-                           const tmb::client_id foreman_client_id,
+                           const tmb::client_id scheduler_client_id,
                            tmb::MessageBus *bus) {
   DCHECK(ProtoIsValid(proto, database))
       << "Attempted to create QueryContext from an invalid proto description:\n"
@@ -86,7 +86,7 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
                                                 database.getRelationSchemaById(
                                                     insert_destination_proto.relation_id()),
                                                 storage_manager,
-                                                foreman_client_id,
+                                                scheduler_client_id,
                                                 bus));
   }
 

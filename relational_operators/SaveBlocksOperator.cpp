@@ -31,7 +31,7 @@ bool SaveBlocksOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
     QueryContext *query_context,
     StorageManager *storage_manager,
-    const tmb::client_id foreman_client_id,
+    const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
   while (num_workorders_generated_ < destination_block_ids_.size()) {
     container->addNormalWorkOrder(

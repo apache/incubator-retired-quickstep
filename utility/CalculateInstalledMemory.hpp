@@ -1,6 +1,5 @@
 /**
- *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2015 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -15,27 +14,24 @@
  *   limitations under the License.
  **/
 
-#include "relational_operators/CreateTableOperator.hpp"
+#ifndef QUICKSTEP_UTILITY_SYSTEM_CALCULATE_INSTALLED_MEMORY_HPP_
+#define QUICKSTEP_UTILITY_SYSTEM_CALCULATE_INSTALLED_MEMORY_HPP_
 
-#include <memory>
-
-#include "catalog/CatalogDatabase.hpp"
-
-#include "tmb/id_typedefs.h"
+#include <cstdint>
 
 namespace quickstep {
+namespace utility {
+namespace system {
 
-bool CreateTableOperator::getAllWorkOrders(
-    WorkOrdersContainer *container,
-    QueryContext *query_context,
-    StorageManager *storage_manager,
-    const tmb::client_id scheduler_client_id,
-    tmb::MessageBus *bus) {
-  return true;
-}
+/**
+ * @brief Compute the amount of (DRAM) memory installed on the machine.
+ * @param total_memory Returns the total installed system memory in bytes.
+ * @return true on success, false otherwise.
+ */
+bool calculateTotalMemoryInBytes(std::uint64_t *total_memory);
 
-void CreateTableOperator::updateCatalogOnCompletion() {
-  database_->addRelation(relation_.release());
-}
-
+}  // namespace system
+}  // namespace utility
 }  // namespace quickstep
+
+#endif  // QUICKSTEP_UTILITY_SYSTEM_CALCULATE_INSTALLED_MEMORY_HPP_

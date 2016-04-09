@@ -189,7 +189,7 @@ bool HashJoinOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
     QueryContext *query_context,
     StorageManager *storage_manager,
-    const tmb::client_id foreman_client_id,
+    const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
   // We wait until the building of global hash table is complete.
   if (blocking_dependencies_met_) {

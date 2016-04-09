@@ -64,7 +64,7 @@ class SampleOperator : public RelationalOperator {
    *        workorders.
    * @param is_block_sample Flag indicating whether the sample type is block or tuple.
    * @param percentage The percentage of data to be sampled.
-   * 
+   *
    **/
   SampleOperator(const CatalogRelation &input_relation,
                  const CatalogRelationSchema &output_relation,
@@ -88,7 +88,7 @@ class SampleOperator : public RelationalOperator {
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,
                         StorageManager *storage_manager,
-                        const tmb::client_id foreman_client_id,
+                        const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
 
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override {

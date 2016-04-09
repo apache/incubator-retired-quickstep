@@ -477,14 +477,14 @@ void ExecutionGenerator::convertSelection(
   // Use the "simple" form of the selection operator (a pure projection that
   // doesn't require any expression evaluation or intermediate copies) if
   // possible.
-  std::unique_ptr<std::vector<attribute_id>> attributes(new std::vector<attribute_id>());
+  std::vector<attribute_id> attributes;
   SelectOperator *op
-      = convertSimpleProjection(project_expressions_group_index, attributes.get())
+      = convertSimpleProjection(project_expressions_group_index, &attributes)
         ? new SelectOperator(*input_relation_info->relation,
                              *output_relation,
                              insert_destination_index,
                              execution_predicate_index,
-                             attributes.release(),
+                             move(attributes),
                              input_relation_info->isStoredRelation())
         : new SelectOperator(*input_relation_info->relation,
                              *output_relation,
@@ -1064,12 +1064,12 @@ void ExecutionGenerator::convertInsertSelection(
       findRelationInfoOutputByPhysical(physical_plan->selection());
 
   // Prepare the attributes, which are output columns of the selection relation.
-  std::unique_ptr<std::vector<attribute_id>> attributes(new std::vector<attribute_id>());
+  std::vector<attribute_id> attributes;
   for (E::AttributeReferencePtr attr_ref : physical_plan->selection()->getOutputAttributes()) {
     unique_ptr<const Scalar> attribute(attr_ref->concretize(attribute_substitution_map_));
 
     DCHECK_EQ(Scalar::kAttribute, attribute->getDataSource());
-    attributes->emplace_back(
+    attributes.push_back(
         static_cast<const ScalarAttribute*>(attribute.get())->getAttribute().getID());
   }
 
@@ -1085,7 +1085,7 @@ void ExecutionGenerator::convertInsertSelection(
                          destination_relation,
                          insert_destination_index,
                          QueryContext::kInvalidPredicateId,
-                         attributes.release(),
+                         move(attributes),
                          selection_relation_info->isStoredRelation());
 
   const QueryPlan::DAGNodeIndex insert_selection_index =

@@ -23,6 +23,7 @@
 #include "catalog/CatalogDatabase.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "storage/StorageManager.hpp"
+#include "threading/ThreadIDBasedMap.hpp"
 #include "utility/Macros.hpp"
 
 #include "tmb/id_typedefs.h"
@@ -51,20 +52,29 @@ class TestDatabaseLoader {
    *                     in the query engine.
    */
   explicit TestDatabaseLoader(const std::string &storage_path = "")
-      : catalog_database_(nullptr /* parent */,
+      : thread_id_map_(ClientIDMap::Instance()),
+        catalog_database_(nullptr /* parent */,
                           "TestDatabase" /* name */,
                           0 /* id */),
         storage_manager_(storage_path),
         test_relation_(nullptr) {
     bus_.Initialize();
 
-    foreman_client_id_ = bus_.Connect();
-    bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
-    bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
+    const tmb::client_id worker_thread_client_id = bus_.Connect();
+    bus_.RegisterClientAsSender(worker_thread_client_id, kCatalogRelationNewBlockMessage);
+
+    // Refer to InsertDestination::sendBlockFilledMessage for the rationale
+    // behind using ClientIDMap.
+    thread_id_map_->addValue(worker_thread_client_id);
+
+    scheduler_client_id_ = bus_.Connect();
+    bus_.RegisterClientAsReceiver(scheduler_client_id_, kCatalogRelationNewBlockMessage);
   }
 
   ~TestDatabaseLoader() {
     clear();
+
+    thread_id_map_->removeValue();
   }
 
   /**
@@ -124,8 +134,10 @@ class TestDatabaseLoader {
    */
   void processCatalogRelationNewBlockMessages();
 
+  ClientIDMap *thread_id_map_;
+
   MessageBusImpl bus_;
-  tmb::client_id foreman_client_id_;
+  tmb::client_id scheduler_client_id_;
 
   CatalogDatabase catalog_database_;
   StorageManager storage_manager_;

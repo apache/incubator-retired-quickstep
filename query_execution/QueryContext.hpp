@@ -119,13 +119,13 @@ class QueryContext {
    * @param database The Database to resolve relation and attribute references
    *        in.
    * @param storage_manager The StorageManager to use.
-   * @param foreman_client_id The TMB client ID of the Foreman thread.
+   * @param scheduler_client_id The TMB client ID of the scheduler thread.
    * @param bus A pointer to the TMB.
    **/
   QueryContext(const serialization::QueryContext &proto,
                const CatalogDatabaseLite &database,
                StorageManager *storage_manager,
-               const tmb::client_id foreman_client_id,
+               const tmb::client_id scheduler_client_id,
                tmb::MessageBus *bus);
 
   ~QueryContext() {}

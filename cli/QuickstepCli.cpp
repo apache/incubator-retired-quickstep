@@ -146,8 +146,8 @@ DEFINE_bool(initialize_db, false, "If true, initialize a database.");
 }  // namespace quickstep
 
 int main(int argc, char* argv[]) {
-  gflags::ParseCommandLineFlags(&argc, &argv, true);
   google::InitGoogleLogging(argv[0]);
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
 
   // Detect the hardware concurrency level.
   const std::size_t num_hw_threads =
@@ -164,7 +164,9 @@ int main(int argc, char* argv[]) {
                                          : 1);
 
   if (real_num_workers > 0) {
-    printf("Starting Quickstep with %d worker thread(s)\n", real_num_workers);
+    printf("Starting Quickstep with %d worker thread(s) and a %.2f GB buffer pool\n",
+           real_num_workers,
+           (static_cast<double>(quickstep::FLAGS_buffer_pool_slots) * quickstep::kSlotSizeBytes)/quickstep::kAGigaByte);
   } else {
     LOG(FATAL) << "Quickstep needs at least one worker thread";
   }

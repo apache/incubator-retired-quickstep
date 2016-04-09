@@ -53,6 +53,7 @@
 #include "storage/StorageBlockLayout.hpp"
 #include "storage/StorageManager.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
+#include "threading/ThreadIDBasedMap.hpp"
 #include "types/DoubleType.hpp"
 #include "types/FloatType.hpp"
 #include "types/IntType.hpp"
@@ -106,10 +107,18 @@ class AggregationOperatorTest : public ::testing::Test {
   static const int kPlaceholder = 0xbeef;
 
   virtual void SetUp() {
+    thread_id_map_ = ClientIDMap::Instance();
+
     bus_.Initialize();
 
+    const tmb::client_id worker_thread_client_id = bus_.Connect();
+    bus_.RegisterClientAsSender(worker_thread_client_id, kCatalogRelationNewBlockMessage);
+
+    // Usually the worker thread makes the following call. In this test setup,
+    // we don't have a worker thread hence we have to explicitly make the call.
+    thread_id_map_->addValue(worker_thread_client_id);
+
     foreman_client_id_ = bus_.Connect();
-    bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
     bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
 
     storage_manager_.reset(new StorageManager(kStoragePath));
@@ -157,6 +166,10 @@ class AggregationOperatorTest : public ::testing::Test {
       }
       storage_block->rebuild();
     }
+  }
+
+  virtual void TearDown() {
+    thread_id_map_->removeValue();
   }
 
   Tuple* createTuple(const CatalogRelation &relation, const std::int64_t val) {
@@ -465,6 +478,11 @@ class AggregationOperatorTest : public ::testing::Test {
     execute();
     checkGroupByResult(check_fn, num_tuples);
   }
+
+  // This map is needed for InsertDestination and some WorkOrders that send
+  // messages to Foreman directly. To know the reason behind the design of this
+  // map, see the note in InsertDestination.hpp.
+  ClientIDMap *thread_id_map_;
 
   MessageBusImpl bus_;
   tmb::client_id foreman_client_id_;

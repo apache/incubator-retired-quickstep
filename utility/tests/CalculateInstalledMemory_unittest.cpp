@@ -1,6 +1,5 @@
 /**
- *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -15,27 +14,24 @@
  *   limitations under the License.
  **/
 
-#include "relational_operators/CreateTableOperator.hpp"
+#include <cstddef>
+#include <cstdint>
+#include <limits>
 
-#include <memory>
-
-#include "catalog/CatalogDatabase.hpp"
-
-#include "tmb/id_typedefs.h"
+#include "gtest/gtest.h"
+#include "utility/CalculateInstalledMemory.hpp"
 
 namespace quickstep {
+namespace utility {
+namespace system {
 
-bool CreateTableOperator::getAllWorkOrders(
-    WorkOrdersContainer *container,
-    QueryContext *query_context,
-    StorageManager *storage_manager,
-    const tmb::client_id scheduler_client_id,
-    tmb::MessageBus *bus) {
-  return true;
+TEST(CalculateInstalledMemoryTest, BasicCheck) {
+  std::uint64_t installed_memory_in_bytes;
+
+  EXPECT_EQ(true, calculateTotalMemoryInBytes(&installed_memory_in_bytes));
+  EXPECT_GT(installed_memory_in_bytes, 0u);
 }
 
-void CreateTableOperator::updateCatalogOnCompletion() {
-  database_->addRelation(relation_.release());
-}
-
+}  // namespace system
+}  // namespace utility
 }  // namespace quickstep

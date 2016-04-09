@@ -83,11 +83,8 @@ class Foreman final : public ForemanLite {
         num_numa_nodes_(num_numa_nodes) {
     bus_->RegisterClientAsSender(foreman_client_id_, kWorkOrderMessage);
     bus_->RegisterClientAsSender(foreman_client_id_, kRebuildWorkOrderMessage);
-    // NOTE(zuyu): For the single-node version, act as the sender on behalf of InsertDestinations.
-    bus_->RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
-    // NOTE : Right now, foreman thread doesn't send poison messages. In the
-    // future if foreman needs to abort a worker thread, this registration
-    // should be useful.
+    // NOTE : Foreman thread sends poison messages in the optimizer's
+    // ExecutionGeneratorTest.
     bus_->RegisterClientAsSender(foreman_client_id_, kPoisonMessage);
 
     bus_->RegisterClientAsReceiver(foreman_client_id_,
