@@ -36,7 +36,7 @@ bool calculateTotalMemoryInBytes(std::uint64_t *total_memory) {
   const std::uint64_t page_size = static_cast<std::uint64_t>(sysconf(_SC_PAGE_SIZE));
   if (num_pages > 0 &&  page_size > 0) {
     *total_memory = num_pages * page_size;
-    LOG(INFO) << "Total memory is " << *total_memory << " bytes\n";
+    LOG(INFO) << "Total installed memory is " << *total_memory << " bytes\n";
     return true;
   }
   LOG(INFO) << "Could not compute the total available memory using sysconf\n";
@@ -47,7 +47,7 @@ bool calculateTotalMemoryInBytes(std::uint64_t *total_memory) {
   GlobalMemoryStatusEx(&mem_status);
   if (mem_status.ullTotalPhys > 0) {
     *total_memory = static_cast<std::uint64_t>(mem_status.ullTotalPhys);
-    LOG(INFO) << "Total memory is " << *total_memory << " bytes\n";
+    LOG(INFO) << "Total installed memory is " << *total_memory << " bytes\n";
     return true;
   }
   LOG(INFO) << "Could not compute the total installed memory using GlobalMemoryStatusEx\n";

@@ -807,6 +807,7 @@ target_link_libraries(quickstep_storage_StorageManager
                       quickstep_storage_StorageErrors
                       quickstep_threading_SpinSharedMutex
                       quickstep_utility_Alignment
+                      quickstep_utility_CalculateInstalledMemory
                       quickstep_utility_Macros
                       quickstep_utility_ShardedLockManager)
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
