@@ -1369,3 +1369,71 @@ SelectStatement
   |     +-NumericLiteral[numeric_string=.1e1,float_like=true]
   +-from_clause=
     +-TableReference[table=test]
+==
+
+# EXISTS subquery
+SELECT i
+FROM generate_series(0, 100, 3) AS gs1(i)
+WHERE
+  EXISTS (
+    SELECT *
+    FROM generate_series(0, 100, 5) AS gs2(i)
+    WHERE gs1.i = gs2.i
+  )
+  AND NOT EXISTS (
+    SELECT *
+    FROM generate_series(0, 100, 10) AS gs3(i)
+    WHERE gs1.i = gs3.i
+  );
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-AttributeReference[attribute_name=i]
+  +-where_clause=And
+  | +-Exists
+  | | +-subquery=SubqueryExpression
+  | |   +-Select
+  | |     +-select_clause=SelectStar
+  | |     +-where_clause=Equal
+  | |     | +-left_operand=AttributeReference[attribute_name=i,relation_name=gs1]
+  | |     | +-right_operand=AttributeReference[attribute_name=i,
+  | |     |   relation_name=gs2]
+  | |     +-from_clause=
+  | |       +-TableGenerator
+  | |         +-FunctionCall[name=generate_series]
+  | |           +-Literal
+  | |           | +-NumericLiteral[numeric_string=0,float_like=false]
+  | |           +-Literal
+  | |           | +-NumericLiteral[numeric_string=100,float_like=false]
+  | |           +-Literal
+  | |             +-NumericLiteral[numeric_string=5,float_like=false]
+  | +-Not
+  |   +-Exists
+  |     +-subquery=SubqueryExpression
+  |       +-Select
+  |         +-select_clause=SelectStar
+  |         +-where_clause=Equal
+  |         | +-left_operand=AttributeReference[attribute_name=i,
+  |         | | relation_name=gs1]
+  |         | +-right_operand=AttributeReference[attribute_name=i,
+  |         |   relation_name=gs3]
+  |         +-from_clause=
+  |           +-TableGenerator
+  |             +-FunctionCall[name=generate_series]
+  |               +-Literal
+  |               | +-NumericLiteral[numeric_string=0,float_like=false]
+  |               +-Literal
+  |               | +-NumericLiteral[numeric_string=100,float_like=false]
+  |               +-Literal
+  |                 +-NumericLiteral[numeric_string=10,float_like=false]
+  +-from_clause=
+    +-TableGenerator
+      +-FunctionCall[name=generate_series]
+        +-Literal
+        | +-NumericLiteral[numeric_string=0,float_like=false]
+        +-Literal
+        | +-NumericLiteral[numeric_string=100,float_like=false]
+        +-Literal
+          +-NumericLiteral[numeric_string=3,float_like=false]

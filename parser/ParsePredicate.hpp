@@ -48,7 +48,8 @@ class ParsePredicate : public ParseTreeNode {
     kComparison,
     kNegation,
     kConjunction,
-    kDisjunction
+    kDisjunction,
+    kExists
   };
 
   /**

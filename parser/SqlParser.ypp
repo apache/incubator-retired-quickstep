@@ -81,6 +81,7 @@ typedef struct YYLTYPE {
 #include "parser/ParseOrderBy.hpp"
 #include "parser/ParsePartitionClause.hpp"
 #include "parser/ParsePredicate.hpp"
+#include "parser/ParsePredicateExists.hpp"
 #include "parser/ParserUtil.hpp"
 #include "parser/ParseSample.hpp"
 #include "parser/ParseSelect.hpp"
@@ -251,6 +252,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_DOUBLE;
 %token TOKEN_DROP;
 %token TOKEN_ESCAPE_STRINGS;
+%token TOKEN_EXISTS;
 %token TOKEN_EXTRACT;
 %token TOKEN_FALSE;
 %token TOKEN_FIRST;
@@ -1423,6 +1425,11 @@ predicate_expression_base:
   }
   | '(' or_expression ')' {
     $$ = $2;
+  }
+  | TOKEN_EXISTS subquery_expression {
+    $$ = new quickstep::ParsePredicateExists(@1.first_line,
+                                             @1.first_column,
+                                             $2);
   };
 
 /* Scalars */
