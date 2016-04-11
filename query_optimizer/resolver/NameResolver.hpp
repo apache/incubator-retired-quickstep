@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -47,8 +49,12 @@ class NameResolver {
  public:
   /**
    * @brief Constructor.
+   *
+   * @param parent_resolver The NameResolver inherited from the outer query.
+   *                        NULL if there is no outer query.
    */
-  NameResolver() {}
+  explicit NameResolver(const NameResolver *parent_resolver = nullptr)
+      : parent_resolver_(parent_resolver) {}
 
   /**
    * @brief Adds the attributes of the relation produced by \p logical
@@ -108,8 +114,10 @@ class NameResolver {
    * @brief Info of a relation and its visible attributes in the name scope.
    */
   struct RelationInfo {
-    explicit RelationInfo(const logical::LogicalPtr &logical_in)
-        : logical(logical_in),
+    explicit RelationInfo(const ParseString &parse_relation_name_in,
+                          const logical::LogicalPtr &logical_in)
+        : parse_relation_name(parse_relation_name_in),
+          logical(logical_in),
           attributes(logical->getOutputAttributes()) {
       int current_attribute_index = 0;
       for (const expressions::AttributeReferencePtr &attribute : attributes) {
@@ -133,6 +141,7 @@ class NameResolver {
     // relation. Returns NULL if no attribute with the given name is found.
     expressions::AttributeReferencePtr findAttributeByName(const ParseString *parse_attr_node) const;
 
+    const ParseString &parse_relation_name;
     logical::LogicalPtr logical;
 
     std::vector<expressions::AttributeReferencePtr> attributes;
@@ -141,6 +150,8 @@ class NameResolver {
     // For an ambiguous attribute, the value is -1.
     std::map<std::string, int> name_to_attribute_index_map;
   };
+
+  const NameResolver *parent_resolver_;
 
   /**
    * @brief Relation info in the name scope.

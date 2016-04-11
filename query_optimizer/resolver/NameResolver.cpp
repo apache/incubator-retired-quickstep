@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -58,7 +60,7 @@ void NameResolver::addRelation(
     const ParseString *parse_rel_name,
     const L::LogicalPtr &logical) {
   DCHECK(parse_rel_name != nullptr);
-  relations_.emplace_back(new RelationInfo(logical));
+  relations_.emplace_back(new RelationInfo(*parse_rel_name, logical));
   const std::string lower_rel_name = ToLower(parse_rel_name->value());
   if (rel_name_to_rel_info_map_.find(lower_rel_name) !=
       rel_name_to_rel_info_map_.end()) {
@@ -72,6 +74,7 @@ E::AttributeReferencePtr NameResolver::lookup(
     const ParseString *parse_attr_node,
     const ParseString *parse_rel_node) const {
   E::AttributeReferencePtr attribute;
+  // Look up the attribute from local scope.
   if (parse_rel_node == nullptr) {
     // If the relation name is not given, search all visible relations.
     for (const std::unique_ptr<RelationInfo> &item : relations_) {
@@ -91,15 +94,30 @@ E::AttributeReferencePtr NameResolver::lookup(
         rel_name_to_rel_info_map_.find(ToLower(parse_rel_node->value()));
     if (found_it != rel_name_to_rel_info_map_.end()) {
       attribute = found_it->second->findAttributeByName(parse_attr_node);
-    } else {
-      THROW_SQL_ERROR_AT(parse_rel_node) << "Unrecognized relation "
-                                         << parse_rel_node->value();
     }
   }
+
+  // If cannot find the attribute in local scope, look into parent scopes.
+  if (attribute == nullptr) {
+    if (parent_resolver_ != nullptr) {
+      const E::AttributeReferencePtr outer_attribute =
+          parent_resolver_->lookup(parse_attr_node, parse_rel_node);
+      if (outer_attribute != nullptr) {
+        attribute = E::AttributeReference::Create(outer_attribute->id(),
+                                                  outer_attribute->attribute_name(),
+                                                  outer_attribute->attribute_alias(),
+                                                  outer_attribute->relation_name(),
+                                                  outer_attribute->getValueType(),
+                                                  E::AttributeReferenceScope::kOuter);
+      }
+    }
+  }
+
   if (attribute == nullptr) {
     THROW_SQL_ERROR_AT(parse_attr_node) << "Unrecognized attribute "
                                         << parse_attr_node->value();
   }
+
   return attribute;
 }
 

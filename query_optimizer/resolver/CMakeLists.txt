@@ -48,6 +48,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseOrderBy
                       quickstep_parser_ParsePredicate
+                      quickstep_parser_ParsePredicateExists
                       quickstep_parser_ParseSelect
                       quickstep_parser_ParseSelectionClause
                       quickstep_parser_ParseSimpleTableReference
@@ -64,6 +65,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_expressions_BinaryExpression
                       quickstep_queryoptimizer_expressions_Cast
                       quickstep_queryoptimizer_expressions_ComparisonExpression
+                      quickstep_queryoptimizer_expressions_Exists
                       quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_ExpressionUtil
                       quickstep_queryoptimizer_expressions_LogicalAnd
@@ -77,6 +79,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_expressions_ScalarLiteral
                       quickstep_queryoptimizer_expressions_SearchedCase
                       quickstep_queryoptimizer_expressions_SimpleCase
+                      quickstep_queryoptimizer_expressions_SubqueryExpression
                       quickstep_queryoptimizer_expressions_UnaryExpression
                       quickstep_queryoptimizer_logical_Aggregate
                       quickstep_queryoptimizer_logical_CopyFrom

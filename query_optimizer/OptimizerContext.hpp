@@ -61,6 +61,7 @@ class OptimizerContext {
         current_expr_id_(-1),
         catalog_database_(catalog_database),
         storage_manager_(storage_manager),
+        has_nested_queries_(false),
         is_catalog_changed_(false) {}
 
   /**
@@ -107,6 +108,20 @@ class OptimizerContext {
   }
 
   /**
+   * @brief Indicate that the query has a nested subquery.
+   */
+  void set_has_nested_queries() {
+    has_nested_queries_ = true;
+  }
+
+  /**
+   * @return True if the query has a nested subquery.
+   */
+  bool has_nested_queries() const {
+    return has_nested_queries_;
+  }
+
+  /**
    * @brief Sets <is_catalog_changed_> to be true to indicate the query will
    *        modify the catalog permanently.
    */
@@ -124,6 +139,8 @@ class OptimizerContext {
 
   CatalogDatabase *catalog_database_;
   StorageManager *storage_manager_;
+
+  bool has_nested_queries_;
 
   bool is_catalog_changed_;
 

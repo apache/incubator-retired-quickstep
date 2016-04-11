@@ -48,7 +48,8 @@ TableReference::TableReference(const CatalogRelation *catalog_relation,
             attribute_it->getName(),
             attribute_it->getDisplayName(),
             relation_alias,
-            attribute_it->getType()));
+            attribute_it->getType(),
+            E::AttributeReferenceScope::kLocal));
   }
 }
 

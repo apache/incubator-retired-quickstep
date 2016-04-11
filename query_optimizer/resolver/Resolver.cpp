@@ -46,6 +46,7 @@
 #include "parser/ParseLiteralValue.hpp"
 #include "parser/ParseOrderBy.hpp"
 #include "parser/ParsePredicate.hpp"
+#include "parser/ParsePredicateExists.hpp"
 #include "parser/ParseSelect.hpp"
 #include "parser/ParseSelectionClause.hpp"
 #include "parser/ParseSimpleTableReference.hpp"
@@ -62,6 +63,7 @@
 #include "query_optimizer/expressions/BinaryExpression.hpp"
 #include "query_optimizer/expressions/Cast.hpp"
 #include "query_optimizer/expressions/ComparisonExpression.hpp"
+#include "query_optimizer/expressions/Exists.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/expressions/LogicalAnd.hpp"
@@ -75,6 +77,7 @@
 #include "query_optimizer/expressions/ScalarLiteral.hpp"
 #include "query_optimizer/expressions/SearchedCase.hpp"
 #include "query_optimizer/expressions/SimpleCase.hpp"
+#include "query_optimizer/expressions/SubqueryExpression.hpp"
 #include "query_optimizer/expressions/UnaryExpression.hpp"
 #include "query_optimizer/logical/Aggregate.hpp"
 #include "query_optimizer/logical/CopyFrom.hpp"
@@ -322,7 +325,8 @@ L::LogicalPtr Resolver::resolve(const ParseStatement &parse_query) {
       logical_plan_ =
           resolveSelect(*select_statement.select_query(),
                         "" /* select_name */,
-                        nullptr /* No Type hints */);
+                        nullptr /* No Type hints */,
+                        nullptr /* parent_resolver */);
       if (select_statement.with_clause() != nullptr) {
         // Report an error if there is a WITH query that is not actually used.
         if (!with_queries_info_.unreferenced_query_indexes.empty()) {
@@ -416,7 +420,8 @@ L::LogicalPtr Resolver::resolveCreateTable(
                                       attribute_definition.name()->value(),
                                       attribute_definition.name()->value(),
                                       relation_name,
-                                      attribute_definition.data_type().getType()));
+                                      attribute_definition.data_type().getType(),
+                                      E::AttributeReferenceScope::kLocal));
     attribute_name_set.insert(lower_attribute_name);
   }
 
@@ -723,7 +728,10 @@ L::LogicalPtr Resolver::resolveInsertSelection(
 
   // Resolve the selection query.
   const L::LogicalPtr selection_logical =
-      resolveSelect(*insert_statement.select_query(), "", &type_hints);
+      resolveSelect(*insert_statement.select_query(),
+                    "" /* select_name */,
+                    &type_hints,
+                    nullptr /* parent_resolver */);
   const std::vector<E::AttributeReferencePtr> selection_attributes =
       selection_logical->getOutputAttributes();
 
@@ -929,9 +937,9 @@ L::LogicalPtr Resolver::resolveUpdate(
 L::LogicalPtr Resolver::resolveSelect(
     const ParseSelect &select_query,
     const std::string &select_name,
-    const std::vector<const Type*> *type_hints) {
-  // Create a new name scope. We currently do not support correlated query.
-  std::unique_ptr<NameResolver> name_resolver(new NameResolver());
+    const std::vector<const Type*> *type_hints,
+    const NameResolver *parent_resolver) {
+  std::unique_ptr<NameResolver> name_resolver(new NameResolver(parent_resolver));
 
   // Resolve FROM clause.
   L::LogicalPtr logical_plan;
@@ -1177,6 +1185,23 @@ L::LogicalPtr Resolver::resolveSelect(
   return logical_plan;
 }
 
+E::SubqueryExpressionPtr Resolver::resolveSubqueryExpression(
+    const ParseSubqueryExpression &parse_subquery_expression,
+    const std::vector<const Type*> *type_hints,
+    ExpressionResolutionInfo *expression_resolution_info) {
+  L::LogicalPtr logical_subquery =
+      resolveSelect(*parse_subquery_expression.query(),
+                    "" /* select_name */,
+                    type_hints,
+                    &expression_resolution_info->name_resolver);
+
+  if (!context_->has_nested_queries()) {
+    context_->set_has_nested_queries();
+  }
+
+  return E::SubqueryExpression::Create(logical_subquery);
+}
+
 void Resolver::appendProjectIfNeedPrecomputationBeforeAggregation(
     const SelectListInfo &select_list_info,
     std::vector<E::NamedExpressionPtr> *select_list_expressions,
@@ -1419,7 +1444,8 @@ L::LogicalPtr Resolver::resolveTableReference(const ParseTableReference &table_r
       logical_plan = resolveSelect(
           *static_cast<const ParseSubqueryTableReference&>(table_reference).subquery_expr()->query(),
           reference_alias->value(),
-          nullptr /* No Type hints */);
+          nullptr /* No Type hints */,
+          nullptr /* parent_resolver */);
 
       if (reference_signature->column_aliases() != nullptr) {
         logical_plan = RenameOutputColumns(logical_plan, *reference_signature);
@@ -2490,6 +2516,14 @@ E::PredicatePtr Resolver::resolvePredicate(
       return E::LogicalOr::Create(
           resolvePredicates(static_cast<const ParsePredicateWithList&>(parse_predicate).operands(),
                             expression_resolution_info));
+    }
+    case ParsePredicate::kExists: {
+      const ParsePredicateExists &exists =
+          static_cast<const ParsePredicateExists&>(parse_predicate);
+      return E::Exists::Create(
+          resolveSubqueryExpression(*exists.subquery(),
+                                    nullptr /* type_hints */,
+                                    expression_resolution_info));
     }
     default:
       LOG(FATAL) << "Unknown predicate: " << parse_predicate.toString();

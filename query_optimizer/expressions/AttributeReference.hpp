@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -42,6 +44,16 @@ namespace expressions {
  *  @{
  */
 
+/**
+ * @brief The scope of the referenced attribute. I.e. whether the referenced
+ *        attribute belongs to a local TableReference or comes from an outside
+ *        TableReference. The outside case implies a correlated subquery.
+ */
+enum class AttributeReferenceScope {
+  kLocal = 0,
+  kOuter
+};
+
 class AttributeReference;
 typedef std::shared_ptr<const AttributeReference> AttributeReferencePtr;
 
@@ -60,6 +72,13 @@ class AttributeReference : public NamedExpression {
   const Type& getValueType() const override { return type_; }
 
   bool isConstant() const override { return false; }
+
+  /**
+   * @return The scope of the referenced attribute.
+   */
+  const AttributeReferenceScope scope() const {
+    return scope_;
+  }
 
   ExpressionPtr copyWithNewChildren(
       const std::vector<ExpressionPtr> &new_children) const override;
@@ -81,30 +100,44 @@ class AttributeReference : public NamedExpression {
    *                      expression comes from. This is only for
    *                      printing purpose.
    * @param type The type of the value of the referenced expression.
+   * @param scope The scope of the referenced attribute.
    * @return An immutable AttributeReference.
    */
   static AttributeReferencePtr Create(ExprId attribute_id,
                                       const std::string &attribute_name,
                                       const std::string &attribute_alias,
                                       const std::string &relation_name,
-                                      const Type &type) {
+                                      const Type &type,
+                                      const AttributeReferenceScope scope) {
     return AttributeReferencePtr(new AttributeReference(
-        attribute_id, attribute_name, attribute_alias, relation_name, type));
+        attribute_id, attribute_name, attribute_alias, relation_name, type, scope));
   }
+
+ protected:
+  void getFieldStringItems(
+     std::vector<std::string> *inline_field_names,
+     std::vector<std::string> *inline_field_values,
+     std::vector<std::string> *non_container_child_field_names,
+     std::vector<OptimizerTreeBaseNodePtr> *non_container_child_fields,
+     std::vector<std::string> *container_child_field_names,
+     std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const override;
 
  private:
   AttributeReference(attribute_id attribute_id,
                      const std::string &attribute_name,
                      const std::string &attribute_alias,
                      const std::string &relation_name,
-                     const Type &type)
+                     const Type &type,
+                     const AttributeReferenceScope scope)
       : NamedExpression(attribute_id,
                         attribute_name,
                         attribute_alias,
                         relation_name),
-        type_(type) {}
+        type_(type),
+        scope_(scope) {}
 
   const Type &type_;
+  const AttributeReferenceScope scope_;
 
   DISALLOW_COPY_AND_ASSIGN(AttributeReference);
 };
