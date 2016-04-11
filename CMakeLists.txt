@@ -681,6 +681,7 @@ target_link_libraries(quickstep_cli_shell
                       gflags_nothreads-static
                       glog
                       quickstep_catalog_CatalogRelation
+                      quickstep_cli_CommandExecutor
                       quickstep_cli_DefaultsConfigurator
                       quickstep_cli_DropRelation
                       quickstep_cli_InputParserUtil

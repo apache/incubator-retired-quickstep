@@ -44,13 +44,13 @@ class PrintToScreen {
                             StorageManager *storage_manager,
                             FILE *out);
 
+  static void printHBar(const std::vector<int> &column_widths,
+                        FILE *out);
  private:
   // Undefined default constructor. Class is all-static and should not be
   // instantiated.
   PrintToScreen();
 
-  static void printHBar(const std::vector<int> &column_widths,
-                        FILE *out);
   static void printTuple(const TupleStorageSubBlock &tuple_store,
                          const tuple_id tid,
                          const std::vector<int> &column_widths,
