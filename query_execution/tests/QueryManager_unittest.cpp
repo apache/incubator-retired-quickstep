@@ -45,7 +45,6 @@
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
-
 #include "gtest/gtest.h"
 
 #include "tmb/id_typedefs.h"
@@ -390,7 +389,7 @@ TEST_F(QueryManagerTest, SingleNodeDAGStaticWorkOrdersTest) {
 
   EXPECT_EQ(WorkerMessage::WorkerMessageType::kWorkOrder,
             worker_message->getType());
-  EXPECT_EQ(0, worker_message->getRelationalOpIndex());
+  EXPECT_EQ(0u, worker_message->getRelationalOpIndex());
 
   delete worker_message->getWorkOrder();
 

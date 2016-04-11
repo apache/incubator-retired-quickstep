@@ -57,9 +57,9 @@ QueryManager::QueryManager(const tmb::client_id foreman_client_id,
         catalog_database_(DCHECK_NOTNULL(catalog_database)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
         bus_(DCHECK_NOTNULL(bus)) {
-  DCHECK_NOTNULL(query_handle->getQueryPlanMutable());
+  DCHECK(query_handle->getQueryPlanMutable() != nullptr);
   query_dag_ = query_handle->getQueryPlanMutable()->getQueryPlanDAGMutable();
-  DCHECK_NOTNULL(query_dag_);
+  DCHECK(query_dag_ != nullptr);
 
   const dag_node_index num_operators_in_dag = query_dag_->size();
 
