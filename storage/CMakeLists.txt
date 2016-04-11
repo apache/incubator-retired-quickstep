@@ -316,6 +316,41 @@ target_link_libraries(quickstep_storage_BloomFilterIndexSubBlock
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_utility_BloomFilter
                       quickstep_utility_Macros)
+if(QUICKSTEP_HAVE_BITWEAVING)
+  add_library(quickstep_storage_DummyIndexSubBlock ../empty_src.cpp bitweaving/DummyIndexSubBlock.hpp)
+  target_link_libraries(quickstep_storage_DummyIndexSubBlock
+                        glog
+                        quickstep_catalog_CatalogAttribute
+                        quickstep_catalog_CatalogRelationSchema
+                        quickstep_catalog_CatalogTypedefs
+                        quickstep_expressions_predicate_ComparisonPredicate
+                        quickstep_expressions_predicate_PredicateCost
+                        quickstep_expressions_scalar_Scalar
+                        quickstep_expressions_scalar_ScalarAttribute
+                        quickstep_storage_IndexSubBlock
+                        quickstep_storage_StorageBlockInfo
+                        quickstep_storage_StorageBlockLayout_proto
+                        quickstep_storage_SubBlockTypeRegistry
+                        quickstep_storage_SubBlockTypeRegistryMacros
+                        quickstep_storage_TupleIdSequence
+                        quickstep_storage_TupleStorageSubBlock
+                        quickstep_types_IntervalLit
+                        quickstep_types_Type
+                        quickstep_types_TypeFactory
+                        quickstep_types_TypeID
+                        quickstep_types_TypedValue
+                        quickstep_types_operations_binaryoperations_BinaryOperation
+                        quickstep_types_operations_binaryoperations_BinaryOperationFactory
+                        quickstep_types_operations_binaryoperations_BinaryOperationID
+                        quickstep_types_operations_comparisons_Comparison
+                        quickstep_types_operations_comparisons_ComparisonFactory
+                        quickstep_types_operations_comparisons_ComparisonID
+                        quickstep_utility_Macros
+                        quickstep_utility_PtrVector)
+  message(WARNING "Good, bitweaving ordered to compile!")
+else()
+  message(WARNING "Warning, bitweaving not compiled!")
+endif()
 target_link_libraries(quickstep_storage_ColumnStoreUtil
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
@@ -1093,6 +1128,41 @@ target_link_libraries(BloomFilterIndexSubBlock_unittest
                       quickstep_utility_ScopedBuffer
                       ${LIBS})
 add_test(BloomFilterIndexSubBlock_unittest BloomFilterIndexSubBlock_unittest)
+
+if(QUICKSTEP_HAVE_BITWEAVING)
+  add_executable(DummyIndexSubBlock_unittest "${CMAKE_CURRENT_SOURCE_DIR}/bitweaving/tests/DummyIndexSubBlock_unittest.cpp")
+  target_link_libraries(DummyIndexSubBlock_unittest
+                        gtest
+                        gtest_main
+                        glog
+                        quickstep_catalog_CatalogAttribute
+                        quickstep_catalog_CatalogRelation
+                        quickstep_catalog_CatalogTypedefs
+                        quickstep_expressions_predicate_ComparisonPredicate
+                        quickstep_expressions_scalar_ScalarAttribute
+                        quickstep_expressions_scalar_ScalarLiteral
+                        quickstep_storage_CompressedColumnStoreTupleStorageSubBlock
+                        quickstep_storage_DummyIndexSubBlock
+                        quickstep_storage_StorageBlockInfo
+                        quickstep_storage_StorageBlockLayout_proto
+                        quickstep_storage_TupleIdSequence
+                        quickstep_storage_TupleStorageSubBlock
+                        quickstep_types_CharType
+                        quickstep_types_DoubleType
+                        quickstep_types_FloatType
+                        quickstep_types_LongType
+                        quickstep_types_TypeFactory
+                        quickstep_types_TypeID
+                        quickstep_types_TypedValue
+                        quickstep_types_VarCharType
+                        quickstep_types_containers_Tuple
+                        quickstep_types_operations_comparisons_Comparison
+                        quickstep_types_operations_comparisons_ComparisonFactory
+                        quickstep_types_operations_comparisons_ComparisonID
+                        quickstep_utility_ScopedBuffer
+                        ${LIBS})
+  add_test(DummyIndexSubBlock_unittest DummyIndexSubBlock_unittest)
+endif()
 
 add_executable(CompressedColumnStoreTupleStorageSubBlock_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/CompressedColumnStoreTupleStorageSubBlock_unittest.cpp")
 target_link_libraries(CompressedColumnStoreTupleStorageSubBlock_unittest

@@ -160,6 +160,11 @@ StorageBlockLayout* StorageBlockLayout::GenerateDefaultLayout(const CatalogRelat
     tuple_store_description->set_sub_block_type(TupleStorageSubBlockDescription::PACKED_ROW_STORE);
   }
 
+  // See if we can add a dummy index. Will confirm that the module idea works.
+  IndexSubBlockDescription *dummy_desc = description->add_index_description();
+  dummy_desc->set_sub_block_type(IndexSubBlockDescription::BITWEAVING_V);
+  dummy_desc->add_indexed_attribute_ids(0);
+
   layout->finalize();
   return layout;
 }

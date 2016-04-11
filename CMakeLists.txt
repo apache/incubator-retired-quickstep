@@ -645,6 +645,14 @@ if (ENABLE_HDFS)
   include_directories(${LIBHDFS3_INCLUDE_DIR})
 endif()
 
+# Check if the BitWeaving index is included.
+if(EXISTS "${PROJECT_SOURCE_DIR}/storage/bitweaving/DummyIndexSubBlock.hpp")
+  set(QUICKSTEP_HAVE_BITWEAVING TRUE)
+else()
+  set(QUICKSTEP_HAVE_BITWEAVING FALSE)
+  message(WARNING "BitWeaving library was not found.")
+endif()
+
 # Add TMB, but only enable the PureMemory implementation.
 set(ENABLE_PUREMEMORY ON CACHE BOOL "Enable PureMemory TMB")
 set(ENABLE_LEVELDB OFF CACHE BOOL "Enable LevelDB TMB")
