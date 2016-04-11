@@ -19,6 +19,7 @@
 #include <memory>
 #include <unordered_map>
 #include <utility>
+#include <vector>
 
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogRelationSchema.hpp"
@@ -30,6 +31,7 @@
 
 using std::make_unique;
 using std::move;
+using std::vector;
 
 namespace quickstep {
 
@@ -59,18 +61,34 @@ void CatalogDatabaseCache::update(const serialization::CatalogDatabase &proto) {
       << "Attempted to create CatalogDatabaseCache from an invalid proto description:\n"
       << proto.DebugString();
 
-  SpinSharedMutexExclusiveLock<false> lock(relations_mutex_);
-  for (int i = 0; i < proto.relations_size(); ++i) {
-    auto relation_schema = make_unique<const CatalogRelationSchema>(proto.relations(i));
-    const relation_id rel_id = relation_schema->getID();
-
-    auto it = rel_map_.find(rel_id);
-    if (it == rel_map_.end()) {
-      rel_map_.emplace(rel_id, move(relation_schema));
-    } else {
-      it->second.reset(relation_schema.release());
+  vector<int> new_relation_schema_proto_indices;
+  {
+    SpinSharedMutexSharedLock<false> read_lock(relations_mutex_);
+    for (int i = 0; i < proto.relations_size(); ++i) {
+      const auto it = rel_map_.find(proto.relations(i).relation_id());
+      if (it == rel_map_.end()) {
+        new_relation_schema_proto_indices.push_back(i);
+      } else {
+        // TODO(quickstep-team): Support schema changes by adding the index of
+        // changed schema proto in 'changed_relation_schema_proto_indices'.
+      }
     }
   }
+
+  SpinSharedMutexExclusiveLock<false> write_lock(relations_mutex_);
+  for (const int i : new_relation_schema_proto_indices) {
+    const serialization::CatalogRelationSchema &proto_relation = proto.relations(i);
+    auto relation_schema = make_unique<const CatalogRelationSchema>(proto_relation);
+    rel_map_.emplace(proto_relation.relation_id(), move(relation_schema));
+  }
+
+  // TODO(quickstep-team): Reset the schema for the changes in the following
+  // steps for each index in 'changed_relation_schema_proto_indices':
+  // 1. Drop the blocks belonged to 'proto.relations(i).relation_id()' in the
+  //    buffer pool.
+  // 2. Reset the changed schema, while the scheduler ensures no queries will
+  //    load back the related blocks.
+  // 3. Signal the scheduler to accept new queries for the changed schema.
 }
 
 void CatalogDatabaseCache::dropRelationById(const relation_id id) {

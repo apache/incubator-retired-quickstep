@@ -42,7 +42,14 @@ namespace serialization { class CatalogDatabase; }
  */
 
 /**
- * @brief A database cache used in the distributed version.
+ * @brief A database cache managed by Shiftboss in the distributed version.
+ *        During the runtime, it contains all the referenced relation schemas
+ *        to execute a query. For a SELECT query, the temporary query
+ *        result relation will be dropped after the CLI finishes processing the
+ *        result and notifies Shiftboss.
+ *
+ * @note A CatalogRelationSchema should be kept unless all associated blocks
+ *       have been deleted.
  **/
 class CatalogDatabaseCache : public CatalogDatabaseLite {
  public:
@@ -88,7 +95,7 @@ class CatalogDatabaseCache : public CatalogDatabaseLite {
 
   /**
    * @brief Update the cache from its serialized Protocol Buffer form. If the
-   *        relation schema exists, it will be overwritten.
+   *        relation schema exists, it will be ignored.
    *
    * @param proto The Protocol Buffer serialization of a catalog cache,
    *        previously produced in optimizer.
