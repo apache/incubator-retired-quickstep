@@ -97,6 +97,7 @@ add_library(quickstep_parser_ParseLiteralValue ParseLiteralValue.cpp ParseLitera
 add_library(quickstep_parser_ParseOrderBy ParseOrderBy.cpp ParseOrderBy.hpp)
 add_library(quickstep_parser_ParsePartitionClause ../empty_src.cpp ParsePartitionClause.hpp)
 add_library(quickstep_parser_ParsePredicate ParsePredicate.cpp ParsePredicate.hpp)
+add_library(quickstep_parser_ParsePredicateExists ../empty_src.cpp ParsePredicateExists.hpp)
 add_library(quickstep_parser_ParseSample ParseSample.cpp ParseSample.hpp)
 add_library(quickstep_parser_ParseSelect ../empty_src.cpp ParseSelect.hpp)
 add_library(quickstep_parser_ParseSelectionClause ParseSelectionClause.cpp ParseSelectionClause.hpp)
@@ -201,6 +202,10 @@ target_link_libraries(quickstep_parser_ParsePredicate
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_utility_Macros
                       quickstep_utility_PtrList)
+target_link_libraries(quickstep_parser_ParsePredicateExists
+                      quickstep_parser_ParsePredicate
+                      quickstep_parser_ParseSubqueryExpression
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_parser_ParseSample
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseTreeNode
@@ -297,6 +302,7 @@ target_link_libraries(quickstep_parser_SqlParser
                       quickstep_parser_ParseOrderBy
                       quickstep_parser_ParsePartitionClause
                       quickstep_parser_ParsePredicate
+                      quickstep_parser_ParsePredicateExists
                       quickstep_parser_ParseSample
                       quickstep_parser_ParseSelect
                       quickstep_parser_ParseSelectionClause
@@ -368,6 +374,7 @@ target_link_libraries(quickstep_parser
                       quickstep_parser_ParseOrderBy
                       quickstep_parser_ParsePartitionClause
                       quickstep_parser_ParsePredicate
+                      quickstep_parser_ParsePredicateExists
                       quickstep_parser_ParserUtil
                       quickstep_parser_ParseSample
                       quickstep_parser_ParseSelect

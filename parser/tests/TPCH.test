@@ -254,9 +254,45 @@ GROUP BY
 ORDER BY
   o_orderpriority
 --
-ERROR: syntax error (10 : 5)
-    SELECT
-    ^
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=o_orderpriority]
+  | +-SelectListItem[alias=order_count]
+  |   +-FunctionCall[name=COUNT,is_star=true]
+  +-where_clause=And
+  | +-GreaterOrEqual
+  | | +-left_operand=AttributeReference[attribute_name=o_orderdate]
+  | | +-right_operand=Literal
+  | |   +-StringLiteral[value=1995-08-01,explicit_type=Datetime]
+  | +-Less
+  | | +-left_operand=AttributeReference[attribute_name=o_orderdate]
+  | | +-right_operand=Add
+  | |   +-left_operand=Literal
+  | |   | +-StringLiteral[value=1995-08-01,explicit_type=Datetime]
+  | |   +-right_operand=Literal
+  | |     +-StringLiteral[value=3 month,explicit_type=YearMonthInterval]
+  | +-Exists
+  |   +-subquery=SubqueryExpression
+  |     +-Select
+  |       +-select_clause=SelectStar
+  |       +-where_clause=And
+  |       | +-Equal
+  |       | | +-left_operand=AttributeReference[attribute_name=l_orderkey]
+  |       | | +-right_operand=AttributeReference[attribute_name=o_orderkey]
+  |       | +-Less
+  |       |   +-left_operand=AttributeReference[attribute_name=l_commitdate]
+  |       |   +-right_operand=AttributeReference[attribute_name=l_receiptdate]
+  |       +-from_clause=
+  |         +-TableReference[table=lineitem]
+  +-group_by=GroupBy
+  | +-AttributeReference[attribute_name=o_orderpriority]
+  +-order_by=OrderBy
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  |   +-AttributeReference[attribute_name=o_orderpriority]
+  +-from_clause=
+    +-TableReference[table=orders]
 ==
 
 # Query 5
@@ -1175,9 +1211,95 @@ ORDER BY
   s_name
 LIMIT 100
 --
-ERROR: syntax error (15 : 5)
-    SELECT
-    ^
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=s_name]
+  | +-SelectListItem[alias=numwait]
+  |   +-FunctionCall[name=count,is_star=true]
+  +-where_clause=And
+  | +-Equal
+  | | +-left_operand=AttributeReference[attribute_name=s_suppkey]
+  | | +-right_operand=AttributeReference[attribute_name=l_suppkey,
+  | |   relation_name=l1]
+  | +-Equal
+  | | +-left_operand=AttributeReference[attribute_name=o_orderkey]
+  | | +-right_operand=AttributeReference[attribute_name=l_orderkey,
+  | |   relation_name=l1]
+  | +-Equal
+  | | +-left_operand=AttributeReference[attribute_name=o_orderstatus]
+  | | +-right_operand=Literal
+  | |   +-StringLiteral[value=F]
+  | +-Greater
+  | | +-left_operand=AttributeReference[attribute_name=l_receiptdate,
+  | | | relation_name=l1]
+  | | +-right_operand=AttributeReference[attribute_name=l_commitdate,
+  | |   relation_name=l1]
+  | +-Exists
+  | | +-subquery=SubqueryExpression
+  | |   +-Select
+  | |     +-select_clause=SelectStar
+  | |     +-where_clause=And
+  | |     | +-Equal
+  | |     | | +-left_operand=AttributeReference[attribute_name=l_orderkey,
+  | |     | | | relation_name=l2]
+  | |     | | +-right_operand=AttributeReference[attribute_name=l_orderkey,
+  | |     | |   relation_name=l1]
+  | |     | +-NotEqual
+  | |     |   +-left_operand=AttributeReference[attribute_name=l_suppkey,
+  | |     |   | relation_name=l2]
+  | |     |   +-right_operand=AttributeReference[attribute_name=l_suppkey,
+  | |     |     relation_name=l1]
+  | |     +-from_clause=
+  | |       +-TableReference[table=lineitem]
+  | |         +-table_signature=TableSignature[table_alias=l2]
+  | +-Not
+  | | +-Exists
+  | |   +-subquery=SubqueryExpression
+  | |     +-Select
+  | |       +-select_clause=SelectStar
+  | |       +-where_clause=And
+  | |       | +-Equal
+  | |       | | +-left_operand=AttributeReference[attribute_name=l_orderkey,
+  | |       | | | relation_name=l3]
+  | |       | | +-right_operand=AttributeReference[attribute_name=l_orderkey,
+  | |       | |   relation_name=l1]
+  | |       | +-NotEqual
+  | |       | | +-left_operand=AttributeReference[attribute_name=l_suppkey,
+  | |       | | | relation_name=l3]
+  | |       | | +-right_operand=AttributeReference[attribute_name=l_suppkey,
+  | |       | |   relation_name=l1]
+  | |       | +-Greater
+  | |       |   +-left_operand=AttributeReference[attribute_name=l_receiptdate,
+  | |       |   | relation_name=l3]
+  | |       |   +-right_operand=AttributeReference[attribute_name=l_commitdate,
+  | |       |     relation_name=l3]
+  | |       +-from_clause=
+  | |         +-TableReference[table=lineitem]
+  | |           +-table_signature=TableSignature[table_alias=l3]
+  | +-Equal
+  | | +-left_operand=AttributeReference[attribute_name=s_nationkey]
+  | | +-right_operand=AttributeReference[attribute_name=n_nationkey]
+  | +-Equal
+  |   +-left_operand=AttributeReference[attribute_name=n_name]
+  |   +-right_operand=Literal
+  |     +-StringLiteral[value=CANADA]
+  +-group_by=GroupBy
+  | +-AttributeReference[attribute_name=s_name]
+  +-order_by=OrderBy
+  | +-OrderByItem[is_asc=false,nulls_first=true]
+  | | +-AttributeReference[attribute_name=numwait]
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  |   +-AttributeReference[attribute_name=s_name]
+  +-limit=LIMIT
+  | +-NumericLiteral[numeric_string=100,float_like=false]
+  +-from_clause=
+    +-TableReference[table=supplier]
+    +-TableReference[table=lineitem]
+    | +-table_signature=TableSignature[table_alias=l1]
+    +-TableReference[table=orders]
+    +-TableReference[table=nation]
 ==
 
 # Query 22
