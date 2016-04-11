@@ -42,8 +42,10 @@ class ParseFunctionCall;
 class ParseGeneratorTableReference;
 class ParseOrderBy;
 class ParsePredicate;
+class ParseSearchedCaseExpression;
 class ParseSelect;
 class ParseSelectionClause;
+class ParseSimpleCaseExpression;
 class ParseSimpleTableReference;
 class ParseSubqueryTableReference;
 class ParseStatement;
@@ -355,6 +357,36 @@ class Resolver {
    */
   expressions::ScalarPtr resolveExpression(
       const ParseExpression &parse_expression,
+      const Type *type_hint,
+      ExpressionResolutionInfo *expression_resolution_info);
+
+  /**
+   * @brief Resolves a searched CASE expression.
+   *
+   * @param type_hint The expected result type of this expression.
+   * @param parse_searched_case_expression The parsed searched CASE expression
+   *        to be resolved.
+   * @param expresssion_resolution_info Resolution info that contains the name
+   *        resolver and info to be updated after resolution.
+   * @return An optimizer expression for the CASE expression.
+   */
+  expressions::ScalarPtr resolveSearchedCaseExpression(
+      const ParseSearchedCaseExpression &parse_searched_case_expression,
+      const Type *type_hint,
+      ExpressionResolutionInfo *expression_resolution_info);
+
+  /**
+   * @brief Resolves a simple CASE expression.
+   *
+   * @param type_hint The expected result type of this expression.
+   * @param parse_simple_case_expression The parsed simple CASE expression
+   *        to be resolved.
+   * @param expresssion_resolution_info Resolution info that contains the name
+   *        resolver and info to be updated after resolution.
+   * @return An optimizer expression for the CASE expression.
+   */
+  expressions::ScalarPtr resolveSimpleCaseExpression(
+      const ParseSimpleCaseExpression &parse_simple_case_expression,
       const Type *type_hint,
       ExpressionResolutionInfo *expression_resolution_info);
 

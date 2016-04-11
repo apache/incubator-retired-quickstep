@@ -42,6 +42,8 @@ class ParseExpression : public ParseTreeNode {
     kExtract,
     kFunctionCall,
     kScalarLiteral,
+    kSearchedCaseExpression,
+    kSimpleCaseExpression,
     kSubqueryExpression,
     kUnaryExpression,
   };

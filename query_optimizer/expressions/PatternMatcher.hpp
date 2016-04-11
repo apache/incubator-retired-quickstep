@@ -139,6 +139,8 @@ using SomeScalar = SomeExpressionNode<Scalar,
                                       ExpressionType::kLogicalOr,
                                       ExpressionType::kPredicateLiteral,
                                       ExpressionType::kScalarLiteral,
+                                      ExpressionType::kSearchedCase,
+                                      ExpressionType::kSimpleCase,
                                       ExpressionType::kUnaryExpression>;
 using SomeScalarLiteral = SomeExpressionNode<ScalarLiteral, ExpressionType::kScalarLiteral>;
 using SomeUnaryExpression = SomeExpressionNode<UnaryExpression, ExpressionType::kUnaryExpression>;

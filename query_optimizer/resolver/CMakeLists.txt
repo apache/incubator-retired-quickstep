@@ -39,6 +39,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_parser_ParseAssignment
                       quickstep_parser_ParseBasicExpressions
                       quickstep_parser_ParseBlockProperties
+                      quickstep_parser_ParseCaseExpressions
                       quickstep_parser_ParseExpression
                       quickstep_parser_ParseGeneratorTableReference
                       quickstep_parser_ParseGroupBy
@@ -74,6 +75,8 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_expressions_PredicateLiteral
                       quickstep_queryoptimizer_expressions_Scalar
                       quickstep_queryoptimizer_expressions_ScalarLiteral
+                      quickstep_queryoptimizer_expressions_SearchedCase
+                      quickstep_queryoptimizer_expressions_SimpleCase
                       quickstep_queryoptimizer_expressions_UnaryExpression
                       quickstep_queryoptimizer_logical_Aggregate
                       quickstep_queryoptimizer_logical_CopyFrom

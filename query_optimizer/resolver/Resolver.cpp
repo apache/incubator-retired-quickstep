@@ -37,6 +37,7 @@
 #include "parser/ParseAssignment.hpp"
 #include "parser/ParseBasicExpressions.hpp"
 #include "parser/ParseBlockProperties.hpp"
+#include "parser/ParseCaseExpressions.hpp"
 #include "parser/ParseExpression.hpp"
 #include "parser/ParseGeneratorTableReference.hpp"
 #include "parser/ParseGroupBy.hpp"
@@ -72,6 +73,8 @@
 #include "query_optimizer/expressions/PredicateLiteral.hpp"
 #include "query_optimizer/expressions/Scalar.hpp"
 #include "query_optimizer/expressions/ScalarLiteral.hpp"
+#include "query_optimizer/expressions/SearchedCase.hpp"
+#include "query_optimizer/expressions/SimpleCase.hpp"
 #include "query_optimizer/expressions/UnaryExpression.hpp"
 #include "query_optimizer/logical/Aggregate.hpp"
 #include "query_optimizer/logical/CopyFrom.hpp"
@@ -1818,6 +1821,22 @@ E::ScalarPtr Resolver::resolveExpression(
           ->concretize(type_hint, &concrete_type);
       return E::ScalarLiteral::Create(std::move(concrete), *concrete_type);
     }
+    case ParseExpression::kSearchedCaseExpression: {
+      const ParseSearchedCaseExpression &parse_searched_case_expression =
+          static_cast<const ParseSearchedCaseExpression&>(parse_expression);
+      return resolveSearchedCaseExpression(
+          parse_searched_case_expression,
+          type_hint,
+          expression_resolution_info);
+    }
+    case ParseExpression::kSimpleCaseExpression: {
+      const ParseSimpleCaseExpression &parse_simple_case_expression =
+          static_cast<const ParseSimpleCaseExpression&>(parse_expression);
+      return resolveSimpleCaseExpression(
+          parse_simple_case_expression,
+          type_hint,
+          expression_resolution_info);
+    }
     case ParseExpression::kUnaryExpression: {
       const ParseUnaryExpression &parse_unary_expr =
           static_cast<const ParseUnaryExpression&>(parse_expression);
@@ -1920,6 +1939,259 @@ E::ScalarPtr Resolver::resolveExpression(
       LOG(FATAL) << "Unknown scalar type: "
                  << parse_expression.getExpressionType();
   }
+}
+
+E::ScalarPtr Resolver::resolveSearchedCaseExpression(
+    const ParseSearchedCaseExpression &parse_searched_case_expression,
+    const Type *type_hint,
+    ExpressionResolutionInfo *expression_resolution_info) {
+  // Resolve the condition and result expression pairs.
+  std::vector<E::PredicatePtr> condition_predicates;
+  std::vector<E::ScalarPtr> conditional_result_expressions;
+  const Type *result_data_type = nullptr;
+
+  for (const ParseSearchedWhenClause &when_clause : *parse_searched_case_expression.when_clauses()) {
+    ExpressionResolutionInfo condition_predicate_resolution_info(*expression_resolution_info);
+    condition_predicates.emplace_back(
+        resolvePredicate(*when_clause.condition_predicate(),
+                         &condition_predicate_resolution_info));
+
+    ExpressionResolutionInfo result_expression_resolution_info(*expression_resolution_info);
+    const E::ScalarPtr result_expression =
+        resolveExpression(*when_clause.result_expression(),
+                          type_hint,
+                          &result_expression_resolution_info);
+
+    // Check that the type of this result expression can be cast to or cast from
+    // the unified type of the previous expression.
+    if (result_data_type == nullptr) {
+      result_data_type = &result_expression->getValueType();
+    } else if (!result_expression->getValueType().equals(*result_data_type)) {
+      const Type *temp_result_data_type =
+          TypeFactory::GetUnifyingType(*result_data_type,
+                                       result_expression->getValueType());
+
+      if (temp_result_data_type == nullptr) {
+        THROW_SQL_ERROR_AT(when_clause.result_expression())
+            << "The result expression in the WHEN clause has an incompatible "
+            << "type with preceding result expressions ("
+            << result_expression->getValueType().getName()
+            << " vs. " << result_data_type->getName() << ")";
+      }
+      result_data_type = temp_result_data_type;
+    }
+    conditional_result_expressions.emplace_back(result_expression);
+
+    // Propagate the aggregation info.
+    if (!expression_resolution_info->hasAggregate()) {
+      if (condition_predicate_resolution_info.hasAggregate()) {
+        expression_resolution_info->parse_aggregate_expression =
+            condition_predicate_resolution_info.parse_aggregate_expression;
+      } else if (result_expression_resolution_info.hasAggregate()) {
+        expression_resolution_info->parse_aggregate_expression =
+            result_expression_resolution_info.parse_aggregate_expression;
+      }
+    }
+  }
+
+  // Resolve the ELSE result expression.
+  E::ScalarPtr else_result_expression;
+  if (parse_searched_case_expression.else_result_expression() != nullptr) {
+    ExpressionResolutionInfo else_expression_resolution_info(*expression_resolution_info);
+    else_result_expression =
+        resolveExpression(*parse_searched_case_expression.else_result_expression(),
+                          result_data_type,
+                          &else_expression_resolution_info);
+
+    if (!else_result_expression->getValueType().equals(*result_data_type)) {
+      const Type *temp_result_data_type =
+          TypeFactory::GetUnifyingType(*result_data_type,
+                                       else_result_expression->getValueType());
+      if (temp_result_data_type == nullptr) {
+        THROW_SQL_ERROR_AT(parse_searched_case_expression.else_result_expression())
+            << "The result expression in the ELSE clause has an incompatible "
+               "type with result expressions in the WHEN clauses ("
+            << else_result_expression->getValueType().getName()
+            << " vs. " << result_data_type->getName() << ")";
+      }
+      result_data_type = temp_result_data_type;
+    }
+
+    // Propagate the aggregation info.
+    if (!expression_resolution_info->hasAggregate()
+        && else_expression_resolution_info.hasAggregate()) {
+      expression_resolution_info->parse_aggregate_expression =
+          else_expression_resolution_info.parse_aggregate_expression;
+    }
+  }
+
+  // Cast all the result expressions to the same type.
+  for (E::ScalarPtr &conditional_result_expression : conditional_result_expressions) {
+    if (conditional_result_expression->getValueType().getTypeID() != result_data_type->getTypeID()) {
+      conditional_result_expression =
+          E::Cast::Create(conditional_result_expression, *result_data_type);
+    }
+  }
+  if (else_result_expression != nullptr
+      && else_result_expression->getValueType().getTypeID() != result_data_type->getTypeID()) {
+    else_result_expression = E::Cast::Create(else_result_expression, *result_data_type);
+  }
+
+  if (else_result_expression == nullptr) {
+    // If there is no ELSE clause, the data type must be nullable.
+    // Note that the unifying result expression type may be non-nullable.
+    result_data_type = &result_data_type->getNullableVersion();
+  }
+
+  return E::SearchedCase::Create(condition_predicates,
+                                 conditional_result_expressions,
+                                 else_result_expression,
+                                 *result_data_type);
+}
+
+E::ScalarPtr Resolver::resolveSimpleCaseExpression(
+    const ParseSimpleCaseExpression &parse_simple_case_expression,
+    const Type *type_hint,
+    ExpressionResolutionInfo *expression_resolution_info) {
+  // Resolve the CASE operand.
+  ExpressionResolutionInfo case_expression_resolution_info(*expression_resolution_info);
+  E::ScalarPtr case_operand =
+      resolveExpression(
+          *parse_simple_case_expression.case_operand(),
+          nullptr /* type_hint */,
+          &case_expression_resolution_info);
+
+  // Propagate the aggregation info.
+  expression_resolution_info->parse_aggregate_expression =
+      case_expression_resolution_info.parse_aggregate_expression;
+
+  // Resolve the condition and result expression pairs.
+  std::vector<E::ScalarPtr> condition_operands;
+  std::vector<E::ScalarPtr> conditional_result_expressions;
+  const Type *result_data_type = nullptr;
+  const Type *condition_operand_data_type = &case_operand->getValueType();
+
+  for (const ParseSimpleWhenClause &when_clause : *parse_simple_case_expression.when_clauses()) {
+    ExpressionResolutionInfo condition_operand_resolution_info(*expression_resolution_info);
+    const E::ScalarPtr condition_operand =
+        resolveExpression(*when_clause.condition_operand(),
+                          condition_operand_data_type,
+                          &condition_operand_resolution_info);
+    if (!condition_operand->getValueType().equals(*condition_operand_data_type)) {
+      const Type *temp_condition_operand_data_type =
+          TypeFactory::GetUnifyingType(*condition_operand_data_type,
+                                       condition_operand->getValueType());
+      if (temp_condition_operand_data_type == nullptr) {
+        THROW_SQL_ERROR_AT(when_clause.condition_operand())
+            << "The comparison expression in the WHEN clause has an incompatible "
+            << "type with preceding comparison expressions"
+            << condition_operand->getValueType().getName()
+            << " vs. " << condition_operand_data_type->getName() << ")";
+      }
+      condition_operand_data_type = temp_condition_operand_data_type;
+    }
+    condition_operands.emplace_back(condition_operand);
+
+    ExpressionResolutionInfo result_expression_resolution_info(*expression_resolution_info);
+    const E::ScalarPtr result_expression =
+        resolveExpression(*when_clause.result_expression(),
+                          type_hint,
+                          &result_expression_resolution_info);
+
+    // Check that the type of this result expression can be cast to or cast from
+    // the unified type of the previous expression.
+    if (result_data_type == nullptr) {
+      result_data_type = &result_expression->getValueType();
+    } else if (!result_expression->getValueType().equals(*result_data_type)) {
+      const Type *temp_result_data_type =
+          TypeFactory::GetUnifyingType(*result_data_type,
+                                       result_expression->getValueType());
+      if (temp_result_data_type == nullptr) {
+        THROW_SQL_ERROR_AT(when_clause.result_expression())
+            << "The result expression in the WHEN clause has an incompatible "
+            << "type with preceding result expressions ("
+            << result_expression->getValueType().getName()
+            << " vs. " << result_data_type->getName() << ")";
+      }
+      result_data_type = temp_result_data_type;
+    }
+    conditional_result_expressions.emplace_back(result_expression);
+
+    // Propagate the aggregation info.
+    if (!expression_resolution_info->hasAggregate()) {
+      if (condition_operand_resolution_info.hasAggregate()) {
+        expression_resolution_info->parse_aggregate_expression =
+            condition_operand_resolution_info.parse_aggregate_expression;
+      } else if (result_expression_resolution_info.hasAggregate()) {
+        expression_resolution_info->parse_aggregate_expression =
+            result_expression_resolution_info.parse_aggregate_expression;
+      }
+    }
+  }
+
+  // Resolve the ELSE result expression.
+  E::ScalarPtr else_result_expression;
+  if (parse_simple_case_expression.else_result_expression() != nullptr) {
+    ExpressionResolutionInfo else_expression_resolution_info(*expression_resolution_info);
+    else_result_expression =
+        resolveExpression(*parse_simple_case_expression.else_result_expression(),
+                          result_data_type,
+                          &else_expression_resolution_info);
+    if (!else_result_expression->getValueType().equals(*result_data_type)) {
+      const Type *temp_result_data_type =
+          TypeFactory::GetUnifyingType(*result_data_type,
+                                       else_result_expression->getValueType());
+      if (temp_result_data_type == nullptr) {
+        THROW_SQL_ERROR_AT(parse_simple_case_expression.else_result_expression())
+            << "The result expression in the ELSE clause has an incompatible type "
+               "with result expressions in the WHEN clauses ("
+            << else_result_expression->getValueType().getName()
+            << " vs. " << result_data_type->getName() << ")";
+      }
+      result_data_type = temp_result_data_type;
+    }
+
+    // Propagate the aggregation info.
+    if (!expression_resolution_info->hasAggregate() &&
+        else_expression_resolution_info.hasAggregate()) {
+      expression_resolution_info->parse_aggregate_expression =
+          else_expression_resolution_info.parse_aggregate_expression;
+    }
+  }
+
+  const Comparison &equal_comp = ComparisonFactory::GetComparison(ComparisonID::kEqual);
+  if (!equal_comp.canCompareTypes(case_operand->getValueType(),
+                                  *condition_operand_data_type)) {
+    THROW_SQL_ERROR_AT(parse_simple_case_expression.case_operand())
+        << "The CASE operand type cannot be compared with the type of "
+        << "comparison expressions ("
+        << case_operand->getValueType().getName()
+        << " vs. " << condition_operand_data_type->getName() << ")";
+  }
+
+  // Cast all the result expressions to the same type.
+  for (E::ScalarPtr &conditional_result_expression : conditional_result_expressions) {
+    if (conditional_result_expression->getValueType().getTypeID() != result_data_type->getTypeID()) {
+      conditional_result_expression =
+          E::Cast::Create(conditional_result_expression, *result_data_type);
+    }
+  }
+  if (else_result_expression != nullptr
+      && else_result_expression->getValueType().getTypeID() != result_data_type->getTypeID()) {
+    else_result_expression = E::Cast::Create(else_result_expression, *result_data_type);
+  }
+
+  if (else_result_expression == nullptr) {
+    // If there is no ELSE clause, the data type must be nullable.
+    // Note that the unifying result expression type may be non-nullable.
+    result_data_type = &result_data_type->getNullableVersion();
+  }
+
+  return E::SimpleCase::Create(case_operand,
+                               condition_operands,
+                               conditional_result_expressions,
+                               else_result_expression,
+                               *result_data_type);
 }
 
 // TODO(chasseur): For now this only handles resolving aggregate functions. In

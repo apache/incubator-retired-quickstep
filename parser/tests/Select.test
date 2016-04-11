@@ -1437,3 +1437,121 @@ SelectStatement
         | +-NumericLiteral[numeric_string=100,float_like=false]
         +-Literal
           +-NumericLiteral[numeric_string=3,float_like=false]
+==
+
+# CASE expressions.
+SELECT CASE col1%2
+           WHEN 1 THEN 'odd'
+           ELSE 'even'
+       END
+FROM test;
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-SimpleCaseExpression
+  |     +-case_operand=Modulo
+  |     | +-left_operand=AttributeReference[attribute_name=col1]
+  |     | +-right_operand=Literal
+  |     |   +-NumericLiteral[numeric_string=2,float_like=false]
+  |     +-else_result_expression=Literal
+  |     | +-StringLiteral[value=even]
+  |     +-when_clauses=
+  |       +-SimpleWhenClause
+  |         +-condition_operand=Literal
+  |         | +-NumericLiteral[numeric_string=1,float_like=false]
+  |         +-result_expression=Literal
+  |           +-StringLiteral[value=odd]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+SELECT *
+FROM test
+WHERE CASE WHEN col1 > col2 THEN col3
+           ELSE col4
+      END > 0;
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectStar
+  +-where_clause=Greater
+  | +-left_operand=SearchedCaseExpression
+  | | +-else_result_expression=AttributeReference[attribute_name=col4]
+  | | +-when_clauses=
+  | |   +-SearchedWhenClause
+  | |     +-condition_predicate=Greater
+  | |     | +-left_operand=AttributeReference[attribute_name=col1]
+  | |     | +-right_operand=AttributeReference[attribute_name=col2]
+  | |     +-result_expression=AttributeReference[attribute_name=col3]
+  | +-right_operand=Literal
+  |   +-NumericLiteral[numeric_string=0,float_like=false]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+SELECT
+  FUN(CASE col1
+        WHEN col2 + FUN(
+               CASE WHEN col1 < col2 THEN 0
+                    ELSE 1
+               END +
+               CASE WHEN col1 < col3 THEN 0
+                    ELSE 1
+               END
+             ) THEN 1
+        WHEN col3 THEN 2
+        ELSE 0
+      END + col4)
+FROM test;
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-FunctionCall[name=FUN]
+  |     +-Add
+  |       +-left_operand=SimpleCaseExpression
+  |       | +-case_operand=AttributeReference[attribute_name=col1]
+  |       | +-else_result_expression=Literal
+  |       | | +-NumericLiteral[numeric_string=0,float_like=false]
+  |       | +-when_clauses=
+  |       |   +-SimpleWhenClause
+  |       |   | +-condition_operand=Add
+  |       |   | | +-left_operand=AttributeReference[attribute_name=col2]
+  |       |   | | +-right_operand=FunctionCall[name=FUN]
+  |       |   | |   +-Add
+  |       |   | |     +-left_operand=SearchedCaseExpression
+  |       |   | |     | +-else_result_expression=Literal
+  |       |   | |     | | +-NumericLiteral[numeric_string=1,float_like=false]
+  |       |   | |     | +-when_clauses=
+  |       |   | |     |   +-SearchedWhenClause
+  |       |   | |     |     +-condition_predicate=Less
+  |       |   | |     |     | +-left_operand=AttributeReference[
+  |       |   | |     |     | | attribute_name=col1]
+  |       |   | |     |     | +-right_operand=AttributeReference[
+  |       |   | |     |     |   attribute_name=col2]
+  |       |   | |     |     +-result_expression=Literal
+  |       |   | |     |       +-NumericLiteral[numeric_string=0,float_like=false]
+  |       |   | |     +-right_operand=SearchedCaseExpression
+  |       |   | |       +-else_result_expression=Literal
+  |       |   | |       | +-NumericLiteral[numeric_string=1,float_like=false]
+  |       |   | |       +-when_clauses=
+  |       |   | |         +-SearchedWhenClause
+  |       |   | |           +-condition_predicate=Less
+  |       |   | |           | +-left_operand=AttributeReference[
+  |       |   | |           | | attribute_name=col1]
+  |       |   | |           | +-right_operand=AttributeReference[
+  |       |   | |           |   attribute_name=col3]
+  |       |   | |           +-result_expression=Literal
+  |       |   | |             +-NumericLiteral[numeric_string=0,float_like=false]
+  |       |   | +-result_expression=Literal
+  |       |   |   +-NumericLiteral[numeric_string=1,float_like=false]
+  |       |   +-SimpleWhenClause
+  |       |     +-condition_operand=AttributeReference[attribute_name=col3]
+  |       |     +-result_expression=Literal
+  |       |       +-NumericLiteral[numeric_string=2,float_like=false]
+  |       +-right_operand=AttributeReference[attribute_name=col4]
+  +-from_clause=
+    +-TableReference[table=test]

@@ -41,6 +41,8 @@ enum class ExpressionType {
   kLogicalNot,
   kPredicateLiteral,
   kScalarLiteral,
+  kSearchedCase,
+  kSimpleCase,
   kUnaryExpression
 };
 
