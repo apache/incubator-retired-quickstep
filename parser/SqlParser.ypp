@@ -71,6 +71,7 @@ typedef struct YYLTYPE {
 #include "parser/ParseAttributeDefinition.hpp"
 #include "parser/ParseBasicExpressions.hpp"
 #include "parser/ParseBlockProperties.hpp"
+#include "parser/ParseCaseExpressions.hpp"
 #include "parser/ParseExpression.hpp"
 #include "parser/ParseGeneratorTableReference.hpp"
 #include "parser/ParseGroupBy.hpp"
@@ -132,6 +133,12 @@ typedef void* yyscan_t;
   quickstep::ParsePredicate *predicate_;
 
   quickstep::ParseSubqueryExpression *subquery_expression_;
+
+  quickstep::PtrVector<quickstep::ParseSimpleWhenClause> *simple_when_clause_list_;
+  quickstep::ParseSimpleWhenClause *simple_when_clause_;
+
+  quickstep::PtrVector<quickstep::ParseSearchedWhenClause> *searched_when_clause_list_;
+  quickstep::ParseSearchedWhenClause *searched_when_clause_;
 
   quickstep::ParseSelectionClause *selection_;
   quickstep::ParseSelectionItem *selection_item_;
@@ -235,6 +242,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_BLOOM_FILTER;
 %token TOKEN_CSB_TREE;
 %token TOKEN_BY;
+%token TOKEN_CASE;
 %token TOKEN_CHARACTER;
 %token TOKEN_CHECK;
 %token TOKEN_COLUMN;
@@ -251,6 +259,8 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_DISTINCT;
 %token TOKEN_DOUBLE;
 %token TOKEN_DROP;
+%token TOKEN_ELSE;
+%token TOKEN_END;
 %token TOKEN_ESCAPE_STRINGS;
 %token TOKEN_EXISTS;
 %token TOKEN_EXTRACT;
@@ -298,6 +308,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_SET;
 %token TOKEN_SMALLINT;
 %token TOKEN_TABLE;
+%token TOKEN_THEN;
 %token TOKEN_TIME;
 %token TOKEN_TIMESTAMP;
 %token TOKEN_TRUE;
@@ -307,6 +318,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_USING;
 %token TOKEN_VALUES;
 %token TOKEN_VARCHAR;
+%token TOKEN_WHEN;
 %token TOKEN_WHERE;
 %token TOKEN_WITH;
 %token TOKEN_YEARMONTH;
@@ -332,6 +344,8 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
   unary_expression
   multiply_expression
   add_expression
+  case_expression
+  opt_else_clause
   extract_function
 
 %type <attribute_>
@@ -351,6 +365,18 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <subquery_expression_>
   subquery_expression
+
+%type <simple_when_clause_list_>
+  simple_when_clause_list
+
+%type <simple_when_clause_>
+  simple_when_clause
+
+%type <searched_when_clause_list_>
+  searched_when_clause_list
+
+%type <searched_when_clause_>
+  searched_when_clause
 
 %type <selection_>
   selection
@@ -1470,6 +1496,9 @@ expression_base:
   | extract_function {
     $$ = $1;
   }
+  | case_expression {
+    $$ = $1;
+  }
   | '(' add_expression ')' {
     $$ = $2;
   };
@@ -1493,6 +1522,52 @@ function_call:
 extract_function:
   TOKEN_EXTRACT '(' any_name TOKEN_FROM add_expression ')' {
     $$ = new quickstep::ParseExtractFunction(@1.first_line, @1.first_column, $3, $5);
+  };
+
+case_expression:
+  TOKEN_CASE add_expression simple_when_clause_list opt_else_clause TOKEN_END {
+    $$ = new quickstep::ParseSimpleCaseExpression(@1.first_line, @1.first_column, $2, $3, $4);
+  }
+  | TOKEN_CASE searched_when_clause_list opt_else_clause TOKEN_END {
+    $$ = new quickstep::ParseSearchedCaseExpression(@1.first_line, @1.first_column, $2, $3);
+  };
+
+simple_when_clause_list:
+  simple_when_clause {
+    $$ = new quickstep::PtrVector<quickstep::ParseSimpleWhenClause>;
+    $$->push_back($1);
+  }
+  | simple_when_clause_list simple_when_clause {
+    $$ = $1;
+    $$->push_back($2);
+  };
+
+simple_when_clause:
+  TOKEN_WHEN add_expression TOKEN_THEN add_expression {
+    $$ = new quickstep::ParseSimpleWhenClause(@1.first_line, @1.first_column, $2, $4);
+  };
+
+searched_when_clause_list:
+  searched_when_clause {
+    $$ = new quickstep::PtrVector<quickstep::ParseSearchedWhenClause>;
+    $$->push_back($1);
+  }
+  | searched_when_clause_list searched_when_clause {
+    $$ = $1;
+    $$->push_back($2);
+  };
+
+searched_when_clause:
+  TOKEN_WHEN or_expression TOKEN_THEN add_expression {
+    $$ = new quickstep::ParseSearchedWhenClause(@1.first_line, @1.first_column, $2, $4);
+  };
+
+opt_else_clause:
+  {
+    $$ = NULL;
+  }
+  | TOKEN_ELSE add_expression {
+    $$ = $2;
   };
 
 expression_list:

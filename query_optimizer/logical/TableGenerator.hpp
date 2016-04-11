@@ -1,6 +1,6 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
- *   University of Wisconsin—Madison.
+ *     University of Wisconsin—Madison.
  *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
@@ -153,7 +153,8 @@ class TableGenerator : public Logical {
             generator_function_handle->getOutputColumnName(i),
             table_alias,
             table_name,
-            generator_function_handle->getOutputColumnType(i)));
+            generator_function_handle->getOutputColumnType(i),
+            E::AttributeReferenceScope::kLocal));
     }
   }
 

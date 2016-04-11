@@ -674,6 +674,53 @@ FROM dates;
 +-----------------------------------------------------+
 ==
 
+SELECT i,
+       CASE i%2
+         WHEN 1 THEN 'odd'
+         ELSE 'even'
+       END
+FROM generate_series(1, 5) AS gs(i);
+--
++-----------+--------------------------------------------+
+|i          |CASE (i%2) WHEN 1 THEN 'odd' ELSE 'even' END|
++-----------+--------------------------------------------+
+|          1|                                         odd|
+|          2|                                        even|
+|          3|                                         odd|
+|          4|                                        even|
+|          5|                                         odd|
++-----------+--------------------------------------------+
+==
+
+SELECT SUM(CASE WHEN i < 4 THEN i
+                ELSE i * i
+           END) AS result
+FROM generate_series(1, 5) AS gs(i);
+--
++--------------------+
+|result              |
++--------------------+
+|                  47|
++--------------------+
+==
+
+SELECT *
+FROM generate_series(1, 3) AS gs1(i),
+     generate_series(1, 3) AS gs2(j)
+WHERE CASE WHEN i < j THEN i
+           ELSE j
+       END > 1;
+--
++-----------+-----------+
+|i          |j          |
++-----------+-----------+
+|          2|          2|
+|          2|          3|
+|          3|          2|
+|          3|          3|
++-----------+-----------+
+==
+
 # TODO(team): Support uncorrelated queries.
 # SELECT COUNT(*)
 # FROM test

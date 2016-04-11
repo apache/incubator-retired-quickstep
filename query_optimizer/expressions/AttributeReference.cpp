@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -38,12 +40,13 @@ ExpressionPtr AttributeReference::copyWithNewChildren(
                                     attribute_name(),
                                     attribute_alias(),
                                     relation_name(),
-                                    getValueType());
+                                    getValueType(),
+                                    scope());
 }
 
 std::vector<AttributeReferencePtr> AttributeReference::getReferencedAttributes()
     const {
-  return { Create(id(), attribute_name(), attribute_alias(), relation_name(), type_) };
+  return { Create(id(), attribute_name(), attribute_alias(), relation_name(), getValueType(), scope()) };
 }
 
 ::quickstep::Scalar *AttributeReference::concretize(
@@ -52,6 +55,27 @@ std::vector<AttributeReferencePtr> AttributeReference::getReferencedAttributes()
       substitution_map.find(id());
   DCHECK(found_it != substitution_map.end()) << toString();
   return new ::quickstep::ScalarAttribute(*found_it->second);
+}
+
+void AttributeReference::getFieldStringItems(
+    std::vector<std::string> *inline_field_names,
+    std::vector<std::string> *inline_field_values,
+    std::vector<std::string> *non_container_child_field_names,
+    std::vector<OptimizerTreeBaseNodePtr> *non_container_child_fields,
+    std::vector<std::string> *container_child_field_names,
+    std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const {
+  NamedExpression::getFieldStringItems(
+      inline_field_names,
+      inline_field_values,
+      non_container_child_field_names,
+      non_container_child_fields,
+      container_child_field_names,
+      container_child_fields);
+
+  if (scope_ == AttributeReferenceScope::kOuter) {
+    inline_field_names->push_back("is_outer_reference");
+    inline_field_values->push_back("true");
+  }
 }
 
 }  // namespace expressions

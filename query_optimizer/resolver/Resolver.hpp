@@ -27,6 +27,7 @@
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
+#include "query_optimizer/expressions/SubqueryExpression.hpp"
 #include "query_optimizer/expressions/Scalar.hpp"
 #include "query_optimizer/logical/Logical.hpp"
 #include "utility/Macros.hpp"
@@ -42,8 +43,10 @@ class ParseFunctionCall;
 class ParseGeneratorTableReference;
 class ParseOrderBy;
 class ParsePredicate;
+class ParseSearchedCaseExpression;
 class ParseSelect;
 class ParseSelectionClause;
+class ParseSimpleCaseExpression;
 class ParseSimpleTableReference;
 class ParseSubqueryTableReference;
 class ParseStatement;
@@ -57,6 +60,7 @@ class ParseStatementInsertTuple;
 class ParseStatementSelect;
 class ParseStatementUpdate;
 class ParseString;
+class ParseSubqueryExpression;
 class ParseTableReference;
 class ParseTableReferenceSignature;
 class ParseTreeNode;
@@ -152,12 +156,14 @@ class Resolver {
    * @param select_name The name for the SELECT query.
    * @param type_hints Type hints for the expressions in the SELECT clause. Can
    *                   be NULL if there is no expectation.
+   * @param parent_resolver The name resolver of the outer query if exists.
    * @return A logical plan for the SELECT query.
    */
   logical::LogicalPtr resolveSelect(
       const ParseSelect &select_statement,
       const std::string &select_name,
-      const std::vector<const Type*> *type_hints);
+      const std::vector<const Type*> *type_hints,
+      const NameResolver *parent_resolver);
 
   /**
    * @brief Resolves a CREATE TABLE query and returns a logical plan.
@@ -359,6 +365,36 @@ class Resolver {
       ExpressionResolutionInfo *expression_resolution_info);
 
   /**
+   * @brief Resolves a searched CASE expression.
+   *
+   * @param type_hint The expected result type of this expression.
+   * @param parse_searched_case_expression The parsed searched CASE expression
+   *        to be resolved.
+   * @param expresssion_resolution_info Resolution info that contains the name
+   *        resolver and info to be updated after resolution.
+   * @return An optimizer expression for the CASE expression.
+   */
+  expressions::ScalarPtr resolveSearchedCaseExpression(
+      const ParseSearchedCaseExpression &parse_searched_case_expression,
+      const Type *type_hint,
+      ExpressionResolutionInfo *expression_resolution_info);
+
+  /**
+   * @brief Resolves a simple CASE expression.
+   *
+   * @param type_hint The expected result type of this expression.
+   * @param parse_simple_case_expression The parsed simple CASE expression
+   *        to be resolved.
+   * @param expresssion_resolution_info Resolution info that contains the name
+   *        resolver and info to be updated after resolution.
+   * @return An optimizer expression for the CASE expression.
+   */
+  expressions::ScalarPtr resolveSimpleCaseExpression(
+      const ParseSimpleCaseExpression &parse_simple_case_expression,
+      const Type *type_hint,
+      ExpressionResolutionInfo *expression_resolution_info);
+
+  /**
    * @brief Resolves a function call. For a non-scalar function, the returned
    *        expression is an AttributeReference to the actual resolved expression.
    *
@@ -400,6 +436,19 @@ class Resolver {
    */
   std::vector<expressions::PredicatePtr> resolvePredicates(
       const PtrList<ParsePredicate> &parse_predicates,
+      ExpressionResolutionInfo *expression_resolution_info);
+
+  /**
+   * @brief Resolves a table/scalar subquery expression.
+   * 
+   * @param parse_subquery_expression The parsed subquery expression.
+   * @param type_hints The type hints for output columns by the subquery.
+   * @param expression_resolution_info Resolution info that contains the name
+   *        resolver and info to be updated after resolution.
+   */
+  expressions::SubqueryExpressionPtr resolveSubqueryExpression(
+      const ParseSubqueryExpression &parse_subquery_expression,
+      const std::vector<const Type*> *type_hints,
       ExpressionResolutionInfo *expression_resolution_info);
 
   /**

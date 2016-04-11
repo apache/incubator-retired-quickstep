@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -69,6 +71,7 @@ struct NamedExpressionHash {
 };
 
 typedef std::unordered_set<NamedExpressionPtr, NamedExpressionHash, NamedExpressionEqual> UnorderedNamedExpressionSet;
+typedef std::unordered_set<AttributeReferencePtr, NamedExpressionHash, NamedExpressionEqual> UnorderedAttributeSet;
 
 /**
  * @brief Checks whether \p expression_to_check is contained by \p expressions.
@@ -119,6 +122,19 @@ bool SubsetOfExpressions(
  * @return An AttributeReference of this named expression.
  */
 AttributeReferencePtr ToRef(const NamedExpressionPtr &expression);
+
+/**
+ * @brief Filter a vector of AttributeReferencePtr to get those which are in
+ *        the specified scope.
+ *
+ * @param attributes The vector of AttributeReferencePtr to be filtered.
+ * @param scope The specified reference scope.
+ *
+ * @return A vector of AttributeReferencePtr within the specified scope.
+ */
+std::vector<AttributeReferencePtr> GetAttributeReferencesWithinScope(
+    const std::vector<AttributeReferencePtr> &attributes,
+    const AttributeReferenceScope scope);
 
 /**
  * @brief Creates a list of AttributeReferences from a list of NamedExpressions

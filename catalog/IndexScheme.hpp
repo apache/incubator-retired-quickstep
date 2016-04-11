@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 #include "catalog/Catalog.pb.h"
 #include "storage/StorageBlockLayout.pb.h"
@@ -41,6 +42,8 @@ namespace quickstep {
  **/
 class IndexScheme {
  public:
+  typedef std::unordered_map<std::string, IndexSubBlockDescription>::const_iterator const_iterator;
+
   /**
    * @brief Constructor.
    **/
@@ -136,6 +139,24 @@ class IndexScheme {
     std::sort(serialized_description_checked.begin(), serialized_description_checked.end());
 
     return (serialized_description_expected.compare(serialized_description_checked) == 0);
+  }
+
+  /**
+   * @brief Get an iterator at beginning of the index map.
+   *
+   * @return An iterator at beginning of the index map.
+   **/
+  inline const_iterator begin() const {
+    return index_map_.begin();
+  }
+
+  /**
+   * @brief Get an iterator at one-past-the-end of the index map.
+   *
+   * @return An iterator one-past-the-end of the index map.
+   **/
+  inline const_iterator end() const {
+    return index_map_.end();
   }
 
   /**

@@ -14,6 +14,7 @@
 #   limitations under the License.
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
+add_subdirectory(tests)
 
 if (WIN32)
   set(QUICKSTEP_OS_WINDOWS TRUE)
@@ -31,6 +32,7 @@ configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/CliConfig.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/CliConfig.h"
 )
+add_library(quickstep_cli_CommandExecutor CommandExecutor.cpp CommandExecutor.hpp)
 
 # Declare micro-libs and link dependencies:
 add_library(quickstep_cli_DropRelation DropRelation.cpp DropRelation.hpp)
@@ -65,6 +67,18 @@ add_library(quickstep_cli_InputParserUtil InputParserUtil.cpp InputParserUtil.hp
 add_library(quickstep_cli_PrintToScreen PrintToScreen.cpp PrintToScreen.hpp)
 
 # Link dependencies:
+target_link_libraries(quickstep_cli_CommandExecutor
+                      glog
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogRelationSchema
+                      quickstep_parser_ParseStatement
+                      quickstep_cli_PrintToScreen
+                      quickstep_utility_Macros
+                      quickstep_utility_PtrVector                        
+                      quickstep_utility_SqlError)
+
 target_link_libraries(quickstep_cli_DefaultsConfigurator
                       quickstep_utility_Macros)
 if(QUICKSTEP_HAVE_LIBNUMA)
@@ -96,6 +110,7 @@ target_link_libraries(quickstep_cli_PrintToScreen
 add_library(quickstep_cli ../empty_src.cpp CliModule.hpp)
 
 target_link_libraries(quickstep_cli
+                      quickstep_cli_CommandExecutor
                       quickstep_cli_DefaultsConfigurator
                       quickstep_cli_DropRelation
                       quickstep_cli_InputParserUtil

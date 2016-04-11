@@ -1,5 +1,7 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
 #   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -2327,6 +2329,85 @@ TopLevelPlan
     type=Double NULL]
 ==
 
+SELECT i
+FROM generate_series(0, 100, 3) AS gs1(i)
+WHERE
+  EXISTS (
+    SELECT *
+    FROM generate_series(0, 100, 5) AS gs2(i)
+    WHERE gs1.i = gs2.i
+  )
+  AND NOT EXISTS (
+    SELECT *
+    FROM generate_series(0, 100, 10) AS gs3(i)
+    WHERE gs1.i = gs3.i
+  )
+  AND (i < 40 OR i > 60);
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=Project
+| | | +-input=TableGenerator[function_name=generate_series,table_alias=gs1]
+| | | | +-AttributeReference[id=0,name=generate_series,alias=gs1,
+| | | |   relation=generate_series,type=Int]
+| | | +-project_list=
+| | |   +-Alias[id=1,name=i,relation=,type=Int]
+| | |     +-AttributeReference[id=0,name=generate_series,alias=gs1,
+| | |       relation=generate_series,type=Int]
+| | +-filter_predicate=And
+| |   +-Exists
+| |   | +-exists_subquery=SubqueryExpression
+| |   |   +-subquery=Project
+| |   |     +-input=Filter
+| |   |     | +-input=Project
+| |   |     | | +-input=TableGenerator[function_name=generate_series,
+| |   |     | | | table_alias=gs2]
+| |   |     | | | +-AttributeReference[id=2,name=generate_series,alias=gs2,
+| |   |     | | |   relation=generate_series,type=Int]
+| |   |     | | +-project_list=
+| |   |     | |   +-Alias[id=3,name=i,relation=,type=Int]
+| |   |     | |     +-AttributeReference[id=2,name=generate_series,alias=gs2,
+| |   |     | |       relation=generate_series,type=Int]
+| |   |     | +-filter_predicate=Equal
+| |   |     |   +-AttributeReference[id=1,name=i,relation=,type=Int,
+| |   |     |   | is_outer_reference=true]
+| |   |     |   +-AttributeReference[id=3,name=i,relation=,type=Int]
+| |   |     +-project_list=
+| |   |       +-AttributeReference[id=3,name=i,relation=,type=Int]
+| |   +-NOT
+| |   | +-Exists
+| |   |   +-exists_subquery=SubqueryExpression
+| |   |     +-subquery=Project
+| |   |       +-input=Filter
+| |   |       | +-input=Project
+| |   |       | | +-input=TableGenerator[function_name=generate_series,
+| |   |       | | | table_alias=gs3]
+| |   |       | | | +-AttributeReference[id=4,name=generate_series,alias=gs3,
+| |   |       | | |   relation=generate_series,type=Int]
+| |   |       | | +-project_list=
+| |   |       | |   +-Alias[id=5,name=i,relation=,type=Int]
+| |   |       | |     +-AttributeReference[id=4,name=generate_series,alias=gs3,
+| |   |       | |       relation=generate_series,type=Int]
+| |   |       | +-filter_predicate=Equal
+| |   |       |   +-AttributeReference[id=1,name=i,relation=,type=Int,
+| |   |       |   | is_outer_reference=true]
+| |   |       |   +-AttributeReference[id=5,name=i,relation=,type=Int]
+| |   |       +-project_list=
+| |   |         +-AttributeReference[id=5,name=i,relation=,type=Int]
+| |   +-Or
+| |     +-Less
+| |     | +-AttributeReference[id=1,name=i,relation=,type=Int]
+| |     | +-Literal[value=40,type=Int]
+| |     +-Greater
+| |       +-AttributeReference[id=1,name=i,relation=,type=Int]
+| |       +-Literal[value=60,type=Int]
+| +-project_list=
+|   +-AttributeReference[id=1,name=i,relation=,type=Int]
++-output_attributes=
+  +-AttributeReference[id=1,name=i,relation=,type=Int]
+==
+
 select interval '4 day' + interval '5 year'
 from test
 --
@@ -2373,3 +2454,148 @@ from test
 ERROR: Can not apply binary operation "Divide" to arguments of types Int and Datetime (1 : 10)
 select 5 / (date '1999-10-12' + yearmont...
          ^
+==
+
+# CASE expressions.
+SELECT CASE int_col%2
+           WHEN 1 THEN 'odd'
+           ELSE 'even'
+       END
+FROM test;
+--
+TopLevelPlan
++-plan=Project
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=CASE (int_col%2) WHEN 1 THEN 'odd' ELSE 'even' END,
+|     relation=,type=VarChar(4)]
+|     +-SimpleCase
+|       +-case_operand=Modulo
+|       | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|       | +-Literal[value=2,type=Int]
+|       +-else_result_expression=Literal[value=even,type=VarChar(4)]
+|       +-condition_operands=
+|       | +-Literal[value=1,type=Int]
+|       +-result_expressions=
+|         +-Literal[value=odd,type=VarChar(3)]
++-output_attributes=
+  +-AttributeReference[id=6,name=,
+    alias=CASE (int_col%2) WHEN 1 THEN 'odd' ELSE 'even' END,relation=,
+    type=VarChar(4)]
+==
+
+SELECT char_col, vchar_col
+FROM test
+WHERE CASE WHEN int_col > long_col THEN float_col
+           ELSE double_col
+      END > 0;
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-filter_predicate=Greater
+| |   +-SearchedCase
+| |   | +-else_result_expression=AttributeReference[id=3,name=double_col,
+| |   | | relation=test,type=Double NULL]
+| |   | +-condition_perdicates=
+| |   | | +-Greater
+| |   | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |   | +-conditional_result_expressions=
+| |   |   +-Cast[target_type=Double NULL]
+| |   |     +-operand=AttributeReference[id=2,name=float_col,relation=test,
+| |   |       type=Float]
+| |   +-Literal[value=0,type=Int]
+| +-project_list=
+|   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+|   +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
++-output_attributes=
+  +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+  +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+==
+
+SELECT
+  SUM(CASE double_col
+        WHEN long_col +
+             CASE WHEN int_col < float_col THEN 0
+                  ELSE 1
+             END +
+             CASE WHEN char_col <> vchar_col THEN 0
+                  ELSE 1
+             END
+             THEN 1
+        WHEN float_col THEN 2
+      END + int_col) AS result
+FROM test;
+--
+TopLevelPlan
++-plan=Project
+| +-input=Aggregate
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
+| |     +-AggregateFunction[function=SUM]
+| |       +-Add
+| |         +-SimpleCase
+| |         | +-case_operand=AttributeReference[id=3,name=double_col,
+| |         | | relation=test,type=Double NULL]
+| |         | +-condition_operands=
+| |         | | +-Add
+| |         | | | +-Add
+| |         | | | | +-AttributeReference[id=1,name=long_col,relation=test,
+| |         | | | | | type=Long]
+| |         | | | | +-SearchedCase
+| |         | | | |   +-else_result_expression=Literal[value=1,type=Double]
+| |         | | | |   +-condition_perdicates=
+| |         | | | |   | +-Less
+| |         | | | |   |   +-AttributeReference[id=0,name=int_col,relation=test,
+| |         | | | |   |   | type=Int NULL]
+| |         | | | |   |   +-AttributeReference[id=2,name=float_col,
+| |         | | | |   |     relation=test,type=Float]
+| |         | | | |   +-conditional_result_expressions=
+| |         | | | |     +-Literal[value=0,type=Double]
+| |         | | | +-SearchedCase
+| |         | | |   +-else_result_expression=Literal[value=1,type=Double]
+| |         | | |   +-condition_perdicates=
+| |         | | |   | +-NotEqual
+| |         | | |   |   +-AttributeReference[id=4,name=char_col,relation=test,
+| |         | | |   |   | type=Char(20)]
+| |         | | |   |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| |         | | |   |     type=VarChar(20) NULL]
+| |         | | |   +-conditional_result_expressions=
+| |         | | |     +-Literal[value=0,type=Double]
+| |         | | +-AttributeReference[id=2,name=float_col,relation=test,
+| |         | |   type=Float]
+| |         | +-result_expressions=
+| |         |   +-Literal[value=1,type=Int]
+| |         |   +-Literal[value=2,type=Int]
+| |         +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| +-project_list=
+|   +-Alias[id=6,name=result,relation=,type=Long NULL]
+|     +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|       type=Long NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=result,relation=,type=Long NULL]

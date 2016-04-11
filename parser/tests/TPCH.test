@@ -578,10 +578,10 @@ SelectStatement
 # Query 8
 SELECT
   o_year,
-  SUM(case
-    when nation = 'UNITED STATES' then volume
-    else 0
-  end) / SUM(volume) AS mkt_share
+  SUM(CASE
+    WHEN nation = 'UNITED STATES' THEN volume
+    ELSE 0
+  END) / SUM(volume) AS mkt_share
 FROM
   (
     SELECT
@@ -614,9 +614,99 @@ GROUP BY
 ORDER BY
   o_year
 --
-ERROR: syntax error (4 : 5)
-    when nation = 'UNITED STATES' the...
-    ^
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=o_year]
+  | +-SelectListItem[alias=mkt_share]
+  |   +-Divide
+  |     +-left_operand=FunctionCall[name=SUM]
+  |     | +-SearchedCaseExpression
+  |     |   +-else_result_expression=Literal
+  |     |   | +-NumericLiteral[numeric_string=0,float_like=false]
+  |     |   +-when_clauses=
+  |     |     +-SearchedWhenClause
+  |     |       +-condition_predicate=Equal
+  |     |       | +-left_operand=AttributeReference[attribute_name=nation]
+  |     |       | +-right_operand=Literal
+  |     |       |   +-StringLiteral[value=UNITED STATES]
+  |     |       +-result_expression=AttributeReference[attribute_name=volume]
+  |     +-right_operand=FunctionCall[name=SUM]
+  |       +-AttributeReference[attribute_name=volume]
+  +-group_by=GroupBy
+  | +-AttributeReference[attribute_name=o_year]
+  +-order_by=OrderBy
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  |   +-AttributeReference[attribute_name=o_year]
+  +-from_clause=
+    +-SubqueryTable
+      +-table_signature=TableSignature[table_alias=all_nations]
+      +-SubqueryExpression
+        +-Select
+          +-select_clause=SelectList
+          | +-SelectListItem[alias=o_year]
+          | | +-Extract[unit=year]
+          | |   +-date_expression=AttributeReference[attribute_name=o_orderdate]
+          | +-SelectListItem[alias=volume]
+          | | +-Multiply
+          | |   +-left_operand=AttributeReference[attribute_name=l_extendedprice]
+          | |   +-right_operand=Subtract
+          | |     +-left_operand=Literal
+          | |     | +-NumericLiteral[numeric_string=1,float_like=false]
+          | |     +-right_operand=AttributeReference[attribute_name=l_discount]
+          | +-SelectListItem[alias=nation]
+          |   +-AttributeReference[attribute_name=n_name,relation_name=n2]
+          +-where_clause=And
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=p_partkey]
+          | | +-right_operand=AttributeReference[attribute_name=l_partkey]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=s_suppkey]
+          | | +-right_operand=AttributeReference[attribute_name=l_suppkey]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=l_orderkey]
+          | | +-right_operand=AttributeReference[attribute_name=o_orderkey]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=o_custkey]
+          | | +-right_operand=AttributeReference[attribute_name=c_custkey]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=c_nationkey]
+          | | +-right_operand=AttributeReference[attribute_name=n_nationkey,
+          | |   relation_name=n1]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=n_regionkey,
+          | | | relation_name=n1]
+          | | +-right_operand=AttributeReference[attribute_name=r_regionkey]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=r_name]
+          | | +-right_operand=Literal
+          | |   +-StringLiteral[value=AMERICA]
+          | +-Equal
+          | | +-left_operand=AttributeReference[attribute_name=s_nationkey]
+          | | +-right_operand=AttributeReference[attribute_name=n_nationkey,
+          | |   relation_name=n2]
+          | +-Between
+          | | +-check_operand=AttributeReference[attribute_name=o_orderdate]
+          | | +-lower_bound_operand=Literal
+          | | | +-StringLiteral[value=1995-01-01,explicit_type=Datetime]
+          | | +-upper_bound_operand=Literal
+          | |   +-StringLiteral[value=1996-12-31,explicit_type=Datetime]
+          | +-Equal
+          |   +-left_operand=AttributeReference[attribute_name=p_type]
+          |   +-right_operand=Literal
+          |     +-StringLiteral[value=MEDIUM ANODIZED NICKEL]
+          +-from_clause=
+            +-TableReference[table=part]
+            +-TableReference[table=supplier]
+            +-TableReference[table=lineitem]
+            +-TableReference[table=orders]
+            +-TableReference[table=customer]
+            +-TableReference[table=nation]
+            | +-table_signature=TableSignature[table_alias=n1]
+            +-TableReference[table=nation]
+            | +-table_signature=TableSignature[table_alias=n2]
+            +-TableReference[table=region]
 ==
 
 # Query 9
@@ -867,18 +957,18 @@ ERROR: syntax error (15 : 7)
 # Query 12
 SELECT
   l_shipmode,
-  SUM(case
-    when o_orderpriority = '1-URGENT'
+  SUM(CASE
+    WHEN o_orderpriority = '1-URGENT'
       OR o_orderpriority = '2-HIGH'
-      then 1
-    else 0
-  end) AS high_line_count,
-  SUM(case
-    when o_orderpriority <> '1-URGENT'
+      THEN 1
+    ELSE 0
+  END) AS high_line_count,
+  SUM(CASE
+    WHEN o_orderpriority <> '1-URGENT'
       AND o_orderpriority <> '2-HIGH'
-      then 1
-    else 0
-  end) AS low_line_count
+      THEN 1
+    ELSE 0
+  END) AS low_line_count
 FROM
   orders,
   lineitem
@@ -894,9 +984,9 @@ GROUP BY
 ORDER BY
   l_shipmode
 --
-ERROR: syntax error (4 : 5)
-    when o_orderpriority = '1-URGEN...
-    ^
+ERROR: syntax error (20 : 18)
+  AND l_shipmode in ('REG AIR', 'RAIL')
+                 ^
 ==
 
 # Query 13
@@ -928,11 +1018,11 @@ ERROR: OUTER JOIN is not supported yet (10 : 16)
 
 # Query 14
 SELECT
-  100.00 * sum(case
-    when p_type LIKE 'PROMO%'
-      then l_extendedprice * (1 - l_discount)
-    else 0
-  end) / SUM(l_extendedprice * (1 - l_discount)) AS promo_revenue
+  100.00 * SUM(CASE
+    WHEN p_type LIKE 'PROMO%'
+      THEN l_extendedprice * (1 - l_discount)
+    ELSE 0
+  END) / SUM(l_extendedprice * (1 - l_discount)) AS promo_revenue
 FROM
   lineitem,
   part
@@ -941,9 +1031,57 @@ WHERE
   AND l_shipdate >= DATE '1994-11-01'
   AND l_shipdate < DATE '1994-11-01' + INTERVAL '1 month'
 --
-ERROR: syntax error (3 : 5)
-    when p_type LIKE 'PROMO%'
-    ^
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem[alias=promo_revenue]
+  |   +-Divide
+  |     +-left_operand=Multiply
+  |     | +-left_operand=Literal
+  |     | | +-NumericLiteral[numeric_string=100.00,float_like=true]
+  |     | +-right_operand=FunctionCall[name=SUM]
+  |     |   +-SearchedCaseExpression
+  |     |     +-else_result_expression=Literal
+  |     |     | +-NumericLiteral[numeric_string=0,float_like=false]
+  |     |     +-when_clauses=
+  |     |       +-SearchedWhenClause
+  |     |         +-condition_predicate=kLike
+  |     |         | +-left_operand=AttributeReference[attribute_name=p_type]
+  |     |         | +-right_operand=Literal
+  |     |         |   +-StringLiteral[value=PROMO%]
+  |     |         +-result_expression=Multiply
+  |     |           +-left_operand=AttributeReference[
+  |     |           | attribute_name=l_extendedprice]
+  |     |           +-right_operand=Subtract
+  |     |             +-left_operand=Literal
+  |     |             | +-NumericLiteral[numeric_string=1,float_like=false]
+  |     |             +-right_operand=AttributeReference[
+  |     |               attribute_name=l_discount]
+  |     +-right_operand=FunctionCall[name=SUM]
+  |       +-Multiply
+  |         +-left_operand=AttributeReference[attribute_name=l_extendedprice]
+  |         +-right_operand=Subtract
+  |           +-left_operand=Literal
+  |           | +-NumericLiteral[numeric_string=1,float_like=false]
+  |           +-right_operand=AttributeReference[attribute_name=l_discount]
+  +-where_clause=And
+  | +-Equal
+  | | +-left_operand=AttributeReference[attribute_name=l_partkey]
+  | | +-right_operand=AttributeReference[attribute_name=p_partkey]
+  | +-GreaterOrEqual
+  | | +-left_operand=AttributeReference[attribute_name=l_shipdate]
+  | | +-right_operand=Literal
+  | |   +-StringLiteral[value=1994-11-01,explicit_type=Datetime]
+  | +-Less
+  |   +-left_operand=AttributeReference[attribute_name=l_shipdate]
+  |   +-right_operand=Add
+  |     +-left_operand=Literal
+  |     | +-StringLiteral[value=1994-11-01,explicit_type=Datetime]
+  |     +-right_operand=Literal
+  |       +-StringLiteral[value=1 month,explicit_type=YearMonthInterval]
+  +-from_clause=
+    +-TableReference[table=lineitem]
+    +-TableReference[table=part]
 ==
 
 # Query 15

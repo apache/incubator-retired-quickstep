@@ -61,12 +61,14 @@ class ParsePartitionClause;
 class ParsePredicate;
 class ParseSample;
 class ParseScalarLiteral;
+class ParseSearchedWhenClause;
 class ParseSelect;
 class ParseSelectionClause;
 class ParseSelectionItem;
 class ParseSelectionItemScalar;
 class ParseSelectionList;
 class ParseSimpleTableReference;
+class ParseSimpleWhenClause;
 class ParseStringKeyLiteralValues;
 class ParseStatement;
 class ParseStatementCopyFrom;
@@ -175,6 +177,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "blockproperties"  return TOKEN_BLOCKPROPERTIES;
   "blocksample"      return TOKEN_BLOCKSAMPLE;
   "bloomfilter"      return TOKEN_BLOOM_FILTER;
+  "case"             return TOKEN_CASE;
   "csbtree"          return TOKEN_CSB_TREE;
   "by"               return TOKEN_BY;
   "char"             return TOKEN_CHARACTER;
@@ -195,6 +198,8 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "distinct"         return TOKEN_DISTINCT;
   "double"           return TOKEN_DOUBLE;
   "drop"             return TOKEN_DROP;
+  "else"             return TOKEN_ELSE;
+  "end"              return TOKEN_END;
   "escape_strings"   return TOKEN_ESCAPE_STRINGS;
   "exists"           return TOKEN_EXISTS;
   "extract"          return TOKEN_EXTRACT;
@@ -245,6 +250,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "set"              return TOKEN_SET;
   "smallint"         return TOKEN_SMALLINT;
   "table"            return TOKEN_TABLE;
+  "then"             return TOKEN_THEN;
   "time"             return TOKEN_TIME;
   "timestamp"        return TOKEN_TIMESTAMP;
   "true"             return TOKEN_TRUE;
@@ -254,6 +260,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "using"            return TOKEN_USING;
   "values"           return TOKEN_VALUES;
   "varchar"          return TOKEN_VARCHAR;
+  "when"             return TOKEN_WHEN;
   "where"            return TOKEN_WHERE;
   "with"             return TOKEN_WITH;
   "yearmonth"        return TOKEN_YEARMONTH;
