@@ -29,9 +29,10 @@ add_library(quickstep_queryexecution_QueryContext_proto
 add_library(quickstep_queryexecution_QueryExecutionMessages_proto
             ${queryexecution_QueryExecutionMessages_proto_srcs}
             ${queryexecution_QueryExecutionMessages_proto_hdrs})
-add_library(quickstep_queryexecution_QueryExecutionState ../empty_src.cpp QueryExecutionState.hpp) 
+add_library(quickstep_queryexecution_QueryExecutionState ../empty_src.cpp QueryExecutionState.hpp)
 add_library(quickstep_queryexecution_QueryExecutionTypedefs ../empty_src.cpp QueryExecutionTypedefs.hpp)
 add_library(quickstep_queryexecution_QueryExecutionUtil ../empty_src.cpp QueryExecutionUtil.hpp)
+add_library(quickstep_queryexecution_WorkOrderProtosContainer ../empty_src.cpp WorkOrderProtosContainer.hpp)
 add_library(quickstep_queryexecution_WorkOrdersContainer WorkOrdersContainer.cpp WorkOrdersContainer.hpp)
 add_library(quickstep_queryexecution_Worker Worker.cpp Worker.hpp)
 add_library(quickstep_queryexecution_WorkerDirectory ../empty_src.cpp WorkerDirectory.hpp)
@@ -112,6 +113,10 @@ target_link_libraries(quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_utility_Macros
                       tmb)
+target_link_libraries(quickstep_queryexecution_WorkOrderProtosContainer
+                      glog
+                      quickstep_relationaloperators_WorkOrder_proto
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryexecution_WorkOrdersContainer
                       glog
                       quickstep_relationaloperators_WorkOrder
@@ -147,11 +152,13 @@ target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_QueryExecutionState
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
+                      quickstep_queryexecution_WorkOrderProtosContainer
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_queryexecution_Worker
                       quickstep_queryexecution_WorkerDirectory
                       quickstep_queryexecution_WorkerMessage
                       quickstep_queryexecution_WorkerSelectionPolicy)
+
 # Tests:
 add_executable(Foreman_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/Foreman_unittest.cpp")

@@ -18,7 +18,9 @@
 #include "relational_operators/DestroyHashOperator.hpp"
 
 #include "query_execution/QueryContext.hpp"
+#include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
+#include "relational_operators/WorkOrder.pb.h"
 
 #include "tmb/id_typedefs.h"
 
@@ -37,6 +39,20 @@ bool DestroyHashOperator::getAllWorkOrders(
   }
   return work_generated_;
 }
+
+bool DestroyHashOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  if (blocking_dependencies_met_ && !work_generated_) {
+    work_generated_ = true;
+
+    serialization::WorkOrder *proto = new serialization::WorkOrder;
+    proto->set_work_order_type(serialization::DESTROY_HASH);
+    proto->SetExtension(serialization::DestroyHashWorkOrder::join_hash_table_index, hash_table_index_);
+
+    container->addWorkOrderProto(proto, op_index_);
+  }
+  return work_generated_;
+}
+
 
 void DestroyHashWorkOrder::execute() {
   query_context_->destroyJoinHashTable(hash_table_index_);

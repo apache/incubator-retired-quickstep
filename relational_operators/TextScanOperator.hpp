@@ -48,6 +48,7 @@ namespace quickstep {
 class CatalogRelationSchema;
 class InsertDestination;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -158,6 +159,8 @@ class TextScanOperator : public RelationalOperator {
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
     return output_destination_index_;

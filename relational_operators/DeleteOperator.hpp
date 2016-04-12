@@ -41,7 +41,10 @@ namespace quickstep {
 class CatalogRelationSchema;
 class Predicate;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
+
+namespace serialization { class WorkOrder; }
 
 /** \addtogroup RelationalOperators
  *  @{
@@ -65,13 +68,13 @@ class DeleteOperator : public RelationalOperator {
   DeleteOperator(const CatalogRelation &relation,
                  const QueryContext::predicate_id predicate_index,
                  const bool relation_is_stored)
-     :  relation_(relation),
-        predicate_index_(predicate_index),
-        relation_is_stored_(relation_is_stored),
-        started_(false),
-        relation_block_ids_(relation_is_stored ? relation.getBlocksSnapshot()
-                                               : std::vector<block_id>()),
-        num_workorders_generated_(0) {}
+     : relation_(relation),
+       predicate_index_(predicate_index),
+       relation_is_stored_(relation_is_stored),
+       started_(false),
+       relation_block_ids_(relation_is_stored ? relation.getBlocksSnapshot()
+                                              : std::vector<block_id>()),
+       num_workorders_generated_(0) {}
 
   ~DeleteOperator() override {}
 
@@ -80,6 +83,8 @@ class DeleteOperator : public RelationalOperator {
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   const relation_id getOutputRelationID() const override {
     return relation_.getID();
@@ -98,6 +103,13 @@ class DeleteOperator : public RelationalOperator {
   }
 
  private:
+  /**
+   * @brief Create Work Order proto.
+   *
+   * @param block The block id used in the Work Order.
+   **/
+  serialization::WorkOrder* createWorkOrderProto(const block_id block);
+
   const CatalogRelation &relation_;
   const QueryContext::predicate_id predicate_index_;
 

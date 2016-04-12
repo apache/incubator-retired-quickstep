@@ -26,12 +26,13 @@
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionUtil.hpp"
+#include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
+#include "relational_operators/WorkOrder.pb.h"
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
-
 
 #include "glog/logging.h"
 
@@ -82,6 +83,40 @@ bool DeleteOperator::getAllWorkOrders(
     return done_feeding_input_relation_;
   }
 }
+
+bool DeleteOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  if (relation_is_stored_) {
+    // If relation_ is stored, iterate over the list of blocks in relation_.
+    if (!started_) {
+      for (const block_id input_block_id : relation_block_ids_) {
+        container->addWorkOrderProto(createWorkOrderProto(input_block_id), op_index_);
+      }
+      started_ = true;
+    }
+    return true;
+  } else {
+    while (num_workorders_generated_ < relation_block_ids_.size()) {
+      container->addWorkOrderProto(
+          createWorkOrderProto(relation_block_ids_[num_workorders_generated_]),
+          op_index_);
+      ++num_workorders_generated_;
+    }
+    return done_feeding_input_relation_;
+  }
+}
+
+serialization::WorkOrder* DeleteOperator::createWorkOrderProto(const block_id block) {
+  serialization::WorkOrder *proto = new serialization::WorkOrder;
+  proto->set_work_order_type(serialization::DELETE);
+
+  proto->SetExtension(serialization::DeleteWorkOrder::operator_index, op_index_);
+  proto->SetExtension(serialization::DeleteWorkOrder::relation_id, relation_.getID());
+  proto->SetExtension(serialization::DeleteWorkOrder::predicate_index, predicate_index_);
+  proto->SetExtension(serialization::DeleteWorkOrder::block_id, block);
+
+  return proto;
+}
+
 
 void DeleteWorkOrder::execute() {
   MutableBlockReference block(

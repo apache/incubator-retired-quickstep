@@ -45,6 +45,7 @@ class InsertDestination;
 class Predicate;
 class Scalar;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -94,6 +95,8 @@ class UpdateOperator : public RelationalOperator {
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
     return relocation_destination_index_;

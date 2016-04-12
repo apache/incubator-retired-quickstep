@@ -1,6 +1,7 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
  *     University of Wisconsin—Madison.
+ *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -36,6 +37,7 @@ namespace quickstep {
 class CatalogRelation;
 class QueryContext;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -71,6 +73,13 @@ class CreateIndexOperator : public RelationalOperator {
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  /**
+   * @note no WorkOrder proto generated for this operator.
+   **/
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override {
+    return true;
+  }
 
   void updateCatalogOnCompletion() override;
 

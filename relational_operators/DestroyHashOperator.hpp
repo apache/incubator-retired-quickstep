@@ -32,6 +32,7 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -59,6 +60,8 @@ class DestroyHashOperator : public RelationalOperator {
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
  private:
   const QueryContext::join_hash_table_id hash_table_index_;
