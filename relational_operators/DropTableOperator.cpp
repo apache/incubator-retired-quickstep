@@ -21,6 +21,7 @@
 #include <vector>
 
 #include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogDatabaseLite.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
@@ -68,6 +69,11 @@ void DropTableOperator::updateCatalogOnCompletion() {
 void DropTableWorkOrder::execute() {
   for (const block_id block : blocks_) {
     storage_manager_->deleteBlockOrBlobFile(block);
+  }
+
+  // Drop the relation in the cache in the distributed version, if any.
+  if (catalog_database_cache_ != nullptr && rel_id_ != kInvalidCatalogId) {
+    catalog_database_cache_->dropRelationById(rel_id_);
   }
 }
 

@@ -19,8 +19,9 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_HASH_JOIN_OPERATOR_HPP_
 
 #include <cstddef>
-#include <vector>
 #include <memory>
+#include <utility>
+#include <vector>
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
@@ -222,6 +223,49 @@ class HashJoinWorkOrder : public WorkOrder {
       : build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
+        any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
+        block_id_(lookup_block_id),
+        residual_predicate_(residual_predicate),
+        selection_(selection),
+        output_destination_(DCHECK_NOTNULL(output_destination)),
+        hash_table_(DCHECK_NOTNULL(hash_table)),
+        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+
+  /**
+   * @brief Constructor for the distributed version.
+   *
+   * @param build_relation The relation that the hash table was originally built
+   *        on (i.e. the inner relation in the join).
+   * @param probe_relation The relation to probe the hash table with (i.e. the
+   *        outer relation in the join).
+   * @param join_key_attributes The IDs of equijoin attributes in \c
+   *        probe_relation.
+   * @param any_join_key_attributes_nullable If any attribute is nullable.
+   * @param lookup_block_id The block id of the probe_relation.
+   * @param residual_predicate If non-null, apply as an additional filter to
+   *        pairs of tuples that match the hash-join (i.e. key equality)
+   *        predicate. Effectively, this makes the join predicate the
+   *        conjunction of the key-equality predicate and residual_predicate.
+   * @param selection A list of Scalars corresponding to the relation attributes
+   *        in \c output_destination. Each Scalar is evaluated for the joined
+   *        tuples, and the resulting value is inserted into the join result.
+   * @param output_destination The InsertDestination to insert the join results.
+   * @param hash_table The JoinHashTable to use.
+   * @param storage_manager The StorageManager to use.
+   **/
+  HashJoinWorkOrder(const CatalogRelationSchema &build_relation,
+                    const CatalogRelationSchema &probe_relation,
+                    std::vector<attribute_id> &&join_key_attributes,
+                    const bool any_join_key_attributes_nullable,
+                    const block_id lookup_block_id,
+                    const Predicate *residual_predicate,
+                    const std::vector<std::unique_ptr<const Scalar>> &selection,
+                    InsertDestination *output_destination,
+                    JoinHashTable *hash_table,
+                    StorageManager *storage_manager)
+      : build_relation_(build_relation),
+        probe_relation_(probe_relation),
+        join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
