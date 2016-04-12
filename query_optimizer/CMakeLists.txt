@@ -15,6 +15,15 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+if (ENABLE_DISTRIBUTED)
+  set(QUICKSTEP_DISTRIBUTED TRUE)
+endif()
+
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/QueryOptimizerConfig.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/QueryOptimizerConfig.h"
+)
+
 add_subdirectory(cost_model)
 add_subdirectory(expressions)
 add_subdirectory(logical)
@@ -125,6 +134,10 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_types_containers_Tuple_proto
                       quickstep_utility_Macros
                       quickstep_utility_SqlError)
+if (ENABLE_DISTRIBUTED)
+  target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
+                        quickstep_catalog_Catalog_proto)
+endif()
 target_link_libraries(quickstep_queryoptimizer_LogicalGenerator
                       glog
                       quickstep_parser_ParseStatement
@@ -170,6 +183,7 @@ target_link_libraries(quickstep_queryoptimizer_PhysicalGenerator
                       quickstep_queryoptimizer_Validator
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_QueryHandle
+                      quickstep_catalog_Catalog_proto
                       quickstep_queryexecution_QueryContext_proto
                       quickstep_queryoptimizer_QueryPlan
                       quickstep_utility_Macros)

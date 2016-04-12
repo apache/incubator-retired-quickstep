@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -21,6 +21,11 @@
 #include <memory>
 #include <string>
 #include <unordered_map>
+
+#ifdef QUICKSTEP_DISTRIBUTED
+#include <unordered_set>
+#endif
+
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -54,6 +59,8 @@
 #include "query_optimizer/physical/UpdateTable.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 namespace quickstep {
 
 class CatalogAttribute;
@@ -61,6 +68,11 @@ class CatalogRelation;
 class Predicate;
 
 namespace serialization {
+
+#ifdef QUICKSTEP_DISTRIBUTED
+class CatalogDatabase;
+#endif
+
 class InsertDestination;
 }  // namespace serialization
 
@@ -85,10 +97,14 @@ class ExecutionGenerator {
    */
   ExecutionGenerator(OptimizerContext *optimizer_context,
                      QueryHandle *query_handle)
-      : optimizer_context_(optimizer_context),
-        query_handle_(query_handle),
-        execution_plan_(query_handle->getQueryPlanMutable()),
-        query_context_proto_(query_handle->getQueryContextProtoMutable()) {
+      : optimizer_context_(DCHECK_NOTNULL(optimizer_context)),
+        query_handle_(DCHECK_NOTNULL(query_handle)),
+        execution_plan_(DCHECK_NOTNULL(query_handle->getQueryPlanMutable())),
+        query_context_proto_(DCHECK_NOTNULL(query_handle->getQueryContextProtoMutable())) {
+#ifdef QUICKSTEP_DISTRIBUTED
+    catalog_database_cache_proto_ = DCHECK_NOTNULL(query_handle->getCatalogDatabaseCacheProtoMutable());
+#endif
+
     setupCostModel();
   }
 
@@ -367,6 +383,13 @@ class ExecutionGenerator {
   QueryHandle *query_handle_;
   QueryPlan *execution_plan_;  // A part of QueryHandle.
   serialization::QueryContext *query_context_proto_;  // A part of QueryHandle.
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  serialization::CatalogDatabase *catalog_database_cache_proto_;  // A part of QueryHandle.
+
+  // Used to bookkeep relation ids for 'catalog_database_cache_proto_'.
+  std::unordered_set<relation_id> referenced_relation_ids_;
+#endif
 
   /**
    * @brief Used to generate distinct relation names for temporary relations.
