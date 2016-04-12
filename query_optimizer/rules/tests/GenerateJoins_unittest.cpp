@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -17,6 +19,8 @@
 
 #include "query_optimizer/rules/GenerateJoins.hpp"
 
+#include <cstddef>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -30,16 +34,16 @@
 #include "query_optimizer/logical/MultiwayCartesianJoin.hpp"
 #include "query_optimizer/logical/NestedLoopsJoin.hpp"
 #include "query_optimizer/logical/TableReference.hpp"
+#include "query_optimizer/rules/Rule.hpp"
 #include "query_optimizer/rules/tests/LogicalRuleTest.hpp"
 #include "query_optimizer/rules/tests/RuleTest.hpp"
-#include "types/operations/binary_operations/BinaryOperation.hpp"
 #include "types/operations/binary_operations/BinaryOperationFactory.hpp"
 #include "types/operations/binary_operations/BinaryOperationID.hpp"
-#include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
 #include "gtest/gtest.h"
 
 namespace quickstep {
@@ -102,12 +106,16 @@ class JoinGeneratorTest : public LogicalRuleTest {
         join_operands[0],
         join_operands[1],
         {join_attribute_pairs[0].first},
-        {join_attribute_pairs[0].second});
+        {join_attribute_pairs[0].second},
+        nullptr /* residual_predicate */,
+        L::HashJoin::JoinType::kInnerJoin);
     for (size_t i = 2; i < join_operands.size(); ++i) {
       hash_join = L::HashJoin::Create(hash_join,
                                       join_operands[i],
                                       {join_attribute_pairs[i - 1].first},
-                                      {join_attribute_pairs[i - 1].second});
+                                      {join_attribute_pairs[i - 1].second},
+                                      nullptr /* residual_predicate */,
+                                      L::HashJoin::JoinType::kInnerJoin);
     }
     return hash_join;
   }
@@ -216,7 +224,9 @@ TEST_F(JoinGeneratorTest, MultiAttributesHashJoin) {
                                             {relation_attribute_reference_0_0_,
                                              relation_attribute_reference_0_1_},
                                             {relation_attribute_reference_1_0_,
-                                             relation_attribute_reference_1_1_}),
+                                             relation_attribute_reference_1_1_},
+                                            nullptr /* residual_predicate */,
+                                            L::HashJoin::JoinType::kInnerJoin),
                         single_table_predicate);
   APPLY_RULE_AND_CHECK_OUTPUT();
 }

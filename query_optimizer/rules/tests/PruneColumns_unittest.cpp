@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -20,7 +22,6 @@
 #include <memory>
 #include <vector>
 
-#include "query_optimizer/expressions/Alias.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
@@ -36,6 +37,9 @@
 #include "query_optimizer/rules/tests/RuleTest.hpp"
 #include "utility/Cast.hpp"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
+#include "gtest/gtest.h"
 
 namespace quickstep {
 namespace optimizer {
@@ -91,7 +95,8 @@ TEST_F(PruneColumnTest, PrimaryTest) {
                                                        {relation_attribute_reference_0_0_},
                                                        {relation_attribute_reference_1_0_},
                                                        E::PredicatePtr(),
-                                                       project_expressions_with_redundancy);
+                                                       project_expressions_with_redundancy,
+                                                       P::HashJoin::JoinType::kInnerJoin);
 
   // alias_add_literal_0_: relation_attribute_reference_0_0_ + literal_0_.
   // filter_predicate_1_: relation_attribute_reference_1_0_ > literal_0_.
@@ -118,7 +123,8 @@ TEST_F(PruneColumnTest, PrimaryTest) {
       {relation_attribute_reference_0_0_},
       {relation_attribute_reference_1_0_},
       E::PredicatePtr(),
-      pruned_project_expressions_for_join);
+      pruned_project_expressions_for_join,
+      P::HashJoin::JoinType::kInnerJoin);
   const P::SelectionPtr new_selection = std::static_pointer_cast<const P::Selection>(
       selection->copyWithNewChildren({new_hash_join} /* new_children */));
   expect_output_ = P::TopLevelPlan::Create(new_selection);

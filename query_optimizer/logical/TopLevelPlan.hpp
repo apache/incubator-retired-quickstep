@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -20,10 +22,12 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/logical/LogicalType.hpp"
 #include "utility/Macros.hpp"
@@ -77,7 +81,15 @@ class TopLevelPlan : public Logical {
                                  ++new_children.begin(),
                                  new_children.end());
     }
-    return TopLevelPlan::Create(new_children[0], new_shared_subplans);
+    return Create(new_children[0], new_shared_subplans, uncorrelated_subquery_map_);
+  }
+
+  /**
+   * @return Map from the expression ID of an attribute reference to the
+   *         uncorrelated subquery that produces the attribute.
+   */
+  const std::unordered_map<expressions::ExprId, int>& uncorrelated_subquery_map() const {
+    return uncorrelated_subquery_map_;
   }
 
   std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {
@@ -93,11 +105,14 @@ class TopLevelPlan : public Logical {
    *
    * @param plan The input plan.
    * @param shared_subplans The subplans referenced in the main input plan.
+   * @param uncorrelated_subquery_map Map from expression IDs to uncorrelated scalar subqueries.
    * @return An immutable TopLevelPlan.
    */
   static TopLevelPlanPtr Create(const LogicalPtr &plan,
-                                const std::vector<LogicalPtr> &shared_subplans = std::vector<LogicalPtr>()) {
-    return TopLevelPlanPtr(new TopLevelPlan(plan, shared_subplans));
+                                const std::vector<LogicalPtr> &shared_subplans = std::vector<LogicalPtr>(),
+                                const std::unordered_map<expressions::ExprId, int> &uncorrelated_subquery_map =
+                                    std::unordered_map<expressions::ExprId, int>()) {
+    return TopLevelPlanPtr(new TopLevelPlan(plan, shared_subplans, uncorrelated_subquery_map));
   }
 
  protected:
@@ -111,9 +126,11 @@ class TopLevelPlan : public Logical {
 
  private:
   TopLevelPlan(const LogicalPtr &plan,
-               const std::vector<LogicalPtr> &shared_subplans)
+               const std::vector<LogicalPtr> &shared_subplans,
+               const std::unordered_map<expressions::ExprId, int> &uncorrelated_subquery_map)
       : plan_(plan),
-        shared_subplans_(shared_subplans) {
+        shared_subplans_(shared_subplans),
+        uncorrelated_subquery_map_(uncorrelated_subquery_map) {
     addChild(plan);
     for (const LogicalPtr &shared_subplan : shared_subplans) {
       addChild(shared_subplan);
@@ -123,6 +140,8 @@ class TopLevelPlan : public Logical {
   LogicalPtr plan_;
   // Stored in the topological ordering based on dependencies.
   std::vector<LogicalPtr> shared_subplans_;
+
+  std::unordered_map<expressions::ExprId, int> uncorrelated_subquery_map_;
 
   DISALLOW_COPY_AND_ASSIGN(TopLevelPlan);
 };

@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -24,6 +26,7 @@
 
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/LogicalAnd.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/logical/Logical.hpp"
@@ -70,6 +73,9 @@ class Filter : public Logical {
     DCHECK_EQ(new_children.size(), children().size());
     return Filter::Create(new_children[0], filter_predicate_);
   }
+
+  LogicalPtr copyWithNewInputExpressions(
+      const std::vector<expressions::ExpressionPtr> &input_expressions) const override;
 
   std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {
     return input()->getOutputAttributes();

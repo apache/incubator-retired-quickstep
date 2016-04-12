@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -24,6 +26,7 @@
 
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/expressions/Alias.hpp"
 #include "query_optimizer/logical/Logical.hpp"
@@ -73,6 +76,9 @@ class Aggregate : public Logical {
   LogicalPtr copyWithNewChildren(
       const std::vector<LogicalPtr> &new_children) const override;
 
+  LogicalPtr copyWithNewInputExpressions(
+      const std::vector<expressions::ExpressionPtr> &input_expressions) const override;
+
   std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override;
 
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override;
@@ -110,6 +116,8 @@ class Aggregate : public Logical {
         grouping_expressions_(grouping_expressions),
         aggregate_expressions_(aggregate_expressions) {
     addChild(input_);
+    addInputExpressions(grouping_expressions_);
+    addInputExpressions(aggregate_expressions_);
   }
 
   LogicalPtr input_;

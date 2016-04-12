@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -27,7 +29,6 @@
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/expressions/LogicalAnd.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
-#include "query_optimizer/expressions/Scalar.hpp"
 #include "query_optimizer/logical/Filter.hpp"
 #include "query_optimizer/logical/HashJoin.hpp"
 #include "query_optimizer/logical/Logical.hpp"
@@ -38,15 +39,9 @@
 #include "query_optimizer/physical/NestedLoopsJoin.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/Selection.hpp"
-#include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/strategy/tests/StrategyTest.hpp"
-#include "types/operations/binary_operations/BinaryOperation.hpp"
-#include "types/operations/binary_operations/BinaryOperationFactory.hpp"
-#include "types/operations/binary_operations/BinaryOperationID.hpp"
-#include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
-#include "utility/Cast.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -77,7 +72,10 @@ class JoinTest : public StrategyTest {
         logical_table_reference_0_,
         logical_table_reference_1_,
         {relation_attribute_reference_0_0_},
-        {relation_attribute_reference_1_0_});
+        {relation_attribute_reference_1_0_},
+        nullptr /* residual_predicate */,
+        L::HashJoin::JoinType::kInnerJoin);
+
 
     std::vector<E::NamedExpressionPtr> project_expressions(
         E::ToNamedExpressions(logical_table_reference_0_->getOutputAttributes()));
@@ -98,7 +96,8 @@ class JoinTest : public StrategyTest {
                             {relation_attribute_reference_0_0_},
                             {relation_attribute_reference_1_0_},
                             E::PredicatePtr(),
-                            project_expressions);
+                            project_expressions,
+                            P::HashJoin::JoinType::kInnerJoin);
   }
 
   void setupStrategy(std::unique_ptr<Strategy> *strategy) override {
@@ -143,7 +142,8 @@ TEST_F(JoinTest, ProjectOnJoin) {
       {relation_attribute_reference_0_0_},
       {relation_attribute_reference_1_0_},
       E::PredicatePtr(),
-      logical_project_0_->project_expressions());
+      logical_project_0_->project_expressions(),
+      P::HashJoin::JoinType::kInnerJoin);
   EXPECT_CORRECT_PHYSICAL();
 }
 
@@ -183,7 +183,8 @@ TEST_F(JoinTest, ProjectOnFilterOnHashJoin) {
       {relation_attribute_reference_1_0_,
        relation_attribute_reference_1_1_},
       filter_predicate_0_,
-      logical_project_1_->project_expressions());
+      logical_project_1_->project_expressions(),
+      P::HashJoin::JoinType::kInnerJoin);
   EXPECT_CORRECT_PHYSICAL();
 }
 
@@ -211,7 +212,8 @@ TEST_F(JoinTest, FilterOnHashJoin) {
       {relation_attribute_reference_0_0_},
       {relation_attribute_reference_1_0_},
       filter_predicate_0_,
-      physical_nested_loops_join_->project_expressions());
+      physical_nested_loops_join_->project_expressions(),
+      P::HashJoin::JoinType::kInnerJoin);
   EXPECT_CORRECT_PHYSICAL();
 }
 
@@ -222,7 +224,9 @@ TEST_F(JoinTest, HashJoinOnSelection) {
       L::HashJoin::Create(logical_project_0_,
                           logical_project_on_filter_1_,
                           {relation_attribute_reference_0_0_},
-                          {relation_attribute_reference_1_0_});
+                          {relation_attribute_reference_1_0_},
+                          nullptr /* residual_predicate */,
+                          L::HashJoin::JoinType::kInnerJoin);
   // References an attribute created by the left underlying project of the hash
   // join.
   const E::AliasPtr alias_on_alias_reference = E::Alias::Create(
@@ -244,7 +248,8 @@ TEST_F(JoinTest, HashJoinOnSelection) {
       {relation_attribute_reference_0_0_},
       {relation_attribute_reference_1_0_},
       E::PredicatePtr(),
-      {alias_on_alias_reference_after_pullup} /* project_expressions */);
+      {alias_on_alias_reference_after_pullup} /* project_expressions */,
+      P::HashJoin::JoinType::kInnerJoin);
   EXPECT_CORRECT_PHYSICAL();
 
   // HashJoin -- Project
@@ -269,7 +274,9 @@ TEST_F(JoinTest, HashJoinOnSelection) {
   input_logical_ = L::HashJoin::Create(logical_project_0_,
                                        logical_project_on_attribute_reference,
                                        {E::ToRef(alias_add_literal_0_)},
-                                       {relation_attribute_reference_1_0_});
+                                       {relation_attribute_reference_1_0_},
+                                       nullptr /* residual_predicate */,
+                                       L::HashJoin::JoinType::kInnerJoin);
   std::vector<E::NamedExpressionPtr> project_expressions(
       E::ToNamedExpressions(physical_project_0_->getOutputAttributes()));
   project_expressions.push_back(alias_on_attribute_reference);
@@ -279,7 +286,8 @@ TEST_F(JoinTest, HashJoinOnSelection) {
                           {E::ToRef(alias_add_literal_0_)},
                           {relation_attribute_reference_1_0_},
                           E::PredicatePtr(),
-                          project_expressions);
+                          project_expressions,
+                          P::HashJoin::JoinType::kInnerJoin);
   EXPECT_CORRECT_PHYSICAL();
 }
 

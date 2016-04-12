@@ -1,5 +1,7 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
 #   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -1691,3 +1693,112 @@ TopLevelPlan
   | type=Long]
   +-AttributeReference[id=7,name=,alias=SUM(float_col),relation=,
     type=Double NULL]
+==
+
+SELECT i
+FROM generate_series(0, 100, 3) AS gs1(i)
+WHERE
+  EXISTS (
+    SELECT *
+    FROM generate_series(0, 100, 5) AS gs2(i)
+    WHERE gs1.i = gs2.i
+  )
+  AND NOT EXISTS (
+    SELECT *
+    FROM generate_series(0, 100, 10) AS gs3(i)
+    WHERE gs1.i = gs3.i
+  )
+  AND (i < 40 OR i > 60);
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=HashLeftSemiJoin
+| | +-left=HashLeftAntiJoin
+| | | +-left=Filter
+| | | | +-input=Project
+| | | | | +-input=TableGenerator[function_name=generate_series,table_alias=gs1]
+| | | | | | +-AttributeReference[id=0,name=generate_series,alias=gs1,
+| | | | | |   relation=generate_series,type=Int]
+| | | | | +-project_list=
+| | | | |   +-Alias[id=1,name=i,relation=,type=Int]
+| | | | |     +-AttributeReference[id=0,name=generate_series,alias=gs1,
+| | | | |       relation=generate_series,type=Int]
+| | | | +-filter_predicate=Or
+| | | |   +-Less
+| | | |   | +-AttributeReference[id=1,name=i,relation=,type=Int]
+| | | |   | +-Literal[value=40,type=Int]
+| | | |   +-Greater
+| | | |     +-AttributeReference[id=1,name=i,relation=,type=Int]
+| | | |     +-Literal[value=60,type=Int]
+| | | +-right=Project
+| | | | +-input=TableGenerator[function_name=generate_series,table_alias=gs3]
+| | | | | +-AttributeReference[id=4,name=generate_series,alias=gs3,
+| | | | |   relation=generate_series,type=Int]
+| | | | +-project_list=
+| | | |   +-Alias[id=5,name=i,relation=,type=Int]
+| | | |     +-AttributeReference[id=4,name=generate_series,alias=gs3,
+| | | |       relation=generate_series,type=Int]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=1,name=i,relation=,type=Int]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=5,name=i,relation=,type=Int]
+| | +-right=Project
+| | | +-input=TableGenerator[function_name=generate_series,table_alias=gs2]
+| | | | +-AttributeReference[id=2,name=generate_series,alias=gs2,
+| | | |   relation=generate_series,type=Int]
+| | | +-project_list=
+| | |   +-Alias[id=3,name=i,relation=,type=Int]
+| | |     +-AttributeReference[id=2,name=generate_series,alias=gs2,
+| | |       relation=generate_series,type=Int]
+| | +-left_join_attributes=
+| | | +-AttributeReference[id=1,name=i,relation=,type=Int]
+| | +-right_join_attributes=
+| |   +-AttributeReference[id=3,name=i,relation=,type=Int]
+| +-project_list=
+|   +-AttributeReference[id=1,name=i,relation=,type=Int]
++-output_attributes=
+  +-AttributeReference[id=1,name=i,relation=,type=Int]
+[Physical Plan]
+TopLevelPlan
++-plan=HashLeftSemiJoin
+| +-left=HashLeftAntiJoin
+| | +-left=Selection
+| | | +-input=TableGenerator[function_name=generate_series,table_alias=gs1]
+| | | | +-AttributeReference[id=0,name=generate_series,alias=gs1,
+| | | |   relation=generate_series,type=Int]
+| | | +-filter_predicate=Or
+| | | | +-Less
+| | | | | +-AttributeReference[id=0,name=generate_series,alias=gs1,
+| | | | | | relation=generate_series,type=Int]
+| | | | | +-Literal[value=40,type=Int]
+| | | | +-Greater
+| | | |   +-AttributeReference[id=0,name=generate_series,alias=gs1,
+| | | |   | relation=generate_series,type=Int]
+| | | |   +-Literal[value=60,type=Int]
+| | | +-project_expressions=
+| | |   +-Alias[id=1,name=i,relation=,type=Int]
+| | |     +-AttributeReference[id=0,name=generate_series,alias=gs1,
+| | |       relation=generate_series,type=Int]
+| | +-right=TableGenerator[function_name=generate_series,table_alias=gs3]
+| | | +-AttributeReference[id=4,name=generate_series,alias=gs3,
+| | |   relation=generate_series,type=Int]
+| | +-project_expressions=
+| | | +-AttributeReference[id=1,name=i,relation=,type=Int]
+| | +-left_join_attributes=
+| | | +-AttributeReference[id=1,name=i,relation=,type=Int]
+| | +-right_join_attributes=
+| |   +-AttributeReference[id=4,name=generate_series,alias=gs3,
+| |     relation=generate_series,type=Int]
+| +-right=TableGenerator[function_name=generate_series,table_alias=gs2]
+| | +-AttributeReference[id=2,name=generate_series,alias=gs2,
+| |   relation=generate_series,type=Int]
+| +-project_expressions=
+| | +-AttributeReference[id=1,name=i,relation=,type=Int]
+| +-left_join_attributes=
+| | +-AttributeReference[id=1,name=i,relation=,type=Int]
+| +-right_join_attributes=
+|   +-AttributeReference[id=2,name=generate_series,alias=gs2,
+|     relation=generate_series,type=Int]
++-output_attributes=
+  +-AttributeReference[id=1,name=i,relation=,type=Int]

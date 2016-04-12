@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -35,7 +37,6 @@
 #include "query_optimizer/rules/RuleHelper.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
-#include "utility/HashPair.hpp"
 #include "utility/VectorUtil.hpp"
 
 #include "glog/logging.h"
@@ -280,8 +281,8 @@ L::LogicalPtr GenerateJoins::applyToNode(const L::LogicalPtr &input) {
     // The predicates that are not used in any joins.
     std::vector<E::PredicatePtr> filter_predicates;
 
-    // First, create a HashJoin for each hash join predicate in the order as
-    // specified in the query.
+    // First, create an inner HashJoin for each hash join predicate in the order
+    // as specified in the query.
     for (const std::unique_ptr<const HashJoinPredicateInfo> &
              hash_join_predicate_info : hash_join_predicates) {
       const L::LogicalPtr left_logical =
@@ -296,7 +297,9 @@ L::LogicalPtr GenerateJoins::applyToNode(const L::LogicalPtr &input) {
             left_logical,
             right_logical,
             hash_join_predicate_info->left_join_attributes,
-            hash_join_predicate_info->right_join_attributes);
+            hash_join_predicate_info->right_join_attributes,
+            nullptr /* residual_predicate */,
+            L::HashJoin::JoinType::kInnerJoin);
         UpdateLogicalVectors(left_logical,
                              right_logical,
                              logical_join,

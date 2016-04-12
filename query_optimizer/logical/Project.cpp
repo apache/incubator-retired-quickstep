@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -23,6 +25,7 @@
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
+#include "query_optimizer/expressions/PatternMatcher.hpp"
 #include "utility/Cast.hpp"
 
 #include "glog/logging.h"
@@ -53,6 +56,19 @@ std::vector<E::AttributeReferencePtr> Project::getReferencedAttributes() const {
                                  referenced_attributes_in_expression.end());
   }
   return referenced_attributes;
+}
+
+LogicalPtr Project::copyWithNewInputExpressions(
+    const std::vector<E::ExpressionPtr> &input_expressions) const {
+  DCHECK_EQ(project_expressions_.size(), input_expressions.size());
+  std::vector<E::NamedExpressionPtr> new_project_expressions;
+  for (const E::ExpressionPtr &input_expression : input_expressions) {
+    E::NamedExpressionPtr project_expression;
+    E::SomeNamedExpression::MatchesWithConditionalCast(input_expression, &project_expression);
+    DCHECK(project_expression != nullptr);
+    new_project_expressions.emplace_back(project_expression);
+  }
+  return Create(input_, new_project_expressions);
 }
 
 void Project::getFieldStringItems(

@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -22,13 +24,16 @@
 
 #include "parser/ParseStatement.hpp"
 
+#include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/Validator.hpp"
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/resolver/Resolver.hpp"
 #include "query_optimizer/rules/CollapseProject.hpp"
 #include "query_optimizer/rules/GenerateJoins.hpp"
 #include "query_optimizer/rules/PushDownFilter.hpp"
+#include "query_optimizer/rules/PushDownSemiAntiJoin.hpp"
 #include "query_optimizer/rules/Rule.hpp"
+#include "query_optimizer/rules/UnnestSubqueries.hpp"
 
 #include "glog/logging.h"
 
@@ -57,6 +62,10 @@ L::LogicalPtr LogicalGenerator::generatePlan(
 
 void LogicalGenerator::optimizePlan() {
   std::vector<std::unique_ptr<Rule<L::Logical>>> rules;
+  if (optimizer_context_->has_nested_queries()) {
+    rules.emplace_back(new UnnestSubqueries(optimizer_context_));
+  }
+  rules.emplace_back(new PushDownSemiAntiJoin());
   rules.emplace_back(new PushDownFilter());
   rules.emplace_back(new GenerateJoins());
   rules.emplace_back(new PushDownFilter());
