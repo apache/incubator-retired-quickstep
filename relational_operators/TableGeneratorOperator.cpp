@@ -1,6 +1,6 @@
 /**
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
- *   University of Wisconsin—Madison.
+ *     University of Wisconsin—Madison.
  *   Copyright 2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
@@ -20,7 +20,9 @@
 
 #include "expressions/table_generator/GeneratorFunctionHandle.hpp"
 #include "query_execution/QueryContext.hpp"
+#include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
+#include "relational_operators/WorkOrder.pb.h"
 #include "storage/InsertDestination.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
 
@@ -52,6 +54,22 @@ bool TableGeneratorOperator::getAllWorkOrders(
   }
   return started_;
 }
+
+bool TableGeneratorOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  if (!started_) {
+    serialization::WorkOrder *proto = new serialization::WorkOrder;
+    proto->set_work_order_type(serialization::TABLE_GENERATOR);
+    proto->set_query_id(query_id_);
+
+    proto->SetExtension(serialization::TableGeneratorWorkOrder::generator_function_index, generator_function_index_);
+    proto->SetExtension(serialization::TableGeneratorWorkOrder::insert_destination_index, output_destination_index_);
+
+    container->addWorkOrderProto(proto, op_index_);
+    started_ = true;
+  }
+  return true;
+}
+
 
 void TableGeneratorWorkOrder::execute() {
   ColumnVectorsValueAccessor temp_result;

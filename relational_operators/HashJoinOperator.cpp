@@ -31,7 +31,9 @@
 #include "expressions/predicate/Predicate.hpp"
 #include "expressions/scalar/Scalar.hpp"
 #include "query_execution/QueryContext.hpp"
+#include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
+#include "relational_operators/WorkOrder.pb.h"
 #include "storage/HashTable.hpp"
 #include "storage/InsertDestination.hpp"
 #include "storage/StorageBlock.hpp"
@@ -390,6 +392,128 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
   }  // end if (blocking_dependencies_met_)
   return false;
 }
+
+bool HashJoinOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  switch (join_type_) {
+    case JoinType::kInnerJoin:
+      return getAllNonOuterJoinWorkOrderProtos(container, serialization::HashJoinWorkOrder::HASH_INNER_JOIN);
+    case JoinType::kLeftSemiJoin:
+      return getAllNonOuterJoinWorkOrderProtos(container, serialization::HashJoinWorkOrder::HASH_SEMI_JOIN);
+    case JoinType::kLeftAntiJoin:
+      return getAllNonOuterJoinWorkOrderProtos(container, serialization::HashJoinWorkOrder::HASH_ANTI_JOIN);
+    case JoinType::kLeftOuterJoin:
+      return getAllOuterJoinWorkOrderProtos(container);
+    default:
+      LOG(FATAL) << "Unknown join type in HashJoinOperator::getAllWorkOrderProtos()";
+  }
+}
+
+bool HashJoinOperator::getAllNonOuterJoinWorkOrderProtos(
+    WorkOrderProtosContainer *container,
+    const serialization::HashJoinWorkOrder::HashJoinWorkOrderType hash_join_type) {
+  // We wait until the building of global hash table is complete.
+  if (!blocking_dependencies_met_) {
+    return false;
+  }
+
+  if (probe_relation_is_stored_) {
+    if (!started_) {
+      for (const block_id probe_block_id : probe_relation_block_ids_) {
+        container->addWorkOrderProto(
+            createNonOuterJoinWorkOrderProto(hash_join_type, probe_block_id),
+            op_index_);
+      }
+      started_ = true;
+    }
+    return true;
+  } else {
+    while (num_workorders_generated_ < probe_relation_block_ids_.size()) {
+      container->addWorkOrderProto(
+          createNonOuterJoinWorkOrderProto(hash_join_type,
+                                           probe_relation_block_ids_[num_workorders_generated_]),
+          op_index_);
+      ++num_workorders_generated_;
+    }
+
+    return done_feeding_input_relation_;
+  }
+}
+
+serialization::WorkOrder* HashJoinOperator::createNonOuterJoinWorkOrderProto(
+    const serialization::HashJoinWorkOrder::HashJoinWorkOrderType hash_join_type,
+    const block_id block) {
+  serialization::WorkOrder *proto = new serialization::WorkOrder;
+  proto->set_work_order_type(serialization::HASH_JOIN);
+  proto->set_query_id(query_id_);
+
+  proto->SetExtension(serialization::HashJoinWorkOrder::hash_join_work_order_type, hash_join_type);
+  proto->SetExtension(serialization::HashJoinWorkOrder::build_relation_id, build_relation_.getID());
+  proto->SetExtension(serialization::HashJoinWorkOrder::probe_relation_id, probe_relation_.getID());
+  for (const attribute_id attr_id : join_key_attributes_) {
+    proto->AddExtension(serialization::HashJoinWorkOrder::join_key_attributes, attr_id);
+  }
+  proto->SetExtension(serialization::HashJoinWorkOrder::any_join_key_attributes_nullable,
+                      any_join_key_attributes_nullable_);
+  proto->SetExtension(serialization::HashJoinWorkOrder::insert_destination_index, output_destination_index_);
+  proto->SetExtension(serialization::HashJoinWorkOrder::join_hash_table_index, hash_table_index_);
+  proto->SetExtension(serialization::HashJoinWorkOrder::selection_index, selection_index_);
+  proto->SetExtension(serialization::HashJoinWorkOrder::block_id, block);
+  proto->SetExtension(serialization::HashJoinWorkOrder::residual_predicate_index, residual_predicate_index_);
+
+  return proto;
+}
+
+bool HashJoinOperator::getAllOuterJoinWorkOrderProtos(WorkOrderProtosContainer *container) {
+  // We wait until the building of global hash table is complete.
+  if (!blocking_dependencies_met_) {
+    return false;
+  }
+
+  if (probe_relation_is_stored_) {
+    if (!started_) {
+      for (const block_id probe_block_id : probe_relation_block_ids_) {
+        container->addWorkOrderProto(createOuterJoinWorkOrderProto(probe_block_id), op_index_);
+      }
+      started_ = true;
+    }
+    return true;
+  } else {
+    while (num_workorders_generated_ < probe_relation_block_ids_.size()) {
+      container->addWorkOrderProto(
+          createOuterJoinWorkOrderProto(probe_relation_block_ids_[num_workorders_generated_]),
+          op_index_);
+      ++num_workorders_generated_;
+    }
+
+    return done_feeding_input_relation_;
+  }
+}
+
+serialization::WorkOrder* HashJoinOperator::createOuterJoinWorkOrderProto(const block_id block) {
+  serialization::WorkOrder *proto = new serialization::WorkOrder;
+  proto->set_work_order_type(serialization::HASH_JOIN);
+
+  proto->SetExtension(serialization::HashJoinWorkOrder::hash_join_work_order_type,
+                      serialization::HashJoinWorkOrder::HASH_OUTER_JOIN);
+  proto->SetExtension(serialization::HashJoinWorkOrder::build_relation_id, build_relation_.getID());
+  proto->SetExtension(serialization::HashJoinWorkOrder::probe_relation_id, probe_relation_.getID());
+  for (const attribute_id attr_id : join_key_attributes_) {
+    proto->AddExtension(serialization::HashJoinWorkOrder::join_key_attributes, attr_id);
+  }
+  proto->SetExtension(serialization::HashJoinWorkOrder::any_join_key_attributes_nullable,
+                      any_join_key_attributes_nullable_);
+  proto->SetExtension(serialization::HashJoinWorkOrder::insert_destination_index, output_destination_index_);
+  proto->SetExtension(serialization::HashJoinWorkOrder::join_hash_table_index, hash_table_index_);
+  proto->SetExtension(serialization::HashJoinWorkOrder::selection_index, selection_index_);
+  proto->SetExtension(serialization::HashJoinWorkOrder::block_id, block);
+
+  for (const bool is_attribute_on_build : is_selection_on_build_) {
+    proto->AddExtension(serialization::HashJoinWorkOrder::is_selection_on_build, is_attribute_on_build);
+  }
+
+  return proto;
+}
+
 
 void HashInnerJoinWorkOrder::execute() {
   if (FLAGS_vector_based_joined_tuple_collector) {

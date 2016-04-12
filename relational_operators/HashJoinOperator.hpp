@@ -30,6 +30,7 @@
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
+#include "relational_operators/WorkOrder.pb.h"
 #include "storage/HashTable.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
@@ -47,6 +48,7 @@ class InsertDestination;
 class Predicate;
 class Scalar;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -161,6 +163,8 @@ class HashJoinOperator : public RelationalOperator {
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
 
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
+
   void feedInputBlock(const block_id input_block_id,
                       const relation_id input_relation_id) override {
     DCHECK(input_relation_id == probe_relation_.getID());
@@ -201,6 +205,23 @@ class HashJoinOperator : public RelationalOperator {
   bool getAllOuterJoinWorkOrders(WorkOrdersContainer *container,
                                  QueryContext *query_context,
                                  StorageManager *storage_manager);
+
+  bool getAllNonOuterJoinWorkOrderProtos(
+      WorkOrderProtosContainer *container,
+      const serialization::HashJoinWorkOrder::HashJoinWorkOrderType hash_join_type);
+
+  serialization::WorkOrder* createNonOuterJoinWorkOrderProto(
+      const serialization::HashJoinWorkOrder::HashJoinWorkOrderType hash_join_type,
+      const block_id block);
+
+  bool getAllOuterJoinWorkOrderProtos(WorkOrderProtosContainer *container);
+
+  /**
+   * @brief Create HashOuterJoinWorkOrder proto.
+   *
+   * @param block The block id used in the Work Order.
+   **/
+  serialization::WorkOrder* createOuterJoinWorkOrderProto(const block_id block);
 
   const CatalogRelation &build_relation_;
   const CatalogRelation &probe_relation_;

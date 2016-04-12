@@ -33,6 +33,8 @@
 #include "types/containers/Tuple.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 #include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
@@ -42,7 +44,10 @@ namespace quickstep {
 class CatalogRelationSchema;
 class InsertDestination;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
+
+namespace serialization { class WorkOrder; }
 
 /** \addtogroup RelationalOperators
  *  @{
@@ -135,6 +140,8 @@ class TextScanOperator : public RelationalOperator {
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
 
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
+
   QueryContext::insert_destination_id getInsertDestinationID() const override {
     return output_destination_index_;
   }
@@ -144,6 +151,10 @@ class TextScanOperator : public RelationalOperator {
   }
 
  private:
+  serialization::WorkOrder* createWorkOrderProto(const std::string &filename,
+                                                 const std::size_t text_offset,
+                                                 const std::size_t text_segment_size);
+
   const std::string file_pattern_;
   const char field_terminator_;
   const bool process_escape_sequences_;
@@ -173,7 +184,6 @@ class TextScanWorkOrder : public WorkOrder {
    * @param process_escape_sequences Whether to decode escape sequences in the
    *        text file.
    * @param output_destination The InsertDestination to insert tuples.
-   * @param storage_manager The StorageManager to use.
    **/
   TextScanWorkOrder(
       const std::size_t query_id,
@@ -182,8 +192,14 @@ class TextScanWorkOrder : public WorkOrder {
       const std::size_t text_segment_size,
       const char field_terminator,
       const bool process_escape_sequences,
-      InsertDestination *output_destination,
-      StorageManager *storage_manager);
+      InsertDestination *output_destination)
+      : WorkOrder(query_id),
+        filename_(filename),
+        text_offset_(text_offset),
+        text_segment_size_(text_segment_size),
+        field_terminator_(field_terminator),
+        process_escape_sequences_(process_escape_sequences),
+        output_destination_(DCHECK_NOTNULL(output_destination)) {}
 
   ~TextScanWorkOrder() override {}
 
@@ -232,7 +248,6 @@ class TextScanWorkOrder : public WorkOrder {
    */
   Tuple parseRow(const char **row_ptr,
                  const CatalogRelationSchema &relation) const;
-
 
   /**
    * @brief Parse up to three octal digits (0-7) starting at \p *literal_ptr as
@@ -297,7 +312,6 @@ class TextScanWorkOrder : public WorkOrder {
   const bool process_escape_sequences_;
 
   InsertDestination *output_destination_;
-  StorageManager *storage_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(TextScanWorkOrder);
 };

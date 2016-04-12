@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
@@ -31,20 +32,45 @@
 
 #include "catalog/CatalogAttribute.hpp"
 #include "query_execution/QueryContext.hpp"
+#include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
+#include "relational_operators/WorkOrder.pb.h"
 #include "storage/InsertDestination.hpp"
 #include "types/Type.hpp"
 #include "types/TypedValue.hpp"
-#include "types/containers/Tuple.hpp"
 #include "types/containers/ColumnVector.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
+#include "types/containers/Tuple.hpp"
 #include "utility/Glob.hpp"
 
+#include "gflags/gflags.h"
 #include "glog/logging.h"
 
 #include "tmb/id_typedefs.h"
 
+using std::size_t;
+using std::string;
+
 namespace quickstep {
+
+// Text segment size set to 256KB.
+DEFINE_uint64(textscan_text_segment_size, 0x40000,
+              "Size of text segment in bytes the input text files "
+              "are split into in the TextScanOperator.");
+
+// Check if the segment size is positive.
+static bool ValidateTextScanTextSegmentSize(const char *flagname,
+                                            std::uint64_t text_segment_size) {
+  if (text_segment_size == 0) {
+    LOG(ERROR) << "--" << flagname << " must be greater than 0";
+    return false;
+  }
+
+  return true;
+}
+
+static const volatile bool text_scan_text_segment_size_dummy = gflags::RegisterFlagValidator(
+    &FLAGS_textscan_text_segment_size, &ValidateTextScanTextSegmentSize);
 
 bool TextScanOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
@@ -56,15 +82,11 @@ bool TextScanOperator::getAllWorkOrders(
 
   const std::vector<std::string> files = utility::file::GlobExpand(file_pattern_);
 
-  if (files.size() == 0) {
-    LOG(FATAL) << "No files matched '" << file_pattern_ << "'. Exiting.";
-  }
+  CHECK_NE(files.size(), 0u)
+      << "No files matched '" << file_pattern_ << "'. Exiting.";
 
   InsertDestination *output_destination =
       query_context->getInsertDestination(output_destination_index_);
-
-  // Text segment size set to 256KB.
-  constexpr std::size_t kTextSegmentSize = 0x40000u;
 
   if (blocking_dependencies_met_ && !work_generated_) {
     for (const std::string &file : files) {
@@ -75,18 +97,32 @@ bool TextScanOperator::getAllWorkOrders(
       std::fclose(fp);
 
       std::size_t text_offset = 0;
-      while (text_offset < file_size) {
+      for (size_t num_full_segments = file_size / FLAGS_textscan_text_segment_size;
+           num_full_segments > 0;
+           --num_full_segments, text_offset += FLAGS_textscan_text_segment_size) {
         container->addNormalWorkOrder(
             new TextScanWorkOrder(query_id_,
                                   file,
                                   text_offset,
-                                  std::min(kTextSegmentSize, file_size - text_offset),
+                                  FLAGS_textscan_text_segment_size,
                                   field_terminator_,
                                   process_escape_sequences_,
-                                  output_destination,
-                                  storage_manager),
+                                  output_destination),
             op_index_);
-        text_offset += kTextSegmentSize;
+      }
+
+      // Deal with the residual partial segment whose size is less than
+      // 'FLAGS_textscan_text_segment_size'.
+      if (text_offset < file_size) {
+        container->addNormalWorkOrder(
+            new TextScanWorkOrder(query_id_,
+                                  file,
+                                  text_offset,
+                                  file_size - text_offset,
+                                  field_terminator_,
+                                  process_escape_sequences_,
+                                  output_destination),
+            op_index_);
       }
     }
     work_generated_ = true;
@@ -94,24 +130,53 @@ bool TextScanOperator::getAllWorkOrders(
   return work_generated_;
 }
 
-TextScanWorkOrder::TextScanWorkOrder(const std::size_t query_id,
-                                     const std::string &filename,
-                                     const std::size_t text_offset,
-                                     const std::size_t text_segment_size,
-                                     const char field_terminator,
-                                     const bool process_escape_sequences,
-                                     InsertDestination *output_destination,
-                                     StorageManager *storage_manager)
-    : WorkOrder(query_id),
-      filename_(filename),
-      text_offset_(text_offset),
-      text_segment_size_(text_segment_size),
-      field_terminator_(field_terminator),
-      process_escape_sequences_(process_escape_sequences),
-      output_destination_(output_destination),
-      storage_manager_(storage_manager) {
-  DCHECK(output_destination_ != nullptr);
-  DCHECK(storage_manager_ != nullptr);
+bool TextScanOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  const std::vector<std::string> files = utility::file::GlobExpand(file_pattern_);
+  if (blocking_dependencies_met_ && !work_generated_) {
+    for (const string &file : files) {
+      // Use standard C libary to retrieve the file size.
+      FILE *fp = std::fopen(file.c_str(), "rb");
+      std::fseek(fp, 0, SEEK_END);
+      const std::size_t file_size = std::ftell(fp);
+      std::fclose(fp);
+
+      size_t text_offset = 0;
+      for (size_t num_full_segments = file_size / FLAGS_textscan_text_segment_size;
+           num_full_segments > 0;
+           --num_full_segments, text_offset += FLAGS_textscan_text_segment_size) {
+        container->addWorkOrderProto(createWorkOrderProto(file, text_offset, FLAGS_textscan_text_segment_size),
+                                     op_index_);
+      }
+
+      // Deal with the residual partial segment whose size is less than
+      // 'FLAGS_textscan_text_segment_size'.
+      if (text_offset < file_size) {
+        container->addWorkOrderProto(createWorkOrderProto(file, text_offset, file_size - text_offset),
+                                     op_index_);
+      }
+    }
+    work_generated_ = true;
+  }
+  return work_generated_;
+}
+
+serialization::WorkOrder* TextScanOperator::createWorkOrderProto(const string &filename,
+                                                                 const size_t text_offset,
+                                                                 const size_t text_segment_size) {
+  serialization::WorkOrder *proto = new serialization::WorkOrder;
+  proto->set_work_order_type(serialization::TEXT_SCAN);
+  proto->set_query_id(query_id_);
+
+  proto->SetExtension(serialization::TextScanWorkOrder::filename, filename);
+  proto->SetExtension(serialization::TextScanWorkOrder::text_offset, text_offset);
+  proto->SetExtension(serialization::TextScanWorkOrder::text_segment_size, text_segment_size);
+  proto->SetExtension(serialization::TextScanWorkOrder::field_terminator, field_terminator_);
+  proto->SetExtension(serialization::TextScanWorkOrder::process_escape_sequences,
+                      process_escape_sequences_);
+  proto->SetExtension(serialization::TextScanWorkOrder::insert_destination_index,
+                      output_destination_index_);
+
+  return proto;
 }
 
 void TextScanWorkOrder::execute() {

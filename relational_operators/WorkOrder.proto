@@ -232,23 +232,14 @@ message TextScanWorkOrder {
   }
 }
 
-message TextSplitWorkOrder {
-  extend WorkOrder {
-    // All required.
-    optional uint64 operator_index = 320;
-    optional string filename = 321;
-    optional bool process_escape_sequences = 322;
-  }
-}
-
 message UpdateWorkOrder {
   extend WorkOrder {
     // All required.
-    optional uint64 operator_index = 336;
-    optional int32 relation_id = 337;
-    optional int32 insert_destination_index = 338;
-    optional int32 predicate_index = 339;
-    optional uint32 update_group_index = 340;
-    optional fixed64 block_id = 341;
+    optional uint64 operator_index = 320;
+    optional int32 relation_id = 321;
+    optional int32 insert_destination_index = 322;
+    optional int32 predicate_index = 323;
+    optional uint32 update_group_index = 324;
+    optional fixed64 block_id = 325;
   }
 }

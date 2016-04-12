@@ -41,6 +41,7 @@ class CatalogDatabaseLite;
 class CatalogRelation;
 class QueryContext;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -78,6 +79,8 @@ class DropTableOperator : public RelationalOperator {
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   void updateCatalogOnCompletion() override;
 
