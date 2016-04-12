@@ -1214,10 +1214,16 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   db_->dropRelationById(output_relation_id);
 }
 
-INSTANTIATE_TEST_CASE_P(HashTableImplType,
-                        HashJoinOperatorTest,
-                        ::testing::Values(HashTableImplType::kLinearOpenAddressing,
-                                          HashTableImplType::kSeparateChaining,
-                                          HashTableImplType::kSimpleScalarSeparateChaining));
+// Note: INSTANTIATE_TEST_CASE_P has variadic arguments part. If the variable argument part
+//       is empty, C++11 standard says it should produce a warning. A warning is converted
+//       to an error since we use -Werror as a compiler parameter. It causes Travis to build.
+//       This is the reason that we must give an empty string argument as a last parameter
+//       to supress warning that clang gives.
+INSTANTIATE_TEST_CASE_P(
+    HashTableImplType, HashJoinOperatorTest,
+    ::testing::Values(
+        HashTableImplType::kLinearOpenAddressing,
+        HashTableImplType::kSeparateChaining,
+        HashTableImplType::kSimpleScalarSeparateChaining),);  // NOLINT(whitespace/comma)
 
 }  // namespace quickstep

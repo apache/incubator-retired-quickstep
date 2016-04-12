@@ -583,8 +583,9 @@ endfunction()
 
 # Add gtest unit-testing framework.
 set(gtest_force_shared_crt ON CACHE BOOL "Link gtest against shared DLLs on Windows")
-add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/gtest" "${CMAKE_CURRENT_BINARY_DIR}/third_party/gtest")
-include_directories("${THIRD_PARTY_SOURCE_DIR}/gtest/include")
+add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/googletest/googletest"
+                  "${CMAKE_CURRENT_BINARY_DIR}/third_party/googletest/googletest")
+include_directories("${THIRD_PARTY_SOURCE_DIR}/googletest/googletest/include")
 enable_testing()
 
 if (UNIX)
