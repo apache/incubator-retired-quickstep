@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.0.4.  */
+/* A Bison parser, made by GNU Bison 3.0.2.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -138,33 +138,34 @@ extern int quickstep_yydebug;
     TOKEN_ROW_DELIMITER = 348,
     TOKEN_SELECT = 349,
     TOKEN_SET = 350,
-    TOKEN_SMALLINT = 351,
-    TOKEN_TABLE = 352,
-    TOKEN_THEN = 353,
-    TOKEN_TIME = 354,
-    TOKEN_TIMESTAMP = 355,
-    TOKEN_TRUE = 356,
-    TOKEN_TUPLESAMPLE = 357,
-    TOKEN_UNIQUE = 358,
-    TOKEN_UPDATE = 359,
-    TOKEN_USING = 360,
-    TOKEN_VALUES = 361,
-    TOKEN_VARCHAR = 362,
-    TOKEN_WHEN = 363,
-    TOKEN_WHERE = 364,
-    TOKEN_WITH = 365,
-    TOKEN_YEARMONTH = 366,
-    TOKEN_EOF = 367,
-    TOKEN_LEX_ERROR = 368
+    TOKEN_SMA = 351,
+    TOKEN_SMALLINT = 352,
+    TOKEN_TABLE = 353,
+    TOKEN_THEN = 354,
+    TOKEN_TIME = 355,
+    TOKEN_TIMESTAMP = 356,
+    TOKEN_TRUE = 357,
+    TOKEN_TUPLESAMPLE = 358,
+    TOKEN_UNIQUE = 359,
+    TOKEN_UPDATE = 360,
+    TOKEN_USING = 361,
+    TOKEN_VALUES = 362,
+    TOKEN_VARCHAR = 363,
+    TOKEN_WHEN = 364,
+    TOKEN_WHERE = 365,
+    TOKEN_WITH = 366,
+    TOKEN_YEARMONTH = 367,
+    TOKEN_EOF = 368,
+    TOKEN_LEX_ERROR = 369
   };
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-
+typedef union YYSTYPE YYSTYPE;
 union YYSTYPE
 {
-#line 116 "../SqlParser.ypp" /* yacc.c:1915  */
+#line 116 "../SqlParser.ypp" /* yacc.c:1909  */
 
   quickstep::ParseString *string_value_;
 
@@ -254,10 +255,8 @@ union YYSTYPE
   quickstep::PtrVector<quickstep::ParseSubqueryTableReference> *with_list_;
   quickstep::ParseSubqueryTableReference *with_list_element_;
 
-#line 258 "SqlParser_gen.hpp" /* yacc.c:1915  */
+#line 259 "SqlParser_gen.hpp" /* yacc.c:1909  */
 };
-
-typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif
