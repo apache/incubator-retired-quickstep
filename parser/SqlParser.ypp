@@ -306,6 +306,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_ROW_DELIMITER;
 %token TOKEN_SELECT;
 %token TOKEN_SET;
+%token TOKEN_SMA;
 %token TOKEN_SMALLINT;
 %token TOKEN_TABLE;
 %token TOKEN_THEN;
@@ -989,6 +990,10 @@ index_type:
   | TOKEN_CSB_TREE {
     $$ = new quickstep::ParseString(@1.first_line, @1.first_column,
            std::to_string(quickstep::IndexSubBlockType::kCSBTree));
+  }
+  | TOKEN_SMA {
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column,
+           std::to_string(quickstep::IndexSubBlockType::kSMA));
   };
 
 opt_index_properties:

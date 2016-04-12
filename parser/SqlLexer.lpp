@@ -248,6 +248,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "row_delimiter"    return TOKEN_ROW_DELIMITER;
   "select"           return TOKEN_SELECT;
   "set"              return TOKEN_SET;
+  "sma"              return TOKEN_SMA;
   "smallint"         return TOKEN_SMALLINT;
   "table"            return TOKEN_TABLE;
   "then"             return TOKEN_THEN;
