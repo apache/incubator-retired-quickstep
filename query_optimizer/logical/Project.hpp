@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -24,6 +26,7 @@
 
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/logical/LogicalType.hpp"
@@ -65,6 +68,9 @@ class Project : public Logical {
   LogicalPtr copyWithNewChildren(
       const std::vector<LogicalPtr> &new_children) const override;
 
+  LogicalPtr copyWithNewInputExpressions(
+      const std::vector<expressions::ExpressionPtr> &input_expressions) const override;
+
   std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override;
 
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override;
@@ -98,6 +104,7 @@ class Project : public Logical {
       const std::vector<expressions::NamedExpressionPtr> &project_expressions)
       : input_(input), project_expressions_(project_expressions) {
     addChild(input);
+    addInputExpressions(project_expressions_);
   }
 
   LogicalPtr input_;

@@ -19,6 +19,9 @@ QS_PROTOBUF_GENERATE_CPP(relationaloperators_SortMergeRunOperator_proto_srcs
 QS_PROTOBUF_GENERATE_CPP(relationaloperators_TextScanOperator_proto_srcs
                          relationaloperators_TextScanOperator_proto_hdrs
                          TextScanOperator.proto)
+QS_PROTOBUF_GENERATE_CPP(relationaloperators_WorkOrder_proto_srcs
+                         relationaloperators_WorkOrder_proto_hdrs
+                         WorkOrder.proto)
 
 # Declare micro-libs:
 add_library(quickstep_relationaloperators_AggregationOperator AggregationOperator.cpp AggregationOperator.hpp)
@@ -57,6 +60,10 @@ add_library(quickstep_relationaloperators_TextScanOperator_proto
             ${relationaloperators_TextScanOperator_proto_hdrs})
 add_library(quickstep_relationaloperators_UpdateOperator UpdateOperator.cpp UpdateOperator.hpp)
 add_library(quickstep_relationaloperators_WorkOrder ../empty_src.cpp WorkOrder.hpp)
+add_library(quickstep_relationaloperators_WorkOrderFactory WorkOrderFactory.cpp WorkOrderFactory.hpp)
+add_library(quickstep_relationaloperators_WorkOrder_proto
+            ${relationaloperators_WorkOrder_proto_srcs}
+            ${relationaloperators_WorkOrder_proto_hdrs})
 
 # Link dependencies:
 target_link_libraries(quickstep_relationaloperators_AggregationOperator
@@ -131,6 +138,7 @@ target_link_libraries(quickstep_relationaloperators_DestroyHashOperator
 target_link_libraries(quickstep_relationaloperators_DropTableOperator
                       glog
                       quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogDatabaseLite
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_WorkOrdersContainer
@@ -379,9 +387,43 @@ target_link_libraries(quickstep_relationaloperators_UpdateOperator
                       tmb)
 target_link_libraries(quickstep_relationaloperators_WorkOrder
                       glog
-                      tmb
                       quickstep_queryexecution_QueryExecutionTypedefs
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      tmb)
+target_link_libraries(quickstep_relationaloperators_WorkOrderFactory
+                      glog
+                      quickstep_catalog_CatalogDatabaseLite
+                      quickstep_catalog_CatalogRelationSchema
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
+                      quickstep_relationaloperators_AggregationOperator
+                      quickstep_relationaloperators_BuildHashOperator
+                      quickstep_relationaloperators_DeleteOperator
+                      quickstep_relationaloperators_DestroyHashOperator
+                      quickstep_relationaloperators_DropTableOperator
+                      quickstep_relationaloperators_FinalizeAggregationOperator
+                      quickstep_relationaloperators_HashJoinOperator
+                      quickstep_relationaloperators_InsertOperator
+                      quickstep_relationaloperators_NestedLoopsJoinOperator
+                      quickstep_relationaloperators_SampleOperator
+                      quickstep_relationaloperators_SaveBlocksOperator
+                      quickstep_relationaloperators_SelectOperator
+                      quickstep_relationaloperators_SortMergeRunOperator
+                      quickstep_relationaloperators_SortMergeRunOperatorHelpers
+                      quickstep_relationaloperators_SortMergeRunOperator_proto
+                      quickstep_relationaloperators_SortRunGenerationOperator
+                      quickstep_relationaloperators_TableGeneratorOperator
+                      quickstep_relationaloperators_TextScanOperator
+                      quickstep_relationaloperators_TextScanOperator_proto
+                      quickstep_relationaloperators_UpdateOperator
+                      quickstep_relationaloperators_WorkOrder_proto
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_utility_Macros
+                      tmb)
+target_link_libraries(quickstep_relationaloperators_WorkOrder_proto
+                      quickstep_relationaloperators_SortMergeRunOperator_proto
+                      quickstep_relationaloperators_TextScanOperator_proto
+                      ${PROTOBUF_LIBRARY})
 
 # Module all-in-one library:
 add_library(quickstep_relationaloperators ../empty_src.cpp RelationalOperatorsModule.hpp)
@@ -410,7 +452,9 @@ target_link_libraries(quickstep_relationaloperators
                       quickstep_relationaloperators_TextScanOperator
                       quickstep_relationaloperators_TextScanOperator_proto
                       quickstep_relationaloperators_UpdateOperator
-                      quickstep_relationaloperators_WorkOrder)
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_relationaloperators_WorkOrderFactory
+                      quickstep_relationaloperators_WorkOrder_proto)
 
 # Tests:
 add_executable(AggregationOperator_unittest

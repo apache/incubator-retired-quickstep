@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -22,7 +24,6 @@
 #include <vector>
 
 #include "query_optimizer/expressions/NamedExpression.hpp"
-#include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/logical/Filter.hpp"
 #include "query_optimizer/logical/HashJoin.hpp"
@@ -70,7 +71,6 @@ class Join : public Strategy {
    * @param logical_project The project to be folded into the hash join.
    * @param logical_filter The filter to be folded into the hash join.
    * @param logical_hash_join The hash join to be transformed.
-   * @param project_expressions The project expressions for the join.
    * @param physical_output The output physical plan.
    */
   void addHashJoin(const logical::ProjectPtr &logical_project,

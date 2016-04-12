@@ -215,6 +215,42 @@ class SelectWorkOrder : public WorkOrder {
         output_destination_(DCHECK_NOTNULL(output_destination)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
 
+  /**
+   * @brief Constructor for the distributed version.
+   *
+   * @note Reference parameter selection is NOT owned by this class and must
+   *       remain valid until after execute() is called.
+   *
+   * @param input_relation The relation to perform selection over.
+   * @param input_block_id The block id.
+   * @param predicate All tuples matching \c predicate will be selected (or NULL
+   *        to select all tuples).
+   * @param simple_projection Whether the Select is simple.
+   * @param simple_selection The list of attribute ids, used if \c
+   *        simple_projection is true.
+   * @param selection A list of Scalars which will be evaluated to project
+   *        input tuples, used if \c simple_projection is false.
+   * @param output_destination The InsertDestination to insert the selection
+   *        results.
+   * @param storage_manager The StorageManager to use.
+   **/
+  SelectWorkOrder(const CatalogRelationSchema &input_relation,
+                  const block_id input_block_id,
+                  const Predicate *predicate,
+                  const bool simple_projection,
+                  std::vector<attribute_id> &&simple_selection,
+                  const std::vector<std::unique_ptr<const Scalar>> *selection,
+                  InsertDestination *output_destination,
+                  StorageManager *storage_manager)
+      : input_relation_(input_relation),
+        input_block_id_(input_block_id),
+        predicate_(predicate),
+        simple_projection_(simple_projection),
+        simple_selection_(std::move(simple_selection)),
+        selection_(selection),
+        output_destination_(DCHECK_NOTNULL(output_destination)),
+        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+
   ~SelectWorkOrder() override {}
 
   /**

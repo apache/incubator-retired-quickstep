@@ -21,6 +21,7 @@
 #include <utility>
 #include <vector>
 
+#include "catalog/CatalogTypedefs.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
@@ -35,6 +36,7 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class CatalogDatabase;
+class CatalogDatabaseLite;
 class CatalogRelation;
 class QueryContext;
 class StorageManager;
@@ -95,11 +97,18 @@ class DropTableWorkOrder : public WorkOrder {
    *
    * @param blocks The blocks to drop.
    * @param storage_manager The StorageManager to use.
+   * @param rel_id The relation id to drop.
+   * @param catalog_database_cache The CatalogDatabaseCache in the distributed
+   *        version.
    **/
   DropTableWorkOrder(std::vector<block_id> &&blocks,
-                     StorageManager *storage_manager)
+                     StorageManager *storage_manager,
+                     const relation_id rel_id = kInvalidCatalogId,
+                     CatalogDatabaseLite *catalog_database_cache = nullptr)
       : blocks_(std::move(blocks)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
+        rel_id_(rel_id),
+        catalog_database_cache_(catalog_database_cache) {}
 
   ~DropTableWorkOrder() override {}
 
@@ -107,8 +116,11 @@ class DropTableWorkOrder : public WorkOrder {
 
  private:
   const std::vector<block_id> blocks_;
-
   StorageManager *storage_manager_;
+
+  // Used in the distributed version.
+  const relation_id rel_id_;
+  CatalogDatabaseLite *catalog_database_cache_;
 
   DISALLOW_COPY_AND_ASSIGN(DropTableWorkOrder);
 };

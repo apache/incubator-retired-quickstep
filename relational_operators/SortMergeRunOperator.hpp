@@ -208,11 +208,6 @@ class SortMergeRunOperator : public RelationalOperator {
  */
 class SortMergeRunWorkOrder : public WorkOrder {
  public:
-  ~SortMergeRunWorkOrder() {}
-
-  void execute() override;
-
- private:
   /**
    * @brief Constructor.
    *
@@ -252,6 +247,11 @@ class SortMergeRunWorkOrder : public WorkOrder {
     DCHECK(sort_config_.isValid());
   }
 
+  ~SortMergeRunWorkOrder() {}
+
+  void execute() override;
+
+ private:
   const SortConfiguration &sort_config_;
   const CatalogRelationSchema &run_relation_;
   std::vector<merge_run_operator::Run> input_runs_;

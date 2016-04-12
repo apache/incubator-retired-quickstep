@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -17,11 +19,10 @@
 
 #include "query_optimizer/strategy/Join.hpp"
 
+#include <type_traits>
 #include <vector>
 
 #include "query_optimizer/LogicalToPhysicalMapper.hpp"
-#include "query_optimizer/OptimizerContext.hpp"
-#include "query_optimizer/expressions/Alias.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ComparisonExpression.hpp"
 #include "query_optimizer/expressions/Expression.hpp"
@@ -66,7 +67,7 @@ bool Join::generatePlan(const L::LogicalPtr &logical_input,
     if (L::SomeHashJoin::MatchesWithConditionalCast(logical_project->input(),
                                                     &logical_hash_join)) {
       addHashJoin(logical_project,
-                  logical_filter,
+                  nullptr /* logical_filter */,
                   logical_hash_join,
                   physical_output);
       return true;
@@ -83,15 +84,18 @@ bool Join::generatePlan(const L::LogicalPtr &logical_input,
   }
 
   // Collapse project-filter-join.
+  // Note that Filter cannot be pushed into the semi-join, anti-join or outer-join.
   if (logical_project != nullptr &&
       L::SomeFilter::MatchesWithConditionalCast(logical_project->input(), &logical_filter)) {
     if (L::SomeHashJoin::MatchesWithConditionalCast(logical_filter->input(),
                                                     &logical_hash_join)) {
-      addHashJoin(logical_project,
-                  logical_filter,
-                  logical_hash_join,
-                  physical_output);
-      return true;
+      if (logical_hash_join->join_type() == L::HashJoin::JoinType::kInnerJoin) {
+        addHashJoin(logical_project,
+                    logical_filter,
+                    logical_hash_join,
+                    physical_output);
+        return true;
+      }
     }
 
     if (L::SomeNestedLoopsJoin::MatchesWithConditionalCast(logical_filter->input(),
@@ -107,14 +111,17 @@ bool Join::generatePlan(const L::LogicalPtr &logical_input,
   }
 
   // Collapse filter-join.
+  // Note that Filter cannot be pushed into the semi-join, anti-join or outer-join.
   if (L::SomeFilter::MatchesWithConditionalCast(logical_input, &logical_filter)) {
     if (L::SomeHashJoin::MatchesWithConditionalCast(logical_filter->input(),
                                                     &logical_hash_join)) {
-      addHashJoin(logical_project,
-                  logical_filter,
-                  logical_hash_join,
-                  physical_output);
-      return true;
+      if (logical_hash_join->join_type() == L::HashJoin::JoinType::kInnerJoin) {
+        addHashJoin(nullptr /* logical_project */,
+                    logical_filter,
+                    logical_hash_join,
+                    physical_output);
+        return true;
+      }
     }
 
     if (L::SomeNestedLoopsJoin::MatchesWithConditionalCast(logical_filter->input(),
@@ -132,8 +139,8 @@ bool Join::generatePlan(const L::LogicalPtr &logical_input,
 
   // Convert a single binary join.
   if (L::SomeHashJoin::MatchesWithConditionalCast(logical_input, &logical_hash_join)) {
-    addHashJoin(logical_project,
-                logical_filter,
+    addHashJoin(nullptr /* logical_project */,
+                nullptr /* logical_filter */,
                 logical_hash_join,
                 physical_output);
     return true;
@@ -169,6 +176,11 @@ void Join::addHashJoin(const logical::ProjectPtr &logical_project,
   std::vector<E::AttributeReferencePtr> left_join_attributes = logical_hash_join->left_join_attributes();
   std::vector<E::AttributeReferencePtr> right_join_attributes = logical_hash_join->right_join_attributes();
   std::vector<E::ExpressionPtr> non_hash_join_predicates;
+
+  if (logical_hash_join->residual_predicate() != nullptr) {
+    non_hash_join_predicates.emplace_back(logical_hash_join->residual_predicate());
+  }
+
   if (logical_filter != nullptr) {
     std::vector<E::PredicatePtr> filter_predicates;
     const std::vector<E::AttributeReferencePtr> left_input_attributes =
@@ -291,13 +303,31 @@ void Join::addHashJoin(const logical::ProjectPtr &logical_project,
     residual_predicate = E::LogicalAnd::Create(CastSharedPtrVector<E::Predicate>(non_hash_join_predicates));
   }
 
+  P::HashJoin::JoinType join_type;
+  switch (logical_hash_join->join_type()) {
+    case L::HashJoin::JoinType::kInnerJoin:
+      join_type = P::HashJoin::JoinType::kInnerJoin;
+      break;
+    case L::HashJoin::JoinType::kLeftSemiJoin:
+      join_type = P::HashJoin::JoinType::kLeftSemiJoin;
+      break;
+    case L::HashJoin::JoinType::kLeftAntiJoin:
+      join_type = P::HashJoin::JoinType::kLeftAntiJoin;
+      break;
+    default:
+      LOG(FATAL) << "Invalid logical::HashJoin::JoinType: "
+                 << static_cast<typename std::underlying_type<L::HashJoin::JoinType>::type>(
+                        logical_hash_join->join_type());
+  }
+
   *physical_output =
       P::HashJoin::Create(left,
                           right,
                           left_join_attributes,
                           right_join_attributes,
                           residual_predicate,
-                          project_expressions);
+                          project_expressions,
+                          join_type);
 }
 
 void Join::addNestedLoopsJoin(const L::NestedLoopsJoinPtr &logical_nested_loops_join,

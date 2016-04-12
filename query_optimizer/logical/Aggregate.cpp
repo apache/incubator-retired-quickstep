@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -24,6 +26,7 @@
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
+#include "query_optimizer/expressions/PatternMatcher.hpp"
 #include "utility/Cast.hpp"
 
 #include "glog/logging.h"
@@ -70,6 +73,35 @@ std::vector<E::AttributeReferencePtr> Aggregate::getReferencedAttributes() const
                                  referenced_attributes_in_expression.end());
   }
   return referenced_attributes;
+}
+
+LogicalPtr Aggregate::copyWithNewInputExpressions(
+    const std::vector<E::ExpressionPtr> &input_expressions) const {
+  DCHECK_EQ(grouping_expressions_.size() + aggregate_expressions_.size(),
+            input_expressions.size());
+
+  std::vector<E::NamedExpressionPtr> new_grouping_expressions;
+  for (std::vector<E::ExpressionPtr>::size_type index = 0;
+       index < grouping_expressions_.size();
+       ++index) {
+    E::NamedExpressionPtr grouping_expression;
+    E::SomeNamedExpression::MatchesWithConditionalCast(input_expressions[index],
+                                                       &grouping_expression);
+    DCHECK(grouping_expression != nullptr);
+    new_grouping_expressions.emplace_back(grouping_expression);
+  }
+
+  std::vector<E::AliasPtr> new_aggregate_expressions;
+  for (std::vector<E::ExpressionPtr>::size_type index = grouping_expressions_.size();
+       index < input_expressions.size();
+       ++index) {
+    E::AliasPtr aggregate_expression;
+    E::SomeAlias::MatchesWithConditionalCast(input_expressions[index], &aggregate_expression);
+    DCHECK(aggregate_expression != nullptr);
+    new_aggregate_expressions.emplace_back(aggregate_expression);
+  }
+
+  return Create(input_, new_grouping_expressions, new_aggregate_expressions);
 }
 
 void Aggregate::getFieldStringItems(

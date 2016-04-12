@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -20,10 +22,12 @@
 
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/logical/BinaryJoin.hpp"
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/logical/LogicalType.hpp"
@@ -50,9 +54,28 @@ typedef std::shared_ptr<const HashJoin> HashJoinPtr;
  */
 class HashJoin : public BinaryJoin {
  public:
+  enum class JoinType {
+    kInnerJoin = 0,
+    kLeftSemiJoin,
+    kLeftAntiJoin
+  };
+
+
   LogicalType getLogicalType() const override { return LogicalType::kHashJoin; }
 
-  std::string getName() const override { return "HashJoin"; }
+  std::string getName() const override {
+    switch (join_type_) {
+      case JoinType::kInnerJoin:
+        return "HashJoin";
+      case JoinType::kLeftSemiJoin:
+        return "HashLeftSemiJoin";
+      case JoinType::kLeftAntiJoin:
+        return "HashLeftAntiJoin";
+      default:
+        LOG(FATAL) << "Invalid JoinType: "
+                   << static_cast<typename std::underlying_type<JoinType>::type>(join_type_);
+    }
+  }
 
   /**
    * @brief Join attributes in the left logical 'left_'.
@@ -68,13 +91,29 @@ class HashJoin : public BinaryJoin {
     return right_join_attributes_;
   }
 
+  /**
+   * @brief The filtering predicate evaluated after join.
+   */
+  const expressions::PredicatePtr& residual_predicate() const {
+    return residual_predicate_;
+  }
+
+  /**
+   * @return Join type of this hash join.
+   */
+  JoinType join_type() const {
+    return join_type_;
+  }
+
   LogicalPtr copyWithNewChildren(
       const std::vector<LogicalPtr> &new_children) const override {
     DCHECK_EQ(new_children.size(), children().size());
     return HashJoin::Create(new_children[0],
                             new_children[1],
                             left_join_attributes_,
-                            right_join_attributes_);
+                            right_join_attributes_,
+                            residual_predicate_,
+                            join_type_);
   }
 
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override {
@@ -98,13 +137,22 @@ class HashJoin : public BinaryJoin {
    * @param right The right input operator.
    * @param left_join_attributes The join attributes in the 'left'.
    * @param right_join_attributes The join attributes in the 'right'.
+   * @param Join type of this hash join.
    * @return An immutable HashJoin.
    */
   static HashJoinPtr Create(const LogicalPtr &left,
                             const LogicalPtr &right,
                             const std::vector<expressions::AttributeReferencePtr> &left_join_attributes,
-                            const std::vector<expressions::AttributeReferencePtr> &right_join_attributes) {
-    return HashJoinPtr(new HashJoin(left, right, left_join_attributes, right_join_attributes));
+                            const std::vector<expressions::AttributeReferencePtr> &right_join_attributes,
+                            const expressions::PredicatePtr &residual_predicate,
+                            const JoinType join_type) {
+    return HashJoinPtr(
+        new HashJoin(left,
+                     right,
+                     left_join_attributes,
+                     right_join_attributes,
+                     residual_predicate,
+                     join_type));
   }
 
  protected:
@@ -132,16 +180,26 @@ class HashJoin : public BinaryJoin {
   HashJoin(const LogicalPtr &left,
            const LogicalPtr &right,
            const std::vector<expressions::AttributeReferencePtr> &left_join_attributes,
-           const std::vector<expressions::AttributeReferencePtr> &right_join_attributes)
+           const std::vector<expressions::AttributeReferencePtr> &right_join_attributes,
+           const expressions::PredicatePtr &residual_predicate,
+           const JoinType join_type)
       : BinaryJoin(left, right),
         left_join_attributes_(left_join_attributes),
-        right_join_attributes_(right_join_attributes) {
+        right_join_attributes_(right_join_attributes),
+        residual_predicate_(residual_predicate),
+        join_type_(join_type) {
     DCHECK_EQ(left_join_attributes.size(), right_join_attributes.size());
     DCHECK(!left_join_attributes.empty());
+
+    if (residual_predicate_ != nullptr) {
+      addInputExpression(residual_predicate_);
+    }
   }
 
   std::vector<expressions::AttributeReferencePtr> left_join_attributes_;
   std::vector<expressions::AttributeReferencePtr> right_join_attributes_;
+  expressions::PredicatePtr residual_predicate_;
+  const JoinType join_type_;
 
   DISALLOW_COPY_AND_ASSIGN(HashJoin);
 };

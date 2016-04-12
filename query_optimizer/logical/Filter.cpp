@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -20,7 +22,11 @@
 #include <vector>
 
 #include "query_optimizer/OptimizerTree.hpp"
+#include "query_optimizer/expressions/PatternMatcher.hpp"
+#include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/logical/PatternMatcher.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 namespace optimizer {
@@ -43,6 +49,18 @@ Filter::Filter(const LogicalPtr &input,
     filter_predicate_ = filter_predicate;
   }
   addChild(flattened_input);
+  addInputExpression(filter_predicate_);
+}
+
+LogicalPtr Filter::copyWithNewInputExpressions(
+    const std::vector<expressions::ExpressionPtr> &input_expressions) const {
+  DCHECK_EQ(1u, input_expressions.size());
+
+  E::PredicatePtr new_filter_predicate;
+  E::SomePredicate::MatchesWithConditionalCast(input_expressions[0], &new_filter_predicate);
+  DCHECK(new_filter_predicate != nullptr);
+
+  return Create(children()[0], new_filter_predicate);
 }
 
 void Filter::getFieldStringItems(

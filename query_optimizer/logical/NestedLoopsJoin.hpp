@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -23,6 +25,9 @@
 #include <vector>
 
 #include "query_optimizer/OptimizerTree.hpp"
+#include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/Expression.hpp"
+#include "query_optimizer/expressions/PatternMatcher.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/expressions/PredicateLiteral.hpp"
 #include "query_optimizer/logical/BinaryJoin.hpp"
@@ -68,6 +73,18 @@ class NestedLoopsJoin : public BinaryJoin {
     return NestedLoopsJoin::Create(new_children[0],
                                    new_children[1],
                                    join_predicate_);
+  }
+
+  LogicalPtr copyWithNewInputExpressions(
+      const std::vector<expressions::ExpressionPtr> &input_expressions) const override {
+    DCHECK_EQ(1u, input_expressions.size());
+
+    expressions::PredicatePtr new_filter_predicate;
+    expressions::SomePredicate::MatchesWithConditionalCast(input_expressions[0],
+                                                           &new_filter_predicate);
+    DCHECK(new_filter_predicate != nullptr);
+
+    return Create(left(), right(), new_filter_predicate);
   }
 
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override {
@@ -119,7 +136,9 @@ class NestedLoopsJoin : public BinaryJoin {
                   const LogicalPtr &right_operand,
                   const expressions::PredicatePtr &join_predicate)
       : BinaryJoin(left_operand, right_operand),
-        join_predicate_(join_predicate) {}
+        join_predicate_(join_predicate) {
+    addInputExpression(join_predicate);
+  }
 
   expressions::PredicatePtr join_predicate_;
 

@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -76,7 +78,8 @@ bool HashJoin::maybeCopyWithPrunedExpressions(
                      left_join_attributes_,
                      right_join_attributes_,
                      residual_predicate_,
-                     new_project_expressions);
+                     new_project_expressions,
+                     join_type_);
     return true;
   }
   return false;

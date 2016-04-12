@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -20,12 +22,13 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
-#include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
 #include "utility/Macros.hpp"
@@ -69,6 +72,14 @@ class TopLevelPlan : public Physical {
   }
 
   /**
+   * @return Map from the expression ID of an attribute reference to the
+   *         uncorrelated subquery that produces the attribute.
+   */
+  const std::unordered_map<expressions::ExprId, int>& uncorrelated_subquery_map() const {
+    return uncorrelated_subquery_map_;
+  }
+
+  /**
    * @brief Gets a shared subquery given by the position.
    *
    * @param index The position of the shared subplan to be returned.
@@ -89,7 +100,9 @@ class TopLevelPlan : public Physical {
                                  ++new_children.begin(),
                                  new_children.end());
     }
-    return TopLevelPlan::Create(new_children[0], new_shared_subplans);
+    return TopLevelPlan::Create(new_children[0],
+                                new_shared_subplans,
+                                uncorrelated_subquery_map_);
   }
 
   std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {
@@ -112,11 +125,18 @@ class TopLevelPlan : public Physical {
    *
    * @param plan The query plan.
    * @param shared_subplans The subplans referenced in the main input plan.
+   * @param Map from the expression ID of an attribute reference to the
+   *        uncorrelated subquery that produces the attribute.
    * @return An immutable TopLevelPlan.
    */
-  static TopLevelPlanPtr Create(const PhysicalPtr &plan,
-                                const std::vector<PhysicalPtr> &shared_subplans = std::vector<PhysicalPtr>()) {
-    return TopLevelPlanPtr(new TopLevelPlan(plan, shared_subplans));
+  static TopLevelPlanPtr Create(
+      const PhysicalPtr &plan,
+      const std::vector<PhysicalPtr> &shared_subplans = {},
+      const std::unordered_map<expressions::ExprId, int> &uncorrelated_subquery_map
+          = std::unordered_map<expressions::ExprId, int>()) {
+    return TopLevelPlanPtr(new TopLevelPlan(plan,
+                                            shared_subplans,
+                                            uncorrelated_subquery_map));
   }
 
  protected:
@@ -130,9 +150,11 @@ class TopLevelPlan : public Physical {
 
  private:
   TopLevelPlan(const PhysicalPtr &plan,
-               const std::vector<PhysicalPtr> &shared_subplans)
-        : plan_(plan),
-          shared_subplans_(shared_subplans) {
+               const std::vector<PhysicalPtr> &shared_subplans,
+               const std::unordered_map<expressions::ExprId, int> &uncorrelated_subquery_map)
+      : plan_(plan),
+        shared_subplans_(shared_subplans),
+        uncorrelated_subquery_map_(uncorrelated_subquery_map) {
     addChild(plan);
     for (const PhysicalPtr &shared_subplan : shared_subplans) {
       addChild(shared_subplan);
@@ -142,6 +164,7 @@ class TopLevelPlan : public Physical {
   PhysicalPtr plan_;
   // Stored in the topological ordering based on dependencies.
   std::vector<PhysicalPtr> shared_subplans_;
+  std::unordered_map<expressions::ExprId, int> uncorrelated_subquery_map_;
 
   DISALLOW_COPY_AND_ASSIGN(TopLevelPlan);
 };
