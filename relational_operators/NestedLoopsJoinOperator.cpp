@@ -26,7 +26,9 @@
 #include "expressions/predicate/Predicate.hpp"
 #include "expressions/scalar/Scalar.hpp"
 #include "query_execution/QueryContext.hpp"
+#include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
+#include "relational_operators/WorkOrder.pb.h"
 #include "storage/InsertDestination.hpp"
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
@@ -150,6 +152,72 @@ bool NestedLoopsJoinOperator::getAllWorkOrders(
   }
 }
 
+bool NestedLoopsJoinOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  if (left_relation_is_stored_ && right_relation_is_stored_) {
+    // Make sure we generate workorders only once.
+    if (!all_workorders_generated_) {
+      for (const block_id left_block_id : left_relation_block_ids_) {
+        for (const block_id right_block_id : right_relation_block_ids_) {
+          container->addWorkOrderProto(createWorkOrderProto(left_block_id, right_block_id),
+                                       op_index_);
+        }
+      }
+      all_workorders_generated_ = true;
+    }
+    return true;
+  } else if (!(left_relation_is_stored_ || right_relation_is_stored_)) {
+    // Both relations are not stored.
+    const std::vector<block_id>::size_type new_left_blocks
+        = left_relation_block_ids_.size() - num_left_workorders_generated_;
+    const std::vector<block_id>::size_type new_right_blocks
+        = right_relation_block_ids_.size() - num_right_workorders_generated_;
+
+    std::size_t new_workorders = 0;
+    if (new_left_blocks > 0 && new_right_blocks > 0) {
+      // Blocks added to both left and right relations.
+      // First generate (left + new_left_blocks) * (new_right_blocks).
+      new_workorders =
+          getAllWorkOrderProtosHelperBothNotStored(container,
+                                                   0,
+                                                   left_relation_block_ids_.size(),
+                                                   num_right_workorders_generated_,
+                                                   right_relation_block_ids_.size());
+
+      // Now generate new_left_blocks * (right).
+      new_workorders +=
+          getAllWorkOrderProtosHelperBothNotStored(container,
+                                                   num_left_workorders_generated_,
+                                                   left_relation_block_ids_.size(),
+                                                   0,
+                                                   num_right_workorders_generated_);
+    } else if (new_left_blocks == 0 && new_right_blocks > 0) {
+      // Only new right blocks are added. Generate left * new_right_blocks.
+      new_workorders =
+          getAllWorkOrderProtosHelperBothNotStored(container,
+                                                   0,
+                                                   left_relation_block_ids_.size(),
+                                                   num_right_workorders_generated_,
+                                                   right_relation_block_ids_.size());
+    } else if (new_left_blocks > 0 && new_right_blocks == 0) {
+      // Generate new_left_blocks * right
+      new_workorders =
+          getAllWorkOrderProtosHelperBothNotStored(container,
+                                                   num_left_workorders_generated_,
+                                                   left_relation_block_ids_.size(),
+                                                   0,
+                                                   right_relation_block_ids_.size());
+    }
+    if (new_workorders > 0) {
+      num_left_workorders_generated_ = left_relation_block_ids_.size();
+      num_right_workorders_generated_ = right_relation_block_ids_.size();
+    }
+    return done_feeding_left_relation_ && done_feeding_right_relation_;
+  } else {
+    // Only one relation is a stored relation.
+    return getAllWorkOrderProtosHelperOneStored(container);
+  }
+}
+
 std::size_t NestedLoopsJoinOperator::getAllWorkOrdersHelperBothNotStored(WorkOrdersContainer *container,
                                                                          QueryContext *query_context,
                                                                          StorageManager *storage_manager,
@@ -240,6 +308,80 @@ bool NestedLoopsJoinOperator::getAllWorkOrdersHelperOneStored(WorkOrdersContaine
     return done_feeding_left_relation_;
   }
 }
+
+std::size_t NestedLoopsJoinOperator::getAllWorkOrderProtosHelperBothNotStored(
+    WorkOrderProtosContainer *container,
+    const std::vector<block_id>::size_type left_min,
+    const std::vector<block_id>::size_type left_max,
+    const std::vector<block_id>::size_type right_min,
+    const std::vector<block_id>::size_type right_max) {
+  DCHECK(!(left_relation_is_stored_ || right_relation_is_stored_));
+  DCHECK_LE(left_min, left_max);
+  DCHECK_LE(right_min, right_max);
+
+  for (std::vector<block_id>::size_type left_index = left_min;
+       left_index < left_max;
+       ++left_index) {
+    for (std::vector<block_id>::size_type right_index = right_min;
+         right_index < right_max;
+         ++right_index) {
+      container->addWorkOrderProto(
+          createWorkOrderProto(left_relation_block_ids_[left_index], right_relation_block_ids_[right_index]),
+          op_index_);
+    }
+  }
+  // Return the number of workorders produced.
+  return (left_max - left_min) * (right_max - right_min);
+}
+
+bool NestedLoopsJoinOperator::getAllWorkOrderProtosHelperOneStored(WorkOrderProtosContainer *container) {
+  DCHECK(left_relation_is_stored_ ^ right_relation_is_stored_);
+
+  if (left_relation_is_stored_) {
+    for (std::vector<block_id>::size_type right_index = num_right_workorders_generated_;
+         right_index < right_relation_block_ids_.size();
+         ++right_index) {
+      for (const block_id left_block_id : left_relation_block_ids_) {
+        container->addWorkOrderProto(
+            createWorkOrderProto(left_block_id, right_relation_block_ids_[right_index]),
+            op_index_);
+      }
+    }
+    num_right_workorders_generated_ = right_relation_block_ids_.size();
+    return done_feeding_right_relation_;
+  } else {
+    for (std::vector<block_id>::size_type left_index = num_left_workorders_generated_;
+         left_index < left_relation_block_ids_.size();
+         ++left_index) {
+      for (const block_id right_block_id : right_relation_block_ids_) {
+        container->addWorkOrderProto(
+            createWorkOrderProto(left_relation_block_ids_[left_index], right_block_id),
+            op_index_);
+      }
+    }
+    num_left_workorders_generated_ = left_relation_block_ids_.size();
+    return done_feeding_left_relation_;
+  }
+}
+
+serialization::WorkOrder* NestedLoopsJoinOperator::createWorkOrderProto(const block_id left_block,
+                                                                        const block_id right_block) {
+  serialization::WorkOrder *proto = new serialization::WorkOrder;
+  proto->set_work_order_type(serialization::NESTED_LOOP_JOIN);
+  proto->set_query_id(query_id_);
+
+  proto->SetExtension(serialization::NestedLoopsJoinWorkOrder::left_relation_id, left_input_relation_.getID());
+  proto->SetExtension(serialization::NestedLoopsJoinWorkOrder::right_relation_id, right_input_relation_.getID());
+  proto->SetExtension(serialization::NestedLoopsJoinWorkOrder::left_block_id, left_block);
+  proto->SetExtension(serialization::NestedLoopsJoinWorkOrder::right_block_id, right_block);
+  proto->SetExtension(serialization::NestedLoopsJoinWorkOrder::insert_destination_index,
+                      output_destination_index_);
+  proto->SetExtension(serialization::NestedLoopsJoinWorkOrder::join_predicate_index, join_predicate_index_);
+  proto->SetExtension(serialization::NestedLoopsJoinWorkOrder::selection_index, selection_index_);
+
+  return proto;
+}
+
 
 template <bool LEFT_PACKED, bool RIGHT_PACKED>
 void NestedLoopsJoinWorkOrder::executeHelper(const TupleStorageSubBlock &left_store,

@@ -36,6 +36,7 @@ namespace quickstep {
 class CatalogDatabase;
 class QueryContext;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
 /** \addtogroup RelationalOperators
@@ -73,6 +74,13 @@ class CreateTableOperator : public RelationalOperator {
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
+
+  /**
+   * @note no WorkOrder proto generated for this operator.
+   **/
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override {
+    return true;
+  }
 
   void updateCatalogOnCompletion() override;
 

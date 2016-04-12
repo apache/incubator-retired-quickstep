@@ -58,6 +58,8 @@ using tmb::client_id;
 
 namespace quickstep {
 
+class WorkOrderProtosContainer;
+
 class MockWorkOrder : public WorkOrder {
  public:
   explicit MockWorkOrder(const int op_index)
@@ -166,6 +168,10 @@ class MockOperator: public RelationalOperator {
     MOCK_OP_LOG(3) << "count(" << num_calls_get_workorders_ << ") "
                    << "return(" << (num_calls_get_workorders_ == max_getworkorder_iters_) << ")";
     return num_calls_get_workorders_ == max_getworkorder_iters_;
+  }
+
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override {
+    return true;
   }
 
   void feedInputBlock(const block_id input_block_id,

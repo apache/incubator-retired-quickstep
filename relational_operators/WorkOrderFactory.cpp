@@ -396,8 +396,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           proto.GetExtension(serialization::TextScanWorkOrder::field_terminator),
           proto.GetExtension(serialization::TextScanWorkOrder::process_escape_sequences),
           query_context->getInsertDestination(
-              proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index)),
-          storage_manager);
+              proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index)));
     }
     case serialization::UPDATE: {
       LOG(INFO) << "Creating UpdateWorkOrder";
@@ -425,6 +424,10 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
 bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
                                     const CatalogDatabaseLite &catalog_database,
                                     const QueryContext &query_context) {
+  if (!proto.IsInitialized()) {
+    return false;
+  }
+
   switch (proto.work_order_type()) {
     case serialization::AGGREGATION: {
       return proto.HasExtension(serialization::AggregationWorkOrder::block_id) &&

@@ -44,7 +44,10 @@ namespace quickstep {
 class CatalogRelationSchema;
 class InsertDestination;
 class StorageManager;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
+
+namespace serialization { class WorkOrder; }
 
 /**
  * @defgroup SortMergeRun Merging Sorted Runs
@@ -132,6 +135,8 @@ class SortMergeRunOperator : public RelationalOperator {
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
 
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
+
   void feedInputBlock(const block_id input_block_id,
                       const relation_id input_relation_id) override {
     input_relation_block_ids_.push_back(input_block_id);
@@ -181,6 +186,13 @@ class SortMergeRunOperator : public RelationalOperator {
                              StorageManager *storage_manager,
                              const tmb::client_id scheduler_client_id,
                              tmb::MessageBus *bus);
+
+  /**
+   * @brief Create Work Order proto.
+   *
+   * @param job The merge job.
+   **/
+  serialization::WorkOrder* createWorkOrderProto(merge_run_operator::MergeTree::MergeJob *job);
 
   const CatalogRelation &input_relation_;
 

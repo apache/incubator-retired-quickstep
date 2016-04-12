@@ -44,7 +44,10 @@ class Predicate;
 class Scalar;
 class StorageManager;
 class TupleStorageSubBlock;
+class WorkOrderProtosContainer;
 class WorkOrdersContainer;
+
+namespace serialization { class WorkOrder; }
 
 /** \addtogroup RelationalOperators
  *  @{
@@ -119,6 +122,8 @@ class NestedLoopsJoinOperator : public RelationalOperator {
                         const tmb::client_id scheduler_client_id,
                         tmb::MessageBus *bus) override;
 
+  bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
+
   void doneFeedingInputBlocks(const relation_id rel_id) override {
     if (rel_id == left_input_relation_.getID()) {
       done_feeding_left_relation_ = true;
@@ -186,6 +191,52 @@ class NestedLoopsJoinOperator : public RelationalOperator {
   bool getAllWorkOrdersHelperOneStored(WorkOrdersContainer *container,
                                        QueryContext *query_context,
                                        StorageManager *storage_manager);
+
+  /**
+   * @brief Pairs block IDs from left and right relation block IDs and generates
+   *        NestedLoopsJoinWorkOrder protos and pushes them to the
+   *        WorkOrderProtosContainer when both relations are not stored
+   *        relations.
+   *
+   * @param container A pointer to the WorkOrderProtosContainer to store the
+   *                  resulting WorkOrder protos.
+   * @param left_min The starting index in left_relation_block_ids_ from where
+   *                 we begin generating NestedLoopsJoinWorkOrders.
+   * @param left_max The index in left_relation_block_ids_ until which we
+   *                 generate NestedLoopsJoinWorkOrders (excluding left_max).
+   * @param right_min The starting index in right_relation_block_ids_ from where
+   *                  we begin generating NestedLoopsJoinWorkOrders.
+   * @param right_max The index in right_relation_block_ids_ until which we
+   *                  generate NestedLoopsJoinWorkOrders. (excluding right_max).
+   *
+   * @return The number of workorder protos generated during the execution of this
+   *         function.
+   **/
+  std::size_t getAllWorkOrderProtosHelperBothNotStored(WorkOrderProtosContainer *container,
+                                                       const std::vector<block_id>::size_type left_min,
+                                                       const std::vector<block_id>::size_type left_max,
+                                                       const std::vector<block_id>::size_type right_min,
+                                                       const std::vector<block_id>::size_type right_max);
+
+  /**
+   * @brief Pairs block IDs from left and right relation block IDs and generates
+   *        NestedLoopsJoinWorkOrder protos and pushes them to the
+   *        WorkOrderProtosContainer when only one relation is a stored relation.
+   *
+   * @param container A pointer to the WorkOrderProtosContainer to store the
+   *                  resulting WorkOrder protos.
+   *
+   * @return Whether all work orders have been generated.
+   **/
+  bool getAllWorkOrderProtosHelperOneStored(WorkOrderProtosContainer *container);
+
+  /**
+   * @brief Create Work Order proto.
+   *
+   * @param block The block id used in the Work Order.
+   **/
+  serialization::WorkOrder* createWorkOrderProto(const block_id left_block,
+                                                 const block_id right_block);
 
   const CatalogRelation &left_input_relation_;
   const CatalogRelation &right_input_relation_;
