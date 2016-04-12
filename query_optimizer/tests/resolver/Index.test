@@ -77,7 +77,6 @@ ERROR: Bloom Filter index is not yet implemented (1 : 39)
 CREATE INDEX bloomIndex ON test USING BLOOMFILTER;
                                       ^
 ==
-# SMA Index creation is not supported using CREATE INDEX
 CREATE INDEX smaIndex ON test USING SMA
 --
 TopLevelPlan

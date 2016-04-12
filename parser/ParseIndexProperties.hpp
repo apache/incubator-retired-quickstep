@@ -351,8 +351,7 @@ class SMAIndexProperties : public IndexProperties {
   /**
    * @brief Constructor.
    */
-  SMAIndexProperties()
-    : IndexProperties(new IndexSubBlockDescription()) {
+  SMAIndexProperties() : IndexProperties(new IndexSubBlockDescription()) {
     index_sub_block_description_->set_sub_block_type(IndexSubBlockDescription::SMA);
   }
 
