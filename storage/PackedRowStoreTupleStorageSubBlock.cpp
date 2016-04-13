@@ -145,7 +145,7 @@ tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *acc
 
   InvokeOnAnyValueAccessor(
       accessor,
-      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+      [this, &dest_addr, &num_nullable_attrs](auto *accessor) -> void {  // NOLINT(build/c++11)
     const std::size_t num_attrs = relation_.size();
     const std::vector<std::size_t> &attrs_max_size =
         relation_.getMaximumAttributeByteLengths();
@@ -216,7 +216,7 @@ tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribu
 
   InvokeOnAnyValueAccessor(
       accessor,
-      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+      [this, &num_nullable_attrs, &attribute_map, &dest_addr](auto *accessor) -> void {  // NOLINT(build/c++11)
     const std::size_t num_attrs = relation_.size();
     const std::vector<std::size_t> &attrs_max_size =
         relation_.getMaximumAttributeByteLengths();

@@ -585,7 +585,7 @@ endfunction()
 set(gtest_force_shared_crt ON CACHE BOOL "Link gtest against shared DLLs on Windows")
 add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/googletest/googletest"
                   "${CMAKE_CURRENT_BINARY_DIR}/third_party/googletest/googletest")
-include_directories("${THIRD_PARTY_SOURCE_DIR}/googletest/googletest/include")
+include_directories(SYSTEM "${THIRD_PARTY_SOURCE_DIR}/googletest/googletest/include")
 enable_testing()
 
 if (UNIX)

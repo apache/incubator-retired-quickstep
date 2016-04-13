@@ -243,7 +243,7 @@ void RunMerger::mergeSingleColumnNullFirst(ValueAccessor *first_accessor) {
 
   InvokeOnValueAccessorNotAdapter(
       first_accessor,
-      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+      [this, &attr_id, &comp](auto *accessor) -> void {  // NOLINT(build/c++11)
     typedef typename std::remove_reference<decltype(*accessor)>::type ValueAccessorT;
 
     PtrVector<RunIterator<ValueAccessorT>, true> iterators;
@@ -322,7 +322,7 @@ void RunMerger::mergeSingleColumnNullLast(ValueAccessor *first_accessor) {
 
   InvokeOnValueAccessorNotAdapter(
       first_accessor,
-      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+      [this, &attr_id, &comp](auto *accessor) -> void {  // NOLINT(build/c++11)
     typedef typename std::remove_reference<decltype(*accessor)>::type ValueAccessorT;
 
     PtrVector<RunIterator<ValueAccessorT>> iterators;
