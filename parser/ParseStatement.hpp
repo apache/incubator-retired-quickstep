@@ -355,7 +355,7 @@ class ParseStatementCreateIndex : public ParseStatement {
           inline_field_values->push_back("sma");
           break;
         default:
-          inline_field_values->push_back("unkown");
+          inline_field_values->push_back("unknown");
       }
 
       if (attribute_list_ != nullptr) {
@@ -392,7 +392,8 @@ class ParseStatementCreateIndex : public ParseStatement {
           index_properties_.reset(new CSBTreeIndexProperties());
           break;
         case IndexSubBlockType::kSMA:
-          LOG(FATAL) << "Currently cannot create this index subblock type using CREATE INDEX.";
+          index_properties_.reset(new SMAIndexProperties());
+          break;
         default:
           LOG(FATAL) << "Unknown index subblock type.";
           break;

@@ -53,9 +53,28 @@ SELECT * FROM foo3;
 +-----------+-----------+
 +-----------+-----------+
 ==
-# SMA Index creation is not supported using CREATE INDEX.
-CREATE INDEX smaIndex ON test USING SMA
+# Specifying no columns will index all the columns.
+# Calling INSERT will force creation of the block.
+CREATE TABLE smaTable1 (int_attr int, str_attr VARCHAR(20));
+CREATE INDEX smaIndex ON smaTable1 USING SMA;
+INSERT INTO smaTable1 VALUES (1, 'val1');
+SELECT COUNT(*) FROM smaTable1;
 --
-ERROR: syntax error (1 : 37)
-CREATE INDEX smaIndex ON test USING SMA
-                                    ^
++--------------------+
+|COUNT(*)            |
++--------------------+
+|                   1|
++--------------------+
+==
+# SMA can also specify an index on selected columns.
+# Calling INSERT will force creation of the block.
+CREATE TABLE smaTable2 (int_attr int, str_attr VARCHAR(20));
+CREATE INDEX smaIndex2 ON smaTable2(int_attr) USING SMA;
+INSERT INTO smaTable2 VALUES (1, 'val1');
+SELECT COUNT(*) FROM smaTable2;
+--
++--------------------+
+|COUNT(*)            |
++--------------------+
+|                   1|
++--------------------+

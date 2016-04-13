@@ -52,10 +52,30 @@ TopLevelPlan
 +-output_attributes=
   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 ==
-
-# SMA Index creation is not supported using CREATE INDEX
 CREATE INDEX smaIndex ON test USING SMA
 --
-ERROR: syntax error (1 : 37)
-CREATE INDEX smaIndex ON test USING SMA
-                                    ^
+TopLevelPlan
++-plan=CreateIndex[index_name=smaIndex,
+| serialized_index_description=sub_block_type: SMA
+]
+| +-relation=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-index_attributes=
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+|   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+|   +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+  +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+  +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+  +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+  +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+  +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]

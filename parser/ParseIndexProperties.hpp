@@ -343,6 +343,45 @@ class CSBTreeIndexProperties : public IndexProperties {
 };
 
 /**
+ * @brief Implementation of index properties for SMA Index.
+ */
+class SMAIndexProperties : public IndexProperties {
+ public:
+  /**
+   * @brief Constructor.
+   */
+  SMAIndexProperties() : IndexProperties(new IndexSubBlockDescription()) {
+    index_sub_block_description_->set_sub_block_type(IndexSubBlockDescription::SMA);
+  }
+
+  ~SMAIndexProperties() override {
+  }
+
+  std::string getReasonForInvalidIndexDescription() const override {
+    switch (invalid_index_type_) {
+      case InvalidIndexType::kNone:
+        return "";
+      case InvalidIndexType::kInvalidKey:
+        return "SMA index does not define index properties";
+      default:
+        return "Unknown reason";
+    }
+  }
+
+  bool addCustomProperties(const PtrList<ParseKeyValue> *key_value_list) override {
+    // SMA does not define any index properties, so calling this function
+    // will invalidate the index.
+    invalid_index_type_ = InvalidIndexType::kInvalidKey;
+    invalid_property_node_ = nullptr;
+    index_sub_block_description_.reset();
+    return false;
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(SMAIndexProperties);
+};
+
+/**
  * @brief Encapsulates the IndexProperties key-value list. Makes the job
  *        of resolving IndexProperties easy.
  */
