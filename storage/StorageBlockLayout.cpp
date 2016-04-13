@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -114,7 +116,15 @@ void StorageBlockLayout::finalize() {
   for (int index_num = 0;
        index_num < layout_description_.index_description_size();
        ++index_num) {
-    size_t index_size = (sub_block_space * index_size_factors[index_num]) / estimated_bytes_per_tuple_;
+    size_t index_size = 0;
+    if (index_size_factors[index_num] != kZeroSize) {
+      // Estimated size to be consumed was specified per tuple.
+      index_size = (sub_block_space * index_size_factors[index_num]) / estimated_bytes_per_tuple_;
+    } else {
+      // Some indices define total size per block, instead of defining size per tuple.
+      const IndexSubBlockDescription &index_description = layout_description_.index_description(index_num);
+      index_size = SubBlockTypeRegistry::EstimateBytesPerBlockForIndex(relation_, index_description);
+    }
     block_header_.set_index_size(index_num, index_size);
     allocated_sub_block_space += index_size;
   }

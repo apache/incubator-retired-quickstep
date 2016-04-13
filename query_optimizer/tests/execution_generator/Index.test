@@ -45,11 +45,13 @@ SELECT * FROM foo3;
 +-----------+-----------+
 ==
 # Bloom filter index is not currently implemented.
-CREATE INDEX bloomIndex ON test(int_col) USING BLOOMFILTER
+CREATE INDEX idx4 ON foo3(col1, col2) USING BLOOMFILTER;
+SELECT * FROM foo3;
 --
-ERROR: Bloom Filter index is not yet implemented (1 : 48)
-...INDEX bloomIndex ON test(int_col) USING BLOOMFILTER
-                                           ^
++-----------+-----------+
+|col1       |col2       |
++-----------+-----------+
++-----------+-----------+
 ==
 # SMA Index creation is not supported using CREATE INDEX.
 CREATE INDEX smaIndex ON test USING SMA

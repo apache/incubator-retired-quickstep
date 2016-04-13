@@ -137,6 +137,7 @@ add_library(quickstep_storage_BasicColumnStoreTupleStorageSubBlock
 add_library(quickstep_storage_BasicColumnStoreValueAccessor
             ../empty_src.cpp
             BasicColumnStoreValueAccessor.hpp)
+add_library(quickstep_storage_BloomFilterIndexSubBlock BloomFilterIndexSubBlock.cpp BloomFilterIndexSubBlock.hpp)
 add_library(quickstep_storage_ColumnStoreUtil ColumnStoreUtil.cpp ColumnStoreUtil.hpp)
 add_library(quickstep_storage_CompressedBlockBuilder CompressedBlockBuilder.cpp CompressedBlockBuilder.hpp)
 add_library(quickstep_storage_CompressedColumnStoreTupleStorageSubBlock
@@ -293,6 +294,28 @@ target_link_libraries(quickstep_storage_BasicColumnStoreValueAccessor
                       quickstep_utility_BitVector
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector)
+target_link_libraries(quickstep_storage_BloomFilterIndexSubBlock
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogRelationSchema
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_predicate_ComparisonPredicate
+                      quickstep_expressions_predicate_PredicateCost
+                      quickstep_expressions_scalar_Scalar
+                      quickstep_expressions_scalar_ScalarAttribute
+                      quickstep_expressions_scalar_ScalarLiteral
+                      quickstep_storage_IndexSubBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageBlockLayout_proto
+                      quickstep_storage_StorageConstants
+                      quickstep_storage_SubBlockTypeRegistry
+                      quickstep_storage_SubBlockTypeRegistryMacros
+                      quickstep_storage_TupleIdSequence
+                      quickstep_storage_TupleStorageSubBlock
+                      quickstep_types_TypedValue
+                      quickstep_types_operations_comparisons_Comparison
+                      quickstep_types_operations_comparisons_ComparisonID
+                      quickstep_utility_BloomFilter
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_ColumnStoreUtil
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
@@ -659,6 +682,7 @@ target_link_libraries(quickstep_storage_SMAIndexSubBlock
                       quickstep_storage_IndexSubBlock
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageBlockLayout_proto
+                      quickstep_storage_StorageConstants
                       quickstep_storage_SubBlockTypeRegistry
                       quickstep_storage_SubBlockTypeRegistryMacros
                       quickstep_storage_TupleIdSequence
@@ -743,6 +767,7 @@ target_link_libraries(quickstep_storage_StorageBlock
                       quickstep_expressions_predicate_Predicate
                       quickstep_expressions_scalar_Scalar
                       quickstep_storage_BasicColumnStoreTupleStorageSubBlock
+                      quickstep_storage_BloomFilterIndexSubBlock
                       quickstep_storage_CSBTreeIndexSubBlock
                       quickstep_storage_CompressedColumnStoreTupleStorageSubBlock
                       quickstep_storage_CompressedPackedRowStoreTupleStorageSubBlock
@@ -819,6 +844,7 @@ if (QUICKSTEP_HAVE_LIBNUMA)
                         ${LIBNUMA_LIBRARY})
 endif()
 target_link_libraries(quickstep_storage_SubBlockTypeRegistry
+                      glog
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_SubBlocksReference
@@ -869,6 +895,7 @@ target_link_libraries(quickstep_storage
                       quickstep_storage_AggregationOperationState_proto
                       quickstep_storage_BasicColumnStoreTupleStorageSubBlock
                       quickstep_storage_BasicColumnStoreValueAccessor
+                      quickstep_storage_BloomFilterIndexSubBlock
                       quickstep_storage_CSBTreeIndexSubBlock
                       quickstep_storage_ColumnStoreUtil
                       quickstep_storage_CompressedBlockBuilder
@@ -1033,6 +1060,39 @@ target_link_libraries(BasicColumnStoreTupleStorageSubBlock_unittest
                       quickstep_utility_ScopedBuffer
                       ${LIBS})
 add_test(BasicColumnStoreTupleStorageSubBlock_unittest BasicColumnStoreTupleStorageSubBlock_unittest)
+
+add_executable(BloomFilterIndexSubBlock_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/BloomFilterIndexSubBlock_unittest.cpp")
+target_link_libraries(BloomFilterIndexSubBlock_unittest
+                      gtest
+                      gtest_main
+                      glog
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_predicate_ComparisonPredicate
+                      quickstep_expressions_predicate_PredicateCost
+                      quickstep_expressions_scalar_ScalarAttribute
+                      quickstep_expressions_scalar_ScalarLiteral
+                      quickstep_storage_BloomFilterIndexSubBlock
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageBlockLayout_proto
+                      quickstep_storage_TupleIdSequence
+                      quickstep_storage_TupleStorageSubBlock
+                      quickstep_types_CharType
+                      quickstep_types_DoubleType
+                      quickstep_types_FloatType
+                      quickstep_types_LongType
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
+                      quickstep_types_VarCharType
+                      quickstep_types_containers_Tuple
+                      quickstep_types_operations_comparisons_Comparison
+                      quickstep_types_operations_comparisons_ComparisonFactory
+                      quickstep_types_operations_comparisons_ComparisonID
+                      quickstep_utility_ScopedBuffer
+                      ${LIBS})
+add_test(BloomFilterIndexSubBlock_unittest BloomFilterIndexSubBlock_unittest)
 
 add_executable(CompressedColumnStoreTupleStorageSubBlock_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/CompressedColumnStoreTupleStorageSubBlock_unittest.cpp")
 target_link_libraries(CompressedColumnStoreTupleStorageSubBlock_unittest
