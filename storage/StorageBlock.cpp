@@ -805,7 +805,12 @@ void StorageBlock::sortColumn(bool use_input_sequence,
   ValueAccessor *all_accessor = tuple_store_->createValueAccessor(nullptr);
   InvokeOnValueAccessorNotAdapter(
       all_accessor,
-      [&](auto *all_accessor) -> void {  // NOLINT(build/c++11)
+      [&sort_attr_id,
+       &use_input_sequence,
+       &nulls,
+       &refs,
+       &accessor,
+       &sorted_sequence](auto *all_accessor) -> void {  // NOLINT(build/c++11)
     if (use_input_sequence) {
       auto *seq_value_accessor = new OrderedTupleIdSequenceAdapterValueAccessor<
           typename std::remove_reference<decltype(*all_accessor)>::type>(

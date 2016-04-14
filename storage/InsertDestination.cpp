@@ -511,7 +511,10 @@ void PartitionAwareInsertDestination::bulkInsertTuples(ValueAccessor *accessor, 
 
   InvokeOnAnyValueAccessor(
       accessor,
-      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+      [this,
+       &partition_attribute_id,
+       &always_mark_full,
+       &num_partitions](auto *accessor) -> void {  // NOLINT(build/c++11)
     std::vector<std::unique_ptr<TupleIdSequence>> partition_membership;
     partition_membership.resize(num_partitions);
 
@@ -564,7 +567,11 @@ void PartitionAwareInsertDestination::bulkInsertTuplesWithRemappedAttributes(
 
   InvokeOnAnyValueAccessor(
       accessor,
-      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+      [this,
+       &partition_attribute_id,
+       &attribute_map,
+       &always_mark_full,
+       &num_partitions](auto *accessor) -> void {  // NOLINT(build/c++11)
     std::vector<std::unique_ptr<TupleIdSequence>> partition_membership;
     partition_membership.resize(num_partitions);
 

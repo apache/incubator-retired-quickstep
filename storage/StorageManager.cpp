@@ -94,18 +94,18 @@ static bool ValidateBlockDomain(const char *flagname,
 }
 DEFINE_int32(block_domain, 1,
              "The unique domain for a distributed Quickstep instance.");
-static const bool block_domain_dummy
+static const volatile bool block_domain_dummy
     = gflags::RegisterFlagValidator(&FLAGS_block_domain, &ValidateBlockDomain);
 
 /**
  * @brief Set or validate the buffer pool slots. When automatically picking a
- *        default value, check if the system is "small" or "large." Set the 
+ *        default value, check if the system is "small" or "large." Set the
  *        buffer pool space to 80% of the installed main memory for small
- *        and 90% otherwise. 
+ *        and 90% otherwise.
  *        This method follows the signature that is set by the gflags module.
- * @param flagname The name of the buffer pool flag. 
+ * @param flagname The name of the buffer pool flag.
  * @param value The value of this flag from the command line, or default (0)
- * @return True if the value was set to a legimate value, false otherwise. 
+ * @return True if the value was set to a legimate value, false otherwise.
  *         Currently this method aims to always find some legitimate value,
  *         and never returns false.
  **/
@@ -149,7 +149,7 @@ DEFINE_uint64(buffer_pool_slots, 0,
               "the buffer pool may temporarily grow larger than this size "
               "if the buffer manager is unable to evict enough unreferenced "
               "blocks to make room for a new allocation.");
-static const bool buffer_pool_slots_dummy
+static const volatile bool buffer_pool_slots_dummy
     = gflags::RegisterFlagValidator(&FLAGS_buffer_pool_slots, &SetOrValidateBufferPoolSlots);
 
 #ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS

@@ -112,7 +112,7 @@ AggregationState*
   std::size_t count = 0;
   InvokeOnValueAccessorMaybeTupleIdSequenceAdapter(
       accessor,
-      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+      [&accessor_id, &count](auto *accessor) -> void {  // NOLINT(build/c++11)
     if (nullable_type) {
       while (accessor->next()) {
         count += !accessor->getTypedValue(accessor_id).isNull();

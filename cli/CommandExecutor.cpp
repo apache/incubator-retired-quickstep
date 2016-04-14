@@ -56,7 +56,7 @@ void executeDescribeDatabase(
   // Column width initialized to 6 to take into account the header name
   // and the column value table
   int max_column_width = C::kInitMaxColumnWidth;
-  const CatalogRelation *relation;
+  const CatalogRelation *relation = nullptr;
   if (arguments->size() == 0) {
     for (const CatalogRelation &rel : catalog_database) {
       max_column_width =
