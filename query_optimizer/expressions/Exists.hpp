@@ -20,17 +20,25 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/ExpressionType.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/expressions/SubqueryExpression.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 namespace quickstep {
+
+class CatalogAttribute;
+class Predicate;
+
 namespace optimizer {
 namespace expressions {
 
@@ -67,7 +75,7 @@ class Exists : public Predicate {
 
   ExpressionPtr copyWithNewChildren(
       const std::vector<ExpressionPtr> &new_children) const override {
-    DCHECK_EQ(new_children.size(), 1u);
+    DCHECK_EQ(1u, new_children.size());
     return Create(std::static_pointer_cast<const SubqueryExpression>(new_children[0]));
   }
 

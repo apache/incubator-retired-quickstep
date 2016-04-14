@@ -22,24 +22,27 @@
 
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/ExprId.hpp"
 
 #include "glog/logging.h"
 
 namespace quickstep {
+
+class CatalogAttribute;
+class Scalar;
+
 namespace optimizer {
 namespace expressions {
 
 ::quickstep::Scalar* SubqueryExpression::concretize(
-    const std::unordered_map<ExprId, const CatalogAttribute*>& substitution_map) const {
+    const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
   LOG(FATAL) << "SubqueryExpression should not be concretized";
-  return nullptr;
 }
 
 std::vector<AttributeReferencePtr> SubqueryExpression::getReferencedAttributes() const {
   // SubqueryExpression should be eliminated before any place that needs
   // a call of getReferencedAttributes.
   LOG(FATAL) << "SubqueryExpression::getReferencedAttributes() is not implemented";
-  return {};
 }
 
 void SubqueryExpression::getFieldStringItems(

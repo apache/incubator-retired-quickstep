@@ -41,7 +41,7 @@ std::vector<AttributeReferencePtr> GetAttributeReferencesWithinScope(
     const std::vector<AttributeReferencePtr> &attributes,
     const AttributeReferenceScope scope) {
   std::vector<AttributeReferencePtr> filtered_attributes;
-  for (const auto& attr_it : attributes) {
+  for (const auto &attr_it : attributes) {
     if (attr_it->scope() == scope) {
       filtered_attributes.emplace_back(attr_it);
     }

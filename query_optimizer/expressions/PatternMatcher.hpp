@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -35,6 +37,7 @@ class BinaryExpression;
 class Cast;
 class ComparisonExpression;
 class Count;
+class Exists;
 class LogicalAnd;
 class LogicalNot;
 class LogicalOr;
@@ -115,6 +118,7 @@ using SomeAttributeReference = SomeExpressionNode<AttributeReference, Expression
 using SomeBinaryExpression = SomeExpressionNode<BinaryExpression, ExpressionType::kBinaryExpression>;
 using SomeCast = SomeExpressionNode<Cast, ExpressionType::kCast>;
 using SomeComparisonExpression = SomeExpressionNode<ComparisonExpression, ExpressionType::kComparisonExpression>;
+using SomeExists = SomeExpressionNode<Exists, ExpressionType::kExists>;
 using SomeLogicalAnd = SomeExpressionNode<LogicalAnd, ExpressionType::kLogicalAnd>;
 using SomeLogicalNot = SomeExpressionNode<LogicalNot, ExpressionType::kLogicalNot>;
 using SomeLogicalOr = SomeExpressionNode<LogicalOr, ExpressionType::kLogicalOr>;
@@ -123,6 +127,7 @@ using SomeNamedExpression = SomeExpressionNode<NamedExpression,
                                                ExpressionType::kAlias>;
 using SomePredicate = SomeExpressionNode<Predicate,
                                          ExpressionType::kComparisonExpression,
+                                         ExpressionType::kExists,
                                          ExpressionType::kLogicalAnd,
                                          ExpressionType::kLogicalNot,
                                          ExpressionType::kLogicalOr,

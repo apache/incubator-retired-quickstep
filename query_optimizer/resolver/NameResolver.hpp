@@ -51,7 +51,7 @@ class NameResolver {
    * @brief Constructor.
    *
    * @param parent_resolver The NameResolver inherited from the outer query.
-   *                        NULL if there is no outer query.
+   *        NULL if there is no outer query.
    */
   explicit NameResolver(const NameResolver *parent_resolver = nullptr)
       : parent_resolver_(parent_resolver) {}

@@ -120,6 +120,7 @@ target_link_libraries(quickstep_queryoptimizer_expressions_ComparisonExpression
 target_link_libraries(quickstep_queryoptimizer_expressions_Exists
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_Expression
                       quickstep_queryoptimizer_expressions_ExpressionType
                       quickstep_queryoptimizer_expressions_Predicate
@@ -254,6 +255,7 @@ target_link_libraries(quickstep_queryoptimizer_expressions_SubqueryExpression
                       glog
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_Expression
                       quickstep_queryoptimizer_expressions_ExpressionType
                       quickstep_queryoptimizer_expressions_Scalar
