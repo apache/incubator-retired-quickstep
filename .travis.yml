@@ -3,18 +3,20 @@
 # speed up compilation in release build. Also, jobs can only use upto 20GB of
 # disk space. Hence, we minimize the amount of debug symbol using -g0 (DEBUG
 # builds were taking > 20GB of space with clang).
+# Also, to reduce the total CI time, we explicitly run the most time-consuming
+# build first, using gcc in debug build with joinwithbinaryexpressions.
 
 language: cpp
 
 compiler:
-  - clang
   - gcc
+  - clang
 
 env:
-  - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=none
-  - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=none
   - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
   - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
+  - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=none
+  - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=none
 
 install:
   - if [ "$VECTOR_COPY_ELISION_LEVEL" = "joinwithbinaryexpressions" ] && [ "$CC" = "gcc" ]; then
