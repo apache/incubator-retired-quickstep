@@ -707,6 +707,89 @@ class HashTable : public HashTableBase<resizable,
                                FunctorT *functor) const;
 
   /**
+   * @brief Lookup (multiple) keys from a ValueAccessor, apply a functor to
+   *        the matching values and additionally call a hasMatch() function of
+   *        the functor when the first match for a key is found.
+   * @warning This method assumes that no concurrent calls to put(),
+   *          putCompositeKey(), putValueAccessor(),
+   *          putValueAccessorCompositeKey(), upsert(), upsertCompositeKey(),
+   *          upsertValueAccessor(), or upsertValueAccessorCompositeKey() are
+   *          taking place (i.e. that this HashTable is immutable for the
+   *          duration of the call and as long as the returned pointer may be
+   *          dereferenced). Concurrent calls to getSingle(),
+   *          getSingleCompositeKey(), getAll(), getAllCompositeKey(),
+   *          getAllFromValueAccessor(), getAllFromValueAccessorCompositeKey(),
+   *          forEach(), and forEachCompositeKey() are safe.
+   * @note This version is for single scalar keys. See also
+   *       getAllFromValueAccessorCompositeKeyWithExtraWorkForFirstMatch().
+   *
+   * @param accessor A ValueAccessor which will be used to access keys.
+   *        beginIteration() should be called on accessor before calling this
+   *        method.
+   * @param key_attr_id The attribute ID of the keys to be read from accessor.
+   * @param check_for_null_keys If true, each key will be checked to see if it
+   *        is null before looking it up (null keys are skipped). This must be
+   *        set to true if some of the keys that will be read from accessor may
+   *        be null.
+   * @param functor A pointer to a functor, which should provide two functions:
+   *        1) An operator that takes 2 arguments: const ValueAccessor& (or better
+   *        yet, a templated call operator which takes a const reference to
+   *        some subclass of ValueAccessor as its first argument) and
+   *        const ValueT&. The operator will be invoked once for each pair of a
+   *        key taken from accessor and matching value.
+   *        2) A function hasMatch that takes 1 argument: const ValueAccessor&.
+   *        The function will be called only once for a key from accessor when
+   *        the first match is found.
+   */
+  template <typename FunctorT>
+  void getAllFromValueAccessorWithExtraWorkForFirstMatch(
+      ValueAccessor *accessor,
+      const attribute_id key_attr_id,
+      const bool check_for_null_keys,
+      FunctorT *functor) const;
+
+  /**
+   * @brief Lookup (multiple) keys from a ValueAccessor, apply a functor to
+   *        the matching values and additionally call a hasMatch() function of
+   *        the functor when the first match for a key is found. Composite key
+   *        version.
+   * @warning This method assumes that no concurrent calls to put(),
+   *          putCompositeKey(), putValueAccessor(),
+   *          putValueAccessorCompositeKey(), upsert(), upsertCompositeKey(),
+   *          upsertValueAccessor(), or upsertValueAccessorCompositeKey() are
+   *          taking place (i.e. that this HashTable is immutable for the
+   *          duration of the call and as long as the returned pointer may be
+   *          dereferenced). Concurrent calls to getSingle(),
+   *          getSingleCompositeKey(), getAll(), getAllCompositeKey(),
+   *          getAllFromValueAccessor(), getAllFromValueAccessorCompositeKey(),
+   *          forEach(), and forEachCompositeKey() are safe.
+   *
+   * @param accessor A ValueAccessor which will be used to access keys.
+   *        beginIteration() should be called on accessor before calling this
+   *        method.
+   * @param key_attr_id The attribute ID of the keys to be read from accessor.
+   * @param check_for_null_keys If true, each key will be checked to see if it
+   *        is null before looking it up (null keys are skipped). This must be
+   *        set to true if some of the keys that will be read from accessor may
+   *        be null.
+   * @param functor A pointer to a functor, which should provide two functions:
+   *        1) An operator that takes 2 arguments: const ValueAccessor& (or better
+   *        yet, a templated call operator which takes a const reference to
+   *        some subclass of ValueAccessor as its first argument) and
+   *        const ValueT&. The operator will be invoked once for each pair of a
+   *        key taken from accessor and matching value.
+   *        2) A function hasMatch that takes 1 argument: const ValueAccessor&.
+   *        The function will be called only once for a key from accessor when
+   *        the first match is found.
+   */
+  template <typename FunctorT>
+  void getAllFromValueAccessorCompositeKeyWithExtraWorkForFirstMatch(
+      ValueAccessor *accessor,
+      const std::vector<attribute_id> &key_attr_ids,
+      const bool check_for_null_keys,
+      FunctorT *functor) const;
+
+  /**
    * @brief Lookup (multiple) keys from a ValueAccessor and apply a functor to
    *        the matching values. Composite key version.
    *
@@ -744,6 +827,113 @@ class HashTable : public HashTableBase<resizable,
                                            const std::vector<attribute_id> &key_attr_ids,
                                            const bool check_for_null_keys,
                                            FunctorT *functor) const;
+
+  /**
+   * @brief Apply the functor to each key with a match in the hash table.
+   *
+   * @param accessor A ValueAccessor which will be used to access keys.
+   *        beginIteration() should be called on accessor before calling this
+   *        method.
+   * @param key_attr_id The attribute ID of the keys to be read from accessor.
+   * @param check_for_null_keys If true, each key will be checked to see if it
+   *        is null before looking it up (null keys are skipped). This must be
+   *        set to true if some of the keys that will be read from accessor may
+   *        be null.
+   * @param functor A pointer to a functor which should provide an operator that
+   *        takes 1 argument: const ValueAccessor&. The operator will be called
+   *        only once for a key from accessor if there is a match.
+   */
+  template <typename FunctorT>
+  void runOverKeysFromValueAccessorIfMatchFound(ValueAccessor *accessor,
+                                                const attribute_id key_attr_id,
+                                                const bool check_for_null_keys,
+                                                FunctorT *functor) const {
+    return runOverKeysFromValueAccessor<true>(accessor,
+                                              key_attr_id,
+                                              check_for_null_keys,
+                                              functor);
+  }
+
+  /**
+   * @brief Apply the functor to each key with a match in the hash table.
+   *
+   * @param accessor A ValueAccessor which will be used to access keys.
+   *        beginIteration() should be called on accessor before calling this
+   *        method.
+   * @param key_attr_id The attribute ID of the keys to be read from accessor.
+   * @param check_for_null_keys If true, each key will be checked to see if it
+   *        is null before looking it up (null keys are skipped). This must be
+   *        set to true if some of the keys that will be read from accessor may
+   *        be null.
+   * @param functor A pointer to a functor which should provide an operator that
+   *        takes 1 argument: const ValueAccessor&. The operator will be called
+   *        only once for a key from accessor if there is a match.
+   */
+  template <typename FunctorT>
+  void runOverKeysFromValueAccessorIfMatchFoundCompositeKey(
+      ValueAccessor *accessor,
+      const std::vector<attribute_id> &key_attr_ids,
+      const bool check_for_null_keys,
+      FunctorT *functor) const {
+    return runOverKeysFromValueAccessorCompositeKey<true>(accessor,
+                                                          key_attr_ids,
+                                                          check_for_null_keys,
+                                                          functor);
+  }
+
+  /**
+   * @brief Apply the functor to each key without a match in the hash table.
+   *
+   * @param accessor A ValueAccessor which will be used to access keys.
+   *        beginIteration() should be called on accessor before calling this
+   *        method.
+   * @param key_attr_id The attribute ID of the keys to be read from accessor.
+   * @param check_for_null_keys If true, each key will be checked to see if it
+   *        is null before looking it up (null keys are skipped). This must be
+   *        set to true if some of the keys that will be read from accessor may
+   *        be null.
+   * @param functor A pointer to a functor which should provide an operator that
+   *        takes 1 argument: const ValueAccessor&. The operator will be called
+   *        only once for a key from accessor if there is no match.
+   */
+  template <typename FunctorT>
+  void runOverKeysFromValueAccessorIfMatchNotFound(
+      ValueAccessor *accessor,
+      const attribute_id key_attr_id,
+      const bool check_for_null_keys,
+      FunctorT *functor) const {
+    return runOverKeysFromValueAccessor<false>(accessor,
+                                               key_attr_id,
+                                               check_for_null_keys,
+                                               functor);
+  }
+
+  /**
+   * @brief Apply the functor to each key without a match in the hash table.
+   *
+   * @param accessor A ValueAccessor which will be used to access keys.
+   *        beginIteration() should be called on accessor before calling this
+   *        method.
+   * @param key_attr_id The attribute ID of the keys to be read from accessor.
+   * @param check_for_null_keys If true, each key will be checked to see if it
+   *        is null before looking it up (null keys are skipped). This must be
+   *        set to true if some of the keys that will be read from accessor may
+   *        be null.
+   * @param functor A pointer to a functor which should provide an operator that
+   *        takes 1 argument: const ValueAccessor&. The operator will be called
+   *        only once for a key from accessor if there is no match.
+   */
+  template <typename FunctorT>
+  void runOverKeysFromValueAccessorIfMatchNotFoundCompositeKey(
+      ValueAccessor *accessor,
+      const std::vector<attribute_id> &key_attr_ids,
+      const bool check_for_null_keys,
+      FunctorT *functor) const {
+    return runOverKeysFromValueAccessorCompositeKey<false>(accessor,
+                                                           key_attr_ids,
+                                                           check_for_null_keys,
+                                                           functor);
+  }
 
   /**
    * @brief Apply a functor to each key, value pair in this hash table.
@@ -965,6 +1155,10 @@ class HashTable : public HashTableBase<resizable,
                                            const ValueT **value,
                                            std::size_t *entry_num) const = 0;
 
+  // Return true if key exists in the hash table.
+  virtual bool hasKey(const TypedValue &key) const = 0;
+  virtual bool hasCompositeKey(const std::vector<TypedValue> &key) const = 0;
+
   // For a resizable HashTable, grow to accomodate more entries. If
   // 'extra_buckets' is not zero, it may serve as a "hint" to implementations
   // that at least the requested number of extra buckets are required when
@@ -1047,6 +1241,21 @@ class HashTable : public HashTableBase<resizable,
     }
     return false;
   }
+
+  // If run_if_match_found is true, apply the functor to each key if a match is
+  // found; otherwise, apply the functor if no match is found.
+  template <bool run_if_match_found, typename FunctorT>
+  void runOverKeysFromValueAccessor(ValueAccessor *accessor,
+                                    const attribute_id key_attr_id,
+                                    const bool check_for_null_keys,
+                                    FunctorT *functor) const;
+
+  template <bool run_if_match_found, typename FunctorT>
+  void runOverKeysFromValueAccessorCompositeKey(
+      ValueAccessor *accessor,
+      const std::vector<attribute_id> &key_attr_ids,
+      const bool check_for_null_keys,
+      FunctorT *functor) const;
 
   // Method containing the actual logic implementing getAllFromValueAccessor().
   // Has extra template parameters that control behavior to avoid some
@@ -1670,6 +1879,184 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
       }
     }
   });
+}
+
+template <typename ValueT,
+          bool resizable,
+          bool serializable,
+          bool force_key_copy,
+          bool allow_duplicate_keys>
+template <typename FunctorT>
+void HashTable<ValueT,
+               resizable,
+               serializable,
+               force_key_copy,
+               allow_duplicate_keys>::
+    getAllFromValueAccessorWithExtraWorkForFirstMatch(
+        ValueAccessor *accessor,
+        const attribute_id key_attr_id,
+        const bool check_for_null_keys,
+        FunctorT *functor) const {
+  InvokeOnAnyValueAccessor(
+      accessor,
+      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+    while (accessor->next()) {
+      TypedValue key = accessor->getTypedValue(key_attr_id);
+      if (check_for_null_keys && key.isNull()) {
+        continue;
+      }
+      const std::size_t hash_code = adjust_hashes_ ? AdjustHash(key.getHash())
+                                                   : key.getHash();
+      std::size_t entry_num = 0;
+      const ValueT *value;
+      if (getNextEntryForKey(key, hash_code, &value, &entry_num)) {
+        functor->recordMatch(*accessor);
+        (*functor)(*accessor, *value);
+        if (!allow_duplicate_keys) {
+           continue;
+        }
+        while (getNextEntryForKey(key, hash_code, &value, &entry_num)) {
+          (*functor)(*accessor, *value);
+        }
+      }
+    }
+  });  // NOLINT(whitespace/parens)
+}
+
+template <typename ValueT,
+          bool resizable,
+          bool serializable,
+          bool force_key_copy,
+          bool allow_duplicate_keys>
+template <typename FunctorT>
+void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
+    ::getAllFromValueAccessorCompositeKeyWithExtraWorkForFirstMatch(
+        ValueAccessor *accessor,
+        const std::vector<attribute_id> &key_attr_ids,
+        const bool check_for_null_keys,
+        FunctorT *functor) const {
+  DEBUG_ASSERT(key_types_.size() == key_attr_ids.size());
+  std::vector<TypedValue> key_vector;
+  key_vector.resize(key_attr_ids.size());
+  InvokeOnAnyValueAccessor(
+      accessor,
+      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+    while (accessor->next()) {
+      bool null_key = false;
+      for (std::vector<attribute_id>::size_type key_idx = 0;
+           key_idx < key_types_.size();
+           ++key_idx) {
+        key_vector[key_idx] = accessor->getTypedValue(key_attr_ids[key_idx]);
+        if (check_for_null_keys && key_vector[key_idx].isNull()) {
+          null_key = true;
+          break;
+        }
+      }
+      if (null_key) {
+        continue;
+      }
+
+      const std::size_t hash_code = adjust_hashes_ ? AdjustHash(hashCompositeKey(key_vector))
+                                                   : hashCompositeKey(key_vector);
+      std::size_t entry_num = 0;
+      const ValueT *value;
+      if (getNextEntryForCompositeKey(key_vector, hash_code, &value, &entry_num)) {
+        functor->recordMatch(*accessor);
+        (*functor)(*accessor, *value);
+        if (!allow_duplicate_keys) {
+          continue;
+        }
+        while (getNextEntryForCompositeKey(key_vector, hash_code, &value, &entry_num)) {
+          (*functor)(*accessor, *value);
+        }
+      }
+    }
+  });  // NOLINT(whitespace/parens)
+}
+
+template <typename ValueT,
+          bool resizable,
+          bool serializable,
+          bool force_key_copy,
+          bool allow_duplicate_keys>
+template <bool run_if_match_found, typename FunctorT>
+void HashTable<ValueT,
+               resizable,
+               serializable,
+               force_key_copy,
+               allow_duplicate_keys>::
+    runOverKeysFromValueAccessor(ValueAccessor *accessor,
+                                 const attribute_id key_attr_id,
+                                 const bool check_for_null_keys,
+                                 FunctorT *functor) const {
+  InvokeOnAnyValueAccessor(
+      accessor,
+      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+    while (accessor->next()) {
+      TypedValue key = accessor->getTypedValue(key_attr_id);
+      if (check_for_null_keys && key.isNull()) {
+        if (!run_if_match_found) {
+          (*functor)(*accessor);
+          continue;
+        }
+      }
+      if (run_if_match_found) {
+        if (this->hasKey(key)) {
+          (*functor)(*accessor);
+        }
+      } else {
+        if (!this->hasKey(key)) {
+          (*functor)(*accessor);
+        }
+      }
+    }
+  });  // NOLINT(whitespace/parens)
+}
+
+template <typename ValueT,
+          bool resizable,
+          bool serializable,
+          bool force_key_copy,
+          bool allow_duplicate_keys>
+template <bool run_if_match_found, typename FunctorT>
+void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
+    ::runOverKeysFromValueAccessorCompositeKey(ValueAccessor *accessor,
+                                               const std::vector<attribute_id> &key_attr_ids,
+                                               const bool check_for_null_keys,
+                                               FunctorT *functor) const {
+  DEBUG_ASSERT(key_types_.size() == key_attr_ids.size());
+  std::vector<TypedValue> key_vector;
+  key_vector.resize(key_attr_ids.size());
+  InvokeOnAnyValueAccessor(
+      accessor,
+      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+    while (accessor->next()) {
+      bool null_key = false;
+      for (std::vector<attribute_id>::size_type key_idx = 0;
+           key_idx < key_types_.size();
+           ++key_idx) {
+        key_vector[key_idx] = accessor->getTypedValue(key_attr_ids[key_idx]);
+        if (check_for_null_keys && key_vector[key_idx].isNull()) {
+          null_key = true;
+          break;
+        }
+      }
+      if (null_key) {
+        if (!run_if_match_found) {
+          (*functor)(*accessor);
+          continue;
+        }
+      }
+
+      if (run_if_match_found) {
+        if (this->hasCompositeKey(key_vector)) {
+          (*functor)(*accessor);
+        }
+      } else if (!this->hasCompositeKey(key_vector)) {
+        (*functor)(*accessor);
+      }
+    }
+  });  // NOLINT(whitespace/parens)
 }
 
 template <typename ValueT,

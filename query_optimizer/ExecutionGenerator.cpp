@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -570,16 +571,19 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
     key_types.push_back(&left_attribute_type);
   }
 
-  // Choose the smaller table as the inner build table,
-  // and the other one as the outer probe table.
   std::size_t probe_cardinality = cost_model_->estimateCardinality(probe_physical);
   std::size_t build_cardinality = cost_model_->estimateCardinality(build_physical);
-  if (probe_cardinality < build_cardinality) {
-    // Switch the probe and build physical nodes.
-    std::swap(probe_physical, build_physical);
-    std::swap(probe_cardinality, build_cardinality);
-    std::swap(probe_attribute_ids, build_attribute_ids);
-    std::swap(any_probe_attributes_nullable, any_build_attributes_nullable);
+  // For inner join, we may swap the probe table and the build table.
+  if (physical_plan->join_type() == P::HashJoin::JoinType::kInnerJoin)  {
+    // Choose the smaller table as the inner build table,
+    // and the other one as the outer probe table.
+    if (probe_cardinality < build_cardinality) {
+      // Switch the probe and build physical nodes.
+      std::swap(probe_physical, build_physical);
+      std::swap(probe_cardinality, build_cardinality);
+      std::swap(probe_attribute_ids, build_attribute_ids);
+      std::swap(any_probe_attributes_nullable, any_build_attributes_nullable);
+    }
   }
 
   // Convert the residual predicate proto.
@@ -647,6 +651,25 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
                                  &output_relation,
                                  insert_destination_proto);
 
+  // Get JoinType
+  HashJoinOperator::JoinType join_type;
+  switch (physical_plan->join_type()) {
+    case P::HashJoin::JoinType::kInnerJoin:
+      join_type = HashJoinOperator::JoinType::kInnerJoin;
+      break;
+    case P::HashJoin::JoinType::kLeftSemiJoin:
+      join_type = HashJoinOperator::JoinType::kLeftSemiJoin;
+      break;
+    case P::HashJoin::JoinType::kLeftAntiJoin:
+      join_type = HashJoinOperator::JoinType::kLeftAntiJoin;
+      break;
+    default:
+      LOG(FATAL) << "Invalid physical::HashJoin::JoinType: "
+                 << static_cast<typename std::underlying_type<P::HashJoin::JoinType>::type>(
+                        physical_plan->join_type());
+  }
+
+  // Create hash join operator
   const QueryPlan::DAGNodeIndex join_operator_index =
       execution_plan_->addRelationalOperator(
           new HashJoinOperator(
@@ -659,7 +682,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               insert_destination_index,
               join_hash_table_index,
               residual_predicate_index,
-              project_expressions_group_index));
+              project_expressions_group_index,
+              join_type));
   insert_destination_proto->set_relational_op_index(join_operator_index);
 
   const QueryPlan::DAGNodeIndex destroy_operator_index =

@@ -182,6 +182,12 @@ class SimpleScalarSeparateChainingHashTable : public HashTable<ValueT,
     return getNextEntryForKey(key.front(), hash_code, value, entry_num);
   }
 
+  bool hasKey(const TypedValue &key) const override;
+
+  bool hasCompositeKey(const std::vector<TypedValue> &key) const override {
+    return false;
+  }
+
   void resize(const std::size_t extra_buckets,
               const std::size_t extra_variable_storage,
               const std::size_t retry_num = 0) override;
@@ -764,6 +770,37 @@ bool SimpleScalarSeparateChainingHashTable<ValueT,
   }
 
   // Reached the end of the chain.
+  return false;
+}
+
+template <typename ValueT,
+          bool resizable,
+          bool serializable,
+          bool force_key_copy,
+          bool allow_duplicate_keys>
+bool SimpleScalarSeparateChainingHashTable<ValueT,
+                                           resizable,
+                                           serializable,
+                                           force_key_copy,
+                                           allow_duplicate_keys>
+    ::hasKey(const TypedValue &key) const {
+  DCHECK_EQ(1u, this->key_types_.size());
+  DCHECK(key.isPlausibleInstanceOf(this->key_types_.front()->getSignature()));
+
+  const std::size_t hash_code = key.getHashScalarLiteral();
+  std::size_t bucket_ref = slots_[hash_code % header_->num_slots].load(std::memory_order_relaxed);
+  while (bucket_ref != 0) {
+    DCHECK_NE(bucket_ref, std::numeric_limits<std::size_t>::max());
+
+    const Bucket &bucket = buckets_[bucket_ref - 1];
+    if (bucket.hash == hash_code) {
+      // Match located.
+      return true;
+    }
+    bucket_ref = bucket.next.load(std::memory_order_relaxed);
+  }
+
+  // Reached the end of the chain and didn't find a match.
   return false;
 }
 
