@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -48,22 +50,7 @@ ComparisonExpression::ComparisonExpression(const Comparison &comparison,
 }
 
 std::string ComparisonExpression::getName() const {
-  switch (comparison_.getComparisonID()) {
-    case ComparisonID::kEqual:
-      return "Equal";
-    case ComparisonID::kNotEqual:
-      return "NotEqual";
-    case ComparisonID::kLess:
-      return "Less";
-    case ComparisonID::kLessOrEqual:
-      return "LessOrEqual";
-    case ComparisonID::kGreater:
-      return "Greater";
-    case ComparisonID::kGreaterOrEqual:
-      return "GreaterOrEqual";
-    default:
-      LOG(FATAL) << "Unknown comparison type";
-  }
+  return comparison_.getName();
 }
 
 bool ComparisonExpression::isEqualityComparisonPredicate() const {

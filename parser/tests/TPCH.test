@@ -803,7 +803,7 @@ SelectStatement
           | +-Equal
           | | +-left_operand=AttributeReference[attribute_name=s_nationkey]
           | | +-right_operand=AttributeReference[attribute_name=n_nationkey]
-          | +-kLike
+          | +-Like
           |   +-left_operand=AttributeReference[attribute_name=p_name]
           |   +-right_operand=Literal
           |     +-StringLiteral[value=%ghost%]
@@ -1045,7 +1045,7 @@ SelectStatement
   |     |     | +-NumericLiteral[numeric_string=0,float_like=false]
   |     |     +-when_clauses=
   |     |       +-SearchedWhenClause
-  |     |         +-condition_predicate=kLike
+  |     |         +-condition_predicate=Like
   |     |         | +-left_operand=AttributeReference[attribute_name=p_type]
   |     |         | +-right_operand=Literal
   |     |         |   +-StringLiteral[value=PROMO%]
