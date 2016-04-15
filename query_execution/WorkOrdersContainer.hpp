@@ -48,8 +48,8 @@ class WorkOrdersContainer {
    * @param num_numa_nodes Number of NUMA nodes in the system.
    **/
   WorkOrdersContainer(const std::size_t num_operators,
-                     const std::size_t num_numa_nodes)
-    : num_operators_(num_operators), num_numa_nodes_(num_numa_nodes) {
+                      const std::size_t num_numa_nodes)
+      : num_operators_(num_operators), num_numa_nodes_(num_numa_nodes) {
     DEBUG_ASSERT(num_operators != 0);
     for (std::size_t op = 0; op < num_operators; ++op) {
       normal_workorders_.push_back(

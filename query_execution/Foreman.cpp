@@ -371,9 +371,9 @@ WorkerMessage* Foreman::getNextWorkerMessage(
 void Foreman::sendWorkerMessage(const std::size_t worker_thread_index,
                                 const WorkerMessage &message) {
   message_type_id type;
-  if (message.getType() == WorkerMessage::kRebuildWorkOrder) {
+  if (message.getType() == WorkerMessage::WorkerMessageType::kRebuildWorkOrder) {
     type = kRebuildWorkOrderMessage;
-  } else if (message.getType() == WorkerMessage::kWorkOrder) {
+  } else if (message.getType() == WorkerMessage::WorkerMessageType::kWorkOrder) {
     type = kWorkOrderMessage;
   } else {
     FATAL_ERROR("Invalid WorkerMessageType");

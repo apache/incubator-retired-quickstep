@@ -30,7 +30,7 @@ class WorkOrder;
  **/
 class WorkerMessage {
  public:
-  enum WorkerMessageType {
+  enum class WorkerMessageType {
     kRebuildWorkOrder = 0,
     kWorkOrder,
     kPoison
@@ -46,7 +46,9 @@ class WorkerMessage {
    * @return The constructed RebuildWorkOrderMessage.
    **/
   static WorkerMessage* RebuildWorkOrderMessage(WorkOrder *rebuild_workorder, const std::size_t relational_op_index) {
-    return new WorkerMessage(rebuild_workorder, relational_op_index, kRebuildWorkOrder);
+    return new WorkerMessage(rebuild_workorder,
+                             relational_op_index,
+                             WorkerMessageType::kRebuildWorkOrder);
   }
 
   /**
@@ -60,7 +62,9 @@ class WorkerMessage {
    * @return The constructed WorkOrderMessage.
    **/
   static WorkerMessage* WorkOrderMessage(WorkOrder *workorder, const std::size_t relational_op_index) {
-    return new WorkerMessage(workorder, relational_op_index, kWorkOrder);
+    return new WorkerMessage(workorder,
+                             relational_op_index,
+                             WorkerMessageType::kWorkOrder);
   }
 
   /**
@@ -69,7 +73,7 @@ class WorkerMessage {
    * @return The constructed PoisonMessage.
    **/
   static WorkerMessage* PoisonMessage() {
-    return new WorkerMessage(nullptr, 0, kPoison);
+    return new WorkerMessage(nullptr, 0, WorkerMessageType::kPoison);
   }
 
   /**
