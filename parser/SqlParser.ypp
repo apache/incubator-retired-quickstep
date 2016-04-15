@@ -83,6 +83,7 @@ typedef struct YYLTYPE {
 #include "parser/ParsePartitionClause.hpp"
 #include "parser/ParsePredicate.hpp"
 #include "parser/ParsePredicateExists.hpp"
+#include "parser/ParsePredicateInTableQuery.hpp"
 #include "parser/ParserUtil.hpp"
 #include "parser/ParseSample.hpp"
 #include "parser/ParseSelect.hpp"
@@ -273,6 +274,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_GROUP;
 %token TOKEN_HASH;
 %token TOKEN_HAVING;
+%token TOKEN_IN;
 %token TOKEN_INDEX;
 %token TOKEN_INNER;
 %token TOKEN_INSERT;
@@ -1458,9 +1460,25 @@ predicate_expression_base:
     $$ = $2;
   }
   | TOKEN_EXISTS subquery_expression {
-    $$ = new quickstep::ParsePredicateExists(@1.first_line,
-                                             @1.first_column,
-                                             $2);
+    $$ = new quickstep::ParsePredicateExists(@1.first_line, @1.first_column, $2);
+  }
+  | add_expression TOKEN_IN subquery_expression {
+    $$ = new quickstep::ParsePredicateInTableQuery(@2.first_line, @2.first_column, $1, $3);
+  }
+  | add_expression TOKEN_IN '(' expression_list ')' {
+    $$ = new quickstep::ParsePredicateInValueList(@2.first_line, @2.first_column, $1, $4);
+  }
+  | add_expression TOKEN_NOT TOKEN_IN subquery_expression {
+    $$ = new quickstep::ParsePredicateNegation(
+        @2.first_line,
+        @2.first_column,
+        new quickstep::ParsePredicateInTableQuery(@3.first_line, @3.first_column, $1, $4));
+  }
+  | add_expression TOKEN_NOT TOKEN_IN '(' expression_list ')' {
+    $$ = new quickstep::ParsePredicateNegation(
+        @2.first_line,
+        @2.first_column,
+        new quickstep::ParsePredicateInValueList(@3.first_line, @3.first_column, $1, $5));
   };
 
 /* Scalars */

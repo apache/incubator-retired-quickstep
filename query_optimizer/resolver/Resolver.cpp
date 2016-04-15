@@ -47,6 +47,7 @@
 #include "parser/ParseOrderBy.hpp"
 #include "parser/ParsePredicate.hpp"
 #include "parser/ParsePredicateExists.hpp"
+#include "parser/ParsePredicateInTableQuery.hpp"
 #include "parser/ParseSelect.hpp"
 #include "parser/ParseSelectionClause.hpp"
 #include "parser/ParseSimpleTableReference.hpp"
@@ -66,6 +67,8 @@
 #include "query_optimizer/expressions/Exists.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
+#include "query_optimizer/expressions/InTableQuery.hpp"
+#include "query_optimizer/expressions/InValueList.hpp"
 #include "query_optimizer/expressions/LogicalAnd.hpp"
 #include "query_optimizer/expressions/LogicalNot.hpp"
 #include "query_optimizer/expressions/LogicalOr.hpp"
@@ -114,6 +117,8 @@
 #include "utility/PtrVector.hpp"
 #include "utility/SqlError.hpp"
 #include "utility/StringUtil.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 namespace optimizer {
@@ -1188,12 +1193,20 @@ L::LogicalPtr Resolver::resolveSelect(
 E::SubqueryExpressionPtr Resolver::resolveSubqueryExpression(
     const ParseSubqueryExpression &parse_subquery_expression,
     const std::vector<const Type*> *type_hints,
-    ExpressionResolutionInfo *expression_resolution_info) {
+    ExpressionResolutionInfo *expression_resolution_info,
+    const bool has_single_column) {
   L::LogicalPtr logical_subquery =
       resolveSelect(*parse_subquery_expression.query(),
                     "" /* select_name */,
                     type_hints,
                     &expression_resolution_info->name_resolver);
+
+  // Raise SQL error if the subquery is expected to return only one column but
+  // it returns multiple columns.
+  if (has_single_column && logical_subquery->getOutputAttributes().size() > 1u) {
+    THROW_SQL_ERROR_AT(&parse_subquery_expression)
+        << "Subquery must return exactly one column";
+  }
 
   if (!context_->has_nested_queries()) {
     context_->set_has_nested_queries();
@@ -2523,7 +2536,74 @@ E::PredicatePtr Resolver::resolvePredicate(
       return E::Exists::Create(
           resolveSubqueryExpression(*exists.subquery(),
                                     nullptr /* type_hints */,
-                                    expression_resolution_info));
+                                    expression_resolution_info,
+                                    false /* has_single_column */));
+    }
+    case ParsePredicate::kInTableQuery: {
+      const ParsePredicateInTableQuery &in_table_query =
+          static_cast<const ParsePredicateInTableQuery&>(parse_predicate);
+
+      ExpressionResolutionInfo test_expr_resolution_info(*expression_resolution_info);
+      const E::ScalarPtr test_expression =
+          resolveExpression(*in_table_query.test_expression(),
+                            nullptr /* type_hint */,
+                            &test_expr_resolution_info);
+      if (test_expr_resolution_info.hasAggregate() && !expression_resolution_info->hasAggregate()) {
+        expression_resolution_info->parse_aggregate_expression =
+            test_expr_resolution_info.parse_aggregate_expression;
+      }
+
+      ExpressionResolutionInfo table_query_resolution_info(*expression_resolution_info);
+      const std::vector<const Type*> type_hints = { &test_expression->getValueType() };
+      const E::SubqueryExpressionPtr table_query =
+          resolveSubqueryExpression(*in_table_query.table_query(),
+                                    &type_hints,
+                                    &table_query_resolution_info,
+                                    true /* has_single_column */);
+      return E::InTableQuery::Create(test_expression,
+                                     table_query);
+    }
+    case ParsePredicate::kInValueList: {
+      const ParsePredicateInValueList &in_value_list =
+          static_cast<const ParsePredicateInValueList&>(parse_predicate);
+
+      ExpressionResolutionInfo test_expr_resolution_info(*expression_resolution_info);
+      const E::ScalarPtr test_expression =
+          resolveExpression(*in_value_list.test_expression(),
+                            nullptr /* type_hint */,
+                            &test_expr_resolution_info);
+      if (test_expr_resolution_info.hasAggregate() && !expression_resolution_info->hasAggregate()) {
+        expression_resolution_info->parse_aggregate_expression =
+            test_expr_resolution_info.parse_aggregate_expression;
+      }
+
+      std::vector<E::ScalarPtr> match_expressions;
+      for (const ParseExpression &parse_match_expression : *in_value_list.value_list()) {
+        ExpressionResolutionInfo match_expr_resolution_info(*expression_resolution_info);
+        E::ScalarPtr match_expression =
+            resolveExpression(parse_match_expression,
+                              &test_expression->getValueType(),
+                              &match_expr_resolution_info);
+
+        const Comparison &equality_comparison =
+            ComparisonFactory::GetComparison(ComparisonID::kEqual);
+        if (!equality_comparison.canCompareTypes(match_expression->getValueType(),
+                                                 test_expression->getValueType())) {
+          THROW_SQL_ERROR_AT(&parse_match_expression)
+              << "The value expression has the type "
+              << match_expression->getValueType().getName()
+              << ", which cannot be compared with the type of the test expression "
+              << test_expression->getValueType().getName();
+        }
+
+        if (match_expr_resolution_info.hasAggregate() && !expression_resolution_info->hasAggregate()) {
+          expression_resolution_info->parse_aggregate_expression =
+              match_expr_resolution_info.parse_aggregate_expression;
+        }
+        match_expressions.emplace_back(match_expression);
+      }
+      return E::InValueList::Create(test_expression,
+                                    match_expressions);
     }
     default:
       LOG(FATAL) << "Unknown predicate: " << parse_predicate.toString();

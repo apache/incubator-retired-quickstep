@@ -39,6 +39,8 @@ enum class ExpressionType {
   kCast,
   kComparisonExpression,
   kExists,
+  kInTableQuery,
+  kInValueList,
   kLogicalAnd,
   kLogicalOr,
   kLogicalNot,

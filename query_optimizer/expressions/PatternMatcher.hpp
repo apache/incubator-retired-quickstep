@@ -38,6 +38,8 @@ class Cast;
 class ComparisonExpression;
 class Count;
 class Exists;
+class InTableQuery;
+class InValueList;
 class LogicalAnd;
 class LogicalNot;
 class LogicalOr;
@@ -119,6 +121,8 @@ using SomeBinaryExpression = SomeExpressionNode<BinaryExpression, ExpressionType
 using SomeCast = SomeExpressionNode<Cast, ExpressionType::kCast>;
 using SomeComparisonExpression = SomeExpressionNode<ComparisonExpression, ExpressionType::kComparisonExpression>;
 using SomeExists = SomeExpressionNode<Exists, ExpressionType::kExists>;
+using SomeInTableQuery = SomeExpressionNode<InTableQuery, ExpressionType::kInTableQuery>;
+using SomeInValueList = SomeExpressionNode<InValueList, ExpressionType::kInValueList>;
 using SomeLogicalAnd = SomeExpressionNode<LogicalAnd, ExpressionType::kLogicalAnd>;
 using SomeLogicalNot = SomeExpressionNode<LogicalNot, ExpressionType::kLogicalNot>;
 using SomeLogicalOr = SomeExpressionNode<LogicalOr, ExpressionType::kLogicalOr>;
@@ -128,6 +132,8 @@ using SomeNamedExpression = SomeExpressionNode<NamedExpression,
 using SomePredicate = SomeExpressionNode<Predicate,
                                          ExpressionType::kComparisonExpression,
                                          ExpressionType::kExists,
+                                         ExpressionType::kInTableQuery,
+                                         ExpressionType::kInValueList,
                                          ExpressionType::kLogicalAnd,
                                          ExpressionType::kLogicalNot,
                                          ExpressionType::kLogicalOr,

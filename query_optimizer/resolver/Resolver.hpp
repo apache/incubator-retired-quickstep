@@ -445,11 +445,14 @@ class Resolver {
    * @param type_hints The type hints for output columns by the subquery.
    * @param expression_resolution_info Resolution info that contains the name
    *        resolver and info to be updated after resolution.
+   * @param has_single_column True if the subquery is expected to return only
+   *        one column in the result.
    */
   expressions::SubqueryExpressionPtr resolveSubqueryExpression(
       const ParseSubqueryExpression &parse_subquery_expression,
       const std::vector<const Type*> *type_hints,
-      ExpressionResolutionInfo *expression_resolution_info);
+      ExpressionResolutionInfo *expression_resolution_info,
+      const bool has_single_column);
 
   /**
    * @brief Resolves a relation name to a pointer to the corresponding

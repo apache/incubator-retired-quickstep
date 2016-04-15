@@ -764,6 +764,62 @@ WHERE
 +-----------+
 ==
 
+# IN predicate
+SELECT *
+FROM generate_series(1, 5) AS gs(i)
+WHERE i IN (2, 4);
+--
++-----------+
+|i          |
++-----------+
+|          2|
+|          4|
++-----------+
+==
+
+SELECT *
+FROM generate_series(1, 5) AS gs(i)
+WHERE i NOT IN (2, 4);
+--
++-----------+
+|i          |
++-----------+
+|          1|
+|          3|
+|          5|
++-----------+
+==
+
+SELECT *
+FROM generate_series(1, 5) AS gs(i)
+WHERE i NOT IN (i*i-6, CASE WHEN i < 3 THEN 1 ELSE 4 END);
+--
++-----------+
+|i          |
++-----------+
+|          2|
+|          5|
++-----------+
+==
+
+SELECT *
+FROM generate_series(1, 10) AS gs(i)
+WHERE i NOT IN (
+  SELECT *
+  FROM generate_series(2, 10, 2)
+);
+--
++-----------+
+|i          |
++-----------+
+|          1|
+|          3|
+|          5|
+|          7|
+|          9|
++-----------+
+==
+
 # TODO(team): Support uncorrelated queries.
 # SELECT COUNT(*)
 # FROM test

@@ -29,6 +29,7 @@
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/ExpressionType.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
+#include "query_optimizer/expressions/InTableQuery.hpp"
 #include "query_optimizer/expressions/LogicalAnd.hpp"
 #include "query_optimizer/expressions/LogicalNot.hpp"
 #include "query_optimizer/expressions/LogicalOr.hpp"
@@ -45,6 +46,7 @@
 #include "query_optimizer/logical/TopLevelPlan.hpp"
 #include "query_optimizer/rules/Rule.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
+#include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "utility/SqlError.hpp"
 
@@ -300,6 +302,7 @@ E::ExpressionPtr UnnestSubqueriesForNonRootLogical::eliminateOuterAttributeRefer
     std::vector<E::AttributeReferencePtr> *probe_join_attributes,
     std::vector<E::AttributeReferencePtr> *build_join_attributes,
     std::vector<E::PredicatePtr> *non_hash_join_predicates) {
+  DCHECK(expression->getExpressionType() != E::ExpressionType::kInTableQuery);
   DCHECK(expression->getExpressionType() != E::ExpressionType::kExists);
   DCHECK(expression->getExpressionType() != E::ExpressionType::kSubqueryExpression);
 
@@ -569,6 +572,13 @@ E::ExpressionPtr UnnestSubqueriesForExpession::applyInternal(
       transformExists(static_cast<const E::Exists&>(*node));
       return E::ExpressionPtr();
     }
+    case E::ExpressionType::kInTableQuery: {
+      if (!allow_exists_or_in) {
+        THROW_SQL_ERROR() << "IN(table query) can only appear in (un-nested) NOT, AND or by itself";
+      }
+      transformInTableQuery(static_cast<const E::InTableQuery&>(*node));
+      return E::ExpressionPtr();
+    }
     case E::ExpressionType::kLogicalNot: {
       const E::LogicalNot &logical_not = static_cast<const E::LogicalNot&>(*node);
       const E::PredicatePtr &operand = logical_not.operand();
@@ -577,6 +587,13 @@ E::ExpressionPtr UnnestSubqueriesForExpession::applyInternal(
           THROW_SQL_ERROR() << "EXISTS can only appear in (un-nested) NOT, AND or by itself";
         }
         transformExists(static_cast<const E::Exists&>(*operand));
+        correlated_query_info_vec_->back().join_type = CorrelatedQueryInfo::JoinType::kLeftAntiJoin;
+        return E::PredicatePtr();
+      } else if (operand->getExpressionType() == E::ExpressionType::kInTableQuery) {
+        if (!allow_exists_or_in) {
+          THROW_SQL_ERROR() << "IN(table query) can only appear in (un-nested) NOT, AND or by itself";
+        }
+        transformInTableQuery(static_cast<const E::InTableQuery&>(*operand));
         correlated_query_info_vec_->back().join_type = CorrelatedQueryInfo::JoinType::kLeftAntiJoin;
         return E::PredicatePtr();
       }
@@ -679,6 +696,48 @@ void UnnestSubqueriesForExpession::transformExists(
       THROW_SQL_ERROR() << "Correlated queries must have an equality join predicate with the outer query";
     }
     THROW_SQL_ERROR() << "EXISTS subquery cannot be un-correlated with the outer query";
+  }
+
+  correlated_query_info_vec_->emplace_back(CorrelatedQueryInfo::JoinType::kLeftSemiJoin,
+                                           new_subquery,
+                                           std::move(probe_join_attributes),
+                                           std::move(build_join_attributes),
+                                           std::move(non_hash_join_predicates));
+}
+
+void UnnestSubqueriesForExpession::transformInTableQuery(
+    const E::InTableQuery &in_table_query) {
+  std::vector<E::AttributeReferencePtr> probe_join_attributes;
+  std::vector<E::AttributeReferencePtr> build_join_attributes;
+  std::vector<E::PredicatePtr> non_hash_join_predicates;
+  UnnestSubqueriesForNonRootLogical unnest_logical_rule(false,  // scalar_query
+                                                        visible_attributes_from_outer_query_,
+                                                        context_,
+                                                        uncorrelated_subqueries_,
+                                                        &probe_join_attributes,
+                                                        &build_join_attributes,
+                                                        &non_hash_join_predicates);
+  const L::LogicalPtr subquery = in_table_query.table_query()->subquery();
+  const L::LogicalPtr new_subquery = unnest_logical_rule.apply(subquery);
+
+  DCHECK(!new_subquery->getOutputAttributes().empty());
+  const E::AttributeReferencePtr join_attr_in_subquery = subquery->getOutputAttributes()[0];
+
+  E::AttributeReferencePtr test_attribute;
+  if (E::SomeAttributeReference::MatchesWithConditionalCast(in_table_query.test_expression(),
+                                                            &test_attribute)) {
+    probe_join_attributes.emplace_back(test_attribute);
+    build_join_attributes.emplace_back(join_attr_in_subquery);
+  } else {
+    if (!probe_join_attributes.empty()) {
+      non_hash_join_predicates.emplace_back(
+          E::ComparisonExpression::Create(ComparisonFactory::GetComparison(ComparisonID::kEqual),
+                                          in_table_query.test_expression(),
+                                          join_attr_in_subquery));
+    } else {
+      // TODO(qzeng): We can actually add a project to precompute the test expression.
+      THROW_SQL_ERROR() << "Cannot find an equality join predicate for IN";
+    }
   }
 
   correlated_query_info_vec_->emplace_back(CorrelatedQueryInfo::JoinType::kLeftSemiJoin,

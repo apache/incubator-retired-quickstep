@@ -212,6 +212,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "group"            return TOKEN_GROUP;
   "hash"             return TOKEN_HASH;
   "having"           return TOKEN_HAVING;
+  "in"               return TOKEN_IN;
   "index"            return TOKEN_INDEX;
   "inner"            return TOKEN_INNER;
   "insert"           return TOKEN_INSERT;

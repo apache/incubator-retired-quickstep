@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.0.2.  */
+/* A Bison parser, made by GNU Bison 3.0.4.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -108,64 +108,65 @@ extern int quickstep_yydebug;
     TOKEN_GROUP = 318,
     TOKEN_HASH = 319,
     TOKEN_HAVING = 320,
-    TOKEN_INDEX = 321,
-    TOKEN_INNER = 322,
-    TOKEN_INSERT = 323,
-    TOKEN_INTEGER = 324,
-    TOKEN_INTERVAL = 325,
-    TOKEN_INTO = 326,
-    TOKEN_JOIN = 327,
-    TOKEN_KEY = 328,
-    TOKEN_LAST = 329,
-    TOKEN_LEFT = 330,
-    TOKEN_LIMIT = 331,
-    TOKEN_LONG = 332,
-    TOKEN_NULL = 333,
-    TOKEN_NULLS = 334,
-    TOKEN_OFF = 335,
-    TOKEN_ON = 336,
-    TOKEN_ORDER = 337,
-    TOKEN_OUTER = 338,
-    TOKEN_PARTITION = 339,
-    TOKEN_PARTITIONS = 340,
-    TOKEN_PERCENT = 341,
-    TOKEN_PRIMARY = 342,
-    TOKEN_QUIT = 343,
-    TOKEN_RANGE = 344,
-    TOKEN_REAL = 345,
-    TOKEN_REFERENCES = 346,
-    TOKEN_RIGHT = 347,
-    TOKEN_ROW_DELIMITER = 348,
-    TOKEN_SELECT = 349,
-    TOKEN_SET = 350,
-    TOKEN_SMA = 351,
-    TOKEN_SMALLINT = 352,
-    TOKEN_TABLE = 353,
-    TOKEN_THEN = 354,
-    TOKEN_TIME = 355,
-    TOKEN_TIMESTAMP = 356,
-    TOKEN_TRUE = 357,
-    TOKEN_TUPLESAMPLE = 358,
-    TOKEN_UNIQUE = 359,
-    TOKEN_UPDATE = 360,
-    TOKEN_USING = 361,
-    TOKEN_VALUES = 362,
-    TOKEN_VARCHAR = 363,
-    TOKEN_WHEN = 364,
-    TOKEN_WHERE = 365,
-    TOKEN_WITH = 366,
-    TOKEN_YEARMONTH = 367,
-    TOKEN_EOF = 368,
-    TOKEN_LEX_ERROR = 369
+    TOKEN_IN = 321,
+    TOKEN_INDEX = 322,
+    TOKEN_INNER = 323,
+    TOKEN_INSERT = 324,
+    TOKEN_INTEGER = 325,
+    TOKEN_INTERVAL = 326,
+    TOKEN_INTO = 327,
+    TOKEN_JOIN = 328,
+    TOKEN_KEY = 329,
+    TOKEN_LAST = 330,
+    TOKEN_LEFT = 331,
+    TOKEN_LIMIT = 332,
+    TOKEN_LONG = 333,
+    TOKEN_NULL = 334,
+    TOKEN_NULLS = 335,
+    TOKEN_OFF = 336,
+    TOKEN_ON = 337,
+    TOKEN_ORDER = 338,
+    TOKEN_OUTER = 339,
+    TOKEN_PARTITION = 340,
+    TOKEN_PARTITIONS = 341,
+    TOKEN_PERCENT = 342,
+    TOKEN_PRIMARY = 343,
+    TOKEN_QUIT = 344,
+    TOKEN_RANGE = 345,
+    TOKEN_REAL = 346,
+    TOKEN_REFERENCES = 347,
+    TOKEN_RIGHT = 348,
+    TOKEN_ROW_DELIMITER = 349,
+    TOKEN_SELECT = 350,
+    TOKEN_SET = 351,
+    TOKEN_SMA = 352,
+    TOKEN_SMALLINT = 353,
+    TOKEN_TABLE = 354,
+    TOKEN_THEN = 355,
+    TOKEN_TIME = 356,
+    TOKEN_TIMESTAMP = 357,
+    TOKEN_TRUE = 358,
+    TOKEN_TUPLESAMPLE = 359,
+    TOKEN_UNIQUE = 360,
+    TOKEN_UPDATE = 361,
+    TOKEN_USING = 362,
+    TOKEN_VALUES = 363,
+    TOKEN_VARCHAR = 364,
+    TOKEN_WHEN = 365,
+    TOKEN_WHERE = 366,
+    TOKEN_WITH = 367,
+    TOKEN_YEARMONTH = 368,
+    TOKEN_EOF = 369,
+    TOKEN_LEX_ERROR = 370
   };
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef union YYSTYPE YYSTYPE;
+
 union YYSTYPE
 {
-#line 116 "../SqlParser.ypp" /* yacc.c:1909  */
+#line 117 "../SqlParser.ypp" /* yacc.c:1915  */
 
   quickstep::ParseString *string_value_;
 
@@ -255,8 +256,10 @@ union YYSTYPE
   quickstep::PtrVector<quickstep::ParseSubqueryTableReference> *with_list_;
   quickstep::ParseSubqueryTableReference *with_list_element_;
 
-#line 259 "SqlParser_gen.hpp" /* yacc.c:1909  */
+#line 260 "SqlParser_gen.hpp" /* yacc.c:1915  */
 };
+
+typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif
