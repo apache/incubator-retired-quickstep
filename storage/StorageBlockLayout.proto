@@ -65,6 +65,8 @@ message IndexSubBlockDescription {
     CSB_TREE = 0;
     SMA = 1;
     BLOOM_FILTER = 2;
+    BITWEAVING_H = 3;
+    BITWEAVING_V = 4;    
   }
 
   required IndexSubBlockType sub_block_type = 1;

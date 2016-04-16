@@ -82,6 +82,28 @@ bool SubBlockTypeRegistry::LayoutDescriptionIsValid(
   return true;
 }
 
+bool SubBlockTypeRegistry::IndexDescriptionIsValid(
+      const CatalogRelationSchema &relation,
+      const IndexSubBlockDescription &description) {
+  if (!description.IsInitialized()) {
+    return false;
+  }
+
+  std::unordered_map<IndexTypeIntegral,
+                     IndexDescriptionIsValidFunction>::const_iterator
+      index_it = Instance()->index_description_is_valid_functions_.find(
+          static_cast<IndexTypeIntegral>(description.sub_block_type()));
+  // No validity function was registered.
+  if (index_it == Instance()->index_description_is_valid_functions_.end()) {
+    return false;
+  }
+
+  if (!(*index_it->second)(relation, description)) {
+    return false;
+  }
+  return true;
+}
+
 std::size_t SubBlockTypeRegistry::EstimateBytesPerTupleForTupleStore(
     const CatalogRelationSchema &relation,
     const TupleStorageSubBlockDescription &description) {

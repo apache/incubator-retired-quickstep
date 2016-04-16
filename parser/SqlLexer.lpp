@@ -174,6 +174,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "between"          return TOKEN_BETWEEN;
   "bigint"           return TOKEN_BIGINT;
   "bit"              return TOKEN_BIT;
+  "bitweaving"       return TOKEN_BITWEAVING;
   "blockproperties"  return TOKEN_BLOCKPROPERTIES;
   "blocksample"      return TOKEN_BLOCKSAMPLE;
   "bloomfilter"      return TOKEN_BLOOM_FILTER;

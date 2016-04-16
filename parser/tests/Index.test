@@ -57,3 +57,12 @@ CreateIndexStatement[index_name=bloomIndex,relation_name=test,
 CREATE INDEX csbIndex ON test USING CSBTREE
 --
 CreateIndexStatement[index_name=csbIndex,relation_name=test,index_type=cs_b_tree]
+==
+# Bitweaving is supported on builds where it was included as a submodule. The
+# parser should create code to change the catalog, but on Block creation, no
+# index will be created.
+CREATE INDEX bwIndex ON test(int_col) USING bitweaving;
+--
+CreateIndexStatement[index_name=bwIndex,relation_name=test,index_type=bitweaving]
++-attribute_list=
+  +-AttributeReference[attribute_name=int_col]

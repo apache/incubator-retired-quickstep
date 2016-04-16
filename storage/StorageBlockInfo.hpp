@@ -137,6 +137,8 @@ enum IndexSubBlockType {
   kCSBTree = 0,
   kSMA,
   kBloomFilter,
+  kBitWeavingV,
+  kBitWeavingH,
   kNumIndexSubBlockTypes  // Not an actual IndexSubBlockType, exists for counting purposes.
 };
 

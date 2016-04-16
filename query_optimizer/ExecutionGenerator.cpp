@@ -99,6 +99,7 @@
 #include "storage/InsertDestination.pb.h"
 #include "storage/StorageBlockLayout.hpp"
 #include "storage/StorageBlockLayout.pb.h"
+#include "storage/SubBlockTypeRegistry.hpp"
 #include "types/Type.hpp"
 #include "types/Type.pb.h"
 #include "types/TypedValue.hpp"
@@ -870,7 +871,7 @@ void ExecutionGenerator::convertCreateIndex(
     THROW_SQL_ERROR() << "The relation " << input_relation->getName()
         << " already defines this index on the given attribute(s).";
   }
-  if (!index_description.IsInitialized()) {
+  if (!SubBlockTypeRegistry::IndexDescriptionIsValid(*input_relation, index_description)) {
     // Check if the given index description is valid.
     THROW_SQL_ERROR() << "The index with given properties cannot be created.";
   }

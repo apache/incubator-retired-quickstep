@@ -63,6 +63,12 @@
 
 #include "glog/logging.h"
 
+#ifdef QUICKSTEP_HAVE_BITWEAVING
+#include "storage/bitweaving/BitWeavingIndexSubBlock.hpp"
+#include "storage/bitweaving/BitWeavingHIndexSubBlock.hpp"
+#include "storage/bitweaving/BitWeavingVIndexSubBlock.hpp"
+#endif
+
 using std::make_pair;
 using std::pair;
 using std::size_t;
@@ -172,8 +178,7 @@ StorageBlock::StorageBlock(const CatalogRelationSchema &relation,
        ++index_num) {
     indices_.push_back(CreateIndexSubBlock(*tuple_store_,
                                            block_header_.layout().index_description(index_num),
-                                           new_block,
-                                           sub_block_address,
+                                           new_block, sub_block_address,
                                            block_header_.index_size(index_num)));
     sub_block_address += block_header_.index_size(index_num);
     if (!indices_.back().supportsAdHocAdd()) {
@@ -1044,6 +1049,25 @@ IndexSubBlock* StorageBlock::CreateIndexSubBlock(
                                   new_block,
                                   sub_block_memory,
                                   sub_block_memory_size);
+#ifdef QUICKSTEP_HAVE_BITWEAVING
+    case IndexSubBlockDescription::BITWEAVING_V:
+      return new BitWeavingVIndexSubBlock(tuple_store,
+                                          description,
+                                          new_block,
+                                          sub_block_memory,
+                                          sub_block_memory_size);
+    case IndexSubBlockDescription::BITWEAVING_H:
+      return new BitWeavingHIndexSubBlock(tuple_store,
+                                          description,
+                                          new_block,
+                                          sub_block_memory,
+                                          sub_block_memory_size);
+#else
+    case IndexSubBlockDescription::BITWEAVING_V:  // Fall through.
+    case IndexSubBlockDescription::BITWEAVING_H:
+      LOG(FATAL) << "Attempted to create a block with a bitweaving index "
+                 << "but Quickstep was not compiled with bitweaving.";
+#endif
     default:
       if (new_block) {
         FATAL_ERROR("A StorageBlockLayout provided an unknown IndexBlockType.");

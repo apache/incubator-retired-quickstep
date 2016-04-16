@@ -345,6 +345,10 @@ class ParseStatementCreateIndex : public ParseStatement {
       inline_field_names->push_back("index_type");
       const int index_type_enum_val = std::stoi(index_type_->value());
       switch (index_type_enum_val) {
+        case IndexSubBlockType::kBitWeavingV:  // Fall through.
+        case IndexSubBlockType::kBitWeavingH:
+          inline_field_values->push_back("bitweaving");
+          break;
         case IndexSubBlockType::kCSBTree:
           inline_field_values->push_back("cs_b_tree");
           break;
@@ -385,6 +389,10 @@ class ParseStatementCreateIndex : public ParseStatement {
     void initializeIndexType() {
       const int index_type_enum_val = std::stoi(index_type_->value());
       switch (index_type_enum_val) {
+        case IndexSubBlockType::kBitWeavingV:  // Fall through.
+        case IndexSubBlockType::kBitWeavingH:
+          index_properties_.reset(new BitWeavingIndexProperties());
+          break;
         case IndexSubBlockType::kBloomFilter:
           index_properties_.reset(new BloomFilterIndexProperties());
           break;
