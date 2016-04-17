@@ -1,0 +1,160 @@
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+SELECT *
+FROM a JOIN b ON a.w = b.w
+       JOIN c ON a.x = c.x
+       JOIN d ON a.y = d.y;
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectStar
+  +-from_clause=
+    +-JoinedTable[join_type=InnerJoin]
+      +-left_table=JoinedTable[join_type=InnerJoin]
+      | +-left_table=JoinedTable[join_type=InnerJoin]
+      | | +-left_table=TableReference[table=a]
+      | | +-right_table=TableReference[table=b]
+      | | +-join_predicate=Equal
+      | |   +-left_operand=AttributeReference[attribute_name=w,relation_name=a]
+      | |   +-right_operand=AttributeReference[attribute_name=w,relation_name=b]
+      | +-right_table=TableReference[table=c]
+      | +-join_predicate=Equal
+      |   +-left_operand=AttributeReference[attribute_name=x,relation_name=a]
+      |   +-right_operand=AttributeReference[attribute_name=x,relation_name=c]
+      +-right_table=TableReference[table=d]
+      +-join_predicate=Equal
+        +-left_operand=AttributeReference[attribute_name=y,relation_name=a]
+        +-right_operand=AttributeReference[attribute_name=y,relation_name=d]
+==
+
+SELECT *
+FROM a AS a1 JOIN b AS b1 ON a1.w = b1.w
+             JOIN c AS c1 ON a1.x = c1.x
+             JOIN d AS d1 ON a1.y = d1.y;
+WHERE a1.x > b1.x
+  AND a1.y > c1.y
+  AND a1.z > d1.z;
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectStar
+  +-from_clause=
+    +-JoinedTable[join_type=InnerJoin]
+      +-left_table=JoinedTable[join_type=InnerJoin]
+      | +-left_table=JoinedTable[join_type=InnerJoin]
+      | | +-left_table=TableReference[table=a]
+      | | | +-table_signature=TableSignature[table_alias=a1]
+      | | +-right_table=TableReference[table=b]
+      | | | +-table_signature=TableSignature[table_alias=b1]
+      | | +-join_predicate=Equal
+      | |   +-left_operand=AttributeReference[attribute_name=w,relation_name=a1]
+      | |   +-right_operand=AttributeReference[attribute_name=w,relation_name=b1]
+      | +-right_table=TableReference[table=c]
+      | | +-table_signature=TableSignature[table_alias=c1]
+      | +-join_predicate=Equal
+      |   +-left_operand=AttributeReference[attribute_name=x,relation_name=a1]
+      |   +-right_operand=AttributeReference[attribute_name=x,relation_name=c1]
+      +-right_table=TableReference[table=d]
+      | +-table_signature=TableSignature[table_alias=d1]
+      +-join_predicate=Equal
+        +-left_operand=AttributeReference[attribute_name=y,relation_name=a1]
+        +-right_operand=AttributeReference[attribute_name=y,relation_name=d1]
+==
+
+SELECT *
+FROM a LEFT OUTER JOIN b ON a.w = b.w
+       RIGHT OUTER JOIN c ON a.x = c.x
+       FULL OUTER JOIN d ON a.y = d.y;
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectStar
+  +-from_clause=
+    +-JoinedTable[join_type=FullOuterJoin]
+      +-left_table=JoinedTable[join_type=RightOuterJoin]
+      | +-left_table=JoinedTable[join_type=LeftOuterJoin]
+      | | +-left_table=TableReference[table=a]
+      | | +-right_table=TableReference[table=b]
+      | | +-join_predicate=Equal
+      | |   +-left_operand=AttributeReference[attribute_name=w,relation_name=a]
+      | |   +-right_operand=AttributeReference[attribute_name=w,relation_name=b]
+      | +-right_table=TableReference[table=c]
+      | +-join_predicate=Equal
+      |   +-left_operand=AttributeReference[attribute_name=x,relation_name=a]
+      |   +-right_operand=AttributeReference[attribute_name=x,relation_name=c]
+      +-right_table=TableReference[table=d]
+      +-join_predicate=Equal
+        +-left_operand=AttributeReference[attribute_name=y,relation_name=a]
+        +-right_operand=AttributeReference[attribute_name=y,relation_name=d]
+==
+
+SELECT *
+FROM a INNER JOIN b ON (a.w = b.w OR a.x > b.y);
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectStar
+  +-from_clause=
+    +-JoinedTable[join_type=InnerJoin]
+      +-left_table=TableReference[table=a]
+      +-right_table=TableReference[table=b]
+      +-join_predicate=Or
+        +-Equal
+        | +-left_operand=AttributeReference[attribute_name=w,relation_name=a]
+        | +-right_operand=AttributeReference[attribute_name=w,relation_name=b]
+        +-Greater
+          +-left_operand=AttributeReference[attribute_name=x,relation_name=a]
+          +-right_operand=AttributeReference[attribute_name=y,relation_name=b]
+==
+
+SELECT *
+FROM b LEFT JOIN c ON b.x = c.x JOIN d ON c.y = d.y;
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectStar
+  +-from_clause=
+    +-JoinedTable[join_type=InnerJoin]
+      +-left_table=JoinedTable[join_type=LeftOuterJoin]
+      | +-left_table=TableReference[table=b]
+      | +-right_table=TableReference[table=c]
+      | +-join_predicate=Equal
+      |   +-left_operand=AttributeReference[attribute_name=x,relation_name=b]
+      |   +-right_operand=AttributeReference[attribute_name=x,relation_name=c]
+      +-right_table=TableReference[table=d]
+      +-join_predicate=Equal
+        +-left_operand=AttributeReference[attribute_name=y,relation_name=c]
+        +-right_operand=AttributeReference[attribute_name=y,relation_name=d]
+==
+
+SELECT *
+FROM b LEFT JOIN (c JOIN d ON c.y = d.y) ON b.x = c.x;
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectStar
+  +-from_clause=
+    +-JoinedTable[join_type=LeftOuterJoin]
+      +-left_table=TableReference[table=b]
+      +-right_table=JoinedTable[join_type=InnerJoin]
+      | +-left_table=TableReference[table=c]
+      | +-right_table=TableReference[table=d]
+      | +-join_predicate=Equal
+      |   +-left_operand=AttributeReference[attribute_name=y,relation_name=c]
+      |   +-right_operand=AttributeReference[attribute_name=y,relation_name=d]
+      +-join_predicate=Equal
+        +-left_operand=AttributeReference[attribute_name=x,relation_name=b]
+        +-right_operand=AttributeReference[attribute_name=x,relation_name=c]

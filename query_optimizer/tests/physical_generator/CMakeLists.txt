@@ -37,6 +37,10 @@ add_test(quickstep_queryoptimizer_tests_physicalgenerator_insert
          "../quickstep_queryoptimizer_tests_OptimizerTextTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Insert.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Insert.test")
+add_test(quickstep_queryoptimizer_tests_physicalgenerator_join
+         "../quickstep_queryoptimizer_tests_OptimizerTextTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/Join.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Join.test")
 add_test(quickstep_queryoptimizer_tests_physicalgenerator_select
          "../quickstep_queryoptimizer_tests_OptimizerTextTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Select.test"

@@ -96,8 +96,9 @@ class ParseTableReferenceSignature : public ParseTreeNode {
 class ParseTableReference : public ParseTreeNode {
  public:
   enum TableReferenceType {
-    kSimpleTableReference,
     kGeneratorTableReference,
+    kJoinedTableReference,
+    kSimpleTableReference,
     kSubqueryTableReference
   };
 

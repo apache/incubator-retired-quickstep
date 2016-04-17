@@ -46,6 +46,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_parser_ParseGeneratorTableReference
                       quickstep_parser_ParseGroupBy
                       quickstep_parser_ParseHaving
+                      quickstep_parser_ParseJoinedTableReference
                       quickstep_parser_ParseLimit
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseOrderBy

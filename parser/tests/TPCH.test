@@ -1089,9 +1089,46 @@ ORDER BY
   custdist desc,
   c_count DESC
 --
-ERROR: OUTER JOIN is not supported yet (10 : 16)
-      customer LEFT OUTER JOIN orders ON
-               ^
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=c_count]
+  | +-SelectListItem[alias=custdist]
+  |   +-FunctionCall[name=COUNT,is_star=true]
+  +-group_by=GroupBy
+  | +-AttributeReference[attribute_name=c_count]
+  +-order_by=OrderBy
+  | +-OrderByItem[is_asc=false,nulls_first=true]
+  | | +-AttributeReference[attribute_name=custdist]
+  | +-OrderByItem[is_asc=false,nulls_first=true]
+  |   +-AttributeReference[attribute_name=c_count]
+  +-from_clause=
+    +-SubqueryTable
+      +-table_signature=TableSignature[table_alias=c_orders,
+      | columns=(c_custkey, c_count)]
+      +-SubqueryExpression
+        +-Select
+          +-select_clause=SelectList
+          | +-SelectListItem
+          | | +-AttributeReference[attribute_name=c_custkey]
+          | +-SelectListItem
+          |   +-FunctionCall[name=COUNT]
+          |     +-AttributeReference[attribute_name=o_orderkey]
+          +-group_by=GroupBy
+          | +-AttributeReference[attribute_name=c_custkey]
+          +-from_clause=
+            +-JoinedTable[join_type=LeftOuterJoin]
+              +-left_table=TableReference[table=customer]
+              +-right_table=TableReference[table=orders]
+              +-join_predicate=And
+                +-Equal
+                | +-left_operand=AttributeReference[attribute_name=c_custkey]
+                | +-right_operand=AttributeReference[attribute_name=o_custkey]
+                +-NotLike
+                  +-left_operand=AttributeReference[attribute_name=o_comment]
+                  +-right_operand=Literal
+                    +-StringLiteral[value=%special%requests%]
 ==
 
 # Query 14

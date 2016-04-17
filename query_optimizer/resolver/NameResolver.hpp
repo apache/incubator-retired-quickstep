@@ -86,6 +86,15 @@ class NameResolver {
       const ParseString *parse_rel_node) const;
 
   /**
+   * @brief Combines the name scopes in the current name resolver and in \p other.
+   *        The ownership of <relations_> in \p other will be transferred to the
+   *        current name resolver.
+   *
+   * @param other The name resolver to be merged into this resolver.
+   */
+  void merge(NameResolver *other);
+
+  /**
    * @return All AttributeReferences in the current name scope.
    */
   std::vector<expressions::AttributeReferencePtr> getVisibleAttributeReferences() const;

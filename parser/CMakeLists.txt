@@ -94,6 +94,7 @@ add_library(quickstep_parser_ParseGeneratorTableReference ParseGeneratorTableRef
 add_library(quickstep_parser_ParseGroupBy ParseGroupBy.cpp ParseGroupBy.hpp)
 add_library(quickstep_parser_ParseHaving ParseHaving.cpp ParseHaving.hpp)
 add_library(quickstep_parser_ParseIndexProperties ParseIndexProperties.cpp ParseIndexProperties.hpp)
+add_library(quickstep_parser_ParseJoinedTableReference ParseJoinedTableReference.cpp ParseJoinedTableReference.hpp)
 add_library(quickstep_parser_ParseKeyValue ../empty_src.cpp ParseKeyValue.hpp)
 add_library(quickstep_parser_ParseLimit ParseLimit.cpp ParseLimit.hpp)
 add_library(quickstep_parser_ParseLiteralValue ParseLiteralValue.cpp ParseLiteralValue.hpp)
@@ -177,6 +178,10 @@ target_link_libraries(quickstep_parser_ParseIndexProperties
                       quickstep_utility_Macros
                       quickstep_utility_PtrList
                       quickstep_utility_StringUtil)
+target_link_libraries(quickstep_parser_ParseJoinedTableReference
+                      quickstep_parser_ParsePredicate
+                      quickstep_parser_ParseTableReference
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_parser_ParseLimit
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseTreeNode
@@ -295,6 +300,7 @@ target_link_libraries(quickstep_parser_ParseTreeNode
 target_link_libraries(quickstep_parser_ParserUtil
                       quickstep_utility_SqlError)
 target_link_libraries(quickstep_parser_SqlLexer
+                      quickstep_parser_ParseJoinedTableReference
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParserUtil
                       quickstep_parser_ParseString
@@ -312,6 +318,7 @@ target_link_libraries(quickstep_parser_SqlParser
                       quickstep_parser_ParseGeneratorTableReference
                       quickstep_parser_ParseGroupBy
                       quickstep_parser_ParseHaving
+                      quickstep_parser_ParseJoinedTableReference
                       quickstep_parser_ParseKeyValue
                       quickstep_parser_ParseLimit
                       quickstep_parser_ParseLiteralValue
@@ -347,6 +354,7 @@ target_link_libraries(quickstep_parser_SqlParser
                       quickstep_utility_PtrVector)
 target_link_libraries(quickstep_parser_SqlParserWrapper
                       glog
+                      quickstep_parser_ParseJoinedTableReference
                       quickstep_parser_ParseStatement
                       quickstep_parser_SqlLexer
                       quickstep_parser_SqlParser
@@ -387,6 +395,7 @@ target_link_libraries(quickstep_parser
                       quickstep_parser_ParseGroupBy
                       quickstep_parser_ParseHaving
                       quickstep_parser_ParseIndexProperties
+                      quickstep_parser_ParseJoinedTableReference
                       quickstep_parser_ParseLimit
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseOrderBy

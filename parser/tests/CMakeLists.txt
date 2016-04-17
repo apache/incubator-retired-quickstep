@@ -58,6 +58,10 @@ add_test(quickstep_parser_tests_ParserTest_insert
          quickstep_parser_tests_ParserTest
          "${CMAKE_CURRENT_SOURCE_DIR}/Insert.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Insert.test")
+add_test(quickstep_parser_tests_ParserTest_join
+         quickstep_parser_tests_ParserTest
+         "${CMAKE_CURRENT_SOURCE_DIR}/Join.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Join.test")
 add_test(quickstep_parser_tests_ParserTest_select
          quickstep_parser_tests_ParserTest
          "${CMAKE_CURRENT_SOURCE_DIR}/Select.test"

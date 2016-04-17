@@ -18,6 +18,7 @@
 #include "query_optimizer/tests/TestDatabaseLoader.hpp"
 
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -82,6 +83,35 @@ CatalogRelation *TestDatabaseLoader::createTestRelation(bool allow_vchar) {
   test_relation_ = catalog_relation.get();
   catalog_database_.addRelation(catalog_relation.release());
   return test_relation_;
+}
+
+void TestDatabaseLoader::createJoinRelations() {
+  std::vector<std::string> rel_names = { "a", "b", "c", "d" };
+  std::vector<std::vector<std::pair<std::string, TypeID>>> rel_columns = {
+      { { "w", kInt }, { "x", kInt }, { "y", kInt }, { "z", kInt } },
+      { { "w", kInt }, { "x", kInt } },
+      { { "x", kInt }, { "y", kInt } },
+      { { "y", kInt }, { "z", kInt } }
+  };
+
+  for (std::size_t rel_idx = 0; rel_idx < rel_names.size(); ++rel_idx) {
+    std::unique_ptr<CatalogRelation> relation(
+        new CatalogRelation(&catalog_database_,
+                            rel_names[rel_idx],
+                            -1 /* id */,
+                            true /* temporary */));
+
+    const std::vector<std::pair<std::string, TypeID>> &columns = rel_columns[rel_idx];
+    int attr_id = -1;
+    for (std::size_t col_idx = 0; col_idx < columns.size(); ++col_idx) {
+      relation->addAttribute(new CatalogAttribute(
+          relation.get(),
+          columns[col_idx].first,
+          TypeFactory::GetType(columns[col_idx].second),
+          ++attr_id));
+    }
+    catalog_database_.addRelation(relation.release());
+  }
 }
 
 void TestDatabaseLoader::loadTestRelation() {

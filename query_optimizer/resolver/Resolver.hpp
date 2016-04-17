@@ -41,6 +41,7 @@ class Comparison;
 class ParseExpression;
 class ParseFunctionCall;
 class ParseGeneratorTableReference;
+class ParseJoinedTableReference;
 class ParseOrderBy;
 class ParsePredicate;
 class ParseSearchedCaseExpression;
@@ -331,6 +332,19 @@ class Resolver {
   logical::LogicalPtr resolveGeneratorTableReference(
       const ParseGeneratorTableReference &table_reference,
       const ParseString *reference_alias);
+
+  /**
+   * @brief Resolves a joined table resulting from a join between two table
+   *        references.
+   *
+   * @param joined_table_reference The parse joined table reference to be resolved.
+   * @param name_resolver The name resolver to be updated with the left and the
+   *        right tables.
+   * @return A logical plan for the joined table reference.
+   */
+  logical::LogicalPtr resolveJoinedTableReference(
+      const ParseJoinedTableReference &joined_table_reference,
+      NameResolver *name_resolver);
 
   /**
    * @brief Renames the output columns from \p logical_plan based on the table signature

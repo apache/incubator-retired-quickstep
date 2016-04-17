@@ -30,6 +30,7 @@
 #include <string>
 #include <vector>
 
+#include "parser/ParseJoinedTableReference.hpp"
 #include "parser/ParseLiteralValue.hpp"
 #include "utility/PtrList.hpp"
 #include "utility/PtrVector.hpp"

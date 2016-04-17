@@ -42,6 +42,7 @@
 #include "parser/ParseGeneratorTableReference.hpp"
 #include "parser/ParseGroupBy.hpp"
 #include "parser/ParseHaving.hpp"
+#include "parser/ParseJoinedTableReference.hpp"
 #include "parser/ParseLimit.hpp"
 #include "parser/ParseLiteralValue.hpp"
 #include "parser/ParseOrderBy.hpp"
@@ -1467,6 +1468,16 @@ L::LogicalPtr Resolver::resolveTableReference(const ParseTableReference &table_r
       name_resolver->addRelation(reference_alias, logical_plan);
       break;
     }
+    case ParseTableReference::kJoinedTableReference: {
+      NameResolver joined_table_name_resolver;
+
+      logical_plan = resolveJoinedTableReference(
+          static_cast<const ParseJoinedTableReference&>(table_reference),
+          &joined_table_name_resolver);
+
+      name_resolver->merge(&joined_table_name_resolver);
+      break;
+    }
     default:
       LOG(FATAL) << "Unhandeled table reference " << table_reference.toString();
   }
@@ -1591,6 +1602,29 @@ L::LogicalPtr Resolver::resolveGeneratorTableReference(
                                    context_);
 }
 
+
+L::LogicalPtr Resolver::resolveJoinedTableReference(
+    const ParseJoinedTableReference &joined_table_reference,
+    NameResolver *name_resolver) {
+  const L::LogicalPtr left_table =
+      resolveTableReference(*joined_table_reference.left_table(), name_resolver);
+  const L::LogicalPtr right_table =
+      resolveTableReference(*joined_table_reference.right_table(), name_resolver);
+
+  ExpressionResolutionInfo resolution_info(*name_resolver,
+                                           "join clause" /* clause_name */,
+                                           nullptr /* select_list_info */);
+  const E::PredicatePtr on_predicate =
+      resolvePredicate(*joined_table_reference.join_predicate(), &resolution_info);
+
+  if (joined_table_reference.join_type() == ParseJoinedTableReference::JoinType::kInnerJoin) {
+    return L::Filter::Create(
+        L::MultiwayCartesianJoin::Create({ left_table, right_table }),
+        on_predicate);
+  }
+
+  THROW_SQL_ERROR_AT(&joined_table_reference) << "Outer joins are not supported yet";
+}
 
 void Resolver::resolveSelectClause(
     const ParseSelectionClause &parse_selection,

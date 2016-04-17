@@ -121,6 +121,23 @@ E::AttributeReferencePtr NameResolver::lookup(
   return attribute;
 }
 
+void NameResolver::merge(NameResolver *other) {
+  // Check whether there is any conflict name with the input name resolver.
+  for (const auto &scoped_rel_info : other->rel_name_to_rel_info_map_) {
+    const std::string &rel_name = scoped_rel_info.first;
+    if (rel_name_to_rel_info_map_.find(rel_name) != rel_name_to_rel_info_map_.end()) {
+      THROW_SQL_ERROR_AT(&scoped_rel_info.second->parse_relation_name)
+          << "Relation alias " << rel_name << " appears more than once";
+    }
+  }
+
+  for (std::unique_ptr<RelationInfo> &scoped_relation : other->relations_) {
+    relations_.emplace_back(scoped_relation.release());
+  }
+  rel_name_to_rel_info_map_.insert(other->rel_name_to_rel_info_map_.begin(),
+                                   other->rel_name_to_rel_info_map_.end());
+}
+
 std::vector<E::AttributeReferencePtr> NameResolver::getVisibleAttributeReferences() const {
   std::vector<E::AttributeReferencePtr> referenced_attributes;
   for (const std::unique_ptr<RelationInfo> &rel : relations_) {
