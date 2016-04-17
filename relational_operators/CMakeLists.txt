@@ -261,6 +261,8 @@ target_link_libraries(quickstep_relationaloperators_SelectOperator
                       glog
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_NUMAPlacementScheme
+                      quickstep_catalog_PartitionSchemeHeader
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_RelationalOperator
