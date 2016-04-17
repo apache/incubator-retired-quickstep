@@ -111,6 +111,14 @@ class TestDatabaseLoader {
   CatalogRelation* createTestRelation(bool allow_vchar);
 
   /**
+   * @brief Creates four relations a(w INT, x INT, y INT, z INT), b(w INT, x INT),
+   *        c(x INT, y INT) and d(y INT, z INT) for testing JOINs. The created
+   *        relations are stored inside \p catalog_database_.
+   * @warning This can only be called once.
+   */
+  void createJoinRelations();
+
+  /**
    * @brief Loads data into the test relation. The test relation has 25 tuples.
    *        Each tuple is
    *           ((-1)^x*x, x^2, sqrt(x), (-1)^x*x*sqrt(x),

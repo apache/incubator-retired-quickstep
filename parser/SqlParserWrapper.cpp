@@ -19,6 +19,7 @@
 
 #include <string>
 
+#include "parser/ParseJoinedTableReference.hpp"
 #include "parser/ParseStatement.hpp"
 #include "utility/Macros.hpp"
 #include "utility/SqlError.hpp"

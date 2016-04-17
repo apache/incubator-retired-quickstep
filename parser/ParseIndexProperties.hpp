@@ -52,6 +52,8 @@ class IndexProperties {
     kUnimplemented,
     kDuplicateKey,
     kInvalidKey,
+    kInvalidValue,
+    kTypeIsNotString,
     kSizeIsFloat,
     kSizeIsNegative,
     kNumHashesIsFloat,
@@ -173,6 +175,80 @@ class IndexProperties {
 };
 
 /**
+ * @brief Implementation of index properties for a BitWeaving Index (H or V).
+ */
+class BitWeavingIndexProperties : public IndexProperties {
+ public:
+  static const char *kBitWeavingType;  // is of type string.
+
+  /**
+   * @brief Constructor.
+   **/
+  BitWeavingIndexProperties()
+    : IndexProperties(new IndexSubBlockDescription()) {
+    // Default to BITWEAVING_V, custom properties can change this to H.
+    index_sub_block_description_->set_sub_block_type(IndexSubBlockDescription::BITWEAVING_V);
+  }
+
+  ~BitWeavingIndexProperties() override {
+  }
+
+  std::string getReasonForInvalidIndexDescription() const override {
+    switch (invalid_index_type_) {
+      case InvalidIndexType::kNone:
+        return "";
+      case InvalidIndexType::kDuplicateKey:  // Fall through.
+      case InvalidIndexType::kInvalidKey:
+        return "The only valid property for BitWeaving is TYPE.";
+      case InvalidIndexType::kTypeIsNotString:  // Fall through.
+      case InvalidIndexType::kInvalidValue:
+        return "The only valid values for TYPE are V or H.";
+      default:
+        return "Unknown reason";
+    }
+  }
+
+  bool addCustomProperties(const PtrList<ParseKeyValue> *key_value_list) override {
+    if (key_value_list->size() == 0u) {
+      // No properties specified.
+      return true;
+    } else if (key_value_list->size() == 1u) {
+      const ParseKeyValue &key_value = *key_value_list->begin();
+      if (key_value.getKeyValueType() != ParseKeyValue::KeyValueType::kStringString) {
+        setIndexDescriptionAsInvalid(InvalidIndexType::kTypeIsNotString, &key_value);
+        return false;
+      }
+      const std::string key = ToLower(key_value.key()->value());
+      const std::string value = ToLower(
+          static_cast<const ParseKeyStringValue&>(key_value).key()->value());
+      if (key.compare(kBitWeavingType) == 0) {
+        if (value.compare("h") == 0) {
+          index_sub_block_description_->set_sub_block_type(IndexSubBlockDescription::BITWEAVING_H);
+          return true;
+        } else if (value.compare("v") != 0) {
+          setIndexDescriptionAsInvalid(InvalidIndexType::kInvalidValue, &key_value);
+          return false;
+        } else {
+          // If V was specified, then we do nothing because it's set to V by default.
+          return true;
+        }
+      } else {
+        // Incorrect key specified.
+        setIndexDescriptionAsInvalid(InvalidIndexType::kInvalidKey, &key_value);
+        return false;
+      }
+    } else {
+      // More than one key. This must be an error.
+      invalid_index_type_ = InvalidIndexType::kDuplicateKey;
+      return false;
+    }
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(BitWeavingIndexProperties);
+};
+
+/**
  * @brief Implementation of index properties for Bloom Filter Index
  */
 class BloomFilterIndexProperties : public IndexProperties {
@@ -187,8 +263,7 @@ class BloomFilterIndexProperties : public IndexProperties {
    * @brief Constructor.
    **/
   BloomFilterIndexProperties()
-      : IndexProperties(new IndexSubBlockDescription(),
-                        InvalidIndexType::kUnimplemented) {
+      : IndexProperties(new IndexSubBlockDescription()) {
     index_sub_block_description_->set_sub_block_type(IndexSubBlockDescription::BLOOM_FILTER);
 
     // Initialize the valid_property_map_ for this index with appropriate type for each property.
@@ -341,6 +416,45 @@ class CSBTreeIndexProperties : public IndexProperties {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CSBTreeIndexProperties);
+};
+
+/**
+ * @brief Implementation of index properties for SMA Index.
+ */
+class SMAIndexProperties : public IndexProperties {
+ public:
+  /**
+   * @brief Constructor.
+   */
+  SMAIndexProperties() : IndexProperties(new IndexSubBlockDescription()) {
+    index_sub_block_description_->set_sub_block_type(IndexSubBlockDescription::SMA);
+  }
+
+  ~SMAIndexProperties() override {
+  }
+
+  std::string getReasonForInvalidIndexDescription() const override {
+    switch (invalid_index_type_) {
+      case InvalidIndexType::kNone:
+        return "";
+      case InvalidIndexType::kInvalidKey:
+        return "SMA index does not define index properties";
+      default:
+        return "Unknown reason";
+    }
+  }
+
+  bool addCustomProperties(const PtrList<ParseKeyValue> *key_value_list) override {
+    // SMA does not define any index properties, so calling this function
+    // will invalidate the index.
+    invalid_index_type_ = InvalidIndexType::kInvalidKey;
+    invalid_property_node_ = nullptr;
+    index_sub_block_description_.reset();
+    return false;
+  }
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(SMAIndexProperties);
 };
 
 /**

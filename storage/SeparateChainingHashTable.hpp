@@ -145,6 +145,9 @@ class SeparateChainingHashTable : public HashTable<ValueT,
                                    const ValueT **value,
                                    std::size_t *entry_num) const override;
 
+  bool hasKey(const TypedValue &key) const override;
+  bool hasCompositeKey(const std::vector<TypedValue> &key) const override;
+
   void resize(const std::size_t extra_buckets,
               const std::size_t extra_variable_storage,
               const std::size_t retry_num = 0) override;
@@ -1046,6 +1049,57 @@ bool SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, 
   }
 
   // Reached the end of the chain.
+  return false;
+}
+
+template <typename ValueT,
+          bool resizable,
+          bool serializable,
+          bool force_key_copy,
+          bool allow_duplicate_keys>
+bool SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
+    ::hasKey(const TypedValue &key) const {
+  DEBUG_ASSERT(this->key_types_.size() == 1);
+  DEBUG_ASSERT(key.isPlausibleInstanceOf(this->key_types_.front()->getSignature()));
+
+  const std::size_t hash_code = key.getHash();
+  std::size_t bucket_ref = slots_[hash_code % header_->num_slots].load(std::memory_order_relaxed);
+  while (bucket_ref != 0) {
+    DEBUG_ASSERT(bucket_ref != std::numeric_limits<std::size_t>::max());
+    const char *bucket = static_cast<const char*>(buckets_) + (bucket_ref - 1) * bucket_size_;
+    const std::size_t bucket_hash = *reinterpret_cast<const std::size_t*>(
+        bucket + sizeof(std::atomic<std::size_t>));
+    if ((bucket_hash == hash_code) && key_manager_.scalarKeyCollisionCheck(key, bucket)) {
+      // Find a match.
+      return true;
+    }
+    bucket_ref = reinterpret_cast<const std::atomic<std::size_t>*>(bucket)->load(std::memory_order_relaxed);
+  }
+  return false;
+}
+
+template <typename ValueT,
+          bool resizable,
+          bool serializable,
+          bool force_key_copy,
+          bool allow_duplicate_keys>
+bool SeparateChainingHashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
+    ::hasCompositeKey(const std::vector<TypedValue> &key) const {
+  DEBUG_ASSERT(this->key_types_.size() == key.size());
+
+  const std::size_t hash_code = this->hashCompositeKey(key);
+  std::size_t bucket_ref = slots_[hash_code % header_->num_slots].load(std::memory_order_relaxed);
+  while (bucket_ref != 0) {
+    DEBUG_ASSERT(bucket_ref != std::numeric_limits<std::size_t>::max());
+    const char *bucket = static_cast<const char*>(buckets_) + (bucket_ref - 1) * bucket_size_;
+    const std::size_t bucket_hash = *reinterpret_cast<const std::size_t*>(
+        bucket + sizeof(std::atomic<std::size_t>));
+    if ((bucket_hash == hash_code) && key_manager_.compositeKeyCollisionCheck(key, bucket)) {
+      // Find a match.
+      return true;
+    }
+    bucket_ref = reinterpret_cast<const std::atomic<std::size_t>*>(bucket)->load(std::memory_order_relaxed);
+  }
   return false;
 }
 

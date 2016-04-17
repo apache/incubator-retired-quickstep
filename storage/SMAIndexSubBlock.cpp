@@ -1,5 +1,7 @@
 /**
  *   Copyright 2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -32,6 +34,7 @@
 #include "expressions/scalar/Scalar.hpp"
 #include "expressions/scalar/ScalarAttribute.hpp"
 #include "storage/StorageBlockLayout.pb.h"
+#include "storage/StorageConstants.hpp"
 #include "storage/SubBlockTypeRegistry.hpp"
 #include "storage/TupleIdSequence.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
@@ -486,6 +489,12 @@ std::size_t SMAIndexSubBlock::EstimateBytesPerTuple(
   // would be to inform the storage subblock that this index uses space w.r.t.
   // # of attributes being indexed, not tuples.
   return 1;
+}
+
+std::size_t SMAIndexSubBlock::EstimateBytesPerBlock(
+    const CatalogRelationSchema &relation,
+    const IndexSubBlockDescription &description) {
+  return kZeroSize;
 }
 
 bool SMAIndexSubBlock::bulkAddEntries(const TupleIdSequence &tuples) {

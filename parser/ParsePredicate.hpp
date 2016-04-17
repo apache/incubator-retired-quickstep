@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -49,7 +51,9 @@ class ParsePredicate : public ParseTreeNode {
     kNegation,
     kConjunction,
     kDisjunction,
-    kExists
+    kExists,
+    kInTableQuery,
+    kInValueList
   };
 
   /**
@@ -380,6 +384,66 @@ class ParsePredicateDisjunction : public ParsePredicateWithList {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ParsePredicateDisjunction);
+};
+
+
+/**
+ * @brief Parsed representation of IN with a value list.
+ */
+class ParsePredicateInValueList : public ParsePredicate {
+ public:
+  /**
+   * @brief Constructor.
+   *
+   * @param line_number The line number of the token "IN" in the statement.
+   * @param column_number The column number of the token "IN" in the statement.
+   * @param test_expression The expression to be compared with a value list.
+   * @param value_list The list of values to match with test_expression.
+   */
+  ParsePredicateInValueList(const int line_number,
+                            const int column_number,
+                            ParseExpression *test_expression,
+                            PtrList<ParseExpression> *value_list)
+      : ParsePredicate(line_number, column_number),
+        test_expression_(test_expression),
+        value_list_(value_list) {}
+
+  ParsePredicateType getParsePredicateType() const override {
+    return kInValueList;
+  }
+
+  std::string getName() const override {
+    return "InValueList";
+  }
+
+  /**
+   * @return  The expression to be compared with a value list.
+   */
+  const ParseExpression* test_expression() const {
+    return test_expression_.get();
+  }
+
+  /**
+   * @return The list of values to match with test_expression.
+   */
+  const PtrList<ParseExpression>* value_list() const {
+    return value_list_.get();
+  }
+
+ protected:
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<const ParseTreeNode*> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override;
+
+ private:
+  std::unique_ptr<ParseExpression> test_expression_;
+  std::unique_ptr<PtrList<ParseExpression>> value_list_;
+
+  DISALLOW_COPY_AND_ASSIGN(ParsePredicateInValueList);
 };
 
 /** @} */

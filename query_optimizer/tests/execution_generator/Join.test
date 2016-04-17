@@ -1,0 +1,132 @@
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+# Prepare testing relations
+CREATE TABLE a(w INT, x LONG, y DOUBLE, z VARCHAR(16));
+CREATE TABLE b(w INT, x LONG);
+CREATE TABLE c(x LONG, y DOUBLE);
+CREATE TABLE d(y DOUBLE, z VARCHAR(16));
+
+INSERT INTO a VALUES(0, 0, 0, 'C0');
+INSERT INTO a VALUES(1, 10, 100, 'C1');
+INSERT INTO a VALUES(2, 20, 200, 'C2');
+INSERT INTO a VALUES(3, 30, 300, 'C3');
+INSERT INTO a VALUES(4, 40, 400, 'C4');
+INSERT INTO a VALUES(5, 50, 500, 'C5');
+INSERT INTO a VALUES(6, 60, 600, 'C6');
+INSERT INTO a VALUES(7, 70, 700, 'C7');
+INSERT INTO a VALUES(8, 80, 800, 'C8');
+INSERT INTO a VALUES(9, 90, 900, 'C9');
+INSERT INTO a VALUES(10, 100, 1000, 'C10');
+INSERT INTO a VALUES(11, 110, 1100, 'C11');
+INSERT INTO a VALUES(12, 120, 1200, 'C12');
+INSERT INTO a VALUES(13, 130, 1300, 'C13');
+INSERT INTO a VALUES(14, 140, 1400, 'C14');
+INSERT INTO a VALUES(15, 150, 1500, 'C15');
+INSERT INTO a VALUES(16, 160, 1600, 'C16');
+INSERT INTO a VALUES(17, 170, 1700, 'C17');
+INSERT INTO a VALUES(18, 180, 1800, 'C18');
+INSERT INTO a VALUES(19, 190, 1900, 'C19');
+
+INSERT INTO b
+SELECT w, x + (w/2)%2
+FROM a
+WHERE w % 2 = 0;
+
+INSERT INTO c
+SELECT x, y + (x/3)%3-1
+FROM a
+WHERE x % 3 = 0;
+
+INSERT INTO d
+SELECT y, z
+FROM a;
+--
+==
+
+
+# Join queries
+SELECT a.w, b.x, c.y, d.z
+FROM a JOIN b ON a.w = b.w
+       JOIN c ON a.x = c.x
+       JOIN d ON a.y = d.y;
+--
++-----------+--------------------+------------------------+----------------+
+|w          |x                   |y                       |z               |
++-----------+--------------------+------------------------+----------------+
+|          0|                   0|                      -1|              C0|
+|          6|                  61|                     601|              C6|
+|         12|                 120|                    1200|             C12|
+|         18|                 181|                    1799|             C18|
++-----------+--------------------+------------------------+----------------+
+==
+
+SELECT a.w, b.x, c.y
+FROM a JOIN b ON (a.w = b.w OR a.x > b.x)
+       JOIN c ON (a.x = c.x AND a.y > c.y)
+       JOIN d ON (a.y = d.y OR a.z > d.z)
+GROUP BY a.w, b.x, c.y
+ORDER BY a.w, b.x, c.y;
+--
++-----------+--------------------+------------------------+
+|w          |x                   |y                       |
++-----------+--------------------+------------------------+
+|          0|                   0|                      -1|
+|          9|                   0|                     899|
+|          9|                  21|                     899|
+|          9|                  40|                     899|
+|          9|                  61|                     899|
+|          9|                  80|                     899|
+|         18|                   0|                    1799|
+|         18|                  21|                    1799|
+|         18|                  40|                    1799|
+|         18|                  61|                    1799|
+|         18|                  80|                    1799|
+|         18|                 101|                    1799|
+|         18|                 120|                    1799|
+|         18|                 141|                    1799|
+|         18|                 160|                    1799|
+|         18|                 181|                    1799|
++-----------+--------------------+------------------------+
+==
+
+SELECT a1.w, b1.x, c1.y, d1.z
+FROM a AS a1 JOIN b AS b1 ON a1.w = b1.w
+             JOIN c AS c1 ON a1.x = c1.x
+             JOIN d AS d1 ON a1.y = d1.y
+WHERE a1.x = b1.x
+  AND a1.y = c1.y
+  AND a1.z = d1.z;
+--
++-----------+--------------------+------------------------+----------------+
+|w          |x                   |y                       |z               |
++-----------+--------------------+------------------------+----------------+
+|         12|                 120|                    1200|             C12|
++-----------+--------------------+------------------------+----------------+
+==
+
+SELECT a1.w, b1.x, c1.y, d1.z
+FROM a AS a1 JOIN b AS b1 ON a1.x <> b1.x
+             JOIN c AS c1 ON a1.y <> c1.y
+             JOIN d AS d1 ON a1.z = d1.z
+WHERE a1.w = b1.w
+  AND a1.x = c1.x;
+--
++-----------+--------------------+------------------------+----------------+
+|w          |x                   |y                       |z               |
++-----------+--------------------+------------------------+----------------+
+|          6|                  61|                     601|              C6|
+|         18|                 181|                    1799|             C18|
++-----------+--------------------+------------------------+----------------+

@@ -20,9 +20,11 @@
 
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/ExpressionType.hpp"
 #include "query_optimizer/expressions/Scalar.hpp"
@@ -34,6 +36,8 @@
 
 namespace quickstep {
 
+class CatalogAttribute;
+class Scalar;
 class Type;
 
 namespace optimizer {
@@ -81,7 +85,7 @@ class SubqueryExpression : public Scalar {
   }
 
   ::quickstep::Scalar* concretize(
-      const std::unordered_map<ExprId, const CatalogAttribute*>& substitution_map) const override;
+      const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const override;
 
   /**
    * @brief Creates a subquery expression.
@@ -90,7 +94,7 @@ class SubqueryExpression : public Scalar {
    * @param subquery The logical subquery node.
    * @return An immutable SubqueryExpression.
    */
-  static SubqueryExpressionPtr Create(const logical::LogicalPtr& subquery) {
+  static SubqueryExpressionPtr Create(const logical::LogicalPtr &subquery) {
     return SubqueryExpressionPtr(new SubqueryExpression(subquery));
   }
 
@@ -104,7 +108,7 @@ class SubqueryExpression : public Scalar {
       std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const override;
 
  private:
-  explicit SubqueryExpression(const logical::LogicalPtr& subquery)
+  explicit SubqueryExpression(const logical::LogicalPtr &subquery)
       : subquery_(subquery),
         output_attribute_(subquery->getOutputAttributes()[0]) {
     DCHECK(!subquery->getOutputAttributes().empty());

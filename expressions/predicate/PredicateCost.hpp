@@ -35,12 +35,14 @@ namespace predicate_cost {
 // preference for different predicate-evaluation methods. In the future, we may
 // want to use statistics to get more accurate cost estimation.
 static constexpr predicate_cost_t kConstantTime = 0;
-static constexpr predicate_cost_t kBinarySearch = 1;
-static constexpr predicate_cost_t kTreeSearch = 2;
-static constexpr predicate_cost_t kCompressedColumnScan = 3;
-static constexpr predicate_cost_t kColumnScan = 4;
-static constexpr predicate_cost_t kCompressedRowScan = 5;
-static constexpr predicate_cost_t kRowScan = 6;
+static constexpr predicate_cost_t kBitWeavingVScan = 1;
+static constexpr predicate_cost_t kBitWeavingHScan = 2;
+static constexpr predicate_cost_t kBinarySearch = 3;
+static constexpr predicate_cost_t kTreeSearch = 4;
+static constexpr predicate_cost_t kCompressedColumnScan = 5;
+static constexpr predicate_cost_t kColumnScan = 6;
+static constexpr predicate_cost_t kCompressedRowScan = 7;
+static constexpr predicate_cost_t kRowScan = 8;
 static constexpr predicate_cost_t kInfinite = std::numeric_limits<predicate_cost_t>::max();
 
 }  // namespace predicate_cost

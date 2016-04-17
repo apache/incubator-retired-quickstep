@@ -51,7 +51,7 @@ class NameResolver {
    * @brief Constructor.
    *
    * @param parent_resolver The NameResolver inherited from the outer query.
-   *                        NULL if there is no outer query.
+   *        NULL if there is no outer query.
    */
   explicit NameResolver(const NameResolver *parent_resolver = nullptr)
       : parent_resolver_(parent_resolver) {}
@@ -84,6 +84,15 @@ class NameResolver {
   expressions::AttributeReferencePtr lookup(
       const ParseString *parse_attr_node,
       const ParseString *parse_rel_node) const;
+
+  /**
+   * @brief Combines the name scopes in the current name resolver and in \p other.
+   *        The ownership of <relations_> in \p other will be transferred to the
+   *        current name resolver.
+   *
+   * @param other The name resolver to be merged into this resolver.
+   */
+  void merge(NameResolver *other);
 
   /**
    * @return All AttributeReferences in the current name scope.

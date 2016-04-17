@@ -42,12 +42,16 @@ EXCLUDED_TOP_LEVEL_DIRS = ["build", "third_party"]
 IGNORED_DEPENDENCIES = frozenset(
     ["quickstep_threading_WinThreadsAPI",
      "quickstep_utility_textbasedtest_TextBasedTest",
-     "quickstep_utility_textbasedtest_TextBasedTestDriver"])
+     "quickstep_utility_textbasedtest_TextBasedTestDriver",
+     "quickstep_storage_bitweaving_BitWeavingHIndexSubBlock",
+     "quickstep_storage_bitweaving_BitWeavingIndexSubBlock",
+     "quickstep_storage_bitweaving_BitWeavingVIndexSubBlock"])
 
 # States when scanning a CMakeLists.txt file.
 CMAKE_SCANNING_NONE = 0
 CMAKE_SCANNING_LIBRARY = 1
 CMAKE_SCANNING_TARGET_LINK_LIBRARIES = 2
+CMAKE_SCANNING_IGNORE = 3
 
 def convert_path_to_targetname(include_path):
     """Convert an included header file's path to a quickstep library target in
@@ -315,10 +319,26 @@ def process_cmakelists_file(cmakelists_filename, qs_module_dirs):
     skipped_targets = set()
     generated_targets = set()
     scan_state = CMAKE_SCANNING_NONE
+    previous_state = CMAKE_SCANNING_NONE
     stitched_string = ""
     with open(cmakelists_filename, "r") as cmakelists_file:
         for line in cmakelists_file:
-            if scan_state == CMAKE_SCANNING_NONE:
+            if ("CMAKE_VALIDATE_IGNORE_BEGIN" in line and
+                scan_state != CMAKE_SCANNING_IGNORE):
+                previous_state = scan_state
+                scan_state = CMAKE_SCANNING_IGNORE
+                continue
+
+            if scan_state == CMAKE_SCANNING_IGNORE:
+                if "CMAKE_VALIDATE_IGNORE_END" in line:
+                    scan_state = previous_state
+                elif "CMAKE_VALIDATE_IGNORE_BEGIN" in line:
+                    print "Nested IGNORE_BEGIN directives found in: "\
+                        + cmakelists_filename + ", exiting"
+                    exit(-1)
+                else:
+                    continue
+            elif scan_state == CMAKE_SCANNING_NONE:
                 add_library_pos = line.find("add_library(")
                 if add_library_pos != -1:
                     scan_state = CMAKE_SCANNING_LIBRARY

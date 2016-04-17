@@ -28,6 +28,8 @@ add_library(quickstep_queryoptimizer_expressions_Expression ../../empty_src.cpp 
 add_library(quickstep_queryoptimizer_expressions_ExpressionType ../../empty_src.cpp ExpressionType.hpp)
 add_library(quickstep_queryoptimizer_expressions_ExprId ../../empty_src.cpp ExprId.hpp)
 add_library(quickstep_queryoptimizer_expressions_ExpressionUtil ExpressionUtil.cpp ExpressionUtil.hpp)
+add_library(quickstep_queryoptimizer_expressions_InTableQuery InTableQuery.cpp InTableQuery.hpp)
+add_library(quickstep_queryoptimizer_expressions_InValueList InValueList.cpp InValueList.hpp)
 add_library(quickstep_queryoptimizer_expressions_LogicalAnd LogicalAnd.cpp LogicalAnd.hpp)
 add_library(quickstep_queryoptimizer_expressions_LogicalNot LogicalNot.cpp LogicalNot.hpp)
 add_library(quickstep_queryoptimizer_expressions_LogicalOr LogicalOr.cpp LogicalOr.hpp)
@@ -120,6 +122,7 @@ target_link_libraries(quickstep_queryoptimizer_expressions_ComparisonExpression
 target_link_libraries(quickstep_queryoptimizer_expressions_Exists
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_Expression
                       quickstep_queryoptimizer_expressions_ExpressionType
                       quickstep_queryoptimizer_expressions_Predicate
@@ -137,6 +140,31 @@ target_link_libraries(quickstep_queryoptimizer_expressions_ExpressionUtil
                       quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_NamedExpression
                       quickstep_queryoptimizer_expressions_PatternMatcher)
+target_link_libraries(quickstep_queryoptimizer_expressions_InTableQuery
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExprId
+                      quickstep_queryoptimizer_expressions_Expression
+                      quickstep_queryoptimizer_expressions_ExpressionType
+                      quickstep_queryoptimizer_expressions_Predicate
+                      quickstep_queryoptimizer_expressions_Scalar
+                      quickstep_queryoptimizer_expressions_SubqueryExpression
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_expressions_InValueList
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_expressions_predicate_DisjunctionPredicate
+                      quickstep_expressions_predicate_Predicate
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ComparisonExpression
+                      quickstep_queryoptimizer_expressions_ExprId
+                      quickstep_queryoptimizer_expressions_Expression
+                      quickstep_queryoptimizer_expressions_ExpressionType
+                      quickstep_queryoptimizer_expressions_Predicate
+                      quickstep_queryoptimizer_expressions_Scalar
+                      quickstep_types_operations_comparisons_ComparisonFactory
+                      quickstep_types_operations_comparisons_ComparisonID
+                      quickstep_utility_Cast
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_expressions_LogicalAnd
                       glog
                       quickstep_expressions_predicate_ConjunctionPredicate
@@ -254,6 +282,7 @@ target_link_libraries(quickstep_queryoptimizer_expressions_SubqueryExpression
                       glog
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_Expression
                       quickstep_queryoptimizer_expressions_ExpressionType
                       quickstep_queryoptimizer_expressions_Scalar
@@ -287,6 +316,8 @@ target_link_libraries(quickstep_queryoptimizer_expressions
                       quickstep_queryoptimizer_expressions_ExpressionType
                       quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_expressions_InTableQuery
+                      quickstep_queryoptimizer_expressions_InValueList
                       quickstep_queryoptimizer_expressions_LogicalAnd
                       quickstep_queryoptimizer_expressions_LogicalNot
                       quickstep_queryoptimizer_expressions_LogicalOr

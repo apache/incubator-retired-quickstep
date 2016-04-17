@@ -720,3 +720,179 @@ TopLevelPlan
 |   +-AttributeReference[id=1,name=i,relation=,type=Int]
 +-output_attributes=
   +-AttributeReference[id=1,name=i,relation=,type=Int]
+==
+
+# IN predicate
+SELECT char_col
+FROM test
+WHERE int_col IN (1, 2, 3);
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-filter_predicate=InValueList
+| |   +-test_expression=AttributeReference[id=0,name=int_col,relation=test,
+| |   | type=Int NULL]
+| |   +-match_expressions=
+| |     +-Literal[value=1,type=Int]
+| |     +-Literal[value=2,type=Int]
+| |     +-Literal[value=3,type=Int]
+| +-project_list=
+|   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
++-output_attributes=
+  +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+==
+
+SELECT char_col
+FROM test
+WHERE int_col*2 NOT IN (
+        long_col+1,
+        CASE WHEN float_col > 0 THEN 1
+             ELSE double_col END);
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-filter_predicate=NOT
+| |   +-InValueList
+| |     +-test_expression=Multiply
+| |     | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |     | +-Literal[value=2,type=Int]
+| |     +-match_expressions=
+| |       +-Add
+| |       | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |       | +-Literal[value=1,type=Int]
+| |       +-SearchedCase
+| |         +-else_result_expression=AttributeReference[id=3,name=double_col,
+| |         | relation=test,type=Double NULL]
+| |         +-condition_perdicates=
+| |         | +-Greater
+| |         |   +-AttributeReference[id=2,name=float_col,relation=test,
+| |         |   | type=Float]
+| |         |   +-Literal[value=0,type=Int]
+| |         +-conditional_result_expressions=
+| |           +-Cast[target_type=Double NULL]
+| |             +-operand=Literal[value=1,type=Int]
+| +-project_list=
+|   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
++-output_attributes=
+  +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+==
+
+SELECT char_col
+FROM test
+WHERE int_col IN (
+  SELECT SUM(long_col) - 10
+  FROM test
+  GROUP BY vchar_col
+);
+--
+TopLevelPlan
++-plan=Project
+| +-input=HashLeftSemiJoin
+| | +-left=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-right=Project
+| | | +-input=Aggregate
+| | | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | | +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
+| | | | | +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
+| | | | | +-AttributeReference[id=8,name=float_col,relation=test,type=Float]
+| | | | | +-AttributeReference[id=9,name=double_col,relation=test,
+| | | | | | type=Double NULL]
+| | | | | +-AttributeReference[id=10,name=char_col,relation=test,type=Char(20)]
+| | | | | +-AttributeReference[id=11,name=vchar_col,relation=test,
+| | | | |   type=VarChar(20) NULL]
+| | | | +-grouping_expressions=
+| | | | | +-AttributeReference[id=11,name=vchar_col,relation=test,
+| | | | |   type=VarChar(20) NULL]
+| | | | +-aggregate_expressions=
+| | | |   +-Alias[id=12,name=,alias=$aggregate0,relation=$aggregate,
+| | | |     type=Long NULL]
+| | | |     +-AggregateFunction[function=SUM]
+| | | |       +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
+| | | +-project_list=
+| | |   +-Alias[id=13,name=,alias=(SUM(long_col)-10),relation=,type=Long NULL]
+| | |     +-Subtract
+| | |       +-AttributeReference[id=12,name=,alias=$aggregate0,
+| | |       | relation=$aggregate,type=Long NULL]
+| | |       +-Literal[value=10,type=Int]
+| | +-left_join_attributes=
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-right_join_attributes=
+| |   +-AttributeReference[id=13,name=,alias=(SUM(long_col)-10),relation=,
+| |     type=Long NULL]
+| +-project_list=
+|   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
++-output_attributes=
+  +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+==
+
+SELECT char_col
+FROM test
+WHERE int_col NOT IN (
+  SELECT long_col
+  FROM test
+  WHERE long_col IN (1, 2)
+);
+--
+TopLevelPlan
++-plan=Project
+| +-input=HashLeftAntiJoin
+| | +-left=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-right=Project
+| | | +-input=Filter
+| | | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | | +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
+| | | | | +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
+| | | | | +-AttributeReference[id=8,name=float_col,relation=test,type=Float]
+| | | | | +-AttributeReference[id=9,name=double_col,relation=test,
+| | | | | | type=Double NULL]
+| | | | | +-AttributeReference[id=10,name=char_col,relation=test,type=Char(20)]
+| | | | | +-AttributeReference[id=11,name=vchar_col,relation=test,
+| | | | |   type=VarChar(20) NULL]
+| | | | +-filter_predicate=InValueList
+| | | |   +-test_expression=AttributeReference[id=7,name=long_col,relation=test,
+| | | |   | type=Long]
+| | | |   +-match_expressions=
+| | | |     +-Literal[value=1,type=Long]
+| | | |     +-Literal[value=2,type=Long]
+| | | +-project_list=
+| | |   +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
+| | +-left_join_attributes=
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-right_join_attributes=
+| |   +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
+| +-project_list=
+|   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
++-output_attributes=
+  +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]

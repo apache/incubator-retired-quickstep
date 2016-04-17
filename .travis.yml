@@ -3,33 +3,36 @@
 # speed up compilation in release build. Also, jobs can only use upto 20GB of
 # disk space. Hence, we minimize the amount of debug symbol using -g0 (DEBUG
 # builds were taking > 20GB of space with clang).
+# Also, to reduce the total CI time, we explicitly run the most time-consuming
+# build first, using gcc in debug build with joinwithbinaryexpressions.
 
 language: cpp
 
 compiler:
-  - clang
   - gcc
+  - clang
 
 env:
-  - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=none
-  - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=none
   - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
   - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
+  - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=none
+  - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=none
 
 install:
-  - if [ "$VECTOR_COPY_ELISION_LEVEL" = "joinwithbinaryexpressions" ] && [ "$CC" = "gcc" ]; then
+  - if [ "$VECTOR_COPY_ELISION_LEVEL" = "joinwithbinaryexpressions" ] && [ "$CC" = "gcc" ] && [ "$BUILD_TYPE" = "Debug" ]; then
       export MAKE_JOBS=1;
     else
       export MAKE_JOBS=2;
     fi
   - export TEST_JOBS=2;
   - if [ "$CC" = "gcc" ]; then
-      export CC="gcc-4.9";
-      export CXX="g++-4.9";
+      export CC="gcc-5";
+      export CXX="g++-5";
     elif [ "$CC" = "clang" ]; then
       export CC="clang-3.7";
       export CXX="clang++-3.7";
     fi
+  - export CLINKER=`which gold`
   - export DEBUG_FLAGS="-g0";
   - export RELEASE_FLAGS="-O0 -DNDEBUG";
   - export LINKER_FLAGS="-s"
@@ -37,6 +40,7 @@ install:
 before_script:
   - $CC --version
   - $CXX --version
+  - $CLINKER --version
   - (cd build &&
      cmake -D CMAKE_BUILD_TYPE=$BUILD_TYPE
            -D CMAKE_C_FLAGS_DEBUG="$DEBUG_FLAGS"
@@ -46,6 +50,7 @@ before_script:
            -D CMAKE_EXE_LINKER_FLAGS="$LINKER_FLAGS"
            -D CMAKE_C_COMPILER=$CC
            -D CMAKE_CXX_COMPILER=$CXX
+           -D CMAKE_LINKER=$CLINKER
            -D USE_TCMALLOC=0
            -D VECTOR_COPY_ELISION_LEVEL=$VECTOR_COPY_ELISION_LEVEL ..)
 
@@ -72,11 +77,13 @@ addons:
       - ubuntu-toolchain-r-test
       - llvm-toolchain-precise-3.7
     packages:
-      - gcc-4.9
-      - g++-4.9
+      - gcc-5
+      - g++-5
       - clang-3.7
+      - binutils-gold
       - libprotobuf-dev
       - protobuf-compiler
+      - libgtest-dev
       - python-networkx
       - libnuma-dev
 

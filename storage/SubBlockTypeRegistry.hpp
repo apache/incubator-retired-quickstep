@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -54,7 +56,7 @@ class CatalogRelationSchema;
  *        QUICKSTEP_DECLARE_SUB_BLOCK_TYPE_REGISTERED() macro in the quickstep
  *        namespace like so:
  *        QUICKSTEP_DECLARE_SUB_BLOCK_TYPE_REGISTERED(PackedRowStoreTupleStorageSubBlock);
- * 
+ *
  * Registration of IndexSubBlock implementations works the same way, except the
  * first macro used should be QUICKSTEP_REGISTER_INDEX() instead of
  * QUICKSTEP_REGISTER_TUPLE_STORE().
@@ -92,6 +94,10 @@ class SubBlockTypeRegistry {
       const CatalogRelationSchema&,
       const IndexSubBlockDescription&);
 
+  typedef std::size_t (*IndexEstimateBytesPerBlockFunction)(
+      const CatalogRelationSchema&,
+      const IndexSubBlockDescription&);
+
   static bool RegisterTupleStoreDescriptionIsValidFunction(
       const TupleStorageSubBlockDescription::TupleStorageSubBlockType sub_block_type,
       TupleStoreDescriptionIsValidFunction function) {
@@ -124,15 +130,31 @@ class SubBlockTypeRegistry {
     return true;
   }
 
+  static bool RegisterIndexEstimateBytesPerBlockFunction(
+      const IndexSubBlockDescription::IndexSubBlockType sub_block_type,
+      IndexEstimateBytesPerBlockFunction function) {
+    Instance()->index_estimate_bytes_per_block_functions_[
+      static_cast<IndexTypeIntegral>(sub_block_type)] = function;
+    return true;
+  }
+
   static bool LayoutDescriptionIsValid(
       const CatalogRelationSchema &relation,
       const StorageBlockLayoutDescription &description);
+
+  static bool IndexDescriptionIsValid(
+      const CatalogRelationSchema &relation,
+      const IndexSubBlockDescription &description);
 
   static std::size_t EstimateBytesPerTupleForTupleStore(
       const CatalogRelationSchema &relation,
       const TupleStorageSubBlockDescription &description);
 
   static std::size_t EstimateBytesPerTupleForIndex(
+      const CatalogRelationSchema &relation,
+      const IndexSubBlockDescription &description);
+
+  static std::size_t EstimateBytesPerBlockForIndex(
       const CatalogRelationSchema &relation,
       const IndexSubBlockDescription &description);
 
@@ -152,6 +174,10 @@ class SubBlockTypeRegistry {
   std::unordered_map<IndexTypeIntegral,
                      IndexEstimateBytesPerTupleFunction>
       index_estimate_bytes_per_tuple_functions_;
+
+  std::unordered_map<IndexTypeIntegral,
+                     IndexEstimateBytesPerTupleFunction>
+      index_estimate_bytes_per_block_functions_;
 
   SubBlockTypeRegistry() {
   }
@@ -184,19 +210,23 @@ namespace registry {                                                            
 }  /* namespace registry */                                                                \
 using registry::classname##_registered
 
-
 #define QUICKSTEP_REGISTER_INDEX(classname, proto_enum_case)                          \
 namespace registry {                                                                  \
   static const bool classname##_desc_registered                                       \
       = quickstep::SubBlockTypeRegistry::RegisterIndexDescriptionIsValidFunction(     \
           IndexSubBlockDescription::proto_enum_case,                                  \
           &classname::DescriptionIsValid);                                            \
-  static const bool classname##_size_registered                                       \
+  static const bool classname##_size_per_tuple_registered                             \
       = quickstep::SubBlockTypeRegistry::RegisterIndexEstimateBytesPerTupleFunction(  \
           IndexSubBlockDescription::proto_enum_case,                                  \
           &classname::EstimateBytesPerTuple);                                         \
+  static const bool classname##_size_per_block_registered                             \
+      = quickstep::SubBlockTypeRegistry::RegisterIndexEstimateBytesPerBlockFunction(  \
+          IndexSubBlockDescription::proto_enum_case,                                  \
+          &classname::EstimateBytesPerBlock);                                         \
   const bool classname##_registered                                                   \
-      = classname##_desc_registered && classname##_size_registered;                   \
+      = classname##_desc_registered && classname##_size_per_tuple_registered          \
+          && classname##_size_per_block_registered;                                   \
   bool classname##_check_registered() { return classname##_registered; }              \
 }  /* namespace registry */                                                           \
 using registry::classname##_registered

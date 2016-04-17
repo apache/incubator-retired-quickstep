@@ -41,6 +41,7 @@ class OptimizerContext;
 namespace expressions {
 
 class Exists;
+class InTableQuery;
 
 }
 
@@ -179,7 +180,21 @@ class UnnestSubqueriesForExpession : public Rule<expressions::Expression> {
       const bool allow_exists_or_in,
       const expressions::ExpressionPtr &node);
 
+  /**
+   * @brief Transform an EXIST predicate into a HashLeftSemiJoin and store the
+   *        transformed results into correlated_query_info_vec_
+   *
+   * @param exists_predicate The EXISTS predicate to be transformed.
+   */
   void transformExists(const expressions::Exists &exists_predicate);
+
+  /**
+   * @brief Transform an IN predicate into a HashLeftSemiJoin and store the
+   *        transformed results into correlated_query_info_vec_
+   *
+   * @param in_table_query The IN predicate to be transformed.
+   */
+  void transformInTableQuery(const expressions::InTableQuery &in_table_query);
 
   OptimizerContext *context_;
   std::unordered_map<expressions::ExprId, logical::LogicalPtr> *uncorrelated_subqueries_;

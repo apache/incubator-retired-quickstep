@@ -154,6 +154,7 @@ QS_PROTOBUF_GENERATE_CPP(quickstep_utility_SortConfiguration_proto_srcs
 add_library(quickstep_utility_Alignment ../empty_src.cpp Alignment.hpp)
 add_library(quickstep_utility_BitManipulation ../empty_src.cpp BitManipulation.hpp)
 add_library(quickstep_utility_BitVector ../empty_src.cpp BitVector.hpp)
+add_library(quickstep_utility_BloomFilter ../empty_src.cpp BloomFilter.hpp)
 add_library(quickstep_utility_CalculateInstalledMemory CalculateInstalledMemory.cpp CalculateInstalledMemory.hpp)
 add_library(quickstep_utility_Cast ../empty_src.cpp Cast.hpp)
 add_library(quickstep_utility_CheckSnprintf ../empty_src.cpp CheckSnprintf.hpp)
@@ -198,6 +199,9 @@ endif()
 target_link_libraries(quickstep_utility_BitVector
                       glog
                       quickstep_utility_BitManipulation
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_utility_BloomFilter
+                      glog
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_utility_CalculateInstalledMemory
                       glog)
@@ -263,6 +267,7 @@ target_link_libraries(quickstep_utility
                       quickstep_utility_Alignment
                       quickstep_utility_BitManipulation
                       quickstep_utility_BitVector
+                      quickstep_utility_BloomFilter
                       quickstep_utility_CalculateInstalledMemory
                       quickstep_utility_Cast
                       quickstep_utility_CheckSnprintf
@@ -297,6 +302,14 @@ target_link_libraries(BitVector_unittest
                       quickstep_utility_BitVector
                       ${LIBS})
 add_test(BitVector_unittest BitVector_unittest)
+
+add_executable(BloomFilter_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/BloomFilter_unittest.cpp")
+target_link_libraries(BloomFilter_unittest
+                      gtest
+                      gtest_main
+                      quickstep_utility_BloomFilter
+                      ${LIBS})
+add_test(BloomFilter_unittest BloomFilter_unittest)
 
 add_executable(CalculateInstalledMemory_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/CalculateInstalledMemory_unittest.cpp")
 target_link_libraries(CalculateInstalledMemory_unittest

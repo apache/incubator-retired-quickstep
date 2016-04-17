@@ -118,6 +118,7 @@ target_link_libraries(quickstep_queryoptimizer_rules_UnnestSubqueries
                       quickstep_queryoptimizer_expressions_Expression
                       quickstep_queryoptimizer_expressions_ExpressionType
                       quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_expressions_InTableQuery
                       quickstep_queryoptimizer_expressions_LogicalAnd
                       quickstep_queryoptimizer_expressions_LogicalNot
                       quickstep_queryoptimizer_expressions_LogicalOr
@@ -136,6 +137,7 @@ target_link_libraries(quickstep_queryoptimizer_rules_UnnestSubqueries
                       quickstep_queryoptimizer_rules_BottomUpRule
                       quickstep_queryoptimizer_rules_Rule
                       quickstep_types_operations_comparisons_Comparison
+                      quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_utility_Macros
                       quickstep_utility_SqlError)

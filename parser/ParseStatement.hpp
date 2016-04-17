@@ -345,6 +345,10 @@ class ParseStatementCreateIndex : public ParseStatement {
       inline_field_names->push_back("index_type");
       const int index_type_enum_val = std::stoi(index_type_->value());
       switch (index_type_enum_val) {
+        case IndexSubBlockType::kBitWeavingV:  // Fall through.
+        case IndexSubBlockType::kBitWeavingH:
+          inline_field_values->push_back("bitweaving");
+          break;
         case IndexSubBlockType::kCSBTree:
           inline_field_values->push_back("cs_b_tree");
           break;
@@ -355,7 +359,7 @@ class ParseStatementCreateIndex : public ParseStatement {
           inline_field_values->push_back("sma");
           break;
         default:
-          inline_field_values->push_back("unkown");
+          inline_field_values->push_back("unknown");
       }
 
       if (attribute_list_ != nullptr) {
@@ -385,6 +389,10 @@ class ParseStatementCreateIndex : public ParseStatement {
     void initializeIndexType() {
       const int index_type_enum_val = std::stoi(index_type_->value());
       switch (index_type_enum_val) {
+        case IndexSubBlockType::kBitWeavingV:  // Fall through.
+        case IndexSubBlockType::kBitWeavingH:
+          index_properties_.reset(new BitWeavingIndexProperties());
+          break;
         case IndexSubBlockType::kBloomFilter:
           index_properties_.reset(new BloomFilterIndexProperties());
           break;
@@ -392,7 +400,8 @@ class ParseStatementCreateIndex : public ParseStatement {
           index_properties_.reset(new CSBTreeIndexProperties());
           break;
         case IndexSubBlockType::kSMA:
-          LOG(FATAL) << "Currently cannot create this index subblock type using CREATE INDEX.";
+          index_properties_.reset(new SMAIndexProperties());
+          break;
         default:
           LOG(FATAL) << "Unknown index subblock type.";
           break;

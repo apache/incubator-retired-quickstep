@@ -41,6 +41,7 @@ class Comparison;
 class ParseExpression;
 class ParseFunctionCall;
 class ParseGeneratorTableReference;
+class ParseJoinedTableReference;
 class ParseOrderBy;
 class ParsePredicate;
 class ParseSearchedCaseExpression;
@@ -333,6 +334,19 @@ class Resolver {
       const ParseString *reference_alias);
 
   /**
+   * @brief Resolves a joined table resulting from a join between two table
+   *        references.
+   *
+   * @param joined_table_reference The parse joined table reference to be resolved.
+   * @param name_resolver The name resolver to be updated with the left and the
+   *        right tables.
+   * @return A logical plan for the joined table reference.
+   */
+  logical::LogicalPtr resolveJoinedTableReference(
+      const ParseJoinedTableReference &joined_table_reference,
+      NameResolver *name_resolver);
+
+  /**
    * @brief Renames the output columns from \p logical_plan based on the table signature
    *        by wrapping it with a Project.
    *
@@ -445,11 +459,14 @@ class Resolver {
    * @param type_hints The type hints for output columns by the subquery.
    * @param expression_resolution_info Resolution info that contains the name
    *        resolver and info to be updated after resolution.
+   * @param has_single_column True if the subquery is expected to return only
+   *        one column in the result.
    */
   expressions::SubqueryExpressionPtr resolveSubqueryExpression(
       const ParseSubqueryExpression &parse_subquery_expression,
       const std::vector<const Type*> *type_hints,
-      ExpressionResolutionInfo *expression_resolution_info);
+      ExpressionResolutionInfo *expression_resolution_info,
+      const bool has_single_column);
 
   /**
    * @brief Resolves a relation name to a pointer to the corresponding

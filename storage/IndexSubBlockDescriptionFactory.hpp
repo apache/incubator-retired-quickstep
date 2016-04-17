@@ -28,7 +28,7 @@ namespace quickstep {
  */
 
 /**
- * @brief A class that describes factories of IndexSubBlockDescriptionFactory
+ * @brief A class that describes factories of IndexSubBlockDescriptionFactory.
  */
 class IndexSubBlockDescriptionFactory {
  public:
@@ -51,6 +51,13 @@ class IndexSubBlockDescriptionFactory {
     // Different types of indexes can specify their own validation checks here.
     // Currently these are trivial for CSBTree and SMAIndex.
     switch (index_description.sub_block_type()) {
+      case IndexSubBlockDescription_IndexSubBlockType_BITWEAVING_H:  // Fall through.
+      case IndexSubBlockDescription_IndexSubBlockType_BITWEAVING_V:
+        // Only singular keys are allowed.
+        if (index_description.indexed_attribute_ids_size() == 1) {
+          return true;
+        }
+        return false;
       case IndexSubBlockDescription_IndexSubBlockType_CSB_TREE:
         return true;
       case IndexSubBlockDescription_IndexSubBlockType_SMA:

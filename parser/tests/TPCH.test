@@ -803,7 +803,7 @@ SelectStatement
           | +-Equal
           | | +-left_operand=AttributeReference[attribute_name=s_nationkey]
           | | +-right_operand=AttributeReference[attribute_name=n_nationkey]
-          | +-kLike
+          | +-Like
           |   +-left_operand=AttributeReference[attribute_name=p_name]
           |   +-right_operand=Literal
           |     +-StringLiteral[value=%ghost%]
@@ -974,7 +974,7 @@ FROM
   lineitem
 WHERE
   o_orderkey = l_orderkey
-  AND l_shipmode in ('REG AIR', 'RAIL')
+  AND l_shipmode IN ('REG AIR', 'RAIL')
   AND l_commitdate < l_receiptdate
   AND l_shipdate < l_commitdate
   AND l_receiptdate >= DATE '1997-01-01'
@@ -984,9 +984,87 @@ GROUP BY
 ORDER BY
   l_shipmode
 --
-ERROR: syntax error (20 : 18)
-  AND l_shipmode in ('REG AIR', 'RAIL')
-                 ^
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=l_shipmode]
+  | +-SelectListItem[alias=high_line_count]
+  | | +-FunctionCall[name=SUM]
+  | |   +-SearchedCaseExpression
+  | |     +-else_result_expression=Literal
+  | |     | +-NumericLiteral[numeric_string=0,float_like=false]
+  | |     +-when_clauses=
+  | |       +-SearchedWhenClause
+  | |         +-condition_predicate=Or
+  | |         | +-Equal
+  | |         | | +-left_operand=AttributeReference[
+  | |         | | | attribute_name=o_orderpriority]
+  | |         | | +-right_operand=Literal
+  | |         | |   +-StringLiteral[value=1-URGENT]
+  | |         | +-Equal
+  | |         |   +-left_operand=AttributeReference[
+  | |         |   | attribute_name=o_orderpriority]
+  | |         |   +-right_operand=Literal
+  | |         |     +-StringLiteral[value=2-HIGH]
+  | |         +-result_expression=Literal
+  | |           +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-SelectListItem[alias=low_line_count]
+  |   +-FunctionCall[name=SUM]
+  |     +-SearchedCaseExpression
+  |       +-else_result_expression=Literal
+  |       | +-NumericLiteral[numeric_string=0,float_like=false]
+  |       +-when_clauses=
+  |         +-SearchedWhenClause
+  |           +-condition_predicate=And
+  |           | +-NotEqual
+  |           | | +-left_operand=AttributeReference[
+  |           | | | attribute_name=o_orderpriority]
+  |           | | +-right_operand=Literal
+  |           | |   +-StringLiteral[value=1-URGENT]
+  |           | +-NotEqual
+  |           |   +-left_operand=AttributeReference[
+  |           |   | attribute_name=o_orderpriority]
+  |           |   +-right_operand=Literal
+  |           |     +-StringLiteral[value=2-HIGH]
+  |           +-result_expression=Literal
+  |             +-NumericLiteral[numeric_string=1,float_like=false]
+  +-where_clause=And
+  | +-Equal
+  | | +-left_operand=AttributeReference[attribute_name=o_orderkey]
+  | | +-right_operand=AttributeReference[attribute_name=l_orderkey]
+  | +-InValueList
+  | | +-test_expression=AttributeReference[attribute_name=l_shipmode]
+  | | +-value_list=
+  | |   +-Literal
+  | |   | +-StringLiteral[value=REG AIR]
+  | |   +-Literal
+  | |     +-StringLiteral[value=RAIL]
+  | +-Less
+  | | +-left_operand=AttributeReference[attribute_name=l_commitdate]
+  | | +-right_operand=AttributeReference[attribute_name=l_receiptdate]
+  | +-Less
+  | | +-left_operand=AttributeReference[attribute_name=l_shipdate]
+  | | +-right_operand=AttributeReference[attribute_name=l_commitdate]
+  | +-GreaterOrEqual
+  | | +-left_operand=AttributeReference[attribute_name=l_receiptdate]
+  | | +-right_operand=Literal
+  | |   +-StringLiteral[value=1997-01-01,explicit_type=Datetime]
+  | +-Less
+  |   +-left_operand=AttributeReference[attribute_name=l_receiptdate]
+  |   +-right_operand=Add
+  |     +-left_operand=Literal
+  |     | +-StringLiteral[value=1997-01-01,explicit_type=Datetime]
+  |     +-right_operand=Literal
+  |       +-StringLiteral[value=1 year,explicit_type=YearMonthInterval]
+  +-group_by=GroupBy
+  | +-AttributeReference[attribute_name=l_shipmode]
+  +-order_by=OrderBy
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  |   +-AttributeReference[attribute_name=l_shipmode]
+  +-from_clause=
+    +-TableReference[table=orders]
+    +-TableReference[table=lineitem]
 ==
 
 # Query 13
@@ -1011,9 +1089,46 @@ ORDER BY
   custdist desc,
   c_count DESC
 --
-ERROR: OUTER JOIN is not supported yet (10 : 16)
-      customer LEFT OUTER JOIN orders ON
-               ^
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=c_count]
+  | +-SelectListItem[alias=custdist]
+  |   +-FunctionCall[name=COUNT,is_star=true]
+  +-group_by=GroupBy
+  | +-AttributeReference[attribute_name=c_count]
+  +-order_by=OrderBy
+  | +-OrderByItem[is_asc=false,nulls_first=true]
+  | | +-AttributeReference[attribute_name=custdist]
+  | +-OrderByItem[is_asc=false,nulls_first=true]
+  |   +-AttributeReference[attribute_name=c_count]
+  +-from_clause=
+    +-SubqueryTable
+      +-table_signature=TableSignature[table_alias=c_orders,
+      | columns=(c_custkey, c_count)]
+      +-SubqueryExpression
+        +-Select
+          +-select_clause=SelectList
+          | +-SelectListItem
+          | | +-AttributeReference[attribute_name=c_custkey]
+          | +-SelectListItem
+          |   +-FunctionCall[name=COUNT]
+          |     +-AttributeReference[attribute_name=o_orderkey]
+          +-group_by=GroupBy
+          | +-AttributeReference[attribute_name=c_custkey]
+          +-from_clause=
+            +-JoinedTable[join_type=LeftOuterJoin]
+              +-left_table=TableReference[table=customer]
+              +-right_table=TableReference[table=orders]
+              +-join_predicate=And
+                +-Equal
+                | +-left_operand=AttributeReference[attribute_name=c_custkey]
+                | +-right_operand=AttributeReference[attribute_name=o_custkey]
+                +-NotLike
+                  +-left_operand=AttributeReference[attribute_name=o_comment]
+                  +-right_operand=Literal
+                    +-StringLiteral[value=%special%requests%]
 ==
 
 # Query 14
@@ -1045,7 +1160,7 @@ SelectStatement
   |     |     | +-NumericLiteral[numeric_string=0,float_like=false]
   |     |     +-when_clauses=
   |     |       +-SearchedWhenClause
-  |     |         +-condition_predicate=kLike
+  |     |         +-condition_predicate=Like
   |     |         | +-left_operand=AttributeReference[attribute_name=p_type]
   |     |         | +-right_operand=Literal
   |     |         |   +-StringLiteral[value=PROMO%]
@@ -1152,9 +1267,79 @@ ORDER BY
   p_type,
   p_size
 --
-ERROR: syntax error (13 : 14)
-  AND p_size IN (32, 42, 9, 18, 50, 30, 12,...
-             ^
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=p_brand]
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=p_type]
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=p_size]
+  | +-SelectListItem[alias=supplier_cnt]
+  |   +-FunctionCall[name=COUNT,is_distinct=true]
+  |     +-AttributeReference[attribute_name=ps_suppkey]
+  +-where_clause=And
+  | +-Equal
+  | | +-left_operand=AttributeReference[attribute_name=p_partkey]
+  | | +-right_operand=AttributeReference[attribute_name=ps_partkey]
+  | +-NotEqual
+  | | +-left_operand=AttributeReference[attribute_name=p_brand]
+  | | +-right_operand=Literal
+  | |   +-StringLiteral[value=Brand#22]
+  | +-NotLike
+  | | +-left_operand=AttributeReference[attribute_name=p_type]
+  | | +-right_operand=Literal
+  | |   +-StringLiteral[value=ECONOMY BURNISHED%]
+  | +-InValueList
+  | | +-test_expression=AttributeReference[attribute_name=p_size]
+  | | +-value_list=
+  | |   +-Literal
+  | |   | +-NumericLiteral[numeric_string=32,float_like=false]
+  | |   +-Literal
+  | |   | +-NumericLiteral[numeric_string=42,float_like=false]
+  | |   +-Literal
+  | |   | +-NumericLiteral[numeric_string=9,float_like=false]
+  | |   +-Literal
+  | |   | +-NumericLiteral[numeric_string=18,float_like=false]
+  | |   +-Literal
+  | |   | +-NumericLiteral[numeric_string=50,float_like=false]
+  | |   +-Literal
+  | |   | +-NumericLiteral[numeric_string=30,float_like=false]
+  | |   +-Literal
+  | |   | +-NumericLiteral[numeric_string=12,float_like=false]
+  | |   +-Literal
+  | |     +-NumericLiteral[numeric_string=21,float_like=false]
+  | +-Not
+  |   +-InTableQuery
+  |     +-test_expression=AttributeReference[attribute_name=ps_suppkey]
+  |     +-table_query=SubqueryExpression
+  |       +-Select
+  |         +-select_clause=SelectList
+  |         | +-SelectListItem
+  |         |   +-AttributeReference[attribute_name=s_suppkey]
+  |         +-where_clause=Like
+  |         | +-left_operand=AttributeReference[attribute_name=s_comment]
+  |         | +-right_operand=Literal
+  |         |   +-StringLiteral[value=%Customer%Complaints%]
+  |         +-from_clause=
+  |           +-TableReference[table=supplier]
+  +-group_by=GroupBy
+  | +-AttributeReference[attribute_name=p_brand]
+  | +-AttributeReference[attribute_name=p_type]
+  | +-AttributeReference[attribute_name=p_size]
+  +-order_by=OrderBy
+  | +-OrderByItem[is_asc=false,nulls_first=true]
+  | | +-AttributeReference[attribute_name=supplier_cnt]
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  | | +-AttributeReference[attribute_name=p_brand]
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  | | +-AttributeReference[attribute_name=p_type]
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  |   +-AttributeReference[attribute_name=p_size]
+  +-from_clause=
+    +-TableReference[table=partsupp]
+    +-TableReference[table=part]
 ==
 
 # Query 17
@@ -1194,7 +1379,7 @@ FROM
   orders,
   lineitem
 WHERE
-  o_orderkey in (
+  o_orderkey IN (
     SELECT
       l_orderkey
     FROM
@@ -1216,9 +1401,63 @@ ORDER BY
   o_orderdate
 LIMIT 100
 --
-ERROR: syntax error (13 : 14)
-  o_orderkey in (
-             ^
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=c_name]
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=c_custkey]
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=o_orderkey]
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=o_orderdate]
+  | +-SelectListItem
+  | | +-AttributeReference[attribute_name=o_totalprice]
+  | +-SelectListItem
+  |   +-FunctionCall[name=sum]
+  |     +-AttributeReference[attribute_name=l_quantity]
+  +-where_clause=And
+  | +-InTableQuery
+  | | +-test_expression=AttributeReference[attribute_name=o_orderkey]
+  | | +-table_query=SubqueryExpression
+  | |   +-Select
+  | |     +-select_clause=SelectList
+  | |     | +-SelectListItem
+  | |     |   +-AttributeReference[attribute_name=l_orderkey]
+  | |     +-group_by=GroupBy
+  | |     | +-AttributeReference[attribute_name=l_orderkey]
+  | |     +-having=HAVING
+  | |     | +-Greater
+  | |     |   +-left_operand=FunctionCall[name=SUM]
+  | |     |   | +-AttributeReference[attribute_name=l_quantity]
+  | |     |   +-right_operand=Literal
+  | |     |     +-NumericLiteral[numeric_string=314,float_like=false]
+  | |     +-from_clause=
+  | |       +-TableReference[table=lineitem]
+  | +-Equal
+  | | +-left_operand=AttributeReference[attribute_name=c_custkey]
+  | | +-right_operand=AttributeReference[attribute_name=o_custkey]
+  | +-Equal
+  |   +-left_operand=AttributeReference[attribute_name=o_orderkey]
+  |   +-right_operand=AttributeReference[attribute_name=l_orderkey]
+  +-group_by=GroupBy
+  | +-AttributeReference[attribute_name=c_name]
+  | +-AttributeReference[attribute_name=c_custkey]
+  | +-AttributeReference[attribute_name=o_orderkey]
+  | +-AttributeReference[attribute_name=o_orderdate]
+  | +-AttributeReference[attribute_name=o_totalprice]
+  +-order_by=OrderBy
+  | +-OrderByItem[is_asc=false,nulls_first=true]
+  | | +-AttributeReference[attribute_name=o_totalprice]
+  | +-OrderByItem[is_asc=true,nulls_first=false]
+  |   +-AttributeReference[attribute_name=o_orderdate]
+  +-limit=LIMIT
+  | +-NumericLiteral[numeric_string=100,float_like=false]
+  +-from_clause=
+    +-TableReference[table=customer]
+    +-TableReference[table=orders]
+    +-TableReference[table=lineitem]
 ==
 
 # Query 19
@@ -1258,9 +1497,162 @@ WHERE
     AND l_shipinstruct = 'DELIVER IN PERSON'
   )
 --
-ERROR: syntax error (10 : 21)
-    AND p_container IN ('SM CASE', 'SM BOX', 'SM PAC...
-                    ^
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem[alias=revenue]
+  |   +-FunctionCall[name=SUM]
+  |     +-Multiply
+  |       +-left_operand=AttributeReference[attribute_name=l_extendedprice]
+  |       +-right_operand=Subtract
+  |         +-left_operand=Literal
+  |         | +-NumericLiteral[numeric_string=1,float_like=false]
+  |         +-right_operand=AttributeReference[attribute_name=l_discount]
+  +-where_clause=Or
+  | +-And
+  | | +-Equal
+  | | | +-left_operand=AttributeReference[attribute_name=p_partkey]
+  | | | +-right_operand=AttributeReference[attribute_name=l_partkey]
+  | | +-Equal
+  | | | +-left_operand=AttributeReference[attribute_name=p_brand]
+  | | | +-right_operand=Literal
+  | | |   +-StringLiteral[value=Brand#45]
+  | | +-InValueList
+  | | | +-test_expression=AttributeReference[attribute_name=p_container]
+  | | | +-value_list=
+  | | |   +-Literal
+  | | |   | +-StringLiteral[value=SM CASE]
+  | | |   +-Literal
+  | | |   | +-StringLiteral[value=SM BOX]
+  | | |   +-Literal
+  | | |   | +-StringLiteral[value=SM PACK]
+  | | |   +-Literal
+  | | |     +-StringLiteral[value=SM PKG]
+  | | +-GreaterOrEqual
+  | | | +-left_operand=AttributeReference[attribute_name=l_quantity]
+  | | | +-right_operand=Literal
+  | | |   +-NumericLiteral[numeric_string=2,float_like=false]
+  | | +-LessOrEqual
+  | | | +-left_operand=AttributeReference[attribute_name=l_quantity]
+  | | | +-right_operand=Add
+  | | |   +-left_operand=Literal
+  | | |   | +-NumericLiteral[numeric_string=2,float_like=false]
+  | | |   +-right_operand=Literal
+  | | |     +-NumericLiteral[numeric_string=10,float_like=false]
+  | | +-Between
+  | | | +-check_operand=AttributeReference[attribute_name=p_size]
+  | | | +-lower_bound_operand=Literal
+  | | | | +-NumericLiteral[numeric_string=1,float_like=false]
+  | | | +-upper_bound_operand=Literal
+  | | |   +-NumericLiteral[numeric_string=5,float_like=false]
+  | | +-InValueList
+  | | | +-test_expression=AttributeReference[attribute_name=l_shipmode]
+  | | | +-value_list=
+  | | |   +-Literal
+  | | |   | +-StringLiteral[value=AIR]
+  | | |   +-Literal
+  | | |     +-StringLiteral[value=AIR REG]
+  | | +-Equal
+  | |   +-left_operand=AttributeReference[attribute_name=l_shipinstruct]
+  | |   +-right_operand=Literal
+  | |     +-StringLiteral[value=DELIVER IN PERSON]
+  | +-And
+  | | +-Equal
+  | | | +-left_operand=AttributeReference[attribute_name=p_partkey]
+  | | | +-right_operand=AttributeReference[attribute_name=l_partkey]
+  | | +-Equal
+  | | | +-left_operand=AttributeReference[attribute_name=p_brand]
+  | | | +-right_operand=Literal
+  | | |   +-StringLiteral[value=Brand#12]
+  | | +-InValueList
+  | | | +-test_expression=AttributeReference[attribute_name=p_container]
+  | | | +-value_list=
+  | | |   +-Literal
+  | | |   | +-StringLiteral[value=MED BAG]
+  | | |   +-Literal
+  | | |   | +-StringLiteral[value=MED BOX]
+  | | |   +-Literal
+  | | |   | +-StringLiteral[value=MED PKG]
+  | | |   +-Literal
+  | | |     +-StringLiteral[value=MED PACK]
+  | | +-GreaterOrEqual
+  | | | +-left_operand=AttributeReference[attribute_name=l_quantity]
+  | | | +-right_operand=Literal
+  | | |   +-NumericLiteral[numeric_string=13,float_like=false]
+  | | +-LessOrEqual
+  | | | +-left_operand=AttributeReference[attribute_name=l_quantity]
+  | | | +-right_operand=Add
+  | | |   +-left_operand=Literal
+  | | |   | +-NumericLiteral[numeric_string=13,float_like=false]
+  | | |   +-right_operand=Literal
+  | | |     +-NumericLiteral[numeric_string=10,float_like=false]
+  | | +-Between
+  | | | +-check_operand=AttributeReference[attribute_name=p_size]
+  | | | +-lower_bound_operand=Literal
+  | | | | +-NumericLiteral[numeric_string=1,float_like=false]
+  | | | +-upper_bound_operand=Literal
+  | | |   +-NumericLiteral[numeric_string=10,float_like=false]
+  | | +-InValueList
+  | | | +-test_expression=AttributeReference[attribute_name=l_shipmode]
+  | | | +-value_list=
+  | | |   +-Literal
+  | | |   | +-StringLiteral[value=AIR]
+  | | |   +-Literal
+  | | |     +-StringLiteral[value=AIR REG]
+  | | +-Equal
+  | |   +-left_operand=AttributeReference[attribute_name=l_shipinstruct]
+  | |   +-right_operand=Literal
+  | |     +-StringLiteral[value=DELIVER IN PERSON]
+  | +-And
+  |   +-Equal
+  |   | +-left_operand=AttributeReference[attribute_name=p_partkey]
+  |   | +-right_operand=AttributeReference[attribute_name=l_partkey]
+  |   +-Equal
+  |   | +-left_operand=AttributeReference[attribute_name=p_brand]
+  |   | +-right_operand=Literal
+  |   |   +-StringLiteral[value=Brand#53]
+  |   +-InValueList
+  |   | +-test_expression=AttributeReference[attribute_name=p_container]
+  |   | +-value_list=
+  |   |   +-Literal
+  |   |   | +-StringLiteral[value=LG CASE]
+  |   |   +-Literal
+  |   |   | +-StringLiteral[value=LG BOX]
+  |   |   +-Literal
+  |   |   | +-StringLiteral[value=LG PACK]
+  |   |   +-Literal
+  |   |     +-StringLiteral[value=LG PKG]
+  |   +-GreaterOrEqual
+  |   | +-left_operand=AttributeReference[attribute_name=l_quantity]
+  |   | +-right_operand=Literal
+  |   |   +-NumericLiteral[numeric_string=24,float_like=false]
+  |   +-LessOrEqual
+  |   | +-left_operand=AttributeReference[attribute_name=l_quantity]
+  |   | +-right_operand=Add
+  |   |   +-left_operand=Literal
+  |   |   | +-NumericLiteral[numeric_string=24,float_like=false]
+  |   |   +-right_operand=Literal
+  |   |     +-NumericLiteral[numeric_string=10,float_like=false]
+  |   +-Between
+  |   | +-check_operand=AttributeReference[attribute_name=p_size]
+  |   | +-lower_bound_operand=Literal
+  |   | | +-NumericLiteral[numeric_string=1,float_like=false]
+  |   | +-upper_bound_operand=Literal
+  |   |   +-NumericLiteral[numeric_string=15,float_like=false]
+  |   +-InValueList
+  |   | +-test_expression=AttributeReference[attribute_name=l_shipmode]
+  |   | +-value_list=
+  |   |   +-Literal
+  |   |   | +-StringLiteral[value=AIR]
+  |   |   +-Literal
+  |   |     +-StringLiteral[value=AIR REG]
+  |   +-Equal
+  |     +-left_operand=AttributeReference[attribute_name=l_shipinstruct]
+  |     +-right_operand=Literal
+  |       +-StringLiteral[value=DELIVER IN PERSON]
+  +-from_clause=
+    +-TableReference[table=lineitem]
+    +-TableReference[table=part]
 ==
 
 # Query 20
@@ -1271,7 +1663,7 @@ FROM
   supplier,
   nation
 WHERE
-  s_suppkey in (
+  s_suppkey IN (
     SELECT
       ps_suppkey
     FROM
@@ -1302,9 +1694,9 @@ WHERE
 ORDER BY
   s_name
 --
-ERROR: syntax error (8 : 13)
-  s_suppkey in (
-            ^
+ERROR: syntax error (23 : 9)
+        SELECT
+        ^
 ==
 
 # Query 21
@@ -1453,7 +1845,7 @@ FROM
     FROM
       customer
     WHERE
-      SUBSTR(c_phone, 1, 2) in
+      SUBSTR(c_phone, 1, 2) IN
         ('27', '44', '34', '25', '30', '33', '23')
       AND c_acctbal > (
         SELECT
@@ -1462,10 +1854,10 @@ FROM
           customer
         WHERE
           c_acctbal > 0.00
-          AND SUBSTR(c_phone, 1, 2) in
+          AND SUBSTR(c_phone, 1, 2) IN
             ('27', '44', '34', '25', '30', '33', '23')
       )
-      AND NOT exists (
+      AND NOT EXISTS (
         SELECT *
         FROM
           orders
@@ -1478,6 +1870,6 @@ GROUP BY
 ORDER BY
   cntrycode
 --
-ERROR: syntax error (13 : 29)
-      SUBSTR(c_phone, 1, 2) in
-                            ^
+ERROR: syntax error (16 : 9)
+        SELECT
+        ^

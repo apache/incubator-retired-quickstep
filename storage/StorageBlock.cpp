@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -30,6 +32,7 @@
 #include "expressions/predicate/Predicate.hpp"
 #include "expressions/scalar/Scalar.hpp"
 #include "storage/BasicColumnStoreTupleStorageSubBlock.hpp"
+#include "storage/BloomFilterIndexSubBlock.hpp"
 #include "storage/CSBTreeIndexSubBlock.hpp"
 #include "storage/CompressedColumnStoreTupleStorageSubBlock.hpp"
 #include "storage/CompressedPackedRowStoreTupleStorageSubBlock.hpp"
@@ -59,6 +62,12 @@
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
+
+#ifdef QUICKSTEP_HAVE_BITWEAVING
+#include "storage/bitweaving/BitWeavingIndexSubBlock.hpp"
+#include "storage/bitweaving/BitWeavingHIndexSubBlock.hpp"
+#include "storage/bitweaving/BitWeavingVIndexSubBlock.hpp"
+#endif
 
 using std::make_pair;
 using std::pair;
@@ -169,8 +178,7 @@ StorageBlock::StorageBlock(const CatalogRelationSchema &relation,
        ++index_num) {
     indices_.push_back(CreateIndexSubBlock(*tuple_store_,
                                            block_header_.layout().index_description(index_num),
-                                           new_block,
-                                           sub_block_address,
+                                           new_block, sub_block_address,
                                            block_header_.index_size(index_num)));
     sub_block_address += block_header_.index_size(index_num);
     if (!indices_.back().supportsAdHocAdd()) {
@@ -802,7 +810,12 @@ void StorageBlock::sortColumn(bool use_input_sequence,
   ValueAccessor *all_accessor = tuple_store_->createValueAccessor(nullptr);
   InvokeOnValueAccessorNotAdapter(
       all_accessor,
-      [&](auto *all_accessor) -> void {  // NOLINT(build/c++11)
+      [&sort_attr_id,
+       &use_input_sequence,
+       &nulls,
+       &refs,
+       &accessor,
+       &sorted_sequence](auto *all_accessor) -> void {  // NOLINT(build/c++11)
     if (use_input_sequence) {
       auto *seq_value_accessor = new OrderedTupleIdSequenceAdapterValueAccessor<
           typename std::remove_reference<decltype(*all_accessor)>::type>(
@@ -1018,6 +1031,12 @@ IndexSubBlock* StorageBlock::CreateIndexSubBlock(
     const std::size_t sub_block_memory_size) {
   DEBUG_ASSERT(description.IsInitialized());
   switch (description.sub_block_type()) {
+    case IndexSubBlockDescription::BLOOM_FILTER:
+      return new BloomFilterIndexSubBlock(tuple_store,
+                                          description,
+                                          new_block,
+                                          sub_block_memory,
+                                          sub_block_memory_size);
     case IndexSubBlockDescription::CSB_TREE:
       return new CSBTreeIndexSubBlock(tuple_store,
                                       description,
@@ -1030,6 +1049,25 @@ IndexSubBlock* StorageBlock::CreateIndexSubBlock(
                                   new_block,
                                   sub_block_memory,
                                   sub_block_memory_size);
+#ifdef QUICKSTEP_HAVE_BITWEAVING
+    case IndexSubBlockDescription::BITWEAVING_V:
+      return new BitWeavingVIndexSubBlock(tuple_store,
+                                          description,
+                                          new_block,
+                                          sub_block_memory,
+                                          sub_block_memory_size);
+    case IndexSubBlockDescription::BITWEAVING_H:
+      return new BitWeavingHIndexSubBlock(tuple_store,
+                                          description,
+                                          new_block,
+                                          sub_block_memory,
+                                          sub_block_memory_size);
+#else
+    case IndexSubBlockDescription::BITWEAVING_V:  // Fall through.
+    case IndexSubBlockDescription::BITWEAVING_H:
+      LOG(FATAL) << "Attempted to create a block with a bitweaving index "
+                 << "but Quickstep was not compiled with bitweaving.";
+#endif
     default:
       if (new_block) {
         FATAL_ERROR("A StorageBlockLayout provided an unknown IndexBlockType.");

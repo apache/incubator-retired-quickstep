@@ -21,10 +21,15 @@
 #include <string>
 
 #include "query_optimizer/OptimizerTree.hpp"
+#include "query_optimizer/expressions/ExprId.hpp"
 
 #include "glog/logging.h"
 
 namespace quickstep {
+
+class CatalogAttribute;
+class Predicate;
+
 namespace optimizer {
 namespace expressions {
 
@@ -33,7 +38,6 @@ namespace expressions {
   LOG(FATAL) << "Exists predicate should not be concretized";
   return nullptr;
 }
-
 
 void Exists::getFieldStringItems(
     std::vector<std::string> *inline_field_names,
@@ -45,7 +49,6 @@ void Exists::getFieldStringItems(
   non_container_child_field_names->push_back("exists_subquery");
   non_container_child_fields->push_back(exists_subquery_);
 }
-
 
 }  // namespace expressions
 }  // namespace optimizer

@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -81,6 +83,23 @@ void ParsePredicateWithList::getFieldStringItems(
   container_child_fields->emplace_back();
   for (const ParsePredicate &operand : operands_) {
     container_child_fields->back().push_back(&operand);
+  }
+}
+
+void ParsePredicateInValueList::getFieldStringItems(
+    std::vector<std::string> *inline_field_names,
+    std::vector<std::string> *inline_field_values,
+    std::vector<std::string> *non_container_child_field_names,
+    std::vector<const ParseTreeNode*> *non_container_child_fields,
+    std::vector<std::string> *container_child_field_names,
+    std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
+  non_container_child_field_names->push_back("test_expression");
+  non_container_child_fields->push_back(test_expression_.get());
+
+  container_child_field_names->push_back("value_list");
+  container_child_fields->emplace_back();
+  for (const ParseExpression &value : *value_list_) {
+    container_child_fields->back().emplace_back(&value);
   }
 }
 

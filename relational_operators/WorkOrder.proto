@@ -29,18 +29,20 @@ enum WorkOrderType {
   DESTROY_HASH = 6;
   DROP_TABLE = 7;
   FINALIZE_AGGREGATION = 8;
-  HASH_JOIN = 9;
-  INSERT = 10;
-  NESTED_LOOP_JOIN = 11;
-  SAMPLE = 12;
-  SAVE_BLOCKS = 13;
-  SELECT = 14;
-  SORT_MERGE_RUN = 15;
-  SORT_RUN_GENERATION = 16;
-  TABLE_GENERATOR = 17;
-  TEXT_SCAN = 18;
-  TEXT_SPLIT = 19;
-  UPDATE = 20;
+  HASH_INNER_JOIN = 9;
+  HASH_SEMI_JOIN = 10;
+  HASH_ANTI_JOIN = 11;
+  INSERT = 12;
+  NESTED_LOOP_JOIN = 13;
+  SAMPLE = 14;
+  SAVE_BLOCKS = 15;
+  SELECT = 16;
+  SORT_MERGE_RUN = 17;
+  SORT_RUN_GENERATION = 18;
+  TABLE_GENERATOR = 19;
+  TEXT_SCAN = 20;
+  TEXT_SPLIT = 21;
+  UPDATE = 22;
 }
 
 message WorkOrder {
@@ -104,7 +106,7 @@ message FinalizeAggregationWorkOrder {
   }
 }
 
-message HashJoinWorkOrder {
+message HashInnerJoinWorkOrder {
   extend WorkOrder {
     // All required.
     optional int32 build_relation_id = 160;
@@ -116,6 +118,36 @@ message HashJoinWorkOrder {
     optional int32 residual_predicate_index = 166;
     optional int32 selection_index = 167;
     optional fixed64 block_id = 168;
+  }
+}
+
+message HashAntiJoinWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional int32 build_relation_id = 350;
+    optional int32 probe_relation_id = 351;
+    repeated int32 join_key_attributes = 352;
+    optional bool any_join_key_attributes_nullable = 353;
+    optional int32 insert_destination_index = 354;
+    optional uint32 join_hash_table_index = 355;
+    optional int32 residual_predicate_index = 356;
+    optional int32 selection_index = 357;
+    optional fixed64 block_id = 358;
+  }
+}
+
+message HashSemiJoinWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional int32 build_relation_id = 360;
+    optional int32 probe_relation_id = 361;
+    repeated int32 join_key_attributes = 362;
+    optional bool any_join_key_attributes_nullable = 363;
+    optional int32 insert_destination_index = 364;
+    optional uint32 join_hash_table_index = 365;
+    optional int32 residual_predicate_index = 366;
+    optional int32 selection_index = 367;
+    optional fixed64 block_id = 368;
   }
 }
 

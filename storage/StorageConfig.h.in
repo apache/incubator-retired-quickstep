@@ -15,6 +15,7 @@
  *   limitations under the License.
  **/
 
+#cmakedefine QUICKSTEP_HAVE_BITWEAVING
 #cmakedefine QUICKSTEP_HAVE_FILE_MANAGER_POSIX
 #cmakedefine QUICKSTEP_HAVE_FILE_MANAGER_WINDOWS
 #cmakedefine QUICKSTEP_HAVE_FILE_MANAGER_HDFS

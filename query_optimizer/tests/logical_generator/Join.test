@@ -1,0 +1,217 @@
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
+#
+#   Licensed under the Apache License, Version 2.0 (the "License");
+#   you may not use this file except in compliance with the License.
+#   You may obtain a copy of the License at
+#
+#       http://www.apache.org/licenses/LICENSE-2.0
+#
+#   Unless required by applicable law or agreed to in writing, software
+#   distributed under the License is distributed on an "AS IS" BASIS,
+#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+#   See the License for the specific language governing permissions and
+#   limitations under the License.
+
+[default optimized_logical_plan]
+
+SELECT a.z
+FROM a JOIN b ON a.w = b.w
+       JOIN c ON a.x = c.x
+       JOIN d ON a.y = d.y;
+--
+TopLevelPlan
++-plan=Project
+| +-input=HashJoin
+| | +-left=HashJoin
+| | | +-left=HashJoin
+| | | | +-left=TableReference[relation_name=a]
+| | | | | +-AttributeReference[id=0,name=w,relation=a,type=Int]
+| | | | | +-AttributeReference[id=1,name=x,relation=a,type=Int]
+| | | | | +-AttributeReference[id=2,name=y,relation=a,type=Int]
+| | | | | +-AttributeReference[id=3,name=z,relation=a,type=Int]
+| | | | +-right=TableReference[relation_name=b]
+| | | | | +-AttributeReference[id=4,name=w,relation=b,type=Int]
+| | | | | +-AttributeReference[id=5,name=x,relation=b,type=Int]
+| | | | +-left_join_attributes=
+| | | | | +-AttributeReference[id=0,name=w,relation=a,type=Int]
+| | | | +-right_join_attributes=
+| | | |   +-AttributeReference[id=4,name=w,relation=b,type=Int]
+| | | +-right=TableReference[relation_name=c]
+| | | | +-AttributeReference[id=6,name=x,relation=c,type=Int]
+| | | | +-AttributeReference[id=7,name=y,relation=c,type=Int]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=1,name=x,relation=a,type=Int]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=6,name=x,relation=c,type=Int]
+| | +-right=TableReference[relation_name=d]
+| | | +-AttributeReference[id=8,name=y,relation=d,type=Int]
+| | | +-AttributeReference[id=9,name=z,relation=d,type=Int]
+| | +-left_join_attributes=
+| | | +-AttributeReference[id=2,name=y,relation=a,type=Int]
+| | +-right_join_attributes=
+| |   +-AttributeReference[id=8,name=y,relation=d,type=Int]
+| +-project_list=
+|   +-AttributeReference[id=3,name=z,relation=a,type=Int]
++-output_attributes=
+  +-AttributeReference[id=3,name=z,relation=a,type=Int]
+==
+
+SELECT a.z
+FROM a JOIN b ON (a.w = b.w OR a.x > b.x)
+       JOIN c ON (a.x = c.x AND a.y > c.y)
+       JOIN d ON (a.y = d.y OR a.z > d.z);
+--
+TopLevelPlan
++-plan=Project
+| +-input=NestedLoopsJoin
+| | +-left=Filter
+| | | +-input=HashJoin
+| | | | +-left=NestedLoopsJoin
+| | | | | +-left=TableReference[relation_name=a]
+| | | | | | +-AttributeReference[id=0,name=w,relation=a,type=Int]
+| | | | | | +-AttributeReference[id=1,name=x,relation=a,type=Int]
+| | | | | | +-AttributeReference[id=2,name=y,relation=a,type=Int]
+| | | | | | +-AttributeReference[id=3,name=z,relation=a,type=Int]
+| | | | | +-right=TableReference[relation_name=b]
+| | | | | | +-AttributeReference[id=4,name=w,relation=b,type=Int]
+| | | | | | +-AttributeReference[id=5,name=x,relation=b,type=Int]
+| | | | | +-join_predicate=Or
+| | | | |   +-Equal
+| | | | |   | +-AttributeReference[id=0,name=w,relation=a,type=Int]
+| | | | |   | +-AttributeReference[id=4,name=w,relation=b,type=Int]
+| | | | |   +-Greater
+| | | | |     +-AttributeReference[id=1,name=x,relation=a,type=Int]
+| | | | |     +-AttributeReference[id=5,name=x,relation=b,type=Int]
+| | | | +-right=TableReference[relation_name=c]
+| | | | | +-AttributeReference[id=6,name=x,relation=c,type=Int]
+| | | | | +-AttributeReference[id=7,name=y,relation=c,type=Int]
+| | | | +-left_join_attributes=
+| | | | | +-AttributeReference[id=1,name=x,relation=a,type=Int]
+| | | | +-right_join_attributes=
+| | | |   +-AttributeReference[id=6,name=x,relation=c,type=Int]
+| | | +-filter_predicate=Greater
+| | |   +-AttributeReference[id=2,name=y,relation=a,type=Int]
+| | |   +-AttributeReference[id=7,name=y,relation=c,type=Int]
+| | +-right=TableReference[relation_name=d]
+| | | +-AttributeReference[id=8,name=y,relation=d,type=Int]
+| | | +-AttributeReference[id=9,name=z,relation=d,type=Int]
+| | +-join_predicate=Or
+| |   +-Equal
+| |   | +-AttributeReference[id=2,name=y,relation=a,type=Int]
+| |   | +-AttributeReference[id=8,name=y,relation=d,type=Int]
+| |   +-Greater
+| |     +-AttributeReference[id=3,name=z,relation=a,type=Int]
+| |     +-AttributeReference[id=9,name=z,relation=d,type=Int]
+| +-project_list=
+|   +-AttributeReference[id=3,name=z,relation=a,type=Int]
++-output_attributes=
+  +-AttributeReference[id=3,name=z,relation=a,type=Int]
+==
+
+SELECT a1.z
+FROM a AS a1 JOIN b AS b1 ON a1.w = b1.w
+             JOIN c AS c1 ON a1.x = c1.x
+             JOIN d AS d1 ON a1.y = d1.y
+WHERE a1.x = b1.x
+  AND a1.y = c1.y
+  AND a1.z = d1.z;
+--
+TopLevelPlan
++-plan=Project
+| +-input=HashJoin
+| | +-left=HashJoin
+| | | +-left=HashJoin
+| | | | +-left=TableReference[relation_name=a,relation_alias=a1]
+| | | | | +-AttributeReference[id=0,name=w,relation=a1,type=Int]
+| | | | | +-AttributeReference[id=1,name=x,relation=a1,type=Int]
+| | | | | +-AttributeReference[id=2,name=y,relation=a1,type=Int]
+| | | | | +-AttributeReference[id=3,name=z,relation=a1,type=Int]
+| | | | +-right=TableReference[relation_name=b,relation_alias=b1]
+| | | | | +-AttributeReference[id=4,name=w,relation=b1,type=Int]
+| | | | | +-AttributeReference[id=5,name=x,relation=b1,type=Int]
+| | | | +-left_join_attributes=
+| | | | | +-AttributeReference[id=1,name=x,relation=a1,type=Int]
+| | | | | +-AttributeReference[id=0,name=w,relation=a1,type=Int]
+| | | | +-right_join_attributes=
+| | | |   +-AttributeReference[id=5,name=x,relation=b1,type=Int]
+| | | |   +-AttributeReference[id=4,name=w,relation=b1,type=Int]
+| | | +-right=TableReference[relation_name=c,relation_alias=c1]
+| | | | +-AttributeReference[id=6,name=x,relation=c1,type=Int]
+| | | | +-AttributeReference[id=7,name=y,relation=c1,type=Int]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=2,name=y,relation=a1,type=Int]
+| | | | +-AttributeReference[id=1,name=x,relation=a1,type=Int]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=7,name=y,relation=c1,type=Int]
+| | |   +-AttributeReference[id=6,name=x,relation=c1,type=Int]
+| | +-right=TableReference[relation_name=d,relation_alias=d1]
+| | | +-AttributeReference[id=8,name=y,relation=d1,type=Int]
+| | | +-AttributeReference[id=9,name=z,relation=d1,type=Int]
+| | +-left_join_attributes=
+| | | +-AttributeReference[id=3,name=z,relation=a1,type=Int]
+| | | +-AttributeReference[id=2,name=y,relation=a1,type=Int]
+| | +-right_join_attributes=
+| |   +-AttributeReference[id=9,name=z,relation=d1,type=Int]
+| |   +-AttributeReference[id=8,name=y,relation=d1,type=Int]
+| +-project_list=
+|   +-AttributeReference[id=3,name=z,relation=a1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=3,name=z,relation=a1,type=Int]
+==
+
+SELECT a1.z
+FROM a AS a1 JOIN b AS b1 ON a1.w <> b1.w
+             JOIN c AS c1 ON a1.x <> c1.x
+             JOIN d AS d1 ON a1.y <> d1.y
+WHERE a1.x = b1.x
+  AND a1.y = c1.y
+  AND a1.z = d1.z;
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=HashJoin
+| | | +-left=Filter
+| | | | +-input=HashJoin
+| | | | | +-left=Filter
+| | | | | | +-input=HashJoin
+| | | | | | | +-left=TableReference[relation_name=a,relation_alias=a1]
+| | | | | | | | +-AttributeReference[id=0,name=w,relation=a1,type=Int]
+| | | | | | | | +-AttributeReference[id=1,name=x,relation=a1,type=Int]
+| | | | | | | | +-AttributeReference[id=2,name=y,relation=a1,type=Int]
+| | | | | | | | +-AttributeReference[id=3,name=z,relation=a1,type=Int]
+| | | | | | | +-right=TableReference[relation_name=b,relation_alias=b1]
+| | | | | | | | +-AttributeReference[id=4,name=w,relation=b1,type=Int]
+| | | | | | | | +-AttributeReference[id=5,name=x,relation=b1,type=Int]
+| | | | | | | +-left_join_attributes=
+| | | | | | | | +-AttributeReference[id=1,name=x,relation=a1,type=Int]
+| | | | | | | +-right_join_attributes=
+| | | | | | |   +-AttributeReference[id=5,name=x,relation=b1,type=Int]
+| | | | | | +-filter_predicate=NotEqual
+| | | | | |   +-AttributeReference[id=0,name=w,relation=a1,type=Int]
+| | | | | |   +-AttributeReference[id=4,name=w,relation=b1,type=Int]
+| | | | | +-right=TableReference[relation_name=c,relation_alias=c1]
+| | | | | | +-AttributeReference[id=6,name=x,relation=c1,type=Int]
+| | | | | | +-AttributeReference[id=7,name=y,relation=c1,type=Int]
+| | | | | +-left_join_attributes=
+| | | | | | +-AttributeReference[id=2,name=y,relation=a1,type=Int]
+| | | | | +-right_join_attributes=
+| | | | |   +-AttributeReference[id=7,name=y,relation=c1,type=Int]
+| | | | +-filter_predicate=NotEqual
+| | | |   +-AttributeReference[id=1,name=x,relation=a1,type=Int]
+| | | |   +-AttributeReference[id=6,name=x,relation=c1,type=Int]
+| | | +-right=TableReference[relation_name=d,relation_alias=d1]
+| | | | +-AttributeReference[id=8,name=y,relation=d1,type=Int]
+| | | | +-AttributeReference[id=9,name=z,relation=d1,type=Int]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=3,name=z,relation=a1,type=Int]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=9,name=z,relation=d1,type=Int]
+| | +-filter_predicate=NotEqual
+| |   +-AttributeReference[id=2,name=y,relation=a1,type=Int]
+| |   +-AttributeReference[id=8,name=y,relation=d1,type=Int]
+| +-project_list=
+|   +-AttributeReference[id=3,name=z,relation=a1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=3,name=z,relation=a1,type=Int]

@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -21,6 +23,8 @@
 
 #include "storage/StorageBlockLayout.pb.h"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 
@@ -78,6 +82,28 @@ bool SubBlockTypeRegistry::LayoutDescriptionIsValid(
   return true;
 }
 
+bool SubBlockTypeRegistry::IndexDescriptionIsValid(
+      const CatalogRelationSchema &relation,
+      const IndexSubBlockDescription &description) {
+  if (!description.IsInitialized()) {
+    return false;
+  }
+
+  std::unordered_map<IndexTypeIntegral,
+                     IndexDescriptionIsValidFunction>::const_iterator
+      index_it = Instance()->index_description_is_valid_functions_.find(
+          static_cast<IndexTypeIntegral>(description.sub_block_type()));
+  // No validity function was registered.
+  if (index_it == Instance()->index_description_is_valid_functions_.end()) {
+    return false;
+  }
+
+  if (!(*index_it->second)(relation, description)) {
+    return false;
+  }
+  return true;
+}
+
 std::size_t SubBlockTypeRegistry::EstimateBytesPerTupleForTupleStore(
     const CatalogRelationSchema &relation,
     const TupleStorageSubBlockDescription &description) {
@@ -102,6 +128,19 @@ std::size_t SubBlockTypeRegistry::EstimateBytesPerTupleForIndex(
       it = Instance()->index_estimate_bytes_per_tuple_functions_.find(
           static_cast<IndexTypeIntegral>(description.sub_block_type()));
   DEBUG_ASSERT(it != Instance()->index_estimate_bytes_per_tuple_functions_.end());
+
+  return (*it->second)(relation, description);
+}
+
+std::size_t SubBlockTypeRegistry::EstimateBytesPerBlockForIndex(const CatalogRelationSchema &relation,
+                                                                const IndexSubBlockDescription &description) {
+  DCHECK(description.IsInitialized());
+
+  std::unordered_map<IndexTypeIntegral,
+  IndexEstimateBytesPerBlockFunction>::const_iterator
+  it = Instance()->index_estimate_bytes_per_block_functions_.find(
+      static_cast<IndexTypeIntegral>(description.sub_block_type()));
+  DCHECK(it != Instance()->index_estimate_bytes_per_block_functions_.end());
 
   return (*it->second)(relation, description);
 }

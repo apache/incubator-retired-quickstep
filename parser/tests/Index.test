@@ -37,8 +37,8 @@ CREATE INDEX test ON test
                          ^
 ==
 
-# Currently supported indices (csbtree, bloomfilter)
-# Unsupported indices should result in syntax error
+# Currently supported indices are csbtree, bloomfilter, and sma.
+# Unsupported indices should result in syntax error.
 CREATE INDEX test ON test USING arbitrary
 --
 ERROR: syntax error (1 : 33)
@@ -47,9 +47,7 @@ CREATE INDEX test ON test USING arbitrary
 ==
 CREATE INDEX smaIndex ON test USING SMA
 --
-ERROR: syntax error (1 : 37)
-CREATE INDEX smaIndex ON test USING SMA
-                                    ^
+CreateIndexStatement[index_name=smaIndex,relation_name=test,index_type=sma]
 ==
 CREATE INDEX bloomIndex ON test USING BLOOMFILTER
 --
@@ -59,3 +57,12 @@ CreateIndexStatement[index_name=bloomIndex,relation_name=test,
 CREATE INDEX csbIndex ON test USING CSBTREE
 --
 CreateIndexStatement[index_name=csbIndex,relation_name=test,index_type=cs_b_tree]
+==
+# Bitweaving is supported on builds where it was included as a submodule. The
+# parser should create code to change the catalog, but on Block creation, no
+# index will be created.
+CREATE INDEX bwIndex ON test(int_col) USING bitweaving;
+--
+CreateIndexStatement[index_name=bwIndex,relation_name=test,index_type=bitweaving]
++-attribute_list=
+  +-AttributeReference[attribute_name=int_col]

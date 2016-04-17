@@ -30,6 +30,7 @@
 #include <string>
 #include <vector>
 
+#include "parser/ParseJoinedTableReference.hpp"
 #include "parser/ParseLiteralValue.hpp"
 #include "utility/PtrList.hpp"
 #include "utility/PtrVector.hpp"
@@ -174,6 +175,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "between"          return TOKEN_BETWEEN;
   "bigint"           return TOKEN_BIGINT;
   "bit"              return TOKEN_BIT;
+  "bitweaving"       return TOKEN_BITWEAVING;
   "blockproperties"  return TOKEN_BLOCKPROPERTIES;
   "blocksample"      return TOKEN_BLOCKSAMPLE;
   "bloomfilter"      return TOKEN_BLOOM_FILTER;
@@ -212,6 +214,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "group"            return TOKEN_GROUP;
   "hash"             return TOKEN_HASH;
   "having"           return TOKEN_HAVING;
+  "in"               return TOKEN_IN;
   "index"            return TOKEN_INDEX;
   "inner"            return TOKEN_INNER;
   "insert"           return TOKEN_INSERT;
@@ -248,6 +251,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "row_delimiter"    return TOKEN_ROW_DELIMITER;
   "select"           return TOKEN_SELECT;
   "set"              return TOKEN_SET;
+  "sma"              return TOKEN_SMA;
   "smallint"         return TOKEN_SMALLINT;
   "table"            return TOKEN_TABLE;
   "then"             return TOKEN_THEN;

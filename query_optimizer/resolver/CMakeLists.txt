@@ -1,5 +1,7 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
 #   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -44,11 +46,13 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_parser_ParseGeneratorTableReference
                       quickstep_parser_ParseGroupBy
                       quickstep_parser_ParseHaving
+                      quickstep_parser_ParseJoinedTableReference
                       quickstep_parser_ParseLimit
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseOrderBy
                       quickstep_parser_ParsePredicate
                       quickstep_parser_ParsePredicateExists
+                      quickstep_parser_ParsePredicateInTableQuery
                       quickstep_parser_ParseSelect
                       quickstep_parser_ParseSelectionClause
                       quickstep_parser_ParseSimpleTableReference
@@ -68,6 +72,8 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_expressions_Exists
                       quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_expressions_InTableQuery
+                      quickstep_queryoptimizer_expressions_InValueList
                       quickstep_queryoptimizer_expressions_LogicalAnd
                       quickstep_queryoptimizer_expressions_LogicalNot
                       quickstep_queryoptimizer_expressions_LogicalOr

@@ -51,6 +51,7 @@ class OptimizerTextTestRunner : public TextBasedTestRunner {
    */
   OptimizerTextTestRunner() {
     test_database_loader_.createTestRelation(true /* allow_vchar */);
+    test_database_loader_.createJoinRelations();
   }
 
   void runTestCase(const std::string &input,
