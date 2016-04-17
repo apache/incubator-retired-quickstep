@@ -83,6 +83,7 @@ addons:
       - binutils-gold
       - libprotobuf-dev
       - protobuf-compiler
+      - libgtest-dev
       - python-networkx
       - libnuma-dev
 
