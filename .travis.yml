@@ -8,6 +8,8 @@
 
 language: cpp
 
+cache: ccache
+
 compiler:
   - gcc
   - clang
