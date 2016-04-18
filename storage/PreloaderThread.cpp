@@ -34,7 +34,7 @@ void PreloaderThread::run() {
     ThreadUtil::BindToCPU(cpu_id_);
   }
 
-  const std::size_t numBufferPoolSlots = storage_manager_->getMaxBufferPoolSlots();
+  const std::size_t num_slots = storage_manager_->getMaxBufferPoolSlots();
   std::size_t blocksLoaded = 0;
 
   for (const CatalogRelation &relation : database_) {
@@ -46,8 +46,8 @@ void PreloaderThread::run() {
         LOG(INFO) << "Error after loading " << blocksLoaded << "blocks\n";
         throw;
       }
-      blocksLoaded++;
-      if (blocksLoaded == numBufferPoolSlots) {
+      ++blocksLoaded;
+      if (blocksLoaded == num_slots) {
         // The buffer pool has filled up. But, some database blocks are not loaded.
         printf(" The database is larger than the buffer pool. Only %lu blocks were loaded ",
                blocksLoaded);

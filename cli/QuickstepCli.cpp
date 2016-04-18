@@ -262,19 +262,19 @@ int main(int argc, char* argv[]) {
       DefaultsConfigurator::GetNumNUMANodesCoveredByWorkers(worker_cpu_affinities);
 
   if (quickstep::FLAGS_preload_buffer_pool) {
-    std::chrono::time_point<std::chrono::steady_clock> preLoadStart, preLoadEnd;
-    preLoadStart = std::chrono::steady_clock::now();
+    std::chrono::time_point<std::chrono::steady_clock> preload_start, preload_end;
+    preload_start = std::chrono::steady_clock::now();
     printf("Preloading the buffer pool ... ");
+    fflush(stdout);
     quickstep::PreloaderThread preloader(*query_processor->getDefaultDatabase(),
                                          query_processor->getStorageManager(),
                                          worker_cpu_affinities.front());
 
-    fflush(stdout);
     preloader.start();
     preloader.join();
-    preLoadEnd = std::chrono::steady_clock::now();
+    preload_end = std::chrono::steady_clock::now();
     printf("in %g seconds\n",
-           std::chrono::duration<double>(preLoadEnd - preLoadStart).count());
+           std::chrono::duration<double>(preload_end - preload_start).count());
   }
 
   Foreman foreman(&bus,
