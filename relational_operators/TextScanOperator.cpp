@@ -148,6 +148,10 @@ bool TextScanOperator::getAllWorkOrders(
 
   const std::vector<std::string> files = utility::file::GlobExpand(file_pattern_);
 
+  if (files.size() == 0) {
+    LOG(FATAL) << "No files matched '" << file_pattern_ << "'. Exiting.";
+  }
+
   InsertDestination *output_destination =
       query_context->getInsertDestination(output_destination_index_);
 

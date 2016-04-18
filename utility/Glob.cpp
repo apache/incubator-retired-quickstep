@@ -42,11 +42,21 @@ std::size_t GlobForEach(const std::string &pattern,
 #if defined(QUICKSTEP_HAVE_GLOB)
   glob_t glob_result;
 
-  int ret = glob(pattern.c_str(), 0, nullptr, &glob_result);
-  LOG_IF(ERROR, ret != 0) << "glob() returned non-zero";
-  std::size_t num_matches = glob_result.gl_pathc;
+  const int ret = glob(pattern.c_str(), 0, nullptr, &glob_result);
+  std::size_t num_matches = 0;
+  if (ret == GLOB_ABORTED) {
+    LOG(ERROR) << "An error occurred during glob.";
+  } else if (ret == GLOB_NOMATCH) {
+    LOG(WARNING) << "Glob function made zero matches.";
+  } else if (ret == GLOB_NOSPACE) {
+    LOG(ERROR) << "Glob function failed to allocate memory.";
+  } else {
+    // There should be no errors at this point.
+    DCHECK_EQ(ret, 0);
+    num_matches = glob_result.gl_pathc;
+  }
 
-  for (std::size_t i = 0; i < glob_result.gl_pathc; ++i) {
+  for (std::size_t i = 0; i < num_matches; ++i) {
     functor(glob_result.gl_pathv[i]);
   }
 
