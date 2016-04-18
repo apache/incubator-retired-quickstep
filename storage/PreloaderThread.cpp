@@ -35,7 +35,7 @@ void PreloaderThread::run() {
   }
 
   const std::size_t num_slots = storage_manager_->getMaxBufferPoolSlots();
-  std::size_t blocksLoaded = 0;
+  std::size_t blocks_loaded = 0;
 
   for (const CatalogRelation &relation : database_) {
     std::vector<block_id> blocks = relation.getBlocksSnapshot();
@@ -43,19 +43,19 @@ void PreloaderThread::run() {
       try {
         BlockReference current_block = storage_manager_->getBlock(current_block_id, relation);
       } catch (...) {
-        LOG(INFO) << "Error after loading " << blocksLoaded << "blocks\n";
+        LOG(INFO) << "Error after loading " << blocks_loaded << "blocks\n";
         throw;
       }
-      ++blocksLoaded;
-      if (blocksLoaded == num_slots) {
+      ++blocks_loaded;
+      if (blocks_loaded == num_slots) {
         // The buffer pool has filled up. But, some database blocks are not loaded.
         printf(" The database is larger than the buffer pool. Only %lu blocks were loaded ",
-               blocksLoaded);
+               blocks_loaded);
         return;
       }
     }
   }
-  printf(" Loaded %lu blocks ", blocksLoaded);
+  printf(" Loaded %lu blocks ", blocks_loaded);
 }
 
 }  // namespace quickstep
