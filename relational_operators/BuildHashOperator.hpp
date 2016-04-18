@@ -18,8 +18,10 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_BUILD_HASH_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_BUILD_HASH_OPERATOR_HPP_
 
-#include <utility>
+#include <fstream>
+#include <memory>
 #include <vector>
+#include <utility>
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
@@ -27,6 +29,7 @@
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
+#include "utility/BloomFilter.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -56,6 +59,11 @@ typedef HashTable<TupleReference, true, false, false, true> JoinHashTable;
  **/
 class BuildHashOperator : public RelationalOperator {
  public:
+
+  static const std::uint32_t kBloomFilterSize = 100; // in bytes
+  static const std::uint64_t kBloomFilterSeed = 0xA5A5A5A55A5A5A5AULL;
+  static const std::uint32_t kHashFnCount = 5;
+
   /**
    * @brief Constructor.
    *
@@ -83,9 +91,25 @@ class BuildHashOperator : public RelationalOperator {
       input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
                                                          : std::vector<block_id>()),
       num_workorders_generated_(0),
-      started_(false) {}
+      started_(false) {
+    bit_array_.reset(new std::uint8_t[kBloomFilterSize]);
+    bloom_filter_.reset(new BloomFilter(kBloomFilterSeed,
+                                        kHashFnCount,
+                                        kBloomFilterSize,
+                                        bit_array_.get(),
+                                        false));
+  }
 
-  ~BuildHashOperator() override {}
+  ~BuildHashOperator() override {
+    std::string filename = "/tmp/build_hash_" + input_relation_.getName();
+    std::ofstream file(filename, std::ios::out | std::ios::binary | std::ios::trunc);
+    std::unique_ptr<char> tmp_data(new char[kBloomFilterSize]);
+    std::memcpy(tmp_data.get(), bit_array_.get(), kBloomFilterSize);
+    file.write(tmp_data.get(), kBloomFilterSize);
+    file.close();
+    bloom_filter_.reset();
+    bit_array_.reset();
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,
@@ -114,6 +138,9 @@ class BuildHashOperator : public RelationalOperator {
 
   std::vector<block_id> input_relation_block_ids_;
   std::vector<block_id>::size_type num_workorders_generated_;
+
+  std::unique_ptr<std::uint8_t> bit_array_;
+  std::unique_ptr<BloomFilter> bloom_filter_;
 
   bool started_;
 

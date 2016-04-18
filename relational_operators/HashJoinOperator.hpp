@@ -19,6 +19,7 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_HASH_JOIN_OPERATOR_HPP_
 
 #include <cstddef>
+#include <fstream>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -26,6 +27,7 @@
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
+#include "relational_operators/BuildHashOperator.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/HashTable.hpp"
@@ -116,24 +118,52 @@ class HashJoinOperator : public RelationalOperator {
                    const QueryContext::insert_destination_id output_destination_index,
                    const QueryContext::join_hash_table_id hash_table_index,
                    const QueryContext::predicate_id residual_predicate_index,
-                   const QueryContext::scalar_group_id selection_index,
-                   const JoinType join_type = JoinType::kInnerJoin)
-      : build_relation_(build_relation),
-        probe_relation_(probe_relation),
-        probe_relation_is_stored_(probe_relation_is_stored),
-        join_key_attributes_(join_key_attributes),
-        any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        output_relation_(output_relation),
-        output_destination_index_(output_destination_index),
-        hash_table_index_(hash_table_index),
-        residual_predicate_index_(residual_predicate_index),
-        selection_index_(selection_index),
-        join_type_(join_type),
-        probe_relation_block_ids_(probe_relation_is_stored
-                                      ? probe_relation.getBlocksSnapshot()
-                                      : std::vector<block_id>()),
-        num_workorders_generated_(0),
-        started_(false) {}
+                   const QueryContext::scalar_group_id selection_index)
+    : build_relation_(build_relation),
+      probe_relation_(probe_relation),
+      probe_relation_is_stored_(probe_relation_is_stored),
+      join_key_attributes_(join_key_attributes),
+      any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
+      output_relation_(output_relation),
+      output_destination_index_(output_destination_index),
+      hash_table_index_(hash_table_index),
+      residual_predicate_index_(residual_predicate_index),
+      selection_index_(selection_index),
+      probe_relation_block_ids_(probe_relation_is_stored ? probe_relation.getBlocksSnapshot()
+                                                         : std::vector<block_id>()),
+      num_workorders_generated_(0),
+      started_(false) {
+    // read the map file and initialize bit maps if they exist
+    std::string filename = "/tmp/probe_hash_" + build_relation_.getName()
+                              + "_" + probe_relation_.getName();
+    std::ifstream map_file(filename);
+    if (map_file.good()) {
+      std::string line;
+      while (std::getline(map_file, line)) {
+        std::size_t idx = line.find(",");
+        std::string attr_str = line.substr(0, idx);
+        std::string bloom_filename = line.substr(idx+1);
+        attribute_id attr_id = std::stoi(attr_str);
+        std::ifstream bloom_file(bloom_filename, std::ios::in | std::ios::binary);
+        std::unique_ptr<char> tmp_data(new char[BuildHashOperator::kBloomFilterSize]);
+        bloom_file.read(tmp_data.get(), BuildHashOperator::kBloomFilterSize);
+        bloom_file.close();
+
+        std::unique_ptr<std::uint8_t> bit_array(new uint8_t[BuildHashOperator::kBloomFilterSize]);
+        std::memcpy(bit_array.get(), tmp_data.get(), BuildHashOperator::kBloomFilterSize);
+        std::unique_ptr<BloomFilter> bloom_filter(new BloomFilter(BuildHashOperator::kBloomFilterSeed,
+                                                                  BuildHashOperator::kHashFnCount,
+                                                                  BuildHashOperator::kBloomFilterSize,
+                                                                  bit_array.get(),
+                                                                  true));
+
+        bit_array_vector_.push_back(std::unique_ptr<std::uint8_t>(bit_array.release()));
+        bloom_filter_vector_.push_back(std::unique_ptr<BloomFilter>(bloom_filter.release()));
+        attr_id_vector_.push_back(attr_id);
+      }
+      map_file.close();
+    }
+  }
 
   ~HashJoinOperator() override {}
 
@@ -194,6 +224,10 @@ class HashJoinOperator : public RelationalOperator {
 
   std::vector<block_id> probe_relation_block_ids_;
   std::size_t num_workorders_generated_;
+
+  std::vector<std::unique_ptr<std::uint8_t>> bit_array_vector_;
+  std::vector<std::unique_ptr<BloomFilter>> bloom_filter_vector_;
+  std::vector<attribute_id> attr_id_vector_;
 
   bool started_;
 

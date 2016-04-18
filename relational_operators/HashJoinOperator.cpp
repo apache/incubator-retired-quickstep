@@ -244,6 +244,15 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
     const JoinHashTable &hash_table =
         *(query_context->getJoinHashTable(hash_table_index_));
 
+    if (attr_id_vector_.size() > 0) {
+      DCHECK_EQ(attr_id_vector_.size(), bloom_filter_vector_.size());
+      hash_table->attr_id_vector_ptr = &attr_id_vector_;
+      hash_table->bloom_filter_vector_ptr = &bloom_filter_vector_;
+    } else {
+      hash_table->attr_id_vector_ptr = nullptr;
+      hash_table->bloom_filter_vector_ptr = nullptr;
+    }
+
     if (probe_relation_is_stored_) {
       if (!started_) {
         for (const block_id probe_block_id : probe_relation_block_ids_) {
@@ -302,7 +311,8 @@ void HashInnerJoinWorkOrder::executeWithCollectorType() {
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
   CollectorT collector;
   if (join_key_attributes_.size() == 1) {
-    hash_table_.getAllFromValueAccessor(
+    LOG(ERROR) << build_relation_.getName() << "," << probe_relation_.getName();
+    hash_table_->getAllFromValueAccessor(
         probe_accessor.get(),
         join_key_attributes_.front(),
         any_join_key_attributes_nullable_,

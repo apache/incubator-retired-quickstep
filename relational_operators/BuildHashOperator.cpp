@@ -65,6 +65,7 @@ bool BuildHashOperator::getAllWorkOrders(
   DCHECK(query_context != nullptr);
 
   JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_index_);
+  hash_table->output_bloom_filter = bloom_filter_.get();
   if (input_relation_is_stored_) {
     if (!started_) {
       for (const block_id input_block_id : input_relation_block_ids_) {

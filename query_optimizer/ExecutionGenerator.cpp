@@ -193,7 +193,7 @@ void ExecutionGenerator::generatePlanInternal(
   for (const P::PhysicalPtr &child : physical_plan->children()) {
     generatePlanInternal(child);
   }
-
+  LOG(ERROR) << physical_plan->getShortString();
   switch (physical_plan->getPhysicalType()) {
     case P::PhysicalType::kAggregate:
       return convertAggregate(

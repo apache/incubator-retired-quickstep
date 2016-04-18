@@ -21,7 +21,9 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdlib>
+#include <memory>
 #include <type_traits>
+#include <unordered_map>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -36,8 +38,11 @@
 #include "threading/SpinSharedMutex.hpp"
 #include "types/Type.hpp"
 #include "types/TypedValue.hpp"
+#include "utility/BloomFilter.hpp"
 #include "utility/HashPair.hpp"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 
@@ -169,6 +174,10 @@ class HashTable : public HashTableBase<resizable,
   // into. As with kEmptyHash, keys which actually hash to this value should
   // have their hashes adjusted.
   static constexpr std::size_t kPendingHash = ~kEmptyHash;
+                                         
+  std::vector<attribute_id> *attr_id_vector_ptr;
+  std::vector<std::unique_ptr<BloomFilter>> *bloom_filter_vector_ptr;
+  BloomFilter *output_bloom_filter;
 
   /**
    * @brief Virtual destructor.
@@ -1427,6 +1436,9 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
                                        variable_size,
                                        (*functor)(*accessor),
                                        using_prealloc ? &prealloc_state : nullptr);
+            // insert into bloom filter
+            this->output_bloom_filter->insert(static_cast<const std::uint8_t *>(key.getDataPtr()),
+                                              key.getDataSize());
             if (result == HashTablePutResult::kDuplicateKey) {
               DEBUG_ASSERT(!using_prealloc);
               return result;
@@ -2157,8 +2169,31 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
   InvokeOnAnyValueAccessor(
       accessor,
       [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+    std::uint64_t total_probes = 0;
+    std::uint64_t total_probe_hits = 0;
     while (accessor->next()) {
+      if (bloom_filter_vector_ptr != nullptr) {
+        DCHECK_EQ(bloom_filter_vector_ptr->size(), attr_id_vector_ptr->size());
+        // Check if the key is contained in BloomFilter or not.
+        // If not then skip the probing altogether.
+        bool bloom_miss = false;
+        for (std::size_t i = 0; i < bloom_filter_vector_ptr->size(); ++i) {
+          BloomFilter *bloom_filter = bloom_filter_vector_ptr->at(i).get();
+          attribute_id attr_id = attr_id_vector_ptr->at(i);
+          TypedValue bloom_key = accessor->getTypedValue(attr_id);
+          if (!bloom_filter->contains(static_cast<const std::uint8_t*>(bloom_key.getDataPtr()),
+                                      bloom_key.getDataSize())) {
+            bloom_miss = true;
+            break;
+          }
+        }
+        if (bloom_miss) {
+          continue;
+        }
+      }
+      
       TypedValue key = accessor->getTypedValue(key_attr_id);
+      ++total_probes;
       if (check_for_null_keys && key.isNull()) {
         continue;
       }
@@ -2170,11 +2205,13 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
       const ValueT *value;
       while (this->getNextEntryForKey(key, adjusted_hash, &value, &entry_num)) {
         (*functor)(*accessor, *value);
+        ++total_probe_hits;
         if (!allow_duplicate_keys) {
           break;
         }
       }
     }
+    LOG(ERROR) << "probes = " << total_probes << ", hits = " << total_probe_hits;
   });
 }
 
