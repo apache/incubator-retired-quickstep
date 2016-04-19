@@ -118,7 +118,8 @@ class HashJoinOperator : public RelationalOperator {
                    const QueryContext::insert_destination_id output_destination_index,
                    const QueryContext::join_hash_table_id hash_table_index,
                    const QueryContext::predicate_id residual_predicate_index,
-                   const QueryContext::scalar_group_id selection_index)
+                   const QueryContext::scalar_group_id selection_index,
+                   const JoinType join_type = JoinType::kInnerJoin)
     : build_relation_(build_relation),
       probe_relation_(probe_relation),
       probe_relation_is_stored_(probe_relation_is_stored),
@@ -129,6 +130,7 @@ class HashJoinOperator : public RelationalOperator {
       hash_table_index_(hash_table_index),
       residual_predicate_index_(residual_predicate_index),
       selection_index_(selection_index),
+      join_type_(join_type),
       probe_relation_block_ids_(probe_relation_is_stored ? probe_relation.getBlocksSnapshot()
                                                          : std::vector<block_id>()),
       num_workorders_generated_(0),

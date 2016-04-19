@@ -60,7 +60,7 @@ typedef HashTable<TupleReference, true, false, false, true> JoinHashTable;
 class BuildHashOperator : public RelationalOperator {
  public:
 
-  static const std::uint32_t kBloomFilterSize = 100; // in bytes
+  static const std::uint32_t kBloomFilterSize = 10000; // in bytes
   static const std::uint64_t kBloomFilterSeed = 0xA5A5A5A55A5A5A5AULL;
   static const std::uint32_t kHashFnCount = 5;
 
