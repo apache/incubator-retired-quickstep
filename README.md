@@ -1,14 +1,16 @@
-# Quickstep
+# Apache Quickstep (Incubating)
 
 [![Travis Widget]][Travis]
 
 [Travis]: https://travis-ci.org/pivotalsoftware/quickstep
 [Travis Widget]: https://travis-ci.org/pivotalsoftware/quickstep.svg?branch=master
 
-Quickstep is an experimental high-performance database engine designed with the
-aim of Data at Bare-Metal Speed. It began life in 2011 as a 
+Apache Quickstep is an experimental high-performance database engine designed with the
+aim of Data at Bare-Metal Speed. It began life in 2011 as a
 [research project at the University of Wisconsin](https://quickstep.cs.wisc.edu)
 and was acquired by [Pivotal](https://pivotal.io) in 2015.
+Quickstep entered incubation at the
+[Apache Software Foundation](https://www.apache.org) in April, 2016.
 
 ## Getting Started (Building)
 
@@ -91,3 +93,16 @@ concerns of a database system. The main modules are:
 ## Licensing
 
 Quickstep is licensed under the Apache License, Version 2.0. See [LICENSE](https://github.com/pivotalsoftware/quickstep/blob/master/LICENSE) for the full license text.
+
+## Disclaimer
+Apache Quickstep is an effort undergoing incubation at the Apache Software
+Foundation (ASF), sponsored by the Apache Incubator PMC.
+
+Incubation is required of all newly accepted projects until a further
+review indicates that the infrastructure, communications, and decision
+making process have stabilized in a manner consistent with other
+successful ASF projects.
+
+While incubation status is not necessarily a reflection of the
+completeness or stability of the code, it does indicate that the
+project has yet to be fully endorsed by the ASF.
