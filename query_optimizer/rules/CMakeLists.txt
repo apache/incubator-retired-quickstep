@@ -51,7 +51,9 @@ target_link_libraries(quickstep_queryoptimizer_rules_GenerateJoins
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ComparisonExpression
                       quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_expressions_LogicalAnd
                       quickstep_queryoptimizer_expressions_PatternMatcher
+                      quickstep_queryoptimizer_expressions_Predicate
                       quickstep_queryoptimizer_logical_Filter
                       quickstep_queryoptimizer_logical_HashJoin
                       quickstep_queryoptimizer_logical_Logical
@@ -64,6 +66,7 @@ target_link_libraries(quickstep_queryoptimizer_rules_GenerateJoins
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_utility_Macros
+                      quickstep_utility_SqlError
                       quickstep_utility_VectorUtil)
 target_link_libraries(quickstep_queryoptimizer_rules_PruneColumns
                       quickstep_queryoptimizer_expressions_AttributeReference
@@ -79,6 +82,7 @@ target_link_libraries(quickstep_queryoptimizer_rules_PushDownFilter
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExpressionUtil
                       quickstep_queryoptimizer_logical_Filter
+                      quickstep_queryoptimizer_logical_HashJoin
                       quickstep_queryoptimizer_logical_Logical
                       quickstep_queryoptimizer_logical_PatternMatcher
                       quickstep_queryoptimizer_rules_Rule

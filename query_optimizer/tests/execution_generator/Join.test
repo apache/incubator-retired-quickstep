@@ -130,3 +130,102 @@ WHERE a1.w = b1.w
 |          6|                  61|                     601|              C6|
 |         18|                 181|                    1799|             C18|
 +-----------+--------------------+------------------------+----------------+
+==
+
+SELECT a.w AS "a.w", b.x AS "b.x", c.y AS "c.y", d.z AS "d.z"
+FROM a LEFT JOIN b ON a.w = b.w
+       LEFT JOIN c ON a.x = c.x
+       LEFT JOIN d ON a.y = d.y
+ORDER BY a.w;
+--
++-----------+--------------------+------------------------+----------------+
+|a.w        |b.x                 |c.y                     |d.z             |
++-----------+--------------------+------------------------+----------------+
+|          0|                   0|                      -1|              C0|
+|          1|                NULL|                    NULL|              C1|
+|          2|                  21|                    NULL|              C2|
+|          3|                NULL|                     300|              C3|
+|          4|                  40|                    NULL|              C4|
+|          5|                NULL|                    NULL|              C5|
+|          6|                  61|                     601|              C6|
+|          7|                NULL|                    NULL|              C7|
+|          8|                  80|                    NULL|              C8|
+|          9|                NULL|                     899|              C9|
+|         10|                 101|                    NULL|             C10|
+|         11|                NULL|                    NULL|             C11|
+|         12|                 120|                    1200|             C12|
+|         13|                NULL|                    NULL|             C13|
+|         14|                 141|                    NULL|             C14|
+|         15|                NULL|                    1501|             C15|
+|         16|                 160|                    NULL|             C16|
+|         17|                NULL|                    NULL|             C17|
+|         18|                 181|                    1799|             C18|
+|         19|                NULL|                    NULL|             C19|
++-----------+--------------------+------------------------+----------------+
+==
+
+SELECT a.w AS "a.w", b.x AS "b.x", c.y AS "c.y", d.z AS "d.z"
+FROM a LEFT JOIN b ON a.w = b.w
+       LEFT JOIN c ON b.x = c.x
+       LEFT JOIN d ON c.y = d.y
+ORDER BY a.w;
+--
++-----------+--------------------+------------------------+----------------+
+|a.w        |b.x                 |c.y                     |d.z             |
++-----------+--------------------+------------------------+----------------+
+|          0|                   0|                      -1|            NULL|
+|          1|                NULL|                    NULL|            NULL|
+|          2|                  21|                    NULL|            NULL|
+|          3|                NULL|                    NULL|            NULL|
+|          4|                  40|                    NULL|            NULL|
+|          5|                NULL|                    NULL|            NULL|
+|          6|                  61|                    NULL|            NULL|
+|          7|                NULL|                    NULL|            NULL|
+|          8|                  80|                    NULL|            NULL|
+|          9|                NULL|                    NULL|            NULL|
+|         10|                 101|                    NULL|            NULL|
+|         11|                NULL|                    NULL|            NULL|
+|         12|                 120|                    1200|             C12|
+|         13|                NULL|                    NULL|            NULL|
+|         14|                 141|                    NULL|            NULL|
+|         15|                NULL|                    NULL|            NULL|
+|         16|                 160|                    NULL|            NULL|
+|         17|                NULL|                    NULL|            NULL|
+|         18|                 181|                    NULL|            NULL|
+|         19|                NULL|                    NULL|            NULL|
++-----------+--------------------+------------------------+----------------+
+==
+
+SELECT b.x AS "b.x", c1.x AS "c1.x", c2.x AS "c2.x"
+FROM b LEFT JOIN c c1 ON (b.x = c1.x)
+       LEFT JOIN c c2 ON (b.x = c2.x AND c2.x > 10)
+ORDER BY b.x;
+--
++--------------------+--------------------+--------------------+
+|b.x                 |c1.x                |c2.x                |
++--------------------+--------------------+--------------------+
+|                   0|                   0|                NULL|
+|                  21|                NULL|                NULL|
+|                  40|                NULL|                NULL|
+|                  61|                NULL|                NULL|
+|                  80|                NULL|                NULL|
+|                 101|                NULL|                NULL|
+|                 120|                 120|                 120|
+|                 141|                NULL|                NULL|
+|                 160|                NULL|                NULL|
+|                 181|                NULL|                NULL|
++--------------------+--------------------+--------------------+
+==
+
+SELECT a.w AS "a.w", b.x AS "b.x", c.y AS "c.y", d.z AS "d.z"
+FROM a RIGHT JOIN b ON a.w = b.w
+       JOIN c ON a.x = c.x
+       LEFT JOIN d ON a.y = d.y
+WHERE b.x > 10
+  AND c.y < 1000;
+--
++-----------+--------------------+------------------------+----------------+
+|a.w        |b.x                 |c.y                     |d.z             |
++-----------+--------------------+------------------------+----------------+
+|          6|                  61|                     601|              C6|
++-----------+--------------------+------------------------+----------------+

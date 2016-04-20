@@ -26,6 +26,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_NameResolver
                       quickstep_catalog_CatalogRelation
                       quickstep_parser_ParseString
                       quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExpressionUtil
                       quickstep_queryoptimizer_logical_Logical
                       quickstep_utility_Macros
                       quickstep_utility_SqlError
@@ -94,6 +95,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_logical_DeleteTuples
                       quickstep_queryoptimizer_logical_DropTable
                       quickstep_queryoptimizer_logical_Filter
+                      quickstep_queryoptimizer_logical_HashJoin
                       quickstep_queryoptimizer_logical_InsertSelection
                       quickstep_queryoptimizer_logical_InsertTuple
                       quickstep_queryoptimizer_logical_Logical

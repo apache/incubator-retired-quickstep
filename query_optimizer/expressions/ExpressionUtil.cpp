@@ -37,6 +37,25 @@ AttributeReferencePtr ToRef(const NamedExpressionPtr &expression) {
                                     AttributeReferenceScope::kLocal);
 }
 
+std::vector<AttributeReferencePtr> GetNullableAttributeVector(
+    const std::vector<AttributeReferencePtr> &attributes) {
+  std::vector<AttributeReferencePtr> nullable_attributes;
+  for (const auto &attr : attributes) {
+    if (!attr->getValueType().isNullable()) {
+      nullable_attributes.emplace_back(
+          AttributeReference::Create(attr->id(),
+                                     attr->attribute_name(),
+                                     attr->attribute_alias(),
+                                     attr->relation_name(),
+                                     attr->getValueType().getNullableVersion(),
+                                     attr->scope()));
+    } else {
+      nullable_attributes.emplace_back(attr);
+    }
+  }
+  return nullable_attributes;
+}
+
 std::vector<AttributeReferencePtr> GetAttributeReferencesWithinScope(
     const std::vector<AttributeReferencePtr> &attributes,
     const AttributeReferenceScope scope) {

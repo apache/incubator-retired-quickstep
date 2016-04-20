@@ -607,6 +607,18 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   const CatalogRelationInfo *probe_operator_info =
       findRelationInfoOutputByPhysical(probe_physical);
 
+  // Create a vector that indicates whether each project expression is using
+  // attributes from the build relation as input. This information is required
+  // by the current implementation of hash left outer join
+  std::unique_ptr<std::vector<bool>> is_selection_on_build;
+  if (physical_plan->join_type() == P::HashJoin::JoinType::kLeftOuterJoin) {
+    is_selection_on_build.reset(
+        new std::vector<bool>(
+            E::MarkExpressionsReferingAnyAttribute(
+                physical_plan->project_expressions(),
+                build_physical->getOutputAttributes())));
+  }
+
   // FIXME(quickstep-team): Add support for self-join.
   if (build_relation_info->relation == probe_operator_info->relation) {
     THROW_SQL_ERROR() << "Self-join is not supported";
@@ -664,6 +676,9 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
     case P::HashJoin::JoinType::kLeftAntiJoin:
       join_type = HashJoinOperator::JoinType::kLeftAntiJoin;
       break;
+    case P::HashJoin::JoinType::kLeftOuterJoin:
+      join_type = HashJoinOperator::JoinType::kLeftOuterJoin;
+      break;
     default:
       LOG(FATAL) << "Invalid physical::HashJoin::JoinType: "
                  << static_cast<typename std::underlying_type<P::HashJoin::JoinType>::type>(
@@ -684,6 +699,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               join_hash_table_index,
               residual_predicate_index,
               project_expressions_group_index,
+              is_selection_on_build.get(),
               join_type));
   insert_destination_proto->set_relational_op_index(join_operator_index);
 

@@ -27,6 +27,7 @@
 
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/logical/BinaryJoin.hpp"
 #include "query_optimizer/logical/Logical.hpp"
@@ -57,9 +58,9 @@ class HashJoin : public BinaryJoin {
   enum class JoinType {
     kInnerJoin = 0,
     kLeftSemiJoin,
-    kLeftAntiJoin
+    kLeftAntiJoin,
+    kLeftOuterJoin
   };
-
 
   LogicalType getLogicalType() const override { return LogicalType::kHashJoin; }
 
@@ -71,6 +72,8 @@ class HashJoin : public BinaryJoin {
         return "HashLeftSemiJoin";
       case JoinType::kLeftAntiJoin:
         return "HashLeftAntiJoin";
+      case JoinType::kLeftOuterJoin:
+        return "HashLeftOuterJoin";
       default:
         LOG(FATAL) << "Invalid JoinType: "
                    << static_cast<typename std::underlying_type<JoinType>::type>(join_type_);
@@ -116,12 +119,36 @@ class HashJoin : public BinaryJoin {
                             join_type_);
   }
 
+  std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {
+    if (join_type_ != JoinType::kLeftOuterJoin) {
+      return BinaryJoin::getOutputAttributes();
+    }
+
+    // For left outer join, all the output attributes from the right relation
+    // must be nullable.
+    std::vector<expressions::AttributeReferencePtr> output_attributes =
+        left()->getOutputAttributes();
+    const std::vector<expressions::AttributeReferencePtr> right_nullable_output_attributes =
+        GetNullableAttributeVector(right()->getOutputAttributes());
+    output_attributes.insert(output_attributes.end(),
+                             right_nullable_output_attributes.begin(),
+                             right_nullable_output_attributes.end());
+    return output_attributes;
+  }
+
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override {
     std::vector<expressions::AttributeReferencePtr> referenced_attributes =
         left_join_attributes_;
     referenced_attributes.insert(referenced_attributes.end(),
                                  right_join_attributes_.begin(),
                                  right_join_attributes_.end());
+    if (residual_predicate_ != nullptr) {
+      const std::vector<expressions::AttributeReferencePtr> referenced_attributes_in_residual =
+          residual_predicate_->getReferencedAttributes();
+      referenced_attributes.insert(referenced_attributes.end(),
+                                   referenced_attributes_in_residual.begin(),
+                                   referenced_attributes_in_residual.end());
+    }
     return referenced_attributes;
   }
 
@@ -170,6 +197,11 @@ class HashJoin : public BinaryJoin {
                                     container_child_field_names,
                                     container_child_fields);
 
+    if (residual_predicate_ != nullptr) {
+      non_container_child_field_names->push_back("residual_predicate");
+      non_container_child_fields->push_back(residual_predicate_);
+    }
+
     container_child_field_names->push_back("left_join_attributes");
     container_child_fields->push_back(CastSharedPtrVector<OptimizerTreeBase>(left_join_attributes_));
     container_child_field_names->push_back("right_join_attributes");
@@ -189,7 +221,7 @@ class HashJoin : public BinaryJoin {
         residual_predicate_(residual_predicate),
         join_type_(join_type) {
     DCHECK_EQ(left_join_attributes.size(), right_join_attributes.size());
-    DCHECK(!left_join_attributes.empty());
+    DCHECK(!left_join_attributes.empty() || residual_predicate != nullptr);
 
     if (residual_predicate_ != nullptr) {
       addInputExpression(residual_predicate_);

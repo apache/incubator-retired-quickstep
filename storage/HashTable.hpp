@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -707,8 +709,8 @@ class HashTable : public HashTableBase<resizable,
                                FunctorT *functor) const;
 
   /**
-   * @brief Lookup (multiple) keys from a ValueAccessor, apply a functor to
-   *        the matching values and additionally call a hasMatch() function of
+   * @brief Lookup (multiple) keys from a ValueAccessor, apply a functor to the
+   *        matching values and additionally call a recordMatch() function of
    *        the functor when the first match for a key is found.
    * @warning This method assumes that no concurrent calls to put(),
    *          putCompositeKey(), putValueAccessor(),
@@ -749,8 +751,8 @@ class HashTable : public HashTableBase<resizable,
       FunctorT *functor) const;
 
   /**
-   * @brief Lookup (multiple) keys from a ValueAccessor, apply a functor to
-   *        the matching values and additionally call a hasMatch() function of
+   * @brief Lookup (multiple) keys from a ValueAccessor, apply a functor to the
+   *        matching values and additionally call a recordMatch() function of
    *        the functor when the first match for a key is found. Composite key
    *        version.
    * @warning This method assumes that no concurrent calls to put(),
@@ -1905,17 +1907,19 @@ void HashTable<ValueT,
       if (check_for_null_keys && key.isNull()) {
         continue;
       }
-      const std::size_t hash_code = adjust_hashes_ ? AdjustHash(key.getHash())
-                                                   : key.getHash();
+      const std::size_t hash_code =
+          adjust_hashes_ ? HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
+                               ::AdjustHash(key.getHash())
+                         : key.getHash();
       std::size_t entry_num = 0;
       const ValueT *value;
-      if (getNextEntryForKey(key, hash_code, &value, &entry_num)) {
+      if (this->getNextEntryForKey(key, hash_code, &value, &entry_num)) {
         functor->recordMatch(*accessor);
         (*functor)(*accessor, *value);
         if (!allow_duplicate_keys) {
            continue;
         }
-        while (getNextEntryForKey(key, hash_code, &value, &entry_num)) {
+        while (this->getNextEntryForKey(key, hash_code, &value, &entry_num)) {
           (*functor)(*accessor, *value);
         }
       }
@@ -1956,17 +1960,19 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
         continue;
       }
 
-      const std::size_t hash_code = adjust_hashes_ ? AdjustHash(hashCompositeKey(key_vector))
-                                                   : hashCompositeKey(key_vector);
+      const std::size_t hash_code =
+          adjust_hashes_ ? HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>
+                               ::AdjustHash(this->hashCompositeKey(key_vector))
+                         : this->hashCompositeKey(key_vector);
       std::size_t entry_num = 0;
       const ValueT *value;
-      if (getNextEntryForCompositeKey(key_vector, hash_code, &value, &entry_num)) {
+      if (this->getNextEntryForCompositeKey(key_vector, hash_code, &value, &entry_num)) {
         functor->recordMatch(*accessor);
         (*functor)(*accessor, *value);
         if (!allow_duplicate_keys) {
           continue;
         }
-        while (getNextEntryForCompositeKey(key_vector, hash_code, &value, &entry_num)) {
+        while (this->getNextEntryForCompositeKey(key_vector, hash_code, &value, &entry_num)) {
           (*functor)(*accessor, *value);
         }
       }

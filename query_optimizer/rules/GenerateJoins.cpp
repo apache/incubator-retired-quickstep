@@ -19,6 +19,7 @@
 
 #include "query_optimizer/rules/GenerateJoins.hpp"
 
+#include <memory>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -26,7 +27,9 @@
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ComparisonExpression.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
+#include "query_optimizer/expressions/LogicalAnd.hpp"
 #include "query_optimizer/expressions/PatternMatcher.hpp"
+#include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/logical/Filter.hpp"
 #include "query_optimizer/logical/HashJoin.hpp"
 #include "query_optimizer/logical/Logical.hpp"
@@ -37,6 +40,7 @@
 #include "query_optimizer/rules/RuleHelper.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
+#include "utility/SqlError.hpp"
 #include "utility/VectorUtil.hpp"
 
 #include "glog/logging.h"
@@ -245,6 +249,7 @@ void AddNestedLoopsJoin(const L::LogicalPtr left_logical,
 L::LogicalPtr GenerateJoins::applyToNode(const L::LogicalPtr &input) {
   L::FilterPtr filter;
   L::MultiwayCartesianJoinPtr cartesian_join;
+  L::HashJoinPtr hash_join;
 
   // Merge filter predicates with cartesian joins to generate NestedLoopsJoin or
   // HashJoin.
@@ -391,6 +396,91 @@ L::LogicalPtr GenerateJoins::applyToNode(const L::LogicalPtr &input) {
     L::LogicalPtr output = MaybeGenerateNestedLoopsCartesianJoin(cartesian_join->operands());
     LOG_APPLYING_RULE(input, output);
     return output;
+  } else if (L::SomeHashJoin::MatchesWithConditionalCast(input, &hash_join) &&
+             hash_join->join_type() == L::HashJoin::JoinType::kLeftOuterJoin) {
+    L::LogicalPtr left_logical = hash_join->left();
+    L::LogicalPtr right_logical = hash_join->right();
+
+    const std::vector<E::AttributeReferencePtr> left_relation_attributes =
+        left_logical->getOutputAttributes();
+    const std::vector<E::AttributeReferencePtr> right_relation_attributes =
+        right_logical->getOutputAttributes();
+
+    DCHECK(hash_join->residual_predicate() != nullptr);
+    const std::vector<E::PredicatePtr> on_predicate_items =
+        GetConjunctivePredicates(hash_join->residual_predicate());
+
+    std::vector<E::AttributeReferencePtr> left_join_attributes;
+    std::vector<E::AttributeReferencePtr> right_join_attributes;
+    std::vector<E::PredicatePtr> left_filter_predicates;
+    std::vector<E::PredicatePtr> right_filter_predicates;
+
+    for (const E::PredicatePtr &predicate_item : on_predicate_items) {
+      std::vector<E::AttributeReferencePtr> referenced_attrs =
+          predicate_item->getReferencedAttributes();
+
+      if (E::SubsetOfExpressions(referenced_attrs, left_relation_attributes)) {
+        // The predicate refers attributes only from the left relation.
+        left_filter_predicates.emplace_back(predicate_item);
+      } else if (E::SubsetOfExpressions(referenced_attrs, right_relation_attributes)) {
+        // The predicate refers attributes only from the right relation.
+        right_filter_predicates.emplace_back(predicate_item);
+      } else {
+        // The predicate refers attributes from both relations.
+        //
+        // NOTE(jianqiao): In this case, since currently in the backend we do not
+        // support residual predicates for hash outer joins, so the predicate can
+        // only be an equal comparison between two attributes (one from left and
+        // one from right).
+        E::ComparisonExpressionPtr comp_expr;
+        if (E::SomeComparisonExpression::MatchesWithConditionalCast(predicate_item,
+                                                                    &comp_expr)) {
+          E::AttributeReferencePtr left_attr;
+          E::AttributeReferencePtr right_attr;
+          if (comp_expr->isEqualityComparisonPredicate() &&
+              E::SomeAttributeReference::MatchesWithConditionalCast(comp_expr->left(), &left_attr) &&
+              E::SomeAttributeReference::MatchesWithConditionalCast(comp_expr->right(), &right_attr)) {
+            if (E::ContainsExpression(left_relation_attributes, left_attr)) {
+              DCHECK(E::ContainsExpression(right_relation_attributes, right_attr));
+
+              left_join_attributes.emplace_back(left_attr);
+              right_join_attributes.emplace_back(right_attr);
+            } else {
+              DCHECK(E::ContainsExpression(left_relation_attributes, right_attr));
+              DCHECK(E::ContainsExpression(right_relation_attributes, left_attr));
+
+              left_join_attributes.emplace_back(right_attr);
+              right_join_attributes.emplace_back(left_attr);
+            }
+          } else {
+            THROW_SQL_ERROR() << "Join predicate for outer joins must be an "
+                              << "equality comparison between attributes";
+          }
+        } else {
+          THROW_SQL_ERROR() << "Non-equality join predicate is not allowed for outer joins";
+        }
+      }
+    }
+
+    if (!left_filter_predicates.empty()) {
+        // NOTE(jianqiao): Filter predicates on left table cannot be pushed down
+        // but can be treated as residual predicates once we have support for that.
+        THROW_SQL_ERROR() << "Filter predicates on left table is not allowed for outer joins";
+    }
+
+    if (!right_filter_predicates.empty()) {
+      const E::PredicatePtr right_predicate =
+          (right_filter_predicates.size() == 1u ? right_filter_predicates[0]
+                                                : E::LogicalAnd::Create(right_filter_predicates));
+      right_logical = L::Filter::Create(right_logical, right_predicate);
+    }
+
+    return L::HashJoin::Create(left_logical,
+                               right_logical,
+                               left_join_attributes,
+                               right_join_attributes,
+                               nullptr /* residual_predicate */,
+                               L::HashJoin::JoinType::kLeftOuterJoin);
   }
 
   LOG_IGNORING_RULE(input);

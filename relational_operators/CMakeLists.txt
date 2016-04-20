@@ -177,12 +177,12 @@ target_link_libraries(quickstep_relationaloperators_HashJoinOperator
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
                       quickstep_storage_SubBlocksReference
+                      quickstep_storage_TupleIdSequence
                       quickstep_storage_TupleReference
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_storage_ValueAccessor
                       quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_utility_Macros
-                      quickstep_utility_PtrList
                       tmb)
 target_link_libraries(quickstep_relationaloperators_InsertOperator
                       glog
