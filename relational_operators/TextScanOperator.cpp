@@ -288,7 +288,7 @@ void TextScanWorkOrder::execute() {
 
     std::fclose(file);
   } else {
-    BlobReference blob = storage_manager_->getBlob(text_blob_);
+    MutableBlobReference blob = storage_manager_->getBlobMutable(text_blob_);
     const char *blob_pos = static_cast<const char*>(blob->getMemory());
     const char *blob_end = blob_pos + text_size_;
     bool have_row = false;
@@ -300,6 +300,10 @@ void TextScanWorkOrder::execute() {
         output_destination_->insertTupleInBatch(tuple);
       }
     } while (have_row);
+
+    // Drop the consumed blob produced by TextSplitWorkOrder.
+    blob.release();
+    storage_manager_->deleteBlockOrBlobFile(text_blob_);
   }
 }
 
