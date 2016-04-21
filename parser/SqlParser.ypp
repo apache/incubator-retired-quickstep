@@ -1503,6 +1503,9 @@ expression_base:
   }
   | '(' add_expression ')' {
     $$ = $2;
+  }
+  | subquery_expression {
+    $$ = $1;
   };
 
 function_call:

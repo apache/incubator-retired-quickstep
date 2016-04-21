@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -27,7 +29,8 @@ namespace quickstep {
 class ParseTreeNode;
 
 std::string ParseSubqueryExpression::generateName() const {
-  LOG(FATAL) << "ParseSubqueryExpression::generateName() is not implemented yet";
+  // TODO(jianqiao): generate a more informative name for ParseSubqueryExpression.
+  return getName();
 }
 
 void ParseSubqueryExpression::getFieldStringItems(

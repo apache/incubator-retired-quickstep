@@ -18,7 +18,9 @@
 #include "query_optimizer/rules/UnnestSubqueries.hpp"
 
 #include <algorithm>
+#include <functional>
 #include <memory>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -41,6 +43,7 @@
 #include "query_optimizer/logical/HashJoin.hpp"
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/logical/LogicalType.hpp"
+#include "query_optimizer/logical/MultiwayCartesianJoin.hpp"
 #include "query_optimizer/logical/PatternMatcher.hpp"
 #include "query_optimizer/logical/Project.hpp"
 #include "query_optimizer/logical/TopLevelPlan.hpp"
@@ -62,7 +65,8 @@ struct CorrelatedQueryInfo {
   enum class JoinType {
     kInnerJoin = 0,
     kLeftSemiJoin,
-    kLeftAntiJoin
+    kLeftAntiJoin,
+    kCartesianJoin
   };
 
   CorrelatedQueryInfo(const JoinType join_type_in,
@@ -464,9 +468,29 @@ L::LogicalPtr UnnestSubqueriesForNonRootLogical::eliminateNestedScalarQueries(co
         new_child = node->children()[0];
       }
 
-      for (CorrelatedQueryInfo &correlated_query_info : correlated_query_info_vec) {
-        DCHECK(!correlated_query_info.probe_join_attributes.empty());
+      // Join uncorrelated subqueries early.
+      L::LogicalPtr uncorrelated_query_child;
+      for (const CorrelatedQueryInfo &correlated_query_info : correlated_query_info_vec) {
+        if (correlated_query_info.join_type == CorrelatedQueryInfo::JoinType::kCartesianJoin) {
+          // The only case for this nested loop join is that it is an uncorrelated
+          // subquery which returns a scalar (single column and single row) result.
+          DCHECK(correlated_query_info.probe_join_attributes.empty());
+          DCHECK_EQ(0u, correlated_query_info.non_hash_join_predicates.size());
+          if (uncorrelated_query_child == nullptr) {
+            uncorrelated_query_child = correlated_query_info.correlated_query;
+          } else {
+            uncorrelated_query_child = L::MultiwayCartesianJoin::Create(
+                { uncorrelated_query_child, correlated_query_info.correlated_query });
+          }
+        }
+      }
+      if (uncorrelated_query_child != nullptr) {
+        new_child = L::MultiwayCartesianJoin::Create({ new_child, uncorrelated_query_child });
+      }
+
+      for (const CorrelatedQueryInfo &correlated_query_info : correlated_query_info_vec) {
         if (correlated_query_info.join_type == CorrelatedQueryInfo::JoinType::kInnerJoin) {
+          DCHECK(!correlated_query_info.probe_join_attributes.empty());
           DCHECK(correlated_query_info.non_hash_join_predicates.empty())
               << correlated_query_info.non_hash_join_predicates[0]->toString();
           new_child = L::HashJoin::Create(new_child,
@@ -475,7 +499,9 @@ L::LogicalPtr UnnestSubqueriesForNonRootLogical::eliminateNestedScalarQueries(co
                                           correlated_query_info.build_join_attributes,
                                           nullptr, /* residual_predicate */
                                           L::HashJoin::JoinType::kInnerJoin);
-        } else {
+        } else if (correlated_query_info.join_type == CorrelatedQueryInfo::JoinType::kLeftSemiJoin ||
+                   correlated_query_info.join_type == CorrelatedQueryInfo::JoinType::kLeftAntiJoin) {
+          DCHECK(!correlated_query_info.probe_join_attributes.empty());
           E::PredicatePtr filter_predicate;
           if (correlated_query_info.non_hash_join_predicates.size() > 1u) {
             filter_predicate = E::LogicalAnd::Create(correlated_query_info.non_hash_join_predicates);
@@ -545,16 +571,11 @@ E::ExpressionPtr UnnestSubqueriesForExpession::applyInternal(
       if (probe_join_attributes.empty()) {
         DCHECK(non_hash_join_predicates.empty());
         DCHECK_EQ(1u, new_subquery->getOutputAttributes().size()) << node->toString();
-        const E::AttributeReferencePtr new_outer_attribute_reference =
-            E::AttributeReference::Create(context_->nextExprId(),
-                                          output_attribute->attribute_name(),
-                                          output_attribute->attribute_alias(),
-                                          output_attribute->relation_name(),
-                                          output_attribute->getValueType(),
-                                          E::AttributeReferenceScope::kOuter);
-        uncorrelated_subqueries_->emplace(new_outer_attribute_reference->id(),
-                                          new_subquery);
-        return new_outer_attribute_reference;
+        correlated_query_info_vec_->emplace_back(CorrelatedQueryInfo::JoinType::kCartesianJoin,
+                                                 new_subquery,
+                                                 std::move(probe_join_attributes),
+                                                 std::move(build_join_attributes),
+                                                 std::move(non_hash_join_predicates));
       } else {
         correlated_query_info_vec_->emplace_back(CorrelatedQueryInfo::JoinType::kInnerJoin,
                                                  new_subquery,

@@ -543,16 +543,40 @@ SelectStatement
 # Subqueries are not supported yet in clauses other than the FROM clause.
 SELECT (select * FROM test) FROM test
 --
-ERROR: syntax error (1 : 9)
-SELECT (select * FROM test) FROM test
-        ^
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-SubqueryExpression
+  |     +-Select
+  |       +-select_clause=SelectStar
+  |       +-from_clause=
+  |         +-TableReference[table=test]
+  +-from_clause=
+    +-TableReference[table=test]
 ==
 
 SELECT 1 FROM test WHERE 1 > (select 1 FROM test)
 --
-ERROR: syntax error (1 : 31)
-SELECT 1 FROM test WHERE 1 > (select 1 FROM test)
-                              ^
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-Literal
+  |     +-NumericLiteral[numeric_string=1,float_like=false]
+  +-where_clause=Greater
+  | +-left_operand=Literal
+  | | +-NumericLiteral[numeric_string=1,float_like=false]
+  | +-right_operand=SubqueryExpression
+  |   +-Select
+  |     +-select_clause=SelectList
+  |     | +-SelectListItem
+  |     |   +-Literal
+  |     |     +-NumericLiteral[numeric_string=1,float_like=false]
+  |     +-from_clause=
+  |       +-TableReference[table=test]
+  +-from_clause=
+    +-TableReference[table=test]
 ==
 
 #

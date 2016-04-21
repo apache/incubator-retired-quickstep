@@ -1997,8 +1997,12 @@ E::ScalarPtr Resolver::resolveExpression(
           expression_resolution_info);
     }
     case ParseExpression::kSubqueryExpression: {
-      THROW_SQL_ERROR_AT(&parse_expression)
-          << "Subquery expression in a non-FROM clause is not supported yet";
+      const std::vector<const Type*> type_hints = { type_hint };
+      return resolveSubqueryExpression(
+          static_cast<const ParseSubqueryExpression&>(parse_expression),
+          &type_hints,
+          expression_resolution_info,
+          true /* has_single_column */);
     }
     case ParseExpression::kExtract: {
       const ParseExtractFunction &parse_extract =
