@@ -43,7 +43,7 @@ void PreloaderThread::run() {
       try {
         BlockReference current_block = storage_manager_->getBlock(current_block_id, relation);
       } catch (...) {
-        LOG(INFO) << "Error after loading " << blocks_loaded << "blocks\n";
+        LOG(ERROR) << "Error after loading " << blocks_loaded << "blocks\n";
         throw;
       }
       ++blocks_loaded;
