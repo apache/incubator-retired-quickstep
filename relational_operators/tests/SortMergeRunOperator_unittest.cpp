@@ -69,8 +69,8 @@
 #include "utility/SortConfiguration.hpp"
 #include "utility/SortConfiguration.pb.h"
 
+#include "gflags/gflags.h"
 #include "glog/logging.h"
-
 #include "gtest/gtest.h"
 
 #include "tmb/id_typedefs.h"
@@ -2260,3 +2260,12 @@ TEST_F(SortMergeRunOperatorTest, Pipleined_ManyPasses_MergeFactor17_SlowFeed_Top
 }
 
 }  // namespace quickstep
+
+int main(int argc, char* argv[]) {
+  google::InitGoogleLogging(argv[0]);
+  // Honor FLAGS_buffer_pool_slots in StorageManager.
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  testing::InitGoogleTest(&argc, argv);
+
+  return RUN_ALL_TESTS();
+}

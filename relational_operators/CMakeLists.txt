@@ -462,9 +462,9 @@ target_link_libraries(quickstep_relationaloperators
 add_executable(AggregationOperator_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/AggregationOperator_unittest.cpp")
 target_link_libraries(AggregationOperator_unittest
+                      gflags_nothreads-static
                       glog
                       gtest
-                      gtest_main
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
@@ -515,9 +515,9 @@ add_test(AggregationOperator_unittest AggregationOperator_unittest)
 add_executable(HashJoinOperator_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/HashJoinOperator_unittest.cpp")
 target_link_libraries(HashJoinOperator_unittest
+                      gflags_nothreads-static
                       glog
                       gtest
-                      gtest_main
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
@@ -565,9 +565,9 @@ add_test(HashJoinOperator_unittest HashJoinOperator_unittest)
 add_executable(SortMergeRunOperator_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/SortMergeRunOperator_unittest.cpp")
 target_link_libraries(SortMergeRunOperator_unittest
+                      gflags_nothreads-static
                       glog
                       gtest
-                      gtest_main
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
@@ -616,9 +616,9 @@ add_test(SortMergeRunOperator_unittest SortMergeRunOperator_unittest)
 add_executable(SortRunGenerationOperator_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/SortRunGenerationOperator_unittest.cpp")
 target_link_libraries(SortRunGenerationOperator_unittest
+                      gflags_nothreads-static
                       glog
                       gtest
-                      gtest_main
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
@@ -664,6 +664,7 @@ add_test(SortRunGenerationOperator_unittest SortRunGenerationOperator_unittest)
 add_executable(TextScanOperator_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/TextScanOperator_unittest.cpp")
 target_link_libraries(TextScanOperator_unittest
+                      gflags_nothreads-static
                       glog
                       gtest
                       quickstep_catalog_CatalogAttribute
