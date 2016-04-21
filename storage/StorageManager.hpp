@@ -166,6 +166,22 @@ class StorageManager {
   }
 
   /**
+   * @brief Return the upper limit on the number of buffer pool slots that the
+   *        StorageManager can allocate. This number is specified during the
+   *        initialization of the StorageManager. The size of each slot is
+   *        kSlotSizeBytes.
+   * @note This information is provided for informational purposes. The memory
+   *       pool may grow larger than this upper limite temporarily, depending
+   *       on the path that is followed in a call to createBlock() or
+   *       loadBlock().
+   *
+   * @return The number of buffer pool slots managed by this StorageManager.
+   **/
+  std::size_t getMaxBufferPoolSlots() const {
+    return max_memory_usage_;
+  }
+
+  /**
    * @brief Create a new empty block.
    *
    * @param relation The relation which the new block will belong to (you must
