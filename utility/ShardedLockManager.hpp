@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <functional>
 
+#include "storage/StorageConstants.hpp"
 #include "threading/SharedMutex.hpp"
 #include "utility/Macros.hpp"
 
@@ -54,13 +55,35 @@ class ShardedLockManager {
    * @param  key The key to map to a SharedMutex.
    * @return     The corresponding SharedMutex.
    */
-  SharedMutexT *get(const T key) {
-    return &shards[hash_(key) % N];
+  SharedMutexT* get(const T key, bool *has_collision = nullptr) {
+    const std::size_t hashed_value = hash_(key) % N;
+    if (has_collision != nullptr) {
+      SpinSharedMutexSharedLock<false> read_lock(collisions_mutex_);
+      *has_collision =
+          collisions_.find(hashed_value) != collisions_.end();
+      if (*has_collision) {
+        return &dummy_mutex_;
+      }
+    }
+
+    SpinSharedMutexExclusiveLock<false> write_lock(collisions_mutex_);
+    collisions_.insert(hashed_value);
+    return &shards[hashed_value];
+  }
+
+  void release(const T key) {
+    SpinSharedMutexExclusiveLock<false> write_lock(collisions_mutex_);
+    collisions_.erase(hash_(key) % N);
   }
 
  private:
   std::hash<T> hash_;
   std::array<SharedMutexT, N> shards;
+
+  SharedMutexT dummy_mutex_;
+
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> collisions_mutex_;
+  std::unordered_set<std::size_t> collisions_;
 
   DISALLOW_COPY_AND_ASSIGN(ShardedLockManager);
 };

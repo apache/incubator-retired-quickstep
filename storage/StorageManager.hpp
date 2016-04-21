@@ -341,20 +341,8 @@ class StorageManager {
   // Allocate a buffer to hold the specified number of slots. The memory
   // returned will be zeroed-out, and mapped using large pages if the system
   // supports it.
-  // Note if the last parameter "locked_block_id" is set to something other than
-  // "kInvalidBlockId," then it means that the caller has acquired
-  // a lock in the sharded lock manager for that block. Thus, if a block needs
-  // to be evicted by the EvictionPolicy in the "makeRoomForBlock" call, and
-  // if the block to be evicted happens to hash to the same entry in the
-  // sharded lock manager, then the Eviction policy needs to pick a different
-  // block for eviction.
-  // The key point is that if "locked_block_id" is not "kInvalidBlockId," then
-  // the caller of allocateSlots, e.g. loadBlock, will have acquired a lock
-  // in the sharded lock manager for the block "locked_block_id."
   void* allocateSlots(const std::size_t num_slots,
-                      const int numa_node,
-                      // const block_id locked_block_id = kInvalidBlockId);
-                      const block_id locked_block_id);
+                      const int numa_node);
 
   // Deallocate a buffer allocated by allocateSlots(). This must be used
   // instead of free(), because the underlying implementation of
@@ -402,14 +390,8 @@ class StorageManager {
    *        requested size.
    *
    * @param slots Number of slots to make room for.
-   * @param locked_block_id Reference to the block id for which room is being made.
-   *                        The parent has a lock in the sharded lock manager for the
-   *                        "locked_block_id,"  so need to pass this through to the
-   *                        EvictionPolicy to avoid a deadlock if the block that is
-   *                        being cleared out hashes to the same hash entry.
    */
-  void makeRoomForBlock(const size_t slots,
-                        const block_id locked_block_id);
+  void makeRoomForBlock(const size_t slots);
 
   /**
    * @brief Load a block from the persistent storage into memory.

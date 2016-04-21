@@ -355,7 +355,7 @@ block_id StorageManager::allocateNewBlockOrBlob(const std::size_t num_slots,
   DEBUG_ASSERT(num_slots > 0);
   DEBUG_ASSERT(handle != nullptr);
 
-  handle->block_memory = allocateSlots(num_slots, numa_node, kInvalidBlockId);
+  handle->block_memory = allocateSlots(num_slots, numa_node);
   handle->block_memory_size = num_slots;
 
   return ++block_index_;
@@ -368,7 +368,7 @@ StorageManager::BlockHandle StorageManager::loadBlockOrBlob(
   // already loaded before this function gets called.
   size_t num_slots = file_manager_->numSlots(block);
   DEBUG_ASSERT(num_slots != 0);
-  void* block_buffer = allocateSlots(num_slots, numa_node, block);
+  void* block_buffer = allocateSlots(num_slots, numa_node);
 
   const bool status = file_manager_->readBlockOrBlob(block, block_buffer, kSlotSizeBytes * num_slots);
   CHECK(status) << "Failed to read block from persistent storage: " << block;
@@ -388,8 +388,7 @@ void StorageManager::insertBlockHandleAfterLoad(const block_id block,
 }
 
 void* StorageManager::allocateSlots(const std::size_t num_slots,
-                                    const int numa_node,
-                                    const block_id locked_block_id) {
+                                    const int numa_node) {
 #if defined(QUICKSTEP_HAVE_MMAP_LINUX_HUGETLB)
   static constexpr int kLargePageMmapFlags
       = MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB;
@@ -398,7 +397,7 @@ void* StorageManager::allocateSlots(const std::size_t num_slots,
       = MAP_PRIVATE | MAP_ANONYMOUS | MAP_ALIGNED_SUPER;
 #endif
 
-  makeRoomForBlock(num_slots, locked_block_id);
+  makeRoomForBlock(num_slots);
   void *slots = nullptr;
 
 #if defined(QUICKSTEP_HAVE_MMAP_LINUX_HUGETLB) || defined(QUICKSTEP_HAVE_MMAP_BSD_SUPERPAGE)
@@ -492,6 +491,7 @@ MutableBlockReference StorageManager::getBlockInternal(
       ret = MutableBlockReference(static_cast<StorageBlock*>(it->second.block), eviction_policy_.get());
     }
   }
+  lock_manager_.release(block);
 
   // Note that there is no way for the block to be evicted between the call to
   // loadBlock and the call to EvictionPolicy::blockReferenced from
@@ -511,21 +511,9 @@ MutableBlockReference StorageManager::getBlockInternal(
       }
     }
     // No other thread loaded the block before us.
-    // But going forward be careful as there is a potential self-deadlock
-    // situation here -- we are holding an Exclusive lock (io_lock)
-    //   and getting ready to go into the call chain
-    //   "MutableBlockReference"/"loadBlock" -> "loadBlockOrBlob"
-    //       -> "allocateSlots" -> "makeRoomForBlock"
-    //   In "makeRoomForBlock," we will acquire an exclusive lock via the call
-    //   "eviction_lock(*lock_manager_.get(block_index))"
-    //   This situation could lead to a self-deadlock as block_index could
-    //   hash to the same position in the "ShardedLockManager" as "block."
-    //   To deal with this case, we pass the block information for "block"
-    //   though the call chain, and check for a collision in the the
-    //   "ShardedLockManager" in the function "makeRoomForBlock."
-    //   If a collision is detected we avoid a self-deadlock.
     ret = MutableBlockReference(loadBlock(block, relation, numa_node), eviction_policy_.get());
   }
+  lock_manager_.release(block);
 
   return ret;
 }
@@ -542,6 +530,7 @@ MutableBlobReference StorageManager::getBlobInternal(const block_id blob,
       ret = MutableBlobReference(static_cast<StorageBlob*>(it->second.block), eviction_policy_.get());
     }
   }
+  lock_manager_.release(blob);
 
   if (!ret.valid()) {
     SpinSharedMutexExclusiveLock<false> io_lock(*lock_manager_.get(blob));
@@ -562,47 +551,49 @@ MutableBlobReference StorageManager::getBlobInternal(const block_id blob,
     // No other thread loaded the blob before us.
     ret = MutableBlobReference(loadBlob(blob, numa_node), eviction_policy_.get());
   }
+  lock_manager_.release(blob);
 
   return ret;
 }
 
-void StorageManager::makeRoomForBlock(const size_t slots,
-                                      const block_id locked_block_id) {
+void StorageManager::makeRoomForBlock(const size_t slots) {
   while (total_memory_usage_ + slots > max_memory_usage_) {
     block_id block_index;
     EvictionPolicy::Status status = eviction_policy_->chooseBlockToEvict(&block_index);
 
-    if ((status == EvictionPolicy::Status::kOk) &&  // Have a valid "block_index."
-        (locked_block_id != kInvalidBlockId) &&
-        (lock_manager_.get(locked_block_id) == lock_manager_.get(block_index))) {
-      // We have a collision in the shared lock manager, where the caller of
-      // this function has acquired a lock, and we are trying to evict a block
-      // that hashes to the same location. This will cause a self-deadlock.
-
-      // For now simply treat this situation as the case where there is not
-      // enough memory and we temporarily go over the memory limit.
-      // TODO(jmp): find another block to evict, if possible.
-      break;
-    }
-
     if (status == EvictionPolicy::Status::kOk) {
-      SpinSharedMutexExclusiveLock<false> eviction_lock(*lock_manager_.get(block_index));
+      bool has_collision = false;
+      SpinSharedMutexExclusiveLock<false> eviction_lock(*lock_manager_.get(block_index, &has_collision));
+      if (has_collision) {
+        // We have a collision in the shared lock manager, where the caller of
+        // this function has acquired a lock, and we are trying to evict a block
+        // that hashes to the same location. This will cause a self-deadlock.
+
+        // For now simply treat this situation as the case where there is not
+        // enough memory and we temporarily go over the memory limit.
+        break;
+      }
+
       StorageBlockBase* block;
       {
         SpinSharedMutexSharedLock<false> read_lock(blocks_shared_mutex_);
         if (blocks_.find(block_index) == blocks_.end()) {
           // another thread must have jumped in and evicted it before us
+          lock_manager_.release(block_index);
           continue;
         }
         block = blocks_[block_index].block;
       }
       if (eviction_policy_->getRefCount(block->getID()) > 0) {
         // Someone sneaked in and referenced the block before we could evict it.
+        lock_manager_.release(block_index);
         continue;
       }
       if (saveBlockOrBlob(block->getID())) {
         evictBlockOrBlob(block->getID());
       }  // else : Someone sneaked in and evicted the block before we could.
+
+      lock_manager_.release(block_index);
     } else {
       // If status was not ok, then we must not have been able to evict enough
       // blocks; therefore, we return anyway, temporarily going over the memory
