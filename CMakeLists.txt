@@ -1,5 +1,5 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -136,6 +136,8 @@ if (ENABLE_VECTOR_PREDICATE_SHORT_CIRCUIT)
     APPEND PROPERTY COMPILE_DEFINITIONS QUICKSTEP_ENABLE_VECTOR_PREDICATE_SHORT_CIRCUIT
   )
 endif()
+
+option(ENABLE_DISTRIBUTED "Use the distributed version of Quickstep" OFF)
 
 # Turn on the QUICKSTEP_DEBUG flag in the source if this is a debug build.
 if (CMAKE_MAJOR_VERSION GREATER 2)
