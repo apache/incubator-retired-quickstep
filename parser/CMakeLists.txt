@@ -199,7 +199,8 @@ target_link_libraries(quickstep_parser_ParseLiteralValue
                       quickstep_types_TypedValue
                       quickstep_types_VarCharType
                       quickstep_types_YearMonthIntervalType
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      quickstep_utility_SqlError)
 target_link_libraries(quickstep_parser_ParseOrderBy
                       quickstep_parser_ParseExpression
                       quickstep_parser_ParseTreeNode

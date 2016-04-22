@@ -532,7 +532,7 @@ FROM
     SELECT
       n1.n_name AS supp_nation,
       n2.n_name AS cust_nation,
-      EXTRACT(year FROM l_shipdate) AS l_year,
+      EXTRACT(YEAR FROM l_shipdate) AS l_year,
       l_extendedprice * (1 - l_discount) AS volume
     FROM
       supplier,
@@ -596,7 +596,7 @@ SelectStatement
           | +-SelectListItem[alias=cust_nation]
           | | +-AttributeReference[attribute_name=n_name,relation_name=n2]
           | +-SelectListItem[alias=l_year]
-          | | +-Extract[unit=year]
+          | | +-Extract[unit=YEAR]
           | |   +-date_expression=AttributeReference[attribute_name=l_shipdate]
           | +-SelectListItem[alias=volume]
           |   +-Multiply
@@ -673,7 +673,7 @@ SELECT
 FROM
   (
     SELECT
-      EXTRACT(year FROM o_orderdate) AS o_year,
+      EXTRACT(YEAR FROM o_orderdate) AS o_year,
       l_extendedprice * (1 - l_discount) AS volume,
       n2.n_name AS nation
     FROM
@@ -734,7 +734,7 @@ SelectStatement
         +-Select
           +-select_clause=SelectList
           | +-SelectListItem[alias=o_year]
-          | | +-Extract[unit=year]
+          | | +-Extract[unit=YEAR]
           | |   +-date_expression=AttributeReference[attribute_name=o_orderdate]
           | +-SelectListItem[alias=volume]
           | | +-Multiply
@@ -858,7 +858,7 @@ SelectStatement
           | +-SelectListItem[alias=nation]
           | | +-AttributeReference[attribute_name=n_name]
           | +-SelectListItem[alias=o_year]
-          | | +-Extract[unit=year]
+          | | +-Extract[unit=YEAR]
           | |   +-date_expression=AttributeReference[attribute_name=o_orderdate]
           | +-SelectListItem[alias=amount]
           |   +-Subtract
