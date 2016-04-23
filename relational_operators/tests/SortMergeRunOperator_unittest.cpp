@@ -196,6 +196,17 @@ class RunTest : public ::testing::Test {
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
     thread_id_map_->removeValue();
+
+    // Drop blocks from relations and InsertDestination.
+    const vector<block_id> tmp_blocks = insert_destination_->getTouchedBlocks();
+    for (const block_id block : tmp_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
+
+    const vector<block_id> blocks = table_->getBlocksSnapshot();
+    for (const block_id block : blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
   }
 
   // Helper method to insert test tuples.
@@ -225,7 +236,7 @@ class RunTest : public ::testing::Test {
 };
 
 const char RunTest::kTableName[] = "table";
-const char RunTest::kStoragePath[] = "./test_data";
+const char RunTest::kStoragePath[] = "./sort_merge_run_operator_test_data";
 const tuple_id RunTest::kNumTuples = 100;
 const tuple_id RunTest::kNumTuplesPerBlock = 10;
 
@@ -429,6 +440,17 @@ class RunMergerTest : public ::testing::Test {
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
     thread_id_map_->removeValue();
+
+    // Drop blocks from relations and InsertDestination.
+    const vector<block_id> tmp_blocks = insert_destination_->getTouchedBlocks();
+    for (const block_id block : tmp_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
+
+    const vector<block_id> blocks = table_->getBlocksSnapshot();
+    for (const block_id block : blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
   }
 
   // Helper method to create test tuples.
@@ -642,7 +664,7 @@ class RunMergerTest : public ::testing::Test {
 };
 
 const char RunMergerTest::kTableName[] = "table";
-const char RunMergerTest::kStoragePath[] = "./test_data";
+const char RunMergerTest::kStoragePath[] = "./sort_merge_run_operator_test_data";
 const std::size_t RunMergerTest::kNumTuplesPerBlock = 10;
 const tuple_id RunMergerTest::kNumBlocksPerRun = 10;
 const std::size_t RunMergerTest::kNumRuns = 10;
@@ -1285,6 +1307,22 @@ class SortMergeRunOperatorTest : public ::testing::Test {
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
     thread_id_map_->removeValue();
+
+    // Drop blocks from relations.
+    const vector<block_id> input_blocks = input_table_->getBlocksSnapshot();
+    for (const block_id block : input_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
+
+    const vector<block_id> result_blocks = result_table_->getBlocksSnapshot();
+    for (const block_id block : result_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
+
+    const vector<block_id> run_blocks = run_table_->getBlocksSnapshot();
+    for (const block_id block : run_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
   }
 
   CatalogRelation *createTable(const char *name, const relation_id rel_id) {
@@ -1681,7 +1719,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
 const char SortMergeRunOperatorTest::kTableName[] = "table";
 const char SortMergeRunOperatorTest::kResultTableName[] = "result-table";
 const char SortMergeRunOperatorTest::kRunTableName[] = "run-table";
-const char SortMergeRunOperatorTest::kStoragePath[] = "./test_data";
+const char SortMergeRunOperatorTest::kStoragePath[] = "./sort_merge_run_operator_test_data";
 const char SortMergeRunOperatorTest::kDatabaseName[] = "database";
 
 namespace {

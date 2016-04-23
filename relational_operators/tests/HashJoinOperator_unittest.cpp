@@ -114,7 +114,7 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
     bus_.RegisterClientAsSender(foreman_client_id_, kCatalogRelationNewBlockMessage);
     bus_.RegisterClientAsReceiver(foreman_client_id_, kCatalogRelationNewBlockMessage);
 
-    storage_manager_.reset(new StorageManager("./test_data/"));
+    storage_manager_.reset(new StorageManager("./hash_join_operator_test_data/"));
 
     // Create a database.
     db_.reset(new CatalogDatabase(nullptr, "database"));
@@ -193,6 +193,17 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
 
   virtual void TearDown() {
     thread_id_map_->removeValue();
+
+    // Drop blocks from relations.
+    const std::vector<block_id> dim_blocks = dim_table_->getBlocksSnapshot();
+    for (const block_id block : dim_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
+
+    const std::vector<block_id> fact_blocks = fact_table_->getBlocksSnapshot();
+    for (const block_id block : fact_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
   }
 
   StorageBlockLayout* createStorageLayout(const CatalogRelation &relation) {
@@ -398,6 +409,10 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
         ++counts[value];
       }
     }
+
+    // Drop the block.
+    result_block.release();
+    storage_manager_->deleteBlockOrBlobFile(result_blocks[bid]);
   }
   EXPECT_EQ(static_cast<std::size_t>(kNumDimTuples), num_result_tuples);
 
@@ -550,6 +565,10 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
         ++fact_counts[value];
       }
     }
+
+    // Drop the block.
+    result_block.release();
+    storage_manager_->deleteBlockOrBlobFile(result_blocks[bid]);
   }
   EXPECT_EQ(static_cast<std::size_t>(kNumDimTuples), num_result_tuples);
 
@@ -689,6 +708,10 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
         ++counts[value];
       }
     }
+
+    // Drop the block.
+    result_block.release();
+    storage_manager_->deleteBlockOrBlobFile(result_blocks[bid]);
   }
   EXPECT_EQ(static_cast<std::size_t>(kNumDimTuples * kNumFactTuples),
             num_result_tuples);
@@ -835,6 +858,10 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
         ++fact_counts[value];
       }
     }
+
+    // Drop the block.
+    result_block.release();
+    storage_manager_->deleteBlockOrBlobFile(result_blocks[bid]);
   }
   EXPECT_EQ(static_cast<std::size_t>(kNumDimTuples), num_result_tuples);
 
@@ -1004,6 +1031,10 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
         ++fact_counts[value];
       }
     }
+
+    // Drop the block.
+    result_block.release();
+    storage_manager_->deleteBlockOrBlobFile(result_blocks[bid]);
   }
   EXPECT_EQ(static_cast<std::size_t>(kNumDimTuples) / 2, num_result_tuples);
 
@@ -1184,6 +1215,10 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
         ++fact_counts[value];
       }
     }
+
+    // Drop the block.
+    result_block.release();
+    storage_manager_->deleteBlockOrBlobFile(result_blocks[bid]);
   }
   EXPECT_EQ(8u, num_result_tuples);
 

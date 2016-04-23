@@ -288,7 +288,7 @@ void TextScanWorkOrder::execute() {
 
     std::fclose(file);
   } else {
-    MutableBlobReference blob = storage_manager_->getBlobMutable(text_blob_);
+    BlobReference blob = storage_manager_->getBlob(text_blob_);
     const char *blob_pos = static_cast<const char*>(blob->getMemory());
     const char *blob_end = blob_pos + text_size_;
     bool have_row = false;

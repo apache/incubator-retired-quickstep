@@ -193,6 +193,17 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
     // Usually the worker thread makes the following call. In this test setup,
     // we don't have a worker thread hence we have to explicitly make the call.
     thread_id_map_->removeValue();
+
+    // Drop blocks from relations.
+    const vector<block_id> input_blocks = input_table_->getBlocksSnapshot();
+    for (const block_id block : input_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
+
+    const vector<block_id> result_blocks = result_table_->getBlocksSnapshot();
+    for (const block_id block : result_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
   }
 
   // Helper method to create catalog relation.
@@ -414,7 +425,7 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
 
 const char SortRunGenerationOperatorTest::kTableName[] = "table";
 const char SortRunGenerationOperatorTest::kResultTableName[] = "result-table";
-const char SortRunGenerationOperatorTest::kStoragePath[] = "./test_data";
+const char SortRunGenerationOperatorTest::kStoragePath[] = "./sort_run_generation_operator_test_data";
 
 namespace {
 
