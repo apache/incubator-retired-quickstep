@@ -629,6 +629,7 @@ target_link_libraries(quickstep_storage_HashTable
                       quickstep_threading_SpinSharedMutex
                       quickstep_types_Type
                       quickstep_types_TypedValue
+                      quickstep_utility_BloomFilter
                       quickstep_utility_HashPair
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_HashTableBase
@@ -1191,7 +1192,7 @@ target_link_libraries(BloomFilterIndexSubBlock_unittest
 add_test(BloomFilterIndexSubBlock_unittest BloomFilterIndexSubBlock_unittest)
 
 if(QUICKSTEP_HAVE_BITWEAVING)
-  add_executable(BitWeavingIndexSubBlock_unittest 
+  add_executable(BitWeavingIndexSubBlock_unittest
                  "${CMAKE_CURRENT_SOURCE_DIR}/bitweaving/tests/BitWeavingIndexSubBlock_unittest.cpp")
   target_link_libraries(BitWeavingIndexSubBlock_unittest
                         glog

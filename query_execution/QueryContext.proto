@@ -23,6 +23,7 @@ import "storage/AggregationOperationState.proto";
 import "storage/HashTable.proto";
 import "storage/InsertDestination.proto";
 import "types/containers/Tuple.proto";
+import "utility/BloomFilter.proto";
 import "utility/SortConfiguration.proto";
 
 message QueryContext {
@@ -42,14 +43,15 @@ message QueryContext {
   }
 
   repeated AggregationOperationState aggregation_states = 1;
-  repeated HashTable join_hash_tables = 2;
-  repeated InsertDestination insert_destinations = 3;
-  repeated Predicate predicates = 4;
-  repeated ScalarGroup scalar_groups = 5;
-  repeated SortConfiguration sort_configs = 6;
-  repeated Tuple tuples = 7;
-  repeated GeneratorFunctionHandle generator_functions = 8;
+  repeated BloomFilter bloom_filters = 2;
+  repeated GeneratorFunctionHandle generator_functions = 3;
+  repeated HashTable join_hash_tables = 4;
+  repeated InsertDestination insert_destinations = 5;
+  repeated Predicate predicates = 6;
+  repeated ScalarGroup scalar_groups = 7;
+  repeated SortConfiguration sort_configs = 8;
+  repeated Tuple tuples = 9;
 
   // NOTE(zuyu): For UpdateWorkOrder only.
-  repeated UpdateGroup update_groups = 9;
+  repeated UpdateGroup update_groups = 10;
 }

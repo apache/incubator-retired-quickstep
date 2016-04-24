@@ -31,6 +31,7 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
+#include "query_optimizer/ExecutionHeuristics.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryPlan.hpp"
 #include "query_optimizer/cost_model/CostModel.hpp"
@@ -100,7 +101,8 @@ class ExecutionGenerator {
       : optimizer_context_(DCHECK_NOTNULL(optimizer_context)),
         query_handle_(DCHECK_NOTNULL(query_handle)),
         execution_plan_(DCHECK_NOTNULL(query_handle->getQueryPlanMutable())),
-        query_context_proto_(DCHECK_NOTNULL(query_handle->getQueryContextProtoMutable())) {
+        query_context_proto_(DCHECK_NOTNULL(query_handle->getQueryContextProtoMutable())),
+        execution_heuristics_(new ExecutionHeuristics()) {
 #ifdef QUICKSTEP_DISTRIBUTED
     catalog_database_cache_proto_ = DCHECK_NOTNULL(query_handle->getCatalogDatabaseCacheProtoMutable());
 #endif
@@ -383,6 +385,7 @@ class ExecutionGenerator {
   QueryHandle *query_handle_;
   QueryPlan *execution_plan_;  // A part of QueryHandle.
   serialization::QueryContext *query_context_proto_;  // A part of QueryHandle.
+  std::unique_ptr<ExecutionHeuristics> execution_heuristics_;
 
 #ifdef QUICKSTEP_DISTRIBUTED
   serialization::CatalogDatabase *catalog_database_cache_proto_;  // A part of QueryHandle.

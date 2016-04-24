@@ -26,8 +26,14 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <vector>
 
+#include "storage/StorageConstants.hpp"
+#include "threading/Mutex.hpp"
+#include "threading/SharedMutex.hpp"
+#include "threading/SpinSharedMutex.hpp"
+#include "utility/BloomFilter.pb.h"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -47,7 +53,30 @@ class BloomFilter {
 
   /**
    * @brief Constructor.
-   * @note The ownership of the bit array lies with the caller.
+   * @note When no bit_array is passed as an argument to the constructor,
+   *       then the bit_array is owned and managed by this class.
+   *
+   * @param random_seed A random_seed that generates unique hash functions.
+   * @param hash_fn_count The number of hash functions used by this bloom filter.
+   * @param bit_array_size_in_bytes Size of the bit array.
+   **/
+  BloomFilter(const std::uint64_t random_seed,
+              const std::size_t hash_fn_count,
+              const std::uint64_t bit_array_size_in_bytes)
+      : random_seed_(random_seed),
+        hash_fn_count_(hash_fn_count),
+        array_size_in_bytes_(bit_array_size_in_bytes),
+        is_bit_array_owner_(true) {
+    array_size_ = bit_array_size_in_bytes * kNumBitsPerByte;
+    bit_array_.reset(new std::uint8_t[bit_array_size_in_bytes]);
+    reset();
+    generate_unique_hash_fn();
+  }
+
+  /**
+   * @brief Constructor.
+   * @note When a bit_array is passed as an argument to the constructor,
+   *       then the ownership of the bit array lies with the caller.
    *
    * @param random_seed A random_seed that generates unique hash functions.
    * @param hash_fn_count The number of hash functions used by this bloom filter.
@@ -61,11 +90,12 @@ class BloomFilter {
               const std::uint64_t bit_array_size_in_bytes,
               std::uint8_t *bit_array,
               const bool is_initialized)
-      : hash_fn_count_(hash_fn_count),
-        random_seed_(random_seed) {
+      : random_seed_(random_seed),
+        hash_fn_count_(hash_fn_count),
+        array_size_in_bytes_(bit_array_size_in_bytes),
+        bit_array_(bit_array),  // Owned by the calling method.
+        is_bit_array_owner_(false) {
     array_size_ = bit_array_size_in_bytes * kNumBitsPerByte;
-    array_size_in_bytes_ = bit_array_size_in_bytes;
-    bit_array_  = bit_array;  // Owned by the calling method.
     if (!is_initialized) {
       reset();
     }
@@ -73,11 +103,32 @@ class BloomFilter {
   }
 
   /**
+   * @brief Destructor.
+   **/
+  ~BloomFilter() {
+    if (is_bit_array_owner_) {
+      bit_array_.reset();
+    } else {
+      bit_array_.release();
+    }
+  }
+
+  static bool ProtoIsValid(const serialization::BloomFilter &bloom_filter) {
+    if (bloom_filter.number_of_hashes() <= 0) {
+      return false;
+    }
+    if (bloom_filter.bloom_filter_size() <= 0) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
    * @brief Zeros out the contents of the bit array.
    **/
   inline void reset() {
     // Initialize the bit_array with all zeros.
-    std::fill_n(bit_array_, array_size_in_bytes_, 0x00);
+    std::fill_n(bit_array_.get(), array_size_in_bytes_, 0x00);
     inserted_element_count_ = 0;
   }
 
@@ -88,11 +139,14 @@ class BloomFilter {
    * @param length Size of the value being inserted in bytes.
    */
   inline void insert(const std::uint8_t *key_begin, const std::size_t &length) {
+    // Locks are needed during insertion, when multiple workers may be modifying the
+    // bloom filter concurrently. However, locks are not required during membership test.
+    SpinSharedMutexExclusiveLock<false> lock(bloom_filter_insert_mutex_);
     std::size_t bit_index = 0;
     std::size_t bit = 0;
     for (std::size_t i = 0; i < hash_fn_count_; ++i) {
       compute_indices(hash_ap(key_begin, length, hash_fn_[i]), &bit_index, &bit);
-      bit_array_[bit_index / kNumBitsPerByte] |= (1 << bit);
+      (bit_array_.get())[bit_index / kNumBitsPerByte] |= (1 << bit);
     }
     ++inserted_element_count_;
   }
@@ -110,7 +164,7 @@ class BloomFilter {
     std::size_t bit = 0;
     for (std::size_t i = 0; i < hash_fn_count_; ++i) {
       compute_indices(hash_ap(key_begin, length, hash_fn_[i]), &bit_index, &bit);
-      if ((bit_array_[bit_index / kNumBitsPerByte] & (1 << bit)) != (1 << bit)) {
+      if (((bit_array_.get())[bit_index / kNumBitsPerByte] & (1 << bit)) != (1 << bit)) {
         return false;
       }
     }
@@ -219,13 +273,16 @@ class BloomFilter {
   }
 
  private:
+  const std::uint64_t random_seed_;
   std::vector<std::uint32_t> hash_fn_;
-  std::uint8_t *bit_array_;
   const std::uint32_t hash_fn_count_;
   std::uint64_t array_size_;
   std::uint64_t array_size_in_bytes_;
+  std::unique_ptr<std::uint8_t> bit_array_;
   std::uint32_t inserted_element_count_;
-  const std::uint64_t random_seed_;
+  const bool is_bit_array_owner_;
+
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> bloom_filter_insert_mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(BloomFilter);
 };
