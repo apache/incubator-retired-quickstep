@@ -174,7 +174,7 @@ class HashTable : public HashTableBase<resizable,
   // into. As with kEmptyHash, keys which actually hash to this value should
   // have their hashes adjusted.
   static constexpr std::size_t kPendingHash = ~kEmptyHash;
-                                         
+
   std::vector<attribute_id> *attr_id_vector_ptr;
   std::vector<std::unique_ptr<BloomFilter>> *bloom_filter_vector_ptr;
   BloomFilter *output_bloom_filter;
@@ -2191,7 +2191,7 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
           continue;
         }
       }
-      
+
       TypedValue key = accessor->getTypedValue(key_attr_id);
       ++total_probes;
       if (check_for_null_keys && key.isNull()) {

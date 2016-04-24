@@ -335,7 +335,31 @@ void HashInnerJoinWorkOrder::executeWithCollectorType() {
         storage_manager_->getBlock(build_block_entry.first, build_relation_);
     const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
     std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
-
+    
+    // Evaluate bloom filters, if any.
+    /*if (hash_table_.bloom_filter_vector_ptr != nullptr) {
+      std::vector<std::pair<tuple_id, tuple_id>> filtered_matches;
+        
+      for (const std::pair<tuple_id, tuple_id> &hash_match : build_block_entry.second) {
+        bool bloom_miss = false;
+        for (std::size_t i = 0; i < hash_table_.bloom_filter_vector_ptr->size(); ++i) {
+          BloomFilter *bloom_filter = hash_table_.bloom_filter_vector_ptr->at(i).get();
+          attribute_id attr_id = hash_table_.attr_id_vector_ptr->at(i);
+          TypedValue bloom_key = probe_accessor->getTypedValueAtAbsolutePositionVirtual(attr_id, hash_match.second);
+          if (!bloom_filter->contains(static_cast<const std::uint8_t*>(bloom_key.getDataPtr()),
+                                          bloom_key.getDataSize())) {
+            bloom_miss = true;
+            break;
+          }
+        }
+        if (!bloom_miss) {
+          filtered_matches.emplace_back(hash_match);
+        }
+      }
+        
+      build_block_entry.second = std::move(filtered_matches);
+    }*/
+      
     // Evaluate '*residual_predicate_', if any.
     //
     // TODO(chasseur): We might consider implementing true vectorized
