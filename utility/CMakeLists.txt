@@ -146,6 +146,10 @@ configure_file (
   "${CMAKE_CURRENT_BINARY_DIR}/UtilityConfig.h"
 )
 
+QS_PROTOBUF_GENERATE_CPP(quickstep_utility_BloomFilter_proto_srcs
+                         quickstep_utility_BloomFilter_proto_hdrs
+                         BloomFilter.proto)
+
 QS_PROTOBUF_GENERATE_CPP(quickstep_utility_SortConfiguration_proto_srcs
                          quickstep_utility_SortConfiguration_proto_hdrs
                          SortConfiguration.proto)
@@ -155,6 +159,9 @@ add_library(quickstep_utility_Alignment ../empty_src.cpp Alignment.hpp)
 add_library(quickstep_utility_BitManipulation ../empty_src.cpp BitManipulation.hpp)
 add_library(quickstep_utility_BitVector ../empty_src.cpp BitVector.hpp)
 add_library(quickstep_utility_BloomFilter ../empty_src.cpp BloomFilter.hpp)
+add_library(quickstep_utility_BloomFilter_proto
+            ${quickstep_utility_BloomFilter_proto_srcs}
+            ${quickstep_utility_BloomFilter_proto_hdrs})
 add_library(quickstep_utility_CalculateInstalledMemory CalculateInstalledMemory.cpp CalculateInstalledMemory.hpp)
 add_library(quickstep_utility_Cast ../empty_src.cpp Cast.hpp)
 add_library(quickstep_utility_CheckSnprintf ../empty_src.cpp CheckSnprintf.hpp)
@@ -202,7 +209,14 @@ target_link_libraries(quickstep_utility_BitVector
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_utility_BloomFilter
                       glog
+                      quickstep_storage_StorageConstants
+                      quickstep_threading_Mutex
+                      quickstep_threading_SharedMutex
+                      quickstep_threading_SpinSharedMutex
+                      quickstep_utility_BloomFilter_proto
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_utility_BloomFilter_proto
+                      ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_utility_CalculateInstalledMemory
                       glog)
 target_link_libraries(quickstep_utility_CheckSnprintf
@@ -271,6 +285,7 @@ target_link_libraries(quickstep_utility
                       quickstep_utility_BitManipulation
                       quickstep_utility_BitVector
                       quickstep_utility_BloomFilter
+                      quickstep_utility_BloomFilter_proto
                       quickstep_utility_CalculateInstalledMemory
                       quickstep_utility_Cast
                       quickstep_utility_CheckSnprintf

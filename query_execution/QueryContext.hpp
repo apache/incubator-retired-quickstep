@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -32,6 +34,7 @@
 #include "storage/HashTable.hpp"
 #include "storage/InsertDestination.hpp"
 #include "types/containers/Tuple.hpp"
+#include "utility/BloomFilter.hpp"
 #include "utility/Macros.hpp"
 #include "utility/SortConfiguration.hpp"
 
@@ -61,6 +64,11 @@ class QueryContext {
    * @brief A unique identifier for an AggregationOperationState per query.
    **/
   typedef std::uint32_t aggregation_state_id;
+
+  /**
+   * @brief A unique identifier for a BloomFilter per query.
+   **/
+  typedef std::uint32_t bloom_filter_id;
 
   /**
    * @brief A unique identifier for a GeneratorFunctionHandle per query.
@@ -181,6 +189,52 @@ class QueryContext {
   }
 
   /**
+   * @brief Whether the given BloomFilter id is valid.
+   *
+   * @param id The BloomFilter id.
+   *
+   * @return True if valid, otherwise false.
+   **/
+  bool isValidBloomFilterId(const bloom_filter_id id) const {
+    return id < bloom_filters_.size();
+  }
+
+  /**
+   * @brief Get a mutable reference to the BloomFilter.
+   *
+   * @param id The BloomFilter id.
+   *
+   * @return The BloomFilter, already created in the constructor.
+   **/
+  inline BloomFilter* getBloomFilterMutable(const bloom_filter_id id) {
+    DCHECK_LT(id, bloom_filters_.size());
+    return bloom_filters_[id].get();
+  }
+
+  /**
+   * @brief Get a constant pointer to the BloomFilter.
+   *
+   * @param id The BloomFilter id.
+   *
+   * @return The constant pointer to BloomFilter that is 
+   *         already created in the constructor.
+   **/
+  inline const BloomFilter* getBloomFilter(const bloom_filter_id id) const {
+    DCHECK_LT(id, bloom_filters_.size());
+    return bloom_filters_[id].get();
+  }
+
+  /**
+   * @brief Destory the given BloomFilter.
+   *
+   * @param id The id of the BloomFilter to destroy.
+   **/
+  inline void destroyBloomFilter(const bloom_filter_id id) {
+    DCHECK_LT(id, bloom_filters_.size());
+    bloom_filters_[id].reset();
+  }
+
+  /**
    * @brief Whether the given GeneratorFunctionHandle id is valid.
    *
    * @param id The GeneratorFunctionHandle id.
@@ -257,7 +311,7 @@ class QueryContext {
    *
    * @param id The JoinHashTable id in the query.
    *
-   * @return The JoinHashTable, alreadly created in the constructor.
+   * @return The JoinHashTable, already created in the constructor.
    **/
   inline JoinHashTable* getJoinHashTable(const join_hash_table_id id) {
     DCHECK_LT(id, join_hash_tables_.size());
@@ -408,6 +462,7 @@ class QueryContext {
 
  private:
   std::vector<std::unique_ptr<AggregationOperationState>> aggregation_states_;
+  std::vector<std::unique_ptr<BloomFilter>> bloom_filters_;
   std::vector<std::unique_ptr<const GeneratorFunctionHandle>> generator_functions_;
   std::vector<std::unique_ptr<InsertDestination>> insert_destinations_;
   std::vector<std::unique_ptr<JoinHashTable>> join_hash_tables_;

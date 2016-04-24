@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -37,6 +39,7 @@
 #include "storage/InsertDestination.pb.h"
 #include "types/TypedValue.hpp"
 #include "types/containers/Tuple.hpp"
+#include "utility/BloomFilter.hpp"
 #include "utility/SortConfiguration.hpp"
 
 #include "glog/logging.h"
@@ -65,6 +68,13 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
                                                         storage_manager));
   }
 
+  for (int i = 0; i < proto.bloom_filters_size(); ++i) {
+    const serialization::BloomFilter &bloom_filter_proto = proto.bloom_filters(i);
+    bloom_filters_.emplace_back(new BloomFilter(bloom_filter_proto.bloom_filter_seed(),
+                                                bloom_filter_proto.number_of_hashes(),
+                                                bloom_filter_proto.bloom_filter_size()));
+  }
+
   for (int i = 0; i < proto.generator_functions_size(); ++i) {
     const GeneratorFunctionHandle *func_handle =
         GeneratorFunctionFactory::Instance().reconstructFromProto(proto.generator_functions(i));
@@ -77,6 +87,33 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
     join_hash_tables_.emplace_back(
         JoinHashTableFactory::CreateResizableFromProto(proto.join_hash_tables(i),
                                                        storage_manager));
+
+    // Check if there are any build side bloom filter defined on the hash table.
+    if (proto.join_hash_tables(i).build_side_bloom_filter_id_size() > 0) {
+      join_hash_tables_[i]->enableBuildSideBloomFilter();
+      bloom_filter_id build_bloom_filter_id = proto.join_hash_tables(i).build_side_bloom_filter_id(0);
+      join_hash_tables_[i]->setBuildSideBloomFilter(bloom_filters_[build_bloom_filter_id].get());
+    }
+
+    // Check if there are any probe side bloom filters defined on the hash table.
+    if (proto.join_hash_tables(i).probe_side_bloom_filters_size() > 0) {
+      join_hash_tables_[i]->enableProbeSideBloomFilter();
+      // Add as many probe bloom filters as defined by the proto.
+      for (int j = 0; j < proto.join_hash_tables(i).probe_side_bloom_filters_size(); ++j) {
+        // Add the pointer to the probe bloom filter within the list of probe bloom filters to use.
+        const auto probe_side_bloom_filter = proto.join_hash_tables(i).probe_side_bloom_filters(j);
+        const bloom_filter_id probe_bloom_filter_id = probe_side_bloom_filter.probe_side_bloom_filter_id();
+        join_hash_tables_[i]->addProbeSideBloomFilter(bloom_filters_[probe_bloom_filter_id].get());
+
+        // Add the attribute ids corresponding to this probe bloom filter.
+        std::vector<attribute_id> probe_attribute_ids;
+        for (int k = 0; k < probe_side_bloom_filter.probe_side_attr_ids_size(); ++k) {
+          const attribute_id probe_attribute_id = probe_side_bloom_filter.probe_side_attr_ids(k);
+          probe_attribute_ids.push_back(probe_attribute_id);
+        }
+        join_hash_tables_[i]->addProbeSideAttributeIds(std::move(probe_attribute_ids));
+      }
+    }
   }
 
   for (int i = 0; i < proto.insert_destinations_size(); ++i) {
@@ -138,6 +175,12 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
                                 const CatalogDatabaseLite &database) {
   for (int i = 0; i < proto.aggregation_states_size(); ++i) {
     if (!AggregationOperationState::ProtoIsValid(proto.aggregation_states(i), database)) {
+      return false;
+    }
+  }
+
+  for (int i = 0; i < proto.bloom_filters_size(); ++i) {
+    if (!BloomFilter::ProtoIsValid(proto.bloom_filters(i))) {
       return false;
     }
   }
