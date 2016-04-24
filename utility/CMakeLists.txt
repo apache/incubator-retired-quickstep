@@ -243,6 +243,7 @@ target_link_libraries(quickstep_utility_SortConfiguration_proto
                       quickstep_expressions_Expressions_proto
                       ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_utility_ShardedLockManager
+                      quickstep_storage_StorageConstants
                       quickstep_threading_SharedMutex
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_utility_StringUtil

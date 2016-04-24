@@ -52,38 +52,52 @@ class ShardedLockManager {
 
   /**
    * @brief Get the SharedMutex corresponding to the provided key.
-   * @param  key The key to map to a SharedMutex.
+   * @param key The key to map to a SharedMutex.
+   * @param has_collision Whether accessing the given key would result in a
+   *        hash collision.
    * @return     The corresponding SharedMutex.
    */
   SharedMutexT* get(const T key, bool *has_collision = nullptr) {
-    const std::size_t hashed_value = hash_(key) % N;
+    const std::size_t shard = hash_(key) % N;
+
     if (has_collision != nullptr) {
-      SpinSharedMutexSharedLock<false> read_lock(collisions_mutex_);
-      *has_collision =
-          collisions_.find(hashed_value) != collisions_.end();
+      {
+        SpinSharedMutexSharedLock<false> read_lock(shards_mutex_);
+        *has_collision =
+            shards_.find(shard) != shards_.end();
+      }
+
       if (*has_collision) {
-        return &dummy_mutex_;
+        return &collision_mutex_;
       }
     }
 
-    SpinSharedMutexExclusiveLock<false> write_lock(collisions_mutex_);
-    collisions_.insert(hashed_value);
-    return &shards[hashed_value];
+    {
+      SpinSharedMutexExclusiveLock<false> write_lock(shards_mutex_);
+      shards_.insert(shard);
+    }
+    return &shards[shard];
   }
 
+  /**
+   * @brief Release the shard corresponding to the provided key.
+   * @param key The key to compute the shard.
+   */
   void release(const T key) {
-    SpinSharedMutexExclusiveLock<false> write_lock(collisions_mutex_);
-    collisions_.erase(hash_(key) % N);
+    SpinSharedMutexExclusiveLock<false> write_lock(shards_mutex_);
+    shards_.erase(hash_(key) % N);
   }
 
  private:
   std::hash<T> hash_;
   std::array<SharedMutexT, N> shards;
 
-  SharedMutexT dummy_mutex_;
+  // The mutex used whenever there is a hash collision.
+  SharedMutexT collision_mutex_;
 
-  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> collisions_mutex_;
-  std::unordered_set<std::size_t> collisions_;
+  // Account for all shards referenced in multiple threads.
+  std::unordered_set<std::size_t> shards_;
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> shards_mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(ShardedLockManager);
 };

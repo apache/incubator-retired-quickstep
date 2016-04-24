@@ -156,17 +156,144 @@ TopLevelPlan
   +-AttributeReference[id=3,name=z,relation=a1,type=Int]
 ==
 
+
+# Outer joins
 SELECT *
-FROM b LEFT JOIN c ON b.x = c.x JOIN d ON c.y = d.y;
+FROM b LEFT JOIN c ON (b.x = c.x AND c.x > 10);
 --
-ERROR: Outer joins are not supported yet (2 : 13)
-FROM b LEFT JOIN c ON b.x = c.x JOIN d ON ...
-            ^
+TopLevelPlan
++-plan=Project
+| +-input=HashLeftOuterJoin
+| | +-left=TableReference[relation_name=b]
+| | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| | +-right=TableReference[relation_name=c]
+| | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | +-residual_predicate=And
+| | | +-Equal
+| | | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | +-Greater
+| | |   +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | |   +-Literal[value=10,type=Int]
+| | +-left_join_attributes=
+| | | +-[]
+| | +-right_join_attributes=
+| |   +-[]
+| +-project_list=
+|   +-AttributeReference[id=0,name=w,relation=b,type=Int]
+|   +-AttributeReference[id=1,name=x,relation=b,type=Int]
+|   +-AttributeReference[id=2,name=x,relation=c,type=Int NULL]
+|   +-AttributeReference[id=3,name=y,relation=c,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=w,relation=b,type=Int]
+  +-AttributeReference[id=1,name=x,relation=b,type=Int]
+  +-AttributeReference[id=2,name=x,relation=c,type=Int NULL]
+  +-AttributeReference[id=3,name=y,relation=c,type=Int NULL]
+==
+
+SELECT a.w, b.x, c.y, a.w + b.x + c.y
+FROM a LEFT JOIN b ON a.w = b.w RIGHT JOIN c ON b.x = c.x;
+--
+TopLevelPlan
++-plan=Project
+| +-input=HashLeftOuterJoin
+| | +-left=TableReference[relation_name=c]
+| | | +-AttributeReference[id=6,name=x,relation=c,type=Int]
+| | | +-AttributeReference[id=7,name=y,relation=c,type=Int]
+| | +-right=HashLeftOuterJoin
+| | | +-left=TableReference[relation_name=a]
+| | | | +-AttributeReference[id=0,name=w,relation=a,type=Int]
+| | | | +-AttributeReference[id=1,name=x,relation=a,type=Int]
+| | | | +-AttributeReference[id=2,name=y,relation=a,type=Int]
+| | | | +-AttributeReference[id=3,name=z,relation=a,type=Int]
+| | | +-right=TableReference[relation_name=b]
+| | | | +-AttributeReference[id=4,name=w,relation=b,type=Int]
+| | | | +-AttributeReference[id=5,name=x,relation=b,type=Int]
+| | | +-residual_predicate=Equal
+| | | | +-AttributeReference[id=0,name=w,relation=a,type=Int]
+| | | | +-AttributeReference[id=4,name=w,relation=b,type=Int]
+| | | +-left_join_attributes=
+| | | | +-[]
+| | | +-right_join_attributes=
+| | |   +-[]
+| | +-residual_predicate=Equal
+| | | +-AttributeReference[id=5,name=x,relation=b,type=Int NULL]
+| | | +-AttributeReference[id=6,name=x,relation=c,type=Int]
+| | +-left_join_attributes=
+| | | +-[]
+| | +-right_join_attributes=
+| |   +-[]
+| +-project_list=
+|   +-AttributeReference[id=0,name=w,relation=a,type=Int NULL]
+|   +-AttributeReference[id=5,name=x,relation=b,type=Int NULL]
+|   +-AttributeReference[id=7,name=y,relation=c,type=Int]
+|   +-Alias[id=8,name=,alias=((a.w+b.x)+c.y),relation=,type=Int NULL]
+|     +-Add
+|       +-Add
+|       | +-AttributeReference[id=0,name=w,relation=a,type=Int NULL]
+|       | +-AttributeReference[id=5,name=x,relation=b,type=Int NULL]
+|       +-AttributeReference[id=7,name=y,relation=c,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=w,relation=a,type=Int NULL]
+  +-AttributeReference[id=5,name=x,relation=b,type=Int NULL]
+  +-AttributeReference[id=7,name=y,relation=c,type=Int]
+  +-AttributeReference[id=8,name=,alias=((a.w+b.x)+c.y),relation=,type=Int NULL]
+==
+
+SELECT a.w, b.x, c.y, a.w + b.x + c.y
+FROM a LEFT JOIN (b RIGHT JOIN c ON b.x = c.x) ON a.w = b.w;
+--
+TopLevelPlan
++-plan=Project
+| +-input=HashLeftOuterJoin
+| | +-left=TableReference[relation_name=a]
+| | | +-AttributeReference[id=0,name=w,relation=a,type=Int]
+| | | +-AttributeReference[id=1,name=x,relation=a,type=Int]
+| | | +-AttributeReference[id=2,name=y,relation=a,type=Int]
+| | | +-AttributeReference[id=3,name=z,relation=a,type=Int]
+| | +-right=HashLeftOuterJoin
+| | | +-left=TableReference[relation_name=c]
+| | | | +-AttributeReference[id=6,name=x,relation=c,type=Int]
+| | | | +-AttributeReference[id=7,name=y,relation=c,type=Int]
+| | | +-right=TableReference[relation_name=b]
+| | | | +-AttributeReference[id=4,name=w,relation=b,type=Int]
+| | | | +-AttributeReference[id=5,name=x,relation=b,type=Int]
+| | | +-residual_predicate=Equal
+| | | | +-AttributeReference[id=5,name=x,relation=b,type=Int]
+| | | | +-AttributeReference[id=6,name=x,relation=c,type=Int]
+| | | +-left_join_attributes=
+| | | | +-[]
+| | | +-right_join_attributes=
+| | |   +-[]
+| | +-residual_predicate=Equal
+| | | +-AttributeReference[id=0,name=w,relation=a,type=Int]
+| | | +-AttributeReference[id=4,name=w,relation=b,type=Int NULL]
+| | +-left_join_attributes=
+| | | +-[]
+| | +-right_join_attributes=
+| |   +-[]
+| +-project_list=
+|   +-AttributeReference[id=0,name=w,relation=a,type=Int]
+|   +-AttributeReference[id=5,name=x,relation=b,type=Int NULL]
+|   +-AttributeReference[id=7,name=y,relation=c,type=Int NULL]
+|   +-Alias[id=8,name=,alias=((a.w+b.x)+c.y),relation=,type=Int NULL]
+|     +-Add
+|       +-Add
+|       | +-AttributeReference[id=0,name=w,relation=a,type=Int]
+|       | +-AttributeReference[id=5,name=x,relation=b,type=Int NULL]
+|       +-AttributeReference[id=7,name=y,relation=c,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=w,relation=a,type=Int]
+  +-AttributeReference[id=5,name=x,relation=b,type=Int NULL]
+  +-AttributeReference[id=7,name=y,relation=c,type=Int NULL]
+  +-AttributeReference[id=8,name=,alias=((a.w+b.x)+c.y),relation=,type=Int NULL]
 ==
 
 SELECT *
-FROM b LEFT JOIN (c JOIN d ON c.y = d.y) ON b.x = c.x;
+FROM b FULL JOIN c ON b.x = c.x;
 --
-ERROR: Outer joins are not supported yet (2 : 13)
-FROM b LEFT JOIN (c JOIN d ON c.y = d.y) O...
+ERROR: Full outer join is not supported yet (2 : 13)
+FROM b FULL JOIN c ON b.x = c.x;
             ^

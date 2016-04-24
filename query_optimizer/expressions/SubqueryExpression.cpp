@@ -40,9 +40,14 @@ namespace expressions {
 }
 
 std::vector<AttributeReferencePtr> SubqueryExpression::getReferencedAttributes() const {
-  // SubqueryExpression should be eliminated before any place that needs
-  // a call of getReferencedAttributes.
-  LOG(FATAL) << "SubqueryExpression::getReferencedAttributes() is not implemented";
+  // Note(jianqiao): Here simply return an empty set so that we skip the validation
+  // for this expression at the end of the resolving phase (otherwise we need to
+  // revise the Validate() function to deal with OUTER scoped attributes). Note
+  // that SubqueryExpression will always be eliminated by UnnestSubqueries as the
+  // first logical optimization pass in LogicalGenerator. So any dangling attribute
+  // will still be detected by Validate() at the end of the logical optimization
+  // phase.
+  return {};
 }
 
 void SubqueryExpression::getFieldStringItems(

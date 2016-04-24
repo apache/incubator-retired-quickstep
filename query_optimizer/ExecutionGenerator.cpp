@@ -25,8 +25,17 @@
 #include <string>
 #include <type_traits>
 #include <unordered_map>
+
+#ifdef QUICKSTEP_DISTRIBUTED
+#include <unordered_set>
+#endif
+
 #include <utility>
 #include <vector>
+
+#ifdef QUICKSTEP_DISTRIBUTED
+#include "catalog/Catalog.pb.h"
+#endif
 
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogDatabase.hpp"
@@ -185,6 +194,20 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
         drop_table_index,
         temporary_relation_info.producer_operator_index);
   }
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  catalog_database_cache_proto_->set_name(optimizer_context_->catalog_database()->getName());
+
+  LOG(INFO) << "CatalogDatabaseCache proto has " << referenced_relation_ids_.size() << " relation(s)";
+  for (const relation_id rel_id : referenced_relation_ids_) {
+    const CatalogRelationSchema &relation =
+        optimizer_context_->catalog_database()->getRelationSchemaById(rel_id);
+    LOG(INFO) << "RelationSchema " << rel_id
+              << ", name: " << relation.getName()
+              << ", " << relation.size()  << " attribute(s)";
+    catalog_database_cache_proto_->add_relations()->MergeFrom(relation.getProto());
+  }
+#endif
 }
 
 void ExecutionGenerator::generatePlanInternal(
@@ -289,6 +312,10 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
   const relation_id output_rel_id = optimizer_context_->catalog_database()->addRelation(
       catalog_relation.release());
 
+#ifdef QUICKSTEP_DISTRIBUTED
+  referenced_relation_ids_.insert(output_rel_id);
+#endif
+
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_rel_id);
 }
@@ -335,6 +362,11 @@ void ExecutionGenerator::convertTableReference(
   // parent (e.g. the substitution map from an AttributeReference
   // to a CatalogAttribute).
   const CatalogRelation *catalog_relation = physical_table_reference->relation();
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  referenced_relation_ids_.insert(catalog_relation->getID());
+#endif
+
   const std::vector<E::AttributeReferencePtr> &attribute_references =
       physical_table_reference->attribute_list();
   DCHECK_EQ(attribute_references.size(), catalog_relation->size());
@@ -607,6 +639,18 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   const CatalogRelationInfo *probe_operator_info =
       findRelationInfoOutputByPhysical(probe_physical);
 
+  // Create a vector that indicates whether each project expression is using
+  // attributes from the build relation as input. This information is required
+  // by the current implementation of hash left outer join
+  std::unique_ptr<std::vector<bool>> is_selection_on_build;
+  if (physical_plan->join_type() == P::HashJoin::JoinType::kLeftOuterJoin) {
+    is_selection_on_build.reset(
+        new std::vector<bool>(
+            E::MarkExpressionsReferingAnyAttribute(
+                physical_plan->project_expressions(),
+                build_physical->getOutputAttributes())));
+  }
+
   // FIXME(quickstep-team): Add support for self-join.
   if (build_relation_info->relation == probe_operator_info->relation) {
     THROW_SQL_ERROR() << "Self-join is not supported";
@@ -664,6 +708,9 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
     case P::HashJoin::JoinType::kLeftAntiJoin:
       join_type = HashJoinOperator::JoinType::kLeftAntiJoin;
       break;
+    case P::HashJoin::JoinType::kLeftOuterJoin:
+      join_type = HashJoinOperator::JoinType::kLeftOuterJoin;
+      break;
     default:
       LOG(FATAL) << "Invalid physical::HashJoin::JoinType: "
                  << static_cast<typename std::underlying_type<P::HashJoin::JoinType>::type>(
@@ -684,6 +731,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               join_hash_table_index,
               residual_predicate_index,
               project_expressions_group_index,
+              is_selection_on_build.get(),
               join_type));
   insert_destination_proto->set_relational_op_index(join_operator_index);
 
@@ -978,8 +1026,14 @@ void ExecutionGenerator::convertDeleteTuples(
 void ExecutionGenerator::convertDropTable(
     const P::DropTablePtr &physical_plan) {
   // DropTable is converted to a DropTable operator.
+  const CatalogRelation &catalog_relation = *physical_plan->catalog_relation();
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  referenced_relation_ids_.insert(catalog_relation.getID());
+#endif
+
   execution_plan_->addRelationalOperator(
-      new DropTableOperator(*physical_plan->catalog_relation(),
+      new DropTableOperator(catalog_relation,
                             optimizer_context_->catalog_database()));
 }
 

@@ -662,11 +662,11 @@ FROM dates;
 +-------------------------------+
 ==
 
-SELECT EXTRACT(hour FROM value + INTERVAL '1 hour')
+SELECT EXTRACT(HOUR FROM value + INTERVAL '1 hour')
 FROM dates;
 --
 +-----------------------------------------------------+
-|EXTRACT(hour FROM (value+DatetimeInterval('1 hour')))|
+|EXTRACT(HOUR FROM (value+DatetimeInterval('1 hour')))|
 +-----------------------------------------------------+
 |                                                   11|
 |                                                   12|
@@ -820,11 +820,56 @@ WHERE i NOT IN (
 +-----------+
 ==
 
-# TODO(team): Support uncorrelated queries.
-# SELECT COUNT(*)
-# FROM test
-# WHERE double_col < 0
-#   AND long_col > (SELECT AVG(long_col) FROM test)
+# Scalar subquery expression
+SELECT *
+FROM test
+WHERE double_col < 0
+  AND long_col > (SELECT AVG(long_col) FROM test);
+--
++-----------+--------------------+---------------+------------------------+--------------------+
+|int_col    |long_col            |float_col      |double_col              |char_col            |
++-----------+--------------------+---------------+------------------------+--------------------+
+|        -15|                 225|     3.87298346|     -58.094750193111253|        -15 3.872983|
+|        -17|                 289|     4.12310553|     -70.092795635500224|        -17 4.123106|
+|        -19|                 361|     4.35889912|      -82.81907992727281|        -19 4.358899|
+|        -21|                 441|      4.5825758|     -96.234089594072643|        -21 4.582576|
+|        -23|                 529|     4.79583168|     -110.30412503619254|        -23 4.795832|
++-----------+--------------------+---------------+------------------------+--------------------+
+==
+
+SELECT i + (
+  SELECT SUM(j)
+  FROM generate_series(1, 10) AS gs(j))
+FROM generate_series(1, 5) AS gs(i);
+--
++----------------------+
+|(i+SubqueryExpression)|
++----------------------+
+|                    56|
+|                    57|
+|                    58|
+|                    59|
+|                    60|
++----------------------+
+==
+
+SELECT i + (
+  SELECT SUM(j)
+  FROM generate_series(1, 10) AS gs1(j),
+       generate_series(1, 10) AS gs2(k)
+  WHERE i = k AND j <= k)
+FROM generate_series(1, 5) AS gs(i);
+--
++----------------------+
+|(i+SubqueryExpression)|
++----------------------+
+|                     2|
+|                     5|
+|                     9|
+|                    14|
+|                    20|
++----------------------+
+==
 
 # TODO(team): Fix Issue #9 to enable COUNT(*).
 SELECT COUNT(long_col)

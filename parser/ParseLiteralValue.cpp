@@ -37,6 +37,7 @@
 #include "types/Type.hpp"
 #include "types/VarCharType.hpp"
 #include "types/YearMonthIntervalType.hpp"
+#include "utility/SqlError.hpp"
 
 #include "glog/logging.h"
 

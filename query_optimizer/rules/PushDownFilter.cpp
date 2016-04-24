@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -17,11 +19,13 @@
 
 #include "query_optimizer/rules/PushDownFilter.hpp"
 
+#include <cstddef>
 #include <vector>
 
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/logical/Filter.hpp"
+#include "query_optimizer/logical/HashJoin.hpp"
 #include "query_optimizer/logical/PatternMatcher.hpp"
 #include "query_optimizer/rules/Rule.hpp"
 #include "query_optimizer/rules/RuleHelper.hpp"
@@ -48,13 +52,23 @@ L::LogicalPtr PushDownFilter::applyToNode(const L::LogicalPtr &input) {
     // We consider if the filter predicates can be pushed under the input of the
     // Filter.
     const L::LogicalPtr &input = filter->input();
-    const std::vector<L::LogicalPtr> input_children = input->children();
+    const std::vector<L::LogicalPtr> &input_children = input->children();
 
     // Store the predicates that can be pushed down to be upon each child node
     // of the Filter input.
     std::vector<std::vector<E::PredicatePtr>> predicates_to_be_pushed(
         input_children.size());
     if (!input_children.empty()) {
+      std::size_t last_input_index = input_children.size();
+
+      // Cannot push down a Filter down the right child of LeftOuterJoin.
+      L::HashJoinPtr hash_join;
+      if (L::SomeHashJoin::MatchesWithConditionalCast(input, &hash_join) &&
+          hash_join->join_type() == L::HashJoin::JoinType::kLeftOuterJoin) {
+        DCHECK_EQ(2u, input_children.size());
+        last_input_index = 1u;
+      }
+
       for (const E::PredicatePtr &conjuntion_item : conjunction_items) {
         bool can_be_pushed = false;
         const std::vector<E::AttributeReferencePtr> referenced_attributes =
@@ -64,7 +78,7 @@ L::LogicalPtr PushDownFilter::applyToNode(const L::LogicalPtr &input) {
         // referenced by the predicate is a subset of output attributes
         // of a child.
         for (std::vector<L::LogicalPtr>::size_type input_index = 0;
-             input_index < input_children.size();
+             input_index < last_input_index;
              ++input_index) {
           if (SubsetOfExpressions(
                   referenced_attributes,

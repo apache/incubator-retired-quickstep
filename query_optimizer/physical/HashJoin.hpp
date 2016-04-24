@@ -56,7 +56,8 @@ class HashJoin : public BinaryJoin {
   enum class JoinType {
     kInnerJoin = 0,
     kLeftSemiJoin,
-    kLeftAntiJoin
+    kLeftAntiJoin,
+    kLeftOuterJoin
   };
 
   PhysicalType getPhysicalType() const override { return PhysicalType::kHashJoin; }
@@ -69,6 +70,8 @@ class HashJoin : public BinaryJoin {
         return "HashLeftSemiJoin";
       case JoinType::kLeftAntiJoin:
         return "HashLeftAntiJoin";
+      case JoinType::kLeftOuterJoin:
+        return "HashLeftOuterJoin";
       default:
         LOG(FATAL) << "Invalid JoinType: "
                    << static_cast<typename std::underlying_type<JoinType>::type>(join_type_);

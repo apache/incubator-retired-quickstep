@@ -7,6 +7,3 @@
 [submodule "third_party/googletest"]
 	path = third_party/googletest
 	url = https://github.com/google/googletest
-[submodule "storage/bitweaving"]
-	path = storage/bitweaving
-	url = https://github.com/UWQuickstep/bitweaving.git

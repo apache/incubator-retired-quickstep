@@ -314,6 +314,9 @@ void Join::addHashJoin(const logical::ProjectPtr &logical_project,
     case L::HashJoin::JoinType::kLeftAntiJoin:
       join_type = P::HashJoin::JoinType::kLeftAntiJoin;
       break;
+    case L::HashJoin::JoinType::kLeftOuterJoin:
+      join_type = P::HashJoin::JoinType::kLeftOuterJoin;
+      break;
     default:
       LOG(FATAL) << "Invalid logical::HashJoin::JoinType: "
                  << static_cast<typename std::underlying_type<L::HashJoin::JoinType>::type>(

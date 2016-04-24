@@ -66,8 +66,8 @@
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "utility/PtrList.hpp"
 
+#include "gflags/gflags.h"
 #include "glog/logging.h"
-
 #include "gtest/gtest.h"
 
 #include "tmb/id_typedefs.h"
@@ -170,6 +170,17 @@ class AggregationOperatorTest : public ::testing::Test {
 
   virtual void TearDown() {
     thread_id_map_->removeValue();
+
+    // Drop blocks from relations.
+    const std::vector<block_id> table_blocks = table_->getBlocksSnapshot();
+    for (const block_id block : table_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
+
+    const std::vector<block_id> result_table_blocks = result_table_->getBlocksSnapshot();
+    for (const block_id block : result_table_blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
   }
 
   Tuple* createTuple(const CatalogRelation &relation, const std::int64_t val) {
@@ -420,6 +431,10 @@ class AggregationOperatorTest : public ::testing::Test {
         sub_block.getAttributeValueTyped(0, result_table_->getAttributeByName("result-1")->getID());
     test(expected0, actual0);
     test(expected1, actual1);
+
+    // Drop the block.
+    block.release();
+    storage_manager_->deleteBlockOrBlobFile(result[0]);
   }
 
   template <class FinalDataType>
@@ -463,6 +478,10 @@ class AggregationOperatorTest : public ::testing::Test {
         check_fn(group_by_id, actual0, actual1);
       }
       total_tuples += sub_block.numTuples();
+
+      // Drop the block.
+      block.release();
+      storage_manager_->deleteBlockOrBlobFile(result[bid]);
     }
     EXPECT_EQ(num_tuples, total_tuples);
   }
@@ -500,7 +519,7 @@ class AggregationOperatorTest : public ::testing::Test {
 
 const char AggregationOperatorTest::kDatabaseName[] = "database";
 const char AggregationOperatorTest::kTableName[] = "table";
-const char AggregationOperatorTest::kStoragePath[] = "./test_data";
+const char AggregationOperatorTest::kStoragePath[] = "./aggregation_operator_test_data";
 
 namespace {
 
@@ -1773,5 +1792,13 @@ TEST_F(AggregationOperatorTest, GroupBy_Count_zeroRows) {
 }
 
 }  // namespace
-
 }  // namespace quickstep
+
+int main(int argc, char* argv[]) {
+  google::InitGoogleLogging(argv[0]);
+  // Honor FLAGS_buffer_pool_slots in StorageManager.
+  gflags::ParseCommandLineFlags(&argc, &argv, true);
+  testing::InitGoogleTest(&argc, argv);
+
+  return RUN_ALL_TESTS();
+}

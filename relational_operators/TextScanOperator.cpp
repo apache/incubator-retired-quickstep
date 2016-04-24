@@ -300,6 +300,10 @@ void TextScanWorkOrder::execute() {
         output_destination_->insertTupleInBatch(tuple);
       }
     } while (have_row);
+
+    // Drop the consumed blob produced by TextSplitWorkOrder.
+    blob.release();
+    storage_manager_->deleteBlockOrBlobFile(text_blob_);
   }
 }
 

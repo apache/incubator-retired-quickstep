@@ -117,11 +117,50 @@ bool SubsetOfExpressions(
 }
 
 /**
+ * @brief Make a copy of the input attribute vector with each attribute's type
+ *        converted as nullable.
+ *
+ * @param attributes The input attribute vector.
+ * @return The nullable copy of the input attribute vector.
+ */
+std::vector<AttributeReferencePtr> GetNullableAttributeVector(
+    const std::vector<AttributeReferencePtr> &attributes);
+
+/**
  * @brief Returns a reference to this named expression.
  *
  * @return An AttributeReference of this named expression.
  */
 AttributeReferencePtr ToRef(const NamedExpressionPtr &expression);
+
+/**
+ * @brief Given a vector of expressions and a vector of attributes, return a
+ *        bool vector that indicates whether each expression is refering to
+ *        ANY attribute in the attribute vector.
+ *
+ * @param expressions The vector of expressions to be checked.
+ * @param attributes The vector of attributes to be checked.
+ * @return A vector of bools indicating whether each expression is refering to
+ *         any attribute in the attribute vector. Note that the length of this
+ *         bool vector equals the length of \p expressions.
+ */
+template <class NamedExpressionType>
+std::vector<bool> MarkExpressionsReferingAnyAttribute(
+    const std::vector<std::shared_ptr<const NamedExpressionType>> &expressions,
+    const std::vector<AttributeReferencePtr> &attributes) {
+  std::vector<bool> matches;
+  UnorderedAttributeSet attr_set(attributes.begin(), attributes.end());
+  for (std::size_t i = 0; i < expressions.size(); ++i) {
+    for (const auto referenced_attr : expressions[i]->getReferencedAttributes()) {
+      if (attr_set.find(referenced_attr) != attr_set.end()) {
+        matches.emplace_back(true);
+      } else {
+        matches.emplace_back(false);
+      }
+    }
+  }
+  return matches;
+}
 
 /**
  * @brief Filter a vector of AttributeReferencePtr to get those which are in

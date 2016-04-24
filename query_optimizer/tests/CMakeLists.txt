@@ -86,9 +86,9 @@ add_executable(quickstep_queryoptimizer_tests_OptimizerTextTest
                "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.hpp")
 
 target_link_libraries(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
+                      gflags_nothreads-static
                       glog
                       gtest
-                      gtest_main
                       quickstep_catalog_CatalogDatabase
                       quickstep_cli_DropRelation
                       quickstep_cli_PrintToScreen

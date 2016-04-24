@@ -2793,3 +2793,147 @@ WHERE i IN (
 ERROR: Subquery must return exactly one column (3 : 12)
 WHERE i IN (
            ^
+==
+
+# Scalar subquery expressions
+SELECT x + (SELECT SUM(y) FROM c)
+FROM b;
+--
+TopLevelPlan
++-plan=Project
+| +-input=TableReference[relation_name=b]
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| +-project_list=
+|   +-Alias[id=5,name=,alias=(x+SubqueryExpression),relation=,type=Long NULL]
+|     +-Add
+|       +-AttributeReference[id=1,name=x,relation=b,type=Int]
+|       +-SubqueryExpression
+|         +-subquery=Project
+|           +-input=Aggregate
+|           | +-input=TableReference[relation_name=c]
+|           | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+|           | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+|           | +-grouping_expressions=
+|           | | +-[]
+|           | +-aggregate_expressions=
+|           |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,
+|           |     type=Long NULL]
+|           |     +-AggregateFunction[function=SUM]
+|           |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+|           +-project_list=
+|             +-Alias[id=4,name=,alias=SUM(y),relation=,type=Long NULL]
+|               +-AttributeReference[id=4,name=,alias=$aggregate0,
+|                 relation=$aggregate,type=Long NULL]
++-output_attributes=
+  +-AttributeReference[id=5,name=,alias=(x+SubqueryExpression),relation=,
+    type=Long NULL]
+==
+
+SELECT *
+FROM b
+WHERE b.x > (SELECT SUM(y) FROM c);
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=TableReference[relation_name=b]
+| | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| | +-filter_predicate=Greater
+| |   +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| |   +-SubqueryExpression
+| |     +-subquery=Project
+| |       +-input=Aggregate
+| |       | +-input=TableReference[relation_name=c]
+| |       | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| |       | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| |       | +-grouping_expressions=
+| |       | | +-[]
+| |       | +-aggregate_expressions=
+| |       |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| |       |     type=Long NULL]
+| |       |     +-AggregateFunction[function=SUM]
+| |       |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| |       +-project_list=
+| |         +-Alias[id=4,name=,alias=SUM(y),relation=,type=Long NULL]
+| |           +-AttributeReference[id=4,name=,alias=$aggregate0,
+| |             relation=$aggregate,type=Long NULL]
+| +-project_list=
+|   +-AttributeReference[id=0,name=w,relation=b,type=Int]
+|   +-AttributeReference[id=1,name=x,relation=b,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=w,relation=b,type=Int]
+  +-AttributeReference[id=1,name=x,relation=b,type=Int]
+==
+
+SELECT x + (
+  SELECT SUM(y) + (SELECT SUM(w) FROM a WHERE a.y > 10)
+  FROM c
+  WHERE b.w = c.x AND c.x < 10)
+FROM b;
+--
+TopLevelPlan
++-plan=Project
+| +-input=TableReference[relation_name=b]
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| +-project_list=
+|   +-Alias[id=11,name=,alias=(x+SubqueryExpression),relation=,type=Long NULL]
+|     +-Add
+|       +-AttributeReference[id=1,name=x,relation=b,type=Int]
+|       +-SubqueryExpression
+|         +-subquery=Project
+|           +-input=Aggregate
+|           | +-input=Filter
+|           | | +-input=TableReference[relation_name=c]
+|           | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+|           | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+|           | | +-filter_predicate=And
+|           | |   +-Equal
+|           | |   | +-AttributeReference[id=0,name=w,relation=b,type=Int,
+|           | |   | | is_outer_reference=true]
+|           | |   | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+|           | |   +-Less
+|           | |     +-AttributeReference[id=2,name=x,relation=c,type=Int]
+|           | |     +-Literal[value=10,type=Int]
+|           | +-grouping_expressions=
+|           | | +-[]
+|           | +-aggregate_expressions=
+|           |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,
+|           |     type=Long NULL]
+|           |     +-AggregateFunction[function=SUM]
+|           |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+|           +-project_list=
+|             +-Alias[id=10,name=,alias=(SUM(y)+SubqueryExpression),relation=,
+|               type=Long NULL]
+|               +-Add
+|                 +-AttributeReference[id=4,name=,alias=$aggregate0,
+|                 | relation=$aggregate,type=Long NULL]
+|                 +-SubqueryExpression
+|                   +-subquery=Project
+|                     +-input=Aggregate
+|                     | +-input=Filter
+|                     | | +-input=TableReference[relation_name=a]
+|                     | | | +-AttributeReference[id=5,name=w,relation=a,type=Int]
+|                     | | | +-AttributeReference[id=6,name=x,relation=a,type=Int]
+|                     | | | +-AttributeReference[id=7,name=y,relation=a,type=Int]
+|                     | | | +-AttributeReference[id=8,name=z,relation=a,type=Int]
+|                     | | +-filter_predicate=Greater
+|                     | |   +-AttributeReference[id=7,name=y,relation=a,type=Int]
+|                     | |   +-Literal[value=10,type=Int]
+|                     | +-grouping_expressions=
+|                     | | +-[]
+|                     | +-aggregate_expressions=
+|                     |   +-Alias[id=9,name=,alias=$aggregate0,
+|                     |     relation=$aggregate,type=Long NULL]
+|                     |     +-AggregateFunction[function=SUM]
+|                     |       +-AttributeReference[id=5,name=w,relation=a,
+|                     |         type=Int]
+|                     +-project_list=
+|                       +-Alias[id=9,name=,alias=SUM(w),relation=,type=Long NULL]
+|                         +-AttributeReference[id=9,name=,alias=$aggregate0,
+|                           relation=$aggregate,type=Long NULL]
++-output_attributes=
+  +-AttributeReference[id=11,name=,alias=(x+SubqueryExpression),relation=,
+    type=Long NULL]

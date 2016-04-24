@@ -1528,12 +1528,15 @@ add_test(StorageBlockSort_unittest StorageBlockSort_unittest)
 add_executable(StorageManager_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/StorageManager_unittest.cpp")
 target_link_libraries(StorageManager_unittest
+                      glog
                       gtest
                       gtest_main
                       quickstep_storage_EvictionPolicy
                       quickstep_storage_StorageBlob
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
+                      quickstep_threading_Thread
+                      quickstep_utility_PtrVector
                       quickstep_utility_ShardedLockManager)
 if (QUICKSTEP_HAVE_LIBNUMA)
   target_link_libraries(StorageManager_unittest

@@ -191,6 +191,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "create"           return TOKEN_CREATE;
   "date"             return TOKEN_DATE;
   "datetime"         return TOKEN_DATETIME;
+  "day"              return TOKEN_DAY;
   "decimal"          return TOKEN_DECIMAL;
   "default"          return TOKEN_DEFAULT;
   "delete"           return TOKEN_DELETE;
@@ -214,6 +215,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "group"            return TOKEN_GROUP;
   "hash"             return TOKEN_HASH;
   "having"           return TOKEN_HAVING;
+  "hour"             return TOKEN_HOUR;
   "in"               return TOKEN_IN;
   "index"            return TOKEN_INDEX;
   "inner"            return TOKEN_INNER;
@@ -230,6 +232,8 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "like"             return TOKEN_LIKE;
   "limit"            return TOKEN_LIMIT;
   "long"             return TOKEN_LONG;
+  "minute"           return TOKEN_MINUTE;
+  "month"            return TOKEN_MONTH;
   "not"              return TOKEN_NOT;
   "null"             return TOKEN_NULL;
   "nulls"            return TOKEN_NULLS;
@@ -249,6 +253,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "regexp"           return TOKEN_REGEXP;
   "right"            return TOKEN_RIGHT;
   "row_delimiter"    return TOKEN_ROW_DELIMITER;
+  "second"           return TOKEN_SECOND;
   "select"           return TOKEN_SELECT;
   "set"              return TOKEN_SET;
   "sma"              return TOKEN_SMA;
@@ -267,6 +272,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "when"             return TOKEN_WHEN;
   "where"            return TOKEN_WHERE;
   "with"             return TOKEN_WITH;
+  "year"             return TOKEN_YEAR;
   "yearmonth"        return TOKEN_YEARMONTH;
 
   "="                return TOKEN_EQ;

@@ -197,7 +197,7 @@ typedef void* yyscan_t;
   quickstep::ParseOrderBy *opt_order_by_clause_;
   bool *order_direction_;
   quickstep::ParseLimit *opt_limit_clause_;
-  
+
   quickstep::ParseSample *opt_sample_clause_;
 
   quickstep::PtrList<quickstep::ParseOrderByItem> *order_commalist_;
@@ -256,6 +256,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_CREATE;
 %token TOKEN_DATE;
 %token TOKEN_DATETIME;
+%token TOKEN_DAY;
 %token TOKEN_DECIMAL;
 %token TOKEN_DEFAULT;
 %token TOKEN_DELETE;
@@ -278,6 +279,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_GROUP;
 %token TOKEN_HASH;
 %token TOKEN_HAVING;
+%token TOKEN_HOUR;
 %token TOKEN_IN;
 %token TOKEN_INDEX;
 %token TOKEN_INNER;
@@ -291,6 +293,8 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_LEFT;
 %token TOKEN_LIMIT;
 %token TOKEN_LONG;
+%token TOKEN_MINUTE;
+%token TOKEN_MONTH;
 %token TOKEN_NOT;
 %token TOKEN_NULL;
 %token TOKEN_NULLS;
@@ -310,6 +314,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_REGEXP;
 %token TOKEN_RIGHT;
 %token TOKEN_ROW_DELIMITER;
+%token TOKEN_SECOND;
 %token TOKEN_SELECT;
 %token TOKEN_SET;
 %token TOKEN_SMA;
@@ -328,12 +333,14 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_WHEN;
 %token TOKEN_WHERE;
 %token TOKEN_WITH;
+%token TOKEN_YEAR;
 %token TOKEN_YEARMONTH;
 %token TOKEN_EOF;
 %token TOKEN_LEX_ERROR;
 
 %type <string_value_>
   any_name
+  datetime_unit
   index_type
   partition_type
 
@@ -1503,6 +1510,9 @@ expression_base:
   }
   | '(' add_expression ')' {
     $$ = $2;
+  }
+  | subquery_expression {
+    $$ = $1;
   };
 
 function_call:
@@ -1522,7 +1532,7 @@ function_call:
   };
 
 extract_function:
-  TOKEN_EXTRACT '(' any_name TOKEN_FROM add_expression ')' {
+  TOKEN_EXTRACT '(' datetime_unit TOKEN_FROM add_expression ')' {
     $$ = new quickstep::ParseExtractFunction(@1.first_line, @1.first_column, $3, $5);
   };
 
@@ -1627,6 +1637,19 @@ literal_value:
       YYERROR;
     }
   }
+  | TOKEN_INTERVAL TOKEN_STRING_SINGLE_QUOTED datetime_unit {
+    quickstep::StringParseLiteralValue *parse_value;
+    const std::string &datetime_type_value = $3->value();
+    if (quickstep::StringParseLiteralValue::ParseAmbiguousInterval(
+        &($2->append((" " + datetime_type_value).c_str(), datetime_type_value.length() + 1)),
+        &parse_value)) {
+      $$ = parse_value;
+    } else {
+      $$ = nullptr;
+      quickstep_yyerror(&@3, yyscanner, nullptr, "Failed to parse literal as specified type");
+      YYERROR;
+    }
+  }
   | data_type TOKEN_STRING_SINGLE_QUOTED {
     quickstep::StringParseLiteralValue *parse_value
         = new quickstep::StringParseLiteralValue($2, &($1->getType()));
@@ -1639,6 +1662,26 @@ literal_value:
     } else {
       $$ = parse_value;
     }
+  }
+
+datetime_unit:
+  TOKEN_YEAR {
+     $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("YEAR"));
+  }
+  | TOKEN_MONTH {
+     $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("MONTH"));
+  }
+  | TOKEN_DAY {
+     $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("DAY"));
+  }
+  | TOKEN_HOUR {
+     $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("HOUR"));
+  }
+  | TOKEN_MINUTE {
+     $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("MINUTE"));
+  }
+  | TOKEN_SECOND {
+     $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("SECOND"));
   };
 
 literal_value_commalist:

@@ -64,7 +64,14 @@ L::LogicalPtr PushDownSemiAntiJoin::pushDownSemiAntiJoin(
   std::vector<L::LogicalPtr> left_input_children = left_input->children();
 
   if (!left_input_children.empty()) {
-    const std::vector<L::LogicalPtr>::size_type last_input_index = left_input_children.size();
+    std::vector<L::LogicalPtr>::size_type last_input_index = left_input_children.size();
+    // Cannot push down a Filter down the right child of LeftOuterJoin.
+    L::HashJoinPtr hash_join;
+    if (L::SomeHashJoin::MatchesWithConditionalCast(left_input, &hash_join) &&
+        hash_join->join_type() == L::HashJoin::JoinType::kLeftOuterJoin) {
+      DCHECK_EQ(2u, left_input_children.size());
+      last_input_index = 1u;
+    }
 
     std::vector<L::LogicalPtr>::size_type input_index = 0;
     while (input_index < last_input_index) {

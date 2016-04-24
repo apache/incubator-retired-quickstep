@@ -14,12 +14,16 @@
  *   limitations under the License.
  **/
 
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
+#include <cstdlib>
 #include <memory>
 #include <string>
 #include <vector>
+#include <unordered_map>
 
+#include "glog/logging.h"
 #include "gtest/gtest.h"
 
 #include "catalog/CatalogConfig.h"
@@ -28,6 +32,8 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageConstants.hpp"
 #include "storage/StorageManager.hpp"
+#include "threading/Thread.hpp"
+#include "utility/PtrVector.hpp"
 #include "utility/ShardedLockManager.hpp"
 
 #ifdef QUICKSTEP_HAVE_LIBNUMA
@@ -35,6 +41,132 @@
 #endif
 
 namespace quickstep {
+
+namespace storage_manager_test_internal {
+
+static int client_id = 0;
+
+static const int NUM_BLOBS_PER_CLIENT = 10;
+static const int BLOB_SIZE_SLOTS = 1;
+static const int CLIENT_CYCLES = 1000;
+
+class StorageClient : public Thread {
+ public:
+  StorageClient(StorageManager &storage_manager)
+      : storage_manager_(storage_manager),
+        id_(client_id++) {}
+
+  void run() {
+    createBlobs();
+    for (int i = 0; i < CLIENT_CYCLES; ++i) {
+      cycle();
+      if (id_ == 1) {
+        std::ostringstream msg_stream;
+        msg_stream << "Thread " << id_ << " completed cycle " << i << "\n";
+        LOG(INFO) << msg_stream.str();
+      }
+    }
+    deleteBlobs();
+  }
+
+ private:
+  void createBlobs() {
+    for (int i = 0; i < NUM_BLOBS_PER_CLIENT; ++i) {
+      block_id new_blob = storage_manager_.createBlob(BLOB_SIZE_SLOTS);
+      blobs_.push_back(new_blob);
+      blobs_status_[new_blob] = false;
+    }
+  }
+
+  void cycle() {
+    // Shuffle the vector of references and ids.
+    std::random_shuffle(blob_refs_.begin(), blob_refs_.end());
+    std::random_shuffle(blobs_.begin(), blobs_.end());
+
+    // Release half of the checked out blobs.
+    while (blob_refs_.size() > NUM_BLOBS_PER_CLIENT/4) {
+      // TODO(marc): Blob may be marked dirty at this point.
+      blobs_status_[blob_refs_.back()->getID()] = false;
+      blob_refs_.pop_back();
+    }
+
+    // Checkout blobs until we reach the threshold.
+    int blob_index = 0;
+    while (blob_refs_.size() < NUM_BLOBS_PER_CLIENT/2) {
+      CHECK(blob_index < blobs_.size());
+
+      // See if we have not checked out this blob. If not, make a reference.
+      const block_id candidate_blob = blobs_[blob_index];
+      if (!blobs_status_[candidate_blob]) {
+        blob_refs_.push_back(storage_manager_.getBlobMutable(candidate_blob));
+        blobs_status_[candidate_blob] = true;
+      }
+      blob_index++;
+    }
+  }
+
+  void deleteBlobs() {
+    // Go through all the blobs and dereference them.
+    while(blob_refs_.size() > 0) {
+      blobs_status_[blob_refs_.back()->getID()] = false;
+      blob_refs_.pop_back();
+    }
+
+    // Ensure everything has been checked in.
+    for (const auto& id_status : blobs_status_) {
+      CHECK(id_status.second == false);
+    }
+
+    // Delete all the blob files.
+    for (block_id bid : blobs_) {
+     storage_manager_.deleteBlockOrBlobFile(bid);
+    }
+  }
+
+  StorageManager &storage_manager_;
+
+  // Blobs created and owned by this client. 
+  std::vector<block_id> blobs_;
+
+  // A value of true means that we have checked out the block.
+  std::unordered_map<block_id, bool> blobs_status_;
+
+  // Blob references by this client.
+  std::vector<MutableBlobReference> blob_refs_;
+
+  int id_;
+};
+
+}  // namespace storage_manager_test_internal
+
+using namespace storage_manager_test_internal;
+
+// Create a large number of threads which concurrently access the StorageManager,
+// trying to force a bad interleaving. Test is meant to stress the storage manager
+// but does not expose all possible interleavings.
+TEST(StorageManagerTest, BruteForceDeadLockTest) {
+  // Init StorageManager.
+  std::unique_ptr<StorageManager> storage_manager;
+  // Use a small number of slots.
+  storage_manager.reset(new StorageManager("temp_storage", 32));
+  
+  // Init some threads.
+  const int num_clients = 20;
+  PtrVector<StorageClient> clients;
+  for (int i = 0; i < num_clients; ++i) {
+    clients.push_back(new StorageClient(*storage_manager));
+  }
+
+  // Start all threads.
+  for (int i = 0; i < num_clients; ++i) {
+    clients[i].start();
+  }
+
+  // Wait for all threads to finish.
+  for (int i = 0; i < num_clients; ++i) {
+    clients[i].join();
+  }
+}
 
 TEST(StorageManagerTest, NUMAAgnosticBlobTest) {
   std::unique_ptr<StorageManager> storage_manager;
@@ -204,47 +336,5 @@ TEST(StorageManagerTest, DifferentNUMANodeBlobTestWithEviction) {
   }
 }
 #endif  // QUICKSTEP_HAVE_LIBNUMA
-
-// Trigger an eviction from the same shard in StorageManager's
-// ShardedLockManager while attempting to load a blob. Previously, a bug
-// existed that caused a self-deadlock in such situations. This test reproduces
-// the issue and validates the fix.
-TEST(StorageManagerTest, EvictFromSameShardTest) {
-  // Set up a StorageManager with a soft memory limit of only one slot.
-  StorageManager storage_manager("eviction_test_storage", 1);
-
-  // Create a blob.
-  const block_id blob_a_id = storage_manager.createBlob(1);
-
-  // Blob "a" is now memory-resident in StorageManager, but has a reference
-  // count of zero.
-  EXPECT_TRUE(storage_manager.blockOrBlobIsLoaded(blob_a_id));
-  EXPECT_EQ(kSlotSizeBytes, storage_manager.getMemorySize());
-
-  // Manually alter 'block_index_' inside 'storage_manager' so that the next
-  // block_id generated will be in the same shard as 'blob_id_a'.
-  storage_manager.block_index_.fetch_add(StorageManager::kLockManagerNumShards - 1);
-
-  // Create another blob and verify that it is in the same shard.
-  const block_id blob_b_id = storage_manager.createBlob(1);
-  EXPECT_EQ(storage_manager.lock_manager_.get(blob_a_id),
-            storage_manager.lock_manager_.get(blob_b_id));
-
-  // Creating a second blob should have triggered an eviction that kicked
-  // blob A out.
-  EXPECT_FALSE(storage_manager.blockOrBlobIsLoaded(blob_a_id));
-  EXPECT_TRUE(storage_manager.blockOrBlobIsLoaded(blob_b_id));
-  EXPECT_EQ(kSlotSizeBytes, storage_manager.getMemorySize());
-
-  // Try and get a reference to blob A. Blob A must be reloaded from disk.
-  // This will trigger an eviction of blob B. This is the point where the
-  // self-deadlock bug could be observed.
-  BlobReference blob_a_ref = storage_manager.getBlob(blob_a_id);
-
-  // Reaching this point means we have not self-deadlocked. Now clean up.
-  blob_a_ref.release();
-  storage_manager.deleteBlockOrBlobFile(blob_a_id);
-  storage_manager.deleteBlockOrBlobFile(blob_b_id);
-}
 
 }  // namespace quickstep

@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -36,6 +38,7 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
 #include "storage/SubBlocksReference.hpp"
+#include "storage/TupleIdSequence.hpp"
 #include "storage/TupleReference.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
 #include "storage/ValueAccessor.hpp"
@@ -203,6 +206,38 @@ class SemiAntiJoinTupleCollector {
   std::unique_ptr<TupleIdSequence> filter_;
 };
 
+class OuterJoinTupleCollector {
+ public:
+  explicit OuterJoinTupleCollector(const TupleStorageSubBlock &tuple_store) {
+    filter_.reset(tuple_store.getExistenceMap());
+  }
+
+  template <typename ValueAccessorT>
+  inline void operator()(const ValueAccessorT &accessor,
+                         const TupleReference &tref) {
+    joined_tuples_[tref.block].emplace_back(tref.tuple, accessor.getCurrentPosition());
+  }
+
+  template <typename ValueAccessorT>
+  inline void recordMatch(const ValueAccessorT &accessor) {
+    filter_->set(accessor.getCurrentPosition(), false);
+  }
+
+  inline std::unordered_map<block_id, std::vector<std::pair<tuple_id, tuple_id>>>*
+      getJoinedTupleMap() {
+    return &joined_tuples_;
+  }
+
+  const TupleIdSequence* filter() const {
+    return filter_.get();
+  }
+
+ private:
+  std::unordered_map<block_id, std::vector<std::pair<tuple_id, tuple_id>>> joined_tuples_;
+  // BitVector on the probe relation. 1 if the corresponding tuple has no match.
+  std::unique_ptr<TupleIdSequence> filter_;
+};
+
 }  // namespace
 
 bool HashJoinOperator::getAllWorkOrders(
@@ -221,9 +256,13 @@ bool HashJoinOperator::getAllWorkOrders(
     case JoinType::kLeftAntiJoin:
       return getAllNonOuterJoinWorkOrders<HashAntiJoinWorkOrder>(
           container, query_context, storage_manager);
+    case JoinType::kLeftOuterJoin:
+      return getAllOuterJoinWorkOrders(
+          container, query_context, storage_manager);
     default:
       LOG(FATAL) << "Unknown join type in HashJoinOperator::getAllWorkOrders()";
   }
+  return false;
 }
 
 template <class JoinWorkOrderClass>
@@ -279,6 +318,65 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
             op_index_);
         ++num_workorders_generated_;
       }  // end while
+      return done_feeding_input_relation_;
+    }  // end else (probe_relation_is_stored_)
+  }  // end if (blocking_dependencies_met_)
+  return false;
+}
+
+bool HashJoinOperator::getAllOuterJoinWorkOrders(
+    WorkOrdersContainer *container,
+    QueryContext *query_context,
+    StorageManager *storage_manager) {
+  // We wait until the building of global hash table is complete.
+  if (blocking_dependencies_met_) {
+    DCHECK(query_context != nullptr);
+
+    const vector<unique_ptr<const Scalar>> &selection =
+        query_context->getScalarGroup(selection_index_);
+
+    InsertDestination *output_destination =
+        query_context->getInsertDestination(output_destination_index_);
+    const JoinHashTable &hash_table =
+        *(query_context->getJoinHashTable(hash_table_index_));
+
+    if (probe_relation_is_stored_) {
+      if (!started_) {
+        for (const block_id probe_block_id : probe_relation_block_ids_) {
+          container->addNormalWorkOrder(
+              new HashOuterJoinWorkOrder(
+                  build_relation_,
+                  probe_relation_,
+                  join_key_attributes_,
+                  any_join_key_attributes_nullable_,
+                  probe_block_id,
+                  selection,
+                  is_selection_on_build_,
+                  hash_table,
+                  output_destination,
+                  storage_manager),
+              op_index_);
+        }
+        started_ = true;
+      }
+      return started_;
+    } else {
+      while (num_workorders_generated_ < probe_relation_block_ids_.size()) {
+        container->addNormalWorkOrder(
+            new HashOuterJoinWorkOrder(
+                build_relation_,
+                probe_relation_,
+                join_key_attributes_,
+                any_join_key_attributes_nullable_,
+                probe_relation_block_ids_[num_workorders_generated_],
+                selection,
+                is_selection_on_build_,
+                hash_table,
+                output_destination,
+                storage_manager),
+            op_index_);
+        ++num_workorders_generated_;
+      }
       return done_feeding_input_relation_;
     }  // end else (probe_relation_is_stored_)
   }  // end if (blocking_dependencies_met_)
@@ -641,11 +739,107 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
   for (vector<unique_ptr<const Scalar>>::const_iterator selection_it = selection_.begin();
        selection_it != selection_.end();
        ++selection_it) {
-    temp_result.addColumn((*selection_it)->getAllValues(probe_accessor_with_filter.get(),
-                                                     &sub_blocks_ref));
+    temp_result.addColumn(
+        (*selection_it)->getAllValues(probe_accessor_with_filter.get(),
+                                      &sub_blocks_ref));
   }
 
   output_destination_->bulkInsertTuples(&temp_result);
+}
+
+void HashOuterJoinWorkOrder::execute() {
+  const relation_id build_relation_id = build_relation_.getID();
+  const relation_id probe_relation_id = probe_relation_.getID();
+
+  const BlockReference probe_block = storage_manager_->getBlock(block_id_,
+                                                                probe_relation_);
+  const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
+
+  std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
+  OuterJoinTupleCollector collector(probe_store);
+  if (join_key_attributes_.size() == 1) {
+    hash_table_.getAllFromValueAccessorWithExtraWorkForFirstMatch(
+        probe_accessor.get(),
+        join_key_attributes_.front(),
+        any_join_key_attributes_nullable_,
+        &collector);
+  } else {
+    hash_table_.getAllFromValueAccessorCompositeKeyWithExtraWorkForFirstMatch(
+        probe_accessor.get(),
+        join_key_attributes_,
+        any_join_key_attributes_nullable_,
+        &collector);
+  }
+
+  // Populate the output tuples for matches.
+  for (const std::pair<const block_id, std::vector<std::pair<tuple_id, tuple_id>>>
+           &build_block_entry : *collector.getJoinedTupleMap()) {
+    const BlockReference build_block =
+        storage_manager_->getBlock(build_block_entry.first, build_relation_);
+    const TupleStorageSubBlock &build_store =
+        build_block->getTupleStorageSubBlock();
+
+    std::unique_ptr<ValueAccessor> build_accessor(
+        build_store.createValueAccessor());
+    ColumnVectorsValueAccessor temp_result;
+    for (auto selection_it = selection_.begin();
+         selection_it != selection_.end();
+         ++selection_it) {
+      temp_result.addColumn(
+          (*selection_it)->getAllValuesForJoin(
+              build_relation_id,
+              build_accessor.get(),
+              probe_relation_id,
+              probe_accessor.get(),
+              build_block_entry.second));
+    }
+    output_destination_->bulkInsertTuples(&temp_result);
+  }
+
+  SubBlocksReference sub_blocks_ref(probe_store,
+                                    probe_block->getIndices(),
+                                    probe_block->getIndicesConsistent());
+
+  // Populate the output tuples for non-matches.
+  const TupleIdSequence *filter = collector.filter();
+  const TupleIdSequence::size_type num_tuples_without_matches = filter->size();
+  if (num_tuples_without_matches > 0) {
+    std::unique_ptr<ValueAccessor> probe_accessor_with_filter(
+        probe_store.createValueAccessor(filter));
+    ColumnVectorsValueAccessor temp_result;
+
+    for (std::size_t i = 0; i < selection_.size(); ++i) {
+      if (is_selection_on_build_[i]) {
+        // NOTE(harshad, jianqiao): The assumption here is that any operation
+        // involving NULL as operands will return NULL result. This assumption
+        // will become invalid if later we add support for functions that can
+        // produce non-NULL result with NULL operands, e.g.
+        //   CASE WHEN x IS NOT NULL THEN x ELSE 0
+        // or equivalently
+        //   COALESCE(x, 0)
+        // where x is an attribute of the build relation.
+        // In that case, this HashOuterJoinWorkOrder needs to be updated to
+        // correctly handle the selections.
+        const Type& column_type = selection_[i]->getType().getNullableVersion();
+        if (NativeColumnVector::UsableForType(column_type)) {
+          NativeColumnVector *result = new NativeColumnVector(
+              column_type, num_tuples_without_matches);
+          result->fillWithNulls();
+          temp_result.addColumn(result);
+        } else {
+          IndirectColumnVector *result = new IndirectColumnVector(
+              column_type, num_tuples_without_matches);
+          result->fillWithValue(TypedValue(column_type.getTypeID()));
+          temp_result.addColumn(result);
+        }
+      } else {
+        temp_result.addColumn(
+            selection_[i]->getAllValues(probe_accessor_with_filter.get(),
+                                        &sub_blocks_ref));
+      }
+    }
+    output_destination_->bulkInsertTuples(&temp_result);
+  }
 }
 
 }  // namespace quickstep

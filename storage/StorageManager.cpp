@@ -369,7 +369,6 @@ StorageManager::BlockHandle StorageManager::loadBlockOrBlob(
   size_t num_slots = file_manager_->numSlots(block);
   DEBUG_ASSERT(num_slots != 0);
   void* block_buffer = allocateSlots(num_slots, numa_node);
-
   const bool status = file_manager_->readBlockOrBlob(block, block_buffer, kSlotSizeBytes * num_slots);
   CHECK(status) << "Failed to read block from persistent storage: " << block;
 
@@ -491,6 +490,7 @@ MutableBlockReference StorageManager::getBlockInternal(
       ret = MutableBlockReference(static_cast<StorageBlock*>(it->second.block), eviction_policy_.get());
     }
   }
+  // To be safe, release the shard for the block after its read lock destructs.
   lock_manager_.release(block);
 
   // Note that there is no way for the block to be evicted between the call to
@@ -513,6 +513,7 @@ MutableBlockReference StorageManager::getBlockInternal(
     // No other thread loaded the block before us.
     ret = MutableBlockReference(loadBlock(block, relation, numa_node), eviction_policy_.get());
   }
+  // To be safe, release the shard for the block after its write lock destructs.
   lock_manager_.release(block);
 
   return ret;
@@ -530,6 +531,7 @@ MutableBlobReference StorageManager::getBlobInternal(const block_id blob,
       ret = MutableBlobReference(static_cast<StorageBlob*>(it->second.block), eviction_policy_.get());
     }
   }
+  // To be safe, release the shard for the blob after its read lock destructs.
   lock_manager_.release(blob);
 
   if (!ret.valid()) {
@@ -551,6 +553,7 @@ MutableBlobReference StorageManager::getBlobInternal(const block_id blob,
     // No other thread loaded the blob before us.
     ret = MutableBlobReference(loadBlob(blob, numa_node), eviction_policy_.get());
   }
+  // To be safe, release the shard for the blob after its write lock destructs.
   lock_manager_.release(blob);
 
   return ret;
@@ -565,10 +568,10 @@ void StorageManager::makeRoomForBlock(const size_t slots) {
       bool has_collision = false;
       SpinSharedMutexExclusiveLock<false> eviction_lock(*lock_manager_.get(block_index, &has_collision));
       if (has_collision) {
-        // We have a collision in the shared lock manager, where the caller of
-        // this function has acquired a lock, and we are trying to evict a block
-        // that hashes to the same location. This will cause a self-deadlock.
-
+        // We have a collision in the shared lock manager, where some callers
+        // of this function (i.e., getBlockInternal or getBlobInternal) has
+        // acquired an exclusive lock, and we are trying to evict a block that
+        // hashes to the same location. This will cause a deadlock.
         // For now simply treat this situation as the case where there is not
         // enough memory and we temporarily go over the memory limit.
         break;
@@ -579,6 +582,11 @@ void StorageManager::makeRoomForBlock(const size_t slots) {
         SpinSharedMutexSharedLock<false> read_lock(blocks_shared_mutex_);
         if (blocks_.find(block_index) == blocks_.end()) {
           // another thread must have jumped in and evicted it before us
+
+          // NOTE(zuyu): It is ok to release the shard for a block or blob,
+          // before its write lock destructs, because we will never encounter a
+          // self-deadlock in a single thread, and in multiple-thread case some
+          // thread will block but not deadlock if there is a shard collision.
           lock_manager_.release(block_index);
           continue;
         }
@@ -586,6 +594,11 @@ void StorageManager::makeRoomForBlock(const size_t slots) {
       }
       if (eviction_policy_->getRefCount(block->getID()) > 0) {
         // Someone sneaked in and referenced the block before we could evict it.
+
+        // NOTE(zuyu): It is ok to release the shard for a block or blob, before
+        // its write lock destructs, because we will never encounter a
+        // self-deadlock in a single thread, and in multiple-thread case some
+        // thread will block but not deadlock if there is a shard collision.
         lock_manager_.release(block_index);
         continue;
       }
@@ -593,6 +606,10 @@ void StorageManager::makeRoomForBlock(const size_t slots) {
         evictBlockOrBlob(block->getID());
       }  // else : Someone sneaked in and evicted the block before we could.
 
+      // NOTE(zuyu): It is ok to release the shard for a block or blob, before
+      // its write lock destructs, because we will never encounter a
+      // self-deadlock in a single thread, and in multiple-thread case some
+      // thread will block but not deadlock if there is a shard collision.
       lock_manager_.release(block_index);
     } else {
       // If status was not ok, then we must not have been able to evict enough

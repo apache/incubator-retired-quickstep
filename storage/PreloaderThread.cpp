@@ -34,12 +34,28 @@ void PreloaderThread::run() {
     ThreadUtil::BindToCPU(cpu_id_);
   }
 
+  const std::size_t num_slots = storage_manager_->getMaxBufferPoolSlots();
+  std::size_t blocks_loaded = 0;
+
   for (const CatalogRelation &relation : database_) {
     std::vector<block_id> blocks = relation.getBlocksSnapshot();
     for (block_id current_block_id : blocks) {
-      BlockReference current_block = storage_manager_->getBlock(current_block_id, relation);
+      try {
+        BlockReference current_block = storage_manager_->getBlock(current_block_id, relation);
+      } catch (...) {
+        LOG(ERROR) << "Error after loading " << blocks_loaded << "blocks\n";
+        throw;
+      }
+      ++blocks_loaded;
+      if (blocks_loaded == num_slots) {
+        // The buffer pool has filled up. But, some database blocks are not loaded.
+        printf(" The database is larger than the buffer pool. Only %lu blocks were loaded ",
+               blocks_loaded);
+        return;
+      }
     }
   }
+  printf(" Loaded %lu blocks ", blocks_loaded);
 }
 
 }  // namespace quickstep

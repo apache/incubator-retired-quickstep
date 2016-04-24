@@ -235,3 +235,167 @@ TopLevelPlan
 |   +-AttributeReference[id=9,name=z,relation=d1,type=Int]
 +-output_attributes=
   +-AttributeReference[id=3,name=z,relation=a1,type=Int]
+==
+
+SELECT a.w, b.x, c.y, d.z
+FROM a LEFT JOIN b ON a.w = b.w
+       LEFT JOIN c ON a.x = c.x
+       LEFT JOIN d ON a.y = d.y;
+--
+TopLevelPlan
++-plan=HashLeftOuterJoin
+| +-left=HashLeftOuterJoin
+| | +-left=HashLeftOuterJoin
+| | | +-left=TableReference[relation=a]
+| | | | +-AttributeReference[id=0,name=w,relation=a,type=Int]
+| | | | +-AttributeReference[id=1,name=x,relation=a,type=Int]
+| | | | +-AttributeReference[id=2,name=y,relation=a,type=Int]
+| | | | +-AttributeReference[id=3,name=z,relation=a,type=Int]
+| | | +-right=TableReference[relation=b]
+| | | | +-AttributeReference[id=4,name=w,relation=b,type=Int]
+| | | | +-AttributeReference[id=5,name=x,relation=b,type=Int]
+| | | +-project_expressions=
+| | | | +-AttributeReference[id=0,name=w,relation=a,type=Int]
+| | | | +-AttributeReference[id=1,name=x,relation=a,type=Int]
+| | | | +-AttributeReference[id=2,name=y,relation=a,type=Int]
+| | | | +-AttributeReference[id=5,name=x,relation=b,type=Int NULL]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=0,name=w,relation=a,type=Int]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=4,name=w,relation=b,type=Int]
+| | +-right=TableReference[relation=c]
+| | | +-AttributeReference[id=6,name=x,relation=c,type=Int]
+| | | +-AttributeReference[id=7,name=y,relation=c,type=Int]
+| | +-project_expressions=
+| | | +-AttributeReference[id=0,name=w,relation=a,type=Int]
+| | | +-AttributeReference[id=2,name=y,relation=a,type=Int]
+| | | +-AttributeReference[id=5,name=x,relation=b,type=Int NULL]
+| | | +-AttributeReference[id=7,name=y,relation=c,type=Int NULL]
+| | +-left_join_attributes=
+| | | +-AttributeReference[id=1,name=x,relation=a,type=Int]
+| | +-right_join_attributes=
+| |   +-AttributeReference[id=6,name=x,relation=c,type=Int]
+| +-right=TableReference[relation=d]
+| | +-AttributeReference[id=8,name=y,relation=d,type=Int]
+| | +-AttributeReference[id=9,name=z,relation=d,type=Int]
+| +-project_expressions=
+| | +-AttributeReference[id=0,name=w,relation=a,type=Int]
+| | +-AttributeReference[id=5,name=x,relation=b,type=Int NULL]
+| | +-AttributeReference[id=7,name=y,relation=c,type=Int NULL]
+| | +-AttributeReference[id=9,name=z,relation=d,type=Int NULL]
+| +-left_join_attributes=
+| | +-AttributeReference[id=2,name=y,relation=a,type=Int]
+| +-right_join_attributes=
+|   +-AttributeReference[id=8,name=y,relation=d,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=w,relation=a,type=Int]
+  +-AttributeReference[id=5,name=x,relation=b,type=Int NULL]
+  +-AttributeReference[id=7,name=y,relation=c,type=Int NULL]
+  +-AttributeReference[id=9,name=z,relation=d,type=Int NULL]
+==
+
+SELECT a.w, b.x, c.y, d.z
+FROM a RIGHT JOIN b ON a.w = b.w
+       JOIN c ON a.x = c.x
+       LEFT JOIN d ON a.y = d.y
+WHERE b.x > 10
+  AND c.y > 20;
+--
+TopLevelPlan
++-plan=HashLeftOuterJoin
+| +-left=HashJoin
+| | +-left=HashLeftOuterJoin
+| | | +-left=Selection
+| | | | +-input=TableReference[relation=b]
+| | | | | +-AttributeReference[id=4,name=w,relation=b,type=Int]
+| | | | | +-AttributeReference[id=5,name=x,relation=b,type=Int]
+| | | | +-filter_predicate=Greater
+| | | | | +-AttributeReference[id=5,name=x,relation=b,type=Int]
+| | | | | +-Literal[value=10,type=Int]
+| | | | +-project_expressions=
+| | | |   +-AttributeReference[id=4,name=w,relation=b,type=Int]
+| | | |   +-AttributeReference[id=5,name=x,relation=b,type=Int]
+| | | +-right=TableReference[relation=a]
+| | | | +-AttributeReference[id=0,name=w,relation=a,type=Int]
+| | | | +-AttributeReference[id=1,name=x,relation=a,type=Int]
+| | | | +-AttributeReference[id=2,name=y,relation=a,type=Int]
+| | | | +-AttributeReference[id=3,name=z,relation=a,type=Int]
+| | | +-project_expressions=
+| | | | +-AttributeReference[id=5,name=x,relation=b,type=Int]
+| | | | +-AttributeReference[id=0,name=w,relation=a,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=x,relation=a,type=Int NULL]
+| | | | +-AttributeReference[id=2,name=y,relation=a,type=Int NULL]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=4,name=w,relation=b,type=Int]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=0,name=w,relation=a,type=Int]
+| | +-right=Selection
+| | | +-input=TableReference[relation=c]
+| | | | +-AttributeReference[id=6,name=x,relation=c,type=Int]
+| | | | +-AttributeReference[id=7,name=y,relation=c,type=Int]
+| | | +-filter_predicate=Greater
+| | | | +-AttributeReference[id=7,name=y,relation=c,type=Int]
+| | | | +-Literal[value=20,type=Int]
+| | | +-project_expressions=
+| | |   +-AttributeReference[id=6,name=x,relation=c,type=Int]
+| | |   +-AttributeReference[id=7,name=y,relation=c,type=Int]
+| | +-project_expressions=
+| | | +-AttributeReference[id=5,name=x,relation=b,type=Int]
+| | | +-AttributeReference[id=0,name=w,relation=a,type=Int NULL]
+| | | +-AttributeReference[id=2,name=y,relation=a,type=Int NULL]
+| | | +-AttributeReference[id=7,name=y,relation=c,type=Int]
+| | +-left_join_attributes=
+| | | +-AttributeReference[id=1,name=x,relation=a,type=Int NULL]
+| | +-right_join_attributes=
+| |   +-AttributeReference[id=6,name=x,relation=c,type=Int]
+| +-right=TableReference[relation=d]
+| | +-AttributeReference[id=8,name=y,relation=d,type=Int]
+| | +-AttributeReference[id=9,name=z,relation=d,type=Int]
+| +-project_expressions=
+| | +-AttributeReference[id=0,name=w,relation=a,type=Int NULL]
+| | +-AttributeReference[id=5,name=x,relation=b,type=Int]
+| | +-AttributeReference[id=7,name=y,relation=c,type=Int]
+| | +-AttributeReference[id=9,name=z,relation=d,type=Int NULL]
+| +-left_join_attributes=
+| | +-AttributeReference[id=2,name=y,relation=a,type=Int NULL]
+| +-right_join_attributes=
+|   +-AttributeReference[id=8,name=y,relation=d,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=w,relation=a,type=Int NULL]
+  +-AttributeReference[id=5,name=x,relation=b,type=Int]
+  +-AttributeReference[id=7,name=y,relation=c,type=Int]
+  +-AttributeReference[id=9,name=z,relation=d,type=Int NULL]
+==
+
+SELECT *
+FROM b LEFT JOIN c ON (b.x = c.x AND c.x > 10);
+--
+TopLevelPlan
++-plan=HashLeftOuterJoin
+| +-left=TableReference[relation=b]
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| +-right=Selection
+| | +-input=TableReference[relation=c]
+| | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| | +-filter_predicate=Greater
+| | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| | | +-Literal[value=10,type=Int]
+| | +-project_expressions=
+| |   +-AttributeReference[id=2,name=x,relation=c,type=Int]
+| |   +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| +-project_expressions=
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| | +-AttributeReference[id=2,name=x,relation=c,type=Int NULL]
+| | +-AttributeReference[id=3,name=y,relation=c,type=Int NULL]
+| +-left_join_attributes=
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
+| +-right_join_attributes=
+|   +-AttributeReference[id=2,name=x,relation=c,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=w,relation=b,type=Int]
+  +-AttributeReference[id=1,name=x,relation=b,type=Int]
+  +-AttributeReference[id=2,name=x,relation=c,type=Int NULL]
+  +-AttributeReference[id=3,name=y,relation=c,type=Int NULL]

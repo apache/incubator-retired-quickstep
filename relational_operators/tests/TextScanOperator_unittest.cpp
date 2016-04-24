@@ -39,8 +39,8 @@
 #include "types/TypeID.hpp"
 #include "utility/MemStream.hpp"
 
+#include "gflags/gflags.h"
 #include "glog/logging.h"
-
 #include "gtest/gtest.h"
 
 #include "tmb/id_typedefs.h"
@@ -94,7 +94,7 @@ class TextScanOperatorTest : public ::testing::Test {
     relation_->addAttribute(
         new CatalogAttribute(relation_, "varchar_attr", TypeFactory::GetType(kVarChar, 20, true)));
 
-    storage_manager_.reset(new StorageManager("./test_data/"));
+    storage_manager_.reset(new StorageManager("./text_scan_operator_test_data/"));
   }
 
   virtual void TearDown() {

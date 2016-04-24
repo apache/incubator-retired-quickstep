@@ -29,20 +29,21 @@ enum WorkOrderType {
   DESTROY_HASH = 6;
   DROP_TABLE = 7;
   FINALIZE_AGGREGATION = 8;
-  HASH_INNER_JOIN = 9;
-  HASH_SEMI_JOIN = 10;
-  HASH_ANTI_JOIN = 11;
-  INSERT = 12;
-  NESTED_LOOP_JOIN = 13;
-  SAMPLE = 14;
-  SAVE_BLOCKS = 15;
-  SELECT = 16;
-  SORT_MERGE_RUN = 17;
-  SORT_RUN_GENERATION = 18;
-  TABLE_GENERATOR = 19;
-  TEXT_SCAN = 20;
-  TEXT_SPLIT = 21;
-  UPDATE = 22;
+  HASH_ANTI_JOIN = 9;
+  HASH_INNER_JOIN = 10;
+  HASH_OUTER_JOIN = 11;
+  HASH_SEMI_JOIN = 12;
+  INSERT = 13;
+  NESTED_LOOP_JOIN = 14;
+  SAMPLE = 15;
+  SAVE_BLOCKS = 16;
+  SELECT = 17;
+  SORT_MERGE_RUN = 18;
+  SORT_RUN_GENERATION = 19;
+  TABLE_GENERATOR = 20;
+  TEXT_SCAN = 21;
+  TEXT_SPLIT = 22;
+  UPDATE = 23;
 }
 
 message WorkOrder {
@@ -148,6 +149,21 @@ message HashSemiJoinWorkOrder {
     optional int32 residual_predicate_index = 366;
     optional int32 selection_index = 367;
     optional fixed64 block_id = 368;
+  }
+}
+
+message HashOuterJoinWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional int32 build_relation_id = 370;
+    optional int32 probe_relation_id = 371;
+    repeated int32 join_key_attributes = 372;
+    optional bool any_join_key_attributes_nullable = 373;
+    optional int32 insert_destination_index = 374;
+    optional uint32 join_hash_table_index = 375;
+    optional int32 selection_index = 376;
+    repeated bool is_selection_on_build = 377;
+    optional fixed64 block_id = 378;
   }
 }
 

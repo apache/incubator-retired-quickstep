@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/logical/Logical.hpp"
 #include "utility/Macros.hpp"
 #include "utility/StringUtil.hpp"
@@ -116,6 +117,29 @@ class NameResolver {
    */
   static std::string GenerateInternalAlias(const std::string &name) {
     return std::string("$").append(name);
+  }
+
+  /**
+   * @return Get the index in the NameResolver for the next relation.
+   */
+  std::size_t nextScopedRelationPosition() const {
+    return relations_.size();
+  }
+
+  /**
+   * @brief Make the output attributes of all the relations with indices between
+   *        start_relation_id and end_relation_id (excluded) to be nullable.
+   *
+   * @param start_relation_id The starting index of the relation for which
+   *        the nullability of output attributes should be changed.
+   * @param end_relation_id The ending relation index.
+   */
+  void makeOutputAttributesNullable(std::size_t start_relation_id,
+                                    std::size_t end_relation_id) {
+    for (std::size_t idx = start_relation_id; idx < end_relation_id; ++idx) {
+      relations_[idx]->attributes =
+          expressions::GetNullableAttributeVector(relations_[idx]->attributes);
+    }
   }
 
  private:

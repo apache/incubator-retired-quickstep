@@ -169,7 +169,7 @@ int main(int argc, char* argv[]) {
            real_num_workers,
            (static_cast<double>(quickstep::FLAGS_buffer_pool_slots) * quickstep::kSlotSizeBytes)/quickstep::kAGigaByte);
   } else {
-    LOG(FATAL) << "Quickstep needs at least one worker thread";
+    LOG(FATAL) << "Quickstep needs at least one worker thread to run";
   }
 
 #ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
@@ -262,14 +262,19 @@ int main(int argc, char* argv[]) {
       DefaultsConfigurator::GetNumNUMANodesCoveredByWorkers(worker_cpu_affinities);
 
   if (quickstep::FLAGS_preload_buffer_pool) {
+    std::chrono::time_point<std::chrono::steady_clock> preload_start, preload_end;
+    preload_start = std::chrono::steady_clock::now();
+    printf("Preloading the buffer pool ... ");
+    fflush(stdout);
     quickstep::PreloaderThread preloader(*query_processor->getDefaultDatabase(),
                                          query_processor->getStorageManager(),
                                          worker_cpu_affinities.front());
-    printf("Preloading buffer pool... ");
-    fflush(stdout);
+
     preloader.start();
     preloader.join();
-    printf("DONE\n");
+    preload_end = std::chrono::steady_clock::now();
+    printf("in %g seconds\n",
+           std::chrono::duration<double>(preload_end - preload_start).count());
   }
 
   Foreman foreman(&bus,
