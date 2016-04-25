@@ -144,7 +144,7 @@ void AggregationHandleSum::mergeStates(
   const AggregationStateSum &sum_source = static_cast<const AggregationStateSum&>(source);
   AggregationStateSum *sum_destination = static_cast<AggregationStateSum*>(destination);
 
-  SpinMutexLock(sum_destination->mutex_);
+  SpinMutexLock lock(sum_destination->mutex_);
   sum_destination->sum_ = merge_operator_->applyToTypedValues(sum_destination->sum_,
                                                               sum_source.sum_);
   sum_destination->null_ = sum_destination->null_ && sum_source.null_;
