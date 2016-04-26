@@ -202,10 +202,19 @@ ERROR: The BLOCKSIZEMB property must be an integer. (2 : 17)
                 ^
 ==
 
-# BLOCKSIZEMB must not be 0.
+# BLOCKSIZEMB must be greater than the minimum (defined in StorageConstants.hpp).
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
 (TYPE rowstore, BLOCKSIZEMB 0);
 --
-ERROR: The BLOCKSIZEMB property must be between 2Mb and 1000Mb. (2 : 17)
+ERROR: The BLOCKSIZEMB property must be between 2MB and 1024MB. (2 : 17)
 (TYPE rowstore, BLOCKSIZEMB 0);
+                ^
+==
+
+# BLOCKSIZEMB must be less than the maximum (defined in StorageConstants.hpp).
+CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
+(TYPE rowstore, BLOCKSIZEMB 2000);
+--
+ERROR: The BLOCKSIZEMB property must be between 2MB and 1024MB. (2 : 17)
+(TYPE rowstore, BLOCKSIZEMB 2000);
                 ^

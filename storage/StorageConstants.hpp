@@ -37,6 +37,18 @@ const std::size_t kSlotSizeBytes = 0x200000;
 
 // A GigaByte.
 const std::uint64_t kAGigaByte = (1 << 30);
+// A MegaByte.
+const std::uint64_t kAMegaByte = (1 << 20);
+
+// Constants for the minimum and maximum user-specifiable BLOCKSIZEMB in
+// the SQL clause BLOCKPROPERTIES.
+const std::uint64_t kBlockSizeUpperBoundBytes = kAGigaByte;
+
+// 2 Megabytes.
+const std::uint64_t kBlockSizeLowerBoundBytes = kAMegaByte << 1;
+
+// The default size of a new relation in terms of the number of slots.
+const std::uint64_t kDefaultBlockSizeInSlots = 1;
 
 // To determine the size of a buffer pool, we use a threshold (see below)
 // to check if the system has "large" amounts of installed memory. This

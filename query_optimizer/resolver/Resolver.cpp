@@ -600,7 +600,7 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
     }
   }
   // Resolve the Block size (size -> # of slots).
-  std::int64_t slots = 1;  // The default.
+  std::int64_t slots = kDefaultBlockSizeInSlots;
   if (block_properties->hasBlockSizeMb()) {
     std::int64_t blocksizemb = block_properties->getBlockSizeMbValue();
     if (blocksizemb == -1) {
@@ -608,16 +608,18 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
       THROW_SQL_ERROR_AT(block_properties->getBlockSizeMb())
           << "The BLOCKSIZEMB property must be an integer.";
     }
-    slots = (blocksizemb * 1000000) / kSlotSizeBytes;
+    slots = (blocksizemb * kAMegaByte) / kSlotSizeBytes;
     DLOG(INFO) << "Resolver using BLOCKSIZEMB of " << slots << " slots"
         << " which is " << (slots * kSlotSizeBytes) << " bytes versus"
-        << " user requested " << (blocksizemb * 1000000) << " bytes.";
-    // 1Gb is the max size.
-    const std::int64_t max_size_slots = 1000000000 / kSlotSizeBytes;
-    // TODO(marc) The upper bound is arbitrary.
-    if (slots < 1 || slots > max_size_slots) {
+        << " user requested " << (blocksizemb * kAMegaByte) << " bytes.";
+    const std::uint64_t max_size_slots = kBlockSizeUpperBoundBytes / kSlotSizeBytes;
+    const std::uint64_t min_size_slots = kBlockSizeLowerBoundBytes / kSlotSizeBytes;
+    if (static_cast<std::uint64_t>(slots) < min_size_slots ||
+        static_cast<std::uint64_t>(slots) > max_size_slots) {
       THROW_SQL_ERROR_AT(block_properties->getBlockSizeMb())
-        << "The BLOCKSIZEMB property must be between 2Mb and 1000Mb.";
+          << "The BLOCKSIZEMB property must be between "
+          << std::to_string(kBlockSizeLowerBoundBytes / kAMegaByte) << "MB and "
+          << std::to_string(kBlockSizeUpperBoundBytes / kAMegaByte) << "MB.";
     }
   }
   storage_block_description->set_num_slots(slots);
