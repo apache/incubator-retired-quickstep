@@ -205,4 +205,46 @@ TEST(StorageManagerTest, DifferentNUMANodeBlobTestWithEviction) {
 }
 #endif  // QUICKSTEP_HAVE_LIBNUMA
 
+// Trigger an eviction from the same shard in StorageManager's
+// ShardedLockManager while attempting to load a blob. Previously, a bug
+// existed that caused a self-deadlock in such situations. This test reproduces
+// the issue and validates the fix.
+TEST(StorageManagerTest, EvictFromSameShardTest) {
+  // Set up a StorageManager with a soft memory limit of only one slot.
+  StorageManager storage_manager("eviction_test_storage", 1);
+
+  // Create a blob.
+  const block_id blob_a_id = storage_manager.createBlob(1);
+
+  // Blob "a" is now memory-resident in StorageManager, but has a reference
+  // count of zero.
+  EXPECT_TRUE(storage_manager.blockOrBlobIsLoaded(blob_a_id));
+  EXPECT_EQ(kSlotSizeBytes, storage_manager.getMemorySize());
+
+  // Manually alter 'block_index_' inside 'storage_manager' so that the next
+  // block_id generated will be in the same shard as 'blob_id_a'.
+  storage_manager.block_index_.fetch_add(StorageManager::kLockManagerNumShards - 1);
+
+  // Create another blob and verify that it is in the same shard.
+  const block_id blob_b_id = storage_manager.createBlob(1);
+  EXPECT_EQ(storage_manager.lock_manager_.get(blob_a_id),
+            storage_manager.lock_manager_.get(blob_b_id));
+
+  // Creating a second blob should have triggered an eviction that kicked
+  // blob A out.
+  EXPECT_FALSE(storage_manager.blockOrBlobIsLoaded(blob_a_id));
+  EXPECT_TRUE(storage_manager.blockOrBlobIsLoaded(blob_b_id));
+  EXPECT_EQ(kSlotSizeBytes, storage_manager.getMemorySize());
+
+  // Try and get a reference to blob A. Blob A must be reloaded from disk.
+  // This will trigger an eviction of blob B. This is the point where the
+  // self-deadlock bug could be observed.
+  BlobReference blob_a_ref = storage_manager.getBlob(blob_a_id);
+
+  // Reaching this point means we have not self-deadlocked. Now clean up.
+  blob_a_ref.release();
+  storage_manager.deleteBlockOrBlobFile(blob_a_id);
+  storage_manager.deleteBlockOrBlobFile(blob_b_id);
+}
+
 }  // namespace quickstep

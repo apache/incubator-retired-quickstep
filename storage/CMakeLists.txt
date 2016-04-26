@@ -599,7 +599,6 @@ if (QUICKSTEP_HAVE_FILE_MANAGER_POSIX)
   target_link_libraries(quickstep_storage_FileManagerLocal
                         quickstep_storage_FileManagerPosix)
   target_link_libraries(quickstep_storage_FileManagerPosix
-                        glog
                         quickstep_storage_FileManager
                         quickstep_storage_StorageBlockInfo
                         quickstep_storage_StorageConstants
