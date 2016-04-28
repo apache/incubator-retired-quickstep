@@ -29,11 +29,11 @@ namespace quickstep {
 
 // Size of a memory slot managed by the StorageManager. This is the smallest
 // quantum of allocation for StorageBlocks and StorageBlobs. 4 MB is the large
-// page size on x86.
+// page size on x86. We want the default slot to be even larger.
 //
 // TODO(chasseur): Possibly change this for non-x86 architectures with
 // different large page sizes.
-const std::size_t kSlotSizeBytes = 0x400000;
+const std::size_t kSlotSizeBytes = 0x2000000;  // 32 MB.
 
 // A GigaByte.
 const std::uint64_t kAGigaByte = (1 << 30);
@@ -47,7 +47,7 @@ const std::uint64_t kBlockSizeUpperBoundBytes = kAGigaByte;
 const std::uint64_t kBlockSizeLowerBoundBytes = kSlotSizeBytes;
 
 // The default size of a new relation in terms of the number of slots.
-const std::uint64_t kDefaultBlockSizeInSlots = 8;
+const std::uint64_t kDefaultBlockSizeInSlots = 1;
 
 // To determine the size of a buffer pool, we use a threshold (see below)
 // to check if the system has "large" amounts of installed memory. This
