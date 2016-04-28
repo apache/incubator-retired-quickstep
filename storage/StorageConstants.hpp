@@ -33,7 +33,7 @@ namespace quickstep {
 //
 // TODO(chasseur): Possibly change this for non-x86 architectures with
 // different large page sizes.
-const std::size_t kSlotSizeBytes = 0x200000;
+const std::size_t kSlotSizeBytes = 0x2000000;  // 32 MB.
 
 // A GigaByte.
 const std::uint64_t kAGigaByte = (1 << 30);
