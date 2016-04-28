@@ -871,6 +871,26 @@ FROM generate_series(1, 5) AS gs(i);
 +----------------------+
 ==
 
+# This query is to test that the output columns have the correct alias name as specified.
+SELECT *
+FROM (
+  SELECT i, SUM(i) AS sum
+  FROM generate_series(1, 2) AS gs(i)
+  GROUP BY i
+) t1 JOIN (
+  SELECT j, AVG(j) AS avg
+  FROM generate_series(1, 2) AS gs(j)
+  GROUP BY j
+) t2 ON i = j;
+--
++-----------+--------------------+-----------+------------------------+
+|i          |sum                 |j          |avg                     |
++-----------+--------------------+-----------+------------------------+
+|          1|                   1|          1|                       1|
+|          2|                   2|          2|                       2|
++-----------+--------------------+-----------+------------------------+
+==
+
 # TODO(team): Fix Issue #9 to enable COUNT(*).
 SELECT COUNT(long_col)
 FROM test,

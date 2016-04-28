@@ -1166,7 +1166,8 @@ TopLevelPlan
 | | | | +-Add
 | | | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
 | | | |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
-| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-Alias[id=1,name=col1,relation=,type=Long]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
 | | | +-Alias[id=8,name=,alias=$groupby2,relation=$groupby,type=Float]
 | | |   +-Add
 | | |     +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
@@ -1304,7 +1305,8 @@ TopLevelPlan
 | | | +-Literal[value=2,type=Int]
 | | +-grouping_expressions=
 | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
-| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-Alias[id=4,name=subquery_col3,relation=subquery,type=Char(20)]
+| | |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
 | | +-aggregate_expressions=
 | |   +-Alias[id=8,name=,alias=$aggregate0,relation=$aggregate,type=Long]
 | |   | +-AggregateFunction[function=COUNT]
@@ -2609,10 +2611,12 @@ TopLevelPlan
 | | |       +-AttributeReference[id=5,name=y,relation=d,type=Int]
 | | +-join_predicate=Literal[value=true]
 | | +-project_expressions=
-| |   +-AttributeReference[id=4,name=,alias=$aggregate0,relation=$aggregate,
-| |   | type=Long NULL]
-| |   +-AttributeReference[id=7,name=,alias=$aggregate0,relation=$aggregate,
-| |     type=Double NULL]
+| |   +-Alias[id=4,name=,alias=SUM(y),relation=,type=Long NULL]
+| |   | +-AttributeReference[id=4,name=,alias=$aggregate0,relation=$aggregate,
+| |   |   type=Long NULL]
+| |   +-Alias[id=7,name=,alias=AVG(y),relation=,type=Double NULL]
+| |     +-AttributeReference[id=7,name=,alias=$aggregate0,relation=$aggregate,
+| |       type=Double NULL]
 | +-join_predicate=Literal[value=true]
 | +-project_expressions=
 |   +-Alias[id=8,name=,alias=((x*SubqueryExpression)+SubqueryExpression),
