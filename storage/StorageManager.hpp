@@ -402,12 +402,16 @@ class StorageManager {
                                        const int numa_node);
 
   /**
-   * @brief Evict blocks until there is enough space for a new block of the
-   *        requested size.
+   * @brief Evict blocks or blobs until there is enough space for a new block
+   *        or blob of the requested size.
+   *
+   * @note This non-blocking method gives up evictions if there is a shard
+   *       collision, and thus the buffer pool size may temporarily go beyond
+   *       the memory limit.
    *
    * @param slots Number of slots to make room for.
    */
-  void makeRoomForBlock(const std::size_t slots);
+  void makeRoomForBlockOrBlob(const std::size_t slots);
 
   /**
    * @brief Load a block from the persistent storage into memory.
