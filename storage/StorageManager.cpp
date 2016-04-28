@@ -494,12 +494,16 @@ MutableBlockReference StorageManager::getBlockInternal(
   // To be safe, release the block's shard after 'eviction_lock' destructs.
   lock_manager_.release(block);
 
+  if (ret.valid()) {
+    return ret;
+  }
+
   // Note that there is no way for the block to be evicted between the call to
   // loadBlock and the call to EvictionPolicy::blockReferenced from
   // MutableBlockReference's constructor; this is because EvictionPolicy
   // doesn't know about the block until blockReferenced is called, so
   // chooseBlockToEvict shouldn't return the block.
-  if (!ret.valid()) {
+  do {
     SpinSharedMutexExclusiveLock<false> io_lock(*lock_manager_.get(block));
     {
       // Check one more time if the block got loaded in memory by someone else.
@@ -508,12 +512,12 @@ MutableBlockReference StorageManager::getBlockInternal(
       if (it != blocks_.end()) {
         DEBUG_ASSERT(!it->second.block->isBlob());
         ret = MutableBlockReference(static_cast<StorageBlock*>(it->second.block), eviction_policy_.get());
-        return ret;
+        break;
       }
     }
     // No other thread loaded the block before us.
     ret = MutableBlockReference(loadBlock(block, relation, numa_node), eviction_policy_.get());
-  }
+  } while (false);
   // To be safe, release the block's shard after 'io_lock' destructs.
   lock_manager_.release(block);
 
@@ -535,7 +539,11 @@ MutableBlobReference StorageManager::getBlobInternal(const block_id blob,
   // To be safe, release the blob's shard after 'eviction_lock' destructs.
   lock_manager_.release(blob);
 
-  if (!ret.valid()) {
+  if (ret.valid()) {
+    return ret;
+  }
+
+  do {
     SpinSharedMutexExclusiveLock<false> io_lock(*lock_manager_.get(blob));
     // Note that there is no way for the block to be evicted between the call to
     // loadBlob and the call to EvictionPolicy::blockReferenced from
@@ -548,12 +556,12 @@ MutableBlobReference StorageManager::getBlobInternal(const block_id blob,
       if (it != blocks_.end()) {
         DEBUG_ASSERT(it->second.block->isBlob());
         ret = MutableBlobReference(static_cast<StorageBlob*>(it->second.block), eviction_policy_.get());
-        return ret;
+        break;
       }
     }
     // No other thread loaded the blob before us.
     ret = MutableBlobReference(loadBlob(blob, numa_node), eviction_policy_.get());
-  }
+  } while (false);
   // To be safe, release the blob's shard after 'io_lock' destructs.
   lock_manager_.release(blob);
 

@@ -21,9 +21,12 @@
 #include <array>
 #include <cstddef>
 #include <functional>
+#include <unordered_map>
 
 #include "storage/StorageConstants.hpp"
+#include "threading/Mutex.hpp"
 #include "threading/SharedMutex.hpp"
+#include "threading/SpinSharedMutex.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -64,24 +67,29 @@ class ShardedLockManager {
     if (has_collision != nullptr) {
       // In StorageManager::makeRoomForBlock, check whether the evicting block
       // or blob has a shard collision with existing referenced shards.
-      SpinSharedMutexSharedLock<false> read_lock(shards_mutex_);
-      if (shards_.find(shard) != shards_.end()) {
+      SpinSharedMutexSharedLock<false> read_lock(shard_count_mutex_);
+      if (shard_count_.find(shard) != shard_count_.end()) {
         *has_collision = true;
         return &collision_mutex_;
       }
     }
 
     {
-      SpinSharedMutexExclusiveLock<false> write_lock(shards_mutex_);
+      SpinSharedMutexExclusiveLock<false> write_lock(shard_count_mutex_);
 
       // Check one more time for the evicting block or blob if there is a shard
       // collision.
-      if (has_collision != nullptr && shards_.find(shard) != shards_.end()) {
-        *has_collision = true;
-        return &collision_mutex_;
-      }
+      auto it = shard_count_.find(shard);
+      if (it != shard_count_.end()) {
+        if (has_collision != nullptr) {
+          *has_collision = true;
+          return &collision_mutex_;
+        }
 
-      shards_.insert(shard);
+        ++it->second;
+      } else {
+        shard_count_.emplace(shard, 1);
+      }
     }
     return &sharded_mutexes_[shard];
   }
@@ -91,8 +99,13 @@ class ShardedLockManager {
    * @param key The key to compute the shard.
    */
   void release(const T key) {
-    SpinSharedMutexExclusiveLock<false> write_lock(shards_mutex_);
-    shards_.erase(hash_(key) % N);
+    SpinSharedMutexExclusiveLock<false> write_lock(shard_count_mutex_);
+    auto it = shard_count_.find(hash_(key) % N);
+    DCHECK(it != shard_count_.end());
+
+    if (--it->second == 0) {
+      shard_count_.erase(it);
+    }
   }
 
  private:
@@ -102,9 +115,11 @@ class ShardedLockManager {
   // The placeholder mutex used whenever there is a hash collision.
   SharedMutexT collision_mutex_;
 
-  // Bookkeep all shards referenced by StorageManager in multiple threads.
-  std::unordered_set<std::size_t> shards_;
-  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> shards_mutex_;
+  // Count all shards referenced by StorageManager in multiple threads.
+  // The key is the shard, while the value is the count. If the count equals to
+  // zero, we delete the shard entry.
+  std::unordered_map<std::size_t, std::size_t> shard_count_;
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> shard_count_mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(ShardedLockManager);
 };

@@ -244,7 +244,9 @@ target_link_libraries(quickstep_utility_SortConfiguration_proto
                       ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_utility_ShardedLockManager
                       quickstep_storage_StorageConstants
+                      quickstep_threading_Mutex
                       quickstep_threading_SharedMutex
+                      quickstep_threading_SpinSharedMutex
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_utility_StringUtil
                       glog)
