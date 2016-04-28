@@ -891,6 +891,31 @@ FROM (
 +-----------+--------------------+-----------+------------------------+
 ==
 
+# Same shared subplan referenced multiple times.
+WITH t(x, y) AS (
+  SELECT i % 5, i
+  FROM generate_series(1, 20) AS g(i)
+)
+SELECT *
+FROM t
+WHERE t.y = (
+  SELECT MAX(y)
+  FROM t t1
+  WHERE t.x = t1.x
+)
+ORDER BY x;
+--
++-----------+-----------+
+|x          |y          |
++-----------+-----------+
+|          0|         20|
+|          1|         16|
+|          2|         17|
+|          3|         18|
+|          4|         19|
++-----------+-----------+
+==
+
 # TODO(team): Fix Issue #9 to enable COUNT(*).
 SELECT COUNT(long_col)
 FROM test,

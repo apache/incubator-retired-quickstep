@@ -84,6 +84,7 @@ bool OneToOne::generatePlan(const L::LogicalPtr &logical_input,
       const L::SharedSubplanReferencePtr shared_subplan_reference =
           std::static_pointer_cast<const L::SharedSubplanReference>(logical_input);
       *physical_output = P::SharedSubplanReference::Create(shared_subplan_reference->subplan_id(),
+                                                           shared_subplan_reference->referenced_attributes(),
                                                            shared_subplan_reference->output_attributes());
       return true;
     }

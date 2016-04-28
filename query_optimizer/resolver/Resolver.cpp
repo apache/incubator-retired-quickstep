@@ -1541,9 +1541,28 @@ L::LogicalPtr Resolver::resolveSimpleTableReference(
       with_queries_info_.with_query_name_to_vector_position.find(lower_table_name);
   if (subplan_it != with_queries_info_.with_query_name_to_vector_position.end()) {
     with_queries_info_.unreferenced_query_indexes.erase(subplan_it->second);
-    return L::SharedSubplanReference::Create(
-        subplan_it->second,
-        with_queries_info_.with_query_plans[subplan_it->second]->getOutputAttributes());
+
+    const std::vector<E::AttributeReferencePtr> with_query_attributes =
+        with_queries_info_.with_query_plans[subplan_it->second]->getOutputAttributes();
+
+    // Create a vector of new attributes to delegate the original output attributes
+    // from the WITH query, to avoid (ExprId -> CatalogAttribute) mapping collision
+    // later in ExecutionGenerator when there are multiple SharedSubplanReference's
+    // referencing a same shared subplan.
+    std::vector<E::AttributeReferencePtr> delegator_attributes;
+    for (const E::AttributeReferencePtr &attribute : with_query_attributes) {
+      delegator_attributes.emplace_back(
+          E::AttributeReference::Create(context_->nextExprId(),
+                                        attribute->attribute_name(),
+                                        attribute->attribute_alias(),
+                                        attribute->relation_name(),
+                                        attribute->getValueType(),
+                                        attribute->scope()));
+    }
+
+    return L::SharedSubplanReference::Create(subplan_it->second,
+                                             with_query_attributes,
+                                             delegator_attributes);
   }
 
   // Then look up the name in the database.

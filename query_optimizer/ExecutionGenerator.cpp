@@ -154,6 +154,9 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
   CHECK(P::SomeTopLevelPlan::MatchesWithConditionalCast(physical_plan, &top_level_physical_plan_))
       << "The physical plan must be rooted by a TopLevelPlan";
 
+  cost_model_.reset(
+      new cost::SimpleCostModel(top_level_physical_plan_->shared_subplans()));
+
   const CatalogRelation *result_relation = nullptr;
 
   try {
@@ -550,6 +553,16 @@ void ExecutionGenerator::convertSharedSubplanReference(const physical::SharedSub
           top_level_physical_plan_->shared_subplan_at(physical_plan->subplan_id()));
   if (found_it != physical_to_output_relation_map_.end()) {
     physical_to_output_relation_map_.emplace(physical_plan, found_it->second);
+
+    // Propagate the (ExprId -> CatalogAttribute) mapping.
+    const std::vector<E::AttributeReferencePtr> &referenced_attributes =
+        physical_plan->referenced_attributes();
+    const std::vector<E::AttributeReferencePtr> &output_attributes =
+        physical_plan->output_attributes();
+    for (std::size_t i = 0; i < referenced_attributes.size(); ++i) {
+      attribute_substitution_map_[output_attributes[i]->id()] =
+          attribute_substitution_map_[referenced_attributes[i]->id()];
+    }
   }
 }
 

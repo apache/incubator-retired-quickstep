@@ -1723,11 +1723,14 @@ select subquery_col from subquery
 TopLevelPlan
 +-plan=Project
 | +-input=SharedSubplanReference[subplan_id=0]
+| | +-referenced_attributes=
+| | | +-AttributeReference[id=0,name=subquery_col,relation=subquery,
+| | |   type=Int NULL]
 | | +-output_attributes=
-| |   +-AttributeReference[id=0,name=subquery_col,relation=subquery,
+| |   +-AttributeReference[id=6,name=subquery_col,relation=subquery,
 | |     type=Int NULL]
 | +-project_list=
-|   +-AttributeReference[id=0,name=subquery_col,relation=subquery,type=Int NULL]
+|   +-AttributeReference[id=6,name=subquery_col,relation=subquery,type=Int NULL]
 +-shared_subplans=
 | +-Project
 |   +-input=TableReference[relation_name=Test,relation_alias=test]
@@ -1742,7 +1745,7 @@ TopLevelPlan
 |     +-Alias[id=0,name=subquery_col,relation=subquery,type=Int NULL]
 |       +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 +-output_attributes=
-  +-AttributeReference[id=0,name=subquery_col,relation=subquery,type=Int NULL]
+  +-AttributeReference[id=6,name=subquery_col,relation=subquery,type=Int NULL]
 ==
 
 # Multiple WITH queries.
@@ -1755,14 +1758,18 @@ TopLevelPlan
 +-plan=Project
 | +-input=MultiwayCartesianJoin
 | | +-SharedSubplanReference[subplan_id=2]
+| | | +-referenced_attributes=
+| | | | +-AttributeReference[id=10,name=int_col,relation=subquery3,type=Int NULL]
 | | | +-output_attributes=
-| | |   +-AttributeReference[id=7,name=int_col,relation=subquery3,type=Int NULL]
+| | |   +-AttributeReference[id=11,name=int_col,relation=subquery3,type=Int NULL]
 | | +-SharedSubplanReference[subplan_id=1]
+| |   +-referenced_attributes=
+| |   | +-AttributeReference[id=7,name=int_col,relation=subquery2,type=Int NULL]
 | |   +-output_attributes=
-| |     +-AttributeReference[id=6,name=int_col,relation=subquery2,type=Int NULL]
+| |     +-AttributeReference[id=12,name=int_col,relation=subquery2,type=Int NULL]
 | +-project_list=
-|   +-AttributeReference[id=7,name=int_col,relation=subquery3,type=Int NULL]
-|   +-AttributeReference[id=6,name=int_col,relation=subquery2,type=Int NULL]
+|   +-AttributeReference[id=11,name=int_col,relation=subquery3,type=Int NULL]
+|   +-AttributeReference[id=12,name=int_col,relation=subquery2,type=Int NULL]
 +-shared_subplans=
 | +-Project
 | | +-input=TableReference[relation_name=Test,relation_alias=test]
@@ -1777,31 +1784,38 @@ TopLevelPlan
 | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | +-Project
 | | +-input=SharedSubplanReference[subplan_id=0]
+| | | +-referenced_attributes=
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | | +-output_attributes=
-| | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 | | +-project_list=
-| |   +-Alias[id=6,name=int_col,relation=subquery2,type=Int NULL]
+| |   +-Alias[id=7,name=int_col,relation=subquery2,type=Int NULL]
 | |     +-Add
-| |       +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |       +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 | |       +-Literal[value=5,type=Int]
 | +-Project
 |   +-input=MultiwayCartesianJoin
 |   | +-SharedSubplanReference[subplan_id=1]
+|   | | +-referenced_attributes=
+|   | | | +-AttributeReference[id=7,name=int_col,relation=subquery2,
+|   | | |   type=Int NULL]
 |   | | +-output_attributes=
-|   | |   +-AttributeReference[id=6,name=int_col,relation=subquery2,
+|   | |   +-AttributeReference[id=8,name=int_col,relation=subquery2,
 |   | |     type=Int NULL]
 |   | +-SharedSubplanReference[subplan_id=0]
+|   |   +-referenced_attributes=
+|   |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 |   |   +-output_attributes=
-|   |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |     +-AttributeReference[id=9,name=int_col,relation=test,type=Int NULL]
 |   +-project_list=
-|     +-Alias[id=7,name=int_col,relation=subquery3,type=Int NULL]
+|     +-Alias[id=10,name=int_col,relation=subquery3,type=Int NULL]
 |       +-Add
-|         +-AttributeReference[id=6,name=int_col,relation=subquery2,
+|         +-AttributeReference[id=8,name=int_col,relation=subquery2,
 |         | type=Int NULL]
 |         +-Literal[value=6,type=Int]
 +-output_attributes=
-  +-AttributeReference[id=7,name=int_col,relation=subquery3,type=Int NULL]
-  +-AttributeReference[id=6,name=int_col,relation=subquery2,type=Int NULL]
+  +-AttributeReference[id=11,name=int_col,relation=subquery3,type=Int NULL]
+  +-AttributeReference[id=12,name=int_col,relation=subquery2,type=Int NULL]
 ==
 
 with subquery(int_col_alias, long_col_alias) as (select int_col, long_col from test)
@@ -1810,11 +1824,14 @@ select int_col_alias from subquery
 TopLevelPlan
 +-plan=Project
 | +-input=SharedSubplanReference[subplan_id=0]
+| | +-referenced_attributes=
+| | | +-AttributeReference[id=6,name=int_col_alias,relation=,type=Int NULL]
+| | | +-AttributeReference[id=7,name=long_col_alias,relation=,type=Long]
 | | +-output_attributes=
-| |   +-AttributeReference[id=6,name=int_col_alias,relation=,type=Int NULL]
-| |   +-AttributeReference[id=7,name=long_col_alias,relation=,type=Long]
+| |   +-AttributeReference[id=8,name=int_col_alias,relation=,type=Int NULL]
+| |   +-AttributeReference[id=9,name=long_col_alias,relation=,type=Long]
 | +-project_list=
-|   +-AttributeReference[id=6,name=int_col_alias,relation=,type=Int NULL]
+|   +-AttributeReference[id=8,name=int_col_alias,relation=,type=Int NULL]
 +-shared_subplans=
 | +-Project
 |   +-input=Project
@@ -1835,7 +1852,7 @@ TopLevelPlan
 |     +-Alias[id=7,name=long_col_alias,relation=,type=Long]
 |       +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
 +-output_attributes=
-  +-AttributeReference[id=6,name=int_col_alias,relation=,type=Int NULL]
+  +-AttributeReference[id=8,name=int_col_alias,relation=,type=Int NULL]
 ==
 
 with subquery as (select int_col, long_col from test)
@@ -1845,16 +1862,19 @@ TopLevelPlan
 +-plan=Project
 | +-input=Project
 | | +-input=SharedSubplanReference[subplan_id=0]
+| | | +-referenced_attributes=
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
 | | | +-output_attributes=
-| | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
-| | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | |   +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
+| | |   +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
 | | +-project_list=
-| |   +-Alias[id=6,name=int_col_alias,relation=,type=Int NULL]
-| |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
-| |   +-Alias[id=7,name=long_col_alias,relation=,type=Long]
-| |     +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |   +-Alias[id=8,name=int_col_alias,relation=,type=Int NULL]
+| |   | +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
+| |   +-Alias[id=9,name=long_col_alias,relation=,type=Long]
+| |     +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
 | +-project_list=
-|   +-AttributeReference[id=6,name=int_col_alias,relation=,type=Int NULL]
+|   +-AttributeReference[id=8,name=int_col_alias,relation=,type=Int NULL]
 +-shared_subplans=
 | +-Project
 |   +-input=TableReference[relation_name=Test,relation_alias=test]
@@ -1869,7 +1889,7 @@ TopLevelPlan
 |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 |     +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
 +-output_attributes=
-  +-AttributeReference[id=6,name=int_col_alias,relation=,type=Int NULL]
+  +-AttributeReference[id=8,name=int_col_alias,relation=,type=Int NULL]
 ==
 
 with subquery as (select int_col int_col_alias, long_col from test)
@@ -1878,12 +1898,16 @@ select int_col_alias from subquery
 TopLevelPlan
 +-plan=Project
 | +-input=SharedSubplanReference[subplan_id=0]
+| | +-referenced_attributes=
+| | | +-AttributeReference[id=0,name=int_col_alias,relation=subquery,
+| | | | type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
 | | +-output_attributes=
-| |   +-AttributeReference[id=0,name=int_col_alias,relation=subquery,
+| |   +-AttributeReference[id=6,name=int_col_alias,relation=subquery,
 | |   | type=Int NULL]
-| |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |   +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
 | +-project_list=
-|   +-AttributeReference[id=0,name=int_col_alias,relation=subquery,type=Int NULL]
+|   +-AttributeReference[id=6,name=int_col_alias,relation=subquery,type=Int NULL]
 +-shared_subplans=
 | +-Project
 |   +-input=TableReference[relation_name=Test,relation_alias=test]
@@ -1899,7 +1923,7 @@ TopLevelPlan
 |     | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 |     +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
 +-output_attributes=
-  +-AttributeReference[id=0,name=int_col_alias,relation=subquery,type=Int NULL]
+  +-AttributeReference[id=6,name=int_col_alias,relation=subquery,type=Int NULL]
 ==
 
 # A WITH query cannot reference a subsequent WITH query.
@@ -1936,10 +1960,12 @@ select 1 from test
 TopLevelPlan
 +-plan=Project
 | +-input=SharedSubplanReference[subplan_id=0]
+| | +-referenced_attributes=
+| | | +-AttributeReference[id=6,name=,alias=1,relation=test,type=Int]
 | | +-output_attributes=
-| |   +-AttributeReference[id=6,name=,alias=1,relation=test,type=Int]
+| |   +-AttributeReference[id=7,name=,alias=1,relation=test,type=Int]
 | +-project_list=
-|   +-Alias[id=7,name=,alias=1,relation=,type=Int]
+|   +-Alias[id=8,name=,alias=1,relation=,type=Int]
 |     +-Literal[value=1,type=Int]
 +-shared_subplans=
 | +-Project
@@ -1955,7 +1981,7 @@ TopLevelPlan
 |     +-Alias[id=6,name=,alias=1,relation=test,type=Int]
 |       +-Literal[value=1,type=Int]
 +-output_attributes=
-  +-AttributeReference[id=7,name=,alias=1,relation=,type=Int]
+  +-AttributeReference[id=8,name=,alias=1,relation=,type=Int]
 ==
 
 # Identifies with special characters.
@@ -2937,3 +2963,88 @@ TopLevelPlan
 +-output_attributes=
   +-AttributeReference[id=11,name=,alias=(x+SubqueryExpression),relation=,
     type=Long NULL]
+==
+
+# Same shared subplan referenced multiple times.
+WITH t(x, y) AS (
+  SELECT i % 5, i
+  FROM generate_series(1, 20) AS g(i)
+)
+SELECT *
+FROM t
+WHERE t.y = (
+  SELECT MAX(y)
+  FROM t t1
+  WHERE t.x = t1.x
+)
+ORDER BY x;
+--
+TopLevelPlan
++-plan=Project
+| +-input=Sort[is_ascending=[true],nulls_first=[false]]
+| | +-input=Filter
+| | | +-input=SharedSubplanReference[subplan_id=0]
+| | | | +-referenced_attributes=
+| | | | | +-AttributeReference[id=3,name=x,relation=,type=Int]
+| | | | | +-AttributeReference[id=4,name=y,relation=,type=Int]
+| | | | +-output_attributes=
+| | | |   +-AttributeReference[id=5,name=x,relation=,type=Int]
+| | | |   +-AttributeReference[id=6,name=y,relation=,type=Int]
+| | | +-filter_predicate=Equal
+| | |   +-AttributeReference[id=6,name=y,relation=,type=Int]
+| | |   +-SubqueryExpression
+| | |     +-subquery=Project
+| | |       +-input=Aggregate
+| | |       | +-input=Filter
+| | |       | | +-input=SharedSubplanReference[subplan_id=0]
+| | |       | | | +-referenced_attributes=
+| | |       | | | | +-AttributeReference[id=3,name=x,relation=,type=Int]
+| | |       | | | | +-AttributeReference[id=4,name=y,relation=,type=Int]
+| | |       | | | +-output_attributes=
+| | |       | | |   +-AttributeReference[id=7,name=x,relation=,type=Int]
+| | |       | | |   +-AttributeReference[id=8,name=y,relation=,type=Int]
+| | |       | | +-filter_predicate=Equal
+| | |       | |   +-AttributeReference[id=5,name=x,relation=,type=Int,
+| | |       | |   | is_outer_reference=true]
+| | |       | |   +-AttributeReference[id=7,name=x,relation=,type=Int]
+| | |       | +-grouping_expressions=
+| | |       | | +-[]
+| | |       | +-aggregate_expressions=
+| | |       |   +-Alias[id=9,name=,alias=$aggregate0,relation=$aggregate,
+| | |       |     type=Int NULL]
+| | |       |     +-AggregateFunction[function=MAX]
+| | |       |       +-AttributeReference[id=8,name=y,relation=,type=Int]
+| | |       +-project_list=
+| | |         +-Alias[id=9,name=,alias=MAX(y),relation=,type=Int NULL]
+| | |           +-AttributeReference[id=9,name=,alias=$aggregate0,
+| | |             relation=$aggregate,type=Int NULL]
+| | +-sort_expressions=
+| |   +-AttributeReference[id=5,name=x,relation=,type=Int]
+| +-project_list=
+|   +-AttributeReference[id=5,name=x,relation=,type=Int]
+|   +-AttributeReference[id=6,name=y,relation=,type=Int]
++-shared_subplans=
+| +-Project
+|   +-input=Project
+|   | +-input=Project
+|   | | +-input=TableGenerator[function_name=generate_series,table_alias=g]
+|   | | | +-AttributeReference[id=0,name=generate_series,alias=g,
+|   | | |   relation=generate_series,type=Int]
+|   | | +-project_list=
+|   | |   +-Alias[id=1,name=i,relation=,type=Int]
+|   | |     +-AttributeReference[id=0,name=generate_series,alias=g,
+|   | |       relation=generate_series,type=Int]
+|   | +-project_list=
+|   |   +-Alias[id=2,name=,alias=(i%5),relation=t,type=Int]
+|   |   | +-Modulo
+|   |   |   +-AttributeReference[id=1,name=i,relation=,type=Int]
+|   |   |   +-Literal[value=5,type=Int]
+|   |   +-AttributeReference[id=1,name=i,relation=,type=Int]
+|   +-project_list=
+|     +-Alias[id=3,name=x,relation=,type=Int]
+|     | +-AttributeReference[id=2,name=,alias=(i%5),relation=t,type=Int]
+|     +-Alias[id=4,name=y,relation=,type=Int]
+|       +-AttributeReference[id=1,name=i,relation=,type=Int]
++-output_attributes=
+  +-AttributeReference[id=5,name=x,relation=,type=Int]
+  +-AttributeReference[id=6,name=y,relation=,type=Int]

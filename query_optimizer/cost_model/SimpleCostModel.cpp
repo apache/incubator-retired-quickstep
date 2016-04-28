@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -27,6 +29,7 @@
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
 #include "query_optimizer/physical/Selection.hpp"
+#include "query_optimizer/physical/SharedSubplanReference.hpp"
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
@@ -63,6 +66,12 @@ std::size_t SimpleCostModel::estimateCardinality(
     case P::PhysicalType::kAggregate:
       return estimateCardinalityForAggregate(
           std::static_pointer_cast<const P::Aggregate>(physical_plan));
+    case P::PhysicalType::kSharedSubplanReference: {
+      const P::SharedSubplanReferencePtr shared_subplan_reference =
+          std::static_pointer_cast<const P::SharedSubplanReference>(physical_plan);
+      return estimateCardinality(
+          shared_subplans_[shared_subplan_reference->subplan_id()]);
+    }
     default:
       LOG(FATAL) << "Unsupported physical plan:" << physical_plan->toString();
   }
