@@ -13,7 +13,7 @@
 #   limitations under the License.
 
 [default optimized_logical_plan]
-CREATE TABLE foo (attr int) WITH BLOCKPROPERTIES (TYPE rowstore, BLOCKSIZEMB 10)
+CREATE TABLE foo (attr int) WITH BLOCKPROPERTIES (TYPE rowstore, BLOCKSIZEMB 160)
 --
 TopLevelPlan
 +-plan=CreateTable[relation=foo]
@@ -27,7 +27,7 @@ TopLevelPlan
 ==
 
 CREATE TABLE foo (attr int, attr2 int) WITH BLOCKPROPERTIES
-(TYPE compressed_columnstore, SORT attr, COMPRESS ALL, BLOCKSIZEMB 10)
+(TYPE compressed_columnstore, SORT attr, COMPRESS ALL, BLOCKSIZEMB 160)
 --
 TopLevelPlan
 +-plan=CreateTable[relation=foo]

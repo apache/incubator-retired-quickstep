@@ -602,16 +602,21 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
   // Resolve the Block size (size -> # of slots).
   std::int64_t slots = kDefaultBlockSizeInSlots;
   if (block_properties->hasBlockSizeMb()) {
-    std::int64_t blocksizemb = block_properties->getBlockSizeMbValue();
-    if (blocksizemb == -1) {
+    const std::int64_t block_size_in_mega_bytes = block_properties->getBlockSizeMbValue();
+    if (block_size_in_mega_bytes == -1) {
       // Indicates an error condition if the property is present but getter returns -1.
       THROW_SQL_ERROR_AT(block_properties->getBlockSizeMb())
           << "The BLOCKSIZEMB property must be an integer.";
+    } else if ((block_size_in_mega_bytes * kAMegaByte) % kSlotSizeBytes != 0) {
+      THROW_SQL_ERROR_AT(block_properties->getBlockSizeMb())
+          << "The BLOCKSIZEMB property must be multiple times of "
+          << std::to_string(kSlotSizeBytes / kAMegaByte) << "MB.";
     }
-    slots = (blocksizemb * kAMegaByte) / kSlotSizeBytes;
+
+    slots = (block_size_in_mega_bytes * kAMegaByte) / kSlotSizeBytes;
     DLOG(INFO) << "Resolver using BLOCKSIZEMB of " << slots << " slots"
         << " which is " << (slots * kSlotSizeBytes) << " bytes versus"
-        << " user requested " << (blocksizemb * kAMegaByte) << " bytes.";
+        << " user requested " << (block_size_in_mega_bytes * kAMegaByte) << " bytes.";
     const std::uint64_t max_size_slots = kBlockSizeUpperBoundBytes / kSlotSizeBytes;
     const std::uint64_t min_size_slots = kBlockSizeLowerBoundBytes / kSlotSizeBytes;
     if (static_cast<std::uint64_t>(slots) < min_size_slots ||

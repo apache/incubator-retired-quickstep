@@ -86,8 +86,8 @@ TopLevelPlan
   +-AttributeReference[id=10,name=col11,relation=foo,type=Char(5) NULL]
   +-AttributeReference[id=11,name=col12,relation=foo,type=VarChar(5) NULL]
 ==
-CREATE TABLE foo (col1 INT) WITH BLOCKPROPERTIES 
-  (TYPE compressed_columnstore, SORT col1, COMPRESS ALL, BLOCKSIZEMB 5);
+CREATE TABLE foo (col1 INT) WITH BLOCKPROPERTIES
+  (TYPE compressed_columnstore, SORT col1, COMPRESS ALL, BLOCKSIZEMB 64);
 --
 [Optimized Logical Plan]
 TopLevelPlan

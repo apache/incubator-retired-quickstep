@@ -66,24 +66,24 @@ constexpr std::size_t kNumConcurrentThreads = 8;
 
 class TestHashPayload {
  public:
-  explicit TestHashPayload(const int payload)
-      : internal_int_(payload) {
+  explicit TestHashPayload(const std::int64_t payload)
+      : internal_long_(payload) {
   }
 
   TestHashPayload(const TestHashPayload &orig)
-      : internal_int_(orig.internal_int_.load()) {
+      : internal_long_(orig.internal_long_.load()) {
   }
 
-  std::atomic<int>* accessInternalInt() {
-    return &internal_int_;
+  void increaseByOne() {
+    internal_long_.fetch_add(1, std::memory_order_relaxed);
   }
 
-  int loadInternalInt() const {
-    return internal_int_.load(std::memory_order_relaxed);
+  std::int64_t loadInternalLong() const {
+    return internal_long_.load(std::memory_order_relaxed);
   }
 
  private:
-  std::atomic<int> internal_int_;
+  std::atomic<std::int64_t> internal_long_;
 };
 
 class NonTriviallyDestructibleTestHashPayload {
@@ -129,13 +129,13 @@ class TestUpserter {
 
   void operator()(TestHashPayload *value) {
     ++call_count_;
-    value->accessInternalInt()->fetch_add(1, std::memory_order_relaxed);
+    value->increaseByOne();
   }
 
   template <typename ValueAccessorT>
   void operator()(const ValueAccessorT &accessor, TestHashPayload *value) {
     ++call_count_;
-    value->accessInternalInt()->fetch_add(1, std::memory_order_relaxed);
+    value->increaseByOne();
   }
 
   std::size_t call_count() const {
@@ -160,11 +160,11 @@ class TestVisitor {
   }
 
   void operator()(const TypedValue &key, const TestHashPayload &payload) {
-    internal_map_.emplace(extractScalarSeed(key), payload.loadInternalInt());
+    internal_map_.emplace(extractScalarSeed(key), payload.loadInternalLong());
   }
 
   void operator()(const std::vector<TypedValue> &key, const TestHashPayload &payload) {
-    internal_map_.emplace(extractCompositeSeed(key), payload.loadInternalInt());
+    internal_map_.emplace(extractCompositeSeed(key), payload.loadInternalLong());
   }
 
   template <typename ValueAccessorT>
@@ -175,7 +175,7 @@ class TestVisitor {
     composite_key.emplace_back(accessor.getTypedValue(2));
 
     internal_map_.emplace(extractCompositeSeed(composite_key),
-                          payload.loadInternalInt());
+                          payload.loadInternalLong());
   }
 
   const std::unordered_multimap<std::int64_t, int>& internal_map() const {
@@ -486,23 +486,23 @@ class HashTableTest : public ::testing::Test {
       if (!HashTableImpl::template_allow_duplicate_keys) {
         const TestHashPayload *value = hash_table_->getSingle(key);
         ASSERT_NE(nullptr, value);
-        EXPECT_EQ(i, value->loadInternalInt());
+        EXPECT_EQ(i, value->loadInternalLong());
 
         value = hash_table_->getSingleCompositeKey(key_vec);
         ASSERT_NE(nullptr, value);
-        EXPECT_EQ(i, value->loadInternalInt());
+        EXPECT_EQ(i, value->loadInternalLong());
       }
 
       // Test getAll() in all cases.
       std::vector<const TestHashPayload*> matches;
       hash_table_->getAll(key, &matches);
       ASSERT_EQ(1u, matches.size());
-      EXPECT_EQ(i, matches.front()->loadInternalInt());
+      EXPECT_EQ(i, matches.front()->loadInternalLong());
 
       matches.clear();
       hash_table_->getAllCompositeKey(key_vec, &matches);
       ASSERT_EQ(1u, matches.size());
-      EXPECT_EQ(i, matches.front()->loadInternalInt());
+      EXPECT_EQ(i, matches.front()->loadInternalLong());
     }
 
     // Check a nonexistent key.
@@ -564,9 +564,9 @@ class HashTableTest : public ::testing::Test {
         EXPECT_EQ(static_cast<std::size_t>((i % 3) + 1), matches.size());
         std::bitset<3> value_found;
         for (const TestHashPayload *match : matches) {
-          ASSERT_LE(match->loadInternalInt() - i * kNumSampleKeys, 3);
-          EXPECT_FALSE(value_found[match->loadInternalInt() - i * kNumSampleKeys]);
-          value_found.set(match->loadInternalInt() - i * kNumSampleKeys, true);
+          ASSERT_LE(match->loadInternalLong() - i * kNumSampleKeys, 3);
+          EXPECT_FALSE(value_found[match->loadInternalLong() - i * kNumSampleKeys]);
+          value_found.set(match->loadInternalLong() - i * kNumSampleKeys, true);
         }
         EXPECT_TRUE(value_found[0]);
         if (i % 3 > 0) {
@@ -582,7 +582,7 @@ class HashTableTest : public ::testing::Test {
       } else {
         ASSERT_EQ(1u, matches.size());
         EXPECT_EQ(i * kNumSampleKeys,
-                  matches.front()->loadInternalInt());
+                  matches.front()->loadInternalLong());
       }
     }
 
@@ -667,7 +667,7 @@ class HashTableTest : public ::testing::Test {
       hash_table_->getAll(key, &matches);
       ASSERT_EQ(1u, matches.size());
       EXPECT_EQ(i + (i >= kNumSampleKeys / 2),
-                matches.front()->loadInternalInt());
+                matches.front()->loadInternalLong());
     }
 
     // Also read the values out using the vectorized interface.
@@ -743,7 +743,7 @@ class HashTableTest : public ::testing::Test {
       std::vector<const TestHashPayload*> matches;
       hash_table_->getAll(key, &matches);
       ASSERT_EQ(1u, matches.size());
-      EXPECT_EQ(i, matches.front()->loadInternalInt());
+      EXPECT_EQ(i, matches.front()->loadInternalLong());
     }
   }
 
@@ -776,7 +776,7 @@ class HashTableTest : public ::testing::Test {
       std::vector<const TestHashPayload*> matches;
       hash_table_->getAll(key, &matches);
       ASSERT_EQ(1u, matches.size());
-      EXPECT_EQ(j, matches.front()->loadInternalInt());
+      EXPECT_EQ(j, matches.front()->loadInternalLong());
     }
 
     // Check that the entry we failed to insert is not present.
@@ -814,7 +814,7 @@ class HashTableTest : public ::testing::Test {
 
       const TestHashPayload *value = hash_table_->getSingle(key);
       ASSERT_NE(nullptr, value);
-      EXPECT_EQ(44 - (i % 2), value->loadInternalInt());
+      EXPECT_EQ(44 - (i % 2), value->loadInternalLong());
     }
   }
 
@@ -855,7 +855,7 @@ class HashTableTest : public ::testing::Test {
       std::vector<const TestHashPayload*> matches;
       hash_table_->getAll(key, &matches);
       ASSERT_EQ(1u, matches.size());
-      EXPECT_EQ(43, matches.front()->loadInternalInt());
+      EXPECT_EQ(43, matches.front()->loadInternalLong());
     }
   }
 
@@ -919,7 +919,7 @@ class HashTableTest : public ::testing::Test {
       std::vector<const TestHashPayload*> matches;
       hash_table_->getAll(key, &matches);
       ASSERT_EQ(1u, matches.size());
-      EXPECT_EQ(i, matches.front()->loadInternalInt());
+      EXPECT_EQ(i, matches.front()->loadInternalLong());
     }
 
     // Check a nonexistent key.
@@ -1005,7 +1005,7 @@ class HashTableTest : public ::testing::Test {
         EXPECT_EQ(kNumConcurrentThreads, matches.size());
         std::vector<bool> found_value(kNumConcurrentThreads, false);
         for (const TestHashPayload *payload : matches) {
-          const int payload_value = payload->loadInternalInt();
+          const int payload_value = payload->loadInternalLong();
           ASSERT_GE(payload_value, i * kNumSampleKeys);
           ASSERT_LT(payload_value,
                     i * kNumSampleKeys + static_cast<std::int64_t>(kNumConcurrentThreads));
@@ -1020,7 +1020,7 @@ class HashTableTest : public ::testing::Test {
         for (const std::unique_ptr<InserterThread> &thread : threads) {
           if (thread->insert_succeeded()[i]) {
             EXPECT_EQ(i * kNumSampleKeys + thread->getID(),
-                      matches.front()->loadInternalInt());
+                      matches.front()->loadInternalLong());
           }
         }
       }
@@ -1101,7 +1101,7 @@ class HashTableTest : public ::testing::Test {
         EXPECT_EQ(kNumConcurrentThreads, matches.size());
         std::vector<bool> found_value(kNumConcurrentThreads, false);
         for (const TestHashPayload *payload : matches) {
-          const int payload_value = payload->loadInternalInt();
+          const int payload_value = payload->loadInternalLong();
           ASSERT_GE(payload_value, i * kNumSampleKeys);
           ASSERT_LT(payload_value,
                     i * kNumSampleKeys + static_cast<std::int64_t>(kNumConcurrentThreads));
@@ -1116,7 +1116,7 @@ class HashTableTest : public ::testing::Test {
         for (const std::unique_ptr<CompositeKeyInserterThread> &thread : threads) {
           if (thread->insert_succeeded()[i]) {
             EXPECT_EQ(i * kNumSampleKeys + thread->getID(),
-                      matches.front()->loadInternalInt());
+                      matches.front()->loadInternalLong());
           }
         }
       }
@@ -1354,14 +1354,14 @@ TYPED_TEST_P(HashTableTest, CompositeKeyPutAndGetTest) {
     if (!TypeParam::template_allow_duplicate_keys) {
       const TestHashPayload *value = this->hash_table_->getSingleCompositeKey(key);
       ASSERT_NE(nullptr, value);
-      EXPECT_EQ(i, value->loadInternalInt());
+      EXPECT_EQ(i, value->loadInternalLong());
     }
 
     // Test getAllCompositeKey() in all cases.
     std::vector<const TestHashPayload*> matches;
     this->hash_table_->getAllCompositeKey(key, &matches);
     ASSERT_EQ(1u, matches.size());
-    EXPECT_EQ(i, matches.front()->loadInternalInt());
+    EXPECT_EQ(i, matches.front()->loadInternalLong());
   }
 
   // Check a nonexistent key.
@@ -1436,22 +1436,22 @@ TYPED_TEST_P(HashTableTest, SpecialHashesPutAndGetTest) {
   std::vector<const TestHashPayload*> values;
   this->hash_table_->getAll(empty_hash_key, &values);
   ASSERT_EQ(1u, values.size());
-  EXPECT_EQ(42, values.front()->loadInternalInt());
+  EXPECT_EQ(42, values.front()->loadInternalLong());
   values.clear();
 
   this->hash_table_->getAll(pending_hash_key, &values);
   ASSERT_EQ(1u, values.size());
-  EXPECT_EQ(85, values.front()->loadInternalInt());
+  EXPECT_EQ(85, values.front()->loadInternalLong());
   values.clear();
 
   this->hash_table_->getAll(adjusted_empty_hash_key, &values);
   ASSERT_EQ(1u, values.size());
-  EXPECT_EQ(123, values.front()->loadInternalInt());
+  EXPECT_EQ(123, values.front()->loadInternalLong());
   values.clear();
 
   this->hash_table_->getAll(adjusted_pending_hash_key, &values);
   ASSERT_EQ(1u, values.size());
-  EXPECT_EQ(456, values.front()->loadInternalInt());
+  EXPECT_EQ(456, values.front()->loadInternalLong());
   values.clear();
 }
 
@@ -1504,9 +1504,9 @@ TYPED_TEST_P(HashTableTest, CompositeKeyPutDuplicateKeysTest) {
       EXPECT_EQ(static_cast<std::size_t>((i % 3) + 1), matches.size());
       std::bitset<3> value_found;
       for (const TestHashPayload *match : matches) {
-        ASSERT_LE(match->loadInternalInt() - i * kNumSampleKeys, 3);
-        EXPECT_FALSE(value_found[match->loadInternalInt() - i * kNumSampleKeys]);
-        value_found.set(match->loadInternalInt() - i * kNumSampleKeys, true);
+        ASSERT_LE(match->loadInternalLong() - i * kNumSampleKeys, 3);
+        EXPECT_FALSE(value_found[match->loadInternalLong() - i * kNumSampleKeys]);
+        value_found.set(match->loadInternalLong() - i * kNumSampleKeys, true);
       }
       EXPECT_TRUE(value_found[0]);
       if (i % 3 > 0) {
@@ -1522,7 +1522,7 @@ TYPED_TEST_P(HashTableTest, CompositeKeyPutDuplicateKeysTest) {
     } else {
       ASSERT_EQ(1u, matches.size());
       EXPECT_EQ(i * kNumSampleKeys,
-                matches.front()->loadInternalInt());
+                matches.front()->loadInternalLong());
     }
   }
 
@@ -1625,7 +1625,7 @@ TYPED_TEST_P(HashTableTest, CompositeKeyPutAndGetFromValueAccessorTest) {
     this->hash_table_->getAllCompositeKey(key, &matches);
     ASSERT_EQ(1u, matches.size());
     EXPECT_EQ(i + (i >= kNumSampleKeys / 2),
-              matches.front()->loadInternalInt());
+              matches.front()->loadInternalLong());
   }
 
   // Also read the values out using the vectorized interface.
@@ -1738,7 +1738,7 @@ TYPED_TEST_P(ResizableHashTableTest, CompositeKeyResizeTest) {
     std::vector<const TestHashPayload*> matches;
     this->hash_table_->getAllCompositeKey(key, &matches);
     ASSERT_EQ(1u, matches.size());
-    EXPECT_EQ(i, matches.front()->loadInternalInt());
+    EXPECT_EQ(i, matches.front()->loadInternalLong());
   }
 }
 
@@ -1799,7 +1799,7 @@ TYPED_TEST_P(NonResizableHashTableTest, CompositeKeyExhaustSpaceTest) {
     std::vector<const TestHashPayload*> matches;
     this->hash_table_->getAllCompositeKey(key, &matches);
     ASSERT_EQ(1u, matches.size());
-    EXPECT_EQ(j, matches.front()->loadInternalInt());
+    EXPECT_EQ(j, matches.front()->loadInternalLong());
   }
 
   // Check that the entry we failed to insert is not present.
@@ -1849,7 +1849,7 @@ TYPED_TEST_P(DuplicateKeysForbiddenHashTableTest, CompositeKeyUpsertTest) {
 
     const TestHashPayload *value = this->hash_table_->getSingleCompositeKey(key);
     ASSERT_NE(nullptr, value);
-    EXPECT_EQ(44 - (i % 2), value->loadInternalInt());
+    EXPECT_EQ(44 - (i % 2), value->loadInternalLong());
   }
 }
 
@@ -1892,7 +1892,7 @@ TYPED_TEST_P(DuplicateKeysForbiddenHashTableTest, CompositeKeyUpsertValueAccesso
     std::vector<const TestHashPayload*> matches;
     this->hash_table_->getAllCompositeKey(key, &matches);
     ASSERT_EQ(1u, matches.size());
-    EXPECT_EQ(43, matches.front()->loadInternalInt());
+    EXPECT_EQ(43, matches.front()->loadInternalLong());
   }
 }
 
@@ -1988,7 +1988,7 @@ TYPED_TEST_P(FixedSizeSerializableHashTableTest, CompositeKeySerializationTest) 
     std::vector<const TestHashPayload*> matches;
     this->hash_table_->getAllCompositeKey(key, &matches);
     ASSERT_EQ(1u, matches.size());
-    EXPECT_EQ(i, matches.front()->loadInternalInt());
+    EXPECT_EQ(i, matches.front()->loadInternalLong());
   }
 
   // Check a nonexistent key.
