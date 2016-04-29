@@ -19,6 +19,7 @@
 
 #include <cstddef>
 #include <utility>
+#include <unordered_map>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -52,8 +53,8 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
     std::vector<std::size_t> chained_nodes;
     chained_nodes.push_back(origin_node);
     for (std::size_t i = origin_node + 1; i < hash_joins_.size(); ++i) {
-      const relation_id checked_relation_id = hash_joins_[origin_node].probe_relation_id_;
-      const relation_id expected_relation_id = hash_joins_[i].probe_relation_id_;
+      const relation_id checked_relation_id = hash_joins_[origin_node].referenced_stored_probe_relation_->getID();
+      const relation_id expected_relation_id = hash_joins_[i].referenced_stored_probe_relation_->getID();
       if (checked_relation_id == expected_relation_id) {
         chained_nodes.push_back(i);
       } else {
@@ -63,17 +64,20 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
 
     // Only chains of length greater than one are suitable candidates for semi-join optimization.
     if (chained_nodes.size() > 1) {
-      std::vector<std::pair<QueryContext::bloom_filter_id, std::vector<attribute_id>>> probe_bloom_filter_info;
-      for (std::size_t &i : chained_nodes) {
+      std::unordered_map<QueryContext::bloom_filter_id, std::vector<attribute_id>> probe_bloom_filter_info;
+      for (const std::size_t node : chained_nodes) {
         // Provision for a new bloom filter to be used by the build operator.
         const QueryContext::bloom_filter_id bloom_filter_id =  query_context_proto->bloom_filters_size();
-        query_context_proto->add_bloom_filters();
+        serialization::BloomFilter *bloom_filter_proto = query_context_proto->add_bloom_filters();
+
+        // Modify the bloom filter properties based on the statistics of the relation.
+        setBloomFilterProperties(bloom_filter_proto, hash_joins_[node].referenced_stored_build_relation_);
 
         // Add build-side bloom filter information to the corresponding hash table proto.
-        query_context_proto->mutable_join_hash_tables(hash_joins_[i].join_hash_table_id_)
+        query_context_proto->mutable_join_hash_tables(hash_joins_[node].join_hash_table_id_)
             ->add_build_side_bloom_filter_id(bloom_filter_id);
 
-        probe_bloom_filter_info.emplace_back(std::make_pair(bloom_filter_id, hash_joins_[i].probe_attributes_));
+        probe_bloom_filter_info.insert(std::make_pair(bloom_filter_id, hash_joins_[node].probe_attributes_));
       }
 
       // Add probe-side bloom filter information to the corresponding hash table proto for each build-side bloom filter.
@@ -97,7 +101,25 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
     }
 
     // Update the origin node.
-    origin_node = chained_nodes.at(chained_nodes.size() - 1) + 1;
+    origin_node = chained_nodes.back() + 1;
+  }
+}
+
+void ExecutionHeuristics::setBloomFilterProperties(serialization::BloomFilter *bloom_filter_proto,
+                                                   const CatalogRelation *relation) {
+  const std::size_t cardinality = relation->estimateTupleCardinality();
+  if (cardinality < kOneThousand) {
+    bloom_filter_proto->set_bloom_filter_size(kOneThousand / kCompressionFactor);
+    bloom_filter_proto->set_number_of_hashes(kVeryLowSparsityHash);
+  } else if (cardinality < kTenThousand) {
+    bloom_filter_proto->set_bloom_filter_size(kTenThousand / kCompressionFactor);
+    bloom_filter_proto->set_number_of_hashes(kLowSparsityHash);
+  } else if (cardinality < kHundredThousand) {
+    bloom_filter_proto->set_bloom_filter_size(kHundredThousand / kCompressionFactor);
+    bloom_filter_proto->set_number_of_hashes(kMediumSparsityHash);
+  } else {
+    bloom_filter_proto->set_bloom_filter_size(kMillion / kCompressionFactor);
+    bloom_filter_proto->set_number_of_hashes(kHighSparsityHash);
   }
 }
 

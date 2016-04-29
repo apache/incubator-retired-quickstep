@@ -1,5 +1,5 @@
 //   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
-//    University of Wisconsin—Madison.
+//     University of Wisconsin—Madison.
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -25,6 +25,6 @@ message BloomFilter {
   // - Default bloom filter size = 10 KB.
   // - Default number of hash functions used in bloom filter = 5.
   required fixed64 bloom_filter_seed = 1 [default = 0xA5A5A5A55A5A5A5A];
-  required fixed64 bloom_filter_size = 2 [default = 10000];
-  required int32 number_of_hashes = 3 [default = 5];
+  required uint32 bloom_filter_size = 2 [default = 10000];
+  required uint32 number_of_hashes = 3 [default = 5];
 }

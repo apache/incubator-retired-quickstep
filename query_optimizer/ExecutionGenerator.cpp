@@ -588,8 +588,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   std::vector<attribute_id> probe_original_attribute_ids;
   std::vector<attribute_id> build_original_attribute_ids;
 
-  relation_id probe_relation_id;
-  relation_id build_relation_id;
+  const CatalogRelation *referenced_stored_probe_relation;
+  const CatalogRelation *referenced_stored_build_relation;
 
   bool any_probe_attributes_nullable = false;
   bool any_build_attributes_nullable = false;
@@ -600,15 +600,14 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       physical_plan->left_join_attributes();
   for (const E::AttributeReferencePtr &left_join_attribute : left_join_attributes) {
     // Try to determine the original stored relation referenced in the Hash Join.
-    const CatalogRelation *referenced_stored_catalog_relation =
+    referenced_stored_probe_relation =
         optimizer_context_->catalog_database()->getRelationByName(left_join_attribute->relation_name());
-    if (referenced_stored_catalog_relation == nullptr) {
+    if (referenced_stored_probe_relation == nullptr) {
       // Hash Join optimizations are not possible, if the referenced relation cannot be determined.
       skip_hash_join_optimization = true;
     } else {
-      probe_relation_id = referenced_stored_catalog_relation->getID();
       const attribute_id probe_operator_attribute_id =
-      referenced_stored_catalog_relation->getAttributeByName(left_join_attribute->attribute_name())->getID();
+          referenced_stored_probe_relation->getAttributeByName(left_join_attribute->attribute_name())->getID();
       probe_original_attribute_ids.emplace_back(probe_operator_attribute_id);
     }
 
@@ -625,15 +624,14 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       physical_plan->right_join_attributes();
   for (const E::AttributeReferencePtr &right_join_attribute : right_join_attributes) {
     // Try to determine the original stored relation referenced in the Hash Join.
-    const CatalogRelation *referenced_stored_catalog_relation =
+    referenced_stored_build_relation =
         optimizer_context_->catalog_database()->getRelationByName(right_join_attribute->relation_name());
-    if (referenced_stored_catalog_relation == nullptr) {
+    if (referenced_stored_build_relation == nullptr) {
       // Hash Join optimizations are not possible, if the referenced relation cannot be determined.
       skip_hash_join_optimization = true;
     } else {
-      build_relation_id = referenced_stored_catalog_relation->getID();
       const attribute_id build_operator_attribute_id =
-      referenced_stored_catalog_relation->getAttributeByName(right_join_attribute->attribute_name())->getID();
+          referenced_stored_build_relation->getAttributeByName(right_join_attribute->attribute_name())->getID();
       build_original_attribute_ids.emplace_back(build_operator_attribute_id);
     }
 
@@ -673,7 +671,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       std::swap(probe_attribute_ids, build_attribute_ids);
       std::swap(any_probe_attributes_nullable, any_build_attributes_nullable);
       std::swap(probe_original_attribute_ids, build_original_attribute_ids);
-      std::swap(probe_relation_id, build_relation_id);
+      std::swap(referenced_stored_probe_relation, referenced_stored_build_relation);
     }
   }
 
@@ -833,10 +831,10 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   if (FLAGS_optimize_joins && !skip_hash_join_optimization) {
     execution_heuristics_->addHashJoinInfo(build_operator_index,
                                            join_operator_index,
-                                           build_relation_id,
-                                           probe_relation_id,
-                                           &build_original_attribute_ids,
-                                           &probe_original_attribute_ids,
+                                           referenced_stored_build_relation,
+                                           referenced_stored_probe_relation,
+                                           std::move(build_original_attribute_ids),
+                                           std::move(probe_original_attribute_ids),
                                            join_hash_table_index);
   }
 }

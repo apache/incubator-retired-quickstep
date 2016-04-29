@@ -69,10 +69,7 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
   }
 
   for (int i = 0; i < proto.bloom_filters_size(); ++i) {
-    const serialization::BloomFilter &bloom_filter_proto = proto.bloom_filters(i);
-    bloom_filters_.emplace_back(new BloomFilter(bloom_filter_proto.bloom_filter_seed(),
-                                                bloom_filter_proto.number_of_hashes(),
-                                                bloom_filter_proto.bloom_filter_size()));
+    bloom_filters_.emplace_back(new BloomFilter(proto.bloom_filters(i)));
   }
 
   for (int i = 0; i < proto.generator_functions_size(); ++i) {
