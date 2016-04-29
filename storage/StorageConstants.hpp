@@ -44,8 +44,7 @@ const std::uint64_t kAMegaByte = (1 << 20);
 // the SQL clause BLOCKPROPERTIES.
 const std::uint64_t kBlockSizeUpperBoundBytes = kAGigaByte;
 
-// 2 Megabytes.
-const std::uint64_t kBlockSizeLowerBoundBytes = kAMegaByte << 1;
+const std::uint64_t kBlockSizeLowerBoundBytes = kSlotSizeBytes;
 
 // The default size of a new relation in terms of the number of slots.
 const std::uint64_t kDefaultBlockSizeInSlots = 1;
