@@ -1477,6 +1477,12 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
                                                         &prealloc_state);
       }
     }
+    std::unique_ptr<BloomFilter> thread_local_bloom_filter;
+    if (has_build_side_bloom_filter_) {
+      thread_local_bloom_filter.reset(new BloomFilter(build_bloom_filter_->getRandomSeed(),
+                                                      build_bloom_filter_->getNumberOfHashes(),
+                                                      build_bloom_filter_->getBitArraySize()));
+    }
     if (resizable) {
       while (result == HashTablePutResult::kOutOfSpace) {
         {
@@ -1494,8 +1500,8 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
                                        using_prealloc ? &prealloc_state : nullptr);
             // Insert into bloom filter, if enabled.
             if (has_build_side_bloom_filter_) {
-              this->build_bloom_filter_->insert(static_cast<const std::uint8_t *>(key.getDataPtr()),
-                                                key.getDataSize());
+              thread_local_bloom_filter->insertUnSafe(static_cast<const std::uint8_t *>(key.getDataPtr()),
+                                                      key.getDataSize());
             }
             if (result == HashTablePutResult::kDuplicateKey) {
               DEBUG_ASSERT(!using_prealloc);
@@ -1524,13 +1530,17 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
                                    using_prealloc ? &prealloc_state : nullptr);
         // Insert into bloom filter, if enabled.
         if (has_build_side_bloom_filter_) {
-          this->build_bloom_filter_->insert(static_cast<const std::uint8_t *>(key.getDataPtr()),
-                                            key.getDataSize());
+          thread_local_bloom_filter->insertUnSafe(static_cast<const std::uint8_t *>(key.getDataPtr()),
+                                                  key.getDataSize());
         }
         if (result != HashTablePutResult::kOK) {
           return result;
         }
       }
+    }
+    // Update the build side bloom filter with thread local copy, if available.
+    if (has_build_side_bloom_filter_) {
+      build_bloom_filter_->bitwiseOr(thread_local_bloom_filter.get());
     }
 
     return HashTablePutResult::kOK;

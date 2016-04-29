@@ -20,6 +20,7 @@
 
 #include <vector>
 
+#include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.pb.h"
 #include "query_optimizer/QueryPlan.hpp"
@@ -45,15 +46,15 @@ class HashJoinInfo {
  public:
   HashJoinInfo(QueryPlan::DAGNodeIndex build_operator_index,
                QueryPlan::DAGNodeIndex join_operator_index,
-               const relation_id &build_relation_id,
-               const relation_id &probe_relation_id,
+               const CatalogRelation *referenced_stored_build_relation,
+               const CatalogRelation *referenced_stored_probe_relation,
                std::vector<attribute_id> &&build_attributes,
                std::vector<attribute_id> &&probe_attributes,
                const QueryContext::join_hash_table_id &join_hash_table_id)
     : build_operator_index_(build_operator_index),
       join_operator_index_(join_operator_index),
-      build_relation_id_(build_relation_id),
-      probe_relation_id_(probe_relation_id),
+      referenced_stored_build_relation_(referenced_stored_build_relation),
+      referenced_stored_probe_relation_(referenced_stored_probe_relation),
       build_attributes_(build_attributes),
       probe_attributes_(probe_attributes),
       join_hash_table_id_(join_hash_table_id) {
@@ -61,8 +62,8 @@ class HashJoinInfo {
 
   const QueryPlan::DAGNodeIndex build_operator_index_;
   const QueryPlan::DAGNodeIndex join_operator_index_;
-  const relation_id build_relation_id_;
-  const relation_id probe_relation_id_;
+  const CatalogRelation *referenced_stored_build_relation_;
+  const CatalogRelation *referenced_stored_probe_relation_;
   const std::vector<attribute_id> build_attributes_;
   const std::vector<attribute_id> probe_attributes_;
   const QueryContext::join_hash_table_id join_hash_table_id_;
@@ -79,6 +80,19 @@ typedef execution_heuristics_internal::HashJoinInfo HashJoinInfo;
  **/
 class ExecutionHeuristics {
  public:
+  static const std::size_t kOneHundred = 100;
+  static const std::size_t kOneThousand = 1000;
+  static const std::size_t kTenThousand = 10000;
+  static const std::size_t kHundredThousand = 100000;
+  static const std::size_t kMillion = 1000000;
+
+  static const std::size_t kCompressionFactor = 10;
+
+  static const std::size_t kVeryLowSparsityHash = 1;
+  static const std::size_t kLowSparsityHash = 2;
+  static const std::size_t kMediumSparsityHash = 5;
+  static const std::size_t kHighSparsityHash = 10;
+
   /**
    * @brief Constructor.
    **/
@@ -99,15 +113,15 @@ class ExecutionHeuristics {
    **/
   inline void addHashJoinInfo(QueryPlan::DAGNodeIndex build_operator_index,
                               QueryPlan::DAGNodeIndex join_operator_index,
-                              const relation_id build_relation_id,
-                              const relation_id probe_relation_id,
+                              const CatalogRelation *referenced_stored_build_relation,
+                              const CatalogRelation *referenced_stored_probe_relation,
                               std::vector<attribute_id> *build_attributes,
                               std::vector<attribute_id> *probe_attributes,
                               const QueryContext::join_hash_table_id &join_hash_table_id) {
     hash_joins_.push_back(HashJoinInfo(build_operator_index,
                                        join_operator_index,
-                                       build_relation_id,
-                                       probe_relation_id,
+                                       referenced_stored_build_relation,
+                                       referenced_stored_probe_relation,
                                        std::move(*build_attributes),
                                        std::move(*probe_attributes),
                                        join_hash_table_id));
@@ -122,6 +136,16 @@ class ExecutionHeuristics {
    *        of the query context.
    **/
   void optimizeExecutionPlan(QueryPlan *query_plan, serialization::QueryContext *query_context_proto);
+
+  /**
+   * @brief Set the properties of the bloom filter proto based on the statistics
+   *        of the given relation.
+   *
+   * @param bloom_filter_proto A mutable reference to the bloom filter protobuf representation.
+   * @param relation The catalog relation on which bloom filter is being built..
+   **/
+  void setBloomFilterProperties(serialization::BloomFilter *bloom_filter_proto,
+                                const CatalogRelation *relation);
 
  private:
   std::vector<HashJoinInfo> hash_joins_;

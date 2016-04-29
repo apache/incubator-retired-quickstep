@@ -27,6 +27,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <utility>
 #include <vector>
 
 #include "storage/StorageConstants.hpp"
@@ -133,21 +134,106 @@ class BloomFilter {
   }
 
   /**
-   * @brief Inserts a given value into the bloom filter.
+   * @brief Get the random seed that was used to initialize this bloom filter.
+   *
+   * @return Returns the random seed.
+   **/
+  inline std::uint64_t getRandomSeed() const {
+    return random_seed_;
+  }
+
+  /**
+   * @brief Get the number of hash functions used in this bloom filter.
+   *
+   * @return Returns the number of hash functions.
+   **/
+  inline std::uint32_t getNumberOfHashes() const {
+    return hash_fn_count_;
+  }
+
+  /**
+   * @brief Get the size of the bit array in bytes for this bloom filter.
+   *
+   * @return Returns the bit array size (in bytes).
+   **/
+  inline std::uint64_t getBitArraySize() const {
+    return array_size_in_bytes_;
+  }
+
+  /**
+   * @brief Get the constant pointer to the bit array for this bloom filter
+   *
+   * @return Returns constant pointer to the bit array.
+   **/
+  inline const std::uint8_t* getBitArray() const {
+    return bit_array_.get();
+  }
+
+  /**
+   * @brief Inserts a given value into the bloom filter in a thread-safe manner.
    *
    * @param key_begin A pointer to the value being inserted.
    * @param length Size of the value being inserted in bytes.
    */
-  inline void insert(const std::uint8_t *key_begin, const std::size_t &length) {
+  inline void insert(const std::uint8_t *key_begin, const std::size_t length) {
     // Locks are needed during insertion, when multiple workers may be modifying the
     // bloom filter concurrently. However, locks are not required during membership test.
-    SpinSharedMutexExclusiveLock<false> lock(bloom_filter_insert_mutex_);
     std::size_t bit_index = 0;
     std::size_t bit = 0;
+    std::vector<std::pair<std::size_t, std::size_t>> modified_bit_positions;
+    std::vector<bool> is_bit_position_correct;
+
+    // Determine all the bit positions that are required to be set.
+    for (std::size_t i = 0; i < hash_fn_count_; ++i) {
+      compute_indices(hash_ap(key_begin, length, hash_fn_[i]), &bit_index, &bit);
+      modified_bit_positions.push_back(std::make_pair(bit_index, bit));
+    }
+
+    // Acquire a reader lock and check which of the bit positions are already set.
+    {
+      SpinSharedMutexSharedLock<false> shared_reader_lock(bloom_filter_insert_mutex_);
+      for (std::size_t i = 0; i < hash_fn_count_; ++i) {
+        bit_index = modified_bit_positions[i].first;
+        bit = modified_bit_positions[i].second;
+        if (((bit_array_.get())[bit_index / kNumBitsPerByte] & (1 << bit)) != (1 << bit)) {
+          is_bit_position_correct.push_back(false);
+        } else {
+          is_bit_position_correct.push_back(true);
+        }
+      }
+    }
+
+    // Acquire a writer lock and set the bit positions are which are not set.
+    {
+      SpinSharedMutexExclusiveLock<false> exclusive_writer_lock(bloom_filter_insert_mutex_);
+      for (std::size_t i = 0; i < hash_fn_count_; ++i) {
+        if (!is_bit_position_correct[i]) {
+          bit_index = modified_bit_positions[i].first;
+          bit = modified_bit_positions[i].second;
+          (bit_array_.get())[bit_index / kNumBitsPerByte] |= (1 << bit);
+        }
+      }
+    }
+    ++inserted_element_count_;
+  }
+
+  /**
+   * @brief Inserts a given value into the bloom filter.
+   * @Warning This is a faster thread-unsafe version of the insert() function.
+   *          The caller needs to ensure the thread safety.
+   *
+   * @param key_begin A pointer to the value being inserted.
+   * @param length Size of the value being inserted in bytes.
+   */
+  inline void insertUnSafe(const std::uint8_t *key_begin, const std::size_t length) {
+    std::size_t bit_index = 0;
+    std::size_t bit = 0;
+
     for (std::size_t i = 0; i < hash_fn_count_; ++i) {
       compute_indices(hash_ap(key_begin, length, hash_fn_[i]), &bit_index, &bit);
       (bit_array_.get())[bit_index / kNumBitsPerByte] |= (1 << bit);
     }
+
     ++inserted_element_count_;
   }
 
@@ -155,6 +241,9 @@ class BloomFilter {
    * @brief Test membership of a given value in the bloom filter.
    *        If true is returned, then a value may or may not be present in the bloom filter.
    *        If false is returned, a value is certainly not present in the bloom filter.
+   *
+   * @note The membersip test does not require any locks, because the assumption is that
+   *       the bloom filter will only be used after it has been built.
    *
    * @param key_begin A pointer to the value being tested for membership.
    * @param length Size of the value being inserted in bytes.
@@ -169,6 +258,19 @@ class BloomFilter {
       }
     }
     return true;
+  }
+
+  /**
+   * @brief Perform a bitwise-OR of the given Bloom filter with this bloom filter.
+   *        Essentially, it does a union of this bloom filter with the passed bloom filter.
+   *
+   * @param bloom_filter A const pointer to the bloom filter object to do bitwise-OR with.
+   */
+  inline void bitwiseOr(const BloomFilter *bloom_filter) {
+    SpinSharedMutexExclusiveLock<false> exclusive_writer_lock(bloom_filter_insert_mutex_);
+    for (std::size_t byte_index = 0; byte_index < bloom_filter->getBitArraySize(); ++byte_index) {
+      (bit_array_.get())[byte_index] |= bloom_filter->getBitArray()[byte_index];
+    }
   }
 
   /**
