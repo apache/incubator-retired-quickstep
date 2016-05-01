@@ -165,6 +165,15 @@ class CatalogRelation : public CatalogRelationSchema {
   }
 
   /**
+   * @brief Get the NUMA placement scheme of the relation.
+   *
+   * @return A pointer to a const NUMA placement scheme.
+   **/
+  const NUMAPlacementScheme* getNUMAPlacementSchemePtr() const {
+    return placement_scheme_.get();
+  }
+
+  /**
    * @brief Set the NUMA placement scheme for the catalog relation.
    *
    * @param placement_scheme The NUMA placement scheme object for the relation,
