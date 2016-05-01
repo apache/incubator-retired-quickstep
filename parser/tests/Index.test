@@ -66,3 +66,14 @@ CREATE INDEX bwIndex ON test(int_col) USING bitweaving;
 CreateIndexStatement[index_name=bwIndex,relation_name=test,index_type=bitweaving]
 +-attribute_list=
   +-AttributeReference[attribute_name=int_col]
+==
+CREATE INDEX bwhIndex ON test(int_col) USING bitweaving (TYPE H);
+--
+CreateIndexStatement[index_name=bwhIndex,relation_name=test,
+  index_type=bitweaving]
++-attribute_list=
+| +-AttributeReference[attribute_name=int_col]
++-index_property_list=
+  +-IndexProperties
+    +-index_property=KeyStringValue[key=TYPE]
+      +-value=String[value=H]
