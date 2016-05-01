@@ -220,7 +220,7 @@ class BitWeavingIndexProperties : public IndexProperties {
       }
       const std::string key = ToLower(key_value.key()->value());
       const std::string value = ToLower(
-          static_cast<const ParseKeyStringValue&>(key_value).key()->value());
+          static_cast<const ParseKeyStringValue&>(key_value).value()->value());
       if (key.compare(kBitWeavingType) == 0) {
         if (value.compare("h") == 0) {
           index_sub_block_description_->set_sub_block_type(IndexSubBlockDescription::BITWEAVING_H);
