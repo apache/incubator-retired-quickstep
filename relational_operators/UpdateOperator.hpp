@@ -72,6 +72,7 @@ class UpdateOperator : public RelationalOperator {
    * @param update_group_index The index of a update group (the map of
    *        attribute_ids to Scalars) which should be evaluated to get the new
    *        value for the corresponding attribute.
+   * @param query_id The ID of the query to which this operator belongs.
    *
    * @warning The constructed InsertDestination should belong to relation, but
    *          must NOT contain any pre-existing blocks.
@@ -79,8 +80,10 @@ class UpdateOperator : public RelationalOperator {
   UpdateOperator(const CatalogRelation &relation,
                  const QueryContext::insert_destination_id relocation_destination_index,
                  const QueryContext::predicate_id predicate_index,
-                 const QueryContext::update_group_id update_group_index)
-      : relation_(relation),
+                 const QueryContext::update_group_id update_group_index,
+                 const std::size_t query_id)
+      : RelationalOperator(query_id),
+        relation_(relation),
         relocation_destination_index_(relocation_destination_index),
         predicate_index_(predicate_index),
         update_group_index_(update_group_index),
@@ -130,6 +133,7 @@ class UpdateWorkOrder : public WorkOrder {
    * @param assignments The assignments (the map of attribute_ids to Scalars)
    *        which should be evaluated to get the new value for the corresponding
    *        attribute.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param input_block_id The block id.
    * @param relocation_destination The InsertDestination to relocate tuples
    *        which can not be updated in-place.
@@ -143,12 +147,14 @@ class UpdateWorkOrder : public WorkOrder {
                   const block_id input_block_id,
                   const Predicate *predicate,
                   const std::unordered_map<attribute_id, std::unique_ptr<const Scalar>> &assignments,
+                  const std::size_t query_id,
                   InsertDestination *relocation_destination,
                   StorageManager *storage_manager,
                   const std::size_t update_operator_index,
                   const tmb::client_id scheduler_client_id,
                   MessageBus *bus)
-      : relation_(relation),
+      : WorkOrder(query_id),
+        relation_(relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
         assignments_(assignments),

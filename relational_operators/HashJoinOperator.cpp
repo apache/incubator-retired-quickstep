@@ -298,6 +298,7 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
                                      residual_predicate,
                                      selection,
                                      hash_table,
+                                     query_id_,
                                      output_destination,
                                      storage_manager),
               op_index_);
@@ -316,6 +317,7 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
                                    residual_predicate,
                                    selection,
                                    hash_table,
+                                   query_id_,
                                    output_destination,
                                    storage_manager),
             op_index_);
@@ -356,6 +358,7 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
                   selection,
                   is_selection_on_build_,
                   hash_table,
+                  query_id_,
                   output_destination,
                   storage_manager),
               op_index_);
@@ -375,6 +378,7 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
                 selection,
                 is_selection_on_build_,
                 hash_table,
+                query_id_,
                 output_destination,
                 storage_manager),
             op_index_);

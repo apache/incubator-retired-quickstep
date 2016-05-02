@@ -62,7 +62,7 @@ namespace quickstep {
 class MockWorkOrder : public WorkOrder {
  public:
   explicit MockWorkOrder(const int op_index)
-      : op_index_(op_index) {}
+      : WorkOrder(0), op_index_(op_index) {}
 
   void execute() override {
     VLOG(3) << "WorkOrder[" << op_index_ << "] executing.";

@@ -90,6 +90,7 @@ WorkOrder *SortMergeRunOperator::createWorkOrder(
       std::move(job->runs),
       top_k_,
       job->level,
+      query_id_,
       output_destination,
       storage_manager,
       op_index_,

@@ -336,7 +336,8 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_long.getID()),
                             dim_col_long.getType().isNullable(),
-                            join_hash_table_index));
+                            join_hash_table_index,
+                            0));  // dummy query ID
 
   // Create the prober operator with one selection attribute.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
@@ -368,7 +369,8 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
                            output_destination_index,
                            join_hash_table_index,
                            QueryContext::kInvalidPredicateId /* residual_predicate_index */,
-                           selection_index));
+                           selection_index,
+                           0  /* dummy query ID */));
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -421,7 +423,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index, 0  /* dummy query ID */));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -477,7 +479,8 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_int.getID()),
                             dim_col_int.getType().isNullable(),
-                            join_hash_table_index));
+                            join_hash_table_index,
+                            0));  // dummy query ID
 
   // Create the prober operator with two selection attributes.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
@@ -514,7 +517,8 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
                            output_destination_index,
                            join_hash_table_index,
                            QueryContext::kInvalidPredicateId /* residual_predicate_index */,
-                           selection_index));
+                           selection_index,
+                           0  /* dummy query ID */));
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -588,7 +592,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index, 0  /* dummy query ID */));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -636,7 +640,8 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_char.getID()),
                             dim_col_char.getType().isNullable(),
-                            join_hash_table_index));
+                            join_hash_table_index,
+                            0));  // dummy query ID.
 
   // Create prober operator with one selection attribute.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
@@ -668,7 +673,8 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
                            output_destination_index,
                            join_hash_table_index,
                            QueryContext::kInvalidPredicateId /* residual_predicate_index */,
-                           selection_index));
+                           selection_index,
+                           0  /* dummy query ID */));
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -721,7 +727,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index, 0  /* dummy query ID */));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -770,7 +776,8 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_varchar.getID()),
                             dim_col_varchar.getType().isNullable(),
-                            join_hash_table_index));
+                            join_hash_table_index,
+                            0));  // dummy query ID.
 
   // Create prober operator with two selection attributes.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
@@ -807,7 +814,8 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
                            output_destination_index,
                            join_hash_table_index,
                            QueryContext::kInvalidPredicateId /* residual_predicate_index */,
-                           selection_index));
+                           selection_index,
+                           0  /* dummy query ID */));
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -885,7 +893,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
   }
 
   // Create the cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index, 0  /* dummy query ID */));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -939,7 +947,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
                             true /* is_stored */,
                             dim_key_attrs,
                             dim_col_long.getType().isNullable() || dim_col_varchar.getType().isNullable(),
-                            join_hash_table_index));
+                            join_hash_table_index,
+                            0));  // dummy query ID.
 
   // Create the prober operator with two selection attributes.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
@@ -980,7 +989,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
                            output_destination_index,
                            join_hash_table_index,
                            QueryContext::kInvalidPredicateId /* residual_predicate_index */,
-                           selection_index));
+                           selection_index,
+                           0  /* dummy query ID */));
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -1058,7 +1068,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index, 0  /* dummy query ID */));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -1113,7 +1123,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
                             true /* is_stored */,
                             dim_key_attrs,
                             dim_col_long.getType().isNullable() || dim_col_varchar.getType().isNullable(),
-                            join_hash_table_index));
+                            join_hash_table_index,
+                            0));  // dummy query ID.
 
   // Create prober operator with two selection attributes.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
@@ -1164,7 +1175,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
                            output_destination_index,
                            join_hash_table_index,
                            residual_pred_index,
-                           selection_index));
+                           selection_index,
+                           0  /* dummy query ID */));
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -1242,7 +1254,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_index, 0  /* dummy query ID */));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 

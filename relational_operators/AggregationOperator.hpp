@@ -58,11 +58,14 @@ class AggregationOperator : public RelationalOperator {
    *        is fully available to the operator before it can start generating
    *        workorders.
    * @param aggr_state_index The index of the AggregationState in QueryContext.
+   * @param query_id The ID of this query.
    **/
   AggregationOperator(const CatalogRelation &input_relation,
                       bool input_relation_is_stored,
-                      const QueryContext::aggregation_state_id aggr_state_index)
-      : input_relation_is_stored_(input_relation_is_stored),
+                      const QueryContext::aggregation_state_id aggr_state_index,
+                      const std::size_t query_id)
+      : RelationalOperator(query_id),
+        input_relation_is_stored_(input_relation_is_stored),
         input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
                                                            : std::vector<block_id>()),
         aggr_state_index_(aggr_state_index),
@@ -107,11 +110,14 @@ class AggregationWorkOrder : public WorkOrder {
    * @brief Constructor
    *
    * @param input_block_id The block id.
+   * @param query_id The ID of this query.
    * @param state The AggregationState to use.
    **/
   AggregationWorkOrder(const block_id input_block_id,
+                       const std::size_t query_id,
                        AggregationOperationState *state)
-      : input_block_id_(input_block_id),
+      : WorkOrder(query_id),
+        input_block_id_(input_block_id),
         state_(DCHECK_NOTNULL(state)) {}
 
   ~AggregationWorkOrder() override {}

@@ -76,6 +76,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
    * @param left_relation_is_stored If left_input_relation is a stored relation.
    * @param right_relation_is_stored If right_input_relation is a stored
    *                                 relation.
+   * @param query_id The ID of the query to which this operator belongs.
    **/
   NestedLoopsJoinOperator(const CatalogRelation &left_input_relation,
                           const CatalogRelation &right_input_relation,
@@ -84,8 +85,10 @@ class NestedLoopsJoinOperator : public RelationalOperator {
                           const QueryContext::predicate_id join_predicate_index,
                           const QueryContext::scalar_group_id selection_index,
                           bool left_relation_is_stored,
-                          bool right_relation_is_stored)
-      : left_input_relation_(left_input_relation),
+                          bool right_relation_is_stored,
+                          const std::size_t query_id)
+      : RelationalOperator(query_id),
+        left_input_relation_(left_input_relation),
         right_input_relation_(right_input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
@@ -230,6 +233,7 @@ class NestedLoopsJoinWorkOrder : public WorkOrder {
    * @param selection A list of Scalars corresponding to the relation attributes
    *        in \c output_destination. Each Scalar is evaluated for the joined
    *        tuples, and the resulting value is inserted into the join result.
+   * @param query_id The ID of the query to which this operator belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
@@ -239,9 +243,11 @@ class NestedLoopsJoinWorkOrder : public WorkOrder {
                            const block_id right_block_id,
                            const Predicate *join_predicate,
                            const std::vector<std::unique_ptr<const Scalar>> &selection,
+                           const std::size_t query_id,
                            InsertDestination *output_destination,
                            StorageManager *storage_manager)
-      : left_input_relation_(left_input_relation),
+      : WorkOrder(query_id),
+        left_input_relation_(left_input_relation),
         right_input_relation_(right_input_relation),
         left_block_id_(left_block_id),
         right_block_id_(right_block_id),

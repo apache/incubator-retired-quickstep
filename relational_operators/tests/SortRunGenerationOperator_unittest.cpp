@@ -358,7 +358,8 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
                                       *result_table_,
                                       insert_destination_index,
                                       sort_config_index,
-                                      true /* is_stored */));
+                                      true /* is_stored */,
+                                      0  /* dummy query ID */));
     run_gen->setOperatorIndex(kOpIndex);
 
     // Set up the QueryContext.

@@ -42,8 +42,11 @@ bool TableGeneratorOperator::getAllWorkOrders(
     // Currently the generator function is not abstracted to be parallelizable,
     // so just produce one work order.
     container->addNormalWorkOrder(
-        new TableGeneratorWorkOrder(query_context->getGeneratorFunctionHandle(generator_function_index_),
-                                    query_context->getInsertDestination(output_destination_index_)),
+        new TableGeneratorWorkOrder(
+            query_context->getGeneratorFunctionHandle(
+                generator_function_index_),
+            query_id_,
+            query_context->getInsertDestination(output_destination_index_)),
         op_index_);
     started_ = true;
   }

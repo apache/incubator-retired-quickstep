@@ -38,6 +38,7 @@ bool SaveBlocksOperator::getAllWorkOrders(
         new SaveBlocksWorkOrder(
             destination_block_ids_[num_workorders_generated_],
             force_,
+            query_id_,
             storage_manager),
         op_index_);
     ++num_workorders_generated_;

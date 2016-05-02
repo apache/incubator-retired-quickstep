@@ -57,6 +57,7 @@ bool UpdateOperator::getAllWorkOrders(
                               input_block_id,
                               query_context->getPredicate(predicate_index_),
                               query_context->getUpdateGroup(update_group_index_),
+                              query_id_,
                               query_context->getInsertDestination(relocation_destination_index_),
                               storage_manager,
                               op_index_,

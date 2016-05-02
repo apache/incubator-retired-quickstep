@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_SAMPLE_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_SAMPLE_OPERATOR_HPP_
 
+#include <cstddef>
 #include <memory>
 #include <vector>
 
@@ -64,15 +65,17 @@ class SampleOperator : public RelationalOperator {
    *        workorders.
    * @param is_block_sample Flag indicating whether the sample type is block or tuple.
    * @param percentage The percentage of data to be sampled.
-   *
+   * @param query_id The ID of the query to which this operator belongs.
    **/
   SampleOperator(const CatalogRelation &input_relation,
                  const CatalogRelationSchema &output_relation,
                  const QueryContext::insert_destination_id output_destination_index,
                  const bool input_relation_is_stored,
                  const bool is_block_sample,
-                 const int percentage)
-      : input_relation_(input_relation),
+                 const int percentage,
+                 const std::size_t query_id)
+      : RelationalOperator(query_id),
+        input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         input_relation_is_stored_(input_relation_is_stored),
@@ -134,9 +137,11 @@ class SampleWorkOrder : public WorkOrder {
                   const block_id input_block_id,
                   const bool is_block_sample,
                   const int percentage,
+                  const std::size_t query_id,
                   InsertDestination *output_destination,
                   StorageManager *storage_manager)
-      : input_relation_(input_relation),
+      : WorkOrder(query_id),
+        input_relation_(input_relation),
         input_block_id_(input_block_id),
         is_block_sample_(is_block_sample),
         percentage_(percentage),
