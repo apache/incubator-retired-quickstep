@@ -286,8 +286,10 @@ class WorkOrder {
   }
 
  protected:
-  WorkOrder() {}
+  WorkOrder(const std::size_t query_id = 0)
+      : query_id_(query_id) {}
 
+  const std::size_t query_id_;
   // A vector of preferred NUMA node IDs where this workorder should be executed.
   // These node IDs typically indicate the NUMA node IDs of the input(s) of the
   // workorder. Derived classes should ensure that there are no duplicate entries

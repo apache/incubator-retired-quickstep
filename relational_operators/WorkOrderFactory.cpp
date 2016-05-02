@@ -71,6 +71,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
       LOG(INFO) << "Creating AggregationWorkOrder";
       return new AggregationWorkOrder(
           proto.GetExtension(serialization::AggregationWorkOrder::block_id),
+          0,  // TODO(harshad) - Replace this with true query ID.
           query_context->getAggregationState(
               proto.GetExtension(serialization::AggregationWorkOrder::aggr_state_index)));
     }

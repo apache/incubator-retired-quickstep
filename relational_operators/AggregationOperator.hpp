@@ -113,8 +113,10 @@ class AggregationWorkOrder : public WorkOrder {
    * @param state The AggregationState to use.
    **/
   AggregationWorkOrder(const block_id input_block_id,
+                       const std::size_t query_id,
                        AggregationOperationState *state)
-      : input_block_id_(input_block_id),
+      : WorkOrder(query_id),
+        input_block_id_(input_block_id),
         state_(DCHECK_NOTNULL(state)) {}
 
   ~AggregationWorkOrder() override {}

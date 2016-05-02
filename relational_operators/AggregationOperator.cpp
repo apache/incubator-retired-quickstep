@@ -38,8 +38,10 @@ bool AggregationOperator::getAllWorkOrders(
     if (!started_) {
       for (const block_id input_block_id : input_relation_block_ids_) {
         container->addNormalWorkOrder(
-            new AggregationWorkOrder(input_block_id,
-                                     query_context->getAggregationState(aggr_state_index_)),
+            new AggregationWorkOrder(
+                input_block_id,
+                query_id_,
+                query_context->getAggregationState(aggr_state_index_)),
             op_index_);
       }
       started_ = true;
@@ -48,8 +50,10 @@ bool AggregationOperator::getAllWorkOrders(
   } else {
     while (num_workorders_generated_ < input_relation_block_ids_.size()) {
       container->addNormalWorkOrder(
-          new AggregationWorkOrder(input_relation_block_ids_[num_workorders_generated_],
-                                   query_context->getAggregationState(aggr_state_index_)),
+          new AggregationWorkOrder(
+              input_relation_block_ids_[num_workorders_generated_],
+              query_id_,
+              query_context->getAggregationState(aggr_state_index_)),
           op_index_);
       ++num_workorders_generated_;
     }
