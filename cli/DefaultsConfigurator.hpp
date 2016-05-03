@@ -22,6 +22,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "storage/StorageConfig.h"
 #include "utility/Macros.hpp"
 
 #ifdef QUICKSTEP_HAVE_LIBNUMA
@@ -48,6 +49,21 @@ class DefaultsConfigurator {
    **/
   static std::size_t GetNumHardwareThreads() {
     return std::thread::hardware_concurrency();
+  }
+
+  /**
+   * @brief Get the number of available numa sockets.
+   *
+   * @return Number of available numa sockets. Always 1 if the system doesn't
+   *         have libnuma.
+   **/
+  static std::size_t GetNumNUMANodes() {
+  #ifdef QUICKSTEP_HAVE_LIBNUMA
+    // Id of the maximum node.
+    return numa_max_node() + 1;
+  #else
+    return 1;
+  #endif
   }
 
   /**
