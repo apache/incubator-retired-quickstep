@@ -258,8 +258,7 @@ int main(int argc, char* argv[]) {
       InputParserUtil::ParseWorkerAffinities(real_num_workers,
                                              quickstep::FLAGS_worker_affinities);
 
-  const std::size_t num_numa_nodes_covered =
-      DefaultsConfigurator::GetNumNUMANodesCoveredByWorkers(worker_cpu_affinities);
+  const std::size_t num_numa_nodes_system = DefaultsConfigurator::GetNumNUMANodes();
 
   if (quickstep::FLAGS_preload_buffer_pool) {
     std::chrono::time_point<std::chrono::steady_clock> preload_start, preload_end;
@@ -280,7 +279,8 @@ int main(int argc, char* argv[]) {
   Foreman foreman(&bus,
                   query_processor->getDefaultDatabase(),
                   query_processor->getStorageManager(),
-                  num_numa_nodes_covered);
+                  -1, /* CPU id to bind foreman. -1 is unbound. */
+                  num_numa_nodes_system);
 
   // Get the NUMA affinities for workers.
   vector<int> cpu_numa_nodes = InputParserUtil::GetNUMANodesForCPUs();
