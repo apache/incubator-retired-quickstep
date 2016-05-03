@@ -42,6 +42,9 @@
 #include "storage/TupleReference.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
 #include "storage/ValueAccessor.hpp"
+#include "types/Type.hpp"
+#include "types/TypedValue.hpp"
+#include "types/containers/ColumnVector.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
 
 #include "gflags/gflags.h"
@@ -820,7 +823,7 @@ void HashOuterJoinWorkOrder::execute() {
         // where x is an attribute of the build relation.
         // In that case, this HashOuterJoinWorkOrder needs to be updated to
         // correctly handle the selections.
-        const Type& column_type = selection_[i]->getType().getNullableVersion();
+        const Type &column_type = selection_[i]->getType().getNullableVersion();
         if (NativeColumnVector::UsableForType(column_type)) {
           NativeColumnVector *result = new NativeColumnVector(
               column_type, num_tuples_without_matches);

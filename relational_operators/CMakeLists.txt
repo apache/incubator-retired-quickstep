@@ -181,6 +181,9 @@ target_link_libraries(quickstep_relationaloperators_HashJoinOperator
                       quickstep_storage_TupleReference
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_storage_ValueAccessor
+                      quickstep_types_Type
+                      quickstep_types_TypedValue
+                      quickstep_types_containers_ColumnVector
                       quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_utility_Macros
                       tmb)
@@ -263,6 +266,7 @@ target_link_libraries(quickstep_relationaloperators_SelectOperator
                       glog
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_PartitionSchemeHeader
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_RelationalOperator
@@ -273,6 +277,10 @@ target_link_libraries(quickstep_relationaloperators_SelectOperator
                       quickstep_storage_StorageManager
                       quickstep_utility_Macros
                       tmb)
+if(QUICKSTEP_HAVE_LIBNUMA)
+target_link_libraries(quickstep_relationaloperators_SelectOperator
+                      quickstep_catalog_NUMAPlacementScheme)
+endif()
 target_link_libraries(quickstep_relationaloperators_SortMergeRunOperator
                       glog
                       quickstep_catalog_CatalogRelation

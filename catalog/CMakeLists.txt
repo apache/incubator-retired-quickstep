@@ -175,9 +175,12 @@ target_link_libraries(quickstep_catalog
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_IndexScheme
-                      quickstep_catalog_NUMAPlacementScheme
                       quickstep_catalog_PartitionScheme
                       quickstep_catalog_PartitionSchemeHeader)
+if(QUICKSTEP_HAVE_LIBNUMA)
+target_link_libraries(quickstep_catalog
+                      quickstep_catalog_NUMAPlacementScheme)
+endif()
 
 # Tests:
 add_executable(Catalog_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/Catalog_unittest.cpp")
