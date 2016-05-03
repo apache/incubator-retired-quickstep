@@ -71,7 +71,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
       LOG(INFO) << "Creating AggregationWorkOrder";
       return new AggregationWorkOrder(
           proto.GetExtension(serialization::AggregationWorkOrder::block_id),
-          0,  // TODO(harshad) - Replace this with true query ID.
+          proto.query_id(),
           query_context->getAggregationState(
               proto.GetExtension(serialization::AggregationWorkOrder::aggr_state_index)));
     }
@@ -89,6 +89,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           move(join_key_attributes),
           proto.GetExtension(serialization::BuildHashWorkOrder::any_join_key_attributes_nullable),
           proto.GetExtension(serialization::BuildHashWorkOrder::block_id),
+          proto.query_id(),
           query_context->getJoinHashTable(
               proto.GetExtension(serialization::BuildHashWorkOrder::join_hash_table_index)),
           storage_manager);

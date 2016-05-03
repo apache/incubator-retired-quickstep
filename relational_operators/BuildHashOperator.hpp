@@ -69,13 +69,16 @@ class BuildHashOperator : public RelationalOperator {
    * @param hash_table_index The index of the JoinHashTable in QueryContext.
    *        The HashTable's key Type(s) should be the Type(s) of the
    *        join_key_attributes in input_relation.
+   * @param The ID of the query to which this operator belongs.
    **/
   BuildHashOperator(const CatalogRelation &input_relation,
                     const bool input_relation_is_stored,
                     const std::vector<attribute_id> &join_key_attributes,
                     const bool any_join_key_attributes_nullable,
-                    const QueryContext::join_hash_table_id hash_table_index)
-    : input_relation_(input_relation),
+                    const QueryContext::join_hash_table_id hash_table_index,
+                    const std::size_t query_id)
+    : RelationalOperator(query_id),
+      input_relation_(input_relation),
       input_relation_is_stored_(input_relation_is_stored),
       join_key_attributes_(join_key_attributes),
       any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
@@ -133,6 +136,7 @@ class BuildHashWorkOrder : public WorkOrder {
    *        input_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
    * @param build_block_id The block id.
+   * @param query_id The ID of the query.
    * @param hash_table The JoinHashTable to use.
    * @param storage_manager The StorageManager to use.
    **/
@@ -140,9 +144,11 @@ class BuildHashWorkOrder : public WorkOrder {
                      const std::vector<attribute_id> &join_key_attributes,
                      const bool any_join_key_attributes_nullable,
                      const block_id build_block_id,
+                     const std::size_t query_id,
                      JoinHashTable *hash_table,
                      StorageManager *storage_manager)
-      : input_relation_(input_relation),
+      : WorkOrder(query_id),
+        input_relation_(input_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         build_block_id_(build_block_id),
@@ -156,6 +162,7 @@ class BuildHashWorkOrder : public WorkOrder {
    * @param join_key_attributes The IDs of equijoin attributes in
    *        input_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
+   * @param query_id The ID of the query.
    * @param build_block_id The block id.
    * @param hash_table The JoinHashTable to use.
    * @param storage_manager The StorageManager to use.
@@ -164,9 +171,11 @@ class BuildHashWorkOrder : public WorkOrder {
                      std::vector<attribute_id> &&join_key_attributes,
                      const bool any_join_key_attributes_nullable,
                      const block_id build_block_id,
+                     const std::size_t query_id,
                      JoinHashTable *hash_table,
                      StorageManager *storage_manager)
-      : input_relation_(input_relation),
+      : WorkOrder(query_id),
+        input_relation_(input_relation),
         join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         build_block_id_(build_block_id),

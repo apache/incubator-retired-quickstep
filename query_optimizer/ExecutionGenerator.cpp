@@ -698,7 +698,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               build_relation_info->isStoredRelation(),
               build_attribute_ids,
               any_build_attributes_nullable,
-              join_hash_table_index));
+              join_hash_table_index,
+              query_handle_->query_id()));
 
   // Create InsertDestination proto.
   const CatalogRelation *output_relation = nullptr;

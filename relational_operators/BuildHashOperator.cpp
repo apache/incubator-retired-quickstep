@@ -73,6 +73,7 @@ bool BuildHashOperator::getAllWorkOrders(
                                    join_key_attributes_,
                                    any_join_key_attributes_nullable_,
                                    input_block_id,
+                                   query_id_,
                                    hash_table,
                                    storage_manager),
             op_index_);
@@ -88,6 +89,7 @@ bool BuildHashOperator::getAllWorkOrders(
               join_key_attributes_,
               any_join_key_attributes_nullable_,
               input_relation_block_ids_[num_workorders_generated_],
+              query_id_,
               hash_table,
               storage_manager),
           op_index_);
