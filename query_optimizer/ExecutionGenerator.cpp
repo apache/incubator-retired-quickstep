@@ -135,7 +135,7 @@ static const volatile bool join_hashtable_type_dummy
     = gflags::RegisterFlagValidator(&FLAGS_join_hashtable_type,
                                     &ValidateHashTableImplTypeString);
 
-DEFINE_string(aggregate_hashtable_type, "LinearOpenAddressing",
+DEFINE_string(aggregate_hashtable_type, "SeparateChaining",
               "HashTable implementation to use for aggregates with GROUP BY "
               "(valid options are SeparateChaining or LinearOpenAddressing)");
 static const volatile bool aggregate_hashtable_type_dummy
