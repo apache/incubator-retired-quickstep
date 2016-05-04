@@ -741,6 +741,7 @@ target_link_libraries(quickstep_storage_PackedRowStoreValueAccessor
                       quickstep_utility_BitVector
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_PreloaderThread
+                      glog
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
@@ -750,6 +751,10 @@ target_link_libraries(quickstep_storage_PreloaderThread
                       quickstep_threading_Thread
                       quickstep_threading_ThreadUtil
                       quickstep_utility_Macros)
+if (QUICKSTEP_HAVE_LIBNUMA)
+  target_link_libraries(quickstep_storage_PreloaderThread
+                        quickstep_catalog_NUMAPlacementScheme)
+endif()
 target_link_libraries(quickstep_storage_SMAIndexSubBlock
                       glog
                       quickstep_catalog_CatalogAttribute
