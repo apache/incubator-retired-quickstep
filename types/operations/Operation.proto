@@ -43,6 +43,7 @@ message UnaryOperation {
     NEGATE = 0;
     CAST = 1;
     DATE_EXTRACT = 2;
+    SUBSTRING = 3;
   }
 
   required UnaryOperationID operation_id = 1;
@@ -70,6 +71,14 @@ message DateExtractOperation {
   extend UnaryOperation {
     // Required when operation_id = DATE_EXTRACT.
     optional Unit unit = 96;
+  }
+}
+
+message SubstringOperation {
+  extend UnaryOperation {
+    // Required when operation_id = SUBSTRING.
+    optional int64 start_position = 100;
+    optional int64 substring_length = 101;    
   }
 }
 

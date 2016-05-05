@@ -209,6 +209,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "false"            return TOKEN_FALSE;
   "first"            return TOKEN_FIRST;
   "float"            return TOKEN_FLOAT;
+  "for"              return TOKEN_FOR;
   "foreign"          return TOKEN_FOREIGN;
   "from"             return TOKEN_FROM;
   "full"             return TOKEN_FULL;
@@ -258,6 +259,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "set"              return TOKEN_SET;
   "sma"              return TOKEN_SMA;
   "smallint"         return TOKEN_SMALLINT;
+  "substring"        return TOKEN_SUBSTRING;
   "table"            return TOKEN_TABLE;
   "then"             return TOKEN_THEN;
   "time"             return TOKEN_TIME;
