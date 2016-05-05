@@ -20,6 +20,8 @@
 #ifndef QUICKSTEP_PARSER_PARSE_BASIC_EXPRESSIONS_HPP_
 #define QUICKSTEP_PARSER_PARSE_BASIC_EXPRESSIONS_HPP_
 
+#include <cstddef>
+#include <limits>
 #include <memory>
 #include <string>
 #include <vector>
@@ -509,6 +511,81 @@ class ParseExtractFunction : public ParseExpression {
   std::unique_ptr<ParseExpression> date_expression_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseExtractFunction);
+};
+
+
+/**
+ * @brief Parsed representation of the substring function.
+ */
+class ParseSubstringFunction : public ParseExpression {
+ public:
+  static constexpr std::size_t kDefaultLength = std::numeric_limits<std::size_t>::max();
+
+  /**
+   * @brief Constructor.
+   *
+   * @param line_number The line number of the first token of the function call.
+   * @param column_number The column number of the first token of the function call.
+   * @param operand The operand of the substring.
+   * @param start_position The 1-based starting position of the substring.
+   * @param length Optional substring length.
+   */
+  ParseSubstringFunction(const int line_number,
+                         const int column_number,
+                         ParseExpression *operand,
+                         const std::size_t start_position,
+                         const std::size_t length = kDefaultLength)
+      : ParseExpression(line_number, column_number),
+        operand_(operand),
+        start_position_(start_position),
+        length_(length) {}
+
+  ExpressionType getExpressionType() const override {
+    return kSubstring;
+  }
+
+  std::string getName() const override {
+    return "Substring";
+  }
+
+  /**
+   * @return The operand of the substring.
+   */
+  const ParseExpression* operand() const {
+    return operand_.get();
+  }
+
+  /**
+   * @return The 1-based starting position of the substring.
+   */
+  std::size_t start_position() const {
+    return start_position_;
+  }
+
+  /**
+   * @return Then substring length.
+   */
+  std::size_t length() const {
+    return length_;
+  }
+
+  std::string generateName() const override;
+
+ protected:
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<const ParseTreeNode*> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override;
+
+ private:
+  std::unique_ptr<ParseExpression> operand_;
+  const std::size_t start_position_;
+  const std::size_t length_;
+
+  DISALLOW_COPY_AND_ASSIGN(ParseSubstringFunction);
 };
 
 /** @} */

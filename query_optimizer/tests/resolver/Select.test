@@ -3048,3 +3048,81 @@ TopLevelPlan
 +-output_attributes=
   +-AttributeReference[id=5,name=x,relation=,type=Int]
   +-AttributeReference[id=6,name=y,relation=,type=Int]
+==
+
+SELECT SUBSTRING(char_col FROM 1 FOR 2)
+FROM test;
+--
+TopLevelPlan
++-plan=Project
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=SUBSTRING(char_col FROM 1 FOR 2),relation=,
+|     type=Char(2)]
+|     +-Substring
+|       +-Operand=AttributeReference[id=4,name=char_col,relation=test,
+|         type=Char(20)]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=SUBSTRING(char_col FROM 1 FOR 2),
+    relation=,type=Char(2)]
+==
+
+SELECT *
+FROM test
+WHERE SUBSTRING(vchar_col FROM 1 FOR 2) IN ('12', '34', '56');
+--
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-filter_predicate=InValueList
+| |   +-test_expression=Substring
+| |   | +-Operand=AttributeReference[id=5,name=vchar_col,relation=test,
+| |   |   type=VarChar(20) NULL]
+| |   +-match_expressions=
+| |     +-Literal[value=12,type=Char(2)]
+| |     +-Literal[value=34,type=Char(2)]
+| |     +-Literal[value=56,type=Char(2)]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+|   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+|   +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+  +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+  +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+  +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+  +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+  +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+==
+
+SELECT SUBSTRING(char_col FROM 0 FOR 2)
+FROM test;
+--
+ERROR: The start position must be greater than 0 (1 : 8)
+SELECT SUBSTRING(char_col FROM 0 FOR ...
+       ^
+==
+
+SELECT SUBSTRING(char_col FROM 1 FOR 0)
+FROM test;
+--
+ERROR: The substring length must be greater than 0 (1 : 8)
+SELECT SUBSTRING(char_col FROM 1 FOR ...
+       ^
