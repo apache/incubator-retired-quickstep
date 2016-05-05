@@ -273,6 +273,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_FALSE;
 %token TOKEN_FIRST;
 %token TOKEN_FLOAT;
+%token TOKEN_FOR;
 %token TOKEN_FOREIGN;
 %token TOKEN_FROM;
 %token TOKEN_FULL;
@@ -319,6 +320,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_SET;
 %token TOKEN_SMA;
 %token TOKEN_SMALLINT;
+%token TOKEN_SUBSTRING;
 %token TOKEN_TABLE;
 %token TOKEN_THEN;
 %token TOKEN_TIME;
@@ -361,6 +363,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
   case_expression
   opt_else_clause
   extract_function
+  substr_function
 
 %type <attribute_>
   attribute_ref
@@ -1505,6 +1508,9 @@ expression_base:
   | extract_function {
     $$ = $1;
   }
+  | substr_function {
+    $$ = $1;
+  }
   | case_expression {
     $$ = $1;
   }
@@ -1534,6 +1540,16 @@ function_call:
 extract_function:
   TOKEN_EXTRACT '(' datetime_unit TOKEN_FROM add_expression ')' {
     $$ = new quickstep::ParseExtractFunction(@1.first_line, @1.first_column, $3, $5);
+  };
+
+substr_function:
+  TOKEN_SUBSTRING '(' add_expression TOKEN_FROM TOKEN_UNSIGNED_NUMVAL ')' {
+    $$ = new quickstep::ParseSubstringFunction(
+        @1.first_line, @1.first_column, $3, $5->long_value());
+  }
+  | TOKEN_SUBSTRING '(' add_expression TOKEN_FROM TOKEN_UNSIGNED_NUMVAL TOKEN_FOR TOKEN_UNSIGNED_NUMVAL ')' {
+    $$ = new quickstep::ParseSubstringFunction(
+        @1.first_line, @1.first_column, $3, $5->long_value(), $7->long_value());
   };
 
 case_expression:

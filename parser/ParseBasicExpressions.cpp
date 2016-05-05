@@ -189,4 +189,35 @@ void ParseExtractFunction::getFieldStringItems(
   non_container_child_fields->push_back(date_expression_.get());
 }
 
+std::string ParseSubstringFunction::generateName() const {
+  std::string name;
+  name.append("SUBSTRING(");
+  name.append(operand_->generateName());
+  name.append(" FROM ");
+  name.append(std::to_string(start_position_));
+  if (length_ != kDefaultLength) {
+    name.append(" FOR ");
+    name.append(std::to_string(length_));
+  }
+  name.push_back(')');
+  return name;
+}
+
+void ParseSubstringFunction::getFieldStringItems(
+    std::vector<std::string> *inline_field_names,
+    std::vector<std::string> *inline_field_values,
+    std::vector<std::string> *non_container_child_field_names,
+    std::vector<const ParseTreeNode*> *non_container_child_fields,
+    std::vector<std::string> *container_child_field_names,
+    std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
+  inline_field_names->push_back("start_position");
+  inline_field_values->push_back(std::to_string(start_position_));
+
+  inline_field_names->push_back("length");
+  inline_field_values->push_back(std::to_string(length_));
+
+  non_container_child_field_names->push_back("operand");
+  non_container_child_fields->push_back(operand_.get());
+}
+
 }  // namespace quickstep
