@@ -19,7 +19,6 @@
 #define QUICKSTEP_TRANSACTION_RESOURCE_ID_HPP_
 
 #include <cstddef>
-#include <limits>
 #include <string>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -202,10 +201,10 @@ class ResourceId {
     return tuple_id_ == kTupleIdPlaceholder;
   }
 
-  const database_id db_id_;
-  const relation_id rel_id_;
-  const block_id block_id_;
-  const tuple_id tuple_id_;
+  database_id db_id_;
+  relation_id rel_id_;
+  block_id block_id_;
+  tuple_id tuple_id_;
 };
 
 /** @} */

@@ -32,12 +32,12 @@ namespace transaction {
  * @brief Represents mode type. Possible options are NL, IS, IX, S, SIX, X.
  **/
 enum class AccessModeType : std::uint8_t {
-  kNoLock = 0,
-  kIsLock,
-  kIxLock,
-  kSLock,
-  kSixLock,
-  kXLock,
+  kNoLockMode = 0,
+  kIsLockMode,
+  kIxLockMode,
+  kSLockMode,
+  kSixLockMode,
+  kXLockMode,
   kNumAccessModeTypes,
 };
 
@@ -53,6 +53,60 @@ class AccessMode {
    **/
   explicit AccessMode(const AccessModeType access_mode)
       : access_mode_(access_mode) {}
+
+  /**
+   * @brief Factory method for NoLockMode.
+   *
+   * @return NoLockMode instance.
+   **/
+  static AccessMode NoLockMode() {
+    return AccessMode(AccessModeType::kNoLockMode);
+  }
+
+  /**
+   * @brief Factory method for IsLockMode.
+   *
+   * @return IsLockMode instance.
+   **/
+  static AccessMode IsLockMode() {
+    return AccessMode(AccessModeType::kIsLockMode);
+  }
+
+  /**
+   * @brief Factory method for IxLockMode.
+   *
+   * @return IxLockMode instance.
+   **/
+  static AccessMode IxLockMode() {
+    return AccessMode(AccessModeType::kIxLockMode);
+  }
+
+  /**
+   * @brief Factory method for SixLockMode.
+   *
+   * @return SixLockMode instance.
+   **/
+  static AccessMode SixLockMode() {
+    return AccessMode(AccessModeType::kSixLockMode);
+  }
+
+  /**
+   * @brief Factory method for SLockMode.
+   *
+   * @return SLockMode instance.
+   **/
+  static AccessMode SLockMode() {
+    return AccessMode(AccessModeType::kSLockMode);
+  }
+
+  /**
+   * @brief Factory method for XLockMode.
+   *
+   * @return XLockMode instance.
+   **/
+  static AccessMode XLockMode() {
+    return AccessMode(AccessModeType::kXLockMode);
+  }
 
   /**
    * @brief Checks whether this access mode is compatible with the other.
@@ -74,7 +128,7 @@ class AccessMode {
    * @return True if it is IS mode, false otherwise.
    **/
   inline bool isIntentionShareLock() const {
-    return access_mode_ == AccessModeType::kIsLock;
+    return access_mode_ == AccessModeType::kIsLockMode;
   }
 
   /**
@@ -83,7 +137,7 @@ class AccessMode {
    * @return True if it is IX mode, false otherwise.
    **/
   inline bool isIntentionExclusiveLock() const {
-    return access_mode_ == AccessModeType::kIxLock;
+    return access_mode_ == AccessModeType::kIxLockMode;
   }
 
   /**
@@ -92,7 +146,7 @@ class AccessMode {
    * @return True if it is SIX mode, false otherwise.
    **/
   inline bool isShareAndIntentionExclusiveLock() const {
-    return access_mode_ == AccessModeType::kSixLock;
+    return access_mode_ == AccessModeType::kSixLockMode;
   }
 
   /**
@@ -101,7 +155,7 @@ class AccessMode {
    * @return True if it is S mode, false otherwise.
    **/
   inline bool isShareLock() const {
-    return access_mode_ == AccessModeType::kSLock;
+    return access_mode_ == AccessModeType::kSLockMode;
   }
 
   /**
@@ -110,7 +164,7 @@ class AccessMode {
    * @return True if it is X mode, false otherwise.
    **/
   inline bool isExclusiveLock() const {
-    return access_mode_ == AccessModeType::kXLock;
+    return access_mode_ == AccessModeType::kXLockMode;
   }
 
   /**

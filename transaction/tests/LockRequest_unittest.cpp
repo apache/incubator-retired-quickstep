@@ -31,7 +31,7 @@ class LockRequestTest : public ::testing::Test {
   LockRequestTest()
       : lock_request_(transaction_id(3),
                       ResourceId(5),
-                      AccessMode(AccessModeType::kSLock),
+                      AccessMode::SLockMode(),
                       RequestType::kAcquireLock) {
   }
 
@@ -41,7 +41,7 @@ class LockRequestTest : public ::testing::Test {
 TEST_F(LockRequestTest, CheckGetters) {
   EXPECT_EQ(transaction_id(3), lock_request_.getTransactionId());
   EXPECT_EQ(ResourceId(5), lock_request_.getResourceId());
-  EXPECT_EQ(AccessMode(AccessModeType::kSLock), lock_request_.getAccessMode());
+  EXPECT_EQ(AccessMode::SLockMode(), lock_request_.getAccessMode());
   EXPECT_EQ(RequestType::kAcquireLock, lock_request_.getRequestType());
 }
 
