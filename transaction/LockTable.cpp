@@ -18,15 +18,11 @@
 #include "transaction/LockTable.hpp"
 
 #include <list>
-#include <unordered_map>
 #include <utility>
 
-#include "threading/SharedMutex.hpp"
 #include "transaction/AccessMode.hpp"
 #include "transaction/Lock.hpp"
-#include "transaction/ResourceId.hpp"
 #include "transaction/Transaction.hpp"
-#include "utility/Macros.hpp"
 
 namespace quickstep {
 namespace transaction {
@@ -34,7 +30,7 @@ namespace transaction {
 LockTableResult
 LockTable::putLock(const transaction_id tid,
                    const ResourceId &rid,
-                   const AccessMode access_mode) {
+                   const AccessMode &access_mode) {
   // TODO(hakan): Lock upgrade is not supported.
   lock_list_pair &lock_list_pair = internal_map_[rid];
 
@@ -47,7 +43,7 @@ LockTable::putLock(const transaction_id tid,
   for (lock_own_list::const_iterator it = lock_own_list.cbegin();
        it != lock_own_list.cend(); ++it) {
     if (it->first == tid && it->second.getAccessMode() == access_mode) {
-      return LockTableResult::kALREADY_IN_OWNED;
+      return LockTableResult::kAlreadyInOwned;
     }
   }
 
@@ -56,7 +52,7 @@ LockTable::putLock(const transaction_id tid,
   for (lock_pending_list::const_iterator it = lock_pending_list.cbegin();
        it != lock_pending_list.cend(); ++it) {
     if (it->first == tid && it->second.getAccessMode() == access_mode) {
-      return LockTableResult::kALREADY_IN_PENDING;
+      return LockTableResult::kAlreadyInPending;
     }
   }
 
@@ -68,18 +64,18 @@ LockTable::putLock(const transaction_id tid,
       if (!access_mode.isCompatible(it->second.getAccessMode())) {
         lock_pending_list.push_back(std::make_pair(tid,
                                                    Lock(rid, access_mode)));
-        return LockTableResult::kPLACED_IN_PENDING;
+        return LockTableResult::kPlacedInPending;
       }
     }
 
     lock_own_list.push_back(std::make_pair(tid, Lock(rid, access_mode)));
-    return LockTableResult::kPLACED_IN_OWNED;
+    return LockTableResult::kPlacedInOwned;
   } else {
     // If the pending list is not empty, even if the lock request is compatible
     // with other owned lock entries, we put the new request into the pending
     // list to eliminate starvation.
     lock_pending_list.push_back(std::make_pair(tid, Lock(rid, access_mode)));
-    return LockTableResult::kPLACED_IN_PENDING;
+    return LockTableResult::kPlacedInPending;
   }
 }
 
@@ -105,7 +101,7 @@ LockTable::deleteLock(const transaction_id tid,
       // compatible with the remaining owned entries.
       movePendingToOwned(rid);
 
-      return LockTableResult::kDEL_FROM_OWNED;
+      return LockTableResult::kDeleteFromOwned;
     }
   }
 
@@ -116,13 +112,13 @@ LockTable::deleteLock(const transaction_id tid,
     if (it->first == tid) {
       // If it exists, erase it from pending list.
       lock_pending_list.erase(it);
-      return LockTableResult::kDEL_FROM_PENDING;
+      return LockTableResult::kDeleteFromPending;
     }
   }
 
   // Execution reaches here, if we cannot find the corresponding lock entry
   // in the both list.
-  return LockTableResult::kDEL_ERROR;
+  return LockTableResult::kDeleteError;
 }
 
 void LockTable::movePendingToOwned(const ResourceId &rid) {

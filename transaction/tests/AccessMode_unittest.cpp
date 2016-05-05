@@ -25,12 +25,12 @@ namespace transaction {
 class AccessModeTest : public ::testing::Test {
  protected:
   AccessModeTest()
-      : nl_mode_(AccessModeType::kNoLock),
-        is_mode_(AccessModeType::kIsLock),
-        ix_mode_(AccessModeType::kIxLock),
-        s_mode_(AccessModeType::kSLock),
-        six_mode_(AccessModeType::kSixLock),
-        x_mode_(AccessModeType::kXLock) {
+      : nl_mode_(AccessMode::NoLockMode()),
+        is_mode_(AccessMode::IsLockMode()),
+        ix_mode_(AccessMode::IxLockMode()),
+        s_mode_(AccessMode::SLockMode()),
+        six_mode_(AccessMode::SixLockMode()),
+        x_mode_(AccessMode::XLockMode()) {
   }
 
   const AccessMode nl_mode_;

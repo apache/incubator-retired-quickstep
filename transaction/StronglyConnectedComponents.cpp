@@ -17,7 +17,6 @@
 
 #include "transaction/StronglyConnectedComponents.hpp"
 
-#include <cstddef>
 #include <cstdint>
 #include <stack>
 #include <unordered_map>

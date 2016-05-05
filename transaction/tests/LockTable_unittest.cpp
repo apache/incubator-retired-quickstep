@@ -41,64 +41,73 @@ class LockTableTest : public ::testing::Test {
 };
 
 TEST_F(LockTableTest, CompatibleRequestsFromDifferentTransactions) {
-  EXPECT_EQ(lock_table_.putLock(tid_1_,
+  const AccessMode is_lock_mode = AccessMode::IsLockMode();
+  const AccessMode s_lock_mode = AccessMode::SLockMode();
+
+  EXPECT_EQ(LockTableResult::kPlacedInOwned,
+            lock_table_.putLock(tid_1_,
                                 ResourceId(2),
-                                AccessMode(AccessModeType::kIsLock)),
-            LockTableResult::kPLACED_IN_OWNED);
+                                is_lock_mode));
 
   // Acquire the same lock mode on same resource.
-  EXPECT_EQ(lock_table_.putLock(tid_1_,
+  EXPECT_EQ(LockTableResult::kAlreadyInOwned,
+            lock_table_.putLock(tid_1_,
                                 ResourceId(2),
-                                AccessMode(AccessModeType::kIsLock)),
-            LockTableResult::kALREADY_IN_OWNED);
+                                is_lock_mode));
 
   // Another transaction acquires compatible lock on the same resource.
-  EXPECT_EQ(lock_table_.putLock(tid_2_,
+  EXPECT_EQ(LockTableResult::kPlacedInOwned,
+            lock_table_.putLock(tid_2_,
                                 ResourceId(2),
-                                AccessMode(AccessModeType::kSLock)),
-            LockTableResult::kPLACED_IN_OWNED);
+                                s_lock_mode));
 }
 
 TEST_F(LockTableTest, IncompatibleRequestsFromDifferentTransactions) {
-  EXPECT_EQ(lock_table_.putLock(tid_1_,
+  const AccessMode is_lock_mode = AccessMode::IsLockMode();
+  const AccessMode x_lock_mode = AccessMode::XLockMode();
+
+  EXPECT_EQ(LockTableResult::kPlacedInOwned,
+            lock_table_.putLock(tid_1_,
                                 ResourceId(2),
-                                AccessMode(AccessModeType::kIsLock)),
-            LockTableResult::kPLACED_IN_OWNED);
+                                is_lock_mode));
 
   // Acquire the same lock mode on same resource.
-  EXPECT_EQ(lock_table_.putLock(tid_1_,
+  EXPECT_EQ(LockTableResult::kAlreadyInOwned,
+            lock_table_.putLock(tid_1_,
                                 ResourceId(2),
-                                AccessMode(AccessModeType::kIsLock)),
-            LockTableResult::kALREADY_IN_OWNED);
+                                is_lock_mode));
 
   // Another transaction acquires incompatible lock on the same resource.
-  EXPECT_EQ(lock_table_.putLock(tid_2_,
+  EXPECT_EQ(LockTableResult::kPlacedInPending,
+            lock_table_.putLock(tid_2_,
                                 ResourceId(2),
-                                AccessMode(AccessModeType::kXLock)),
-            LockTableResult::kPLACED_IN_PENDING);
+                                x_lock_mode));
 }
 
 TEST_F(LockTableTest, StarvationProtection) {
-  EXPECT_EQ(lock_table_.putLock(tid_1_,
+  const AccessMode is_lock_mode = AccessMode::IsLockMode();
+  const AccessMode x_lock_mode = AccessMode::XLockMode();
+
+  EXPECT_EQ(LockTableResult::kPlacedInOwned,
+            lock_table_.putLock(tid_1_,
                                 ResourceId(2),
-                                AccessMode(AccessModeType::kIsLock)),
-            LockTableResult::kPLACED_IN_OWNED);
+                                is_lock_mode));
 
   // Another transaction requests incompatible lock on the same resource.
   // It should wait for the previous transaction.
-  EXPECT_EQ(lock_table_.putLock(tid_2_,
+  EXPECT_EQ(LockTableResult::kPlacedInPending,
+            lock_table_.putLock(tid_2_,
                                 ResourceId(2),
-                                AccessMode(AccessModeType::kXLock)),
-            LockTableResult::kPLACED_IN_PENDING);
+                                x_lock_mode));
 
   // Another third transaction requests a compatible lock on the same resource.
   // Normally, it should acquire the lock, however, there is a pending
   // transaction waiting on the same resource. To prevent starvation, we should
   // put in the pending list.
-  EXPECT_EQ(lock_table_.putLock(tid_3_,
+  EXPECT_EQ(LockTableResult::kPlacedInPending,
+            lock_table_.putLock(tid_3_,
                                 ResourceId(2),
-                                AccessMode(AccessModeType::kIsLock)),
-            LockTableResult::kPLACED_IN_PENDING);
+                                is_lock_mode));
 }
 
 }  // namespace transaction
