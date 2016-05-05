@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -93,6 +95,8 @@ class AggregationOperationState {
    *        in the input relation.
    * @param hash_table_impl_type The HashTable implementation to use for
    *        GROUP BY. Ignored if group_by is empty.
+   * @param distinctify_hash_table_impl_type The HashTable implementation to use
+   *        for the distinctify phase of each DISTINCT aggregation.
    * @param storage_manager The StorageManager to use for allocating hash
    *        tables. Single aggregation state (when GROUP BY list is not
    *        specified) is not allocated using memory from storage manager.
@@ -105,6 +109,7 @@ class AggregationOperationState {
                             const Predicate *predicate,
                             const std::size_t estimated_num_entries,
                             const HashTableImplType hash_table_impl_type,
+                            const std::vector<HashTableImplType> &distinctify_hash_table_impl_types,
                             StorageManager *storage_manager);
 
   ~AggregationOperationState() {}
