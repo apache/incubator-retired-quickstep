@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -64,6 +66,7 @@ AggregationOperationState::AggregationOperationState(
     const Predicate *predicate,
     const std::size_t estimated_num_entries,
     const HashTableImplType hash_table_impl_type,
+    const std::vector<HashTableImplType> &distinctify_hash_table_impl_types,
     StorageManager *storage_manager)
     : input_relation_(input_relation),
       predicate_(predicate),
@@ -101,6 +104,8 @@ AggregationOperationState::AggregationOperationState(
     std::vector<std::vector<std::unique_ptr<const Scalar>>>::const_iterator args_it
         = arguments_.begin();
     std::vector<bool>::const_iterator is_distinct_it = is_distinct_.begin();
+    std::vector<HashTableImplType>::const_iterator distinctify_hash_table_impl_types_it
+        = distinctify_hash_table_impl_types.begin();
     for (; agg_func_it != aggregate_functions.end(); ++agg_func_it, ++args_it, ++is_distinct_it) {
       // Get the Types of this aggregate's arguments so that we can create an
       // AggregationHandle.
@@ -161,10 +166,11 @@ AggregationOperationState::AggregationOperationState(
         // query optimization, if it worths.
         distinctify_hashtables_.emplace_back(
             handles_.back()->createDistinctifyHashTable(
-                hash_table_impl_type,
+                *distinctify_hash_table_impl_types_it,
                 key_types,
                 estimated_num_entries,
                 storage_manager));
+        ++distinctify_hash_table_impl_types_it;
       } else {
         distinctify_hashtables_.emplace_back(nullptr);
       }
@@ -182,6 +188,8 @@ AggregationOperationState* AggregationOperationState::ReconstructFromProto(
   std::vector<const AggregateFunction*> aggregate_functions;
   std::vector<std::vector<std::unique_ptr<const Scalar>>> arguments;
   std::vector<bool> is_distinct;
+  std::vector<HashTableImplType> distinctify_hash_table_impl_types;
+  std::size_t distinctify_hash_table_impl_type_index = 0;
   for (int agg_idx = 0; agg_idx < proto.aggregates_size(); ++agg_idx) {
     const serialization::Aggregate &agg_proto = proto.aggregates(agg_idx);
 
@@ -197,6 +205,13 @@ AggregationOperationState* AggregationOperationState::ReconstructFromProto(
     }
 
     is_distinct.emplace_back(agg_proto.is_distinct());
+
+    if (agg_proto.is_distinct()) {
+      distinctify_hash_table_impl_types.emplace_back(
+          HashTableImplTypeFromProto(
+              proto.distinctify_hash_table_impl_types(distinctify_hash_table_impl_type_index)));
+      ++distinctify_hash_table_impl_type_index;
+    }
   }
 
   std::vector<std::unique_ptr<const Scalar>> group_by_expressions;
@@ -223,6 +238,7 @@ AggregationOperationState* AggregationOperationState::ReconstructFromProto(
                                        predicate.release(),
                                        proto.estimated_num_entries(),
                                        HashTableImplTypeFromProto(proto.hash_table_impl_type()),
+                                       distinctify_hash_table_impl_types,
                                        storage_manager);
 }
 
@@ -234,6 +250,8 @@ bool AggregationOperationState::ProtoIsValid(const serialization::AggregationOpe
     return false;
   }
 
+  std::size_t num_distinctify_hash_tables = proto.distinctify_hash_table_impl_types_size();
+  std::size_t distinctify_hash_table_impl_type_index = 0;
   for (int i = 0; i < proto.aggregates_size(); ++i) {
     if (!AggregateFunctionFactory::ProtoIsValid(proto.aggregates(i).function())) {
       return false;
@@ -248,6 +266,14 @@ bool AggregationOperationState::ProtoIsValid(const serialization::AggregationOpe
          ++argument_idx) {
       if (!ScalarFactory::ProtoIsValid(proto.aggregates(i).argument(argument_idx),
                                        database)) {
+        return false;
+      }
+    }
+
+    if (proto.aggregates(i).is_distinct()) {
+      if (distinctify_hash_table_impl_type_index >= num_distinctify_hash_tables ||
+          !serialization::HashTableImplType_IsValid(
+              proto.distinctify_hash_table_impl_types(distinctify_hash_table_impl_type_index))) {
         return false;
       }
     }
