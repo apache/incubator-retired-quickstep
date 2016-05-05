@@ -29,6 +29,7 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
+#include "storage/StorageConfig.h"
 #include "storage/StorageManager.hpp"
 #include "threading/ThreadUtil.hpp"
 
@@ -55,22 +56,27 @@ void PreloaderThread::run() {
       std::vector<block_id> blocks = relation.getBlocksSnapshot();
       for (block_id current_block_id : blocks) {
         try {
-          BlockReference current_block = storage_manager_->getBlock(current_block_id, relation);
+          BlockReference current_block =
+              storage_manager_->getBlock(current_block_id, relation);
         } catch (...) {
           LOG(ERROR) << "Error after loading " << blocks_loaded << "blocks\n";
           throw;
         }
         ++blocks_loaded;
         if (blocks_loaded == num_slots) {
-          // The buffer pool has filled up. But, some database blocks are not loaded.
-          printf(" The database is larger than the buffer pool. Only %lu blocks were loaded ",
-                 blocks_loaded);
+          // The buffer pool has filled up. But, some database blocks are not
+          // loaded.
+          printf(
+              " The database is larger than the buffer pool. Only %lu blocks "
+              "were loaded", blocks_loaded);
           return;
         }
       }
+      LOG(INFO) << "Relation " << relation.getName()
+                << " completely preloaded in buffer pool\n";
     }
   }
-  printf(" Loaded %lu blocks ", blocks_loaded);
+  printf("Loaded %lu blocks", blocks_loaded);
 }
 
 std::size_t PreloaderThread::preloadNUMAAware(
@@ -79,7 +85,8 @@ std::size_t PreloaderThread::preloadNUMAAware(
     const std::size_t num_slots) {
 #ifdef QUICKSTEP_HAVE_LIBNUMA
   std::size_t blocks_loaded = 0;
-  const NUMAPlacementScheme *placement_scheme = relation.getNUMAPlacementSchemePtr();
+  const NUMAPlacementScheme *placement_scheme =
+      relation.getNUMAPlacementSchemePtr();
   DCHECK(placement_scheme != nullptr);
   DCHECK(relation.hasPartitionScheme());
   const PartitionScheme &part_scheme = relation.getPartitionScheme();
@@ -98,13 +105,14 @@ std::size_t PreloaderThread::preloadNUMAAware(
       } catch (...) {
         LOG(ERROR) << "Error after loading "
                    << blocks_loaded + num_previously_loaded_blocks
-                   << " blocks\n";
+                   << " blocks of relation " << relation.getName() << "\n";
         throw;
       }
       ++blocks_loaded;
       num_blocks_loaded[partition_numa_node_id]++;
       if ((blocks_loaded + num_previously_loaded_blocks) == num_slots) {
-        // The buffer pool has filled up. But, some database blocks are not loaded.
+        // The buffer pool has filled up. But, some database blocks are not
+        // loaded.
         printf(
             " The database is larger than the buffer pool. Only %lu blocks "
             "were loaded ",
@@ -116,8 +124,11 @@ std::size_t PreloaderThread::preloadNUMAAware(
   LOG(INFO) << "For relation: " << relation.getName();
   for (auto numa_block_loaded_info : num_blocks_loaded) {
     LOG(INFO) << "NUMA node: " << numa_block_loaded_info.first
-              << " Number of loaded blocks: " << numa_block_loaded_info.second;
+              << " Number of loaded blocks: "
+              << numa_block_loaded_info.second;
   }
+  LOG(INFO) << "Relation " << relation.getName()
+            << " completely preloaded in buffer pool in a NUMA aware fashion";
   return blocks_loaded;
 #else
   LOG(INFO) << "Relation: " << relation.getName()
