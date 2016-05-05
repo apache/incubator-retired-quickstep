@@ -77,7 +77,7 @@ void PreloaderThread::run() {
                 << " completely preloaded in buffer pool";
     }
   }
-  printf("Loaded %lu blocks", blocks_loaded);
+  printf(" Loaded %lu blocks ", blocks_loaded);
 }
 
 std::size_t PreloaderThread::preloadNUMAAware(
