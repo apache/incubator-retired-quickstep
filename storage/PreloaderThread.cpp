@@ -17,6 +17,8 @@
 
 #include "storage/PreloaderThread.hpp"
 
+#include "storage/StorageConfig.h"
+
 #include <cstddef>
 #include <vector>
 
@@ -29,7 +31,6 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
-#include "storage/StorageConfig.h"
 #include "storage/StorageManager.hpp"
 #include "threading/ThreadUtil.hpp"
 
@@ -59,7 +60,7 @@ void PreloaderThread::run() {
           BlockReference current_block =
               storage_manager_->getBlock(current_block_id, relation);
         } catch (...) {
-          LOG(ERROR) << "Error after loading " << blocks_loaded << "blocks\n";
+          LOG(ERROR) << "Error after loading " << blocks_loaded << "blocks";
           throw;
         }
         ++blocks_loaded;
@@ -73,7 +74,7 @@ void PreloaderThread::run() {
         }
       }
       LOG(INFO) << "Relation " << relation.getName()
-                << " completely preloaded in buffer pool\n";
+                << " completely preloaded in buffer pool";
     }
   }
   printf("Loaded %lu blocks", blocks_loaded);
@@ -106,7 +107,7 @@ std::size_t PreloaderThread::preloadNUMAAware(
         LOG(ERROR) << "Error while preloading: " << " After loading total "
                    << blocks_loaded + num_previously_loaded_blocks
                    << " blocks and " << blocks_loaded
-                   << " blocks of relation " << relation.getName() << "\n";
+                   << " blocks of relation " << relation.getName();
         throw;
       }
       ++blocks_loaded;
