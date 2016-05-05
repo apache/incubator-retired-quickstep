@@ -135,7 +135,7 @@ static const volatile bool join_hashtable_type_dummy
     = gflags::RegisterFlagValidator(&FLAGS_join_hashtable_type,
                                     &ValidateHashTableImplTypeString);
 
-DEFINE_string(aggregate_hashtable_type, "LinearOpenAddressing",
+DEFINE_string(aggregate_hashtable_type, "SeparateChaining",
               "HashTable implementation to use for aggregates with GROUP BY "
               "(valid options are SeparateChaining or LinearOpenAddressing)");
 static const volatile bool aggregate_hashtable_type_dummy
@@ -1285,27 +1285,6 @@ void ExecutionGenerator::convertAggregate(
       findRelationInfoOutputByPhysical(physical_plan->input());
   aggr_state_proto->set_relation_id(input_relation_info->relation->getID());
 
-  for (const E::AliasPtr &named_aggregate_expression : physical_plan->aggregate_expressions()) {
-    const E::AggregateFunctionPtr unnamed_aggregate_expression =
-        std::static_pointer_cast<const E::AggregateFunction>(named_aggregate_expression->expression());
-
-    // Add a new entry in 'aggregates'.
-    S::Aggregate *aggr_proto = aggr_state_proto->add_aggregates();
-
-    // Set the AggregateFunction.
-    aggr_proto->mutable_function()->CopyFrom(
-        unnamed_aggregate_expression->getAggregate().getProto());
-
-    // Add each of the aggregate's arguments.
-    for (const E::ScalarPtr &argument : unnamed_aggregate_expression->getArguments()) {
-      unique_ptr<const Scalar> concretized_argument(argument->concretize(attribute_substitution_map_));
-      aggr_proto->add_argument()->CopyFrom(concretized_argument->getProto());
-    }
-
-    // Set whether it is a DISTINCT aggregation.
-    aggr_proto->set_is_distinct(unnamed_aggregate_expression->is_distinct());
-  }
-
   std::vector<const Type*> group_by_types;
   for (const E::NamedExpressionPtr &grouping_expression : physical_plan->grouping_expressions()) {
     unique_ptr<const Scalar> execution_group_by_expression;
@@ -1325,13 +1304,6 @@ void ExecutionGenerator::convertAggregate(
     group_by_types.push_back(&execution_group_by_expression->getType());
   }
 
-  if (physical_plan->filter_predicate() != nullptr) {
-    unique_ptr<const Predicate> predicate(convertPredicate(physical_plan->filter_predicate()));
-    aggr_state_proto->mutable_predicate()->CopyFrom(predicate->getProto());
-  }
-
-  aggr_state_proto->set_estimated_num_entries(cost_model_->estimateCardinality(physical_plan));
-
   if (!group_by_types.empty()) {
     // SimplifyHashTableImplTypeProto() switches the hash table implementation
     // from SeparateChaining to SimpleScalarSeparateChaining when there is a
@@ -1341,6 +1313,47 @@ void ExecutionGenerator::convertAggregate(
             HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type),
             group_by_types));
   }
+
+  for (const E::AliasPtr &named_aggregate_expression : physical_plan->aggregate_expressions()) {
+    const E::AggregateFunctionPtr unnamed_aggregate_expression =
+        std::static_pointer_cast<const E::AggregateFunction>(named_aggregate_expression->expression());
+
+    // Add a new entry in 'aggregates'.
+    S::Aggregate *aggr_proto = aggr_state_proto->add_aggregates();
+
+    // Set the AggregateFunction.
+    aggr_proto->mutable_function()->CopyFrom(
+        unnamed_aggregate_expression->getAggregate().getProto());
+
+    // Add each of the aggregate's arguments.
+    for (const E::ScalarPtr &argument : unnamed_aggregate_expression->getArguments()) {
+      unique_ptr<const Scalar> concretized_argument(argument->concretize(attribute_substitution_map_));
+      aggr_proto->add_argument()->CopyFrom(concretized_argument->getProto());
+    }
+
+    // Set whether it is a DISTINCT aggregation.
+    aggr_proto->set_is_distinct(unnamed_aggregate_expression->is_distinct());
+
+    // Add distinctify hash table impl type if it is a DISTINCT aggregation.
+    if (unnamed_aggregate_expression->is_distinct()) {
+      if (group_by_types.empty()) {
+        aggr_state_proto->add_distinctify_hash_table_impl_types(
+            SimplifyHashTableImplTypeProto(
+                HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type),
+                {&unnamed_aggregate_expression->getValueType()}));
+      } else {
+        aggr_state_proto->add_distinctify_hash_table_impl_types(
+            HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type));
+      }
+    }
+  }
+
+  if (physical_plan->filter_predicate() != nullptr) {
+    unique_ptr<const Predicate> predicate(convertPredicate(physical_plan->filter_predicate()));
+    aggr_state_proto->mutable_predicate()->CopyFrom(predicate->getProto());
+  }
+
+  aggr_state_proto->set_estimated_num_entries(cost_model_->estimateCardinality(physical_plan));
 
   const QueryPlan::DAGNodeIndex aggregation_operator_index =
       execution_plan_->addRelationalOperator(
