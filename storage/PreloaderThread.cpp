@@ -49,37 +49,46 @@ void PreloaderThread::run() {
   std::size_t blocks_loaded = 0;
 
   for (const CatalogRelation &relation : database_) {
-    if (relation.hasPartitionScheme()) {
+    if (relation.hasPartitionScheme() && relation.hasNUMAPlacementScheme()) {
+#ifdef QUICKSTEP_HAVE_LIBNUMA
       blocks_loaded += preloadNUMAAware(relation, blocks_loaded, num_slots);
+#endif
     } else {
+      // NUMA agnostic preloading of relation.
       std::vector<block_id> blocks = relation.getBlocksSnapshot();
       for (block_id current_block_id : blocks) {
         try {
-          BlockReference current_block = storage_manager_->getBlock(current_block_id, relation);
+          BlockReference current_block =
+              storage_manager_->getBlock(current_block_id, relation);
         } catch (...) {
-          LOG(ERROR) << "Error after loading " << blocks_loaded << "blocks\n";
+          LOG(ERROR) << "Error after loading " << blocks_loaded << "blocks";
           throw;
         }
         ++blocks_loaded;
         if (blocks_loaded == num_slots) {
-          // The buffer pool has filled up. But, some database blocks are not loaded.
-          printf(" The database is larger than the buffer pool. Only %lu blocks were loaded ",
-                 blocks_loaded);
+          // The buffer pool has filled up. But, some database blocks are not
+          // loaded.
+          printf(
+              " The database is larger than the buffer pool. Only %lu blocks "
+              "were loaded ", blocks_loaded);
           return;
         }
       }
+      LOG(INFO) << "Relation " << relation.getName()
+                << " completely preloaded in buffer pool";
     }
   }
   printf(" Loaded %lu blocks ", blocks_loaded);
 }
 
+#ifdef QUICKSTEP_HAVE_LIBNUMA
 std::size_t PreloaderThread::preloadNUMAAware(
     const CatalogRelation &relation,
     const std::size_t num_previously_loaded_blocks,
     const std::size_t num_slots) {
-#ifdef QUICKSTEP_HAVE_LIBNUMA
   std::size_t blocks_loaded = 0;
-  const NUMAPlacementScheme *placement_scheme = relation.getNUMAPlacementSchemePtr();
+  const NUMAPlacementScheme *placement_scheme =
+      relation.getNUMAPlacementSchemePtr();
   DCHECK(placement_scheme != nullptr);
   DCHECK(relation.hasPartitionScheme());
   const PartitionScheme &part_scheme = relation.getPartitionScheme();
@@ -96,15 +105,17 @@ std::size_t PreloaderThread::preloadNUMAAware(
         BlockReference current_block = storage_manager_->getBlock(
             curr_block_id, relation, partition_numa_node_id);
       } catch (...) {
-        LOG(ERROR) << "Error after loading "
+        LOG(ERROR) << "Error while preloading: After loading total "
                    << blocks_loaded + num_previously_loaded_blocks
-                   << " blocks\n";
+                   << " blocks and " << blocks_loaded
+                   << " blocks of relation " << relation.getName();
         throw;
       }
       ++blocks_loaded;
       num_blocks_loaded[partition_numa_node_id]++;
       if ((blocks_loaded + num_previously_loaded_blocks) == num_slots) {
-        // The buffer pool has filled up. But, some database blocks are not loaded.
+        // The buffer pool has filled up. But, some database blocks are not
+        // loaded.
         printf(
             " The database is larger than the buffer pool. Only %lu blocks "
             "were loaded ",
@@ -116,14 +127,13 @@ std::size_t PreloaderThread::preloadNUMAAware(
   LOG(INFO) << "For relation: " << relation.getName();
   for (auto numa_block_loaded_info : num_blocks_loaded) {
     LOG(INFO) << "NUMA node: " << numa_block_loaded_info.first
-              << " Number of loaded blocks: " << numa_block_loaded_info.second;
+              << " Number of loaded blocks: "
+              << numa_block_loaded_info.second;
   }
+  LOG(INFO) << "Relation " << relation.getName()
+            << " completely preloaded in buffer pool in a NUMA aware fashion";
   return blocks_loaded;
-#else
-  LOG(INFO) << "Relation: " << relation.getName()
-            << " has partition scheme but the system doesn't support NUMA";
-  return 0;
-#endif
 }
+#endif
 
 }  // namespace quickstep

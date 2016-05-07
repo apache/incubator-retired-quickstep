@@ -20,6 +20,7 @@
 
 #include <cstddef>
 
+#include "storage/StorageConfig.h"
 #include "threading/Thread.hpp"
 #include "utility/Macros.hpp"
 
@@ -68,6 +69,7 @@ class PreloaderThread : public Thread {
   void run() override;
 
  private:
+#ifdef QUICKSTEP_HAVE_LIBNUMA
   /**
    * @brief Preload a relation which has a partition and a NUMA placement scheme.
    *
@@ -82,11 +84,16 @@ class PreloaderThread : public Thread {
    *          allocated sufficient amount of memory so as not to exceed that
    *          socket's memory limit.
    *
+   * TODO(harshad) - Allow multiple preloader threads, each pinned to a NUMA
+   *          socket in the system. Each thread should preload only its share of
+   *          storage blocks.
+   *
    * @return The number of blocks loaded during this function call.
    **/
   std::size_t preloadNUMAAware(const CatalogRelation &relation,
                                const std::size_t num_previously_loaded_blocks,
                                const std::size_t num_slots);
+#endif
 
   const CatalogDatabase &database_;
   StorageManager *storage_manager_;
