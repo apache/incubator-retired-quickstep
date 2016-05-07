@@ -83,34 +83,8 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
   for (int i = 0; i < proto.join_hash_tables_size(); ++i) {
     join_hash_tables_.emplace_back(
         JoinHashTableFactory::CreateResizableFromProto(proto.join_hash_tables(i),
-                                                       storage_manager));
-
-    // Check if there are any build side bloom filter defined on the hash table.
-    if (proto.join_hash_tables(i).build_side_bloom_filter_id_size() > 0) {
-      join_hash_tables_[i]->enableBuildSideBloomFilter();
-      bloom_filter_id build_bloom_filter_id = proto.join_hash_tables(i).build_side_bloom_filter_id(0);
-      join_hash_tables_[i]->setBuildSideBloomFilter(bloom_filters_[build_bloom_filter_id].get());
-    }
-
-    // Check if there are any probe side bloom filters defined on the hash table.
-    if (proto.join_hash_tables(i).probe_side_bloom_filters_size() > 0) {
-      join_hash_tables_[i]->enableProbeSideBloomFilter();
-      // Add as many probe bloom filters as defined by the proto.
-      for (int j = 0; j < proto.join_hash_tables(i).probe_side_bloom_filters_size(); ++j) {
-        // Add the pointer to the probe bloom filter within the list of probe bloom filters to use.
-        const auto probe_side_bloom_filter = proto.join_hash_tables(i).probe_side_bloom_filters(j);
-        const bloom_filter_id probe_bloom_filter_id = probe_side_bloom_filter.probe_side_bloom_filter_id();
-        join_hash_tables_[i]->addProbeSideBloomFilter(bloom_filters_[probe_bloom_filter_id].get());
-
-        // Add the attribute ids corresponding to this probe bloom filter.
-        std::vector<attribute_id> probe_attribute_ids;
-        for (int k = 0; k < probe_side_bloom_filter.probe_side_attr_ids_size(); ++k) {
-          const attribute_id probe_attribute_id = probe_side_bloom_filter.probe_side_attr_ids(k);
-          probe_attribute_ids.push_back(probe_attribute_id);
-        }
-        join_hash_tables_[i]->addProbeSideAttributeIds(std::move(probe_attribute_ids));
-      }
-    }
+                                                       storage_manager,
+                                                       bloom_filters_));
   }
 
   for (int i = 0; i < proto.insert_destinations_size(); ++i) {

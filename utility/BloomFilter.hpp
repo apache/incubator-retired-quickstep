@@ -111,7 +111,7 @@ class BloomFilter {
    * @param bloom_filter_proto The protobuf representation of a
    *        bloom filter configuration.
    **/
-  explicit BloomFilter(const serialization::BloomFilter bloom_filter_proto)
+  explicit BloomFilter(const serialization::BloomFilter &bloom_filter_proto)
       : random_seed_(bloom_filter_proto.bloom_filter_seed()),
         hash_fn_count_(bloom_filter_proto.number_of_hashes()),
         array_size_in_bytes_(bloom_filter_proto.bloom_filter_size()),
@@ -133,14 +133,8 @@ class BloomFilter {
     }
   }
 
-  static bool ProtoIsValid(const serialization::BloomFilter &bloom_filter) {
-    if (bloom_filter.number_of_hashes() <= 0) {
-      return false;
-    }
-    if (bloom_filter.bloom_filter_size() <= 0) {
-      return false;
-    }
-    return true;
+  static bool ProtoIsValid(const serialization::BloomFilter &bloom_filter_proto) {
+    return bloom_filter_proto.IsInitialized();
   }
 
   /**

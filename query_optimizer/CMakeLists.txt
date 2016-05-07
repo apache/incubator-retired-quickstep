@@ -145,6 +145,7 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionHeuristics
                       glog
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
                       quickstep_queryoptimizer_QueryPlan
                       quickstep_utility_Macros)

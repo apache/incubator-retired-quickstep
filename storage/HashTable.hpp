@@ -2253,8 +2253,8 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
         // Check if the key is contained in the BloomFilters or not.
         bool bloom_miss = false;
         for (std::size_t i = 0; i < probe_bloom_filters_.size() && !bloom_miss; ++i) {
-          const BloomFilter *bloom_filter = probe_bloom_filters_.at(i);
-          for (const attribute_id &attr_id : probe_attribute_ids_.at(i)) {
+          const BloomFilter *bloom_filter = probe_bloom_filters_[i];
+          for (const attribute_id &attr_id : probe_attribute_ids_[i]) {
             TypedValue bloom_key = accessor->getTypedValue(attr_id);
             if (!bloom_filter->contains(static_cast<const std::uint8_t*>(bloom_key.getDataPtr()),
                                         bloom_key.getDataSize())) {

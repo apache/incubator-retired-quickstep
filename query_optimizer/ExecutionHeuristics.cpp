@@ -95,7 +95,7 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
       // Add node dependencies from chained build nodes to origin node probe.
       for (std::size_t i = 1; i < chained_nodes.size(); ++i) {  // Note: It starts from index 1.
         query_plan->addDirectDependency(hash_joins_[origin_node].join_operator_index_,
-                                        hash_joins_[i].build_operator_index_,
+                                        hash_joins_[origin_node + i].build_operator_index_,
                                         true /* is_pipeline_breaker */);
       }
     }

@@ -22,6 +22,7 @@
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
 #include "query_optimizer/QueryPlan.hpp"
 #include "utility/Macros.hpp"
@@ -135,7 +136,7 @@ class ExecutionHeuristics {
    *        of the given relation.
    *
    * @param bloom_filter_proto A mutable reference to the bloom filter protobuf representation.
-   * @param relation The catalog relation on which bloom filter is being built..
+   * @param relation The catalog relation on which bloom filter is being built.
    **/
   void setBloomFilterProperties(serialization::BloomFilter *bloom_filter_proto,
                                 const CatalogRelation *relation);

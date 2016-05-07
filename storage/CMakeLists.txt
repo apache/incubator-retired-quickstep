@@ -649,6 +649,7 @@ target_link_libraries(quickstep_storage_HashTableFactory
                       quickstep_types_Type
                       quickstep_types_TypeFactory
                       quickstep_types_TypedValue
+                      quickstep_utility_BloomFilter
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_HashTableKeyManager
                       glog
