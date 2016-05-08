@@ -70,6 +70,24 @@ extern bool ParseIntString(const std::string &int_string,
  */
 extern std::string ToZeroPaddedString(std::uint64_t val, int pad_width);
 
+
+/**
+ * @brief Parse double with significant digits.
+ *
+ * @param val The value that will be parsed.
+ * @param significant_digit The number of non-zero digits that will be parsed
+ *        in the fraction part of double.
+ * @return Corresponding string representation of parsed double.
+ *         Ex:
+ *         DoubleToStringWithSignificantDigits(3.124355123, 3)
+ *          => 3.124
+ *         DoubleToStringWithSignificantDigits(0.00000000323411, 3)
+ *         => 0.00000000323
+ **/
+extern std::string
+DoubleToStringWithSignificantDigits(double val,
+                                    std::uint64_t significant_digits);
+
 /** @} */
 
 }  // namespace quickstep
