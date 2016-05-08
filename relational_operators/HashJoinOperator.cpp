@@ -243,6 +243,106 @@ class OuterJoinTupleCollector {
 
 }  // namespace
 
+template <class JoinWorkOrderClass>
+void HashJoinOperator::addWorkOrders(WorkOrdersContainer *container,
+                                     QueryContext *query_context,
+                                     StorageManager *storage_manager,
+                                     const Predicate *residual_predicate,
+                                     const std::vector<std::unique_ptr<const Scalar>> &selection,
+                                     InsertDestination *output_destination) {
+  const JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_index_[0]));
+
+    if (probe_relation_is_stored_) {
+      for (const block_id probe_block_id : probe_relation_block_ids_) {
+        container->addNormalWorkOrder(
+            new JoinWorkOrderClass(build_relation_,
+                                   probe_relation_,
+                                   join_key_attributes_,
+                                   any_join_key_attributes_nullable_,
+                                   probe_block_id,
+                                   residual_predicate,
+                                   selection,
+                                   hash_table,
+                                   output_destination,
+                                   storage_manager),
+            op_index_);
+      }
+    } else {
+      while (num_workorders_generated_ < probe_relation_block_ids_.size()) {
+        container->addNormalWorkOrder(
+            new JoinWorkOrderClass(build_relation_,
+                                   probe_relation_,
+                                   join_key_attributes_,
+                                   any_join_key_attributes_nullable_,
+                                   probe_relation_block_ids_[num_workorders_generated_],
+                                   residual_predicate,
+                                   selection,
+                                   hash_table,
+                                   output_destination,
+                                   storage_manager),
+            op_index_);
+        ++num_workorders_generated_;
+      }  // end while
+    }  // end else (probe_relation_is_stored_)
+}
+
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+template <class JoinWorkOrderClass>
+void HashJoinOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
+                                                   QueryContext *query_context,
+                                                   StorageManager *storage_manager,
+                                                   const Predicate *residual_predicate,
+                                                   const std::vector<std::unique_ptr<const Scalar>> &selection,
+                                                   InsertDestination *output_destination) {
+  DCHECK(probe_relation_placement_scheme_ != nullptr);
+  const std::size_t num_partitions = probe_relation_.getPartitionScheme().getPartitionSchemeHeader().getNumPartitions();
+  if (probe_relation_is_stored_) {
+    for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
+      for (const block_id input_block_id :
+           probe_relation_block_ids_in_partition_[part_id]) {
+        JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_index_[part_id]));
+        container->addNormalWorkOrder(
+            new JoinWorkOrderClass(build_relation_,
+                                   probe_relation_,
+                                   join_key_attributes_,
+                                   any_join_key_attributes_nullable_,
+                                   input_block_id,
+                                   residual_predicate,
+                                   selection,
+                                   hash_table,
+                                   output_destination,
+                                   storage_manager,
+                                   probe_relation_placement_scheme_->getNUMANodeForBlock(input_block_id)),
+            op_index_);
+      }
+    }
+  } else {
+    for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
+      JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_index_[part_id]));
+      while (num_workorders_generated_in_partition_[part_id] <
+             probe_relation_block_ids_in_partition_[part_id].size()) {
+        block_id block_in_partition
+            = probe_relation_block_ids_in_partition_[part_id][num_workorders_generated_in_partition_[part_id]];
+        container->addNormalWorkOrder(
+            new JoinWorkOrderClass(build_relation_,
+                                   probe_relation_,
+                                   join_key_attributes_,
+                                   any_join_key_attributes_nullable_,
+                                   block_in_partition,
+                                   residual_predicate,
+                                   selection,
+                                   hash_table,
+                                   output_destination,
+                                   storage_manager,
+                                   probe_relation_placement_scheme_->getNUMANodeForBlock(block_in_partition)),
+            op_index_);
+        ++num_workorders_generated_in_partition_[part_id];
+      }
+    }
+  }
+}
+#endif
+
 bool HashJoinOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
     QueryContext *query_context,
@@ -277,52 +377,59 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
   if (blocking_dependencies_met_) {
     DCHECK(query_context != nullptr);
 
-    const Predicate *residual_predicate =
-        query_context->getPredicate(residual_predicate_index_);
-    const vector<unique_ptr<const Scalar>> &selection =
-        query_context->getScalarGroup(selection_index_);
-    InsertDestination *output_destination =
-        query_context->getInsertDestination(output_destination_index_);
-    const JoinHashTable &hash_table =
-        *(query_context->getJoinHashTable(hash_table_index_));
+  const Predicate *residual_predicate =
+      query_context->getPredicate(residual_predicate_index_);
+  const vector<unique_ptr<const Scalar>> &selection =
+      query_context->getScalarGroup(selection_index_);
+  InsertDestination *output_destination =
+      query_context->getInsertDestination(output_destination_index_);
 
-    if (probe_relation_is_stored_) {
-      if (!started_) {
-        for (const block_id probe_block_id : probe_relation_block_ids_) {
-          container->addNormalWorkOrder(
-              new JoinWorkOrderClass(build_relation_,
-                                     probe_relation_,
-                                     join_key_attributes_,
-                                     any_join_key_attributes_nullable_,
-                                     probe_block_id,
-                                     residual_predicate,
-                                     selection,
-                                     hash_table,
-                                     output_destination,
-                                     storage_manager),
-              op_index_);
+  if (probe_relation_is_stored_) {
+    if (!started_) {
+      if (probe_relation_.hasPartitionScheme()) {
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+        if (probe_relation_.hasNUMAPlacementScheme()) {
+          addPartitionAwareWorkOrders<JoinWorkOrderClass>(container,
+                                                          query_context,
+                                                          storage_manager,
+                                                          residual_predicate,
+                                                          selection,
+                                                          output_destination);
         }
-        started_ = true;
+#endif
+      } else {
+        addWorkOrders<JoinWorkOrderClass>(container,
+                                          query_context,
+                                          storage_manager,
+                                          residual_predicate,
+                                          selection,
+                                          output_destination);
       }
-      return started_;
+      started_ = true;
+    }
+    return started_;
+  } else {
+    if (probe_relation_.hasPartitionScheme()) {
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+        if (probe_relation_.hasNUMAPlacementScheme()) {
+          addPartitionAwareWorkOrders<JoinWorkOrderClass>(container,
+                                                          query_context,
+                                                          storage_manager,
+                                                          residual_predicate,
+                                                          selection,
+                                                          output_destination);
+        }
+#endif
     } else {
-      while (num_workorders_generated_ < probe_relation_block_ids_.size()) {
-        container->addNormalWorkOrder(
-            new JoinWorkOrderClass(build_relation_,
-                                   probe_relation_,
-                                   join_key_attributes_,
-                                   any_join_key_attributes_nullable_,
-                                   probe_relation_block_ids_[num_workorders_generated_],
-                                   residual_predicate,
-                                   selection,
-                                   hash_table,
-                                   output_destination,
-                                   storage_manager),
-            op_index_);
-        ++num_workorders_generated_;
-      }  // end while
-      return done_feeding_input_relation_;
-    }  // end else (probe_relation_is_stored_)
+        addWorkOrders<JoinWorkOrderClass>(container,
+                                          query_context,
+                                          storage_manager,
+                                          residual_predicate,
+                                          selection,
+                                          output_destination);
+    }
+    return done_feeding_input_relation_;
+  }
   }  // end if (blocking_dependencies_met_)
   return false;
 }
@@ -331,6 +438,7 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
     WorkOrdersContainer *container,
     QueryContext *query_context,
     StorageManager *storage_manager) {
+  const JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_index_[0]));
   // We wait until the building of global hash table is complete.
   if (blocking_dependencies_met_) {
     DCHECK(query_context != nullptr);
@@ -340,8 +448,6 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
 
     InsertDestination *output_destination =
         query_context->getInsertDestination(output_destination_index_);
-    const JoinHashTable &hash_table =
-        *(query_context->getJoinHashTable(hash_table_index_));
 
     if (probe_relation_is_stored_) {
       if (!started_) {
