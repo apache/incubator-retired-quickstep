@@ -26,6 +26,7 @@
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
+#include "utility/BloomFilter.hpp"
 
 #include "glog/logging.h"
 
@@ -40,6 +41,14 @@ void SelectOperator::addWorkOrders(WorkOrdersContainer *container,
                                    const Predicate *predicate,
                                    const std::vector<std::unique_ptr<const Scalar>> *selection,
                                    InsertDestination *output_destination) {
+  
+  std::unordered_map<const BloomFilter*, std::vector<attribute_id>> *bloom_filter_info_map
+      = nullptr;
+  
+  if (populated_bloom_filter_info_map_.size() > 0) {
+    bloom_filter_info_map = &populated_bloom_filter_info_map_;
+  }
+  
   if (input_relation_is_stored_) {
     for (const block_id input_block_id : input_relation_block_ids_) {
       container->addNormalWorkOrder(
@@ -50,7 +59,9 @@ void SelectOperator::addWorkOrders(WorkOrdersContainer *container,
                               simple_selection_,
                               selection,
                               output_destination,
-                              storage_manager),
+                              storage_manager,
+                              0,
+                              bloom_filter_info_map),
           op_index_);
     }
   } else {
@@ -62,9 +73,11 @@ void SelectOperator::addWorkOrders(WorkOrdersContainer *container,
               predicate,
               simple_projection_,
               simple_selection_,
-              selection,
+              selection,              
               output_destination,
-              storage_manager),
+              storage_manager,
+              0,
+              bloom_filter_info_map),
           op_index_);
       ++num_workorders_generated_;
     }
@@ -138,6 +151,15 @@ bool SelectOperator::getAllWorkOrders(
           : &query_context->getScalarGroup(selection_index_);
   InsertDestination *output_destination =
       query_context->getInsertDestination(output_destination_index_);
+  
+  // Populate the bloom filter pointers from query context, if available.
+  // Since the mapping does not change, this is done only once per select operator.
+  if (bloom_filter_id_info_map_.size() > 0 && populated_bloom_filter_info_map_.size() == 0) {
+    for (auto itr = bloom_filter_id_info_map_.begin(); itr != bloom_filter_id_info_map_.end(); ++itr) {
+      populated_bloom_filter_info_map_.insert(std::make_pair(query_context->getBloomFilter(itr->first),
+                                                             std::move(itr->second)));
+    }
+  }
 
   if (input_relation_is_stored_) {
     if (!started_) {
@@ -170,11 +192,12 @@ bool SelectOperator::getAllWorkOrders(
 void SelectWorkOrder::execute() {
   BlockReference block(
       storage_manager_->getBlock(input_block_id_, input_relation_, getPreferredNUMANodes()[0]));
-
+  
   if (simple_projection_) {
-    block->selectSimple(simple_selection_,
-                        predicate_,
-                        output_destination_);
+      block->selectSimple(simple_selection_,
+                          predicate_,
+                          output_destination_,
+                          bloom_filter_info_map_);
   } else {
     block->select(*DCHECK_NOTNULL(selection_),
                   predicate_,

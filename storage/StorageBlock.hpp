@@ -32,6 +32,7 @@
 #include "storage/StorageBlockLayout.pb.h"
 #include "storage/TupleIdSequence.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
+#include "utility/BloomFilter.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
 
@@ -370,7 +371,8 @@ class StorageBlock : public StorageBlockBase {
    **/
   void selectSimple(const std::vector<attribute_id> &selection,
                     const Predicate *predicate,
-                    InsertDestinationInterface *destination) const;
+                    InsertDestinationInterface *destination,
+                    const std::unordered_map<const BloomFilter*, std::vector<attribute_id>> *bloom_filter_info_map = nullptr) const;
 
   /**
    * @brief Perform non GROUP BY aggregation on the tuples in the this storage
@@ -623,7 +625,10 @@ class StorageBlock : public StorageBlockBase {
   bool rebuildIndexes(bool short_circuit);
 
   TupleIdSequence* getMatchesForPredicate(const Predicate *predicate) const;
-
+  
+  TupleIdSequence* getMatchesForBloomFilters(
+      const std::unordered_map<const BloomFilter*, std::vector<attribute_id>> *bloom_filter_info_map) const;
+  
   std::unordered_map<attribute_id, TypedValue>* generateUpdatedValues(
       const ValueAccessor &accessor,
       const tuple_id tuple,

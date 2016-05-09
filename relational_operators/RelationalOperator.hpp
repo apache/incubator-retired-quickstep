@@ -19,12 +19,14 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_RELATIONAL_OPERATOR_HPP_
 
 #include <cstddef>
+#include <unordered_map>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
+#include "utility/BloomFilter.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -193,6 +195,35 @@ class RelationalOperator {
       const WorkOrder::FeedbackMessage &message) {
     LOG(FATAL) << "Received a feedback message on default interface. "
                << "Operator has no implementation.";
+  }
+
+  /**
+   * @brief Check whether a derived operator class can use bloom filters
+   *        to filter out the output tuples.
+   * @note This is set to false by default. Derived classes can override this
+   *       method to turn on this feature individually.
+   *
+   * @return Returns true if a derived operator can make use of bloom filters,
+   *         otherwise false.
+   **/
+  virtual bool canApplyBloomFilter() const {
+    return false;
+  }
+
+  /**
+   * @brief For relational operators that can apply bloom filters, this 
+   *        function can be overriden to specify how bloom filters defined
+   *        within the query context are to be used.
+   * @warning Must ensure that canApplyBloomFilter() returns true.
+   *
+   * @param bloom_filter_info_map An rvalue reference to a map of bloom filter ids as map keys
+   *        and bloom filter probe keys as map values. The bloom filter probe keys essentially
+   *        refer to some attribute ids of the tuples received as input to the operator.
+   *
+   **/
+  virtual void ingestBloomFilters(
+     std::unordered_map<QueryContext::bloom_filter_id, std::vector<attribute_id>>bloom_filter_info_map) {
+    DCHECK(canApplyBloomFilter());
   }
 
   /**

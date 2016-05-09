@@ -148,6 +148,7 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionHeuristics
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
                       quickstep_queryoptimizer_QueryPlan
+                      quickstep_relationaloperators
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_LogicalGenerator
                       glog

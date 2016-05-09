@@ -20,6 +20,7 @@
 
 #include <memory>
 #include <utility>
+#include <unordered_map>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
@@ -219,6 +220,21 @@ class SelectOperator : public RelationalOperator {
   const relation_id getOutputRelationID() const override {
     return output_relation_.getID();
   }
+  
+  bool canApplyBloomFilter() const override {
+    return true;
+  }
+
+  void ingestBloomFilters(
+                           std::unordered_map<QueryContext::bloom_filter_id, std::vector<attribute_id>> bloom_filter_id_info_map) override {
+    DCHECK(canApplyBloomFilter());
+    // Invokes the move semantics.
+    for (auto itr = bloom_filter_id_info_map.begin();
+         itr != bloom_filter_id_info_map.end();
+         ++itr) {
+      bloom_filter_id_info_map_.insert(std::make_pair(itr->first, itr->second));
+    }
+  }
 
   void addWorkOrders(WorkOrdersContainer *container,
                      StorageManager *storage_manager,
@@ -245,7 +261,13 @@ class SelectOperator : public RelationalOperator {
   // A vector of vectors V where V[i] indicates the list of block IDs of the
   // input relation that belong to the partition i.
   std::vector<std::vector<block_id>> input_relation_block_ids_in_partition_;
-
+  
+  // A map of bloom filter ids with the probe attribute ids as values.
+  std::unordered_map<QueryContext::bloom_filter_id, std::vector<attribute_id>> bloom_filter_id_info_map_;
+  // A map of pointers to actual bloom filter with the probe attribute ids as values,
+  // derived from the query context.
+  std::unordered_map<const BloomFilter*, std::vector<attribute_id>> populated_bloom_filter_info_map_;
+  
   // A single workorder is generated for each block of input relation.
   std::vector<block_id>::size_type num_workorders_generated_;
   // A single workorder is generated for each block in each partition of input relation.
@@ -266,6 +288,8 @@ class SelectOperator : public RelationalOperator {
  **/
 class SelectWorkOrder : public WorkOrder {
  public:
+  typedef std::unordered_map<const BloomFilter*, std::vector<attribute_id>> bloom_filter_info_map_t;
+  
   /**
    * @brief Constructor.
    *
@@ -284,6 +308,9 @@ class SelectWorkOrder : public WorkOrder {
    * @param output_destination The InsertDestination to insert the selection
    *        results.
    * @param storage_manager The StorageManager to use.
+   * @param numa_node The optional NUMA node id.
+   * @param bloom_filter_info_map An optional pointer to a map of bloom filters
+   *        to apply during selection, if available.
    **/
   SelectWorkOrder(const CatalogRelationSchema &input_relation,
                   const block_id input_block_id,
@@ -293,13 +320,15 @@ class SelectWorkOrder : public WorkOrder {
                   const std::vector<std::unique_ptr<const Scalar>> *selection,
                   InsertDestination *output_destination,
                   StorageManager *storage_manager,
-                  const numa_node_id numa_node = 0)
+                  const numa_node_id numa_node = 0,
+                  const bloom_filter_info_map_t *bloom_filter_info_map = nullptr)
       : input_relation_(input_relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
         simple_projection_(simple_projection),
         simple_selection_(simple_selection),
         selection_(selection),
+        bloom_filter_info_map_(bloom_filter_info_map),
         output_destination_(DCHECK_NOTNULL(output_destination)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {
     preferred_numa_nodes_.push_back(numa_node);
@@ -323,6 +352,9 @@ class SelectWorkOrder : public WorkOrder {
    * @param output_destination The InsertDestination to insert the selection
    *        results.
    * @param storage_manager The StorageManager to use.
+   * @param numa_node The optional NUMA node id.
+   * @param bloom_filter_info_map An optional pointer to a map of bloom filters
+   *        to apply during selection, if available.
    **/
   SelectWorkOrder(const CatalogRelationSchema &input_relation,
                   const block_id input_block_id,
@@ -332,13 +364,15 @@ class SelectWorkOrder : public WorkOrder {
                   const std::vector<std::unique_ptr<const Scalar>> *selection,
                   InsertDestination *output_destination,
                   StorageManager *storage_manager,
-                  const numa_node_id numa_node = 0)
+                  const numa_node_id numa_node = 0,
+                  const bloom_filter_info_map_t *bloom_filter_info_map = nullptr)
       : input_relation_(input_relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
         simple_projection_(simple_projection),
         simple_selection_(std::move(simple_selection)),
         selection_(selection),
+        bloom_filter_info_map_(bloom_filter_info_map),
         output_destination_(DCHECK_NOTNULL(output_destination)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {
     preferred_numa_nodes_.push_back(numa_node);
@@ -364,6 +398,8 @@ class SelectWorkOrder : public WorkOrder {
   const bool simple_projection_;
   const std::vector<attribute_id> simple_selection_;
   const std::vector<std::unique_ptr<const Scalar>> *selection_;
+  
+  const bloom_filter_info_map_t *bloom_filter_info_map_;
 
   InsertDestination *output_destination_;
   StorageManager *storage_manager_;

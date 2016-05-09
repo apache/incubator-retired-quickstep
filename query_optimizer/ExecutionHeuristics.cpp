@@ -25,6 +25,7 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.pb.h"
 #include "query_optimizer/QueryPlan.hpp"
+#include "relational_operators/RelationalOperator.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -80,24 +81,53 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
         probe_bloom_filter_info.insert(std::make_pair(bloom_filter_id, hash_joins_[node].probe_attributes_));
       }
 
-      // Add probe-side bloom filter information to the corresponding hash table proto for each build-side bloom filter.
-      for (const std::pair<QueryContext::bloom_filter_id, std::vector<attribute_id>>
-               &bloom_filter_info : probe_bloom_filter_info) {
-        auto *probe_side_bloom_filter =
-            query_context_proto->mutable_join_hash_tables(hash_joins_[origin_node].join_hash_table_id_)
-                                  ->add_probe_side_bloom_filters();
-        probe_side_bloom_filter->set_probe_side_bloom_filter_id(bloom_filter_info.first);
-        for (const attribute_id &probe_attribute_id : bloom_filter_info.second) {
-          probe_side_bloom_filter->add_probe_side_attr_ids(probe_attribute_id);
+      // There are two strategies on where the bloom filters from the build operators can be used.
+      // Strategy 1: Either the bloom filters can be used directly at the bottom-most probe operator of the chain.
+      // Strategy 2: Or, they can be pushed further down to the dependencies of the bottom-most probe operator.
+      // First we test if strategy 2 can be applied, otherwise as a fallback strategy 1 will be applied.
+
+      bool can_push_bloom_filters_to_dependencies = false;
+      auto dependencies = query_plan->getQueryPlanDAG().getDependencies(hash_joins_[origin_node].join_operator_index_);
+      for (auto const node_id : dependencies) {
+        RelationalOperator *relational_operator = query_plan->getQueryPlanDAGMutable()->getNodePayloadMutable(node_id);
+        if (relational_operator->canApplyBloomFilter()) {
+          can_push_bloom_filters_to_dependencies = true;
+
+          relational_operator->ingestBloomFilters((probe_bloom_filter_info));
+          // Add node dependencies from chained build nodes to the dependency node.
+          for (std::size_t i = 0; i < chained_nodes.size(); ++i) {
+            query_plan->addDirectDependency(node_id,
+                                            hash_joins_[origin_node + i].build_operator_index_,
+                                            true /* is_pipeline_breaker */);
+          }
+
+          break;
         }
       }
 
-      // Add node dependencies from chained build nodes to origin node probe.
-      for (std::size_t i = 1; i < chained_nodes.size(); ++i) {  // Note: It starts from index 1.
-        query_plan->addDirectDependency(hash_joins_[origin_node].join_operator_index_,
-                                        hash_joins_[origin_node + i].build_operator_index_,
-                                        true /* is_pipeline_breaker */);
+      can_push_bloom_filters_to_dependencies = false;
+      if (!can_push_bloom_filters_to_dependencies) {
+        // Add probe-side bloom filter information to the corresponding hash table proto
+        // for each build-side bloom filter.
+        for (const std::pair<QueryContext::bloom_filter_id, std::vector<attribute_id>>
+             &bloom_filter_info : probe_bloom_filter_info) {
+          auto *probe_side_bloom_filter =
+          query_context_proto->mutable_join_hash_tables(hash_joins_[origin_node].join_hash_table_id_)
+          ->add_probe_side_bloom_filters();
+          probe_side_bloom_filter->set_probe_side_bloom_filter_id(bloom_filter_info.first);
+          for (const attribute_id &probe_attribute_id : bloom_filter_info.second) {
+            probe_side_bloom_filter->add_probe_side_attr_ids(probe_attribute_id);
+          }
+        }
+
+        // Add node dependencies from chained build nodes to origin node probe.
+        for (std::size_t i = 1; i < chained_nodes.size(); ++i) {  // Note: It starts from index origin_node + 1.
+          query_plan->addDirectDependency(hash_joins_[origin_node].join_operator_index_,
+                                          hash_joins_[origin_node + i].build_operator_index_,
+                                          true /* is_pipeline_breaker */);
+        }
       }
+
     }
 
     // Update the origin node.

@@ -314,7 +314,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           move(simple_selection),
           simple_projection ? nullptr
                             : &query_context->getScalarGroup(
-                                  proto.GetExtension(serialization::SelectWorkOrder::selection_index)),
+                                  proto.GetExtension(serialization::SelectWorkOrder::selection_index)),          
           query_context->getInsertDestination(
               proto.GetExtension(serialization::SelectWorkOrder::insert_destination_index)),
           storage_manager);

@@ -59,6 +59,7 @@
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
 #include "types/containers/Tuple.hpp"
 #include "types/operations/comparisons/ComparisonUtil.hpp"
+#include "utility/BloomFilter.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -371,13 +372,28 @@ void StorageBlock::select(const vector<unique_ptr<const Scalar>> &selection,
 
 void StorageBlock::selectSimple(const std::vector<attribute_id> &selection,
                                 const Predicate *predicate,
-                                InsertDestinationInterface *destination) const {
+                                InsertDestinationInterface *destination,
+                                const std::unordered_map<const BloomFilter*, std::vector<attribute_id>>
+                                   *bloom_filter_info_map) const {
   std::unique_ptr<ValueAccessor> accessor;
-  std::unique_ptr<TupleIdSequence> matches;
-  if (predicate == nullptr) {
+  std::unique_ptr<TupleIdSequence> matches(nullptr);
+  
+  if (predicate == nullptr && bloom_filter_info_map == nullptr) {
     accessor.reset(tuple_store_->createValueAccessor());
   } else {
-    matches.reset(getMatchesForPredicate(predicate));
+    if (predicate != nullptr) {
+      matches.reset(getMatchesForPredicate(predicate));
+    }
+    
+    if (bloom_filter_info_map != nullptr) {
+      std::unique_ptr<TupleIdSequence> bloom_matches(getMatchesForBloomFilters(bloom_filter_info_map));
+      if (matches) {
+        matches->intersectWith(*bloom_matches);
+      } else {
+        matches.reset(bloom_matches.get());
+      }
+    }
+    
     accessor.reset(tuple_store_->createValueAccessor(matches.get()));
   }
 
@@ -1260,6 +1276,42 @@ TupleIdSequence* StorageBlock::getMatchesForPredicate(const Predicate *predicate
                                   &sub_blocks_ref,
                                   nullptr,
                                   existence_map.get());
+}
+
+TupleIdSequence* StorageBlock::getMatchesForBloomFilters(
+    const std::unordered_map<const BloomFilter*, std::vector<attribute_id>> *bloom_filter_info_map) const {
+  std::unique_ptr<ValueAccessor> value_accessor(tuple_store_->createValueAccessor());
+  std::unique_ptr<TupleIdSequence> bloom_matches(new TupleIdSequence(value_accessor->getEndPositionVirtual()));
+  
+  bloom_matches->assignFrom(*tuple_store_->getExistenceMap());
+  value_accessor->beginIterationVirtual();
+  for (auto c_itr = bloom_matches->begin();
+       c_itr != bloom_matches->end() && value_accessor->nextVirtual();
+       ++c_itr) {
+    if (bloom_matches->get(*c_itr)) {
+      const Tuple *tuple = value_accessor->getTupleVirtual();
+      bool bloom_miss = false;
+      for (auto c_itr_map = bloom_filter_info_map->cbegin();
+           c_itr_map != bloom_filter_info_map->cend() && !bloom_miss;
+           ++c_itr_map) {
+        const BloomFilter *bloom_filter = c_itr_map->first;
+        for (const attribute_id &attr_id : c_itr_map->second) {
+          TypedValue bloom_key = tuple->getAttributeValue(attr_id);
+          if (!bloom_filter->contains(static_cast<const std::uint8_t*>(bloom_key.getDataPtr()),
+                                      bloom_key.getDataSize())) {
+            bloom_miss = true;
+            break;
+          }
+        }
+      }
+      if (bloom_miss) {
+        // On a bloom filter miss, we can set the current tuple id to false.
+        bloom_matches->set(*c_itr, false);
+      }
+    }
+  }
+  
+  return bloom_matches.release();
 }
 
 std::unordered_map<attribute_id, TypedValue>* StorageBlock::generateUpdatedValues(
