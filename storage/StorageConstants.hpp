@@ -58,8 +58,8 @@ const std::uint64_t kLargeMemorySystemThresholdInGB = 32;
 // we grab a bigger fraction of the installed memory than for a "small" system.
 // The two constants below define the percentages to grab in each case.
 // TODO(jmp): May need to generalize this to more than two levels in the future.
-const std::uint64_t kPercentageToGrabForSmallSystems = 80;
-const std::uint64_t kPercentageToGrabForLargeSystems = 90;
+const std::uint64_t kPercentageToGrabForSmallSystems = 70;
+const std::uint64_t kPercentageToGrabForLargeSystems = 80;
 
 // The default size of the buffer pool (in terms of the number of slots).
 const std::uint64_t kDefaultBufferPoolSizeInSlots = 1024;
