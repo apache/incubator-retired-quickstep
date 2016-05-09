@@ -50,6 +50,7 @@
 #include "expressions/scalar/ScalarAttribute.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
+#include "query_optimizer/ExecutionHeuristics.hpp"
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryPlan.hpp"
@@ -144,6 +145,9 @@ static const volatile bool aggregate_hashtable_type_dummy
 
 DEFINE_bool(parallelize_load, true, "Parallelize loading data files.");
 
+DEFINE_bool(optimize_joins, false,
+            "Enable post execution plan generation optimizations for joins.");
+
 namespace E = ::quickstep::optimizer::expressions;
 namespace P = ::quickstep::optimizer::physical;
 namespace S = ::quickstep::serialization;
@@ -196,6 +200,11 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
     execution_plan_->addDependenciesForDropOperator(
         drop_table_index,
         temporary_relation_info.producer_operator_index);
+  }
+
+  // Optimize execution plan based on heuristics captured during execution plan generation, if enabled.
+  if (FLAGS_optimize_joins) {
+    execution_heuristics_->optimizeExecutionPlan(execution_plan_, query_context_proto_);
   }
 
 #ifdef QUICKSTEP_DISTRIBUTED
@@ -576,12 +585,32 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   std::vector<attribute_id> probe_attribute_ids;
   std::vector<attribute_id> build_attribute_ids;
 
+  std::vector<attribute_id> probe_original_attribute_ids;
+  std::vector<attribute_id> build_original_attribute_ids;
+
+  const CatalogRelation *referenced_stored_probe_relation;
+  const CatalogRelation *referenced_stored_build_relation;
+
   bool any_probe_attributes_nullable = false;
   bool any_build_attributes_nullable = false;
+
+  bool skip_hash_join_optimization = false;
 
   const std::vector<E::AttributeReferencePtr> &left_join_attributes =
       physical_plan->left_join_attributes();
   for (const E::AttributeReferencePtr &left_join_attribute : left_join_attributes) {
+    // Try to determine the original stored relation referenced in the Hash Join.
+    referenced_stored_probe_relation =
+        optimizer_context_->catalog_database()->getRelationByName(left_join_attribute->relation_name());
+    if (referenced_stored_probe_relation == nullptr) {
+      // Hash Join optimizations are not possible, if the referenced relation cannot be determined.
+      skip_hash_join_optimization = true;
+    } else {
+      const attribute_id probe_operator_attribute_id =
+          referenced_stored_probe_relation->getAttributeByName(left_join_attribute->attribute_name())->getID();
+      probe_original_attribute_ids.emplace_back(probe_operator_attribute_id);
+    }
+
     const CatalogAttribute *probe_catalog_attribute
         = attribute_substitution_map_[left_join_attribute->id()];
     probe_attribute_ids.emplace_back(probe_catalog_attribute->getID());
@@ -594,6 +623,18 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   const std::vector<E::AttributeReferencePtr> &right_join_attributes =
       physical_plan->right_join_attributes();
   for (const E::AttributeReferencePtr &right_join_attribute : right_join_attributes) {
+    // Try to determine the original stored relation referenced in the Hash Join.
+    referenced_stored_build_relation =
+        optimizer_context_->catalog_database()->getRelationByName(right_join_attribute->relation_name());
+    if (referenced_stored_build_relation == nullptr) {
+      // Hash Join optimizations are not possible, if the referenced relation cannot be determined.
+      skip_hash_join_optimization = true;
+    } else {
+      const attribute_id build_operator_attribute_id =
+          referenced_stored_build_relation->getAttributeByName(right_join_attribute->attribute_name())->getID();
+      build_original_attribute_ids.emplace_back(build_operator_attribute_id);
+    }
+
     const CatalogAttribute *build_catalog_attribute
         = attribute_substitution_map_[right_join_attribute->id()];
     build_attribute_ids.emplace_back(build_catalog_attribute->getID());
@@ -629,6 +670,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       std::swap(probe_cardinality, build_cardinality);
       std::swap(probe_attribute_ids, build_attribute_ids);
       std::swap(any_probe_attributes_nullable, any_build_attributes_nullable);
+      std::swap(probe_original_attribute_ids, build_original_attribute_ids);
+      std::swap(referenced_stored_probe_relation, referenced_stored_build_relation);
     }
   }
 
@@ -783,6 +826,17 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       std::forward_as_tuple(join_operator_index,
                             output_relation));
   temporary_relation_info_vec_.emplace_back(join_operator_index, output_relation);
+
+  // Add heuristics for the Hash Join, if enabled.
+  if (FLAGS_optimize_joins && !skip_hash_join_optimization) {
+    execution_heuristics_->addHashJoinInfo(build_operator_index,
+                                           join_operator_index,
+                                           referenced_stored_build_relation,
+                                           referenced_stored_probe_relation,
+                                           std::move(build_original_attribute_ids),
+                                           std::move(probe_original_attribute_ids),
+                                           join_hash_table_index);
+  }
 }
 
 void ExecutionGenerator::convertNestedLoopsJoin(
@@ -894,7 +948,6 @@ void ExecutionGenerator::convertCopyFrom(
                                        scan_operator_index,
                                        false /* is_pipeline_breaker */);
 }
-
 
 void ExecutionGenerator::convertCreateIndex(
   const P::CreateIndexPtr &physical_plan) {
