@@ -65,8 +65,40 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
 
     // Only chains of length greater than one are suitable candidates for semi-join optimization.
     if (chained_nodes.size() > 1) {
+      // There are two strategies on where the bloom filters from the build operators can be used.
+      // Strategy 1: Either the bloom filters can be used directly at the bottom-most probe operator of the chain.
+      // Strategy 2: Or, they can be pushed further down to the dependencies of the bottom-most probe operator.
+      // First we test if strategy 2 can be applied, otherwise as a fallback strategy 1 will be applied.
+
+      // By default, we can always use strategy 1 and push the bloom filter probes
+      //  to the bottom-most join operator.
+      QueryPlan::DAGNodeIndex operator_consuming_bloom_filters = hash_joins_[origin_node].join_operator_index_;
+
+      bool can_push_bloom_filters_to_dependencies = false;
+      auto dependencies = query_plan->getQueryPlanDAG().getDependencies(hash_joins_[origin_node].join_operator_index_);
+      for (auto const dependency : dependencies) {
+        RelationalOperator *relational_operator
+        = query_plan->getQueryPlanDAGMutable()->getNodePayloadMutable(dependency);
+        if (relational_operator->canApplyBloomFilter()) {
+          can_push_bloom_filters_to_dependencies = true;
+          operator_consuming_bloom_filters = dependency;
+          break;
+        }
+      }
+
       std::unordered_map<QueryContext::bloom_filter_id, std::vector<attribute_id>> probe_bloom_filter_info;
+      std::vector<QueryPlan::DAGNodeIndex> operators_building_bloom_filter;
+
       for (const std::size_t node : chained_nodes) {
+        // Check to make sure that there is no edge between the node building the bloom filter and the
+        // node applying the bloom filter. This ensures that we do not introduce cycles in the DAG.
+        if (query_plan->getQueryPlanDAG().getDependencies(hash_joins_[node].build_operator_index_)
+                .count(operator_consuming_bloom_filters) > 0) {
+          continue;
+        }
+
+        operators_building_bloom_filter.push_back(hash_joins_[node].build_operator_index_);
+
         // Provision for a new bloom filter to be used by the build operator.
         const QueryContext::bloom_filter_id bloom_filter_id =  query_context_proto->bloom_filters_size();
         serialization::BloomFilter *bloom_filter_proto = query_context_proto->add_bloom_filters();
@@ -76,60 +108,45 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
 
         // Add build-side bloom filter information to the corresponding hash table proto.
         query_context_proto->mutable_join_hash_tables(hash_joins_[node].join_hash_table_id_)
-            ->add_build_side_bloom_filter_id(bloom_filter_id);
+        ->add_build_side_bloom_filter_id(bloom_filter_id);
 
         probe_bloom_filter_info.insert(std::make_pair(bloom_filter_id, hash_joins_[node].probe_attributes_));
       }
 
-      // There are two strategies on where the bloom filters from the build operators can be used.
-      // Strategy 1: Either the bloom filters can be used directly at the bottom-most probe operator of the chain.
-      // Strategy 2: Or, they can be pushed further down to the dependencies of the bottom-most probe operator.
-      // First we test if strategy 2 can be applied, otherwise as a fallback strategy 1 will be applied.
-
-      bool can_push_bloom_filters_to_dependencies = false;
-      auto dependencies = query_plan->getQueryPlanDAG().getDependencies(hash_joins_[origin_node].join_operator_index_);
-      for (auto const node_id : dependencies) {
-        RelationalOperator *relational_operator = query_plan->getQueryPlanDAGMutable()->getNodePayloadMutable(node_id);
-        if (relational_operator->canApplyBloomFilter()) {
-          can_push_bloom_filters_to_dependencies = true;
-
-          relational_operator->ingestBloomFilters((probe_bloom_filter_info));
-          // Add node dependencies from chained build nodes to the dependency node.
-          for (std::size_t i = 0; i < chained_nodes.size(); ++i) {
-            query_plan->addDirectDependency(node_id,
-                                            hash_joins_[origin_node + i].build_operator_index_,
-                                            true /* is_pipeline_breaker */);
-          }
-
-          break;
-        }
-      }
-
-      can_push_bloom_filters_to_dependencies = false;
-      if (!can_push_bloom_filters_to_dependencies) {
+      if (can_push_bloom_filters_to_dependencies) {
+        RelationalOperator *relational_operator
+            = query_plan->getQueryPlanDAGMutable()->getNodePayloadMutable(operator_consuming_bloom_filters);
+        relational_operator->ingestBloomFilters((probe_bloom_filter_info));
+      } else {
         // Add probe-side bloom filter information to the corresponding hash table proto
         // for each build-side bloom filter.
         for (const std::pair<QueryContext::bloom_filter_id, std::vector<attribute_id>>
              &bloom_filter_info : probe_bloom_filter_info) {
           auto *probe_side_bloom_filter =
           query_context_proto->mutable_join_hash_tables(hash_joins_[origin_node].join_hash_table_id_)
-          ->add_probe_side_bloom_filters();
+              ->add_probe_side_bloom_filters();
           probe_side_bloom_filter->set_probe_side_bloom_filter_id(bloom_filter_info.first);
           for (const attribute_id &probe_attribute_id : bloom_filter_info.second) {
             probe_side_bloom_filter->add_probe_side_attr_ids(probe_attribute_id);
           }
         }
 
-        // Add node dependencies from chained build nodes to origin node probe.
-        for (std::size_t i = 1; i < chained_nodes.size(); ++i) {  // Note: It starts from index origin_node + 1.
-          query_plan->addDirectDependency(hash_joins_[origin_node].join_operator_index_,
-                                          hash_joins_[origin_node + i].build_operator_index_,
-                                          true /* is_pipeline_breaker */);
+
+      }
+
+      // Add edge dependencies from operators building bloom filters to operator consuming the bloom filters.
+      for (QueryPlan::DAGNodeIndex dependency : operators_building_bloom_filter) {
+        // Ensure that operator_consuming_bloom_filters is not already dependent on operator_building_bloom_filter.
+        if (query_plan->getQueryPlanDAG().getDependencies(operator_consuming_bloom_filters).count(dependency) > 0) {
+          continue;
         }
+        query_plan->addDirectDependency(operator_consuming_bloom_filters,
+                                        dependency,
+                                        true /* is_pipeline_breaker */);
+
       }
 
     }
-
     // Update the origin node.
     origin_node = chained_nodes.back() + 1;
   }
