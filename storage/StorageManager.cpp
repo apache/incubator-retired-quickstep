@@ -100,8 +100,8 @@ static const volatile bool block_domain_dummy
 /**
  * @brief Set or validate the buffer pool slots. When automatically picking a
  *        default value, check if the system is "small" or "large." Set the
- *        buffer pool space to 80% of the installed main memory for small
- *        and 90% otherwise.
+ *        buffer pool space to 70% of the installed main memory for small
+ *        and 80% otherwise.
  *        This method follows the signature that is set by the gflags module.
  * @param flagname The name of the buffer pool flag.
  * @param value The value of this flag from the command line, or default (0)
@@ -142,7 +142,7 @@ static bool SetOrValidateBufferPoolSlots(const char *flagname,
 
 DEFINE_uint64(buffer_pool_slots, 0,
               "By default the value is 0 and the system automatically sets the "
-              "buffer pool size/slots at 80-90% of the total installed memory. "
+              "buffer pool size/slots at 70-80% of the total installed memory. "
               "The user can also explicity define the number of slots. "
               "The units for this variable is the number of 2-megabyte slots "
               "that is allocated in the buffer pool. This is a \"soft\" limit: "
