@@ -131,6 +131,7 @@ TEST_F(ExecutionHeuristicsTest, HashJoinOptimizedTest) {
   const QueryContext::join_hash_table_id join_hash_table_index_1 = 0;
   const QueryContext::join_hash_table_id join_hash_table_index_2 = 1;
   const QueryContext::join_hash_table_id join_hash_table_index_3 = 2;
+
   query_context_proto_->add_join_hash_tables();
   query_context_proto_->add_join_hash_tables();
   query_context_proto_->add_join_hash_tables();
