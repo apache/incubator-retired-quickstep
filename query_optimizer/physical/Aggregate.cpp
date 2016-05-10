@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -70,6 +72,18 @@ std::vector<E::AttributeReferencePtr> Aggregate::getReferencedAttributes()
                                  referenced_attributes_in_predicate.begin(),
                                  referenced_attributes_in_predicate.end());
   }
+
+  // TODO(jianqiao): This is a quick fix to the COUNT(*) problem that we retain
+  // at least one column from the child plan to survive the PruneColumns physical
+  // optimization. The comprehensive approach should also try to optimize the
+  // child plan with regard to the knowledge that the aggregation actually don't
+  // care about the values of the child plan's output but needs only the number
+  // of rows of the output.
+  if (referenced_attributes.size() == 0) {
+    DCHECK_GT(input_->getOutputAttributes().size(), static_cast<std::size_t>(0));
+    referenced_attributes.emplace_back(input_->getOutputAttributes()[0]);
+  }
+
   return referenced_attributes;
 }
 
