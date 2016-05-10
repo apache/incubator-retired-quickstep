@@ -388,7 +388,7 @@ void StorageBlock::selectSimple(const std::vector<attribute_id> &selection,
     if (bloom_filter_info_map != nullptr) {
       std::unique_ptr<TupleIdSequence> bloom_matches(getMatchesForBloomFilters(bloom_filter_info_map));
       if (matches) {
-        matches->intersectWith(*bloom_matches);
+        matches->unionWith(*bloom_matches);
       } else {
         matches.reset(bloom_matches.get());
       }
