@@ -1361,4 +1361,9 @@ void StorageBlock::invalidateAllIndexes() {
   }
 }
 
+const std::size_t StorageBlock::getNumTuples() const {
+  DCHECK(tuple_store_ != nullptr);
+  return tuple_store_->numTuples();
+}
+
 }  // namespace quickstep
