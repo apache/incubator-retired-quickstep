@@ -46,6 +46,29 @@ class PrintToScreen {
 
   static void printHBar(const std::vector<int> &column_widths,
                         FILE *out);
+
+  /**
+   * @brief Get the total number of tuples in the given relation.
+   *
+   * @param relation The given relation.
+   * @param storage_manager The storage manager.
+   *
+   * @return The total number of tuples in the relation.
+   **/
+  static std::size_t GetNumTuplesInRelation(const CatalogRelation &relation,
+                                            StorageManager *storage_manager);
+
+  /**
+   * @brief Print the size of the output (i.e. number of rows in the relation).
+   *
+   * @param relation The given relation.
+   * @param storage_manager The storage manager.
+   * @param out The output stream.
+   **/
+  static void PrintOutputSize(const CatalogRelation &relation,
+                              StorageManager *storage_manager,
+                              FILE *out);
+
  private:
   // Undefined default constructor. Class is all-static and should not be
   // instantiated.
