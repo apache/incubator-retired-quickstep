@@ -29,6 +29,7 @@
 #include "storage/StorageManager.hpp"
 #include "storage/TupleIdSequence.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
+#include "types/IntType.hpp"
 #include "types/Type.hpp"
 #include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
@@ -145,6 +146,27 @@ void PrintToScreen::printTuple(const TupleStorageSubBlock &tuple_store,
     fputc('|', out);
   }
   fputc('\n', out);
+}
+
+std::size_t PrintToScreen::GetNumTuplesInRelation(
+    const CatalogRelation &relation, StorageManager *storage_manager) {
+  const std::vector<block_id> &blocks = relation.getBlocksSnapshot();
+  std::size_t total_num_tuples = 0;
+  for (block_id block : blocks) {
+    total_num_tuples +=
+        storage_manager->getBlock(block, relation)->getNumTuples();
+  }
+  return total_num_tuples;
+}
+
+void PrintToScreen::PrintOutputSize(const CatalogRelation &relation,
+                                    StorageManager *storage_manager,
+                                    FILE *out) {
+  const std::size_t num_rows = GetNumTuplesInRelation(relation, storage_manager);
+  fprintf(out,
+          "(%lu %s)\n",
+          num_rows,
+          (num_rows == 1) ? "row" : "rows");
 }
 
 }  // namespace quickstep

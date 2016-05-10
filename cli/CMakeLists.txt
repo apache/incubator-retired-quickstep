@@ -102,6 +102,7 @@ target_link_libraries(quickstep_cli_PrintToScreen
                       quickstep_storage_StorageManager
                       quickstep_storage_TupleIdSequence
                       quickstep_storage_TupleStorageSubBlock
+                      quickstep_types_IntType
                       quickstep_types_Type
                       quickstep_types_TypedValue
                       quickstep_utility_Macros)
