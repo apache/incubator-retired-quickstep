@@ -588,8 +588,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   std::vector<attribute_id> probe_original_attribute_ids;
   std::vector<attribute_id> build_original_attribute_ids;
 
-  const CatalogRelation *referenced_stored_probe_relation;
-  const CatalogRelation *referenced_stored_build_relation;
+  const CatalogRelation *referenced_stored_probe_relation = nullptr;
+  const CatalogRelation *referenced_stored_build_relation = nullptr;
 
   bool any_probe_attributes_nullable = false;
   bool any_build_attributes_nullable = false;
