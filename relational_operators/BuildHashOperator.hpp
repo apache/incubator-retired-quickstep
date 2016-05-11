@@ -23,6 +23,12 @@
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+#include "catalog/NUMAPlacementScheme.hpp"
+#endif
+
+#include "catalog/PartitionSchemeHeader.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -66,7 +72,7 @@ class BuildHashOperator : public RelationalOperator {
    * @param join_key_attributes The IDs of equijoin attributes in
    *        input_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param hash_table_index The index of the JoinHashTable in QueryContext.
+   * @param hash_table_indices The index of the JoinHashTable in QueryContext.
    *        The HashTable's key Type(s) should be the Type(s) of the
    *        join_key_attributes in input_relation.
    **/
@@ -74,16 +80,38 @@ class BuildHashOperator : public RelationalOperator {
                     const bool input_relation_is_stored,
                     const std::vector<attribute_id> &join_key_attributes,
                     const bool any_join_key_attributes_nullable,
-                    const QueryContext::join_hash_table_id hash_table_index)
+                    const std::vector<QueryContext::join_hash_table_id> &hash_table_indices)
     : input_relation_(input_relation),
       input_relation_is_stored_(input_relation_is_stored),
       join_key_attributes_(join_key_attributes),
       any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-      hash_table_index_(hash_table_index),
       input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
                                                          : std::vector<block_id>()),
       num_workorders_generated_(0),
-      started_(false) {}
+      started_(false) {
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+    placement_scheme_ = input_relation.getNUMAPlacementSchemePtr();
+#endif
+    if (input_relation.hasPartitionScheme()) {
+      const PartitionScheme &part_scheme = input_relation.getPartitionScheme();
+      const std::size_t num_partitions = part_scheme.getPartitionSchemeHeader().getNumPartitions();
+      input_relation_block_ids_in_partition_.resize(num_partitions);
+      num_workorders_generated_in_partition_.resize(num_partitions);
+      num_workorders_generated_in_partition_.assign(num_partitions, 0);
+      hash_table_indices_.resize(num_partitions);
+      for (int part_id = 0; part_id < num_partitions; ++part_id) {
+        hash_table_indices_[part_id] = hash_table_indices[part_id];
+        if (input_relation_is_stored) {
+          input_relation_block_ids_in_partition_[part_id] = part_scheme.getBlocksInPartition(part_id);
+        } else {
+          input_relation_block_ids_in_partition_[part_id] = std::vector<block_id>();
+        }
+      }
+    } else {
+      hash_table_indices_.resize(1);
+      hash_table_indices_[0] = hash_table_indices[0];
+    }
+  }
 
   ~BuildHashOperator() override {}
 
@@ -95,25 +123,58 @@ class BuildHashOperator : public RelationalOperator {
 
   void feedInputBlock(const block_id input_block_id,
                       const relation_id input_relation_id) override {
-    input_relation_block_ids_.push_back(input_block_id);
+    if (input_relation_.hasPartitionScheme()) {
+      const partition_id part_id =
+          input_relation_.getPartitionScheme().getPartitionForBlock(input_block_id);
+      input_relation_block_ids_in_partition_[part_id].push_back(input_block_id);
+    } else {
+      input_relation_block_ids_.push_back(input_block_id);
+    }
   }
 
   void feedInputBlocks(const relation_id rel_id,
                        std::vector<block_id> *partially_filled_blocks) override {
-    input_relation_block_ids_.insert(input_relation_block_ids_.end(),
-                                     partially_filled_blocks->begin(),
-                                     partially_filled_blocks->end());
+    if (input_relation_.hasPartitionScheme()) {
+      for (auto it = partially_filled_blocks->begin(); it != partially_filled_blocks->end(); ++it) {
+        const partition_id part_id = input_relation_.getPartitionScheme().getPartitionForBlock((*it));
+        input_relation_block_ids_in_partition_[part_id].insert(input_relation_block_ids_in_partition_[part_id].end(),
+                                                               *it);
+      }
+    } else {
+      input_relation_block_ids_.insert(input_relation_block_ids_.end(),
+                                       partially_filled_blocks->begin(),
+                                       partially_filled_blocks->end());
+    }
   }
+
+  void addWorkOrders(WorkOrdersContainer *container,
+                     QueryContext *query_context,
+                     StorageManager *storage_manager);
+
+  void addPartitionAwareWorkOrders(WorkOrdersContainer *container,
+                                   QueryContext *query_context,
+                                   StorageManager *storage_manager);
 
  private:
   const CatalogRelation &input_relation_;
   const bool input_relation_is_stored_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const QueryContext::join_hash_table_id hash_table_index_;
+  std::vector<QueryContext::join_hash_table_id> hash_table_indices_;
 
   std::vector<block_id> input_relation_block_ids_;
+  // A vector of vectors V where V[i] indicates the list of block IDs of the
+  // input relation that belong to the partition i.
+  std::vector<std::vector<block_id>> input_relation_block_ids_in_partition_;
+
+  // A single workorder is generated for each block of input relation.
   std::vector<block_id>::size_type num_workorders_generated_;
+  // A single workorder is generated for each block in each partition of input relation.
+  std::vector<std::size_t> num_workorders_generated_in_partition_;
+
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+  const NUMAPlacementScheme *placement_scheme_;
+#endif
 
   bool started_;
 
@@ -141,13 +202,16 @@ class BuildHashWorkOrder : public WorkOrder {
                      const bool any_join_key_attributes_nullable,
                      const block_id build_block_id,
                      JoinHashTable *hash_table,
-                     StorageManager *storage_manager)
+                     StorageManager *storage_manager,
+                     const numa_node_id numa_node = 0)
       : input_relation_(input_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         build_block_id_(build_block_id),
         hash_table_(DCHECK_NOTNULL(hash_table)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+        storage_manager_(DCHECK_NOTNULL(storage_manager)) {
+    preferred_numa_nodes_.push_back(numa_node);
+  }
 
   /**
    * @brief Constructor for the distributed version.
@@ -165,13 +229,16 @@ class BuildHashWorkOrder : public WorkOrder {
                      const bool any_join_key_attributes_nullable,
                      const block_id build_block_id,
                      JoinHashTable *hash_table,
-                     StorageManager *storage_manager)
+                     StorageManager *storage_manager,
+                     const numa_node_id numa_node = 0)
       : input_relation_(input_relation),
         join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         build_block_id_(build_block_id),
         hash_table_(DCHECK_NOTNULL(hash_table)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+        storage_manager_(DCHECK_NOTNULL(storage_manager)) {
+    preferred_numa_nodes_.push_back(numa_node);
+  }
 
   ~BuildHashWorkOrder() override {}
 

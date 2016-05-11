@@ -32,8 +32,11 @@ bool DestroyHashOperator::getAllWorkOrders(
     tmb::MessageBus *bus) {
   if (blocking_dependencies_met_ && !work_generated_) {
     work_generated_ = true;
-    container->addNormalWorkOrder(new DestroyHashWorkOrder(hash_table_index_, query_context),
-                                  op_index_);
+    std::size_t num_partitions = hash_table_indices_.size();
+    for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
+      container->addNormalWorkOrder(new DestroyHashWorkOrder(hash_table_indices_[part_id], query_context),
+                                    op_index_);
+    }
   }
   return work_generated_;
 }

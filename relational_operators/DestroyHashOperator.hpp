@@ -18,6 +18,13 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_DESTROY_HASH_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_DESTROY_HASH_OPERATOR_HPP_
 
+#include <vector>
+
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+#include "catalog/NUMAPlacementScheme.hpp"
+#endif
+
+#include "catalog/PartitionSchemeHeader.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -27,7 +34,9 @@
 
 #include "tmb/id_typedefs.h"
 
-namespace tmb { class MessageBus; }
+namespace tmb {
+class MessageBus;
+}
 
 namespace quickstep {
 
@@ -48,9 +57,14 @@ class DestroyHashOperator : public RelationalOperator {
    *
    * @param hash_table_index The index of the JoinHashTable in QueryContext.
    **/
-  explicit DestroyHashOperator(const QueryContext::join_hash_table_id hash_table_index)
-      : hash_table_index_(hash_table_index),
-        work_generated_(false) {}
+  explicit DestroyHashOperator(const std::vector<QueryContext::join_hash_table_id> hash_table_indices)
+      : work_generated_(false) {
+    std::size_t num_partitions = hash_table_indices.size();
+    hash_table_indices_.resize(num_partitions);
+    for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
+      hash_table_indices_[part_id] = hash_table_indices[part_id];
+    }
+  }
 
   ~DestroyHashOperator() override {}
 
@@ -61,7 +75,7 @@ class DestroyHashOperator : public RelationalOperator {
                         tmb::MessageBus *bus) override;
 
  private:
-  const QueryContext::join_hash_table_id hash_table_index_;
+  std::vector<QueryContext::join_hash_table_id> hash_table_indices_;
   bool work_generated_;
 
   DISALLOW_COPY_AND_ASSIGN(DestroyHashOperator);
@@ -79,9 +93,11 @@ class DestroyHashWorkOrder : public WorkOrder {
    * @param query_context The QueryContext to use.
    **/
   DestroyHashWorkOrder(const QueryContext::join_hash_table_id hash_table_index,
-                       QueryContext *query_context)
-      : hash_table_index_(hash_table_index),
-        query_context_(DCHECK_NOTNULL(query_context)) {}
+                       QueryContext *query_context,
+                       const numa_node_id numa_node = 0)
+      : hash_table_index_(hash_table_index), query_context_(DCHECK_NOTNULL(query_context)) {
+    preferred_numa_nodes_.push_back(numa_node);
+  }
 
   ~DestroyHashWorkOrder() override {}
 

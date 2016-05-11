@@ -41,9 +41,7 @@ namespace {
 
 class TupleReferenceGenerator {
  public:
-  explicit TupleReferenceGenerator(const block_id block)
-      : block_(block) {
-  }
+  explicit TupleReferenceGenerator(const block_id block) : block_(block) {}
 
   template <typename ValueAccessorT>
   inline TupleReference operator()(const ValueAccessorT &accessor) const {
@@ -56,68 +54,132 @@ class TupleReferenceGenerator {
 
 }  // namespace
 
-bool BuildHashOperator::getAllWorkOrders(
-    WorkOrdersContainer *container,
-    QueryContext *query_context,
-    StorageManager *storage_manager,
-    const tmb::client_id scheduler_client_id,
-    tmb::MessageBus *bus) {
+void BuildHashOperator::addWorkOrders(WorkOrdersContainer *container,
+                                      QueryContext *query_context,
+                                      StorageManager *storage_manager) {
+  JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_indices_[0]);
+  if (input_relation_is_stored_) {
+    for (const block_id input_block_id : input_relation_block_ids_) {
+      container->addNormalWorkOrder(new BuildHashWorkOrder(input_relation_,
+                                                           join_key_attributes_,
+                                                           any_join_key_attributes_nullable_,
+                                                           input_block_id,
+                                                           hash_table,
+                                                           storage_manager),
+                                    op_index_);
+    }
+  } else {
+    while (num_workorders_generated_ < input_relation_block_ids_.size()) {
+      container->addNormalWorkOrder(new BuildHashWorkOrder(input_relation_,
+                                                           join_key_attributes_,
+                                                           any_join_key_attributes_nullable_,
+                                                           input_relation_block_ids_[num_workorders_generated_],
+                                                           hash_table,
+                                                           storage_manager),
+                                    op_index_);
+      ++num_workorders_generated_;
+    }
+  }
+}
+
+void BuildHashOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
+                                                    QueryContext *query_context,
+                                                    StorageManager *storage_manager) {
+  DCHECK(placement_scheme_ != nullptr);
+  const std::size_t num_partitions =
+      input_relation_.getPartitionScheme().getPartitionSchemeHeader().getNumPartitions();
+  if (input_relation_is_stored_) {
+    for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
+      for (const block_id input_block_id : input_relation_block_ids_in_partition_[part_id]) {
+        JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_indices_[part_id]);
+        container->addNormalWorkOrder(new BuildHashWorkOrder(input_relation_,
+                                                             join_key_attributes_,
+                                                             any_join_key_attributes_nullable_,
+                                                             input_block_id,
+                                                             hash_table,
+                                                             storage_manager,
+                                                             placement_scheme_->getNUMANodeForBlock(input_block_id)),
+                                      op_index_);
+      }
+    }
+  } else {
+    for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
+      JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_indices_[part_id]);
+      while (num_workorders_generated_in_partition_[part_id] <
+             input_relation_block_ids_in_partition_[part_id].size()) {
+        block_id block_in_partition =
+            input_relation_block_ids_in_partition_[part_id][num_workorders_generated_in_partition_[part_id]];
+        container->addNormalWorkOrder(new BuildHashWorkOrder(input_relation_,
+                                                             join_key_attributes_,
+                                                             any_join_key_attributes_nullable_,
+                                                             block_in_partition,
+                                                             hash_table,
+                                                             storage_manager),
+                                      op_index_);
+        ++num_workorders_generated_in_partition_[part_id];
+      }
+    }
+  }
+}
+
+bool BuildHashOperator::getAllWorkOrders(WorkOrdersContainer *container,
+                                         QueryContext *query_context,
+                                         StorageManager *storage_manager,
+                                         const tmb::client_id scheduler_client_id,
+                                         tmb::MessageBus *bus) {
   DCHECK(query_context != nullptr);
 
-  JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_index_);
   if (input_relation_is_stored_) {
     if (!started_) {
-      for (const block_id input_block_id : input_relation_block_ids_) {
-        container->addNormalWorkOrder(
-            new BuildHashWorkOrder(input_relation_,
-                                   join_key_attributes_,
-                                   any_join_key_attributes_nullable_,
-                                   input_block_id,
-                                   hash_table,
-                                   storage_manager),
-            op_index_);
+      if (input_relation_.hasPartitionScheme()) {
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+        if (input_relation_.hasNUMAPlacementScheme()) {
+          addPartitionAwareWorkOrders(container, query_context, storage_manager);
+        } else {
+          addWorkOrders(container, query_context, storage_manager);
+        }
+#else
+        addWorkOrders(container, query_context, storage_manager);
+#endif
+      } else {
+        addWorkOrders(container, query_context, storage_manager);
       }
       started_ = true;
     }
     return started_;
   } else {
-    while (num_workorders_generated_ < input_relation_block_ids_.size()) {
-      container->addNormalWorkOrder(
-          new BuildHashWorkOrder(
-              input_relation_,
-              join_key_attributes_,
-              any_join_key_attributes_nullable_,
-              input_relation_block_ids_[num_workorders_generated_],
-              hash_table,
-              storage_manager),
-          op_index_);
-      ++num_workorders_generated_;
+    if (input_relation_.hasPartitionScheme()) {
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+      if (input_relation_.hasNUMAPlacementScheme()) {
+        addPartitionAwareWorkOrders(container, query_context, storage_manager);
+      } else {
+        addWorkOrders(container, query_context, storage_manager);
+      }
+#else
+      addWorkOrders(container, query_context, storage_manager);
+#endif
+    } else {
+      addWorkOrders(container, query_context, storage_manager);
     }
     return done_feeding_input_relation_;
   }
 }
 
 void BuildHashWorkOrder::execute() {
-  BlockReference block(
-      storage_manager_->getBlock(build_block_id_, input_relation_));
+  BlockReference block(storage_manager_->getBlock(build_block_id_, input_relation_, getPreferredNUMANodes()[0]));
 
   TupleReferenceGenerator generator(build_block_id_);
   std::unique_ptr<ValueAccessor> accessor(block->getTupleStorageSubBlock().createValueAccessor());
   HashTablePutResult result;
   if (join_key_attributes_.size() == 1) {
-    result = hash_table_->putValueAccessor(accessor.get(),
-                                           join_key_attributes_.front(),
-                                           any_join_key_attributes_nullable_,
-                                           &generator);
+    result = hash_table_->putValueAccessor(
+        accessor.get(), join_key_attributes_.front(), any_join_key_attributes_nullable_, &generator);
   } else {
-    result = hash_table_->putValueAccessorCompositeKey(accessor.get(),
-                                                       join_key_attributes_,
-                                                       any_join_key_attributes_nullable_,
-                                                       &generator);
+    result = hash_table_->putValueAccessorCompositeKey(
+        accessor.get(), join_key_attributes_, any_join_key_attributes_nullable_, &generator);
   }
 
-  CHECK(result == HashTablePutResult::kOK)
-      << "Failed to add entries to join hash table.";
+  CHECK(result == HashTablePutResult::kOK) << "Failed to add entries to join hash table.";
 }
 
 }  // namespace quickstep

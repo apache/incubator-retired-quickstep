@@ -670,16 +670,20 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   }
 
   // Create join hash table proto.
-  std::vector<QueryContext::join_hash_table_id> join_hash_table_index;
+  std::vector<QueryContext::join_hash_table_id> join_hash_table_indices;
 
   S::HashTable *hash_table_proto = query_context_proto_->add_join_hash_tables();
 
-  const PartitionScheme &part_scheme = build_relation_info->relation->getPartitionScheme();
-  const std::size_t num_partitions = part_scheme.getPartitionSchemeHeader().getNumPartitions();
-  join_hash_table_index.resize(num_partitions);
+  if (build_relation_info->relation->hasPartitionScheme()) {
+    const std::size_t num_partitions =
+        build_relation_info->relation->getPartitionScheme().getPartitionSchemeHeader().getNumPartitions();
+    join_hash_table_indices.resize(num_partitions);
+  } else {
+    join_hash_table_indices.resize(1);
+  }
 
-  for (int i = 0; i < join_hash_table_index.size(); ++i) {
-    join_hash_table_index[i] = query_context_proto_->join_hash_tables_size();
+  for (int i = 0; i < join_hash_table_indices.size(); ++i) {
+    join_hash_table_indices[i] = query_context_proto_->join_hash_tables_size();
   }
 
   // SimplifyHashTableImplTypeProto() switches the hash table implementation
@@ -706,7 +710,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               build_relation_info->isStoredRelation(),
               build_attribute_ids,
               any_build_attributes_nullable,
-              join_hash_table_index[0]));
+              join_hash_table_indices));
 
   // Create InsertDestination proto.
   const CatalogRelation *output_relation = nullptr;
@@ -749,7 +753,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               any_probe_attributes_nullable,
               *output_relation,
               insert_destination_index,
-              join_hash_table_index,
+              join_hash_table_indices,
               residual_predicate_index,
               project_expressions_group_index,
               is_selection_on_build.get(),
@@ -758,7 +762,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
 
   const QueryPlan::DAGNodeIndex destroy_operator_index =
       execution_plan_->addRelationalOperator(
-          new DestroyHashOperator(join_hash_table_index[0]));
+          new DestroyHashOperator(join_hash_table_indices));
 
   if (!build_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(build_operator_index,

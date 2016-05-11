@@ -250,7 +250,7 @@ void HashJoinOperator::addWorkOrders(WorkOrdersContainer *container,
                                      const Predicate *residual_predicate,
                                      const std::vector<std::unique_ptr<const Scalar>> &selection,
                                      InsertDestination *output_destination) {
-  const JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_index_[0]));
+  const JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_indices_[0]));
 
     if (probe_relation_is_stored_) {
       for (const block_id probe_block_id : probe_relation_block_ids_) {
@@ -300,7 +300,7 @@ void HashJoinOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *containe
     for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
       for (const block_id input_block_id :
            probe_relation_block_ids_in_partition_[part_id]) {
-        JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_index_[part_id]));
+        JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_indices_[part_id]));
         container->addNormalWorkOrder(
             new JoinWorkOrderClass(build_relation_,
                                    probe_relation_,
@@ -318,7 +318,7 @@ void HashJoinOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *containe
     }
   } else {
     for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
-      JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_index_[part_id]));
+      JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_indices_[part_id]));
       while (num_workorders_generated_in_partition_[part_id] <
              probe_relation_block_ids_in_partition_[part_id].size()) {
         block_id block_in_partition
@@ -395,7 +395,22 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
                                                           residual_predicate,
                                                           selection,
                                                           output_destination);
+        } else {
+          addWorkOrders<JoinWorkOrderClass>(container,
+                                            query_context,
+                                            storage_manager,
+                                            residual_predicate,
+                                            selection,
+                                            output_destination);
         }
+#else
+      addWorkOrders<JoinWorkOrderClass>(container,
+                                        query_context,
+                                        storage_manager,
+                                        residual_predicate,
+                                        selection,
+                                        output_destination);
+
 #endif
       } else {
         addWorkOrders<JoinWorkOrderClass>(container,
@@ -418,7 +433,22 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
                                                           residual_predicate,
                                                           selection,
                                                           output_destination);
+        } else {
+          addWorkOrders<JoinWorkOrderClass>(container,
+                                            query_context,
+                                            storage_manager,
+                                            residual_predicate,
+                                            selection,
+                                            output_destination);
         }
+#else
+    addWorkOrders<JoinWorkOrderClass>(container,
+                                      query_context,
+                                      storage_manager,
+                                      residual_predicate,
+                                      selection,
+                                      output_destination);
+
 #endif
     } else {
         addWorkOrders<JoinWorkOrderClass>(container,
@@ -438,7 +468,7 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
     WorkOrdersContainer *container,
     QueryContext *query_context,
     StorageManager *storage_manager) {
-  const JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_index_[0]));
+  const JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_indices_[0]));
   // We wait until the building of global hash table is complete.
   if (blocking_dependencies_met_) {
     DCHECK(query_context != nullptr);
@@ -503,7 +533,9 @@ void HashInnerJoinWorkOrder::execute() {
 template <typename CollectorT>
 void HashInnerJoinWorkOrder::executeWithCollectorType() {
   BlockReference probe_block(
-      storage_manager_->getBlock(block_id_, probe_relation_));
+      storage_manager_->getBlock(block_id_,
+                                 probe_relation_,
+                                 getPreferredNUMANodes()[0]));
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
 
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
@@ -529,7 +561,7 @@ void HashInnerJoinWorkOrder::executeWithCollectorType() {
   for (std::pair<const block_id, std::vector<std::pair<tuple_id, tuple_id>>>
            &build_block_entry : *collector.getJoinedTuples()) {
     BlockReference build_block =
-        storage_manager_->getBlock(build_block_entry.first, build_relation_);
+        storage_manager_->getBlock(build_block_entry.first, build_relation_, getPreferredNUMANodes()[0]);
     const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
     std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
 
