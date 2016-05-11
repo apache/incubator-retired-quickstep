@@ -82,6 +82,7 @@ target_link_libraries(quickstep_relationaloperators_BuildHashOperator
                       glog
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_PartitionSchemeHeader
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_RelationalOperator
@@ -95,6 +96,10 @@ target_link_libraries(quickstep_relationaloperators_BuildHashOperator
                       quickstep_storage_ValueAccessor
                       quickstep_utility_Macros
                       tmb)
+if(QUICKSTEP_HAVE_LIBNUMA)
+target_link_libraries(quickstep_relationaloperators_BuildHashOperator
+                      quickstep_catalog_NUMAPlacementScheme)
+endif()
 target_link_libraries(quickstep_relationaloperators_CreateIndexOperator
                       glog
                       quickstep_catalog_CatalogRelation
@@ -129,12 +134,17 @@ target_link_libraries(quickstep_relationaloperators_DeleteOperator
                       tmb)
 target_link_libraries(quickstep_relationaloperators_DestroyHashOperator
                       glog
+                      quickstep_catalog_PartitionSchemeHeader
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_relationaloperators_WorkOrder
                       quickstep_utility_Macros
                       tmb)
+if(QUICKSTEP_HAVE_LIBNUMA)
+target_link_libraries(quickstep_relationaloperators_DestroyHashOperator
+                      quickstep_catalog_NUMAPlacementScheme)
+endif()
 target_link_libraries(quickstep_relationaloperators_DropTableOperator
                       glog
                       quickstep_catalog_CatalogDatabase
@@ -165,6 +175,7 @@ target_link_libraries(quickstep_relationaloperators_HashJoinOperator
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_PartitionSchemeHeader
                       quickstep_expressions_predicate_Predicate
                       quickstep_expressions_scalar_Scalar
                       quickstep_queryexecution_QueryContext
@@ -187,6 +198,10 @@ target_link_libraries(quickstep_relationaloperators_HashJoinOperator
                       quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_utility_Macros
                       tmb)
+if(QUICKSTEP_HAVE_LIBNUMA)
+target_link_libraries(quickstep_relationaloperators_HashJoinOperator
+                      quickstep_catalog_NUMAPlacementScheme)
+endif()
 target_link_libraries(quickstep_relationaloperators_InsertOperator
                       glog
                       quickstep_catalog_CatalogRelation

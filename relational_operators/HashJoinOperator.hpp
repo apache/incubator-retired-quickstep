@@ -32,6 +32,7 @@
 #include "catalog/NUMAPlacementScheme.hpp"
 #endif
 
+#include "catalog/PartitionSchemeHeader.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
