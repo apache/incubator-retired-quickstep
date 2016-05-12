@@ -75,8 +75,12 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
       QueryPlan::DAGNodeIndex operator_consuming_bloom_filters = hash_joins_[origin_node].join_operator_index_;
 
       bool can_push_bloom_filters_to_dependencies = false;
-      auto dependencies = query_plan->getQueryPlanDAG().getDependencies(hash_joins_[origin_node].join_operator_index_);
-      for (auto const dependency : dependencies) {
+      auto probe_dependencies = query_plan->getQueryPlanDAG().getDependencies(hash_joins_[origin_node].join_operator_index_);
+      auto build_dependencies = query_plan->getQueryPlanDAG().getDependencies(hash_joins_[origin_node].build_operator_index_);
+      for (auto const dependency : probe_dependencies) {
+        if (build_dependencies.count(dependency) > 0) {
+          continue;
+        }
         RelationalOperator *relational_operator
         = query_plan->getQueryPlanDAGMutable()->getNodePayloadMutable(dependency);
         if (relational_operator->canApplyBloomFilter()) {
