@@ -626,7 +626,8 @@ class StorageBlock : public StorageBlockBase {
 
   TupleIdSequence* getMatchesForPredicate(const Predicate *predicate) const;
   
-  TupleIdSequence* getMatchesForBloomFilters(
+  void getMatchesForBloomFilters(
+      TupleIdSequence *bloom_matches,
       const std::unordered_map<const BloomFilter*, std::vector<attribute_id>> *bloom_filter_info_map) const;
   
   std::unordered_map<attribute_id, TypedValue>* generateUpdatedValues(
