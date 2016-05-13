@@ -50,7 +50,7 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
   // just prior to probing the hash table.
 
   QueryPlan::DAGNodeIndex origin_node = 0;
-  while (origin_node < hash_joins_.size() - 1) {
+  while (origin_node < hash_joins_.size()) {
     std::vector<std::size_t> chained_nodes;
     chained_nodes.push_back(origin_node);
     for (std::size_t i = origin_node + 1; i < hash_joins_.size(); ++i) {
@@ -64,7 +64,7 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
     }
 
     // Only chains of length greater than one are suitable candidates for semi-join optimization.
-    if (chained_nodes.size() > 1) {
+    if (chained_nodes.size() >= 1) {
       // There are two strategies on where the bloom filters from the build operators can be used.
       // Strategy 1: Either the bloom filters can be used directly at the bottom-most probe operator of the chain.
       // Strategy 2: Or, they can be pushed further down to the dependencies of the bottom-most probe operator.
