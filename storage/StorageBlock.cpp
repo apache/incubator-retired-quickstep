@@ -384,7 +384,7 @@ void StorageBlock::selectSimple(const std::vector<attribute_id> &selection,
     if (predicate != nullptr) {
       matches.reset(getMatchesForPredicate(predicate));
     } else {
-      ;//
+      matches.reset(tuple_store_->getExistenceMap());
     }
 
     if (bloom_filter_info_map != nullptr) {

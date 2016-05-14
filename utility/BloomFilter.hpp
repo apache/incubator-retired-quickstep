@@ -347,7 +347,18 @@ class BloomFilter {
       LOG(FATAL) << "Requested number of hash functions is too large.";
     }
   }
-
+  
+  inline std::uint32_t hash_id(const std::uint8_t *begin, std::size_t remaining_length, std::uint32_t hash) const {
+    std::uint32_t hash_val = 0;
+    for (int i = 0; i < remaining_length && i < 4; ++i) {
+      std::uint32_t mask = 0;
+      mask |= begin[i];
+      mask = mask << ((i * 8) - 1);
+      hash_val |= mask;
+    }
+    return hash_val;
+  }
+  
   inline std::uint32_t hash_ap(const std::uint8_t *begin, std::size_t remaining_length, std::uint32_t hash) const {
     const std::uint8_t *itr = begin;
     std::uint32_t loop = 0;
