@@ -49,12 +49,12 @@ class ExecutionHeuristics {
   static const std::size_t kHundredThousand = 100000;
   static const std::size_t kMillion = 1000000;
 
-  static const std::size_t kCompressionFactor = 10;
+  static const std::size_t kCompressionFactor = 1;
 
   static const std::size_t kVeryLowSparsityHash = 1;
-  static const std::size_t kLowSparsityHash = 2;
-  static const std::size_t kMediumSparsityHash = 5;
-  static const std::size_t kHighSparsityHash = 10;
+  static const std::size_t kLowSparsityHash = 1;
+  static const std::size_t kMediumSparsityHash = 1;
+  static const std::size_t kHighSparsityHash = 5;
 
   /**
    * @brief A simple internal class that holds information about various
