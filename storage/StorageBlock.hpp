@@ -312,17 +312,17 @@ class StorageBlock : public StorageBlockBase {
       ValueAccessor *accessor);
 
   /**
-   * @brief Perform a random sampling of data on  the StorageBlock. The number 
+   * @brief Perform a random sampling of data on  the StorageBlock. The number
    *       of records sampled is determined by the sample percentage in case of
    *       tuple sample. For block sample all the records in a block are taken.
    *
    * @param is_block_sample Flag to indicate if the Sampling method is a tuple
    *                        sample or block sample.
    * @param percentage The percentage of tuples to be sampled.Used only when the
-   *                   sampling method is tuple sample.            
+   *                   sampling method is tuple sample.
    * @param destination Where to insert the tuples resulting from the SAMPLE.
    *
-   * @return Randomly sampled tuples whose count is determined by the  
+   * @return Randomly sampled tuples whose count is determined by the
    *         sampling percentage. In the case of block sample the entire
    *         block is returned.
    **/
@@ -584,6 +584,11 @@ class StorageBlock : public StorageBlockBase {
     tuple_store_->rebuild();
     return rebuildIndexes(false);
   }
+
+  /**
+   * @brief Get the number of tuples in this storage block.
+   **/
+  const std::size_t getNumTuples() const;
 
  private:
   static TupleStorageSubBlock* CreateTupleStorageSubBlock(

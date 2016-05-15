@@ -50,13 +50,13 @@ class ExecutionHeuristicsTest : public ::testing::Test {
   }
 
   void addDummyHashJoinInfo(ExecutionHeuristics *execution_heuristics,
-                       const QueryPlan::DAGNodeIndex build_operator_index,
-                       const QueryPlan::DAGNodeIndex join_operator_index,
-                       const CatalogRelation *build_relation,
-                       const CatalogRelation *probe_relation,
-                       const attribute_id build_attribute_id,
-                       const attribute_id probe_attribute_id,
-                       const QueryContext::join_hash_table_id join_hash_table_id) {
+                            const QueryPlan::DAGNodeIndex build_operator_index,
+                            const QueryPlan::DAGNodeIndex join_operator_index,
+                            const CatalogRelation *build_relation,
+                            const CatalogRelation *probe_relation,
+                            const attribute_id build_attribute_id,
+                            const attribute_id probe_attribute_id,
+                            const QueryContext::join_hash_table_id join_hash_table_id) {
     std::vector<attribute_id> build_attribute_ids(1, build_attribute_id);
     std::vector<attribute_id> probe_attribute_ids(1, probe_attribute_id);
     execution_heuristics->addHashJoinInfo(build_operator_index,
@@ -199,14 +199,14 @@ TEST_F(ExecutionHeuristicsTest, HashJoinOptimizedTest) {
 
   // Test that the DAG was modified correctly or not.
   // Probe operator 1 should have now build operator 1 and build operator 2 added as dependencies.
-  auto const node_dependencies = query_plan_->getQueryPlanDAG().getDependencies(probe_operator_index_1);
-  EXPECT_EQ(1u, node_dependencies.count(build_operator_index_2));
-  EXPECT_EQ(1u, node_dependencies.count(build_operator_index_3));
+  auto const probe_node_dependencies = query_plan_->getQueryPlanDAG().getDependencies(probe_operator_index_1);
+  EXPECT_EQ(1u, probe_node_dependencies.count(build_operator_index_2));
+  EXPECT_EQ(1u, probe_node_dependencies.count(build_operator_index_3));
 }
 
 TEST_F(ExecutionHeuristicsTest, HashJoinNotOptimizedTest) {
-  // This test case creates three hash joins, all of which are being probed on the different relation.
-  // Since the probe are being made on the same relation, ExecutionHeuristics should optimize
+  // This test case creates three hash joins, all of which are being probed on different relations.
+  // Since the probe are being made on the different relations, ExecutionHeuristics should optimize
   // these hash joins using bloom filters.
 
   const CatalogRelation *build_relation_1 = createCatalogRelation("build_relation_1");
@@ -293,9 +293,9 @@ TEST_F(ExecutionHeuristicsTest, HashJoinNotOptimizedTest) {
 
   // Test that the DAG was not modified at all.
   // Probe operator 1 should not have build operator 1 and build operator 2 added as dependencies.
-  auto node_dependencies = query_plan_->getQueryPlanDAG().getDependencies(probe_operator_index_1);
-  EXPECT_EQ(0u, node_dependencies.count(build_operator_index_2));
-  EXPECT_EQ(0u, node_dependencies.count(build_operator_index_3));
+  auto probe_node_dependencies = query_plan_->getQueryPlanDAG().getDependencies(probe_operator_index_1);
+  EXPECT_EQ(0u, probe_node_dependencies.count(build_operator_index_2));
+  EXPECT_EQ(0u, probe_node_dependencies.count(build_operator_index_3));
 }
 
 }  // namespace optimizer

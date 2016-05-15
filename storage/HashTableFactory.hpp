@@ -314,6 +314,8 @@ class HashTableFactory {
                                       proto.estimated_num_entries(),
                                       storage_manager);
 
+    // TODO(ssaurabh): These lazy initializations can be moved from here and pushed to the
+    //                 individual implementations of the hash table constructors.
     // Check if there are any build side bloom filter defined on the hash table.
     if (proto.build_side_bloom_filter_id_size() > 0) {
       hash_table->enableBuildSideBloomFilter();
