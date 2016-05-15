@@ -1285,23 +1285,24 @@ void StorageBlock::getMatchesForBloomFilters(
        ++c_itr_map) {
     
     const BloomFilter *bloom_filter = c_itr_map->first;
-    const attribute_id attr_id = c_itr_map->second[0];
-    std::unique_ptr<ValueAccessor> accessor(tuple_store_->createValueAccessor(bloom_matches));
     
-    InvokeOnAnyValueAccessor(
-        accessor.get(),
-        [&](auto *accessor) -> void {  // NOLINT(build/c++11)
-      while (accessor->next()) {
-        if (bloom_matches->get(accessor->getCurrentPosition())) {
+    for (const attribute_id attr_id : c_itr_map->second) {
+      std::unique_ptr<ValueAccessor> accessor(tuple_store_->createValueAccessor(bloom_matches));
+    
+      InvokeOnAnyValueAccessor(
+          accessor.get(),
+          [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+        while (accessor->next()) {
           TypedValue bloom_key = accessor->getTypedValue(attr_id);
           if (!bloom_filter->contains(static_cast<const std::uint8_t*>(bloom_key.getDataPtr()),
-                                        bloom_key.getDataSize())) {
+                                      
+                                      bloom_key.getDataSize())) {
             bloom_matches->set(accessor->getCurrentPosition(), false);
           }
         }
-      }
-    });
-    
+      });
+      
+    }
   }
 }
 

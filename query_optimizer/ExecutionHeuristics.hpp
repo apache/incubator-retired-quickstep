@@ -52,8 +52,8 @@ class ExecutionHeuristics {
   static const std::size_t kCompressionFactor = 1;
 
   static const std::size_t kVeryLowSparsityHash = 1;
-  static const std::size_t kLowSparsityHash = 1;
-  static const std::size_t kMediumSparsityHash = 1;
+  static const std::size_t kLowSparsityHash = 2;
+  static const std::size_t kMediumSparsityHash = 3;
   static const std::size_t kHighSparsityHash = 5;
 
   /**
