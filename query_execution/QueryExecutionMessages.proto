@@ -20,6 +20,10 @@ import "catalog/Catalog.proto";
 import "query_execution/QueryContext.proto";
 import "relational_operators/WorkOrder.proto";
 
+// Used for any messages that do not carry payloads.
+message EmptyMessage {
+}
+
 message ShiftbossRegistrationMessage {
   // The total Work Order processing capacity in Shiftboss, which equals to the
   // sum of the capacity of each worker managed by Shiftboss.
@@ -87,7 +91,7 @@ message WorkOrdersAvailableMessage {
 }
 
 message QueryExecutionSuccessMessage {
-  optional CatalogRelation query_result_relation = 1;
+  optional CatalogRelationSchema query_result_relation = 1;
 }
 
 message QueryExecutionErrorMessage {

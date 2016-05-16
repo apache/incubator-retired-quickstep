@@ -708,3 +708,88 @@ endif()
 
 # Link against other required system and third-party libraries.
 target_link_libraries(quickstep_cli_shell ${LIBS})
+
+if (ENABLE_NATIVENET)
+  include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party/tmb/include)
+
+  # Build the quickstep_distributed_cli_shell executable.
+  add_executable (quickstep_distributed_cli_shell cli/QuickstepCliDistributed.cpp)
+  # Link against direct deps (will transitively pull in everything needed).
+  target_link_libraries(quickstep_distributed_cli_shell
+                        gflags_nothreads-static
+                        glog
+                        quickstep_catalog_CatalogRelation
+                        quickstep_catalog_Catalog_proto
+                        quickstep_cli_LineReader
+                        quickstep_cli_PrintToScreen
+                        quickstep_parser_ParseStatement
+                        quickstep_parser_SqlParserWrapper
+                        quickstep_queryexecution_QueryExecutionMessages_proto
+                        quickstep_queryexecution_QueryExecutionTypedefs
+                        quickstep_queryexecution_QueryExecutionUtil
+                        quickstep_storage_StorageBlockInfo
+                        quickstep_storage_StorageManager
+                        quickstep_utility_Macros
+                        tmb
+                        ${GRPCPLUSPLUS_LIBRARIES})
+  if (ENABLE_HDFS)
+    target_link_libraries(quickstep_distributed_cli_shell
+                          quickstep_storage_FileManagerHdfs)
+  endif()
+
+  # Link against other required system and third-party libraries.
+  target_link_libraries(quickstep_distributed_cli_shell
+                        ${LIBS})
+
+  # Build the quickstep_distributed_conductor executable.
+  add_executable (quickstep_distributed_conductor cli/ConductorDistributed.cpp)
+  # Link against direct deps (will transitively pull in everything needed).
+  target_link_libraries(quickstep_distributed_conductor
+                        gflags_nothreads-static
+                        glog
+                        quickstep_catalog_CatalogDatabase
+                        quickstep_catalog_CatalogRelation
+                        quickstep_catalog_CatalogTypedefs
+                        quickstep_catalog_Catalog_proto
+                        quickstep_parser_SqlParserWrapper
+                        quickstep_queryexecution_ForemanDistributed
+                        quickstep_queryexecution_QueryExecutionMessages_proto
+                        quickstep_queryexecution_QueryExecutionTypedefs
+                        quickstep_queryexecution_QueryExecutionUtil
+                        quickstep_queryoptimizer_QueryHandle
+                        quickstep_queryoptimizer_QueryProcessor
+                        quickstep_utility_SqlError
+                        tmb
+                        ${GRPCPLUSPLUS_LIBRARIES})
+  if (ENABLE_HDFS)
+    target_link_libraries(quickstep_distributed_conductor
+                          quickstep_storage_FileManagerHdfs)
+  endif()
+
+  # Link against other required system and third-party libraries.
+  target_link_libraries(quickstep_distributed_conductor ${LIBS})
+
+  # Build the quickstep_distributed_worker executable.
+  add_executable (quickstep_distributed_worker cli/WorkerDistributed.cpp)
+  # Link against direct deps (will transitively pull in everything needed).
+  target_link_libraries(quickstep_distributed_worker
+                        gflags_nothreads-static
+                        glog
+                        quickstep_catalog_CatalogDatabase
+                        quickstep_cli_InputParserUtil
+                        quickstep_queryexecution_Shiftboss
+                        quickstep_queryexecution_Worker
+                        quickstep_queryexecution_WorkerDirectory
+                        quickstep_storage_PreloaderThread
+                        quickstep_storage_StorageManager
+                        quickstep_utility_PtrVector
+                        tmb
+                        ${GRPCPLUSPLUS_LIBRARIES})
+  if (ENABLE_HDFS)
+    target_link_libraries(quickstep_distributed_worker
+                          quickstep_storage_FileManagerHdfs)
+  endif()
+
+  # Link against other required system and third-party libraries.
+  target_link_libraries(quickstep_distributed_worker ${LIBS})
+endif()
