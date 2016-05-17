@@ -366,7 +366,7 @@ class BlockPoolInsertDestination : public InsertDestination {
                              const tmb::client_id scheduler_client_id,
                              tmb::MessageBus *bus)
       : InsertDestination(relation, layout, storage_manager, relational_op_index, scheduler_client_id, bus),
-        available_block_ids_(std::move(blocks)) {
+        global_block_ids_(std::move(blocks)) {
     // TODO(chasseur): Once block fill statistics are available, replace this
     // with something smarter.
   }
@@ -389,12 +389,17 @@ class BlockPoolInsertDestination : public InsertDestination {
   FRIEND_TEST(ForemanTest, TwoNodesDAGPartiallyFilledBlocksTest);
   FRIEND_TEST(QueryManagerTest, TwoNodesDAGPartiallyFilledBlocksTest);
 
-  // A vector of references to blocks which are loaded in memory.
+  /*// A vector of references to blocks which are loaded in memory.
   std::vector<MutableBlockReference> available_block_refs_;
   // A vector of blocks from the relation that are not loaded in memory yet.
-  std::vector<block_id> available_block_ids_;
+  std::vector<block_id> available_block_ids_;*/
   // A vector of fully filled blocks.
   std::vector<block_id> done_block_ids_;
+  std::unordered_map<tmb::client_id, std::vector<MutableBlockReference>> available_block_refs_;
+  std::unordered_map<tmb::client_id, std::vector<block_id>> available_block_ids_;
+
+  // A pool of globally available blocks.
+  std::vector<block_id> global_block_ids_;
 
   DISALLOW_COPY_AND_ASSIGN(BlockPoolInsertDestination);
 };

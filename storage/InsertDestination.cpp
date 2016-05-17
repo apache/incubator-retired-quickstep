@@ -332,28 +332,43 @@ MutableBlockReference BlockPoolInsertDestination::createNewBlock() {
 
 void BlockPoolInsertDestination::getPartiallyFilledBlocks(std::vector<MutableBlockReference> *partial_blocks) {
   SpinMutexLock lock(mutex_);
-  for (std::vector<MutableBlockReference>::size_type i = 0; i < available_block_refs_.size(); ++i) {
-    partial_blocks->push_back((std::move(available_block_refs_[i])));
+  for (auto it = available_block_refs_.begin(); it != available_block_refs_.end(); ++it) {
+    for (std::vector<MutableBlockReference>::size_type i = 0; i < it->second.size(); ++i) {
+      partial_blocks->push_back((std::move(it->second[i])));
+    }
+    it->second.clear();
   }
   available_block_refs_.clear();
 }
 
 MutableBlockReference BlockPoolInsertDestination::getBlockForInsertion() {
-  SpinMutexLock lock(mutex_);
-  if (available_block_refs_.empty()) {
-    if (available_block_ids_.empty()) {
+  // Find out the thread which made the request.
+  {
+    SpinMutexLock lock(mutex_);
+    const tmb::client_id worker_thread_client_id = thread_id_map_.getValue();
+    if (available_block_refs_.find(worker_thread_client_id) == available_block_refs_.end()) {
+      // Entry for the worker not present.
+      available_block_refs_[worker_thread_client_id];
+      available_block_ids_[worker_thread_client_id];
       return createNewBlock();
+    }
+    if (available_block_refs_[worker_thread_client_id].empty()) {
+      // No available refs
+      if (!available_block_ids_[worker_thread_client_id].empty()) {
+        // Block IDs are available.
+        const block_id id = available_block_ids_[worker_thread_client_id].back();
+        available_block_ids_[worker_thread_client_id].pop_back();
+        MutableBlockReference retval = storage_manager_->getBlockMutable(id, relation_);
+        return retval;
+      }
     } else {
-      const block_id id = available_block_ids_.back();
-      available_block_ids_.pop_back();
-      MutableBlockReference retval = storage_manager_->getBlockMutable(id, relation_);
+      // Some block refs available.
+      MutableBlockReference retval = std::move(available_block_refs_[worker_thread_client_id].back());
+      available_block_refs_[worker_thread_client_id].pop_back();
       return retval;
     }
-  } else {
-    MutableBlockReference retval = std::move(available_block_refs_.back());
-    available_block_refs_.pop_back();
-    return retval;
   }
+  return createNewBlock();
 }
 
 void BlockPoolInsertDestination::returnBlock(MutableBlockReference &&block, const bool full) {
@@ -362,7 +377,8 @@ void BlockPoolInsertDestination::returnBlock(MutableBlockReference &&block, cons
     if (full) {
       done_block_ids_.push_back(block->getID());
     } else {
-      available_block_refs_.push_back(std::move(block));
+      const tmb::client_id worker_thread_client_id = thread_id_map_.getValue();
+      available_block_refs_[worker_thread_client_id].push_back(std::move(block));
       return;
     }
   }
@@ -377,8 +393,11 @@ void BlockPoolInsertDestination::returnBlock(MutableBlockReference &&block, cons
 }
 
 const std::vector<block_id>& BlockPoolInsertDestination::getTouchedBlocksInternal() {
-  for (std::vector<MutableBlockReference>::size_type i = 0; i < available_block_refs_.size(); ++i) {
-    done_block_ids_.push_back(available_block_refs_[i]->getID());
+  for (auto it = available_block_refs_.begin(); it != available_block_refs_.end(); ++it) {
+    for (std::vector<MutableBlockReference>::size_type i = 0; i < it->second.size(); ++i) {
+      done_block_ids_.push_back((it->second)[i]->getID());
+    }
+    it->second.clear();
   }
   available_block_refs_.clear();
 
