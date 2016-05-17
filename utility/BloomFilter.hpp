@@ -350,7 +350,7 @@ class BloomFilter {
   
   inline std::uint32_t hash_id(const std::uint8_t *begin, std::size_t remaining_length, std::uint32_t hash) const {
     std::uint32_t hash_val = 0;
-    for (int i = 0; i < remaining_length && i < 4; ++i) {
+    for (std::size_t i = 0; i < remaining_length && i < 4; ++i) {
       std::uint32_t mask = 0;
       mask |= begin[i];
       mask = mask << ((i * 8) - 1);
