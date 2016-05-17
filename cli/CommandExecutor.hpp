@@ -19,9 +19,11 @@
 #define QUICKSTEP_CLI_COMMAND_COMMAND_EXECUTOR_HPP_
 
 #include <cstdio>
+#include <limits>
 #include <string>
 
 #include "parser/ParseStatement.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
 using std::fprintf;
@@ -33,6 +35,7 @@ namespace quickstep {
 class CatalogDatabase;
 class CatalogAttribute;
 class CatalogRelation;
+class StorageManager;
 
 namespace cli {
 /** \addtogroup CLI
@@ -49,13 +52,14 @@ constexpr char kDescribeTableCommand[] = "\\d";
 
 /**
   * @brief Executes the command by calling the command handler.
-  *        
+  *
   * @param statement The parsed statement from the cli.
   * @param catalog_database The catalog information about the current database.
-  * @param out The stream where the output of the command has to be redirected to.      
+  * @param out The stream where the output of the command has to be redirected to.
 */
 void executeCommand(const ParseStatement &statement,
                     const CatalogDatabase &catalog_database,
+                    StorageManager *storage_manager,
                     FILE *out);
 
 /** @} */
