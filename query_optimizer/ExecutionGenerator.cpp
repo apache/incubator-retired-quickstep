@@ -91,6 +91,7 @@
 #include "relational_operators/DestroyHashOperator.hpp"
 #include "relational_operators/DropTableOperator.hpp"
 #include "relational_operators/FinalizeAggregationOperator.hpp"
+#include "relational_operators/GenerateNumRowsStatsOperator.hpp"
 #include "relational_operators/HashJoinOperator.hpp"
 #include "relational_operators/InsertOperator.hpp"
 #include "relational_operators/NestedLoopsJoinOperator.hpp"
@@ -947,6 +948,14 @@ void ExecutionGenerator::convertCopyFrom(
   execution_plan_->addDirectDependency(save_blocks_operator_index,
                                        scan_operator_index,
                                        false /* is_pipeline_breaker */);
+
+  const QueryPlan::DAGNodeIndex num_rows_operator_index =
+      execution_plan_->addRelationalOperator(
+          new GenerateNumRowsStatsOperator( output_relation));
+  insert_destination_proto->set_relational_op_index(num_rows_operator_index);
+  execution_plan_->addDirectDependency(num_rows_operator_index,
+                                       scan_operator_index,
+                                       true /* is_pipeline_breaker */);
 }
 
 void ExecutionGenerator::convertCreateIndex(

@@ -180,6 +180,10 @@ serialization::CatalogRelationSchema CatalogRelation::getProto() const {
   return proto;
 }
 
+void CatalogRelation::setNumTuples(std::size_t num_tuples) const {
+  num_tuples_ = num_tuples;
+}
+
 void CatalogRelation::setPartitionScheme(PartitionScheme* partition_scheme) {
   DCHECK_EQ(0u, size_blocks());
   partition_scheme_.reset(partition_scheme);
