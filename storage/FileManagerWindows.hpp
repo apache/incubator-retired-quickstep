@@ -37,9 +37,9 @@ namespace quickstep {
 class FileManagerWindows : public FileManager {
  public:
   explicit FileManagerWindows(const std::string &storage_path)
-      : FileManager(storage_path) { }
+      : FileManager(storage_path) {}
 
-  ~FileManagerWindows() override { }
+  ~FileManagerWindows() override {}
 
   bool deleteBlockOrBlob(const block_id block) override;
 
