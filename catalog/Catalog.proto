@@ -99,7 +99,7 @@ message CatalogRelation {
     optional IndexScheme index_scheme = 18;
     optional PartitionScheme partition_scheme = 19;
     optional NUMAPlacementScheme placement_scheme = 20;
-    optional uint32 num_tuples = 21;
+    optional uint32 num_tuples = 21 [default = 0];
   }
 }
 

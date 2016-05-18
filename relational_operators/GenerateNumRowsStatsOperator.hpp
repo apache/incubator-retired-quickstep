@@ -53,7 +53,7 @@ class GenerateNumRowsStatsOperator : public RelationalOperator {
    *                 This GenNumRowStatsOperator owns relation until
    *                 the WorkOrder it produces is successfully executed.
    **/
-  explicit GenerateNumRowsStatsOperator(const CatalogRelation *relation)
+  explicit GenerateNumRowsStatsOperator(CatalogRelation *relation)
       : relation_(relation) {}
   ~GenerateNumRowsStatsOperator() override {}
 
@@ -67,7 +67,7 @@ class GenerateNumRowsStatsOperator : public RelationalOperator {
                         tmb::MessageBus *bus) override;
 
  private:
-  const CatalogRelation *relation_;
+  CatalogRelation *relation_;
 
   DISALLOW_COPY_AND_ASSIGN(GenerateNumRowsStatsOperator);
 };

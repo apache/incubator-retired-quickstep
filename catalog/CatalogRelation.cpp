@@ -132,6 +132,7 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelationSchema &pro
   }
 
   default_layout_.reset(new StorageBlockLayout(*this, proto_default_layout));
+  num_tuples_ = proto.GetExtension(serialization::CatalogRelation::num_tuples);
 }
 
 serialization::CatalogRelationSchema CatalogRelation::getProto() const {
@@ -140,6 +141,7 @@ serialization::CatalogRelationSchema CatalogRelation::getProto() const {
   proto.set_relation_id(id_);
   proto.set_name(name_);
   proto.set_temporary(temporary_);
+  proto.SetExtension(serialization::CatalogRelation::num_tuples, num_tuples_);
 
   for (PtrVector<CatalogAttribute, true>::const_iterator it = attr_vec_.begin();
        it != attr_vec_.end();
@@ -180,7 +182,7 @@ serialization::CatalogRelationSchema CatalogRelation::getProto() const {
   return proto;
 }
 
-void CatalogRelation::setNumTuples(std::size_t num_tuples) const {
+void CatalogRelation::setNumTuples(std::size_t num_tuples) {
   num_tuples_ = num_tuples;
 }
 

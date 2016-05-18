@@ -79,8 +79,8 @@ class CatalogRelation : public CatalogRelationSchema {
                   const relation_id id = -1,
                   bool temporary = false)
       : CatalogRelationSchema(parent, name, id, temporary),
-        default_layout_(nullptr) {
-        num_tuples_ = 0;
+        default_layout_(nullptr),
+        num_tuples_(0) {
   }
 
   /**
@@ -204,7 +204,7 @@ class CatalogRelation : public CatalogRelationSchema {
    *
    * @param num_tuples The number of tuples in the catalog relation.
    **/
-  void setNumTuples(std::size_t num_tuples) const;
+  void setNumTuples(std::size_t num_tuples);
 
   /**
    * @brief Check if an index scheme is available for the relation.
@@ -414,7 +414,7 @@ class CatalogRelation : public CatalogRelationSchema {
   // Mutex for locking the index scheme.
   alignas(kCacheLineBytes) mutable SpinSharedMutex<false> index_scheme_mutex_;
 
-  mutable std::size_t num_tuples_;
+  std::size_t num_tuples_;
 
 #ifdef QUICKSTEP_HAVE_LIBNUMA
   // NUMA placement scheme object which has the mapping between the partitions
