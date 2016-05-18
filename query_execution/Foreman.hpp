@@ -18,8 +18,11 @@
 #ifndef QUICKSTEP_QUERY_EXECUTION_FOREMAN_HPP_
 #define QUICKSTEP_QUERY_EXECUTION_FOREMAN_HPP_
 
+#include <chrono>
 #include <cstddef>
 #include <memory>
+#include <random>
+#include <unordered_map>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -34,6 +37,7 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/DAG.hpp"
 #include "utility/Macros.hpp"
+#include "utility/StringUtil.hpp"
 
 #include "glog/logging.h"
 #include "gtest/gtest_prod.h"
@@ -80,7 +84,8 @@ class Foreman final : public ForemanLite {
         catalog_database_(DCHECK_NOTNULL(catalog_database)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
         max_msgs_per_worker_(1),
-        num_numa_nodes_(num_numa_nodes) {
+        num_numa_nodes_(num_numa_nodes),
+        mt_(std::random_device()()) {
     bus_->RegisterClientAsSender(foreman_client_id_, kWorkOrderMessage);
     bus_->RegisterClientAsSender(foreman_client_id_, kRebuildWorkOrderMessage);
     // NOTE : Foreman thread sends poison messages in the optimizer's
@@ -271,6 +276,9 @@ class Foreman final : public ForemanLite {
   void cleanUp() {
     output_consumers_.clear();
     blocking_dependencies_.clear();
+    /*for (auto it = operator_duration_.begin(); it != operator_duration_.end(); ++it) {
+      std::cout << "Op: " << it->first << " Time: " << DoubleToStringWithSignificantDigits(it->second.count(), 3) << "\n";
+    }*/
   }
 
   /**
@@ -429,6 +437,17 @@ class Foreman final : public ForemanLite {
    **/
   void getRebuildWorkOrders(const dag_node_index index, WorkOrdersContainer *container);
 
+  /*bool hasOperatorStarted(const dag_node_index index) const {
+    if (operator_start_timestamp_.find(index) != operator_start_timestamp_.end()) {
+      return true;
+    }
+    return false;
+  }*/
+
+  void updateProbabilities();
+
+  int chooseOperator();
+
   CatalogDatabaseLite *catalog_database_;
   StorageManager *storage_manager_;
 
@@ -454,6 +473,19 @@ class Foreman final : public ForemanLite {
 
   WorkerDirectory *workers_;
 
+  // A vector of IDs of the schedulable operators.
+  // Note, for simplicity, in this list there could be operators for which no
+  // work order has been scheduled yet.
+  std::vector<dag_node_index> active_operators_;
+  // Operators which have finished the execution.
+  // std::vector<dag_node_index> finished_operators_;
+
+  std::vector<std::pair<double, dag_node_index>> operator_probabilities_;
+
+  /*std::unordered_map<dag_node_index, std::chrono::duration<double, std::milli>> operator_duration_;
+  std::unordered_map<dag_node_index, std::chrono::time_point<std::chrono::steady_clock>> operator_start_timestamp_;*/
+
+  std::mt19937_64 mt_;
   friend class ForemanTest;
   FRIEND_TEST(ForemanTest, TwoNodesDAGPartiallyFilledBlocksTest);
 

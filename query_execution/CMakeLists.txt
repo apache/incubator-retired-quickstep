@@ -65,6 +65,7 @@ target_link_libraries(quickstep_queryexecution_Foreman
                       quickstep_threading_ThreadUtil
                       quickstep_utility_DAG
                       quickstep_utility_Macros
+                      quickstep_utility_StringUtil
                       tmb)
 target_link_libraries(quickstep_queryexecution_ForemanLite
                       glog

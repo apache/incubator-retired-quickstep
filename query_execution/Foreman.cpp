@@ -17,6 +17,7 @@
 
 #include "query_execution/Foreman.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <memory>
 #include <utility>
@@ -317,6 +318,13 @@ void Foreman::initializeState() {
       }
     }
   }
+  // Loop again to populate the active_operators_ vector.
+  for (dag_node_index node_index = 0; node_index < dag_size; ++node_index) {
+    if (checkAllBlockingDependenciesMet(node_index)) {
+      // Add to active_operators_.
+      active_operators_.emplace_back(node_index);
+    }
+  }
 }
 
 // TODO(harshad) : The default policy may execute remote WorkOrders for an
@@ -326,8 +334,48 @@ void Foreman::initializeState() {
 WorkerMessage* Foreman::getNextWorkerMessage(
     const dag_node_index start_operator_index, const int numa_node) {
   // Default policy: Operator with lowest index first.
+  updateProbabilities();
+  // We try few times.
   WorkOrder *work_order = nullptr;
-  size_t num_operators_checked = 0;
+  //while (work_order == nullptr) {
+    // std::cout << "Look for workorder active operator count: " << operator_probabilities_.size() << "\n";
+    int next_operator_index = chooseOperator();
+    if (next_operator_index == -1) {
+      return nullptr;
+    }
+    if (numa_node != -1) {
+      work_order = workorders_container_->getNormalWorkOrderForNUMANode(next_operator_index, numa_node);
+      if (work_order != nullptr) {
+        // A WorkOrder found on the given NUMA node.
+        query_exec_state_->incrementNumQueuedWorkOrders(next_operator_index);
+        return WorkerMessage::WorkOrderMessage(work_order, next_operator_index);
+      } else {
+        // Normal workorder not found on this node. Look for a rebuild workorder
+        // on this NUMA node.
+        work_order = workorders_container_->getRebuildWorkOrderForNUMANode(next_operator_index, numa_node);
+        if (work_order != nullptr) {
+          return WorkerMessage::RebuildWorkOrderMessage(work_order, next_operator_index);
+        }
+      }
+    }
+    // Either no workorder found on the given NUMA node, or numa_node is -1.
+    // Try to get a normal WorkOrder from other NUMA nodes.
+    work_order = workorders_container_->getNormalWorkOrder(next_operator_index);
+    if (work_order != nullptr) {
+      /*if (!hasOperatorStarted(next_operator_index)) {
+        operator_start_timestamp_[next_operator_index] = std::chrono::steady_clock::now();
+      }*/
+      query_exec_state_->incrementNumQueuedWorkOrders(next_operator_index);
+      return WorkerMessage::WorkOrderMessage(work_order, next_operator_index);
+    } else {
+      // Normal WorkOrder not found, look for a RebuildWorkOrder.
+      work_order = workorders_container_->getRebuildWorkOrder(next_operator_index);
+      if (work_order != nullptr) {
+        return WorkerMessage::RebuildWorkOrderMessage(work_order, next_operator_index);
+      }
+    }
+  // }
+  /*size_t num_operators_checked = 0;
   for (dag_node_index index = start_operator_index;
        num_operators_checked < query_dag_->size();
        index = (index + 1) % query_dag_->size(), ++num_operators_checked) {
@@ -354,6 +402,9 @@ WorkerMessage* Foreman::getNextWorkerMessage(
     // Try to get a normal WorkOrder from other NUMA nodes.
     work_order = workorders_container_->getNormalWorkOrder(index);
     if (work_order != nullptr) {
+      if (!hasOperatorStarted(index)) {
+        operator_start_timestamp_[index] = std::chrono::steady_clock::now();
+      }
       query_exec_state_->incrementNumQueuedWorkOrders(index);
       return WorkerMessage::WorkOrderMessage(work_order, index);
     } else {
@@ -363,7 +414,7 @@ WorkerMessage* Foreman::getNextWorkerMessage(
         return WorkerMessage::RebuildWorkOrderMessage(work_order, index);
       }
     }
-  }
+  }*/
   // No WorkOrders available right now.
   return nullptr;
 }
@@ -423,6 +474,13 @@ bool Foreman::fetchNormalWorkOrders(const dag_node_index index) {
         (num_pending_workorders_before <
          workorders_container_->getNumNormalWorkOrders(index));
   }
+  if (generated_new_workorders) {
+    if (std::find(active_operators_.begin(), active_operators_.end(), index) == active_operators_.end()) {
+      // std::cout << "Added operator " << index << " in processOperator()\n";
+      active_operators_.emplace_back(index);
+      updateProbabilities();
+    }
+  }
   return generated_new_workorders;
 }
 
@@ -467,6 +525,14 @@ void Foreman::processOperator(const dag_node_index index,
 }
 
 void Foreman::markOperatorFinished(const dag_node_index index) {
+  // std::cout << "Operator " << index << "finished\n";
+  // operator_duration_[index] = std::chrono::steady_clock::now() - operator_start_timestamp_[index];
+  // Remove this operator.
+  active_operators_.erase(std::remove(active_operators_.begin(), active_operators_.end(), index), active_operators_.end());
+  // Add to finished operators.
+  // finished_operators_.emplace_back(index);
+  updateProbabilities();
+
   query_exec_state_->setExecutionFinished(index);
 
   RelationalOperator *op = query_dag_->getNodePayloadMutable(index);
@@ -496,6 +562,11 @@ bool Foreman::initiateRebuild(const dag_node_index index) {
   query_exec_state_->setRebuildStatus(
       index, workorders_container_->getNumRebuildWorkOrders(index), true);
 
+  if (query_exec_state_->getNumRebuildWorkOrders(index) > 0) {
+    if (std::find(active_operators_.begin(), active_operators_.end(), index) == active_operators_.end()) {
+      active_operators_.emplace_back(index);
+    }
+  }
   return (query_exec_state_->getNumRebuildWorkOrders(index) == 0);
 }
 
@@ -525,6 +596,89 @@ void Foreman::getRebuildWorkOrders(const dag_node_index index, WorkOrdersContain
                             foreman_client_id_,
                             bus_),
         index);
+  }
+}
+
+void Foreman::updateProbabilities() {
+  // std::unordered_map<dag_node_index, std::size_t> num_workorders;
+  std::vector<std::pair<double, dag_node_index>> operator_probabilities;
+  /*std::size_t total_num_workorders = 0;
+  for (dag_node_index active_op_index : active_operators_) {
+    if (checkAllBlockingDependenciesMet(active_op_index)) {
+      std::size_t num_workorders_for_op = workorders_container_->getNumNormalWorkOrders(active_op_index);
+      num_workorders_for_op += workorders_container_->getNumRebuildWorkOrders(active_op_index);
+      if (num_workorders_for_op > 0) {
+        num_workorders[active_op_index] = num_workorders_for_op;
+        total_num_workorders += num_workorders_for_op;
+      }
+    }
+  }*/
+  std::unordered_map<dag_node_index, bool> schedulable_operators;
+  for (dag_node_index active_op_index : active_operators_) {
+    if (checkAllBlockingDependenciesMet(active_op_index)) {
+      schedulable_operators[active_op_index] = true;
+    }
+  }
+  /*if (total_num_workorders == 0) {
+    operator_probabilities_.swap(operator_probabilities);
+    return;
+  }*/
+  if (schedulable_operators.empty()) {
+    operator_probabilities_.swap(operator_probabilities);
+    return;
+  }
+  std::size_t last_operator_index = 0;
+  // if (num_workorders.size() == 1u) {
+  if (schedulable_operators.size() == 1u) {
+    // Only one operator is active.
+    // last_operator_index = num_workorders.begin()->first;
+    last_operator_index = schedulable_operators.begin()->first;
+    operator_probabilities.emplace_back(1.0, last_operator_index);
+  } else {
+    // More than one active operators.
+    double cumulative_probability = 0.0;
+    const double individual_probability = 1 / static_cast<double>(schedulable_operators.size());
+    /*for (auto it = num_workorders.begin(); it != num_workorders.end(); ++it) {
+      const double individual_probability = it->second / static_cast<double>(total_num_workorders);
+      cumulative_probability += individual_probability;
+      operator_probabilities.emplace_back(cumulative_probability, it->first);
+      last_operator_index = it->first;
+    }*/
+    for (auto it = schedulable_operators.begin(); it != schedulable_operators.end(); ++it) {
+      cumulative_probability += individual_probability;
+      operator_probabilities.emplace_back(cumulative_probability, it->first);
+      last_operator_index = it->first;
+    }
+    DCHECK(!operator_probabilities.empty());
+    operator_probabilities.back().first = 1.0;
+    operator_probabilities.back().second = last_operator_index;
+  }
+  // Round off the cumulative probability for the last element.
+  operator_probabilities_.swap(operator_probabilities);
+}
+
+int Foreman::chooseOperator() {
+  if (operator_probabilities_.empty()) {
+    // std::cout << "No operator right now\n";
+    return -1;
+  } else if (operator_probabilities_.size() == 1u) {
+    int operator_index = static_cast<int>(operator_probabilities_.front().second);
+    if (workorders_container_->hasNormalWorkOrder(operator_index) || workorders_container_->hasRebuildWorkOrder(operator_index)) {
+      // std::cout << "Single operator: " << operator_index << "\n";
+      return operator_index;
+    } else {
+      // std::cout << "Single operator: " << operator_index << " but no workorder\n";
+      return -1;
+    }
+  } else {
+    std::uniform_real_distribution<double> dist(0.0, 1.0);
+    double chosen_probability = dist(mt_);
+    std::pair<double, std::size_t> search_key = std::make_pair(chosen_probability, 0);
+    auto chosen_operator_it = std::upper_bound(
+          operator_probabilities_.begin(), operator_probabilities_.end(), search_key);
+    DCHECK(chosen_operator_it != operator_probabilities_.end());
+    // std::cout << "Operator: " << chosen_operator_it->second << "\n";
+    return static_cast<int>(chosen_operator_it->second);
   }
 }
 
