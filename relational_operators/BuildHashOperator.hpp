@@ -72,7 +72,7 @@ class BuildHashOperator : public RelationalOperator {
    * @param join_key_attributes The IDs of equijoin attributes in
    *        input_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param hash_table_indices The index of the JoinHashTable in QueryContext.
+   * @param hash_table_index The index of the JoinHashTable in QueryContext.
    *        The HashTable's key Type(s) should be the Type(s) of the
    *        join_key_attributes in input_relation.
    **/
@@ -80,11 +80,12 @@ class BuildHashOperator : public RelationalOperator {
                     const bool input_relation_is_stored,
                     const std::vector<attribute_id> &join_key_attributes,
                     const bool any_join_key_attributes_nullable,
-                    const std::vector<QueryContext::join_hash_table_id> &hash_table_indices)
+                    const QueryContext::join_hash_table_group_id hash_table_group_index)
     : input_relation_(input_relation),
       input_relation_is_stored_(input_relation_is_stored),
       join_key_attributes_(join_key_attributes),
       any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
+      hash_table_group_index_(hash_table_group_index),
       input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
                                                          : std::vector<block_id>()),
       num_workorders_generated_(0),
@@ -98,18 +99,13 @@ class BuildHashOperator : public RelationalOperator {
       input_relation_block_ids_in_partition_.resize(num_partitions);
       num_workorders_generated_in_partition_.resize(num_partitions);
       num_workorders_generated_in_partition_.assign(num_partitions, 0);
-      hash_table_indices_.resize(num_partitions);
-      for (int part_id = 0; part_id < num_partitions; ++part_id) {
-        hash_table_indices_[part_id] = hash_table_indices[part_id];
+      for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
         if (input_relation_is_stored) {
           input_relation_block_ids_in_partition_[part_id] = part_scheme.getBlocksInPartition(part_id);
         } else {
           input_relation_block_ids_in_partition_[part_id] = std::vector<block_id>();
         }
       }
-    } else {
-      hash_table_indices_.resize(1);
-      hash_table_indices_[0] = hash_table_indices[0];
     }
   }
 
@@ -160,7 +156,7 @@ class BuildHashOperator : public RelationalOperator {
   const bool input_relation_is_stored_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  std::vector<QueryContext::join_hash_table_id> hash_table_indices_;
+  const QueryContext::join_hash_table_id hash_table_group_index_;
 
   std::vector<block_id> input_relation_block_ids_;
   // A vector of vectors V where V[i] indicates the list of block IDs of the

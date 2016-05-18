@@ -104,7 +104,7 @@ class HashJoinOperator : public RelationalOperator {
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the join results.
-   * @param hash_table_indices The index of the JoinHashTable in QueryContext.
+   * @param hash_table_index The index of the JoinHashTable in QueryContext.
    * @param residual_predicate_index If not kInvalidPredicateId, apply as an
    *        additional filter to pairs of tuples that match the hash-join (i.e.
    *        key equality) predicate. Effectively, this makes the join predicate
@@ -126,7 +126,7 @@ class HashJoinOperator : public RelationalOperator {
                    const bool any_join_key_attributes_nullable,
                    const CatalogRelation &output_relation,
                    const QueryContext::insert_destination_id output_destination_index,
-                   const std::vector<QueryContext::join_hash_table_id> &hash_table_indices,
+                   const QueryContext::join_hash_table_group_id hash_table_group_index,
                    const QueryContext::predicate_id residual_predicate_index,
                    const QueryContext::scalar_group_id selection_index,
                    const std::vector<bool> *is_selection_on_build = nullptr,
@@ -138,6 +138,7 @@ class HashJoinOperator : public RelationalOperator {
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
+        hash_table_group_index_(hash_table_group_index),
         residual_predicate_index_(residual_predicate_index),
         selection_index_(selection_index),
         is_selection_on_build_(is_selection_on_build == nullptr
@@ -161,8 +162,7 @@ class HashJoinOperator : public RelationalOperator {
       probe_relation_block_ids_in_partition_.resize(num_partitions);
       num_workorders_generated_in_partition_.resize(num_partitions);
       num_workorders_generated_in_partition_.assign(num_partitions, 0);
-      for (int part_id = 0; part_id < num_partitions; ++part_id) {
-        hash_table_indices_[part_id] = hash_table_indices[part_id];
+      for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
         if (probe_relation_is_stored) {
           probe_relation_block_ids_in_partition_[part_id] = part_scheme.getBlocksInPartition(part_id);
         } else {
@@ -260,7 +260,7 @@ class HashJoinOperator : public RelationalOperator {
   const bool any_join_key_attributes_nullable_;
   const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
-  std::vector<QueryContext::join_hash_table_id> hash_table_indices_;
+  const QueryContext::join_hash_table_group_id hash_table_group_index_;
   const QueryContext::predicate_id residual_predicate_index_;
   const QueryContext::scalar_group_id selection_index_;
   const std::vector<bool> is_selection_on_build_;

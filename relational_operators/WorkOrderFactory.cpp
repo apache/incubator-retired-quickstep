@@ -88,13 +88,13 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
       }
 
       return new BuildHashWorkOrder(
-          catalog_database->getRelationSchemaById(
-              proto.GetExtension(serialization::BuildHashWorkOrder::relation_id)),
+          catalog_database->getRelationSchemaById(proto.GetExtension(serialization::BuildHashWorkOrder::relation_id)),
           move(join_key_attributes),
           proto.GetExtension(serialization::BuildHashWorkOrder::any_join_key_attributes_nullable),
           proto.GetExtension(serialization::BuildHashWorkOrder::block_id),
           query_context->getJoinHashTable(
-              proto.GetExtension(serialization::BuildHashWorkOrder::join_hash_table_index)),
+              proto.GetExtension(serialization::BuildHashWorkOrder::join_hash_table_index),
+              proto.GetExtension(serialization::BuildHashWorkOrder::join_hash_table_part_index)),
           storage_manager);
     }
     case serialization::DELETE: {
@@ -113,6 +113,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     case serialization::DESTROY_HASH: {
       LOG(INFO) << "Creating DestroyHashWorkOrder";
       return new DestroyHashWorkOrder(
+          catalog_database->getRelationSchemaById(proto.GetExtension(serialization::DestroyHashWorkOrder::relation_id))
           proto.GetExtension(serialization::DestroyHashWorkOrder::join_hash_table_index),
           query_context);
     }
@@ -176,7 +177,8 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               proto.GetExtension(serialization::HashJoinWorkOrder::selection_index));
       const JoinHashTable &hash_table =
           *query_context->getJoinHashTable(
-              proto.GetExtension(serialization::HashJoinWorkOrder::join_hash_table_index));
+              proto.GetExtension(serialization::HashJoinWorkOrder::join_hash_table_index),
+              proto.GetExtension(serialization::HashJoinWorkOrder::join_hash_table_part_index));
       InsertDestination *output_destination =
           query_context->getInsertDestination(
               proto.GetExtension(serialization::HashJoinWorkOrder::insert_destination_index));
@@ -470,7 +472,8 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
     case serialization::DESTROY_HASH: {
       return proto.HasExtension(serialization::DestroyHashWorkOrder::join_hash_table_index) &&
              query_context.isValidJoinHashTableId(
-                 proto.GetExtension(serialization::DestroyHashWorkOrder::join_hash_table_index));
+                 proto.GetExtension(serialization::DestroyHashWorkOrder::join_hash_table_index)) &&
+             proto.HasExtension(serialization::DestroyHashWorkOrder::relation_id);
     }
     case serialization::DROP_TABLE: {
       return true;

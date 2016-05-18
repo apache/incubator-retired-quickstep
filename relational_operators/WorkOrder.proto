@@ -67,6 +67,7 @@ message BuildHashWorkOrder {
     optional bool any_join_key_attributes_nullable = 34;
     optional uint32 join_hash_table_index = 35;
     optional fixed64 block_id = 36;
+    optional uint32 join_hash_table_part_index = 37;
   }
 }
 
@@ -83,7 +84,9 @@ message DeleteWorkOrder {
 message DestroyHashWorkOrder {
   extend WorkOrder {
     // All required.
-    optional uint32 join_hash_table_index = 112;
+    optional int32 relation_id = 112;
+    optional uint32 join_hash_table_index = 113;
+    optional uint32 join_hash_table_part_index = 114;
   }
 }
 
@@ -128,6 +131,7 @@ message HashJoinWorkOrder {
     optional int32 residual_predicate_index = 169;
     // Used by HashOuterJoinWorkOrder only.
     repeated bool is_selection_on_build = 170;
+    optional uint32 join_hash_table_part_index = 171;
   }
 }
 

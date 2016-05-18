@@ -20,6 +20,9 @@
 
 #include <vector>
 
+#include "catalog/CatalogRelation.hpp"
+#include "catalog/CatalogTypedefs.hpp"
+
 #ifdef QUICKSTEP_HAVE_LIBNUMA
 #include "catalog/NUMAPlacementScheme.hpp"
 #endif
@@ -40,6 +43,7 @@ class MessageBus;
 
 namespace quickstep {
 
+class CatalogRelationSchema;
 class StorageManager;
 class WorkOrdersContainer;
 
@@ -55,16 +59,11 @@ class DestroyHashOperator : public RelationalOperator {
   /**
    * @brief Constructor.
    *
-   * @param hash_table_index The index of the JoinHashTable in QueryContext.
+   * @param hash_table_group_index The group index of the JoinHashTable in QueryContext.
    **/
-  explicit DestroyHashOperator(const std::vector<QueryContext::join_hash_table_id> hash_table_indices)
-      : work_generated_(false) {
-    std::size_t num_partitions = hash_table_indices.size();
-    hash_table_indices_.resize(num_partitions);
-    for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
-      hash_table_indices_[part_id] = hash_table_indices[part_id];
-    }
-  }
+  explicit DestroyHashOperator(const CatalogRelation &input_relation,
+                               const QueryContext::join_hash_table_group_id hash_table_group_index)
+      : input_relation_(input_relation), hash_table_group_index_(hash_table_group_index), work_generated_(false) {}
 
   ~DestroyHashOperator() override {}
 
@@ -75,7 +74,8 @@ class DestroyHashOperator : public RelationalOperator {
                         tmb::MessageBus *bus) override;
 
  private:
-  std::vector<QueryContext::join_hash_table_id> hash_table_indices_;
+  const CatalogRelation &input_relation_;
+  const QueryContext::join_hash_table_group_id hash_table_group_index_;
   bool work_generated_;
 
   DISALLOW_COPY_AND_ASSIGN(DestroyHashOperator);
@@ -89,13 +89,16 @@ class DestroyHashWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @param hash_table_index The index of the JoinHashTable in QueryContext.
+   * @param hash_table_group_index The group index of the JoinHashTable in QueryContext.
    * @param query_context The QueryContext to use.
    **/
-  DestroyHashWorkOrder(const QueryContext::join_hash_table_id hash_table_index,
+  DestroyHashWorkOrder(const CatalogRelation &input_relation,
+                       const QueryContext::join_hash_table_group_id hash_table_group_index,
                        QueryContext *query_context,
                        const numa_node_id numa_node = 0)
-      : hash_table_index_(hash_table_index), query_context_(DCHECK_NOTNULL(query_context)) {
+      : input_relation_(input_relation),
+        hash_table_group_index_(hash_table_group_index),
+        query_context_(DCHECK_NOTNULL(query_context)) {
     preferred_numa_nodes_.push_back(numa_node);
   }
 
@@ -104,7 +107,8 @@ class DestroyHashWorkOrder : public WorkOrder {
   void execute() override;
 
  private:
-  const QueryContext::join_hash_table_id hash_table_index_;
+  const CatalogRelation &input_relation_;
+  const QueryContext::join_hash_table_group_id hash_table_group_index_;
   QueryContext *query_context_;
 
   DISALLOW_COPY_AND_ASSIGN(DestroyHashWorkOrder);

@@ -57,7 +57,7 @@ class TupleReferenceGenerator {
 void BuildHashOperator::addWorkOrders(WorkOrdersContainer *container,
                                       QueryContext *query_context,
                                       StorageManager *storage_manager) {
-  JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_indices_[0]);
+  JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_group_index_);
   if (input_relation_is_stored_) {
     for (const block_id input_block_id : input_relation_block_ids_) {
       container->addNormalWorkOrder(new BuildHashWorkOrder(input_relation_,
@@ -91,7 +91,7 @@ void BuildHashOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *contain
   if (input_relation_is_stored_) {
     for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
       for (const block_id input_block_id : input_relation_block_ids_in_partition_[part_id]) {
-        JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_indices_[part_id]);
+        JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_group_index_, part_id);
         container->addNormalWorkOrder(new BuildHashWorkOrder(input_relation_,
                                                              join_key_attributes_,
                                                              any_join_key_attributes_nullable_,
@@ -104,7 +104,7 @@ void BuildHashOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *contain
     }
   } else {
     for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
-      JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_indices_[part_id]);
+      JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_group_index_, part_id);
       while (num_workorders_generated_in_partition_[part_id] <
              input_relation_block_ids_in_partition_[part_id].size()) {
         block_id block_in_partition =

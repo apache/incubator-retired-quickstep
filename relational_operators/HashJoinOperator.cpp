@@ -250,7 +250,7 @@ void HashJoinOperator::addWorkOrders(WorkOrdersContainer *container,
                                      const Predicate *residual_predicate,
                                      const std::vector<std::unique_ptr<const Scalar>> &selection,
                                      InsertDestination *output_destination) {
-  const JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_indices_[0]));
+  const JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_group_index_));
 
     if (probe_relation_is_stored_) {
       for (const block_id probe_block_id : probe_relation_block_ids_) {
@@ -300,7 +300,7 @@ void HashJoinOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *containe
     for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
       for (const block_id input_block_id :
            probe_relation_block_ids_in_partition_[part_id]) {
-        JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_indices_[part_id]));
+        JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_group_index_, part_id));
         container->addNormalWorkOrder(
             new JoinWorkOrderClass(build_relation_,
                                    probe_relation_,
@@ -318,7 +318,7 @@ void HashJoinOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *containe
     }
   } else {
     for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
-      JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_indices_[part_id]));
+      JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_group_index_, part_id));
       while (num_workorders_generated_in_partition_[part_id] <
              probe_relation_block_ids_in_partition_[part_id].size()) {
         block_id block_in_partition
@@ -468,7 +468,7 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
     WorkOrdersContainer *container,
     QueryContext *query_context,
     StorageManager *storage_manager) {
-  const JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_indices_[0]));
+  const JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_group_index_));
   // We wait until the building of global hash table is complete.
   if (blocking_dependencies_met_) {
     DCHECK(query_context != nullptr);

@@ -41,8 +41,13 @@ message QueryContext {
     repeated UpdateAssignment update_assignments = 2;
   }
 
+  // HashTableGroup is a vector of HashTables.
+  message HashTableGroup {
+    repeated HashTable join_hash_tables = 1;
+  }
+
   repeated AggregationOperationState aggregation_states = 1;
-  repeated HashTable join_hash_tables = 2;
+  repeated HashTableGroup join_hash_table_groups = 2;
   repeated InsertDestination insert_destinations = 3;
   repeated Predicate predicates = 4;
   repeated ScalarGroup scalar_groups = 5;

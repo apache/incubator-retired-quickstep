@@ -73,10 +73,13 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
         std::unique_ptr<const GeneratorFunctionHandle>(func_handle));
   }
 
-  for (int i = 0; i < proto.join_hash_tables_size(); ++i) {
-    join_hash_tables_.emplace_back(
-        JoinHashTableFactory::CreateResizableFromProto(proto.join_hash_tables(i),
-                                                       storage_manager));
+  join_hash_tables_.resize(proto.join_hash_table_groups_size());
+  for (int i = 0; i < proto.join_hash_table_groups_size(); ++i) {
+    for (int j = 0; j < proto.join_hash_table_groups(i).join_hash_tables_size(); ++j) {
+      join_hash_tables_[i].emplace_back(
+          JoinHashTableFactory::CreateResizableFromProto(proto.join_hash_table_groups(i).join_hash_tables(j),
+                                                         storage_manager));
+    }
   }
 
   for (int i = 0; i < proto.insert_destinations_size(); ++i) {
@@ -153,9 +156,11 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
     }
   }
 
-  for (int i = 0; i < proto.join_hash_tables_size(); ++i) {
-    if (!JoinHashTableFactory::ProtoIsValid(proto.join_hash_tables(i))) {
-      return false;
+  for (int i = 0; i < proto.join_hash_table_groups_size(); ++i) {
+    for (int j = 0; j < proto.join_hash_table_groups(i).join_hash_tables_size(); ++j) {
+      if (!JoinHashTableFactory::ProtoIsValid(proto.join_hash_table_groups(i).join_hash_tables(j))) {
+        return false;
+      }
     }
   }
 
