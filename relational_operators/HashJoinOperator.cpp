@@ -59,7 +59,7 @@ namespace quickstep {
 
 namespace {
 
-DEFINE_bool(vector_based_joined_tuple_collector, true,
+DEFINE_bool(vector_based_joined_tuple_collector, false,
             "If true, use simple vector-based joined tuple collector in "
             "hash join, with a final sort pass to group joined tuple pairs "
             "by inner block. If false, use unordered_map based collector that "
