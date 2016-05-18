@@ -72,6 +72,7 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
 #include "utility/SqlError.hpp"
+#include "utility/StringUtil.hpp"
 
 #include "gflags/gflags.h"
 
@@ -364,7 +365,9 @@ int main(int argc, char* argv[]) {
           try {
             quickstep::cli::executeCommand(
                 *result.parsed_statement,
-                *(query_processor->getDefaultDatabase()), stdout);
+                *(query_processor->getDefaultDatabase()),
+                query_processor->getStorageManager(),
+                stdout);
           } catch (const quickstep::SqlError &sql_error) {
             fprintf(stderr, "%s",
                     sql_error.formatMessage(*command_string).c_str());
@@ -399,6 +402,10 @@ int main(int argc, char* argv[]) {
             PrintToScreen::PrintRelation(*query_result_relation,
                                          query_processor->getStorageManager(),
                                          stdout);
+            PrintToScreen::PrintOutputSize(
+                *query_result_relation,
+                query_processor->getStorageManager(),
+                stdout);
 
             DropRelation::Drop(*query_result_relation,
                                query_processor->getDefaultDatabase(),
@@ -406,13 +413,14 @@ int main(int argc, char* argv[]) {
           }
 
           query_processor->saveCatalog();
-          printf("Execution time: %g seconds\n",
-                 std::chrono::duration<double>(end - start).count());
+          std::chrono::duration<double, std::milli> time_ms = end - start;
+          printf("Time: %s ms\n",
+                 quickstep::DoubleToStringWithSignificantDigits(
+                     time_ms.count(), 3).c_str());
         } catch (const std::exception &e) {
           fprintf(stderr, "QUERY EXECUTION ERROR: %s\n", e.what());
           break;
         }
-        printf("Query Complete\n");
       } else {
         if (result.condition == ParseResult::kError) {
           fprintf(stderr, "%s", result.error_message.c_str());

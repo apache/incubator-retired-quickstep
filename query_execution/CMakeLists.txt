@@ -90,9 +90,11 @@ target_link_libraries(quickstep_queryexecution_QueryContext
                       quickstep_storage_InsertDestination_proto
                       quickstep_types_TypedValue
                       quickstep_types_containers_Tuple
+                      quickstep_utility_BloomFilter
                       quickstep_utility_Macros
                       quickstep_utility_SortConfiguration)
 target_link_libraries(quickstep_queryexecution_QueryContext_proto
+                      quickstep_utility_BloomFilter_proto
                       quickstep_expressions_Expressions_proto
                       quickstep_expressions_tablegenerator_GeneratorFunction_proto
                       quickstep_storage_AggregationOperationState_proto

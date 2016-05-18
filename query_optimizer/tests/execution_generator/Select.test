@@ -464,8 +464,6 @@ WHERE a.int_col = b.int_col
 +-----------+-----------+---------------+-----------------------+---------------+------------------------+-----------+
 ==
 
-# FIXME(qzeng): Inner nested-loops join has no output column, causing query
-# result to be INCORRECT.
 SELECT COUNT(*)
 FROM
   (SELECT a.float_col
@@ -476,7 +474,7 @@ FROM
 +--------------------+
 |COUNT(*)            |
 +--------------------+
-|                   0|
+|                 575|
 +--------------------+
 ==
 
@@ -941,15 +939,14 @@ ORDER BY x;
 +-----------+-----------+
 ==
 
-# TODO(team): Fix Issue #9 to enable COUNT(*).
-SELECT COUNT(long_col)
+SELECT COUNT(*)
 FROM test,
      (SELECT AVG(long_col) a FROM test) subquery
 WHERE double_col < 0
   AND long_col > subquery.a;
 --
 +--------------------+
-|COUNT(long_col)     |
+|COUNT(*)            |
 +--------------------+
 |                   5|
 +--------------------+

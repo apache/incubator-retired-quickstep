@@ -87,6 +87,7 @@ void CommandExecutorTestRunner::runTestCase(
           quickstep::cli::executeCommand(
               *result.parsed_statement,
               *(test_database_loader_.catalog_database()),
+              test_database_loader_.storage_manager(),
               output_stream.file());
         } else  {
           QueryHandle query_handle(optimizer_context.query_id());

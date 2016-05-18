@@ -23,6 +23,7 @@ import "storage/AggregationOperationState.proto";
 import "storage/HashTable.proto";
 import "storage/InsertDestination.proto";
 import "types/containers/Tuple.proto";
+import "utility/BloomFilter.proto";
 import "utility/SortConfiguration.proto";
 
 message QueryContext {
@@ -54,7 +55,8 @@ message QueryContext {
   repeated SortConfiguration sort_configs = 6;
   repeated Tuple tuples = 7;
   repeated GeneratorFunctionHandle generator_functions = 8;
+  repeated BloomFilter bloom_filters = 9;
 
   // NOTE(zuyu): For UpdateWorkOrder only.
-  repeated UpdateGroup update_groups = 9;
+  repeated UpdateGroup update_groups = 10;
 }

@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -37,6 +39,7 @@
 #include "storage/InsertDestination.pb.h"
 #include "types/TypedValue.hpp"
 #include "types/containers/Tuple.hpp"
+#include "utility/BloomFilter.hpp"
 #include "utility/SortConfiguration.hpp"
 
 #include "glog/logging.h"
@@ -65,6 +68,10 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
                                                         storage_manager));
   }
 
+  for (int i = 0; i < proto.bloom_filters_size(); ++i) {
+    bloom_filters_.emplace_back(new BloomFilter(proto.bloom_filters(i)));
+  }
+
   for (int i = 0; i < proto.generator_functions_size(); ++i) {
     const GeneratorFunctionHandle *func_handle =
         GeneratorFunctionFactory::Instance().reconstructFromProto(proto.generator_functions(i));
@@ -78,7 +85,8 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
     for (int j = 0; j < proto.join_hash_table_groups(i).join_hash_tables_size(); ++j) {
       join_hash_tables_[i].emplace_back(
           JoinHashTableFactory::CreateResizableFromProto(proto.join_hash_table_groups(i).join_hash_tables(j),
-                                                         storage_manager));
+                                                         storage_manager,
+                                                         bloom_filters_));
     }
   }
 
@@ -141,6 +149,12 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
                                 const CatalogDatabaseLite &database) {
   for (int i = 0; i < proto.aggregation_states_size(); ++i) {
     if (!AggregationOperationState::ProtoIsValid(proto.aggregation_states(i), database)) {
+      return false;
+    }
+  }
+
+  for (int i = 0; i < proto.bloom_filters_size(); ++i) {
+    if (!BloomFilter::ProtoIsValid(proto.bloom_filters(i))) {
       return false;
     }
   }

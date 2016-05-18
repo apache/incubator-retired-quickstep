@@ -585,20 +585,22 @@ target_link_libraries(quickstep_storage_FileManager
                       quickstep_utility_Macros
                       quickstep_utility_StringUtil)
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
-target_link_libraries(quickstep_storage_FileManagerHdfs
-                      gflags_nothreads-static
-                      quickstep_storage_FileManager
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_storage_StorageConstants
-                      quickstep_storage_StorageErrors
-                      quickstep_utility_Macros
-                      quickstep_utility_StringUtil
-                      ${LIBHDFS3_LIBRARIES})
+  target_link_libraries(quickstep_storage_FileManagerHdfs
+                        glog
+                        gflags_nothreads-static
+                        quickstep_storage_FileManager
+                        quickstep_storage_StorageBlockInfo
+                        quickstep_storage_StorageConstants
+                        quickstep_storage_StorageErrors
+                        quickstep_utility_Macros
+                        quickstep_utility_StringUtil
+                        ${LIBHDFS3_LIBRARIES})
 endif()
 if (QUICKSTEP_HAVE_FILE_MANAGER_POSIX)
   target_link_libraries(quickstep_storage_FileManagerLocal
                         quickstep_storage_FileManagerPosix)
   target_link_libraries(quickstep_storage_FileManagerPosix
+                        glog
                         quickstep_storage_FileManager
                         quickstep_storage_StorageBlockInfo
                         quickstep_storage_StorageConstants
@@ -609,6 +611,7 @@ elseif (QUICKSTEP_HAVE_FILE_MANAGER_WINDOWS)
   target_link_libraries(quickstep_storage_FileManagerLocal
                         quickstep_storage_FileManagerWindows)
   target_link_libraries(quickstep_storage_FileManagerWindows
+                        glog
                         quickstep_storage_FileManager
                         quickstep_storage_StorageBlockInfo
                         quickstep_storage_StorageConstants
@@ -629,6 +632,7 @@ target_link_libraries(quickstep_storage_HashTable
                       quickstep_threading_SpinSharedMutex
                       quickstep_types_Type
                       quickstep_types_TypedValue
+                      quickstep_utility_BloomFilter
                       quickstep_utility_HashPair
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_HashTableBase
@@ -648,6 +652,7 @@ target_link_libraries(quickstep_storage_HashTableFactory
                       quickstep_types_Type
                       quickstep_types_TypeFactory
                       quickstep_types_TypedValue
+                      quickstep_utility_BloomFilter
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_HashTableKeyManager
                       glog
@@ -1196,7 +1201,7 @@ target_link_libraries(BloomFilterIndexSubBlock_unittest
 add_test(BloomFilterIndexSubBlock_unittest BloomFilterIndexSubBlock_unittest)
 
 if(QUICKSTEP_HAVE_BITWEAVING)
-  add_executable(BitWeavingIndexSubBlock_unittest 
+  add_executable(BitWeavingIndexSubBlock_unittest
                  "${CMAKE_CURRENT_SOURCE_DIR}/bitweaving/tests/BitWeavingIndexSubBlock_unittest.cpp")
   target_link_libraries(BitWeavingIndexSubBlock_unittest
                         glog

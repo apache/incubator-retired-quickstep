@@ -712,7 +712,8 @@ target_link_libraries(quickstep_cli_shell
                       quickstep_threading_ThreadIDBasedMap
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector
-                      quickstep_utility_SqlError)
+                      quickstep_utility_SqlError
+                      quickstep_utility_StringUtil)
 if (ENABLE_HDFS)
   target_link_libraries(quickstep_cli_shell
                         quickstep_storage_FileManagerHdfs)

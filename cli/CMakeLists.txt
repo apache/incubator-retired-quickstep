@@ -73,8 +73,9 @@ target_link_libraries(quickstep_cli_CommandExecutor
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogRelationSchema
+                      quickstep_cli_PrintToScreen 
                       quickstep_parser_ParseStatement
-                      quickstep_cli_PrintToScreen
+                      quickstep_storage_StorageBlockInfo
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector                        
                       quickstep_utility_SqlError)
@@ -102,6 +103,7 @@ target_link_libraries(quickstep_cli_PrintToScreen
                       quickstep_storage_StorageManager
                       quickstep_storage_TupleIdSequence
                       quickstep_storage_TupleStorageSubBlock
+                      quickstep_types_IntType
                       quickstep_types_Type
                       quickstep_types_TypedValue
                       quickstep_utility_Macros)
