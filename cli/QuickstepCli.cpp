@@ -367,6 +367,8 @@ int main(int argc, char* argv[]) {
                 *result.parsed_statement,
                 *(query_processor->getDefaultDatabase()),
                 query_processor->getStorageManager(),
+                query_processor.get(),
+                &foreman,
                 stdout);
           } catch (const quickstep::SqlError &sql_error) {
             fprintf(stderr, "%s",
