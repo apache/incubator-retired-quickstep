@@ -67,14 +67,14 @@ class ExecutionHeuristics {
                  const CatalogRelation *referenced_stored_probe_relation,
                  std::vector<attribute_id> &&build_attributes,
                  std::vector<attribute_id> &&probe_attributes,
-                 const QueryContext::join_hash_table_id join_hash_table_id)
+                 const QueryContext::join_hash_table_group_id join_hash_table_group_id)
         : build_operator_index_(build_operator_index),
           join_operator_index_(join_operator_index),
           referenced_stored_build_relation_(referenced_stored_build_relation),
           referenced_stored_probe_relation_(referenced_stored_probe_relation),
           build_attributes_(std::move(build_attributes)),
           probe_attributes_(std::move(probe_attributes)),
-          join_hash_table_id_(join_hash_table_id) {
+          join_hash_table_group_id_(join_hash_table_group_id) {
     }
 
     const QueryPlan::DAGNodeIndex build_operator_index_;
@@ -83,7 +83,7 @@ class ExecutionHeuristics {
     const CatalogRelation *referenced_stored_probe_relation_;
     const std::vector<attribute_id> build_attributes_;
     const std::vector<attribute_id> probe_attributes_;
-    const QueryContext::join_hash_table_id join_hash_table_id_;
+    const QueryContext::join_hash_table_group_id join_hash_table_group_id_;
   };
 
 
@@ -102,7 +102,7 @@ class ExecutionHeuristics {
    * @param probe_relation_id Id of the relation on which hash table is being probed.
    * @param build_attributes List of attributes on which hash table is being built.
    * @param probe_attributes List of attributes on which hash table is being probed.
-   * @param join_hash_table_id Id of the hash table which refers to the actual hash
+   * @param join_hash_table_group_id Id of the hash table which refers to the actual hash
    *        table within the query context.
    **/
   inline void addHashJoinInfo(const QueryPlan::DAGNodeIndex build_operator_index,
@@ -111,14 +111,14 @@ class ExecutionHeuristics {
                               const CatalogRelation *referenced_stored_probe_relation,
                               std::vector<attribute_id> &&build_attributes,
                               std::vector<attribute_id> &&probe_attributes,
-                              const QueryContext::join_hash_table_id join_hash_table_id) {
+                              const QueryContext::join_hash_table_group_id join_hash_table_group_id) {
     hash_joins_.push_back(HashJoinInfo(build_operator_index,
                                        join_operator_index,
                                        referenced_stored_build_relation,
                                        referenced_stored_probe_relation,
                                        std::move(build_attributes),
                                        std::move(probe_attributes),
-                                       join_hash_table_id));
+                                       join_hash_table_group_id));
   }
 
   /**

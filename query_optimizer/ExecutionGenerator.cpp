@@ -882,7 +882,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
                                            referenced_stored_probe_relation,
                                            std::move(build_original_attribute_ids),
                                            std::move(probe_original_attribute_ids),
-                                           join_hash_table_index);
+                                           join_hash_table_group_index);
   }
 }
 

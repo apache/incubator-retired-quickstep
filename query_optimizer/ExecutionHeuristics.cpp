@@ -74,21 +74,37 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
         setBloomFilterProperties(bloom_filter_proto, hash_joins_[node].referenced_stored_build_relation_);
 
         // Add build-side bloom filter information to the corresponding hash table proto.
-        query_context_proto->mutable_join_hash_tables(hash_joins_[node].join_hash_table_id_)
-            ->add_build_side_bloom_filter_id(bloom_filter_id);
+        const std::size_t num_partitions = hash_joins_[origin_node]
+                                               .referenced_stored_build_relation_->getPartitionScheme()
+                                               .getPartitionSchemeHeader()
+                                               .getNumPartitions();
+        for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
+          query_context_proto->mutable_join_hash_table_groups(hash_joins_[node].join_hash_table_group_id_)
+              ->mutable_join_hash_tables(part_id)
+              ->add_build_side_bloom_filter_id(bloom_filter_id);
+        }
 
         probe_bloom_filter_info.insert(std::make_pair(bloom_filter_id, hash_joins_[node].probe_attributes_));
       }
 
       // Add probe-side bloom filter information to the corresponding hash table proto for each build-side bloom filter.
-      for (const std::pair<QueryContext::bloom_filter_id, std::vector<attribute_id>>
-               &bloom_filter_info : probe_bloom_filter_info) {
-        auto *probe_side_bloom_filter =
-            query_context_proto->mutable_join_hash_tables(hash_joins_[origin_node].join_hash_table_id_)
-                                  ->add_probe_side_bloom_filters();
-        probe_side_bloom_filter->set_probe_side_bloom_filter_id(bloom_filter_info.first);
-        for (const attribute_id &probe_attribute_id : bloom_filter_info.second) {
-          probe_side_bloom_filter->add_probe_side_attr_ids(probe_attribute_id);
+      std::vector<serialization::HashTable_ProbeSideBloomFilter *> probe_side_bloom_filter;
+      const std::size_t num_partitions = hash_joins_[origin_node]
+                                             .referenced_stored_probe_relation_->getPartitionScheme()
+                                             .getPartitionSchemeHeader()
+                                             .getNumPartitions();
+      probe_side_bloom_filter.resize(num_partitions);
+      for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
+        for (const std::pair<QueryContext::bloom_filter_id, std::vector<attribute_id>> &bloom_filter_info :
+             probe_bloom_filter_info) {
+          probe_side_bloom_filter[part_id] =
+              query_context_proto->mutable_join_hash_table_groups(hash_joins_[origin_node].join_hash_table_group_id_)
+                  ->mutable_join_hash_tables(part_id)
+                  ->add_probe_side_bloom_filters();
+          probe_side_bloom_filter[part_id]->set_probe_side_bloom_filter_id(bloom_filter_info.first);
+          for (const attribute_id &probe_attribute_id : bloom_filter_info.second) {
+            probe_side_bloom_filter[part_id]->add_probe_side_attr_ids(probe_attribute_id);
+          }
         }
       }
 
