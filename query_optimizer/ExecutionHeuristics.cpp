@@ -65,6 +65,7 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
     // Only chains of length greater than one are suitable candidates for semi-join optimization.
     if (chained_nodes.size() > 1) {
       std::unordered_map<QueryContext::bloom_filter_id, std::vector<attribute_id>> probe_bloom_filter_info;
+      std::size_t num_partitions = 1;
       for (const std::size_t node : chained_nodes) {
         // Provision for a new bloom filter to be used by the build operator.
         const QueryContext::bloom_filter_id bloom_filter_id =  query_context_proto->bloom_filters_size();
@@ -74,10 +75,13 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
         setBloomFilterProperties(bloom_filter_proto, hash_joins_[node].referenced_stored_build_relation_);
 
         // Add build-side bloom filter information to the corresponding hash table proto.
-        const std::size_t num_partitions = hash_joins_[origin_node]
-                                               .referenced_stored_build_relation_->getPartitionScheme()
-                                               .getPartitionSchemeHeader()
-                                               .getNumPartitions();
+        if (hash_joins_[origin_node].referenced_stored_build_relation_->hasPartitionScheme()) {
+          num_partitions = hash_joins_[origin_node]
+                               .referenced_stored_build_relation_->getPartitionScheme()
+                               .getPartitionSchemeHeader()
+                               .getNumPartitions();
+        }
+
         for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
           query_context_proto->mutable_join_hash_table_groups(hash_joins_[node].join_hash_table_group_id_)
               ->mutable_join_hash_tables(part_id)
@@ -89,10 +93,12 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
 
       // Add probe-side bloom filter information to the corresponding hash table proto for each build-side bloom filter.
       std::vector<serialization::HashTable_ProbeSideBloomFilter *> probe_side_bloom_filter;
-      const std::size_t num_partitions = hash_joins_[origin_node]
-                                             .referenced_stored_probe_relation_->getPartitionScheme()
-                                             .getPartitionSchemeHeader()
-                                             .getNumPartitions();
+      if (hash_joins_[origin_node].referenced_stored_probe_relation_->hasPartitionScheme()) {
+        num_partitions = hash_joins_[origin_node]
+                             .referenced_stored_probe_relation_->getPartitionScheme()
+                             .getPartitionSchemeHeader()
+                             .getNumPartitions();
+      }
       probe_side_bloom_filter.resize(num_partitions);
       for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
         for (const std::pair<QueryContext::bloom_filter_id, std::vector<attribute_id>> &bloom_filter_info :
