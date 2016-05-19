@@ -29,6 +29,7 @@
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogConfig.h"
 #include "catalog/CatalogRelationSchema.hpp"
+#include "catalog/CatalogRelationStatistics.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "catalog/IndexScheme.hpp"
 
@@ -80,7 +81,7 @@ class CatalogRelation : public CatalogRelationSchema {
                   bool temporary = false)
       : CatalogRelationSchema(parent, name, id, temporary),
         default_layout_(nullptr),
-        num_tuples_(0) {
+        statistics_(new CatalogRelationStatistics()) {
   }
 
   /**
@@ -189,22 +190,6 @@ class CatalogRelation : public CatalogRelationSchema {
     placement_scheme_.reset(placement_scheme);
   }
 #endif  // QUICKSTEP_HAVE_LIBNUMA
-
-  /**
-   * @brief Get the number of tuples in the catalog relation.
-   *
-   * @return The number of tuples in the catalog relation
-   **/
-  const std::size_t getNumTuples() const {
-    return num_tuples_;
-  }
-
-  /**
-   * @brief Set the number of tuples for catalog relation.
-   *
-   * @param num_tuples The number of tuples in the catalog relation.
-   **/
-  void setNumTuples(std::size_t num_tuples);
 
   /**
    * @brief Check if an index scheme is available for the relation.
@@ -394,6 +379,24 @@ class CatalogRelation : public CatalogRelationSchema {
            * getDefaultStorageBlockLayout().estimateTuplesPerBlock();
   }
 
+  /**
+   * @brief Get an immutable reference to the statistics of this catalog relation.
+   *
+   * @return A reference to the statistics of this catalog relation.
+   */
+  const CatalogRelationStatistics& getStatistics() const {
+    return *statistics_;
+  }
+
+  /**
+   * @brief Get a mutable pointer to the statistics of this catalog relation.
+   *
+   * @return A pointer to the statistics of this catalog relation.
+   */
+  CatalogRelationStatistics* getStatisticsMutable() {
+    return statistics_.get();
+  }
+
  private:
   // A list of blocks belonged to the relation.
   std::vector<block_id> blocks_;
@@ -414,7 +417,7 @@ class CatalogRelation : public CatalogRelationSchema {
   // Mutex for locking the index scheme.
   alignas(kCacheLineBytes) mutable SpinSharedMutex<false> index_scheme_mutex_;
 
-  std::size_t num_tuples_;
+  std::unique_ptr<CatalogRelationStatistics> statistics_;
 
 #ifdef QUICKSTEP_HAVE_LIBNUMA
   // NUMA placement scheme object which has the mapping between the partitions

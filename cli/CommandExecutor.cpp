@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <memory>
 #include <string>
@@ -28,13 +29,26 @@
 #include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
+#include "cli/DropRelation.hpp"
 #include "cli/PrintToScreen.hpp"
 #include "parser/ParseStatement.hpp"
+#include "parser/ParseString.hpp"
+#include "parser/SqlParserWrapper.hpp"
+#include "query_execution/Foreman.hpp"
+#include "query_optimizer/QueryHandle.hpp"
+#include "query_optimizer/QueryPlan.hpp"
+#include "query_optimizer/QueryProcessor.hpp"
+#include "storage/StorageBlock.hpp"
+#include "storage/StorageBlockInfo.hpp"
+#include "storage/StorageManager.hpp"
+#include "storage/TupleIdSequence.hpp"
+#include "storage/TupleStorageSubBlock.hpp"
+#include "types/Type.hpp"
+#include "types/TypeID.hpp"
+#include "types/TypedValue.hpp"
 #include "utility/PtrVector.hpp"
-#include "utility/Macros.hpp"
 #include "utility/SqlError.hpp"
 
-#include "gflags/gflags.h"
 #include "glog/logging.h"
 
 using std::fprintf;
@@ -52,15 +66,22 @@ namespace C = ::quickstep::cli;
 
 void executeDescribeDatabase(
     const PtrVector<ParseString> *arguments,
-    const CatalogDatabase &catalog_database, FILE *out) {
+    const CatalogDatabase &catalog_database,
+    StorageManager *storage_manager,
+    FILE *out) {
   // Column width initialized to 6 to take into account the header name
   // and the column value table
   int max_column_width = C::kInitMaxColumnWidth;
+  vector<std::size_t> num_tuples;
+  vector<std::size_t> num_blocks;
   const CatalogRelation *relation = nullptr;
   if (arguments->size() == 0) {
     for (const CatalogRelation &rel : catalog_database) {
       max_column_width =
           std::max(static_cast<int>(rel.getName().length()), max_column_width);
+      num_blocks.push_back(rel.size_blocks());
+      num_tuples.push_back(
+          PrintToScreen::GetNumTuplesInRelation(rel, storage_manager));
     }
   } else {
     const ParseString &table_name = arguments->front();
@@ -72,26 +93,51 @@ void executeDescribeDatabase(
     }
     max_column_width = std::max(static_cast<int>(relation->getName().length()),
                                     max_column_width);
+    num_blocks.push_back(relation->size_blocks());
+    num_tuples.push_back(PrintToScreen::GetNumTuplesInRelation(
+        *relation,
+        storage_manager));
   }
   // Only if we have relations work on the printing logic.
   if (catalog_database.size() > 0) {
+    const std::size_t max_num_blocks = *std::max_element(num_blocks.begin(), num_blocks.end());
+    const std::size_t max_num_rows = *std::max_element(num_tuples.begin(), num_tuples.end());
+    const int max_num_rows_digits = std::max(PrintToScreen::GetNumberOfDigits(max_num_rows),
+                                    C::kInitMaxColumnWidth);
+    const int max_num_blocks_digits = std::max(PrintToScreen::GetNumberOfDigits(max_num_blocks),
+                                      C::kInitMaxColumnWidth+2);
+
     vector<int> column_widths;
-    column_widths.push_back(max_column_width+1);
-    column_widths.push_back(C::kInitMaxColumnWidth+1);
+    column_widths.push_back(max_column_width +1);
+    column_widths.push_back(C::kInitMaxColumnWidth + 1);
+    column_widths.push_back(max_num_blocks_digits + 1);
+    column_widths.push_back(max_num_rows_digits + 1);
     fputs("       List of relations\n\n", out);
     fprintf(out, "%-*s |", max_column_width+1, " Name");
-    fprintf(out, "%-*s\n", C::kInitMaxColumnWidth, " Type");
+    fprintf(out, "%-*s |", C::kInitMaxColumnWidth, " Type");
+    fprintf(out, "%-*s |", max_num_blocks_digits, " Blocks");
+    fprintf(out, "%-*s\n", max_num_rows_digits, " Rows");
     PrintToScreen::printHBar(column_widths, out);
     //  If there are no argument print the entire list of tables
     //  else print the particular table only.
+    vector<std::size_t>::const_iterator num_tuples_it = num_tuples.begin();
+    vector<std::size_t>::const_iterator num_blocks_it = num_blocks.begin();
     if (arguments->size() == 0) {
       for (const CatalogRelation &rel : catalog_database) {
         fprintf(out, " %-*s |", max_column_width, rel.getName().c_str());
-        fprintf(out, " %-*s\n", C::kInitMaxColumnWidth, "table");
+        fprintf(out, " %-*s |", C::kInitMaxColumnWidth - 1, "table");
+        fprintf(out, " %-*lu |", max_num_blocks_digits - 1, *num_blocks_it);
+        fprintf(out, " %-*lu\n", max_num_rows_digits - 1, *num_tuples_it);
+        ++num_tuples_it;
+        ++num_blocks_it;
       }
     } else {
       fprintf(out, " %-*s |", max_column_width, relation->getName().c_str());
-      fprintf(out, " %-*s\n", C::kInitMaxColumnWidth, "table");
+      fprintf(out, " %-*s |", C::kInitMaxColumnWidth -1, "table");
+      fprintf(out, " %-*lu |", max_num_blocks_digits - 1, *num_blocks_it);
+      fprintf(out, " %-*lu\n", max_num_rows_digits - 1, *num_tuples_it);
+      ++num_tuples_it;
+      ++num_blocks_it;
     }
     fputc('\n', out);
   }
@@ -162,22 +208,144 @@ void executeDescribeTable(
   }
 }
 
+/**
+ * @brief A helper function that executes a SQL query to obtain a scalar result.
+ */
+inline TypedValue executeQueryForSingleResult(const std::string &query_string,
+                                               StorageManager *storage_manager,
+                                               QueryProcessor *query_processor,
+                                               SqlParserWrapper *parser_wrapper,
+                                               Foreman *foreman) {
+  parser_wrapper->feedNextBuffer(new std::string(query_string));
+
+  ParseResult result = parser_wrapper->getNextStatement();
+  DCHECK(result.condition == ParseResult::kSuccess);
+
+  // Generate the query plan.
+  std::unique_ptr<QueryHandle> query_handle(
+      query_processor->generateQueryHandle(*result.parsed_statement));
+  DCHECK(query_handle->getQueryPlanMutable() != nullptr);
+
+  // Use foreman to execute the query plan.
+  foreman->setQueryPlan(query_handle->getQueryPlanMutable()->getQueryPlanDAGMutable());
+  foreman->reconstructQueryContextFromProto(query_handle->getQueryContextProto());
+
+  foreman->start();
+  foreman->join();
+
+  // Retrieve the scalar result from the result relation.
+  const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
+  DCHECK(query_result_relation != nullptr);
+
+  TypedValue value;
+  {
+    std::vector<block_id> blocks = query_result_relation->getBlocksSnapshot();
+    DCHECK_EQ(1u, blocks.size());
+    BlockReference block = storage_manager->getBlock(blocks[0], *query_result_relation);
+    const TupleStorageSubBlock &tuple_store = block->getTupleStorageSubBlock();
+    DCHECK_EQ(1, tuple_store.numTuples());
+    DCHECK_EQ(1u, tuple_store.getRelation().size());
+
+    if (tuple_store.isPacked()) {
+      value = tuple_store.getAttributeValueTyped(0, 0);
+    } else {
+      std::unique_ptr<TupleIdSequence> existence_map(tuple_store.getExistenceMap());
+      value = tuple_store.getAttributeValueTyped(*existence_map->begin(), 0);
+    }
+    value.ensureNotReference();
+  }
+
+  // Drop the result relation.
+  DropRelation::Drop(*query_result_relation,
+                     query_processor->getDefaultDatabase(),
+                     query_processor->getStorageManager());
+
+  return value;
+}
+
+void executeAnalyze(QueryProcessor *query_processor,
+                    Foreman *foreman,
+                    FILE *out) {
+  const CatalogDatabase &database = *query_processor->getDefaultDatabase();
+  StorageManager *storage_manager = query_processor->getStorageManager();
+
+  std::unique_ptr<SqlParserWrapper> parser_wrapper(new SqlParserWrapper());
+  std::vector<std::reference_wrapper<const CatalogRelation>> relations(
+      database.begin(), database.end());
+
+  // Analyze each relation in the database.
+  for (const CatalogRelation &relation : relations) {
+    fprintf(out, "Analyzing %s ... ", relation.getName().c_str());
+    fflush(out);
+
+    CatalogRelation *mutable_relation =
+        query_processor->getDefaultDatabase()->getRelationByIdMutable(relation.getID());
+
+    // Get the number of distinct values for each column.
+    for (const CatalogAttribute &attribute : relation) {
+      std::string query_string = "SELECT COUNT(DISTINCT ";
+      query_string.append(attribute.getName());
+      query_string.append(") FROM ");
+      query_string.append(relation.getName());
+      query_string.append(";");
+
+      TypedValue num_distinct_values =
+          executeQueryForSingleResult(query_string,
+                                      storage_manager,
+                                      query_processor,
+                                      parser_wrapper.get(),
+                                      foreman);
+
+      DCHECK(num_distinct_values.getTypeID() == TypeID::kLong);
+      mutable_relation->getStatisticsMutable()->setNumDistinctValues(
+          attribute.getID(),
+          num_distinct_values.getLiteral<std::int64_t>());
+    }
+
+    // Get the number of tuples for the relation.
+    std::string query_string = "SELECT COUNT(*) FROM ";
+    query_string.append(relation.getName());
+    query_string.append(";");
+
+    TypedValue num_tuples =
+        executeQueryForSingleResult(query_string,
+                                    storage_manager,
+                                    query_processor,
+                                    parser_wrapper.get(),
+                                    foreman);
+
+    DCHECK(num_tuples.getTypeID() == TypeID::kLong);
+    mutable_relation->getStatisticsMutable()->setNumTuples(
+        num_tuples.getLiteral<std::int64_t>());
+
+    fprintf(out, "done\n");
+    fflush(out);
+  }
+  query_processor->markCatalogAltered();
+  query_processor->saveCatalog();
+}
+
 }  // namespace
 
 void executeCommand(const ParseStatement &statement,
                     const CatalogDatabase &catalog_database,
+                    StorageManager *storage_manager,
+                    QueryProcessor *query_processor,
+                    Foreman *foreman,
                     FILE *out) {
   const ParseCommand &command = static_cast<const ParseCommand &>(statement);
   const PtrVector<ParseString> *arguments = command.arguments();
   const std::string &command_str = command.command()->value();
   if (command_str == C::kDescribeDatabaseCommand) {
-    executeDescribeDatabase(arguments, catalog_database, out);
+    executeDescribeDatabase(arguments, catalog_database, storage_manager, out);
   } else if (command_str == C::kDescribeTableCommand) {
     if (arguments->size() == 0) {
-      executeDescribeDatabase(arguments, catalog_database, out);
+      executeDescribeDatabase(arguments, catalog_database, storage_manager, out);
     } else {
       executeDescribeTable(arguments, catalog_database, out);
     }
+  } else if (command_str == C::kAnalyzeCommand) {
+    executeAnalyze(query_processor, foreman, out);
   } else {
     THROW_SQL_ERROR_AT(command.command()) << "Invalid Command";
   }

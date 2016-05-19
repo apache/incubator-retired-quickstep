@@ -132,7 +132,14 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelationSchema &pro
   }
 
   default_layout_.reset(new StorageBlockLayout(*this, proto_default_layout));
-  num_tuples_ = proto.GetExtension(serialization::CatalogRelation::num_tuples);
+
+  if (proto.HasExtension(serialization::CatalogRelation::statistics)) {
+    statistics_.reset(
+        new CatalogRelationStatistics(
+            proto.GetExtension(serialization::CatalogRelation::statistics)));
+  } else {
+    statistics_.reset(new CatalogRelationStatistics());
+  }
 }
 
 serialization::CatalogRelationSchema CatalogRelation::getProto() const {
@@ -141,7 +148,6 @@ serialization::CatalogRelationSchema CatalogRelation::getProto() const {
   proto.set_relation_id(id_);
   proto.set_name(name_);
   proto.set_temporary(temporary_);
-  proto.SetExtension(serialization::CatalogRelation::num_tuples, num_tuples_);
 
   for (PtrVector<CatalogAttribute, true>::const_iterator it = attr_vec_.begin();
        it != attr_vec_.end();
@@ -179,11 +185,10 @@ serialization::CatalogRelationSchema CatalogRelation::getProto() const {
 #endif
   }
 
-  return proto;
-}
+  proto.MutableExtension(serialization::CatalogRelation::statistics)
+      ->MergeFrom(statistics_->getProto());
 
-void CatalogRelation::setNumTuples(std::size_t num_tuples) {
-  num_tuples_ = num_tuples;
+  return proto;
 }
 
 void CatalogRelation::setPartitionScheme(PartitionScheme* partition_scheme) {

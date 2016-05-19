@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -32,10 +32,10 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageConstants.hpp"
 #include "storage/StorageErrors.hpp"
-#include "utility/Macros.hpp"
 #include "utility/StringUtil.hpp"
 
 #include "gflags/gflags.h"
+#include "glog/logging.h"
 
 using std::size_t;
 using std::sscanf;
@@ -76,20 +76,19 @@ static const bool hdfs_num_replications_dummy
 
 FileManagerHdfs::FileManagerHdfs(const string &storage_path)
     : FileManager(storage_path) {
-  DEBUG_ASSERT(hdfs_namenode_port_dummy);
-  DEBUG_ASSERT(hdfs_num_replications_dummy);
+  DCHECK(hdfs_namenode_port_dummy);
+  DCHECK(hdfs_num_replications_dummy);
 
   struct hdfsBuilder *builder = hdfsNewBuilder();
   hdfsBuilderSetNameNode(builder, FLAGS_hdfs_namenode_host.c_str());
   hdfsBuilderSetNameNodePort(builder, FLAGS_hdfs_namenode_port);
   // hdfsBuilderConnect releases builder.
   hdfs_ = hdfsBuilderConnect(builder);
-  DEBUG_ASSERT(hdfs_ != nullptr);
+  DCHECK(hdfs_ != nullptr);
 }
 
 FileManagerHdfs::~FileManagerHdfs() {
-  int status = hdfsDisconnect(hdfs_);
-  DEBUG_ASSERT(status == 0);
+  CHECK_EQ(0, hdfsDisconnect(hdfs_));
 }
 
 block_id_counter FileManagerHdfs::getMaxUsedBlockCounter(const block_id_domain block_domain) const {
@@ -97,7 +96,7 @@ block_id_counter FileManagerHdfs::getMaxUsedBlockCounter(const block_id_domain b
   hdfsFileInfo *file_infos = hdfsListDirectory(hdfs_, storage_path_.c_str(), &num_files);
   if (file_infos == nullptr) {
     if (errno != ENOENT) {
-      LOG_WARNING("Failed to list file info with error: " << strerror(errno));
+      LOG(ERROR) << "Failed to list file info with error: " << strerror(errno);
     }
     return 0;
   }
@@ -113,9 +112,9 @@ block_id_counter FileManagerHdfs::getMaxUsedBlockCounter(const block_id_domain b
     // NOTE(zuyu): mName looks like
     // "/user/<username>/<storage_path_>/qsblk_<block_domain>_[0-9]*.qsb".
     const char *filename = std::strrchr(file_infos[i].mName, '/');
-    if (filename != nullptr
-        && sscanf(filename, filename_pattern.c_str(), &counter) == 1
-        && counter > counter_max) {
+    if (filename != nullptr &&
+        sscanf(filename, filename_pattern.c_str(), &counter) == 1 &&
+        counter > counter_max) {
       counter_max = counter;
     }
   }
@@ -126,12 +125,12 @@ block_id_counter FileManagerHdfs::getMaxUsedBlockCounter(const block_id_domain b
 }
 
 size_t FileManagerHdfs::numSlots(const block_id block) const {
-  string filename(blockFilename(block));
+  const string filename(blockFilename(block));
 
   hdfsFileInfo *file_info = hdfsGetPathInfo(hdfs_, filename.c_str());
   if (file_info == nullptr) {
     if (errno != ENOENT) {
-      LOG_WARNING("Failed to get size of file " << filename << " with error: " << strerror(errno));
+      LOG(ERROR) << "Failed to get size of file " << filename << " with error: " << strerror(errno);
     }
     return 0;
   }
@@ -147,12 +146,12 @@ size_t FileManagerHdfs::numSlots(const block_id block) const {
 }
 
 bool FileManagerHdfs::deleteBlockOrBlob(const block_id block) {
-  string filename(blockFilename(block));
+  const string filename(blockFilename(block));
 
   if ((hdfsDelete(hdfs_, filename.c_str(), 0) == 0) || (errno == ENOENT)) {
     return true;
   } else {
-    LOG_WARNING("Failed to delete file " << filename << " with error: " << strerror(errno));
+    LOG(ERROR) << "Failed to delete file " << filename << " with error: " << strerror(errno);
     return false;
   }
 }
@@ -160,10 +159,10 @@ bool FileManagerHdfs::deleteBlockOrBlob(const block_id block) {
 bool FileManagerHdfs::readBlockOrBlob(const block_id block,
                                       void *buffer,
                                       const size_t length) {
-  DEBUG_ASSERT(buffer);
-  DEBUG_ASSERT(length % kSlotSizeBytes == 0);
+  DCHECK(buffer != nullptr);
+  DCHECK_EQ(0u, length % kSlotSizeBytes);
 
-  string filename(blockFilename(block));
+  const string filename(blockFilename(block));
 
   hdfsFile file_handle = hdfsOpenFile(hdfs_,
                                       filename.c_str(),
@@ -172,7 +171,7 @@ bool FileManagerHdfs::readBlockOrBlob(const block_id block,
                                       FLAGS_hdfs_num_replications,
                                       kSlotSizeBytes);
   if (file_handle == nullptr) {
-    LOG_WARNING("Failed to open file " << filename << " with error: " << strerror(errno));
+    LOG(ERROR) << "Failed to open file " << filename << " with error: " << strerror(errno);
     return false;
   }
 
@@ -183,17 +182,17 @@ bool FileManagerHdfs::readBlockOrBlob(const block_id block,
       bytes_total += bytes;
     } else if (bytes == -1) {
       if (errno != EINTR) {
-        LOG_WARNING("Failed to read file " << filename << " with error: " << strerror(errno));
+        LOG(ERROR) << "Failed to read file " << filename << " with error: " << strerror(errno);
         break;
       }
     } else {
-      LOG_WARNING("Failed to read file " << filename << " since EOF was reached unexpectedly");
+      LOG(ERROR) << "Failed to read file " << filename << " since EOF was reached unexpectedly";
       break;
     }
   }
 
   if (hdfsCloseFile(hdfs_, file_handle) != 0) {
-    LOG_WARNING("Failed to close file " << filename << " with error: " << strerror(errno));
+    LOG(ERROR) << "Failed to close file " << filename << " with error: " << strerror(errno);
   }
 
   return (bytes_total == length);
@@ -202,10 +201,10 @@ bool FileManagerHdfs::readBlockOrBlob(const block_id block,
 bool FileManagerHdfs::writeBlockOrBlob(const block_id block,
                                        const void *buffer,
                                        const size_t length) {
-  DEBUG_ASSERT(buffer);
-  DEBUG_ASSERT(length % kSlotSizeBytes == 0);
+  DCHECK(buffer != nullptr);
+  DCHECK_EQ(0u, length % kSlotSizeBytes);
 
-  string filename(blockFilename(block));
+  const string filename(blockFilename(block));
 
   hdfsFile file_handle = hdfsOpenFile(hdfs_,
                                       filename.c_str(),
@@ -214,7 +213,7 @@ bool FileManagerHdfs::writeBlockOrBlob(const block_id block,
                                       FLAGS_hdfs_num_replications,
                                       kSlotSizeBytes);
   if (file_handle == nullptr) {
-    LOG_WARNING("Failed to open file " << filename << " with error: " << strerror(errno));
+    LOG(ERROR) << "Failed to open file " << filename << " with error: " << strerror(errno);
     return false;
   }
 
@@ -224,17 +223,17 @@ bool FileManagerHdfs::writeBlockOrBlob(const block_id block,
     if (bytes > 0) {
       bytes_total += bytes;
     } else if (bytes == -1) {
-      LOG_WARNING("Failed to write file " << filename << " with error: " << strerror(errno));
+      LOG(ERROR) << "Failed to write file " << filename << " with error: " << strerror(errno);
       break;
     }
   }
 
   if (hdfsSync(hdfs_, file_handle) != 0) {
-    LOG_WARNING("Failed to sync file " << filename << " with error: " << strerror(errno));
+    LOG(ERROR) << "Failed to sync file " << filename << " with error: " << strerror(errno);
   }
 
   if (hdfsCloseFile(hdfs_, file_handle) != 0) {
-    LOG_WARNING("Failed to close file " << filename << " with error: " << strerror(errno));
+    LOG(ERROR) << "Failed to close file " << filename << " with error: " << strerror(errno);
   }
 
   return (bytes_total == length);

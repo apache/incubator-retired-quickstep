@@ -34,7 +34,7 @@ bool GenerateNumRowsStatsOperator::getAllWorkOrders(
     tmb::MessageBus *bus) {
   std::size_t num_tuples =
       PrintToScreen::GetNumTuplesInRelation(*relation_, storage_manager);
-  relation_->setNumTuples(num_tuples);
+  relation_->getStatisticsMutable()->setNumTuples(num_tuples);
   return true;
 }
 

@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -34,8 +34,9 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageConstants.hpp"
 #include "storage/StorageErrors.hpp"
-#include "utility/Macros.hpp"
 #include "utility/StringUtil.hpp"
+
+#include "glog/logging.h"
 
 using std::size_t;
 using std::strerror;
@@ -60,7 +61,7 @@ block_id_counter FileManagerWindows::getMaxUsedBlockCounter(const block_id_domai
   if (find_handle == INVALID_HANDLE_VALUE) {
     error_code = GetLastError();
     if (error_code != ERROR_FILE_NOT_FOUND) {
-      LOG_WARNING("Failed to retrieve blockfiles with error_code: " << error_code);
+      LOG(ERROR) << "Failed to retrieve blockfiles with error_code: " << error_code;
     }
     return 0;
   }
@@ -73,32 +74,32 @@ block_id_counter FileManagerWindows::getMaxUsedBlockCounter(const block_id_domai
 
   block_id_counter counter_max = 0, counter;
   do {
-    if (sscanf(find_data.cFileName, filename_pattern.c_str(), &counter) == 1
-        && counter > counter_max) {
+    if (sscanf(find_data.cFileName, filename_pattern.c_str(), &counter) == 1 &&
+        counter > counter_max) {
       counter_max = counter;
     }
   } while (FindNextFile(find_handle, &find_data) != 0);
 
   error_code = GetLastError();
   if (error_code != ERROR_NO_MORE_FILES) {
-    LOG_WARNING("Failed to FindNextFile with error_code: " << error_code);
+    LOG(ERROR) << "Failed to FindNextFile with error_code: " << error_code;
   }
 
   if (FindClose(find_handle) == 0) {
-    LOG_WARNING("Failed to close the file with error_code: " << GetLastError());
+    LOG(ERROR) << "Failed to close the file with error_code: " << GetLastError();
   }
 
   return counter_max;
 }
 
 size_t FileManagerWindows::numSlots(const block_id block) const {
-  string filename(blockFilename(block));
+  const string filename(blockFilename(block));
   WIN32_FILE_ATTRIBUTE_DATA file_stat;
 
   if (!GetFileAttributesEx(filename.c_str(), GetFileExInfoStandard, &file_stat)) {
     DWORD error_code = GetLastError();
     if (error_code != ERROR_FILE_NOT_FOUND) {
-      LOG_WARNING("Failed to retrieve info about file " << filename << " with error_code: " << error_code);
+      LOG(ERROR) << "Failed to retrieve info about file " << filename << " with error_code: " << error_code;
     }
     return 0;
   }
@@ -113,28 +114,28 @@ size_t FileManagerWindows::numSlots(const block_id block) const {
 }
 
 bool FileManagerWindows::deleteBlockOrBlob(const block_id block) {
-  string filename(blockFilename(block));
+  const string filename(blockFilename(block));
 
   if ((DeleteFile(filename.c_str()) != 0) || (GetLastError() == ERROR_FILE_NOT_FOUND)) {
     return true;
   } else {
-    LOG_WARNING("Failed to delete file " << filename << " with error_code: " << GetLastError());
+    LOG(ERROR) << "Failed to delete file " << filename << " with error_code: " << GetLastError();
   }
 }
 
 bool FileManagerWindows::readBlockOrBlob(const block_id block,
                                          void *buffer,
                                          const size_t length) {
-  DEBUG_ASSERT(buffer);
-  DEBUG_ASSERT(length % kSlotSizeBytes == 0);
+  DCHECK(buffer != nullptr);
+  DCHECK_EQ(0u, length % kSlotSizeBytes);
 
-  string filename(blockFilename(block));
+  const string filename(blockFilename(block));
 
   FILE *file = fopen(filename.c_str(), "rb");
   if (file == nullptr) {
     // Note: On most, but not all, library implementations, the errno variable
     //       is set to a system-specific error code on failure.
-    LOG_WARNING("Failed to open file " << filename << " with error: " << strerror(errno));
+    LOG(ERROR) << "Failed to open file " << filename << " with error: " << strerror(errno);
     return false;
   }
 
@@ -142,16 +143,16 @@ bool FileManagerWindows::readBlockOrBlob(const block_id block,
   const bool result_is_ok = (bytes == length);
   if (!result_is_ok) {
     if (std::feof(file)) {
-      LOG_WARNING("Failed to read file " << filename << " since EOF was reached unexpectedly");
+      LOG(ERROR) << "Failed to read file " << filename << " since EOF was reached unexpectedly";
     } else {
-      LOG_WARNING("Failed to read file " << filename << " with error: " << strerror(ferror(file)));
+      LOG(ERROR) << "Failed to read file " << filename << " with error: " << strerror(ferror(file));
       clearerr(file);
     }
   }
 
   if (fclose(file)) {
     // Note: fclose does not set errno on failure.
-    LOG_WARNING("Failed to close file " << filename);
+    LOG(ERROR) << "Failed to close file " << filename;
   }
 
   return result_is_ok;
@@ -160,37 +161,37 @@ bool FileManagerWindows::readBlockOrBlob(const block_id block,
 bool FileManagerWindows::writeBlockOrBlob(const block_id block,
                                           const void *buffer,
                                           const size_t length) {
-  DEBUG_ASSERT(buffer);
-  DEBUG_ASSERT(length % kSlotSizeBytes == 0);
+  DCHECK(buffer != nullptr);
+  DCHECK_EQ(0u, length % kSlotSizeBytes);
 
-  string filename(blockFilename(block));
+  const string filename(blockFilename(block));
 
   FILE *file = fopen(filename.c_str(), "wb");
   if (file == nullptr) {
     // Note: On most, but not all, library implementations, the errno variable
     //       is set to a system-specific error code on failure.
-    LOG_WARNING("Failed to open file " << filename << " with error: " << strerror(errno));
+    LOG(ERROR) << "Failed to open file " << filename << " with error: " << strerror(errno);
     return false;
   }
 
   const size_t bytes = std::fwrite(buffer, sizeof(char), length, file);
   const bool result_is_ok = (bytes == length);
   if (!result_is_ok) {
-    LOG_WARNING("Failed to write file " << filename << " with error: " << strerror(ferror(file)));
+    LOG(ERROR) << "Failed to write file " << filename << " with error: " << strerror(ferror(file));
     clearerr(file);
   }
 
   if (fflush(file)) {
-    LOG_WARNING("Failed to flush file " << filename << " with error: " << strerror(ferror(file)));
+    LOG(ERROR) << "Failed to flush file " << filename << " with error: " << strerror(ferror(file));
   }
 
   if (!FlushFileBuffers(reinterpret_cast<HANDLE>(_get_osfhandle(_fileno(file))))) {
-    LOG_WARNING("Failed to re-flush file " << filename << " with error: " << strerror(ferror(file)));
+    LOG(ERROR) << "Failed to re-flush file " << filename << " with error: " << strerror(ferror(file));
   }
 
   if (fclose(file)) {
     // Note: fclose does not set errno on failure.
-    LOG_WARNING("Failed to close file " << filename);
+    LOG(ERROR) << "Failed to close file " << filename;
   }
 
   return result_is_ok;

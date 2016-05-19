@@ -1,7 +1,7 @@
 //   Copyright 2011-2015 Quickstep Technologies LLC.
 //   Copyright 2015-2016 Pivotal Software, Inc.
 //   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
-//    University of Wisconsin—Madison.
+//     University of Wisconsin—Madison.
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -80,6 +80,16 @@ message IndexScheme {
   repeated IndexEntry index_entries = 1;
 }
 
+message CatalogRelationStatistics {
+  optional fixed64 num_tuples = 1;
+
+  message NumDistinctValuesEntry {
+    required int32 attr_id = 1;
+    required fixed64 num_distinct_values = 2;
+  }
+  repeated NumDistinctValuesEntry num_distinct_values_map = 2;
+}
+
 message CatalogRelationSchema {
   required int32 relation_id = 1;
   required string name = 2;
@@ -99,7 +109,7 @@ message CatalogRelation {
     optional IndexScheme index_scheme = 18;
     optional PartitionScheme partition_scheme = 19;
     optional NUMAPlacementScheme placement_scheme = 20;
-    optional uint32 num_tuples = 21 [default = 0];
+    optional CatalogRelationStatistics statistics = 21;
   }
 }
 
