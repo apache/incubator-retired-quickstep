@@ -132,6 +132,7 @@ target_link_libraries(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
                       tmb
                       ${LIBS})
 target_link_libraries(quickstep_queryoptimizer_tests_OptimizerTextTest
+                      gflags_nothreads-static
                       glog
                       gtest
                       gtest_main
