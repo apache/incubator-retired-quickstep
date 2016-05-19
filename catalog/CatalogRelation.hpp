@@ -29,6 +29,7 @@
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogConfig.h"
 #include "catalog/CatalogRelationSchema.hpp"
+#include "catalog/CatalogRelationStatistics.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "catalog/IndexScheme.hpp"
 
@@ -79,7 +80,8 @@ class CatalogRelation : public CatalogRelationSchema {
                   const relation_id id = -1,
                   bool temporary = false)
       : CatalogRelationSchema(parent, name, id, temporary),
-        default_layout_(nullptr) {
+        default_layout_(nullptr),
+        statistics_(new CatalogRelationStatistics()) {
   }
 
   /**
@@ -377,6 +379,24 @@ class CatalogRelation : public CatalogRelationSchema {
            * getDefaultStorageBlockLayout().estimateTuplesPerBlock();
   }
 
+  /**
+   * @brief Get an immutable reference to the statistics of this catalog relation.
+   *
+   * @return A reference to the statistics of this catalog relation.
+   */
+  const CatalogRelationStatistics& getStatistics() const {
+    return *statistics_;
+  }
+
+  /**
+   * @brief Get a mutable pointer to the statistics of this catalog relation.
+   *
+   * @return A pointer to the statistics of this catalog relation.
+   */
+  CatalogRelationStatistics* getStatisticsMutable() {
+    return statistics_.get();
+  }
+
  private:
   // A list of blocks belonged to the relation.
   std::vector<block_id> blocks_;
@@ -396,6 +416,8 @@ class CatalogRelation : public CatalogRelationSchema {
   std::unique_ptr<IndexScheme> index_scheme_;
   // Mutex for locking the index scheme.
   alignas(kCacheLineBytes) mutable SpinSharedMutex<false> index_scheme_mutex_;
+
+  std::unique_ptr<CatalogRelationStatistics> statistics_;
 
 #ifdef QUICKSTEP_HAVE_LIBNUMA
   // NUMA placement scheme object which has the mapping between the partitions

@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015-2016 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -157,6 +159,14 @@ class QueryProcessor {
    * @brief Save the catalog back to disk.
    **/
   void saveCatalog();
+
+  /**
+   * @brief Set \p catalog_altered_ to true to indicate that the catalog
+   *        has been altered.
+   */
+  void markCatalogAltered() {
+    catalog_altered_ = true;
+  }
 
   /**
    * @brief Get the default database in the Catalog held by this
