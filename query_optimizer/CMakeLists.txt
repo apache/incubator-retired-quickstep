@@ -1,4 +1,4 @@
-#   Copyright 2011-2015 Quickstep Technologies LLC.
+#   Copyright 2013-2015 Quickstep Technologies LLC.
 #   Copyright 2015-2016 Pivotal Software, Inc.
 #   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
 #     University of Wisconsin—Madison.
@@ -57,6 +57,8 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_PartitionScheme
+                      quickstep_catalog_PartitionSchemeHeader
                       quickstep_expressions_Expressions_proto
                       quickstep_expressions_aggregation_AggregateFunction
                       quickstep_expressions_aggregation_AggregateFunction_proto

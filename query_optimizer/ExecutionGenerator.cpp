@@ -756,13 +756,12 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
           }
 
           hash_table_proto[part_id]->set_estimated_num_entries(build_cardinality);
-
         }
       }
     }
   } else {
-    hash_table_proto.emplace_back(query_context_proto_->mutable_join_hash_table_groups(join_hash_table_group_index)->add_join_hash_tables());
-
+    hash_table_proto.emplace_back(
+        query_context_proto_->mutable_join_hash_table_groups(join_hash_table_group_index)->add_join_hash_tables());
     // SimplifyHashTableImplTypeProto() switches the hash table implementation
     // from SeparateChaining to SimpleScalarSeparateChaining when there is a
     // single scalar key type with a reversible hash function.

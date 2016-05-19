@@ -134,6 +134,8 @@ target_link_libraries(quickstep_relationaloperators_DeleteOperator
                       tmb)
 target_link_libraries(quickstep_relationaloperators_DestroyHashOperator
                       glog
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_PartitionSchemeHeader
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_WorkOrdersContainer

@@ -68,10 +68,11 @@ class ExecutionHeuristicsTest : public ::testing::Test {
                                           join_hash_table_group_id);
   }
 
-  QueryPlan::DAGNodeIndex createDummyBuildHashOperator(QueryPlan *query_plan,
-                                                       const CatalogRelation *build_relation,
-                                                       const attribute_id build_attribute_id,
-                                                       const QueryContext::join_hash_table_group_id join_hash_table_group_index) {
+  QueryPlan::DAGNodeIndex createDummyBuildHashOperator(
+      QueryPlan *query_plan,
+      const CatalogRelation *build_relation,
+      const attribute_id build_attribute_id,
+      const QueryContext::join_hash_table_group_id join_hash_table_group_index) {
     std::vector<attribute_id> build_attribute_ids;
     build_attribute_ids.push_back(build_attribute_id);
     QueryPlan::DAGNodeIndex build_operator_index =
@@ -83,11 +84,12 @@ class ExecutionHeuristicsTest : public ::testing::Test {
     return build_operator_index;
   }
 
-  QueryPlan::DAGNodeIndex createDummyHashJoinOperator(QueryPlan *query_plan,
-                                                      const CatalogRelation *build_relation,
-                                                      const CatalogRelation *probe_relation,
-                                                      const attribute_id probe_attribute_id,
-                                                      const QueryContext::join_hash_table_group_id join_hash_table_group_index) {
+  QueryPlan::DAGNodeIndex createDummyHashJoinOperator(
+      QueryPlan *query_plan,
+      const CatalogRelation *build_relation,
+      const CatalogRelation *probe_relation,
+      const attribute_id probe_attribute_id,
+      const QueryContext::join_hash_table_group_id join_hash_table_group_index) {
     std::vector<attribute_id> probe_attribute_ids;
     probe_attribute_ids.push_back(probe_attribute_id);
     QueryPlan::DAGNodeIndex join_operator_index =
