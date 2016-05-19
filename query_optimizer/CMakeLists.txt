@@ -131,6 +131,7 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_relationaloperators_TextScanOperator
                       quickstep_relationaloperators_UpdateOperator
                       quickstep_storage_AggregationOperationState_proto
+                      quickstep_storage_BasicColumnStoreTupleStorageSubBlock
                       quickstep_storage_HashTableFactory
                       quickstep_storage_HashTable_proto
                       quickstep_storage_InsertDestination_proto

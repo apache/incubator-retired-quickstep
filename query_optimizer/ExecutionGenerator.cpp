@@ -105,6 +105,7 @@
 #include "relational_operators/TextScanOperator.hpp"
 #include "relational_operators/UpdateOperator.hpp"
 #include "storage/AggregationOperationState.pb.h"
+#include "storage/BasicColumnStoreTupleStorageSubBlock.hpp"
 #include "storage/HashTable.pb.h"
 #include "storage/HashTableFactory.hpp"
 #include "storage/InsertDestination.pb.h"
@@ -148,6 +149,8 @@ DEFINE_bool(parallelize_load, true, "Parallelize loading data files.");
 
 DEFINE_bool(optimize_joins, false,
             "Enable post execution plan generation optimizations for joins.");
+
+DEFINE_bool(use_column_store, true, "Use the column store for blocks in temporary relations.");
 
 namespace E = ::quickstep::optimizer::expressions;
 namespace P = ::quickstep::optimizer::physical;
@@ -325,6 +328,23 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
     ++aid;
   }
 
+  if (FLAGS_use_column_store && !catalog_relation->isVariableLength()) {
+    StorageBlockLayoutDescription layout_description;
+    layout_description.set_num_slots(1);
+    layout_description.mutable_tuple_store_description()
+        ->set_sub_block_type(TupleStorageSubBlockDescription::BASIC_COLUMN_STORE);
+
+    DCHECK(BasicColumnStoreTupleStorageSubBlock::DescriptionIsValid(*catalog_relation,
+                                                                    layout_description.tuple_store_description()));
+
+    unique_ptr<StorageBlockLayout> layout(
+        new StorageBlockLayout(*catalog_relation, layout_description));
+    layout->finalize();
+    catalog_relation->setDefaultStorageBlockLayout(layout.release());
+  } else {
+    // Use the default row store for variable length attributes.
+  }
+
   *catalog_relation_output = catalog_relation.get();
   const relation_id output_rel_id = optimizer_context_->catalog_database()->addRelation(
       catalog_relation.release());
@@ -335,6 +355,9 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
 
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(output_rel_id);
+
+  insert_destination_proto->mutable_layout()->MergeFrom(
+      (*catalog_relation_output)->getDefaultStorageBlockLayout().getDescription());
 }
 
 void ExecutionGenerator::dropAllTemporaryRelations() {
