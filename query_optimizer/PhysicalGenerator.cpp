@@ -1,6 +1,8 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
  *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+ *     University of Wisconsin—Madison.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -25,16 +27,25 @@
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/rules/PruneColumns.hpp"
+#include "query_optimizer/rules/StarSchemaHashJoinOrderOptimization.hpp"
 #include "query_optimizer/strategy/Aggregate.hpp"
 #include "query_optimizer/strategy/Join.hpp"
 #include "query_optimizer/strategy/OneToOne.hpp"
 #include "query_optimizer/strategy/Selection.hpp"
 #include "query_optimizer/strategy/Strategy.hpp"
 
+#include "gflags/gflags.h"
+
 #include "glog/logging.h"
 
 namespace quickstep {
 namespace optimizer {
+
+DEFINE_bool(reorder_hash_joins, true,
+            "If true, apply hash join order optimization to each group of hash "
+            "joins. The optimization applies a greedy algorithm to favor smaller "
+            "cardinality and selective tables to be joined first, which is suitable "
+            "for queries on star-schema tables");
 
 namespace L = ::quickstep::optimizer::logical;
 namespace P = ::quickstep::optimizer::physical;
@@ -77,6 +88,9 @@ P::PhysicalPtr PhysicalGenerator::generateInitialPlan(
 
 P::PhysicalPtr PhysicalGenerator::optimizePlan() {
   std::vector<std::unique_ptr<Rule<P::Physical>>> rules;
+  if (FLAGS_reorder_hash_joins) {
+    rules.emplace_back(new StarSchemaHashJoinOrderOptimization());
+  }
   rules.emplace_back(new PruneColumns());
 
   for (std::unique_ptr<Rule<P::Physical>> &rule : rules) {

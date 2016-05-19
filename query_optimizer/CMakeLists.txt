@@ -182,10 +182,12 @@ target_link_libraries(quickstep_queryoptimizer_OptimizerTree
                       quickstep_utility_Macros
                       quickstep_utility_TreeStringSerializable)
 target_link_libraries(quickstep_queryoptimizer_PhysicalGenerator
+                      gflags_nothreads-static
                       quickstep_queryoptimizer_LogicalToPhysicalMapper
                       quickstep_queryoptimizer_logical_Logical
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_rules_PruneColumns
+                      quickstep_queryoptimizer_rules_StarSchemaHashJoinOrderOptimization
                       quickstep_queryoptimizer_strategy_Aggregate
                       quickstep_queryoptimizer_strategy_Join
                       quickstep_queryoptimizer_strategy_OneToOne
