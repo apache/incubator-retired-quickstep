@@ -22,7 +22,17 @@
 #include "query_optimizer/tests/OptimizerTextTestRunner.hpp"
 #include "utility/textbased_test/TextBasedTestDriver.hpp"
 
+#include "gflags/gflags.h"
+
 #include "glog/logging.h"
+
+namespace quickstep {
+namespace optimizer {
+
+DECLARE_bool(reorder_hash_joins);
+
+}
+}
 
 using quickstep::TextBasedTest;
 
@@ -44,6 +54,10 @@ int main(int argc, char** argv) {
       new quickstep::TextBasedTestDriver(&input_file, test_runner.get()));
   test_driver->registerOptions(
       quickstep::optimizer::OptimizerTextTestRunner::kTestOptions);
+
+  // Turn off join order optimization for optimizer test since it is up to change
+  // and affects a large number of test cases.
+  quickstep::optimizer::FLAGS_reorder_hash_joins = false;
 
   ::testing::InitGoogleTest(&argc, argv);
   int success = RUN_ALL_TESTS();
