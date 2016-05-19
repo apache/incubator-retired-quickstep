@@ -21,9 +21,6 @@
 #include <cstdio>
 #include <string>
 
-#include "parser/ParseStatement.hpp"
-#include "utility/Macros.hpp"
-
 using std::fprintf;
 using std::fputc;
 using std::string;
@@ -31,10 +28,13 @@ using std::string;
 namespace quickstep {
 
 class CatalogDatabase;
-class CatalogAttribute;
-class CatalogRelation;
+class Foreman;
+class ParseStatement;
+class QueryProcessor;
+class StorageManager;
 
 namespace cli {
+
 /** \addtogroup CLI
  *  @{
  */
@@ -46,16 +46,23 @@ constexpr int kInitMaxColumnWidth = 6;
 
 constexpr char kDescribeDatabaseCommand[] = "\\dt";
 constexpr char kDescribeTableCommand[] = "\\d";
+constexpr char kAnalyzeCommand[] = "\\analyze";
 
 /**
   * @brief Executes the command by calling the command handler.
-  *        
+  *
   * @param statement The parsed statement from the cli.
   * @param catalog_database The catalog information about the current database.
-  * @param out The stream where the output of the command has to be redirected to.      
+  * @param storage_manager The current StorageManager.
+  * @param query_processor The query processor to generate plans for SQL queries.
+  * @param foreman The foreman to execute query plans.
+  * @param out The stream where the output of the command has to be redirected to.
 */
 void executeCommand(const ParseStatement &statement,
                     const CatalogDatabase &catalog_database,
+                    StorageManager *storage_manager,
+                    QueryProcessor *query_processor,
+                    Foreman *foreman,
                     FILE *out);
 
 /** @} */

@@ -585,20 +585,22 @@ target_link_libraries(quickstep_storage_FileManager
                       quickstep_utility_Macros
                       quickstep_utility_StringUtil)
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
-target_link_libraries(quickstep_storage_FileManagerHdfs
-                      gflags_nothreads-static
-                      quickstep_storage_FileManager
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_storage_StorageConstants
-                      quickstep_storage_StorageErrors
-                      quickstep_utility_Macros
-                      quickstep_utility_StringUtil
-                      ${LIBHDFS3_LIBRARIES})
+  target_link_libraries(quickstep_storage_FileManagerHdfs
+                        glog
+                        gflags_nothreads-static
+                        quickstep_storage_FileManager
+                        quickstep_storage_StorageBlockInfo
+                        quickstep_storage_StorageConstants
+                        quickstep_storage_StorageErrors
+                        quickstep_utility_Macros
+                        quickstep_utility_StringUtil
+                        ${LIBHDFS3_LIBRARIES})
 endif()
 if (QUICKSTEP_HAVE_FILE_MANAGER_POSIX)
   target_link_libraries(quickstep_storage_FileManagerLocal
                         quickstep_storage_FileManagerPosix)
   target_link_libraries(quickstep_storage_FileManagerPosix
+                        glog
                         quickstep_storage_FileManager
                         quickstep_storage_StorageBlockInfo
                         quickstep_storage_StorageConstants
@@ -609,6 +611,7 @@ elseif (QUICKSTEP_HAVE_FILE_MANAGER_WINDOWS)
   target_link_libraries(quickstep_storage_FileManagerLocal
                         quickstep_storage_FileManagerWindows)
   target_link_libraries(quickstep_storage_FileManagerWindows
+                        glog
                         quickstep_storage_FileManager
                         quickstep_storage_StorageBlockInfo
                         quickstep_storage_StorageConstants

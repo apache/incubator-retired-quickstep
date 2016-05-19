@@ -69,6 +69,14 @@ class PrintToScreen {
                               StorageManager *storage_manager,
                               FILE *out);
 
+  /**
+   * @brief Return the number of digits in a number
+   *
+   * @param number The input number.
+   * @param out The number of digits in the input number.
+   **/
+  static int GetNumberOfDigits(int number);
+
  private:
   // Undefined default constructor. Class is all-static and should not be
   // instantiated.

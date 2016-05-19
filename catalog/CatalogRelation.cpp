@@ -132,6 +132,14 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelationSchema &pro
   }
 
   default_layout_.reset(new StorageBlockLayout(*this, proto_default_layout));
+
+  if (proto.HasExtension(serialization::CatalogRelation::statistics)) {
+    statistics_.reset(
+        new CatalogRelationStatistics(
+            proto.GetExtension(serialization::CatalogRelation::statistics)));
+  } else {
+    statistics_.reset(new CatalogRelationStatistics());
+  }
 }
 
 serialization::CatalogRelationSchema CatalogRelation::getProto() const {
@@ -176,6 +184,9 @@ serialization::CatalogRelationSchema CatalogRelation::getProto() const {
     }
 #endif
   }
+
+  proto.MutableExtension(serialization::CatalogRelation::statistics)
+      ->MergeFrom(statistics_->getProto());
 
   return proto;
 }
