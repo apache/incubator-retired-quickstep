@@ -23,6 +23,7 @@
 namespace quickstep {
 
 class CatalogRelationSchema;
+class CatalogRelation;
 
 /** \addtogroup Catalog
  *  @{
@@ -67,6 +68,16 @@ class CatalogDatabaseLite {
    * @return The relation schema with the given ID.
    **/
   virtual const CatalogRelationSchema& getRelationSchemaById(const relation_id id) const = 0;
+
+  /**
+   * @brief Get a relation by ID.
+   *
+   * @param id The id to search for.
+   * @return The relation with the given ID.
+   **/
+  virtual const CatalogRelation* getRelationById(const relation_id id) const {
+    return nullptr;
+  }
 
   /**
    * @brief Drop (delete) a relation by id.

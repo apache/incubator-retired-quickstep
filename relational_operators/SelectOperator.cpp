@@ -168,17 +168,13 @@ bool SelectOperator::getAllWorkOrders(
 }
 
 void SelectWorkOrder::execute() {
-  BlockReference block(
-      storage_manager_->getBlock(input_block_id_, input_relation_, getPreferredNUMANodes()[0]));
+  BlockReference block(storage_manager_->getBlock(
+      input_block_id_, input_relation_, getPreferredNUMANodes().empty() ? -1 : getPreferredNUMANodes()[0]));
 
   if (simple_projection_) {
-    block->selectSimple(simple_selection_,
-                        predicate_,
-                        output_destination_);
+    block->selectSimple(simple_selection_, predicate_, output_destination_);
   } else {
-    block->select(*DCHECK_NOTNULL(selection_),
-                  predicate_,
-                  output_destination_);
+    block->select(*DCHECK_NOTNULL(selection_), predicate_, output_destination_);
   }
 }
 

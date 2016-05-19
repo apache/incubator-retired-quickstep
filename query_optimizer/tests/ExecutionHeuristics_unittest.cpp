@@ -56,7 +56,7 @@ class ExecutionHeuristicsTest : public ::testing::Test {
                             const CatalogRelation *probe_relation,
                             const attribute_id build_attribute_id,
                             const attribute_id probe_attribute_id,
-                            const QueryContext::join_hash_table_id join_hash_table_id) {
+                            const QueryContext::join_hash_table_group_id join_hash_table_group_id) {
     std::vector<attribute_id> build_attribute_ids(1, build_attribute_id);
     std::vector<attribute_id> probe_attribute_ids(1, probe_attribute_id);
     execution_heuristics->addHashJoinInfo(build_operator_index,
@@ -65,13 +65,13 @@ class ExecutionHeuristicsTest : public ::testing::Test {
                                           probe_relation,
                                           std::move(build_attribute_ids),
                                           std::move(probe_attribute_ids),
-                                          join_hash_table_id);
+                                          join_hash_table_group_id);
   }
 
   QueryPlan::DAGNodeIndex createDummyBuildHashOperator(QueryPlan *query_plan,
                                                        const CatalogRelation *build_relation,
                                                        const attribute_id build_attribute_id,
-                                                       const QueryContext::join_hash_table_id join_hash_table_index) {
+                                                       const QueryContext::join_hash_table_group_id join_hash_table_group_index) {
     std::vector<attribute_id> build_attribute_ids;
     build_attribute_ids.push_back(build_attribute_id);
     QueryPlan::DAGNodeIndex build_operator_index =
@@ -79,7 +79,7 @@ class ExecutionHeuristicsTest : public ::testing::Test {
                                                                 true,
                                                                 build_attribute_ids,
                                                                 false,
-                                                                join_hash_table_index));
+                                                                join_hash_table_group_index));
     return build_operator_index;
   }
 
@@ -87,7 +87,7 @@ class ExecutionHeuristicsTest : public ::testing::Test {
                                                       const CatalogRelation *build_relation,
                                                       const CatalogRelation *probe_relation,
                                                       const attribute_id probe_attribute_id,
-                                                      const QueryContext::join_hash_table_id join_hash_table_index) {
+                                                      const QueryContext::join_hash_table_group_id join_hash_table_group_index) {
     std::vector<attribute_id> probe_attribute_ids;
     probe_attribute_ids.push_back(probe_attribute_id);
     QueryPlan::DAGNodeIndex join_operator_index =
@@ -98,7 +98,7 @@ class ExecutionHeuristicsTest : public ::testing::Test {
                                                                false,
                                                                *probe_relation,
                                                                0,
-                                                               join_hash_table_index,
+                                                               join_hash_table_group_index,
                                                                0,
                                                                0));
     return join_operator_index;
@@ -128,40 +128,40 @@ TEST_F(ExecutionHeuristicsTest, HashJoinOptimizedTest) {
   const attribute_id probe_attribute_id_2 = 2;
   const attribute_id probe_attribute_id_3 = 3;
 
-  const QueryContext::join_hash_table_id join_hash_table_index_1 = 0;
-  const QueryContext::join_hash_table_id join_hash_table_index_2 = 1;
-  const QueryContext::join_hash_table_id join_hash_table_index_3 = 2;
-  query_context_proto_->add_join_hash_tables();
-  query_context_proto_->add_join_hash_tables();
-  query_context_proto_->add_join_hash_tables();
+  const QueryContext::join_hash_table_group_id join_hash_table_group_index_1 = 0;
+  const QueryContext::join_hash_table_group_id join_hash_table_group_index_2 = 1;
+  const QueryContext::join_hash_table_group_id join_hash_table_group_index_3 = 2;
+  query_context_proto_->add_join_hash_table_groups()->add_join_hash_tables();
+  query_context_proto_->add_join_hash_table_groups()->add_join_hash_tables();
+  query_context_proto_->add_join_hash_table_groups()->add_join_hash_tables();
 
   const QueryPlan::DAGNodeIndex build_operator_index_1 = createDummyBuildHashOperator(query_plan_.get(),
                                                                                       build_relation_1,
                                                                                       build_attribute_id_1,
-                                                                                      join_hash_table_index_1);
+                                                                                      join_hash_table_group_index_1);
   const QueryPlan::DAGNodeIndex probe_operator_index_1 = createDummyHashJoinOperator(query_plan_.get(),
                                                                                      build_relation_1,
                                                                                      probe_relation_1,
                                                                                      probe_attribute_id_1,
-                                                                                     join_hash_table_index_1);
+                                                                                     join_hash_table_group_index_1);
   const QueryPlan::DAGNodeIndex build_operator_index_2 = createDummyBuildHashOperator(query_plan_.get(),
                                                                                       build_relation_2,
                                                                                       build_attribute_id_2,
-                                                                                      join_hash_table_index_2);
+                                                                                      join_hash_table_group_index_2);
   const QueryPlan::DAGNodeIndex probe_operator_index_2 = createDummyHashJoinOperator(query_plan_.get(),
                                                                                      build_relation_2,
                                                                                      probe_relation_1,
                                                                                      probe_attribute_id_2,
-                                                                                     join_hash_table_index_2);
+                                                                                     join_hash_table_group_index_2);
   const QueryPlan::DAGNodeIndex build_operator_index_3 = createDummyBuildHashOperator(query_plan_.get(),
                                                                                       build_relation_3,
                                                                                       build_attribute_id_3,
-                                                                                      join_hash_table_index_3);
+                                                                                      join_hash_table_group_index_3);
   const QueryPlan::DAGNodeIndex probe_operator_index_3 = createDummyHashJoinOperator(query_plan_.get(),
                                                                                      build_relation_3,
                                                                                      probe_relation_1,
                                                                                      probe_attribute_id_3,
-                                                                                     join_hash_table_index_3);
+                                                                                     join_hash_table_group_index_3);
 
   addDummyHashJoinInfo(execution_heuristics_.get(),
                        build_operator_index_1,
@@ -170,7 +170,7 @@ TEST_F(ExecutionHeuristicsTest, HashJoinOptimizedTest) {
                        probe_relation_1,
                        build_attribute_id_1,
                        probe_attribute_id_1,
-                       join_hash_table_index_1);
+                       join_hash_table_group_index_1);
   addDummyHashJoinInfo(execution_heuristics_.get(),
                        build_operator_index_2,
                        probe_operator_index_2,
@@ -178,7 +178,7 @@ TEST_F(ExecutionHeuristicsTest, HashJoinOptimizedTest) {
                        probe_relation_1,
                        build_attribute_id_2,
                        probe_attribute_id_2,
-                       join_hash_table_index_2);
+                       join_hash_table_group_index_2);
   addDummyHashJoinInfo(execution_heuristics_.get(),
                        build_operator_index_3,
                        probe_operator_index_3,
@@ -186,15 +186,15 @@ TEST_F(ExecutionHeuristicsTest, HashJoinOptimizedTest) {
                        probe_relation_1,
                        build_attribute_id_3,
                        probe_attribute_id_3,
-                       join_hash_table_index_3);
+                       join_hash_table_group_index_3);
 
   execution_heuristics_->optimizeExecutionPlan(query_plan_.get(), query_context_proto_.get());
 
   // Test whether correct number of bloom filters were added.
-  EXPECT_EQ(1, query_context_proto_->join_hash_tables(0).build_side_bloom_filter_id_size());
-  EXPECT_EQ(1, query_context_proto_->join_hash_tables(1).build_side_bloom_filter_id_size());
-  EXPECT_EQ(1, query_context_proto_->join_hash_tables(2).build_side_bloom_filter_id_size());
-  EXPECT_EQ(3, query_context_proto_->join_hash_tables(0).probe_side_bloom_filters_size());
+  EXPECT_EQ(1, query_context_proto_->join_hash_table_groups(0).join_hash_tables(0).build_side_bloom_filter_id_size());
+  EXPECT_EQ(1, query_context_proto_->join_hash_table_groups(1).join_hash_tables(0).build_side_bloom_filter_id_size());
+  EXPECT_EQ(1, query_context_proto_->join_hash_table_groups(2).join_hash_tables(0).build_side_bloom_filter_id_size());
+  EXPECT_EQ(3, query_context_proto_->join_hash_table_groups(0).join_hash_tables(0).probe_side_bloom_filters_size());
 
   // Test that the DAG was modified correctly or not.
   // Probe operator 1 should have now build operator 1 and build operator 2 added as dependencies.
@@ -222,40 +222,40 @@ TEST_F(ExecutionHeuristicsTest, HashJoinNotOptimizedTest) {
   const attribute_id probe_attribute_id_2 = 2;
   const attribute_id probe_attribute_id_3 = 3;
 
-  const QueryContext::join_hash_table_id join_hash_table_index_1 = 0;
-  const QueryContext::join_hash_table_id join_hash_table_index_2 = 1;
-  const QueryContext::join_hash_table_id join_hash_table_index_3 = 2;
-  query_context_proto_->add_join_hash_tables();
-  query_context_proto_->add_join_hash_tables();
-  query_context_proto_->add_join_hash_tables();
+  const QueryContext::join_hash_table_group_id join_hash_table_group_index_1 = 0;
+  const QueryContext::join_hash_table_group_id join_hash_table_group_index_2 = 1;
+  const QueryContext::join_hash_table_group_id join_hash_table_group_index_3 = 2;
+  query_context_proto_->add_join_hash_table_groups()->add_join_hash_tables();
+  query_context_proto_->add_join_hash_table_groups()->add_join_hash_tables();
+  query_context_proto_->add_join_hash_table_groups()->add_join_hash_tables();
 
   const QueryPlan::DAGNodeIndex build_operator_index_1 = createDummyBuildHashOperator(query_plan_.get(),
                                                                                       build_relation_1,
                                                                                       build_attribute_id_1,
-                                                                                      join_hash_table_index_1);
+                                                                                      join_hash_table_group_index_1);
   const QueryPlan::DAGNodeIndex probe_operator_index_1 = createDummyHashJoinOperator(query_plan_.get(),
                                                                                      build_relation_1,
                                                                                      probe_relation_1,
                                                                                      probe_attribute_id_1,
-                                                                                     join_hash_table_index_1);
+                                                                                     join_hash_table_group_index_1);
   const QueryPlan::DAGNodeIndex build_operator_index_2 = createDummyBuildHashOperator(query_plan_.get(),
                                                                                       build_relation_2,
                                                                                       build_attribute_id_2,
-                                                                                      join_hash_table_index_2);
+                                                                                      join_hash_table_group_index_2);
   const QueryPlan::DAGNodeIndex probe_operator_index_2 = createDummyHashJoinOperator(query_plan_.get(),
                                                                                      build_relation_2,
                                                                                      probe_relation_2,
                                                                                      probe_attribute_id_2,
-                                                                                     join_hash_table_index_2);
+                                                                                     join_hash_table_group_index_2);
   const QueryPlan::DAGNodeIndex build_operator_index_3 = createDummyBuildHashOperator(query_plan_.get(),
                                                                                       build_relation_3,
                                                                                       build_attribute_id_3,
-                                                                                      join_hash_table_index_3);
+                                                                                      join_hash_table_group_index_3);
   const QueryPlan::DAGNodeIndex probe_operator_index_3 = createDummyHashJoinOperator(query_plan_.get(),
                                                                                      build_relation_3,
                                                                                      probe_relation_3,
                                                                                      probe_attribute_id_3,
-                                                                                     join_hash_table_index_3);
+                                                                                     join_hash_table_group_index_3);
 
   addDummyHashJoinInfo(execution_heuristics_.get(),
                        build_operator_index_1,
@@ -264,7 +264,7 @@ TEST_F(ExecutionHeuristicsTest, HashJoinNotOptimizedTest) {
                        probe_relation_1,
                        build_attribute_id_1,
                        probe_attribute_id_1,
-                       join_hash_table_index_1);
+                       join_hash_table_group_index_1);
   addDummyHashJoinInfo(execution_heuristics_.get(),
                        build_operator_index_2,
                        probe_operator_index_2,
@@ -272,7 +272,7 @@ TEST_F(ExecutionHeuristicsTest, HashJoinNotOptimizedTest) {
                        probe_relation_2,
                        build_attribute_id_2,
                        probe_attribute_id_2,
-                       join_hash_table_index_2);
+                       join_hash_table_group_index_2);
   addDummyHashJoinInfo(execution_heuristics_.get(),
                        build_operator_index_3,
                        probe_operator_index_3,
@@ -280,15 +280,15 @@ TEST_F(ExecutionHeuristicsTest, HashJoinNotOptimizedTest) {
                        probe_relation_3,
                        build_attribute_id_3,
                        probe_attribute_id_3,
-                       join_hash_table_index_3);
+                       join_hash_table_group_index_3);
 
   execution_heuristics_->optimizeExecutionPlan(query_plan_.get(), query_context_proto_.get());
 
   // Test that no bloom filters were added.
-  EXPECT_EQ(0, query_context_proto_->join_hash_tables(0).build_side_bloom_filter_id_size());
-  EXPECT_EQ(0, query_context_proto_->join_hash_tables(1).build_side_bloom_filter_id_size());
-  EXPECT_EQ(0, query_context_proto_->join_hash_tables(2).build_side_bloom_filter_id_size());
-  EXPECT_EQ(0, query_context_proto_->join_hash_tables(0).probe_side_bloom_filters_size());
+  EXPECT_EQ(0, query_context_proto_->join_hash_table_groups(0).join_hash_tables(0).build_side_bloom_filter_id_size());
+  EXPECT_EQ(0, query_context_proto_->join_hash_table_groups(1).join_hash_tables(0).build_side_bloom_filter_id_size());
+  EXPECT_EQ(0, query_context_proto_->join_hash_table_groups(2).join_hash_tables(0).build_side_bloom_filter_id_size());
+  EXPECT_EQ(0, query_context_proto_->join_hash_table_groups(0).join_hash_tables(0).probe_side_bloom_filters_size());
 
   // Test that the DAG was not modified at all.
   // Probe operator 1 should not have build operator 1 and build operator 2 added as dependencies.

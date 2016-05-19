@@ -95,11 +95,13 @@ class DestroyHashWorkOrder : public WorkOrder {
   DestroyHashWorkOrder(const CatalogRelation &input_relation,
                        const QueryContext::join_hash_table_group_id hash_table_group_index,
                        QueryContext *query_context,
-                       const numa_node_id numa_node = 0)
+                       const numa_node_id numa_node = -1)
       : input_relation_(input_relation),
         hash_table_group_index_(hash_table_group_index),
         query_context_(DCHECK_NOTNULL(query_context)) {
-    preferred_numa_nodes_.push_back(numa_node);
+    if (numa_node != -1) {
+      preferred_numa_nodes_.push_back(numa_node);
+    }
   }
 
   ~DestroyHashWorkOrder() override {}

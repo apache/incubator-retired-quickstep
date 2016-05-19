@@ -199,14 +199,16 @@ class BuildHashWorkOrder : public WorkOrder {
                      const block_id build_block_id,
                      JoinHashTable *hash_table,
                      StorageManager *storage_manager,
-                     const numa_node_id numa_node = 0)
+                     const numa_node_id numa_node = -1)
       : input_relation_(input_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         build_block_id_(build_block_id),
         hash_table_(DCHECK_NOTNULL(hash_table)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {
-    preferred_numa_nodes_.push_back(numa_node);
+    if (numa_node != -1) {
+      preferred_numa_nodes_.push_back(numa_node);
+    }
   }
 
   /**
@@ -226,14 +228,16 @@ class BuildHashWorkOrder : public WorkOrder {
                      const block_id build_block_id,
                      JoinHashTable *hash_table,
                      StorageManager *storage_manager,
-                     const numa_node_id numa_node = 0)
+                     const numa_node_id numa_node = -1)
       : input_relation_(input_relation),
         join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         build_block_id_(build_block_id),
         hash_table_(DCHECK_NOTNULL(hash_table)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {
-    preferred_numa_nodes_.push_back(numa_node);
+    if (numa_node != -1) {
+      preferred_numa_nodes_.push_back(numa_node);
+    }
   }
 
   ~BuildHashWorkOrder() override {}

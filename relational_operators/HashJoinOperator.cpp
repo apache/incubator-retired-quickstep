@@ -535,7 +535,7 @@ void HashInnerJoinWorkOrder::executeWithCollectorType() {
   BlockReference probe_block(
       storage_manager_->getBlock(block_id_,
                                  probe_relation_,
-                                 getPreferredNUMANodes()[0]));
+                                 getPreferredNUMANodes().empty() ? -1 : getPreferredNUMANodes()[0]));
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
 
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
@@ -560,8 +560,8 @@ void HashInnerJoinWorkOrder::executeWithCollectorType() {
 
   for (std::pair<const block_id, std::vector<std::pair<tuple_id, tuple_id>>>
            &build_block_entry : *collector.getJoinedTuples()) {
-    BlockReference build_block =
-        storage_manager_->getBlock(build_block_entry.first, build_relation_, getPreferredNUMANodes()[0]);
+    BlockReference build_block = storage_manager_->getBlock(
+        build_block_entry.first, build_relation_, getPreferredNUMANodes().empty() ? -1 : getPreferredNUMANodes()[0]);
     const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
     std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
 

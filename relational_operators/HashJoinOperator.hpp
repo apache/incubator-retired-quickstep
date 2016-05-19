@@ -318,7 +318,7 @@ class HashInnerJoinWorkOrder : public WorkOrder {
                          const JoinHashTable &hash_table,
                          InsertDestination *output_destination,
                          StorageManager *storage_manager,
-                         const numa_node_id numa_node = 0)
+                         const numa_node_id numa_node = -1)
       : build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
@@ -329,7 +329,9 @@ class HashInnerJoinWorkOrder : public WorkOrder {
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {
-    preferred_numa_nodes_.push_back(numa_node);
+    if (numa_node != -1) {
+      preferred_numa_nodes_.push_back(numa_node);
+    }
   }
 
   /**
@@ -364,7 +366,7 @@ class HashInnerJoinWorkOrder : public WorkOrder {
                          const JoinHashTable &hash_table,
                          InsertDestination *output_destination,
                          StorageManager *storage_manager,
-                         const numa_node_id numa_node = 0)
+                         const numa_node_id numa_node = -1)
       : build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(std::move(join_key_attributes)),
@@ -375,7 +377,9 @@ class HashInnerJoinWorkOrder : public WorkOrder {
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {
-    preferred_numa_nodes_.push_back(numa_node);
+    if (numa_node != -1) {
+      preferred_numa_nodes_.push_back(numa_node);
+    }
   }
 
   ~HashInnerJoinWorkOrder() override {}
@@ -447,7 +451,7 @@ class HashSemiJoinWorkOrder : public WorkOrder {
                         const JoinHashTable &hash_table,
                         InsertDestination *output_destination,
                         StorageManager *storage_manager,
-                        const numa_node_id numa_node = 0)
+                        const numa_node_id numa_node = -1)
       : build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
@@ -458,7 +462,9 @@ class HashSemiJoinWorkOrder : public WorkOrder {
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {
-    preferred_numa_nodes_.push_back(numa_node);
+    if (numa_node != -1) {
+      preferred_numa_nodes_.push_back(numa_node);
+    }
   }
 
   /**
@@ -493,7 +499,7 @@ class HashSemiJoinWorkOrder : public WorkOrder {
                         const JoinHashTable &hash_table,
                         InsertDestination *output_destination,
                         StorageManager *storage_manager,
-                        const numa_node_id numa_node = 0)
+                        const numa_node_id numa_node = -1)
       : build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(std::move(join_key_attributes)),
@@ -504,7 +510,9 @@ class HashSemiJoinWorkOrder : public WorkOrder {
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {
-    preferred_numa_nodes_.push_back(numa_node);
+    if (numa_node != -1) {
+      preferred_numa_nodes_.push_back(numa_node);
+    }
   }
 
   ~HashSemiJoinWorkOrder() override {}
@@ -569,7 +577,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
                         const JoinHashTable &hash_table,
                         InsertDestination *output_destination,
                         StorageManager *storage_manager,
-                        const numa_node_id numa_node = 0)
+                        const numa_node_id numa_node = -1)
       : build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
@@ -580,7 +588,9 @@ class HashAntiJoinWorkOrder : public WorkOrder {
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {
-    preferred_numa_nodes_.push_back(numa_node);
+    if (numa_node != -1) {
+      preferred_numa_nodes_.push_back(numa_node);
+    }
   }
 
   /**
@@ -615,7 +625,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
                         const JoinHashTable &hash_table,
                         InsertDestination *output_destination,
                         StorageManager *storage_manager,
-                        const numa_node_id numa_node = 0)
+                        const numa_node_id numa_node = -1)
       : build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(std::move(join_key_attributes)),
@@ -626,7 +636,9 @@ class HashAntiJoinWorkOrder : public WorkOrder {
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {
-    preferred_numa_nodes_.push_back(numa_node);
+    if (numa_node != -1) {
+      preferred_numa_nodes_.push_back(numa_node);
+    }
   }
 
   ~HashAntiJoinWorkOrder() override {}

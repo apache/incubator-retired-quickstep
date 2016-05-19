@@ -166,7 +166,8 @@ bool BuildHashOperator::getAllWorkOrders(WorkOrdersContainer *container,
 }
 
 void BuildHashWorkOrder::execute() {
-  BlockReference block(storage_manager_->getBlock(build_block_id_, input_relation_, getPreferredNUMANodes()[0]));
+  BlockReference block(storage_manager_->getBlock(
+      build_block_id_, input_relation_, getPreferredNUMANodes().empty() ? -1 : getPreferredNUMANodes()[0]));
 
   TupleReferenceGenerator generator(build_block_id_);
   std::unique_ptr<ValueAccessor> accessor(block->getTupleStorageSubBlock().createValueAccessor());

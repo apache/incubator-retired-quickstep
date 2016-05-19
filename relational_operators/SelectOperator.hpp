@@ -293,7 +293,7 @@ class SelectWorkOrder : public WorkOrder {
                   const std::vector<std::unique_ptr<const Scalar>> *selection,
                   InsertDestination *output_destination,
                   StorageManager *storage_manager,
-                  const numa_node_id numa_node = 0)
+                  const numa_node_id numa_node = -1)
       : input_relation_(input_relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
@@ -302,7 +302,9 @@ class SelectWorkOrder : public WorkOrder {
         selection_(selection),
         output_destination_(DCHECK_NOTNULL(output_destination)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {
-    preferred_numa_nodes_.push_back(numa_node);
+    if (numa_node != -1) {
+      preferred_numa_nodes_.push_back(numa_node);
+    }
   }
 
   /**
@@ -332,7 +334,7 @@ class SelectWorkOrder : public WorkOrder {
                   const std::vector<std::unique_ptr<const Scalar>> *selection,
                   InsertDestination *output_destination,
                   StorageManager *storage_manager,
-                  const numa_node_id numa_node = 0)
+                  const numa_node_id numa_node = -1)
       : input_relation_(input_relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
@@ -341,7 +343,9 @@ class SelectWorkOrder : public WorkOrder {
         selection_(selection),
         output_destination_(DCHECK_NOTNULL(output_destination)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {
-    preferred_numa_nodes_.push_back(numa_node);
+    if (numa_node != -1) {
+      preferred_numa_nodes_.push_back(numa_node);
+    }
   }
 
   ~SelectWorkOrder() override {}
