@@ -1436,11 +1436,13 @@ void ExecutionGenerator::convertAggregate(
 
     // Add distinctify hash table impl type if it is a DISTINCT aggregation.
     if (unnamed_aggregate_expression->is_distinct()) {
-      if (group_by_types.empty()) {
+      const std::vector<E::ScalarPtr> &arguments = unnamed_aggregate_expression->getArguments();
+      DCHECK_GE(arguments.size(), 1u);
+      if (group_by_types.empty() && arguments.size() == 1) {
         aggr_state_proto->add_distinctify_hash_table_impl_types(
             SimplifyHashTableImplTypeProto(
                 HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type),
-                {&unnamed_aggregate_expression->getValueType()}));
+                {&arguments[0]->getValueType()}));
       } else {
         aggr_state_proto->add_distinctify_hash_table_impl_types(
             HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type));
