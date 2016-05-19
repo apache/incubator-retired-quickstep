@@ -88,6 +88,8 @@ void CommandExecutorTestRunner::runTestCase(
               *result.parsed_statement,
               *(test_database_loader_.catalog_database()),
               test_database_loader_.storage_manager(),
+              nullptr,
+              nullptr,
               output_stream.file());
         } else  {
           QueryHandle query_handle(optimizer_context.query_id());

@@ -1,5 +1,7 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
 #   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -73,11 +75,24 @@ target_link_libraries(quickstep_cli_CommandExecutor
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogRelationSchema
-                      quickstep_cli_PrintToScreen 
+                      quickstep_cli_DropRelation
+                      quickstep_cli_PrintToScreen
                       quickstep_parser_ParseStatement
+                      quickstep_parser_SqlParserWrapper
+                      quickstep_queryexecution_Foreman
+                      quickstep_queryoptimizer_QueryHandle
+                      quickstep_queryoptimizer_QueryPlan
+                      quickstep_queryoptimizer_QueryProcessor
+                      quickstep_storage_StorageBlock
                       quickstep_storage_StorageBlockInfo
-                      quickstep_utility_Macros
-                      quickstep_utility_PtrVector                        
+                      quickstep_storage_StorageManager
+                      quickstep_storage_TupleIdSequence
+                      quickstep_storage_TupleStorageSubBlock
+                      quickstep_parser_ParseString
+                      quickstep_types_Type
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
+                      quickstep_utility_PtrVector
                       quickstep_utility_SqlError)
 
 target_link_libraries(quickstep_cli_DefaultsConfigurator
