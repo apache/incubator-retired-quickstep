@@ -950,8 +950,9 @@ void ExecutionGenerator::convertCopyFrom(
                                        false /* is_pipeline_breaker */);
 
   const QueryPlan::DAGNodeIndex num_rows_operator_index =
-      execution_plan_->addRelationalOperator(
-          new GenerateNumRowsStatsOperator( optimizer_context_->catalog_database()->getRelationByIdMutable(output_relation->getID())));
+      execution_plan_->addRelationalOperator(new GenerateNumRowsStatsOperator(
+          optimizer_context_->catalog_database()->getRelationByIdMutable(
+              output_relation->getID())));
   insert_destination_proto->set_relational_op_index(num_rows_operator_index);
   execution_plan_->addDirectDependency(num_rows_operator_index,
                                        scan_operator_index,
