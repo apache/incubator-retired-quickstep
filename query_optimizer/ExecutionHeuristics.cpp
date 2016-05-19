@@ -138,7 +138,7 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
 void ExecutionHeuristics::setBloomFilterProperties(serialization::BloomFilter *bloom_filter_proto,
                                                    const CatalogRelation *relation) {
   const std::size_t cardinality = relation->estimateTupleCardinality();
-  if (cardinality < kOneThousand) {
+  /*if (cardinality < kOneThousand) {
     bloom_filter_proto->set_bloom_filter_size(kOneThousand / kCompressionFactor);
     bloom_filter_proto->set_number_of_hashes(kVeryLowSparsityHash);
   } else if (cardinality < kTenThousand) {
@@ -150,7 +150,9 @@ void ExecutionHeuristics::setBloomFilterProperties(serialization::BloomFilter *b
   } else {
     bloom_filter_proto->set_bloom_filter_size(kMillion / kCompressionFactor);
     bloom_filter_proto->set_number_of_hashes(kHighSparsityHash);
-  }
+  }*/
+  bloom_filter_proto->set_bloom_filter_size(cardinality);
+  bloom_filter_proto->set_number_of_hashes(1);
 }
 
 }  // namespace optimizer

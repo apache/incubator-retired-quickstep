@@ -198,7 +198,7 @@ class BloomFilter {
 
     // Determine all the bit positions that are required to be set.
     for (std::size_t i = 0; i < hash_fn_count_; ++i) {
-      compute_indices(hash_ap(key_begin, length, hash_fn_[i]), &bit_index, &bit);
+      compute_indices(hash_id(key_begin, length, hash_fn_[i]), &bit_index, &bit);
       modified_bit_positions.push_back(std::make_pair(bit_index, bit));
     }
 
@@ -243,7 +243,7 @@ class BloomFilter {
     std::size_t bit = 0;
 
     for (std::size_t i = 0; i < hash_fn_count_; ++i) {
-      compute_indices(hash_ap(key_begin, length, hash_fn_[i]), &bit_index, &bit);
+      compute_indices(hash_id(key_begin, length, hash_fn_[i]), &bit_index, &bit);
       (bit_array_.get())[bit_index / kNumBitsPerByte] |= (1 << bit);
     }
 
@@ -265,7 +265,7 @@ class BloomFilter {
     std::size_t bit_index = 0;
     std::size_t bit = 0;
     for (std::size_t i = 0; i < hash_fn_count_; ++i) {
-      compute_indices(hash_ap(key_begin, length, hash_fn_[i]), &bit_index, &bit);
+      compute_indices(hash_id(key_begin, length, hash_fn_[i]), &bit_index, &bit);
       if (((bit_array_.get())[bit_index / kNumBitsPerByte] & (1 << bit)) != (1 << bit)) {
         return false;
       }
