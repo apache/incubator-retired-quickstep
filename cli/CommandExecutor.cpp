@@ -94,7 +94,7 @@ void executeDescribeDatabase(
     max_column_width = std::max(static_cast<int>(relation->getName().length()),
                                     max_column_width);
     num_blocks.push_back(relation->size_blocks());
-    num_tuples.push_back(PrintToScreen::GetNumTuplesInRelation(
+   num_tuples.push_back(PrintToScreen::GetNumTuplesInRelation(
         *relation,
         storage_manager));
   }
@@ -103,7 +103,7 @@ void executeDescribeDatabase(
     const std::size_t max_num_blocks = *std::max_element(num_blocks.begin(), num_blocks.end());
     const std::size_t max_num_rows = *std::max_element(num_tuples.begin(), num_tuples.end());
     const int max_num_rows_digits = std::max(PrintToScreen::GetNumberOfDigits(max_num_rows),
-                                    C::kInitMaxColumnWidth);
+                                      C::kInitMaxColumnWidth);
     const int max_num_blocks_digits = std::max(PrintToScreen::GetNumberOfDigits(max_num_blocks),
                                       C::kInitMaxColumnWidth+2);
 

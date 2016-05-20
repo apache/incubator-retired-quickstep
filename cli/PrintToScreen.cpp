@@ -26,6 +26,7 @@
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "storage/StorageBlock.hpp"
+#include "storage/StorageBlockBase.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
 #include "storage/TupleIdSequence.hpp"
@@ -164,8 +165,9 @@ std::size_t PrintToScreen::GetNumTuplesInRelation(
   const std::vector<block_id> &blocks = relation.getBlocksSnapshot();
   std::size_t total_num_tuples = 0;
   for (block_id block : blocks) {
-    total_num_tuples +=
-        storage_manager->getBlock(block, relation)->getNumTuples();
+    MutableBlockReference curr_block = storage_manager->getBlockMutable(block, relation);
+    total_num_tuples += curr_block->getNumTuples();        
+    curr_block.release();
   }
   return total_num_tuples;
 }

@@ -100,7 +100,7 @@ target_link_libraries(quickstep_cli_DefaultsConfigurator
 if(QUICKSTEP_HAVE_LIBNUMA)
   target_link_libraries(quickstep_cli_DefaultsConfigurator
                       ${LIBNUMA_LIBRARY})
-endif() 
+endif()
 target_link_libraries(quickstep_cli_InputParserUtil
                       glog
                       quickstep_utility_Macros
@@ -114,6 +114,7 @@ target_link_libraries(quickstep_cli_PrintToScreen
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelation
                       quickstep_storage_StorageBlock
+                      quickstep_storage_StorageBlockBase
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
                       quickstep_storage_TupleIdSequence
