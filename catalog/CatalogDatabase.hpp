@@ -290,7 +290,7 @@ class CatalogDatabase : public CatalogDatabaseLite {
    * @param id The id to search for.
    * @return The relation with the given ID.
    **/
-  const CatalogRelation* getRelationById(const relation_id id) const {
+  const CatalogRelation* getRelationById(const relation_id id) const override {
     SpinSharedMutexSharedLock<false> lock(relations_mutex_);
     if (hasRelationWithIdUnsafe(id)) {
       return &rel_vec_[id];
