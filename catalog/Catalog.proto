@@ -82,7 +82,7 @@ message IndexScheme {
 
 message CatalogRelationStatistics {
   optional fixed64 num_tuples = 1;
-
+  
   message NumDistinctValuesEntry {
     required int32 attr_id = 1;
     required fixed64 num_distinct_values = 2;
