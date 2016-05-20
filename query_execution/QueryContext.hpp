@@ -303,6 +303,7 @@ class QueryContext {
   /**
    * @brief Whether the given JoinHashTable id is valid.
    *
+   * @param gid The JoinHashTable group id.
    * @param id The JoinHashTable id.
    *
    * @return True if valid, otherwise false.
@@ -314,11 +315,13 @@ class QueryContext {
   /**
    * @brief Get the JoinHashTable.
    *
+   * @param gid The JoinHashTable group id.
    * @param id The JoinHashTable id in the query.
    *
    * @return The JoinHashTable, already created in the constructor.
    **/
   inline JoinHashTable* getJoinHashTable(const join_hash_table_group_id gid, const join_hash_table_id id = 0) {
+    DCHECK_LT(gid, join_hash_tables_.size());
     DCHECK_LT(id, join_hash_tables_[gid].size());
     return join_hash_tables_[gid][id].get();
   }
@@ -326,9 +329,11 @@ class QueryContext {
   /**
    * @brief Destory the given JoinHashTable.
    *
+   * @param gid The JoinHashTable group id.
    * @param id The id of the JoinHashTable to destroy.
    **/
   inline void destroyJoinHashTable(const join_hash_table_group_id gid, const join_hash_table_id id = 0) {
+    DCHECK_LT(gid, join_hash_tables_.size());
     DCHECK_LT(id, join_hash_tables_[gid].size());
     join_hash_tables_[gid][id].reset();
   }

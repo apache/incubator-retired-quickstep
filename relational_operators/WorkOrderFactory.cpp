@@ -457,7 +457,10 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
              proto.HasExtension(serialization::BuildHashWorkOrder::block_id) &&
              proto.HasExtension(serialization::BuildHashWorkOrder::join_hash_table_group_index) &&
              query_context.isValidJoinHashTableId(
-                 proto.GetExtension(serialization::BuildHashWorkOrder::join_hash_table_group_index));
+                 proto.GetExtension(serialization::BuildHashWorkOrder::join_hash_table_group_index)) &&
+             proto.HasExtension(serialization::BuildHashWorkOrder::join_hash_table_index) &&
+             query_context.isValidJoinHashTableId(
+                 proto.GetExtension(serialization::BuildHashWorkOrder::join_hash_table_index));
     }
     case serialization::DELETE: {
       return proto.HasExtension(serialization::DeleteWorkOrder::relation_id) &&
@@ -544,6 +547,9 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
              proto.HasExtension(serialization::HashJoinWorkOrder::join_hash_table_group_index) &&
              query_context.isValidJoinHashTableId(
                  proto.GetExtension(serialization::HashJoinWorkOrder::join_hash_table_group_index)) &&
+             proto.HasExtension(serialization::HashJoinWorkOrder::join_hash_table_index) &&
+             query_context.isValidJoinHashTableId(
+                 proto.GetExtension(serialization::HashJoinWorkOrder::join_hash_table_index)) &&
              proto.HasExtension(serialization::HashJoinWorkOrder::selection_index) &&
              query_context.isValidScalarGroupId(
                  proto.GetExtension(serialization::HashJoinWorkOrder::selection_index)) &&
