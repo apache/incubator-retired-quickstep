@@ -34,6 +34,9 @@ add_library(quickstep_relationaloperators_DropTableOperator DropTableOperator.cp
 add_library(quickstep_relationaloperators_FinalizeAggregationOperator
             FinalizeAggregationOperator.cpp
             FinalizeAggregationOperator.hpp)
+add_library(quickstep_relationaloperators_GenerateNumRowsStatsOperator
+            GenerateNumRowsStatsOperator.cpp
+            GenerateNumRowsStatsOperator.hpp)
 add_library(quickstep_relationaloperators_HashJoinOperator HashJoinOperator.cpp HashJoinOperator.hpp)
 add_library(quickstep_relationaloperators_InsertOperator InsertOperator.cpp InsertOperator.hpp)
 add_library(quickstep_relationaloperators_NestedLoopsJoinOperator
@@ -169,6 +172,13 @@ target_link_libraries(quickstep_relationaloperators_FinalizeAggregationOperator
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_AggregationOperationState
+                      quickstep_utility_Macros
+                      tmb)
+target_link_libraries(quickstep_relationaloperators_GenerateNumRowsStatsOperator
+                      glog
+                      quickstep_catalog_CatalogRelation
+                      quickstep_cli_PrintToScreen
+                      quickstep_relationaloperators_RelationalOperator
                       quickstep_utility_Macros
                       tmb)
 target_link_libraries(quickstep_relationaloperators_HashJoinOperator
@@ -463,6 +473,7 @@ target_link_libraries(quickstep_relationaloperators
                       quickstep_relationaloperators_DestroyHashOperator
                       quickstep_relationaloperators_DropTableOperator
                       quickstep_relationaloperators_FinalizeAggregationOperator
+                      quickstep_relationaloperators_GenerateNumRowsStatsOperator
                       quickstep_relationaloperators_HashJoinOperator
                       quickstep_relationaloperators_InsertOperator
                       quickstep_relationaloperators_NestedLoopsJoinOperator
