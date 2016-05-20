@@ -33,6 +33,7 @@
 #include "query_optimizer/strategy/OneToOne.hpp"
 #include "query_optimizer/strategy/Selection.hpp"
 #include "query_optimizer/strategy/Strategy.hpp"
+#include "utility/PlanVisualizer.hpp"
 
 #include "gflags/gflags.h"
 
@@ -45,7 +46,12 @@ DEFINE_bool(reorder_hash_joins, true,
             "If true, apply hash join order optimization to each group of hash "
             "joins. The optimization applies a greedy algorithm to favor smaller "
             "cardinality and selective tables to be joined first, which is suitable "
-            "for queries on star-schema tables");
+            "for queries on star-schema tables.");
+
+DEFINE_bool(visualize_plan, false,
+            "If true, visualize the final physical plan into a graph in DOT format "
+            "(DOT is a plain text graph description language). Then print the "
+            "generated graph through stderr.");
 
 namespace L = ::quickstep::optimizer::logical;
 namespace P = ::quickstep::optimizer::physical;
@@ -100,6 +106,11 @@ P::PhysicalPtr PhysicalGenerator::optimizePlan() {
   }
 
   DVLOG(4) << "Optimized physical plan:\n" << physical_plan_->toString();
+
+  if (FLAGS_visualize_plan) {
+  quickstep::PlanVisualizer plan_visualizer;
+    std::cerr << "\n" << plan_visualizer.visualize(physical_plan_) << "\n";
+  }
 
 #ifdef QUICKSTEP_DEBUG
   Validate(physical_plan_);

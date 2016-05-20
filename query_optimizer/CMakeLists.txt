@@ -194,7 +194,8 @@ target_link_libraries(quickstep_queryoptimizer_PhysicalGenerator
                       quickstep_queryoptimizer_strategy_Selection
                       quickstep_queryoptimizer_strategy_Strategy
                       quickstep_queryoptimizer_Validator
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      quickstep_utility_PlanVisualizer)
 target_link_libraries(quickstep_queryoptimizer_QueryHandle
                       quickstep_catalog_Catalog_proto
                       quickstep_queryexecution_QueryContext_proto
