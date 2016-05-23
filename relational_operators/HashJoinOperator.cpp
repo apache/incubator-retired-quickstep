@@ -286,6 +286,52 @@ void HashJoinOperator::addWorkOrders(WorkOrdersContainer *container,
     }  // end else (probe_relation_is_stored_)
 }
 
+template <class JoinWorkOrderClass>
+void HashJoinOperator::addWorkOrdersUsingPartitionedInput(WorkOrdersContainer *container,
+                                                          QueryContext *query_context,
+                                                          StorageManager *storage_manager,
+                                                          const Predicate *residual_predicate,
+                                                          const std::vector<std::unique_ptr<const Scalar>> &selection,
+                                                          InsertDestination *output_destination) {
+  const JoinHashTable &hash_table = *(query_context->getJoinHashTable(hash_table_group_index_));
+  const std::size_t num_partitions =
+      probe_relation_.getPartitionScheme().getPartitionSchemeHeader().getNumPartitions();
+  if (probe_relation_is_stored_) {
+    for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
+      for (const block_id probe_block_id : probe_relation_block_ids_in_partition_[part_id]) {
+        container->addNormalWorkOrder(new JoinWorkOrderClass(build_relation_,
+                                                             probe_relation_,
+                                                             join_key_attributes_,
+                                                             any_join_key_attributes_nullable_,
+                                                             probe_block_id,
+                                                             residual_predicate,
+                                                             selection,
+                                                             hash_table,
+                                                             output_destination,
+                                                             storage_manager),
+                                      op_index_);
+      }
+    }
+  } else {
+    for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
+      while (num_workorders_generated_ < probe_relation_block_ids_in_partition_[part_id].size()) {
+        container->addNormalWorkOrder(new JoinWorkOrderClass(build_relation_,
+                                                             probe_relation_,
+                                                             join_key_attributes_,
+                                                             any_join_key_attributes_nullable_,
+                                                             probe_relation_block_ids_[num_workorders_generated_],
+                                                             residual_predicate,
+                                                             selection,
+                                                             hash_table,
+                                                             output_destination,
+                                                             storage_manager),
+                                      op_index_);
+        ++num_workorders_generated_;
+      }  // end while
+    }
+  }  // end else (probe_relation_is_stored_)
+}
+
 #ifdef QUICKSTEP_HAVE_LIBNUMA
 template <class JoinWorkOrderClass>
 void HashJoinOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
@@ -384,11 +430,16 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(WorkOrdersContainer *contain
 
     if (probe_relation_is_stored_) {
       if (!started_) {
-        if (probe_relation_.hasPartitionScheme() && probe_relation_.hasNUMAPlacementScheme() && is_numa_aware_join_) {
+        if (probe_relation_.hasPartitionScheme() && probe_relation_.hasNUMAPlacementScheme()) {
+          if (is_numa_aware_join_) {
 #ifdef QUICKSTEP_HAVE_LIBNUMA
           addPartitionAwareWorkOrders<JoinWorkOrderClass>(
               container, query_context, storage_manager, residual_predicate, selection, output_destination);
 #endif
+          } else {
+            addWorkOrdersUsingPartitionedInput<JoinWorkOrderClass>(
+                container, query_context, storage_manager, residual_predicate, selection, output_destination);
+          }
         } else {
           addWorkOrders<JoinWorkOrderClass>(
               container, query_context, storage_manager, residual_predicate, selection, output_destination);
@@ -397,11 +448,16 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(WorkOrdersContainer *contain
       }
       return started_;
     } else {
-      if (probe_relation_.hasPartitionScheme() && probe_relation_.hasNUMAPlacementScheme() && is_numa_aware_join_) {
+      if (probe_relation_.hasPartitionScheme() && probe_relation_.hasNUMAPlacementScheme()) {
+        if (is_numa_aware_join_) {
 #ifdef QUICKSTEP_HAVE_LIBNUMA
         addPartitionAwareWorkOrders<JoinWorkOrderClass>(
             container, query_context, storage_manager, residual_predicate, selection, output_destination);
 #endif
+        } else {
+          addWorkOrdersUsingPartitionedInput<JoinWorkOrderClass>(
+              container, query_context, storage_manager, residual_predicate, selection, output_destination);
+        }
       } else {
         addWorkOrders<JoinWorkOrderClass>(
             container, query_context, storage_manager, residual_predicate, selection, output_destination);

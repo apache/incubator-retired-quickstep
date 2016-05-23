@@ -235,6 +235,14 @@ class HashJoinOperator : public RelationalOperator {
                      const std::vector<std::unique_ptr<const Scalar>> &selection,
                      InsertDestination *output_destination);
 
+  template <class JoinWorkOrderClass>
+  void addWorkOrdersUsingPartitionedInput(WorkOrdersContainer *container,
+                                          QueryContext *query_context,
+                                          StorageManager *storage_manager,
+                                          const Predicate *predicate,
+                                          const std::vector<std::unique_ptr<const Scalar>> &selection,
+                                          InsertDestination *output_destination);
+
 #ifdef QUICKSTEP_HAVE_LIBNUMA
   template <class JoinWorkOrderClass>
   void addPartitionAwareWorkOrders(WorkOrdersContainer *container,
