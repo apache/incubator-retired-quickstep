@@ -34,6 +34,8 @@ target_link_libraries(quickstep_queryoptimizer_resolver_NameResolver
 target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       glog
                       quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_PartitionScheme
+                      quickstep_catalog_PartitionSchemeHeader
                       quickstep_expressions_aggregation_AggregateFunction
                       quickstep_expressions_aggregation_AggregateFunctionFactory
                       quickstep_expressions_tablegenerator_GeneratorFunction
@@ -51,6 +53,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_parser_ParseLimit
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseOrderBy
+                      quickstep_parser_ParsePartitionClause
                       quickstep_parser_ParsePredicate
                       quickstep_parser_ParsePredicateExists
                       quickstep_parser_ParsePredicateInTableQuery

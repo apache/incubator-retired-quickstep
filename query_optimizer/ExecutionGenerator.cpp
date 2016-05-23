@@ -1029,10 +1029,10 @@ void ExecutionGenerator::convertCreateTable(
     layout->finalize();
     catalog_relation->setDefaultStorageBlockLayout(layout.release());
   }
-
-  execution_plan_->addRelationalOperator(
-      new CreateTableOperator(catalog_relation.release(),
-                              optimizer_context_->catalog_database()));
+  if (physical_plan->partition_scheme()) {
+    //TODO(GERALD) ADD support for partition
+    std::cout<<"Partition scheme"<<std::endl;
+  }
 }
 
 void ExecutionGenerator::convertDeleteTuples(

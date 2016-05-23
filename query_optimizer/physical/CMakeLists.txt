@@ -81,6 +81,7 @@ target_link_libraries(quickstep_queryoptimizer_physical_CreateIndex
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_physical_CreateTable
                       glog
+                      quickstep_catalog_PartitionScheme
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExpressionUtil

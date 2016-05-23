@@ -30,6 +30,8 @@
 #include <utility>
 
 #include "catalog/CatalogDatabase.hpp"
+#include "catalog/PartitionSchemeHeader.hpp"
+#include "catalog/PartitionScheme.hpp"
 #include "expressions/aggregation/AggregateFunction.hpp"
 #include "expressions/aggregation/AggregateFunctionFactory.hpp"
 #include "expressions/table_generator/GeneratorFunction.hpp"
@@ -47,6 +49,7 @@
 #include "parser/ParseLimit.hpp"
 #include "parser/ParseLiteralValue.hpp"
 #include "parser/ParseOrderBy.hpp"
+#include "parser/ParsePartitionClause.hpp"
 #include "parser/ParsePredicate.hpp"
 #include "parser/ParsePredicateExists.hpp"
 #include "parser/ParsePredicateInTableQuery.hpp"
@@ -437,7 +440,67 @@ L::LogicalPtr Resolver::resolveCreateTable(
   std::shared_ptr<const StorageBlockLayoutDescription>
       block_properties(resolveBlockProperties(create_table_statement));
 
-  return L::CreateTable::Create(relation_name, attributes, block_properties);
+  std::shared_ptr<const PartitionScheme>
+      partition_scheme(new PartitionScheme (resolvePartitionClause(create_table_statement)));
+
+  return L::CreateTable::Create(relation_name, attributes, block_properties, partition_scheme);
+}
+PartitionSchemeHeader* Resolver::resolvePartitionClause(
+    const ParseStatementCreateTable &create_table_statement) {
+  const ParsePartitionClause *partition_clause
+      = create_table_statement.opt_partition_clause();
+  if (partition_clause == nullptr) {
+    return nullptr;
+  }
+  const ParseString *partition_type_string = partition_clause->partition_type();
+  if (partition_type_string == nullptr) {
+    THROW_SQL_ERROR_AT(partition_clause)
+        << "partition type must be specified and be a string.";
+  }
+
+  std::unique_ptr<PartitionSchemeHeader> partition_scheme_header;
+  const std::string type_string = ToLower(partition_type_string->value());
+  const PtrList<ParseString> &attribute_name_list
+          = partition_clause->attribute_name_list();
+      if (attribute_name_list.size() !=1) {
+        THROW_SQL_ERROR_AT(partition_clause)
+          << "Partition is supported on only one attribute.";
+      }
+  // TODO(Rogers): Refactor this and make it a common method.
+  auto columnIdFromAttributeName = [&create_table_statement](
+      const std::string& attribute_name) -> int {
+    const std::string search_name = ToLower(attribute_name);
+    int i = 0;
+    for (const ParseAttributeDefinition &attribute_definition :
+     create_table_statement.attribute_definition_list()) {
+      const std::string lower_attribute_name =
+        ToLower(attribute_definition.name()->value());
+      if (lower_attribute_name.compare(search_name) == 0) {
+        return i;
+      }
+      i++;
+    }
+    return -1;
+  };
+  int column_id = -1;
+  for (const ParseString &partition_attribute_name : attribute_name_list) {
+    column_id = columnIdFromAttributeName(partition_attribute_name.value());
+    if (column_id == -1) {
+      THROW_SQL_ERROR_AT(&partition_attribute_name)
+          << "The given attribute was not found.";
+    }
+  }
+  if (type_string.compare("hash") == 0) {
+    std::unique_ptr<PartitionSchemeHeader> hash_partition_scheme_header (new HashPartitionSchemeHeader(partition_clause->num_partitions()->long_value(), column_id));
+    partition_scheme_header = std::move(hash_partition_scheme_header);
+  } else if (type_string.compare("range") == 0) {
+    THROW_SQL_ERROR_AT(partition_clause)
+        << "Range partition is not supported";
+  } else {
+    THROW_SQL_ERROR_AT(partition_type_string) << "Unrecognized partition type.";
+  }
+
+  return partition_scheme_header.release();
 }
 
 StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
