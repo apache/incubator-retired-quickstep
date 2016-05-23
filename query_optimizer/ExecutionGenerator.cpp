@@ -1138,15 +1138,6 @@ void ExecutionGenerator::convertCreateTable(
     ++aid;
   }
 
-  std::cout << "Num partitions: " << FLAGS_num_partitions << "\n";
-  std::cout << "Partition attr id: " << FLAGS_partition_attr_id << "\n";
-
-  PartitionSchemeHeader *part_scheme_header = new HashPartitionSchemeHeader(FLAGS_num_partitions, FLAGS_partition_attr_id);
-  PartitionScheme *partition_scheme = new PartitionScheme(part_scheme_header);
-  catalog_relation->setPartitionScheme(partition_scheme);
-  NUMAPlacementScheme *placement_scheme = new NUMAPlacementScheme(FLAGS_num_partitions); 
-  catalog_relation->setNUMAPlacementScheme(placement_scheme);
-
   // If specified, set the physical block type as the users'. Otherwise,
   // the system uses the default layout.
   if (physical_plan->block_properties()) {
@@ -1160,10 +1151,19 @@ void ExecutionGenerator::convertCreateTable(
     layout->finalize();
     catalog_relation->setDefaultStorageBlockLayout(layout.release());
   }
+
   if (physical_plan->partition_scheme()) {
-    //TODO(GERALD) ADD support for partition
-    std::cout<<"Partition scheme"<<std::endl;
+    std::cout<<"Relation created with partition scheme."<<std::endl;
+    std::size_t num_partitions = physical_plan->partition_scheme()->getPartitionSchemeHeader().getNumPartitions();
+    attribute_id part_attr_id = physical_plan->partition_scheme()->getPartitionSchemeHeader().getPartitionAttributeId();
+    PartitionSchemeHeader *part_scheme_header = new HashPartitionSchemeHeader(num_partitions, part_attr_id);
+    PartitionScheme *partition_scheme = new PartitionScheme(part_scheme_header);
+    catalog_relation->setPartitionScheme(partition_scheme);
+    NUMAPlacementScheme *placement_scheme = new NUMAPlacementScheme(num_partitions); 
+    catalog_relation->setNUMAPlacementScheme(placement_scheme);
   }
+  
+  execution_plan_->addRelationalOperator(new CreateTableOperator(catalog_relation.release(), optimizer_context_->catalog_database()));
 }
 
 void ExecutionGenerator::convertDeleteTuples(

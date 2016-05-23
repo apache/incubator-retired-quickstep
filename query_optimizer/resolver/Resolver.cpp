@@ -440,8 +440,10 @@ L::LogicalPtr Resolver::resolveCreateTable(
   std::shared_ptr<const StorageBlockLayoutDescription>
       block_properties(resolveBlockProperties(create_table_statement));
 
-  std::shared_ptr<const PartitionScheme>
-      partition_scheme(new PartitionScheme (resolvePartitionClause(create_table_statement)));
+  std::shared_ptr<const PartitionScheme> partition_scheme;
+  if (resolvePartitionClause(create_table_statement) != nullptr) {
+    partition_scheme.reset(new PartitionScheme (resolvePartitionClause(create_table_statement)));
+  }
 
   return L::CreateTable::Create(relation_name, attributes, block_properties, partition_scheme);
 }
@@ -482,7 +484,7 @@ PartitionSchemeHeader* Resolver::resolvePartitionClause(
     }
     return -1;
   };
-  int column_id = -1;
+  attribute_id column_id = -1;
   for (const ParseString &partition_attribute_name : attribute_name_list) {
     column_id = columnIdFromAttributeName(partition_attribute_name.value());
     if (column_id == -1) {
@@ -490,10 +492,11 @@ PartitionSchemeHeader* Resolver::resolvePartitionClause(
           << "The given attribute was not found.";
     }
   }
-  if (type_string.compare("hash") == 0) {
+  // Check for Hash partition.
+  if (type_string.compare("0") == 0) {
     std::unique_ptr<PartitionSchemeHeader> hash_partition_scheme_header (new HashPartitionSchemeHeader(partition_clause->num_partitions()->long_value(), column_id));
     partition_scheme_header = std::move(hash_partition_scheme_header);
-  } else if (type_string.compare("range") == 0) {
+  } else if (type_string.compare("1") == 0) {
     THROW_SQL_ERROR_AT(partition_clause)
         << "Range partition is not supported";
   } else {
