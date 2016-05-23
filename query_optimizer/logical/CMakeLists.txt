@@ -85,6 +85,7 @@ target_link_libraries(quickstep_queryoptimizer_logical_CreateIndex
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_logical_CreateTable
                       glog
+                      quickstep_catalog_PartitionScheme
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_logical_Logical
@@ -201,7 +202,7 @@ target_link_libraries(quickstep_queryoptimizer_logical_Sample
                       quickstep_queryoptimizer_logical_Logical
                       quickstep_queryoptimizer_logical_LogicalType
                       quickstep_utility_Cast
-                      quickstep_utility_Macros)                      
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_logical_SharedSubplanReference
                       glog
                       quickstep_queryoptimizer_OptimizerTree

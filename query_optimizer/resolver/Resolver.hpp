@@ -65,6 +65,8 @@ class ParseSubqueryExpression;
 class ParseTableReference;
 class ParseTableReferenceSignature;
 class ParseTreeNode;
+class PartitionScheme;
+class PartitionSchemeHeader;
 template <class T>
 class PtrList;
 class StorageBlockLayoutDescription;
@@ -195,6 +197,15 @@ class Resolver {
   StorageBlockLayoutDescription* resolveBlockProperties(
       const ParseStatementCreateTable &create_table_statement);
 
+  /**
+   * @brief Resolves the PARTITION clause of a CREATE TABLE statement to a
+   *        the PartitionSchemeHeader describing the user input.
+   *
+   * @param create_table_statement The create table statement.
+   * @return A pointer to a user-owned PartitionSchemeHeader.
+   */
+  PartitionSchemeHeader* resolvePartitionClause(
+    const ParseStatementCreateTable &create_table_statement);
   /**
    * @brief Resolves a DELETE query and returns a logical plan.
    *
@@ -454,7 +465,7 @@ class Resolver {
 
   /**
    * @brief Resolves a table/scalar subquery expression.
-   * 
+   *
    * @param parse_subquery_expression The parsed subquery expression.
    * @param type_hints The type hints for output columns by the subquery.
    * @param expression_resolution_info Resolution info that contains the name
