@@ -314,7 +314,7 @@ void HashJoinOperator::addWorkOrdersUsingPartitionedInput(WorkOrdersContainer *c
     }
   } else {
     for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
-      while (num_workorders_generated_ < probe_relation_block_ids_in_partition_[part_id].size()) {
+      while (num_workorders_generated_in_partition_[part_id] < probe_relation_block_ids_in_partition_[part_id].size()) {
         container->addNormalWorkOrder(new JoinWorkOrderClass(build_relation_,
                                                              probe_relation_,
                                                              join_key_attributes_,
@@ -326,7 +326,7 @@ void HashJoinOperator::addWorkOrdersUsingPartitionedInput(WorkOrdersContainer *c
                                                              output_destination,
                                                              storage_manager),
                                       op_index_);
-        ++num_workorders_generated_;
+        ++num_workorders_generated_in_partition_[part_id];
       }  // end while
     }
   }  // end else (probe_relation_is_stored_)
