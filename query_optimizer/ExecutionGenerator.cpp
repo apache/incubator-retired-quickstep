@@ -1045,20 +1045,26 @@ void ExecutionGenerator::convertCopyFrom(
       query_context_proto_->insert_destinations_size();
   S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
 
-  const PartitionScheme &partition_scheme = physical_plan->catalog_relation()->getPartitionScheme();
-  const NUMAPlacementScheme &placement_scheme = physical_plan->catalog_relation()->getNUMAPlacementScheme();
-  insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
-  insert_destination_proto->set_relation_id(output_relation->getID());
-  insert_destination_proto->mutable_layout()->MergeFrom(
-      output_relation->getDefaultStorageBlockLayout().getDescription());
-  insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
-      ->MergeFrom(partition_scheme.getProto());
-  insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::placement_scheme)
-      ->MergeFrom(placement_scheme.getProto());
-
-  const vector<block_id> blocks(physical_plan->catalog_relation()->getBlocksSnapshot());
-  for (const block_id block : blocks) {
-    insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+  if (physical_plan->catalog_relation()->hasPartitionScheme()) {
+    const PartitionScheme &partition_scheme = physical_plan->catalog_relation()->getPartitionScheme();
+    const NUMAPlacementScheme &placement_scheme = physical_plan->catalog_relation()->getNUMAPlacementScheme();
+    insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
+    insert_destination_proto->set_relation_id(output_relation->getID());
+    insert_destination_proto->mutable_layout()->MergeFrom(
+        output_relation->getDefaultStorageBlockLayout().getDescription());
+    insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
+        ->MergeFrom(partition_scheme.getProto());
+    insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::placement_scheme)
+        ->MergeFrom(placement_scheme.getProto());
+  } else {
+    insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
+    insert_destination_proto->set_relation_id(output_relation->getID());
+    insert_destination_proto->mutable_layout()->MergeFrom(
+        output_relation->getDefaultStorageBlockLayout().getDescription());
+    const vector<block_id> blocks(physical_plan->catalog_relation()->getBlocksSnapshot());
+    for (const block_id block : blocks) {
+      insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+    }
   }
 
   const QueryPlan::DAGNodeIndex scan_operator_index =
@@ -1279,22 +1285,27 @@ void ExecutionGenerator::convertInsertTuple(
       query_context_proto_->insert_destinations_size();
   S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
 
-  insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
-  insert_destination_proto->set_relation_id(input_relation.getID());
-  insert_destination_proto->mutable_layout()->MergeFrom(
-      input_relation.getDefaultStorageBlockLayout().getDescription());
-
-  // const vector<block_id> blocks(input_relation.getBlocksSnapshot());
-  // for (const block_id block : blocks) {
-  //   insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
-  // }
-
-  const PartitionScheme &partition_scheme = input_relation_info->relation->getPartitionScheme();
-  const NUMAPlacementScheme &placement_scheme = input_relation_info->relation->getNUMAPlacementScheme();
-  insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
-      ->MergeFrom(partition_scheme.getProto());
-  insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::placement_scheme)
-      ->MergeFrom(placement_scheme.getProto());
+  if (input_relation_info->relation->hasPartitionScheme()) {
+    const PartitionScheme &partition_scheme = input_relation_info->relation->getPartitionScheme();
+    const NUMAPlacementScheme &placement_scheme = input_relation_info->relation->getNUMAPlacementScheme();
+    insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
+    insert_destination_proto->set_relation_id(input_relation.getID());
+    insert_destination_proto->mutable_layout()->MergeFrom(
+        input_relation.getDefaultStorageBlockLayout().getDescription());
+    insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
+        ->MergeFrom(partition_scheme.getProto());
+    insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::placement_scheme)
+        ->MergeFrom(placement_scheme.getProto());
+  } else {
+    insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
+    insert_destination_proto->set_relation_id(input_relation.getID());
+    insert_destination_proto->mutable_layout()->MergeFrom(
+        input_relation.getDefaultStorageBlockLayout().getDescription());
+    const vector<block_id> blocks(input_relation.getBlocksSnapshot());
+    for (const block_id block : blocks) {
+      insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+    }
+  }
 
   const QueryPlan::DAGNodeIndex insert_operator_index =
       execution_plan_->addRelationalOperator(
