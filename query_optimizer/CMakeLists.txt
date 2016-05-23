@@ -113,7 +113,6 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_relationaloperators_DestroyHashOperator
                       quickstep_relationaloperators_DropTableOperator
                       quickstep_relationaloperators_FinalizeAggregationOperator
-                      quickstep_relationaloperators_GenerateNumRowsStatsOperator
                       quickstep_relationaloperators_HashJoinOperator
                       quickstep_relationaloperators_InsertOperator
                       quickstep_relationaloperators_NestedLoopsJoinOperator
@@ -197,7 +196,8 @@ target_link_libraries(quickstep_queryoptimizer_PhysicalGenerator
                       quickstep_queryoptimizer_strategy_Selection
                       quickstep_queryoptimizer_strategy_Strategy
                       quickstep_queryoptimizer_Validator
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      quickstep_utility_PlanVisualizer)
 target_link_libraries(quickstep_queryoptimizer_QueryHandle
                       quickstep_catalog_Catalog_proto
                       quickstep_queryexecution_QueryContext_proto
