@@ -196,6 +196,13 @@ class ExecutionGenerator {
       const CatalogRelation **catalog_relation_output,
       serialization::InsertDestination *insert_destination_proto);
 
+  void createPartitionedTemporaryCatalogRelation(
+      const physical::PhysicalPtr &physical,
+      const CatalogRelation **catalog_relation_output,
+      serialization::InsertDestination *insert_destination_proto,
+      const attribute_id part_attr_id,
+      const std::size_t num_partitions);
+
   /**
    * @brief Returns a new distinct relation name.
    *

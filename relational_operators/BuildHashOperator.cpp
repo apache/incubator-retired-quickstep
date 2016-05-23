@@ -92,14 +92,16 @@ void BuildHashOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *contain
     for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
       for (const block_id input_block_id : input_relation_block_ids_in_partition_[part_id]) {
         JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_group_index_, part_id);
-        container->addNormalWorkOrder(new BuildHashWorkOrder(input_relation_,
-                                                             join_key_attributes_,
-                                                             any_join_key_attributes_nullable_,
-                                                             input_block_id,
-                                                             hash_table,
-                                                             storage_manager,
-                                                             placement_scheme_->getNUMANodeForBlock(input_block_id)),
-                                      op_index_);
+        container->addNormalWorkOrder(
+            new BuildHashWorkOrder(input_relation_,
+                                   join_key_attributes_,
+                                   any_join_key_attributes_nullable_,
+                                   input_block_id,
+                                   hash_table,
+                                   storage_manager,
+                                   placement_scheme_->getNUMANodeForPartition(
+                                       input_relation_.getPartitionScheme().getPartitionForBlock(input_block_id))),
+            op_index_);
       }
     }
   } else {
@@ -109,13 +111,17 @@ void BuildHashOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *contain
              input_relation_block_ids_in_partition_[part_id].size()) {
         block_id block_in_partition =
             input_relation_block_ids_in_partition_[part_id][num_workorders_generated_in_partition_[part_id]];
-        container->addNormalWorkOrder(new BuildHashWorkOrder(input_relation_,
-                                                             join_key_attributes_,
-                                                             any_join_key_attributes_nullable_,
-                                                             block_in_partition,
-                                                             hash_table,
-                                                             storage_manager),
-                                      op_index_);
+        container->addNormalWorkOrder(
+            new BuildHashWorkOrder(
+                input_relation_,
+                join_key_attributes_,
+                any_join_key_attributes_nullable_,
+                block_in_partition,
+                hash_table,
+                storage_manager,
+                placement_scheme_->getNUMANodeForPartition(
+                    input_relation_.getPartitionScheme().getPartitionForBlock(block_in_partition))),
+            op_index_);
         ++num_workorders_generated_in_partition_[part_id];
       }
     }
@@ -131,15 +137,9 @@ bool BuildHashOperator::getAllWorkOrders(WorkOrdersContainer *container,
 
   if (input_relation_is_stored_) {
     if (!started_) {
-      if (input_relation_.hasPartitionScheme()) {
+      if (input_relation_.hasPartitionScheme() && input_relation_.hasNUMAPlacementScheme() && is_numa_aware_join_) {
 #ifdef QUICKSTEP_HAVE_LIBNUMA
-        if (input_relation_.hasNUMAPlacementScheme()) {
           addPartitionAwareWorkOrders(container, query_context, storage_manager);
-        } else {
-          addWorkOrders(container, query_context, storage_manager);
-        }
-#else
-        addWorkOrders(container, query_context, storage_manager);
 #endif
       } else {
         addWorkOrders(container, query_context, storage_manager);
@@ -148,15 +148,9 @@ bool BuildHashOperator::getAllWorkOrders(WorkOrdersContainer *container,
     }
     return started_;
   } else {
-    if (input_relation_.hasPartitionScheme()) {
+    if (input_relation_.hasPartitionScheme() && input_relation_.hasNUMAPlacementScheme() && is_numa_aware_join_) {
 #ifdef QUICKSTEP_HAVE_LIBNUMA
-      if (input_relation_.hasNUMAPlacementScheme()) {
         addPartitionAwareWorkOrders(container, query_context, storage_manager);
-      } else {
-        addWorkOrders(container, query_context, storage_manager);
-      }
-#else
-      addWorkOrders(container, query_context, storage_manager);
 #endif
     } else {
       addWorkOrders(container, query_context, storage_manager);

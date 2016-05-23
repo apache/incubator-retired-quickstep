@@ -43,6 +43,10 @@
 #include "types/TypedValue.hpp"
 #include "types/containers/Tuple.hpp"
 
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+#include "catalog/NUMAPlacementScheme.hpp"
+#endif
+
 #include "glog/logging.h"
 
 #include "tmb/id_typedefs.h"
@@ -114,6 +118,9 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
       const serialization::PartitionScheme &proto_partition_scheme =
           proto.GetExtension(serialization::PartitionAwareInsertDestination::partition_scheme);
 
+      const serialization::NUMAPlacementScheme &proto_placement_scheme =
+          proto.GetExtension(serialization::PartitionAwareInsertDestination::placement_scheme);
+
       vector<vector<block_id>> partitions;
       for (int partition_index = 0; partition_index < proto_partition_scheme.partitions_size(); ++partition_index) {
         vector<block_id> partition;
@@ -129,6 +136,8 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
           relation.getAttributeById(proto_partition_scheme_header.partition_attribute_id())->getType();
       return new PartitionAwareInsertDestination(
           PartitionSchemeHeader::ReconstructFromProto(proto_partition_scheme_header, attr_type),
+          NUMAPlacementScheme::ReconstructFromProto(proto_placement_scheme,
+                                                    proto_partition_scheme_header.num_partitions()),
           relation,
           layout,
           storage_manager,
@@ -386,6 +395,7 @@ const std::vector<block_id>& BlockPoolInsertDestination::getTouchedBlocksInterna
 }
 
 PartitionAwareInsertDestination::PartitionAwareInsertDestination(PartitionSchemeHeader *partition_scheme_header,
+                                                                 NUMAPlacementScheme *placement_scheme,
                                                                  const CatalogRelationSchema &relation,
                                                                  const StorageBlockLayout *layout,
                                                                  StorageManager *storage_manager,
@@ -395,6 +405,7 @@ PartitionAwareInsertDestination::PartitionAwareInsertDestination(PartitionScheme
                                                                  tmb::MessageBus *bus)
     : InsertDestination(relation, layout, storage_manager, relational_op_index, scheduler_client_id, bus),
       partition_scheme_header_(DCHECK_NOTNULL(partition_scheme_header)),
+      placement_scheme_(DCHECK_NOTNULL(placement_scheme)),
       available_block_refs_(partition_scheme_header_->getNumPartitions()),
       available_block_ids_(move(partitions)),
       done_block_ids_(partition_scheme_header_->getNumPartitions()),
@@ -408,7 +419,9 @@ MutableBlockReference PartitionAwareInsertDestination::createNewBlock() {
 MutableBlockReference PartitionAwareInsertDestination::createNewBlockInPartition(const partition_id part_id) {
   DCHECK_LT(part_id, partition_scheme_header_->getNumPartitions());
   // Create a new block.
-  const block_id new_id = storage_manager_->createBlock(relation_, *layout_);
+
+  // TODO(gerald): PASS THE CORRECT NUMA NODE INSTEAD OF ZERO FROM THE OPERATOR!
+  const block_id new_id = storage_manager_->createBlock(relation_, *layout_, placement_scheme_, 0);
 
   // Notify Foreman to add the newly created block id in the master Catalog.
   serialization::CatalogRelationNewBlockMessage proto;

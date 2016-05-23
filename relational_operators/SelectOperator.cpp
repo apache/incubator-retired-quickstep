@@ -78,22 +78,22 @@ void SelectOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
                                                  const std::vector<std::unique_ptr<const Scalar>> *selection,
                                                  InsertDestination *output_destination) {
   DCHECK(placement_scheme_ != nullptr);
-  const std::size_t num_partitions = input_relation_.getPartitionScheme().getPartitionSchemeHeader().getNumPartitions();
+  const std::size_t num_partitions =
+      input_relation_.getPartitionScheme().getPartitionSchemeHeader().getNumPartitions();
   if (input_relation_is_stored_) {
     for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
-      for (const block_id input_block_id :
-           input_relation_block_ids_in_partition_[part_id]) {
+      for (const block_id input_block_id : input_relation_block_ids_in_partition_[part_id]) {
         container->addNormalWorkOrder(
-            new SelectWorkOrder(
-                input_relation_,
-                input_block_id,
-                predicate,
-                simple_projection_,
-                simple_selection_,
-                selection,
-                output_destination,
-                storage_manager,
-                placement_scheme_->getNUMANodeForBlock(input_block_id)),
+            new SelectWorkOrder(input_relation_,
+                                input_block_id,
+                                predicate,
+                                simple_projection_,
+                                simple_selection_,
+                                selection,
+                                output_destination,
+                                storage_manager,
+                                placement_scheme_->getNUMANodeForPartition(
+                                    input_relation_.getPartitionScheme().getPartitionForBlock(input_block_id))),
             op_index_);
       }
     }
@@ -101,19 +101,19 @@ void SelectOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
     for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
       while (num_workorders_generated_in_partition_[part_id] <
              input_relation_block_ids_in_partition_[part_id].size()) {
-        block_id block_in_partition
-            = input_relation_block_ids_in_partition_[part_id][num_workorders_generated_in_partition_[part_id]];
+        block_id block_in_partition =
+            input_relation_block_ids_in_partition_[part_id][num_workorders_generated_in_partition_[part_id]];
         container->addNormalWorkOrder(
-            new SelectWorkOrder(
-                input_relation_,
-                block_in_partition,
-                predicate,
-                simple_projection_,
-                simple_selection_,
-                selection,
-                output_destination,
-                storage_manager,
-                placement_scheme_->getNUMANodeForBlock(block_in_partition)),
+            new SelectWorkOrder(input_relation_,
+                                block_in_partition,
+                                predicate,
+                                simple_projection_,
+                                simple_selection_,
+                                selection,
+                                output_destination,
+                                storage_manager,
+                                placement_scheme_->getNUMANodeForPartition(
+                                    input_relation_.getPartitionScheme().getPartitionForBlock(block_in_partition))),
             op_index_);
         ++num_workorders_generated_in_partition_[part_id];
       }

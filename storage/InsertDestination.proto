@@ -51,5 +51,6 @@ message BlockPoolInsertDestination {
 message PartitionAwareInsertDestination {
   extend InsertDestination {
     optional PartitionScheme partition_scheme = 48;
+    optional NUMAPlacementScheme placement_scheme = 49;
   }
 }

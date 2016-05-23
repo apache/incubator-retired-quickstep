@@ -131,6 +131,8 @@ using std::vector;
 
 namespace quickstep {
 namespace optimizer {
+DEFINE_int32(num_partitions, 1, "Number of partitions for the new tables");
+DEFINE_int32(partition_attr_id, 0, "The ID of the partitioning attribute in the relation");
 
 DEFINE_string(join_hashtable_type, "SeparateChaining",
               "HashTable implementation to use for hash joins (valid options "
@@ -335,6 +337,55 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
   insert_destination_proto->set_relation_id(output_rel_id);
 }
 
+void ExecutionGenerator::createPartitionedTemporaryCatalogRelation(
+    const P::PhysicalPtr &physical,
+    const CatalogRelation **catalog_relation_output,
+    S::InsertDestination *insert_destination_proto,
+    const attribute_id part_attr_id,
+    const std::size_t num_partitions) {
+  std::unique_ptr<CatalogRelation> catalog_relation(
+      new CatalogRelation(optimizer_context_->catalog_database(),
+                          getNewRelationName(),
+                          -1 /* id */,
+                          true /* is_temporary*/));
+  attribute_id aid = 0;
+  for (const E::NamedExpressionPtr &project_expression :
+       physical->getOutputAttributes()) {
+    // The attribute name is simply set to the attribute id to make it distinct.
+    std::unique_ptr<CatalogAttribute> catalog_attribute(
+        new CatalogAttribute(catalog_relation.get(),
+                             std::to_string(aid),
+                             project_expression->getValueType(),
+                             aid,
+                             project_expression->attribute_alias()));
+    attribute_substitution_map_[project_expression->id()] =
+        catalog_attribute.get();
+    catalog_relation->addAttribute(catalog_attribute.release());
+    ++aid;
+  }
+
+  PartitionSchemeHeader *part_scheme_header = new HashPartitionSchemeHeader(num_partitions, part_attr_id);
+  PartitionScheme *partition_scheme = new PartitionScheme(part_scheme_header);
+  catalog_relation->setPartitionScheme(partition_scheme);
+  NUMAPlacementScheme *placement_scheme = new NUMAPlacementScheme(num_partitions); 
+  catalog_relation->setNUMAPlacementScheme(placement_scheme);
+
+  *catalog_relation_output = catalog_relation.get();
+  const relation_id output_rel_id = optimizer_context_->catalog_database()->addRelation(
+      catalog_relation.release());
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  referenced_relation_ids_.insert(output_rel_id);
+#endif
+
+  insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
+  insert_destination_proto->set_relation_id(output_rel_id);
+  insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
+      ->MergeFrom(partition_scheme->getProto());
+  insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::placement_scheme)
+      ->MergeFrom(placement_scheme->getProto());
+}
+
 void ExecutionGenerator::dropAllTemporaryRelations() {
   CatalogDatabase *catalog_database = optimizer_context_->catalog_database();
   for (const CatalogRelationInfo &temporary_relation_info :
@@ -514,14 +565,33 @@ void ExecutionGenerator::convertSelection(
   const QueryContext::insert_destination_id insert_destination_index =
       query_context_proto_->insert_destinations_size();
   S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
-  createTemporaryCatalogRelation(physical_selection,
-                                 &output_relation,
-                                 insert_destination_proto);
 
   // Create and add a Select operator.
   const CatalogRelationInfo *input_relation_info =
       findRelationInfoOutputByPhysical(physical_selection->input());
   DCHECK(input_relation_info != nullptr);
+
+  std::vector<attribute_id> projected_attributes;
+  convertSimpleProjection(project_expressions_group_index, &projected_attributes);
+  bool is_temp_relation_partitioned = false;
+  if (std::find(projected_attributes.begin(),
+                projected_attributes.end(),
+                input_relation_info->relation->getPartitionScheme()
+                     .getPartitionSchemeHeader()
+                     .getPartitionAttributeId()) != projected_attributes.end()) {
+    is_temp_relation_partitioned = true;
+  }
+
+  if (is_temp_relation_partitioned) {
+    createPartitionedTemporaryCatalogRelation(
+        physical_selection,
+        &output_relation,
+        insert_destination_proto,
+        input_relation_info->relation->getPartitionScheme().getPartitionSchemeHeader().getPartitionAttributeId(),
+        input_relation_info->relation->getPartitionScheme().getPartitionSchemeHeader().getNumPartitions());
+  } else {
+    createTemporaryCatalogRelation(physical_selection, &output_relation, insert_destination_proto);
+  }
 
   // Use the "simple" form of the selection operator (a pure projection that
   // doesn't require any expression evaluation or intermediate copies) if
@@ -721,6 +791,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   query_context_proto_->add_join_hash_table_groups();
   std::vector<S::HashTable *> hash_table_proto;
 
+  bool is_numa_aware_join = false;
   if (build_relation_info->relation->hasPartitionScheme() && probe_operator_info->relation->hasPartitionScheme()) {
     if (build_relation_info->relation->getPartitionScheme().getPartitionSchemeHeader().getNumPartitions() ==
         probe_operator_info->relation->getPartitionScheme().getPartitionSchemeHeader().getNumPartitions()) {
@@ -735,6 +806,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
                     probe_operator_info->relation->getPartitionScheme()
                         .getPartitionSchemeHeader()
                         .getPartitionAttributeId()) != probe_attribute_ids.end()) {
+        is_numa_aware_join = true;
         const std::size_t num_partitions =
             build_relation_info->relation->getPartitionScheme().getPartitionSchemeHeader().getNumPartitions();
         hash_table_proto.resize(num_partitions);
@@ -760,7 +832,9 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
         }
       }
     }
-  } else {
+  }
+
+  if (!is_numa_aware_join) {
     hash_table_proto.emplace_back(
         query_context_proto_->mutable_join_hash_table_groups(join_hash_table_group_index)->add_join_hash_tables());
     // SimplifyHashTableImplTypeProto() switches the hash table implementation
@@ -788,7 +862,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               build_relation_info->isStoredRelation(),
               build_attribute_ids,
               any_build_attributes_nullable,
-              join_hash_table_group_index));
+              join_hash_table_group_index,
+              is_numa_aware_join));
 
   // Create InsertDestination proto.
   const CatalogRelation *output_relation = nullptr;
@@ -834,13 +909,14 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               join_hash_table_group_index,
               residual_predicate_index,
               project_expressions_group_index,
+              is_numa_aware_join,
               is_selection_on_build.get(),
               join_type));
   insert_destination_proto->set_relational_op_index(join_operator_index);
 
   const QueryPlan::DAGNodeIndex destroy_operator_index =
       execution_plan_->addRelationalOperator(
-          new DestroyHashOperator(*build_relation_info->relation, join_hash_table_group_index));
+          new DestroyHashOperator(*build_relation_info->relation, join_hash_table_group_index, is_numa_aware_join));
 
   if (!build_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(build_operator_index,
@@ -1072,6 +1148,15 @@ void ExecutionGenerator::convertCreateTable(
     ++aid;
   }
 
+  std::cout << "Num partitions: " << FLAGS_num_partitions << "\n";
+  std::cout << "Partition attr id: " << FLAGS_partition_attr_id << "\n";
+
+  PartitionSchemeHeader *part_scheme_header = new HashPartitionSchemeHeader(FLAGS_num_partitions, FLAGS_partition_attr_id);
+  PartitionScheme *partition_scheme = new PartitionScheme(part_scheme_header);
+  catalog_relation->setPartitionScheme(partition_scheme);
+  NUMAPlacementScheme *placement_scheme = new NUMAPlacementScheme(FLAGS_num_partitions); 
+  catalog_relation->setNUMAPlacementScheme(placement_scheme);
+
   // If specified, set the physical block type as the users'. Otherwise,
   // the system uses the default layout.
   if (physical_plan->block_properties()) {
@@ -1195,15 +1280,22 @@ void ExecutionGenerator::convertInsertTuple(
       query_context_proto_->insert_destinations_size();
   S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
 
-  insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
+  insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
   insert_destination_proto->set_relation_id(input_relation.getID());
   insert_destination_proto->mutable_layout()->MergeFrom(
       input_relation.getDefaultStorageBlockLayout().getDescription());
 
-  const vector<block_id> blocks(input_relation.getBlocksSnapshot());
-  for (const block_id block : blocks) {
-    insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
-  }
+  // const vector<block_id> blocks(input_relation.getBlocksSnapshot());
+  // for (const block_id block : blocks) {
+  //   insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+  // }
+
+  const PartitionScheme &partition_scheme = input_relation_info->relation->getPartitionScheme();
+  const NUMAPlacementScheme &placement_scheme = input_relation_info->relation->getNUMAPlacementScheme();
+  insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
+      ->MergeFrom(partition_scheme.getProto());
+  insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::placement_scheme)
+      ->MergeFrom(placement_scheme.getProto());
 
   const QueryPlan::DAGNodeIndex insert_operator_index =
       execution_plan_->addRelationalOperator(

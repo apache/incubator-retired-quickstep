@@ -37,6 +37,10 @@
 #include "utility/Macros.hpp"
 #include "utility/ShardedLockManager.hpp"
 
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+#include "catalog/NUMAPlacementScheme.hpp"
+#endif
+
 #include "gflags/gflags.h"
 #include "gtest/gtest_prod.h"
 
@@ -195,6 +199,7 @@ class StorageManager {
    **/
   block_id createBlock(const CatalogRelationSchema &relation,
                        const StorageBlockLayout &layout,
+                       NUMAPlacementScheme *placement_scheme = nullptr,
                        const int numa_node = -1);
 
   /**

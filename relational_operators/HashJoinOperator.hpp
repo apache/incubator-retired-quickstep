@@ -129,6 +129,7 @@ class HashJoinOperator : public RelationalOperator {
                    const QueryContext::join_hash_table_group_id hash_table_group_index,
                    const QueryContext::predicate_id residual_predicate_index,
                    const QueryContext::scalar_group_id selection_index,
+                   bool is_numa_aware_join,
                    const std::vector<bool> *is_selection_on_build = nullptr,
                    const JoinType join_type = JoinType::kInnerJoin)
       : build_relation_(build_relation),
@@ -141,6 +142,7 @@ class HashJoinOperator : public RelationalOperator {
         hash_table_group_index_(hash_table_group_index),
         residual_predicate_index_(residual_predicate_index),
         selection_index_(selection_index),
+        is_numa_aware_join_(is_numa_aware_join),
         is_selection_on_build_(is_selection_on_build == nullptr
                                    ? std::vector<bool>()
                                    : *is_selection_on_build),
@@ -263,6 +265,7 @@ class HashJoinOperator : public RelationalOperator {
   const QueryContext::join_hash_table_group_id hash_table_group_index_;
   const QueryContext::predicate_id residual_predicate_index_;
   const QueryContext::scalar_group_id selection_index_;
+  bool is_numa_aware_join_;
   const std::vector<bool> is_selection_on_build_;
   const JoinType join_type_;
 
@@ -277,7 +280,6 @@ class HashJoinOperator : public RelationalOperator {
 #ifdef QUICKSTEP_HAVE_LIBNUMA
   const NUMAPlacementScheme *probe_relation_placement_scheme_;
 #endif
-
   DISALLOW_COPY_AND_ASSIGN(HashJoinOperator);
 };
 

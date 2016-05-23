@@ -212,7 +212,7 @@ void Foreman::run() {
         relation->addBlock(block);
 
         if (proto.has_partition_id()) {
-          relation->getPartitionSchemeMutable()->addBlockToPartition(proto.partition_id(), block);
+          relation->getPartitionSchemeMutable()->addBlockToPartition(block, proto.partition_id());
         }
         break;
       }

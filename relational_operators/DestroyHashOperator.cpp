@@ -32,14 +32,15 @@ bool DestroyHashOperator::getAllWorkOrders(
     tmb::MessageBus *bus) {
   if (blocking_dependencies_met_ && !work_generated_) {
     work_generated_ = true;
-    container->addNormalWorkOrder(new DestroyHashWorkOrder(input_relation_, hash_table_group_index_, query_context),
-                                  op_index_);
+    container->addNormalWorkOrder(
+        new DestroyHashWorkOrder(input_relation_, hash_table_group_index_, query_context, is_numa_aware_join_),
+        op_index_);
   }
   return work_generated_;
 }
 
 void DestroyHashWorkOrder::execute() {
-  if (input_relation_.hasPartitionScheme()) {
+  if (input_relation_.hasPartitionScheme() && is_numa_aware_join_) {
     const std::size_t num_partitions =
         input_relation_.getPartitionScheme().getPartitionSchemeHeader().getNumPartitions();
     for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {

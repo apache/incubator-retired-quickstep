@@ -52,6 +52,7 @@ namespace quickstep {
 
 class StorageManager;
 class ValueAccessor;
+class NUMAPlacementScheme;
 
 namespace merge_run_operator {
 class RunCreator;
@@ -420,6 +421,7 @@ class PartitionAwareInsertDestination : public InsertDestination {
    * @param bus A pointer to the TMB.
    **/
   PartitionAwareInsertDestination(PartitionSchemeHeader *partition_scheme_header,
+                                  NUMAPlacementScheme *placement_scheme,
                                   const CatalogRelationSchema &relation,
                                   const StorageBlockLayout *layout,
                                   StorageManager *storage_manager,
@@ -521,6 +523,8 @@ class PartitionAwareInsertDestination : public InsertDestination {
 
  private:
   std::unique_ptr<const PartitionSchemeHeader> partition_scheme_header_;
+
+  NUMAPlacementScheme *placement_scheme_;
 
   // A vector of available block references for each partition.
   std::vector< std::vector<MutableBlockReference> > available_block_refs_;

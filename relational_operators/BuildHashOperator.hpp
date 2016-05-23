@@ -80,7 +80,8 @@ class BuildHashOperator : public RelationalOperator {
                     const bool input_relation_is_stored,
                     const std::vector<attribute_id> &join_key_attributes,
                     const bool any_join_key_attributes_nullable,
-                    const QueryContext::join_hash_table_group_id hash_table_group_index)
+                    const QueryContext::join_hash_table_group_id hash_table_group_index,
+                    bool is_numa_aware_join)
     : input_relation_(input_relation),
       input_relation_is_stored_(input_relation_is_stored),
       join_key_attributes_(join_key_attributes),
@@ -89,7 +90,8 @@ class BuildHashOperator : public RelationalOperator {
       input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
                                                          : std::vector<block_id>()),
       num_workorders_generated_(0),
-      started_(false) {
+      started_(false),
+      is_numa_aware_join_(is_numa_aware_join) {
 #ifdef QUICKSTEP_HAVE_LIBNUMA
     placement_scheme_ = input_relation.getNUMAPlacementSchemePtr();
 #endif
@@ -173,6 +175,7 @@ class BuildHashOperator : public RelationalOperator {
 #endif
 
   bool started_;
+  bool is_numa_aware_join_;
 
   DISALLOW_COPY_AND_ASSIGN(BuildHashOperator);
 };

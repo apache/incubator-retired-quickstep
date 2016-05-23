@@ -312,7 +312,8 @@ void HashJoinOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *containe
                                    hash_table,
                                    output_destination,
                                    storage_manager,
-                                   probe_relation_placement_scheme_->getNUMANodeForBlock(input_block_id)),
+                                   probe_relation_placement_scheme_->getNUMANodeForPartition(
+                                       probe_relation_.getPartitionScheme().getPartitionForBlock(input_block_id))),
             op_index_);
       }
     }
@@ -334,7 +335,8 @@ void HashJoinOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *containe
                                    hash_table,
                                    output_destination,
                                    storage_manager,
-                                   probe_relation_placement_scheme_->getNUMANodeForBlock(block_in_partition)),
+                                   probe_relation_placement_scheme_->getNUMANodeForPartition(
+                                       probe_relation_.getPartitionScheme().getPartitionForBlock(block_in_partition))),
             op_index_);
         ++num_workorders_generated_in_partition_[part_id];
       }
@@ -369,97 +371,43 @@ bool HashJoinOperator::getAllWorkOrders(
 }
 
 template <class JoinWorkOrderClass>
-bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
-    WorkOrdersContainer *container,
-    QueryContext *query_context,
-    StorageManager *storage_manager) {
+bool HashJoinOperator::getAllNonOuterJoinWorkOrders(WorkOrdersContainer *container,
+                                                    QueryContext *query_context,
+                                                    StorageManager *storage_manager) {
   // We wait until the building of global hash table is complete.
   if (blocking_dependencies_met_) {
     DCHECK(query_context != nullptr);
 
-  const Predicate *residual_predicate =
-      query_context->getPredicate(residual_predicate_index_);
-  const vector<unique_ptr<const Scalar>> &selection =
-      query_context->getScalarGroup(selection_index_);
-  InsertDestination *output_destination =
-      query_context->getInsertDestination(output_destination_index_);
+    const Predicate *residual_predicate = query_context->getPredicate(residual_predicate_index_);
+    const vector<unique_ptr<const Scalar>> &selection = query_context->getScalarGroup(selection_index_);
+    InsertDestination *output_destination = query_context->getInsertDestination(output_destination_index_);
 
-  if (probe_relation_is_stored_) {
-    if (!started_) {
-      if (probe_relation_.hasPartitionScheme()) {
+    if (probe_relation_is_stored_) {
+      if (!started_) {
+        if (probe_relation_.hasPartitionScheme() && probe_relation_.hasNUMAPlacementScheme() && is_numa_aware_join_) {
 #ifdef QUICKSTEP_HAVE_LIBNUMA
-        if (probe_relation_.hasNUMAPlacementScheme()) {
-          addPartitionAwareWorkOrders<JoinWorkOrderClass>(container,
-                                                          query_context,
-                                                          storage_manager,
-                                                          residual_predicate,
-                                                          selection,
-                                                          output_destination);
+          addPartitionAwareWorkOrders<JoinWorkOrderClass>(
+              container, query_context, storage_manager, residual_predicate, selection, output_destination);
+#endif
         } else {
-          addWorkOrders<JoinWorkOrderClass>(container,
-                                            query_context,
-                                            storage_manager,
-                                            residual_predicate,
-                                            selection,
-                                            output_destination);
+          addWorkOrders<JoinWorkOrderClass>(
+              container, query_context, storage_manager, residual_predicate, selection, output_destination);
         }
-#else
-      addWorkOrders<JoinWorkOrderClass>(container,
-                                        query_context,
-                                        storage_manager,
-                                        residual_predicate,
-                                        selection,
-                                        output_destination);
-
+        started_ = true;
+      }
+      return started_;
+    } else {
+      if (probe_relation_.hasPartitionScheme() && probe_relation_.hasNUMAPlacementScheme() && is_numa_aware_join_) {
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+        addPartitionAwareWorkOrders<JoinWorkOrderClass>(
+            container, query_context, storage_manager, residual_predicate, selection, output_destination);
 #endif
       } else {
-        addWorkOrders<JoinWorkOrderClass>(container,
-                                          query_context,
-                                          storage_manager,
-                                          residual_predicate,
-                                          selection,
-                                          output_destination);
+        addWorkOrders<JoinWorkOrderClass>(
+            container, query_context, storage_manager, residual_predicate, selection, output_destination);
       }
-      started_ = true;
+      return done_feeding_input_relation_;
     }
-    return started_;
-  } else {
-    if (probe_relation_.hasPartitionScheme()) {
-#ifdef QUICKSTEP_HAVE_LIBNUMA
-        if (probe_relation_.hasNUMAPlacementScheme()) {
-          addPartitionAwareWorkOrders<JoinWorkOrderClass>(container,
-                                                          query_context,
-                                                          storage_manager,
-                                                          residual_predicate,
-                                                          selection,
-                                                          output_destination);
-        } else {
-          addWorkOrders<JoinWorkOrderClass>(container,
-                                            query_context,
-                                            storage_manager,
-                                            residual_predicate,
-                                            selection,
-                                            output_destination);
-        }
-#else
-    addWorkOrders<JoinWorkOrderClass>(container,
-                                      query_context,
-                                      storage_manager,
-                                      residual_predicate,
-                                      selection,
-                                      output_destination);
-
-#endif
-    } else {
-        addWorkOrders<JoinWorkOrderClass>(container,
-                                          query_context,
-                                          storage_manager,
-                                          residual_predicate,
-                                          selection,
-                                          output_destination);
-    }
-    return done_feeding_input_relation_;
-  }
   }  // end if (blocking_dependencies_met_)
   return false;
 }

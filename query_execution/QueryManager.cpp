@@ -191,7 +191,7 @@ QueryManager::QueryStatusCode QueryManager::processMessage(
 
       if (proto.has_partition_id()) {
         relation->getPartitionSchemeMutable()->addBlockToPartition(
-            proto.partition_id(), block);
+            block, proto.partition_id());
       }
       return QueryStatusCode::kNone;
     }

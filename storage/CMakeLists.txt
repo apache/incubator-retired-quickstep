@@ -939,6 +939,7 @@ target_link_libraries(quickstep_storage_StorageManager
 endif()
 if (QUICKSTEP_HAVE_LIBNUMA)
   target_link_libraries(quickstep_storage_StorageManager
+                        quickstep_catalog_NUMAPlacementScheme
                         ${LIBNUMA_LIBRARY})
 endif()
 target_link_libraries(quickstep_storage_SubBlockTypeRegistry

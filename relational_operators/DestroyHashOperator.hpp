@@ -62,8 +62,12 @@ class DestroyHashOperator : public RelationalOperator {
    * @param hash_table_group_index The group index of the JoinHashTable in QueryContext.
    **/
   explicit DestroyHashOperator(const CatalogRelation &input_relation,
-                               const QueryContext::join_hash_table_group_id hash_table_group_index)
-      : input_relation_(input_relation), hash_table_group_index_(hash_table_group_index), work_generated_(false) {}
+                               const QueryContext::join_hash_table_group_id hash_table_group_index,
+                               bool is_numa_aware_join)
+      : input_relation_(input_relation),
+        hash_table_group_index_(hash_table_group_index),
+        is_numa_aware_join_(is_numa_aware_join),
+        work_generated_(false) {}
 
   ~DestroyHashOperator() override {}
 
@@ -76,6 +80,7 @@ class DestroyHashOperator : public RelationalOperator {
  private:
   const CatalogRelation &input_relation_;
   const QueryContext::join_hash_table_group_id hash_table_group_index_;
+  bool is_numa_aware_join_;
   bool work_generated_;
 
   DISALLOW_COPY_AND_ASSIGN(DestroyHashOperator);
@@ -95,10 +100,12 @@ class DestroyHashWorkOrder : public WorkOrder {
   DestroyHashWorkOrder(const CatalogRelation &input_relation,
                        const QueryContext::join_hash_table_group_id hash_table_group_index,
                        QueryContext *query_context,
+                       bool is_numa_aware_join,
                        const numa_node_id numa_node = -1)
       : input_relation_(input_relation),
         hash_table_group_index_(hash_table_group_index),
-        query_context_(DCHECK_NOTNULL(query_context)) {
+        query_context_(DCHECK_NOTNULL(query_context)),
+        is_numa_aware_join_(is_numa_aware_join) {
     if (numa_node != -1) {
       preferred_numa_nodes_.push_back(numa_node);
     }
@@ -112,6 +119,7 @@ class DestroyHashWorkOrder : public WorkOrder {
   const CatalogRelation &input_relation_;
   const QueryContext::join_hash_table_group_id hash_table_group_index_;
   QueryContext *query_context_;
+  bool is_numa_aware_join_;
 
   DISALLOW_COPY_AND_ASSIGN(DestroyHashWorkOrder);
 };
