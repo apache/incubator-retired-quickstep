@@ -490,6 +490,7 @@ if(USE_TCMALLOC)
         CXXFLAGS=${THIRD_PARTY_CXX_FLAGS}
     BUILD_COMMAND make
     BUILD_IN_SOURCE 0
+    BUILD_BYPRODUCTS <INSTALL_DIR>/lib/libtcmalloc_minimal.a
   )
   # Static libtcmalloc_minimal.a
   add_library(libtcmalloc_minimal STATIC IMPORTED)

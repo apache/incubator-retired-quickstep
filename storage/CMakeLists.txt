@@ -1452,6 +1452,7 @@ target_link_libraries(SMAIndexSubBlock_unittest
                       quickstep_types_CharType
                       quickstep_types_DoubleType
                       quickstep_types_FloatType
+                      quickstep_types_IntType
                       quickstep_types_LongType
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID

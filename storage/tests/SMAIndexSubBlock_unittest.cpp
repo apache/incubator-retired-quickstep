@@ -41,6 +41,7 @@
 #include "types/CharType.hpp"
 #include "types/DoubleType.hpp"
 #include "types/FloatType.hpp"
+#include "types/IntType.hpp"
 #include "types/LongType.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
@@ -301,6 +302,10 @@ class SMAIndexSubBlockTest : public ::testing::Test {
     return !index_->header_->index_consistent;
   }
 
+  Selectivity getSelectivityForPredicate(const ComparisonPredicate &predicate) const {
+    return index_->getSelectivityForPredicate(predicate);
+  }
+
   std::unique_ptr<CatalogRelation> relation_;
   std::unique_ptr<MockTupleStorageSubBlock> tuple_store_;
   ScopedBuffer index_memory_;
@@ -357,6 +362,53 @@ TEST_F(SMAIndexSubBlockTest, TestConstructor) {
                                     index_memory_.get(),
                                     kIndexSubBlockSize));
   EXPECT_FALSE(requiresRebuild());
+}
+
+TEST_F(SMAIndexSubBlockTest, TestGetSelectivityForPredicate) {
+  // Index long, float, bigchar, and varchar type.
+  createIndex({0, 2, 5, 6}, kIndexSubBlockSize);
+  int min = 0, max = 9010, step = 10;
+  for (std::size_t i = min; i <= static_cast<std::size_t>(max); i += step) {
+    generateAndInsertTuple(i, false, "suffix");
+  }
+  index_->rebuild();
+
+  // Tuple storage block now contains long values [0, 9010], and float values
+  // [0, 2252.5].
+  // Test several value types.
+  // Test with inline values, returning both possible value types.
+  std::unique_ptr<ComparisonPredicate> predicate(
+      generateNumericComparisonPredicate<LongType>(ComparisonID::kLess, 0, min));
+  Selectivity cost = getSelectivityForPredicate(*predicate);
+  EXPECT_EQ(Selectivity::kNone, cost);
+
+  // Test on the float attribute with a type that will need coercion. In this
+  // case, a long type should not coerce to an integer type.
+  predicate.reset(generateNumericComparisonPredicate<LongType>(ComparisonID::kLess, 2, min));
+  cost = getSelectivityForPredicate(*predicate);
+  EXPECT_EQ(Selectivity::kUnknown, cost);
+
+  predicate.reset(generateNumericComparisonPredicate<IntType>(ComparisonID::kLess, 2, min));
+  cost = getSelectivityForPredicate(*predicate);
+  EXPECT_EQ(Selectivity::kNone, cost);
+
+  // This should be unknown because of the loss of precision on coercion.
+  predicate.reset(generateNumericComparisonPredicate<FloatType>(ComparisonID::kLess, 0, min + 0.5));
+  cost = getSelectivityForPredicate(*predicate);
+  EXPECT_EQ(Selectivity::kUnknown, cost);
+
+  // Test coercion with String types as well.
+  predicate.reset(generateStringComparisonPredicate(ComparisonID::kLess, 6, ""));
+  cost = getSelectivityForPredicate(*predicate);
+  EXPECT_EQ(Selectivity::kNone, cost);
+
+  predicate.reset(generateStringComparisonPredicate(ComparisonID::kLess, 5, ""));
+  cost = getSelectivityForPredicate(*predicate);
+  EXPECT_EQ(Selectivity::kNone, cost);
+
+  predicate.reset(generateStringComparisonPredicate(ComparisonID::kLess, 5, "999999999999999"));
+  cost = getSelectivityForPredicate(*predicate);
+  EXPECT_EQ(Selectivity::kAll, cost);
 }
 
 TEST_F(SMAIndexSubBlockTest, TestRebuild) {
