@@ -319,7 +319,7 @@ void HashJoinOperator::addWorkOrdersUsingPartitionedInput(WorkOrdersContainer *c
                                                              probe_relation_,
                                                              join_key_attributes_,
                                                              any_join_key_attributes_nullable_,
-                                                             probe_relation_block_ids_[num_workorders_generated_],
+                                                             probe_relation_block_ids_in_partition_[part_id][num_workorders_generated_in_partition_[part_id]],
                                                              residual_predicate,
                                                              selection,
                                                              hash_table,
