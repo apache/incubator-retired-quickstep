@@ -149,6 +149,10 @@ class BuildHashOperator : public RelationalOperator {
                      QueryContext *query_context,
                      StorageManager *storage_manager);
 
+  void addWorkOrdersUsingPartitionedInput(WorkOrdersContainer *container,
+                                          QueryContext *query_context,
+                                          StorageManager *storage_manager);
+
   void addPartitionAwareWorkOrders(WorkOrdersContainer *container,
                                    QueryContext *query_context,
                                    StorageManager *storage_manager);
