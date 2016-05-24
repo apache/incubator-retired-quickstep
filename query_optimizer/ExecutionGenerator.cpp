@@ -570,19 +570,7 @@ void ExecutionGenerator::convertSelection(
       findRelationInfoOutputByPhysical(physical_selection->input());
   DCHECK(input_relation_info != nullptr);
 
-  std::vector<attribute_id> projected_attributes;
-  convertSimpleProjection(project_expressions_group_index, &projected_attributes);
   bool is_temp_relation_partitioned = false;
-
-  if (input_relation_info->relation->hasPartitionScheme()) {
-    if (std::find(projected_attributes.begin(),
-                  projected_attributes.end(),
-                  input_relation_info->relation->getPartitionScheme()
-                       .getPartitionSchemeHeader()
-                       .getPartitionAttributeId()) != projected_attributes.end()) {
-      is_temp_relation_partitioned = true;
-    }
-  }
 
   if (is_temp_relation_partitioned) {
     createPartitionedTemporaryCatalogRelation(
