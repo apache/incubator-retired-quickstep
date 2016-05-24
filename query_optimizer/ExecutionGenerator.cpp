@@ -571,26 +571,13 @@ void ExecutionGenerator::convertSelection(
   DCHECK(input_relation_info != nullptr);
 
   bool is_temp_relation_partitioned = false;
-  bool is_partitioning_attr_projected = false;
-  bool is_input_stored_relation = true;
-  const CatalogRelation *referenced_selection_input_relation = nullptr;
-  if (input_relation_info->relation->hasPartitionScheme()) {
-    const attribute_id input_partition_attr_id = input_relation_info->relation->getPartitionScheme().getPartitionSchemeHeader().getPartitionAttributeId(); 
-    for (const E::AttributeReferencePtr &projected_attr : physical_selection->getOutputAttributes()) {
-      // Check if the input is a stored relation. 
-      referenced_selection_input_relation = optimizer_context_->catalog_database()->getRelationByName(projected_attr->relation_name());
-      if (referenced_selection_input_relation == nullptr) {
-        is_input_stored_relation = false;
-        break;
-      } else {
-        const attribute_id referenced_selection_attr_id = referenced_selection_input_relation->getAttributeByName(projected_attr->attribute_name())->getID();
-        if (referenced_selection_attr_id == input_partition_attr_id) {
-          is_partitioning_attr_projected = true;
-          break;
-        }        
-      }      
-    }
-    if (is_partitioning_attr_projected && is_input_stored_relation) {
+  P::TableReferencePtr table_reference;
+  if (P::SomeTableReference::MatchesWithConditionalCast(physical_selection->input(), &table_reference) &&
+      table_reference->relation()->hasPartitionScheme()) {
+    const attribute_id partition_attr_id =
+       table_reference->relation()->getPartitionScheme().getPartitionSchemeHeader().getPartitionAttributeId();
+    const E::AttributeReferencePtr &attr = table_reference->attribute_list()[partition_attr_id];
+    if (E::ContainsExpression(physical_selection->getOutputAttributes(), attr)) {
       is_temp_relation_partitioned = true;
     }
   }
