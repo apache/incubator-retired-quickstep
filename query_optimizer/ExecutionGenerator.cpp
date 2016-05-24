@@ -583,6 +583,9 @@ void ExecutionGenerator::convertSelection(
   }
 
   if (is_temp_relation_partitioned) {
+    // TODO(Gerald): We have to figure out a way to see if the partitioning attribute is present in the
+    // projected attributes list in the temporary output relation. If it is not, then we should just
+    // create a non-partitioned temporary catalog relation.
     createPartitionedTemporaryCatalogRelation(
         physical_selection,
         &output_relation,
