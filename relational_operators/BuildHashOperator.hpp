@@ -81,7 +81,7 @@ class BuildHashOperator : public RelationalOperator {
                     const std::vector<attribute_id> &join_key_attributes,
                     const bool any_join_key_attributes_nullable,
                     const QueryContext::join_hash_table_group_id hash_table_group_index,
-                    bool is_numa_aware_join)
+                    bool is_numa_aware_join = false)
     : input_relation_(input_relation),
       input_relation_is_stored_(input_relation_is_stored),
       join_key_attributes_(join_key_attributes),

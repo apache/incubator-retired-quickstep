@@ -421,7 +421,8 @@ MutableBlockReference PartitionAwareInsertDestination::createNewBlockInPartition
   // Create a new block.
 
   // TODO(gerald): PASS THE CORRECT NUMA NODE INSTEAD OF ZERO FROM THE OPERATOR!
-  const block_id new_id = storage_manager_->createBlock(relation_, *layout_, placement_scheme_, 0);
+  const int numa_node = placement_scheme_->getNUMANodeForPartition(part_id);
+  const block_id new_id = storage_manager_->createBlock(relation_, *layout_, numa_node);
 
   // Notify Foreman to add the newly created block id in the master Catalog.
   serialization::CatalogRelationNewBlockMessage proto;

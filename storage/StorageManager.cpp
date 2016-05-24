@@ -186,6 +186,7 @@ StorageManager::~StorageManager() {
     if (it->second.block->isDirty()) {
       LOG(WARNING) << "Block with ID " << BlockIdUtil::ToString(it->first)
                    << " is dirty during StorageManager shutdown";
+
     }
     delete it->second.block;
     deallocateSlots(it->second.block_memory, it->second.block_memory_size);
@@ -194,7 +195,6 @@ StorageManager::~StorageManager() {
 
 block_id StorageManager::createBlock(const CatalogRelationSchema &relation,
                                      const StorageBlockLayout &layout,
-                                     NUMAPlacementScheme *placement_scheme,
                                      const int numa_node) {
   const size_t num_slots = layout.getDescription().num_slots();
 
@@ -222,10 +222,6 @@ block_id StorageManager::createBlock(const CatalogRelationSchema &relation,
 
   // Make '*eviction_policy_' aware of the new block's existence.
   eviction_policy_->blockCreated(new_block_id);
-
-  if (placement_scheme != nullptr) {
-    placement_scheme->addBlockToNUMANodeMap(new_block_id, numa_node);
-  }
 
   return new_block_id;
 }

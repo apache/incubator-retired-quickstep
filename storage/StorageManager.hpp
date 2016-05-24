@@ -199,7 +199,6 @@ class StorageManager {
    **/
   block_id createBlock(const CatalogRelationSchema &relation,
                        const StorageBlockLayout &layout,
-                       NUMAPlacementScheme *placement_scheme = nullptr,
                        const int numa_node = -1);
 
   /**

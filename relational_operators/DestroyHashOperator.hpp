@@ -63,7 +63,7 @@ class DestroyHashOperator : public RelationalOperator {
    **/
   explicit DestroyHashOperator(const CatalogRelation &input_relation,
                                const QueryContext::join_hash_table_group_id hash_table_group_index,
-                               bool is_numa_aware_join)
+                               bool is_numa_aware_join = false)
       : input_relation_(input_relation),
         hash_table_group_index_(hash_table_group_index),
         is_numa_aware_join_(is_numa_aware_join),
@@ -100,7 +100,7 @@ class DestroyHashWorkOrder : public WorkOrder {
   DestroyHashWorkOrder(const CatalogRelation &input_relation,
                        const QueryContext::join_hash_table_group_id hash_table_group_index,
                        QueryContext *query_context,
-                       bool is_numa_aware_join,
+                       bool is_numa_aware_join = false,
                        const numa_node_id numa_node = -1)
       : input_relation_(input_relation),
         hash_table_group_index_(hash_table_group_index),

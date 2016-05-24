@@ -129,7 +129,7 @@ class HashJoinOperator : public RelationalOperator {
                    const QueryContext::join_hash_table_group_id hash_table_group_index,
                    const QueryContext::predicate_id residual_predicate_index,
                    const QueryContext::scalar_group_id selection_index,
-                   bool is_numa_aware_join,
+                   bool is_numa_aware_join = false,
                    const std::vector<bool> *is_selection_on_build = nullptr,
                    const JoinType join_type = JoinType::kInnerJoin)
       : build_relation_(build_relation),
