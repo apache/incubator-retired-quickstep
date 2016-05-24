@@ -186,7 +186,6 @@ StorageManager::~StorageManager() {
     if (it->second.block->isDirty()) {
       LOG(WARNING) << "Block with ID " << BlockIdUtil::ToString(it->first)
                    << " is dirty during StorageManager shutdown";
-
     }
     delete it->second.block;
     deallocateSlots(it->second.block_memory, it->second.block_memory_size);

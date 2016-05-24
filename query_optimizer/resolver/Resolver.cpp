@@ -494,7 +494,8 @@ PartitionSchemeHeader* Resolver::resolvePartitionClause(
   }
   // Check for Hash partition.
   if (type_string.compare("0") == 0) {
-    std::unique_ptr<PartitionSchemeHeader> hash_partition_scheme_header (new HashPartitionSchemeHeader(partition_clause->num_partitions()->long_value(), column_id));
+    std::unique_ptr<PartitionSchemeHeader> hash_partition_scheme_header(
+        new HashPartitionSchemeHeader(partition_clause->num_partitions()->long_value(), column_id));
     partition_scheme_header = std::move(hash_partition_scheme_header);
   } else if (type_string.compare("1") == 0) {
     THROW_SQL_ERROR_AT(partition_clause)

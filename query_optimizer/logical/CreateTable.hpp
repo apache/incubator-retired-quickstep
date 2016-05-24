@@ -131,7 +131,7 @@ class CreateTable : public Logical {
         block_properties_(block_properties),
         block_properties_representation_(
             getOptimizerRepresentationForProto<OptimizerTreeBaseNodePtr>(block_properties_.get())),
-        partition_scheme_(partition_scheme){}
+        partition_scheme_(partition_scheme) {}
 
   std::string relation_name_;
   std::vector<expressions::AttributeReferencePtr> attributes_;
