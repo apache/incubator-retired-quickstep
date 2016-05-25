@@ -203,4 +203,13 @@ void AggregationHandleAvg::aggregateOnDistinctifyHashTableForGroupBy(
           aggregation_hash_table);
 }
 
+void AggregationHandleAvg::mergeGroupByHashTables(
+    const AggregationStateHashTableBase &source_hash_table,
+    AggregationStateHashTableBase *destination_hash_table) const {
+  mergeGroupByHashTablesHelper<AggregationHandleAvg,
+                               AggregationStateAvg,
+                               AggregationStateHashTable<AggregationStateAvg>>(
+      source_hash_table, destination_hash_table);
+}
+
 }  // namespace quickstep

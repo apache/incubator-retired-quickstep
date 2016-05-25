@@ -26,6 +26,7 @@
 #include "expressions/aggregation/AggregationHandle.hpp"
 #include "expressions/aggregation/AggregationHandleAvg.hpp"
 #include "expressions/aggregation/AggregationID.hpp"
+#include "storage/StorageManager.hpp"
 #include "types/CharType.hpp"
 #include "types/DateOperatorOverloads.hpp"
 #include "types/DatetimeIntervalType.hpp"
@@ -238,6 +239,7 @@ class AggregationHandleAvgTest : public::testing::Test {
 
   std::unique_ptr<AggregationHandle> aggregation_handle_avg_;
   std::unique_ptr<AggregationState> aggregation_handle_avg_state_;
+  std::unique_ptr<StorageManager> storage_manager_;
 };
 
 const int AggregationHandleAvgTest::kNumSamples;
@@ -415,6 +417,113 @@ TEST_F(AggregationHandleAvgTest, ResultTypeForArgumentTypeTest) {
   EXPECT_TRUE(ResultTypeForArgumentTypeTest(kDouble, kDouble));
   EXPECT_TRUE(ResultTypeForArgumentTypeTest(kDatetimeInterval, kDatetimeInterval));
   EXPECT_TRUE(ResultTypeForArgumentTypeTest(kYearMonthInterval, kYearMonthInterval));
+}
+
+TEST_F(AggregationHandleAvgTest, GroupByTableMergeTestAvg) {
+  const Type &long_non_null_type = LongType::Instance(false);
+  initializeHandle(long_non_null_type);
+  storage_manager_.reset(new StorageManager("./test_avg_data"));
+  std::unique_ptr<AggregationStateHashTableBase> source_hash_table(
+      aggregation_handle_avg_->createGroupByHashTable(
+          HashTableImplType::kSimpleScalarSeparateChaining,
+          std::vector<const Type *>(1, &long_non_null_type),
+          10,
+          storage_manager_.get()));
+  std::unique_ptr<AggregationStateHashTableBase> destination_hash_table(
+      aggregation_handle_avg_->createGroupByHashTable(
+          HashTableImplType::kSimpleScalarSeparateChaining,
+          std::vector<const Type *>(1, &long_non_null_type),
+          10,
+          storage_manager_.get()));
+
+  AggregationStateHashTable<AggregationStateAvg> *destination_hash_table_derived =
+      static_cast<AggregationStateHashTable<AggregationStateAvg> *>(
+          destination_hash_table.get());
+
+  AggregationStateHashTable<AggregationStateAvg> *source_hash_table_derived =
+      static_cast<AggregationStateHashTable<AggregationStateAvg> *>(
+          source_hash_table.get());
+
+  AggregationHandleAvg *aggregation_handle_avg_derived =
+      static_cast<AggregationHandleAvg *>(aggregation_handle_avg_.get());
+  // We create three keys: first is present in both the hash tables, second key
+  // is present only in the source hash table while the third key is present
+  // the destination hash table only.
+  std::vector<TypedValue> common_key;
+  common_key.emplace_back(static_cast<std::int64_t>(0));
+  std::vector<TypedValue> exclusive_source_key, exclusive_destination_key;
+  exclusive_source_key.emplace_back(static_cast<std::int64_t>(1));
+  exclusive_destination_key.emplace_back(static_cast<std::int64_t>(2));
+
+  const std::int64_t common_key_source_avg = 355;
+  TypedValue common_key_source_avg_val(common_key_source_avg);
+
+  const std::int64_t common_key_destination_avg = 295;
+  TypedValue common_key_destination_avg_val(common_key_destination_avg);
+
+  const std::int64_t exclusive_key_source_avg = 1;
+  TypedValue exclusive_key_source_avg_val(exclusive_key_source_avg);
+
+  const std::int64_t exclusive_key_destination_avg = 1;
+  TypedValue exclusive_key_destination_avg_val(exclusive_key_destination_avg);
+
+  std::unique_ptr<AggregationStateAvg> common_key_source_state(
+      static_cast<AggregationStateAvg *>(
+          aggregation_handle_avg_->createInitialState()));
+  std::unique_ptr<AggregationStateAvg> common_key_destination_state(
+      static_cast<AggregationStateAvg *>(
+          aggregation_handle_avg_->createInitialState()));
+  std::unique_ptr<AggregationStateAvg> exclusive_key_source_state(
+      static_cast<AggregationStateAvg *>(
+          aggregation_handle_avg_->createInitialState()));
+  std::unique_ptr<AggregationStateAvg> exclusive_key_destination_state(
+      static_cast<AggregationStateAvg *>(
+          aggregation_handle_avg_->createInitialState()));
+
+  // Create avg value states for keys.
+  aggregation_handle_avg_derived->iterateUnaryInl(common_key_source_state.get(),
+                                                  common_key_source_avg_val);
+
+  aggregation_handle_avg_derived->iterateUnaryInl(
+      common_key_destination_state.get(), common_key_destination_avg_val);
+
+  aggregation_handle_avg_derived->iterateUnaryInl(
+      exclusive_key_destination_state.get(), exclusive_key_destination_avg_val);
+
+  aggregation_handle_avg_derived->iterateUnaryInl(
+      exclusive_key_source_state.get(), exclusive_key_source_avg_val);
+
+  // Add the key-state pairs to the hash tables.
+  source_hash_table_derived->putCompositeKey(common_key,
+                                             *common_key_source_state);
+  destination_hash_table_derived->putCompositeKey(
+      common_key, *common_key_destination_state);
+  source_hash_table_derived->putCompositeKey(exclusive_source_key,
+                                             *exclusive_key_source_state);
+  destination_hash_table_derived->putCompositeKey(
+      exclusive_destination_key, *exclusive_key_destination_state);
+
+  EXPECT_EQ(2u, destination_hash_table_derived->numEntries());
+  EXPECT_EQ(2u, source_hash_table_derived->numEntries());
+
+  aggregation_handle_avg_->mergeGroupByHashTables(*source_hash_table,
+                                                  destination_hash_table.get());
+
+  EXPECT_EQ(3u, destination_hash_table_derived->numEntries());
+
+  CheckAvgValue<double>(
+      (common_key_destination_avg_val.getLiteral<std::int64_t>() +
+          common_key_source_avg_val.getLiteral<std::int64_t>()) / static_cast<double>(2),
+      *aggregation_handle_avg_derived,
+      *(destination_hash_table_derived->getSingleCompositeKey(common_key)));
+  CheckAvgValue<double>(exclusive_key_destination_avg_val.getLiteral<std::int64_t>(),
+                  *aggregation_handle_avg_derived,
+                  *(destination_hash_table_derived->getSingleCompositeKey(
+                      exclusive_destination_key)));
+  CheckAvgValue<double>(exclusive_key_source_avg_val.getLiteral<std::int64_t>(),
+                  *aggregation_handle_avg_derived,
+                  *(source_hash_table_derived->getSingleCompositeKey(
+                      exclusive_source_key)));
 }
 
 }  // namespace quickstep
