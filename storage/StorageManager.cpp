@@ -183,7 +183,8 @@ StorageManager::~StorageManager() {
        it != blocks_.end();
        ++it) {
     if (it->second.block->isDirty()) {
-      LOG(WARNING) << "Block with ID " << BlockIdUtil::ToString(it->first)
+      LOG(WARNING) << (it->second.block->isBlob() ? "Blob " : "Block ")
+                   << "with ID " << BlockIdUtil::ToString(it->first)
                    << " is dirty during StorageManager shutdown";
     }
     delete it->second.block;

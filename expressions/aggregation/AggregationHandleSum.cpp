@@ -190,4 +190,13 @@ void AggregationHandleSum::aggregateOnDistinctifyHashTableForGroupBy(
           aggregation_hash_table);
 }
 
+void AggregationHandleSum::mergeGroupByHashTables(
+    const AggregationStateHashTableBase &source_hash_table,
+    AggregationStateHashTableBase *destination_hash_table) const {
+  mergeGroupByHashTablesHelper<AggregationHandleSum,
+                               AggregationStateSum,
+                               AggregationStateHashTable<AggregationStateSum>>(
+      source_hash_table, destination_hash_table);
+}
+
 }  // namespace quickstep
