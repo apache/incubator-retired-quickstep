@@ -109,6 +109,13 @@ class AggregationHandleDistinct : public AggregationConcreteHandle {
       const AggregationStateHashTableBase &hash_table,
       std::vector<std::vector<TypedValue>> *group_by_keys) const override;
 
+  void mergeGroupByHashTables(
+      const AggregationStateHashTableBase &source_hash_table,
+      AggregationStateHashTableBase *destination_hash_table) const override {
+    LOG(FATAL)
+        << "AggregationHandleDistinct does not support mergeGroupByHashTables";
+  }
+
  private:
   DISALLOW_COPY_AND_ASSIGN(AggregationHandleDistinct);
 };

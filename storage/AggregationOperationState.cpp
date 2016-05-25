@@ -92,11 +92,12 @@ AggregationOperationState::AggregationOperationState(
     arguments_.push_back({});
     is_distinct_.emplace_back(false);
 
-    group_by_hashtables_.emplace_back(handles_.back()->createGroupByHashTable(
-        hash_table_impl_type,
-        group_by_types,
-        estimated_num_entries,
-        storage_manager_));
+    group_by_hashtable_pools_.emplace_back(std::unique_ptr<HashTablePool>(
+        new HashTablePool(estimated_num_entries,
+                          hash_table_impl_type,
+                          group_by_types,
+                          handles_.back().get(),
+                          storage_manager)));
   } else {
     // Set up each individual aggregate in this operation.
     std::vector<const AggregateFunction*>::const_iterator agg_func_it
@@ -124,12 +125,13 @@ AggregationOperationState::AggregationOperationState(
       handles_.emplace_back((*agg_func_it)->createHandle(argument_types));
 
       if (!group_by_list_.empty()) {
-        // Aggregation with GROUP BY: create a HashTable for per-group states.
-        group_by_hashtables_.emplace_back(handles_.back()->createGroupByHashTable(
-            hash_table_impl_type,
-            group_by_types,
-            estimated_num_entries,
-            storage_manager_));
+        // Aggregation with GROUP BY: create a HashTable pool for per-group states.
+        group_by_hashtable_pools_.emplace_back(std::unique_ptr<HashTablePool>(
+            new HashTablePool(estimated_num_entries,
+                              hash_table_impl_type,
+                              group_by_types,
+                              handles_.back().get(),
+                              storage_manager)));
       } else {
         // Aggregation without GROUP BY: create a single global state.
         single_states_.emplace_back(handles_.back()->createInitialState());
@@ -408,17 +410,17 @@ void AggregationOperationState::aggregateBlockHashTable(const block_id input_blo
       // Call StorageBlock::aggregateGroupBy() to aggregate this block's values
       // directly into the (threadsafe) shared global HashTable for this
       // aggregate.
-      //
-      // TODO(shoban): Implement optional code path for using local hash table per
-      // block, which can be merged with global hash table for all blocks
-      // aggregated on.
+      DCHECK(group_by_hashtable_pools_[agg_idx] != nullptr);
+      AggregationStateHashTableBase *agg_hash_table = group_by_hashtable_pools_[agg_idx]->getHashTable();
+      DCHECK(agg_hash_table != nullptr);
       block->aggregateGroupBy(*handles_[agg_idx],
                               arguments_[agg_idx],
                               group_by_list_,
                               predicate_.get(),
-                              group_by_hashtables_[agg_idx].get(),
+                              agg_hash_table,
                               &reuse_matches,
                               &reuse_group_by_vectors);
+      group_by_hashtable_pools_[agg_idx]->returnHashTable(agg_hash_table);
     }
   }
 }
@@ -447,19 +449,65 @@ void AggregationOperationState::finalizeHashTable(InsertDestination *output_dest
   // group (which is also the prefix of the finalized Tuple for that group).
   std::vector<std::vector<TypedValue>> group_by_keys;
 
+  // TODO(harshad) - The merge phase may be slower when each hash table contains
+  // large number of entries. We should find ways in which we can perform a
+  // parallel merge.
+
+  // TODO(harshad) - Find heuristics for faster merge, even in a single thread.
+  // e.g. Keep merging entries from smaller hash tables to larger.
+  for (std::size_t agg_idx = 0; agg_idx < handles_.size(); ++agg_idx) {
+    auto *hash_tables = group_by_hashtable_pools_[agg_idx]->getAllHashTables();
+    if (hash_tables->size() > 1) {
+      for (int hash_table_index = 0;
+           hash_table_index < static_cast<int>(hash_tables->size() - 1);
+           ++hash_table_index) {
+        // Merge each hash table to the last hash table.
+        handles_[agg_idx]->mergeGroupByHashTables(
+            (*(*hash_tables)[hash_table_index]),
+            hash_tables->back().get());
+      }
+    }
+  }
+
   // Collect per-aggregate finalized values.
   std::vector<std::unique_ptr<ColumnVector>> final_values;
   for (std::size_t agg_idx = 0;
        agg_idx < handles_.size();
        ++agg_idx) {
     if (is_distinct_[agg_idx]) {
+      DCHECK(group_by_hashtable_pools_[agg_idx] != nullptr);
+      auto *hash_tables = group_by_hashtable_pools_[agg_idx]->getAllHashTables();
+      DCHECK(hash_tables != nullptr);
+      if (hash_tables->empty()) {
+        // We may have a case where hash_tables is empty, e.g. no input blocks.
+        // However for aggregateOnDistinctifyHashTableForGroupBy to work
+        // correctly, we should create an empty group by hash table.
+        AggregationStateHashTableBase *new_hash_table = group_by_hashtable_pools_[agg_idx]->getHashTable();
+        group_by_hashtable_pools_[agg_idx]->returnHashTable(new_hash_table);
+        hash_tables = group_by_hashtable_pools_[agg_idx]->getAllHashTables();
+      }
+      DCHECK(hash_tables->back() != nullptr);
+      AggregationStateHashTableBase *agg_hash_table = hash_tables->back().get();
+      DCHECK(agg_hash_table != nullptr);
       handles_[agg_idx]->aggregateOnDistinctifyHashTableForGroupBy(
           *distinctify_hashtables_[agg_idx],
-          group_by_hashtables_[agg_idx].get());
+          agg_hash_table);
     }
 
+    auto *hash_tables = group_by_hashtable_pools_[agg_idx]->getAllHashTables();
+    DCHECK(hash_tables != nullptr);
+    if (hash_tables->empty()) {
+      // We may have a case where hash_tables is empty, e.g. no input blocks.
+      // However for aggregateOnDistinctifyHashTableForGroupBy to work
+      // correctly, we should create an empty group by hash table.
+      AggregationStateHashTableBase *new_hash_table = group_by_hashtable_pools_[agg_idx]->getHashTable();
+      group_by_hashtable_pools_[agg_idx]->returnHashTable(new_hash_table);
+      hash_tables = group_by_hashtable_pools_[agg_idx]->getAllHashTables();
+    }
+    AggregationStateHashTableBase *agg_hash_table = hash_tables->back().get();
+    DCHECK(agg_hash_table != nullptr);
     ColumnVector* agg_result_col =
-        handles_[agg_idx]->finalizeHashTable(*group_by_hashtables_[agg_idx],
+        handles_[agg_idx]->finalizeHashTable(*agg_hash_table,
                                              &group_by_keys);
     if (agg_result_col != nullptr) {
       final_values.emplace_back(agg_result_col);
