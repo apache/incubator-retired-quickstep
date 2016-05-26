@@ -84,8 +84,8 @@ message DeleteWorkOrder {
 message DestroyHashWorkOrder {
   extend WorkOrder {
     // All required.
-    optional int32 relation_id = 112;
-    optional uint32 join_hash_table_group_index = 113;
+    optional uint32 join_hash_table_group_index = 112;
+    optional uint32 num_partitions = 113;
   }
 }
 

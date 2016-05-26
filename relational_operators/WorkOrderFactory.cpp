@@ -113,9 +113,9 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     case serialization::DESTROY_HASH: {
       LOG(INFO) << "Creating DestroyHashWorkOrder";
       return new DestroyHashWorkOrder(
-          *(catalog_database->getRelationById(proto.GetExtension(serialization::DestroyHashWorkOrder::relation_id))),
           proto.GetExtension(serialization::DestroyHashWorkOrder::join_hash_table_group_index),
-          query_context);
+          query_context,
+          proto.GetExtension(serialization::DestroyHashWorkOrder::num_partitions));
     }
     case serialization::DROP_TABLE: {
       LOG(INFO) << "Creating DropTableWorkOrder";
@@ -476,7 +476,7 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
       return proto.HasExtension(serialization::DestroyHashWorkOrder::join_hash_table_group_index) &&
              query_context.isValidJoinHashTableId(
                  proto.GetExtension(serialization::DestroyHashWorkOrder::join_hash_table_group_index)) &&
-             proto.HasExtension(serialization::DestroyHashWorkOrder::relation_id);
+             proto.HasExtension(serialization::DestroyHashWorkOrder::num_partitions);
     }
     case serialization::DROP_TABLE: {
       return true;

@@ -421,7 +421,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(*dim_table_, join_hash_table_group_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_group_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -588,7 +588,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(*dim_table_, join_hash_table_group_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_group_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -721,7 +721,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(*dim_table_, join_hash_table_group_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_group_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -885,7 +885,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
   }
 
   // Create the cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(*dim_table_, join_hash_table_group_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_group_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -1058,7 +1058,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(*dim_table_, join_hash_table_group_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_group_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -1242,7 +1242,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(*dim_table_, join_hash_table_group_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(join_hash_table_group_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 

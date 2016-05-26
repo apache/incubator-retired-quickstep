@@ -61,11 +61,11 @@ class DestroyHashOperator : public RelationalOperator {
    *
    * @param hash_table_group_index The group index of the JoinHashTable in QueryContext.
    **/
-  explicit DestroyHashOperator(const CatalogRelation &input_relation,
-                               const QueryContext::join_hash_table_group_id hash_table_group_index,
+  explicit DestroyHashOperator(const QueryContext::join_hash_table_group_id hash_table_group_index,
+                               const std::size_t num_partitions = 0,
                                bool is_numa_aware_join = false)
-      : input_relation_(input_relation),
-        hash_table_group_index_(hash_table_group_index),
+      : hash_table_group_index_(hash_table_group_index),
+        num_partitions_(num_partitions),
         is_numa_aware_join_(is_numa_aware_join),
         work_generated_(false) {}
 
@@ -78,8 +78,8 @@ class DestroyHashOperator : public RelationalOperator {
                         tmb::MessageBus *bus) override;
 
  private:
-  const CatalogRelation &input_relation_;
   const QueryContext::join_hash_table_group_id hash_table_group_index_;
+  const std::size_t num_partitions_;
   bool is_numa_aware_join_;
   bool work_generated_;
 
@@ -97,14 +97,14 @@ class DestroyHashWorkOrder : public WorkOrder {
    * @param hash_table_group_index The group index of the JoinHashTable in QueryContext.
    * @param query_context The QueryContext to use.
    **/
-  DestroyHashWorkOrder(const CatalogRelation &input_relation,
-                       const QueryContext::join_hash_table_group_id hash_table_group_index,
+  DestroyHashWorkOrder(const QueryContext::join_hash_table_group_id hash_table_group_index,
                        QueryContext *query_context,
+                       const std::size_t num_partitions,
                        bool is_numa_aware_join = false,
                        const numa_node_id numa_node = -1)
-      : input_relation_(input_relation),
-        hash_table_group_index_(hash_table_group_index),
+      : hash_table_group_index_(hash_table_group_index),
         query_context_(DCHECK_NOTNULL(query_context)),
+        num_partitions_(num_partitions),
         is_numa_aware_join_(is_numa_aware_join) {
     if (numa_node != -1) {
       preferred_numa_nodes_.push_back(numa_node);
@@ -116,9 +116,9 @@ class DestroyHashWorkOrder : public WorkOrder {
   void execute() override;
 
  private:
-  const CatalogRelation &input_relation_;
   const QueryContext::join_hash_table_group_id hash_table_group_index_;
   QueryContext *query_context_;
+  const std::size_t num_partitions_;
   bool is_numa_aware_join_;
 
   DISALLOW_COPY_AND_ASSIGN(DestroyHashWorkOrder);

@@ -917,9 +917,16 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               join_type));
   insert_destination_proto->set_relational_op_index(join_operator_index);
 
+  
+  std::size_t num_partitions = 0;
+
+  if (build_relation_info->relation->hasPartitionScheme()) {
+    num_partitions = build_relation_info->relation->getPartitionScheme().getPartitionSchemeHeader().getNumPartitions();
+  }
+
   const QueryPlan::DAGNodeIndex destroy_operator_index =
       execution_plan_->addRelationalOperator(
-          new DestroyHashOperator(*build_relation_info->relation, join_hash_table_group_index, is_numa_aware_join));
+          new DestroyHashOperator(join_hash_table_group_index, num_partitions, is_numa_aware_join));
 
   if (!build_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(build_operator_index,
