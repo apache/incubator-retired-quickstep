@@ -139,4 +139,13 @@ void AggregationHandleMax::aggregateOnDistinctifyHashTableForGroupBy(
           aggregation_hash_table);
 }
 
+void AggregationHandleMax::mergeGroupByHashTables(
+    const AggregationStateHashTableBase &source_hash_table,
+    AggregationStateHashTableBase *destination_hash_table) const {
+  mergeGroupByHashTablesHelper<AggregationHandleMax,
+                               AggregationStateMax,
+                               AggregationStateHashTable<AggregationStateMax>>(
+      source_hash_table, destination_hash_table);
+}
+
 }  // namespace quickstep

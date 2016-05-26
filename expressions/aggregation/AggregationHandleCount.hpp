@@ -166,6 +166,10 @@ class AggregationHandleCount : public AggregationConcreteHandle {
       const AggregationStateHashTableBase &distinctify_hash_table,
       AggregationStateHashTableBase *aggregation_hash_table) const override;
 
+  void mergeGroupByHashTables(
+      const AggregationStateHashTableBase &source_hash_table,
+      AggregationStateHashTableBase *destination_hash_table) const override;
+
  private:
   friend class AggregateFunctionCount;
 

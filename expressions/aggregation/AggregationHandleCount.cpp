@@ -206,6 +206,17 @@ void AggregationHandleCount<count_star, nullable_type>
           aggregation_hash_table);
 }
 
+template <bool count_star, bool nullable_type>
+void AggregationHandleCount<count_star, nullable_type>::mergeGroupByHashTables(
+    const AggregationStateHashTableBase &source_hash_table,
+    AggregationStateHashTableBase *destination_hash_table) const {
+  mergeGroupByHashTablesHelper<
+      AggregationHandleCount,
+      AggregationStateCount,
+      AggregationStateHashTable<AggregationStateCount>>(source_hash_table,
+                                                        destination_hash_table);
+}
+
 // Explicitly instantiate and compile in the different versions of
 // AggregationHandleCount we need. Note that we do not compile a version with
 // 'count_star == true' and 'nullable_type == true', as that combination is

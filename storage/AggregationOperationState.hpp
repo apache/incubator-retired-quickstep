@@ -31,6 +31,7 @@
 #include "expressions/scalar/Scalar.hpp"
 #include "storage/AggregationOperationState.pb.h"
 #include "storage/HashTableBase.hpp"
+#include "storage/HashTablePool.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
@@ -208,6 +209,9 @@ class AggregationOperationState {
   // TODO(shoban): We should ideally store the aggregation state together in one
   // hash table to prevent multiple lookups.
   std::vector<std::unique_ptr<AggregationStateHashTableBase>> group_by_hashtables_;
+
+  // A vector of group by hash table pools, one for each group by clause.
+  std::vector<std::unique_ptr<HashTablePool>> group_by_hashtable_pools_;
 
   StorageManager *storage_manager_;
 

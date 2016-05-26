@@ -27,6 +27,7 @@
 #include "expressions/aggregation/AggregationHandle.hpp"
 #include "expressions/aggregation/AggregationHandleCount.hpp"
 #include "expressions/aggregation/AggregationID.hpp"
+#include "storage/StorageManager.hpp"
 #include "types/CharType.hpp"
 #include "types/DoubleType.hpp"
 #include "types/FloatType.hpp"
@@ -355,6 +356,7 @@ class AggregationHandleCountTest : public::testing::Test {
 
   std::unique_ptr<AggregationHandle> aggregation_handle_count_;
   std::unique_ptr<AggregationState> aggregation_handle_count_state_;
+  std::unique_ptr<StorageManager> storage_manager_;
 };
 
 typedef AggregationHandleCountTest AggregationHandleCountDeathTest;
@@ -477,5 +479,127 @@ TEST_F(AggregationHandleCountTest, ResultTypeForArgumentTypeTest) {
   EXPECT_TRUE(ResultTypeForArgumentTypeTest(kDouble, kLong));
 }
 
-}  // namespace quickstep
+TEST_F(AggregationHandleCountTest, GroupByTableMergeTestCount) {
+  const Type &long_non_null_type = LongType::Instance(false);
+  initializeHandle(&long_non_null_type);
+  storage_manager_.reset(new StorageManager("./test_count_data"));
+  std::unique_ptr<AggregationStateHashTableBase> source_hash_table(
+      aggregation_handle_count_->createGroupByHashTable(
+          HashTableImplType::kSimpleScalarSeparateChaining,
+          std::vector<const Type *>(1, &long_non_null_type),
+          10,
+          storage_manager_.get()));
+  std::unique_ptr<AggregationStateHashTableBase> destination_hash_table(
+      aggregation_handle_count_->createGroupByHashTable(
+          HashTableImplType::kSimpleScalarSeparateChaining,
+          std::vector<const Type *>(1, &long_non_null_type),
+          10,
+          storage_manager_.get()));
 
+  AggregationStateHashTable<AggregationStateCount> *destination_hash_table_derived =
+      static_cast<AggregationStateHashTable<AggregationStateCount> *>(
+          destination_hash_table.get());
+
+  AggregationStateHashTable<AggregationStateCount> *source_hash_table_derived =
+      static_cast<AggregationStateHashTable<AggregationStateCount> *>(
+          source_hash_table.get());
+
+  // TODO(harshad) - Use TemplateUtil::CreateBoolInstantiatedInstance to
+  // generate all the combinations of the bool template arguments and test them.
+  AggregationHandleCount<true, false> *aggregation_handle_count_derived =
+      static_cast<AggregationHandleCount<true, false> *>(
+          aggregation_handle_count_.get());
+  // We create three keys: first is present in both the hash tables, second key
+  // is present only in the source hash table while the third key is present
+  // the destination hash table only.
+  std::vector<TypedValue> common_key;
+  common_key.emplace_back(static_cast<std::int64_t>(0));
+  std::vector<TypedValue> exclusive_source_key, exclusive_destination_key;
+  exclusive_source_key.emplace_back(static_cast<std::int64_t>(1));
+  exclusive_destination_key.emplace_back(static_cast<std::int64_t>(2));
+
+  const std::int64_t common_key_source_count = 1;
+  TypedValue common_key_source_count_val(common_key_source_count);
+
+  const std::int64_t common_key_destination_count = 1;
+  TypedValue common_key_destination_count_val(common_key_destination_count);
+
+  const std::int64_t exclusive_key_source_count = 1;
+  TypedValue exclusive_key_source_count_val(exclusive_key_source_count);
+
+  const std::int64_t exclusive_key_destination_count = 1;
+  TypedValue exclusive_key_destination_count_val(exclusive_key_destination_count);
+
+  std::unique_ptr<AggregationStateCount> common_key_source_state(
+      static_cast<AggregationStateCount *>(
+          aggregation_handle_count_->createInitialState()));
+  std::unique_ptr<AggregationStateCount> common_key_destination_state(
+      static_cast<AggregationStateCount *>(
+          aggregation_handle_count_->createInitialState()));
+  std::unique_ptr<AggregationStateCount> exclusive_key_source_state(
+      static_cast<AggregationStateCount *>(
+          aggregation_handle_count_->createInitialState()));
+  std::unique_ptr<AggregationStateCount> exclusive_key_destination_state(
+      static_cast<AggregationStateCount *>(
+          aggregation_handle_count_->createInitialState()));
+
+  // Create count value states for keys.
+  aggregation_handle_count_derived->iterateUnaryInl(common_key_source_state.get(),
+                                                  common_key_source_count_val);
+  std::int64_t actual_val = aggregation_handle_count_->finalize(*common_key_source_state)
+                       .getLiteral<std::int64_t>();
+  EXPECT_EQ(common_key_source_count_val.getLiteral<std::int64_t>(), actual_val);
+
+  aggregation_handle_count_derived->iterateUnaryInl(
+      common_key_destination_state.get(), common_key_destination_count_val);
+  actual_val = aggregation_handle_count_->finalize(*common_key_destination_state)
+                   .getLiteral<std::int64_t>();
+  EXPECT_EQ(common_key_destination_count_val.getLiteral<std::int64_t>(), actual_val);
+
+  aggregation_handle_count_derived->iterateUnaryInl(
+      exclusive_key_destination_state.get(), exclusive_key_destination_count_val);
+  actual_val =
+      aggregation_handle_count_->finalize(*exclusive_key_destination_state)
+          .getLiteral<std::int64_t>();
+  EXPECT_EQ(exclusive_key_destination_count_val.getLiteral<std::int64_t>(), actual_val);
+
+  aggregation_handle_count_derived->iterateUnaryInl(
+      exclusive_key_source_state.get(), exclusive_key_source_count_val);
+  actual_val = aggregation_handle_count_->finalize(*exclusive_key_source_state)
+                   .getLiteral<std::int64_t>();
+  EXPECT_EQ(exclusive_key_source_count_val.getLiteral<std::int64_t>(), actual_val);
+
+  // Add the key-state pairs to the hash tables.
+  source_hash_table_derived->putCompositeKey(common_key,
+                                             *common_key_source_state);
+  destination_hash_table_derived->putCompositeKey(
+      common_key, *common_key_destination_state);
+  source_hash_table_derived->putCompositeKey(exclusive_source_key,
+                                             *exclusive_key_source_state);
+  destination_hash_table_derived->putCompositeKey(
+      exclusive_destination_key, *exclusive_key_destination_state);
+
+  EXPECT_EQ(2u, destination_hash_table_derived->numEntries());
+  EXPECT_EQ(2u, source_hash_table_derived->numEntries());
+
+  aggregation_handle_count_->mergeGroupByHashTables(*source_hash_table,
+                                                  destination_hash_table.get());
+
+  EXPECT_EQ(3u, destination_hash_table_derived->numEntries());
+
+  CheckCountValue(
+      common_key_destination_count_val.getLiteral<std::int64_t>() +
+          common_key_source_count_val.getLiteral<std::int64_t>(),
+      *aggregation_handle_count_derived,
+      *(destination_hash_table_derived->getSingleCompositeKey(common_key)));
+  CheckCountValue(exclusive_key_destination_count_val.getLiteral<std::int64_t>(),
+                  *aggregation_handle_count_derived,
+                  *(destination_hash_table_derived->getSingleCompositeKey(
+                      exclusive_destination_key)));
+  CheckCountValue(exclusive_key_source_count_val.getLiteral<std::int64_t>(),
+                  *aggregation_handle_count_derived,
+                  *(source_hash_table_derived->getSingleCompositeKey(
+                      exclusive_source_key)));
+}
+
+}  // namespace quickstep
