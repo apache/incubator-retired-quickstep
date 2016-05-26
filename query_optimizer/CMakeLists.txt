@@ -143,6 +143,10 @@ if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                         quickstep_catalog_Catalog_proto)
 endif()
+if (QUICKSTEP_HAVE_LIBNUMA)
+  target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
+                        quickstep_catalog_NUMAPlacementScheme)
+endif()
 target_link_libraries(quickstep_queryoptimizer_ExecutionHeuristics
                       glog
                       quickstep_catalog_CatalogRelation

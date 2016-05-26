@@ -923,7 +923,6 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               join_type));
   insert_destination_proto->set_relational_op_index(join_operator_index);
 
-  
   std::size_t num_partitions = 0;
 
   if (build_relation_info->relation->hasPartitionScheme()) {
