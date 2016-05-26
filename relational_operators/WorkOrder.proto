@@ -65,7 +65,10 @@ message BuildHashWorkOrder {
     optional int32 relation_id = 32;
     repeated int32 join_key_attributes = 33;
     optional bool any_join_key_attributes_nullable = 34;
+    // Each hash join has a group of hash tables, one for each partition.
+    // If the build relation is not partitioned then there is only one hash table per group.
     optional uint32 join_hash_table_group_index = 35;
+    // The id of the hash table within a group.
     optional uint32 join_hash_table_index = 36;
     optional fixed64 block_id = 37;
   }

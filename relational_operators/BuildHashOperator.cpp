@@ -119,6 +119,7 @@ void BuildHashOperator::addWorkOrdersUsingPartitionedInput(WorkOrdersContainer *
   }
 }
 
+#ifdef QUICKSTEP_HAVE_LIBNUMA
 void BuildHashOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
                                                     QueryContext *query_context,
                                                     StorageManager *storage_manager) {
@@ -164,6 +165,7 @@ void BuildHashOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *contain
     }
   }
 }
+#endif
 
 bool BuildHashOperator::getAllWorkOrders(WorkOrdersContainer *container,
                                          QueryContext *query_context,

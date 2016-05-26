@@ -80,10 +80,10 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
         std::unique_ptr<const GeneratorFunctionHandle>(func_handle));
   }
 
-  join_hash_tables_.resize(proto.join_hash_table_groups_size());
+  join_hash_table_groups_.resize(proto.join_hash_table_groups_size());
   for (int i = 0; i < proto.join_hash_table_groups_size(); ++i) {
     for (int j = 0; j < proto.join_hash_table_groups(i).join_hash_tables_size(); ++j) {
-      join_hash_tables_[i].emplace_back(
+      join_hash_table_groups_[i].emplace_back(
           JoinHashTableFactory::CreateResizableFromProto(proto.join_hash_table_groups(i).join_hash_tables(j),
                                                          storage_manager,
                                                          bloom_filters_));

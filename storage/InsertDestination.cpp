@@ -118,8 +118,10 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
       const serialization::PartitionScheme &proto_partition_scheme =
           proto.GetExtension(serialization::PartitionAwareInsertDestination::partition_scheme);
 
+#ifdef QUICKSTEP_HAVE_LIBNUMA
       const serialization::NUMAPlacementScheme &proto_placement_scheme =
           proto.GetExtension(serialization::PartitionAwareInsertDestination::placement_scheme);
+#endif
 
       vector<vector<block_id>> partitions;
       for (int partition_index = 0; partition_index < proto_partition_scheme.partitions_size(); ++partition_index) {
@@ -136,8 +138,12 @@ InsertDestination* InsertDestination::ReconstructFromProto(const serialization::
           relation.getAttributeById(proto_partition_scheme_header.partition_attribute_id())->getType();
       return new PartitionAwareInsertDestination(
           PartitionSchemeHeader::ReconstructFromProto(proto_partition_scheme_header, attr_type),
+#ifdef QUICKSTEP_HAVE_LIBNUMA
           NUMAPlacementScheme::ReconstructFromProto(proto_placement_scheme,
                                                     proto_partition_scheme_header.num_partitions()),
+#else
+          nullptr,
+#endif
           relation,
           layout,
           storage_manager,
@@ -420,8 +426,12 @@ MutableBlockReference PartitionAwareInsertDestination::createNewBlockInPartition
   DCHECK_LT(part_id, partition_scheme_header_->getNumPartitions());
   // Create a new block.
 
-  // TODO(gerald): PASS THE CORRECT NUMA NODE INSTEAD OF ZERO FROM THE OPERATOR!
+#ifdef QUICKSTEP_HAVE_LIBNUMA
   const int numa_node = placement_scheme_->getNUMANodeForPartition(part_id);
+#else
+  const int numa_node = -1;
+#endif
+
   const block_id new_id = storage_manager_->createBlock(relation_, *layout_, numa_node);
 
   // Notify Foreman to add the newly created block id in the master Catalog.

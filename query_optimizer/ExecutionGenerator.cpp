@@ -119,6 +119,10 @@
 #include "types/containers/Tuple.pb.h"
 #include "utility/SqlError.hpp"
 
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+#include "catalog/NUMAPlacementScheme.hpp"
+#endif
+
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
@@ -130,9 +134,6 @@ using std::vector;
 
 namespace quickstep {
 namespace optimizer {
-DEFINE_int32(num_partitions, 1, "Number of partitions for the new tables");
-DEFINE_int32(partition_attr_id, 0, "The ID of the partitioning attribute in the relation");
-
 DEFINE_string(join_hashtable_type, "SeparateChaining",
               "HashTable implementation to use for hash joins (valid options "
               "are SeparateChaining or LinearOpenAddressing)");
@@ -342,6 +343,7 @@ void ExecutionGenerator::createPartitionedTemporaryCatalogRelation(
     S::InsertDestination *insert_destination_proto,
     const attribute_id part_attr_id,
     const std::size_t num_partitions) {
+  attribute_id pid;
   std::unique_ptr<CatalogRelation> catalog_relation(
       new CatalogRelation(optimizer_context_->catalog_database(),
                           getNewRelationName(),
@@ -359,15 +361,20 @@ void ExecutionGenerator::createPartitionedTemporaryCatalogRelation(
                              project_expression->attribute_alias()));
     attribute_substitution_map_[project_expression->id()] =
         catalog_attribute.get();
+    if (part_attr_id == catalog_attribute.get()->getID()) {
+      pid = aid;
+    }
     catalog_relation->addAttribute(catalog_attribute.release());
     ++aid;
   }
 
-  PartitionSchemeHeader *part_scheme_header = new HashPartitionSchemeHeader(num_partitions, part_attr_id);
+  PartitionSchemeHeader *part_scheme_header = new HashPartitionSchemeHeader(num_partitions, pid);
   PartitionScheme *partition_scheme = new PartitionScheme(part_scheme_header);
   catalog_relation->setPartitionScheme(partition_scheme);
+#ifdef QUICKSTEP_HAVE_LIBNUMA
   NUMAPlacementScheme *placement_scheme = new NUMAPlacementScheme(num_partitions);
   catalog_relation->setNUMAPlacementScheme(placement_scheme);
+#endif
 
   *catalog_relation_output = catalog_relation.get();
   const relation_id output_rel_id = optimizer_context_->catalog_database()->addRelation(
@@ -381,8 +388,10 @@ void ExecutionGenerator::createPartitionedTemporaryCatalogRelation(
   insert_destination_proto->set_relation_id(output_rel_id);
   insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
       ->MergeFrom(partition_scheme->getProto());
+#ifdef QUICKSTEP_HAVE_LIBNUMA
   insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::placement_scheme)
       ->MergeFrom(placement_scheme->getProto());
+#endif
 }
 
 void ExecutionGenerator::dropAllTemporaryRelations() {
@@ -583,9 +592,6 @@ void ExecutionGenerator::convertSelection(
   }
 
   if (is_temp_relation_partitioned) {
-    // TODO(Gerald): We have to figure out a way to see if the partitioning attribute is present in the
-    // projected attributes list in the temporary output relation. If it is not, then we should just
-    // create a non-partitioned temporary catalog relation.
     createPartitionedTemporaryCatalogRelation(
         physical_selection,
         &output_relation,
@@ -1055,15 +1061,19 @@ void ExecutionGenerator::convertCopyFrom(
 
   if (physical_plan->catalog_relation()->hasPartitionScheme()) {
     const PartitionScheme &partition_scheme = physical_plan->catalog_relation()->getPartitionScheme();
+#ifdef QUICKSTEP_HAVE_LIBNUMA
     const NUMAPlacementScheme &placement_scheme = physical_plan->catalog_relation()->getNUMAPlacementScheme();
+#endif
     insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
     insert_destination_proto->set_relation_id(output_relation->getID());
     insert_destination_proto->mutable_layout()->MergeFrom(
         output_relation->getDefaultStorageBlockLayout().getDescription());
     insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
         ->MergeFrom(partition_scheme.getProto());
+#ifdef QUICKSTEP_HAVE_LIBNUMA
     insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::placement_scheme)
         ->MergeFrom(placement_scheme.getProto());
+#endif
   } else {
     insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
     insert_destination_proto->set_relation_id(output_relation->getID());
@@ -1182,8 +1192,10 @@ void ExecutionGenerator::convertCreateTable(
     PartitionSchemeHeader *part_scheme_header = new HashPartitionSchemeHeader(num_partitions, part_attr_id);
     PartitionScheme *partition_scheme = new PartitionScheme(part_scheme_header);
     catalog_relation->setPartitionScheme(partition_scheme);
+#ifdef QUICKSTEP_HAVE_LIBNUMA
     NUMAPlacementScheme *placement_scheme = new NUMAPlacementScheme(num_partitions);
     catalog_relation->setNUMAPlacementScheme(placement_scheme);
+#endif
   }
   execution_plan_->addRelationalOperator(
       new CreateTableOperator(catalog_relation.release(), optimizer_context_->catalog_database()));
@@ -1295,15 +1307,19 @@ void ExecutionGenerator::convertInsertTuple(
 
   if (input_relation_info->relation->hasPartitionScheme()) {
     const PartitionScheme &partition_scheme = input_relation_info->relation->getPartitionScheme();
+#ifdef QUICKSTEP_HAVE_LIBNUMA
     const NUMAPlacementScheme &placement_scheme = input_relation_info->relation->getNUMAPlacementScheme();
+#endif
     insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
     insert_destination_proto->set_relation_id(input_relation.getID());
     insert_destination_proto->mutable_layout()->MergeFrom(
         input_relation.getDefaultStorageBlockLayout().getDescription());
     insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
         ->MergeFrom(partition_scheme.getProto());
+#ifdef QUICKSTEP_HAVE_LIBNUMA
     insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::placement_scheme)
         ->MergeFrom(placement_scheme.getProto());
+#endif
   } else {
     insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
     insert_destination_proto->set_relation_id(input_relation.getID());
