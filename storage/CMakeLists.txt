@@ -941,7 +941,8 @@ target_link_libraries(quickstep_storage_StorageManager
                       quickstep_utility_Alignment
                       quickstep_utility_CalculateInstalledMemory
                       quickstep_utility_Macros
-                      quickstep_utility_ShardedLockManager)
+                      quickstep_utility_ShardedLockManager
+                      tmb)
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
 target_link_libraries(quickstep_storage_StorageManager
                       quickstep_storage_FileManagerHdfs)
@@ -950,6 +951,12 @@ if (QUICKSTEP_HAVE_LIBNUMA)
   target_link_libraries(quickstep_storage_StorageManager
                         ${LIBNUMA_LIBRARY})
 endif()
+if (ENABLE_DISTRIBUTED)
+  target_link_libraries(quickstep_storage_StorageManager
+                        quickstep_queryexecution_QueryExecutionMessages_proto
+                        quickstep_queryexecution_QueryExecutionTypedefs
+                        quickstep_queryexecution_QueryExecutionUtil)
+endif(ENABLE_DISTRIBUTED)
 target_link_libraries(quickstep_storage_SubBlockTypeRegistry
                       glog
                       quickstep_storage_StorageBlockLayout_proto
