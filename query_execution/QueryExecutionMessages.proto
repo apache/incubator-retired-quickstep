@@ -16,6 +16,10 @@ syntax = "proto2";
 
 package quickstep.serialization;
 
+// Used for any messages that do not carry payloads.
+message EmptyMessage {
+}
+
 // Used for both Normal WorkOrders and RebuildWorkOrders.
 // NOTE(zuyu): we might need to seperate the completion messages to contain
 // run-time information for Foreman to make better decisions on scheduling
@@ -41,4 +45,34 @@ message DataPipelineMessage {
 
 message WorkOrdersAvailableMessage {
   required uint64 operator_index = 1;
+}
+
+// BlockLocator related messages.
+message BlockDomainRegistrationMessage {
+  // Format IP:Port, i.e., "0.0.0.0:0".
+  required string domain_network_address = 1;
+}
+
+// Used for RegistrationResponse, Unregistration, and FailureReport.
+message BlockDomainMessage {
+  required uint32 block_domain = 1;
+}
+
+// Used when StorageManager loads or evicts a block or a blob from its buffer
+// pool.
+message BlockLocationMessage {
+  required fixed64 block_id = 1;
+  required uint32 block_domain = 2;
+}
+
+message BlockMessage {
+  required fixed64 block_id = 1;
+}
+
+message LocateBlockResponseMessage {
+  repeated uint32 block_domains = 1;
+}
+
+message GetPeerDomainNetworkAddressesResponseMessage {
+  repeated string domain_network_addresses = 1;
 }
