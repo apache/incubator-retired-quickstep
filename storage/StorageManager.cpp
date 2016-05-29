@@ -41,6 +41,10 @@
 #include <numaif.h>
 #endif
 
+#ifdef QUICKSTEP_DISTRIBUTED
+#include <grpc++/grpc++.h>
+#endif
+
 #include <atomic>
 #include <cerrno>
 #include <cstddef>
@@ -53,6 +57,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "catalog/CatalogTypedefs.hpp"
+
 #ifdef QUICKSTEP_DISTRIBUTED
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
@@ -60,6 +66,12 @@
 #endif
 
 #include "storage/CountedReference.hpp"
+
+#ifdef QUICKSTEP_DISTRIBUTED
+#include "storage/DataExchange.grpc.pb.h"
+#include "storage/DataExchange.pb.h"
+#endif
+
 #include "storage/EvictionPolicy.hpp"
 #include "storage/FileManagerLocal.hpp"
 #include "storage/StorageBlob.hpp"
@@ -456,6 +468,80 @@ block_id StorageManager::allocateNewBlockOrBlob(const std::size_t num_slots,
 }
 
 #ifdef QUICKSTEP_DISTRIBUTED
+void StorageManager::pullBlockOrBlob(const block_id block,
+                                     PullResponse *response) const {
+  SpinSharedMutexSharedLock<false> read_lock(blocks_shared_mutex_);
+  std::unordered_map<block_id, BlockHandle>::const_iterator cit = blocks_.find(block);
+  if (cit != blocks_.end()) {
+    response->set_is_valid(true);
+
+    const BlockHandle &block_handle = cit->second;
+    const std::size_t num_slots = block_handle.block_memory_size;
+
+    response->set_num_slots(num_slots);
+    response->set_block(block_handle.block_memory,
+                        num_slots * kSlotSizeBytes);
+  } else {
+    response->set_is_valid(false);
+  }
+}
+
+StorageManager::DataExchangerClientAsync::DataExchangerClientAsync(const std::shared_ptr<grpc::Channel> &channel,
+                                                                   StorageManager *storage_manager)
+    : stub_(DataExchange::NewStub(channel)),
+      storage_manager_(storage_manager) {
+}
+
+bool StorageManager::DataExchangerClientAsync::Pull(const block_id block,
+                                                    const numa_node_id numa_node,
+                                                    BlockHandle *block_handle) {
+  grpc::ClientContext context;
+
+  PullRequest request;
+  request.set_block_id(block);
+
+  grpc::CompletionQueue queue;
+
+  unique_ptr<grpc::ClientAsyncResponseReader<PullResponse>> rpc(
+      stub_->AsyncPull(&context, request, &queue));
+
+  PullResponse response;
+  grpc::Status status;
+
+  rpc->Finish(&response, &status, reinterpret_cast<void*>(1));
+
+  void *got_tag;
+  bool ok = false;
+
+  queue.Next(&got_tag, &ok);
+  CHECK(got_tag == reinterpret_cast<void*>(1));
+  CHECK(ok);
+
+  if (!status.ok()) {
+    LOG(ERROR) << "DataExchangerClientAsync Pull error: RPC failed";
+    return false;
+  }
+
+  if (!response.is_valid()) {
+    LOG(INFO) << "The pulling block not found in all the peers";
+    return false;
+  }
+
+  const size_t num_slots = response.num_slots();
+  DCHECK_NE(num_slots, 0u);
+
+  const string &block_content = response.block();
+  DCHECK_EQ(kSlotSizeBytes * num_slots, block_content.size());
+
+  void *block_buffer = storage_manager_->allocateSlots(num_slots, numa_node);
+
+  block_handle->block_memory =
+      std::memcpy(block_buffer, block_content.c_str(), block_content.size());
+  block_handle->block_memory_size = num_slots;
+
+  return true;
+}
+
 vector<string> StorageManager::getPeerDomainNetworkAddresses(const block_id block) {
   serialization::BlockMessage proto;
   proto.set_block_id(block);
@@ -541,14 +627,37 @@ StorageManager::BlockHandle StorageManager::loadBlockOrBlob(
   // The caller of this function holds an exclusive lock on this block/blob's
   // mutex in the lock manager. The caller has ensured that the block is not
   // already loaded before this function gets called.
-  size_t num_slots = file_manager_->numSlots(block);
+  BlockHandle loaded_handle;
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  // TODO(quickstep-team): Use a cost model to determine whether to load from
+  // a remote peer or the disk.
+  if (BlockIdUtil::Domain(block) != block_domain_) {
+    LOG(INFO) << "Pulling Block " << BlockIdUtil::ToString(block) << " from a remote peer";
+    const vector<string> peer_domain_network_addresses = getPeerDomainNetworkAddresses(block);
+    for (const string &peer_domain_network_address : peer_domain_network_addresses) {
+      DataExchangerClientAsync client(
+          grpc::CreateChannel(peer_domain_network_address, grpc::InsecureChannelCredentials()),
+          this);
+
+      if (client.Pull(block, numa_node, &loaded_handle)) {
+        sendBlockLocationMessage(block, kAddBlockLocationMessage);
+        return loaded_handle;
+      }
+    }
+
+    LOG(INFO) << "Failed to pull Block " << BlockIdUtil::ToString(block)
+              << " from remote peers, so try to load from disk.";
+  }
+#endif
+
+  const size_t num_slots = file_manager_->numSlots(block);
   DEBUG_ASSERT(num_slots != 0);
   void *block_buffer = allocateSlots(num_slots, numa_node);
 
   const bool status = file_manager_->readBlockOrBlob(block, block_buffer, kSlotSizeBytes * num_slots);
   CHECK(status) << "Failed to read block from persistent storage: " << block;
 
-  BlockHandle loaded_handle;
   loaded_handle.block_memory = block_buffer;
   loaded_handle.block_memory_size = num_slots;
 
