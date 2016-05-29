@@ -659,13 +659,22 @@ set(ENABLE_PUREMEMORY ON CACHE BOOL "Enable PureMemory TMB")
 set(ENABLE_LEVELDB OFF CACHE BOOL "Enable LevelDB TMB")
 set(ENABLE_MEMORYMIRROR OFF CACHE BOOL "Enable MemoryMirror TMB")
 set(ENABLE_NATIVELOG OFF CACHE BOOL "Enable NativeLog TMB")
-set(ENABLE_NATIVENET OFF CACHE BOOL "Enable NativeNet TMB")
+
+# The distributed version requires to use the NativeNet implementation.
+if (NOT ENABLE_DISTRIBUTED)
+  set(ENABLE_NATIVENET OFF CACHE BOOL "Enable NativeNet TMB")
+endif()
+
 set(ENABLE ENABLE_SQLITE OFF CACHE BOOL "Enable SQLite TMB")
 set(ENABLE_VOLTDB OFF CACHE BOOL "Enable VoltDB TMB")
 set(ENABLE_ZOOKEEPER OFF CACHE BOOL "Enable Zookeeper TMB")
 
 add_subdirectory("${THIRD_PARTY_SOURCE_DIR}/tmb" "${CMAKE_CURRENT_BINARY_DIR}/third_party/tmb")
 include_directories(${TMB_INCLUDE_DIRS})
+
+if (ENABLE_DISTRIBUTED)
+  include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party/tmb/include)
+endif()
 
 # Add all of the module subdirectories. CMakeLists.txt in each of the subdirectories
 # defines how to build that module's libraries.

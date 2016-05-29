@@ -17,7 +17,7 @@ TODO List / Known Issues & Limitations:
 """
 
 #   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2015-2016 Pivotal Software, Inc.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -40,7 +40,8 @@ EXCLUDED_TOP_LEVEL_DIRS = ["build", "third_party"]
 # Explicitly ignored dependencies (special headers with no other quickstep
 # dependencies).
 IGNORED_DEPENDENCIES = frozenset(
-    ["quickstep_threading_WinThreadsAPI",
+    ["quickstep_storage_DataExchange.grpc_proto",
+     "quickstep_threading_WinThreadsAPI",
      "quickstep_utility_textbasedtest_TextBasedTest",
      "quickstep_utility_textbasedtest_TextBasedTestDriver",
      "quickstep_storage_bitweaving_BitWeavingHIndexSubBlock",
