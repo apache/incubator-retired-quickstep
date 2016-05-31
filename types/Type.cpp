@@ -41,6 +41,9 @@ serialization::Type Type::getProto() const {
     case kDouble:
       proto.set_type_id(serialization::Type::DOUBLE);
       break;
+    case kDecimal:
+      proto.set_type_id(serialization::Type::DECIMAL);
+      break;
     case kDatetime:
       proto.set_type_id(serialization::Type::DATETIME);
       break;

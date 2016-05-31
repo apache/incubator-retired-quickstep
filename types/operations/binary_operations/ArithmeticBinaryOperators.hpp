@@ -35,6 +35,7 @@
 #include "storage/ValueAccessorUtil.hpp"
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
+#include "types/DecimalLit.hpp"
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVector.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
@@ -75,6 +76,27 @@ struct AddFunctor<float, std::int64_t> {
   }
 };
 
+template <>
+struct AddFunctor<DecimalLit, DecimalLit> {
+  inline DecimalLit operator() (const DecimalLit &left, const DecimalLit &right) const {
+    return left + right;
+  }
+};
+
+template <typename RightArgument>
+struct AddFunctor<DecimalLit, RightArgument> {
+  inline DecimalLit operator() (const DecimalLit &left, const RightArgument &right) const {
+    return left + DecimalLit(right);
+  }
+};
+
+template <typename LeftArgument>
+struct AddFunctor<LeftArgument, DecimalLit> {
+  inline DecimalLit operator() (const LeftArgument &left, const DecimalLit &right) const {
+    return DecimalLit(left) + right;
+  }
+};
+
 template <typename LeftArgument, typename RightArgument> struct SubtractFunctor {
   inline auto operator() (const LeftArgument &left, const RightArgument &right) const -> decltype(left - right) {
     return left - right;
@@ -95,6 +117,27 @@ template <>
 struct SubtractFunctor<float, std::int64_t> {
   inline double operator() (const float &left, const std::int64_t &right) const {
     return static_cast<double>(left) - static_cast<double>(right);
+  }
+};
+
+template <>
+struct SubtractFunctor<DecimalLit, DecimalLit> {
+  inline DecimalLit operator() (const DecimalLit &left, const DecimalLit &right) const {
+    return left - right;
+  }
+};
+
+template <typename RightArgument>
+struct SubtractFunctor<DecimalLit, RightArgument> {
+  inline DecimalLit operator() (const DecimalLit &left, const RightArgument &right) const {
+    return left - DecimalLit(right);
+  }
+};
+
+template <typename LeftArgument>
+struct SubtractFunctor<LeftArgument, DecimalLit> {
+  inline DecimalLit operator() (const LeftArgument &left, const DecimalLit &right) const {
+    return DecimalLit(left) - right;
   }
 };
 
@@ -121,6 +164,27 @@ struct MultiplyFunctor<float, std::int64_t> {
   }
 };
 
+template <>
+struct MultiplyFunctor<DecimalLit, DecimalLit> {
+  inline DecimalLit operator() (const DecimalLit &left, const DecimalLit &right) const {
+    return left * right;
+  }
+};
+
+template <typename RightArgument>
+struct MultiplyFunctor<DecimalLit, RightArgument> {
+  inline DecimalLit operator() (const DecimalLit &left, const RightArgument &right) const {
+    return left * DecimalLit(right);
+  }
+};
+
+template <typename LeftArgument>
+struct MultiplyFunctor<LeftArgument, DecimalLit> {
+  inline DecimalLit operator() (const LeftArgument &left, const DecimalLit &right) const {
+    return DecimalLit(left) * right;
+  }
+};
+
 template <typename LeftArgument, typename RightArgument> struct DivideFunctor {
   inline auto operator() (const LeftArgument &left, const RightArgument &right) const -> decltype(left / right) {
     return left / right;
@@ -144,6 +208,27 @@ struct DivideFunctor<float, std::int64_t> {
   }
 };
 
+template <>
+struct DivideFunctor<DecimalLit, DecimalLit> {
+  inline DecimalLit operator() (const DecimalLit &left, const DecimalLit &right) const {
+    return left / right;
+  }
+};
+
+template <typename RightArgument>
+struct DivideFunctor<DecimalLit, RightArgument> {
+  inline DecimalLit operator() (const DecimalLit &left, const RightArgument &right) const {
+    return left / DecimalLit(right);
+  }
+};
+
+template <typename LeftArgument>
+struct DivideFunctor<LeftArgument, DecimalLit> {
+  inline DecimalLit operator() (const LeftArgument &left, const DecimalLit &right) const {
+    return DecimalLit(left) / right;
+  }
+};
+
 template <typename LeftArgument, typename RightArgument> struct IntegerModuloFunctor {
   inline auto operator() (const LeftArgument &left, const RightArgument &right) const -> decltype(left % right) {
     return left % right;
@@ -159,6 +244,27 @@ template <typename LeftArgument, typename RightArgument> struct FloatModuloFunct
   inline auto operator() (const LeftArgument &left, const RightArgument &right) const
       -> decltype(std::fmod(left, right)) {
     return std::fmod(left, right);
+  }
+};
+
+template <>
+struct FloatModuloFunctor<DecimalLit, DecimalLit> {
+  inline DecimalLit operator() (const DecimalLit &left, const DecimalLit &right) const {
+    return left % right;
+  }
+};
+
+template <typename RightArgument>
+struct FloatModuloFunctor<DecimalLit, RightArgument> {
+  inline DecimalLit operator() (const DecimalLit &left, const RightArgument &right) const {
+    return left % DecimalLit(right);
+  }
+};
+
+template <typename LeftArgument>
+struct FloatModuloFunctor<LeftArgument, DecimalLit> {
+  inline DecimalLit operator() (const LeftArgument &left, const DecimalLit &right) const {
+    return DecimalLit(left) % right;
   }
 };
 

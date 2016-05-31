@@ -26,6 +26,7 @@ const char *kTypeNames[] = {
   "Double",
   "Char",
   "VarChar",
+  "Decimal",
   "Datetime",
   "DatetimeInterval",
   "YearMonthInterval",

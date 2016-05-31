@@ -25,6 +25,7 @@
 #include <functional>
 
 #include "types/DatetimeLit.hpp"
+#include "types/DecimalLit.hpp"
 #include "types/IntervalLit.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.pb.h"
@@ -124,6 +125,11 @@ class TypedValue {
       : value_info_(static_cast<std::uint64_t>(kDouble)) {
     // Canonicalize negative zero.
     value_union_.double_value = literal_double == 0 ? 0 : literal_double;
+  }
+
+  explicit TypedValue(const DecimalLit literal_decimal)
+      : value_info_(static_cast<std::uint64_t>(kDecimal)) {
+    value_union_.decimal_value = literal_decimal;
   }
 
   /**
@@ -276,6 +282,7 @@ class TypedValue {
       case kLong:
       case kFloat:
       case kDouble:
+      case kDecimal:
       case kDatetime:
       case kDatetimeInterval:
       case kYearMonthInterval:
@@ -307,6 +314,7 @@ class TypedValue {
         return sizeof(value_union_.int_value) <= sizeof(std::size_t);
       case kLong:
       case kDouble:
+      case kDecimal:
       case kDatetime:
       case kDatetimeInterval:
       case kYearMonthInterval:
@@ -384,6 +392,7 @@ class TypedValue {
         return sizeof(int);
       case kLong:
       case kDouble:
+      case kDecimal:
       case kDatetime:
       case kDatetimeInterval:
       case kYearMonthInterval:
@@ -469,6 +478,7 @@ class TypedValue {
                    || getTypeID() == kLong
                    || getTypeID() == kFloat
                    || getTypeID() == kDouble
+                   || getTypeID() == kDecimal
                    || getTypeID() == kDatetime
                    || getTypeID() == kDatetimeInterval
                    || getTypeID() == kYearMonthInterval));
@@ -564,6 +574,7 @@ class TypedValue {
       case kLong:
       case kFloat:
       case kDouble:
+      case kDecimal:
       case kDatetime:
       case kDatetimeInterval:
       case kYearMonthInterval:
@@ -659,6 +670,7 @@ class TypedValue {
       case kLong:
       case kFloat:
       case kDouble:
+      case kDecimal:
       case kDatetime:
       case kDatetimeInterval:
       case kYearMonthInterval:
@@ -778,6 +790,7 @@ class TypedValue {
     float float_value;
     double double_value;
     const void* out_of_line_data;
+    DecimalLit decimal_value;
     DatetimeLit datetime_value;
     DatetimeIntervalLit datetime_interval_value;
     YearMonthIntervalLit year_month_interval_value;
@@ -804,6 +817,7 @@ class TypedValue {
 
   static_assert(sizeof(ValueUnion) == sizeof(std::int64_t)
                     && sizeof(ValueUnion) == sizeof(double)
+                    && sizeof(ValueUnion) == sizeof(DecimalLit)
                     && sizeof(ValueUnion) == sizeof(DatetimeLit)
                     && sizeof(ValueUnion) == sizeof(DatetimeIntervalLit)
                     && sizeof(ValueUnion) == sizeof(YearMonthIntervalLit),
@@ -850,6 +864,13 @@ inline double TypedValue::getLiteral<double>() const {
   DCHECK_EQ(kDouble, getTypeID());
   DCHECK(!isNull());
   return value_union_.double_value;
+}
+
+template <>
+inline DecimalLit TypedValue::getLiteral<DecimalLit>() const {
+  DCHECK_EQ(kDecimal, getTypeID());
+  DCHECK(!isNull());
+  return value_union_.decimal_value;
 }
 
 template <>

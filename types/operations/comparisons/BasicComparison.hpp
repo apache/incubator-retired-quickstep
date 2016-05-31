@@ -23,6 +23,7 @@
 #include <string>
 
 #include "types/DatetimeLit.hpp"
+#include "types/DecimalLit.hpp"
 #include "types/IntervalLit.hpp"
 #include "types/Type.hpp"
 #include "types/TypeErrors.hpp"
@@ -147,12 +148,14 @@ bool BasicComparison::compareTypedValuesCheckedHelper(const TypedValue &left,
     case kInt:
     case kLong:
     case kFloat:
-    case kDouble: {
+    case kDouble:
+    case kDecimal: {
       switch (right_type.getTypeID()) {
         case kInt:
         case kLong:
         case kFloat:
         case kDouble:
+        case kDecimal:
           break;
         default: {
           LOG(FATAL) << "Comparison " << getName() << " can not be applied to types "
@@ -252,6 +255,11 @@ bool BasicComparison::compareTypedValuesCheckedHelper(const TypedValue &left,
       return comparison_functor(left_coerced.getLiteral<double>(),
                                 right_coerced.getLiteral<double>());
     }
+    case kDecimal: {
+      ComparisonFunctor<DecimalLit> comparison_functor;
+      return comparison_functor(left_coerced.getLiteral<DecimalLit>(),
+                                right_coerced.getLiteral<DecimalLit>());
+    }
     default: {
       LOG(FATAL) << "Comparison " << getName() << " can not be applied to types "
                  << left_type.getName() << " and " << right_type.getName();
@@ -310,6 +318,12 @@ UncheckedComparator* BasicComparison::makeNumericComparatorOuterHelper(
       } else {
         return makeNumericComparatorInnerHelper<ComparatorType, double, false>(left, right);
       }
+    case kDecimal:
+      if (left.isNullable()) {
+        return makeNumericComparatorInnerHelper<ComparatorType, DecimalLit, true>(left, right);
+      } else {
+        return makeNumericComparatorInnerHelper<ComparatorType, DecimalLit, false>(left, right);
+      }
     default:
       throw OperationInapplicableToType(getName(), 2, left.getName().c_str(), right.getName().c_str());
   }
@@ -346,6 +360,12 @@ UncheckedComparator* BasicComparison::makeNumericComparatorInnerHelper(
         return new ComparatorType<LeftCppType, left_type_nullable, double, true>();
       } else {
         return new ComparatorType<LeftCppType, left_type_nullable, double, false>();
+      }
+    case kDecimal:
+      if (right.isNullable()) {
+        return new ComparatorType<LeftCppType, left_type_nullable, DecimalLit, true>();
+      } else {
+        return new ComparatorType<LeftCppType, left_type_nullable, DecimalLit, false>();
       }
     default:
       throw OperationInapplicableToType(getName(), 2, left.getName().c_str(), right.getName().c_str());

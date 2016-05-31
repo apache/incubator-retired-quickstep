@@ -44,7 +44,8 @@ bool SubtractBinaryOperation::canApplyToTypes(const Type &left, const Type &righ
     case kInt:
     case kLong:
     case kFloat:
-    case kDouble: {
+    case kDouble:
+    case kDecimal: {
       return (right.getSuperTypeID() == Type::kNumeric);
     }
     case kDatetime: {
@@ -287,7 +288,8 @@ TypedValue SubtractBinaryOperation::applyToChecked(const TypedValue &left,
     case kInt:
     case kLong:
     case kFloat:
-    case kDouble: {
+    case kDouble:
+    case kDecimal: {
       if (right_type.getSuperTypeID() == Type::kNumeric) {
         return applyToCheckedNumericHelper<SubtractFunctor>(left, left_type,
                                                             right, right_type);
@@ -352,7 +354,8 @@ UncheckedBinaryOperator* SubtractBinaryOperation::makeUncheckedBinaryOperatorFor
     case kInt:
     case kLong:
     case kFloat:
-    case kDouble: {
+    case kDouble:
+    case kDecimal: {
       if (right.getSuperTypeID() == Type::kNumeric) {
         return makeNumericBinaryOperatorOuterHelper<SubtractArithmeticUncheckedBinaryOperator>(left, right);
       }

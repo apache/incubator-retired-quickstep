@@ -28,7 +28,8 @@ message TypedValue {
   optional float float_value = 4;
   optional double double_value = 5;
   optional bytes out_of_line_data = 6;
-  optional int64 datetime_value = 7;
-  optional int64 datetime_interval_value = 8;
-  optional int64 year_month_interval_value = 9;
+  optional int64 decimal_value = 7;
+  optional int64 datetime_value = 8;
+  optional int64 datetime_interval_value = 9;
+  optional int64 year_month_interval_value = 10;
 }

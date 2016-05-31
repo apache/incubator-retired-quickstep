@@ -34,6 +34,7 @@ namespace quickstep {
 
 struct DatetimeIntervalLit;
 struct DatetimeLit;
+struct DecimalLit;
 struct YearMonthIntervalLit;
 
 /** \addtogroup Types
@@ -370,6 +371,8 @@ class Type {
         return TypedValue(*static_cast<const float*>(value_ptr));
       case kDouble:
         return TypedValue(*static_cast<const double*>(value_ptr));
+      case kDecimal:
+        return TypedValue(*static_cast<const DecimalLit*>(value_ptr));
       case kDatetime:
         return TypedValue(*static_cast<const DatetimeLit*>(value_ptr));
       case kDatetimeInterval:

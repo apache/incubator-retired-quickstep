@@ -44,7 +44,8 @@ bool AddBinaryOperation::canApplyToTypes(const Type &left, const Type &right) co
     case kInt:  // Fall through.
     case kLong:
     case kFloat:
-    case kDouble: {
+    case kDouble:
+    case kDecimal: {
       return (right.getSuperTypeID() == Type::kNumeric);
     }
     case kDatetime: {
@@ -229,12 +230,14 @@ TypedValue AddBinaryOperation::applyToChecked(const TypedValue &left,
     case kInt:
     case kLong:
     case kFloat:
-    case kDouble: {
+    case kDouble:
+    case kDecimal: {
       switch (right_type.getTypeID()) {
         case kInt:
         case kLong:
         case kFloat:
         case kDouble:
+        case kDecimal:
           return applyToCheckedNumericHelper<AddFunctor>(left, left_type,
                                                          right, right_type);
         default:
@@ -304,7 +307,8 @@ UncheckedBinaryOperator* AddBinaryOperation::makeUncheckedBinaryOperatorForTypes
     case kInt:
     case kLong:
     case kFloat:
-    case kDouble: {
+    case kDouble:
+    case kDecimal: {
       if (right.getSuperTypeID() == Type::kNumeric) {
         return makeNumericBinaryOperatorOuterHelper<AddArithmeticUncheckedBinaryOperator>(left, right);
       }
