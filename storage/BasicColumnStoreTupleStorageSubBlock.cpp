@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -51,6 +51,8 @@
 #include "utility/PtrMap.hpp"
 #include "utility/PtrVector.hpp"
 #include "utility/ScopedBuffer.hpp"
+
+#include "glog/logging.h"
 
 using std::memcpy;
 using std::memmove;
@@ -106,9 +108,9 @@ BasicColumnStoreTupleStorageSubBlock::BasicColumnStoreTupleStorageSubBlock(
                            sub_block_memory_size),
       sorted_(true),
       header_(static_cast<BasicColumnStoreHeader*>(sub_block_memory)) {
-  if (!DescriptionIsValid(relation_, description_)) {
-    FATAL_ERROR("Attempted to construct a BasicColumnStoreTupleStorageSubBlock from an invalid description.");
-  }
+  CHECK(DescriptionIsValid(relation_, description_))
+      << "Attempted to construct a BasicColumnStoreTupleStorageSubBlock from an invalid description:\n"
+      << description_.DebugString();
 
   sort_column_id_ = description_.GetExtension(BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id);
   sort_column_type_ = &(relation_.getAttributeById(sort_column_id_)->getType());
@@ -194,7 +196,7 @@ bool BasicColumnStoreTupleStorageSubBlock::DescriptionIsValid(
   }
 
   // Check that the specified sort attribute exists and can be ordered by LessComparison.
-  attribute_id sort_attribute_id = description.GetExtension(
+  const attribute_id sort_attribute_id = description.GetExtension(
       BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id);
   if (!relation.hasAttributeWithId(sort_attribute_id)) {
     return false;
@@ -211,7 +213,7 @@ bool BasicColumnStoreTupleStorageSubBlock::DescriptionIsValid(
 std::size_t BasicColumnStoreTupleStorageSubBlock::EstimateBytesPerTuple(
     const CatalogRelationSchema &relation,
     const TupleStorageSubBlockDescription &description) {
-  DEBUG_ASSERT(DescriptionIsValid(relation, description));
+  CHECK(DescriptionIsValid(relation, description));
 
   // NOTE(chasseur): We round-up the number of bytes needed in the NULL bitmaps
   // to avoid estimating 0 bytes needed for a relation with less than 8
@@ -582,15 +584,14 @@ TupleIdSequence* BasicColumnStoreTupleStorageSubBlock::getMatchesForPredicate(
       column_stripes_[sort_column_id_],
       header_->num_tuples - header_->nulls_in_sort_column);
 
-  if (matches == nullptr) {
-    FATAL_ERROR("Called BasicColumnStoreTupleStorageSubBlock::getMatchesForPredicate() "
-                "with a predicate that can only be evaluated with a scan.");
-  } else {
-    if (filter != nullptr) {
-      matches->intersectWith(*filter);
-    }
-    return matches;
+  CHECK(matches != nullptr)
+      << "Called BasicColumnStoreTupleStorageSubBlock::getMatchesForPredicate() "
+      << "with a predicate that can only be evaluated with a scan.";
+
+  if (filter != nullptr) {
+    matches->intersectWith(*filter);
   }
+  return matches;
 }
 
 void BasicColumnStoreTupleStorageSubBlock::insertTupleAtPosition(

@@ -35,6 +35,8 @@
 #include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
 
+#include "glog/logging.h"
+
 namespace quickstep {
 
 class AggregationHandle;
@@ -182,7 +184,7 @@ class StorageBlock : public StorageBlockBase {
   }
 
   inline bool indexIsConsistent(const std::size_t index_id) const {
-    DEBUG_ASSERT(index_id < indices_consistent_.size());
+    DCHECK_LT(index_id, indices_consistent_.size());
     return indices_consistent_[index_id];
   }
 
@@ -207,7 +209,7 @@ class StorageBlock : public StorageBlockBase {
    * @return The specified IndexSubBlock in this block.
    **/
   inline const IndexSubBlock& getIndexSubBlock(const std::size_t index_id) const {
-    DEBUG_ASSERT(index_id < indices_.size());
+    DCHECK_LT(index_id, indices_.size());
     return indices_[index_id];
   }
 

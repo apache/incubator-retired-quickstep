@@ -38,6 +38,8 @@
 #include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
 
+#include "glog/logging.h"
+
 namespace quickstep {
 
 class CSBTreeIndexSubBlock;
@@ -69,7 +71,7 @@ class CompositeKeyLessComparator : public UncheckedComparator {
   }
 
   bool compareTypedValues(const TypedValue &left, const TypedValue &right) const {
-    FATAL_ERROR("Can not use CompositeKeyLessComparator to compare TypedValue.");
+    LOG(FATAL) << "Can not use CompositeKeyLessComparator to compare TypedValue.";
   }
 
   inline bool compareDataPtrs(const void *left, const void *right) const {
@@ -79,11 +81,11 @@ class CompositeKeyLessComparator : public UncheckedComparator {
   bool compareDataPtrsInl(const void *left, const void *right) const;
 
   bool compareTypedValueWithDataPtr(const TypedValue &left, const void *right) const {
-    FATAL_ERROR("Can not use CompositeKeyLessComparator to compare TypedValue.");
+    LOG(FATAL) << "Can not use CompositeKeyLessComparator to compare TypedValue.";
   }
 
   bool compareDataPtrWithTypedValue(const void *left, const TypedValue &right) const {
-    FATAL_ERROR("Can not use CompositeKeyLessComparator to compare TypedValue.");
+    LOG(FATAL) << "Can not use CompositeKeyLessComparator to compare TypedValue.";
   }
 
  private:
@@ -263,7 +265,7 @@ class CSBTreeIndexSubBlock : public IndexSubBlock {
   // Get the location of the node designated by 'node_number' in the group
   // with 'node_group_number'.
   inline void* getNode(const int node_group_number, const std::uint16_t node_number) const {
-    DEBUG_ASSERT(node_group_number >= 0);
+    DCHECK_GE(node_group_number, 0);
     return static_cast<char*>(node_groups_start_)
            + node_group_number * node_group_size_bytes_
            + node_number * kCSBTreeNodeSizeBytes;
@@ -277,14 +279,14 @@ class CSBTreeIndexSubBlock : public IndexSubBlock {
   // Get the right-sibling of the leaf node '*node', which may be in another
   // group. If '*node' is the very right-most leaf, returns NULL.
   inline void* getRightSiblingOfLeafNode(const void *node) const {
-    DEBUG_ASSERT(static_cast<const NodeHeader*>(node)->is_leaf);
+    DCHECK(static_cast<const NodeHeader*>(node)->is_leaf);
     const int sibling_reference = static_cast<const NodeHeader*>(node)->node_group_reference;
     if (sibling_reference == kNodeGroupNextLeaf) {
       return const_cast<char*>(static_cast<const char*>(node) + kCSBTreeNodeSizeBytes);
     } else if (sibling_reference >= 0) {
       return getNode(sibling_reference, 0);
     } else {
-      DEBUG_ASSERT(sibling_reference == kNodeGroupNone);
+      DCHECK_EQ(kNodeGroupNone, sibling_reference);
       return NULL;
     }
   }

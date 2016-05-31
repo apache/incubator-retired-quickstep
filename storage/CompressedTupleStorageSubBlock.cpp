@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -24,12 +24,11 @@
 #include <utility>
 #include <vector>
 
+#include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "compression/CompressionDictionary.hpp"
-#include "compression/CompressionDictionaryLite.hpp"
 #include "expressions/predicate/ComparisonPredicate.hpp"
-#include "expressions/predicate/Predicate.hpp"
 #include "expressions/scalar/Scalar.hpp"
 #include "expressions/scalar/ScalarAttribute.hpp"
 #include "storage/CompressedBlockBuilder.hpp"
@@ -39,10 +38,11 @@
 #include "storage/TupleIdSequence.hpp"
 #include "storage/ValueAccessor.hpp"
 #include "storage/ValueAccessorUtil.hpp"
-#include "types/TypedValue.hpp"
-#include "types/containers/Tuple.hpp"
+#include "types/Type.hpp"
+#include "types/TypeID.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
-#include "utility/Macros.hpp"
+
+#include "glog/logging.h"
 
 using std::ceil;
 using std::floor;
@@ -158,93 +158,90 @@ tuple_id CompressedTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttributes(
 TupleIdSequence* CompressedTupleStorageSubBlock::getMatchesForPredicate(
     const ComparisonPredicate &predicate,
     const TupleIdSequence *filter) const {
-  DEBUG_ASSERT(builder_.get() == nullptr);
+  DCHECK(builder_.get() == nullptr);
 
   // Determine if the predicate is a comparison of a compressed attribute with
   // a literal.
-  if (predicate.isAttributeLiteralComparisonPredicate()) {
-    const CatalogAttribute *comparison_attribute = NULL;
-    if (predicate.getLeftOperand().hasStaticValue()) {
-      DEBUG_ASSERT(predicate.getRightOperand().getDataSource() == Scalar::kAttribute);
-      comparison_attribute
-          = &(static_cast<const ScalarAttribute&>(predicate.getRightOperand()).getAttribute());
-    } else {
-      DEBUG_ASSERT(predicate.getLeftOperand().getDataSource() == Scalar::kAttribute);
-      comparison_attribute
-          = &(static_cast<const ScalarAttribute&>(predicate.getLeftOperand()).getAttribute());
-    }
-    const attribute_id comparison_attribute_id = comparison_attribute->getID();
+  CHECK(predicate.isAttributeLiteralComparisonPredicate())
+      << "Called CompressedTupleStorageSubBlock::getMatchesForPredicate()"
+      << " with a predicate that can only be evaluated with a simple scan.";
 
-    DEBUG_ASSERT(comparison_attribute->getParent().getID() == relation_.getID());
-    if (dictionary_coded_attributes_[comparison_attribute_id]
-        || truncated_attributes_[comparison_attribute_id]) {
-      const CompressionDictionary *dictionary = nullptr;
-      if (dictionary_coded_attributes_[comparison_attribute_id]) {
-        dictionary = static_cast<const CompressionDictionary*>(
-            dictionaries_.find(comparison_attribute_id)->second);
+  const CatalogAttribute *comparison_attribute = nullptr;
+  if (predicate.getLeftOperand().hasStaticValue()) {
+    DCHECK_EQ(Scalar::kAttribute, predicate.getRightOperand().getDataSource());
+    comparison_attribute
+        = &(static_cast<const ScalarAttribute&>(predicate.getRightOperand()).getAttribute());
+  } else {
+    DCHECK_EQ(Scalar::kAttribute, predicate.getLeftOperand().getDataSource());
+    comparison_attribute
+        = &(static_cast<const ScalarAttribute&>(predicate.getLeftOperand()).getAttribute());
+  }
+  const attribute_id comparison_attribute_id = comparison_attribute->getID();
+
+  DCHECK_EQ(relation_.getID(), comparison_attribute->getParent().getID());
+  DCHECK(dictionary_coded_attributes_[comparison_attribute_id] ||
+         truncated_attributes_[comparison_attribute_id])
+      << "Called CompressedTupleStorageSubBlock::getMatchesForPredicate()"
+      << " with a predicate that can only be evaluated with a simple scan.";
+
+  const CompressionDictionary *dictionary = nullptr;
+  if (dictionary_coded_attributes_[comparison_attribute_id]) {
+    dictionary = static_cast<const CompressionDictionary*>(
+        dictionaries_.find(comparison_attribute_id)->second);
+  }
+  PredicateTransformResult result
+      = CompressedAttributePredicateTransformer::TransformPredicateOnCompressedAttribute(
+          relation_,
+          predicate,
+          dictionary,
+          GetMaxTruncatedValue(compression_info_.attribute_size(comparison_attribute_id)));
+
+  pair<uint32_t, uint32_t> match_range;
+  switch (result.type) {
+    case PredicateTransformResultType::kAll:
+      if (filter == nullptr) {
+        return getExistenceMap();
+      } else {
+        TupleIdSequence *filter_copy = new TupleIdSequence(filter->length());
+        filter_copy->assignFrom(*filter);
+        return filter_copy;
       }
-      PredicateTransformResult result
-          = CompressedAttributePredicateTransformer::TransformPredicateOnCompressedAttribute(
-              relation_,
-              predicate,
-              dictionary,
-              GetMaxTruncatedValue(compression_info_.attribute_size(comparison_attribute_id)));
-
-      pair<uint32_t, uint32_t> match_range;
-      switch (result.type) {
-        case PredicateTransformResultType::kAll:
-          if (filter == nullptr) {
-            return getExistenceMap();
+      // Pass through to base version to get all tuples.
+      return TupleStorageSubBlock::getMatchesForPredicate(predicate, filter);
+    case PredicateTransformResultType::kNone:
+      // No matches.
+      return new TupleIdSequence(*static_cast<const tuple_id*>(sub_block_memory_));
+    case PredicateTransformResultType::kBasicComparison:
+      switch (result.comp) {
+        case ComparisonID::kEqual:
+          return getEqualCodes(comparison_attribute_id, result.first_literal, filter);
+        case ComparisonID::kNotEqual:
+          if (result.exclude_nulls) {
+            return getNotEqualCodesExcludingNull(comparison_attribute_id,
+                                                 result.first_literal,
+                                                 result.second_literal,
+                                                 filter);
           } else {
-            TupleIdSequence *filter_copy = new TupleIdSequence(filter->length());
-            filter_copy->assignFrom(*filter);
-            return filter_copy;
+            return getNotEqualCodes(comparison_attribute_id,
+                                    result.first_literal,
+                                    filter);
           }
-          // Pass through to base version to get all tuples.
-          return TupleStorageSubBlock::getMatchesForPredicate(predicate, filter);
-        case PredicateTransformResultType::kNone:
-          // No matches.
-          return new TupleIdSequence(*static_cast<const tuple_id*>(sub_block_memory_));
-        case PredicateTransformResultType::kBasicComparison:
-          switch (result.comp) {
-            case ComparisonID::kEqual:
-              return getEqualCodes(comparison_attribute_id, result.first_literal, filter);
-            case ComparisonID::kNotEqual:
-              if (result.exclude_nulls) {
-                return getNotEqualCodesExcludingNull(comparison_attribute_id,
-                                                     result.first_literal,
-                                                     result.second_literal,
-                                                     filter);
-              } else {
-                return getNotEqualCodes(comparison_attribute_id,
+        case ComparisonID::kLess:
+          return getLessCodes(comparison_attribute_id, result.first_literal, filter);
+        case ComparisonID::kGreaterOrEqual:
+          return getGreaterOrEqualCodes(comparison_attribute_id,
                                         result.first_literal,
                                         filter);
-              }
-            case ComparisonID::kLess:
-              return getLessCodes(comparison_attribute_id, result.first_literal, filter);
-            case ComparisonID::kGreaterOrEqual:
-              return getGreaterOrEqualCodes(comparison_attribute_id,
-                                            result.first_literal,
-                                            filter);
-            default:
-              FATAL_ERROR("Unexpected ComparisonID in CompressedTupleStorageSubBlock::"
-                          "getMatchesForPredicate()");
-          }
-        case PredicateTransformResultType::kRangeComparison:
-          match_range.first = result.first_literal;
-          match_range.second = result.second_literal;
-          return getCodesInRange(comparison_attribute_id, match_range, filter);
         default:
-          FATAL_ERROR("Unexpected PredicateTransformResultType in CompressedTupleStorageSubBlock::"
-                      "getMatchesForPredicate()");
+          LOG(FATAL) << "Unexpected ComparisonID in CompressedTupleStorageSubBlock::getMatchesForPredicate()";
       }
-    } else {
-      FATAL_ERROR("Called CompressedTupleStorageSubBlock::getMatchesForPredicate() "
-                  "with a predicate that can only be evaluated with a simple scan.");
-    }
-  } else {
-    FATAL_ERROR("Called CompressedTupleStorageSubBlock::getMatchesForPredicate() "
-                "with a predicate that can only be evaluated with a simple scan.");
+    case PredicateTransformResultType::kRangeComparison:
+      match_range.first = result.first_literal;
+      match_range.second = result.second_literal;
+      return getCodesInRange(comparison_attribute_id, match_range, filter);
+    default:
+      LOG(FATAL)
+          << "Unexpected PredicateTransformResultType in CompressedTupleStorageSubBlock::getMatchesForPredicate()";
   }
 }
 
@@ -253,7 +250,7 @@ bool CompressedTupleStorageSubBlock::compressedComparisonIsAlwaysTrueForTruncate
     const attribute_id left_attr_id,
     const TypedValue &right_literal,
     const Type &right_literal_type) const {
-  DEBUG_ASSERT(truncated_attributes_[left_attr_id]);
+  DCHECK(truncated_attributes_[left_attr_id]);
 
   return CompressedAttributePredicateTransformer::CompressedComparisonIsAlwaysTrueForTruncatedAttribute(
       comp,
@@ -267,7 +264,7 @@ bool CompressedTupleStorageSubBlock::compressedComparisonIsAlwaysFalseForTruncat
     const attribute_id left_attr_id,
     const TypedValue &right_literal,
     const Type &right_literal_type) const {
-  DEBUG_ASSERT(truncated_attributes_[left_attr_id]);
+  DCHECK(truncated_attributes_[left_attr_id]);
 
   return CompressedAttributePredicateTransformer::CompressedComparisonIsAlwaysFalseForTruncatedAttribute(
       comp,

@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
  *     University of Wisconsin—Madison.
  *
@@ -40,6 +40,8 @@
 #include "utility/BitVector.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 using std::vector;
 using std::memcpy;
 using std::size_t;
@@ -61,9 +63,9 @@ PackedRowStoreTupleStorageSubBlock::PackedRowStoreTupleStorageSubBlock(
                            sub_block_memory_size),
       header_(static_cast<PackedRowStoreHeader*>(sub_block_memory)),
       null_bitmap_bytes_(0) {
-  if (!DescriptionIsValid(relation_, description_)) {
-    FATAL_ERROR("Attempted to construct a PackedRowStoreTupleStorageSubBlock from an invalid description.");
-  }
+  CHECK(DescriptionIsValid(relation_, description_))
+      << "Attempted to construct a PackedRowStoreTupleStorageSubBlock from an invalid description:\n"
+      << description_.DebugString();
 
   if (sub_block_memory_size < sizeof(PackedRowStoreHeader)) {
     throw BlockMemoryTooSmall("PackedRowStoreTupleStorageSubBlock", sub_block_memory_size);
@@ -128,7 +130,7 @@ bool PackedRowStoreTupleStorageSubBlock::DescriptionIsValid(
 std::size_t PackedRowStoreTupleStorageSubBlock::EstimateBytesPerTuple(
     const CatalogRelationSchema &relation,
     const TupleStorageSubBlockDescription &description) {
-  DEBUG_ASSERT(DescriptionIsValid(relation, description));
+  DCHECK(DescriptionIsValid(relation, description));
 
   // NOTE(chasseur): We round-up the number of bytes needed in the NULL bitmap
   // to avoid estimating 0 bytes needed for a relation with less than 8

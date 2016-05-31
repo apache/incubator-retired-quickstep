@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -30,21 +30,23 @@
 #include "compression/CompressionDictionary.hpp"
 #include "compression/CompressionDictionaryLite.hpp"
 #include "storage/CompressedBlockBuilder.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageBlockLayout.pb.h"
-#include "storage/StorageErrors.hpp"
-#include "storage/TupleIdSequence.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
-#include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrMap.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 
 class CatalogRelationSchema;
 class ComparisonPredicate;
 class Tuple;
-class TupleStorageSubBlockDescription;
+class TupleIdSequence;
+class Type;
+class TypedValue;
 class ValueAccessor;
 
 /** \addtogroup Storage
@@ -141,8 +143,8 @@ class CompressedTupleStorageSubBlock : public TupleStorageSubBlock {
   void setAttributeValueInPlaceTyped(const tuple_id tuple,
                                      const attribute_id attr,
                                      const TypedValue &value) override {
-    FATAL_ERROR("Called CompressedTupleStorageSubBlock::setAttributeValueInPlaceTyped(), "
-                "which is not supported.");
+    LOG(FATAL) << "Called CompressedTupleStorageSubBlock::setAttributeValueInPlaceTyped(), "
+               << "which is not supported.";
   }
 
   // This override can more efficiently evaluate comparisons between a
@@ -184,7 +186,7 @@ class CompressedTupleStorageSubBlock : public TupleStorageSubBlock {
    *         attempted.
    **/
   bool compressedUnbuiltBlockAttributeMayBeCompressed(const attribute_id attr_id) const {
-    DEBUG_ASSERT(builder_.get() != nullptr);
+    DCHECK(builder_.get() != nullptr);
     return builder_->attributeMayBeCompressed(attr_id);
   }
 
@@ -199,7 +201,7 @@ class CompressedTupleStorageSubBlock : public TupleStorageSubBlock {
    *         compressed, false otherwise.
    **/
   inline bool compressedAttributeIsDictionaryCompressed(const attribute_id attr_id) const {
-    DEBUG_ASSERT(builder_.get() == nullptr);
+    DCHECK(builder_.get() == nullptr);
     return dictionary_coded_attributes_[attr_id];
   }
 
@@ -213,7 +215,7 @@ class CompressedTupleStorageSubBlock : public TupleStorageSubBlock {
    *         is truncated, false otherwise.
    **/
   inline bool compressedAttributeIsTruncationCompressed(const attribute_id attr_id) const {
-    DEBUG_ASSERT(builder_.get() == nullptr);
+    DCHECK(builder_.get() == nullptr);
     return truncated_attributes_[attr_id];
   }
 
@@ -231,8 +233,8 @@ class CompressedTupleStorageSubBlock : public TupleStorageSubBlock {
    *         is a Long.
    **/
   inline bool compressedTruncatedAttributeIsInt(const attribute_id attr_id) const {
-    DEBUG_ASSERT(builder_.get() == nullptr);
-    DEBUG_ASSERT(truncated_attributes_[attr_id]);
+    DCHECK(builder_.get() == nullptr);
+    DCHECK(truncated_attributes_[attr_id]);
     return truncated_attribute_is_int_[attr_id];
   }
 
@@ -247,7 +249,7 @@ class CompressedTupleStorageSubBlock : public TupleStorageSubBlock {
    *         uncompressed).
    **/
   std::size_t compressedGetCompressedAttributeSize(const attribute_id attr_id) const {
-    DEBUG_ASSERT(builder_.get() == nullptr);
+    DCHECK(builder_.get() == nullptr);
     return compression_info_.attribute_size(attr_id);
   }
 
@@ -262,15 +264,13 @@ class CompressedTupleStorageSubBlock : public TupleStorageSubBlock {
    *         by attr_id.
    **/
   const CompressionDictionary& compressedGetDictionary(const attribute_id attr_id) const {
-    DEBUG_ASSERT(builder_.get() == nullptr);
+    DCHECK(builder_.get() == nullptr);
     PtrMap<attribute_id, CompressionDictionaryLite>::const_iterator dict_it
         = dictionaries_.find(attr_id);
-    if (dict_it == dictionaries_.end()) {
-      FATAL_ERROR("Called CompressedTupleStorageSubBlock::getCompressionDictionary() "
-                  "for an attribute which is not dictionary-compressed.");
-    } else {
-      return static_cast<const CompressionDictionary&>(*(dict_it->second));
-    }
+    DCHECK(dict_it != dictionaries_.end())
+        << "Called CompressedTupleStorageSubBlock::getCompressionDictionary() "
+        << "for an attribute which is not dictionary-compressed.";
+    return static_cast<const CompressionDictionary&>(*(dict_it->second));
   }
 
   /**
@@ -340,8 +340,8 @@ class CompressedTupleStorageSubBlock : public TupleStorageSubBlock {
       case 4:
         return std::numeric_limits<std::uint32_t>::max() - 1;
       default:
-        FATAL_ERROR("Unexpected byte_length for truncated value in "
-                    "CompressedTupleStorageSubBlock::GetMaxTruncatedValue()");
+        LOG(FATAL) << "Unexpected byte_length for truncated value in "
+                   << "CompressedTupleStorageSubBlock::GetMaxTruncatedValue()";
     }
   }
 

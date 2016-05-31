@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -30,7 +30,6 @@ namespace quickstep {
 class BasicColumnStoreTupleStorageSubBlock;
 class CatalogRelationSchema;
 class ComparisonPredicate;
-class CompressedColumnStoreTupleStorageSubBlock;
 class TupleIdSequence;
 
 namespace column_store_util {
@@ -41,8 +40,7 @@ namespace column_store_util {
 
 /**
  * @brief An iterator over the values in a column stripe. Used internally by
- *        BasicColumnStoreTupleStorageSubBlock and
- *        CompressedColumnStoreTupleStorageSubBlock.
+ *        BasicColumnStoreTupleStorageSubBlock.
  **/
 class ColumnStripeIterator : public std::iterator<std::random_access_iterator_tag, void*> {
  public:

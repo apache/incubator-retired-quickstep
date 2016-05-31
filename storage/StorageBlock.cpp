@@ -19,13 +19,13 @@
 
 #include "storage/StorageBlock.hpp"
 
-#include <climits>
 #include <memory>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 
+#include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/aggregation/AggregationHandle.hpp"
@@ -54,20 +54,20 @@
 #include "storage/TupleStorageSubBlock.hpp"
 #include "storage/ValueAccessor.hpp"
 #include "storage/ValueAccessorUtil.hpp"
-#include "types/TypedValue.hpp"
-#include "types/containers/ColumnVector.hpp"
-#include "types/containers/ColumnVectorsValueAccessor.hpp"
-#include "types/containers/Tuple.hpp"
-#include "types/operations/comparisons/ComparisonUtil.hpp"
-#include "utility/Macros.hpp"
-
-#include "glog/logging.h"
 
 #ifdef QUICKSTEP_HAVE_BITWEAVING
 #include "storage/bitweaving/BitWeavingIndexSubBlock.hpp"
 #include "storage/bitweaving/BitWeavingHIndexSubBlock.hpp"
 #include "storage/bitweaving/BitWeavingVIndexSubBlock.hpp"
 #endif
+
+#include "types/TypedValue.hpp"
+#include "types/containers/ColumnVector.hpp"
+#include "types/containers/ColumnVectorsValueAccessor.hpp"
+#include "types/containers/Tuple.hpp"
+#include "types/operations/comparisons/ComparisonUtil.hpp"
+
+#include "glog/logging.h"
 
 using std::make_pair;
 using std::pair;
@@ -91,56 +91,29 @@ StorageBlock::StorageBlock(const CatalogRelationSchema &relation,
       all_indices_inconsistent_(false),
       relation_(relation) {
   if (new_block) {
-    if (block_memory_size_ < layout.getBlockHeaderSize()) {
-      throw BlockMemoryTooSmall("StorageBlock", block_memory_size_);
-    }
-
-    layout.copyHeaderTo(block_memory_);
-    DEBUG_ASSERT(*static_cast<const int*>(block_memory_) > 0);
-
-    if (!block_header_.ParseFromArray(static_cast<char*>(block_memory_) + sizeof(int),
-                                      *static_cast<const int*>(block_memory_))) {
-      FATAL_ERROR("A StorageBlockLayout created a malformed StorageBlockHeader.");
-    }
-
     // We mark a newly-created block as dirty, so that in the rare case that a
     // block is evicted before anything is inserted into it, we still write it
     // (and the header plus any sub-block specific fixed data structures) back
     // to disk.
     dirty_ = true;
 
-    DEBUG_ASSERT(block_header_.IsInitialized());
-    DEBUG_ASSERT(StorageBlockLayout::DescriptionIsValid(relation_, block_header_.layout()));
-    DEBUG_ASSERT(block_header_.index_size_size() == block_header_.layout().index_description_size());
-    DEBUG_ASSERT(block_header_.index_size_size() == block_header_.index_consistent_size());
-  } else {
-    if (block_memory_size < sizeof(int)) {
-      throw MalformedBlock();
-    }
-    if (*static_cast<const int*>(block_memory_) <= 0) {
-      throw MalformedBlock();
-    }
-    if (*static_cast<const int*>(block_memory_) + sizeof(int) > block_memory_size_) {
-      throw MalformedBlock();
-    }
+    DCHECK_GE(block_memory_size_, layout.getBlockHeaderSize())
+        << "BlockMemoryTooSmall: " << block_memory_size_ << " bytes is too small for StorageBlock";
 
-    if (!block_header_.ParseFromArray(static_cast<char*>(block_memory_) + sizeof(int),
-                                      *static_cast<const int*>(block_memory_))) {
-      throw MalformedBlock();
-    }
-    if (!block_header_.IsInitialized()) {
-      throw MalformedBlock();
-    }
-    if (!StorageBlockLayout::DescriptionIsValid(relation_, block_header_.layout())) {
-      throw MalformedBlock();
-    }
-    if (block_header_.index_size_size() != block_header_.layout().index_description_size()) {
-      throw MalformedBlock();
-    }
-    if (block_header_.index_size_size() != block_header_.index_consistent_size()) {
-      throw MalformedBlock();
-    }
+    layout.copyHeaderTo(block_memory_);
+  } else {
+    DCHECK_GT(*static_cast<const int*>(block_memory_), 0);
+    DCHECK_LE(*static_cast<const int*>(block_memory_) + sizeof(int), block_memory_size_);
   }
+
+  CHECK(block_header_.ParseFromArray(static_cast<char*>(block_memory_) + sizeof(int),
+                                     *static_cast<const int*>(block_memory_)))
+      << "A StorageBlockLayout created a malformed StorageBlockHeader.";
+
+  CHECK(block_header_.IsInitialized());
+  CHECK(StorageBlockLayout::DescriptionIsValid(relation_, block_header_.layout()));
+  CHECK_EQ(block_header_.index_size_size(), block_header_.layout().index_description_size());
+  CHECK_EQ(block_header_.index_size_size(), block_header_.index_consistent_size());
 
   size_t block_size_from_metadata = *static_cast<const int*>(block_memory_) + sizeof(int);
   block_size_from_metadata += block_header_.tuple_store_size();
@@ -204,7 +177,7 @@ bool StorageBlock::insertTuple(const Tuple &tuple) {
 
   TupleStorageSubBlock::InsertResult tuple_store_insert_result = tuple_store_->insertTuple(tuple);
   if (tuple_store_insert_result.inserted_id < 0) {
-    DEBUG_ASSERT(tuple_store_insert_result.ids_mutated == false);
+    DCHECK(!tuple_store_insert_result.ids_mutated);
     if (empty_before) {
       throw TupleTooLargeForBlock(tuple.getByteSize());
     } else {
@@ -218,11 +191,10 @@ bool StorageBlock::insertTuple(const Tuple &tuple) {
     update_succeeded = rebuildIndexes(true);
     if (!update_succeeded) {
       tuple_store_->deleteTuple(tuple_store_insert_result.inserted_id);
-      if (!rebuildIndexes(true)) {
-        // It should always be possible to rebuild an index with the tuples
-        // which it originally contained.
-        FATAL_ERROR("Rebuilding an IndexSubBlock failed after removing tuples.");
-      }
+      // It should always be possible to rebuild an index with the tuples which
+      // it originally contained.
+      CHECK(rebuildIndexes(true))
+          << "Rebuilding an IndexSubBlock failed after removing tuples.";
     }
   } else {
     update_succeeded = insertEntryInIndexes(tuple_store_insert_result.inserted_id);
@@ -588,10 +560,9 @@ StorageBlock::UpdateResult StorageBlock::update(
     const unordered_map<attribute_id, unique_ptr<const Scalar>> &assignments,
     const Predicate *predicate,
     InsertDestinationInterface *relocation_destination) {
-  if (relation_.getID() != relocation_destination->getRelation().getID()) {
-    FATAL_ERROR("StorageBlock::update() called with a relocation_destination "
-                "that does not belong to the same relation.");
-  }
+  CHECK_EQ(relation_.getID(), relocation_destination->getRelation().getID())
+      << "StorageBlock::update() called with a relocation_destination "
+      << "that does not belong to the same relation.";
 
   UpdateResult retval;
   // TODO(chasseur): Be smarter and only update indexes that need to be updated.
@@ -651,13 +622,11 @@ StorageBlock::UpdateResult StorageBlock::update(
     } else {
       // Make a copy of the tuple with the updated values.
       std::vector<TypedValue> updated_tuple_values;
-      for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
-           attr_it != relation_.end();
-           ++attr_it) {
+      for (const CatalogAttribute &attr : relation_) {
         std::unordered_map<attribute_id, TypedValue>::iterator update_it
-            = updated_values->find(attr_it->getID());
+            = updated_values->find(attr.getID());
         if (update_it == updated_values->end()) {
-          updated_tuple_values.emplace_back(tuple_store_->getAttributeValueTyped(*match_it, attr_it->getID()));
+          updated_tuple_values.emplace_back(tuple_store_->getAttributeValueTyped(*match_it, attr.getID()));
           updated_tuple_values.back().ensureNotReference();
         } else {
           updated_tuple_values.emplace_back(std::move(update_it->second));
@@ -889,9 +858,9 @@ void StorageBlock::sort(const PtrVector<Scalar> &order_by,  // NOLINT(build/incl
   // the method used. Average-case asymptotics is definitely better in the
   // later. Need to do an analysis of the two methods.
 
-  DEBUG_ASSERT(order_by.size() == sort_is_ascending.size());
-  DEBUG_ASSERT(order_by.size() == null_first.size());
-  DEBUG_ASSERT(order_by.size() > 0);
+  DCHECK_EQ(order_by.size(), sort_is_ascending.size());
+  DCHECK_EQ(order_by.size(), null_first.size());
+  DCHECK_GT(order_by.size(), 0u);
 
   // TODO(shoban): We should use reverse_iterator in conjunction with rbegin()
   // and rend() for better readability, if PtrVector supports it.
@@ -958,16 +927,14 @@ void StorageBlock::deleteTuples(const Predicate *predicate) {
     // Delete tuples from the TupleStorageSubBlock.
     if (tuple_store_->bulkDeleteTuples(matches.get())) {
       // If the tuple-ID sequence was mutated, rebuild all indices.
-      if (!rebuildIndexes(true)) {
-        FATAL_ERROR("Rebuilding an IndexSubBlock failed after removing tuples.");
-      }
+      CHECK(rebuildIndexes(true))
+          << "Rebuilding an IndexSubBlock failed after removing tuples.";
     } else if (rebuild_some_indices) {
       // Rebuild any remaining indices that don't support ad-hoc removal.
       for (PtrVector<IndexSubBlock>::iterator it = indices_.begin(); it != indices_.end(); ++it) {
         if (!it->supportsAdHocRemove()) {
-          if (!it->rebuild()) {
-            FATAL_ERROR("Rebuilding an IndexSubBlock failed after removing tuples.");
-          }
+          CHECK(it->rebuild())
+              << "Rebuilding an IndexSubBlock failed after removing tuples.";
         }
       }
     }
@@ -982,7 +949,7 @@ TupleStorageSubBlock* StorageBlock::CreateTupleStorageSubBlock(
     const bool new_block,
     void *sub_block_memory,
     const std::size_t sub_block_memory_size) {
-  DEBUG_ASSERT(description.IsInitialized());
+  DCHECK(description.IsInitialized());
   switch (description.sub_block_type()) {
     case TupleStorageSubBlockDescription::PACKED_ROW_STORE:
       return new PackedRowStoreTupleStorageSubBlock(relation,
@@ -1016,7 +983,7 @@ TupleStorageSubBlock* StorageBlock::CreateTupleStorageSubBlock(
                                                    sub_block_memory_size);
     default:
       if (new_block) {
-        FATAL_ERROR("A StorageBlockLayout provided an unknown TupleStorageSubBlockType.");
+        LOG(FATAL) << "A StorageBlockLayout provided an unknown TupleStorageSubBlockType.";
       } else {
         throw MalformedBlock();
       }
@@ -1029,7 +996,7 @@ IndexSubBlock* StorageBlock::CreateIndexSubBlock(
     const bool new_block,
     void *sub_block_memory,
     const std::size_t sub_block_memory_size) {
-  DEBUG_ASSERT(description.IsInitialized());
+  DCHECK(description.IsInitialized());
   switch (description.sub_block_type()) {
     case IndexSubBlockDescription::BLOOM_FILTER:
       return new BloomFilterIndexSubBlock(tuple_store,
@@ -1070,7 +1037,7 @@ IndexSubBlock* StorageBlock::CreateIndexSubBlock(
 #endif
     default:
       if (new_block) {
-        FATAL_ERROR("A StorageBlockLayout provided an unknown IndexBlockType.");
+        LOG(FATAL) << "A StorageBlockLayout provided an unknown IndexBlockType.";
       } else {
         throw MalformedBlock();
       }
@@ -1078,9 +1045,9 @@ IndexSubBlock* StorageBlock::CreateIndexSubBlock(
 }
 
 bool StorageBlock::insertEntryInIndexes(const tuple_id new_tuple) {
-  DEBUG_ASSERT(ad_hoc_insert_supported_);
-  DEBUG_ASSERT(new_tuple >= 0);
-  DEBUG_ASSERT(all_indices_consistent_);
+  DCHECK(ad_hoc_insert_supported_);
+  DCHECK_GE(new_tuple, 0);
+  DCHECK(all_indices_consistent_);
 
   for (PtrVector<IndexSubBlock>::iterator it = indices_.begin();
        it != indices_.end();
@@ -1111,9 +1078,8 @@ bool StorageBlock::insertEntryInIndexes(const tuple_id new_tuple) {
 
       if (tuple_store_->deleteTuple(new_tuple)) {
         // The tuple-ID sequence was mutated, so rebuild all indices.
-        if (!rebuildIndexes(true)) {
-          FATAL_ERROR("Rebuilding an IndexSubBlock failed after removing tuples.");
-        }
+        CHECK(rebuildIndexes(true))
+            << "Rebuilding an IndexSubBlock failed after removing tuples.";
       } else if (rebuild_some_indices) {
         // Rebuild those indices that were modified that don't support ad-hoc
         // removal.
@@ -1121,11 +1087,10 @@ bool StorageBlock::insertEntryInIndexes(const tuple_id new_tuple) {
              fixer_it != it;
              ++fixer_it) {
           if (!fixer_it->supportsAdHocRemove()) {
-            if (!fixer_it->rebuild()) {
-              // It should always be possible to rebuild an index with the
-              // tuples which it originally contained.
-              FATAL_ERROR("Rebuilding an IndexSubBlock failed after removing tuples.");
-            }
+            // It should always be possible to rebuild an index with the
+            // tuples which it originally contained.
+            CHECK(fixer_it->rebuild())
+                << "Rebuilding an IndexSubBlock failed after removing tuples.";
           }
         }
       }
@@ -1139,8 +1104,8 @@ bool StorageBlock::insertEntryInIndexes(const tuple_id new_tuple) {
 
 bool StorageBlock::bulkInsertEntriesInIndexes(TupleIdSequence *new_tuples,
                                               const bool roll_back_on_failure) {
-  DEBUG_ASSERT(ad_hoc_insert_supported_);
-  DEBUG_ASSERT(all_indices_consistent_);
+  DCHECK(ad_hoc_insert_supported_);
+  DCHECK(all_indices_consistent_);
 
   // If 'roll_back_on_failure' is false, we will allow some indices to become
   // inconsistent.
@@ -1177,9 +1142,8 @@ bool StorageBlock::bulkInsertEntriesInIndexes(TupleIdSequence *new_tuples,
 
         if (tuple_store_->bulkDeleteTuples(new_tuples)) {
           // The tuple-ID sequence was mutated, so rebuild all indices.
-          if (!rebuildIndexes(true)) {
-            FATAL_ERROR("Rebuilding an IndexSubBlock failed after removing tuples.");
-          }
+          CHECK(rebuildIndexes(true))
+              << "Rebuilding an IndexSubBlock failed after removing tuples.";
         } else if (rebuild_some_indices) {
           // Rebuild those indices that were modified that don't support ad-hoc
           // removal.
@@ -1187,11 +1151,10 @@ bool StorageBlock::bulkInsertEntriesInIndexes(TupleIdSequence *new_tuples,
                fixer_it != it;
                ++fixer_it) {
             if (!fixer_it->supportsAdHocRemove()) {
-              if (!fixer_it->rebuild()) {
-                // It should always be possible to rebuild an index with the
-                // tuples which it originally contained.
-                FATAL_ERROR("Rebuilding an IndexSubBlock failed after removing tuples.");
-              }
+              // It should always be possible to rebuild an index with the
+              // tuples which it originally contained.
+              CHECK(fixer_it->rebuild())
+                  << "Rebuilding an IndexSubBlock failed after removing tuples.";
             }
           }
         }
@@ -1338,12 +1301,11 @@ AggregationState* StorageBlock::aggregateHelperValueAccessor(
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
 void StorageBlock::updateHeader() {
-  DEBUG_ASSERT(*static_cast<const int*>(block_memory_) == block_header_.ByteSize());
+  DCHECK_EQ(*static_cast<const int*>(block_memory_), block_header_.ByteSize());
 
-  if (!block_header_.SerializeToArray(static_cast<char*>(block_memory_) + sizeof(int),
-                                      block_header_.ByteSize())) {
-    FATAL_ERROR("Failed to do binary serialization of StorageBlockHeader in StorageBlock::updateHeader()");
-  }
+  CHECK(block_header_.SerializeToArray(static_cast<char*>(block_memory_) + sizeof(int),
+                                       block_header_.ByteSize()))
+      << "Failed to do binary serialization of StorageBlockHeader in StorageBlock::updateHeader()";
 }
 
 void StorageBlock::invalidateAllIndexes() {

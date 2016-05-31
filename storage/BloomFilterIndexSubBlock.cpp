@@ -59,7 +59,8 @@ BloomFilterIndexSubBlock::BloomFilterIndexSubBlock(const TupleStorageSubBlock &t
       bit_array_size_in_bytes_(description.GetExtension(
                                    BloomFilterIndexSubBlockDescription::bloom_filter_size)) {
   CHECK(DescriptionIsValid(relation_, description_))
-      << "Attempted to construct an BloomFilterIndexSubBlock from an invalid description.";
+      << "Attempted to construct an BloomFilterIndexSubBlock from an invalid description:\n"
+      << description_.DebugString();
 
   // Store the attribute ids that are being indexed.
   indexed_attribute_ids_.reserve(description.indexed_attribute_ids_size());
@@ -88,7 +89,7 @@ BloomFilterIndexSubBlock::~BloomFilterIndexSubBlock() {
 }
 
 bool BloomFilterIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema &relation,
-                                         const IndexSubBlockDescription &description) {
+                                                  const IndexSubBlockDescription &description) {
   if (!description.IsInitialized()) {
     return false;
   }
@@ -110,7 +111,7 @@ bool BloomFilterIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema &r
 
 std::size_t BloomFilterIndexSubBlock::EstimateBytesPerTuple(const CatalogRelationSchema &relation,
                                                             const IndexSubBlockDescription &description) {
-  DCHECK(DescriptionIsValid(relation, description));
+  CHECK(DescriptionIsValid(relation, description));
   // Note: Returning zero here causes EstimteBytesPerBlock() to be invoked for size computation.
   return kZeroSize;
 }
@@ -118,12 +119,12 @@ std::size_t BloomFilterIndexSubBlock::EstimateBytesPerTuple(const CatalogRelatio
 std::size_t BloomFilterIndexSubBlock::EstimateBytesPerBlock(const CatalogRelationSchema &relation,
                                                             const IndexSubBlockDescription &description) {
   // Note: This function is only invoked when EstimateBytesPerTuple() returns zero.
-  DCHECK(DescriptionIsValid(relation, description));
+  CHECK(DescriptionIsValid(relation, description));
   return description.GetExtension(BloomFilterIndexSubBlockDescription::bloom_filter_size);
 }
 
 bool BloomFilterIndexSubBlock::addEntry(const tuple_id tuple) {
-  DCHECK(is_initialized_);
+  CHECK(is_initialized_);
   if (!is_consistent_) {
     return false;
   }
@@ -143,7 +144,7 @@ bool BloomFilterIndexSubBlock::addEntry(const tuple_id tuple) {
 }
 
 bool BloomFilterIndexSubBlock::bulkAddEntries(const TupleIdSequence &tuples) {
-  DCHECK(is_initialized_);
+  CHECK(is_initialized_);
   if (!is_consistent_) {
     return false;
   }
@@ -164,7 +165,7 @@ void BloomFilterIndexSubBlock::bulkRemoveEntries(const TupleIdSequence &tuples) 
 
 predicate_cost_t BloomFilterIndexSubBlock::estimatePredicateEvaluationCost(
     const ComparisonPredicate &predicate) const {
-  DCHECK(is_initialized_);
+  CHECK(is_initialized_);
   BloomFilterSelectivity selectivity = getSelectivityForPredicate(predicate);
   // Note: A Bloomfilter index is only useful when it gives a zero selectivity
   //       in which case a block can be skipped entirely.
@@ -180,7 +181,7 @@ predicate_cost_t BloomFilterIndexSubBlock::estimatePredicateEvaluationCost(
 TupleIdSequence* BloomFilterIndexSubBlock::getMatchesForPredicate(
     const ComparisonPredicate &predicate,
     const TupleIdSequence *filter) const {
-  DCHECK(is_initialized_);
+  CHECK(is_initialized_);
   if (filter != nullptr) {
     LOG(FATAL) << "BloomFilterIndex does not support filter evaluation with predicate.";
   }
@@ -217,7 +218,7 @@ TupleIdSequence* BloomFilterIndexSubBlock::getMatchesForPredicate(
 
 BloomFilterIndexSubBlock::BloomFilterSelectivity
     BloomFilterIndexSubBlock::getSelectivityForPredicate(const ComparisonPredicate &predicate) const {
-  DCHECK(is_initialized_);
+  CHECK(is_initialized_);
   if (!is_consistent_) {
     return BloomFilterSelectivity::kSelectivityUnknown;
   }
@@ -258,7 +259,7 @@ BloomFilterIndexSubBlock::BloomFilterSelectivity
 }
 
 bool BloomFilterIndexSubBlock::rebuild() {
-  DCHECK(is_initialized_);
+  CHECK(is_initialized_);
   bloom_filter_->reset();
   bool didSucceed = true;
   if (tuple_store_.isPacked()) {

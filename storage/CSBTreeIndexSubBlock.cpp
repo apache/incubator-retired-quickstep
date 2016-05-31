@@ -53,6 +53,8 @@
 #include "utility/PtrVector.hpp"
 #include "utility/ScopedBuffer.hpp"
 
+#include "glog/logging.h"
+
 using std::memcpy;
 using std::memmove;
 using std::pair;
@@ -76,7 +78,7 @@ class CompressedCodeLessComparator : public UncheckedComparator {
   }
 
   bool compareTypedValues(const TypedValue &left, const TypedValue &right) const {
-    FATAL_ERROR("Can not use CompressedCodeLessComparator to compare TypedValue.");
+    LOG(FATAL) << "Can not use CompressedCodeLessComparator to compare TypedValue.";
   }
 
   inline bool compareDataPtrs(const void *left, const void *right) const {
@@ -88,11 +90,11 @@ class CompressedCodeLessComparator : public UncheckedComparator {
   }
 
   bool compareTypedValueWithDataPtr(const TypedValue &left, const void *right) const {
-    FATAL_ERROR("Can not use CompressedCodeLessComparator to compare TypedValue.");
+    LOG(FATAL) << "Can not use CompressedCodeLessComparator to compare TypedValue.";
   }
 
   bool compareDataPtrWithTypedValue(const void *left, const TypedValue &right) const {
-    FATAL_ERROR("Can not use CompressedCodeLessComparator to compare TypedValue.");
+    LOG(FATAL) << "Can not use CompressedCodeLessComparator to compare TypedValue.";
   }
 };
 
@@ -194,7 +196,7 @@ CompositeKeyLessComparator::CompositeKeyLessComparator(
        it != owner_.indexed_attribute_ids_.end();
        ++it) {
     const Type &attribute_type = relation.getAttributeById(*it)->getType();
-    DEBUG_ASSERT(!attribute_type.isVariableLength());
+    DCHECK(!attribute_type.isVariableLength());
     attribute_comparators_.push_back(
         ComparisonFactory::GetComparison(ComparisonID::kLess).makeUncheckedComparatorForTypes(
             attribute_type,
@@ -203,7 +205,7 @@ CompositeKeyLessComparator::CompositeKeyLessComparator(
 }
 
 bool CompositeKeyLessComparator::compareDataPtrsInl(const void *left, const void *right) const {
-  DEBUG_ASSERT(attribute_comparators_.size() == owner_.indexed_attribute_offsets_.size());
+  DCHECK_EQ(owner_.indexed_attribute_offsets_.size(), attribute_comparators_.size());
   vector<size_t>::const_iterator offset_it = owner_.indexed_attribute_offsets_.begin();
   for (PtrVector<UncheckedComparator>::const_iterator comparator_it = attribute_comparators_.begin();
        comparator_it != attribute_comparators_.end();
@@ -245,9 +247,9 @@ CSBTreeIndexSubBlock::CSBTreeIndexSubBlock(const TupleStorageSubBlock &tuple_sto
       key_type_(nullptr),
       next_free_node_group_(kNodeGroupNone),
       num_free_node_groups_(0) {
-  if (!DescriptionIsValid(relation_, description_)) {
-    FATAL_ERROR("Attempted to construct a CSBTreeIndexSubBlock from an invalid description.");
-  }
+  DCHECK(DescriptionIsValid(relation_, description_))
+      << "Attempted to construct a CSBTreeIndexSubBlock from an invalid description:\n"
+      << description_.DebugString();
 
   const int num_indexed_attributes = description_.indexed_attribute_ids_size();
   if (num_indexed_attributes > 1) {
@@ -341,7 +343,7 @@ bool CSBTreeIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema &relat
 std::size_t CSBTreeIndexSubBlock::EstimateBytesPerTuple(
     const CatalogRelationSchema &relation,
     const IndexSubBlockDescription &description) {
-  DEBUG_ASSERT(DescriptionIsValid(relation, description));
+  DCHECK(DescriptionIsValid(relation, description));
 
   size_t key_length = 0;
   for (int indexed_attribute_num = 0;
@@ -362,8 +364,8 @@ std::size_t CSBTreeIndexSubBlock::EstimateBytesPerBlock(
 }
 
 bool CSBTreeIndexSubBlock::addEntry(const tuple_id tuple) {
-  DEBUG_ASSERT(initialized_);
-  DEBUG_ASSERT(tuple_store_.hasTupleWithID(tuple));
+  DCHECK(initialized_);
+  DCHECK(tuple_store_.hasTupleWithID(tuple));
 
   InsertReturnValue retval;
 
@@ -375,7 +377,7 @@ bool CSBTreeIndexSubBlock::addEntry(const tuple_id tuple) {
         return true;
       }
     } else {
-      DEBUG_ASSERT(!composite_key_buffer.empty());
+      DCHECK(!composite_key_buffer.empty());
     }
 
     retval = rootInsertHelper(tuple,
@@ -406,8 +408,8 @@ bool CSBTreeIndexSubBlock::addEntry(const tuple_id tuple) {
         retval = compressedKeyAddEntryHelper<uint32_t>(tuple, code);
         break;
       default:
-        FATAL_ERROR("Unexpected compressed key byte-length (not 1, 2, or 4) encountered "
-                    "in CSBTreeIndexSubBlock::addEntry()");
+        LOG(FATAL) << "Unexpected compressed key byte-length (not 1, 2, or 4) encountered "
+                   << "in CSBTreeIndexSubBlock::addEntry()";
     }
   } else {
     TypedValue typed_key(tuple_store_.getAttributeValueTyped(tuple, indexed_attribute_ids_.front()));
@@ -417,7 +419,7 @@ bool CSBTreeIndexSubBlock::addEntry(const tuple_id tuple) {
         return true;
       }
     } else {
-      DEBUG_ASSERT(!typed_key.isNull());
+      DCHECK(!typed_key.isNull());
     }
 
     InvokeOnLessComparatorForTypeIgnoreNullability(
@@ -432,12 +434,12 @@ bool CSBTreeIndexSubBlock::addEntry(const tuple_id tuple) {
     return false;
   }
 
-  DEBUG_ASSERT(retval.new_node_group_id == kNodeGroupNone);
-  if (retval.split_node_least_key != NULL) {
+  DCHECK_EQ(kNodeGroupNone, retval.new_node_group_id);
+  if (retval.split_node_least_key != nullptr) {
     // The root was split, must create a new root.
     // Allocate the new root.
     int new_root_group_id = allocateNodeGroup();
-    DEBUG_ASSERT(new_root_group_id >= 0);
+    DCHECK_GE(new_root_group_id, 0);
     void *new_root = getNode(new_root_group_id, 0);
 
     // Set up the new root's header.
@@ -458,7 +460,7 @@ bool CSBTreeIndexSubBlock::addEntry(const tuple_id tuple) {
 }
 
 bool CSBTreeIndexSubBlock::bulkAddEntries(const TupleIdSequence &tuples) {
-  DEBUG_ASSERT(initialized_);
+  DCHECK(initialized_);
   // TODO(chasseur): Can possibly be more efficient in some cases if we sort
   // and insert groups where possible.
   for (TupleIdSequence::const_iterator it = tuples.begin();
@@ -478,7 +480,7 @@ bool CSBTreeIndexSubBlock::bulkAddEntries(const TupleIdSequence &tuples) {
 }
 
 void CSBTreeIndexSubBlock::removeEntry(const tuple_id tuple) {
-  DEBUG_ASSERT(initialized_);
+  DCHECK(initialized_);
   if (key_is_composite_) {
     ScopedBuffer composite_key_buffer(makeKeyCopy(tuple));
     if (key_is_nullable_) {
@@ -488,7 +490,7 @@ void CSBTreeIndexSubBlock::removeEntry(const tuple_id tuple) {
         return;
       }
     } else {
-      DEBUG_ASSERT(!composite_key_buffer.empty());
+      DCHECK(!composite_key_buffer.empty());
     }
 
     removeEntryFromLeaf(tuple,
@@ -524,8 +526,8 @@ void CSBTreeIndexSubBlock::removeEntry(const tuple_id tuple) {
         compressedKeyRemoveEntryHelper<uint32_t>(tuple, code);
         break;
       default:
-        FATAL_ERROR("Unexpected compressed key byte-length (not 1, 2, or 4) encountered "
-                    "in CSBTreeIndexSubBlock::removeEntry()");
+        LOG(FATAL) << "Unexpected compressed key byte-length (not 1, 2, or 4) encountered "
+                   << "in CSBTreeIndexSubBlock::removeEntry()";
     }
   } else {
     TypedValue typed_key(tuple_store_.getAttributeValueTyped(tuple, indexed_attribute_ids_.front()));
@@ -536,7 +538,7 @@ void CSBTreeIndexSubBlock::removeEntry(const tuple_id tuple) {
         return;
       }
     } else {
-      DEBUG_ASSERT(!typed_key.isNull());
+      DCHECK(!typed_key.isNull());
     }
 
     InvokeOnLessComparatorForTypeIgnoreNullability(
@@ -554,7 +556,7 @@ void CSBTreeIndexSubBlock::removeEntry(const tuple_id tuple) {
 }
 
 void CSBTreeIndexSubBlock::bulkRemoveEntries(const TupleIdSequence &tuples) {
-  DEBUG_ASSERT(initialized_);
+  DCHECK(initialized_);
   // TODO(chasseur): Can possibly be more efficient in some cases if we sort
   // and scan through leaves.
   for (TupleIdSequence::const_iterator it = tuples.begin();
@@ -577,34 +579,34 @@ predicate_cost_t CSBTreeIndexSubBlock::estimatePredicateEvaluationCost(
 
 TupleIdSequence* CSBTreeIndexSubBlock::getMatchesForPredicate(const ComparisonPredicate &predicate,
                                                               const TupleIdSequence *filter) const {
-  DEBUG_ASSERT(initialized_);
+  DCHECK(initialized_);
   if (key_is_composite_) {
     // TODO(chasseur): Evaluate predicates on composite keys.
-    FATAL_ERROR("CSBTreeIndexSubBlock::getMatchesForPredicate() is unimplemented for composite keys.");
+    LOG(FATAL) << "CSBTreeIndexSubBlock::getMatchesForPredicate() is unimplemented for composite keys.";
   }
 
   if (!predicate.isAttributeLiteralComparisonPredicate()) {
-    FATAL_ERROR("CSBTreeIndexSubBlock::getMatchesForPredicate() can not "
-                "evaluate predicates other than simple comparisons.");
+    LOG(FATAL) << "CSBTreeIndexSubBlock::getMatchesForPredicate() can not "
+               << "evaluate predicates other than simple comparisons.";
   }
 
-  const CatalogAttribute *comparison_attribute = NULL;
+  const CatalogAttribute *comparison_attribute = nullptr;
   bool left_literal = false;
   if (predicate.getLeftOperand().hasStaticValue()) {
-    DEBUG_ASSERT(predicate.getRightOperand().getDataSource() == Scalar::kAttribute);
+    DCHECK_EQ(Scalar::kAttribute, predicate.getRightOperand().getDataSource());
     comparison_attribute
         = &(static_cast<const ScalarAttribute&>(predicate.getRightOperand()).getAttribute());
     left_literal = true;
   } else {
-    DEBUG_ASSERT(predicate.getLeftOperand().getDataSource() == Scalar::kAttribute);
+    DCHECK_EQ(Scalar::kAttribute, predicate.getLeftOperand().getDataSource());
     comparison_attribute
         = &(static_cast<const ScalarAttribute&>(predicate.getLeftOperand()).getAttribute());
     left_literal = false;
   }
 
   if (comparison_attribute->getID() != indexed_attribute_ids_.front()) {
-    FATAL_ERROR("CSBTreeIndexSubBlock::getMatchesForPredicate() can not "
-                "evaluate predicates on non-indexed attributes.");
+    LOG(FATAL) << "CSBTreeIndexSubBlock::getMatchesForPredicate() can not "
+               << "evaluate predicates on non-indexed attributes.";
   }
 
   TypedValue comparison_literal;
@@ -683,9 +685,9 @@ bool CSBTreeIndexSubBlock::initialize(const bool new_block) {
     const CompressedTupleStorageSubBlock &compressed_tuple_store
         = static_cast<const CompressedTupleStorageSubBlock&>(tuple_store_);
     if (!compressed_tuple_store.compressedBlockIsBuilt()) {
-      FATAL_ERROR("CSBTreeIndexSubBlock::initialize() called with a key which "
-                  "may be compressed before the associated TupleStorageSubBlock "
-                  "was built.");
+      LOG(FATAL) << "CSBTreeIndexSubBlock::initialize() called with a key which "
+                 << "may be compressed before the associated TupleStorageSubBlock "
+                 << "was built.";
     }
 
     if (compressed_tuple_store.compressedAttributeIsDictionaryCompressed(indexed_attribute_ids_.front())
@@ -713,7 +715,7 @@ bool CSBTreeIndexSubBlock::initialize(const bool new_block) {
       key_length_bytes_ += attr_type.maximumByteLength();
     }
   }
-  DEBUG_ASSERT(key_length_bytes_ > 0);
+  DCHECK_GT(key_length_bytes_, 0u);
   key_tuple_id_pair_length_bytes_ = key_length_bytes_ + sizeof(tuple_id);
 
   // Compute the number of keys that can be stored in internal and leaf nodes.
@@ -780,7 +782,7 @@ bool CSBTreeIndexSubBlock::initialize(const bool new_block) {
     num_free_node_groups_ = num_node_groups - node_group_used_bitmap_->onesCount();
     if (num_free_node_groups_ > 0) {
       next_free_node_group_ = node_group_used_bitmap_->firstZero();
-      DEBUG_ASSERT(static_cast<size_t>(next_free_node_group_) < node_group_used_bitmap_->size());
+      DCHECK_LT(static_cast<size_t>(next_free_node_group_), node_group_used_bitmap_->size());
     }
   }
 
@@ -789,14 +791,14 @@ bool CSBTreeIndexSubBlock::initialize(const bool new_block) {
 
 void CSBTreeIndexSubBlock::clearIndex() {
   // Reset the free node group bitmap.
-  DEBUG_ASSERT(node_group_used_bitmap_->size() > 0);
+  DCHECK_GT(node_group_used_bitmap_->size(), 0u);
   node_group_used_bitmap_->clear();
   next_free_node_group_ = 0;
   num_free_node_groups_ = node_group_used_bitmap_->size();
 
   // Allocate the root node.
   setRootNodeGroupNumber(allocateNodeGroup());
-  DEBUG_ASSERT(getRootNodeGroupNumber() >= 0);
+  DCHECK_GE(getRootNodeGroupNumber(), 0);
 
   // Initialize the root node as an empty leaf node.
   NodeHeader *root_header = static_cast<NodeHeader*>(getRootNode());
@@ -806,8 +808,8 @@ void CSBTreeIndexSubBlock::clearIndex() {
 }
 
 void* CSBTreeIndexSubBlock::makeKeyCopy(const tuple_id tuple) const {
-  DEBUG_ASSERT(tuple_store_.hasTupleWithID(tuple));
-  DEBUG_ASSERT(indexed_attribute_ids_.size() == indexed_attribute_offsets_.size());
+  DCHECK(tuple_store_.hasTupleWithID(tuple));
+  DCHECK_EQ(indexed_attribute_ids_.size(), indexed_attribute_offsets_.size());
 
   ScopedBuffer key_copy(key_length_bytes_);
 
@@ -817,7 +819,7 @@ void* CSBTreeIndexSubBlock::makeKeyCopy(const tuple_id tuple) const {
        ++attr_it, ++offset_it) {
     TypedValue attr_value(tuple_store_.getAttributeValueTyped(tuple, *attr_it));
     if (attr_value.isNull()) {
-      return NULL;
+      return nullptr;
     }
     attr_value.copyInto(static_cast<char*>(key_copy.get()) + *offset_it);
   }
@@ -830,12 +832,12 @@ const void* CSBTreeIndexSubBlock::getLeastKey(const void *node) const {
     if (static_cast<const NodeHeader*>(node)->num_keys) {
       return static_cast<const char*>(node) + sizeof(NodeHeader);
     } else {
-      return NULL;
+      return nullptr;
     }
   } else {
-    DEBUG_ASSERT(static_cast<const NodeHeader*>(node)->num_keys);
+    DCHECK(static_cast<const NodeHeader*>(node)->num_keys);
     const void *least_key = getLeastKey(getNode(static_cast<const NodeHeader*>(node)->node_group_reference, 0));
-    if (least_key == NULL) {
+    if (least_key == nullptr) {
       // If the leftmost child leaf was empty, can just use the first key here.
       return static_cast<const char*>(node) + sizeof(NodeHeader);
     }
@@ -912,10 +914,10 @@ CSBTreeIndexSubBlock::InsertReturnValue CSBTreeIndexSubBlock::internalInsertHelp
     const ComparatorT &key_comparator,
     const NodeHeader *parent_node_header,
     void *node) {
-  DEBUG_ASSERT((node_group_allocation_requirement == 0) || (parent_node_header != NULL));
+  DCHECK((node_group_allocation_requirement == 0) || (parent_node_header != nullptr));
 
   NodeHeader *node_header = static_cast<NodeHeader*>(node);
-  DEBUG_ASSERT(!node_header->is_leaf);
+  DCHECK(!node_header->is_leaf);
 
   // Find the child to insert into.
   uint16_t key_num;
@@ -938,7 +940,7 @@ CSBTreeIndexSubBlock::InsertReturnValue CSBTreeIndexSubBlock::internalInsertHelp
     if (getRootNode() == node) {
       // If this node is the root, make sure there is additional space for a
       // new root.
-      DEBUG_ASSERT(node_group_allocation_requirement == 0);
+      DCHECK_EQ(0, node_group_allocation_requirement);
       child_node_group_allocation_requirement = 2;
     } else {
       child_node_group_allocation_requirement = node_group_allocation_requirement + 1;
@@ -974,14 +976,14 @@ CSBTreeIndexSubBlock::InsertReturnValue CSBTreeIndexSubBlock::internalInsertHelp
                                    && (key_num == small_half_num_children_);
   if (child_return_value.new_node_group_id != kNodeGroupNone) {
     // A new node group was allocated, and this node must be split.
-    DEBUG_ASSERT(child_return_value.split_node_least_key != NULL);
-    DEBUG_ASSERT(node_header->num_keys == max_keys_internal_);
+    DCHECK(child_return_value.split_node_least_key != nullptr);
+    DCHECK_EQ(max_keys_internal_, node_header->num_keys);
 
-    const void *group_end = NULL;
+    const void *group_end = nullptr;
     if (node_group_allocation_requirement) {
       // Parent node is full, must allocate new node group(s).
       // Should already by checked by the child:
-      DEBUG_ASSERT(num_free_node_groups_ >= node_group_allocation_requirement);
+      DCHECK_GE(num_free_node_groups_, node_group_allocation_requirement);
 
       // Split the node group.
       group_end = splitNodeGroupHelper(parent_node_header, &node, &retval);
@@ -989,7 +991,7 @@ CSBTreeIndexSubBlock::InsertReturnValue CSBTreeIndexSubBlock::internalInsertHelp
       group_end = getNode(parent_node_header->node_group_reference, parent_node_header->num_keys + 1);
     }
 
-    if (group_end == NULL) {
+    if (group_end == nullptr) {
       retval.split_node_least_key = splitNodeAcrossGroups(node,
                                                           retval.new_node_group_id,
                                                           child_return_value.new_node_group_id,
@@ -1009,10 +1011,10 @@ CSBTreeIndexSubBlock::InsertReturnValue CSBTreeIndexSubBlock::internalInsertHelp
     }
 
     if (!child_return_value.left_split_group_smaller) {
-      DEBUG_ASSERT(key_num >= large_half_num_children_);
+      DCHECK_GE(key_num, large_half_num_children_);
       key_num -= large_half_num_children_;
 
-      if (group_end == NULL) {
+      if (group_end == nullptr) {
         node = getNode(retval.new_node_group_id, 0);
       } else {
         node = static_cast<char*>(node) + kCSBTreeNodeSizeBytes;
@@ -1020,7 +1022,7 @@ CSBTreeIndexSubBlock::InsertReturnValue CSBTreeIndexSubBlock::internalInsertHelp
     }
   }
 
-  if (child_return_value.split_node_least_key != NULL) {
+  if (child_return_value.split_node_least_key != nullptr) {
     // If the child was split, insert the new key.
     node_header = static_cast<NodeHeader*>(node);
     void *key_location = static_cast<char*>(node)
@@ -1052,11 +1054,11 @@ CSBTreeIndexSubBlock::InsertReturnValue CSBTreeIndexSubBlock::leafInsertHelper(
   InsertReturnValue retval;
 
   NodeHeader *node_header = static_cast<NodeHeader*>(node);
-  DEBUG_ASSERT(node_header->is_leaf);
+  DCHECK(node_header->is_leaf);
 
   if (node_header->num_keys == max_keys_leaf_) {
     // '*node' is full and must be split.
-    const void *group_end = NULL;
+    const void *group_end = nullptr;
     if (node_group_allocation_requirement) {
       // Parent node is full, must allocate new node group(s).
       if (num_free_node_groups_ < node_group_allocation_requirement) {
@@ -1068,7 +1070,7 @@ CSBTreeIndexSubBlock::InsertReturnValue CSBTreeIndexSubBlock::leafInsertHelper(
 
       // Split the node group.
       group_end = splitNodeGroupHelper(parent_node_header, &node, &retval);
-      DEBUG_ASSERT(static_cast<const NodeHeader*>(node)->is_leaf);
+      DCHECK(static_cast<const NodeHeader*>(node)->is_leaf);
     } else {
       // If we are splitting the root node, make sure the caller can allocate a
       // new root.
@@ -1090,7 +1092,7 @@ CSBTreeIndexSubBlock::InsertReturnValue CSBTreeIndexSubBlock::leafInsertHelper(
                                               + sizeof(NodeHeader)
                                               + (small_half_num_keys_leaf_) * key_tuple_id_pair_length_bytes_)) {
       // Insert in the first half.
-      if (group_end == NULL) {
+      if (group_end == nullptr) {
         retval.split_node_least_key = splitNodeAcrossGroups(node,
                                                             retval.new_node_group_id,
                                                             kNodeGroupNone,
@@ -1105,7 +1107,7 @@ CSBTreeIndexSubBlock::InsertReturnValue CSBTreeIndexSubBlock::leafInsertHelper(
       // node. The pointer 'retval.split_node_least_key' will remain correct
       // if this is the case, as splitNodeInGroup() returns a pointer to the
       // first leaf key's location.
-      if (group_end == NULL) {
+      if (group_end == nullptr) {
         retval.split_node_least_key = splitNodeAcrossGroups(node,
                                                             retval.new_node_group_id,
                                                             kNodeGroupNone,
@@ -1165,7 +1167,7 @@ const void* CSBTreeIndexSubBlock::splitNodeGroupHelper(
     caller_return_value->left_split_group_smaller = false;
     if (*node == center_node) {
       caller_return_value->new_node_group_id = splitNodeGroup(parent_node_header, false, true);
-      return NULL;
+      return nullptr;
     } else {
       caller_return_value->new_node_group_id = splitNodeGroup(parent_node_header, false, false);
       // TODO(chasseur): Verify that this logic is correct.
@@ -1185,16 +1187,16 @@ const void* CSBTreeIndexSubBlock::splitNodeGroupHelper(
 int CSBTreeIndexSubBlock::splitNodeGroup(const NodeHeader *parent_node_header,
                                          const bool left_smaller,
                                          const bool will_split_node_across_groups) {
-  DEBUG_ASSERT(!parent_node_header->is_leaf);
-  DEBUG_ASSERT(parent_node_header->num_keys == max_keys_internal_);
-  DEBUG_ASSERT(num_free_node_groups_ > 0);
+  DCHECK(!parent_node_header->is_leaf);
+  DCHECK_EQ(max_keys_internal_, parent_node_header->num_keys);
+  DCHECK_GT(num_free_node_groups_, 0);
   if (will_split_node_across_groups) {
-    DEBUG_ASSERT(!left_smaller);
+    DCHECK(!left_smaller);
   }
 
   // Allocate a new node group.
   int new_node_group_id = allocateNodeGroup();
-  DEBUG_ASSERT(new_node_group_id >= 0);
+  DCHECK_GE(new_node_group_id, 0);
   void *copy_destination;
   if (will_split_node_across_groups) {
     copy_destination = getNode(new_node_group_id, 1);
@@ -1236,15 +1238,15 @@ const void* CSBTreeIndexSubBlock::splitNodeInGroup(void *node,
                                                    const bool child_was_split_across_groups) {
   NodeHeader *node_header = static_cast<NodeHeader*>(node);
   if (child_was_split_across_groups) {
-    DEBUG_ASSERT(!node_header->is_leaf);
-    DEBUG_ASSERT(!left_smaller);
+    DCHECK(!node_header->is_leaf);
+    DCHECK(!left_smaller);
   }
   if (node_header->is_leaf) {
-    DEBUG_ASSERT(right_child_node_group == kNodeGroupNone);
-    DEBUG_ASSERT(node_header->num_keys == max_keys_leaf_);
+    DCHECK_EQ(kNodeGroupNone, right_child_node_group);
+    DCHECK_EQ(max_keys_leaf_, node_header->num_keys);
   } else {
-    DEBUG_ASSERT(right_child_node_group >= 0);
-    DEBUG_ASSERT(node_header->num_keys == max_keys_internal_);
+    DCHECK_GE(right_child_node_group, 0);
+    DCHECK_EQ(max_keys_internal_, node_header->num_keys);
   }
 
   void *next_node = static_cast<char*>(node) + kCSBTreeNodeSizeBytes;
@@ -1328,22 +1330,22 @@ const void* CSBTreeIndexSubBlock::splitNodeAcrossGroups(void *node,
                                                         const int right_child_node_group,
                                                         const bool left_smaller,
                                                         const bool child_was_split_across_groups) {
-  DEBUG_ASSERT(destination_group_number >= 0);
-  DEBUG_ASSERT(static_cast<size_t>(destination_group_number) < node_group_used_bitmap_->size());
-  DEBUG_ASSERT(node_group_used_bitmap_->getBit(destination_group_number));
+  DCHECK_GE(destination_group_number, 0);
+  DCHECK_LT(static_cast<size_t>(destination_group_number), node_group_used_bitmap_->size());
+  DCHECK(node_group_used_bitmap_->getBit(destination_group_number));
 
   NodeHeader *node_header = static_cast<NodeHeader*>(node);
   if (child_was_split_across_groups) {
-    DEBUG_ASSERT(!node_header->is_leaf);
-    DEBUG_ASSERT(!left_smaller);
+    DCHECK(!node_header->is_leaf);
+    DCHECK(!left_smaller);
   }
   if (node_header->is_leaf) {
-    DEBUG_ASSERT(right_child_node_group == kNodeGroupNone);
-    DEBUG_ASSERT(node_header->num_keys == max_keys_leaf_);
-    DEBUG_ASSERT(node_header->node_group_reference == destination_group_number);
+    DCHECK_EQ(kNodeGroupNone, right_child_node_group);
+    DCHECK_EQ(max_keys_leaf_, node_header->num_keys);
+    DCHECK_EQ(destination_group_number, node_header->node_group_reference);
   } else {
-    DEBUG_ASSERT(right_child_node_group >= 0);
-    DEBUG_ASSERT(node_header->num_keys == max_keys_internal_);
+    DCHECK_GE(right_child_node_group, 0);
+    DCHECK_EQ(max_keys_internal_, node_header->num_keys);
   }
 
   // Do the split.
@@ -1419,10 +1421,10 @@ void CSBTreeIndexSubBlock::insertEntryInLeaf(const tuple_id tuple,
                                              const void *key,
                                              const ComparatorT &key_comparator,
                                              void *node) {
-  DEBUG_ASSERT(static_cast<NodeHeader*>(node)->is_leaf);
+  DCHECK(static_cast<NodeHeader*>(node)->is_leaf);
 
   const uint16_t num_keys = static_cast<NodeHeader*>(node)->num_keys;
-  DEBUG_ASSERT(num_keys < max_keys_leaf_);
+  DCHECK_LT(num_keys, max_keys_leaf_);
 
   char *current_key = static_cast<char*>(node) + sizeof(NodeHeader);
   for (uint16_t key_num = 0;
@@ -1463,18 +1465,18 @@ void CSBTreeIndexSubBlock::removeEntryFromLeaf(const tuple_id tuple,
                                                const void *key,
                                                const ComparatorT &key_comparator,
                                                void *node) {
-  DEBUG_ASSERT(static_cast<NodeHeader*>(node)->is_leaf);
+  DCHECK(static_cast<NodeHeader*>(node)->is_leaf);
 
   void *right_sibling;
   const uint16_t num_keys = static_cast<NodeHeader*>(node)->num_keys;
   // If node is totally empty, immediately chase the next sibling.
   if (num_keys == 0) {
     right_sibling = getRightSiblingOfLeafNode(node);
-    if (right_sibling != NULL) {
+    if (right_sibling != nullptr) {
       removeEntryFromLeaf(tuple, key, key_comparator, right_sibling);
       return;
     } else {
-      FATAL_ERROR("CSBTree: attempted to remove nonexistent entry.");
+      LOG(FATAL) << "CSBTree: attempted to remove nonexistent entry.";
     }
   }
 
@@ -1489,7 +1491,7 @@ void CSBTreeIndexSubBlock::removeEntryFromLeaf(const tuple_id tuple,
       continue;
     } else if (key_comparator.compareDataPtrsInl(key, existing_key_ptr)) {
       // Past the target key, but the target has not been found.
-      FATAL_ERROR("CSBTree: attempted to remove nonexistent entry.");
+      LOG(FATAL) << "CSBTree: attempted to remove nonexistent entry.";
     } else {
       // Key matches, so check tuple_id.
       if (tuple == *reinterpret_cast<const tuple_id*>(existing_key_ptr + key_length_bytes_)) {
@@ -1512,11 +1514,11 @@ void CSBTreeIndexSubBlock::removeEntryFromLeaf(const tuple_id tuple,
 
   // Proceed to next sibling.
   right_sibling = getRightSiblingOfLeafNode(node);
-  if (right_sibling != NULL) {
+  if (right_sibling != nullptr) {
     removeEntryFromLeaf(tuple, key, key_comparator, right_sibling);
     return;
   } else {
-    FATAL_ERROR("CSBTree: attempted to remove nonexistent entry.");
+    LOG(FATAL) << "CSBTree: attempted to remove nonexistent entry.";
   }
 }
 
@@ -1569,8 +1571,8 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateComparisonPredicateOnUncompressed
     const ComparisonID comp,
     const TypedValue &right_literal,
     const Type &right_literal_type) const {
-  DEBUG_ASSERT(!key_is_compressed_);
-  DEBUG_ASSERT(!key_is_composite_);
+  DCHECK(!key_is_compressed_);
+  DCHECK(!key_is_composite_);
 
   csbtree_internal::PredicateEvaluationForwarder forwarder(*this, comp, right_literal);
 
@@ -1590,8 +1592,8 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateComparisonPredicateOnCompressedKe
     ComparisonID comp,
     const TypedValue &right_literal,
     const Type &right_literal_type) const {
-  DEBUG_ASSERT(key_is_compressed_);
-  DEBUG_ASSERT(!key_is_composite_);
+  DCHECK(key_is_compressed_);
+  DCHECK(!key_is_composite_);
 
   // Stack variables to hold compressed codes as needed.
   uint8_t byte_code;
@@ -1633,9 +1635,9 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateComparisonPredicateOnCompressedKe
           byte_code = short_code = word_code = limits.first;
           comp = ComparisonID::kGreaterOrEqual;
         } else {
-          FATAL_ERROR("CompressionDictionary::getLimitCodesForComparisonTyped() returned "
-                      "limits which did not extend to either the minimum or maximum code "
-                      "when called by CSBTreeIndexSubBlock::evaluateComparisonPredicateOnCompressedKey().");
+          LOG(FATAL) << "CompressionDictionary::getLimitCodesForComparisonTyped() returned "
+                     << "limits which did not extend to either the minimum or maximum code "
+                     << "when called by CSBTreeIndexSubBlock::evaluateComparisonPredicateOnCompressedKey().";
         }
         break;
       }
@@ -1712,8 +1714,8 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateComparisonPredicateOnCompressedKe
       break;
     }
     default:
-      FATAL_ERROR("Unexpected compressed key byte-length (not 1, 2, or 4) encountered "
-                  "in CSBTreeIndexSubBlock::getMatchesForPredicate()");
+      LOG(FATAL) << "Unexpected compressed key byte-length (not 1, 2, or 4) encountered "
+                 << "in CSBTreeIndexSubBlock::getMatchesForPredicate()";
   }
 }
 
@@ -1758,7 +1760,7 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluatePredicate(
                                             literal_less_key_comparator,
                                             key_less_literal_comparator);
     default:
-      FATAL_ERROR("Unrecognized ComparisonID in CSBTreeIndexSubBlock::evaluatePredicate()");
+      LOG(FATAL) << "Unrecognized ComparisonID in CSBTreeIndexSubBlock::evaluatePredicate()";
   }
 }
 
@@ -1775,8 +1777,8 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateEqualPredicate(
                                      literal,
                                      literal_less_key_comparator,
                                      key_less_literal_comparator);
-  while (search_node != NULL) {
-    DEBUG_ASSERT(static_cast<const NodeHeader*>(search_node)->is_leaf);
+  while (search_node != nullptr) {
+    DCHECK(static_cast<const NodeHeader*>(search_node)->is_leaf);
     const uint16_t num_keys = static_cast<const NodeHeader*>(search_node)->num_keys;
     const char *key_ptr = static_cast<const char*>(search_node) + sizeof(NodeHeader);
     for (uint16_t entry_num = 0; entry_num < num_keys; ++entry_num) {
@@ -1817,8 +1819,8 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateNotEqualPredicate(
 
   // Fill in all tuples from leaves definitively less than the key.
   while (search_node != boundary_node) {
-    DEBUG_ASSERT(search_node != NULL);
-    DEBUG_ASSERT(static_cast<const NodeHeader*>(search_node)->is_leaf);
+    DCHECK(search_node != nullptr);
+    DCHECK(static_cast<const NodeHeader*>(search_node)->is_leaf);
     const uint16_t num_keys = static_cast<const NodeHeader*>(search_node)->num_keys;
     const char *tuple_id_ptr = static_cast<const char*>(search_node)
                                + sizeof(NodeHeader)
@@ -1833,8 +1835,8 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateNotEqualPredicate(
   // Actually do comparisons in leaves that may contain the literal key.
   bool equal_found = false;
   bool past_equal = false;
-  while (search_node != NULL) {
-    DEBUG_ASSERT(static_cast<const NodeHeader*>(search_node)->is_leaf);
+  while (search_node != nullptr) {
+    DCHECK(static_cast<const NodeHeader*>(search_node)->is_leaf);
     const uint16_t num_keys = static_cast<const NodeHeader*>(search_node)->num_keys;
     const char *key_ptr = static_cast<const char*>(search_node) + sizeof(NodeHeader);
     for (uint16_t entry_num = 0; entry_num < num_keys; ++entry_num) {
@@ -1870,8 +1872,8 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateNotEqualPredicate(
   }
 
   // Fill in all tuples from leaves definitively greater than the key.
-  while (search_node != NULL) {
-    DEBUG_ASSERT(static_cast<const NodeHeader*>(search_node)->is_leaf);
+  while (search_node != nullptr) {
+    DCHECK(static_cast<const NodeHeader*>(search_node)->is_leaf);
     uint16_t num_keys = static_cast<const NodeHeader*>(search_node)->num_keys;
     const char *tuple_id_ptr = static_cast<const char*>(search_node)
                                + sizeof(NodeHeader)
@@ -1903,8 +1905,8 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateLessPredicate(
 
   // Fill in all tuples from leaves definitively less than the key.
   while (search_node != boundary_node) {
-    DEBUG_ASSERT(search_node != NULL);
-    DEBUG_ASSERT(static_cast<const NodeHeader*>(search_node)->is_leaf);
+    DCHECK(search_node != nullptr);
+    DCHECK(static_cast<const NodeHeader*>(search_node)->is_leaf);
     uint16_t num_keys = static_cast<const NodeHeader*>(search_node)->num_keys;
     const char *tuple_id_ptr = static_cast<const char*>(search_node)
                                + sizeof(NodeHeader)
@@ -1919,8 +1921,8 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateLessPredicate(
   // Actually do comparisons in leaves that may contain the literal key.
   if (include_equal) {
     bool equal_found = false;
-    while (search_node != NULL) {
-      DEBUG_ASSERT(static_cast<const NodeHeader*>(search_node)->is_leaf);
+    while (search_node != nullptr) {
+      DCHECK(static_cast<const NodeHeader*>(search_node)->is_leaf);
       uint16_t num_keys = static_cast<const NodeHeader*>(search_node)->num_keys;
       const char *key_ptr = static_cast<const char*>(search_node) + sizeof(NodeHeader);
       for (uint16_t entry_num = 0; entry_num < num_keys; ++entry_num) {
@@ -1947,8 +1949,8 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateLessPredicate(
       search_node = getRightSiblingOfLeafNode(search_node);
     }
   } else {
-    while (search_node != NULL) {
-      DEBUG_ASSERT(static_cast<const NodeHeader*>(search_node)->is_leaf);
+    while (search_node != nullptr) {
+      DCHECK(static_cast<const NodeHeader*>(search_node)->is_leaf);
       uint16_t num_keys = static_cast<const NodeHeader*>(search_node)->num_keys;
       const char *key_ptr = static_cast<const char*>(search_node) + sizeof(NodeHeader);
       for (uint16_t entry_num = 0; entry_num < num_keys; ++entry_num) {
@@ -1983,8 +1985,8 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateGreaterPredicate(
 
   // Do comparisons in leaves that may contain the literal key.
   bool match_found = false;
-  while (search_node != NULL) {
-    DEBUG_ASSERT(static_cast<const NodeHeader*>(search_node)->is_leaf);
+  while (search_node != nullptr) {
+    DCHECK(static_cast<const NodeHeader*>(search_node)->is_leaf);
     uint16_t num_keys = static_cast<const NodeHeader*>(search_node)->num_keys;
     const char *key_ptr = static_cast<const char*>(search_node) + sizeof(NodeHeader);
     for (uint16_t entry_num = 0; entry_num < num_keys; ++entry_num) {
@@ -2017,8 +2019,8 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateGreaterPredicate(
   }
 
   // Fill in all tuples from leaves definitively greater than the key.
-  while (search_node != NULL) {
-    DEBUG_ASSERT(static_cast<const NodeHeader*>(search_node)->is_leaf);
+  while (search_node != nullptr) {
+    DCHECK(static_cast<const NodeHeader*>(search_node)->is_leaf);
     uint16_t num_keys = static_cast<const NodeHeader*>(search_node)->num_keys;
     const char *tuple_id_ptr = static_cast<const char*>(search_node)
                                + sizeof(NodeHeader)
@@ -2034,7 +2036,7 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateGreaterPredicate(
 }
 
 bool CSBTreeIndexSubBlock::rebuildSpaceCheck() const {
-  DEBUG_ASSERT(node_group_used_bitmap_->size() > 0);
+  DCHECK_GT(node_group_used_bitmap_->size(), 0);
   if (tuple_store_.isEmpty()) {
     return true;
   }
@@ -2062,8 +2064,8 @@ bool CSBTreeIndexSubBlock::rebuildSpaceCheck() const {
 }
 
 uint16_t CSBTreeIndexSubBlock::rebuildLeaves(std::vector<int> *used_node_groups) {
-  DEBUG_ASSERT(static_cast<size_t>(num_free_node_groups_) == node_group_used_bitmap_->size() - 1);
-  DEBUG_ASSERT(rebuildSpaceCheck());
+  DCHECK_EQ(static_cast<size_t>(num_free_node_groups_), node_group_used_bitmap_->size() - 1);
+  DCHECK(rebuildSpaceCheck());
 
   if (key_is_compressed_) {
     vector<csbtree_internal::CompressedEntryReference> entries;
@@ -2107,7 +2109,7 @@ std::uint16_t CSBTreeIndexSubBlock::buildLeavesFromEntryReferences(
       if (current_node_number == max_keys_internal_) {
         // At the end of this node group, must allocate a new one.
         int next_node_group_number = allocateNodeGroup();
-        DEBUG_ASSERT(next_node_group_number >= 0);
+        DCHECK_GE(next_node_group_number, 0);
         used_node_groups->push_back(next_node_group_number);
         reinterpret_cast<NodeHeader*>(node_ptr)->node_group_reference = next_node_group_number;
         current_node_group_number = next_node_group_number;
@@ -2147,17 +2149,17 @@ std::uint16_t CSBTreeIndexSubBlock::buildLeavesFromEntryReferences(
 
 void CSBTreeIndexSubBlock::generateEntryReferencesFromCompressedCodes(
     std::vector<csbtree_internal::CompressedEntryReference> *entry_references) const {
-  DEBUG_ASSERT(key_is_compressed_);
+  DCHECK(key_is_compressed_);
   // TODO(chasseur): Handle NULL.
-  DEBUG_ASSERT(!key_is_nullable_);
-  DEBUG_ASSERT(entry_references->empty());
+  DCHECK(!key_is_nullable_);
+  DCHECK(entry_references->empty());
 
-  DEBUG_ASSERT(tuple_store_.isCompressed());
+  DCHECK(tuple_store_.isCompressed());
   const CompressedTupleStorageSubBlock &compressed_tuple_store
       = static_cast<const CompressedTupleStorageSubBlock&>(tuple_store_);
-  DEBUG_ASSERT(compressed_tuple_store.compressedBlockIsBuilt());
-  DEBUG_ASSERT(compressed_tuple_store.compressedAttributeIsDictionaryCompressed(indexed_attribute_ids_.front())
-               || compressed_tuple_store.compressedAttributeIsTruncationCompressed(indexed_attribute_ids_.front()));
+  DCHECK(compressed_tuple_store.compressedBlockIsBuilt());
+  DCHECK(compressed_tuple_store.compressedAttributeIsDictionaryCompressed(indexed_attribute_ids_.front()) ||
+         compressed_tuple_store.compressedAttributeIsTruncationCompressed(indexed_attribute_ids_.front()));
 
   if (tuple_store_.isPacked()) {
     for (tuple_id tid = 0; tid <= tuple_store_.getMaxTupleID(); ++tid) {
@@ -2179,14 +2181,14 @@ void CSBTreeIndexSubBlock::generateEntryReferencesFromCompressedCodes(
        entry_references->end(),
        csbtree_internal::CompressedEntryReferenceComparator());
 
-  DEBUG_ASSERT(static_cast<vector<csbtree_internal::CompressedEntryReference>::size_type>(
-                   tuple_store_.numTuples()) == entry_references->size());
+  DCHECK_EQ(static_cast<vector<csbtree_internal::CompressedEntryReference>::size_type>(tuple_store_.numTuples()),
+            entry_references->size());
 }
 
 void CSBTreeIndexSubBlock::generateEntryReferencesFromTypedValues(
     vector<csbtree_internal::EntryReference> *entry_references) const {
-  DEBUG_ASSERT(!key_is_composite_);
-  DEBUG_ASSERT(entry_references->empty());
+  DCHECK(!key_is_composite_);
+  DCHECK(entry_references->empty());
 
   tuple_id null_count = 0;
   if (tuple_store_.isPacked()) {
@@ -2218,21 +2220,21 @@ void CSBTreeIndexSubBlock::generateEntryReferencesFromTypedValues(
                                                                         entry_references->begin(),
                                                                         entry_references->end());
 
-  DEBUG_ASSERT(static_cast<vector<csbtree_internal::EntryReference>::size_type>(tuple_store_.numTuples())
-               == entry_references->size() + null_count);
+  DCHECK_EQ(static_cast<vector<csbtree_internal::EntryReference>::size_type>(tuple_store_.numTuples()),
+            entry_references->size() + null_count);
 }
 
 void CSBTreeIndexSubBlock::generateEntryReferencesFromCompositeKeys(
     vector<csbtree_internal::CompositeEntryReference> *entry_references) const {
-  DEBUG_ASSERT(key_is_composite_);
-  DEBUG_ASSERT(entry_references->empty());
+  DCHECK(key_is_composite_);
+  DCHECK(entry_references->empty());
 
   tuple_id null_count = 0;
   if (tuple_store_.isPacked()) {
     for (tuple_id tid = 0; tid <= tuple_store_.getMaxTupleID(); ++tid) {
       void *key_copy = makeKeyCopy(tid);
       // Don't insert a NULL key.
-      if (key_copy != NULL) {
+      if (key_copy != nullptr) {
         entry_references->emplace_back(key_copy, tid);
       } else {
         ++null_count;
@@ -2243,7 +2245,7 @@ void CSBTreeIndexSubBlock::generateEntryReferencesFromCompositeKeys(
       if (tuple_store_.hasTupleWithID(tid)) {
         void *key_copy = makeKeyCopy(tid);
         // Don't insert a NULL key.
-        if (key_copy != NULL) {
+        if (key_copy != nullptr) {
           entry_references->emplace_back(key_copy, tid);
         } else {
           ++null_count;
@@ -2256,15 +2258,15 @@ void CSBTreeIndexSubBlock::generateEntryReferencesFromCompositeKeys(
        entry_references->end(),
        csbtree_internal::CompositeEntryReferenceComparator(*composite_key_comparator_));
 
-  DEBUG_ASSERT(static_cast<vector<csbtree_internal::EntryReference>::size_type>(tuple_store_.numTuples())
-               == entry_references->size() + null_count);
+  DCHECK_EQ(static_cast<vector<csbtree_internal::EntryReference>::size_type>(tuple_store_.numTuples()),
+            entry_references->size() + null_count);
 }
 
 uint16_t CSBTreeIndexSubBlock::rebuildInternalLevel(const std::vector<int> &child_node_groups,
                                                     uint16_t last_child_num_nodes,
                                                     std::vector<int> *used_node_groups) {
-  DEBUG_ASSERT(last_child_num_nodes > 0);
-  DEBUG_ASSERT(!child_node_groups.empty());
+  DCHECK_GT(last_child_num_nodes, 0u);
+  DCHECK(!child_node_groups.empty());
 
   std::vector<int>::const_iterator last_it = child_node_groups.end() - 1;
   // Adjusted to proper value below.
@@ -2275,7 +2277,7 @@ uint16_t CSBTreeIndexSubBlock::rebuildInternalLevel(const std::vector<int> &chil
     next_to_last_it -= 2;
     if (last_child_num_nodes < large_half_num_children_) {
       // Rebalance last node groups as needed.
-      DEBUG_ASSERT(child_node_groups.size() > 1);
+      DCHECK_GT(child_node_groups.size(), 1u);
       next_to_last_child_num_nodes = rebalanceNodeGroups(*next_to_last_it,
                                                          child_node_groups.back(),
                                                          last_child_num_nodes);
@@ -2284,7 +2286,7 @@ uint16_t CSBTreeIndexSubBlock::rebuildInternalLevel(const std::vector<int> &chil
   }
 
   int current_node_group_number = allocateNodeGroup();
-  DEBUG_ASSERT(current_node_group_number >= 0);
+  DCHECK_GE(current_node_group_number, 0);
   used_node_groups->push_back(current_node_group_number);
 
   uint16_t current_node_number = 0;
@@ -2294,7 +2296,7 @@ uint16_t CSBTreeIndexSubBlock::rebuildInternalLevel(const std::vector<int> &chil
     if (current_node_number == max_keys_internal_ + 1) {
       // Advance to next node group.
       current_node_group_number = allocateNodeGroup();
-      DEBUG_ASSERT(current_node_group_number >= 0);
+      DCHECK_GE(current_node_group_number, 0);
       used_node_groups->push_back(current_node_group_number);
       current_node_number = 0;
     }
@@ -2321,7 +2323,7 @@ uint16_t CSBTreeIndexSubBlock::rebuildInternalLevel(const std::vector<int> &chil
 uint16_t CSBTreeIndexSubBlock::rebalanceNodeGroups(const int full_node_group_number,
                                                    const int underfull_node_group_number,
                                                    const uint16_t underfull_num_nodes) {
-  DEBUG_ASSERT(underfull_num_nodes < large_half_num_children_);
+  DCHECK_LT(underfull_num_nodes, large_half_num_children_);
 
   const uint16_t shift_nodes = large_half_num_children_ - underfull_num_nodes;
   const uint16_t full_group_remaining_nodes = max_keys_internal_ + 1 - shift_nodes;
@@ -2349,7 +2351,7 @@ uint16_t CSBTreeIndexSubBlock::rebalanceNodeGroups(const int full_node_group_num
 void CSBTreeIndexSubBlock::makeInternalNode(const int child_node_group_number,
                                             const uint16_t num_children,
                                             void *node) {
-  DEBUG_ASSERT(num_children > 1);
+  DCHECK_GT(num_children, 1u);
   // Setup header.
   static_cast<NodeHeader*>(node)->num_keys = num_children - 1;
   static_cast<NodeHeader*>(node)->is_leaf = false;
@@ -2358,7 +2360,7 @@ void CSBTreeIndexSubBlock::makeInternalNode(const int child_node_group_number,
   // Fill in keys.
   char *key_ptr = static_cast<char*>(node) + sizeof(NodeHeader);
   for (uint16_t child_num = 1; child_num < num_children; ++child_num) {
-    DEBUG_ASSERT(static_cast<const NodeHeader*>(getNode(child_node_group_number, child_num))->num_keys > 0);
+    DCHECK_GT(static_cast<const NodeHeader*>(getNode(child_node_group_number, child_num))->num_keys, 0);
     // TODO(chasseur): We could simply remember the least keys of all nodes
     // generated in the previous pass, but that is a time/space tradeoff
     // which may not be worth it.
@@ -2374,7 +2376,7 @@ int CSBTreeIndexSubBlock::allocateNodeGroup() {
     // No more node groups are available.
     return kNodeGroupNone;
   } else {
-    DEBUG_ASSERT(!node_group_used_bitmap_->getBit(next_free_node_group_));
+    DCHECK(!node_group_used_bitmap_->getBit(next_free_node_group_));
     // Return the next free node group.
     int retval = next_free_node_group_;
     // Mark this node group as used and decrement the count of free node
@@ -2384,7 +2386,7 @@ int CSBTreeIndexSubBlock::allocateNodeGroup() {
     // If there are still free node groups remaining, locate the next one.
     if (num_free_node_groups_) {
       next_free_node_group_ = node_group_used_bitmap_->firstZero(retval + 1);
-      DEBUG_ASSERT(static_cast<size_t>(next_free_node_group_) < node_group_used_bitmap_->size());
+      DCHECK_LT(static_cast<size_t>(next_free_node_group_), node_group_used_bitmap_->size());
       return retval;
     } else {
       next_free_node_group_ = kNodeGroupNone;
@@ -2394,9 +2396,9 @@ int CSBTreeIndexSubBlock::allocateNodeGroup() {
 }
 
 void CSBTreeIndexSubBlock::deallocateNodeGroup(const int node_group_number) {
-  DEBUG_ASSERT(node_group_number >= 0);
-  DEBUG_ASSERT(static_cast<size_t>(node_group_number) < node_group_used_bitmap_->size());
-  DEBUG_ASSERT(node_group_used_bitmap_->getBit(node_group_number));
+  DCHECK_GE(node_group_number, 0);
+  DCHECK_LT(static_cast<size_t>(node_group_number), node_group_used_bitmap_->size());
+  DCHECK(node_group_used_bitmap_->getBit(node_group_number));
 
   node_group_used_bitmap_->setBit(node_group_number, false);
   ++num_free_node_groups_;

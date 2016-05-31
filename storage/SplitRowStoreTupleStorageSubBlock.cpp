@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -34,6 +34,8 @@
 #include "utility/BitVector.hpp"
 #include "utility/Macros.hpp"
 #include "utility/ScopedBuffer.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 
@@ -100,9 +102,9 @@ SplitRowStoreTupleStorageSubBlock::SplitRowStoreTupleStorageSubBlock(
                            sub_block_memory,
                            sub_block_memory_size),
       header_(static_cast<Header*>(sub_block_memory)) {
-  if (!DescriptionIsValid(relation_, description_)) {
-    FATAL_ERROR("Attempted to construct a SplitRowStoreTupleStorageSubBlock from an invalid description.");
-  }
+  CHECK(DescriptionIsValid(relation_, description_))
+      << "Attempted to construct a SplitRowStoreTupleStorageSubBlock from an invalid description."
+      << description_.DebugString();
 
   if (sub_block_memory_size < sizeof(Header)) {
     throw BlockMemoryTooSmall("SplitRowStoreTupleStorageSubBlock", sub_block_memory_size);
@@ -166,7 +168,7 @@ bool SplitRowStoreTupleStorageSubBlock::DescriptionIsValid(
 std::size_t SplitRowStoreTupleStorageSubBlock::EstimateBytesPerTuple(
     const CatalogRelationSchema &relation,
     const TupleStorageSubBlockDescription &description) {
-  DEBUG_ASSERT(DescriptionIsValid(relation, description));
+  DCHECK(DescriptionIsValid(relation, description));
 
   return relation.getFixedByteLength()                                           // Fixed-length attrs
          + BitVector<true>::BytesNeeded(relation.numNullableAttributes())        // Null bitmap
