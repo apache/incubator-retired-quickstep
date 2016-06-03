@@ -230,10 +230,10 @@ class SimpleScalarSeparateChainingHashTable : public HashTable<ValueT,
                                        HashTablePreallocationState *prealloc_state);
 
   // Determine whether it is actually necessary to resize this hash table.
-  // Checks that there is at least one unallocated bucket.
-  inline bool isFull() const {
-    return header_->buckets_allocated.load(std::memory_order_relaxed)
-           >= header_->num_buckets;
+  // Checks that there are at least ``extra_buckets`` unallocated buckets.
+  inline bool isFull(const std::size_t extra_buckets) const {
+    return (header_->buckets_allocated.load(std::memory_order_relaxed) +
+            extra_buckets) >= header_->num_buckets;
   }
 
   // Cache the TypeID of the key.
@@ -831,7 +831,7 @@ void SimpleScalarSeparateChainingHashTable<ValueT,
   // Recheck whether the hash table is still full. Note that multiple threads
   // might wait to rebuild this hash table simultaneously. Only the first one
   // should do the rebuild.
-  if (!isFull()) {
+  if (!isFull(extra_buckets)) {
     return;
   }
 
