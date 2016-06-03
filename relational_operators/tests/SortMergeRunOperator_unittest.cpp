@@ -84,6 +84,7 @@ namespace quickstep {
 
 namespace {
 
+constexpr std::size_t kQueryId = 0;
 constexpr const std::size_t kOpIndex = 0;
 
 // Helper struct for test tuple that will that will be inserted and sorted.
@@ -1565,7 +1566,8 @@ class SortMergeRunOperatorTest : public ::testing::Test {
                            const std::size_t top_k = 0) {
     const QueryContext::sort_config_id sort_config_index = createSortConfigProto(attrs, ordering, null_ordering);
 
-    merge_op_.reset(new SortMergeRunOperator(*input_table_,
+    merge_op_.reset(new SortMergeRunOperator(kQueryId,
+                                             *input_table_,
                                              *result_table_,
                                              insert_destination_index_,
                                              *run_table_,
@@ -1573,8 +1575,8 @@ class SortMergeRunOperatorTest : public ::testing::Test {
                                              sort_config_index,
                                              merge_factor,
                                              top_k,
-                                             true,
-                                             0  /* dummy query ID */));
+                                             true));
+
     merge_op_->setOperatorIndex(kOpIndex);
 
     // Set up the QueryContext.
@@ -1609,7 +1611,8 @@ class SortMergeRunOperatorTest : public ::testing::Test {
                         const std::size_t top_k = 0) {
     const QueryContext::sort_config_id sort_config_index = createSortConfigProto(attrs, ordering, null_ordering);
 
-    merge_op_.reset(new SortMergeRunOperator(*input_table_,
+    merge_op_.reset(new SortMergeRunOperator(kQueryId,
+                                             *input_table_,
                                              *result_table_,
                                              insert_destination_index_,
                                              *run_table_,
@@ -1617,8 +1620,7 @@ class SortMergeRunOperatorTest : public ::testing::Test {
                                              sort_config_index,
                                              merge_factor,
                                              top_k,
-                                             false,
-                                             0  /* dummy query ID */));
+                                             false));
     merge_op_->setOperatorIndex(kOpIndex);
 
     // Set up the QueryContext.

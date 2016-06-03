@@ -54,11 +54,11 @@ bool SampleOperator::getAllWorkOrders(
         for (const block_id input_block_id : input_relation_block_ids_) {
           if (distribution(generator) <= probability) {
             container->addNormalWorkOrder(
-                new SampleWorkOrder(input_relation_,
+                new SampleWorkOrder(query_id_,
+                                    input_relation_,
                                     input_block_id,
                                     is_block_sample_,
                                     percentage_,
-                                    query_id_,
                                     output_destination,
                                     storage_manager),
                 op_index_);
@@ -68,15 +68,14 @@ bool SampleOperator::getAllWorkOrders(
         // Add all the blocks for tuple sampling which would handle
         // the sampling from each block
         for (const block_id input_block_id : input_relation_block_ids_) {
-          container->addNormalWorkOrder(
-              new SampleWorkOrder(input_relation_,
-                                  input_block_id,
-                                  is_block_sample_,
-                                  percentage_,
-                                  query_id_,
-                                  output_destination,
-                                  storage_manager),
-              op_index_);
+          container->addNormalWorkOrder(new SampleWorkOrder(query_id_,
+                                                            input_relation_,
+                                                            input_block_id,
+                                                            is_block_sample_,
+                                                            percentage_,
+                                                            output_destination,
+                                                            storage_manager),
+                                        op_index_);
         }
       }
       started_ = true;
@@ -87,13 +86,14 @@ bool SampleOperator::getAllWorkOrders(
           while (num_workorders_generated_ < input_relation_block_ids_.size()) {
             if (distribution(generator) <= probability) {
               container->addNormalWorkOrder(
-                  new SampleWorkOrder(input_relation_,
-                                      input_relation_block_ids_[num_workorders_generated_],
-                                      is_block_sample_,
-                                      percentage_,
-                                      query_id_,
-                                      output_destination,
-                                      storage_manager),
+                  new SampleWorkOrder(
+                      query_id_,
+                      input_relation_,
+                      input_relation_block_ids_[num_workorders_generated_],
+                      is_block_sample_,
+                      percentage_,
+                      output_destination,
+                      storage_manager),
                   op_index_);
             ++num_workorders_generated_;
           }
@@ -101,13 +101,14 @@ bool SampleOperator::getAllWorkOrders(
       } else  {
         while (num_workorders_generated_ < input_relation_block_ids_.size()) {
           container->addNormalWorkOrder(
-              new SampleWorkOrder(input_relation_,
-                                  input_relation_block_ids_[num_workorders_generated_],
-                                  is_block_sample_,
-                                  percentage_,
-                                  query_id_,
-                                  output_destination,
-                                  storage_manager),
+              new SampleWorkOrder(
+                  query_id_,
+                  input_relation_,
+                  input_relation_block_ids_[num_workorders_generated_],
+                  is_block_sample_,
+                  percentage_,
+                  output_destination,
+                  storage_manager),
               op_index_);
           ++num_workorders_generated_;
         }
@@ -115,6 +116,7 @@ bool SampleOperator::getAllWorkOrders(
     return done_feeding_input_relation_;
   }
 }
+
 void SampleWorkOrder::execute() {
   BlockReference block(
       storage_manager_->getBlock(input_block_id_, input_relation_));

@@ -521,12 +521,12 @@ void Foreman::getRebuildWorkOrders(const dag_node_index index, WorkOrdersContain
     // Note: The query ID used below is dummy for now, it will be replaced with
     // the true query ID when QueryManager gets used in Foreman.
     container->addRebuildWorkOrder(
-        new RebuildWorkOrder(move(partially_filled_block_refs[i]),
-                            index,
-                            op.getOutputRelationID(),
-                            foreman_client_id_,
-                            0,
-                            bus_),
+        new RebuildWorkOrder(0,
+                             move(partially_filled_block_refs[i]),
+                             index,
+                             op.getOutputRelationID(),
+                             foreman_client_id_,
+                             bus_),
         index);
   }
 }

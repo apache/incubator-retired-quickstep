@@ -290,7 +290,8 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
       if (!started_) {
         for (const block_id probe_block_id : probe_relation_block_ids_) {
           container->addNormalWorkOrder(
-              new JoinWorkOrderClass(build_relation_,
+              new JoinWorkOrderClass(query_id_,
+                                     build_relation_,
                                      probe_relation_,
                                      join_key_attributes_,
                                      any_join_key_attributes_nullable_,
@@ -298,7 +299,6 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
                                      residual_predicate,
                                      selection,
                                      hash_table,
-                                     query_id_,
                                      output_destination,
                                      storage_manager),
               op_index_);
@@ -309,17 +309,18 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
     } else {
       while (num_workorders_generated_ < probe_relation_block_ids_.size()) {
         container->addNormalWorkOrder(
-            new JoinWorkOrderClass(build_relation_,
-                                   probe_relation_,
-                                   join_key_attributes_,
-                                   any_join_key_attributes_nullable_,
-                                   probe_relation_block_ids_[num_workorders_generated_],
-                                   residual_predicate,
-                                   selection,
-                                   hash_table,
-                                   query_id_,
-                                   output_destination,
-                                   storage_manager),
+            new JoinWorkOrderClass(
+                query_id_,
+                build_relation_,
+                probe_relation_,
+                join_key_attributes_,
+                any_join_key_attributes_nullable_,
+                probe_relation_block_ids_[num_workorders_generated_],
+                residual_predicate,
+                selection,
+                hash_table,
+                output_destination,
+                storage_manager),
             op_index_);
         ++num_workorders_generated_;
       }  // end while
@@ -350,6 +351,7 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
         for (const block_id probe_block_id : probe_relation_block_ids_) {
           container->addNormalWorkOrder(
               new HashOuterJoinWorkOrder(
+                  query_id_,
                   build_relation_,
                   probe_relation_,
                   join_key_attributes_,
@@ -358,7 +360,6 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
                   selection,
                   is_selection_on_build_,
                   hash_table,
-                  query_id_,
                   output_destination,
                   storage_manager),
               op_index_);
@@ -370,6 +371,7 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
       while (num_workorders_generated_ < probe_relation_block_ids_.size()) {
         container->addNormalWorkOrder(
             new HashOuterJoinWorkOrder(
+                query_id_,
                 build_relation_,
                 probe_relation_,
                 join_key_attributes_,
@@ -378,7 +380,6 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
                 selection,
                 is_selection_on_build_,
                 hash_table,
-                query_id_,
                 output_destination,
                 storage_manager),
             op_index_);

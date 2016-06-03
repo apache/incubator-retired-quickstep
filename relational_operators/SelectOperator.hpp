@@ -64,6 +64,7 @@ class SelectOperator : public RelationalOperator {
    * @brief Constructor for selection with arbitrary expressions in projection
    *        list.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param input_relation The relation to perform selection over.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
@@ -76,23 +77,24 @@ class SelectOperator : public RelationalOperator {
    * @param input_relation_is_stored If input_relation is a stored relation and
    *        is fully available to the operator before it can start generating
    *        workorders.
-   * @param query_id The ID of the query to which this operator belongs.
    **/
-  SelectOperator(const CatalogRelation &input_relation,
-                 const CatalogRelation &output_relation,
-                 const QueryContext::insert_destination_id output_destination_index,
-                 const QueryContext::predicate_id predicate_index,
-                 const QueryContext::scalar_group_id selection_index,
-                 const bool input_relation_is_stored,
-                 const std::size_t query_id)
+  SelectOperator(
+      const std::size_t query_id,
+      const CatalogRelation &input_relation,
+      const CatalogRelation &output_relation,
+      const QueryContext::insert_destination_id output_destination_index,
+      const QueryContext::predicate_id predicate_index,
+      const QueryContext::scalar_group_id selection_index,
+      const bool input_relation_is_stored)
       : RelationalOperator(query_id),
         input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         predicate_index_(predicate_index),
         selection_index_(selection_index),
-        input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
-                                                           : std::vector<block_id>()),
+        input_relation_block_ids_(input_relation_is_stored
+                                      ? input_relation.getBlocksSnapshot()
+                                      : std::vector<block_id>()),
         num_workorders_generated_(0),
         simple_projection_(false),
         input_relation_is_stored_(input_relation_is_stored),
@@ -124,6 +126,7 @@ class SelectOperator : public RelationalOperator {
    *
    * @note selection_index_ is invalid, and will not be used for projection.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param input_relation The relation to perform selection over.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
@@ -136,15 +139,15 @@ class SelectOperator : public RelationalOperator {
    * @param input_relation_is_stored If input_relation is a stored relation and
    *        is fully available to the operator before it can start generating
    *        workorders.
-   * @param query_id The ID of the query to which this operator belongs.
    **/
-  SelectOperator(const CatalogRelation &input_relation,
-                 const CatalogRelation &output_relation,
-                 const QueryContext::insert_destination_id output_destination_index,
-                 const QueryContext::predicate_id predicate_index,
-                 std::vector<attribute_id> &&selection,
-                 const bool input_relation_is_stored,
-                 const std::size_t query_id)
+  SelectOperator(
+      const std::size_t query_id,
+      const CatalogRelation &input_relation,
+      const CatalogRelation &output_relation,
+      const QueryContext::insert_destination_id output_destination_index,
+      const QueryContext::predicate_id predicate_index,
+      std::vector<attribute_id> &&selection,
+      const bool input_relation_is_stored)
       : RelationalOperator(query_id),
         input_relation_(input_relation),
         output_relation_(output_relation),
@@ -152,8 +155,9 @@ class SelectOperator : public RelationalOperator {
         predicate_index_(predicate_index),
         selection_index_(QueryContext::kInvalidScalarGroupId),
         simple_selection_(std::move(selection)),
-        input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
-                                                           : std::vector<block_id>()),
+        input_relation_block_ids_(input_relation_is_stored
+                                      ? input_relation.getBlocksSnapshot()
+                                      : std::vector<block_id>()),
         num_workorders_generated_(0),
         simple_projection_(true),
         input_relation_is_stored_(input_relation_is_stored),
@@ -278,6 +282,7 @@ class SelectWorkOrder : public WorkOrder {
    * @note Reference parameter selection is NOT owned by this class and must
    *       remain valid until after execute() is called.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param input_relation The relation to perform selection over.
    * @param input_block_id The block id.
    * @param predicate All tuples matching \c predicate will be selected (or NULL
@@ -287,18 +292,17 @@ class SelectWorkOrder : public WorkOrder {
    *        simple_projection is true.
    * @param selection A list of Scalars which will be evaluated to project
    *        input tuples, used if \c simple_projection is false.
-   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the selection
    *        results.
    * @param storage_manager The StorageManager to use.
    **/
-  SelectWorkOrder(const CatalogRelationSchema &input_relation,
+  SelectWorkOrder(const std::size_t query_id,
+                  const CatalogRelationSchema &input_relation,
                   const block_id input_block_id,
                   const Predicate *predicate,
                   const bool simple_projection,
                   const std::vector<attribute_id> &simple_selection,
                   const std::vector<std::unique_ptr<const Scalar>> *selection,
-                  const std::size_t query_id,
                   InsertDestination *output_destination,
                   StorageManager *storage_manager,
                   const numa_node_id numa_node = 0)
@@ -320,6 +324,7 @@ class SelectWorkOrder : public WorkOrder {
    * @note Reference parameter selection is NOT owned by this class and must
    *       remain valid until after execute() is called.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param input_relation The relation to perform selection over.
    * @param input_block_id The block id.
    * @param predicate All tuples matching \c predicate will be selected (or NULL
@@ -329,18 +334,17 @@ class SelectWorkOrder : public WorkOrder {
    *        simple_projection is true.
    * @param selection A list of Scalars which will be evaluated to project
    *        input tuples, used if \c simple_projection is false.
-   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the selection
    *        results.
    * @param storage_manager The StorageManager to use.
    **/
-  SelectWorkOrder(const CatalogRelationSchema &input_relation,
+  SelectWorkOrder(const std::size_t query_id,
+                  const CatalogRelationSchema &input_relation,
                   const block_id input_block_id,
                   const Predicate *predicate,
                   const bool simple_projection,
                   std::vector<attribute_id> &&simple_selection,
                   const std::vector<std::unique_ptr<const Scalar>> *selection,
-                  const std::size_t query_id,
                   InsertDestination *output_destination,
                   StorageManager *storage_manager,
                   const numa_node_id numa_node = 0)

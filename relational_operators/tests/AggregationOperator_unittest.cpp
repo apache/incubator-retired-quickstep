@@ -77,6 +77,7 @@ using std::unique_ptr;
 namespace quickstep {
 
 namespace {
+constexpr std::size_t kQueryId = 0;
 constexpr int kOpIndex = 0;
 }  // namespace
 
@@ -270,7 +271,7 @@ class AggregationOperatorTest : public ::testing::Test {
     aggr_state_proto->set_estimated_num_entries(estimated_entries);
 
     // Create Operators.
-    op_.reset(new AggregationOperator(*table_, true, aggr_state_index, 0));
+    op_.reset(new AggregationOperator(0, *table_, true, aggr_state_index));
 
     // Setup the InsertDestination proto in the query context proto.
     const QueryContext::insert_destination_id insert_destination_index =
@@ -281,10 +282,11 @@ class AggregationOperatorTest : public ::testing::Test {
     insert_destination_proto->set_relation_id(result_table_->getID());
     insert_destination_proto->set_relational_op_index(kOpIndex);
 
-    finalize_op_.reset(new FinalizeAggregationOperator(aggr_state_index,
-                                                       *result_table_,
-                                                       insert_destination_index,
-                                                       0 /* dummy query ID */));
+    finalize_op_.reset(
+        new FinalizeAggregationOperator(kQueryId,
+                                        aggr_state_index,
+                                        *result_table_,
+                                        insert_destination_index));
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto,
@@ -354,7 +356,7 @@ class AggregationOperatorTest : public ::testing::Test {
         serialization::HashTableImplType::LINEAR_OPEN_ADDRESSING);
 
     // Create Operators.
-    op_.reset(new AggregationOperator(*table_, true, aggr_state_index, 0));
+    op_.reset(new AggregationOperator(0, *table_, true, aggr_state_index));
 
     // Setup the InsertDestination proto in the query context proto.
     const QueryContext::insert_destination_id insert_destination_index =
@@ -365,10 +367,11 @@ class AggregationOperatorTest : public ::testing::Test {
     insert_destination_proto->set_relation_id(result_table_->getID());
     insert_destination_proto->set_relational_op_index(kOpIndex);
 
-    finalize_op_.reset(new FinalizeAggregationOperator(aggr_state_index,
-                                                       *result_table_,
-                                                       insert_destination_index,
-                                                       0 /* dummy query ID */));
+    finalize_op_.reset(
+        new FinalizeAggregationOperator(kQueryId,
+                                        aggr_state_index,
+                                        *result_table_,
+                                        insert_destination_index));
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto,

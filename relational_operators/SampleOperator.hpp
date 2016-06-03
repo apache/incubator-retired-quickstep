@@ -54,8 +54,9 @@ class WorkOrdersContainer;
 class SampleOperator : public RelationalOperator {
  public:
   /**
-   * @brief Constructor for SampleOperator  with the sampling percentage and type of sampling.
+   * @brief Constructor for SampleOperator with the sampling percentage and type of sampling.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param input_relation The relation to perform sampling over.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
@@ -65,15 +66,15 @@ class SampleOperator : public RelationalOperator {
    *        workorders.
    * @param is_block_sample Flag indicating whether the sample type is block or tuple.
    * @param percentage The percentage of data to be sampled.
-   * @param query_id The ID of the query to which this operator belongs.
    **/
-  SampleOperator(const CatalogRelation &input_relation,
-                 const CatalogRelationSchema &output_relation,
-                 const QueryContext::insert_destination_id output_destination_index,
-                 const bool input_relation_is_stored,
-                 const bool is_block_sample,
-                 const int percentage,
-                 const std::size_t query_id)
+  SampleOperator(
+      const std::size_t query_id,
+      const CatalogRelation &input_relation,
+      const CatalogRelationSchema &output_relation,
+      const QueryContext::insert_destination_id output_destination_index,
+      const bool input_relation_is_stored,
+      const bool is_block_sample,
+      const int percentage)
       : RelationalOperator(query_id),
         input_relation_(input_relation),
         output_relation_(output_relation),
@@ -81,8 +82,9 @@ class SampleOperator : public RelationalOperator {
         input_relation_is_stored_(input_relation_is_stored),
         is_block_sample_(is_block_sample),
         percentage_(percentage),
-        input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
-                                                           : std::vector<block_id>()),
+        input_relation_block_ids_(input_relation_is_stored
+                                      ? input_relation.getBlocksSnapshot()
+                                      : std::vector<block_id>()),
         num_workorders_generated_(0),
         started_(false) {}
 
@@ -133,11 +135,22 @@ class SampleOperator : public RelationalOperator {
  **/
 class SampleWorkOrder : public WorkOrder {
  public:
-  SampleWorkOrder(const CatalogRelationSchema &input_relation,
+  /**
+   * @brief Constructor.
+   *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
+   * @param input_relation The relation to perform sampling over.
+   * @param input_block_id The block to sample.
+   * @param is_block_sample Flag indicating whether the sample type is block or tuple.
+   * @param percentage The percentage of data to be sampled.
+   * @param output_destination The InsertDestination to insert the sample results.
+   * @param storage_manager The StorageManager to use.
+   **/
+  SampleWorkOrder(const std::size_t query_id,
+                  const CatalogRelationSchema &input_relation,
                   const block_id input_block_id,
                   const bool is_block_sample,
                   const int percentage,
-                  const std::size_t query_id,
                   InsertDestination *output_destination,
                   StorageManager *storage_manager)
       : WorkOrder(query_id),

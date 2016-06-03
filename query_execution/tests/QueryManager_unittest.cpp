@@ -91,7 +91,8 @@ class MockOperator: public RelationalOperator {
                const bool has_streaming_input,
                const int max_getworkorder_iters = 1,
                const int max_workorders = INT_MAX)
-      : produce_workorders_(produce_workorders),
+      : RelationalOperator(0 /* Query Id */),
+        produce_workorders_(produce_workorders),
         has_streaming_input_(has_streaming_input),
         max_workorders_(max_workorders),
         max_getworkorder_iters_(max_getworkorder_iters),

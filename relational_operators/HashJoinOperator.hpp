@@ -85,6 +85,7 @@ class HashJoinOperator : public RelationalOperator {
    *       dependent on the selectivity of the predicates involved. The decision
    *       is left to the query optimizer.
    *
+   * @param query_id The ID of the query.
    * @param build_relation The relation that the hash table was originally
    *        built on (i.e. the inner relation in the join).
    * @param probe_relation The relation to probe the hash table with (i.e. the
@@ -108,25 +109,25 @@ class HashJoinOperator : public RelationalOperator {
    *        corresponding to the attributes of the relation referred by
    *        output_relation_id. Each Scalar is evaluated for the joined tuples,
    *        and the resulting value is inserted into the join result.
-   * @param query_id The ID of the query.
    * @param is_selection_on_build Whether each selection Scalar is using attributes
    *        from the build relation as input. Can be NULL for inner/semi/anti
    *        joins since this information is not utilized by these joins.
    * @param join_type The type of join corresponding to this operator.
    **/
-  HashJoinOperator(const CatalogRelation &build_relation,
-                   const CatalogRelation &probe_relation,
-                   const bool probe_relation_is_stored,
-                   const std::vector<attribute_id> &join_key_attributes,
-                   const bool any_join_key_attributes_nullable,
-                   const CatalogRelation &output_relation,
-                   const QueryContext::insert_destination_id output_destination_index,
-                   const QueryContext::join_hash_table_id hash_table_index,
-                   const QueryContext::predicate_id residual_predicate_index,
-                   const QueryContext::scalar_group_id selection_index,
-                   const std::size_t query_id,
-                   const std::vector<bool> *is_selection_on_build = nullptr,
-                   const JoinType join_type = JoinType::kInnerJoin)
+  HashJoinOperator(
+      const std::size_t query_id,
+      const CatalogRelation &build_relation,
+      const CatalogRelation &probe_relation,
+      const bool probe_relation_is_stored,
+      const std::vector<attribute_id> &join_key_attributes,
+      const bool any_join_key_attributes_nullable,
+      const CatalogRelation &output_relation,
+      const QueryContext::insert_destination_id output_destination_index,
+      const QueryContext::join_hash_table_id hash_table_index,
+      const QueryContext::predicate_id residual_predicate_index,
+      const QueryContext::scalar_group_id selection_index,
+      const std::vector<bool> *is_selection_on_build = nullptr,
+      const JoinType join_type = JoinType::kInnerJoin)
       : RelationalOperator(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -230,6 +231,7 @@ class HashInnerJoinWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param build_relation The relation that the hash table was originally built
    *        on (i.e. the inner relation in the join).
    * @param probe_relation The relation to probe the hash table with (i.e. the
@@ -246,21 +248,21 @@ class HashInnerJoinWorkOrder : public WorkOrder {
    *        in \c output_destination. Each Scalar is evaluated for the joined
    *        tuples, and the resulting value is inserted into the join result.
    * @param hash_table The JoinHashTable to use.
-   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
-  HashInnerJoinWorkOrder(const CatalogRelationSchema &build_relation,
-                         const CatalogRelationSchema &probe_relation,
-                         const std::vector<attribute_id> &join_key_attributes,
-                         const bool any_join_key_attributes_nullable,
-                         const block_id lookup_block_id,
-                         const Predicate *residual_predicate,
-                         const std::vector<std::unique_ptr<const Scalar>> &selection,
-                         const JoinHashTable &hash_table,
-                         const std::size_t query_id,
-                         InsertDestination *output_destination,
-                         StorageManager *storage_manager)
+  HashInnerJoinWorkOrder(
+      const std::size_t query_id,
+      const CatalogRelationSchema &build_relation,
+      const CatalogRelationSchema &probe_relation,
+      const std::vector<attribute_id> &join_key_attributes,
+      const bool any_join_key_attributes_nullable,
+      const block_id lookup_block_id,
+      const Predicate *residual_predicate,
+      const std::vector<std::unique_ptr<const Scalar>> &selection,
+      const JoinHashTable &hash_table,
+      InsertDestination *output_destination,
+      StorageManager *storage_manager)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -276,6 +278,7 @@ class HashInnerJoinWorkOrder : public WorkOrder {
   /**
    * @brief Constructor for the distributed version.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param build_relation The relation that the hash table was originally built
    *        on (i.e. the inner relation in the join).
    * @param probe_relation The relation to probe the hash table with (i.e. the
@@ -292,21 +295,21 @@ class HashInnerJoinWorkOrder : public WorkOrder {
    *        in \c output_destination. Each Scalar is evaluated for the joined
    *        tuples, and the resulting value is inserted into the join result.
    * @param hash_table The JoinHashTable to use.
-   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
-  HashInnerJoinWorkOrder(const CatalogRelationSchema &build_relation,
-                         const CatalogRelationSchema &probe_relation,
-                         std::vector<attribute_id> &&join_key_attributes,
-                         const bool any_join_key_attributes_nullable,
-                         const block_id lookup_block_id,
-                         const Predicate *residual_predicate,
-                         const std::vector<std::unique_ptr<const Scalar>> &selection,
-                         const JoinHashTable &hash_table,
-                         const std::size_t query_id,
-                         InsertDestination *output_destination,
-                         StorageManager *storage_manager)
+  HashInnerJoinWorkOrder(
+      const std::size_t query_id,
+      const CatalogRelationSchema &build_relation,
+      const CatalogRelationSchema &probe_relation,
+      std::vector<attribute_id> &&join_key_attributes,
+      const bool any_join_key_attributes_nullable,
+      const block_id lookup_block_id,
+      const Predicate *residual_predicate,
+      const std::vector<std::unique_ptr<const Scalar>> &selection,
+      const JoinHashTable &hash_table,
+      InsertDestination *output_destination,
+      StorageManager *storage_manager)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -359,6 +362,7 @@ class HashSemiJoinWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param build_relation The relation that the hash table was originally built
    *        on (i.e. the inner relation in the join).
    * @param probe_relation The relation to probe the hash table with (i.e. the
@@ -375,21 +379,21 @@ class HashSemiJoinWorkOrder : public WorkOrder {
    *        in \c output_destination. Each Scalar is evaluated for the joined
    *        tuples, and the resulting value is inserted into the join result.
    * @param hash_table The JoinHashTable to use.
-   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
-  HashSemiJoinWorkOrder(const CatalogRelationSchema &build_relation,
-                        const CatalogRelationSchema &probe_relation,
-                        const std::vector<attribute_id> &join_key_attributes,
-                        const bool any_join_key_attributes_nullable,
-                        const block_id lookup_block_id,
-                        const Predicate *residual_predicate,
-                        const std::vector<std::unique_ptr<const Scalar>> &selection,
-                        const JoinHashTable &hash_table,
-                        const std::size_t query_id,
-                        InsertDestination *output_destination,
-                        StorageManager *storage_manager)
+  HashSemiJoinWorkOrder(
+      const std::size_t query_id,
+      const CatalogRelationSchema &build_relation,
+      const CatalogRelationSchema &probe_relation,
+      const std::vector<attribute_id> &join_key_attributes,
+      const bool any_join_key_attributes_nullable,
+      const block_id lookup_block_id,
+      const Predicate *residual_predicate,
+      const std::vector<std::unique_ptr<const Scalar>> &selection,
+      const JoinHashTable &hash_table,
+      InsertDestination *output_destination,
+      StorageManager *storage_manager)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -405,6 +409,7 @@ class HashSemiJoinWorkOrder : public WorkOrder {
   /**
    * @brief Constructor for the distributed version.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param build_relation The relation that the hash table was originally built
    *        on (i.e. the inner relation in the join).
    * @param probe_relation The relation to probe the hash table with (i.e. the
@@ -421,21 +426,21 @@ class HashSemiJoinWorkOrder : public WorkOrder {
    *        in \c output_destination. Each Scalar is evaluated for the joined
    *        tuples, and the resulting value is inserted into the join result.
    * @param hash_table The JoinHashTable to use.
-   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
-  HashSemiJoinWorkOrder(const CatalogRelationSchema &build_relation,
-                        const CatalogRelationSchema &probe_relation,
-                        std::vector<attribute_id> &&join_key_attributes,
-                        const bool any_join_key_attributes_nullable,
-                        const block_id lookup_block_id,
-                        const Predicate *residual_predicate,
-                        const std::vector<std::unique_ptr<const Scalar>> &selection,
-                        const JoinHashTable &hash_table,
-                        const std::size_t query_id,
-                        InsertDestination *output_destination,
-                        StorageManager *storage_manager)
+  HashSemiJoinWorkOrder(
+      const std::size_t query_id,
+      const CatalogRelationSchema &build_relation,
+      const CatalogRelationSchema &probe_relation,
+      std::vector<attribute_id> &&join_key_attributes,
+      const bool any_join_key_attributes_nullable,
+      const block_id lookup_block_id,
+      const Predicate *residual_predicate,
+      const std::vector<std::unique_ptr<const Scalar>> &selection,
+      const JoinHashTable &hash_table,
+      InsertDestination *output_destination,
+      StorageManager *storage_manager)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -481,6 +486,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param build_relation The relation that the hash table was originally built
    *        on (i.e. the inner relation in the join).
    * @param probe_relation The relation to probe the hash table with (i.e. the
@@ -497,21 +503,21 @@ class HashAntiJoinWorkOrder : public WorkOrder {
    *        in \c output_destination. Each Scalar is evaluated for the joined
    *        tuples, and the resulting value is inserted into the join result.
    * @param hash_table The JoinHashTable to use.
-   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
-  HashAntiJoinWorkOrder(const CatalogRelationSchema &build_relation,
-                        const CatalogRelationSchema &probe_relation,
-                        const std::vector<attribute_id> &join_key_attributes,
-                        const bool any_join_key_attributes_nullable,
-                        const block_id lookup_block_id,
-                        const Predicate *residual_predicate,
-                        const std::vector<std::unique_ptr<const Scalar>> &selection,
-                        const JoinHashTable &hash_table,
-                        const std::size_t query_id,
-                        InsertDestination *output_destination,
-                        StorageManager *storage_manager)
+  HashAntiJoinWorkOrder(
+      const std::size_t query_id,
+      const CatalogRelationSchema &build_relation,
+      const CatalogRelationSchema &probe_relation,
+      const std::vector<attribute_id> &join_key_attributes,
+      const bool any_join_key_attributes_nullable,
+      const block_id lookup_block_id,
+      const Predicate *residual_predicate,
+      const std::vector<std::unique_ptr<const Scalar>> &selection,
+      const JoinHashTable &hash_table,
+      InsertDestination *output_destination,
+      StorageManager *storage_manager)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -527,6 +533,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
   /**
    * @brief Constructor for the distributed version.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param build_relation The relation that the hash table was originally built
    *        on (i.e. the inner relation in the join).
    * @param probe_relation The relation to probe the hash table with (i.e. the
@@ -543,21 +550,21 @@ class HashAntiJoinWorkOrder : public WorkOrder {
    *        in \c output_destination. Each Scalar is evaluated for the joined
    *        tuples, and the resulting value is inserted into the join result.
    * @param hash_table The JoinHashTable to use.
-   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
-  HashAntiJoinWorkOrder(const CatalogRelationSchema &build_relation,
-                        const CatalogRelationSchema &probe_relation,
-                        std::vector<attribute_id> &&join_key_attributes,
-                        const bool any_join_key_attributes_nullable,
-                        const block_id lookup_block_id,
-                        const Predicate *residual_predicate,
-                        const std::vector<std::unique_ptr<const Scalar>> &selection,
-                        const JoinHashTable &hash_table,
-                        const std::size_t query_id,
-                        InsertDestination *output_destination,
-                        StorageManager *storage_manager)
+  HashAntiJoinWorkOrder(
+      const std::size_t query_id,
+      const CatalogRelationSchema &build_relation,
+      const CatalogRelationSchema &probe_relation,
+      std::vector<attribute_id> &&join_key_attributes,
+      const bool any_join_key_attributes_nullable,
+      const block_id lookup_block_id,
+      const Predicate *residual_predicate,
+      const std::vector<std::unique_ptr<const Scalar>> &selection,
+      const JoinHashTable &hash_table,
+      InsertDestination *output_destination,
+      StorageManager *storage_manager)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -608,6 +615,7 @@ class HashOuterJoinWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param build_relation The relation that the hash table was originally built
    *        on (i.e. the inner relation in the join).
    * @param probe_relation The relation to probe the hash table with (i.e. the
@@ -623,21 +631,21 @@ class HashOuterJoinWorkOrder : public WorkOrder {
    *        is using attributes from the build relation as input. Note that the
    *        length of this vector should equal the length of \p selection.
    * @param lookup_block_id The block id of the probe_relation.
-   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
-  HashOuterJoinWorkOrder(const CatalogRelationSchema &build_relation,
-                         const CatalogRelationSchema &probe_relation,
-                         const std::vector<attribute_id> &join_key_attributes,
-                         const bool any_join_key_attributes_nullable,
-                         const block_id lookup_block_id,
-                         const std::vector<std::unique_ptr<const Scalar>> &selection,
-                         const std::vector<bool> &is_selection_on_build,
-                         const JoinHashTable &hash_table,
-                         const std::size_t query_id,
-                         InsertDestination *output_destination,
-                         StorageManager *storage_manager)
+  HashOuterJoinWorkOrder(
+      const std::size_t query_id,
+      const CatalogRelationSchema &build_relation,
+      const CatalogRelationSchema &probe_relation,
+      const std::vector<attribute_id> &join_key_attributes,
+      const bool any_join_key_attributes_nullable,
+      const block_id lookup_block_id,
+      const std::vector<std::unique_ptr<const Scalar>> &selection,
+      const std::vector<bool> &is_selection_on_build,
+      const JoinHashTable &hash_table,
+      InsertDestination *output_destination,
+      StorageManager *storage_manager)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -653,6 +661,7 @@ class HashOuterJoinWorkOrder : public WorkOrder {
   /**
    * @brief Constructor for the distributed version.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param build_relation The relation that the hash table was originally built
    *        on (i.e. the inner relation in the join).
    * @param probe_relation The relation to probe the hash table with (i.e. the
@@ -668,21 +677,21 @@ class HashOuterJoinWorkOrder : public WorkOrder {
    *        is using attributes from the build relation as input. Note that the
    *        length of this vector should equal the length of \p selection.
    * @param hash_table The JoinHashTable to use.
-   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
-  HashOuterJoinWorkOrder(const CatalogRelationSchema &build_relation,
-                         const CatalogRelationSchema &probe_relation,
-                         std::vector<attribute_id> &&join_key_attributes,
-                         const bool any_join_key_attributes_nullable,
-                         const block_id lookup_block_id,
-                         const std::vector<std::unique_ptr<const Scalar>> &selection,
-                         std::vector<bool> &&is_selection_on_build,
-                         const JoinHashTable &hash_table,
-                         const std::size_t query_id,
-                         InsertDestination *output_destination,
-                         StorageManager *storage_manager)
+  HashOuterJoinWorkOrder(
+      const std::size_t query_id,
+      const CatalogRelationSchema &build_relation,
+      const CatalogRelationSchema &probe_relation,
+      std::vector<attribute_id> &&join_key_attributes,
+      const bool any_join_key_attributes_nullable,
+      const block_id lookup_block_id,
+      const std::vector<std::unique_ptr<const Scalar>> &selection,
+      std::vector<bool> &&is_selection_on_build,
+      const JoinHashTable &hash_table,
+      InsertDestination *output_destination,
+      StorageManager *storage_manager)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),

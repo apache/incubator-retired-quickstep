@@ -457,12 +457,12 @@ void QueryManager::getRebuildWorkOrders(const dag_node_index index,
        i < partially_filled_block_refs.size();
        ++i) {
     container->addRebuildWorkOrder(
-        new RebuildWorkOrder(std::move(partially_filled_block_refs[i]),
-                            index,
-                            op.getOutputRelationID(),
-                            foreman_client_id_,
-                            query_id_,
-                            bus_),
+        new RebuildWorkOrder(query_id_,
+                             std::move(partially_filled_block_refs[i]),
+                             index,
+                             op.getOutputRelationID(),
+                             foreman_client_id_,
+                             bus_),
         index);
   }
 }

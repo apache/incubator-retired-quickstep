@@ -165,9 +165,9 @@ bool TextScanOperator::getAllWorkOrders(
         // First, generate text-split work orders.
         for (const auto &file : files) {
           container->addNormalWorkOrder(
-              new TextSplitWorkOrder(file,
+              new TextSplitWorkOrder(query_id_,
+                                     file,
                                      process_escape_sequences_,
-                                     query_id_,
                                      storage_manager,
                                      op_index_,
                                      scheduler_client_id,
@@ -182,11 +182,11 @@ bool TextScanOperator::getAllWorkOrders(
         while (!text_blob_queue_.empty()) {
           const TextBlob blob_work = text_blob_queue_.popOne();
           container->addNormalWorkOrder(
-              new TextScanWorkOrder(blob_work.blob_id,
+              new TextScanWorkOrder(query_id_,
+                                    blob_work.blob_id,
                                     blob_work.size,
                                     field_terminator_,
                                     process_escape_sequences_,
-                                    query_id_,
                                     output_destination,
                                     storage_manager),
               op_index_);
@@ -203,10 +203,10 @@ bool TextScanOperator::getAllWorkOrders(
     if (blocking_dependencies_met_ && !work_generated_) {
       for (const auto &file : files) {
         container->addNormalWorkOrder(
-            new TextScanWorkOrder(file,
+            new TextScanWorkOrder(query_id_,
+                                  file,
                                   field_terminator_,
                                   process_escape_sequences_,
-                                  query_id_,
                                   output_destination,
                                   storage_manager),
             op_index_);
@@ -234,11 +234,10 @@ void TextScanOperator::receiveFeedbackMessage(const WorkOrder::FeedbackMessage &
   }
 }
 
-
-TextScanWorkOrder::TextScanWorkOrder(const std::string &filename,
+TextScanWorkOrder::TextScanWorkOrder(const std::size_t query_id,
+                                     const std::string &filename,
                                      const char field_terminator,
                                      const bool process_escape_sequences,
-                                     const std::size_t query_id,
                                      InsertDestination *output_destination,
                                      StorageManager *storage_manager)
     : WorkOrder(query_id),
@@ -254,11 +253,11 @@ TextScanWorkOrder::TextScanWorkOrder(const std::string &filename,
   DCHECK(storage_manager_ != nullptr);
 }
 
-TextScanWorkOrder::TextScanWorkOrder(const block_id text_blob,
+TextScanWorkOrder::TextScanWorkOrder(const std::size_t query_id,
+                                     const block_id text_blob,
                                      const std::size_t text_size,
                                      const char field_terminator,
                                      const bool process_escape_sequences,
-                                     const std::size_t query_id,
                                      InsertDestination *output_destination,
                                      StorageManager *storage_manager)
     : WorkOrder(query_id),

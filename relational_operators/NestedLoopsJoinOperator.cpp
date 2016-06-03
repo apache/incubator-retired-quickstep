@@ -76,15 +76,17 @@ bool NestedLoopsJoinOperator::getAllWorkOrders(
       for (const block_id left_block_id : left_relation_block_ids_) {
         for (const block_id right_block_id : right_relation_block_ids_) {
           container->addNormalWorkOrder(
-              new NestedLoopsJoinWorkOrder(left_input_relation_,
-                                           right_input_relation_,
-                                           left_block_id,
-                                           right_block_id,
-                                           query_context->getPredicate(join_predicate_index_),
-                                           query_context->getScalarGroup(selection_index_),
-                                           query_id_,
-                                           query_context->getInsertDestination(output_destination_index_),
-                                           storage_manager),
+              new NestedLoopsJoinWorkOrder(
+                  query_id_,
+                  left_input_relation_,
+                  right_input_relation_,
+                  left_block_id,
+                  right_block_id,
+                  query_context->getPredicate(join_predicate_index_),
+                  query_context->getScalarGroup(selection_index_),
+                  query_context->getInsertDestination(
+                      output_destination_index_),
+                  storage_manager),
               op_index_);
         }
       }
@@ -166,15 +168,16 @@ std::size_t NestedLoopsJoinOperator::getAllWorkOrdersHelperBothNotStored(WorkOrd
          right_index < right_max;
          ++right_index) {
       container->addNormalWorkOrder(
-          new NestedLoopsJoinWorkOrder(left_input_relation_,
-                                       right_input_relation_,
-                                       left_relation_block_ids_[left_index],
-                                       right_relation_block_ids_[right_index],
-                                       query_context->getPredicate(join_predicate_index_),
-                                       query_context->getScalarGroup(selection_index_),
-                                       query_id_,
-                                       query_context->getInsertDestination(output_destination_index_),
-                                       storage_manager),
+          new NestedLoopsJoinWorkOrder(
+              query_id_,
+              left_input_relation_,
+              right_input_relation_,
+              left_relation_block_ids_[left_index],
+              right_relation_block_ids_[right_index],
+              query_context->getPredicate(join_predicate_index_),
+              query_context->getScalarGroup(selection_index_),
+              query_context->getInsertDestination(output_destination_index_),
+              storage_manager),
           op_index_);
     }
   }
@@ -201,13 +204,13 @@ bool NestedLoopsJoinOperator::getAllWorkOrdersHelperOneStored(WorkOrdersContaine
       for (const block_id left_block_id : left_relation_block_ids_) {
         container->addNormalWorkOrder(
             new NestedLoopsJoinWorkOrder(
+                query_id_,
                 left_input_relation_,
                 right_input_relation_,
                 left_block_id,
                 right_relation_block_ids_[right_index],
                 join_predicate,
                 selection,
-                query_id_,
                 output_destination,
                 storage_manager),
             op_index_);
@@ -221,13 +224,13 @@ bool NestedLoopsJoinOperator::getAllWorkOrdersHelperOneStored(WorkOrdersContaine
          ++left_index) {
       for (const block_id right_block_id : right_relation_block_ids_) {
         container->addNormalWorkOrder(
-            new NestedLoopsJoinWorkOrder(left_input_relation_,
+            new NestedLoopsJoinWorkOrder(query_id_,
+                                         left_input_relation_,
                                          right_input_relation_,
                                          left_relation_block_ids_[left_index],
                                          right_block_id,
                                          join_predicate,
                                          selection,
-                                         query_id_,
                                          output_destination,
                                          storage_manager),
             op_index_);

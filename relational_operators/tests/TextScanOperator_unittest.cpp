@@ -55,6 +55,7 @@ const char *failure_output_filename;
 namespace quickstep {
 
 namespace {
+constexpr std::size_t kQueryId = 0;
 constexpr int kOpIndex = 0;
 }  // namespace
 
@@ -188,13 +189,13 @@ TEST_F(TextScanOperatorTest, ScanTest) {
   output_destination_proto->set_relational_op_index(kOpIndex);
 
   std::unique_ptr<TextScanOperator> text_scan_op(
-      new TextScanOperator(input_filename,
+      new TextScanOperator(kQueryId,
+                           input_filename,
                            '\t',
                            true,
                            false,
                            *relation_,
-                           output_destination_index,
-                           0  /* dummy query ID */));
+                           output_destination_index));
 
   // Setup query_context_.
   query_context_.reset(new QueryContext(query_context_proto,

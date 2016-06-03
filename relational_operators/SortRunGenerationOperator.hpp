@@ -73,6 +73,7 @@ class SortRunGenerationOperator : public RelationalOperator {
    * @brief Constructor for sorting tuples in blocks based on the sort
    * configuration and writing to output destination.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param input_relation The relation to generate sorted runs of.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
@@ -83,21 +84,22 @@ class SortRunGenerationOperator : public RelationalOperator {
    * @param input_relation_is_stored Does the input relation contain the blocks
    *                                 to sort. If \c false, the blocks are
    *                                 streamed.
-   * @param query_id The ID of the query to which this operator belongs.
    **/
-  SortRunGenerationOperator(const CatalogRelation &input_relation,
-                            const CatalogRelation &output_relation,
-                            const QueryContext::insert_destination_id output_destination_index,
-                            const QueryContext::sort_config_id sort_config_index,
-                            bool input_relation_is_stored,
-                            const std::size_t query_id)
+  SortRunGenerationOperator(
+      const std::size_t query_id,
+      const CatalogRelation &input_relation,
+      const CatalogRelation &output_relation,
+      const QueryContext::insert_destination_id output_destination_index,
+      const QueryContext::sort_config_id sort_config_index,
+      bool input_relation_is_stored)
       : RelationalOperator(query_id),
         input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         sort_config_index_(sort_config_index),
-        input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
-                                                           : std::vector<block_id>()),
+        input_relation_block_ids_(input_relation_is_stored
+                                      ? input_relation.getBlocksSnapshot()
+                                      : std::vector<block_id>()),
         num_workorders_generated_(0),
         started_(false),
         input_relation_is_stored_(input_relation_is_stored) {}
@@ -151,19 +153,19 @@ class SortRunGenerationWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param input_relation The relation to generate sorted runs of.
    * @param input_block_id The block id.
    * @param sort_config The Sort configuration specifying ORDER BY, ordering,
    *        and null ordering.
-   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to store the sorted blocks
    *        of runs.
    * @param storage_manager The StorageManager to use.
    **/
-  SortRunGenerationWorkOrder(const CatalogRelationSchema &input_relation,
+  SortRunGenerationWorkOrder(const std::size_t query_id,
+                             const CatalogRelationSchema &input_relation,
                              const block_id input_block_id,
                              const SortConfiguration &sort_config,
-                             const std::size_t query_id,
                              InsertDestination *output_destination,
                              StorageManager *storage_manager)
       : WorkOrder(query_id),

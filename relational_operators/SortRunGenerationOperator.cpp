@@ -51,10 +51,10 @@ bool SortRunGenerationOperator::getAllWorkOrders(
     if (!started_) {
       for (const block_id input_block_id : input_relation_block_ids_) {
         container->addNormalWorkOrder(
-            new SortRunGenerationWorkOrder(input_relation_,
+            new SortRunGenerationWorkOrder(query_id_,
+                                           input_relation_,
                                            input_block_id,
                                            sort_config,
-                                           query_id_,
                                            output_destination,
                                            storage_manager),
             op_index_);
@@ -67,10 +67,10 @@ bool SortRunGenerationOperator::getAllWorkOrders(
     while (num_workorders_generated_ < input_relation_block_ids_.size()) {
       container->addNormalWorkOrder(
           new SortRunGenerationWorkOrder(
+              query_id_,
               input_relation_,
               input_relation_block_ids_[num_workorders_generated_],
               sort_config,
-              query_id_,
               output_destination,
               storage_manager),
           op_index_);

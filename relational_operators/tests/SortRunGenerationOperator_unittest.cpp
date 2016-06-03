@@ -77,6 +77,7 @@ namespace quickstep {
 
 namespace {
 
+constexpr std::size_t kQueryId = 0;
 constexpr int kOpIndex = 0;
 
 // Helper struct for test tuple that will that will be inserted and sorted.
@@ -353,13 +354,14 @@ class SortRunGenerationOperatorTest : public ::testing::Test {
       order_by_proto->set_null_first(null_ordering[i]);
     }
 
-    std::unique_ptr<RelationalOperator> run_gen(
-        new SortRunGenerationOperator(*input_table_,
-                                      *result_table_,
-                                      insert_destination_index,
-                                      sort_config_index,
-                                      true /* is_stored */,
-                                      0  /* dummy query ID */));
+    std::unique_ptr<RelationalOperator> run_gen(new SortRunGenerationOperator(
+        kQueryId,
+        *input_table_,
+        *result_table_,
+        insert_destination_index,
+        sort_config_index,
+        true /* is_stored */));
+
     run_gen->setOperatorIndex(kOpIndex);
 
     // Set up the QueryContext.

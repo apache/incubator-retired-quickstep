@@ -36,9 +36,9 @@ bool SaveBlocksOperator::getAllWorkOrders(
   while (num_workorders_generated_ < destination_block_ids_.size()) {
     container->addNormalWorkOrder(
         new SaveBlocksWorkOrder(
+            query_id_,
             destination_block_ids_[num_workorders_generated_],
             force_,
-            query_id_,
             storage_manager),
         op_index_);
     ++num_workorders_generated_;

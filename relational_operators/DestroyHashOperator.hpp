@@ -46,11 +46,11 @@ class DestroyHashOperator : public RelationalOperator {
   /**
    * @brief Constructor.
    *
-   * @param hash_table_index The index of the JoinHashTable in QueryContext.
    * @param query_id The ID of the query to which this operator belongs.
+   * @param hash_table_index The index of the JoinHashTable in QueryContext.
    **/
-  DestroyHashOperator(const QueryContext::join_hash_table_id hash_table_index,
-                      const std::size_t query_id)
+  DestroyHashOperator(const std::size_t query_id,
+                      const QueryContext::join_hash_table_id hash_table_index)
       : RelationalOperator(query_id),
         hash_table_index_(hash_table_index),
         work_generated_(false) {}
@@ -78,12 +78,12 @@ class DestroyHashWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @param hash_table_index The index of the JoinHashTable in QueryContext.
    * @param query_id The ID of the query to which this WorkOrder belongs.
+   * @param hash_table_index The index of the JoinHashTable in QueryContext.
    * @param query_context The QueryContext to use.
    **/
-  DestroyHashWorkOrder(const QueryContext::join_hash_table_id hash_table_index,
-                       const std::size_t query_id,
+  DestroyHashWorkOrder(const std::size_t query_id,
+                       const QueryContext::join_hash_table_id hash_table_index,
                        QueryContext *query_context)
       : WorkOrder(query_id),
         hash_table_index_(hash_table_index),

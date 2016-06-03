@@ -54,13 +54,13 @@ bool DeleteOperator::getAllWorkOrders(
     if (!started_) {
       for (const block_id input_block_id : relation_block_ids_) {
         container->addNormalWorkOrder(
-            new DeleteWorkOrder(relation_,
+            new DeleteWorkOrder(query_id_,
+                                relation_,
                                 input_block_id,
                                 predicate,
                                 storage_manager,
                                 op_index_,
                                 scheduler_client_id,
-                                query_id_,
                                 bus),
             op_index_);
       }
@@ -70,13 +70,13 @@ bool DeleteOperator::getAllWorkOrders(
   } else {
     while (num_workorders_generated_ < relation_block_ids_.size()) {
       container->addNormalWorkOrder(
-          new DeleteWorkOrder(relation_,
+          new DeleteWorkOrder(query_id_,
+                              relation_,
                               relation_block_ids_[num_workorders_generated_],
                               predicate,
                               storage_manager,
                               op_index_,
                               scheduler_client_id,
-                              query_id_,
                               bus),
           op_index_);
       ++num_workorders_generated_;

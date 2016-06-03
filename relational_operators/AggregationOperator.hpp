@@ -53,17 +53,17 @@ class AggregationOperator : public RelationalOperator {
    * @brief Constructor for aggregating with arbitrary expressions in projection
    *        list.
    *
+   * @param query_id The ID of this query.
    * @param input_relation The relation to perform aggregation over.
    * @param input_relation_is_stored If input_relation is a stored relation and
    *        is fully available to the operator before it can start generating
    *        workorders.
    * @param aggr_state_index The index of the AggregationState in QueryContext.
-   * @param query_id The ID of this query.
    **/
-  AggregationOperator(const CatalogRelation &input_relation,
+  AggregationOperator(const std::size_t query_id,
+                      const CatalogRelation &input_relation,
                       bool input_relation_is_stored,
-                      const QueryContext::aggregation_state_id aggr_state_index,
-                      const std::size_t query_id)
+                      const QueryContext::aggregation_state_id aggr_state_index)
       : RelationalOperator(query_id),
         input_relation_is_stored_(input_relation_is_stored),
         input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
@@ -109,12 +109,12 @@ class AggregationWorkOrder : public WorkOrder {
   /**
    * @brief Constructor
    *
-   * @param input_block_id The block id.
    * @param query_id The ID of this query.
+   * @param input_block_id The block id.
    * @param state The AggregationState to use.
    **/
-  AggregationWorkOrder(const block_id input_block_id,
-                       const std::size_t query_id,
+  AggregationWorkOrder(const std::size_t query_id,
+                       const block_id input_block_id,
                        AggregationOperationState *state)
       : WorkOrder(query_id),
         input_block_id_(input_block_id),

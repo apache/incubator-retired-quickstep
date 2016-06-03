@@ -55,23 +55,23 @@ class TableGeneratorOperator : public RelationalOperator {
   /**
    * @brief Constructor
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the generated output.
    * @param generator_function_index The index of the GeneratorFunctionHandle in
    *        the QueryContext.
-   * @param query_id The ID of the query to which this operator belongs.
    **/
-  TableGeneratorOperator(const CatalogRelation &output_relation,
-                         const QueryContext::insert_destination_id output_destination_index,
-                         const QueryContext::generator_function_id generator_function_index,
-                         const std::size_t query_id)
+  TableGeneratorOperator(
+      const std::size_t query_id,
+      const CatalogRelation &output_relation,
+      const QueryContext::insert_destination_id output_destination_index,
+      const QueryContext::generator_function_id generator_function_index)
       : RelationalOperator(query_id),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         generator_function_index_(generator_function_index),
-        started_(false) {
-  }
+        started_(false) {}
 
   ~TableGeneratorOperator() override {}
 
@@ -113,13 +113,13 @@ class TableGeneratorWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
-   * @param generator_function The GeneratorFunctionHandle to use.
    * @param query_id The ID of the query to which this WorkOrder belongs.
+   * @param generator_function The GeneratorFunctionHandle to use.
    * @param output_destination The InsertDestination to insert the generated
    *        output.
    **/
-  TableGeneratorWorkOrder(const GeneratorFunctionHandle &function_handle,
-                          const std::size_t query_id,
+  TableGeneratorWorkOrder(const std::size_t query_id,
+                          const GeneratorFunctionHandle &function_handle,
                           InsertDestination *output_destination)
       : WorkOrder(query_id),
         function_handle_(function_handle),

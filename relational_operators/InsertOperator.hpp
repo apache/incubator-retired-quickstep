@@ -53,16 +53,17 @@ class InsertOperator : public RelationalOperator {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param output_relation_id The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the tuple.
    * @param tuple_index The index of the tuple to insert in the QueryContext.
-   * @param query_id The ID of the query to which this operator belongs.
    **/
-  InsertOperator(const CatalogRelation &output_relation,
-                 const QueryContext::insert_destination_id output_destination_index,
-                 const QueryContext::tuple_id tuple_index,
-                 const std::size_t query_id)
+  InsertOperator(
+      const std::size_t query_id,
+      const CatalogRelation &output_relation,
+      const QueryContext::insert_destination_id output_destination_index,
+      const QueryContext::tuple_id tuple_index)
       : RelationalOperator(query_id),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),

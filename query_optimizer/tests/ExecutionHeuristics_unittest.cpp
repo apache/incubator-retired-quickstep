@@ -15,6 +15,7 @@
  *   limitations under the License.
  **/
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <vector>
@@ -35,6 +36,10 @@
 
 namespace quickstep {
 namespace optimizer {
+
+namespace {
+constexpr std::size_t kQueryId = 0;
+}
 
 class ExecutionHeuristicsTest : public ::testing::Test {
  protected:
@@ -75,12 +80,12 @@ class ExecutionHeuristicsTest : public ::testing::Test {
     std::vector<attribute_id> build_attribute_ids;
     build_attribute_ids.push_back(build_attribute_id);
     QueryPlan::DAGNodeIndex build_operator_index =
-        query_plan->addRelationalOperator(new BuildHashOperator(*build_relation,
+        query_plan->addRelationalOperator(new BuildHashOperator(kQueryId,
+                                                                *build_relation,
                                                                 true,
                                                                 build_attribute_ids,
                                                                 false,
-                                                                join_hash_table_index,
-                                                                0  /* dummy query ID */));
+                                                                join_hash_table_index));
     return build_operator_index;
   }
 
@@ -92,17 +97,18 @@ class ExecutionHeuristicsTest : public ::testing::Test {
     std::vector<attribute_id> probe_attribute_ids;
     probe_attribute_ids.push_back(probe_attribute_id);
     QueryPlan::DAGNodeIndex join_operator_index =
-        query_plan->addRelationalOperator(new HashJoinOperator(*build_relation,
-                                                               *probe_relation,
-                                                               true,
-                                                               probe_attribute_ids,
-                                                               false,
-                                                               *probe_relation,
-                                                               0,
-                                                               join_hash_table_index,
-                                                               0,
-                                                               0,
-                                                               0  /* dummy query ID */));
+        query_plan->addRelationalOperator(
+            new HashJoinOperator(kQueryId,
+                                 *build_relation,
+                                 *probe_relation,
+                                 true,
+                                 probe_attribute_ids,
+                                 false,
+                                 *probe_relation,
+                                 0,
+                                 join_hash_table_index,
+                                 0,
+                                 0));
     return join_operator_index;
   }
 

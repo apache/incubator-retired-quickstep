@@ -121,6 +121,7 @@ class TextScanOperator : public RelationalOperator {
   /**
    * @brief Constructor
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param file_pattern The glob-like file pattern of the sources to load. The
    *        pattern could include * (wildcard for multiple chars) and ?
    *        (wildcard for single char). It defaults to single file load, if a
@@ -134,15 +135,15 @@ class TextScanOperator : public RelationalOperator {
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert tuples.
-   * @param query_id The ID of the query to which this operator belongs.
    **/
-  TextScanOperator(const std::string &file_pattern,
-                   const char field_terminator,
-                   const bool process_escape_sequences,
-                   const bool parallelize_load,
-                   const CatalogRelation &output_relation,
-                   const QueryContext::insert_destination_id output_destination_index,
-                   const std::size_t query_id)
+  TextScanOperator(
+      const std::size_t query_id,
+      const std::string &file_pattern,
+      const char field_terminator,
+      const bool process_escape_sequences,
+      const bool parallelize_load,
+      const CatalogRelation &output_relation,
+      const QueryContext::insert_destination_id output_destination_index)
       : RelationalOperator(query_id),
         file_pattern_(file_pattern),
         field_terminator_(field_terminator),
@@ -200,42 +201,42 @@ class TextScanWorkOrder : public WorkOrder {
   /**
    * @brief Constructor
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param filename The name of the text file to bulk insert.
    * @param field_terminator The string which separates attribute values in
    *        the text file.
    * @param process_escape_sequences Whether to decode escape sequences in the
    *        text file.
-   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert tuples.
    * @param storage_manager The StorageManager to use.
    **/
   TextScanWorkOrder(
+      const std::size_t query_id,
       const std::string &filename,
       const char field_terminator,
       const bool process_escape_sequences,
-      const std::size_t query_id,
       InsertDestination *output_destination,
       StorageManager *storage_manager);
 
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param text_blob Blob ID containing the data to be scanned.
    * @param text_size Size of the data in the blob.
    * @param field_terminator The character which separates attribute values in
    *        the text file.
    * @param process_escape_sequences Whether to decode escape sequences in the
    *        text file.
-   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to write the read tuples.
    * @param storage_manager The StorageManager to use.
    */
   TextScanWorkOrder(
+      const std::size_t query_id,
       const block_id text_blob,
       const std::size_t text_size,
       const char field_terminator,
       const bool process_escape_sequences,
-      const std::size_t query_id,
       InsertDestination *output_destination,
       StorageManager *storage_manager);
 
@@ -322,19 +323,20 @@ class TextSplitWorkOrder : public WorkOrder {
  public:
   /**
    * @brief Constructor.
+   *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param filename File to split into row-aligned blobs.
    * @param process_escape_sequences Whether to decode escape sequences in the
    *        text file.
-   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param storage_manager The StorageManager to use.
    * @param operator_index Operator index of the current operator. This is used
    *                       to send new-work available message to Foreman.
    * @param scheduler_client_id The TMB client ID of the scheduler thread.
    * @param bus A pointer to the TMB.
    */
-  TextSplitWorkOrder(const std::string &filename,
+  TextSplitWorkOrder(const std::size_t query_id,
+                     const std::string &filename,
                      const bool process_escape_sequences,
-                     const std::size_t query_id,
                      StorageManager *storage_manager,
                      const std::size_t operator_index,
                      const tmb::client_id scheduler_client_id,

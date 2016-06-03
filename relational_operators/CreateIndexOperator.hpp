@@ -51,14 +51,14 @@ class CreateIndexOperator : public RelationalOperator {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param relation The relation to create index upon.
    * @param index_name The index to create.
-   * @param query_id The ID of the query to which this operator belongs.
    * @param index_description The index_description associated with this index.
    **/
-  CreateIndexOperator(CatalogRelation *relation,
+  CreateIndexOperator(const std::size_t query_id,
+                      CatalogRelation *relation,
                       const std::string &index_name,
-                      const std::size_t query_id,
                       IndexSubBlockDescription &&index_description)  // NOLINT(whitespace/operators)
       : RelationalOperator(query_id),
         relation_(DCHECK_NOTNULL(relation)),

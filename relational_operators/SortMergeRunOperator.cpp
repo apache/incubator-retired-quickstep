@@ -85,12 +85,12 @@ WorkOrder *SortMergeRunOperator::createWorkOrder(
 
   // Create a work order from the merge job from merge tree.
   return new SortMergeRunWorkOrder(
+      query_id_,
       query_context->getSortConfig(sort_config_index_),
       job->level > 0 ? run_relation_ : input_relation_,
       std::move(job->runs),
       top_k_,
       job->level,
-      query_id_,
       output_destination,
       storage_manager,
       op_index_,

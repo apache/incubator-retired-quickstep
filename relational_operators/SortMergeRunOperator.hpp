@@ -72,6 +72,7 @@ class SortMergeRunOperator : public RelationalOperator {
   /**
    * @brief Constructor for merging sorted runs to generate a sorted relation.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param input_relation The relation to merge sorted blocks.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
@@ -88,18 +89,18 @@ class SortMergeRunOperator : public RelationalOperator {
    *              \c top_k is 0.
    * @param input_relation_is_stored Boolean to indicate is input relation is
    *                                 stored or streamed.
-   * @param query_id The ID of the query to which this operator belongs.
    **/
-  SortMergeRunOperator(const CatalogRelation &input_relation,
-                       const CatalogRelation &output_relation,
-                       const QueryContext::insert_destination_id output_destination_index,
-                       const CatalogRelation &run_relation,
-                       const QueryContext::insert_destination_id run_block_destination_index,
-                       const QueryContext::sort_config_id sort_config_index,
-                       const std::size_t merge_factor,
-                       const std::size_t top_k,
-                       const bool input_relation_is_stored,
-                       const std::size_t query_id)
+  SortMergeRunOperator(
+      const std::size_t query_id,
+      const CatalogRelation &input_relation,
+      const CatalogRelation &output_relation,
+      const QueryContext::insert_destination_id output_destination_index,
+      const CatalogRelation &run_relation,
+      const QueryContext::insert_destination_id run_block_destination_index,
+      const QueryContext::sort_config_id sort_config_index,
+      const std::size_t merge_factor,
+      const std::size_t top_k,
+      const bool input_relation_is_stored)
       : RelationalOperator(query_id),
         input_relation_(input_relation),
         output_relation_(output_relation),
@@ -214,12 +215,12 @@ class SortMergeRunWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param sort_config The Sort configuration.
    * @param run_relation The relation to which the run blocks belong to.
    * @param input_runs Input runs to merge.
    * @param top_k If non-zero will merge only \c top_k tuples.
    * @param merge_level Merge level in the merge tree.
-   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to create new blocks.
    * @param storage_manager The StorageManager to use.
    * @param operator_index Merge-run operator index to send feedback messages
@@ -228,12 +229,12 @@ class SortMergeRunWorkOrder : public WorkOrder {
    * @param bus TMB to send the feedback message on.
    **/
   SortMergeRunWorkOrder(
+      const std::size_t query_id,
       const SortConfiguration &sort_config,
       const CatalogRelationSchema &run_relation,
       std::vector<merge_run_operator::Run> &&input_runs,
       const std::size_t top_k,
       const std::size_t merge_level,
-      const std::size_t query_id,
       InsertDestination *output_destination,
       StorageManager *storage_manager,
       const std::size_t operator_index,

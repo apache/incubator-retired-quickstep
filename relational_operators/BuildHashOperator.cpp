@@ -69,11 +69,11 @@ bool BuildHashOperator::getAllWorkOrders(
     if (!started_) {
       for (const block_id input_block_id : input_relation_block_ids_) {
         container->addNormalWorkOrder(
-            new BuildHashWorkOrder(input_relation_,
+            new BuildHashWorkOrder(query_id_,
+                                   input_relation_,
                                    join_key_attributes_,
                                    any_join_key_attributes_nullable_,
                                    input_block_id,
-                                   query_id_,
                                    hash_table,
                                    storage_manager),
             op_index_);
@@ -85,11 +85,11 @@ bool BuildHashOperator::getAllWorkOrders(
     while (num_workorders_generated_ < input_relation_block_ids_.size()) {
       container->addNormalWorkOrder(
           new BuildHashWorkOrder(
+              query_id_,
               input_relation_,
               join_key_attributes_,
               any_join_key_attributes_nullable_,
               input_relation_block_ids_[num_workorders_generated_],
-              query_id_,
               hash_table,
               storage_manager),
           op_index_);

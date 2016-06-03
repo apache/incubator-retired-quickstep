@@ -55,18 +55,18 @@ class DeleteOperator : public RelationalOperator {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param relation The relation to perform the DELETE over.
    * @param predicate_index The index of Predicate in QueryContext. All tuples
    *        matching pred will be deleted (If kInvalidPredicateId, then all
    *        tuples will be deleted).
    * @param relation_is_stored If relation is a stored relation and is fully
    *        available to the operator before it can start generating workorders.
-   * @param query_id The ID of the query to which this operator belongs.
    **/
-  DeleteOperator(const CatalogRelation &relation,
+  DeleteOperator(const std::size_t query_id,
+                 const CatalogRelation &relation,
                  const QueryContext::predicate_id predicate_index,
-                 const bool relation_is_stored,
-                 const std::size_t query_id)
+                 const bool relation_is_stored)
      :  RelationalOperator(query_id),
         relation_(relation),
         predicate_index_(predicate_index),
@@ -122,6 +122,7 @@ class DeleteWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this workorder belongs.
    * @param input_relation The relation to perform the DELETE over.
    * @param input_block_id The block Id.
    * @param predicate All tuples matching \c predicate will be deleted (If
@@ -130,16 +131,15 @@ class DeleteWorkOrder : public WorkOrder {
    * @param delete_operator_index The index of the Delete Operator in the query
    *        plan DAG.
    * @param scheduler_client_id The TMB client ID of the scheduler thread.
-   * @param query_id The ID of the query to which this workorder belongs.
    * @param bus A pointer to the TMB.
    **/
-  DeleteWorkOrder(const CatalogRelationSchema &input_relation,
+  DeleteWorkOrder(const std::size_t query_id,
+                  const CatalogRelationSchema &input_relation,
                   const block_id input_block_id,
                   const Predicate *predicate,
                   StorageManager *storage_manager,
                   const std::size_t delete_operator_index,
                   const tmb::client_id scheduler_client_id,
-                  const std::size_t query_id,
                   MessageBus *bus)
       : WorkOrder(query_id),
         input_relation_(input_relation),

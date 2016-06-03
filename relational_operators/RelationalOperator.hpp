@@ -212,16 +212,17 @@ class RelationalOperator {
    * @param blocking_dependencies_met If those dependencies which break the
    *        pipeline have been met.
    **/
-  explicit RelationalOperator(const std::size_t query_id = 0,
+  explicit RelationalOperator(const std::size_t query_id,
                               const bool blocking_dependencies_met = false)
-      : blocking_dependencies_met_(blocking_dependencies_met),
-        done_feeding_input_relation_(false),
-        query_id_(query_id) {}
+      : query_id_(query_id),
+        blocking_dependencies_met_(blocking_dependencies_met),
+        done_feeding_input_relation_(false) {}
+
+  const std::size_t query_id_;
 
   bool blocking_dependencies_met_;
   bool done_feeding_input_relation_;
   std::size_t op_index_;
-  const std::size_t query_id_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(RelationalOperator);

@@ -59,6 +59,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param left_input_relation The first relation in the join (order is not
    *        actually important).
    * @param right_input_relation The second relation in the join (order is not
@@ -76,17 +77,17 @@ class NestedLoopsJoinOperator : public RelationalOperator {
    * @param left_relation_is_stored If left_input_relation is a stored relation.
    * @param right_relation_is_stored If right_input_relation is a stored
    *                                 relation.
-   * @param query_id The ID of the query to which this operator belongs.
    **/
-  NestedLoopsJoinOperator(const CatalogRelation &left_input_relation,
-                          const CatalogRelation &right_input_relation,
-                          const CatalogRelation &output_relation,
-                          const QueryContext::insert_destination_id output_destination_index,
-                          const QueryContext::predicate_id join_predicate_index,
-                          const QueryContext::scalar_group_id selection_index,
-                          bool left_relation_is_stored,
-                          bool right_relation_is_stored,
-                          const std::size_t query_id)
+  NestedLoopsJoinOperator(
+      const std::size_t query_id,
+      const CatalogRelation &left_input_relation,
+      const CatalogRelation &right_input_relation,
+      const CatalogRelation &output_relation,
+      const QueryContext::insert_destination_id output_destination_index,
+      const QueryContext::predicate_id join_predicate_index,
+      const QueryContext::scalar_group_id selection_index,
+      bool left_relation_is_stored,
+      bool right_relation_is_stored)
       : RelationalOperator(query_id),
         left_input_relation_(left_input_relation),
         right_input_relation_(right_input_relation),
@@ -96,10 +97,12 @@ class NestedLoopsJoinOperator : public RelationalOperator {
         selection_index_(selection_index),
         left_relation_is_stored_(left_relation_is_stored),
         right_relation_is_stored_(right_relation_is_stored),
-        left_relation_block_ids_(left_relation_is_stored ? left_input_relation.getBlocksSnapshot()
-                                                         : std::vector<block_id>()),
-        right_relation_block_ids_(right_relation_is_stored ? right_input_relation.getBlocksSnapshot()
-                                                           : std::vector<block_id>()),
+        left_relation_block_ids_(left_relation_is_stored
+                                     ? left_input_relation.getBlocksSnapshot()
+                                     : std::vector<block_id>()),
+        right_relation_block_ids_(right_relation_is_stored
+                                      ? right_input_relation.getBlocksSnapshot()
+                                      : std::vector<block_id>()),
         num_left_workorders_generated_(0),
         num_right_workorders_generated_(0),
         done_feeding_left_relation_(false),
@@ -222,6 +225,7 @@ class NestedLoopsJoinWorkOrder : public WorkOrder {
   /**
    * @brief Constructor.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param left_input_relation The first relation in the join (order is not
    *        actually important).
    * @param right_input_relation The second relation in the join (order is not
@@ -233,19 +237,19 @@ class NestedLoopsJoinWorkOrder : public WorkOrder {
    * @param selection A list of Scalars corresponding to the relation attributes
    *        in \c output_destination. Each Scalar is evaluated for the joined
    *        tuples, and the resulting value is inserted into the join result.
-   * @param query_id The ID of the query to which this operator belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
-  NestedLoopsJoinWorkOrder(const CatalogRelationSchema &left_input_relation,
-                           const CatalogRelationSchema &right_input_relation,
-                           const block_id left_block_id,
-                           const block_id right_block_id,
-                           const Predicate *join_predicate,
-                           const std::vector<std::unique_ptr<const Scalar>> &selection,
-                           const std::size_t query_id,
-                           InsertDestination *output_destination,
-                           StorageManager *storage_manager)
+  NestedLoopsJoinWorkOrder(
+      const std::size_t query_id,
+      const CatalogRelationSchema &left_input_relation,
+      const CatalogRelationSchema &right_input_relation,
+      const block_id left_block_id,
+      const block_id right_block_id,
+      const Predicate *join_predicate,
+      const std::vector<std::unique_ptr<const Scalar>> &selection,
+      InsertDestination *output_destination,
+      StorageManager *storage_manager)
       : WorkOrder(query_id),
         left_input_relation_(left_input_relation),
         right_input_relation_(right_input_relation),

@@ -53,16 +53,18 @@ bool UpdateOperator::getAllWorkOrders(
 
     for (const block_id input_block_id : input_blocks_) {
       container->addNormalWorkOrder(
-          new UpdateWorkOrder(relation_,
-                              input_block_id,
-                              query_context->getPredicate(predicate_index_),
-                              query_context->getUpdateGroup(update_group_index_),
-                              query_id_,
-                              query_context->getInsertDestination(relocation_destination_index_),
-                              storage_manager,
-                              op_index_,
-                              scheduler_client_id,
-                              bus),
+          new UpdateWorkOrder(
+              query_id_,
+              relation_,
+              input_block_id,
+              query_context->getPredicate(predicate_index_),
+              query_context->getUpdateGroup(update_group_index_),
+              query_context->getInsertDestination(
+                  relocation_destination_index_),
+              storage_manager,
+              op_index_,
+              scheduler_client_id,
+              bus),
           op_index_);
     }
     started_ = true;

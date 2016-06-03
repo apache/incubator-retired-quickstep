@@ -55,14 +55,14 @@ class DropTableOperator : public RelationalOperator {
   /**
    * @brief Constructor.
    *
-   * @param relation The relation to drop.
    * @param query_id The ID of the query to which this operator belongs.
+   * @param relation The relation to drop.
    * @param database The databse where to drop \c relation.
    * @param only_drop_blocks If true, only drop the blocks belonging to \c
    *        relation, but leave \c relation in \c database.
    **/
-  DropTableOperator(const CatalogRelation &relation,
-                    const std::size_t query_id,
+  DropTableOperator(const std::size_t query_id,
+                    const CatalogRelation &relation,
                     CatalogDatabase *database,
                     const bool only_drop_blocks = false)
       : RelationalOperator(query_id),

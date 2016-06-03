@@ -42,29 +42,28 @@ void SelectOperator::addWorkOrders(WorkOrdersContainer *container,
                                    InsertDestination *output_destination) {
   if (input_relation_is_stored_) {
     for (const block_id input_block_id : input_relation_block_ids_) {
-      container->addNormalWorkOrder(
-          new SelectWorkOrder(input_relation_,
-                              input_block_id,
-                              predicate,
-                              simple_projection_,
-                              simple_selection_,
-                              selection,
-                              query_id_,
-                              output_destination,
-                              storage_manager),
-          op_index_);
+      container->addNormalWorkOrder(new SelectWorkOrder(query_id_,
+                                                        input_relation_,
+                                                        input_block_id,
+                                                        predicate,
+                                                        simple_projection_,
+                                                        simple_selection_,
+                                                        selection,
+                                                        output_destination,
+                                                        storage_manager),
+                                    op_index_);
     }
   } else {
     while (num_workorders_generated_ < input_relation_block_ids_.size()) {
       container->addNormalWorkOrder(
           new SelectWorkOrder(
+              query_id_,
               input_relation_,
               input_relation_block_ids_[num_workorders_generated_],
               predicate,
               simple_projection_,
               simple_selection_,
               selection,
-              query_id_,
               output_destination,
               storage_manager),
           op_index_);
@@ -87,13 +86,13 @@ void SelectOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
            input_relation_block_ids_in_partition_[part_id]) {
         container->addNormalWorkOrder(
             new SelectWorkOrder(
+                query_id_,
                 input_relation_,
                 input_block_id,
                 predicate,
                 simple_projection_,
                 simple_selection_,
                 selection,
-                query_id_,
                 output_destination,
                 storage_manager,
                 placement_scheme_->getNUMANodeForBlock(input_block_id)),
@@ -108,13 +107,13 @@ void SelectOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
             = input_relation_block_ids_in_partition_[part_id][num_workorders_generated_in_partition_[part_id]];
         container->addNormalWorkOrder(
             new SelectWorkOrder(
+                query_id_,
                 input_relation_,
                 block_in_partition,
                 predicate,
                 simple_projection_,
                 simple_selection_,
                 selection,
-                query_id_,
                 output_destination,
                 storage_manager,
                 placement_scheme_->getNUMANodeForBlock(block_in_partition)),

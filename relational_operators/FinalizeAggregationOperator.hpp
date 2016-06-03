@@ -54,16 +54,17 @@ class FinalizeAggregationOperator : public RelationalOperator {
    * @brief Constructor for finalizing aggregation state and writing output
    * tuples.  The actual aggregation is computed by the AggregationOperator.
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param aggr_state_index The index of the AggregationState in QueryContext.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert aggregation results.
-   * @param query_id The ID of the query to which this operator belongs.
    */
-  FinalizeAggregationOperator(const QueryContext::aggregation_state_id aggr_state_index,
-                              const CatalogRelation &output_relation,
-                              const QueryContext::insert_destination_id output_destination_index,
-                              const std::size_t query_id)
+  FinalizeAggregationOperator(
+      const std::size_t query_id,
+      const QueryContext::aggregation_state_id aggr_state_index,
+      const CatalogRelation &output_relation,
+      const QueryContext::insert_destination_id output_destination_index)
       : RelationalOperator(query_id),
         aggr_state_index_(aggr_state_index),
         output_relation_(output_relation),

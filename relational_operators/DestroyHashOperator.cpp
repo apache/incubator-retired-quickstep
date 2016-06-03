@@ -33,7 +33,7 @@ bool DestroyHashOperator::getAllWorkOrders(
   if (blocking_dependencies_met_ && !work_generated_) {
     work_generated_ = true;
     container->addNormalWorkOrder(
-        new DestroyHashWorkOrder(hash_table_index_, query_id_, query_context),
+        new DestroyHashWorkOrder(query_id_, hash_table_index_, query_context),
         op_index_);
   }
   return work_generated_;
