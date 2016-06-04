@@ -146,6 +146,10 @@ configure_file (
   "${CMAKE_CURRENT_BINARY_DIR}/UtilityConfig.h"
 )
 
+QS_PROTOBUF_GENERATE_CPP(quickstep_utility_BloomFilter_proto_srcs
+                         quickstep_utility_BloomFilter_proto_hdrs
+                         BloomFilter.proto)
+
 QS_PROTOBUF_GENERATE_CPP(quickstep_utility_SortConfiguration_proto_srcs
                          quickstep_utility_SortConfiguration_proto_hdrs
                          SortConfiguration.proto)
@@ -155,6 +159,9 @@ add_library(quickstep_utility_Alignment ../empty_src.cpp Alignment.hpp)
 add_library(quickstep_utility_BitManipulation ../empty_src.cpp BitManipulation.hpp)
 add_library(quickstep_utility_BitVector ../empty_src.cpp BitVector.hpp)
 add_library(quickstep_utility_BloomFilter ../empty_src.cpp BloomFilter.hpp)
+add_library(quickstep_utility_BloomFilter_proto
+            ${quickstep_utility_BloomFilter_proto_srcs}
+            ${quickstep_utility_BloomFilter_proto_hdrs})
 add_library(quickstep_utility_CalculateInstalledMemory CalculateInstalledMemory.cpp CalculateInstalledMemory.hpp)
 add_library(quickstep_utility_Cast ../empty_src.cpp Cast.hpp)
 add_library(quickstep_utility_CheckSnprintf ../empty_src.cpp CheckSnprintf.hpp)
@@ -164,6 +171,7 @@ add_library(quickstep_utility_Glob Glob.cpp Glob.hpp)
 add_library(quickstep_utility_HashPair ../empty_src.cpp HashPair.hpp)
 add_library(quickstep_utility_Macros ../empty_src.cpp Macros.hpp)
 add_library(quickstep_utility_MemStream ../empty_src.cpp MemStream.hpp)
+add_library(quickstep_utility_PlanVisualizer PlanVisualizer.cpp PlanVisualizer.hpp)
 add_library(quickstep_utility_PrimeNumber PrimeNumber.cpp PrimeNumber.hpp)
 add_library(quickstep_utility_PtrList ../empty_src.cpp PtrList.hpp)
 add_library(quickstep_utility_PtrMap ../empty_src.cpp PtrMap.hpp)
@@ -202,7 +210,14 @@ target_link_libraries(quickstep_utility_BitVector
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_utility_BloomFilter
                       glog
+                      quickstep_storage_StorageConstants
+                      quickstep_threading_Mutex
+                      quickstep_threading_SharedMutex
+                      quickstep_threading_SpinSharedMutex
+                      quickstep_utility_BloomFilter_proto
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_utility_BloomFilter_proto
+                      ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_utility_CalculateInstalledMemory
                       glog)
 target_link_libraries(quickstep_utility_CheckSnprintf
@@ -217,6 +232,17 @@ target_link_libraries(quickstep_utility_MemStream
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_utility_PrimeNumber
                       glog)
+target_link_libraries(quickstep_utility_PlanVisualizer
+                      quickstep_catalog_CatalogRelation
+                      quickstep_queryoptimizer_costmodel_StarSchemaSimpleCostModel
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_physical_HashJoin
+                      quickstep_queryoptimizer_physical_Physical
+                      quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_queryoptimizer_physical_TableReference
+                      quickstep_queryoptimizer_physical_TopLevelPlan
+                      quickstep_utility_Macros
+                      quickstep_utility_StringUtil)
 target_link_libraries(quickstep_utility_PtrList
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_utility_PtrMap
@@ -271,6 +297,7 @@ target_link_libraries(quickstep_utility
                       quickstep_utility_BitManipulation
                       quickstep_utility_BitVector
                       quickstep_utility_BloomFilter
+                      quickstep_utility_BloomFilter_proto
                       quickstep_utility_CalculateInstalledMemory
                       quickstep_utility_Cast
                       quickstep_utility_CheckSnprintf
@@ -280,6 +307,7 @@ target_link_libraries(quickstep_utility
                       quickstep_utility_HashPair
                       quickstep_utility_Macros
                       quickstep_utility_MemStream
+                      quickstep_utility_PlanVisualizer
                       quickstep_utility_PrimeNumber
                       quickstep_utility_PtrList
                       quickstep_utility_PtrMap

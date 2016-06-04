@@ -464,8 +464,6 @@ WHERE a.int_col = b.int_col
 +-----------+-----------+---------------+-----------------------+---------------+------------------------+-----------+
 ==
 
-# FIXME(qzeng): Inner nested-loops join has no output column, causing query
-# result to be INCORRECT.
 SELECT COUNT(*)
 FROM
   (SELECT a.float_col
@@ -476,7 +474,7 @@ FROM
 +--------------------+
 |COUNT(*)            |
 +--------------------+
-|                   0|
+|                 575|
 +--------------------+
 ==
 
@@ -535,21 +533,12 @@ WHERE int_col = 2;
 
 SELECT int_col
 FROM test
-GROUP BY int_col;
+GROUP BY int_col
+ORDER BY int_col;
 --
 +-----------+
 |int_col    |
 +-----------+
-|          2|
-|          4|
-|          6|
-|          8|
-|         12|
-|         14|
-|         16|
-|         18|
-|         22|
-|         24|
 |        -23|
 |        -21|
 |        -19|
@@ -562,6 +551,16 @@ GROUP BY int_col;
 |         -5|
 |         -3|
 |         -1|
+|          2|
+|          4|
+|          6|
+|          8|
+|         12|
+|         14|
+|         16|
+|         18|
+|         22|
+|         24|
 +-----------+
 ==
 
@@ -764,6 +763,30 @@ WHERE
 +-----------+
 ==
 
+# SUBSTRING function
+SELECT char_col,
+       SUBSTRING(char_col FROM 1 FOR 2) AS negative_value
+FROM test
+WHERE SUBSTRING(char_col FROM 1 FOR 1) = '-'
+--
++--------------------+--------------+
+|char_col            |negative_value|
++--------------------+--------------+
+|         -1 1.000000|            -1|
+|         -3 1.732051|            -3|
+|         -5 2.236068|            -5|
+|         -7 2.645751|            -7|
+|         -9 3.000000|            -9|
+|        -11 3.316625|            -1|
+|        -13 3.605551|            -1|
+|        -15 3.872983|            -1|
+|        -17 4.123106|            -1|
+|        -19 4.358899|            -1|
+|        -21 4.582576|            -2|
+|        -23 4.795832|            -2|
++--------------------+--------------+
+==
+
 # IN predicate
 SELECT *
 FROM generate_series(1, 5) AS gs(i)
@@ -916,15 +939,14 @@ ORDER BY x;
 +-----------+-----------+
 ==
 
-# TODO(team): Fix Issue #9 to enable COUNT(*).
-SELECT COUNT(long_col)
+SELECT COUNT(*)
 FROM test,
      (SELECT AVG(long_col) a FROM test) subquery
 WHERE double_col < 0
   AND long_col > subquery.a;
 --
 +--------------------+
-|COUNT(long_col)     |
+|COUNT(*)            |
 +--------------------+
 |                   5|
 +--------------------+

@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_QUERY_EXECUTION_QUERY_EXECUTION_TYPEDEFS_HPP_
 #define QUICKSTEP_QUERY_EXECUTION_QUERY_EXECUTION_TYPEDEFS_HPP_
 
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED
 #include "threading/ThreadIDBasedMap.hpp"
 
 #include "tmb/address.h"
@@ -55,6 +56,7 @@ using ClientIDMap = ThreadIDBasedMap<client_id,
                                      'a',
                                      'p'>;
 
+// We sort the following message types in the order of a life cycle of a query.
 enum QueryExecutionMessageType : message_type_id {
   kWorkOrderMessage,  // From Foreman to Worker.
   kWorkOrderCompleteMessage,  // From Worker to Foreman.
@@ -66,6 +68,20 @@ enum QueryExecutionMessageType : message_type_id {
   kRebuildWorkOrderMessage,  // From Foreman to Worker.
   kRebuildWorkOrderCompleteMessage,  // From Worker to Foreman.
   kPoisonMessage,  // From the CLI shell to Foreman, then from Foreman to Workers.
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  // BlockLocator related messages, sorted in a life cycle of StorageManager
+  // with a unique block domain.
+  kBlockDomainRegistrationMessage,  // From Worker to BlockLocator.
+  kBlockDomainRegistrationResponseMessage,  // From BlockLocator to Worker.
+  kAddBlockLocationMessage,  // From StorageManager to BlockLocator.
+  kDeleteBlockLocationMessage,  // From StorageManager to BlockLocator.
+  kLocateBlockMessage,  // From StorageManager to BlockLocator.
+  kLocateBlockResponseMessage,  // From BlockLocator to StorageManager.
+  kGetPeerDomainNetworkAddressesMessage,  // From StorageManager to BlockLocator.
+  kGetPeerDomainNetworkAddressesResponseMessage,  // From BlockLocator to StorageManager.
+  kBlockDomainUnregistrationMessage,  // From StorageManager to BlockLocator.
+#endif
 };
 
 /** @} */

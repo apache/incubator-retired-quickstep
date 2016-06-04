@@ -276,7 +276,7 @@ class AggregationHandle {
    * each GROUP BY group. Later, a second-round aggregation on the distinctify
    * hash table will be performed to actually compute the aggregated result for
    * each GROUP BY group.
-   * 
+   *
    * In the case of single aggregation where there is no GROUP BY expressions,
    * we simply treat it as a special GROUP BY case that the GROUP BY expression
    * vector is empty.
@@ -348,6 +348,19 @@ class AggregationHandle {
   virtual void aggregateOnDistinctifyHashTableForGroupBy(
       const AggregationStateHashTableBase &distinctify_hash_table,
       AggregationStateHashTableBase *aggregation_hash_table) const = 0;
+
+  /**
+   * @brief Merge two GROUP BY hash tables in one.
+   *
+   * @note Both the hash tables should have the same structure.
+   *
+   * @param source_hash_table The hash table which will get merged.
+   * @param destination_hash_table The hash table to which we will merge the
+   *        other hash table.
+   **/
+  virtual void mergeGroupByHashTables(
+      const AggregationStateHashTableBase &source_hash_table,
+      AggregationStateHashTableBase *destination_hash_table) const = 0;
 
  protected:
   AggregationHandle() {

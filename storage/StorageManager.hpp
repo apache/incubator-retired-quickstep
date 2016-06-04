@@ -20,12 +20,20 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
+#include "catalog/CatalogTypedefs.hpp"
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED
 #include "storage/CountedReference.hpp"
+
+#ifdef QUICKSTEP_DISTRIBUTED
+#include "storage/DataExchange.grpc.pb.h"
+#endif
+
 #include "storage/EvictionPolicy.hpp"
 #include "storage/FileManager.hpp"
 #include "storage/StorageBlob.hpp"
@@ -40,6 +48,14 @@
 #include "gflags/gflags.h"
 #include "gtest/gtest_prod.h"
 
+#include "tmb/id_typedefs.h"
+
+#ifdef QUICKSTEP_DISTRIBUTED
+namespace grpc { class Channel; }
+#endif
+
+namespace tmb { class MessageBus; }
+
 namespace quickstep {
 
 DECLARE_int32(block_domain);
@@ -50,6 +66,11 @@ DECLARE_bool(use_hdfs);
 #endif
 
 class CatalogRelationSchema;
+
+#ifdef QUICKSTEP_DISTRIBUTED
+class PullResponse;
+#endif
+
 class StorageBlockLayout;
 
 /** \addtogroup Storage
@@ -104,6 +125,33 @@ class StorageManager {
                            std::chrono::milliseconds(200))) {
   }
 
+#ifdef QUICKSTEP_DISTRIBUTED
+  /**
+   * @brief Constructor.
+   * @param storage_path The filesystem directory where blocks have persistent
+   *        storage.
+   * @param block_domain The unique block domain.
+   * @param block_locator_client_id The TMB client ID of the block locator.
+   * @param bus A pointer to the TMB.
+   *
+   * @exception CorruptPersistentStorage The storage directory layout is not
+   *            in the expected format.
+   **/
+  StorageManager(const std::string &storage_path,
+                 const block_id_domain block_domain,
+                 const tmb::client_id block_locator_client_id,
+                 tmb::MessageBus *bus)
+      : StorageManager(storage_path,
+                       block_domain,
+                       FLAGS_buffer_pool_slots,
+                       LRUKEvictionPolicyFactory::ConstructLRUKEvictionPolicy(
+                           2,
+                           std::chrono::milliseconds(200)),
+                       block_locator_client_id,
+                       bus) {
+  }
+#endif
+
   /**
    * @brief Constructor.
    * @param storage_path The filesystem directory where blocks have persistent
@@ -121,13 +169,18 @@ class StorageManager {
    * @param eviction_policy The eviction policy that the storage manager should
    *                        use to manage the cache. The storage manager takes
    *                        ownership of *eviction_policy.
+   * @param block_locator_client_id The TMB client ID of the block locator.
+   * @param bus A pointer to the TMB.
+   *
    * @exception CorruptPersistentStorage The storage directory layout is not
    *            in the expected format.
    **/
   StorageManager(const std::string &storage_path,
                  const block_id_domain block_domain,
                  const size_t max_memory_usage,
-                 EvictionPolicy *eviction_policy);
+                 EvictionPolicy *eviction_policy,
+                 const tmb::client_id block_locator_client_id = tmb::kClientIdNone,
+                 tmb::MessageBus *bus = nullptr);
 
   /**
    * @brief Destructor which also destroys all managed blocks.
@@ -325,12 +378,79 @@ class StorageManager {
    **/
   bool blockOrBlobIsLoadedAndDirty(const block_id block);
 
+#ifdef QUICKSTEP_DISTRIBUTED
+  /**
+   * @brief Pull a block or a blob. Used by DataExchangerAsync.
+   *
+   * @param block The id of the block or blob.
+   * @param response Where to store the pulled block content.
+   **/
+  void pullBlockOrBlob(const block_id block, PullResponse *response) const;
+#endif
+
  private:
   struct BlockHandle {
     void *block_memory;
     std::size_t block_memory_size;  // size of block_memory in slots
     StorageBlockBase *block;
   };
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  /**
+   * @brief A class which connects to DataExchangerAsync to exchange data from
+   *        remote peers.
+   **/
+  class DataExchangerClientAsync {
+   public:
+    /**
+     * @brief Constructor.
+     *
+     * @param channel The RPC channel to connect DataExchangerAsync.
+     * @param storage_manager The StorageManager to use.
+     */
+    DataExchangerClientAsync(const std::shared_ptr<grpc::Channel> &channel,
+                             StorageManager *storage_manager);
+
+    /**
+     * @brief Pull a block or blob from a remote StorageManager.
+     *
+     * @param block The block or blob to pull.
+     * @param numa_node The NUMA node for placing this block.
+     * @param block_handle Where the pulled block or blob stores.
+     *
+     * @return Whether the pull operation is successful or not.
+     */
+    bool Pull(const block_id block,
+              const numa_node_id numa_node,
+              BlockHandle *block_handle);
+
+   private:
+    std::unique_ptr<DataExchange::Stub> stub_;
+
+    StorageManager *storage_manager_;
+
+    DISALLOW_COPY_AND_ASSIGN(DataExchangerClientAsync);
+  };
+
+  /**
+   * @brief Get the network info of all the remote StorageManagers which may
+   *        load the given block in the buffer pool.
+   *
+   * @param block The block or blob to pull.
+   *
+   * @return The network info of all the possible peers to pull.
+   **/
+  std::vector<std::string> getPeerDomainNetworkAddresses(const block_id block);
+
+  /**
+   * @brief Update the block location info in BlockLocator.
+   *
+   * @param block The given block or blob.
+   * @param message_type Indicate whether to add or delete a block location.
+   **/
+  void sendBlockLocationMessage(const block_id block,
+                                const tmb::message_type_id message_type);
+#endif
 
   // Helper for createBlock() and createBlob(). Allocates a block ID and memory
   // slots for a new StorageBlock or StorageBlob. Returns the allocated ID and
@@ -459,6 +579,15 @@ class StorageManager {
 
   std::unique_ptr<EvictionPolicy> eviction_policy_;
 
+#ifdef QUICKSTEP_DISTRIBUTED
+  const block_id_domain block_domain_;
+
+  tmb::client_id storage_manager_client_id_;
+#endif
+
+  const tmb::client_id block_locator_client_id_;
+  tmb::MessageBus *bus_;
+
   std::unique_ptr<FileManager> file_manager_;
 
   // Used to generate unique IDs in allocateNewBlockOrBlob().
@@ -485,6 +614,10 @@ class StorageManager {
   //            than 8K.
   static constexpr std::size_t kLockManagerNumShards = 0x2000-1;
   ShardedLockManager<block_id, kLockManagerNumShards, SpinSharedMutex<false>> lock_manager_;
+
+  friend class BlockLocatorTest;
+  FRIEND_TEST(BlockLocatorTest, BlockTest);
+  FRIEND_TEST(BlockLocatorTest, BlobTest);
 
   FRIEND_TEST(StorageManagerTest, DifferentNUMANodeBlobTestWithEviction);
   FRIEND_TEST(StorageManagerTest, EvictFromSameShardTest);

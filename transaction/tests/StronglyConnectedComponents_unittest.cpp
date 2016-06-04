@@ -35,21 +35,20 @@ namespace transaction {
 class GraphConfiguration {
  public:
   GraphConfiguration(DirectedGraph *graph,
-                     std::size_t no_transaction,
+                     const std::size_t num_transactions,
                      const std::vector<std::pair<transaction_id,
                                                  transaction_id>> &mapping)
     : graph_(graph) {
-    for (std::size_t index = 0; index < no_transaction; ++index) {
-      std::unique_ptr<transaction_id> tid =
-        std::make_unique<transaction_id>(transaction_id(index));
-      transaction_list_.push_back(*tid);
-      DirectedGraph::node_id nid = graph->addNodeUnchecked(tid.release());
+    for (std::size_t index = 0; index < num_transactions; ++index) {
+      const transaction_id transaction = static_cast<transaction_id>(index);
+      transaction_list_.push_back(transaction);
+      const DirectedGraph::node_id nid = graph->addNodeUnchecked(transaction);
       node_id_list_.push_back(nid);
     }
 
     for (const std::pair<transaction_id, transaction_id> &edge : mapping) {
-      transaction_id pending = edge.first;
-      transaction_id owner = edge.second;
+      const transaction_id pending = edge.first;
+      const transaction_id owner = edge.second;
       graph_->addEdgeUnchecked(pending, owner);
     }
   }

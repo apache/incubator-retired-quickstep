@@ -33,7 +33,7 @@ namespace transaction {
 TransactionTableResult
 TransactionTable::putOwnEntry(const transaction_id tid,
                               const ResourceId &rid,
-                              const AccessMode access_mode) {
+                              const AccessMode &access_mode) {
   transaction_list_pair &transaction_list_pair = internal_map_[tid];
   transaction_own_list &transaction_own_list = transaction_list_pair.first;
 
@@ -45,7 +45,7 @@ TransactionTable::putOwnEntry(const transaction_id tid,
 TransactionTableResult
 TransactionTable::putPendingEntry(const transaction_id tid,
                                   const ResourceId &rid,
-                                  const AccessMode access_mode) {
+                                  const AccessMode &access_mode) {
   transaction_list_pair &transaction_list_pair = internal_map_[tid];
   transaction_pending_list &transaction_pending_list
       = transaction_list_pair.second;
@@ -59,7 +59,7 @@ TransactionTable::putPendingEntry(const transaction_id tid,
 TransactionTableResult
 TransactionTable::deleteOwnEntry(const transaction_id tid,
                                  const ResourceId &rid,
-                                 const AccessMode access_mode) {
+                                 const AccessMode &access_mode) {
   transaction_list_pair &transaction_list_pair = internal_map_[tid];
   transaction_own_list &transaction_own_list = transaction_list_pair.first;
 
@@ -79,7 +79,7 @@ TransactionTable::deleteOwnEntry(const transaction_id tid,
 TransactionTableResult
 TransactionTable::deletePendingEntry(const transaction_id tid,
                                      const ResourceId &rid,
-                                     const AccessMode access_mode) {
+                                     const AccessMode &access_mode) {
   transaction_list_pair &transaction_list_pair = internal_map_[tid];
   transaction_pending_list &transaction_pending_list
       = transaction_list_pair.second;

@@ -43,9 +43,13 @@ class ScopedBuffer {
    *        size.
    *
    * @param alloc_size The number of bytes of memory to allocate.
+   * @param initialize If true, initialize all the bytes of the allocated memory to 0.
    **/
-  explicit ScopedBuffer(const std::size_t alloc_size) {
+  explicit ScopedBuffer(const std::size_t alloc_size, bool initialize = true) {
     internal_ptr_ = std::malloc(alloc_size);
+    if (initialize) {
+      memset(internal_ptr_, 0x0, alloc_size);
+    }
   }
 
   /**
@@ -54,10 +58,15 @@ class ScopedBuffer {
    *
    * @param alloc_size The number of bytes of memory to allocate.
    * @param alloc_alignment The alignment of the memory to allocate.
+   * @param initialize If true, initialize all the bytes of the allocated memory to 0.
    **/
   ScopedBuffer(const std::size_t alloc_size,
-               const std::size_t alloc_alignment) {
+               const std::size_t alloc_alignment,
+               const bool initialize = true) {
     internal_ptr_ = malloc_with_alignment(alloc_size, alloc_alignment);
+    if (initialize) {
+      memset(internal_ptr_, 0x0, alloc_size);
+    }
   }
 
   /**
@@ -110,12 +119,16 @@ class ScopedBuffer {
    *        size.
    *
    * @param alloc_size The number of bytes of memory to allocate.
+   * @param initialize If true, initialize all the bytes of the allocated memory to 0.
    **/
-  void reset(const std::size_t alloc_size) {
+  void reset(const std::size_t alloc_size, const bool initialize = true) {
     if (internal_ptr_ != nullptr) {
       std::free(internal_ptr_);
     }
     internal_ptr_ = std::malloc(alloc_size);
+    if (initialize) {
+      memset(internal_ptr_, 0x0, alloc_size);
+    }
   }
 
   /**

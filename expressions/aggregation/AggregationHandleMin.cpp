@@ -141,4 +141,13 @@ void AggregationHandleMin::aggregateOnDistinctifyHashTableForGroupBy(
           aggregation_hash_table);
 }
 
+void AggregationHandleMin::mergeGroupByHashTables(
+    const AggregationStateHashTableBase &source_hash_table,
+    AggregationStateHashTableBase *destination_hash_table) const {
+  mergeGroupByHashTablesHelper<AggregationHandleMin,
+                               AggregationStateMin,
+                               AggregationStateHashTable<AggregationStateMin>>(
+      source_hash_table, destination_hash_table);
+}
+
 }  // namespace quickstep

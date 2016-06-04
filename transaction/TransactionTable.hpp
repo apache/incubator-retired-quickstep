@@ -23,7 +23,6 @@
 #include <utility>
 #include <vector>
 
-#include "transaction/AccessMode.hpp"
 #include "transaction/Lock.hpp"
 #include "transaction/ResourceId.hpp"
 #include "transaction/Transaction.hpp"
@@ -31,6 +30,8 @@
 
 namespace quickstep {
 namespace transaction {
+
+class AccessMode;
 
 /** \addtogroup Transaction
  *  @{
@@ -81,7 +82,7 @@ class TransactionTable {
    **/
   TransactionTableResult putOwnEntry(const transaction_id tid,
                                      const ResourceId &rid,
-                                     const AccessMode access_mode);
+                                     const AccessMode &access_mode);
 
   /**
    * @brief Puts a pending entry of the given resource id in the given
@@ -95,7 +96,7 @@ class TransactionTable {
    **/
   TransactionTableResult putPendingEntry(const transaction_id tid,
                                          const ResourceId &rid,
-                                         const AccessMode access_mode);
+                                         const AccessMode &access_mode);
 
   /**
    * @brief Deletes the owned entry corresponding to the resource id
@@ -110,7 +111,7 @@ class TransactionTable {
    **/
   TransactionTableResult deleteOwnEntry(const transaction_id tid,
                                         const ResourceId &rid,
-                                        const AccessMode access_mode);
+                                        const AccessMode &access_mode);
 
   /**
    * @brief Deletes the pending entry corresponding to the resource id
@@ -124,7 +125,7 @@ class TransactionTable {
    **/
   TransactionTableResult deletePendingEntry(const transaction_id tid,
                                             const ResourceId &rid,
-                                            const AccessMode access_mode);
+                                            const AccessMode &access_mode);
 
   /**
    * @brief Returns a vector of resource ids which the corresponding transaction

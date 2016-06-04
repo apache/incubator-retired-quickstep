@@ -20,6 +20,9 @@ QS_PROTOBUF_GENERATE_CPP(queryexecution_QueryExecutionMessages_proto_srcs
                          QueryExecutionMessages.proto)
 
 # Declare micro-libs:
+if (ENABLE_DISTRIBUTED)
+  add_library(quickstep_queryexecution_BlockLocator BlockLocator.cpp BlockLocator.hpp)
+endif()
 add_library(quickstep_queryexecution_Foreman Foreman.cpp Foreman.hpp)
 add_library(quickstep_queryexecution_ForemanLite ../empty_src.cpp ForemanLite.hpp)
 add_library(quickstep_queryexecution_QueryContext QueryContext.cpp QueryContext.hpp)
@@ -40,6 +43,19 @@ add_library(quickstep_queryexecution_WorkerMessage ../empty_src.cpp WorkerMessag
 add_library(quickstep_queryexecution_WorkerSelectionPolicy ../empty_src.cpp WorkerSelectionPolicy.hpp)
 
 # Link dependencies:
+if (ENABLE_DISTRIBUTED)
+  target_link_libraries(quickstep_queryexecution_BlockLocator
+                        glog
+                        quickstep_queryexecution_QueryExecutionMessages_proto
+                        quickstep_queryexecution_QueryExecutionTypedefs
+                        quickstep_queryexecution_QueryExecutionUtil
+                        quickstep_storage_StorageBlockInfo
+                        quickstep_storage_StorageConstants
+                        quickstep_threading_Thread
+                        quickstep_threading_ThreadUtil
+                        quickstep_utility_Macros
+                        tmb)
+endif()
 target_link_libraries(quickstep_queryexecution_Foreman
                       glog
                       gtest
@@ -90,9 +106,11 @@ target_link_libraries(quickstep_queryexecution_QueryContext
                       quickstep_storage_InsertDestination_proto
                       quickstep_types_TypedValue
                       quickstep_types_containers_Tuple
+                      quickstep_utility_BloomFilter
                       quickstep_utility_Macros
                       quickstep_utility_SortConfiguration)
 target_link_libraries(quickstep_queryexecution_QueryContext_proto
+                      quickstep_utility_BloomFilter_proto
                       quickstep_expressions_Expressions_proto
                       quickstep_expressions_tablegenerator_GeneratorFunction_proto
                       quickstep_storage_AggregationOperationState_proto
@@ -174,7 +192,37 @@ target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_WorkerDirectory
                       quickstep_queryexecution_WorkerMessage
                       quickstep_queryexecution_WorkerSelectionPolicy)
+if (ENABLE_DISTRIBUTED)
+  target_link_libraries(quickstep_queryexecution
+                        quickstep_queryexecution_BlockLocator)
+endif()
+
 # Tests:
+if (ENABLE_DISTRIBUTED)
+  add_executable(BlockLocator_unittest
+                 "${CMAKE_CURRENT_SOURCE_DIR}/tests/BlockLocator_unittest.cpp")
+  target_link_libraries(BlockLocator_unittest
+                        gflags_nothreads-static
+                        glog
+                        gtest
+                        quickstep_catalog_CatalogAttribute
+                        quickstep_catalog_CatalogRelation
+                        quickstep_queryexecution_BlockLocator
+                        quickstep_queryexecution_QueryExecutionMessages_proto
+                        quickstep_queryexecution_QueryExecutionTypedefs
+                        quickstep_queryexecution_QueryExecutionUtil
+                        quickstep_storage_StorageBlob
+                        quickstep_storage_StorageBlock
+                        quickstep_storage_StorageBlockInfo
+                        quickstep_storage_StorageConstants
+                        quickstep_storage_StorageManager
+                        quickstep_types_TypeFactory
+                        quickstep_types_TypeID
+                        tmb
+                        ${LIBS})
+  add_test(BlockLocator_unittest BlockLocator_unittest)
+endif()
+
 add_executable(Foreman_unittest
   "${CMAKE_CURRENT_SOURCE_DIR}/tests/Foreman_unittest.cpp")
 target_link_libraries(Foreman_unittest
@@ -267,3 +315,5 @@ target_link_libraries(WorkerSelectionPolicy_unittest
                       quickstep_queryexecution_WorkerDirectory
                       quickstep_queryexecution_WorkerSelectionPolicy)
 add_test(WorkerSelectionPolicy_unittest WorkerSelectionPolicy_unittest)
+
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/block_locator_test_data/)

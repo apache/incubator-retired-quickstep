@@ -22,10 +22,13 @@
 #include <algorithm>
 #include <cctype>
 #include <cinttypes>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <iomanip>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -126,6 +129,17 @@ string ToZeroPaddedString(std::uint64_t val, int pad_width) {
   delete[] str;
 
   return result;
+}
+
+std::string
+DoubleToStringWithSignificantDigits(double val,
+                                    std::uint64_t significant_digits) {
+  std::uint64_t precision_needed =
+      (val >= 1.0) ? significant_digits
+                   : significant_digits + -(std::trunc(std::log10(val)));
+  std::stringstream string_buffer;
+  string_buffer << std::fixed << std::setprecision(precision_needed) << val;
+  return string_buffer.str();
 }
 
 }  // namespace quickstep

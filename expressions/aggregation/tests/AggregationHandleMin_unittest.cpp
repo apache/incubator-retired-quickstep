@@ -29,6 +29,7 @@
 #include "expressions/aggregation/AggregationHandle.hpp"
 #include "expressions/aggregation/AggregationHandleMin.hpp"
 #include "expressions/aggregation/AggregationID.hpp"
+#include "storage/StorageManager.hpp"
 #include "types/CharType.hpp"
 #include "types/DatetimeIntervalType.hpp"
 #include "types/DatetimeLit.hpp"
@@ -411,6 +412,7 @@ class AggregationHandleMinTest : public ::testing::Test {
 
   std::unique_ptr<AggregationHandle> aggregation_handle_min_;
   std::unique_ptr<AggregationState> aggregation_handle_min_state_;
+  std::unique_ptr<StorageManager> storage_manager_;
 };
 
 template <>
@@ -632,6 +634,125 @@ TEST_F(AggregationHandleMinTest, ResultTypeForArgumentTypeTest) {
   EXPECT_TRUE(ResultTypeForArgumentTypeTest(kLong, kLong));
   EXPECT_TRUE(ResultTypeForArgumentTypeTest(kFloat, kFloat));
   EXPECT_TRUE(ResultTypeForArgumentTypeTest(kDouble, kDouble));
+}
+
+TEST_F(AggregationHandleMinTest, GroupByTableMergeTest) {
+  const Type &int_non_null_type = IntType::Instance(false);
+  initializeHandle(int_non_null_type);
+  storage_manager_.reset(new StorageManager("./test_min_data"));
+  std::unique_ptr<AggregationStateHashTableBase> source_hash_table(
+      aggregation_handle_min_->createGroupByHashTable(
+          HashTableImplType::kSimpleScalarSeparateChaining,
+          std::vector<const Type *>(1, &int_non_null_type),
+          10,
+          storage_manager_.get()));
+  std::unique_ptr<AggregationStateHashTableBase> destination_hash_table(
+      aggregation_handle_min_->createGroupByHashTable(
+          HashTableImplType::kSimpleScalarSeparateChaining,
+          std::vector<const Type *>(1, &int_non_null_type),
+          10,
+          storage_manager_.get()));
+
+  AggregationStateHashTable<AggregationStateMin> *destination_hash_table_derived =
+      static_cast<AggregationStateHashTable<AggregationStateMin> *>(
+          destination_hash_table.get());
+
+  AggregationStateHashTable<AggregationStateMin> *source_hash_table_derived =
+      static_cast<AggregationStateHashTable<AggregationStateMin> *>(
+          source_hash_table.get());
+
+  AggregationHandleMin *aggregation_handle_min_derived =
+      static_cast<AggregationHandleMin *>(aggregation_handle_min_.get());
+  // We create three keys: first is present in both the hash tables, second key
+  // is present only in the source hash table while the third key is present
+  // the destination hash table only.
+  std::vector<TypedValue> common_key;
+  common_key.emplace_back(0);
+  std::vector<TypedValue> exclusive_source_key, exclusive_destination_key;
+  exclusive_source_key.emplace_back(1);
+  exclusive_destination_key.emplace_back(2);
+
+  const int common_key_source_min = 3000;
+  TypedValue common_key_source_min_val(common_key_source_min);
+
+  const int common_key_destination_min = 4000;
+  TypedValue common_key_destination_min_val(common_key_destination_min);
+
+  const int exclusive_key_source_min = 100;
+  TypedValue exclusive_key_source_min_val(exclusive_key_source_min);
+
+  const int exclusive_key_destination_min = 200;
+  TypedValue exclusive_key_destination_min_val(exclusive_key_destination_min);
+
+  std::unique_ptr<AggregationStateMin> common_key_source_state(
+      static_cast<AggregationStateMin *>(
+          aggregation_handle_min_->createInitialState()));
+  std::unique_ptr<AggregationStateMin> common_key_destination_state(
+      static_cast<AggregationStateMin *>(
+          aggregation_handle_min_->createInitialState()));
+  std::unique_ptr<AggregationStateMin> exclusive_key_source_state(
+      static_cast<AggregationStateMin *>(
+          aggregation_handle_min_->createInitialState()));
+  std::unique_ptr<AggregationStateMin> exclusive_key_destination_state(
+      static_cast<AggregationStateMin *>(
+          aggregation_handle_min_->createInitialState()));
+
+  // Create min value states for keys.
+  aggregation_handle_min_derived->iterateUnaryInl(common_key_source_state.get(),
+                                                  common_key_source_min_val);
+  int actual_val = aggregation_handle_min_->finalize(*common_key_source_state)
+                       .getLiteral<int>();
+  EXPECT_EQ(common_key_source_min_val.getLiteral<int>(), actual_val);
+
+  aggregation_handle_min_derived->iterateUnaryInl(
+      common_key_destination_state.get(), common_key_destination_min_val);
+  actual_val = aggregation_handle_min_->finalize(*common_key_destination_state)
+                   .getLiteral<int>();
+  EXPECT_EQ(common_key_destination_min_val.getLiteral<int>(), actual_val);
+
+  aggregation_handle_min_derived->iterateUnaryInl(
+      exclusive_key_destination_state.get(), exclusive_key_destination_min_val);
+  actual_val =
+      aggregation_handle_min_->finalize(*exclusive_key_destination_state)
+          .getLiteral<int>();
+  EXPECT_EQ(exclusive_key_destination_min_val.getLiteral<int>(), actual_val);
+
+  aggregation_handle_min_derived->iterateUnaryInl(
+      exclusive_key_source_state.get(), exclusive_key_source_min_val);
+  actual_val = aggregation_handle_min_->finalize(*exclusive_key_source_state)
+                   .getLiteral<int>();
+  EXPECT_EQ(exclusive_key_source_min_val.getLiteral<int>(), actual_val);
+
+  // Add the key-state pairs to the hash tables.
+  source_hash_table_derived->putCompositeKey(common_key,
+                                             *common_key_source_state);
+  destination_hash_table_derived->putCompositeKey(
+      common_key, *common_key_destination_state);
+  source_hash_table_derived->putCompositeKey(exclusive_source_key,
+                                             *exclusive_key_source_state);
+  destination_hash_table_derived->putCompositeKey(
+      exclusive_destination_key, *exclusive_key_destination_state);
+
+  EXPECT_EQ(2u, destination_hash_table_derived->numEntries());
+  EXPECT_EQ(2u, source_hash_table_derived->numEntries());
+
+  aggregation_handle_min_->mergeGroupByHashTables(*source_hash_table,
+                                                  destination_hash_table.get());
+
+  EXPECT_EQ(3u, destination_hash_table_derived->numEntries());
+
+  CheckMinValue<int>(
+      common_key_source_min_val.getLiteral<int>(),
+      *aggregation_handle_min_derived,
+      *(destination_hash_table_derived->getSingleCompositeKey(common_key)));
+  CheckMinValue<int>(exclusive_key_destination_min_val.getLiteral<int>(),
+                     *aggregation_handle_min_derived,
+                     *(destination_hash_table_derived->getSingleCompositeKey(
+                         exclusive_destination_key)));
+  CheckMinValue<int>(exclusive_key_source_min_val.getLiteral<int>(),
+                     *aggregation_handle_min_derived,
+                     *(source_hash_table_derived->getSingleCompositeKey(
+                         exclusive_source_key)));
 }
 
 }  // namespace quickstep

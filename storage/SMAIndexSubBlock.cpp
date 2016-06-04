@@ -181,19 +181,22 @@ Selectivity getSelectivity(const TypedValue &literal,
 }
 
 SMAPredicate* SMAPredicate::ExtractSMAPredicate(const ComparisonPredicate &predicate) {
-  if (predicate.getLeftOperand().hasStaticValue()) {
-    DLOG_IF(FATAL, predicate.getRightOperand().getDataSource() != Scalar::kAttribute);
+  // Check that the predicate is contains an attribute and a literal value.
+  if (predicate.getLeftOperand().hasStaticValue() &&
+      predicate.getRightOperand().getDataSource() == Scalar::kAttribute) {
     return new SMAPredicate(
          static_cast<const ScalarAttribute&>(predicate.getRightOperand()).getAttribute().getID(),
          flipComparisonID(predicate.getComparison().getComparisonID()),
          predicate.getLeftOperand().getStaticValue().makeReferenceToThis());
-  } else {
-    DLOG_IF(FATAL, predicate.getLeftOperand().getDataSource() != Scalar::kAttribute);
+  } else if (predicate.getRightOperand().hasStaticValue() &&
+      predicate.getLeftOperand().getDataSource() == Scalar::kAttribute) {
     return new SMAPredicate(
         static_cast<const ScalarAttribute&>(predicate.getLeftOperand()).getAttribute().getID(),
         predicate.getComparison().getComparisonID(),
         predicate.getRightOperand().getStaticValue().makeReferenceToThis());
   }
+  // Predicate is improper form, so return nullptr.
+  return nullptr;
 }
 
 /**
@@ -603,12 +606,47 @@ Selectivity SMAIndexSubBlock::getSelectivityForPredicate(const ComparisonPredica
   }
 
   std::unique_ptr<SMAPredicate> sma_predicate(SMAPredicate::ExtractSMAPredicate(predicate));
+  // The predicate did not contain a static value to compare against.
+  if (!sma_predicate) {
+    return Selectivity::kUnknown;
+  }
+
   const SMAEntry *entry = getEntryChecked(sma_predicate->attribute);
 
   // The attribute wasn't indexed.
   if (entry == nullptr || !entry->min_entry_ref.valid || !entry->max_entry_ref.valid) {
     return Selectivity::kUnknown;
   }
+
+  // Check that the type of the comparison is the same or can be coerced the
+  // type of the underlying attribute.
+  if (sma_predicate->literal.getTypeID() != entry->type_id) {
+    // Try to coerce the literal type to the entry type.
+    // It may have to account for variable length attributes.
+    int literal_length = -1;
+    if (TypeFactory::TypeRequiresLengthParameter(sma_predicate->literal.getTypeID())) {
+      literal_length = sma_predicate->literal.getAsciiStringLength();
+    }
+
+    const Type &literal_type = literal_length == -1 ?
+        TypeFactory::GetType(sma_predicate->literal.getTypeID(), false) :
+        TypeFactory::GetType(sma_predicate->literal.getTypeID(), static_cast<std::size_t>(literal_length), false);
+    const Type &attribute_type = literal_length == -1 ?
+        TypeFactory::GetType(entry->type_id, false) :
+        TypeFactory::GetType(entry->type_id, static_cast<std::size_t>(literal_length), false);
+    if (attribute_type.isSafelyCoercibleFrom(literal_type)) {
+      // Convert the literal's type inside the predicate.
+      SMAPredicate *replacement = new SMAPredicate(
+          sma_predicate->attribute,
+          sma_predicate->comparison,
+          attribute_type.coerceValue(sma_predicate->literal, literal_type));
+      sma_predicate.reset(replacement);
+    } else {
+      // The literal type cannot be converted, so do not evaluate with the SMA.
+      return Selectivity::kUnknown;
+    }
+  }
+
   return sma_internal::getSelectivity(
     sma_predicate->literal,
     sma_predicate->comparison,
@@ -621,6 +659,8 @@ Selectivity SMAIndexSubBlock::getSelectivityForPredicate(const ComparisonPredica
 predicate_cost_t SMAIndexSubBlock::estimatePredicateEvaluationCost(
     const ComparisonPredicate &predicate) const {
   DCHECK(initialized_);
+
+  // Check that at least one of the operands has a static value.
   Selectivity selectivity = getSelectivityForPredicate(predicate);
   if (selectivity == Selectivity::kAll || selectivity == Selectivity::kNone) {
     return predicate_cost::kConstantTime;

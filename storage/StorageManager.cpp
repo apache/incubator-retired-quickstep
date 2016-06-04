@@ -18,6 +18,7 @@
 // This is included before other files so that we can conditionally determine
 // what else to include.
 #include "catalog/CatalogConfig.h"
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED
 #include "storage/StorageConfig.h"
 
 // Define feature test macros to enable large page support for mmap.
@@ -40,6 +41,10 @@
 #include <numaif.h>
 #endif
 
+#ifdef QUICKSTEP_DISTRIBUTED
+#include <grpc++/grpc++.h>
+#endif
+
 #include <atomic>
 #include <cerrno>
 #include <cstddef>
@@ -52,7 +57,21 @@
 #include <unordered_map>
 #include <vector>
 
+#include "catalog/CatalogTypedefs.hpp"
+
+#ifdef QUICKSTEP_DISTRIBUTED
+#include "query_execution/QueryExecutionMessages.pb.h"
+#include "query_execution/QueryExecutionTypedefs.hpp"
+#include "query_execution/QueryExecutionUtil.hpp"
+#endif
+
 #include "storage/CountedReference.hpp"
+
+#ifdef QUICKSTEP_DISTRIBUTED
+#include "storage/DataExchange.grpc.pb.h"
+#include "storage/DataExchange.pb.h"
+#endif
+
 #include "storage/EvictionPolicy.hpp"
 #include "storage/FileManagerLocal.hpp"
 #include "storage/StorageBlob.hpp"
@@ -74,12 +93,28 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
+
+#ifdef QUICKSTEP_DISTRIBUTED
+#include "tmb/message_bus.h"
+#include "tmb/tagged_message.h"
+#endif
+
 using std::free;
 using std::int32_t;
 using std::memset;
 using std::size_t;
 using std::string;
 using std::vector;
+
+#ifdef QUICKSTEP_DISTRIBUTED
+using std::malloc;
+using std::move;
+using std::unique_ptr;
+
+using tmb::MessageBus;
+using tmb::TaggedMessage;
+#endif
 
 namespace quickstep {
 
@@ -100,8 +135,8 @@ static const volatile bool block_domain_dummy
 /**
  * @brief Set or validate the buffer pool slots. When automatically picking a
  *        default value, check if the system is "small" or "large." Set the
- *        buffer pool space to 80% of the installed main memory for small
- *        and 90% otherwise.
+ *        buffer pool space to 70% of the installed main memory for small
+ *        and 80% otherwise.
  *        This method follows the signature that is set by the gflags module.
  * @param flagname The name of the buffer pool flag.
  * @param value The value of this flag from the command line, or default (0)
@@ -142,7 +177,7 @@ static bool SetOrValidateBufferPoolSlots(const char *flagname,
 
 DEFINE_uint64(buffer_pool_slots, 0,
               "By default the value is 0 and the system automatically sets the "
-              "buffer pool size/slots at 80-90% of the total installed memory. "
+              "buffer pool size/slots at 70-80% of the total installed memory. "
               "The user can also explicity define the number of slots. "
               "The units for this variable is the number of 2-megabyte slots "
               "that is allocated in the buffer pool. This is a \"soft\" limit: "
@@ -157,14 +192,21 @@ DEFINE_bool(use_hdfs, false, "Use HDFS as the persistent storage, instead of the
 #endif
 
 StorageManager::StorageManager(
-  const std::string &storage_path,
-  const block_id_domain block_domain,
-  const size_t max_memory_usage,
-  EvictionPolicy *eviction_policy)
+    const std::string &storage_path,
+    const block_id_domain block_domain,
+    const size_t max_memory_usage,
+    EvictionPolicy *eviction_policy,
+    const tmb::client_id block_locator_client_id,
+    tmb::MessageBus *bus)
     : storage_path_(storage_path),
       total_memory_usage_(0),
       max_memory_usage_(max_memory_usage),
-      eviction_policy_(eviction_policy) {
+      eviction_policy_(eviction_policy),
+#ifdef QUICKSTEP_DISTRIBUTED
+      block_domain_(block_domain),
+#endif
+      block_locator_client_id_(block_locator_client_id),
+      bus_(bus) {
 #ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
   if (FLAGS_use_hdfs) {
     file_manager_.reset(new FileManagerHdfs(storage_path));
@@ -175,15 +217,61 @@ StorageManager::StorageManager(
   file_manager_.reset(new FileManagerLocal(storage_path));
 #endif
 
+#ifdef QUICKSTEP_DISTRIBUTED
+  // NOTE(zuyu): The following if-condition is a workaround to bypass code for
+  // the distributed version in some unittests that does not use TMB. The
+  // end-to-end functional tests for the distributed version, however, would not
+  // be affected.
+  if (bus_) {
+    storage_manager_client_id_ = bus_->Connect();
+
+    bus_->RegisterClientAsSender(storage_manager_client_id_, kGetPeerDomainNetworkAddressesMessage);
+    bus_->RegisterClientAsReceiver(storage_manager_client_id_, kGetPeerDomainNetworkAddressesResponseMessage);
+
+    bus_->RegisterClientAsSender(storage_manager_client_id_, kAddBlockLocationMessage);
+    bus_->RegisterClientAsSender(storage_manager_client_id_, kDeleteBlockLocationMessage);
+    bus_->RegisterClientAsSender(storage_manager_client_id_, kBlockDomainUnregistrationMessage);
+
+    LOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
+              << "') starts with Domain " << block_domain;
+  }
+#endif
+
   block_index_ = BlockIdUtil::GetBlockId(block_domain, file_manager_->getMaxUsedBlockCounter(block_domain));
 }
 
 StorageManager::~StorageManager() {
+#ifdef QUICKSTEP_DISTRIBUTED
+  if (bus_) {
+    serialization::BlockDomainMessage proto;
+    proto.set_block_domain(block_domain_);
+
+    const int proto_length = proto.ByteSize();
+    char *proto_bytes = static_cast<char*>(malloc(proto_length));
+    CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+    TaggedMessage message(static_cast<const void*>(proto_bytes),
+                          proto_length,
+                          kBlockDomainUnregistrationMessage);
+    free(proto_bytes);
+
+    LOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
+              << "') sent BlockDomainUnregistrationMessage (typed '" << kBlockDomainUnregistrationMessage
+              << "') to BlockLocator";
+    CHECK(MessageBus::SendStatus::kOK ==
+        QueryExecutionUtil::SendTMBMessage(bus_,
+                                           storage_manager_client_id_,
+                                           block_locator_client_id_,
+                                           move(message)));
+  }
+#endif
+
   for (std::unordered_map<block_id, BlockHandle>::iterator it = blocks_.begin();
        it != blocks_.end();
        ++it) {
     if (it->second.block->isDirty()) {
-      LOG(WARNING) << "Block with ID " << BlockIdUtil::ToString(it->first)
+      LOG(WARNING) << (it->second.block->isBlob() ? "Blob " : "Block ")
+                   << "with ID " << BlockIdUtil::ToString(it->first)
                    << " is dirty during StorageManager shutdown";
     }
     delete it->second.block;
@@ -221,6 +309,12 @@ block_id StorageManager::createBlock(const CatalogRelationSchema &relation,
   // Make '*eviction_policy_' aware of the new block's existence.
   eviction_policy_->blockCreated(new_block_id);
 
+#ifdef QUICKSTEP_DISTRIBUTED
+  if (bus_) {
+    sendBlockLocationMessage(new_block_id, kAddBlockLocationMessage);
+  }
+#endif
+
   return new_block_id;
 }
 
@@ -247,6 +341,12 @@ block_id StorageManager::createBlob(const std::size_t num_slots,
 
   // Make '*eviction_policy_' aware of the new blob's existence.
   eviction_policy_->blockCreated(new_block_id);
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  if (bus_) {
+    sendBlockLocationMessage(new_block_id, kAddBlockLocationMessage);
+  }
+#endif
 
   return new_block_id;
 }
@@ -314,6 +414,12 @@ bool StorageManager::saveBlockOrBlob(const block_id block, const bool force) {
 }
 
 void StorageManager::evictBlockOrBlob(const block_id block) {
+#ifdef QUICKSTEP_DISTRIBUTED
+  if (bus_) {
+    sendBlockLocationMessage(block, kDeleteBlockLocationMessage);
+  }
+#endif
+
   BlockHandle handle;
   {
     SpinSharedMutexExclusiveLock<false> write_lock(blocks_shared_mutex_);
@@ -361,21 +467,205 @@ block_id StorageManager::allocateNewBlockOrBlob(const std::size_t num_slots,
   return ++block_index_;
 }
 
+#ifdef QUICKSTEP_DISTRIBUTED
+void StorageManager::pullBlockOrBlob(const block_id block,
+                                     PullResponse *response) const {
+  SpinSharedMutexSharedLock<false> read_lock(blocks_shared_mutex_);
+  std::unordered_map<block_id, BlockHandle>::const_iterator cit = blocks_.find(block);
+  if (cit != blocks_.end()) {
+    response->set_is_valid(true);
+
+    const BlockHandle &block_handle = cit->second;
+    const std::size_t num_slots = block_handle.block_memory_size;
+
+    response->set_num_slots(num_slots);
+    response->set_block(block_handle.block_memory,
+                        num_slots * kSlotSizeBytes);
+  } else {
+    response->set_is_valid(false);
+  }
+}
+
+StorageManager::DataExchangerClientAsync::DataExchangerClientAsync(const std::shared_ptr<grpc::Channel> &channel,
+                                                                   StorageManager *storage_manager)
+    : stub_(DataExchange::NewStub(channel)),
+      storage_manager_(storage_manager) {
+}
+
+bool StorageManager::DataExchangerClientAsync::Pull(const block_id block,
+                                                    const numa_node_id numa_node,
+                                                    BlockHandle *block_handle) {
+  grpc::ClientContext context;
+
+  PullRequest request;
+  request.set_block_id(block);
+
+  grpc::CompletionQueue queue;
+
+  unique_ptr<grpc::ClientAsyncResponseReader<PullResponse>> rpc(
+      stub_->AsyncPull(&context, request, &queue));
+
+  PullResponse response;
+  grpc::Status status;
+
+  rpc->Finish(&response, &status, reinterpret_cast<void*>(1));
+
+  void *got_tag;
+  bool ok = false;
+
+  queue.Next(&got_tag, &ok);
+  CHECK(got_tag == reinterpret_cast<void*>(1));
+  CHECK(ok);
+
+  if (!status.ok()) {
+    LOG(ERROR) << "DataExchangerClientAsync Pull error: RPC failed";
+    return false;
+  }
+
+  if (!response.is_valid()) {
+    LOG(INFO) << "The pulling block not found in all the peers";
+    return false;
+  }
+
+  const size_t num_slots = response.num_slots();
+  DCHECK_NE(num_slots, 0u);
+
+  const string &block_content = response.block();
+  DCHECK_EQ(kSlotSizeBytes * num_slots, block_content.size());
+
+  void *block_buffer = storage_manager_->allocateSlots(num_slots, numa_node);
+
+  block_handle->block_memory =
+      std::memcpy(block_buffer, block_content.c_str(), block_content.size());
+  block_handle->block_memory_size = num_slots;
+
+  return true;
+}
+
+vector<string> StorageManager::getPeerDomainNetworkAddresses(const block_id block) {
+  serialization::BlockMessage proto;
+  proto.set_block_id(block);
+
+  const int proto_length = proto.ByteSize();
+  char *proto_bytes = static_cast<char*>(malloc(proto_length));
+  CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+  TaggedMessage message(static_cast<const void*>(proto_bytes),
+                        proto_length,
+                        kGetPeerDomainNetworkAddressesMessage);
+  free(proto_bytes);
+
+  LOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
+            << "') sent GetPeerDomainNetworkAddressesMessage (typed '" << kGetPeerDomainNetworkAddressesMessage
+            << "') to BlockLocator";
+
+  DCHECK_NE(block_locator_client_id_, tmb::kClientIdNone);
+  DCHECK(bus_ != nullptr);
+  CHECK(MessageBus::SendStatus::kOK ==
+      QueryExecutionUtil::SendTMBMessage(bus_,
+                                         storage_manager_client_id_,
+                                         block_locator_client_id_,
+                                         move(message)));
+
+  const tmb::AnnotatedMessage annotated_message(bus_->Receive(storage_manager_client_id_, 0, true));
+  const TaggedMessage &tagged_message = annotated_message.tagged_message;
+  CHECK_EQ(block_locator_client_id_, annotated_message.sender);
+  CHECK_EQ(kGetPeerDomainNetworkAddressesResponseMessage, tagged_message.message_type());
+  LOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
+            << "') received GetPeerDomainNetworkAddressesResponseMessage from BlockLocator";
+
+  serialization::GetPeerDomainNetworkAddressesResponseMessage response_proto;
+  CHECK(response_proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+  vector<string> domain_network_addresses;
+  for (int i = 0; i < response_proto.domain_network_addresses_size(); ++i) {
+    domain_network_addresses.push_back(response_proto.domain_network_addresses(i));
+  }
+
+  return domain_network_addresses;
+}
+
+void StorageManager::sendBlockLocationMessage(const block_id block,
+                                              const tmb::message_type_id message_type) {
+  switch (message_type) {
+    case kAddBlockLocationMessage:
+      LOG(INFO) << "Loaded Block " << BlockIdUtil::ToString(block) << " in Domain " << block_domain_;
+      break;
+    case kDeleteBlockLocationMessage:
+      LOG(INFO) << "Evicted Block " << BlockIdUtil::ToString(block) << " in Domain " << block_domain_;
+      break;
+    default:
+      LOG(FATAL) << "Unknown message type " << message_type;
+  }
+
+  serialization::BlockLocationMessage proto;
+  proto.set_block_id(block);
+  proto.set_block_domain(block_domain_);
+
+  const int proto_length = proto.ByteSize();
+  char *proto_bytes = static_cast<char*>(malloc(proto_length));
+  CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+  TaggedMessage message(static_cast<const void*>(proto_bytes),
+                        proto_length,
+                        message_type);
+  free(proto_bytes);
+
+  LOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
+            << "') sent BlockLocationMessage (typed '" << message_type
+            << "') to BlockLocator";
+  CHECK(MessageBus::SendStatus::kOK ==
+      QueryExecutionUtil::SendTMBMessage(bus_,
+                                         storage_manager_client_id_,
+                                         block_locator_client_id_,
+                                         move(message)));
+}
+#endif
+
 StorageManager::BlockHandle StorageManager::loadBlockOrBlob(
     const block_id block, const int numa_node) {
   // The caller of this function holds an exclusive lock on this block/blob's
   // mutex in the lock manager. The caller has ensured that the block is not
   // already loaded before this function gets called.
-  size_t num_slots = file_manager_->numSlots(block);
+  BlockHandle loaded_handle;
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  // TODO(quickstep-team): Use a cost model to determine whether to load from
+  // a remote peer or the disk.
+  if (BlockIdUtil::Domain(block) != block_domain_) {
+    LOG(INFO) << "Pulling Block " << BlockIdUtil::ToString(block) << " from a remote peer";
+    const vector<string> peer_domain_network_addresses = getPeerDomainNetworkAddresses(block);
+    for (const string &peer_domain_network_address : peer_domain_network_addresses) {
+      DataExchangerClientAsync client(
+          grpc::CreateChannel(peer_domain_network_address, grpc::InsecureChannelCredentials()),
+          this);
+
+      if (client.Pull(block, numa_node, &loaded_handle)) {
+        sendBlockLocationMessage(block, kAddBlockLocationMessage);
+        return loaded_handle;
+      }
+    }
+
+    LOG(INFO) << "Failed to pull Block " << BlockIdUtil::ToString(block)
+              << " from remote peers, so try to load from disk.";
+  }
+#endif
+
+  const size_t num_slots = file_manager_->numSlots(block);
   DEBUG_ASSERT(num_slots != 0);
   void *block_buffer = allocateSlots(num_slots, numa_node);
 
   const bool status = file_manager_->readBlockOrBlob(block, block_buffer, kSlotSizeBytes * num_slots);
   CHECK(status) << "Failed to read block from persistent storage: " << block;
 
-  BlockHandle loaded_handle;
   loaded_handle.block_memory = block_buffer;
   loaded_handle.block_memory_size = num_slots;
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  if (bus_) {
+    sendBlockLocationMessage(block, kAddBlockLocationMessage);
+  }
+#endif
 
   return loaded_handle;
 }

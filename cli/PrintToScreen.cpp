@@ -19,6 +19,7 @@
 
 #include <cstddef>
 #include <cstdio>
+#include <cmath>
 #include <memory>
 #include <vector>
 
@@ -29,6 +30,7 @@
 #include "storage/StorageManager.hpp"
 #include "storage/TupleIdSequence.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
+#include "types/IntType.hpp"
 #include "types/Type.hpp"
 #include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
@@ -45,6 +47,16 @@ namespace quickstep {
 DEFINE_bool(printing_enabled, true,
             "If true, print query results to screen normally. If false, skip "
             "printing output (e.g. for benchmarking).");
+
+int PrintToScreen::GetNumberOfDigits(int number) {
+  if (number > 0) {
+    return static_cast<int>(log10 (number)) + 1;
+  } else if (number < 0) {
+    return static_cast<int>(log10 ( abs(number) )) + 2;
+  } else {
+    return 1;
+  }
+}
 
 void PrintToScreen::PrintRelation(const CatalogRelation &relation,
                                   StorageManager *storage_manager,
@@ -145,6 +157,27 @@ void PrintToScreen::printTuple(const TupleStorageSubBlock &tuple_store,
     fputc('|', out);
   }
   fputc('\n', out);
+}
+
+std::size_t PrintToScreen::GetNumTuplesInRelation(
+    const CatalogRelation &relation, StorageManager *storage_manager) {
+  const std::vector<block_id> &blocks = relation.getBlocksSnapshot();
+  std::size_t total_num_tuples = 0;
+  for (block_id block : blocks) {
+    total_num_tuples +=
+        storage_manager->getBlock(block, relation)->getNumTuples();
+  }
+  return total_num_tuples;
+}
+
+void PrintToScreen::PrintOutputSize(const CatalogRelation &relation,
+                                    StorageManager *storage_manager,
+                                    FILE *out) {
+  const std::size_t num_rows = GetNumTuplesInRelation(relation, storage_manager);
+  fprintf(out,
+          "(%lu %s)\n",
+          num_rows,
+          (num_rows == 1) ? "row" : "rows");
 }
 
 }  // namespace quickstep

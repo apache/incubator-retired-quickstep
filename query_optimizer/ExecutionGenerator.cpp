@@ -50,6 +50,7 @@
 #include "expressions/scalar/ScalarAttribute.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
+#include "query_optimizer/ExecutionHeuristics.hpp"
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryPlan.hpp"
@@ -135,7 +136,7 @@ static const volatile bool join_hashtable_type_dummy
     = gflags::RegisterFlagValidator(&FLAGS_join_hashtable_type,
                                     &ValidateHashTableImplTypeString);
 
-DEFINE_string(aggregate_hashtable_type, "LinearOpenAddressing",
+DEFINE_string(aggregate_hashtable_type, "SeparateChaining",
               "HashTable implementation to use for aggregates with GROUP BY "
               "(valid options are SeparateChaining or LinearOpenAddressing)");
 static const volatile bool aggregate_hashtable_type_dummy
@@ -143,6 +144,9 @@ static const volatile bool aggregate_hashtable_type_dummy
                                     &ValidateHashTableImplTypeString);
 
 DEFINE_bool(parallelize_load, true, "Parallelize loading data files.");
+
+DEFINE_bool(optimize_joins, false,
+            "Enable post execution plan generation optimizations for joins.");
 
 namespace E = ::quickstep::optimizer::expressions;
 namespace P = ::quickstep::optimizer::physical;
@@ -196,6 +200,11 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
     execution_plan_->addDependenciesForDropOperator(
         drop_table_index,
         temporary_relation_info.producer_operator_index);
+  }
+
+  // Optimize execution plan based on heuristics captured during execution plan generation, if enabled.
+  if (FLAGS_optimize_joins) {
+    execution_heuristics_->optimizeExecutionPlan(execution_plan_, query_context_proto_);
   }
 
 #ifdef QUICKSTEP_DISTRIBUTED
@@ -576,12 +585,32 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   std::vector<attribute_id> probe_attribute_ids;
   std::vector<attribute_id> build_attribute_ids;
 
+  std::vector<attribute_id> probe_original_attribute_ids;
+  std::vector<attribute_id> build_original_attribute_ids;
+
+  const CatalogRelation *referenced_stored_probe_relation = nullptr;
+  const CatalogRelation *referenced_stored_build_relation = nullptr;
+
   bool any_probe_attributes_nullable = false;
   bool any_build_attributes_nullable = false;
+
+  bool skip_hash_join_optimization = false;
 
   const std::vector<E::AttributeReferencePtr> &left_join_attributes =
       physical_plan->left_join_attributes();
   for (const E::AttributeReferencePtr &left_join_attribute : left_join_attributes) {
+    // Try to determine the original stored relation referenced in the Hash Join.
+    referenced_stored_probe_relation =
+        optimizer_context_->catalog_database()->getRelationByName(left_join_attribute->relation_name());
+    if (referenced_stored_probe_relation == nullptr) {
+      // Hash Join optimizations are not possible, if the referenced relation cannot be determined.
+      skip_hash_join_optimization = true;
+    } else {
+      const attribute_id probe_operator_attribute_id =
+          referenced_stored_probe_relation->getAttributeByName(left_join_attribute->attribute_name())->getID();
+      probe_original_attribute_ids.emplace_back(probe_operator_attribute_id);
+    }
+
     const CatalogAttribute *probe_catalog_attribute
         = attribute_substitution_map_[left_join_attribute->id()];
     probe_attribute_ids.emplace_back(probe_catalog_attribute->getID());
@@ -594,6 +623,18 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   const std::vector<E::AttributeReferencePtr> &right_join_attributes =
       physical_plan->right_join_attributes();
   for (const E::AttributeReferencePtr &right_join_attribute : right_join_attributes) {
+    // Try to determine the original stored relation referenced in the Hash Join.
+    referenced_stored_build_relation =
+        optimizer_context_->catalog_database()->getRelationByName(right_join_attribute->relation_name());
+    if (referenced_stored_build_relation == nullptr) {
+      // Hash Join optimizations are not possible, if the referenced relation cannot be determined.
+      skip_hash_join_optimization = true;
+    } else {
+      const attribute_id build_operator_attribute_id =
+          referenced_stored_build_relation->getAttributeByName(right_join_attribute->attribute_name())->getID();
+      build_original_attribute_ids.emplace_back(build_operator_attribute_id);
+    }
+
     const CatalogAttribute *build_catalog_attribute
         = attribute_substitution_map_[right_join_attribute->id()];
     build_attribute_ids.emplace_back(build_catalog_attribute->getID());
@@ -629,6 +670,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       std::swap(probe_cardinality, build_cardinality);
       std::swap(probe_attribute_ids, build_attribute_ids);
       std::swap(any_probe_attributes_nullable, any_build_attributes_nullable);
+      std::swap(probe_original_attribute_ids, build_original_attribute_ids);
+      std::swap(referenced_stored_probe_relation, referenced_stored_build_relation);
     }
   }
 
@@ -784,6 +827,17 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       std::forward_as_tuple(join_operator_index,
                             output_relation));
   temporary_relation_info_vec_.emplace_back(join_operator_index, output_relation);
+
+  // Add heuristics for the Hash Join, if enabled.
+  if (FLAGS_optimize_joins && !skip_hash_join_optimization) {
+    execution_heuristics_->addHashJoinInfo(build_operator_index,
+                                           join_operator_index,
+                                           referenced_stored_build_relation,
+                                           referenced_stored_probe_relation,
+                                           std::move(build_original_attribute_ids),
+                                           std::move(probe_original_attribute_ids),
+                                           join_hash_table_index);
+  }
 }
 
 void ExecutionGenerator::convertNestedLoopsJoin(
@@ -895,7 +949,6 @@ void ExecutionGenerator::convertCopyFrom(
                                        scan_operator_index,
                                        false /* is_pipeline_breaker */);
 }
-
 
 void ExecutionGenerator::convertCreateIndex(
   const P::CreateIndexPtr &physical_plan) {
@@ -1286,27 +1339,6 @@ void ExecutionGenerator::convertAggregate(
       findRelationInfoOutputByPhysical(physical_plan->input());
   aggr_state_proto->set_relation_id(input_relation_info->relation->getID());
 
-  for (const E::AliasPtr &named_aggregate_expression : physical_plan->aggregate_expressions()) {
-    const E::AggregateFunctionPtr unnamed_aggregate_expression =
-        std::static_pointer_cast<const E::AggregateFunction>(named_aggregate_expression->expression());
-
-    // Add a new entry in 'aggregates'.
-    S::Aggregate *aggr_proto = aggr_state_proto->add_aggregates();
-
-    // Set the AggregateFunction.
-    aggr_proto->mutable_function()->CopyFrom(
-        unnamed_aggregate_expression->getAggregate().getProto());
-
-    // Add each of the aggregate's arguments.
-    for (const E::ScalarPtr &argument : unnamed_aggregate_expression->getArguments()) {
-      unique_ptr<const Scalar> concretized_argument(argument->concretize(attribute_substitution_map_));
-      aggr_proto->add_argument()->CopyFrom(concretized_argument->getProto());
-    }
-
-    // Set whether it is a DISTINCT aggregation.
-    aggr_proto->set_is_distinct(unnamed_aggregate_expression->is_distinct());
-  }
-
   std::vector<const Type*> group_by_types;
   for (const E::NamedExpressionPtr &grouping_expression : physical_plan->grouping_expressions()) {
     unique_ptr<const Scalar> execution_group_by_expression;
@@ -1326,13 +1358,6 @@ void ExecutionGenerator::convertAggregate(
     group_by_types.push_back(&execution_group_by_expression->getType());
   }
 
-  if (physical_plan->filter_predicate() != nullptr) {
-    unique_ptr<const Predicate> predicate(convertPredicate(physical_plan->filter_predicate()));
-    aggr_state_proto->mutable_predicate()->CopyFrom(predicate->getProto());
-  }
-
-  aggr_state_proto->set_estimated_num_entries(cost_model_->estimateCardinality(physical_plan));
-
   if (!group_by_types.empty()) {
     // SimplifyHashTableImplTypeProto() switches the hash table implementation
     // from SeparateChaining to SimpleScalarSeparateChaining when there is a
@@ -1342,6 +1367,49 @@ void ExecutionGenerator::convertAggregate(
             HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type),
             group_by_types));
   }
+
+  for (const E::AliasPtr &named_aggregate_expression : physical_plan->aggregate_expressions()) {
+    const E::AggregateFunctionPtr unnamed_aggregate_expression =
+        std::static_pointer_cast<const E::AggregateFunction>(named_aggregate_expression->expression());
+
+    // Add a new entry in 'aggregates'.
+    S::Aggregate *aggr_proto = aggr_state_proto->add_aggregates();
+
+    // Set the AggregateFunction.
+    aggr_proto->mutable_function()->CopyFrom(
+        unnamed_aggregate_expression->getAggregate().getProto());
+
+    // Add each of the aggregate's arguments.
+    for (const E::ScalarPtr &argument : unnamed_aggregate_expression->getArguments()) {
+      unique_ptr<const Scalar> concretized_argument(argument->concretize(attribute_substitution_map_));
+      aggr_proto->add_argument()->CopyFrom(concretized_argument->getProto());
+    }
+
+    // Set whether it is a DISTINCT aggregation.
+    aggr_proto->set_is_distinct(unnamed_aggregate_expression->is_distinct());
+
+    // Add distinctify hash table impl type if it is a DISTINCT aggregation.
+    if (unnamed_aggregate_expression->is_distinct()) {
+      const std::vector<E::ScalarPtr> &arguments = unnamed_aggregate_expression->getArguments();
+      DCHECK_GE(arguments.size(), 1u);
+      if (group_by_types.empty() && arguments.size() == 1) {
+        aggr_state_proto->add_distinctify_hash_table_impl_types(
+            SimplifyHashTableImplTypeProto(
+                HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type),
+                {&arguments[0]->getValueType()}));
+      } else {
+        aggr_state_proto->add_distinctify_hash_table_impl_types(
+            HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type));
+      }
+    }
+  }
+
+  if (physical_plan->filter_predicate() != nullptr) {
+    unique_ptr<const Predicate> predicate(convertPredicate(physical_plan->filter_predicate()));
+    aggr_state_proto->mutable_predicate()->CopyFrom(predicate->getProto());
+  }
+
+  aggr_state_proto->set_estimated_num_entries(cost_model_->estimateCardinality(physical_plan));
 
   const QueryPlan::DAGNodeIndex aggregation_operator_index =
       execution_plan_->addRelationalOperator(

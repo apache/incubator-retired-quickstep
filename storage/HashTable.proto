@@ -1,5 +1,7 @@
 //   Copyright 2011-2015 Quickstep Technologies LLC.
 //   Copyright 2015-2016 Pivotal Software, Inc.
+//   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+//    University of Wisconsin—Madison.
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -32,4 +34,10 @@ message HashTable {
   required HashTableImplType hash_table_impl_type = 1;
   repeated Type key_types = 2;
   required uint64 estimated_num_entries = 3;
+  repeated uint32 build_side_bloom_filter_id = 4;
+  message ProbeSideBloomFilter {
+    required uint32 probe_side_bloom_filter_id = 1;
+    repeated uint32 probe_side_attr_ids = 2;
+  }
+  repeated ProbeSideBloomFilter probe_side_bloom_filters = 6;
 }

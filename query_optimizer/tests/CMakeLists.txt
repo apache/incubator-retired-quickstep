@@ -78,6 +78,22 @@ add_executable(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
                ExecutionGeneratorTestRunner.hpp
                "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.cpp"
                "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.hpp")
+add_executable(ExecutionHeuristics_unittest ExecutionHeuristics_unittest.cpp)
+target_link_libraries(ExecutionHeuristics_unittest
+                      gtest
+                      gtest_main
+                      quickstep_catalog_Catalog
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryoptimizer_ExecutionHeuristics
+                      quickstep_queryoptimizer_QueryPlan
+                      quickstep_relationaloperators_BuildHashOperator
+                      quickstep_relationaloperators_HashJoinOperator
+                      quickstep_utility_Macros)
+add_test(ExecutionHeuristics_unittest ExecutionHeuristics_unittest)
+
 add_executable(quickstep_queryoptimizer_tests_OptimizerTextTest
                OptimizerTextTest.cpp
                OptimizerTextTestRunner.cpp
@@ -116,6 +132,7 @@ target_link_libraries(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
                       tmb
                       ${LIBS})
 target_link_libraries(quickstep_queryoptimizer_tests_OptimizerTextTest
+                      gflags_nothreads-static
                       glog
                       gtest
                       gtest_main

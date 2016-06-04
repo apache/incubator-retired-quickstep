@@ -41,91 +41,101 @@ class TransactionTableTest : public ::testing::Test {
 };
 
 TEST_F(TransactionTableTest, NormalOperations) {
-  EXPECT_EQ(transaction_table_.putOwnEntry(tid_1_,
-                                           ResourceId(3),
-                                           AccessMode(AccessModeType::kIsLock)),
-            TransactionTableResult::kPlacedInOwned);
+  const AccessMode is_lock_mode = AccessMode::IsLockMode();
+  const AccessMode x_lock_mode = AccessMode::XLockMode();
 
-  EXPECT_EQ(transaction_table_.putPendingEntry(tid_1_,
+  EXPECT_EQ(TransactionTableResult::kPlacedInOwned,
+            transaction_table_.putOwnEntry(tid_1_,
+                                           ResourceId(3),
+                                           is_lock_mode));
+
+
+  EXPECT_EQ(TransactionTableResult::kPlacedInPending,
+            transaction_table_.putPendingEntry(tid_1_,
                                                ResourceId(5),
-                                               AccessMode(AccessModeType::kXLock)),
-            TransactionTableResult::kPlacedInPending);
+                                               x_lock_mode));
 }
 
 TEST_F(TransactionTableTest, DeleteEntryOperations) {
-  EXPECT_EQ(transaction_table_.deleteOwnEntry(tid_2_,
-                                              ResourceId(5),
-                                              AccessMode(AccessModeType::kSLock)),
-            TransactionTableResult::kDelError);
+  const AccessMode s_lock_mode = AccessMode::SLockMode();
+  const AccessMode x_lock_mode = AccessMode::XLockMode();
 
-  EXPECT_EQ(transaction_table_.putOwnEntry(tid_2_,
+  EXPECT_EQ(TransactionTableResult::kDelError,
+            transaction_table_.deleteOwnEntry(tid_2_,
+                                              ResourceId(5),
+                                              s_lock_mode));
+
+  EXPECT_EQ(TransactionTableResult::kPlacedInOwned,
+            transaction_table_.putOwnEntry(tid_2_,
                                            ResourceId(5),
-                                           AccessMode(AccessModeType::kSLock)),
-            TransactionTableResult::kPlacedInOwned);
+                                           s_lock_mode));
 
   // Tring to delete a lock with different acces mode on same resource id
   // will result in an error.
-  EXPECT_EQ(transaction_table_.deleteOwnEntry(tid_2_,
+  EXPECT_EQ(TransactionTableResult::kDelError,
+            transaction_table_.deleteOwnEntry(tid_2_,
                                               ResourceId(5),
-                                              AccessMode(AccessModeType::kXLock)),
-            TransactionTableResult::kDelError);
+                                              x_lock_mode));
 
   // Transaction 3 does not have a lock on this resource id.
-  EXPECT_EQ(transaction_table_.deleteOwnEntry(tid_3_,
+  EXPECT_EQ(TransactionTableResult::kDelError,
+            transaction_table_.deleteOwnEntry(tid_3_,
                                               ResourceId(5),
-                                              AccessMode(AccessModeType::kSLock)),
-            TransactionTableResult::kDelError);
+                                              s_lock_mode));
 
   // This will result in success since transaction 2 have acquired the lock on
   // this resource with the corresponding mode.
-  EXPECT_EQ(transaction_table_.deleteOwnEntry(tid_2_,
+  EXPECT_EQ(TransactionTableResult::kDelFromOwned,
+            transaction_table_.deleteOwnEntry(tid_2_,
                                               ResourceId(5),
-                                              AccessMode(AccessModeType::kSLock)),
-            TransactionTableResult::kDelFromOwned);
+                                              s_lock_mode));
 
   // Repeat the previous sequence, with pending list.
-  EXPECT_EQ(transaction_table_.deletePendingEntry(tid_2_,
+  EXPECT_EQ(TransactionTableResult::kDelError,
+            transaction_table_.deletePendingEntry(tid_2_,
                                                   ResourceId(5),
-                                                  AccessMode(AccessModeType::kSLock)),
-            TransactionTableResult::kDelError);
+                                                  s_lock_mode));
 
-  EXPECT_EQ(transaction_table_.putPendingEntry(tid_2_,
+  EXPECT_EQ(TransactionTableResult::kPlacedInPending,
+            transaction_table_.putPendingEntry(tid_2_,
                                                ResourceId(5),
-                                               AccessMode(AccessModeType::kSLock)),
-            TransactionTableResult::kPlacedInPending);
+                                               s_lock_mode));
 
-  EXPECT_EQ(transaction_table_.deletePendingEntry(tid_2_,
-                                                  ResourceId(5),
-                                                  AccessMode(AccessModeType::kXLock)),
-            TransactionTableResult::kDelError);
 
-  EXPECT_EQ(transaction_table_.deletePendingEntry(tid_3_,
+  EXPECT_EQ(TransactionTableResult::kDelError,
+            transaction_table_.deletePendingEntry(tid_2_,
                                                   ResourceId(5),
-                                                  AccessMode(AccessModeType::kSLock)),
-            TransactionTableResult::kDelError);
+                                                  x_lock_mode));
 
-  EXPECT_EQ(transaction_table_.deletePendingEntry(tid_2_,
+  EXPECT_EQ(TransactionTableResult::kDelError,
+            transaction_table_.deletePendingEntry(tid_3_,
                                                   ResourceId(5),
-                                                  AccessMode(AccessModeType::kSLock)),
-            TransactionTableResult::kDelFromPending);
+                                                  s_lock_mode));
+
+  EXPECT_EQ(TransactionTableResult::kDelFromPending,
+            transaction_table_.deletePendingEntry(tid_2_,
+                                                  ResourceId(5),
+                                                  s_lock_mode));
 }
 
 TEST_F(TransactionTableTest, TransactionEntries) {
-  EXPECT_EQ(transaction_table_.deleteTransaction(tid_1_),
-            TransactionTableResult::kTransactionDeleteError);
+  const AccessMode s_lock_mode = AccessMode::SLockMode();
 
-  EXPECT_EQ(transaction_table_.putOwnEntry(tid_1_,
+  EXPECT_EQ(TransactionTableResult::kTransactionDeleteError,
+            transaction_table_.deleteTransaction(tid_1_));
+
+  EXPECT_EQ(TransactionTableResult::kPlacedInOwned,
+            transaction_table_.putOwnEntry(tid_1_,
                                            ResourceId(4),
-                                           AccessMode(AccessModeType::kSLock)),
-            TransactionTableResult::kPlacedInOwned);
+                                           s_lock_mode));
 
-  EXPECT_EQ(transaction_table_.deleteTransaction(tid_1_),
-            TransactionTableResult::kTransactionDeleteOk);
+  EXPECT_EQ(TransactionTableResult::kTransactionDeleteOk,
+            transaction_table_.deleteTransaction(tid_1_));
 
-  EXPECT_EQ(transaction_table_.deleteOwnEntry(tid_1_,
+  EXPECT_EQ(TransactionTableResult::kDelError,
+            transaction_table_.deleteOwnEntry(tid_1_,
                                               ResourceId(4),
-                                              AccessMode(AccessModeType::kSLock)),
-            TransactionTableResult::kDelError);
+                                              s_lock_mode));
 }
 
 }  // namespace transaction
