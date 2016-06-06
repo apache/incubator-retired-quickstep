@@ -40,8 +40,10 @@ bool InsertOperator::getAllWorkOrders(
 
     work_generated_ = true;
     container->addNormalWorkOrder(
-        new InsertWorkOrder(query_context->getInsertDestination(output_destination_index_),
-                            query_context->releaseTuple(tuple_index_)),
+        new InsertWorkOrder(
+            query_id_,
+            query_context->getInsertDestination(output_destination_index_),
+            query_context->releaseTuple(tuple_index_)),
         op_index_);
   }
   return work_generated_;

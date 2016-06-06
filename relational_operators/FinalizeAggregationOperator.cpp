@@ -38,8 +38,10 @@ bool FinalizeAggregationOperator::getAllWorkOrders(
   if (blocking_dependencies_met_ && !started_) {
     started_ = true;
     container->addNormalWorkOrder(
-        new FinalizeAggregationWorkOrder(query_context->releaseAggregationState(aggr_state_index_),
-                                         query_context->getInsertDestination(output_destination_index_)),
+        new FinalizeAggregationWorkOrder(
+            query_id_,
+            query_context->releaseAggregationState(aggr_state_index_),
+            query_context->getInsertDestination(output_destination_index_)),
         op_index_);
   }
   return started_;

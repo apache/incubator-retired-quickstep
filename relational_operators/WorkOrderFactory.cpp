@@ -130,6 +130,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
       }
 
       return new DropTableWorkOrder(
+          proto.query_id(),
           move(blocks),
           storage_manager,
           proto.HasExtension(serialization::DropTableWorkOrder::relation_id)
@@ -140,10 +141,12 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     case serialization::FINALIZE_AGGREGATION: {
       LOG(INFO) << "Creating FinalizeAggregationWorkOrder";
       return new FinalizeAggregationWorkOrder(
-          query_context->releaseAggregationState(
-              proto.GetExtension(serialization::FinalizeAggregationWorkOrder::aggr_state_index)),
+          proto.query_id(),
+          query_context->releaseAggregationState(proto.GetExtension(
+              serialization::FinalizeAggregationWorkOrder::aggr_state_index)),
           query_context->getInsertDestination(
-              proto.GetExtension(serialization::FinalizeAggregationWorkOrder::insert_destination_index)));
+              proto.GetExtension(serialization::FinalizeAggregationWorkOrder::
+                                     insert_destination_index)));
     }
     case serialization::HASH_JOIN: {
       const auto hash_join_work_order_type =
@@ -262,6 +265,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     case serialization::INSERT: {
       LOG(INFO) << "Creating InsertWorkOrder";
       return new InsertWorkOrder(
+          proto.query_id(),
           query_context->getInsertDestination(
               proto.GetExtension(serialization::InsertWorkOrder::insert_destination_index)),
           query_context->releaseTuple(
@@ -280,6 +284,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               proto.GetExtension(serialization::NestedLoopsJoinWorkOrder::join_predicate_index)),
           query_context->getScalarGroup(
               proto.GetExtension(serialization::NestedLoopsJoinWorkOrder::selection_index)),
+          proto.query_id(),
           query_context->getInsertDestination(
               proto.GetExtension(serialization::NestedLoopsJoinWorkOrder::insert_destination_index)),
           storage_manager);
@@ -292,6 +297,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           proto.GetExtension(serialization::SampleWorkOrder::block_id),
           proto.GetExtension(serialization::SampleWorkOrder::is_block_sample),
           proto.GetExtension(serialization::SampleWorkOrder::percentage),
+          proto.query_id(),
           query_context->getInsertDestination(
               proto.GetExtension(serialization::SampleWorkOrder::insert_destination_index)),
           storage_manager);
@@ -301,6 +307,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
       return new SaveBlocksWorkOrder(
           proto.GetExtension(serialization::SaveBlocksWorkOrder::block_id),
           proto.GetExtension(serialization::SaveBlocksWorkOrder::force),
+          proto.query_id(),
           storage_manager);
     }
     case serialization::SELECT: {
@@ -324,6 +331,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           simple_projection ? nullptr
                             : &query_context->getScalarGroup(
                                   proto.GetExtension(serialization::SelectWorkOrder::selection_index)),
+          proto.query_id(),
           query_context->getInsertDestination(
               proto.GetExtension(serialization::SelectWorkOrder::insert_destination_index)),
           storage_manager);
@@ -349,6 +357,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           move(runs),
           proto.GetExtension(serialization::SortMergeRunWorkOrder::top_k),
           proto.GetExtension(serialization::SortMergeRunWorkOrder::merge_level),
+          proto.query_id(),
           query_context->getInsertDestination(
               proto.GetExtension(serialization::SortMergeRunWorkOrder::insert_destination_index)),
           storage_manager,
@@ -364,6 +373,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           proto.GetExtension(serialization::SortRunGenerationWorkOrder::block_id),
           query_context->getSortConfig(
               proto.GetExtension(serialization::SortRunGenerationWorkOrder::sort_config_index)),
+          proto.query_id(),
           query_context->getInsertDestination(
               proto.GetExtension(serialization::SortRunGenerationWorkOrder::insert_destination_index)),
           storage_manager);
@@ -373,6 +383,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
       return new TableGeneratorWorkOrder(
           query_context->getGeneratorFunctionHandle(
               proto.GetExtension(serialization::TableGeneratorWorkOrder::generator_function_index)),
+          proto.query_id(),
           query_context->getInsertDestination(
               proto.GetExtension(serialization::TableGeneratorWorkOrder::insert_destination_index)));
     }
@@ -383,6 +394,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
             proto.GetExtension(serialization::TextScanWorkOrder::filename),
             proto.GetExtension(serialization::TextScanWorkOrder::field_terminator),
             proto.GetExtension(serialization::TextScanWorkOrder::process_escape_sequences),
+            proto.query_id(),
             query_context->getInsertDestination(
                 proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index)),
             storage_manager);
@@ -395,6 +407,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
             text_blob_proto.size(),
             proto.GetExtension(serialization::TextScanWorkOrder::field_terminator),
             proto.GetExtension(serialization::TextScanWorkOrder::process_escape_sequences),
+            proto.query_id(),
             query_context->getInsertDestination(
                 proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index)),
             storage_manager);
@@ -405,6 +418,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
       return new TextSplitWorkOrder(
           proto.GetExtension(serialization::TextSplitWorkOrder::filename),
           proto.GetExtension(serialization::TextSplitWorkOrder::process_escape_sequences),
+          proto.query_id(),
           storage_manager,
           proto.GetExtension(serialization::TextSplitWorkOrder::operator_index),
           shiftboss_client_id,
@@ -420,6 +434,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               proto.GetExtension(serialization::UpdateWorkOrder::predicate_index)),
           query_context->getUpdateGroup(
               proto.GetExtension(serialization::UpdateWorkOrder::update_group_index)),
+          proto.query_id(),
           query_context->getInsertDestination(
               proto.GetExtension(serialization::UpdateWorkOrder::insert_destination_index)),
           storage_manager,

@@ -1573,7 +1573,8 @@ class SortMergeRunOperatorTest : public ::testing::Test {
                                              sort_config_index,
                                              merge_factor,
                                              top_k,
-                                             true));
+                                             true,
+                                             0  /* dummy query ID */));
     merge_op_->setOperatorIndex(kOpIndex);
 
     // Set up the QueryContext.
@@ -1616,7 +1617,8 @@ class SortMergeRunOperatorTest : public ::testing::Test {
                                              sort_config_index,
                                              merge_factor,
                                              top_k,
-                                             false));
+                                             false,
+                                             0  /* dummy query ID */));
     merge_op_->setOperatorIndex(kOpIndex);
 
     // Set up the QueryContext.

@@ -55,12 +55,14 @@ class RebuildWorkOrder : public WorkOrder {
    * @param input_relation_id The ID of the CatalogRelation to which the given
    *        storage block belongs to.
    * @param scheduler_client_id The TMB client ID of the scheduler thread.
+   * @param The ID of the query to which this operator belongs.
    * @param bus A pointer to the TMB.
    **/
   RebuildWorkOrder(MutableBlockReference &&block_ref,
                    const std::size_t input_operator_index,
                    const relation_id input_relation_id,
                    const client_id scheduler_client_id,
+                   const std::size_t query_id,
                    MessageBus *bus)
       : block_ref_(std::move(block_ref)),
         input_operator_index_(input_operator_index),

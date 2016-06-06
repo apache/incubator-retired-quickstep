@@ -461,6 +461,7 @@ void QueryManager::getRebuildWorkOrders(const dag_node_index index,
                             index,
                             op.getOutputRelationID(),
                             foreman_client_id_,
+                            query_id_,
                             bus_),
         index);
   }

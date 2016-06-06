@@ -281,8 +281,10 @@ class AggregationOperatorTest : public ::testing::Test {
     insert_destination_proto->set_relation_id(result_table_->getID());
     insert_destination_proto->set_relational_op_index(kOpIndex);
 
-    finalize_op_.reset(
-        new FinalizeAggregationOperator(aggr_state_index, *result_table_, insert_destination_index));
+    finalize_op_.reset(new FinalizeAggregationOperator(aggr_state_index,
+                                                       *result_table_,
+                                                       insert_destination_index,
+                                                       0 /* dummy query ID */));
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto,
@@ -363,8 +365,10 @@ class AggregationOperatorTest : public ::testing::Test {
     insert_destination_proto->set_relation_id(result_table_->getID());
     insert_destination_proto->set_relational_op_index(kOpIndex);
 
-    finalize_op_.reset(
-        new FinalizeAggregationOperator(aggr_state_index, *result_table_, insert_destination_index));
+    finalize_op_.reset(new FinalizeAggregationOperator(aggr_state_index,
+                                                       *result_table_,
+                                                       insert_destination_index,
+                                                       0 /* dummy query ID */));
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto,

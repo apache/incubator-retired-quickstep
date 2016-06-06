@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_FINALIZE_AGGREGATION_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_FINALIZE_AGGREGATION_OPERATOR_HPP_
 
+#include <cstddef>
 #include <memory>
 
 #include "catalog/CatalogRelation.hpp"
@@ -57,11 +58,14 @@ class FinalizeAggregationOperator : public RelationalOperator {
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert aggregation results.
+   * @param The ID of the query to which this operator belongs.
    */
   FinalizeAggregationOperator(const QueryContext::aggregation_state_id aggr_state_index,
                               const CatalogRelation &output_relation,
-                              const QueryContext::insert_destination_id output_destination_index)
-      : aggr_state_index_(aggr_state_index),
+                              const QueryContext::insert_destination_id output_destination_index,
+                              const std::size_t query_id)
+      : RelationalOperator(query_id),
+        aggr_state_index_(aggr_state_index),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         started_(false) {}
@@ -101,13 +105,16 @@ class FinalizeAggregationWorkOrder : public WorkOrder {
    *
    * @note InsertWorkOrder takes ownership of \c state.
    *
+   * @param The ID of the query to which this operator belongs.
    * @param state The AggregationState to use.
    * @param output_destination The InsertDestination to insert aggregation
    *        results.
    */
-  FinalizeAggregationWorkOrder(AggregationOperationState *state,
+  FinalizeAggregationWorkOrder(const std::size_t query_id,
+                               AggregationOperationState *state,
                                InsertDestination *output_destination)
-      : state_(DCHECK_NOTNULL(state)),
+      : WorkOrder(query_id),
+        state_(DCHECK_NOTNULL(state)),
         output_destination_(DCHECK_NOTNULL(output_destination)) {}
 
   ~FinalizeAggregationWorkOrder() override {}

@@ -54,6 +54,7 @@ bool SortRunGenerationOperator::getAllWorkOrders(
             new SortRunGenerationWorkOrder(input_relation_,
                                            input_block_id,
                                            sort_config,
+                                           query_id_,
                                            output_destination,
                                            storage_manager),
             op_index_);
@@ -69,6 +70,7 @@ bool SortRunGenerationOperator::getAllWorkOrders(
               input_relation_,
               input_relation_block_ids_[num_workorders_generated_],
               sort_config,
+              query_id_,
               output_destination,
               storage_manager),
           op_index_);

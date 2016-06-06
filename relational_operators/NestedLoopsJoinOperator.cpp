@@ -82,6 +82,7 @@ bool NestedLoopsJoinOperator::getAllWorkOrders(
                                            right_block_id,
                                            query_context->getPredicate(join_predicate_index_),
                                            query_context->getScalarGroup(selection_index_),
+                                           query_id_,
                                            query_context->getInsertDestination(output_destination_index_),
                                            storage_manager),
               op_index_);
@@ -171,6 +172,7 @@ std::size_t NestedLoopsJoinOperator::getAllWorkOrdersHelperBothNotStored(WorkOrd
                                        right_relation_block_ids_[right_index],
                                        query_context->getPredicate(join_predicate_index_),
                                        query_context->getScalarGroup(selection_index_),
+                                       query_id_,
                                        query_context->getInsertDestination(output_destination_index_),
                                        storage_manager),
           op_index_);
@@ -205,6 +207,7 @@ bool NestedLoopsJoinOperator::getAllWorkOrdersHelperOneStored(WorkOrdersContaine
                 right_relation_block_ids_[right_index],
                 join_predicate,
                 selection,
+                query_id_,
                 output_destination,
                 storage_manager),
             op_index_);
@@ -224,6 +227,7 @@ bool NestedLoopsJoinOperator::getAllWorkOrdersHelperOneStored(WorkOrdersContaine
                                          right_block_id,
                                          join_predicate,
                                          selection,
+                                         query_id_,
                                          output_destination,
                                          storage_manager),
             op_index_);

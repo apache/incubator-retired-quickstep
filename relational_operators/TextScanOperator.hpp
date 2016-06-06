@@ -134,14 +134,17 @@ class TextScanOperator : public RelationalOperator {
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert tuples.
+   * @param query_id The ID of the query to which this operator belongs.
    **/
   TextScanOperator(const std::string &file_pattern,
                    const char field_terminator,
                    const bool process_escape_sequences,
                    const bool parallelize_load,
                    const CatalogRelation &output_relation,
-                   const QueryContext::insert_destination_id output_destination_index)
-      : file_pattern_(file_pattern),
+                   const QueryContext::insert_destination_id output_destination_index,
+                   const std::size_t query_id)
+      : RelationalOperator(query_id),
+        file_pattern_(file_pattern),
         field_terminator_(field_terminator),
         process_escape_sequences_(process_escape_sequences),
         parallelize_load_(parallelize_load),
@@ -202,6 +205,7 @@ class TextScanWorkOrder : public WorkOrder {
    *        the text file.
    * @param process_escape_sequences Whether to decode escape sequences in the
    *        text file.
+   * @param query_id The ID of the query to which this operator belongs.
    * @param output_destination The InsertDestination to insert tuples.
    * @param storage_manager The StorageManager to use.
    **/
@@ -209,6 +213,7 @@ class TextScanWorkOrder : public WorkOrder {
       const std::string &filename,
       const char field_terminator,
       const bool process_escape_sequences,
+      const std::size_t query_id,
       InsertDestination *output_destination,
       StorageManager *storage_manager);
 
@@ -221,6 +226,7 @@ class TextScanWorkOrder : public WorkOrder {
    *        the text file.
    * @param process_escape_sequences Whether to decode escape sequences in the
    *        text file.
+   * @param query_id The ID of the query to which this operator belongs.
    * @param output_destination The InsertDestination to write the read tuples.
    * @param storage_manager The StorageManager to use.
    */
@@ -229,6 +235,7 @@ class TextScanWorkOrder : public WorkOrder {
       const std::size_t text_size,
       const char field_terminator,
       const bool process_escape_sequences,
+      const std::size_t query_id,
       InsertDestination *output_destination,
       StorageManager *storage_manager);
 
@@ -318,6 +325,7 @@ class TextSplitWorkOrder : public WorkOrder {
    * @param filename File to split into row-aligned blobs.
    * @param process_escape_sequences Whether to decode escape sequences in the
    *        text file.
+   * @param query_id The ID of the query to which this operator belongs.
    * @param storage_manager The StorageManager to use.
    * @param operator_index Operator index of the current operator. This is used
    *                       to send new-work available message to Foreman.
@@ -326,11 +334,13 @@ class TextSplitWorkOrder : public WorkOrder {
    */
   TextSplitWorkOrder(const std::string &filename,
                      const bool process_escape_sequences,
+                     const std::size_t query_id,
                      StorageManager *storage_manager,
                      const std::size_t operator_index,
                      const tmb::client_id scheduler_client_id,
                      MessageBus *bus)
-      : filename_(filename),
+      : WorkOrder(query_id),
+        filename_(filename),
         process_escape_sequences_(process_escape_sequences),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
         operator_index_(operator_index),

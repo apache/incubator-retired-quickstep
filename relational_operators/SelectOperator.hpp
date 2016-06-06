@@ -76,14 +76,17 @@ class SelectOperator : public RelationalOperator {
    * @param input_relation_is_stored If input_relation is a stored relation and
    *        is fully available to the operator before it can start generating
    *        workorders.
+   * @param query_id The ID of the query to which this operator belongs.
    **/
   SelectOperator(const CatalogRelation &input_relation,
                  const CatalogRelation &output_relation,
                  const QueryContext::insert_destination_id output_destination_index,
                  const QueryContext::predicate_id predicate_index,
                  const QueryContext::scalar_group_id selection_index,
-                 const bool input_relation_is_stored)
-      : input_relation_(input_relation),
+                 const bool input_relation_is_stored,
+                 const std::size_t query_id)
+      : RelationalOperator(query_id),
+        input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         predicate_index_(predicate_index),
@@ -133,14 +136,17 @@ class SelectOperator : public RelationalOperator {
    * @param input_relation_is_stored If input_relation is a stored relation and
    *        is fully available to the operator before it can start generating
    *        workorders.
+   * @param query_id The ID of the query to which this operator belongs.
    **/
   SelectOperator(const CatalogRelation &input_relation,
                  const CatalogRelation &output_relation,
                  const QueryContext::insert_destination_id output_destination_index,
                  const QueryContext::predicate_id predicate_index,
                  std::vector<attribute_id> &&selection,
-                 const bool input_relation_is_stored)
-      : input_relation_(input_relation),
+                 const bool input_relation_is_stored,
+                 const std::size_t query_id)
+      : RelationalOperator(query_id),
+        input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         predicate_index_(predicate_index),
@@ -281,6 +287,7 @@ class SelectWorkOrder : public WorkOrder {
    *        simple_projection is true.
    * @param selection A list of Scalars which will be evaluated to project
    *        input tuples, used if \c simple_projection is false.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the selection
    *        results.
    * @param storage_manager The StorageManager to use.
@@ -291,10 +298,12 @@ class SelectWorkOrder : public WorkOrder {
                   const bool simple_projection,
                   const std::vector<attribute_id> &simple_selection,
                   const std::vector<std::unique_ptr<const Scalar>> *selection,
+                  const std::size_t query_id,
                   InsertDestination *output_destination,
                   StorageManager *storage_manager,
                   const numa_node_id numa_node = 0)
-      : input_relation_(input_relation),
+      : WorkOrder(query_id),
+        input_relation_(input_relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
         simple_projection_(simple_projection),
@@ -320,6 +329,7 @@ class SelectWorkOrder : public WorkOrder {
    *        simple_projection is true.
    * @param selection A list of Scalars which will be evaluated to project
    *        input tuples, used if \c simple_projection is false.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the selection
    *        results.
    * @param storage_manager The StorageManager to use.
@@ -330,10 +340,12 @@ class SelectWorkOrder : public WorkOrder {
                   const bool simple_projection,
                   std::vector<attribute_id> &&simple_selection,
                   const std::vector<std::unique_ptr<const Scalar>> *selection,
+                  const std::size_t query_id,
                   InsertDestination *output_destination,
                   StorageManager *storage_manager,
                   const numa_node_id numa_node = 0)
-      : input_relation_(input_relation),
+      : WorkOrder(query_id),
+        input_relation_(input_relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
         simple_projection_(simple_projection),

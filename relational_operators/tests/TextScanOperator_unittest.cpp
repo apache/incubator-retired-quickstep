@@ -193,7 +193,8 @@ TEST_F(TextScanOperatorTest, ScanTest) {
                            true,
                            false,
                            *relation_,
-                           output_destination_index));
+                           output_destination_index,
+                           0  /* dummy query ID */));
 
   // Setup query_context_.
   query_context_.reset(new QueryContext(query_context_proto,

@@ -58,6 +58,7 @@ bool SampleOperator::getAllWorkOrders(
                                     input_block_id,
                                     is_block_sample_,
                                     percentage_,
+                                    query_id_,
                                     output_destination,
                                     storage_manager),
                 op_index_);
@@ -72,6 +73,7 @@ bool SampleOperator::getAllWorkOrders(
                                   input_block_id,
                                   is_block_sample_,
                                   percentage_,
+                                  query_id_,
                                   output_destination,
                                   storage_manager),
               op_index_);
@@ -89,6 +91,7 @@ bool SampleOperator::getAllWorkOrders(
                                       input_relation_block_ids_[num_workorders_generated_],
                                       is_block_sample_,
                                       percentage_,
+                                      query_id_,
                                       output_destination,
                                       storage_manager),
                   op_index_);
@@ -101,7 +104,9 @@ bool SampleOperator::getAllWorkOrders(
               new SampleWorkOrder(input_relation_,
                                   input_relation_block_ids_[num_workorders_generated_],
                                   is_block_sample_,
-                                  percentage_, output_destination,
+                                  percentage_,
+                                  query_id_,
+                                  output_destination,
                                   storage_manager),
               op_index_);
           ++num_workorders_generated_;
