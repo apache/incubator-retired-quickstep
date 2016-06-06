@@ -369,7 +369,8 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
                            output_destination_index,
                            join_hash_table_index,
                            QueryContext::kInvalidPredicateId /* residual_predicate_index */,
-                           selection_index));
+                           selection_index,
+                           0  /* dummy query ID */));
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -516,7 +517,8 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
                            output_destination_index,
                            join_hash_table_index,
                            QueryContext::kInvalidPredicateId /* residual_predicate_index */,
-                           selection_index));
+                           selection_index,
+                           0  /* dummy query ID */));
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -671,7 +673,8 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
                            output_destination_index,
                            join_hash_table_index,
                            QueryContext::kInvalidPredicateId /* residual_predicate_index */,
-                           selection_index));
+                           selection_index,
+                           0  /* dummy query ID */));
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -811,7 +814,8 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
                            output_destination_index,
                            join_hash_table_index,
                            QueryContext::kInvalidPredicateId /* residual_predicate_index */,
-                           selection_index));
+                           selection_index,
+                           0  /* dummy query ID */));
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -985,7 +989,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
                            output_destination_index,
                            join_hash_table_index,
                            QueryContext::kInvalidPredicateId /* residual_predicate_index */,
-                           selection_index));
+                           selection_index,
+                           0  /* dummy query ID */));
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,
@@ -1170,7 +1175,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
                            output_destination_index,
                            join_hash_table_index,
                            residual_pred_index,
-                           selection_index));
+                           selection_index,
+                           0  /* dummy query ID */));
 
   // Set up the QueryContext.
   query_context_.reset(new QueryContext(query_context_proto,

@@ -79,7 +79,8 @@ class ExecutionHeuristicsTest : public ::testing::Test {
                                                                 true,
                                                                 build_attribute_ids,
                                                                 false,
-                                                                join_hash_table_index));
+                                                                join_hash_table_index,
+                                                                0  /* dummy query ID */));
     return build_operator_index;
   }
 
@@ -100,7 +101,8 @@ class ExecutionHeuristicsTest : public ::testing::Test {
                                                                0,
                                                                join_hash_table_index,
                                                                0,
-                                                               0));
+                                                               0,
+                                                               0  /* dummy query ID */));
     return join_operator_index;
   }
 

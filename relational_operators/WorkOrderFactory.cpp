@@ -195,6 +195,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               residual_predicate,
               selection,
               hash_table,
+              proto.query_id(),
               output_destination,
               storage_manager);
         }
@@ -209,6 +210,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               residual_predicate,
               selection,
               hash_table,
+              proto.query_id(),
               output_destination,
               storage_manager);
         }
@@ -231,6 +233,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               selection,
               move(is_selection_on_build),
               hash_table,
+              proto.query_id(),
               output_destination,
               storage_manager);
         }
@@ -245,6 +248,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               residual_predicate,
               selection,
               hash_table,
+              proto.query_id(),
               output_destination,
               storage_manager);
         }
