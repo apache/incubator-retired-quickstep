@@ -53,7 +53,7 @@ class CreateIndexOperator : public RelationalOperator {
    *
    * @param relation The relation to create index upon.
    * @param index_name The index to create.
-   * @param The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this operator belongs.
    * @param index_description The index_description associated with this index.
    **/
   CreateIndexOperator(CatalogRelation *relation,

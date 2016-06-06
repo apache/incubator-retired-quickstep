@@ -286,6 +286,11 @@ class WorkOrder {
   }
 
  protected:
+  /**
+   * @brief Constructor.
+   *
+   * @param query_id The ID of the query to which this WorkOrder belongs.
+   **/
   explicit WorkOrder(const std::size_t query_id = 0)
       : query_id_(query_id) {}
 

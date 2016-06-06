@@ -133,7 +133,7 @@ class UpdateWorkOrder : public WorkOrder {
    * @param assignments The assignments (the map of attribute_ids to Scalars)
    *        which should be evaluated to get the new value for the corresponding
    *        attribute.
-   * @param query_id The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param input_block_id The block id.
    * @param relocation_destination The InsertDestination to relocate tuples
    *        which can not be updated in-place.

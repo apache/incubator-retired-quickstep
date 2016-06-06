@@ -55,7 +55,7 @@ class RebuildWorkOrder : public WorkOrder {
    * @param input_relation_id The ID of the CatalogRelation to which the given
    *        storage block belongs to.
    * @param scheduler_client_id The TMB client ID of the scheduler thread.
-   * @param The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this RebuildWorkOrder belongs.
    * @param bus A pointer to the TMB.
    **/
   RebuildWorkOrder(MutableBlockReference &&block_ref,

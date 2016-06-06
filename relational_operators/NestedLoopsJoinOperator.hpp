@@ -76,7 +76,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
    * @param left_relation_is_stored If left_input_relation is a stored relation.
    * @param right_relation_is_stored If right_input_relation is a stored
    *                                 relation.
-   * @param The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this operator belongs.
    **/
   NestedLoopsJoinOperator(const CatalogRelation &left_input_relation,
                           const CatalogRelation &right_input_relation,
@@ -233,7 +233,7 @@ class NestedLoopsJoinWorkOrder : public WorkOrder {
    * @param selection A list of Scalars corresponding to the relation attributes
    *        in \c output_destination. Each Scalar is evaluated for the joined
    *        tuples, and the resulting value is inserted into the join result.
-   * @param The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this operator belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/

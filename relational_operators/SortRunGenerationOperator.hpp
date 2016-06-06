@@ -155,7 +155,7 @@ class SortRunGenerationWorkOrder : public WorkOrder {
    * @param input_block_id The block id.
    * @param sort_config The Sort configuration specifying ORDER BY, ordering,
    *        and null ordering.
-   * @param query_id The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to store the sorted blocks
    *        of runs.
    * @param storage_manager The StorageManager to use.

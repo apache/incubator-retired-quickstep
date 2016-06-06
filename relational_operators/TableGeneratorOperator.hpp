@@ -114,7 +114,7 @@ class TableGeneratorWorkOrder : public WorkOrder {
    * @brief Constructor.
    *
    * @param generator_function The GeneratorFunctionHandle to use.
-   * @param query_id The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the generated
    *        output.
    **/

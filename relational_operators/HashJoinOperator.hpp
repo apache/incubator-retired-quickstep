@@ -246,6 +246,7 @@ class HashInnerJoinWorkOrder : public WorkOrder {
    *        in \c output_destination. Each Scalar is evaluated for the joined
    *        tuples, and the resulting value is inserted into the join result.
    * @param hash_table The JoinHashTable to use.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
@@ -291,6 +292,7 @@ class HashInnerJoinWorkOrder : public WorkOrder {
    *        in \c output_destination. Each Scalar is evaluated for the joined
    *        tuples, and the resulting value is inserted into the join result.
    * @param hash_table The JoinHashTable to use.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
@@ -373,6 +375,7 @@ class HashSemiJoinWorkOrder : public WorkOrder {
    *        in \c output_destination. Each Scalar is evaluated for the joined
    *        tuples, and the resulting value is inserted into the join result.
    * @param hash_table The JoinHashTable to use.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
@@ -418,6 +421,7 @@ class HashSemiJoinWorkOrder : public WorkOrder {
    *        in \c output_destination. Each Scalar is evaluated for the joined
    *        tuples, and the resulting value is inserted into the join result.
    * @param hash_table The JoinHashTable to use.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
@@ -493,6 +497,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
    *        in \c output_destination. Each Scalar is evaluated for the joined
    *        tuples, and the resulting value is inserted into the join result.
    * @param hash_table The JoinHashTable to use.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
@@ -538,6 +543,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
    *        in \c output_destination. Each Scalar is evaluated for the joined
    *        tuples, and the resulting value is inserted into the join result.
    * @param hash_table The JoinHashTable to use.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
@@ -617,7 +623,7 @@ class HashOuterJoinWorkOrder : public WorkOrder {
    *        is using attributes from the build relation as input. Note that the
    *        length of this vector should equal the length of \p selection.
    * @param lookup_block_id The block id of the probe_relation.
-   * @param query_id The ID of the query.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
    **/
@@ -632,7 +638,8 @@ class HashOuterJoinWorkOrder : public WorkOrder {
                          const std::size_t query_id,
                          InsertDestination *output_destination,
                          StorageManager *storage_manager)
-      : build_relation_(build_relation),
+      : WorkOrder(query_id),
+        build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),

@@ -208,6 +208,7 @@ class RelationalOperator {
   /**
    * @brief Constructor
    *
+   * @param query_id The ID of the query to which this operator belongs.
    * @param blocking_dependencies_met If those dependencies which break the
    *        pipeline have been met.
    **/

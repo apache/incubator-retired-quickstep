@@ -110,6 +110,7 @@ class AggregationWorkOrder : public WorkOrder {
    * @brief Constructor
    *
    * @param input_block_id The block id.
+   * @param query_id The ID of this query.
    * @param state The AggregationState to use.
    **/
   AggregationWorkOrder(const block_id input_block_id,

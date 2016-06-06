@@ -57,7 +57,7 @@ class InsertOperator : public RelationalOperator {
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the tuple.
    * @param tuple_index The index of the tuple to insert in the QueryContext.
-   * @param The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this operator belongs.
    **/
   InsertOperator(const CatalogRelation &output_relation,
                  const QueryContext::insert_destination_id output_destination_index,
@@ -104,7 +104,7 @@ class InsertWorkOrder : public WorkOrder {
    *
    * @note InsertWorkOrder takes ownership of \c tuple.
    *
-   * @param The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert the tuple.
    * @param tuple The tuple to insert.
    **/

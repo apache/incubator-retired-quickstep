@@ -50,7 +50,7 @@ class CreateTableOperator : public RelationalOperator {
   /**
    * @brief Constructor.
    *
-   * @param The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this operator belongs.
    * @param relation The relation to add. This CreateTableOperator owns
    *        relation until the WorkOrder it produces is successfully executed,
    *        at which point it is owned by database.

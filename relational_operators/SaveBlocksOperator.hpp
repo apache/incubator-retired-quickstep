@@ -106,7 +106,8 @@ class SaveBlocksWorkOrder : public WorkOrder {
                       const bool force,
                       const std::size_t query_id,
                       StorageManager *storage_manager)
-      : save_block_id_(save_block_id),
+      : WorkOrder(query_id),
+        save_block_id_(save_block_id),
         force_(force),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
 

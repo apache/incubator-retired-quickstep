@@ -58,7 +58,7 @@ class FinalizeAggregationOperator : public RelationalOperator {
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert aggregation results.
-   * @param The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this operator belongs.
    */
   FinalizeAggregationOperator(const QueryContext::aggregation_state_id aggr_state_index,
                               const CatalogRelation &output_relation,
@@ -105,7 +105,7 @@ class FinalizeAggregationWorkOrder : public WorkOrder {
    *
    * @note InsertWorkOrder takes ownership of \c state.
    *
-   * @param The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this operator belongs.
    * @param state The AggregationState to use.
    * @param output_destination The InsertDestination to insert aggregation
    *        results.

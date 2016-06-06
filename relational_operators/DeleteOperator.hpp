@@ -61,7 +61,7 @@ class DeleteOperator : public RelationalOperator {
    *        tuples will be deleted).
    * @param relation_is_stored If relation is a stored relation and is fully
    *        available to the operator before it can start generating workorders.
-   * @param The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this operator belongs.
    **/
   DeleteOperator(const CatalogRelation &relation,
                  const QueryContext::predicate_id predicate_index,
@@ -130,7 +130,7 @@ class DeleteWorkOrder : public WorkOrder {
    * @param delete_operator_index The index of the Delete Operator in the query
    *        plan DAG.
    * @param scheduler_client_id The TMB client ID of the scheduler thread.
-   * @param The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this workorder belongs.
    * @param bus A pointer to the TMB.
    **/
   DeleteWorkOrder(const CatalogRelationSchema &input_relation,

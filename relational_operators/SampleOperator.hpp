@@ -65,7 +65,7 @@ class SampleOperator : public RelationalOperator {
    *        workorders.
    * @param is_block_sample Flag indicating whether the sample type is block or tuple.
    * @param percentage The percentage of data to be sampled.
-   * @param The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this operator belongs.
    **/
   SampleOperator(const CatalogRelation &input_relation,
                  const CatalogRelationSchema &output_relation,

@@ -205,7 +205,7 @@ class TextScanWorkOrder : public WorkOrder {
    *        the text file.
    * @param process_escape_sequences Whether to decode escape sequences in the
    *        text file.
-   * @param query_id The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to insert tuples.
    * @param storage_manager The StorageManager to use.
    **/
@@ -226,7 +226,7 @@ class TextScanWorkOrder : public WorkOrder {
    *        the text file.
    * @param process_escape_sequences Whether to decode escape sequences in the
    *        text file.
-   * @param query_id The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param output_destination The InsertDestination to write the read tuples.
    * @param storage_manager The StorageManager to use.
    */
@@ -325,7 +325,7 @@ class TextSplitWorkOrder : public WorkOrder {
    * @param filename File to split into row-aligned blobs.
    * @param process_escape_sequences Whether to decode escape sequences in the
    *        text file.
-   * @param query_id The ID of the query to which this operator belongs.
+   * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param storage_manager The StorageManager to use.
    * @param operator_index Operator index of the current operator. This is used
    *                       to send new-work available message to Foreman.
