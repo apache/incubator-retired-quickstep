@@ -60,6 +60,7 @@ bool DeleteOperator::getAllWorkOrders(
                                 storage_manager,
                                 op_index_,
                                 scheduler_client_id,
+                                query_id_,
                                 bus),
             op_index_);
       }
@@ -75,6 +76,7 @@ bool DeleteOperator::getAllWorkOrders(
                               storage_manager,
                               op_index_,
                               scheduler_client_id,
+                              query_id_,
                               bus),
           op_index_);
       ++num_workorders_generated_;

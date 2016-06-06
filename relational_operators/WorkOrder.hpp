@@ -286,7 +286,7 @@ class WorkOrder {
   }
 
  protected:
-  WorkOrder(const std::size_t query_id = 0)
+  explicit WorkOrder(const std::size_t query_id = 0)
       : query_id_(query_id) {}
 
   const std::size_t query_id_;
