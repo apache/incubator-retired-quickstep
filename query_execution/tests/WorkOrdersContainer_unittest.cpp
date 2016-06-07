@@ -30,7 +30,7 @@ namespace quickstep {
 class MockNUMAWorkOrder : public WorkOrder {
  public:
   MockNUMAWorkOrder(const int id, const std::vector<int> &numa_nodes)
-      : id_(id) {
+      : WorkOrder(0), id_(id) {
     for (int numa_node : numa_nodes) {
       preferred_numa_nodes_.push_back(numa_node);
     }

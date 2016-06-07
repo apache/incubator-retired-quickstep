@@ -64,7 +64,8 @@ class RebuildWorkOrder : public WorkOrder {
                    const client_id scheduler_client_id,
                    const std::size_t query_id,
                    MessageBus *bus)
-      : block_ref_(std::move(block_ref)),
+      : WorkOrder(query_id),
+        block_ref_(std::move(block_ref)),
         input_operator_index_(input_operator_index),
         input_relation_id_(input_relation_id),
         scheduler_client_id_(scheduler_client_id),
