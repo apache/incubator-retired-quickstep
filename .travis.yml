@@ -6,6 +6,9 @@
 # Also, to reduce the total CI time, we explicitly run the most time-consuming
 # build first, using gcc in debug build with joinwithbinaryexpressions.
 
+sudo: required
+dist: trusty
+
 language: cpp
 
 cache: ccache
