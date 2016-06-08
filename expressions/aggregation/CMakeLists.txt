@@ -266,7 +266,6 @@ target_link_libraries(quickstep_expressions_aggregation
                       quickstep_expressions_aggregation_AggregationHandleMax
                       quickstep_expressions_aggregation_AggregationHandleMin
                       quickstep_expressions_aggregation_AggregationHandleSum
-                      quickstep_expressions_aggregation_AggregationHandleUtil
                       quickstep_expressions_aggregation_AggregationID)
 
 # Tests:
