@@ -23,6 +23,12 @@ QS_PROTOBUF_GENERATE_CPP(relationaloperators_WorkOrder_proto_srcs
                          relationaloperators_WorkOrder_proto_hdrs
                          WorkOrder.proto)
 
+if (BUILD_SHARED_LIBS)
+  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
+else()
+  set(GFLAGS_LIB_NAME gflags_nothreads-static)
+endif()
+
 # Declare micro-libs:
 add_library(quickstep_relationaloperators_AggregationOperator AggregationOperator.cpp AggregationOperator.hpp)
 add_library(quickstep_relationaloperators_BuildHashOperator BuildHashOperator.cpp BuildHashOperator.hpp)
@@ -160,7 +166,7 @@ target_link_libraries(quickstep_relationaloperators_FinalizeAggregationOperator
                       quickstep_utility_Macros
                       tmb)
 target_link_libraries(quickstep_relationaloperators_HashJoinOperator
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       glog
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogRelationSchema
@@ -350,7 +356,7 @@ target_link_libraries(quickstep_relationaloperators_TableGeneratorOperator
                       quickstep_utility_Macros
                       tmb)
 target_link_libraries(quickstep_relationaloperators_TextScanOperator
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelation
@@ -470,7 +476,7 @@ target_link_libraries(quickstep_relationaloperators
 add_executable(AggregationOperator_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/AggregationOperator_unittest.cpp")
 target_link_libraries(AggregationOperator_unittest
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       glog
                       gtest
                       quickstep_catalog_CatalogAttribute
@@ -523,7 +529,7 @@ add_test(AggregationOperator_unittest AggregationOperator_unittest)
 add_executable(HashJoinOperator_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/HashJoinOperator_unittest.cpp")
 target_link_libraries(HashJoinOperator_unittest
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       glog
                       gtest
                       quickstep_catalog_CatalogAttribute
@@ -573,7 +579,7 @@ add_test(HashJoinOperator_unittest HashJoinOperator_unittest)
 add_executable(SortMergeRunOperator_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/SortMergeRunOperator_unittest.cpp")
 target_link_libraries(SortMergeRunOperator_unittest
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       glog
                       gtest
                       quickstep_catalog_CatalogAttribute
@@ -624,7 +630,7 @@ add_test(SortMergeRunOperator_unittest SortMergeRunOperator_unittest)
 add_executable(SortRunGenerationOperator_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/SortRunGenerationOperator_unittest.cpp")
 target_link_libraries(SortRunGenerationOperator_unittest
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       glog
                       gtest
                       quickstep_catalog_CatalogAttribute
@@ -672,7 +678,7 @@ add_test(SortRunGenerationOperator_unittest SortRunGenerationOperator_unittest)
 add_executable(TextScanOperator_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/TextScanOperator_unittest.cpp")
 target_link_libraries(TextScanOperator_unittest
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       glog
                       gtest
                       quickstep_catalog_CatalogAttribute
