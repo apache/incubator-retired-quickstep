@@ -24,6 +24,12 @@ configure_file (
   "${CMAKE_CURRENT_BINARY_DIR}/QueryOptimizerConfig.h"
 )
 
+if (BUILD_SHARED_LIBS)
+  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
+else()
+  set(GFLAGS_LIB_NAME gflags_nothreads-static)
+endif()
+
 add_subdirectory(cost_model)
 add_subdirectory(expressions)
 add_subdirectory(logical)
@@ -182,7 +188,7 @@ target_link_libraries(quickstep_queryoptimizer_OptimizerTree
                       quickstep_utility_Macros
                       quickstep_utility_TreeStringSerializable)
 target_link_libraries(quickstep_queryoptimizer_PhysicalGenerator
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       quickstep_queryoptimizer_LogicalToPhysicalMapper
                       quickstep_queryoptimizer_logical_Logical
                       quickstep_queryoptimizer_physical_Physical
