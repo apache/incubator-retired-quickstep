@@ -21,6 +21,12 @@ if (REBUILD_INDEX_ON_UPDATE_OVERFLOW)
   set(QUICKSTEP_REBUILD_INDEX_ON_UPDATE_OVERFLOW TRUE)
 endif()
 
+if (BUILD_SHARED_LIBS)
+  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
+else()
+  set(GFLAGS_LIB_NAME gflags_nothreads-static)
+endif()
+
 include(CheckIncludeFileCXX)
 check_include_files("fcntl.h;glob.h;unistd.h;sys/stat.h;sys/types.h" QUICKSTEP_HAVE_FILE_MANAGER_POSIX)
 if (NOT QUICKSTEP_HAVE_FILE_MANAGER_POSIX)
@@ -617,7 +623,7 @@ target_link_libraries(quickstep_storage_FileManager
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
   target_link_libraries(quickstep_storage_FileManagerHdfs
                         glog
-                        gflags_nothreads-static
+                        ${GFLAGS_LIB_NAME}
                         quickstep_storage_FileManager
                         quickstep_storage_StorageBlockInfo
                         quickstep_storage_StorageConstants
@@ -950,7 +956,7 @@ target_link_libraries(quickstep_storage_StorageBlockLayout
 target_link_libraries(quickstep_storage_StorageBlockLayout_proto
                       ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_storage_StorageManager
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       glog
                       gtest
                       quickstep_catalog_CatalogTypedefs
@@ -1380,7 +1386,7 @@ if (ENABLE_DISTRIBUTED)
   add_executable(DataExchange_unittest
                  "${CMAKE_CURRENT_SOURCE_DIR}/tests/DataExchange_unittest.cpp")
   target_link_libraries(DataExchange_unittest
-                        gflags_nothreads-static
+                        ${GFLAGS_LIB_NAME}
                         glog
                         gtest
                         quickstep_catalog_CatalogAttribute

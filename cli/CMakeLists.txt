@@ -30,6 +30,12 @@ if(LIBNUMA_FOUND)
   set(QUICKSTEP_HAVE_LIBNUMA TRUE)
 endif()
 
+if (BUILD_SHARED_LIBS)
+  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
+else()
+  set(GFLAGS_LIB_NAME gflags_nothreads-static)
+endif()
+
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/CliConfig.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/CliConfig.h"
@@ -110,7 +116,7 @@ target_link_libraries(quickstep_cli_InputParserUtil
                       ${LIBNUMA_LIBRARY})
 endif()
 target_link_libraries(quickstep_cli_PrintToScreen
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelation
                       quickstep_storage_StorageBlock

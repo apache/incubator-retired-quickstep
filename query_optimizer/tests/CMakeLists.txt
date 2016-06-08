@@ -18,6 +18,12 @@ add_subdirectory(logical_generator)
 add_subdirectory(physical_generator)
 add_subdirectory(resolver)
 
+if (BUILD_SHARED_LIBS)
+  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
+else()
+  set(GFLAGS_LIB_NAME gflags_nothreads-static)
+endif()
+
 add_library(quickstep_queryoptimizer_tests_OptimizerTest OptimizerTest.cpp OptimizerTest.hpp)
 add_library(quickstep_queryoptimizer_tests_TestDatabaseLoader TestDatabaseLoader.cpp TestDatabaseLoader.hpp)
 
@@ -102,7 +108,7 @@ add_executable(quickstep_queryoptimizer_tests_OptimizerTextTest
                "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.hpp")
 
 target_link_libraries(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       glog
                       gtest
                       quickstep_catalog_CatalogDatabase
@@ -132,7 +138,7 @@ target_link_libraries(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
                       tmb
                       ${LIBS})
 target_link_libraries(quickstep_queryoptimizer_tests_OptimizerTextTest
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       glog
                       gtest
                       gtest_main

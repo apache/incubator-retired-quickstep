@@ -139,6 +139,12 @@ endif()
 
 option(ENABLE_DISTRIBUTED "Use the distributed version of Quickstep" OFF)
 
+if (BUILD_SHARED_LIBS)
+  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
+else()
+  set(GFLAGS_LIB_NAME gflags_nothreads-static)
+endif()
+
 # Turn on the QUICKSTEP_DEBUG flag in the source if this is a debug build.
 if (CMAKE_MAJOR_VERSION GREATER 2)
   cmake_policy(SET CMP0043 NEW)
@@ -700,7 +706,7 @@ add_subdirectory(yarn)
 add_executable (quickstep_cli_shell cli/QuickstepCli.cpp)
 # Link against direct deps (will transitively pull in everything needed).
 target_link_libraries(quickstep_cli_shell
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       glog
                       quickstep_catalog_CatalogRelation
                       quickstep_cli_CommandExecutor

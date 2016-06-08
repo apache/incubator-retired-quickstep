@@ -13,6 +13,12 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
+if (BUILD_SHARED_LIBS)
+  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
+else()
+  set(GFLAGS_LIB_NAME gflags_nothreads-static)
+endif()
+
 add_library(quickstep_transaction_AccessMode
             AccessMode.cpp
             AccessMode.hpp)
@@ -68,7 +74,7 @@ target_link_libraries(quickstep_transaction_Lock
                       quickstep_transaction_AccessMode
                       quickstep_transaction_ResourceId)
 target_link_libraries(quickstep_transaction_LockManager
-                      gflags_nothreads-static
+                      ${GFLAGS_LIB_NAME}
                       glog
                       quickstep_utility_ThreadSafeQueue
                       quickstep_threading_Thread

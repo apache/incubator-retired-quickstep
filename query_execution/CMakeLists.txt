@@ -19,6 +19,12 @@ QS_PROTOBUF_GENERATE_CPP(queryexecution_QueryExecutionMessages_proto_srcs
                          queryexecution_QueryExecutionMessages_proto_hdrs
                          QueryExecutionMessages.proto)
 
+if (BUILD_SHARED_LIBS)
+  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
+else()
+  set(GFLAGS_LIB_NAME gflags_nothreads-static)
+endif()
+
 # Declare micro-libs:
 if (ENABLE_DISTRIBUTED)
   add_library(quickstep_queryexecution_BlockLocator BlockLocator.cpp BlockLocator.hpp)
@@ -202,7 +208,7 @@ if (ENABLE_DISTRIBUTED)
   add_executable(BlockLocator_unittest
                  "${CMAKE_CURRENT_SOURCE_DIR}/tests/BlockLocator_unittest.cpp")
   target_link_libraries(BlockLocator_unittest
-                        gflags_nothreads-static
+                        ${GFLAGS_LIB_NAME}
                         glog
                         gtest
                         quickstep_catalog_CatalogAttribute
