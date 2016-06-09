@@ -1,5 +1,7 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
 #   Copyright 2015-2016 Pivotal Software, Inc.
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -16,9 +18,6 @@
 QS_PROTOBUF_GENERATE_CPP(relationaloperators_SortMergeRunOperator_proto_srcs
                          relationaloperators_SortMergeRunOperator_proto_hdrs
                          SortMergeRunOperator.proto)
-QS_PROTOBUF_GENERATE_CPP(relationaloperators_TextScanOperator_proto_srcs
-                         relationaloperators_TextScanOperator_proto_hdrs
-                         TextScanOperator.proto)
 QS_PROTOBUF_GENERATE_CPP(relationaloperators_WorkOrder_proto_srcs
                          relationaloperators_WorkOrder_proto_hdrs
                          WorkOrder.proto)
@@ -55,9 +54,6 @@ add_library(quickstep_relationaloperators_SortRunGenerationOperator SortRunGener
             SortRunGenerationOperator.hpp)
 add_library(quickstep_relationaloperators_TableGeneratorOperator TableGeneratorOperator.cpp TableGeneratorOperator.hpp)
 add_library(quickstep_relationaloperators_TextScanOperator TextScanOperator.cpp TextScanOperator.hpp)
-add_library(quickstep_relationaloperators_TextScanOperator_proto
-            ${relationaloperators_TextScanOperator_proto_srcs}
-            ${relationaloperators_TextScanOperator_proto_hdrs})
 add_library(quickstep_relationaloperators_UpdateOperator UpdateOperator.cpp UpdateOperator.hpp)
 add_library(quickstep_relationaloperators_WorkOrder ../empty_src.cpp WorkOrder.hpp)
 add_library(quickstep_relationaloperators_WorkOrderFactory WorkOrderFactory.cpp WorkOrderFactory.hpp)
@@ -354,27 +350,19 @@ target_link_libraries(quickstep_relationaloperators_TextScanOperator
                       glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelation
-                      quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_QueryContext
-                      quickstep_queryexecution_QueryExecutionMessages_proto
-                      quickstep_queryexecution_QueryExecutionTypedefs
-                      quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_RelationalOperator
-                      quickstep_relationaloperators_TextScanOperator_proto
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_InsertDestination
-                      quickstep_storage_StorageBlob
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_storage_StorageManager
-                      quickstep_threading_ThreadIDBasedMap
                       quickstep_types_Type
                       quickstep_types_TypedValue
+                      quickstep_types_containers_ColumnVector
+                      quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_types_containers_Tuple
                       quickstep_utility_Glob
                       quickstep_utility_Macros
-                      quickstep_utility_ThreadSafeQueue
                       tmb)
 target_link_libraries(quickstep_relationaloperators_UpdateOperator
                       glog
@@ -424,7 +412,6 @@ target_link_libraries(quickstep_relationaloperators_WorkOrderFactory
                       quickstep_relationaloperators_SortRunGenerationOperator
                       quickstep_relationaloperators_TableGeneratorOperator
                       quickstep_relationaloperators_TextScanOperator
-                      quickstep_relationaloperators_TextScanOperator_proto
                       quickstep_relationaloperators_UpdateOperator
                       quickstep_relationaloperators_WorkOrder_proto
                       quickstep_storage_StorageBlockInfo
@@ -432,7 +419,6 @@ target_link_libraries(quickstep_relationaloperators_WorkOrderFactory
                       tmb)
 target_link_libraries(quickstep_relationaloperators_WorkOrder_proto
                       quickstep_relationaloperators_SortMergeRunOperator_proto
-                      quickstep_relationaloperators_TextScanOperator_proto
                       ${PROTOBUF_LIBRARY})
 
 # Module all-in-one library:
@@ -460,7 +446,6 @@ target_link_libraries(quickstep_relationaloperators
                       quickstep_relationaloperators_SortRunGenerationOperator
                       quickstep_relationaloperators_TableGeneratorOperator
                       quickstep_relationaloperators_TextScanOperator
-                      quickstep_relationaloperators_TextScanOperator_proto
                       quickstep_relationaloperators_UpdateOperator
                       quickstep_relationaloperators_WorkOrder
                       quickstep_relationaloperators_WorkOrderFactory

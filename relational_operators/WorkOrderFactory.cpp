@@ -42,7 +42,6 @@
 #include "relational_operators/SortRunGenerationOperator.hpp"
 #include "relational_operators/TableGeneratorOperator.hpp"
 #include "relational_operators/TextScanOperator.hpp"
-#include "relational_operators/TextScanOperator.pb.h"
 #include "relational_operators/UpdateOperator.hpp"
 #include "relational_operators/WorkOrder.pb.h"
 #include "storage/StorageBlockInfo.hpp"
@@ -389,40 +388,16 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     }
     case serialization::TEXT_SCAN: {
       LOG(INFO) << "Creating TextScanWorkOrder";
-      if (proto.HasExtension(serialization::TextScanWorkOrder::filename)) {
-        return new TextScanWorkOrder(
-            proto.query_id(),
-            proto.GetExtension(serialization::TextScanWorkOrder::filename),
-            proto.GetExtension(serialization::TextScanWorkOrder::field_terminator),
-            proto.GetExtension(serialization::TextScanWorkOrder::process_escape_sequences),
-            query_context->getInsertDestination(
-                proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index)),
-            storage_manager);
-      } else {
-        const serialization::TextBlob &text_blob_proto =
-            proto.GetExtension(serialization::TextScanWorkOrder::text_blob);
-
-        return new TextScanWorkOrder(
-            proto.query_id(),
-            text_blob_proto.blob_id(),
-            text_blob_proto.size(),
-            proto.GetExtension(serialization::TextScanWorkOrder::field_terminator),
-            proto.GetExtension(serialization::TextScanWorkOrder::process_escape_sequences),
-            query_context->getInsertDestination(
-                proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index)),
-            storage_manager);
-      }
-    }
-    case serialization::TEXT_SPLIT: {
-      LOG(INFO) << "Creating TextSplitWorkOrder";
-      return new TextSplitWorkOrder(
+      return new TextScanWorkOrder(
           proto.query_id(),
-          proto.GetExtension(serialization::TextSplitWorkOrder::filename),
-          proto.GetExtension(serialization::TextSplitWorkOrder::process_escape_sequences),
-          storage_manager,
-          proto.GetExtension(serialization::TextSplitWorkOrder::operator_index),
-          shiftboss_client_id,
-          bus);
+          proto.GetExtension(serialization::TextScanWorkOrder::filename),
+          proto.GetExtension(serialization::TextScanWorkOrder::text_offset),
+          proto.GetExtension(serialization::TextScanWorkOrder::text_segment_size),
+          proto.GetExtension(serialization::TextScanWorkOrder::field_terminator),
+          proto.GetExtension(serialization::TextScanWorkOrder::process_escape_sequences),
+          query_context->getInsertDestination(
+              proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index)),
+          storage_manager);
     }
     case serialization::UPDATE: {
       LOG(INFO) << "Creating UpdateWorkOrder";
@@ -691,27 +666,14 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
                  proto.GetExtension(serialization::TableGeneratorWorkOrder::insert_destination_index));
     }
     case serialization::TEXT_SCAN: {
-      if (!proto.HasExtension(serialization::TextScanWorkOrder::field_terminator) ||
-          !proto.HasExtension(serialization::TextScanWorkOrder::process_escape_sequences) ||
-          !proto.HasExtension(serialization::TextScanWorkOrder::insert_destination_index) ||
-          !query_context.isValidInsertDestinationId(
-              proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index))) {
-        return false;
-      }
-
-      // Two fields are exclusive.
-      if (proto.HasExtension(serialization::TextScanWorkOrder::filename) ==
-              proto.HasExtension(serialization::TextScanWorkOrder::text_blob)) {
-        return false;
-      }
-
-      return proto.HasExtension(serialization::TextScanWorkOrder::filename) ||
-             proto.GetExtension(serialization::TextScanWorkOrder::text_blob).IsInitialized();
-    }
-    case serialization::TEXT_SPLIT: {
-      return proto.HasExtension(serialization::TextSplitWorkOrder::filename) &&
-             proto.HasExtension(serialization::TextSplitWorkOrder::process_escape_sequences) &&
-             proto.HasExtension(serialization::TextSplitWorkOrder::operator_index);
+      return proto.HasExtension(serialization::TextScanWorkOrder::filename) &&
+             proto.HasExtension(serialization::TextScanWorkOrder::text_offset) &&
+             proto.HasExtension(serialization::TextScanWorkOrder::text_segment_size) &&
+             proto.HasExtension(serialization::TextScanWorkOrder::field_terminator) &&
+             proto.HasExtension(serialization::TextScanWorkOrder::process_escape_sequences) &&
+             proto.HasExtension(serialization::TextScanWorkOrder::insert_destination_index) &&
+             query_context.isValidInsertDestinationId(
+                 proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index));
     }
     case serialization::UPDATE: {
       return proto.HasExtension(serialization::UpdateWorkOrder::relation_id) &&
