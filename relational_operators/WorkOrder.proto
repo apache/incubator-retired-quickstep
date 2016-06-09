@@ -1,5 +1,7 @@
 //   Copyright 2011-2015 Quickstep Technologies LLC.
 //   Copyright 2015-2016 Pivotal Software, Inc.
+//   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+//     University of Wisconsin—Madison.
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -18,7 +20,6 @@ syntax = "proto2";
 package quickstep.serialization;
 
 import "relational_operators/SortMergeRunOperator.proto";
-import "relational_operators/TextScanOperator.proto";
 
 enum WorkOrderType {
   AGGREGATION = 1;
@@ -39,8 +40,7 @@ enum WorkOrderType {
   SORT_RUN_GENERATION = 16;
   TABLE_GENERATOR = 17;
   TEXT_SCAN = 18;
-  TEXT_SPLIT = 19;
-  UPDATE = 20;
+  UPDATE = 19;
 }
 
 message WorkOrder {
@@ -223,15 +223,12 @@ message TableGeneratorWorkOrder {
 message TextScanWorkOrder {
   extend WorkOrder {
     // All required.
+    optional string filename = 301;
+    optional uint64 text_offset = 302;
+    optional uint64 text_segment_size = 303;
     optional uint32 field_terminator = 304;  // For one-byte char.
     optional bool process_escape_sequences = 305;
     optional int32 insert_destination_index = 306;
-
-    // Either
-    optional string filename = 307;
-
-    // Or
-    optional TextBlob text_blob = 308;
   }
 }
 

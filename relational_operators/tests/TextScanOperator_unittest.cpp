@@ -193,7 +193,6 @@ TEST_F(TextScanOperatorTest, ScanTest) {
                            input_filename,
                            '\t',
                            true,
-                           false,
                            *relation_,
                            output_destination_index));
 
