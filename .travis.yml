@@ -12,7 +12,7 @@ cache: ccache
 
 compiler:
   - gcc
-  - clang
+  # clang
 
 env:
   - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
@@ -21,7 +21,7 @@ env:
   - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=none
 
 install:
-  - if [ "$VECTOR_COPY_ELISION_LEVEL" = "joinwithbinaryexpressions" ] && [ "$CC" = "gcc" ] && [ "$BUILD_TYPE" = "Debug" ]; then
+  - if [ "$VECTOR_COPY_ELISION_LEVEL" = "joinwithbinaryexpressions" ] && [ "$CC" = "gcc" ]; then
       export MAKE_JOBS=1;
     else
       export MAKE_JOBS=2;
@@ -77,11 +77,9 @@ addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
-      - llvm-toolchain-precise-3.7
     packages:
       - gcc-5
       - g++-5
-      - clang-3.7
       - binutils-gold
       - libprotobuf-dev
       - protobuf-compiler
