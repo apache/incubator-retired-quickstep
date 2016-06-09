@@ -58,6 +58,7 @@ before_script:
   - $CLINKER --version
   - (cd build &&
      cmake -D CMAKE_BUILD_TYPE=$BUILD_TYPE
+           -D BUILD_SHARED_LIBS=On
            -D CMAKE_C_FLAGS_DEBUG="$DEBUG_FLAGS"
            -D CMAKE_CXX_FLAGS_DEBUG="$DEBUG_FLAGS"
            -D CMAKE_C_FLAGS_RELEASE="$RELEASE_FLAGS"
