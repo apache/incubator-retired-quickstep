@@ -321,6 +321,9 @@ void CompressedBlockBuilder::buildCompressedColumnStoreTupleStorageSubBlock(void
 bool CompressedBlockBuilder::addTupleInternal(Tuple *candidate_tuple) {
   DEBUG_ASSERT(candidate_tuple->size() == relation_.size());
 
+  // Ensure that the tuple is the owner of its values.
+  candidate_tuple->ensureLiteral();
+
   // Modify dictionaries and maximum integers to reflect the new tuple's
   // values. Keep track of what has changed in case a rollback is needed.
   vector<CompressionDictionaryBuilder*> modified_dictionaries;

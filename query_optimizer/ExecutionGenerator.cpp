@@ -945,7 +945,6 @@ void ExecutionGenerator::convertCopyFrom(
               physical_plan->file_name(),
               physical_plan->column_delimiter(),
               physical_plan->escape_strings(),
-              FLAGS_parallelize_load,
               *output_relation,
               insert_destination_index));
   insert_destination_proto->set_relational_op_index(scan_operator_index);
