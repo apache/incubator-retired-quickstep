@@ -17,8 +17,8 @@ compiler:
 env:
   - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
   - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
-  - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=none
-  - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=none
+  - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=selection
+  - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=selection
 
 before_install:
   - LLVM_VERSION=3.7.1
@@ -34,7 +34,7 @@ before_install:
     fi
 
 install:
-  - if [ "$VECTOR_COPY_ELISION_LEVEL" = "joinwithbinaryexpressions" ] && [ "$CC" = "gcc" ]; then
+  - if [ "$CC" = "gcc" ]; then
       export MAKE_JOBS=1;
     else
       export MAKE_JOBS=2;
