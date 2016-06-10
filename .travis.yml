@@ -34,10 +34,8 @@ before_install:
     fi
 
 install:
-  - if [ "$VECTOR_COPY_ELISION_LEVEL" = "joinwithbinaryexpressions" ] && [ "$CC" = "gcc" ]; then
-      export MAKE_JOBS=1;
-    else
-      export MAKE_JOBS=2;
+  - if [ "$CC" = "gcc" ]; then
+      export MAKE_JOBS=1; # would like a higher level but anything other than 1 doesn't work with gcc
     fi
   - export TEST_JOBS=2;
   - if [ "$CC" = "gcc" ]; then
