@@ -500,9 +500,13 @@ if(USE_TCMALLOC)
     #   as some generators, e.g. Ninja, may need it to build properly
     # BUILD_BYPRODUCTS <INSTALL_DIR>/lib/libtcmalloc_minimal.a
   )
-  # Static libtcmalloc_minimal.a
-  add_library(libtcmalloc_minimal STATIC IMPORTED)
-  set_property(TARGET libtcmalloc_minimal PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/third_party/gperftools/lib/libtcmalloc_minimal.a)
+  if (BUILD_SHARED_LIBS)
+    add_library(libtcmalloc_minimal SHARED IMPORTED)
+    set_property(TARGET libtcmalloc_minimal PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/third_party/gperftools/lib/libtcmalloc_minimal.so)
+  else()
+    add_library(libtcmalloc_minimal STATIC IMPORTED)
+    set_property(TARGET libtcmalloc_minimal PROPERTY IMPORTED_LOCATION ${CMAKE_CURRENT_BINARY_DIR}/third_party/gperftools/lib/libtcmalloc_minimal.a)
+  endif()
   # Linking against tcmalloc also requires linking against the system threading
   # library.
   set_property(TARGET libtcmalloc_minimal PROPERTY IMPORTED_LINK_INTERFACE_LIBRARIES ${CMAKE_THREAD_LIBS_INIT})
