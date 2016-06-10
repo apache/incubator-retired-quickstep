@@ -204,9 +204,37 @@ tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *acc
   return header_->num_tuples - original_num_tuples;
 }
 
-tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttributes(
+// For the i-th run of contiguous attributes in the attribute map,
+// runs[i] will contain the pair
+//   ( starting attribute id of the run,
+//     total size (i.e., num bytes) of all the attributes in that run )
+//
+// For 4B integer attrs, with attribute_map {0,2,5,6,7,3,4,10}
+// runs will be {(0,4), (1,4), (2,12), (5,8), (7,4)}
+
+static void get_runs(
     const std::vector<attribute_id> &attribute_map,
-    ValueAccessor *accessor) {
+    const std::vector<std::size_t> &attrs_max_size,
+    std::vector< std::pair<std::size_t, std::size_t> > &runs) {
+  std::size_t num_attrs = attribute_map.size();
+  std::size_t curr_run_size = attrs_max_size[0];
+  std::size_t curr_run_start = 0;
+  for (std::size_t i = 1; i < num_attrs; ++i) {
+    if (attribute_map[i] == 1 + attribute_map[i - 1]) {
+      curr_run_size += attrs_max_size[i];
+    }
+    else {  // run ended
+      runs.push_back(std::make_pair(curr_run_start,curr_run_size));
+      curr_run_size = attrs_max_size[i];
+      curr_run_start = i;
+    }
+  }
+  runs.push_back(std::make_pair(curr_run_start,curr_run_size));
+}
+
+tuple_id
+PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttributes(
+    const std::vector<attribute_id> &attribute_map, ValueAccessor *accessor) {
   DEBUG_ASSERT(attribute_map.size() == relation_.size());
 
   const tuple_id original_num_tuples = header_->num_tuples;
@@ -247,15 +275,39 @@ tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribu
         ++(header_->num_tuples);
       }
     } else {
-      while (this->hasSpaceToInsert<false>(1) && accessor->next()) {
-        for (std::size_t curr_attr = 0; curr_attr < num_attrs; ++curr_attr) {
-          const std::size_t attr_size = attrs_max_size[curr_attr];
-          memcpy(dest_addr,
-                 accessor->template getUntypedValue<false>(attribute_map[curr_attr]),
-                 attr_size);
-          dest_addr += attr_size;
+      if (accessor->getImplementationType() ==
+          ValueAccessor::Implementation::kPackedRowStore) {
+        // Fast Copy Path from PackedRowStore to PackedRowStore
+        // Since there are no nullable or variable-length attributes,
+        // we can copy contiguous attributes from the attribute map at one go 
+        //
+        // runs contains pairs (run_start, run_size). See comment above
+        // definition of get_runs
+        std::vector< std::pair<std::size_t, std::size_t> > runs;
+        runs.reserve(num_attrs);
+        get_runs(attribute_map, attrs_max_size, runs);
+        while (this->hasSpaceToInsert<false>(1) && accessor->next()) {
+          for (auto p : runs) {
+            std::size_t run_start = p.first;
+            std::size_t run_size = p.second;
+            memcpy(dest_addr,
+                  accessor->template getUntypedValue<false>(run_start),
+                  run_size);
+            dest_addr += run_size;
+          }
+          ++(header_->num_tuples);
         }
-        ++(header_->num_tuples);
+      } else {
+        while (this->hasSpaceToInsert<false>(1) && accessor->next()) {
+          for (std::size_t curr_attr = 0; curr_attr < num_attrs; ++curr_attr) {
+            const std::size_t attr_size = attrs_max_size[curr_attr];
+            memcpy(dest_addr,
+                   accessor->template getUntypedValue<false>(attribute_map[curr_attr]),
+                   attr_size);
+            dest_addr += attr_size;
+          }
+          ++(header_->num_tuples);
+        }
       }
     }
   });
