@@ -35,7 +35,7 @@ before_install:
 
 install:
   - if [ "$CC" = "gcc" ]; then
-      export MAKE_JOBS=1; # would like a higher level but anything other than 1 doesn't work with gcc
+      export MAKE_JOBS=1; 
     fi
   - export TEST_JOBS=2;
   - if [ "$CC" = "gcc" ]; then
