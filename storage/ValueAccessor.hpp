@@ -504,6 +504,7 @@ class OrderedTupleIdSequenceAdapterValueAccessor : public ValueAccessor {
       : accessor_(accessor),
         owned_accessor_(take_ownership_of_accessor ? accessor : nullptr),
         id_sequence_(id_sequence),
+        id_seqence_size_(id_sequence.size()),
         current_position_(std::numeric_limits<OrderedTupleIdSequence::size_type>::max()) {
     static_assert(std::numeric_limits<OrderedTupleIdSequence::size_type>::is_modulo,
                   "size_type does not support modulo overflow.");
@@ -529,12 +530,12 @@ class OrderedTupleIdSequenceAdapterValueAccessor : public ValueAccessor {
   }
 
   inline bool iterationFinished() const {
-    return current_position_ + 1 >= id_sequence_.size();
+    return current_position_ + 1 >= id_sequence_size_;
   }
 
   inline bool next() {
     ++current_position_;
-    return current_position_ != id_sequence_.size();
+    return current_position_ != id_sequence_size_;
   }
 
   inline void previous() {
@@ -551,7 +552,7 @@ class OrderedTupleIdSequenceAdapterValueAccessor : public ValueAccessor {
   }
 
   inline tuple_id getNumTuples() const {
-    return id_sequence_.size();
+    return id_sequence_size_;
   }
 
   template <bool check_null = true>
@@ -674,6 +675,7 @@ class OrderedTupleIdSequenceAdapterValueAccessor : public ValueAccessor {
   InternalValueAccessorType *accessor_;
   std::unique_ptr<InternalValueAccessorType> owned_accessor_;
   const OrderedTupleIdSequence &id_sequence_;
+  const std::size_t id_sequence_size_;
   OrderedTupleIdSequence::size_type current_position_;
 
   DISALLOW_COPY_AND_ASSIGN(OrderedTupleIdSequenceAdapterValueAccessor);
