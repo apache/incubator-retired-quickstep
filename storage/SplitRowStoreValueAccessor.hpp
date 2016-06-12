@@ -102,6 +102,11 @@ class SplitRowStoreValueAccessor : public ValueAccessor {
     return getUntypedValueAtAbsolutePosition<check_null>(attr_id, current_position_);
   }
 
+  template <bool check_null = true>
+  inline std::pair<const void*, std::size_t> getUntypedValueAndByteLength(const attribute_id attr_id) const {
+    return getUntypedValueAndByteLengthAtAbsolutePosition<check_null>(attr_id, current_position_);
+  }
+
   inline TypedValue getTypedValue(const attribute_id attr_id) const {
     return getTypedValueAtAbsolutePosition(attr_id, current_position_);
   }
@@ -139,6 +144,44 @@ class SplitRowStoreValueAccessor : public ValueAccessor {
                      + relation_.getFixedByteLength()
                      + variable_length_idx * 2 * sizeof(std::uint32_t));
       return static_cast<const char*>(tuple_storage_) + pos;
+    }
+  }
+
+  template <bool check_null = true>
+  inline std::pair<const void*, std::size_t> getUntypedValueAndByteLengthAtAbsolutePosition(const attribute_id attr_id,
+                                                                                            const tuple_id tid) const {
+    DEBUG_ASSERT(occupancy_bitmap_.getBit(tid));
+    DEBUG_ASSERT(relation_.hasAttributeWithId(attr_id));
+    const char *tuple_slot = static_cast<const char*>(tuple_storage_)
+                             + tuple_slot_bytes_ * tid;
+    if (check_null) {
+      const int nullable_idx = relation_.getNullableAttributeIndex(attr_id);
+      if (nullable_idx != -1) {
+        // const_cast is safe here. We will only be using read-only methods of
+        // BitVector.
+        BitVector<true> tuple_null_bitmap(const_cast<void*>(static_cast<const void*>(tuple_slot)),
+                                          relation_.numNullableAttributes());
+        if (tuple_null_bitmap.getBit(nullable_idx)) {
+          return std::make_pair(nullptr, 0);
+        }
+      }
+    }
+
+    const int variable_length_idx = relation_.getVariableLengthAttributeIndex(attr_id);
+    if (variable_length_idx == -1) {
+      // Fixed-length, stored in-line in slot.
+      return std::make_pair(tuple_slot + per_tuple_null_bitmap_bytes_
+                                       + relation_.getFixedLengthAttributeOffset(attr_id),
+                            attr_max_lengths_[attr_id]);
+
+    } else {
+      // Variable-length, stored at back of block.
+      const std::uint32_t *pos_ptr = reinterpret_cast<const std::uint32_t*>(
+          tuple_slot + per_tuple_null_bitmap_bytes_
+                     + relation_.getFixedByteLength()
+                     + variable_length_idx * 2 * sizeof(std::uint32_t));
+      return std::make_pair(static_cast<const char*>(tuple_storage_) + pos_ptr[0],
+                            pos_ptr[1]);
     }
   }
 
@@ -319,6 +362,7 @@ class SplitRowStoreValueAccessor : public ValueAccessor {
         tuple_storage_(tuple_storage),
         tuple_slot_bytes_(tuple_slot_bytes),
         per_tuple_null_bitmap_bytes_(per_tuple_null_bitmap_bytes),
+        attr_max_lengths_(relation.getMaximumAttributeByteLengths()),
         current_position_(std::numeric_limits<std::size_t>::max()) {
   }
 
@@ -329,6 +373,7 @@ class SplitRowStoreValueAccessor : public ValueAccessor {
   const void *tuple_storage_;
   const std::size_t tuple_slot_bytes_;
   const std::size_t per_tuple_null_bitmap_bytes_;
+  const std::vector<std::size_t> &attr_max_lengths_;
 
   std::size_t current_position_;
 

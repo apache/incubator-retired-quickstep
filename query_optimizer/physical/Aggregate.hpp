@@ -100,6 +100,13 @@ class Aggregate : public Physical {
     return false;
   }
 
+  bool impliesUniqueAttributes(
+      const std::vector<expressions::AttributeReferencePtr> &attributes) const override;
+
+  const BloomFilterConfig &bloom_filter_config() const {
+    return bloom_filter_config_;
+  }
+
   /**
    * @brief Creates an Aggregate physical node.
    *
@@ -113,9 +120,14 @@ class Aggregate : public Physical {
       PhysicalPtr input,
       const std::vector<expressions::NamedExpressionPtr> &grouping_expressions,
       const std::vector<expressions::AliasPtr> &aggregate_expressions,
-      const expressions::PredicatePtr &filter_predicate) {
+      const expressions::PredicatePtr &filter_predicate,
+      const BloomFilterConfig bloom_filter_config = BloomFilterConfig()) {
     return AggregatePtr(
-        new Aggregate(input, grouping_expressions, aggregate_expressions, filter_predicate));
+        new Aggregate(input,
+                      grouping_expressions,
+                      aggregate_expressions,
+                      filter_predicate,
+                      bloom_filter_config));
   }
 
  protected:
@@ -132,11 +144,13 @@ class Aggregate : public Physical {
       PhysicalPtr input,
       const std::vector<expressions::NamedExpressionPtr> &grouping_expressions,
       const std::vector<expressions::AliasPtr> &aggregate_expressions,
-      const expressions::PredicatePtr &filter_predicate)
+      const expressions::PredicatePtr &filter_predicate,
+      const BloomFilterConfig &bloom_filter_config)
       : input_(input),
         grouping_expressions_(grouping_expressions),
         aggregate_expressions_(aggregate_expressions),
-        filter_predicate_(filter_predicate) {
+        filter_predicate_(filter_predicate),
+        bloom_filter_config_(bloom_filter_config) {
     addChild(input_);
   }
 
@@ -144,6 +158,7 @@ class Aggregate : public Physical {
   std::vector<expressions::NamedExpressionPtr> grouping_expressions_;
   std::vector<expressions::AliasPtr> aggregate_expressions_;
   expressions::PredicatePtr filter_predicate_;
+  BloomFilterConfig bloom_filter_config_;
 
   DISALLOW_COPY_AND_ASSIGN(Aggregate);
 };

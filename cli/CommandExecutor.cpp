@@ -258,7 +258,8 @@ inline TypedValue executeQueryForSingleResult(
   return value;
 }
 
-void executeAnalyze(const tmb::client_id main_thread_client_id,
+void executeAnalyze(const PtrVector<ParseString> *arguments,
+                    const tmb::client_id main_thread_client_id,
                     const tmb::client_id foreman_client_id,
                     MessageBus *bus,
                     QueryProcessor *query_processor,
@@ -267,8 +268,19 @@ void executeAnalyze(const tmb::client_id main_thread_client_id,
   StorageManager *storage_manager = query_processor->getStorageManager();
 
   std::unique_ptr<SqlParserWrapper> parser_wrapper(new SqlParserWrapper());
-  std::vector<std::reference_wrapper<const CatalogRelation>> relations(
-      database.begin(), database.end());
+  std::vector<std::reference_wrapper<const CatalogRelation>> relations;
+  if (arguments->size() == 0) {
+    relations.insert(relations.begin(), database.begin(), database.end());
+  } else {
+    for (const auto &rel_name : *arguments) {
+      const CatalogRelation *rel = database.getRelationByName(rel_name.value());
+      if (rel == nullptr) {
+        THROW_SQL_ERROR_AT(&rel_name) << "Table does not exist";
+      } else {
+        relations.emplace_back(*rel);
+      }
+    }
+  }
 
   // Analyze each relation in the database.
   for (const CatalogRelation &relation : relations) {
@@ -348,8 +360,11 @@ void executeCommand(const ParseStatement &statement,
       executeDescribeTable(arguments, catalog_database, out);
     }
   } else if (command_str == C::kAnalyzeCommand) {
-    executeAnalyze(
-        main_thread_client_id, foreman_client_id, bus, query_processor, out);
+    executeAnalyze(arguments,
+                   main_thread_client_id,
+                   foreman_client_id,
+                   bus,
+                   query_processor, out);
   } else {
     THROW_SQL_ERROR_AT(command.command()) << "Invalid Command";
   }

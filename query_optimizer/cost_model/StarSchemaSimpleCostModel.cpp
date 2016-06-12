@@ -123,12 +123,26 @@ std::size_t StarSchemaSimpleCostModel::estimateCardinalityForTableGenerator(
 
 std::size_t StarSchemaSimpleCostModel::estimateCardinalityForHashJoin(
     const P::HashJoinPtr &physical_plan) {
-  std::size_t left_cardinality = estimateCardinality(physical_plan->left());
-  std::size_t right_cardinality = estimateCardinality(physical_plan->right());
-  double left_selectivity = estimateSelectivity(physical_plan->left());
-  double right_selectivity = estimateSelectivity(physical_plan->right());
-  return std::max(static_cast<std::size_t>(left_cardinality * right_selectivity) + 1,
-                  static_cast<std::size_t>(right_cardinality * left_selectivity) + 1);
+  const P::PhysicalPtr &left_child = physical_plan->left();
+  const P::PhysicalPtr &right_child = physical_plan->right();
+
+  std::size_t left_cardinality = estimateCardinality(left_child);
+  std::size_t right_cardinality = estimateCardinality(right_child);
+
+  std::size_t estimated_cardinality = std::max(left_cardinality, right_cardinality);
+  if (left_child->impliesUniqueAttributes(physical_plan->left_join_attributes())) {
+    double left_selectivity = estimateSelectivity(left_child);
+    estimated_cardinality =
+        std::min(estimated_cardinality,
+                 static_cast<std::size_t>(right_cardinality * left_selectivity));
+  }
+  if (right_child->impliesUniqueAttributes(physical_plan->right_join_attributes())) {
+    double right_selectivity = estimateSelectivity(right_child);
+    estimated_cardinality =
+        std::min(estimated_cardinality,
+                 static_cast<std::size_t>(left_cardinality * right_selectivity));
+  }
+  return estimated_cardinality;
 }
 
 std::size_t StarSchemaSimpleCostModel::estimateCardinalityForNestedLoopsJoin(
@@ -143,7 +157,7 @@ std::size_t StarSchemaSimpleCostModel::estimateCardinalityForAggregate(
     return 1;
   }
   return std::max(static_cast<std::size_t>(1),
-                  estimateCardinality(physical_plan->input()) / 10);
+                  estimateCardinality(physical_plan->input()) / 100);
 }
 
 std::size_t StarSchemaSimpleCostModel::estimateCardinalityForWindowAggregate(
@@ -161,8 +175,14 @@ double StarSchemaSimpleCostModel::estimateSelectivity(
     case P::PhysicalType::kHashJoin: {
       const P::HashJoinPtr &hash_join =
           std::static_pointer_cast<const P::HashJoin>(physical_plan);
-      return std::min(estimateSelectivity(hash_join->left()),
-                      estimateSelectivity(hash_join->right()));
+      double left_selectivity = estimateSelectivity(hash_join->left());
+      double right_selectivity = estimateSelectivity(hash_join->right());
+      double min_sel = std::min(left_selectivity, right_selectivity);
+      double max_sel = std::max(left_selectivity, right_selectivity);
+      if (max_sel < 1) {
+        min_sel *= std::max(max_sel, 0.9);
+      }
+      return min_sel;
     }
     case P::PhysicalType::kNestedLoopsJoin: {
       const P::NestedLoopsJoinPtr &nested_loop_join =
@@ -215,7 +235,7 @@ double StarSchemaSimpleCostModel::estimateSelectivityForPredicate(
     case E::ExpressionType::kComparisonExpression: {
       // Case 1 - Number of distinct values statistics available
       //   Case 1.1 - Equality comparison: 1.0 / num_distinct_values
-      //   Case 1.2 - Otherwise: 5.0 / num_distinct_values
+      //   Case 1.2 - Otherwise: 0.5
       // Case 2 - Number of distinct values statistics not available
       //   Case 2.1 - Equality comparison: 0.1
       //   Case 2.2 - Otherwise: 0.5
@@ -231,7 +251,7 @@ double StarSchemaSimpleCostModel::estimateSelectivityForPredicate(
           double unit_selectivity = 1.0 / it->second;
           return comparison_expression->isEqualityComparisonPredicate()
                      ? unit_selectivity
-                     : std::min(0.5, unit_selectivity * 5.0);
+                     : 0.5;
         }
       }
 

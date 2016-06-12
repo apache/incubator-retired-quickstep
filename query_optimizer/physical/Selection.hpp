@@ -86,6 +86,9 @@ class Selection : public Physical {
       const expressions::UnorderedNamedExpressionSet &referenced_attributes,
       PhysicalPtr *output) const override;
 
+  bool impliesUniqueAttributes(
+      const std::vector<expressions::AttributeReferencePtr> &attributes) const override;
+
   /**
    * @brief Creates a Selection.
    *

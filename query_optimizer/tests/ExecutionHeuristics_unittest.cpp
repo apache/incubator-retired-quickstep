@@ -72,7 +72,8 @@ class ExecutionHeuristicsTest : public ::testing::Test {
                                           probe_relation,
                                           std::move(build_attribute_ids),
                                           std::move(probe_attribute_ids),
-                                          join_hash_table_id);
+                                          join_hash_table_id,
+                                          build_relation->estimateTupleCardinality());
   }
 
   QueryPlan::DAGNodeIndex createDummyBuildHashOperator(QueryPlan *query_plan,

@@ -412,7 +412,6 @@ class StorageBlock : public StorageBlockBase {
       const AggregationHandle &handle,
       const std::vector<std::unique_ptr<const Scalar>> &arguments,
       const std::vector<attribute_id> *arguments_as_attributes,
-      const Predicate *predicate,
       std::unique_ptr<TupleIdSequence> *reuse_matches) const;
 
   /**
@@ -462,7 +461,6 @@ class StorageBlock : public StorageBlockBase {
   void aggregateGroupBy(const AggregationHandle &handle,
                         const std::vector<std::unique_ptr<const Scalar>> &arguments,
                         const std::vector<std::unique_ptr<const Scalar>> &group_by,
-                        const Predicate *predicate,
                         AggregationStateHashTableBase *hash_table,
                         std::unique_ptr<TupleIdSequence> *reuse_matches,
                         std::vector<std::unique_ptr<ColumnVector>>
@@ -507,7 +505,6 @@ class StorageBlock : public StorageBlockBase {
                          const std::vector<std::unique_ptr<const Scalar>> &arguments,
                          const std::vector<attribute_id> *arguments_as_attributes,
                          const std::vector<std::unique_ptr<const Scalar>> &group_by,
-                         const Predicate *predicate,
                          AggregationStateHashTableBase *distinctify_hash_table,
                          std::unique_ptr<TupleIdSequence> *reuse_matches,
                          std::vector<std::unique_ptr<ColumnVector>> *reuse_group_by_vectors) const;
@@ -590,6 +587,8 @@ class StorageBlock : public StorageBlockBase {
    **/
   const std::size_t getNumTuples() const;
 
+  TupleIdSequence* getMatchesForPredicate(const Predicate *predicate) const;
+
  private:
   static TupleStorageSubBlock* CreateTupleStorageSubBlock(
       const CatalogRelationSchema &relation,
@@ -628,8 +627,6 @@ class StorageBlock : public StorageBlockBase {
   // rebuild, without rebuilding any subsequent IndexSubBlocks or updating this
   // StorageBlock's header.
   bool rebuildIndexes(bool short_circuit);
-
-  TupleIdSequence* getMatchesForPredicate(const Predicate *predicate) const;
 
   std::unordered_map<attribute_id, TypedValue>* generateUpdatedValues(
       const ValueAccessor &accessor,

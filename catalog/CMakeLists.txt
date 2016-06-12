@@ -35,6 +35,9 @@ add_library(quickstep_catalog_CatalogDatabaseCache CatalogDatabaseCache.cpp Cata
 add_library(quickstep_catalog_CatalogDatabaseLite ../empty_src.cpp CatalogDatabaseLite.hpp)
 add_library(quickstep_catalog_CatalogErrors ../empty_src.cpp CatalogErrors.hpp)
 add_library(quickstep_catalog_CatalogRelation CatalogRelation.cpp CatalogRelation.hpp)
+add_library(quickstep_catalog_CatalogRelationConstraints
+            CatalogRelationConstraints.cpp
+            CatalogRelationConstraints.hpp)
 add_library(quickstep_catalog_CatalogRelationSchema
             CatalogRelationSchema.cpp
             CatalogRelationSchema.hpp)
@@ -117,6 +120,10 @@ target_link_libraries(quickstep_catalog_CatalogRelation
                       quickstep_threading_SpinSharedMutex
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector)
+target_link_libraries(quickstep_catalog_CatalogRelationConstraints
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_Catalog_proto
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_catalog_CatalogRelationStatistics
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_Catalog_proto
@@ -136,6 +143,7 @@ target_link_libraries(quickstep_catalog_CatalogRelationSchema
                       glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogErrors
+                      quickstep_catalog_CatalogRelationConstraints
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_Catalog_proto
                       quickstep_types_Type
@@ -182,6 +190,7 @@ target_link_libraries(quickstep_catalog
                       quickstep_catalog_CatalogDatabaseLite
                       quickstep_catalog_CatalogErrors
                       quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogRelationConstraints
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogRelationStatistics
                       quickstep_catalog_CatalogTypedefs

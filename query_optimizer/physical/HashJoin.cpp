@@ -85,6 +85,15 @@ bool HashJoin::maybeCopyWithPrunedExpressions(
   return false;
 }
 
+bool HashJoin::impliesUniqueAttributes(
+    const std::vector<expressions::AttributeReferencePtr> &attributes) const {
+  return (left()->impliesUniqueAttributes(left_join_attributes_)
+              && right()->impliesUniqueAttributes(attributes))
+         || (right()->impliesUniqueAttributes(right_join_attributes_)
+                 && left()->impliesUniqueAttributes(attributes));
+
+}
+
 void HashJoin::getFieldStringItems(
     std::vector<std::string> *inline_field_names,
     std::vector<std::string> *inline_field_values,
@@ -106,6 +115,24 @@ void HashJoin::getFieldStringItems(
   container_child_fields->push_back(CastSharedPtrVector<OptimizerTreeBase>(left_join_attributes_));
   container_child_field_names->push_back("right_join_attributes");
   container_child_fields->push_back(CastSharedPtrVector<OptimizerTreeBase>(right_join_attributes_));
+
+  if (!bloom_filter_config_.build_side_bloom_filters.empty()) {
+    container_child_field_names->push_back("build_side_bloom_filters");
+    container_child_fields->emplace_back();
+    auto &container = container_child_fields->back();
+    for (const auto& bf : bloom_filter_config_.build_side_bloom_filters) {
+      container.emplace_back(bf.attribute);
+    }
+  }
+
+  if (!bloom_filter_config_.probe_side_bloom_filters.empty()) {
+    container_child_field_names->push_back("probe_side_bloom_filters");
+    container_child_fields->emplace_back();
+    auto &container = container_child_fields->back();
+    for (const auto& bf : bloom_filter_config_.probe_side_bloom_filters) {
+      container.emplace_back(bf.attribute);
+    }
+  }
 }
 
 }  // namespace physical

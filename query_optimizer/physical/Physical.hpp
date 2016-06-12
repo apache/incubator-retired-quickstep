@@ -41,6 +41,56 @@ namespace physical {
 class Physical;
 typedef std::shared_ptr<const Physical> PhysicalPtr;
 
+struct BloomFilterConfig {
+  struct BuildSide {
+    BuildSide(const expressions::AttributeReferencePtr &attribute_in)
+        : attribute(attribute_in) {
+    }
+    expressions::AttributeReferencePtr attribute;
+  };
+  struct ProbeSide {
+    ProbeSide(const expressions::AttributeReferencePtr &attribute_in,
+              const expressions::AttributeReferencePtr &source_attribute_in,
+              const physical::PhysicalPtr &builder_in)
+        : attribute(attribute_in),
+          source_attribute(source_attribute_in),
+          builder(builder_in) {
+    }
+    expressions::AttributeReferencePtr attribute;
+    expressions::AttributeReferencePtr source_attribute;
+    PhysicalPtr builder;
+  };
+  BloomFilterConfig() {}
+  BloomFilterConfig(const PhysicalPtr &builder_in)
+      : builder(builder_in) {
+  }
+  BloomFilterConfig(const PhysicalPtr &builder_in,
+                    const std::vector<BuildSide> &build_side_bloom_filters_in,
+                    const std::vector<ProbeSide> &probe_side_bloom_filters_in)
+      : builder(builder_in),
+        build_side_bloom_filters(build_side_bloom_filters_in),
+        probe_side_bloom_filters(probe_side_bloom_filters_in) {
+  }
+  void addBuildSideBloomFilter(const expressions::AttributeReferencePtr &attribute_in) {
+    for (const auto &build_bf : build_side_bloom_filters) {
+      if (attribute_in == build_bf.attribute) {
+        return;
+      }
+    }
+    build_side_bloom_filters.emplace_back(attribute_in);
+  }
+  void addProbeSideBloomFilter(const expressions::AttributeReferencePtr &attribute_in,
+                               const expressions::AttributeReferencePtr &source_attribute_in,
+                               const physical::PhysicalPtr &builder_in) {
+    probe_side_bloom_filters.emplace_back(attribute_in,
+                                          source_attribute_in,
+                                          builder_in);
+  }
+  PhysicalPtr builder;
+  std::vector<BuildSide> build_side_bloom_filters;
+  std::vector<ProbeSide> probe_side_bloom_filters;
+};
+
 /**
  * @brief Base class for physical plan nodes.
  */
@@ -85,6 +135,11 @@ class Physical : public OptimizerTree<Physical> {
   virtual bool maybeCopyWithPrunedExpressions(
       const expressions::UnorderedNamedExpressionSet &referenced_expressions,
       PhysicalPtr *output) const = 0;
+
+  virtual bool impliesUniqueAttributes(
+      const std::vector<expressions::AttributeReferencePtr> &attributes) const {
+    return false;
+  }
 
  protected:
   /**

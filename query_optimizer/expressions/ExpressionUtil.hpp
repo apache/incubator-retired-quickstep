@@ -103,12 +103,12 @@ bool ContainsExpression(
  *              contain the other operand).
  * @return True if \p left is a subset of \p right.
  */
-template <class NamedExpressionType>
+template <class NamedExpressionType1, class NamedExpressionType2>
 bool SubsetOfExpressions(
-    const std::vector<std::shared_ptr<const NamedExpressionType>> &left,
-    const std::vector<std::shared_ptr<const NamedExpressionType>> &right) {
+    const std::vector<std::shared_ptr<const NamedExpressionType1>> &left,
+    const std::vector<std::shared_ptr<const NamedExpressionType2>> &right) {
   UnorderedNamedExpressionSet supset(right.begin(), right.end());
-  for (const std::shared_ptr<const NamedExpressionType> &expr : left) {
+  for (const std::shared_ptr<const NamedExpressionType1> &expr : left) {
     if (supset.find(expr) == supset.end()) {
       return false;
     }

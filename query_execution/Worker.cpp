@@ -32,6 +32,7 @@
 #include "relational_operators/WorkOrder.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
 #include "threading/ThreadUtil.hpp"
+#include "utility/EventProfiler.hpp"
 
 #include "glog/logging.h"
 
@@ -119,8 +120,12 @@ void Worker::executeWorkOrderHelper(const TaggedMessage &tagged_message,
   const size_t query_id_for_workorder = worker_message.getWorkOrder()->getQueryID();
 
   // Start measuring the execution time.
+  auto *container = relop_profiler.getContainer();
+  auto *line = container->getEventLine(worker_message.getRelationalOpIndex());
   start = std::chrono::steady_clock::now();
+  line->emplace_back();
   worker_message.getWorkOrder()->execute();
+  line->back().endEvent();
   end = std::chrono::steady_clock::now();
   delete worker_message.getWorkOrder();
 

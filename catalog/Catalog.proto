@@ -80,6 +80,10 @@ message IndexScheme {
   repeated IndexEntry index_entries = 1;
 }
 
+message CatalogRelationConstraints {
+  repeated int32 primary_key = 1;
+}
+
 message CatalogRelationStatistics {
   optional fixed64 num_tuples = 1;
 
@@ -96,6 +100,7 @@ message CatalogRelationSchema {
   required bool temporary = 3;
 
   repeated CatalogAttribute attributes = 4;
+  optional CatalogRelationConstraints constraints = 5;
 
   extensions 16 to max;
 }

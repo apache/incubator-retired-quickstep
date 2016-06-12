@@ -82,6 +82,12 @@ bool Selection::maybeCopyWithPrunedExpressions(
   return false;
 }
 
+bool Selection::impliesUniqueAttributes(
+    const std::vector<expressions::AttributeReferencePtr> &attributes) const {
+  return input()->impliesUniqueAttributes(attributes);
+}
+
+
 void Selection::getFieldStringItems(
     std::vector<std::string> *inline_field_names,
     std::vector<std::string> *inline_field_values,

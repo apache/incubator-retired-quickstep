@@ -21,12 +21,14 @@
 #define QUICKSTEP_CATALOG_CATALOG_RELATION_SCHEMA_HPP_
 
 #include <cstddef>
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogAttribute.hpp"
+#include "catalog/CatalogRelationConstraints.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
@@ -427,6 +429,14 @@ class CatalogRelationSchema {
     return max_byte_lengths_;
   }
 
+  const CatalogRelationConstraints& getConstraints() const {
+    return *constraints_;
+  }
+
+  CatalogRelationConstraints* getConstraintsMutable() {
+    return constraints_.get();
+  }
+
  protected:
   /**
    * @brief Create a new relation.
@@ -456,7 +466,8 @@ class CatalogRelationSchema {
         min_variable_byte_length_excluding_nullable_(0),
         estimated_variable_byte_length_(0),
         current_nullable_attribute_index_(-1),
-        current_variable_length_attribute_index_(-1) {
+        current_variable_length_attribute_index_(-1),
+        constraints_(new CatalogRelationConstraints()) {
   }
 
   /**
@@ -531,6 +542,9 @@ class CatalogRelationSchema {
 
   std::vector<int> variable_length_attribute_indices_;
   int current_variable_length_attribute_index_;
+
+  // Primary key, foreign keys, etc.
+  std::unique_ptr<CatalogRelationConstraints> constraints_;
 
  private:
   friend class CatalogDatabase;

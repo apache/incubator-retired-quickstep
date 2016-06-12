@@ -27,6 +27,7 @@
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
 #include "query_optimizer/QueryPlan.hpp"
+#include "query_optimizer/physical/HashJoin.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -51,7 +52,7 @@ class ExecutionHeuristics {
   static const std::size_t kHundredThousand = 100000;
   static const std::size_t kMillion = 1000000;
 
-  static const std::size_t kCompressionFactor = 10;
+  static const std::size_t kCompressionFactor = 1;
 
   static const std::size_t kVeryLowSparsityHash = 1;
   static const std::size_t kLowSparsityHash = 2;
@@ -67,25 +68,48 @@ class ExecutionHeuristics {
                  const QueryPlan::DAGNodeIndex join_operator_index,
                  const CatalogRelation *referenced_stored_build_relation,
                  const CatalogRelation *referenced_stored_probe_relation,
-                 std::vector<attribute_id> &&build_attributes,
-                 std::vector<attribute_id> &&probe_attributes,
-                 const QueryContext::join_hash_table_id join_hash_table_id)
+                 const physical::BloomFilterConfig &bloom_filter_config,
+                 std::vector<attribute_id> &&build_side_bloom_filter_ids,
+                 std::vector<attribute_id> &&probe_side_bloom_filter_ids,
+                 const QueryContext::join_hash_table_id join_hash_table_id,
+                 const std::size_t estimated_build_relation_cardinality)
         : build_operator_index_(build_operator_index),
           join_operator_index_(join_operator_index),
           referenced_stored_build_relation_(referenced_stored_build_relation),
           referenced_stored_probe_relation_(referenced_stored_probe_relation),
-          build_attributes_(std::move(build_attributes)),
-          probe_attributes_(std::move(probe_attributes)),
-          join_hash_table_id_(join_hash_table_id) {
+          bloom_filter_config_(bloom_filter_config),
+          build_side_bloom_filter_ids_(std::move(build_side_bloom_filter_ids)),
+          probe_side_bloom_filter_ids_(std::move(probe_side_bloom_filter_ids)),
+          join_hash_table_id_(join_hash_table_id),
+          estimated_build_relation_cardinality_(estimated_build_relation_cardinality) {
     }
 
     const QueryPlan::DAGNodeIndex build_operator_index_;
     const QueryPlan::DAGNodeIndex join_operator_index_;
     const CatalogRelation *referenced_stored_build_relation_;
     const CatalogRelation *referenced_stored_probe_relation_;
-    const std::vector<attribute_id> build_attributes_;
-    const std::vector<attribute_id> probe_attributes_;
+    const physical::BloomFilterConfig &bloom_filter_config_;
+    const std::vector<attribute_id> build_side_bloom_filter_ids_;
+    const std::vector<attribute_id> probe_side_bloom_filter_ids_;
     const QueryContext::join_hash_table_id join_hash_table_id_;
+    const std::size_t estimated_build_relation_cardinality_;
+  };
+
+  struct AggregateInfo {
+    AggregateInfo(const QueryPlan::DAGNodeIndex aggregate_operator_index,
+                  const physical::BloomFilterConfig &bloom_filter_config,
+                  std::vector<attribute_id> &&bloom_filter_ids,
+                  const QueryContext::aggregation_state_id aggregate_state_id)
+        : aggregate_operator_index_(aggregate_operator_index),
+          bloom_filter_config_(bloom_filter_config),
+          bloom_filter_ids_(bloom_filter_ids),
+          aggregate_state_id_(aggregate_state_id) {
+    }
+
+    const QueryPlan::DAGNodeIndex aggregate_operator_index_;
+    const physical::BloomFilterConfig &bloom_filter_config_;
+    const std::vector<attribute_id> bloom_filter_ids_;
+    const QueryContext::aggregation_state_id aggregate_state_id_;
   };
 
 
@@ -111,16 +135,30 @@ class ExecutionHeuristics {
                               const QueryPlan::DAGNodeIndex join_operator_index,
                               const CatalogRelation *referenced_stored_build_relation,
                               const CatalogRelation *referenced_stored_probe_relation,
-                              std::vector<attribute_id> &&build_attributes,
-                              std::vector<attribute_id> &&probe_attributes,
-                              const QueryContext::join_hash_table_id join_hash_table_id) {
-    hash_joins_.push_back(HashJoinInfo(build_operator_index,
-                                       join_operator_index,
-                                       referenced_stored_build_relation,
-                                       referenced_stored_probe_relation,
-                                       std::move(build_attributes),
-                                       std::move(probe_attributes),
-                                       join_hash_table_id));
+                              const physical::BloomFilterConfig &bloom_filter_config,
+                              std::vector<attribute_id> &&build_side_bloom_filter_ids,
+                              std::vector<attribute_id> &&probe_side_bloom_filter_ids,
+                              const QueryContext::join_hash_table_id join_hash_table_id,
+                              const std::size_t estimated_build_relation_cardinality) {
+    hash_joins_.emplace_back(build_operator_index,
+                             join_operator_index,
+                             referenced_stored_build_relation,
+                             referenced_stored_probe_relation,
+                             bloom_filter_config,
+                             std::move(build_side_bloom_filter_ids),
+                             std::move(probe_side_bloom_filter_ids),
+                             join_hash_table_id,
+                             estimated_build_relation_cardinality);
+  }
+
+  inline void addAggregateInfo(const QueryPlan::DAGNodeIndex aggregate_operator_index,
+                               const physical::BloomFilterConfig &bloom_filter_config,
+                               std::vector<attribute_id> &&bloom_filter_ids,
+                               const QueryContext::aggregation_state_id aggregate_state_id) {
+    aggregates_.emplace_back(aggregate_operator_index,
+                             bloom_filter_config,
+                             std::move(bloom_filter_ids),
+                             aggregate_state_id);
   }
 
   /**
@@ -141,10 +179,11 @@ class ExecutionHeuristics {
    * @param relation The catalog relation on which bloom filter is being built.
    **/
   void setBloomFilterProperties(serialization::BloomFilter *bloom_filter_proto,
-                                const CatalogRelation *relation);
+                                const std::size_t cardinality);
 
  private:
   std::vector<HashJoinInfo> hash_joins_;
+  std::vector<AggregateInfo> aggregates_;
 
   DISALLOW_COPY_AND_ASSIGN(ExecutionHeuristics);
 };

@@ -20,6 +20,7 @@
 #include "query_optimizer/physical/TableReference.hpp"
 
 #include <string>
+#include <set>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
@@ -31,6 +32,23 @@ namespace optimizer {
 namespace physical {
 
 namespace E = ::quickstep::optimizer::expressions;
+
+bool TableReference::impliesUniqueAttributes(
+    const std::vector<expressions::AttributeReferencePtr> &attributes) const {
+  std::set<E::ExprId> attr_ids;
+  for (const auto &attr : attributes) {
+    attr_ids.emplace(attr->id());
+  }
+
+  std::set<attribute_id> rel_attr_ids;
+  for (std::size_t i = 0; i < attribute_list_.size(); ++i) {
+    if (attr_ids.find(attribute_list_[i]->id()) != attr_ids.end()) {
+      rel_attr_ids.emplace(i);
+    }
+  }
+
+  return relation_->getConstraints().impliesUniqueAttributes(rel_attr_ids);
+}
 
 void TableReference::getFieldStringItems(
     std::vector<std::string> *inline_field_names,

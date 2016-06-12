@@ -27,6 +27,7 @@
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogErrors.hpp"
+#include "catalog/CatalogRelationConstraints.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "types/Type.hpp"
 #include "utility/PtrVector.hpp"
@@ -70,6 +71,12 @@ CatalogRelationSchema::CatalogRelationSchema(const serialization::CatalogRelatio
       attr_vec_.push_back(nullptr);
     }
   }
+
+  if (proto.has_constraints()) {
+    constraints_.reset(new CatalogRelationConstraints(proto.constraints()));
+  } else {
+    constraints_.reset(new CatalogRelationConstraints());
+  }
 }
 
 bool CatalogRelationSchema::ProtoIsValid(const serialization::CatalogRelationSchema &proto) {
@@ -82,6 +89,12 @@ bool CatalogRelationSchema::ProtoIsValid(const serialization::CatalogRelationSch
     if (!CatalogAttribute::ProtoIsValid(proto.attributes(i))) {
       return false;
     }
+  }
+
+  if (proto.has_constraints()
+      && !CatalogRelationConstraints::ProtoIsValid(proto.constraints(),
+                                                   proto.attributes_size())) {
+    return false;
   }
 
   return true;
@@ -103,6 +116,8 @@ serialization::CatalogRelationSchema CatalogRelationSchema::getProto() const {
       proto.add_attributes()->MergeFrom(it->getProto());
     }
   }
+
+  proto.mutable_constraints()->CopyFrom(constraints_->getProto());
 
   return proto;
 }

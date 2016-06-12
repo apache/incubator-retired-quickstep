@@ -21,6 +21,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -30,6 +31,7 @@
 
 #include "query_optimizer/cost_model/StarSchemaSimpleCostModel.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/physical/Aggregate.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
@@ -103,6 +105,10 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
   int node_id = ++id_counter_;
   node_id_map_.emplace(input, node_id);
 
+  std::set<E::ExprId> referenced_ids;
+  for (const auto &attr : input->getReferencedAttributes()) {
+    referenced_ids.emplace(attr->id());
+  }
   for (const auto &child : input->children()) {
     visit(child);
 
@@ -113,10 +119,8 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
     edge_info.src_node_id = child_id;
     edge_info.dst_node_id = node_id;
 
-    // Print output attributes except for TableReference -- there are just too many
-    // attributes out of TableReference.
-    if (child->getPhysicalType() != P::PhysicalType::kTableReference) {
-      for (const auto &attr : child->getOutputAttributes()) {
+    for (const auto &attr : child->getOutputAttributes()) {
+      if (referenced_ids.find(attr->id()) != referenced_ids.end()) {
         edge_info.labels.emplace_back(attr->attribute_alias());
       }
     }
@@ -147,6 +151,36 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
         node_info.labels.emplace_back(
             left_attributes[i]->attribute_alias() + " = " + right_attributes[i]->attribute_alias());
       }
+      if (hash_join->left()->impliesUniqueAttributes(left_attributes)) {
+        node_info.labels.emplace_back("LEFT join attrs unique");
+      }
+      if (hash_join->right()->impliesUniqueAttributes(right_attributes)) {
+        node_info.labels.emplace_back("RIGHT join attrs unique");
+      }
+
+      const auto &bf_config = hash_join->bloom_filter_config();
+      for (const auto &bf : bf_config.build_side_bloom_filters) {
+        node_info.labels.emplace_back(
+            std::string("[BF build] ") + bf.attribute->attribute_alias());
+      }
+      for (const auto &bf : bf_config.probe_side_bloom_filters) {
+        node_info.labels.emplace_back(
+            std::string("[BF probe] ") + bf.attribute->attribute_alias());
+      }
+
+      break;
+    }
+    case P::PhysicalType::kAggregate: {
+      const P::AggregatePtr aggregate =
+        std::static_pointer_cast<const P::Aggregate>(input);
+      node_info.labels.emplace_back(input->getName());
+
+      const auto &bf_config = aggregate->bloom_filter_config();
+      for (const auto &bf : bf_config.probe_side_bloom_filters) {
+        node_info.labels.emplace_back(
+            std::string("[BF probe] ") + bf.attribute->attribute_alias());
+      }
+
       break;
     }
     default: {

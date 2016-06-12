@@ -305,6 +305,7 @@ target_link_libraries(quickstep_queryexecution_Worker
                       quickstep_threading_Thread
                       quickstep_threading_ThreadIDBasedMap
                       quickstep_threading_ThreadUtil
+                      quickstep_utility_EventProfiler
                       quickstep_utility_Macros
                       tmb)
 target_link_libraries(quickstep_queryexecution_WorkerDirectory

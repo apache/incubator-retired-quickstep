@@ -197,6 +197,22 @@ class NativeColumnVector : public ColumnVector {
   }
 
   /**
+   * @brief Get the untyped pointer to a value as well as the value's byte length
+   *        in this NativeColumnVector as a pair.
+   *
+   * @param position The position of the value to get.
+   * @return A pair containing the untyped pointer to the value at position and
+   *         the value's byte length.
+   **/
+  template <bool check_null = true>
+  inline std::pair<const void*, std::size_t> getUntypedValueAndByteLength(const std::size_t position) const {
+    DCHECK_LT(position, actual_length_);
+    return (check_null && null_bitmap_ && null_bitmap_->getBit(position))
+        ? std::make_pair(nullptr, 0)
+        : std::make_pair(static_cast<const char*>(values_) + (position * type_length_), type_length_);
+  }
+
+  /**
    * @brief Get a value in this NativeColumnVector as a TypedValue.
    *
    * @param position The position of the value to get.
@@ -489,6 +505,25 @@ class IndirectColumnVector : public ColumnVector {
     return (check_null && type_is_nullable_ && values_[position].isNull())
         ? nullptr
         : values_[position].getDataPtr();
+  }
+
+  /**
+   * @brief Get the untyped pointer to a value as well as the value's byte length
+   *        in this IndirectColumnVector as a pair.
+   *
+   * @param position The position of the value to get.
+   * @return A pair containing the untyped pointer to the value at position and
+   *         the value's byte length.
+   **/
+  template <bool check_null = true>
+  inline std::pair<const void*, std::size_t> getUntypedValueAndByteLength(const std::size_t position) const {
+    DCHECK_LT(position, values_.size());
+    if (check_null && type_is_nullable_ && values_[position].isNull()) {
+      return std::make_pair(nullptr, 0);
+    } else {
+      const TypedValue &value = values_[position];
+      return std::make_pair(value.getDataPtr(), value.getDataSize());
+    }
   }
 
   /**

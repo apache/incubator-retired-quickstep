@@ -61,15 +61,16 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
       << "Attempted to create QueryContext from an invalid proto description:\n"
       << proto.DebugString();
 
+  for (int i = 0; i < proto.bloom_filters_size(); ++i) {
+    bloom_filters_.emplace_back(new BloomFilter(proto.bloom_filters(i)));
+  }
+
   for (int i = 0; i < proto.aggregation_states_size(); ++i) {
     aggregation_states_.emplace_back(
         AggregationOperationState::ReconstructFromProto(proto.aggregation_states(i),
                                                         database,
-                                                        storage_manager));
-  }
-
-  for (int i = 0; i < proto.bloom_filters_size(); ++i) {
-    bloom_filters_.emplace_back(new BloomFilter(proto.bloom_filters(i)));
+                                                        storage_manager,
+                                                        bloom_filters_));
   }
 
   for (int i = 0; i < proto.generator_functions_size(); ++i) {

@@ -59,6 +59,11 @@ using std::vector;
 
 namespace quickstep {
 
+DEFINE_int64(bloom_adapter_batch_size, 64,
+             "Number of tuples to probe in bulk in Bloom filter adapter.");
+DEFINE_bool(adapt_bloom_filters, true,
+            "Whether to adaptively adjust the ordering of bloom filters.");
+
 namespace {
 
 // Functor passed to HashTable::getAllFromValueAccessor() to collect matching
@@ -73,6 +78,11 @@ class MapBasedJoinedTupleCollector {
   inline void operator()(const ValueAccessorT &accessor,
                          const TupleReference &tref) {
     joined_tuples_[tref.block].emplace_back(tref.tuple, accessor.getCurrentPosition());
+  }
+
+  inline void operator()(const tuple_id probe_tid,
+                         const TupleReference &build_tref) {
+    joined_tuples_[build_tref.block].emplace_back(build_tref.tuple, probe_tid);
   }
 
   // Get a mutable pointer to the collected map of joined tuple ID pairs. The

@@ -140,6 +140,11 @@ class ColumnVectorsValueAccessor : public ValueAccessor {
     return getUntypedValueAtAbsolutePosition<check_null>(attr_id, current_position_);
   }
 
+  template <bool check_null = true>
+  inline std::pair<const void*, std::size_t> getUntypedValueAndByteLength(const attribute_id attr_id) const {
+    return getUntypedValueAndByteLengthAtAbsolutePosition<check_null>(attr_id, current_position_);
+  }
+
   inline TypedValue getTypedValue(const attribute_id attr_id) const {
     return getTypedValueAtAbsolutePosition(attr_id, current_position_);
   }
@@ -153,6 +158,18 @@ class ColumnVectorsValueAccessor : public ValueAccessor {
       return static_cast<const NativeColumnVector&>(*columns_[attr_id]).getUntypedValue<check_null>(tid);
     } else {
       return static_cast<const IndirectColumnVector&>(*columns_[attr_id]).getUntypedValue<check_null>(tid);
+    }
+  }
+
+  template <bool check_null = true>
+  inline std::pair<const void*, std::size_t> getUntypedValueAndByteLengthAtAbsolutePosition(const attribute_id attr_id,
+                                                                                            const tuple_id tid) const {
+    DCHECK(attributeIdInRange(attr_id));
+    DCHECK(tupleIdInRange(tid));
+    if (column_native_[attr_id]) {
+      return static_cast<const NativeColumnVector&>(*columns_[attr_id]).getUntypedValueAndByteLength<check_null>(tid);
+    } else {
+      return static_cast<const IndirectColumnVector&>(*columns_[attr_id]).getUntypedValueAndByteLength<check_null>(tid);
     }
   }
 

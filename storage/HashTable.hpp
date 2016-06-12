@@ -23,6 +23,7 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdlib>
+#include <memory>
 #include <type_traits>
 #include <vector>
 
@@ -39,10 +40,13 @@
 #include "types/Type.hpp"
 #include "types/TypedValue.hpp"
 #include "utility/BloomFilter.hpp"
+#include "utility/BloomFilterAdapter.hpp"
 #include "utility/HashPair.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
+
+DECLARE_int64(bloom_adapter_batch_size);
 
 /** \addtogroup Storage
  *  @{
@@ -1016,8 +1020,12 @@ class HashTable : public HashTableBase<resizable,
    *
    * @param bloom_filter The pointer to the bloom filter.
    **/
-  inline void setBuildSideBloomFilter(BloomFilter *bloom_filter) {
-    build_bloom_filter_ = bloom_filter;
+  inline void addBuildSideBloomFilter(BloomFilter *bloom_filter) {
+    build_bloom_filters_.emplace_back(bloom_filter);
+  }
+
+  inline void addBuildSideAttributeId(const attribute_id build_attribute_id) {
+    build_attribute_ids_.push_back(build_attribute_id);
   }
 
   /**
@@ -1042,8 +1050,8 @@ class HashTable : public HashTableBase<resizable,
    * @param probe_attribute_ids The vector of attribute ids to use for probing
    *        the bloom filter.
    **/
-  inline void addProbeSideAttributeIds(std::vector<attribute_id> &&probe_attribute_ids) {
-    probe_attribute_ids_.push_back(probe_attribute_ids);
+  inline void addProbeSideAttributeId(const attribute_id probe_attribute_id) {
+    probe_attribute_ids_.push_back(probe_attribute_id);
   }
 
  protected:
@@ -1329,9 +1337,10 @@ class HashTable : public HashTableBase<resizable,
   // Data structures used for bloom filter optimized semi-joins.
   bool has_build_side_bloom_filter_ = false;
   bool has_probe_side_bloom_filter_ = false;
-  BloomFilter *build_bloom_filter_;
+  std::vector<BloomFilter *> build_bloom_filters_;
+  std::vector<attribute_id> build_attribute_ids_;
   std::vector<const BloomFilter*> probe_bloom_filters_;
-  std::vector<std::vector<attribute_id>> probe_attribute_ids_;
+  std::vector<attribute_id> probe_attribute_ids_;
 
   DISALLOW_COPY_AND_ASSIGN(HashTable);
 };
@@ -1477,12 +1486,26 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
                                                         &prealloc_state);
       }
     }
-    std::unique_ptr<BloomFilter> thread_local_bloom_filter;
+
     if (has_build_side_bloom_filter_) {
-      thread_local_bloom_filter.reset(new BloomFilter(build_bloom_filter_->getRandomSeed(),
-                                                      build_bloom_filter_->getNumberOfHashes(),
-                                                      build_bloom_filter_->getBitArraySize()));
+      for (std::size_t i = 0; i < build_bloom_filters_.size(); ++i) {
+        auto *build_bloom_filter = build_bloom_filters_[i];
+        std::unique_ptr<BloomFilter> thread_local_bloom_filter(
+            new BloomFilter(build_bloom_filter->getNumberOfHashes(),
+                            build_bloom_filter->getBitArraySize()));
+        const auto &build_attr = build_attribute_ids_[i];
+        const std::size_t attr_size =
+            accessor->template getUntypedValueAndByteLengthAtAbsolutePosition<false>(0, build_attr).second;
+        while (accessor->next()) {
+          thread_local_bloom_filter->insertUnSafe(
+              static_cast<const std::uint8_t *>(accessor->getUntypedValue(build_attr)),
+              attr_size);
+        }
+        build_bloom_filter->bitwiseOr(thread_local_bloom_filter.get());
+        accessor->beginIteration();
+      }
     }
+
     if (resizable) {
       while (result == HashTablePutResult::kOutOfSpace) {
         {
@@ -1498,11 +1521,6 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
                                        variable_size,
                                        (*functor)(*accessor),
                                        using_prealloc ? &prealloc_state : nullptr);
-            // Insert into bloom filter, if enabled.
-            if (has_build_side_bloom_filter_) {
-              thread_local_bloom_filter->insertUnSafe(static_cast<const std::uint8_t *>(key.getDataPtr()),
-                                                      key.getDataSize());
-            }
             if (result == HashTablePutResult::kDuplicateKey) {
               DEBUG_ASSERT(!using_prealloc);
               return result;
@@ -1528,19 +1546,10 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
                                    variable_size,
                                    (*functor)(*accessor),
                                    using_prealloc ? &prealloc_state : nullptr);
-        // Insert into bloom filter, if enabled.
-        if (has_build_side_bloom_filter_) {
-          thread_local_bloom_filter->insertUnSafe(static_cast<const std::uint8_t *>(key.getDataPtr()),
-                                                  key.getDataSize());
-        }
         if (result != HashTablePutResult::kOK) {
           return result;
         }
       }
-    }
-    // Update the build side bloom filter with thread local copy, if available.
-    if (has_build_side_bloom_filter_) {
-      build_bloom_filter_->bitwiseOr(thread_local_bloom_filter.get());
     }
 
     return HashTablePutResult::kOK;
@@ -1607,6 +1616,26 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
                                                         &prealloc_state);
       }
     }
+
+    if (has_build_side_bloom_filter_) {
+      for (std::size_t i = 0; i < build_bloom_filters_.size(); ++i) {
+        auto *build_bloom_filter = build_bloom_filters_[i];
+        std::unique_ptr<BloomFilter> thread_local_bloom_filter(
+            new BloomFilter(build_bloom_filter->getNumberOfHashes(),
+                            build_bloom_filter->getBitArraySize()));
+        const auto &build_attr = build_attribute_ids_[i];
+        const std::size_t attr_size =
+            accessor->template getUntypedValueAndByteLengthAtAbsolutePosition<false>(0, build_attr).second;
+        while (accessor->next()) {
+          thread_local_bloom_filter->insertUnSafe(
+              static_cast<const std::uint8_t *>(accessor->getUntypedValue(build_attr)),
+              attr_size);
+        }
+        build_bloom_filter->bitwiseOr(thread_local_bloom_filter.get());
+        accessor->beginIteration();
+      }
+    }
+
     if (resizable) {
       while (result == HashTablePutResult::kOutOfSpace) {
         {
@@ -2229,6 +2258,7 @@ inline std::size_t HashTable<ValueT, resizable, serializable, force_key_copy, al
   }
 }
 
+
 template <typename ValueT,
           bool resizable,
           bool serializable,
@@ -2246,42 +2276,85 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
   InvokeOnAnyValueAccessor(
       accessor,
       [&](auto *accessor) -> void {  // NOLINT(build/c++11)
-    while (accessor->next()) {
-      // Probe any bloom filters, if enabled.
-      if (has_probe_side_bloom_filter_) {
-        DCHECK_EQ(probe_bloom_filters_.size(), probe_attribute_ids_.size());
-        // Check if the key is contained in the BloomFilters or not.
-        bool bloom_miss = false;
-        for (std::size_t i = 0; i < probe_bloom_filters_.size() && !bloom_miss; ++i) {
-          const BloomFilter *bloom_filter = probe_bloom_filters_[i];
-          for (const attribute_id &attr_id : probe_attribute_ids_[i]) {
-            TypedValue bloom_key = accessor->getTypedValue(attr_id);
-            if (!bloom_filter->contains(static_cast<const std::uint8_t*>(bloom_key.getDataPtr()),
-                                        bloom_key.getDataSize())) {
-              bloom_miss = true;
-              break;
-            }
-          }
-        }
-        if (bloom_miss) {
-          continue;  // On a bloom filter miss, probing the hash table can be skipped.
-        }
+    std::unique_ptr<BloomFilterAdapter> bloom_filter_adapter;
+    if (has_probe_side_bloom_filter_) {
+      // Find (and cache) the size of each attribute in the probe lists.
+      // NOTE(nav): This code uses the accessor to get the size,
+      // and hence only works if there's at least one tuple.
+      std::vector<std::size_t> attr_size_vector;
+      attr_size_vector.reserve(probe_attribute_ids_.size());
+      for (const auto &probe_attr : probe_attribute_ids_) {
+        auto val_and_size =
+            accessor->template getUntypedValueAndByteLengthAtAbsolutePosition<false>(0, probe_attr);
+//        std::cerr << "BF attr size = " << val_and_size.second << "\n";
+        attr_size_vector.emplace_back(val_and_size.second);
       }
 
-      TypedValue key = accessor->getTypedValue(key_attr_id);
-      if (check_for_null_keys && key.isNull()) {
-        continue;
-      }
-      const std::size_t true_hash = use_scalar_literal_hash_template ? key.getHashScalarLiteral()
-                                                                     : key.getHash();
-      const std::size_t adjusted_hash = adjust_hashes_template ? this->AdjustHash(true_hash)
-                                                               : true_hash;
-      std::size_t entry_num = 0;
-      const ValueT *value;
-      while (this->getNextEntryForKey(key, adjusted_hash, &value, &entry_num)) {
-        (*functor)(*accessor, *value);
-        if (!allow_duplicate_keys) {
-          break;
+      bloom_filter_adapter.reset(new BloomFilterAdapter(
+              probe_bloom_filters_, probe_attribute_ids_, attr_size_vector));
+
+      // We want to have large batch sizes for cache efficiency while probeing,
+      // but small batch sizes to ensure that the adaptation logic kicks in
+      // (and does early). We use exponentially increasing batch sizes to
+      // achieve a balance between the two.
+      //
+      // We also keep track of num_tuples_left in the block, to ensure that
+      // we don't reserve an unnecessarily large vector.
+      std::uint32_t batch_size_try = FLAGS_bloom_adapter_batch_size;
+      std::uint32_t num_tuples_left = accessor->getNumTuples();
+      std::vector<tuple_id> batch(num_tuples_left);
+
+      do {
+        std::uint32_t batch_size =
+            batch_size_try < num_tuples_left ? batch_size_try : num_tuples_left;
+        for (std::size_t i = 0; i < batch_size; ++i) {
+          accessor->next();
+          batch.push_back(accessor->getCurrentPosition());
+        }
+
+        std::size_t num_hits =
+            bloom_filter_adapter->bulkProbe<true>(accessor, batch, batch_size);
+
+        for (std::size_t t = 0; t < num_hits; ++t){
+          tuple_id probe_tid = batch[t];
+          TypedValue key = accessor->getTypedValueAtAbsolutePosition(key_attr_id, probe_tid);
+          if (check_for_null_keys && key.isNull()) {
+            continue;
+          }
+          const std::size_t true_hash = use_scalar_literal_hash_template ? key.getHashScalarLiteral()
+                                                                        : key.getHash();
+          const std::size_t adjusted_hash = adjust_hashes_template ? this->AdjustHash(true_hash)
+                                                                  : true_hash;
+          std::size_t entry_num = 0;
+          const ValueT *value;
+          while (this->getNextEntryForKey(key, adjusted_hash, &value, &entry_num)) {
+            (*functor)(probe_tid, *value);
+            if (!allow_duplicate_keys)
+              break;
+          }
+        }
+        batch.clear();
+        num_tuples_left -= batch_size;
+        batch_size_try = batch_size * 2;
+      } while (!accessor->iterationFinished());
+    }
+
+    else { // no Bloom filters to probe
+      while(accessor->next()) {
+        TypedValue key = accessor->getTypedValue(key_attr_id);
+        if (check_for_null_keys && key.isNull()) {
+          continue;
+        }
+        const std::size_t true_hash = use_scalar_literal_hash_template ? key.getHashScalarLiteral()
+                                      : key.getHash();
+        const std::size_t adjusted_hash = adjust_hashes_template ? this->AdjustHash(true_hash)
+                                          : true_hash;
+        std::size_t entry_num = 0;
+        const ValueT *value;
+        while (this->getNextEntryForKey(key, adjusted_hash, &value, &entry_num)) {
+          (*functor)(*accessor, *value);
+          if (!allow_duplicate_keys)
+            break;
         }
       }
     }

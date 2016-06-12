@@ -27,6 +27,8 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.pb.h"
 #include "query_optimizer/QueryPlan.hpp"
+#include "query_optimizer/physical/Physical.hpp"
+#include "query_optimizer/physical/HashJoin.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -34,95 +36,106 @@
 namespace quickstep {
 namespace optimizer {
 
+namespace E = ::quickstep::optimizer::expressions;
+namespace P = ::quickstep::optimizer::physical;
+
+static const std::size_t kNumBitsPerByte = 8;
+DEFINE_double(bloom_num_bits_per_tuple, kNumBitsPerByte,
+    "Number of bits per tuple used to size the Bloom filter.");
+
+DEFINE_int32(bloom_num_hash_fns, 1,
+    "Number of hash functions used in the Bloom filter.");
+
 void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
                                                 serialization::QueryContext *query_context_proto) {
-  // Currently this only optimizes left deep joins using bloom filters.
-  // It uses a simple algorithm to discover the left deep joins.
-  // It starts with the first hash join in the plan and keeps on iterating
-  // over the next hash joins, till a probe on a different relation id is found.
-  // The set of hash joins found in this way forms a chain and can be recognized
-  // as a left deep join. It becomes a candidate for optimization.
+  std::map<std::pair<E::ExprId, P::PhysicalPtr>,
+           std::pair<QueryContext::bloom_filter_id, QueryPlan::DAGNodeIndex>> bloom_filter_map;
+  for (const auto &info : hash_joins_) {
+    auto *hash_table_proto =
+        query_context_proto->mutable_join_hash_tables(info.join_hash_table_id_);
+    const auto &bloom_filter_config = info.bloom_filter_config_;
 
-  // The optimization is done by modifying each of the build operators in the chain
-  // to generate a bloom filter on the build key during their hash table creation.
-  // The leaf-level probe operator is then modified to query all the bloom
-  // filters generated from all the build operators in the chain. These
-  // bloom filters are queried to test the membership of the probe key
-  // just prior to probing the hash table.
+    for (std::size_t i = 0; i < info.build_side_bloom_filter_ids_.size(); ++i) {
+      const QueryContext::bloom_filter_id bloom_filter_id = query_context_proto->bloom_filters_size();
+      serialization::BloomFilter *bloom_filter_proto = query_context_proto->add_bloom_filters();
+      setBloomFilterProperties(bloom_filter_proto, info.estimated_build_relation_cardinality_);
 
-  QueryPlan::DAGNodeIndex origin_node = 0;
-  while (origin_node < hash_joins_.size() - 1) {
-    std::vector<std::size_t> chained_nodes;
-    chained_nodes.push_back(origin_node);
-    for (std::size_t i = origin_node + 1; i < hash_joins_.size(); ++i) {
-      const relation_id checked_relation_id = hash_joins_[origin_node].referenced_stored_probe_relation_->getID();
-      const relation_id expected_relation_id = hash_joins_[i].referenced_stored_probe_relation_->getID();
-      if (checked_relation_id == expected_relation_id) {
-        chained_nodes.push_back(i);
-      } else {
-        break;
-      }
+      const auto &build_side_bf =
+          bloom_filter_config.build_side_bloom_filters[i];
+      bloom_filter_map.emplace(
+          std::make_pair(build_side_bf.attribute->id(),
+                         bloom_filter_config.builder),
+          std::make_pair(bloom_filter_id, info.build_operator_index_));
+
+      auto *build_side_bloom_filter = hash_table_proto->add_build_side_bloom_filters();
+      build_side_bloom_filter->set_bloom_filter_id(bloom_filter_id);
+      build_side_bloom_filter->set_attr_id(info.build_side_bloom_filter_ids_[i]);
+      std::cerr << "Build " << build_side_bf.attribute->toString()
+                << " @" << bloom_filter_config.builder << "\n";
     }
+  }
 
-    // Only chains of length greater than one are suitable candidates for semi-join optimization.
-    if (chained_nodes.size() > 1) {
-      std::unordered_map<QueryContext::bloom_filter_id, std::vector<attribute_id>> probe_bloom_filter_info;
-      for (const std::size_t node : chained_nodes) {
-        // Provision for a new bloom filter to be used by the build operator.
-        const QueryContext::bloom_filter_id bloom_filter_id =  query_context_proto->bloom_filters_size();
-        serialization::BloomFilter *bloom_filter_proto = query_context_proto->add_bloom_filters();
+  for (const auto &info : hash_joins_) {
+    auto *hash_table_proto =
+        query_context_proto->mutable_join_hash_tables(info.join_hash_table_id_);
+    const auto &bloom_filter_config = info.bloom_filter_config_;
 
-        // Modify the bloom filter properties based on the statistics of the relation.
-        setBloomFilterProperties(bloom_filter_proto, hash_joins_[node].referenced_stored_build_relation_);
+    for (std::size_t i = 0; i < info.probe_side_bloom_filter_ids_.size(); ++i) {
+      auto *probe_side_bloom_filter = hash_table_proto->add_probe_side_bloom_filters();
+      const auto &probe_side_bf =
+          bloom_filter_config.probe_side_bloom_filters[i];
+      std::cerr << "HashJoin probe " << probe_side_bf.attribute->toString()
+                << " @" << probe_side_bf.builder << "\n";
 
-        // Add build-side bloom filter information to the corresponding hash table proto.
-        query_context_proto->mutable_join_hash_tables(hash_joins_[node].join_hash_table_id_)
-            ->add_build_side_bloom_filter_id(bloom_filter_id);
+      const auto &build_side_info =
+           bloom_filter_map.at(
+               std::make_pair(probe_side_bf.source_attribute->id(),
+                              probe_side_bf.builder));
+      probe_side_bloom_filter->set_bloom_filter_id(build_side_info.first);
+      probe_side_bloom_filter->set_attr_id(info.probe_side_bloom_filter_ids_[i]);
+//      std::cerr << "HashJoin probe attr_id = " << info.probe_side_bloom_filter_ids_[i] << "\n";
 
-        probe_bloom_filter_info.insert(std::make_pair(bloom_filter_id, hash_joins_[node].probe_attributes_));
-      }
-
-      // Add probe-side bloom filter information to the corresponding hash table proto for each build-side bloom filter.
-      for (const std::pair<QueryContext::bloom_filter_id, std::vector<attribute_id>>
-               &bloom_filter_info : probe_bloom_filter_info) {
-        auto *probe_side_bloom_filter =
-            query_context_proto->mutable_join_hash_tables(hash_joins_[origin_node].join_hash_table_id_)
-                                  ->add_probe_side_bloom_filters();
-        probe_side_bloom_filter->set_probe_side_bloom_filter_id(bloom_filter_info.first);
-        for (const attribute_id &probe_attribute_id : bloom_filter_info.second) {
-          probe_side_bloom_filter->add_probe_side_attr_ids(probe_attribute_id);
-        }
-      }
-
-      // Add node dependencies from chained build nodes to origin node probe.
-      for (std::size_t i = 1; i < chained_nodes.size(); ++i) {  // Note: It starts from index 1.
-        query_plan->addDirectDependency(hash_joins_[origin_node].join_operator_index_,
-                                        hash_joins_[origin_node + i].build_operator_index_,
-                                        true /* is_pipeline_breaker */);
-      }
+      query_plan->addDirectDependency(info.join_operator_index_,
+                                      build_side_info.second,
+                                      true /* is_pipeline_breaker */);
     }
+  }
 
-    // Update the origin node.
-    origin_node = chained_nodes.back() + 1;
+  for (const auto &info : aggregates_) {
+    auto *aggregate_proto =
+        query_context_proto->mutable_aggregation_states(info.aggregate_state_id_);
+    const auto &bloom_filter_config = info.bloom_filter_config_;
+
+    for (std::size_t i = 0; i < info.bloom_filter_ids_.size(); ++i) {
+      auto *bloom_filter = aggregate_proto->add_bloom_filters();
+      const auto &bf =
+          bloom_filter_config.probe_side_bloom_filters[i];
+      std::cerr << "Aggregate probe " << bf.attribute->toString()
+                << " @" << bf.builder << "\n";
+
+      const auto &build_side_info =
+           bloom_filter_map.at(
+               std::make_pair(bf.source_attribute->id(),
+                              bf.builder));
+      bloom_filter->set_bloom_filter_id(build_side_info.first);
+      bloom_filter->set_attr_id(info.bloom_filter_ids_[i]);
+//      std::cerr << "Aggregate probe attr_id = "
+//                << info.bloom_filter_ids_[i] << "\n";
+
+      query_plan->addDirectDependency(info.aggregate_operator_index_,
+                                      build_side_info.second,
+                                      true /* is_pipeline_breaker */);
+    }
   }
 }
 
 void ExecutionHeuristics::setBloomFilterProperties(serialization::BloomFilter *bloom_filter_proto,
-                                                   const CatalogRelation *relation) {
-  const std::size_t cardinality = relation->estimateTupleCardinality();
-  if (cardinality < kOneThousand) {
-    bloom_filter_proto->set_bloom_filter_size(kOneThousand / kCompressionFactor);
-    bloom_filter_proto->set_number_of_hashes(kVeryLowSparsityHash);
-  } else if (cardinality < kTenThousand) {
-    bloom_filter_proto->set_bloom_filter_size(kTenThousand / kCompressionFactor);
-    bloom_filter_proto->set_number_of_hashes(kLowSparsityHash);
-  } else if (cardinality < kHundredThousand) {
-    bloom_filter_proto->set_bloom_filter_size(kHundredThousand / kCompressionFactor);
-    bloom_filter_proto->set_number_of_hashes(kMediumSparsityHash);
-  } else {
-    bloom_filter_proto->set_bloom_filter_size(kMillion / kCompressionFactor);
-    bloom_filter_proto->set_number_of_hashes(kHighSparsityHash);
-  }
+                                                   const std::size_t cardinality) {
+  bloom_filter_proto->set_bloom_filter_size(
+      BloomFilter::getNearestAllowedSize(
+          (FLAGS_bloom_num_bits_per_tuple * cardinality) / kNumBitsPerByte));
+//  std::cerr << "bf size = " << bloom_filter_proto->bloom_filter_size() << "\n";
+  bloom_filter_proto->set_number_of_hashes(FLAGS_bloom_num_hash_fns);
 }
 
 }  // namespace optimizer
