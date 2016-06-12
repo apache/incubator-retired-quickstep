@@ -36,6 +36,10 @@ else()
   set(GFLAGS_LIB_NAME gflags_nothreads-static)
 endif()
 
+if (ENABLE_GOOGLE_PROFILER)
+  set(QUICKSTEP_ENABLE_GOOGLE_PROFILER TRUE)
+endif()
+
 configure_file (
   "${CMAKE_CURRENT_SOURCE_DIR}/CliConfig.h.in"
   "${CMAKE_CURRENT_BINARY_DIR}/CliConfig.h"
@@ -106,7 +110,7 @@ target_link_libraries(quickstep_cli_DefaultsConfigurator
 if(QUICKSTEP_HAVE_LIBNUMA)
   target_link_libraries(quickstep_cli_DefaultsConfigurator
                       ${LIBNUMA_LIBRARY})
-endif() 
+endif()
 target_link_libraries(quickstep_cli_InputParserUtil
                       glog
                       quickstep_utility_Macros

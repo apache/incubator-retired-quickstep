@@ -36,7 +36,7 @@
 #include <stdlib.h>
 #endif
 
-#include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE.
+#include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE, QUICKSTEP_ENABLE_GOOGLE_PROFILER.
 #include "cli/CommandExecutor.hpp"
 #include "cli/DropRelation.hpp"
 
@@ -46,6 +46,10 @@ typedef quickstep::LineReaderLineNoise LineReaderImpl;
 #else
 #include "cli/LineReaderDumb.hpp"
 typedef quickstep::LineReaderDumb LineReaderImpl;
+#endif
+
+#ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
+#include <gperftools/profiler.h>
 #endif
 
 #include "cli/DefaultsConfigurator.hpp"
@@ -150,6 +154,14 @@ DEFINE_bool(initialize_db, false, "If true, initialize a database.");
 DEFINE_bool(print_query, false,
             "Print each input query statement. This is useful when running a "
             "large number of queries in a batch.");
+DEFINE_string(profile_file_name, "",
+              "If nonempty, enable profiling using GOOGLE CPU Profiler, and write "
+              "its output to the given file name. This flag has no effect if "
+              "ENABLE_GOOGLE_PROFILER CMake flag was not set during build. "
+              "The profiler only starts collecting samples after the first query, "
+              "so that it runs against a warm buffer pool and caches. If you want to profile "
+              "everything, including the first query run, set the "
+              "environment variable CPUPROFILE instead of passing this flag.");
 
 }  // namespace quickstep
 
@@ -335,6 +347,9 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<SqlParserWrapper> parser_wrapper(new SqlParserWrapper());
   std::chrono::time_point<std::chrono::steady_clock> start, end;
 
+#ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
+  unsigned int query_num = 0;
+#endif
   for (;;) {
     string *command_string = new string();
     *command_string = line_reader.getNextCommand();
@@ -430,6 +445,13 @@ int main(int argc, char* argv[]) {
         reset_parser = true;
         break;
       }
+#ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
+      // Profile only if profile_file_name flag is set
+      if (!query_num && !quickstep::FLAGS_profile_file_name.empty()) {
+        ProfilerStart(quickstep::FLAGS_profile_file_name.c_str());
+      }
+      ++query_num;
+#endif
     }
 
     if (quitting) {
@@ -439,6 +461,13 @@ int main(int argc, char* argv[]) {
       reset_parser = false;
     }
   }
+
+#ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
+  if (!quickstep::FLAGS_profile_file_name.empty()) {
+    ProfilerStop();
+    ProfilerFlush();
+  }
+#endif
 
   // Terminate all workers before exiting.
   // The main thread broadcasts poison message to the workers. Each worker dies
