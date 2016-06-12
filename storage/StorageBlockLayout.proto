@@ -1,7 +1,7 @@
 //   Copyright 2011-2015 Quickstep Technologies LLC.
 //   Copyright 2015-2016 Pivotal Software, Inc.
 //   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
-//    University of Wisconsin—Madison.
+//    University of Wisconsin-Madison.
 //
 //   Licensed under the Apache License, Version 2.0 (the "License");
 //   you may not use this file except in compliance with the License.
@@ -38,8 +38,8 @@ message TupleStorageSubBlockDescription {
 
 message BasicColumnStoreTupleStorageSubBlockDescription {
   extend TupleStorageSubBlockDescription {
-    // Extentions may not be marked required in protobuf 2.6 or higher. This
-    // field is considered required when sub_block_type == BASIC_COLUMN_STORE.
+    // Indicates the attribute to sort the column store by. If unset, the
+    // column store will be unsorted.
     optional int32 sort_attribute_id = 64;
   }
 }

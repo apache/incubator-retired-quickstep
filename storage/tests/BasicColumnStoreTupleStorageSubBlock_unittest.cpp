@@ -109,8 +109,11 @@ class BasicColumnStoreTupleStorageSubBlockTest : public ::testing::TestWithParam
 
     tuple_store_description_.reset(new TupleStorageSubBlockDescription());
     tuple_store_description_->set_sub_block_type(TupleStorageSubBlockDescription::BASIC_COLUMN_STORE);
-    tuple_store_description_->SetExtension(BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id,
-                                           sort_column);
+    if (sort_column != kInvalidCatalogId) {
+      tuple_store_description_->SetExtension(
+          BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id,
+          sort_column);
+    }
 
     tuple_store_.reset(new BasicColumnStoreTupleStorageSubBlock(*relation_,
                                                                 *tuple_store_description_,
@@ -197,7 +200,7 @@ class BasicColumnStoreTupleStorageSubBlockTest : public ::testing::TestWithParam
   }
 
   int computeNullsInSortColumn(const attribute_id sort_column_id) {
-    if (!GetParam()) {
+    if (sort_column_id == kInvalidCatalogId || !GetParam()) {
       return 0;
     }
 
@@ -341,11 +344,15 @@ class BasicColumnStoreTupleStorageSubBlockTest : public ::testing::TestWithParam
     EXPECT_EQ(computeRowCapacity() - regular_tuples_deleted - last_tuples_deleted,
               static_cast<std::size_t>(tuple_store_->getMaxTupleID() + 1));
 
-    const Type &sort_attribute_type = relation_->getAttributeById(sort_attribute_id)->getType();
-    std::unique_ptr<UncheckedComparator> sort_attribute_comparator(
-        ComparisonFactory::GetComparison(ComparisonID::kLessOrEqual).makeUncheckedComparatorForTypes(
-            sort_attribute_type,
-            sort_attribute_type));
+    std::unique_ptr<UncheckedComparator> sort_attribute_comparator;
+    if (sort_attribute_id != kInvalidCatalogId) {
+      const Type &sort_attribute_type =
+          relation_->getAttributeById(sort_attribute_id)->getType();
+      sort_attribute_comparator.reset(
+          ComparisonFactory::GetComparison(ComparisonID::kLessOrEqual)
+              .makeUncheckedComparatorForTypes(sort_attribute_type,
+                                               sort_attribute_type));
+    }
 
     std::vector<bool> existence_check_vector;
     existence_check_vector.resize(computeRowCapacity() - 2, false);
@@ -390,17 +397,21 @@ class BasicColumnStoreTupleStorageSubBlockTest : public ::testing::TestWithParam
         }
       }
 
-      // Check ordering.
-      TypedValue sort_attribute_value = tuple_store_->getAttributeValueTyped(tid, sort_attribute_id);
-      if (previous_sort_attribute_value.get() != nullptr) {
-        if (previous_sort_attribute_value->isNull()) {
-          EXPECT_TRUE(sort_attribute_value.isNull());
-        } else if (!sort_attribute_value.isNull()) {
-          EXPECT_TRUE(sort_attribute_comparator->compareTypedValues(*previous_sort_attribute_value,
-                                                                    sort_attribute_value));
+      // Check ordering if block is sorted.
+      if (sort_attribute_id != kInvalidCatalogId) {
+        TypedValue sort_attribute_value =
+            tuple_store_->getAttributeValueTyped(tid, sort_attribute_id);
+        if (previous_sort_attribute_value) {
+          if (previous_sort_attribute_value->isNull()) {
+            EXPECT_TRUE(sort_attribute_value.isNull());
+          } else if (!sort_attribute_value.isNull()) {
+            EXPECT_TRUE(sort_attribute_comparator->compareTypedValues(
+                *previous_sort_attribute_value,
+                sort_attribute_value));
+          }
         }
+        previous_sort_attribute_value.reset(new TypedValue(sort_attribute_value));
       }
-      previous_sort_attribute_value.reset(new TypedValue(sort_attribute_value));
     }
 
     EXPECT_EQ(2 - last_tuples_deleted, num_last_tuples);
@@ -435,13 +446,18 @@ class BasicColumnStoreTupleStorageSubBlockTest : public ::testing::TestWithParam
       delete_sequence.set(tid, true);
     }
     // One of the special "last" values.
-    if (GetParam()) {
+    if (sort_attribute_id != kInvalidCatalogId && GetParam()) {
       delete_sequence.set(row_capacity - computeNullsInSortColumn(sort_attribute_id) - 2, true);
     }
 
     EXPECT_TRUE(tuple_store_->bulkDeleteTuples(&delete_sequence));
 
-    checkBlockValues(sort_attribute_id, delete_sequence.numTuples() + 2 - 1, 1);
+    if (sort_attribute_id == kInvalidCatalogId) {
+      // There is no special treatment of "last" values without sorting.
+      checkBlockValues(sort_attribute_id, delete_sequence.numTuples(), 2);
+    } else {
+      checkBlockValues(sort_attribute_id, delete_sequence.numTuples() + 2 - 1, 1);
+    }
   }
 
   // Create a ComparisonPredicate of the form "attribute comp literal".
@@ -702,23 +718,26 @@ class BasicColumnStoreTupleStorageSubBlockTest : public ::testing::TestWithParam
     TypedValue new_wide_char_value(kChar, new_wide_char_lit, 32);
 
     std::unordered_map<attribute_id, TypedValue> proposed_values;
-    switch (sort_attribute_id) {
-      case 0:
-        proposed_values.emplace(0, new_int_value);
-        break;
-      case 1:
-        proposed_values.emplace(1, new_double_value);
-        break;
-      case 2:
-        proposed_values.emplace(2, new_narrow_char_value);
-        break;
-      case 3:
-        proposed_values.emplace(3, new_wide_char_value);
-        break;
-    }
+    if (sort_attribute_id != kInvalidCatalogId) {
+      switch (sort_attribute_id) {
+        case 0:
+          proposed_values.emplace(0, new_int_value);
+          break;
+        case 1:
+          proposed_values.emplace(1, new_double_value);
+          break;
+        case 2:
+          proposed_values.emplace(2, new_narrow_char_value);
+          break;
+        case 3:
+          proposed_values.emplace(3, new_wide_char_value);
+          break;
+      }
 
-    // Can't overwrite a sort column value in-place.
-    EXPECT_FALSE(tuple_store_->canSetAttributeValuesInPlaceTyped(target_tid, proposed_values));
+      // Can't overwrite a sort column value in-place.
+      EXPECT_FALSE(tuple_store_->canSetAttributeValuesInPlaceTyped(
+          target_tid, proposed_values));
+    }
 
     // Other column values should be OK.
     proposed_values.clear();
@@ -726,7 +745,9 @@ class BasicColumnStoreTupleStorageSubBlockTest : public ::testing::TestWithParam
     proposed_values.emplace(1, new_double_value);
     proposed_values.emplace(2, new_narrow_char_value);
     proposed_values.emplace(3, new_wide_char_value);
-    proposed_values.erase(sort_attribute_id);
+    if (sort_attribute_id != kInvalidCatalogId) {
+      proposed_values.erase(sort_attribute_id);
+    }
     EXPECT_TRUE(tuple_store_->canSetAttributeValuesInPlaceTyped(target_tid, proposed_values));
 
     // Actually set values.
@@ -820,6 +841,14 @@ TEST_P(BasicColumnStoreTupleStorageSubBlockTest, DescriptionIsValidTest) {
         *tuple_store_description_));
   }
 
+  // Also check a description that doesn't specify a sort column.
+  tuple_store_description_.reset(new TupleStorageSubBlockDescription());
+  tuple_store_description_->set_sub_block_type(
+      TupleStorageSubBlockDescription::BASIC_COLUMN_STORE);
+  EXPECT_TRUE(BasicColumnStoreTupleStorageSubBlock::DescriptionIsValid(
+      *relation_,
+      *tuple_store_description_));
+
   // An uninitialized description is not valid.
   tuple_store_description_.reset(new TupleStorageSubBlockDescription());
   EXPECT_FALSE(BasicColumnStoreTupleStorageSubBlock::DescriptionIsValid(
@@ -857,6 +886,24 @@ TEST_P(BasicColumnStoreTupleStorageSubBlockDeathTest, ConstructWithInvalidDescri
 
 TEST_P(BasicColumnStoreTupleStorageSubBlockTest, BlockTooSmallTest) {
   EXPECT_THROW(createBlock(0, 32), BlockMemoryTooSmall);
+}
+
+TEST_P(BasicColumnStoreTupleStorageSubBlockTest, InsertWithNoSortColumnTest) {
+  // Non-random, batch insert.
+  createBlock(kInvalidCatalogId, kSubBlockSize);
+  fillBlockWithSampleData(false, false);
+
+  // Non-random, ad-hoc insert.
+  createBlock(kInvalidCatalogId, kSubBlockSize);
+  fillBlockWithSampleData(false, true);
+
+  // Random order, batch insert.
+  createBlock(kInvalidCatalogId, kSubBlockSize);
+  fillBlockWithSampleData(true, false);
+
+  // Random order, ad-hoc insert.
+  createBlock(kInvalidCatalogId, kSubBlockSize);
+  fillBlockWithSampleData(true, true);
 }
 
 TEST_P(BasicColumnStoreTupleStorageSubBlockTest, InsertWithIntSortColumnTest) {
@@ -931,6 +978,12 @@ TEST_P(BasicColumnStoreTupleStorageSubBlockTest, InsertWithWideCharSortColumnTes
   fillBlockWithSampleData(true, true);
 }
 
+TEST_P(BasicColumnStoreTupleStorageSubBlockTest, GetValuesWithNoSortColumnTest) {
+  createBlock(kInvalidCatalogId, kSubBlockSize);
+  fillBlockWithSampleData(true, false);
+  checkBlockValues(kInvalidCatalogId, 0, 0);
+}
+
 TEST_P(BasicColumnStoreTupleStorageSubBlockTest, GetValuesWithIntSortColumnTest) {
   createBlock(0, kSubBlockSize);
   fillBlockWithSampleData(true, false);
@@ -955,6 +1008,10 @@ TEST_P(BasicColumnStoreTupleStorageSubBlockTest, GetValuesWithWideCharSortColumn
   checkBlockValues(3, 0, 0);
 }
 
+TEST_P(BasicColumnStoreTupleStorageSubBlockTest, DeleteWithNoSortColumnTest) {
+  runDeleteTest(kInvalidCatalogId);
+}
+
 TEST_P(BasicColumnStoreTupleStorageSubBlockTest, DeleteWithIntSortColumnTest) {
   runDeleteTest(0);
 }
@@ -971,6 +1028,10 @@ TEST_P(BasicColumnStoreTupleStorageSubBlockTest, DeleteWithWideCharSortColumnTes
   runDeleteTest(3);
 }
 
+TEST_P(BasicColumnStoreTupleStorageSubBlockTest, GetMatchesForPredicateWithNoSortColumnTest) {
+  runCheckPredicateTest(kInvalidCatalogId);
+}
+
 TEST_P(BasicColumnStoreTupleStorageSubBlockTest, GetMatchesForPredicateWithIntSortColumnTest) {
   runCheckPredicateTest(0);
 }
@@ -985,6 +1046,10 @@ TEST_P(BasicColumnStoreTupleStorageSubBlockTest, GetMatchesForPredicateWithNarro
 
 TEST_P(BasicColumnStoreTupleStorageSubBlockTest, GetMatchesForPredicateWithWideCharSortColumnTest) {
   runCheckPredicateTest(3);
+}
+
+TEST_P(BasicColumnStoreTupleStorageSubBlockTest, SetAttributeValueInPlaceTypedWithNoSortColumnTest) {
+  runSetAttributeValueInPlaceTypedTest(kInvalidCatalogId);
 }
 
 TEST_P(BasicColumnStoreTupleStorageSubBlockTest, SetAttributeValueInPlaceTypedWithIntSortColumnTest) {
