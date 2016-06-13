@@ -159,6 +159,32 @@ else()
   )
 endif()
 
+# Include Google Perftools CPU Profiler. You probably want to
+# use this option with CMAKE_BUILD_TYPE=RelWithDebInfo.
+# Pass profiler_file_name to quickstep_cli_shell to actually
+# run the profiler. The profiler only starts collecting
+# samples after the first query, so that it runs against a
+# warm buffer pool and caches. If you want to profile everything,
+# including the first query run, set the environment variable
+# CPUPROFILE instead of passing the flag profile_file_name
+# Use google-pprof on the output file to convert it into a useful
+# format like graphviz (dot).
+option(ENABLE_GOOGLE_PROFILER "Include Google Perftools CPU Profiler." OFF)
+
+if (ENABLE_GOOGLE_PROFILER)
+  set_property(
+    DIRECTORY
+    APPEND PROPERTY COMPILE_DEFINITIONS QUICKSTEP_ENABLE_PROFILER
+  )
+
+  # TODO(navsan) Add a FindGperftools.cmake module and use that here.
+  check_include_files("gperftools/profiler.h" HAVE_GPERFTOOLS_PROFILER)
+  if (NOT HAVE_GPERFTOOLS_PROFILER)
+    message(FATAL_ERROR "Could not find gperftools. Ensure that it is installed.")
+  endif()
+  set(LIBS ${LIBS} profiler)
+endif()
+
 # Link against the system's threading library.
 find_package(Threads REQUIRED)
 set(LIBS ${LIBS} ${CMAKE_THREAD_LIBS_INIT})

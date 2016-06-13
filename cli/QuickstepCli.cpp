@@ -36,7 +36,7 @@
 #include <stdlib.h>
 #endif
 
-#include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE.
+#include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE, QUICKSTEP_ENABLE_GOOGLE_PROFILER.
 #include "cli/CommandExecutor.hpp"
 #include "cli/DropRelation.hpp"
 
@@ -46,6 +46,10 @@ typedef quickstep::LineReaderLineNoise LineReaderImpl;
 #else
 #include "cli/LineReaderDumb.hpp"
 typedef quickstep::LineReaderDumb LineReaderImpl;
+#endif
+
+#ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
+#include <gperftools/profiler.h>
 #endif
 
 #include "cli/DefaultsConfigurator.hpp"
@@ -157,6 +161,30 @@ DEFINE_bool(initialize_db, false, "If true, initialize a database.");
 DEFINE_bool(print_query, false,
             "Print each input query statement. This is useful when running a "
             "large number of queries in a batch.");
+DEFINE_string(profile_file_name, "",
+              "If nonempty, enable profiling using GOOGLE CPU Profiler, and write "
+              "its output to the given file name. This flag has no effect if "
+              "ENABLE_GOOGLE_PROFILER CMake flag was not set during build. "
+              "The profiler only starts collecting samples after the first query, "
+              "so that it runs against a warm buffer pool and caches. If you want to profile "
+              "everything, including the first query run, set the "
+              "environment variable CPUPROFILE instead of passing this flag.");
+              // Here's a detailed explanation of why we skip the first query run
+              // during profiling:
+              // Unless you’ve preloaded the buffer pool (which is not always a good
+              // idea), the first run of the query results in disk I/O and other overhead
+              // that significantly skews the profiling results. It’s the same reason we don’t
+              // include the first run time in our benchmarking: when profiling query
+              // execution, it makes more sense to get numbers using a warm buffer pool and
+              // warm caches. This is not *always* the right thing to do: it’s obviously
+              // wrong for profiling the TextScan operator. In those cases, you might want
+              // to put in your own Profiler probes (just follow the start/stop pattern used
+              // in this file) or just run quickstep with the CPUPROFILE environment variable
+              // set (as per gperftools documentation) to get the full profile for the
+              // entire execution.
+              // To put things in perspective, the first run is, in my experiments, about 5-10
+              // times more expensive than the average run. That means the query needs to be
+              // run at least a hundred times to make the impact of the first run small (< 5 %).
 
 }  // namespace quickstep
 
@@ -345,6 +373,9 @@ int main(int argc, char* argv[]) {
   std::unique_ptr<SqlParserWrapper> parser_wrapper(new SqlParserWrapper());
   std::chrono::time_point<std::chrono::steady_clock> start, end;
 
+#ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
+  bool started_profiling = false;
+#endif
   for (;;) {
     string *command_string = new string();
     *command_string = line_reader.getNextCommand();
@@ -446,6 +477,13 @@ int main(int argc, char* argv[]) {
         reset_parser = true;
         break;
       }
+#ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
+      // Profile only if profile_file_name flag is set
+      if (!started_profiling && !quickstep::FLAGS_profile_file_name.empty()) {
+        started_profiling = true;
+        ProfilerStart(quickstep::FLAGS_profile_file_name.c_str());
+      }
+#endif
     }
 
     if (quitting) {
@@ -455,6 +493,13 @@ int main(int argc, char* argv[]) {
       reset_parser = false;
     }
   }
+
+#ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
+  if (started_profiling) {
+    ProfilerStop();
+    ProfilerFlush();
+  }
+#endif
 
   // Kill the foreman and workers.
   QueryExecutionUtil::BroadcastPoisonMessage(main_thread_client_id, &bus);
