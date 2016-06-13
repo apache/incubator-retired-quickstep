@@ -320,6 +320,8 @@ class TupleIdSequenceAdapterValueAccessor : public ValueAccessor {
       : accessor_(accessor),
         owned_accessor_(take_ownership_of_accessor ? accessor : nullptr),
         id_sequence_(id_sequence),
+        num_tuples_(id_sequence.numTuples()),
+        end_(id_sequence.end()),
         current_position_(id_sequence.before_begin()) {
   }
 
@@ -345,13 +347,12 @@ class TupleIdSequenceAdapterValueAccessor : public ValueAccessor {
   inline bool iterationFinished() const {
     TupleIdSequence::const_iterator next_position = current_position_;
     ++next_position;
-    return (current_position_ == id_sequence_.end())
-           || (next_position == id_sequence_.end());
+    return current_position_ == end_ || next_position == end_;
   }
 
   inline bool next() {
     ++current_position_;
-    return current_position_ != id_sequence_.end();
+    return current_position_ != end_;
   }
 
   inline void previous() {
@@ -367,7 +368,7 @@ class TupleIdSequenceAdapterValueAccessor : public ValueAccessor {
   }
 
   inline tuple_id getNumTuples() const {
-    return id_sequence_.numTuples();
+    return num_tuples_;
   }
 
   template <bool check_null = true>
@@ -487,6 +488,10 @@ class TupleIdSequenceAdapterValueAccessor : public ValueAccessor {
   std::unique_ptr<InternalValueAccessorType> owned_accessor_;
   const TupleIdSequence &id_sequence_;
   TupleIdSequence::const_iterator current_position_;
+
+  // The two members below are cached to avoid expensive function calls
+  const std::size_t num_tuples_;
+  const TupleIdSequence::const_iterator end_;
 
   DISALLOW_COPY_AND_ASSIGN(TupleIdSequenceAdapterValueAccessor);
 };
