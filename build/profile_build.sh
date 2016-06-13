@@ -37,7 +37,7 @@ CMAKE_COMMAND="cmake \
 -D CMAKE_BUILD_TYPE=Debug \
 .. "
 MAKE_COMMAND="make VERBOSE=1"
-LOG_FILENAME=$LOG_FILENAME
+LOG_FILENAME=build.log
 
 # Continuously dump memory usage and cpu load info to files for later analysis
 function start_stat_collectors {
