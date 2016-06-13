@@ -320,9 +320,9 @@ class TupleIdSequenceAdapterValueAccessor : public ValueAccessor {
       : accessor_(accessor),
         owned_accessor_(take_ownership_of_accessor ? accessor : nullptr),
         id_sequence_(id_sequence),
+        current_position_(id_sequence.before_begin()),
         num_tuples_(id_sequence.numTuples()),
-        end_(id_sequence.end()),
-        current_position_(id_sequence.before_begin()) {
+        end_(id_sequence.end()) {
   }
 
   ~TupleIdSequenceAdapterValueAccessor() override {
