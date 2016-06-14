@@ -58,6 +58,7 @@
 #include "parser/ParseSubqueryExpression.hpp"
 #include "parser/ParseSubqueryTableReference.hpp"
 #include "parser/ParseTableReference.hpp"
+#include "parser/ParseWindow.hpp"
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/Validator.hpp"
 #include "query_optimizer/expressions/AggregateFunction.hpp"
@@ -2365,6 +2366,12 @@ E::ScalarPtr Resolver::resolveFunctionCall(
     const ParseFunctionCall &parse_function_call,
     ExpressionResolutionInfo *expression_resolution_info) {
   std::string function_name = ToLower(parse_function_call.name()->value());
+
+  // TODO(Shixuan): Add support for window aggregation function.
+  if (parse_function_call.isWindow()) {
+    THROW_SQL_ERROR_AT(&parse_function_call)
+        << "Window Aggregation Function is not supported currently";
+  }
 
   // First check for the special case COUNT(*).
   bool count_star = false;

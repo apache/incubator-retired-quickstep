@@ -95,6 +95,7 @@ typedef struct YYLTYPE {
 #include "parser/ParseSubqueryExpression.hpp"
 #include "parser/ParseSubqueryTableReference.hpp"
 #include "parser/ParseTableReference.hpp"
+#include "parser/ParseWindow.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
@@ -200,6 +201,12 @@ typedef void* yyscan_t;
 
   quickstep::ParseSample *opt_sample_clause_;
 
+  quickstep::PtrList<quickstep::ParseWindow> *opt_window_clause_;
+  quickstep::ParseWindow *window_definition_;
+  quickstep::PtrList<quickstep::ParseExpression> *window_partition_by_list_;
+  quickstep::PtrList<quickstep::ParseOrderByItem> *window_order_by_list_;
+  quickstep::ParseFrameInfo *window_frame_info_;
+
   quickstep::PtrList<quickstep::ParseOrderByItem> *order_commalist_;
   quickstep::ParseOrderByItem *order_item_;
 
@@ -254,6 +261,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_CONSTRAINT;
 %token TOKEN_COPY;
 %token TOKEN_CREATE;
+%token TOKEN_CURRENT;
 %token TOKEN_DATE;
 %token TOKEN_DATETIME;
 %token TOKEN_DAY;
@@ -273,6 +281,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_FALSE;
 %token TOKEN_FIRST;
 %token TOKEN_FLOAT;
+%token TOKEN_FOLLOWING;
 %token TOKEN_FOR;
 %token TOKEN_FOREIGN;
 %token TOKEN_FROM;
@@ -304,9 +313,11 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_OR;
 %token TOKEN_ORDER;
 %token TOKEN_OUTER;
+%token TOKEN_OVER;
 %token TOKEN_PARTITION;
 %token TOKEN_PARTITIONS;
 %token TOKEN_PERCENT;
+%token TOKEN_PRECEDING;
 %token TOKEN_PRIMARY;
 %token TOKEN_QUIT;
 %token TOKEN_RANGE;
@@ -314,7 +325,9 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_REFERENCES;
 %token TOKEN_REGEXP;
 %token TOKEN_RIGHT;
+%token TOKEN_ROW;
 %token TOKEN_ROW_DELIMITER;
+%token TOKEN_ROWS;
 %token TOKEN_SECOND;
 %token TOKEN_SELECT;
 %token TOKEN_SET;
@@ -327,6 +340,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_TIMESTAMP;
 %token TOKEN_TRUE;
 %token TOKEN_TUPLESAMPLE;
+%token TOKEN_UNBOUNDED;
 %token TOKEN_UNIQUE;
 %token TOKEN_UPDATE;
 %token TOKEN_USING;
@@ -334,6 +348,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_VARCHAR;
 %token TOKEN_WHEN;
 %token TOKEN_WHERE;
+%token TOKEN_WINDOW;
 %token TOKEN_WITH;
 %token TOKEN_YEAR;
 %token TOKEN_YEARMONTH;
@@ -348,9 +363,14 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <boolean_value_>
   boolean_value
+  frame_mode
 
 %type <literal_value_>
   literal_value
+
+%type <numeric_literal_value_>
+  frame_preceding
+  frame_following
 
 %type <literal_value_list_>
   literal_value_commalist
@@ -545,6 +565,23 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <opt_sample_clause_>
   opt_sample_clause
+
+%type <opt_window_clause_>
+  opt_window_clause
+  window_declaration_list
+
+%type <window_definition_>
+  window_declaration
+  window_definition
+
+%type <window_partition_by_list_>
+  opt_window_partition
+
+%type <window_order_by_list_>
+  opt_window_order
+
+%type <window_frame_info_>
+  opt_window_frame
 
 %type <with_list_>
   with_clause
@@ -1136,8 +1173,8 @@ with_list_element:
 
 select_query:
   TOKEN_SELECT opt_all_distinct selection from_clause opt_where_clause opt_group_by_clause opt_having_clause
-      opt_order_by_clause opt_limit_clause {
-    $$ = new quickstep::ParseSelect(@1.first_line, @1.first_column, $3, $4, $5, $6, $7, $8, $9);
+      opt_order_by_clause opt_limit_clause opt_window_clause {
+    $$ = new quickstep::ParseSelect(@1.first_line, @1.first_column, $3, $4, $5, $6, $7, $8, $9, $10);
   };
 
 opt_all_distinct:
@@ -1332,6 +1369,85 @@ opt_limit_clause:
     }
   }
 
+opt_window_clause:
+  {
+    $$ = nullptr;
+  }
+  | window_declaration_list {
+    $$ = $1;
+  }
+
+window_declaration_list:
+  window_declaration {
+    $$ = new quickstep::PtrList<quickstep::ParseWindow>();
+    $$->push_back($1);
+  }
+  | window_declaration_list window_declaration {
+    $$ = $1;
+    $$->push_back($2);
+  }
+
+window_declaration:
+  TOKEN_WINDOW any_name TOKEN_AS '(' window_definition ')' {
+    $$ = $5;
+    $$->setName($2);
+  } 
+
+window_definition:
+  opt_window_partition opt_window_order opt_window_frame {
+    $$ = new quickstep::ParseWindow(@1.first_line, @1.first_column, $1, $2, $3);
+  };
+
+opt_window_partition:
+  {
+    $$ = nullptr;
+  }
+  | TOKEN_PARTITION TOKEN_BY expression_list {
+    $$ = $3;
+  };
+
+opt_window_order:
+  {
+    $$ = nullptr;
+  }
+  | TOKEN_ORDER TOKEN_BY order_commalist  {
+    $$ = $3;
+  };
+
+opt_window_frame:
+  {
+    $$ = nullptr;
+  }
+  | frame_mode TOKEN_BETWEEN frame_preceding TOKEN_AND frame_following {
+    $$ = new quickstep::ParseFrameInfo(@1.first_line, @1.first_column, $1, $3->long_value(), $5->long_value());
+  };
+
+frame_mode:
+  TOKEN_ROWS {
+    $$ = true;
+  }
+  | TOKEN_RANGE {
+    $$ = false;
+  };
+
+frame_preceding:
+  TOKEN_UNSIGNED_NUMVAL TOKEN_PRECEDING
+  | TOKEN_UNBOUNDED TOKEN_PRECEDING { 
+    $$ = new quickstep::NumericParseLiteralValue(@1.first_line, @1.first_column, "-1");
+  }
+  | TOKEN_CURRENT TOKEN_ROW {
+    $$ = new quickstep::NumericParseLiteralValue(@1.first_line, @1.first_column, "0");
+  };
+
+frame_following:
+  TOKEN_UNSIGNED_NUMVAL TOKEN_FOLLOWING
+  | TOKEN_UNBOUNDED TOKEN_FOLLOWING {
+    $$ = new quickstep::NumericParseLiteralValue(@1.first_line, @1.first_column, "-1");
+  }
+  | TOKEN_CURRENT TOKEN_ROW {
+    $$ = new quickstep::NumericParseLiteralValue(@1.first_line, @1.first_column, "0");
+  };
+
 order_commalist:
   order_item {
     $$ = new quickstep::PtrList<quickstep::ParseOrderByItem>();
@@ -1503,6 +1619,14 @@ expression_base:
     $$ = new quickstep::ParseScalarLiteral($1);
   }
   | function_call {
+    $$ = $1;
+  }
+  | function_call TOKEN_OVER any_name {
+    $1->setWindowName($3);
+    $$ = $1;
+  }
+  | function_call TOKEN_OVER '(' window_definition ')' {
+    $1->setWindow($4);
     $$ = $1;
   }
   | extract_function {

@@ -30,6 +30,7 @@
 #include "parser/ParseLiteralValue.hpp"
 #include "parser/ParseString.hpp"
 #include "parser/ParseTreeNode.hpp"
+#include "parser/ParseWindow.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrList.hpp"
 
@@ -429,6 +430,46 @@ class ParseFunctionCall : public ParseExpression {
     return star_.get();
   }
 
+  /**
+   * @return The window name.
+   **/
+  const ParseString* window_name() const {
+    return window_name_.get();
+  }
+
+  /**
+   * @return The window.
+   **/
+  const ParseWindow* window() const {
+    return window_.get();
+  }
+
+  /**
+   * @brief Check if this function is a window aggregation function
+   *
+   * @return True if this function is a window aggregation function; false
+   *         otherwise.
+   **/
+  bool isWindow() const {
+    return window_name_ != nullptr || window_ != nullptr;
+  }
+
+  /**
+   * @brief Set the window name.
+   * @param window_name The window name.
+   **/
+  void setWindowName(ParseString *window_name) {
+    window_name_.reset(window_name);
+  }
+
+  /**
+   * @brief Set the window.
+   * @param window The window.
+   **/
+  void setWindow(ParseWindow *window) {
+    window_.reset(window);
+  }
+
   std::string generateName() const override;
 
  protected:
@@ -446,6 +487,10 @@ class ParseFunctionCall : public ParseExpression {
   // Either <arguments_> or <star_> is NULL.
   std::unique_ptr<PtrList<ParseExpression>> arguments_;
   std::unique_ptr<ParseStar> star_;
+  // A window aggregation function should have either <window_name_> or <window_> but not both.
+  // <window_name_> and <window_> will both be NULL if it is not a window function.
+  std::unique_ptr<ParseString> window_name_;
+  std::unique_ptr<ParseWindow> window_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseFunctionCall);
 };

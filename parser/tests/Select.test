@@ -1,5 +1,7 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
 #   Copyright 2015 Pivotal Software, Inc.
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
+#     University of Wisconsin—Madison.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
 #   you may not use this file except in compliance with the License.
@@ -1707,5 +1709,123 @@ SelectStatement
   |       |   +-AttributeReference[attribute_name=col5]
   |       +-from_clause=
   |         +-TableReference[table=bar]
+  +-from_clause=
+    +-TableReference[table=test]
+==
+
+SELECT avg(attr1) OVER w FROM test
+WINDOW w AS
+(PARTITION BY attr2, attr3
+ ORDER BY attr4
+ ROWS BETWEEN 3 PRECEDING AND 3 FOLLOWING)
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-FunctionCall[name=avg,window_name=w]
+  |     +-AttributeReference[attribute_name=attr1]
+  +-from_clause=
+  | +-TableReference[table=test]
+  +-window_list=
+    +-window[window_name=w]
+      +-frame_info=FrameInfo[frame_mode=row,num_preceding=3,num_following=3]
+      +-partition_by=
+      | +-AttributeReference[attribute_name=attr2]
+      | +-AttributeReference[attribute_name=attr3]
+      +-order_by=
+        +-OrderByItem[is_asc=true,nulls_first=false]
+          +-AttributeReference[attribute_name=attr4]
+==
+
+SELECT avg(attr1) OVER w FROM test 
+WINDOW w AS
+(PARTITION BY attr2, attr3
+ ORDER BY attr4 DESC NULLS FIRST, attr5 ASC NULLS LAST
+ RANGE BETWEEN 3 PRECEDING AND CURRENT ROW)
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-FunctionCall[name=avg,window_name=w]
+  |     +-AttributeReference[attribute_name=attr1]
+  +-from_clause=
+  | +-TableReference[table=test]
+  +-window_list=
+    +-window[window_name=w]
+      +-frame_info=FrameInfo[frame_mode=range,num_preceding=3,num_following=0]
+      +-partition_by=
+      | +-AttributeReference[attribute_name=attr2]
+      | +-AttributeReference[attribute_name=attr3]
+      +-order_by=
+        +-OrderByItem[is_asc=false,nulls_first=true]
+        | +-AttributeReference[attribute_name=attr4]
+        +-OrderByItem[is_asc=true,nulls_first=false]
+          +-AttributeReference[attribute_name=attr5]
+==
+
+SELECT avg(attr1) OVER w1 AS avg1, sum(attr5) OVER w2 AS sum5 FROM test 
+WINDOW w1 AS
+(PARTITION BY attr2, attr3
+ ORDER BY attr4
+ ROWS BETWEEN 3 PRECEDING AND 3 FOLLOWING)
+WINDOW w2 AS
+(PARTITION BY attr1
+ ORDER BY attr6
+ RANGE BETWEEN 2 PRECEDING AND CURRENT ROW)
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem[alias=avg1]
+  | | +-FunctionCall[name=avg,window_name=w1]
+  | |   +-AttributeReference[attribute_name=attr1]
+  | +-SelectListItem[alias=sum5]
+  |   +-FunctionCall[name=sum,window_name=w2]
+  |     +-AttributeReference[attribute_name=attr5]
+  +-from_clause=
+  | +-TableReference[table=test]
+  +-window_list=
+    +-window[window_name=w1]
+    | +-frame_info=FrameInfo[frame_mode=row,num_preceding=3,num_following=3]
+    | +-partition_by=
+    | | +-AttributeReference[attribute_name=attr2]
+    | | +-AttributeReference[attribute_name=attr3]
+    | +-order_by=
+    |   +-OrderByItem[is_asc=true,nulls_first=false]
+    |     +-AttributeReference[attribute_name=attr4]
+    +-window[window_name=w2]
+      +-frame_info=FrameInfo[frame_mode=range,num_preceding=2,num_following=0]
+      +-partition_by=
+      | +-AttributeReference[attribute_name=attr1]
+      +-order_by=
+        +-OrderByItem[is_asc=true,nulls_first=false]
+          +-AttributeReference[attribute_name=attr6]
+==
+
+SELECT avg(attr1) OVER 
+(PARTITION BY attr2, attr3
+ ORDER BY attr4 DESC NULLS FIRST, attr5 ASC NULLS LAST
+ RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+FROM test
+--
+SelectStatement
++-select_query=Select
+  +-select_clause=SelectList
+  | +-SelectListItem
+  |   +-FunctionCall[name=avg]
+  |     +-AttributeReference[attribute_name=attr1]
+  |     +-window=window
+  |       +-frame_info=FrameInfo[frame_mode=range,num_preceding=-1,
+  |       | num_following=0]
+  |       +-partition_by=
+  |       | +-AttributeReference[attribute_name=attr2]
+  |       | +-AttributeReference[attribute_name=attr3]
+  |       +-order_by=
+  |         +-OrderByItem[is_asc=false,nulls_first=true]
+  |         | +-AttributeReference[attribute_name=attr4]
+  |         +-OrderByItem[is_asc=true,nulls_first=false]
+  |           +-AttributeReference[attribute_name=attr5]
   +-from_clause=
     +-TableReference[table=test]

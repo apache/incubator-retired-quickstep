@@ -162,6 +162,16 @@ void ParseFunctionCall::getFieldStringItems(
       non_container_child_field_names->push_back("");
       non_container_child_fields->push_back(&argument);
     }
+
+    if (window_name_ != nullptr) {
+      inline_field_names->push_back("window_name");
+      inline_field_values->push_back(window_name_->value());
+    }
+
+    if (window_ != nullptr) {
+      non_container_child_field_names->push_back("window");
+      non_container_child_fields->push_back(window_.get());
+    }
   }
 }
 
