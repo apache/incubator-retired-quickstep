@@ -275,7 +275,7 @@ class QueryManagerTest : public ::testing::Test {
   inline bool placeWorkOrderCompleteMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place WorkOrderComplete message for Op[" << index << "]";
     TaggedMessage tagged_message;
-    serialization::WorkOrderCompletionMessage proto;
+    serialization::NormalWorkOrderCompletionMessage proto;
     proto.set_operator_index(index);
     proto.set_worker_thread_index(1);  // dummy worker ID.
     proto.set_query_id(0);  // dummy query ID.
@@ -296,8 +296,7 @@ class QueryManagerTest : public ::testing::Test {
 
   inline bool placeRebuildWorkOrderCompleteMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place RebuildWorkOrderComplete message for Op[" << index << "]";
-    // foreman_->processRebuildWorkOrderCompleteMessage(index, 0 /* worker id */);
-    serialization::WorkOrderCompletionMessage proto;
+    serialization::RebuildWorkOrderCompletionMessage proto;
     proto.set_operator_index(index);
     proto.set_worker_thread_index(1);  // dummy worker thread ID.
     proto.set_query_id(0);  // dummy query ID.
@@ -346,7 +345,6 @@ class QueryManagerTest : public ::testing::Test {
   unique_ptr<QueryHandle> query_handle_;
   unique_ptr<QueryManager> query_manager_;
 
-  // unique_ptr<Foreman> foreman_;
   MessageBusImpl bus_;
 
   client_id worker_client_id_;
@@ -357,7 +355,6 @@ class QueryManagerTest : public ::testing::Test {
 TEST_F(QueryManagerTest, SingleNodeDAGNoWorkOrdersTest) {
   // This test creates a DAG of a single node. No workorders are generated.
   query_plan_->addRelationalOperator(new MockOperator(false, false));
-  // foreman_->setQueryPlan(query_plan_->getQueryPlanDAGMutable());
 
   const MockOperator &op = static_cast<const MockOperator &>(
       query_plan_->getQueryPlanDAG().getNodePayload(0));
@@ -377,7 +374,6 @@ TEST_F(QueryManagerTest, SingleNodeDAGStaticWorkOrdersTest) {
   // This test creates a DAG of a single node. Static workorders are generated.
   const QueryPlan::DAGNodeIndex id =
       query_plan_->addRelationalOperator(new MockOperator(true, false, 1));
-  // foreman_->setQueryPlan(query_plan_->getQueryPlanDAGMutable());
 
   const MockOperator &op = static_cast<const MockOperator &>(
       query_plan_->getQueryPlanDAG().getNodePayload(id));
@@ -429,7 +425,6 @@ TEST_F(QueryManagerTest, SingleNodeDAGDynamicWorkOrdersTest) {
   // scaffolding of mocking. If we use gMock, we can do much better.
   const QueryPlan::DAGNodeIndex id =
       query_plan_->addRelationalOperator(new MockOperator(true, false, 4, 3));
-  // foreman_->setQueryPlan(query_plan_->getQueryPlanDAGMutable());
 
   const MockOperator &op = static_cast<const MockOperator &>(
       query_plan_->getQueryPlanDAG().getNodePayload(id));

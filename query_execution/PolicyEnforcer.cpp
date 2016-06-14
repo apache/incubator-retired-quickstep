@@ -67,13 +67,26 @@ void PolicyEnforcer::processMessage(const TaggedMessage &tagged_message) {
   // TaggedMessage only once.
   std::size_t query_id;
   switch (tagged_message.message_type()) {
-    case kWorkOrderCompleteMessage:  // Fall through.
-    case kRebuildWorkOrderCompleteMessage: {
-      serialization::WorkOrderCompletionMessage proto;
+    case kWorkOrderCompleteMessage: {
+      serialization::NormalWorkOrderCompletionMessage proto;
+      // Note: This proto message contains the time it took to execute the
+      // WorkOrder. It can be accessed in this scope.
       CHECK(proto.ParseFromArray(tagged_message.message(),
                                  tagged_message.message_bytes()));
       query_id = proto.query_id();
-      worker_directory_->decrementNumQueuedWorkOrders(proto.worker_thread_index());
+      worker_directory_->decrementNumQueuedWorkOrders(
+          proto.worker_thread_index());
+      break;
+    }
+    case kRebuildWorkOrderCompleteMessage: {
+      serialization::RebuildWorkOrderCompletionMessage proto;
+      // Note: This proto message contains the time it took to execute the
+      // rebuild WorkOrder. It can be accessed in this scope.
+      CHECK(proto.ParseFromArray(tagged_message.message(),
+                                 tagged_message.message_bytes()));
+      query_id = proto.query_id();
+      worker_directory_->decrementNumQueuedWorkOrders(
+          proto.worker_thread_index());
       break;
     }
     case kCatalogRelationNewBlockMessage: {
@@ -98,7 +111,9 @@ void PolicyEnforcer::processMessage(const TaggedMessage &tagged_message) {
       break;
     }
     case kWorkOrderFeedbackMessage: {
-      WorkOrder::FeedbackMessage msg(const_cast<void *>(tagged_message.message()), tagged_message.message_bytes());
+      WorkOrder::FeedbackMessage msg(
+          const_cast<void *>(tagged_message.message()),
+          tagged_message.message_bytes());
       query_id = msg.header().query_id;
       break;
     }

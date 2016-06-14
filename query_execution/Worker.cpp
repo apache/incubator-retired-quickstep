@@ -16,7 +16,9 @@
 
 #include "query_execution/Worker.hpp"
 
+#include <chrono>
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <utility>
 
@@ -36,6 +38,7 @@
 #include "tmb/tagged_message.h"
 
 using std::size_t;
+using std::uint64_t;
 
 using tmb::TaggedMessage;
 
@@ -50,22 +53,27 @@ void Worker::run() {
   for (;;) {
     // Receive() is a blocking call, causing this thread to sleep until next
     // message is received.
-    const AnnotatedMessage annotated_msg = bus_->Receive(worker_client_id_, 0, true);
+    const AnnotatedMessage annotated_msg =
+        bus_->Receive(worker_client_id_, 0, true);
     const TaggedMessage &tagged_message = annotated_msg.tagged_message;
     switch (tagged_message.message_type()) {
-      case kWorkOrderMessage:  // Fall through.
+      case kWorkOrderMessage: {
+        serialization::NormalWorkOrderCompletionMessage proto;
+        executeWorkOrderHelper<serialization::NormalWorkOrderCompletionMessage>(
+            tagged_message, &proto);
+        sendWorkOrderCompleteMessage<
+            serialization::NormalWorkOrderCompletionMessage>(
+            annotated_msg.sender, proto, kWorkOrderCompleteMessage);
+        break;
+      }
       case kRebuildWorkOrderMessage: {
-        WorkerMessage message(*static_cast<const WorkerMessage*>(tagged_message.message()));
-        DCHECK(message.getWorkOrder() != nullptr);
-        message.getWorkOrder()->execute();
-        const std::size_t query_id_for_workorder =
-            message.getWorkOrder()->getQueryID();
-        delete message.getWorkOrder();
-
-        sendWorkOrderCompleteMessage(
-            annotated_msg.sender, message.getRelationalOpIndex(),
-            query_id_for_workorder,
-            tagged_message.message_type() == kRebuildWorkOrderMessage);
+        serialization::RebuildWorkOrderCompletionMessage proto;
+        executeWorkOrderHelper<
+            serialization::RebuildWorkOrderCompletionMessage>(tagged_message,
+                                                              &proto);
+        sendWorkOrderCompleteMessage<
+            serialization::RebuildWorkOrderCompletionMessage>(
+            annotated_msg.sender, proto, kRebuildWorkOrderCompleteMessage);
         break;
       }
       case kPoisonMessage: {
@@ -77,34 +85,49 @@ void Worker::run() {
   }
 }
 
+template <typename CompletionMessageProtoT>
 void Worker::sendWorkOrderCompleteMessage(const tmb::client_id receiver,
-                                          const size_t op_index,
-                                          const size_t query_id,
-                                          const bool is_rebuild_work_order) {
-  serialization::WorkOrderCompletionMessage proto;
-  proto.set_operator_index(op_index);
-  proto.set_worker_thread_index(worker_thread_index_);
-  proto.set_query_id(query_id);
-
+                                          const CompletionMessageProtoT &proto,
+                                          const message_type_id message_type) {
   // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
   const size_t proto_length = proto.ByteSize();
-  char *proto_bytes = static_cast<char*>(std::malloc(proto_length));
+  char *proto_bytes = static_cast<char *>(std::malloc(proto_length));
   CHECK(proto.SerializeToArray(proto_bytes, proto_length));
 
-  TaggedMessage message(static_cast<const void*>(proto_bytes),
-                        proto_length,
-                        is_rebuild_work_order ? kRebuildWorkOrderCompleteMessage
-                                              : kWorkOrderCompleteMessage);
+  TaggedMessage tagged_message(
+      static_cast<const void *>(proto_bytes), proto_length, message_type);
   std::free(proto_bytes);
 
   const tmb::MessageBus::SendStatus send_status =
-      QueryExecutionUtil::SendTMBMessage(bus_,
-                                         worker_client_id_,
-                                         receiver,
-                                         std::move(message));
-  CHECK(send_status == tmb::MessageBus::SendStatus::kOK) << "Message could not "
-      "be sent from worker with TMB client ID " << worker_client_id_ << " to "
-      "Foreman with TMB client ID " << receiver;
+      QueryExecutionUtil::SendTMBMessage(
+          bus_, worker_client_id_, receiver, std::move(tagged_message));
+  CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
+      << "Message could not be sent from worker with TMB client ID "
+      << worker_client_id_ << " to Foreman with TMB client ID " << receiver;
+}
+
+template <typename CompletionMessageProtoT>
+void Worker::executeWorkOrderHelper(const TaggedMessage &tagged_message,
+                                    CompletionMessageProtoT *proto) {
+  std::chrono::time_point<std::chrono::steady_clock> start, end;
+  WorkerMessage worker_message(
+      *static_cast<const WorkerMessage *>(tagged_message.message()));
+  DCHECK(worker_message.getWorkOrder() != nullptr);
+  const size_t query_id_for_workorder = worker_message.getWorkOrder()->getQueryID();
+
+  // Start measuring the execution time.
+  start = std::chrono::steady_clock::now();
+  worker_message.getWorkOrder()->execute();
+  end = std::chrono::steady_clock::now();
+  delete worker_message.getWorkOrder();
+  const uint64_t execution_time_microseconds =
+      std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+          .count();
+  // Construct the proto message.
+  proto->set_operator_index(worker_message.getRelationalOpIndex());
+  proto->set_query_id(query_id_for_workorder);
+  proto->set_worker_thread_index(worker_thread_index_);
+  proto->set_execution_time_in_microseconds(execution_time_microseconds);
 }
 
 }  // namespace quickstep

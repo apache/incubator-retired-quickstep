@@ -19,6 +19,7 @@
 #define QUICKSTEP_QUERY_EXECUTION_WORKER_HPP_
 
 #include <cstddef>
+#include <cstdint>
 
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "threading/Thread.hpp"
@@ -26,6 +27,8 @@
 
 #include "tmb/id_typedefs.h"
 #include "tmb/message_bus.h"
+
+namespace tmb { class TaggedMessge; }
 
 namespace quickstep {
 
@@ -93,18 +96,35 @@ class Worker : public Thread {
 
  private:
   /**
-   * @brief Send the response WorkOrder completion message.
+   * @brief A helper method to execute the WorkOrder and construct a
+   *        completion message.
    *
-   * @param receiver The id of the TMB client which should receive the response.
-   * @param op_index The index of the operator to which the WorkOrder belongs.
-   * @param query_id The ID of the query which the WorkOrder belongs to.
-   * @param is_rebuild_work_order True if it is a RebuildWorkOrder. Otherwise
-   *        false.
+   * @note CompletionMessageProtoT is the type of the completion message.
+   * @note Right now a single helper method works for all message types.
+   *       If different message types need to collect different statistics for
+   *       the WorkOrder execution, we need to create different helper methods,
+   *       one for each message type.
+   *
+   * @param tagged_message The TaggedMessage which consists of the WorkOrder.
+   * @param proto The proto message to be sent.
    **/
+  template <typename CompletionMessageProtoT>
+  void executeWorkOrderHelper(const TaggedMessage &tagged_message,
+                              CompletionMessageProtoT *proto);
+
+  /**
+   * @brief A helper method to send the WorkOrder completion message.
+   *
+   * @note CompletionMessageProtoT is the type of the completion message.
+   *
+   * @param receiver The TMB client ID of the receiver.
+   * @param proto The proto message to be sent.
+   * @param message_type The ID of the type of the message being sent.
+   **/
+  template <typename CompletionMessageProtoT>
   void sendWorkOrderCompleteMessage(const tmb::client_id receiver,
-                                    const std::size_t op_index,
-                                    const std::size_t query_id,
-                                    const bool is_rebuild_work_order);
+                                    const CompletionMessageProtoT &proto,
+                                    const message_type_id message_type);
 
   const std::size_t worker_thread_index_;
   MessageBus *bus_;

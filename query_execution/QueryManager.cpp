@@ -161,7 +161,7 @@ QueryManager::QueryStatusCode QueryManager::processMessage(
   dag_node_index op_index;
   switch (tagged_message.message_type()) {
     case kWorkOrderCompleteMessage: {
-      serialization::WorkOrderCompletionMessage proto;
+      serialization::NormalWorkOrderCompletionMessage proto;
       CHECK(proto.ParseFromArray(tagged_message.message(),
                                  tagged_message.message_bytes()));
 
@@ -170,7 +170,7 @@ QueryManager::QueryStatusCode QueryManager::processMessage(
       break;
     }
     case kRebuildWorkOrderCompleteMessage: {
-      serialization::WorkOrderCompletionMessage proto;
+      serialization::RebuildWorkOrderCompletionMessage proto;
       CHECK(proto.ParseFromArray(tagged_message.message(),
                                  tagged_message.message_bytes()));
 
