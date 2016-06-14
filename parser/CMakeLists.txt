@@ -374,12 +374,15 @@ set_property(SOURCE ${CMAKE_CURRENT_BINARY_DIR}/SqlParser_gen.cpp APPEND PROPERT
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-Wno-deprecated-register" COMPILER_HAS_WNO_DEPRECATED_REGISTER)
 if (COMPILER_HAS_WNO_DEPRECATED_REGISTER)
-  set_target_properties(quickstep_parser_SqlLexer PROPERTIES COMPILE_FLAGS "-Wno-deprecated-register")
+  set_property(TARGET quickstep_parser_SqlLexer APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-deprecated-register")
 endif()
 
 # GCC will make a warning for unsigned-signed comparisons which are inherent
 # in the lexer. For this, we turn off the sign compare.
-set_target_properties(quickstep_parser_SqlLexer PROPERTIES COMPILE_FLAGS "-Wno-sign-compare")
+CHECK_CXX_COMPILER_FLAG("-Wno-sign-compare" COMPILER_HAS_WNO_SIGN_COMPARE)
+if (COMPILER_HAS_WNO_SIGN_COMPARE)
+  set_property(TARGET quickstep_parser_SqlLexer APPEND_STRING PROPERTY COMPILE_FLAGS " -Wno-sign-compare")
+endif()
 
 add_subdirectory(tests)
 
