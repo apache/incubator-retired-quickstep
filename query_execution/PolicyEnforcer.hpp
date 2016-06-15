@@ -40,6 +40,7 @@ namespace quickstep {
 class CatalogDatabaseLite;
 class QueryHandle;
 class StorageManager;
+class WorkerDirectory;
 
 /**
  * @brief A class that ensures that a high level policy is maintained
@@ -60,11 +61,13 @@ class PolicyEnforcer {
                  const std::size_t num_numa_nodes,
                  CatalogDatabaseLite *catalog_database,
                  StorageManager *storage_manager,
+                 WorkerDirectory *worker_directory,
                  tmb::MessageBus *bus)
       : foreman_client_id_(foreman_client_id),
         num_numa_nodes_(num_numa_nodes),
         catalog_database_(catalog_database),
         storage_manager_(storage_manager),
+        worker_directory_(worker_directory),
         bus_(bus) {}
 
   /**
@@ -148,6 +151,7 @@ class PolicyEnforcer {
 
   CatalogDatabaseLite *catalog_database_;
   StorageManager *storage_manager_;
+  WorkerDirectory *worker_directory_;
 
   tmb::MessageBus *bus_;
 

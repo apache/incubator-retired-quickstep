@@ -89,6 +89,7 @@ Foreman::Foreman(const tmb::client_id main_thread_client_id,
       num_numa_nodes,
       catalog_database_,
       storage_manager_,
+      worker_directory_,
       bus_));
 }
 
@@ -115,6 +116,7 @@ void Foreman::run() {
         policy_enforcer_->processMessage(tagged_message);
         break;
       }
+
       case kAdmitRequestMessage: {
         const AdmitRequestMessage *msg =
             static_cast<const AdmitRequestMessage *>(tagged_message.message());
@@ -195,9 +197,11 @@ void Foreman::dispatchWorkerMessages(const vector<unique_ptr<WorkerMessage>> &me
     if (recipient_worker_thread_index != WorkerMessage::kInvalidRecipientIndexHint) {
       sendWorkerMessage(static_cast<size_t>(recipient_worker_thread_index),
                         *message);
+      worker_directory_->incrementNumQueuedWorkOrders(recipient_worker_thread_index);
     } else {
-      sendWorkerMessage(worker_directory_->getLeastLoadedWorker().first,
-                        *message);
+      const size_t least_loaded_worker_thread_index = worker_directory_->getLeastLoadedWorker().first;
+      sendWorkerMessage(least_loaded_worker_thread_index, *message);
+      worker_directory_->incrementNumQueuedWorkOrders(least_loaded_worker_thread_index);
     }
   }
 }
