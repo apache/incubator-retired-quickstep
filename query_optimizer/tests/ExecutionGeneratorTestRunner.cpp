@@ -42,7 +42,8 @@
 
 #include "glog/logging.h"
 
-#include "tmb/tagged_message.h"
+#include "tmb/id_typedefs.h"
+#include "tmb/message_bus.h"
 
 namespace quickstep {
 
@@ -101,11 +102,8 @@ void ExecutionGeneratorTestRunner::runTestCase(
             &query_handle,
             &bus_);
 
-        // Receive workload completion message from Foreman.
-        const AnnotatedMessage annotated_msg =
-            bus_.Receive(main_thread_client_id_, 0, true);
-        const TaggedMessage &tagged_message = annotated_msg.tagged_message;
-        DCHECK_EQ(kWorkloadCompletionMessage, tagged_message.message_type());
+        QueryExecutionUtil::ReceiveQueryCompletionMessage(
+            main_thread_client_id_, &bus_);
 
         const CatalogRelation *query_result_relation = query_handle.getQueryResultRelation();
         if (query_result_relation) {

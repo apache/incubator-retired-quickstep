@@ -88,7 +88,6 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #include "tmb/id_typedefs.h"
 #include "tmb/message_bus.h"
 #include "tmb/message_style.h"
-#include "tmb/tagged_message.h"
 
 namespace quickstep {
 class CatalogRelation;
@@ -119,7 +118,6 @@ using quickstep::QueryHandle;
 using quickstep::QueryPlan;
 using quickstep::QueryProcessor;
 using quickstep::SqlParserWrapper;
-using quickstep::TaggedMessage;
 using quickstep::Worker;
 using quickstep::WorkerDirectory;
 using quickstep::WorkerMessage;
@@ -128,7 +126,6 @@ using quickstep::kPoisonMessage;
 using quickstep::kWorkloadCompletionMessage;
 
 using tmb::client_id;
-using tmb::AnnotatedMessage;
 
 namespace quickstep {
 
@@ -440,10 +437,8 @@ int main(int argc, char* argv[]) {
             &bus);
 
         try {
-          const AnnotatedMessage annotated_msg =
-              bus.Receive(main_thread_client_id, 0, true);
-          const TaggedMessage &tagged_message = annotated_msg.tagged_message;
-          DCHECK_EQ(kWorkloadCompletionMessage, tagged_message.message_type());
+          QueryExecutionUtil::ReceiveQueryCompletionMessage(
+              main_thread_client_id, &bus);
           end = std::chrono::steady_clock::now();
 
           const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();

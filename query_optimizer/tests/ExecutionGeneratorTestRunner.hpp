@@ -35,6 +35,9 @@
 #include "utility/Macros.hpp"
 #include "utility/textbased_test/TextBasedTestDriver.hpp"
 
+#include "tmb/id_typedefs.h"
+#include "tmb/message_bus.h"
+
 namespace quickstep {
 
 namespace optimizer {

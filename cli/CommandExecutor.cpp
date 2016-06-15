@@ -220,6 +220,8 @@ inline TypedValue executeQueryForSingleResult(
   QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
       main_thread_client_id, foreman_client_id, query_handle.get(), bus);
 
+  QueryExecutionUtil::ReceiveQueryCompletionMessage(main_thread_client_id, bus);
+
   // Retrieve the scalar result from the result relation.
   const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
   DCHECK(query_result_relation != nullptr);

@@ -25,12 +25,17 @@
 #include "query_execution/WorkerMessage.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 #include "tmb/address.h"
+#include "tmb/id_typedefs.h"
 #include "tmb/message_style.h"
 #include "tmb/message_bus.h"
 #include "tmb/tagged_message.h"
 
 namespace quickstep {
+
+class QueryHandle;
 
 /**
  * @brief A static class for reusable methods in query_execution module.
@@ -89,6 +94,24 @@ class QueryExecutionUtil {
 
     return QueryExecutionUtil::SendTMBMessage(
         bus, sender_id, receiver_id, std::move(admit_tagged_message));
+  }
+
+  /**
+   * @brief Receive a query completion message.
+   *
+   * @param receiver_id The TMB client ID of the receiver thread.
+   * @param bus A pointer to the TMB.
+   *
+   * @note Right now the query completion message is of no interest to the
+   *       caller. In the future, if this message needs to be fetched, make this
+   *       function return the TaggedMessage.
+   **/
+  static void ReceiveQueryCompletionMessage(const tmb::client_id receiver_id,
+                                            tmb::MessageBus *bus) {
+    const AnnotatedMessage annotated_msg =
+        bus->Receive(receiver_id, 0, true);
+    const TaggedMessage &tagged_message = annotated_msg.tagged_message;
+    DCHECK_EQ(kWorkloadCompletionMessage, tagged_message.message_type());
   }
 
   static void BroadcastPoisonMessage(const tmb::client_id sender_id, tmb::MessageBus *bus) {
