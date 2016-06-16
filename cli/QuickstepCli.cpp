@@ -137,6 +137,9 @@ static constexpr char kPathSeparator = '/';
 static constexpr char kDefaultStoragePath[] = "qsstor/";
 #endif
 
+DEFINE_bool(profile_and_report_workorder_perf, false,
+    "If true, Quickstep will record the exceution time of all the individual "
+    "normal work orders and report it at the end of query execution.");
 DEFINE_int32(num_workers, 0, "Number of worker threads. If this value is "
                              "specified and is greater than 0, then this "
                              "user-supplied value is used. Else (i.e. the"
@@ -356,7 +359,9 @@ int main(int argc, char* argv[]) {
                   &bus,
                   query_processor->getDefaultDatabase(),
                   query_processor->getStorageManager(),
-                  num_numa_nodes_system);
+                  -1,  // Don't pin the Foreman thread.
+                  num_numa_nodes_system,
+                  quickstep::FLAGS_profile_and_report_workorder_perf);
 
   // Start the worker threads.
   for (Worker &worker : workers) {
@@ -461,6 +466,11 @@ int main(int argc, char* argv[]) {
           printf("Time: %s ms\n",
                  quickstep::DoubleToStringWithSignificantDigits(
                      time_ms.count(), 3).c_str());
+          if (quickstep::FLAGS_profile_and_report_workorder_perf) {
+            // TODO(harshad) - Allow user specified file instead of stdout.
+            foreman.printWorkOrderProfilingResults(query_handle->query_id(),
+                                                   stdout);
+          }
         } catch (const std::exception &e) {
           fprintf(stderr, "QUERY EXECUTION ERROR: %s\n", e.what());
           break;

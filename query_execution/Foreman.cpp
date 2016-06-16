@@ -18,7 +18,9 @@
 #include "query_execution/Foreman.hpp"
 
 #include <cstddef>
+#include <cstdio>
 #include <memory>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -54,7 +56,8 @@ Foreman::Foreman(const tmb::client_id main_thread_client_id,
                  CatalogDatabaseLite *catalog_database,
                  StorageManager *storage_manager,
                  const int cpu_id,
-                 const size_t num_numa_nodes)
+                 const size_t num_numa_nodes,
+                 const bool profile_individual_workorders)
     : ForemanLite(bus, cpu_id),
       main_thread_client_id_(main_thread_client_id),
       worker_directory_(DCHECK_NOTNULL(worker_directory)),
@@ -90,7 +93,8 @@ Foreman::Foreman(const tmb::client_id main_thread_client_id,
       catalog_database_,
       storage_manager_,
       worker_directory_,
-      bus_));
+      bus_,
+      profile_individual_workorders));
 }
 
 void Foreman::run() {
@@ -227,6 +231,24 @@ void Foreman::sendWorkerMessage(const size_t worker_thread_index,
       "Message could not be sent from Foreman with TMB client ID "
       << foreman_client_id_ << " to Foreman with TMB client ID "
       << worker_directory_->getClientID(worker_thread_index);
+}
+
+void Foreman::printWorkOrderProfilingResults(const std::size_t query_id,
+                                             std::FILE *out) const {
+  const std::vector<
+      std::tuple<std::size_t, std::size_t, std::size_t>>
+      &recorded_times = policy_enforcer_->getProfilingResults(query_id);
+  fputs("Worker ID, NUMA Socket, Operator ID, Time (microseconds)\n", out);
+  for (auto workorder_entry : recorded_times) {
+    // Note: Index of the "worker thread index" in the tuple is 0.
+    const std::size_t worker_id = std::get<0>(workorder_entry);
+    fprintf(out,
+            "%lu, %d, %lu, %lu\n",
+            worker_id,
+            worker_directory_->getNUMANode(worker_id),
+            std::get<1>(workorder_entry),
+            std::get<2>(workorder_entry));
+  }
 }
 
 }  // namespace quickstep

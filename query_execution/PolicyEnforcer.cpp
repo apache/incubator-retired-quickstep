@@ -76,6 +76,9 @@ void PolicyEnforcer::processMessage(const TaggedMessage &tagged_message) {
       query_id = proto.query_id();
       worker_directory_->decrementNumQueuedWorkOrders(
           proto.worker_thread_index());
+      if (profile_individual_workorders_) {
+        recordTimeForWorkOrder(proto);
+      }
       break;
     }
     case kRebuildWorkOrderCompleteMessage: {
@@ -195,6 +198,18 @@ bool PolicyEnforcer::admitQueries(
     }
   }
   return true;
+}
+
+void PolicyEnforcer::recordTimeForWorkOrder(
+    const serialization::NormalWorkOrderCompletionMessage &proto) {
+  const std::size_t query_id = proto.query_id();
+  if (workorder_time_recorder_.find(query_id) == workorder_time_recorder_.end()) {
+    workorder_time_recorder_[query_id];
+  }
+  workorder_time_recorder_[query_id].emplace_back(
+      proto.worker_thread_index(),
+      proto.operator_index(),
+      proto.execution_time_in_microseconds());
 }
 
 }  // namespace quickstep

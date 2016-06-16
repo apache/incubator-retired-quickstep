@@ -19,6 +19,7 @@
 #define QUICKSTEP_QUERY_EXECUTION_FOREMAN_HPP_
 
 #include <cstddef>
+#include <cstdio>
 #include <memory>
 #include <vector>
 
@@ -57,6 +58,8 @@ class Foreman final : public ForemanLite {
    * @param storage_manager The StorageManager to use.
    * @param cpu_id The ID of the CPU to which the Foreman thread can be pinned.
    * @param num_numa_nodes The number of NUMA nodes in the system.
+   * @param profile_individual_workorders Whether every workorder's execution
+   *        be profiled or not.
    *
    * @note If cpu_id is not specified, Foreman thread can be possibly moved
    *       around on different CPUs by the OS.
@@ -67,9 +70,26 @@ class Foreman final : public ForemanLite {
           CatalogDatabaseLite *catalog_database,
           StorageManager *storage_manager,
           const int cpu_id = -1,
-          const std::size_t num_numa_nodes = 1);
+          const std::size_t num_numa_nodes = 1,
+          const bool profile_individual_workorders = false);
 
   ~Foreman() override {}
+
+  /**
+   * @brief Print the results of profiling individual work orders for a given
+   *        query.
+   *
+   * TODO(harshad) - Add the name of the operator to the output.
+   * TODO(harshad) - Add the CPU core ID of the operator to the output. This
+   * will require modifying the WorkerDirectory to remember worker affinities.
+   * Until then, the users can refer to the worker_affinities provided to the
+   * cli to infer the CPU core ID where a given worker is pinned.
+   *
+   * @param query_id The ID of the query for which the results are to be printed.
+   * @param out The file stream.
+   **/
+  void printWorkOrderProfilingResults(const std::size_t query_id,
+                                      std::FILE *out) const;
 
  protected:
   void run() override;
