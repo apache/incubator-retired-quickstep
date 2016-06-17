@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -22,8 +22,6 @@
 #endif
 
 #include "storage/TupleIdSequence.hpp"
-#include "storage/ValueAccessor.hpp"
-#include "utility/Macros.hpp"
 
 #ifdef QUICKSTEP_DEBUG
 #include "catalog/CatalogAttribute.hpp"
@@ -32,6 +30,8 @@
 #include "types/TypedValue.hpp"
 #include "types/containers/Tuple.hpp"
 #endif
+
+#include "glog/logging.h"
 
 namespace quickstep {
 
@@ -49,7 +49,7 @@ tuple_id TupleStorageSubBlock::numTuples() const {
       }
     }
     // Should have at least one tuple, otherwise isEmpty() would have been true.
-    DEBUG_ASSERT(count > 0);
+    DCHECK_GT(count, 0);
     return count;
   }
 }

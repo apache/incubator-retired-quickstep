@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_STORAGE_TUPLE_STORAGE_SUB_BLOCK_HPP_
 #define QUICKSTEP_STORAGE_TUPLE_STORAGE_SUB_BLOCK_HPP_
 
+#include <cstddef>
 #include <unordered_map>
 #include <vector>
 
@@ -27,6 +28,8 @@
 #include "storage/TupleIdSequence.hpp"
 #include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 
@@ -404,9 +407,9 @@ class TupleStorageSubBlock {
    **/
   virtual TupleIdSequence* getMatchesForPredicate(const ComparisonPredicate &predicate,
                                                   const TupleIdSequence *filter) const {
-    FATAL_ERROR("Called TupleStorageSubBlock::getMatchesForPredicate() on a "
-                "TupleStorageStorageBlock that does not provide any non-scan "
-                "method for evaluating predicates.");
+    LOG(FATAL) << "Called TupleStorageSubBlock::getMatchesForPredicate() on a "
+               << "TupleStorageStorageBlock that does not provide any non-scan "
+               << "method for evaluating predicates.";
   }
 
   /**

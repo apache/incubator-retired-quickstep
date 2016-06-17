@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
  *     University of Wisconsin—Madison.
  *
@@ -23,14 +23,14 @@
 #include <string>
 #include <vector>
 
-#include "glog/logging.h"
-
 #include "catalog/CatalogRelationSchema.hpp"
 #include "storage/StorageBlockLayout.pb.h"
 #include "storage/StorageConstants.hpp"
 #include "storage/StorageErrors.hpp"
 #include "storage/SubBlockTypeRegistry.hpp"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
 
 using std::size_t;
 using std::string;
@@ -68,7 +68,7 @@ void StorageBlockLayout::finalize() {
     block_header_.add_index_consistent(true);
   }
 
-  DEBUG_ASSERT(block_header_.IsInitialized());
+  DCHECK(block_header_.IsInitialized());
 
   size_t header_size = getBlockHeaderSize();
   if (header_size > layout_description_.num_slots() * kSlotSizeBytes) {
@@ -131,19 +131,18 @@ void StorageBlockLayout::finalize() {
 
   block_header_.set_tuple_store_size(sub_block_space - allocated_sub_block_space);
 
-  DEBUG_ASSERT(block_header_.IsInitialized());
-  DEBUG_ASSERT(header_size == getBlockHeaderSize());
+  DCHECK(block_header_.IsInitialized());
+  DCHECK(header_size == getBlockHeaderSize());
 }
 
 void StorageBlockLayout::copyHeaderTo(void *dest) const {
-  DEBUG_ASSERT(DescriptionIsValid(relation_, layout_description_));
-  DEBUG_ASSERT(block_header_.IsInitialized());
+  DCHECK(DescriptionIsValid(relation_, layout_description_));
+  DCHECK(block_header_.IsInitialized());
 
   *static_cast<int*>(dest) = block_header_.ByteSize();
-  if (!block_header_.SerializeToArray(static_cast<char*>(dest) + sizeof(int),
-                                      block_header_.ByteSize())) {
-    FATAL_ERROR("Failed to do binary serialization of StorageBlockHeader in StorageBlockLayout::copyHeaderTo()");
-  }
+  CHECK(block_header_.SerializeToArray(static_cast<char*>(dest) + sizeof(int),
+                                       block_header_.ByteSize()))
+      << "Failed to do binary serialization of StorageBlockHeader in StorageBlockLayout::copyHeaderTo()";
 }
 
 StorageBlockLayout* StorageBlockLayout::GenerateDefaultLayout(const CatalogRelationSchema &relation,
@@ -170,7 +169,7 @@ bool StorageBlockLayout::DescriptionIsValid(const CatalogRelationSchema &relatio
 }
 
 std::size_t StorageBlockLayout::estimateTuplesPerBlock() const {
-  DEBUG_ASSERT(block_header_.IsInitialized());
+  DCHECK(block_header_.IsInitialized());
   return ((layout_description_.num_slots() * kSlotSizeBytes) - getBlockHeaderSize())
          / estimated_bytes_per_tuple_;
 }

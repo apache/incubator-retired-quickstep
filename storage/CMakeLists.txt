@@ -290,6 +290,7 @@ target_link_libraries(quickstep_storage_AggregationOperationState_proto
                       quickstep_storage_HashTable_proto
                       ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_storage_BasicColumnStoreTupleStorageSubBlock
+                      glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
@@ -421,11 +422,11 @@ if(QUICKSTEP_HAVE_BITWEAVING)
 endif()
 # CMAKE_VALIDATE_IGNORE_END
 target_link_libraries(quickstep_storage_ColumnStoreUtil
+                      glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_predicate_ComparisonPredicate
-                      quickstep_expressions_predicate_Predicate
                       quickstep_expressions_scalar_Scalar
                       quickstep_expressions_scalar_ScalarAttribute
                       quickstep_storage_StorageBlockInfo
@@ -455,6 +456,7 @@ target_link_libraries(quickstep_storage_CompressedBlockBuilder
                       quickstep_utility_PtrMap
                       quickstep_utility_PtrVector)
 target_link_libraries(quickstep_storage_CompressedColumnStoreTupleStorageSubBlock
+                      glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
@@ -490,6 +492,7 @@ target_link_libraries(quickstep_storage_CompressedColumnStoreValueAccessor
                       quickstep_utility_Macros
                       quickstep_utility_PtrMap)
 target_link_libraries(quickstep_storage_CompressedPackedRowStoreTupleStorageSubBlock
+                      glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
@@ -542,24 +545,26 @@ target_link_libraries(quickstep_storage_CompressedStoreUtil
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_CompressedTupleStorageSubBlock
+                      glog
+                      quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_compression_CompressionDictionary
                       quickstep_compression_CompressionDictionaryLite
                       quickstep_expressions_predicate_ComparisonPredicate
-                      quickstep_expressions_predicate_Predicate
                       quickstep_expressions_scalar_Scalar
                       quickstep_expressions_scalar_ScalarAttribute
                       quickstep_storage_CompressedBlockBuilder
                       quickstep_storage_CompressedStoreUtil
+                      quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_storage_StorageErrors
                       quickstep_storage_TupleIdSequence
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_storage_ValueAccessor
                       quickstep_storage_ValueAccessorUtil
-                      quickstep_types_TypedValue
-                      quickstep_types_containers_Tuple
+                      quickstep_types_Type
+                      quickstep_types_TypeID
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_utility_Macros
                       quickstep_utility_PtrMap)
@@ -760,6 +765,7 @@ target_link_libraries(quickstep_storage_LinearOpenAddressingHashTable
                       quickstep_utility_Macros
                       quickstep_utility_PrimeNumber)
 target_link_libraries(quickstep_storage_PackedRowStoreTupleStorageSubBlock
+                      glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
@@ -862,6 +868,7 @@ target_link_libraries(quickstep_storage_SimpleScalarSeparateChainingHashTable
                       quickstep_utility_Macros
                       quickstep_utility_PrimeNumber)
 target_link_libraries(quickstep_storage_SplitRowStoreTupleStorageSubBlock
+                      glog
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_expressions_predicate_PredicateCost
                       quickstep_storage_SplitRowStoreValueAccessor
@@ -894,6 +901,7 @@ target_link_libraries(quickstep_storage_StorageBlob
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_StorageBlock
                       glog
+                      quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_aggregation_AggregationHandle
@@ -1008,13 +1016,13 @@ target_link_libraries(quickstep_storage_TupleIdSequence
 target_link_libraries(quickstep_storage_TupleReference
                       quickstep_storage_StorageBlockInfo)
 target_link_libraries(quickstep_storage_TupleStorageSubBlock
+                      glog
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_predicate_PredicateCost
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_TupleIdSequence
-                      quickstep_storage_ValueAccessor
                       quickstep_types_Type
                       quickstep_types_TypedValue
                       quickstep_types_containers_Tuple

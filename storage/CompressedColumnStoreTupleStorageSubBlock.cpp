@@ -1,6 +1,6 @@
 /**
  *   Copyright 2011-2015 Quickstep Technologies LLC.
- *   Copyright 2015 Pivotal Software, Inc.
+ *   Copyright 2015-2016 Pivotal Software, Inc.
  *
  *   Licensed under the Apache License, Version 2.0 (the "License");
  *   you may not use this file except in compliance with the License.
@@ -44,8 +44,9 @@
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "utility/BitVector.hpp"
-#include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
+
+#include "glog/logging.h"
 
 using std::equal_to;
 using std::greater;
@@ -78,10 +79,9 @@ CompressedColumnStoreTupleStorageSubBlock::CompressedColumnStoreTupleStorageSubB
                                      sub_block_memory,
                                      sub_block_memory_size),
       uncompressed_nulls_in_sort_column_(0) {
-  if (!DescriptionIsValid(relation_, description_)) {
-    FATAL_ERROR("Attempted to construct a CompressedColumnStoreTupleStorageSubBlock "
-                "from an invalid description.");
-  }
+  CHECK(DescriptionIsValid(relation_, description_))
+      << "Attempted to construct a CompressedColumnStoreTupleStorageSubBlock from an invalid description:\n"
+      << description_.DebugString();
 
   sort_column_id_ = description_.GetExtension(
       CompressedColumnStoreTupleStorageSubBlockDescription::sort_attribute_id);
@@ -163,7 +163,7 @@ bool CompressedColumnStoreTupleStorageSubBlock::DescriptionIsValid(
 std::size_t CompressedColumnStoreTupleStorageSubBlock::EstimateBytesPerTuple(
     const CatalogRelationSchema &relation,
     const TupleStorageSubBlockDescription &description) {
-  DEBUG_ASSERT(DescriptionIsValid(relation, description));
+  DCHECK(DescriptionIsValid(relation, description));
 
   std::unordered_set<attribute_id> compressed_attributes;
   for (int compressed_attribute_num = 0;
@@ -201,8 +201,8 @@ std::size_t CompressedColumnStoreTupleStorageSubBlock::EstimateBytesPerTuple(
 const void* CompressedColumnStoreTupleStorageSubBlock::getAttributeValue(
     const tuple_id tuple,
     const attribute_id attr) const {
-  DEBUG_ASSERT(hasTupleWithID(tuple));
-  DEBUG_ASSERT(supportsUntypedGetAttributeValue(attr));
+  DCHECK(hasTupleWithID(tuple));
+  DCHECK(supportsUntypedGetAttributeValue(attr));
 
   if (dictionary_coded_attributes_[attr]) {
     return dictionaries_.atUnchecked(attr).getUntypedValueForCode<true>(
@@ -215,7 +215,7 @@ const void* CompressedColumnStoreTupleStorageSubBlock::getAttributeValue(
 TypedValue CompressedColumnStoreTupleStorageSubBlock::getAttributeValueTyped(
     const tuple_id tuple,
     const attribute_id attr) const {
-  DEBUG_ASSERT(hasTupleWithID(tuple));
+  DCHECK(hasTupleWithID(tuple));
 
   if (dictionary_coded_attributes_[attr]) {
     return dictionaries_.atUnchecked(attr).getTypedValueForCode(
@@ -258,7 +258,7 @@ ValueAccessor* CompressedColumnStoreTupleStorageSubBlock::createValueAccessor(
 }
 
 bool CompressedColumnStoreTupleStorageSubBlock::deleteTuple(const tuple_id tuple) {
-  DEBUG_ASSERT(hasTupleWithID(tuple));
+  DCHECK(hasTupleWithID(tuple));
 
   if (compression_info_.uncompressed_attribute_has_nulls(sort_column_id_)
       && uncompressed_column_null_bitmaps_[sort_column_id_].getBit(tuple)) {
@@ -408,8 +408,8 @@ void CompressedColumnStoreTupleStorageSubBlock::rebuild() {
 std::uint32_t CompressedColumnStoreTupleStorageSubBlock::compressedGetCode(
     const tuple_id tid,
     const attribute_id attr_id) const {
-  DEBUG_ASSERT(hasTupleWithID(tid));
-  DEBUG_ASSERT((dictionary_coded_attributes_[attr_id]) || (truncated_attributes_[attr_id]));
+  DCHECK(hasTupleWithID(tid));
+  DCHECK((dictionary_coded_attributes_[attr_id]) || (truncated_attributes_[attr_id]));
   const void *code_location = getAttributePtr<false>(tid, attr_id);
   switch (compression_info_.attribute_size(attr_id)) {
     case 1:
@@ -419,9 +419,8 @@ std::uint32_t CompressedColumnStoreTupleStorageSubBlock::compressedGetCode(
     case 4:
       return *static_cast<const std::uint32_t*>(code_location);
     default:
-      FATAL_ERROR("Unexpected byte-length (not 1, 2, or 4) for compressed "
-                  "attribute ID " << attr_id
-                  << " in CompressedColumnStoreTupleStorageSubBlock::compressedGetCode()");
+      LOG(FATAL) << "Unexpected byte-length (not 1, 2, or 4) for compressed attribute ID " << attr_id
+                 << " in CompressedColumnStoreTupleStorageSubBlock::compressedGetCode()";
   }
 }
 
@@ -561,9 +560,8 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getNotEqualCodesExcl
           }
           break;
         default:
-          FATAL_ERROR("Unexpected byte-length (not 1, 2, or 4) for compressed "
-                      "attribute ID " << attr_id
-                      << " in CompressedColumnStoreTupleStorageSubBlock::getNotEqualCodesExcludingNull()");
+          LOG(FATAL) << "Unexpected byte-length (not 1, 2, or 4) for compressed attribute ID " << attr_id
+                     << " in CompressedColumnStoreTupleStorageSubBlock::getNotEqualCodesExcludingNull()";
       }
       if (filter != nullptr) {
         matches->intersectWith(*filter);
@@ -601,9 +599,8 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getNotEqualCodesExcl
           }
           break;
         default:
-          FATAL_ERROR("Unexpected byte-length (not 1, 2, or 4) for compressed "
-                      "attribute ID " << attr_id
-                      << " in CompressedColumnStoreTupleStorageSubBlock::getNotEqualCodesExcludingNull()");
+          LOG(FATAL) << "Unexpected byte-length (not 1, 2, or 4) for compressed attribute ID " << attr_id
+                     << " in CompressedColumnStoreTupleStorageSubBlock::getNotEqualCodesExcludingNull()";
       }
     }
     return matches;
@@ -700,9 +697,8 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesInRange(
           }
           break;
         default:
-          FATAL_ERROR("Unexpected byte-length (not 1, 2, or 4) for compressed "
-                      "attribute ID " << attr_id
-                      << " in CompressedColumnStoreTupleStorageSubBlock::getCodesInRange()");
+          LOG(FATAL) << "Unexpected byte-length (not 1, 2, or 4) for compressed attribute ID " << attr_id
+                     << " in CompressedColumnStoreTupleStorageSubBlock::getCodesInRange()";
       }
       if (filter != nullptr) {
         matches->intersectWith(*filter);
@@ -740,9 +736,8 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesInRange(
           }
           break;
         default:
-          FATAL_ERROR("Unexpected byte-length (not 1, 2, or 4) for compressed "
-                      "attribute ID " << attr_id
-                      << " in CompressedColumnStoreTupleStorageSubBlock::getCodesInRange()");
+          LOG(FATAL) << "Unexpected byte-length (not 1, 2, or 4) for compressed attribute ID " << attr_id
+                     << " in CompressedColumnStoreTupleStorageSubBlock::getCodesInRange()";
       }
     }
   }
@@ -831,7 +826,7 @@ void CompressedColumnStoreTupleStorageSubBlock::shiftUncompressedNullBitmaps(
 
 std::pair<tuple_id, tuple_id> CompressedColumnStoreTupleStorageSubBlock::getCompressedSortColumnRange(
     const std::pair<std::uint32_t, std::uint32_t> code_range) const {
-  DEBUG_ASSERT(dictionary_coded_attributes_[sort_column_id_] || truncated_attributes_[sort_column_id_]);
+  DCHECK(dictionary_coded_attributes_[sort_column_id_] || truncated_attributes_[sort_column_id_]);
 
   const void *attr_stripe = column_stripes_[sort_column_id_];
   pair<tuple_id, tuple_id> tuple_range;
@@ -861,9 +856,8 @@ std::pair<tuple_id, tuple_id> CompressedColumnStoreTupleStorageSubBlock::getComp
                             - static_cast<const uint32_t*>(attr_stripe);
         break;
       default:
-        FATAL_ERROR("Unexpected byte-length (not 1, 2, or 4) for compressed "
-                    "attribute ID " << sort_column_id_
-                    << " in CompressedColumnStoreTupleStorageSubBlock::getCompressedSortColumnRange()");
+        LOG(FATAL) << "Unexpected byte-length (not 1, 2, or 4) for compressed attribute ID " << sort_column_id_
+                   << " in CompressedColumnStoreTupleStorageSubBlock::getCompressedSortColumnRange()";
     }
   }
 
@@ -893,9 +887,8 @@ std::pair<tuple_id, tuple_id> CompressedColumnStoreTupleStorageSubBlock::getComp
                              - static_cast<const uint32_t*>(attr_stripe);
         break;
       default:
-        FATAL_ERROR("Unexpected byte-length (not 1, 2, or 4) for compressed "
-                    "attribute ID " << sort_column_id_
-                    << " in CompressedColumnStoreTupleStorageSubBlock::getCompressedSortColumnRange()");
+        LOG(FATAL) << "Unexpected byte-length (not 1, 2, or 4) for compressed attribute ID " << sort_column_id_
+                   << " in CompressedColumnStoreTupleStorageSubBlock::getCompressedSortColumnRange()";
     }
   }
 
@@ -945,9 +938,8 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesSatisfyingCo
         }
         break;
       default:
-        FATAL_ERROR("Unexpected byte-length (not 1, 2, or 4) for compressed "
-                    "attribute ID " << attr_id
-                    << " in CompressedColumnStoreTupleStorageSubBlock::getCodesSatisfyingComparison()");
+        LOG(FATAL) << "Unexpected byte-length (not 1, 2, or 4) for compressed attribute ID " << attr_id
+                   << " in CompressedColumnStoreTupleStorageSubBlock::getCodesSatisfyingComparison()";
     }
     if (filter != nullptr) {
       matches->intersectWith(*filter);
@@ -982,9 +974,8 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesSatisfyingCo
         }
         break;
       default:
-        FATAL_ERROR("Unexpected byte-length (not 1, 2, or 4) for compressed "
-                    "attribute ID " << attr_id
-                    << " in CompressedColumnStoreTupleStorageSubBlock::getCodesSatisfyingComparison()");
+        LOG(FATAL) << "Unexpected byte-length (not 1, 2, or 4) for compressed attribute ID " << attr_id
+                   << " in CompressedColumnStoreTupleStorageSubBlock::getCodesSatisfyingComparison()";
     }
   }
 
