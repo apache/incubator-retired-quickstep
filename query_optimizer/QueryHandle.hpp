@@ -18,6 +18,7 @@
 #define QUICKSTEP_QUERY_OPTIMIZER_QUERY_HANDLE_HPP_
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <utility>
 
@@ -44,8 +45,10 @@ class QueryHandle {
    *
    * @param query_id The given query id.
    */
-  explicit QueryHandle(const std::size_t query_id)
+  explicit QueryHandle(const std::size_t query_id,
+                       const std::uint64_t query_priority = 1)
       : query_id_(query_id),
+        query_priority_(query_priority),
         query_plan_(new QueryPlan()),
         query_result_relation_(nullptr) {}
 
@@ -58,6 +61,13 @@ class QueryHandle {
    */
   std::size_t query_id() const {
     return query_id_;
+  }
+
+  /**
+   * @brief Get the query priority.
+   **/
+  const std::uint64_t query_priority() const {
+    return query_priority_;
   }
 
   /**
@@ -111,6 +121,7 @@ class QueryHandle {
 
  private:
   const std::size_t query_id_;
+  const std::uint64_t query_priority_;
 
   std::unique_ptr<QueryPlan> query_plan_;
 

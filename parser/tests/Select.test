@@ -480,6 +480,49 @@ SELECT 1 FROM test LIMIT abc
                          ^
 ==
 
+# Priority
+SELECT 1 FROM test WITH PRIORITY 1
+--
+SelectStatement
++-select_query=Select
+| +-select_clause=SelectList
+| | +-SelectListItem
+| |   +-Literal
+| |     +-NumericLiteral[numeric_string=1,float_like=false]
+| +-from_clause=
+|   +-TableReference[table=test]
++-priority=PRIORITY
+  +-NumericLiteral[numeric_string=1,float_like=false]
+==
+
+SELECT 1 FROM test WITH PRIORITY 1.1
+--
+ERROR: PRIORITY value must be an integer (1 : 34)
+SELECT 1 FROM test WITH PRIORITY 1.1
+                                 ^
+==
+
+SELECT 1 FROM test WITH PRIORITY 0
+--
+ERROR: PRIORITY value must be positive (1 : 34)
+SELECT 1 FROM test WITH PRIORITY 0
+                                 ^
+==
+
+SELECT 1 FROM test WITH PRIORITY -1
+--
+ERROR: syntax error (1 : 34)
+SELECT 1 FROM test WITH PRIORITY -1
+                                 ^
+==
+
+SELECT 1 FROM test WITH PRIORITY abc
+--
+ERROR: syntax error (1 : 34)
+SELECT 1 FROM test WITH PRIORITY abc
+                                 ^
+==
+
 #
 # Subqueries
 #

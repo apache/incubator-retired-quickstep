@@ -103,6 +103,7 @@ add_library(quickstep_parser_ParsePartitionClause ../empty_src.cpp ParsePartitio
 add_library(quickstep_parser_ParsePredicate ParsePredicate.cpp ParsePredicate.hpp)
 add_library(quickstep_parser_ParsePredicateExists ../empty_src.cpp ParsePredicateExists.hpp)
 add_library(quickstep_parser_ParsePredicateInTableQuery ../empty_src.cpp ParsePredicateInTableQuery.hpp)
+add_library(quickstep_parser_ParsePriority ../empty_src.cpp ParsePriority.hpp)
 add_library(quickstep_parser_ParseSample ParseSample.cpp ParseSample.hpp)
 add_library(quickstep_parser_ParseSelect ../empty_src.cpp ParseSelect.hpp)
 add_library(quickstep_parser_ParseSelectionClause ParseSelectionClause.cpp ParseSelectionClause.hpp)
@@ -229,6 +230,10 @@ target_link_libraries(quickstep_parser_ParsePredicateInTableQuery
                       quickstep_parser_ParsePredicate
                       quickstep_parser_ParseSubqueryExpression
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_parser_ParsePriority
+                      quickstep_parser_ParseLiteralValue
+                      quickstep_parser_ParseTreeNode
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_parser_ParseSample
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseTreeNode
@@ -267,6 +272,7 @@ target_link_libraries(quickstep_parser_ParseStatement
                       quickstep_parser_ParseKeyValue
                       quickstep_parser_ParsePartitionClause
                       quickstep_parser_ParsePredicate
+                      quickstep_parser_ParsePriority
                       quickstep_parser_ParseSelect
                       quickstep_parser_ParseString
                       quickstep_parser_ParseSubqueryTableReference
@@ -337,6 +343,7 @@ target_link_libraries(quickstep_parser_SqlParser
                       quickstep_parser_ParsePredicate
                       quickstep_parser_ParsePredicateExists
                       quickstep_parser_ParsePredicateInTableQuery
+                      quickstep_parser_ParsePriority
                       quickstep_parser_ParseSample
                       quickstep_parser_ParseSelect
                       quickstep_parser_ParseSelectionClause
@@ -414,6 +421,7 @@ target_link_libraries(quickstep_parser
                       quickstep_parser_ParsePredicate
                       quickstep_parser_ParsePredicateExists
                       quickstep_parser_ParsePredicateInTableQuery
+                      quickstep_parser_ParsePriority
                       quickstep_parser_ParserUtil
                       quickstep_parser_ParseSample
                       quickstep_parser_ParseSelect

@@ -61,6 +61,7 @@ class ParseOrderBy;
 class ParseOrderByItem;
 class ParsePartitionClause;
 class ParsePredicate;
+class ParsePriority;
 class ParseSample;
 class ParseScalarLiteral;
 class ParseSearchedWhenClause;
@@ -253,6 +254,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "percent"          return TOKEN_PERCENT;
   "preceding"        return TOKEN_PRECEDING;
   "primary"          return TOKEN_PRIMARY;
+  "priority"         return TOKEN_PRIORITY;
   "quit"             return TOKEN_QUIT;
   "range"            return TOKEN_RANGE;
   "real"             return TOKEN_REAL;

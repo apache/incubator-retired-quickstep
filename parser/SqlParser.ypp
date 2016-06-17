@@ -85,6 +85,7 @@ typedef struct YYLTYPE {
 #include "parser/ParsePredicate.hpp"
 #include "parser/ParsePredicateExists.hpp"
 #include "parser/ParsePredicateInTableQuery.hpp"
+#include "parser/ParsePriority.hpp"
 #include "parser/ParserUtil.hpp"
 #include "parser/ParseSample.hpp"
 #include "parser/ParseSelect.hpp"
@@ -212,6 +213,8 @@ typedef void* yyscan_t;
 
   quickstep::PtrVector<quickstep::ParseSubqueryTableReference> *with_list_;
   quickstep::ParseSubqueryTableReference *with_list_element_;
+
+  quickstep::ParsePriority *opt_priority_clause_;
 }
 
 %{
@@ -319,6 +322,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_PERCENT;
 %token TOKEN_PRECEDING;
 %token TOKEN_PRIMARY;
+%token TOKEN_PRIORITY;
 %token TOKEN_QUIT;
 %token TOKEN_RANGE;
 %token TOKEN_REAL;
@@ -582,6 +586,9 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <window_frame_info_>
   opt_window_frame
+
+%type <opt_priority_clause_>
+  opt_priority_clause
 
 %type <with_list_>
   with_clause
@@ -1143,13 +1150,35 @@ assignment_item:
 
 /* Select Queries */
 select_statement:
-  select_query {
-    $$ = new quickstep::ParseStatementSelect(@1.first_line, @1.first_column, $1, nullptr);
+  select_query opt_priority_clause {
+    $$ = new quickstep::ParseStatementSelect(@1.first_line, @1.first_column, $1, nullptr, $2);
   }
-  | with_clause select_query {
-    $$ = new quickstep::ParseStatementSelect(@1.first_line, @1.first_column, $2, $1);
+  | with_clause select_query opt_priority_clause {
+    $$ = new quickstep::ParseStatementSelect(@1.first_line, @1.first_column, $2, $1, $3);
   };
 
+opt_priority_clause:
+  {
+    $$ = nullptr;
+  }
+  | TOKEN_WITH TOKEN_PRIORITY TOKEN_UNSIGNED_NUMVAL {
+    if ($3->float_like()) {
+      delete $3;
+      $$ = nullptr;
+      quickstep_yyerror(&@3, yyscanner, nullptr, "PRIORITY value must be an integer");
+      YYERROR;
+    } else {
+      if ($3->long_value() <= 0) {
+        delete $3;
+        $$ = nullptr;
+        quickstep_yyerror(&@3, yyscanner, nullptr, "PRIORITY value must be positive");
+        YYERROR;
+      } else {
+        $$ = new quickstep::ParsePriority(@1.first_line, @1.first_column, $3);
+      }
+    }
+  };
+  
 with_clause:
   TOKEN_WITH with_list {
     $$ = $2;
