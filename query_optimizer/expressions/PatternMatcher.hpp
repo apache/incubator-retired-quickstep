@@ -52,6 +52,7 @@ class Scalar;
 class ScalarLiteral;
 class Sum;
 class UnaryExpression;
+class WindowAggregateFunction;
 
 /** \addtogroup OptimizerExpressions
  *  @{
@@ -155,6 +156,8 @@ using SomeScalar = SomeExpressionNode<Scalar,
                                       ExpressionType::kUnaryExpression>;
 using SomeScalarLiteral = SomeExpressionNode<ScalarLiteral, ExpressionType::kScalarLiteral>;
 using SomeUnaryExpression = SomeExpressionNode<UnaryExpression, ExpressionType::kUnaryExpression>;
+using SomeWindowAggregateFunction = SomeExpressionNode<WindowAggregateFunction,
+                                                       ExpressionType::kWindowAggregateFunction>;
 
 using SomeAggregateFunction = SomeExpressionNode<AggregateFunction,
                                                  ExpressionType::kAggregateFunction>;

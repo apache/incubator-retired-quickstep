@@ -45,6 +45,7 @@ class Sort;
 class TableReference;
 class TopLevelPlan;
 class UpdateTable;
+class WindowAggregate;
 
 /** \addtogroup OptimizerLogical
  *  @{
@@ -130,6 +131,7 @@ using SomeSort = SomeLogicalNode<Sort, LogicalType::kSort>;
 using SomeTableReference = SomeLogicalNode<TableReference, LogicalType::kTableReference>;
 using SomeTopLevelPlan = SomeLogicalNode<TopLevelPlan, LogicalType::kTopLevelPlan>;
 using SomeUpdateTable = SomeLogicalNode<UpdateTable, LogicalType::kUpdateTable>;
+using SomeWindowAggregate = SomeLogicalNode<WindowAggregate, LogicalType::kWindowAggregate>;
 
 /** @} */
 

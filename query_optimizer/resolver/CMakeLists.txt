@@ -89,6 +89,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_expressions_SimpleCase
                       quickstep_queryoptimizer_expressions_SubqueryExpression
                       quickstep_queryoptimizer_expressions_UnaryExpression
+                      quickstep_queryoptimizer_expressions_WindowAggregateFunction
                       quickstep_queryoptimizer_logical_Aggregate
                       quickstep_queryoptimizer_logical_CopyFrom
                       quickstep_queryoptimizer_logical_CreateIndex
@@ -109,6 +110,7 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_logical_TableReference
                       quickstep_queryoptimizer_logical_TopLevelPlan
                       quickstep_queryoptimizer_logical_UpdateTable
+                      quickstep_queryoptimizer_logical_WindowAggregate
                       quickstep_queryoptimizer_resolver_NameResolver
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_storage_StorageConstants

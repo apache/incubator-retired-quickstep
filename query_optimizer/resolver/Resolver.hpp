@@ -24,11 +24,13 @@
 #include <vector>
 
 #include "query_optimizer/expressions/AggregateFunction.hpp"
+#include "query_optimizer/expressions/Alias.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/expressions/SubqueryExpression.hpp"
 #include "query_optimizer/expressions/Scalar.hpp"
+#include "query_optimizer/expressions/WindowAggregateFunction.hpp"
 #include "query_optimizer/logical/Logical.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
@@ -65,6 +67,7 @@ class ParseSubqueryExpression;
 class ParseTableReference;
 class ParseTableReferenceSignature;
 class ParseTreeNode;
+class ParseWindow;
 template <class T>
 class PtrList;
 class StorageBlockLayoutDescription;
@@ -121,6 +124,17 @@ class Resolver {
    *        block.
    */
   struct QueryAggregationInfo;
+
+  /**
+   * @brief Query-scoped info that contains window aggregate expressions and a
+   *        window map.
+   **/
+  struct WindowAggregationInfo;
+
+  /**
+   * @brief A wrapper for resolved window and the corresponding sorted plan.
+   **/
+  struct WindowPlan;
 
   /**
    * @brief Query-scoped info that contains select-list expressions
@@ -271,6 +285,8 @@ class Resolver {
    * @param name_resolver NameResolver to resolve the relation/attribute names.
    * @param query_aggregation_info Passed down to each expression to collects
    *                               aggregate expressions.
+   * @param window_aggregate_expressions Passed down to each expressions to
+   *                                     collects window aggregate expressions.
    * @param project_expressions Converted SELECT-list expressions.
    * @param has_aggregate_per_expression For each SELECT-list expression,
    *                                     indicates whether it contains
@@ -282,6 +298,7 @@ class Resolver {
       const std::vector<const Type*> *type_hints,
       const NameResolver &name_resolver,
       QueryAggregationInfo *query_aggregation_info,
+      WindowAggregationInfo *window_aggregation_info,
       std::vector<expressions::NamedExpressionPtr> *project_expressions,
       std::vector<bool> *has_aggregate_per_expression);
 
@@ -359,6 +376,17 @@ class Resolver {
       const ParseTableReferenceSignature &table_signature);
 
   /**
+   * @brief Sort the input table in (p_key, o_key) order specified by the window.
+   *
+   * @param logical_plan The input logical node.
+   * @param window_info The window that the input table has to be sorted accordingly.
+   * @return A logical plan that sorts the table according to window_info.
+   **/
+  logical::LogicalPtr resolveSortInWindow(
+      const logical::LogicalPtr &logical_plan,
+      const expressions::WindowInfo &window_info);
+
+  /**
    * @brief Resolves a parse expression and converts it to a scalar expression
    *        in the query optimizer. A non-scalar parse expression is resolved
    *        to an AttributeReference to another optimizer expression.
@@ -412,7 +440,8 @@ class Resolver {
    * @brief Resolves a function call. For a non-scalar function, the returned
    *        expression is an AttributeReference to the actual resolved expression.
    *
-   * @note This currently only handles resolving aggregate functions.
+   * @note This currently only handles resolving aggregate functions and window
+   *       aggregate functions.
    *
    * @param parse_function_call The function call to be resolved.
    * @param expression_resolution_info Resolution info that contains the name
@@ -423,6 +452,23 @@ class Resolver {
   expressions::ScalarPtr resolveFunctionCall(
       const ParseFunctionCall &parse_function_call,
       ExpressionResolutionInfo *expression_resolution_info);
+
+  /**
+   * @brief Resolves a window aggregate function.
+   *
+   * @param parse_function_call The function call to be resolved.
+   * @param expression_resolution_info Resolution info that contains the name
+   *                                   resolver and info to be updated after
+   *                                   resolution.
+   * @param aggregate The aggregate function.
+   * @param resolved_arguments The resolved arguments.
+   * @return An expression in the query optimizer.
+   */
+  expressions::ScalarPtr resolveWindowAggregateFunction(
+      const ParseFunctionCall &parse_function_call,
+      ExpressionResolutionInfo *expression_resolution_info,
+      const ::quickstep::AggregateFunction *aggregate,
+      const std::vector<expressions::ScalarPtr> &resolved_arguments);
 
   /**
    * @brief Resolves a parse Predicate and converts it to a predicate in the
@@ -469,6 +515,15 @@ class Resolver {
       const bool has_single_column);
 
   /**
+   * @brief Resolves a window definition.
+   *
+   * @param parse_window The parsed window definition.
+   * @param name_resolver The resolver to resolve names.
+   **/
+  expressions::WindowInfo resolveWindow(const ParseWindow &parse_window,
+                                        const NameResolver &name_resolver);
+
+  /**
    * @brief Resolves a relation name to a pointer to the corresponding
    *        CatalogRelation with the name.
    *
@@ -499,6 +554,15 @@ class Resolver {
    * @return A string for the name.
    */
   static std::string GenerateAggregateAttributeAlias(int index);
+
+  /**
+   * @brief Generates an internal alias for a window aggregate attribute.
+   *
+   * @param index The index of the window aggregate attribute used for
+   *              generating the name.
+   * @return A string for the name.
+   */
+  static std::string GenerateWindowAggregateAttributeAlias(int index);
 
   /**
    * @brief Generates an internal alias for a grouping attribute.

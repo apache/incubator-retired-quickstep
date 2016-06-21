@@ -43,6 +43,7 @@ add_library(quickstep_queryoptimizer_expressions_SearchedCase SearchedCase.cpp S
 add_library(quickstep_queryoptimizer_expressions_SimpleCase SimpleCase.cpp SimpleCase.hpp)
 add_library(quickstep_queryoptimizer_expressions_SubqueryExpression SubqueryExpression.cpp SubqueryExpression.hpp)
 add_library(quickstep_queryoptimizer_expressions_UnaryExpression UnaryExpression.cpp UnaryExpression.hpp)
+add_library(quickstep_queryoptimizer_expressions_WindowAggregateFunction WindowAggregateFunction.cpp WindowAggregateFunction.hpp)
 
 # Link dependencies:
 target_link_libraries(quickstep_queryoptimizer_expressions_AggregateFunction
@@ -301,6 +302,19 @@ target_link_libraries(quickstep_queryoptimizer_expressions_UnaryExpression
                       quickstep_types_operations_unaryoperations_UnaryOperation
                       quickstep_types_operations_unaryoperations_UnaryOperationID
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_expressions_WindowAggregateFunction
+                      glog
+                      quickstep_expressions_aggregation_AggregateFunction
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_Expression
+                      quickstep_queryoptimizer_expressions_ExpressionType
+                      quickstep_queryoptimizer_expressions_PatternMatcher
+                      quickstep_queryoptimizer_expressions_Scalar
+                      quickstep_types_Type
+                      quickstep_utility_Cast
+                      quickstep_utility_Macros)
+
 
 # Module all-in-one library:
 add_library(quickstep_queryoptimizer_expressions ../../empty_src.cpp OptimizerExpressionsModule.hpp)
@@ -330,4 +344,5 @@ target_link_libraries(quickstep_queryoptimizer_expressions
                       quickstep_queryoptimizer_expressions_SearchedCase
                       quickstep_queryoptimizer_expressions_SimpleCase
                       quickstep_queryoptimizer_expressions_SubqueryExpression
-                      quickstep_queryoptimizer_expressions_UnaryExpression)
+                      quickstep_queryoptimizer_expressions_UnaryExpression
+                      quickstep_queryoptimizer_expressions_WindowAggregateFunction)

@@ -105,7 +105,8 @@ target_link_libraries(quickstep_queryoptimizer_strategy_OneToOne
                       quickstep_queryoptimizer_physical_TopLevelPlan
                       quickstep_queryoptimizer_physical_UpdateTable
                       quickstep_queryoptimizer_strategy_Strategy
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      quickstep_utility_SqlError)
 target_link_libraries(quickstep_queryoptimizer_strategy_Selection
                       glog
                       quickstep_queryoptimizer_LogicalToPhysicalMapper

@@ -49,7 +49,8 @@ enum class ExpressionType {
   kSearchedCase,
   kSimpleCase,
   kSubqueryExpression,
-  kUnaryExpression
+  kUnaryExpression,
+  kWindowAggregateFunction
 };
 
 /** @} */

@@ -55,6 +55,7 @@
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
+#include "utility/SqlError.hpp"
 
 namespace quickstep {
 namespace optimizer {
@@ -207,6 +208,10 @@ bool OneToOne::generatePlan(const L::LogicalPtr &logical_input,
           update_table->assignment_expressions(),
           update_table->predicate());
       return true;
+    }
+    case L::LogicalType::kWindowAggregate: {
+      THROW_SQL_ERROR()
+          << "Window aggregate function is not supported currently :(";
     }
     default:
       return false;
