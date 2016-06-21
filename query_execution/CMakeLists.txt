@@ -36,6 +36,7 @@ add_library(quickstep_queryexecution_ExecutionStats ../empty_src.cpp ExecutionSt
 add_library(quickstep_queryexecution_Foreman Foreman.cpp Foreman.hpp)
 add_library(quickstep_queryexecution_ForemanLite ../empty_src.cpp ForemanLite.hpp)
 add_library(quickstep_queryexecution_PolicyEnforcer PolicyEnforcer.cpp PolicyEnforcer.hpp)
+add_library(quickstep_queryexecution_ProbabilityStore ../empty_src.cpp ProbabilityStore.hpp)
 add_library(quickstep_queryexecution_QueryContext QueryContext.cpp QueryContext.hpp)
 add_library(quickstep_queryexecution_QueryContext_proto
             ${queryexecution_QueryContext_proto_srcs}
@@ -97,6 +98,7 @@ target_link_libraries(quickstep_queryexecution_PolicyEnforcer
                       glog
                       quickstep_queryexecution_ExecutionStats
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_ProbabilityStore
                       quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryManager
@@ -106,6 +108,9 @@ target_link_libraries(quickstep_queryexecution_PolicyEnforcer
                       quickstep_relationaloperators_WorkOrder
                       quickstep_utility_Macros
                       tmb)
+target_link_libraries(quickstep_queryexecution_ProbabilityStore
+                      glog
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryexecution_QueryContext
                       glog
                       quickstep_catalog_CatalogDatabaseLite
@@ -251,6 +256,14 @@ if (ENABLE_DISTRIBUTED)
                         ${LIBS})
   add_test(BlockLocator_unittest BlockLocator_unittest)
 endif()
+
+add_executable(ProbabilityStore_unittest
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/ProbabilityStore_unittest.cpp")
+target_link_libraries(ProbabilityStore_unittest
+                      gtest
+                      gtest_main
+                      quickstep_queryexecution_ProbabilityStore)
+add_test(ProbabilityStore_unittest ProbabilityStore_unittest) 
 
 add_executable(QueryManager_unittest
   "${CMAKE_CURRENT_SOURCE_DIR}/tests/QueryManager_unittest.cpp")
