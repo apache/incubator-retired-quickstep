@@ -28,14 +28,15 @@ TEST(ProbabilityStoreTest, CountTest) {
   ProbabilityStore store;
   EXPECT_EQ(0u, store.getNumObjects());
   const std::size_t kProperty = 0;
-  store.addProbability(kProperty, 0.5);
+  store.addOrUpdateObject(kProperty, 1);
   EXPECT_EQ(1u, store.getNumObjects());
   store.removeObject(kProperty);
   EXPECT_EQ(0u, store.getNumObjects());
 
   std::vector<std::size_t> objects {3, 5, 7, 9};
-  std::vector<float> probabilities {0.2, 0.3, 0.4, 0.1};
-  store.addProbabilities(objects, probabilities);
+  std::vector<float> numerators {1, 2, 3, 5};
+  const std::size_t kNewDenominator = 10;
+  store.addOrUpdateObjectsNewDenominator(objects, numerators, kNewDenominator);
 
   EXPECT_EQ(objects.size(), store.getNumObjects());
 }
@@ -43,11 +44,12 @@ TEST(ProbabilityStoreTest, CountTest) {
 TEST(ProbabilityStoreTest, IndividualProbabilityTest) {
   ProbabilityStore store;
   std::vector<std::size_t> objects {3, 5, 7, 9};
-  std::vector<float> probabilities {0.2, 0.3, 0.4, 0.1};
-  store.addProbabilities(objects, probabilities);
+  std::vector<float> numerators {1, 2, 3, 5};
+  const std::size_t kNewDenominator = 10;
+  store.addOrUpdateObjectsNewDenominator(objects, numerators, kNewDenominator);
 
   for (std::size_t object_num = 0; object_num < objects.size(); ++object_num) {
-    EXPECT_EQ(probabilities[object_num],
+    EXPECT_EQ(numerators[object_num] / static_cast<float>(kNewDenominator),
               store.getIndividualProbability(objects[object_num]));
   }
 }
@@ -55,8 +57,9 @@ TEST(ProbabilityStoreTest, IndividualProbabilityTest) {
 TEST(ProbabilityStoreTest, PickRandomPropertyTest) {
   ProbabilityStore store;
   std::vector<std::size_t> objects {3, 5, 7, 9};
-  std::vector<float> probabilities {0.2, 0.3, 0.4, 0.1};
-  store.addProbabilities(objects, probabilities);
+  std::vector<float> numerators {1, 2, 3, 5};
+  const std::size_t kNewDenominator = 10;
+  store.addOrUpdateObjectsNewDenominator(objects, numerators, kNewDenominator);
 
   const std::size_t kNumTrials = 10;
   while (!objects.empty()) {
@@ -69,6 +72,32 @@ TEST(ProbabilityStoreTest, PickRandomPropertyTest) {
     store.removeObject(property_to_be_removed);
     objects.pop_back();
     EXPECT_EQ(objects.size(), store.getNumObjects());
+  }
+}
+
+TEST(ProbabilityStoreTest, RemoveObjectTest) {
+  ProbabilityStore store;
+  std::vector<std::size_t> objects {3, 5, 7, 9};
+  std::vector<float> numerators {1, 2, 3, 5};
+  const std::size_t kNewDenominator = 10;
+  store.addOrUpdateObjectsNewDenominator(objects, numerators, kNewDenominator);
+
+  for (std::size_t object_num = 0; object_num < objects.size(); ++object_num) {
+    EXPECT_EQ(numerators[object_num] / static_cast<float>(kNewDenominator),
+              store.getIndividualProbability(objects[object_num]));
+  }
+
+  // Remove last object "9", with numerator 5.
+  store.removeObject(objects.back());
+  objects.pop_back();
+  numerators.pop_back();
+  const float expected_new_denominator =
+      std::accumulate(numerators.begin(), numerators.end(), 0);
+
+  EXPECT_EQ(expected_new_denominator, store.getDenominator());
+  for (std::size_t object_num = 0; object_num < objects.size(); ++object_num) {
+    EXPECT_EQ(numerators[object_num] / static_cast<float>(kNewDenominator),
+              store.getIndividualProbability(objects[object_num]));
   }
 }
 

@@ -35,6 +35,7 @@ add_library(quickstep_queryexecution_AdmitRequestMessage ../empty_src.cpp AdmitR
 add_library(quickstep_queryexecution_ExecutionStats ../empty_src.cpp ExecutionStats.hpp)
 add_library(quickstep_queryexecution_Foreman Foreman.cpp Foreman.hpp)
 add_library(quickstep_queryexecution_ForemanLite ../empty_src.cpp ForemanLite.hpp)
+add_library(quickstep_queryexecution_Learner Learner.cpp Learner.hpp)
 add_library(quickstep_queryexecution_PolicyEnforcer PolicyEnforcer.cpp PolicyEnforcer.hpp)
 add_library(quickstep_queryexecution_ProbabilityStore ../empty_src.cpp ProbabilityStore.hpp)
 add_library(quickstep_queryexecution_QueryContext QueryContext.cpp QueryContext.hpp)
@@ -93,11 +94,20 @@ target_link_libraries(quickstep_queryexecution_ForemanLite
                       quickstep_threading_Thread
                       quickstep_utility_Macros
                       tmb)
+target_link_libraries(quickstep_queryexecution_Learner
+                      ${GFLAGS_LIB_NAME}
+                      glog
+                      quickstep_queryexecution_ExecutionStats
+                      quickstep_queryexecution_ProbabilityStore
+                      quickstep_queryexecution_QueryExecutionMessages_proto                      
+                      quickstep_queryoptimizer_QueryHandle
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryexecution_PolicyEnforcer
                       ${GFLAGS_LIB_NAME}
                       glog
                       quickstep_queryexecution_ExecutionStats
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_Learner
                       quickstep_queryexecution_ProbabilityStore
                       quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionTypedefs
@@ -212,6 +222,7 @@ target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_ExecutionStats
                       quickstep_queryexecution_Foreman
                       quickstep_queryexecution_ForemanLite
+                      quickstep_queryexecution_Learner
                       quickstep_queryexecution_PolicyEnforcer
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto

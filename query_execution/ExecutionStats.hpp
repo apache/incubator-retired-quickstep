@@ -58,6 +58,20 @@ class ExecutionStats {
   }
 
   /**
+   * @brief Check if there are any stats present.
+   **/
+  inline bool hasStats() const {
+    for (auto it = active_operators_.begin();
+         it != active_operators_.end();
+         ++it) {
+      if (!it->second->hasStatsForOperator()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /**
    * @brief Get the current stats.
    *
    * @note This function updates the cache, hence it can't be const. We are lazy
@@ -143,6 +157,10 @@ class ExecutionStats {
       }
       times_.push_back(time_value);
       DCHECK_LE(times_.size(), max_entries_);
+    }
+
+    inline bool hasStatsForOperator() const {
+      return !times_.empty();
     }
 
    private:

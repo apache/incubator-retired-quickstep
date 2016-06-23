@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <random>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "utility/Macros.hpp"
@@ -40,7 +41,7 @@ class ProbabilityStore {
    * @brief Constructor.
    **/
   ProbabilityStore()
-      : mt_(std::random_device()()) {}
+      : common_denominator_(1.0), mt_(std::random_device()()) {}
 
   /**
    * @brief Get the number of objects in the store.
@@ -48,6 +49,10 @@ class ProbabilityStore {
   const std::size_t getNumObjects() const {
     DCHECK_EQ(individual_probabilities_.size(), cumulative_probabilities_.size());
     return individual_probabilities_.size();
+  }
+
+  inline const std::size_t getDenominator() const {
+    return common_denominator_;
   }
 
   /**
@@ -59,13 +64,45 @@ class ProbabilityStore {
    * @note This function may override previously written probability values.
    *
    * @param property The property of the given object.
-   * @param individual_probability The individual (not cumulative) probability
-   *        of the given object.
+   * @param numerator The numerator for the given object.
    **/
-  void addProbability(const std::size_t property,
-                      const float individual_probability) {
-    individual_probabilities_[property] = individual_probability;
+  void addOrUpdateObject(const std::size_t property,
+                         const float numerator) {
+    DCHECK_LE(numerator, common_denominator_);
+    // We should have the correct individual probability in
+    // individual_probabilities_ for the newly added object at this point.
+    // Because we rely on the probabilities for all the objects in
+    // updateCumulativeProbabilities().
+    individual_probabilities_[property] =
+        std::make_pair(numerator, numerator / common_denominator_);
     updateCumulativeProbabilities();
+  }
+
+  /**
+   * @brief Add individual (not cumulative) probability for a given object with
+   *        updated denominator.
+   *
+   * @note This function leaves the cumulative probabilities in a consistent
+   *       state. An alternative lazy implementation should be written if cost
+   *       of calculating cumulative probabilities is high.
+   * @note This function may override previously written probability values.
+   *
+   * @param property The property of the given object.
+   * @param numerator The numerator for the given object.
+   * @param new_denominator The updated denominator for the store.
+   **/
+  void addOrUpdateObjectNewDenominator(const std::size_t property,
+                                       const float numerator,
+                                       const float new_denominator) {
+    CHECK_GT(new_denominator, 0u);
+    DCHECK_LE(numerator, new_denominator);
+    common_denominator_ = new_denominator;
+    // It is alright to not have the correct probability in
+    // individual_probabilities_ for the newly added object at this point.
+    // Because we compute the probabilities for all the objects in
+    // updateProbabilitiesNewDenominator().
+    individual_probabilities_[property] = std::make_pair(numerator, 0.0);
+    updateProbabilitiesNewDenominator();
   }
 
   /**
@@ -77,30 +114,40 @@ class ProbabilityStore {
    * @note This function may override previously written probability values.
    *
    * @param properties A vector of properties to be added.
-   * @param individual_probabilities The individual (not cumulative)
-   *        probabilities of the given objects.
+   * @param numerators The numerators of the given objects.
    **/
-  void addProbabilities(const std::vector<std::size_t> &properties,
-                        const std::vector<float> &individual_probabilities) {
-    DCHECK_EQ(properties.size(), individual_probabilities.size());
+  void addOrUpdateObjects(const std::vector<std::size_t> &properties,
+                          const std::vector<float> &numerators) {
+    DCHECK_EQ(properties.size(), numerators.size());
     for (std::size_t i = 0; i < properties.size(); ++i) {
-      individual_probabilities_[properties[i]] = individual_probabilities[i];
+      DCHECK_LE(numerators[i], common_denominator_);
+      // We should have the correct individual probability in
+      // individual_probabilities_ for the newly added object at this point.
+      // Because we rely on the probabilities for all the objects in
+      // updateCumulativeProbabilities().
+      individual_probabilities_[properties[i]] =
+          std::make_pair(numerators[i], numerators[i] / common_denominator_);
     }
     updateCumulativeProbabilities();
   }
 
-  /**
-   * @brief Update  the probability of a given object to a new value.
-   *
-   * @param property The property of the object.
-   * @param new_individual_probability The new probability to be set.
-   **/
-  void updateProbability(const std::size_t property,
-                         const float new_individual_probability) {
-    auto it = individual_probabilities_.find(property);
-    DCHECK(it != individual_probabilities_.end());
-    it->second = new_individual_probability;
-    updateCumulativeProbabilities();
+  void addOrUpdateObjectsNewDenominator(
+      const std::vector<std::size_t> &properties,
+      const std::vector<float> &numerators,
+      const float new_denominator) {
+    CHECK_GT(new_denominator, 0u);
+    DCHECK_EQ(properties.size(), numerators.size());
+    common_denominator_ = new_denominator;
+    for (std::size_t i = 0; i < properties.size(); ++i) {
+      DCHECK_LE(numerators[i], common_denominator_);
+      // It is alright to not have the correct probability in
+      // individual_probabilities_ for the newly added object at this point.
+      // Because we compute the probabilities for all the objects in
+      // updateProbabilitiesNewDenominator().
+      individual_probabilities_[properties[i]] =
+          std::make_pair(numerators[i], 0.0);
+    }
+    updateProbabilitiesNewDenominator();
   }
 
   /**
@@ -109,10 +156,24 @@ class ProbabilityStore {
    * @param property The property of the object to be removed.
    **/
   void removeObject(const std::size_t property) {
-    auto it = individual_probabilities_.find(property);
-    DCHECK(it != individual_probabilities_.end());
-    individual_probabilities_.erase(it);
-    updateCumulativeProbabilities();
+    auto individual_it = individual_probabilities_.find(property);
+    DCHECK(individual_it != individual_probabilities_.end());
+    individual_probabilities_.erase(individual_it);
+    if (!individual_probabilities_.empty()) {
+      float new_denominator = 0;
+      for (auto it = individual_probabilities_.begin();
+           it != individual_probabilities_.end();
+           ++it) {
+        new_denominator += it->second.first;
+      }
+      CHECK_GT(new_denominator, 0);
+      common_denominator_ = new_denominator;
+      updateCumulativeProbabilities();
+    } else {
+      // In order to keep the store consistent, we should keep the sizes of
+      // individual_probabilities_ and cumulative_probabilities_ the same.
+      cumulative_probabilities_.clear();
+    }
   }
 
   /**
@@ -123,7 +184,7 @@ class ProbabilityStore {
   const float getIndividualProbability(const std::size_t property) const {
     const auto it = individual_probabilities_.find(property);
     DCHECK(it != individual_probabilities_.end());
-    return it->second;
+    return it->second.second;
   }
 
   /**
@@ -141,13 +202,13 @@ class ProbabilityStore {
       return;
     }
     float cumulative_probability = 0;
-    for (const auto property_probability_pair : individual_probabilities_) {
-      cumulative_probabilities_.emplace_back(property_probability_pair.first,
+    for (const auto p : individual_probabilities_) {
+      cumulative_probabilities_.emplace_back(p.first,
                                              cumulative_probability);
-      cumulative_probability += property_probability_pair.second;
+      cumulative_probability += p.second.second;
     }
-    // Adjust the last cumulative probability manually to 1.0, so that floating
-    // addition related rounding issues are ignored.
+    // Adjust the last cumulative probability manually to 1.0, so that
+    // floating addition related rounding issues are ignored.
     cumulative_probabilities_.back().updateProbability(1.0);
   }
 
@@ -208,8 +269,25 @@ class ProbabilityStore {
     return it->property_;
   }
 
-  std::unordered_map<std::size_t, float> individual_probabilities_;
+  inline void updateProbabilitiesNewDenominator() {
+    // First update the individual probabilities.
+    for (auto it = individual_probabilities_.begin();
+         it != individual_probabilities_.end();
+         ++it) {
+      DCHECK_LE(it->second.first, common_denominator_);
+      it->second.second = it->second.first / common_denominator_;
+    }
+    updateCumulativeProbabilities();
+  }
+
+  // Key = property of the object.
+  // Value = A pair ...
+  // 1st element: Numerator of the object.
+  // 2nd element: Individual probability of the object.
+  std::unordered_map<std::size_t, std::pair<float, float>> individual_probabilities_;
   std::vector<ProbabilityInfo> cumulative_probabilities_;
+
+  float common_denominator_;
 
   std::mt19937_64 mt_;
 
