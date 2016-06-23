@@ -200,6 +200,13 @@ class PackedRowStoreTupleStorageSubBlock: public TupleStorageSubBlock {
   // relations that have no nullable attributes (and therefore no NULL-bitmap).
   template <bool nullable_attrs>
   bool hasSpaceToInsert(const tuple_id num_tuples) const;
+  
+  // Helper function for bulkInsertTuplesWithRemappedAttributes which is
+  // templated on the 'nullable_attrs' flag (similar in semantics to its use in
+  // the above functions). 
+  template <bool nullable_attrs>
+  tuple_id bulkInsertTuplesWithRemappedAttributesHelper(
+      const std::vector<attribute_id> &attribute_map, ValueAccessor *accessor);
 
   PackedRowStoreHeader *header_;
   std::unique_ptr<BitVector<false>> null_bitmap_;
