@@ -184,9 +184,10 @@ void Learner::initializeDefaultProbabilitiesForPriorityLevels() {
   for (auto priority_iter = execution_stats_.cbegin();
        priority_iter != execution_stats_.cend();
        ++priority_iter) {
-    sum_priority_levels += priority_iter->second.size();
-    priority_levels.emplace_back(priority_iter->first);
-    numerators.emplace_back(priority_iter->first);
+    const std::size_t curr_priority_level = priority_iter->first;
+    sum_priority_levels += curr_priority_level;
+    priority_levels.emplace_back(curr_priority_level);
+    numerators.emplace_back(curr_priority_level);
   }
   if (sum_priority_levels > 0) {
     probabilities_of_priority_levels_->addOrUpdateObjectsNewDenominator(
