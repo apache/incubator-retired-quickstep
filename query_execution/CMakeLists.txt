@@ -268,6 +268,15 @@ if (ENABLE_DISTRIBUTED)
   add_test(BlockLocator_unittest BlockLocator_unittest)
 endif()
 
+add_executable(Learner_unittest
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/Learner_unittest.cpp")
+target_link_libraries(Learner_unittest
+                      gtest
+                      gtest_main
+                      quickstep_queryexecution_Learner
+                      quickstep_queryoptimizer_QueryHandle)
+add_test(Learner_unittest Learner_unittest) 
+
 add_executable(ProbabilityStore_unittest
   "${CMAKE_CURRENT_SOURCE_DIR}/tests/ProbabilityStore_unittest.cpp")
 target_link_libraries(ProbabilityStore_unittest

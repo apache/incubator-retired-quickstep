@@ -188,8 +188,10 @@ void Learner::initializeDefaultProbabilitiesForPriorityLevels() {
     priority_levels.emplace_back(priority_iter->first);
     numerators.emplace_back(priority_iter->first);
   }
-  probabilities_of_priority_levels_->addOrUpdateObjectsNewDenominator(
-      priority_levels, numerators, sum_priority_levels);
+  if (sum_priority_levels > 0) {
+    probabilities_of_priority_levels_->addOrUpdateObjectsNewDenominator(
+        priority_levels, numerators, sum_priority_levels);
+  }
 }
 
 }  // namespace quickstep

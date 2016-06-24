@@ -55,6 +55,11 @@ class ProbabilityStore {
     return common_denominator_;
   }
 
+  inline bool hasObject(const std::size_t property) const {
+    auto it = individual_probabilities_.find(property);
+    return (it != individual_probabilities_.end());
+  }
+
   /**
    * @brief Add individual (not cumulative) probability for a given object.
    *

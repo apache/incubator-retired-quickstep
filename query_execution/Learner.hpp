@@ -35,10 +35,10 @@
 
 namespace quickstep {
 
-DEFINE_int32(max_past_entries_learner,
+/*DECLARE_int32(max_past_entries_learner,
               10,
               "The maximum number of past WorkOrder execution statistics"
-              " entries for a query");
+              " entries for a query");*/
 /** \addtogroup QueryExecution
  *  @{
  */
@@ -49,6 +49,7 @@ class Learner {
    * @brief Constructor.
    **/
   Learner() {
+    probabilities_of_priority_levels_.reset(new ProbabilityStore());
   }
 
   void addCompletionFeedback(
@@ -67,7 +68,15 @@ class Learner {
     const std::size_t priority_level = getQueryPriority(query_id);
     auto stats_iter_mutable = getExecutionStatsIterMutable(query_id);
     execution_stats_[priority_level].erase(stats_iter_mutable);
-    current_probabilities_[priority_level]->removeObject(query_id);
+    DCHECK(current_probabilities_.find(priority_level) !=
+           current_probabilities_.end());
+    if (current_probabilities_[priority_level]->hasObject(query_id)) {
+      // We may have cases when a query doesn't produce any feedback message,
+      // therefore we may not have an entry for this query in the
+      // current_probabilities_[priority_level] ProbabilityStore.
+      current_probabilities_[priority_level]->removeObject(query_id);
+    }
+    query_id_to_priority_lookup_.erase(query_id);
     checkAndRemovePriorityLevel(priority_level);
     relearn();
   }
@@ -93,6 +102,10 @@ class Learner {
   // at this point.
   void updateProbabilitiesOfAllPriorityLevels(const std::size_t priority_level);
 
+  inline const std::size_t hasActiveQueries() const {
+    return !query_id_to_priority_lookup_.empty();
+  }
+
  private:
   /**
    * @brief Initialize the default probabilities for the queries.
@@ -111,12 +124,15 @@ class Learner {
    **/
   inline void initializePriorityLevelIfNotPresent(
       const std::size_t priority_level) {
-    if (isPriorityLevelPresent(priority_level)) {
+    if (!isPriorityLevelPresent(priority_level)) {
       current_probabilities_[priority_level].reset(new ProbabilityStore());
       // Calculate the default probability for the priority level here and use
       // it instead of 0.5 here.
       // TODO(harshad) - Correct this.
-      probabilities_of_priority_levels_->addOrUpdateObject(priority_level, 0);
+      /*const float new_denominator =
+          probabilities_of_priority_levels_[priority_level]->getDenominator();
+      probabilities_of_priority_levels_->addOrUpdateObjectNewDenominator(
+          priority_level, priority_level, new_denominator);*/
       execution_stats_[priority_level];
     }
   }
@@ -168,7 +184,8 @@ class Learner {
     execution_stats_[priority_level].emplace_back(
         query_id,
         std::unique_ptr<ExecutionStats>(
-            new ExecutionStats(FLAGS_max_past_entries_learner)));
+            // new ExecutionStats(FLAGS_max_past_entries_learner)));
+            new ExecutionStats(10)));
     // As we are initializing the query, we obviously haven't gotten any
     // feedback message for this query. Hence mark the following field as false.
     has_feedback_from_all_queries_[priority_level] = false;
@@ -249,10 +266,6 @@ class Learner {
     }
     // All the queries have at least one execution statistic.
     has_feedback_from_all_queries_[priority_level] = true;
-  }
-
-  inline const std::size_t hasActiveQueries() const {
-    return !query_id_to_priority_lookup_.empty();
   }
 
   /**
