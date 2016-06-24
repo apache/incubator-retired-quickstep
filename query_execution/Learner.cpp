@@ -34,6 +34,11 @@
 
 namespace quickstep {
 
+DEFINE_uint64(max_past_entries_learner,
+              10,
+              "The maximum number of past WorkOrder execution statistics"
+              " entries for a query");
+
 void Learner::addCompletionFeedback(
     const serialization::NormalWorkOrderCompletionMessage
         &workorder_completion_proto) {
@@ -90,8 +95,7 @@ void Learner::updateProbabilitiesForQueriesInPriorityLevel(
   }
 }
 
-void Learner::updateProbabilitiesOfAllPriorityLevels(
-    const std::size_t priority_level) {
+void Learner::updateProbabilitiesOfAllPriorityLevels() {
   if (!hasFeedbackFromAllPriorityLevels() ||
       has_feedback_from_all_queries_.empty()) {
     // Either we don't have enough feedback messages from all the priority
@@ -114,7 +118,7 @@ void Learner::updateProbabilitiesOfAllPriorityLevels(
       total_time_curr_level += mean_workorder_entry.second;
     }
     const std::size_t num_queries_in_priority_level =
-        execution_stats_[priority_level].size();
+        execution_stats_[curr_priority_level].size();
     DCHECK_GT(num_queries_in_priority_level, 0u);
     predicted_time_for_level[curr_priority_level] =
         total_time_curr_level / num_queries_in_priority_level;
@@ -193,6 +197,21 @@ void Learner::initializeDefaultProbabilitiesForPriorityLevels() {
     probabilities_of_priority_levels_->addOrUpdateObjectsNewDenominator(
         priority_levels, numerators, sum_priority_levels);
   }
+}
+
+void Learner::initializeQuery(const QueryHandle &query_handle) {
+  const std::size_t priority_level = query_handle.query_priority();
+  const std::size_t query_id = query_handle.query_id();
+  DCHECK(isPriorityLevelPresent(priority_level));
+  query_id_to_priority_lookup_[query_id] = priority_level;
+  // TODO(harshad) - Create a gflag for max_past_entries_learner.
+  execution_stats_[priority_level].emplace_back(
+      query_id,
+      std::unique_ptr<ExecutionStats>(
+          new ExecutionStats(FLAGS_max_past_entries_learner)));
+  // As we are initializing the query, we obviously haven't gotten any
+  // feedback message for this query. Hence mark the following field as false.
+  has_feedback_from_all_queries_[priority_level] = false;
 }
 
 }  // namespace quickstep

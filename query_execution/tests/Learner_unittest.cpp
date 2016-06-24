@@ -27,28 +27,29 @@ namespace quickstep {
 TEST(LearnerTest, AddAndRemoveQueryTest) {
   Learner learner;
   std::unique_ptr<QueryHandle> handle;
-  const std::size_t kPriorityLevel1 = 1;
-  handle.reset(new QueryHandle(1, kPriorityLevel1));
+  const std::size_t kPriorityLevel = 1;
+  handle.reset(new QueryHandle(1, kPriorityLevel));
 
   EXPECT_FALSE(learner.hasActiveQueries());
   learner.addQuery(*handle);
   EXPECT_EQ(1u, learner.getTotalNumActiveQueries());
-  EXPECT_EQ(1u, learner.getNumActiveQueriesInPriorityLevel(kPriorityLevel1));
+  EXPECT_EQ(1u, learner.getNumActiveQueriesInPriorityLevel(kPriorityLevel));
   EXPECT_TRUE(learner.hasActiveQueries());
+
   learner.removeQuery(handle->query_id());
   EXPECT_EQ(0u, learner.getTotalNumActiveQueries());
-  EXPECT_EQ(0u, learner.getNumActiveQueriesInPriorityLevel(kPriorityLevel1));
+  EXPECT_EQ(0u, learner.getNumActiveQueriesInPriorityLevel(kPriorityLevel));
   EXPECT_FALSE(learner.hasActiveQueries());
 
-  const std::size_t kPriorityLevel2 = 1;
-  handle.reset(new QueryHandle(1, kPriorityLevel2));
+  handle.reset(new QueryHandle(2, kPriorityLevel));
   learner.addQuery(*handle);
   EXPECT_EQ(1u, learner.getTotalNumActiveQueries());
-  EXPECT_EQ(1u, learner.getNumActiveQueriesInPriorityLevel(kPriorityLevel2));
+  EXPECT_EQ(1u, learner.getNumActiveQueriesInPriorityLevel(kPriorityLevel));
   EXPECT_TRUE(learner.hasActiveQueries());
+
   learner.removeQuery(handle->query_id());
   EXPECT_EQ(0u, learner.getTotalNumActiveQueries());
-  EXPECT_EQ(0u, learner.getNumActiveQueriesInPriorityLevel(kPriorityLevel2));
+  EXPECT_EQ(0u, learner.getNumActiveQueriesInPriorityLevel(kPriorityLevel));
   EXPECT_FALSE(learner.hasActiveQueries());
 }
 

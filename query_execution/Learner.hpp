@@ -30,15 +30,10 @@
 #include "query_optimizer/QueryHandle.hpp"
 #include "utility/Macros.hpp"
 
-#include "gflags/gflags.h"
 #include "glog/logging.h"
 
 namespace quickstep {
 
-/*DECLARE_int32(max_past_entries_learner,
-              10,
-              "The maximum number of past WorkOrder execution statistics"
-              " entries for a query");*/
 /** \addtogroup QueryExecution
  *  @{
  */
@@ -94,14 +89,6 @@ class Learner {
     }
   }
 
-  void updateProbabilitiesForQueriesInPriorityLevel(
-      const std::size_t priority_level, const std::size_t query_id);
-
-  // TODO(harshad) - Cache internal results from previous invocation of this
-  // function and reuse them. There's a lot of redundancy in computations
-  // at this point.
-  void updateProbabilitiesOfAllPriorityLevels(const std::size_t priority_level);
-
   inline const bool hasActiveQueries() const {
     return !query_id_to_priority_lookup_.empty();
   }
@@ -122,6 +109,29 @@ class Learner {
 
  private:
   /**
+   * @brief Update the probabilities for queries in the given priority level.
+   *
+   * @note This function is called after the learner receives a completion
+   *       feedback message from a given query.
+   *
+   * @param priority_level The priority level.
+   * @param query_id The ID of the query for which a completion feedback message
+   *        has been received.
+   *
+   **/
+  void updateProbabilitiesForQueriesInPriorityLevel(
+      const std::size_t priority_level, const std::size_t query_id);
+
+  /**
+   * @brief Update the probabilities of all the priority levels.
+   *
+   * TODO(harshad) - Cache internal results from previous invocation of this
+   * function and reuse them. There's a lot of redundancy in computations
+   * at this point.
+   **/
+  void updateProbabilitiesOfAllPriorityLevels();
+
+  /**
    * @brief Initialize the default probabilities for the queries.
    **/
   void initializeDefaultProbabilitiesForAllQueries();
@@ -135,18 +145,14 @@ class Learner {
    * @brief Initialize the data structures for a given priority level, if none
    *        exist. If there are already data structures for the given priority
    *        level, do nothing.
+   *
+   * @note This function should be followed by a relearn() call, to insert this
+   *       priority levels in probabilities_of_priority_levels_.
    **/
   inline void initializePriorityLevelIfNotPresent(
       const std::size_t priority_level) {
     if (!isPriorityLevelPresent(priority_level)) {
       current_probabilities_[priority_level].reset(new ProbabilityStore());
-      // Calculate the default probability for the priority level here and use
-      // it instead of 0.5 here.
-      // TODO(harshad) - Correct this.
-      /*const float new_denominator =
-          probabilities_of_priority_levels_[priority_level]->getDenominator();
-      probabilities_of_priority_levels_->addOrUpdateObjectNewDenominator(
-          priority_level, priority_level, new_denominator);*/
       execution_stats_[priority_level];
     }
   }
@@ -169,6 +175,10 @@ class Learner {
 
   /**
    * @brief Check if the Learner has presence of the given priority level.
+   *
+   * @param priority_level The priority level.
+   *
+   * @return True if present, false otherwise.
    **/
   inline bool isPriorityLevelPresent(const std::size_t priority_level) const {
     DCHECK_EQ((current_probabilities_.find(priority_level) ==
@@ -178,7 +188,7 @@ class Learner {
   }
 
   /**
-   * @brief Check if the query is present.
+   * @brief Check if the query is present in local data structures.
    **/
   inline bool isQueryPresent(const std::size_t query_id) const {
     return query_id_to_priority_lookup_.find(query_id) !=
@@ -190,20 +200,7 @@ class Learner {
    *
    * @param query_handle The query handle for the new query.
    **/
-  void initializeQuery(const QueryHandle &query_handle) {
-    const std::size_t priority_level = query_handle.query_priority();
-    const std::size_t query_id = query_handle.query_id();
-    DCHECK(isPriorityLevelPresent(priority_level));
-    query_id_to_priority_lookup_[query_id] = priority_level;
-    execution_stats_[priority_level].emplace_back(
-        query_id,
-        std::unique_ptr<ExecutionStats>(
-            // new ExecutionStats(FLAGS_max_past_entries_learner)));
-            new ExecutionStats(10)));
-    // As we are initializing the query, we obviously haven't gotten any
-    // feedback message for this query. Hence mark the following field as false.
-    has_feedback_from_all_queries_[priority_level] = false;
-  }
+  void initializeQuery(const QueryHandle &query_handle);
 
   /**
    * @brief Get the execution stats object for the given query.
@@ -222,9 +219,10 @@ class Learner {
   }
 
   /**
-   * @brief This function works well when the query and priority level exists
-   *        in the data structures.
+   * @breif Get a mutable iterator to the execution stats for a given query.
    *
+   * @note This function works well when the query and priority level exists
+   *       in the data structures.
    **/
   inline std::vector<
       std::pair<std::size_t, std::unique_ptr<ExecutionStats>>>::const_iterator
@@ -244,6 +242,9 @@ class Learner {
     return stats_iter;
   }
 
+  /**
+   * @brief Get a query's priority level given its ID.
+   **/
   inline const std::size_t getQueryPriority(const std::size_t query_id) const {
     const auto it = query_id_to_priority_lookup_.find(query_id);
     DCHECK(it != query_id_to_priority_lookup_.end());
@@ -366,7 +367,6 @@ class Learner {
 
   // Key = priority level. Value = A boolean that indicates if we have received
   // feedback from all the queries in the given priority level.
-  // TODO(harshad) - Invalidate the cache whenever needed.
   std::unordered_map<std::size_t, bool> has_feedback_from_all_queries_;
 
   DISALLOW_COPY_AND_ASSIGN(Learner);
