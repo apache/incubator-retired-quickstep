@@ -102,8 +102,22 @@ class Learner {
   // at this point.
   void updateProbabilitiesOfAllPriorityLevels(const std::size_t priority_level);
 
-  inline const std::size_t hasActiveQueries() const {
+  inline const bool hasActiveQueries() const {
     return !query_id_to_priority_lookup_.empty();
+  }
+
+  inline const std::size_t getNumActiveQueriesInPriorityLevel(
+      const std::size_t priority_level) const {
+    const auto it = execution_stats_.find(priority_level);
+    if (it != execution_stats_.end()) {
+      return it->second.size();
+    } else {
+      return 0;
+    }
+  }
+
+  inline const std::size_t getTotalNumActiveQueries() const {
+    return query_id_to_priority_lookup_.size();
   }
 
  private:
