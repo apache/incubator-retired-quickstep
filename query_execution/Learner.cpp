@@ -51,10 +51,11 @@ void Learner::addCompletionFeedback(
       workorder_completion_proto.execution_time_in_microseconds(),
       workorder_completion_proto.operator_index());
 
-  // updateProbability();
   if (!hasFeedbackFromAllQueriesInPriorityLevel(priority_level)) {
     updateFeedbackFromQueriesInPriorityLevel(priority_level);
   }
+  updateProbabilitiesForQueriesInPriorityLevel(priority_level, query_id);
+  updateProbabilitiesOfAllPriorityLevels();
 }
 
 void Learner::updateProbabilitiesForQueriesInPriorityLevel(
@@ -67,7 +68,6 @@ void Learner::updateProbabilitiesForQueriesInPriorityLevel(
     return;
   } else if (execution_stats_[priority_level].size() == 1u) {
     DCHECK(current_probabilities_[priority_level] != nullptr);
-    DCHECK(current_probabilities_[priority_level]->getNumObjects() == 1u);
     // As we want the probability of the lone query in this priority level as
     // 1, we set the numerator same as denominator.
     const std::size_t numerator =

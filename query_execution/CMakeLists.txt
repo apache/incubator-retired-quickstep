@@ -274,6 +274,7 @@ target_link_libraries(Learner_unittest
                       gtest
                       gtest_main
                       quickstep_queryexecution_Learner
+                      quickstep_queryexecution_QueryExecutionMessages_proto                      
                       quickstep_queryoptimizer_QueryHandle)
 add_test(Learner_unittest Learner_unittest) 
 
