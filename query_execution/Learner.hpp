@@ -43,9 +43,7 @@ class Learner {
   /**
    * @brief Constructor.
    **/
-  Learner() {
-    probabilities_of_priority_levels_.reset(new ProbabilityStore());
-  }
+  Learner();
 
   void addCompletionFeedback(
       const serialization::NormalWorkOrderCompletionMessage
@@ -107,6 +105,16 @@ class Learner {
     return query_id_to_priority_lookup_.size();
   }
 
+  /**
+   * @brief Get the highest priority level among the active queries.
+   *
+   * @return The highest priority level. If the system is empty it returns
+   *         kInvalidPriorityLevel.
+   **/
+  inline const int getHighestPriorityLevel() const {
+    return highest_priority_level_;
+  }
+
  private:
   /**
    * @brief Update the probabilities for queries in the given priority level.
@@ -151,9 +159,13 @@ class Learner {
    **/
   inline void initializePriorityLevelIfNotPresent(
       const std::size_t priority_level) {
+    CHECK_GT(priority_level, 0) << "Priority level should be non-zero";
     if (!isPriorityLevelPresent(priority_level)) {
       current_probabilities_[priority_level].reset(new ProbabilityStore());
       execution_stats_[priority_level];
+      if (static_cast<int>(priority_level) > highest_priority_level_) {
+        highest_priority_level_ = priority_level;
+      }
     }
   }
 
@@ -163,15 +175,7 @@ class Learner {
    *
    * @param priority_level The priority level.
    **/
-  inline void checkAndRemovePriorityLevel(const std::size_t priority_level) {
-    DCHECK(isPriorityLevelPresent(priority_level));
-    if (execution_stats_[priority_level].empty()) {
-      execution_stats_.erase(priority_level);
-      current_probabilities_.erase(priority_level);
-      probabilities_of_priority_levels_->removeObject(priority_level);
-      has_feedback_from_all_queries_.erase(priority_level);
-    }
-  }
+  void checkAndRemovePriorityLevel(const std::size_t priority_level);
 
   /**
    * @brief Check if the Learner has presence of the given priority level.
@@ -368,6 +372,8 @@ class Learner {
   // Key = priority level. Value = A boolean that indicates if we have received
   // feedback from all the queries in the given priority level.
   std::unordered_map<std::size_t, bool> has_feedback_from_all_queries_;
+
+  int highest_priority_level_;
 
   DISALLOW_COPY_AND_ASSIGN(Learner);
 };

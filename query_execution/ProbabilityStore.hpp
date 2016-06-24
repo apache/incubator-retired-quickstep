@@ -212,9 +212,10 @@ class ProbabilityStore {
                                              cumulative_probability);
       cumulative_probability += p.second.second;
     }
-    // Adjust the last cumulative probability manually to 1.0, so that
+    DCHECK(!cumulative_probabilities_.empty());
+    // Adjust the last cumulative probability manually to 1, so that
     // floating addition related rounding issues are ignored.
-    cumulative_probabilities_.back().updateProbability(1.0);
+    cumulative_probabilities_.back().updateProbability(1);
   }
 
   /**
@@ -233,7 +234,9 @@ class ProbabilityStore {
    public:
     ProbabilityInfo(const std::size_t property, const float probability)
         : property_(property), probability_(probability) {
-      DCHECK_LE(probability, 1.0);
+      // As GLOG doesn't provide DEBUG only checks for less than equal
+      // comparison for floats, we can't ensure that probability is less than
+      // 1.0.
     }
 
     ProbabilityInfo(const ProbabilityInfo &other) = default;
@@ -241,7 +244,6 @@ class ProbabilityStore {
     ProbabilityInfo& operator=(const ProbabilityInfo &other) = default;
 
     void updateProbability(const float new_probability) {
-      DCHECK_LE(new_probability, 1.0);
       probability_ = new_probability;
     }
 

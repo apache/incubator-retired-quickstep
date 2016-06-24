@@ -15,12 +15,18 @@
  *   limitations under the License.
  **/
 
+#include <algorithm>
+#include <chrono>
+#include <cstddef>
 #include <memory>
+#include <random>
+#include <vector>
 
 #include "gtest/gtest.h"
 
 #include "query_execution/Learner.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
+#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 
 namespace quickstep {
@@ -199,4 +205,62 @@ TEST_F(LearnerTest, AddCompletionFeedbackMultiplePriorityLevelsTest) {
     }
   }
 }
+
+TEST_F(LearnerTest, HighestPriorityLevelTest) {
+  std::vector<std::size_t> priorities_insertion_order;
+  std::vector<std::size_t> priorities_removal_order;
+  const std::size_t kNumPrioritiesToTest = 20;
+  for (std::size_t priority_num = 1;
+       priority_num <= kNumPrioritiesToTest;
+       ++priority_num) {
+    // Note: Priority level should be non-zero, hence we begin from 1.
+    priorities_insertion_order.emplace_back(priority_num);
+    priorities_removal_order.emplace_back(priority_num);
+  }
+
+  // Randomize the orders.
+  std::random_device rd;
+  std::mt19937 g(rd());
+
+  std::shuffle(priorities_insertion_order.begin(),
+               priorities_insertion_order.end(),
+               g);
+
+  std::shuffle(priorities_removal_order.begin(),
+               priorities_removal_order.end(),
+               g);
+
+  Learner learner;
+  EXPECT_EQ(kInvalidPriorityLevel, learner.getHighestPriorityLevel());
+
+  std::unique_ptr<QueryHandle> handle;
+  // First insert the queries in the order of priorities as defined by
+  // priorities_insertion_order.
+  for (auto it = priorities_insertion_order.begin();
+       it != priorities_insertion_order.end();
+       ++it) {
+    // Note that the query ID is kept the same as priority level for simplicity.
+    handle.reset(new QueryHandle(*it, *it));
+    learner.addQuery(*handle);
+    const std::size_t max_priority_so_far =
+        *(std::max_element(priorities_insertion_order.begin(), it + 1));
+    EXPECT_EQ(static_cast<int>(max_priority_so_far),
+              learner.getHighestPriorityLevel());
+  }
+  // Now remove the queries in the order of priorities as defined by
+  // priorities_removal_order.
+  for (auto it = priorities_removal_order.begin();
+       it != priorities_removal_order.end();
+       ++it) {
+    // Recall that the query ID is the same as priority level.
+    const std::size_t max_priority_so_far =
+        *(std::max_element(it, priorities_removal_order.end()));
+    EXPECT_EQ(static_cast<int>(max_priority_so_far),
+              learner.getHighestPriorityLevel());
+    learner.removeQuery(*it);
+  }
+  EXPECT_FALSE(learner.hasActiveQueries());
+  EXPECT_EQ(kInvalidPriorityLevel, learner.getHighestPriorityLevel());
+}
+
 }  // namespace quickstep

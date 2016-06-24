@@ -26,6 +26,7 @@
 #include "query_execution/ExecutionStats.hpp"
 #include "query_execution/ProbabilityStore.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
+#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "utility/Macros.hpp"
 
@@ -38,6 +39,11 @@ DEFINE_uint64(max_past_entries_learner,
               10,
               "The maximum number of past WorkOrder execution statistics"
               " entries for a query");
+
+Learner::Learner()
+    : highest_priority_level_(kInvalidPriorityLevel) {
+  probabilities_of_priority_levels_.reset(new ProbabilityStore());
+}
 
 void Learner::addCompletionFeedback(
     const serialization::NormalWorkOrderCompletionMessage
@@ -212,6 +218,33 @@ void Learner::initializeQuery(const QueryHandle &query_handle) {
   // As we are initializing the query, we obviously haven't gotten any
   // feedback message for this query. Hence mark the following field as false.
   has_feedback_from_all_queries_[priority_level] = false;
+}
+
+void Learner::checkAndRemovePriorityLevel(const std::size_t priority_level) {
+  DCHECK(isPriorityLevelPresent(priority_level));
+  if (execution_stats_[priority_level].empty()) {
+    execution_stats_.erase(priority_level);
+    current_probabilities_.erase(priority_level);
+    probabilities_of_priority_levels_->removeObject(priority_level);
+    has_feedback_from_all_queries_.erase(priority_level);
+    if (hasActiveQueries()) {
+      if (static_cast<int>(priority_level) == highest_priority_level_) {
+        // The priority level to be removed is the highest priority level.
+        std::size_t new_highest_priority_level = 0;
+        // Find the new highest priority level.
+        for (auto priority_level_it = execution_stats_.cbegin();
+             priority_level_it != execution_stats_.cend();
+             ++priority_level_it) {
+          if (priority_level_it->first > new_highest_priority_level) {
+            new_highest_priority_level = priority_level_it->first;
+          }
+        }
+        highest_priority_level_ = static_cast<int>(new_highest_priority_level);
+      }
+    } else {
+      highest_priority_level_ = kInvalidPriorityLevel;
+    }
+  }
 }
 
 }  // namespace quickstep
