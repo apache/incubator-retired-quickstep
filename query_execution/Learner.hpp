@@ -27,10 +27,13 @@
 #include "query_execution/ExecutionStats.hpp"
 #include "query_execution/ProbabilityStore.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
+#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
+
+namespace serialization { class NormalWorkOrderCompletionMessage; }
 
 namespace quickstep {
 
@@ -49,16 +52,26 @@ class Learner {
       const serialization::NormalWorkOrderCompletionMessage
           &workorder_completion_proto);
 
+  /**
+   * @brief Add a query to the Learner.
+   *
+   * @param query_handle The query handle for the new query.
+   **/
   void addQuery(const QueryHandle &query_handle) {
     initializePriorityLevelIfNotPresent(query_handle.query_priority());
     initializeQuery(query_handle);
     relearn();
   }
 
+  /**
+   * @brief Remove a query from the Learner.
+   *
+   * @param query_id The ID of the query to be removed.
+   **/
   void removeQuery(const std::size_t query_id) {
-    // Find the iterator to the query in execution_stats_.
     DCHECK(isQueryPresent(query_id));
     const std::size_t priority_level = getQueryPriority(query_id);
+    // Find the iterator to the query in execution_stats_.
     auto stats_iter_mutable = getExecutionStatsIterMutable(query_id);
     execution_stats_[priority_level].erase(stats_iter_mutable);
     DCHECK(current_probabilities_.find(priority_level) !=
@@ -69,17 +82,25 @@ class Learner {
       // current_probabilities_[priority_level] ProbabilityStore.
       current_probabilities_[priority_level]->removeObject(query_id);
     }
+    // has_feedback_from_all_queries_[priority_level] = false;
     query_id_to_priority_lookup_.erase(query_id);
     checkAndRemovePriorityLevel(priority_level);
     relearn();
   }
 
-  void removeOperator(const std::size_t query_id, const std::size_t operator_id) {
+  /**
+   * @brief Remove the stats of a given operator in a given query.
+   **/
+  void removeOperator(const std::size_t query_id,
+                      const std::size_t operator_id) {
     ExecutionStats *stats = getExecutionStats(query_id);
     DCHECK(stats != nullptr);
     stats->removeOperator(operator_id);
   }
 
+  /**
+   * @brief Reset the probabilities and start learning again.
+   **/
   void relearn() {
     if (hasActiveQueries()) {
       initializeDefaultProbabilitiesForAllQueries();
@@ -87,10 +108,17 @@ class Learner {
     }
   }
 
+  /**
+   * @brief Check if there are any active queries in the Learner.
+   **/
   inline const bool hasActiveQueries() const {
     return !query_id_to_priority_lookup_.empty();
   }
 
+  /**
+   * @brief Get the number of active queries in the Learner for the given
+   *        priority level.
+   **/
   inline const std::size_t getNumActiveQueriesInPriorityLevel(
       const std::size_t priority_level) const {
     const auto it = execution_stats_.find(priority_level);
@@ -101,6 +129,9 @@ class Learner {
     }
   }
 
+  /**
+   * @brief Get the total number of active queries in the Learner.
+   **/
   inline const std::size_t getTotalNumActiveQueries() const {
     return query_id_to_priority_lookup_.size();
   }
@@ -113,6 +144,83 @@ class Learner {
    **/
   inline const int getHighestPriorityLevel() const {
     return highest_priority_level_;
+  }
+
+  /**
+   * @brief Randomly pick a priority level.
+   *
+   * @note We use uniform random distribution.
+   *
+   * @return A priority level. If no queries are present in the learner, return
+   *         kInvalidPriorityLevel.
+   **/
+  inline const int pickRandomPriorityLevel() const {
+    if (hasActiveQueries()) {
+      const int result = static_cast<int>(
+          probabilities_of_priority_levels_->pickRandomProperty());
+      /*LOG(INFO) << "Random priority level: " << result << " has "
+                << current_probabilities_.find(result)->second->getNumObjects()
+                << " queries";*/
+      return result;
+    } else {
+      return kInvalidPriorityLevel;
+    }
+  }
+
+  /**
+   * @brief Randomly pick a query from any priority level in the learner.
+   *
+   * @note We use uniform random distribution.
+   *
+   * @return A query ID. If no queries are present in the learner, return
+   *         kInvalidQueryID.
+   **/
+  inline const int pickRandomQuery() const {
+    if (hasActiveQueries()) {
+      const int random_priority_level = pickRandomPriorityLevel();
+      // Note : The valid priority level values are non-zero.
+      DCHECK_GT(random_priority_level, 0);
+      const int result = pickRandomQueryFromPriorityLevel(
+          static_cast<std::size_t>(random_priority_level));
+      // LOG(INFO) << "Picked random query ID: " << result << " from priority level " << random_priority_level;
+      return result;
+    } else {
+      // LOG(INFO) << "No active query right now";
+      return kInvalidQueryID;
+    }
+  }
+
+  /**
+   * @brief Randomly pick a query from a given priority level in the learner.
+   *
+   * @note We use uniform random distribution.
+   *
+   * @return A query ID. If no queries are present for this priority level in
+   *         the learner, return kInvalidQueryID.
+   **/
+  inline const int pickRandomQueryFromPriorityLevel(
+      const std::size_t priority_level) const {
+    DCHECK(isPriorityLevelPresent(priority_level));
+    if (hasActiveQueries()) {
+      if (hasFeedbackFromAllQueriesInPriorityLevel(priority_level)) {
+        DCHECK(current_probabilities_.at(priority_level) != nullptr);
+        const auto it = current_probabilities_.find(priority_level);
+        if (it->second->getNumObjects() > 0) {
+          return static_cast<int>(
+              current_probabilities_.at(priority_level)->pickRandomProperty());
+        }
+        // LOG(INFO) << "No queries in priority level: " << priority_level;
+      } else {
+        DCHECK(default_probabilities_.at(priority_level) != nullptr);
+        const auto it = default_probabilities_.find(priority_level);
+        if (it->second->getNumObjects() > 0) {
+          return static_cast<int>(
+              default_probabilities_.at(priority_level)->pickRandomProperty());
+        }
+        // LOG(INFO) << "No queries in priority level: " << priority_level;
+      }
+    }
+    return kInvalidQueryID;
   }
 
  private:
@@ -261,6 +369,8 @@ class Learner {
    **/
   inline bool hasFeedbackFromAllQueriesInPriorityLevel(
       const std::size_t priority_level) const {
+    // NOTE(harshad) : Not using this cache as it gets confusing.
+    // return has_feedback_from_all_queries_.at(priority_level);
     const std::vector<std::pair<std::size_t, std::unique_ptr<ExecutionStats>>>
         &stats_vector = execution_stats_.at(priority_level);
     for (std::size_t i = 0; i < stats_vector.size(); ++i) {
@@ -275,16 +385,19 @@ class Learner {
   inline void updateFeedbackFromQueriesInPriorityLevel(
       const std::size_t priority_level) {
     const std::vector<std::pair<std::size_t, std::unique_ptr<ExecutionStats>>>
-        &stats_vector = execution_stats_.at(priority_level);
+        &stats_vector = execution_stats_[priority_level];
     for (std::size_t i = 0; i < stats_vector.size(); ++i) {
       DCHECK(stats_vector[i].second != nullptr);
       if (!stats_vector[i].second->hasStats()) {
         // At least one query has no statistics so far.
+        // NOTE(harshad) : Not using this cache as it gets confusing.
+        // has_feedback_from_all_queries_[priority_level] = false;
         return;
       }
     }
     // All the queries have at least one execution statistic.
-    has_feedback_from_all_queries_[priority_level] = true;
+    // NOTE(harshad) : Not using this cache as it gets confusing.
+    // has_feedback_from_all_queries_[priority_level] = true;
   }
 
   /**
@@ -313,31 +426,36 @@ class Learner {
   }
 
   /**
-   * @param mean_workorder_per_query A vector of pairs in which:
-   *        1st element is mean time per work order
-   *        2nd element is the query ID.
+   * @param mean_workorder_per_query An unordered_map in which:
+   *        1st element is the query ID.
+   *        2nd element is mean time per work order
    *
    * @note If any query has mean work order time as 0, we return 0 as the
    *       denominator.
    *
    * @return The denominator to be used for probability calculations.
    **/
-  inline float calculateDenominator(std::unordered_map<std::size_t, std::size_t>
-                                        &mean_workorder_per_query) const {
+  inline float calculateDenominator(
+      const std::unordered_map<std::size_t, std::size_t>
+          &mean_workorder_per_query) const {
     float denominator = 0;
     for (const auto &element : mean_workorder_per_query) {
       if (element.second != 0) {
         denominator += 1/static_cast<float>(element.second);
-      } else {
-        return 0;
+      /*} else {
+        return 0;*/
       }
     }
     return denominator;
   }
 
   inline bool hasFeedbackFromAllPriorityLevels() const {
-    for (auto feedback : has_feedback_from_all_queries_) {
-      if (!hasFeedbackFromAllQueriesInPriorityLevel(feedback.first)) {
+    // for (auto feedback : has_feedback_from_all_queries_) {
+    // NOTE(harshad) : Not using this cache as it gets confusing.
+    for (auto priority_iter = default_probabilities_.cbegin();
+         priority_iter != default_probabilities_.cend();
+         ++priority_iter) {
+      if (!hasFeedbackFromAllQueriesInPriorityLevel(priority_iter->first)) {
         return false;
       }
     }
@@ -369,9 +487,10 @@ class Learner {
   // ProbabilityStrore for probabilities mapped to the priority levels.
   std::unique_ptr<ProbabilityStore> probabilities_of_priority_levels_;
 
+  // NOTE(harshad) : Not using this cache as it gets confusing.
   // Key = priority level. Value = A boolean that indicates if we have received
   // feedback from all the queries in the given priority level.
-  std::unordered_map<std::size_t, bool> has_feedback_from_all_queries_;
+  // std::unordered_map<std::size_t, bool> has_feedback_from_all_queries_;
 
   int highest_priority_level_;
 

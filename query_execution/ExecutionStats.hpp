@@ -58,17 +58,17 @@ class ExecutionStats {
   }
 
   /**
-   * @brief Check if there are any stats present.
+   * @brief Check if there are stats present for at least one active operator.
    **/
   inline bool hasStats() const {
     for (auto it = active_operators_.begin();
          it != active_operators_.end();
          ++it) {
-      if (!it->second->hasStatsForOperator()) {
-        return false;
+      if (it->second->hasStatsForOperator()) {
+        return true;
       }
     }
-    return true;
+    return false;
   }
 
   /**
@@ -109,14 +109,13 @@ class ExecutionStats {
    * @param operator_index The operator index which the value belongs to.
    **/
   void addEntry(std::size_t value, std::size_t operator_index) {
-    if (hasOperator(operator_index)) {
-      // This is not the first entry for the given operator.
-      active_operators_[operator_index]->addEntry(value);
-    } else {
+    if (!hasOperator(operator_index)) {
+      // This is the first entry for the given operator.
       // Create the OperatorStats object for this operator.
       active_operators_[operator_index] =
           std::unique_ptr<OperatorStats>(new OperatorStats(max_entries_));
     }
+    active_operators_[operator_index]->addEntry(value);
   }
 
   /**

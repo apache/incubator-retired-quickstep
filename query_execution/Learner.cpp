@@ -26,7 +26,6 @@
 #include "query_execution/ExecutionStats.hpp"
 #include "query_execution/ProbabilityStore.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
-#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "utility/Macros.hpp"
 
@@ -76,10 +75,20 @@ void Learner::updateProbabilitiesForQueriesInPriorityLevel(
     DCHECK(current_probabilities_[priority_level] != nullptr);
     // As we want the probability of the lone query in this priority level as
     // 1, we set the numerator same as denominator.
-    const std::size_t numerator =
-        current_probabilities_[priority_level]->getDenominator();
-    current_probabilities_[priority_level]->addOrUpdateObject(query_id,
-                                                              numerator);
+    // TODO(harshad) - Get the mean work order times here too and use that as
+    // the numerator.
+    ExecutionStats *stats = getExecutionStats(query_id);
+    auto query_stats = stats->getCurrentStats();
+    /*const std::size_t numerator =
+        current_probabilities_[priority_level]->getDenominator();*/
+    if (query_stats.second != 0) {
+      const float mean_workorder_time =
+          query_stats.first / static_cast<float>(query_stats.second);
+      if (mean_workorder_time != 0) {
+        current_probabilities_[priority_level]->addOrUpdateObjectNewDenominator(
+            query_id, 1 / mean_workorder_time, 1 / mean_workorder_time);
+      }
+    }
     return;
   }
   // Else, there are more than one queries for the given priority level.
@@ -92,18 +101,25 @@ void Learner::updateProbabilitiesForQueriesInPriorityLevel(
     // queries.
     DCHECK(mean_workorders_per_query.find(query_id) !=
            mean_workorders_per_query.end());
+    DCHECK_NE(mean_workorders_per_query[query_id], 0);
     current_probabilities_[priority_level]->addOrUpdateObjectNewDenominator(
-        query_id, mean_workorders_per_query[query_id], denominator);
+        query_id,
+        1 / static_cast<float>(mean_workorders_per_query[query_id]),
+        denominator);
+    // LOG(INFO) << "Added stats on query ID: " << query_id << " priority: " << priority_level;
   } else {
     // At least one of the queries has predicted time for next work order as 0.
     // In such a case, we don't update the probabilities and continue to use
     // the older probabilities.
+    // LOG(INFO) << "Denominator is 0 QID: " << query_id << " priority: " << priority_level;
+    return;
   }
 }
 
 void Learner::updateProbabilitiesOfAllPriorityLevels() {
-  if (!hasFeedbackFromAllPriorityLevels() ||
-      has_feedback_from_all_queries_.empty()) {
+  if (!hasFeedbackFromAllPriorityLevels()) {
+      // has_feedback_from_all_queries_.empty()) {
+      // NOTE(harshad) : Not using this cache as it gets confusing.
     // Either we don't have enough feedback messages from all the priority
     // levels OR there are no active queries in the system.
     return;
@@ -111,9 +127,11 @@ void Learner::updateProbabilitiesOfAllPriorityLevels() {
   // Compute the predicted work order execution times for all the level.
   std::unordered_map<std::size_t, std::size_t> predicted_time_for_level;
   std::size_t sum_active_priorities = 0;
-  for (auto priority_iter : has_feedback_from_all_queries_) {
+  for (auto priority_iter = execution_stats_.begin();
+       priority_iter != execution_stats_.end();
+       ++priority_iter) {
     std::size_t total_time_curr_level = 0;
-    const std::size_t curr_priority_level = priority_iter.first;
+    const std::size_t curr_priority_level = priority_iter->first;
     sum_active_priorities += curr_priority_level;
     // For each query, find its predicted work order execution time.
     const std::unordered_map<std::size_t, std::size_t>
@@ -194,6 +212,7 @@ void Learner::initializeDefaultProbabilitiesForPriorityLevels() {
   for (auto priority_iter = execution_stats_.cbegin();
        priority_iter != execution_stats_.cend();
        ++priority_iter) {
+    DCHECK(!priority_iter->second.empty());
     const std::size_t curr_priority_level = priority_iter->first;
     sum_priority_levels += curr_priority_level;
     priority_levels.emplace_back(curr_priority_level);
@@ -217,7 +236,8 @@ void Learner::initializeQuery(const QueryHandle &query_handle) {
           new ExecutionStats(FLAGS_max_past_entries_learner)));
   // As we are initializing the query, we obviously haven't gotten any
   // feedback message for this query. Hence mark the following field as false.
-  has_feedback_from_all_queries_[priority_level] = false;
+  // has_feedback_from_all_queries_[priority_level] = false;
+  // NOTE(harshad) : Not using this cache as it gets confusing.
 }
 
 void Learner::checkAndRemovePriorityLevel(const std::size_t priority_level) {
@@ -226,7 +246,9 @@ void Learner::checkAndRemovePriorityLevel(const std::size_t priority_level) {
     execution_stats_.erase(priority_level);
     current_probabilities_.erase(priority_level);
     probabilities_of_priority_levels_->removeObject(priority_level);
-    has_feedback_from_all_queries_.erase(priority_level);
+    // NOTE(harshad) : Not using this cache as it gets confusing.
+    // has_feedback_from_all_queries_.erase(priority_level);
+    // LOG(INFO) << "Removed priority level: " << priority_level;
     if (hasActiveQueries()) {
       if (static_cast<int>(priority_level) == highest_priority_level_) {
         // The priority level to be removed is the highest priority level.

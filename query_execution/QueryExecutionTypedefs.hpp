@@ -44,6 +44,7 @@ typedef tmb::client_id client_id;
 typedef tmb::message_type_id message_type_id;
 
 const int kInvalidPriorityLevel = -1;
+const int kInvalidQueryID = -1;
 
 using ClientIDMap = ThreadIDBasedMap<client_id,
                                      'C',

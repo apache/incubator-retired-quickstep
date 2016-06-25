@@ -41,7 +41,7 @@ class ProbabilityStore {
    * @brief Constructor.
    **/
   ProbabilityStore()
-      : common_denominator_(1.0), mt_(std::random_device()()) {}
+      : common_denominator_(1.0) {}
 
   /**
    * @brief Get the number of objects in the store.
@@ -221,11 +221,16 @@ class ProbabilityStore {
   /**
    * @brief Return a randomly chosen property.
    *
+   * TODO(harshad) - If it is expensive to create the random device
+   * on every invocation of this function, make it a class variable.
+   * In which case, we won't be able to mark the function as const.
+   *
    * @note The random number is uniformly chosen.
    **/
-  inline const std::size_t pickRandomProperty() {
+  inline const std::size_t pickRandomProperty() const {
     std::uniform_real_distribution<float> dist(0.0, 1.0);
-    const float chosen_probability = dist(mt_);
+    std::random_device rd;
+    const float chosen_probability = dist(rd);
     return getPropertyForProbability(chosen_probability);
   }
 
@@ -260,7 +265,7 @@ class ProbabilityStore {
    *         or equal to the input cumulative probability.
    **/
   inline const std::size_t getPropertyForProbability(
-      const float key_cumulative_probability) {
+      const float key_cumulative_probability) const {
     DCHECK(!cumulative_probabilities_.empty());
     // It doesn't matter in which order the objects are arranged in the
     // cumulative_probabilities_ vector.
@@ -295,8 +300,6 @@ class ProbabilityStore {
   std::vector<ProbabilityInfo> cumulative_probabilities_;
 
   float common_denominator_;
-
-  std::mt19937_64 mt_;
 
   DISALLOW_COPY_AND_ASSIGN(ProbabilityStore);
 };

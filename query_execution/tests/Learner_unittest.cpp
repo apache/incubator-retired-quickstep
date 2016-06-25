@@ -220,15 +220,16 @@ TEST_F(LearnerTest, HighestPriorityLevelTest) {
 
   // Randomize the orders.
   std::random_device rd;
-  std::mt19937 g(rd());
+  std::mt19937 g1(rd());
+  std::mt19937 g2(rd());
 
   std::shuffle(priorities_insertion_order.begin(),
                priorities_insertion_order.end(),
-               g);
+               g1);
 
   std::shuffle(priorities_removal_order.begin(),
                priorities_removal_order.end(),
-               g);
+               g2);
 
   Learner learner;
   EXPECT_EQ(kInvalidPriorityLevel, learner.getHighestPriorityLevel());
@@ -263,4 +264,256 @@ TEST_F(LearnerTest, HighestPriorityLevelTest) {
   EXPECT_EQ(kInvalidPriorityLevel, learner.getHighestPriorityLevel());
 }
 
+TEST_F(LearnerTest, PickRandomPriorityLevelTest) {
+  std::vector<std::size_t> priorities_insertion_order;
+  std::vector<std::size_t> priorities_removal_order;
+  const std::size_t kNumPrioritiesToTest = 20;
+  for (std::size_t priority_num = 1;
+       priority_num <= kNumPrioritiesToTest;
+       ++priority_num) {
+    // Note: Priority level should be non-zero, hence we begin from 1.
+    priorities_insertion_order.emplace_back(priority_num);
+    priorities_removal_order.emplace_back(priority_num);
+  }
+
+  // Randomize the orders.
+  std::random_device rd;
+  std::mt19937 g1(rd());
+  std::mt19937 g2(rd());
+
+  std::shuffle(priorities_insertion_order.begin(),
+               priorities_insertion_order.end(),
+               g1);
+
+  std::shuffle(priorities_removal_order.begin(),
+               priorities_removal_order.end(),
+               g2);
+
+  Learner learner;
+  EXPECT_EQ(kInvalidPriorityLevel, learner.pickRandomPriorityLevel());
+
+  std::unique_ptr<QueryHandle> handle;
+  // First insert the queries in the order of priorities as defined by
+  // priorities_insertion_order.
+  for (auto it = priorities_insertion_order.begin();
+       it != priorities_insertion_order.end();
+       ++it) {
+    // Note that the query ID is kept the same as priority level for simplicity.
+    handle.reset(new QueryHandle(*it, *it));
+    learner.addQuery(*handle);
+    const std::size_t picked_priority_level = learner.pickRandomPriorityLevel();
+    // Try to find the randomly picked priority level in the
+    // priorities_insertion_order vector.
+    auto find_priority_level_it = std::find(
+        priorities_insertion_order.begin(), it + 1, picked_priority_level);
+    // We expect the search to be successful.
+    EXPECT_TRUE(find_priority_level_it != priorities_insertion_order.end());
+  }
+
+  // Repeat the tests a few more times.
+  const std::size_t kNumTests = 200;
+  for (std::size_t test_num = 0; test_num < kNumTests; ++test_num) {
+    const std::size_t picked_priority_level = learner.pickRandomPriorityLevel();
+    // Try to find the randomly picked priority level in the
+    // priorities_insertion_order vector.
+    auto find_priority_level_it = std::find(priorities_insertion_order.begin(),
+                                            priorities_insertion_order.end(),
+                                            picked_priority_level);
+    // We expect the search to be successful.
+    EXPECT_TRUE(find_priority_level_it != priorities_insertion_order.end());
+  }
+
+  // Now remove the queries in the order of priorities as defined by
+  // priorities_removal_order.
+  for (auto it = priorities_removal_order.begin();
+       it != priorities_removal_order.end();
+       ++it) {
+    // Recall that the query ID is the same as priority level.
+    const std::size_t picked_priority_level = learner.pickRandomPriorityLevel();
+    // Try to find the randomly picked priority level in the
+    // priorities_removal_order vector.
+    auto find_priority_level_it = std::find(
+        it, priorities_removal_order.end(), picked_priority_level);
+    // We expect the search to be successful.
+    EXPECT_TRUE(find_priority_level_it != priorities_removal_order.end());
+    learner.removeQuery(*it);
+  }
+  EXPECT_FALSE(learner.hasActiveQueries());
+  EXPECT_EQ(kInvalidPriorityLevel, learner.pickRandomPriorityLevel());
+}
+
+TEST_F(LearnerTest, PickRandomQueryDefaultProbabilitiesTest) {
+  // We use a set of unique query IDs. For each query ID, we assign a priority
+  // level. The set of priority levels is smaller than the set of query IDs, so
+  // that we can have more than one queries for a given priority level.
+
+  // Also, in this test we don't send any completion feedback message to the
+  // learner. Therefore it always refers to the default probabilities set for
+  // the queries.
+  std::vector<std::size_t> query_ids_insertion_order;
+  std::vector<std::size_t> query_ids_removal_order;
+  const std::size_t kNumQueriesToTest = 20;
+  for (std::size_t query_num = 0;
+       query_num < kNumQueriesToTest;
+       ++query_num) {
+    query_ids_insertion_order.emplace_back(query_num);
+    query_ids_removal_order.emplace_back(query_num);
+  }
+
+  // Randomize the orders.
+  std::random_device rd;
+  std::mt19937 g1(rd());
+  std::mt19937 g2(rd());
+
+  std::shuffle(query_ids_insertion_order.begin(),
+               query_ids_insertion_order.end(),
+               g1);
+
+  std::shuffle(query_ids_removal_order.begin(),
+               query_ids_removal_order.end(),
+               g2);
+
+  Learner learner;
+  EXPECT_EQ(kInvalidQueryID, learner.pickRandomQuery());
+
+  std::vector<std::size_t> priority_levels {1, 3, 5, 9};
+  std::size_t priority_level_index = 0;
+  std::unique_ptr<QueryHandle> handle;
+  // Insert the queries in the order as defined in query_ids_insertion_order.
+  for (auto it = query_ids_insertion_order.begin();
+       it != query_ids_insertion_order.end();
+       ++it) {
+    handle.reset(new QueryHandle(*it, priority_levels[priority_level_index]));
+    priority_level_index = (priority_level_index + 1) % priority_levels.size();
+    learner.addQuery(*handle);
+    const int picked_query_id = learner.pickRandomQuery();
+    // Try to find the randomly picked query ID in query_ids_insertion_order.
+    auto find_query_it = std::find(
+        query_ids_insertion_order.begin(), it + 1, picked_query_id);
+    // We expect the search to be successful.
+    EXPECT_TRUE(find_query_it != query_ids_insertion_order.end());
+  }
+
+  // Repeat the tests a few more times.
+  for (auto it = query_ids_insertion_order.begin();
+       it != query_ids_insertion_order.end();
+       ++it) {
+    const int picked_query_id = learner.pickRandomQuery();
+    // Try to find the randomly picked query ID in query_ids_insertion_order.
+    auto find_query_it = std::find(query_ids_insertion_order.begin(),
+                                   query_ids_insertion_order.end(),
+                                   picked_query_id);
+    // We expect the search to be successful.
+    EXPECT_TRUE(find_query_it != query_ids_insertion_order.end());
+  }
+
+  // Remove the queries in the order as defined in query_ids_removal_order.
+  for (auto it = query_ids_removal_order.begin();
+       it != query_ids_removal_order.end();
+       ++it) {
+    const int picked_query_id = learner.pickRandomQuery();
+    // Try to find the randomly picked query ID in query_ids_removal_order.
+    auto find_query_it = std::find(
+        it, query_ids_removal_order.end(), picked_query_id);
+    // We expect the search to be successful.
+    EXPECT_TRUE(find_query_it != query_ids_removal_order.end());
+    learner.removeQuery(*it);
+  }
+
+  EXPECT_FALSE(learner.hasActiveQueries());
+  EXPECT_EQ(kInvalidQueryID, learner.pickRandomQuery());
+}
+
+TEST_F(LearnerTest, PickRandomQueryCurrentProbabilitiesTest) {
+  // We use a set of unique query IDs. For each query ID, we assign a priority
+  // level. The set of priority levels is smaller than the set of query IDs, so
+  // that we can have more than one queries for a given priority level.
+
+  // In this test we send completion feedback messages for all the queries
+  // to the learner. Therefore it refers to the current probabilities set for
+  // the queries.
+  std::vector<std::size_t> query_ids_insertion_order;
+  std::vector<std::size_t> query_ids_removal_order;
+  const std::size_t kNumQueriesToTest = 20;
+  for (std::size_t query_num = 0;
+       query_num < kNumQueriesToTest;
+       ++query_num) {
+    query_ids_insertion_order.emplace_back(query_num);
+    query_ids_removal_order.emplace_back(query_num);
+  }
+
+  // Randomize the orders.
+  std::random_device rd;
+  std::mt19937 g1(rd());
+  std::mt19937 g2(rd());
+
+  std::shuffle(query_ids_insertion_order.begin(),
+               query_ids_insertion_order.end(),
+               g1);
+
+  std::shuffle(query_ids_removal_order.begin(),
+               query_ids_removal_order.end(),
+               g2);
+
+  Learner learner;
+  EXPECT_EQ(kInvalidQueryID, learner.pickRandomQuery());
+
+  std::vector<std::size_t> priority_levels {1, 3, 5, 9};
+  std::size_t priority_level_index = 0;
+  std::unique_ptr<QueryHandle> handle;
+  // Insert the queries in the order as defined in query_ids_insertion_order.
+  for (auto it = query_ids_insertion_order.begin();
+       it != query_ids_insertion_order.end();
+       ++it) {
+    handle.reset(new QueryHandle(*it, priority_levels[priority_level_index]));
+    priority_level_index = (priority_level_index + 1) % priority_levels.size();
+    learner.addQuery(*handle);
+    const int picked_query_id = learner.pickRandomQuery();
+    // Try to find the randomly picked query ID in query_ids_insertion_order.
+    auto find_query_it = std::find(
+        query_ids_insertion_order.begin(), it + 1, picked_query_id);
+    // We expect the search to be successful.
+    EXPECT_TRUE(find_query_it != query_ids_insertion_order.end());
+  }
+
+  // Now send one completion feedback message per query to the learner.
+  const std::size_t kOperatorID = 0;
+  for (auto it = query_ids_insertion_order.begin();
+       it != query_ids_insertion_order.end();
+       ++it) {
+    // LOG(INFO) << "Completion message for query : " << *it;
+    learner.addCompletionFeedback(createMockCompletionMessage(*it, kOperatorID));
+  }
+
+  // Repeat the tests a few more times.
+  for (auto it = query_ids_insertion_order.begin();
+       it != query_ids_insertion_order.end();
+       ++it) {
+    const int picked_query_id = learner.pickRandomQuery();
+    // Try to find the randomly picked query ID in query_ids_insertion_order.
+    auto find_query_it = std::find(query_ids_insertion_order.begin(),
+                                   query_ids_insertion_order.end(),
+                                   picked_query_id);
+    // We expect the search to be successful.
+    EXPECT_TRUE(find_query_it != query_ids_insertion_order.end());
+  }
+
+  // Remove the queries in the order as defined in query_ids_removal_order.
+  for (auto it = query_ids_removal_order.begin();
+       it != query_ids_removal_order.end();
+       ++it) {
+    const int picked_query_id = learner.pickRandomQuery();
+    // Try to find the randomly picked query ID in query_ids_removal_order.
+    auto find_query_it = std::find(
+        it, query_ids_removal_order.end(), picked_query_id);
+    // We expect the search to be successful.
+    // LOG(INFO) << "Picked query ID: " << picked_query_id << "\n";
+    EXPECT_TRUE(find_query_it != query_ids_removal_order.end());
+    learner.removeQuery(*it);
+    // LOG(INFO) << "Removed query ID: " << *it;
+  }
+
+  EXPECT_FALSE(learner.hasActiveQueries());
+  EXPECT_EQ(kInvalidQueryID, learner.pickRandomQuery());
+}
 }  // namespace quickstep
