@@ -173,7 +173,7 @@ class ProbabilityStore {
       }
       CHECK_GT(new_denominator, 0);
       common_denominator_ = new_denominator;
-      updateCumulativeProbabilities();
+      updateProbabilitiesNewDenominator();
     } else {
       // In order to keep the store consistent, we should keep the sizes of
       // individual_probabilities_ and cumulative_probabilities_ the same.
@@ -208,9 +208,9 @@ class ProbabilityStore {
     }
     float cumulative_probability = 0;
     for (const auto p : individual_probabilities_) {
+      cumulative_probability += p.second.second;
       cumulative_probabilities_.emplace_back(p.first,
                                              cumulative_probability);
-      cumulative_probability += p.second.second;
     }
     DCHECK(!cumulative_probabilities_.empty());
     // Adjust the last cumulative probability manually to 1, so that
