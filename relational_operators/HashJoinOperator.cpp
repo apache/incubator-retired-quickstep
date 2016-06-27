@@ -65,21 +65,11 @@ DEFINE_bool(vector_based_joined_tuple_collector, false,
             "If true, use simple vector-based joined tuple collector in "
             "hash join, with a final sort pass to group joined tuple pairs "
             "by inner block. If false, use unordered_map based collector that "
-            "keeps joined pairs grouped by inner block as they are found "
-            "(this latter option has exhibited performance/scaling problems, "
-            "particularly in NUMA contexts).");
+            "keeps joined pairs grouped by inner block as they are found.");
 
 // Functor passed to HashTable::getAllFromValueAccessor() to collect matching
 // tuples from the inner relation. This version stores matching tuple ID pairs
 // in an unordered_map keyed by inner block ID.
-//
-// NOTE(chasseur): Performance testing has shown that this particular
-// implementation has problems scaling in a multisocket NUMA machine.
-// Additional benchmarking revealed problems using the STL unordered_map class
-// in a NUMA system (at least for the implementation in GNU libstdc++), even
-// though instances of this class and the internal unordered_map are private to
-// a single thread. Because of this, VectorBasedJoinedTupleCollector is used by
-// default instead.
 class MapBasedJoinedTupleCollector {
  public:
   MapBasedJoinedTupleCollector() {
@@ -126,10 +116,6 @@ inline bool CompareFirst(const PairT &left, const PairT &right) {
 // tuples from the inner relation. This version stores inner block ID and pairs
 // of joined tuple IDs in an unsorted vector, which should then be sorted with
 // a call to consolidate() before materializing join output.
-//
-// NOTE(chasseur): Because of NUMA scaling issues for
-// MapBasedJoinedTupleCollector noted above, this implementation is the
-// default.
 class VectorBasedJoinedTupleCollector {
  public:
   VectorBasedJoinedTupleCollector() {
