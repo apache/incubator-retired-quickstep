@@ -290,50 +290,6 @@ class InsertDestination : public InsertDestinationInterface {
 };
 
 /**
- * @brief Implementation of InsertDestination that always creates new blocks,
- *        leaving some blocks potentially very underfull.
- **/
-class AlwaysCreateBlockInsertDestination : public InsertDestination {
- public:
-  AlwaysCreateBlockInsertDestination(const CatalogRelationSchema &relation,
-                                     const StorageBlockLayout *layout,
-                                     StorageManager *storage_manager,
-                                     const std::size_t relational_op_index,
-                                     const std::size_t query_id,
-                                     const tmb::client_id scheduler_client_id,
-                                     tmb::MessageBus *bus)
-      : InsertDestination(relation,
-                          layout,
-                          storage_manager,
-                          relational_op_index,
-                          query_id,
-                          scheduler_client_id,
-                          bus) {}
-
-  ~AlwaysCreateBlockInsertDestination() override {
-  }
-
- protected:
-  MutableBlockReference getBlockForInsertion() override;
-
-  void returnBlock(MutableBlockReference &&block, const bool full) override;
-
-  MutableBlockReference createNewBlock() override;
-
-  const std::vector<block_id>& getTouchedBlocksInternal() override {
-    return returned_block_ids_;
-  }
-
-  void getPartiallyFilledBlocks(std::vector<MutableBlockReference> *partial_blocks) override {
-  }
-
- private:
-  std::vector<block_id> returned_block_ids_;
-
-  DISALLOW_COPY_AND_ASSIGN(AlwaysCreateBlockInsertDestination);
-};
-
-/**
  * @brief Implementation of InsertDestination that keeps a pool of
  *        partially-full blocks. Creates new blocks as necessary when
  *        getBlockForInsertion() is called and there are no partially-full
