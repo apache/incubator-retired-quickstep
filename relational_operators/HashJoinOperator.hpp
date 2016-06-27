@@ -356,9 +356,6 @@ class HashInnerJoinWorkOrder : public WorkOrder {
   void execute() override;
 
  private:
-  template <typename CollectorT>
-  void executeWithCollectorType();
-
   const CatalogRelationSchema &build_relation_;
   const CatalogRelationSchema &probe_relation_;
   const std::vector<attribute_id> join_key_attributes_;

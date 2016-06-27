@@ -61,25 +61,9 @@ namespace quickstep {
 
 namespace {
 
-DEFINE_bool(vector_based_joined_tuple_collector, false,
-            "If true, use simple vector-based joined tuple collector in "
-            "hash join, with a final sort pass to group joined tuple pairs "
-            "by inner block. If false, use unordered_map based collector that "
-            "keeps joined pairs grouped by inner block as they are found "
-            "(this latter option has exhibited performance/scaling problems, "
-            "particularly in NUMA contexts).");
-
 // Functor passed to HashTable::getAllFromValueAccessor() to collect matching
-// tuples from the inner relation. This version stores matching tuple ID pairs
+// tuples from the inner relation. It stores matching tuple ID pairs
 // in an unordered_map keyed by inner block ID.
-//
-// NOTE(chasseur): Performance testing has shown that this particular
-// implementation has problems scaling in a multisocket NUMA machine.
-// Additional benchmarking revealed problems using the STL unordered_map class
-// in a NUMA system (at least for the implementation in GNU libstdc++), even
-// though instances of this class and the internal unordered_map are private to
-// a single thread. Because of this, VectorBasedJoinedTupleCollector is used by
-// default instead.
 class MapBasedJoinedTupleCollector {
  public:
   MapBasedJoinedTupleCollector() {
@@ -89,13 +73,6 @@ class MapBasedJoinedTupleCollector {
   inline void operator()(const ValueAccessorT &accessor,
                          const TupleReference &tref) {
     joined_tuples_[tref.block].emplace_back(tref.tuple, accessor.getCurrentPosition());
-  }
-
-  // Consolidation is a no-op for this version, but we provide this trivial
-  // call so that MapBasedJoinedTupleCollector and
-  // VectorBasedJoinedTupleCollector have the same interface and can both be
-  // used in the templated HashInnerJoinWorkOrder::executeWithCollectorType() method.
-  inline void consolidate() const {
   }
 
   // Get a mutable pointer to the collected map of joined tuple ID pairs. The
@@ -114,82 +91,6 @@ class MapBasedJoinedTupleCollector {
   // tuple-IDs is expected to be more space efficient if the result set is less
   // than 1/64 the cardinality of the cross-product.
   std::unordered_map<block_id, std::vector<std::pair<tuple_id, tuple_id>>> joined_tuples_;
-};
-
-// Compare std::pair instances based on their first element only.
-template <typename PairT>
-inline bool CompareFirst(const PairT &left, const PairT &right) {
-  return left.first < right.first;
-}
-
-// Functor passed to HashTable::getAllFromValueAccessor() to collect matching
-// tuples from the inner relation. This version stores inner block ID and pairs
-// of joined tuple IDs in an unsorted vector, which should then be sorted with
-// a call to consolidate() before materializing join output.
-//
-// NOTE(chasseur): Because of NUMA scaling issues for
-// MapBasedJoinedTupleCollector noted above, this implementation is the
-// default.
-class VectorBasedJoinedTupleCollector {
- public:
-  VectorBasedJoinedTupleCollector() {
-  }
-
-  template <typename ValueAccessorT>
-  inline void operator()(const ValueAccessorT &accessor,
-                         const TupleReference &tref) {
-    joined_tuples_.emplace_back(tref.block,
-                                std::make_pair(tref.tuple, accessor.getCurrentPosition()));
-  }
-
-  // Sorts joined tuple pairs by inner block ID. Must be called before
-  // getJoinedTuples().
-  void consolidate() {
-    if (joined_tuples_.empty()) {
-      return;
-    }
-
-    // Sort joined tuple_id pairs by inner block_id.
-    std::sort(joined_tuples_.begin(),
-              joined_tuples_.end(),
-              CompareFirst<std::pair<block_id, std::pair<tuple_id, tuple_id>>>);
-
-    // Make a single vector of joined block_id pairs for each inner block for
-    // compatibility with other join-related APIs.
-    consolidated_joined_tuples_.emplace_back(joined_tuples_.front().first,
-                                             std::vector<std::pair<tuple_id, tuple_id>>());
-
-    for (const std::pair<block_id, std::pair<tuple_id, tuple_id>> &match_entry
-         : joined_tuples_) {
-      if (match_entry.first == consolidated_joined_tuples_.back().first) {
-        consolidated_joined_tuples_.back().second.emplace_back(match_entry.second);
-      } else {
-        consolidated_joined_tuples_.emplace_back(
-            match_entry.first,
-            std::vector<std::pair<tuple_id, tuple_id>>(1, match_entry.second));
-      }
-    }
-  }
-
-  // Get a mutable pointer to the collected joined tuple ID pairs. The returned
-  // vector has a single entry for each inner block where there are matching
-  // joined tuples (the inner block's ID is the first element of the pair). The
-  // second element of each pair is another vector consisting of pairs of
-  // joined tuple IDs (tuple ID from inner block on the left, from outer block
-  // on the right).
-  inline std::vector<std::pair<const block_id, std::vector<std::pair<tuple_id, tuple_id>>>>*
-      getJoinedTuples() {
-    return &consolidated_joined_tuples_;
-  }
-
- private:
-  // Unsorted vector of join matches that is appended to by call operator().
-  std::vector<std::pair<block_id, std::pair<tuple_id, tuple_id>>> joined_tuples_;
-
-  // Joined tuples sorted by inner block_id. consolidate() populates this from
-  // 'joined_tuples_'.
-  std::vector<std::pair<const block_id, std::vector<std::pair<tuple_id, tuple_id>>>>
-      consolidated_joined_tuples_;
 };
 
 class SemiAntiJoinTupleCollector {
@@ -516,21 +417,12 @@ serialization::WorkOrder* HashJoinOperator::createOuterJoinWorkOrderProto(const 
 
 
 void HashInnerJoinWorkOrder::execute() {
-  if (FLAGS_vector_based_joined_tuple_collector) {
-    executeWithCollectorType<VectorBasedJoinedTupleCollector>();
-  } else {
-    executeWithCollectorType<MapBasedJoinedTupleCollector>();
-  }
-}
-
-template <typename CollectorT>
-void HashInnerJoinWorkOrder::executeWithCollectorType() {
   BlockReference probe_block(
       storage_manager_->getBlock(block_id_, probe_relation_));
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
 
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
-  CollectorT collector;
+  MapBasedJoinedTupleCollector collector;
   if (join_key_attributes_.size() == 1) {
     hash_table_.getAllFromValueAccessor(
         probe_accessor.get(),
@@ -544,7 +436,6 @@ void HashInnerJoinWorkOrder::executeWithCollectorType() {
         any_join_key_attributes_nullable_,
         &collector);
   }
-  collector.consolidate();
 
   const relation_id build_relation_id = build_relation_.getID();
   const relation_id probe_relation_id = probe_relation_.getID();
@@ -636,8 +527,6 @@ void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
 
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
-
-  // TODO(harshad) - Make this function work with both types of collectors.
 
   // We collect all the matching probe relation tuples, as there's a residual
   // preidcate that needs to be applied after collecting these matches.
@@ -810,7 +699,6 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
 
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
-  // TODO(harshad) - Make the following code work with both types of collectors.
   MapBasedJoinedTupleCollector collector;
   // We probe the hash table and get all the matches. Unlike
   // executeWithoutResidualPredicate(), we have to collect all the matching
