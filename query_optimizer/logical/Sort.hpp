@@ -113,6 +113,19 @@ class Sort : public Logical {
                             limit));
   }
 
+  static SortPtr Create(
+      const LogicalPtr &input,
+      std::vector<expressions::AttributeReferencePtr> &&sort_attributes,
+      std::vector<bool> &&sort_ascending,
+      std::vector<bool> &&nulls_first_flags,
+      const int limit) {
+    return SortPtr(new Sort(input,
+                            std::move(sort_attributes),
+                            std::move(sort_ascending),
+                            std::move(nulls_first_flags),
+                            limit));
+  }
+
  protected:
   void getFieldStringItems(
       std::vector<std::string> *inline_field_names,
@@ -133,6 +146,19 @@ class Sort : public Logical {
         sort_attributes_(sort_attributes),
         sort_ascending_(sort_ascending),
         nulls_first_flags_(nulls_first_flags),
+        limit_(limit) {
+    addChild(input_);
+  }
+
+  Sort(const LogicalPtr &input,
+       std::vector<expressions::AttributeReferencePtr> &&sort_attributes,
+       std::vector<bool> &&sort_ascending,
+       std::vector<bool> &&nulls_first_flags,
+       const int limit)
+      : input_(input),
+        sort_attributes_(std::move(sort_attributes)),
+        sort_ascending_(std::move(sort_ascending)),
+        nulls_first_flags_(std::move(nulls_first_flags)),
         limit_(limit) {
     addChild(input_);
   }

@@ -1270,16 +1270,16 @@ L::LogicalPtr Resolver::resolveSelect(
     if (select_query.limit() != nullptr) {
       logical_plan =
           L::Sort::Create(logical_plan,
-                          order_by_attributes,
-                          order_by_directions,
-                          nulls_first,
+                          std::move(order_by_attributes),
+                          std::move(order_by_directions),
+                          std::move(nulls_first),
                           select_query.limit()->limit_expression()->long_value());
     } else {
       logical_plan =
           L::Sort::Create(logical_plan,
-                          order_by_attributes,
-                          order_by_directions,
-                          nulls_first,
+                          std::move(order_by_attributes),
+                          std::move(order_by_directions),
+                          std::move(nulls_first),
                           -1 /* limit */);
     }
   } else if (select_query.limit() != nullptr) {
@@ -1880,9 +1880,9 @@ L::LogicalPtr Resolver::resolveSortInWindow(
 
   L::LogicalPtr sorted_logical_plan =
       L::Sort::Create(logical_plan,
-                      sort_attributes,
-                      sort_directions,
-                      sort_nulls_first,
+                      std::move(sort_attributes),
+                      std::move(sort_directions),
+                      std::move(sort_nulls_first),
                       -1 /* limit */);
 
   return sorted_logical_plan;
