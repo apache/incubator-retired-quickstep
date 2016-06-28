@@ -87,7 +87,7 @@ Foreman::Foreman(const tmb::client_id main_thread_client_id,
     bus_->RegisterClientAsReceiver(foreman_client_id_, message_type);
   }
 
-  policy_enforcer_.reset(new PolicyEnforcer(
+  policy_enforcer_.reset(new PriorityPolicyEnforcer(
       foreman_client_id_,
       num_numa_nodes,
       catalog_database_,

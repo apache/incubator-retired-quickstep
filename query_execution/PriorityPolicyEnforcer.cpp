@@ -15,7 +15,7 @@
  *   limitations under the License.
  **/
 
-#include "query_execution/PolicyEnforcer.hpp"
+#include "query_execution/PriorityPolicyEnforcer.hpp"
 
 #include <cstddef>
 #include <memory>
@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
+#include "query_execution/Learner.hpp"
 #include "query_execution/ProbabilityStore.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryManager.hpp"
@@ -41,7 +42,8 @@ DEFINE_uint64(max_msgs_per_dispatch_round, 20, "Maximum number of messages that"
               " can be allocated in a single round of dispatch of messages to"
               " the workers.");
 
-bool PolicyEnforcer::admitQuery(QueryHandle *query_handle) {
+bool PriorityPolicyEnforcer::admitQuery(QueryHandle *query_handle) {
+  Learner learner;
   if (admitted_queries_.size() < kMaxConcurrentQueries) {
     // Ok to admit the query.
     const std::size_t query_id = query_handle->query_id();
@@ -50,6 +52,8 @@ bool PolicyEnforcer::admitQuery(QueryHandle *query_handle) {
       admitted_queries_[query_id].reset(
           new QueryManager(foreman_client_id_, num_numa_nodes_, query_handle,
                            catalog_database_, storage_manager_, bus_));
+      LOG(INFO) << "Admitted query with ID: " << query_handle->query_id();
+      learner_->addQuery(*query_handle);
       return true;
     } else {
       LOG(ERROR) << "Query with the same ID " << query_id << " exists";
@@ -62,7 +66,7 @@ bool PolicyEnforcer::admitQuery(QueryHandle *query_handle) {
   }
 }
 
-void PolicyEnforcer::processMessage(const TaggedMessage &tagged_message) {
+void PriorityPolicyEnforcer::processMessage(const TaggedMessage &tagged_message) {
   // TODO(harshad) : Provide processXMessage() public functions in
   // QueryManager, so that we need to extract message from the
   // TaggedMessage only once.
@@ -77,6 +81,7 @@ void PolicyEnforcer::processMessage(const TaggedMessage &tagged_message) {
       query_id = proto.query_id();
       worker_directory_->decrementNumQueuedWorkOrders(
           proto.worker_thread_index());
+      learner_->addCompletionFeedback(proto);
       if (profile_individual_workorders_) {
         recordTimeForWorkOrder(proto);
       }
@@ -122,7 +127,7 @@ void PolicyEnforcer::processMessage(const TaggedMessage &tagged_message) {
       break;
     }
     default:
-      LOG(FATAL) << "Unknown message type found in PolicyEnforcer";
+      LOG(FATAL) << "Unknown message type found in PriorityPolicyEnforcer";
   }
   DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
   const QueryManager::QueryStatusCode return_code =
@@ -138,7 +143,7 @@ void PolicyEnforcer::processMessage(const TaggedMessage &tagged_message) {
   }
 }
 
-void PolicyEnforcer::getWorkerMessages(
+void PriorityPolicyEnforcer::getWorkerMessages(
     std::vector<std::unique_ptr<WorkerMessage>> *worker_messages) {
   // Iterate over admitted queries until either there are no more
   // messages available, or the maximum number of messages have
@@ -182,16 +187,17 @@ void PolicyEnforcer::getWorkerMessages(
   }
 }
 
-void PolicyEnforcer::removeQuery(const std::size_t query_id) {
+void PriorityPolicyEnforcer::removeQuery(const std::size_t query_id) {
   DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
   if (!admitted_queries_[query_id]->getQueryExecutionState().hasQueryExecutionFinished()) {
     LOG(WARNING) << "Removing query with ID " << query_id
                  << " that hasn't finished its execution";
   }
   admitted_queries_.erase(query_id);
+  learner_->removeQuery(query_id);
 }
 
-bool PolicyEnforcer::admitQueries(
+bool PriorityPolicyEnforcer::admitQueries(
     const std::vector<QueryHandle*> &query_handles) {
   for (QueryHandle *curr_query : query_handles) {
     if (!admitQuery(curr_query)) {
@@ -201,7 +207,7 @@ bool PolicyEnforcer::admitQueries(
   return true;
 }
 
-void PolicyEnforcer::recordTimeForWorkOrder(
+void PriorityPolicyEnforcer::recordTimeForWorkOrder(
     const serialization::NormalWorkOrderCompletionMessage &proto) {
   const std::size_t query_id = proto.query_id();
   if (workorder_time_recorder_.find(query_id) == workorder_time_recorder_.end()) {

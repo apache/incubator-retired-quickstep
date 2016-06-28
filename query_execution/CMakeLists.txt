@@ -37,6 +37,7 @@ add_library(quickstep_queryexecution_Foreman Foreman.cpp Foreman.hpp)
 add_library(quickstep_queryexecution_ForemanLite ../empty_src.cpp ForemanLite.hpp)
 add_library(quickstep_queryexecution_Learner Learner.cpp Learner.hpp)
 add_library(quickstep_queryexecution_PolicyEnforcer PolicyEnforcer.cpp PolicyEnforcer.hpp)
+add_library(quickstep_queryexecution_PriorityPolicyEnforcer PriorityPolicyEnforcer.cpp PriorityPolicyEnforcer.hpp)
 add_library(quickstep_queryexecution_ProbabilityStore ../empty_src.cpp ProbabilityStore.hpp)
 add_library(quickstep_queryexecution_QueryContext QueryContext.cpp QueryContext.hpp)
 add_library(quickstep_queryexecution_QueryContext_proto
@@ -80,7 +81,7 @@ target_link_libraries(quickstep_queryexecution_Foreman
                       glog
                       quickstep_queryexecution_AdmitRequestMessage
                       quickstep_queryexecution_ForemanLite
-                      quickstep_queryexecution_PolicyEnforcer
+                      quickstep_queryexecution_PriorityPolicyEnforcer
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_WorkerDirectory
@@ -104,6 +105,21 @@ target_link_libraries(quickstep_queryexecution_Learner
                       quickstep_queryoptimizer_QueryHandle
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryexecution_PolicyEnforcer
+                      ${GFLAGS_LIB_NAME}
+                      glog
+                      quickstep_queryexecution_ExecutionStats
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_ProbabilityStore
+                      quickstep_queryexecution_QueryExecutionMessages_proto
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_QueryManager
+                      quickstep_queryexecution_WorkerDirectory
+                      quickstep_queryexecution_WorkerMessage
+                      quickstep_queryoptimizer_QueryHandle
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_utility_Macros
+                      tmb)
+target_link_libraries(quickstep_queryexecution_PriorityPolicyEnforcer
                       ${GFLAGS_LIB_NAME}
                       glog
                       quickstep_queryexecution_ExecutionStats
@@ -225,6 +241,7 @@ target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_ForemanLite
                       quickstep_queryexecution_Learner
                       quickstep_queryexecution_PolicyEnforcer
+                      quickstep_queryexecution_PriorityPolicyEnforcer
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
                       quickstep_queryexecution_QueryExecutionMessages_proto

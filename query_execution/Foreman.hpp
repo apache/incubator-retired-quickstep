@@ -24,7 +24,7 @@
 #include <vector>
 
 #include "query_execution/ForemanLite.hpp"
-#include "query_execution/PolicyEnforcer.hpp"
+#include "query_execution/PriorityPolicyEnforcer.hpp"
 #include "utility/Macros.hpp"
 
 #include "tmb/id_typedefs.h"
@@ -128,7 +128,7 @@ class Foreman final : public ForemanLite {
   CatalogDatabaseLite *catalog_database_;
   StorageManager *storage_manager_;
 
-  std::unique_ptr<PolicyEnforcer> policy_enforcer_;
+  std::unique_ptr<PriorityPolicyEnforcer> policy_enforcer_;
 
   DISALLOW_COPY_AND_ASSIGN(Foreman);
 };
