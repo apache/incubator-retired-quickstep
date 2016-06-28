@@ -174,18 +174,26 @@ void PriorityPolicyEnforcer::getWorkerMessages(
     // While there are more priority levels to be checked ..
     while (checked_priority_levels.size() < priority_query_ids_.size()) {
       const int chosen_priority_level = learner_->pickRandomPriorityLevel();
-      DCHECK(chosen_priority_level != kInvalidPriorityLevel);
-      WorkerMessage *next_worker_message =
-          getNextWorkerMessageFromPriorityLevel(chosen_priority_level,
-                                                &finished_queries_ids);
-      if (next_worker_message != nullptr) {
-        worker_messages->push_back(std::unique_ptr<WorkerMessage>(next_worker_message));
+      if (chosen_priority_level == kInvalidPriorityLevel) {
+        LOG(INFO) << "No valid priority level chosen";
+        break;
+      } else if (checked_priority_levels.find(static_cast<std::size_t>(
+                     chosen_priority_level)) != checked_priority_levels.end()) {
+        DLOG(INFO) << "The chosen priority level " << chosen_priority_level << " was checked already";
+        continue;
       } else {
-        checked_priority_levels[static_cast<std::size_t>(chosen_priority_level)] = true;
+        WorkerMessage *next_worker_message =
+            getNextWorkerMessageFromPriorityLevel(chosen_priority_level,
+                                                  &finished_queries_ids);
+        if (next_worker_message != nullptr) {
+          worker_messages->push_back(std::unique_ptr<WorkerMessage>(next_worker_message));
+        } else {
+          checked_priority_levels[static_cast<std::size_t>(chosen_priority_level)] = true;
+        }
       }
     }
   } else {
-    LOG(INFO) << "No active queries in the learner at this point.";
+    DLOG(INFO) << "No active queries in the learner at this point.";
     return;
   }
   for (const std::size_t finished_qid : finished_queries_ids) {
