@@ -49,7 +49,7 @@ void Learner::addCompletionFeedback(
         &workorder_completion_proto) {
   const std::size_t query_id = workorder_completion_proto.query_id();
   DCHECK(isQueryPresent(query_id));
-  const std::size_t priority_level = getQueryPriority(query_id);
+  const std::size_t priority_level = getQueryPriorityUnsafe(query_id);
   ExecutionStats *execution_stats = getExecutionStats(query_id);
   DCHECK(execution_stats != nullptr);
   execution_stats->addEntry(
@@ -106,12 +106,10 @@ void Learner::updateProbabilitiesForQueriesInPriorityLevel(
         query_id,
         1 / static_cast<float>(mean_workorders_per_query[query_id]),
         denominator);
-    // LOG(INFO) << "Added stats on query ID: " << query_id << " priority: " << priority_level;
   } else {
     // At least one of the queries has predicted time for next work order as 0.
     // In such a case, we don't update the probabilities and continue to use
     // the older probabilities.
-    // LOG(INFO) << "Denominator is 0 QID: " << query_id << " priority: " << priority_level;
     return;
   }
 }
@@ -248,7 +246,6 @@ void Learner::checkAndRemovePriorityLevel(const std::size_t priority_level) {
     probabilities_of_priority_levels_->removeObject(priority_level);
     // NOTE(harshad) : Not using this cache as it gets confusing.
     // has_feedback_from_all_queries_.erase(priority_level);
-    // LOG(INFO) << "Removed priority level: " << priority_level;
     if (hasActiveQueries()) {
       if (static_cast<int>(priority_level) == highest_priority_level_) {
         // The priority level to be removed is the highest priority level.

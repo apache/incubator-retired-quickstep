@@ -53,6 +53,7 @@ bool PriorityPolicyEnforcer::admitQuery(QueryHandle *query_handle) {
           new QueryManager(foreman_client_id_, num_numa_nodes_, query_handle,
                            catalog_database_, storage_manager_, bus_));
       LOG(INFO) << "Admitted query with ID: " << query_handle->query_id();
+      priority_query_ids_[query_handle->query_priority()].emplace_back(query_id);
       learner_->addQuery(*query_handle);
       return true;
     } else {
@@ -71,6 +72,7 @@ void PriorityPolicyEnforcer::processMessage(const TaggedMessage &tagged_message)
   // QueryManager, so that we need to extract message from the
   // TaggedMessage only once.
   std::size_t query_id;
+  std::size_t operator_id;
   switch (tagged_message.message_type()) {
     case kWorkOrderCompleteMessage: {
       serialization::NormalWorkOrderCompletionMessage proto;
@@ -79,6 +81,7 @@ void PriorityPolicyEnforcer::processMessage(const TaggedMessage &tagged_message)
       CHECK(proto.ParseFromArray(tagged_message.message(),
                                  tagged_message.message_bytes()));
       query_id = proto.query_id();
+      operator_id = proto.operator_index();
       worker_directory_->decrementNumQueuedWorkOrders(
           proto.worker_thread_index());
       learner_->addCompletionFeedback(proto);
@@ -94,6 +97,7 @@ void PriorityPolicyEnforcer::processMessage(const TaggedMessage &tagged_message)
       CHECK(proto.ParseFromArray(tagged_message.message(),
                                  tagged_message.message_bytes()));
       query_id = proto.query_id();
+      operator_id = proto.operator_index();
       worker_directory_->decrementNumQueuedWorkOrders(
           proto.worker_thread_index());
       break;
@@ -132,6 +136,7 @@ void PriorityPolicyEnforcer::processMessage(const TaggedMessage &tagged_message)
   DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
   const QueryManager::QueryStatusCode return_code =
       admitted_queries_[query_id]->processMessage(tagged_message);
+  //NOTE: kQueryExecuted takes precedence over kOperatorExecuted.
   if (return_code == QueryManager::QueryStatusCode::kQueryExecuted) {
     removeQuery(query_id);
     if (!waiting_queries_.empty()) {
@@ -140,6 +145,8 @@ void PriorityPolicyEnforcer::processMessage(const TaggedMessage &tagged_message)
       waiting_queries_.pop();
       admitQuery(new_query);
     }
+  } else if (return_code == QueryManager::QueryStatusCode::kOperatorExecuted) {
+    learner_->removeOperator(query_id, operator_id);
   }
 }
 
@@ -161,26 +168,25 @@ void PriorityPolicyEnforcer::getWorkerMessages(
   DCHECK_GT(per_query_share, 0u);
   std::vector<std::size_t> finished_queries_ids;
 
-  for (const auto &admitted_query_info : admitted_queries_) {
-    QueryManager *curr_query_manager = admitted_query_info.second.get();
-    DCHECK(curr_query_manager != nullptr);
-    std::size_t messages_collected_curr_query = 0;
-    while (messages_collected_curr_query < per_query_share) {
+  if (learner_->hasActiveQueries()) {
+    // Key = priority level. Value = Whether we have already checked the
+    std::unordered_map<std::size_t, bool> checked_priority_levels;
+    // While there are more priority levels to be checked ..
+    while (checked_priority_levels.size() < priority_query_ids_.size()) {
+      const int chosen_priority_level = learner_->pickRandomPriorityLevel();
+      DCHECK(chosen_priority_level != kInvalidPriorityLevel);
       WorkerMessage *next_worker_message =
-          curr_query_manager->getNextWorkerMessage(0, kAnyNUMANodeID);
+          getNextWorkerMessageFromPriorityLevel(chosen_priority_level,
+                                                &finished_queries_ids);
       if (next_worker_message != nullptr) {
-        ++messages_collected_curr_query;
         worker_messages->push_back(std::unique_ptr<WorkerMessage>(next_worker_message));
       } else {
-        // No more work ordes from the current query at this time.
-        // Check if the query's execution is over.
-        if (curr_query_manager->getQueryExecutionState().hasQueryExecutionFinished()) {
-          // If the query has been executed, remove it.
-          finished_queries_ids.push_back(admitted_query_info.first);
-        }
-        break;
+        checked_priority_levels[static_cast<std::size_t>(chosen_priority_level)] = true;
       }
     }
+  } else {
+    LOG(INFO) << "No active queries in the learner at this point.";
+    return;
   }
   for (const std::size_t finished_qid : finished_queries_ids) {
     removeQuery(finished_qid);
@@ -194,6 +200,22 @@ void PriorityPolicyEnforcer::removeQuery(const std::size_t query_id) {
                  << " that hasn't finished its execution";
   }
   admitted_queries_.erase(query_id);
+  // Remove the query from priority_query_ids_ structure.
+  const int query_priority = learner_->getQueryPriority(query_id);
+  DCHECK(query_priority != kInvalidPriorityLevel);
+  const std::size_t query_priority_unsigned =
+      static_cast<std::size_t>(query_priority);
+  std::vector<std::size_t> *query_ids_for_priority_level =
+      &priority_query_ids_[query_priority_unsigned];
+  query_ids_for_priority_level->erase(
+      std::remove(query_ids_for_priority_level->begin(),
+                  query_ids_for_priority_level->end(),
+                  query_id));
+  if (query_ids_for_priority_level->empty()) {
+    // No more queries for the given priority level. Remove the entry.
+    priority_query_ids_.erase(query_priority_unsigned);
+  }
+  // Remove the query from the learner.
   learner_->removeQuery(query_id);
 }
 
@@ -217,6 +239,42 @@ void PriorityPolicyEnforcer::recordTimeForWorkOrder(
       proto.worker_thread_index(),
       proto.operator_index(),
       proto.execution_time_in_microseconds());
+}
+
+WorkerMessage* PriorityPolicyEnforcer::getNextWorkerMessageFromPriorityLevel(
+    const std::size_t priority_level,
+    std::vector<std::size_t> *finished_queries_ids) {
+  // Key = query ID from the given priority level, value = whether we have
+  // checked this query earlier.
+  std::unordered_map<std::size_t, bool> checked_query_ids;
+  // While there are more queries to be checked ..
+  while (checked_query_ids.size() < priority_query_ids_[priority_level].size()) {
+    const int chosen_query_id = learner_->pickRandomQueryFromPriorityLevel(priority_level);
+    if (chosen_query_id == kInvalidQueryID) {
+      // No query available at this time in this priority level.
+      return nullptr;
+    } else if (checked_query_ids.find(static_cast<std::size_t>(chosen_query_id)) != checked_query_ids.end()) {
+      // We have already seen this query ID, try one more time.
+      LOG(INFO) << "We have already seen this query, continue";
+      continue;
+    } else {
+      // We haven't seen this query earlier. Check if it has any schedulable
+      // WorkOrder.
+      QueryManager *chosen_query_manager = admitted_queries_[static_cast<std::size_t>(chosen_query_id)].get();
+      DCHECK(chosen_query_manager != nullptr);
+      std::unique_ptr<WorkerMessage> next_worker_message(chosen_query_manager->getNextWorkerMessage(0, kAnyNUMANodeID));
+      if (next_worker_message != nullptr) {
+        return next_worker_message.release();
+      } else {
+        // This query doesn't have any WorkerMessage right now. Mark as checked.
+        checked_query_ids[chosen_query_id] = true;
+        if (chosen_query_manager->getQueryExecutionState().hasQueryExecutionFinished()) {
+          finished_queries_ids->emplace_back(static_cast<std::size_t>(chosen_query_id));
+        }
+      }
+    }
+  }
+  return nullptr;
 }
 
 }  // namespace quickstep

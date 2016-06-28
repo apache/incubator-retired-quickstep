@@ -70,7 +70,7 @@ class Learner {
    **/
   void removeQuery(const std::size_t query_id) {
     DCHECK(isQueryPresent(query_id));
-    const std::size_t priority_level = getQueryPriority(query_id);
+    const std::size_t priority_level = getQueryPriorityUnsafe(query_id);
     // Find the iterator to the query in execution_stats_.
     auto stats_iter_mutable = getExecutionStatsIterMutable(query_id);
     execution_stats_[priority_level].erase(stats_iter_mutable);
@@ -158,9 +158,6 @@ class Learner {
     if (hasActiveQueries()) {
       const int result = static_cast<int>(
           probabilities_of_priority_levels_->pickRandomProperty());
-      /*LOG(INFO) << "Random priority level: " << result << " has "
-                << current_probabilities_.find(result)->second->getNumObjects()
-                << " queries";*/
       return result;
     } else {
       return kInvalidPriorityLevel;
@@ -182,10 +179,8 @@ class Learner {
       DCHECK_GT(random_priority_level, 0);
       const int result = pickRandomQueryFromPriorityLevel(
           static_cast<std::size_t>(random_priority_level));
-      // LOG(INFO) << "Picked random query ID: " << result << " from priority level " << random_priority_level;
       return result;
     } else {
-      // LOG(INFO) << "No active query right now";
       return kInvalidQueryID;
     }
   }
@@ -209,7 +204,6 @@ class Learner {
           return static_cast<int>(
               current_probabilities_.at(priority_level)->pickRandomProperty());
         }
-        // LOG(INFO) << "No queries in priority level: " << priority_level;
       } else {
         DCHECK(default_probabilities_.at(priority_level) != nullptr);
         const auto it = default_probabilities_.find(priority_level);
@@ -217,10 +211,22 @@ class Learner {
           return static_cast<int>(
               default_probabilities_.at(priority_level)->pickRandomProperty());
         }
-        // LOG(INFO) << "No queries in priority level: " << priority_level;
       }
     }
     return kInvalidQueryID;
+  }
+
+  /**
+   * @brief Given a query ID, if the query exists in the learner, return its
+   *        priority, otherwise return kInvalidPriorityLevel.
+   **/
+  inline int getQueryPriority(const std::size_t query_id) const {
+    const auto it = query_id_to_priority_lookup_.find(query_id);
+    if (it != query_id_to_priority_lookup_.end()) {
+      return it->second;
+    } else {
+      return kInvalidPriorityLevel;
+    }
   }
 
  private:
@@ -324,7 +330,7 @@ class Learner {
     if (isQueryPresent(query_id)) {
       const auto stats_iter = getExecutionStatsIterMutable(query_id);
       DCHECK(stats_iter !=
-             std::end(execution_stats_[getQueryPriority(query_id)]));
+             std::end(execution_stats_[getQueryPriorityUnsafe(query_id)]));
       return stats_iter->second.get();
     }
     return nullptr;
@@ -339,7 +345,7 @@ class Learner {
   inline std::vector<
       std::pair<std::size_t, std::unique_ptr<ExecutionStats>>>::const_iterator
       getExecutionStatsIterMutable(const std::size_t query_id) {
-    const std::size_t priority_level = getQueryPriority(query_id);
+    const std::size_t priority_level = getQueryPriorityUnsafe(query_id);
     const std::vector<std::pair<std::size_t, std::unique_ptr<ExecutionStats>>>
         &stats_vector = execution_stats_[priority_level];
     // The following line uses std::find_if to reach to the desired element
@@ -356,8 +362,11 @@ class Learner {
 
   /**
    * @brief Get a query's priority level given its ID.
+   *
+   * @note This version assumes that the given query ID exists in data
+   *       structures.
    **/
-  inline const std::size_t getQueryPriority(const std::size_t query_id) const {
+  inline const std::size_t getQueryPriorityUnsafe(const std::size_t query_id) const {
     const auto it = query_id_to_priority_lookup_.find(query_id);
     DCHECK(it != query_id_to_priority_lookup_.end());
     return it->second;

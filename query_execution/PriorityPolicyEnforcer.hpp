@@ -183,6 +183,21 @@ class PriorityPolicyEnforcer {
   void recordTimeForWorkOrder(
       const serialization::NormalWorkOrderCompletionMessage &proto);
 
+  /**
+   * @brief get a WorkerMessage from the chosen priority level.
+   *
+   * @param priority_level The priority level from which the query will be
+   *        chosen.
+   * @param finished_query_ids A vector of query IDs that have finished their
+   *        execution.
+   *
+   * @return A WorkerMessage. If no query can be chosen from this priority level,
+   *         return NULL.
+   **/
+  WorkerMessage *getNextWorkerMessageFromPriorityLevel(
+      const std::size_t priority_level,
+      std::vector<std::size_t> *finished_queries_ids);
+
   const tmb::client_id foreman_client_id_;
   const std::size_t num_numa_nodes_;
 
@@ -192,6 +207,10 @@ class PriorityPolicyEnforcer {
 
   tmb::MessageBus *bus_;
   const bool profile_individual_workorders_;
+
+  // Key = priority level, value = a vector of IDs of the queries belonging to
+  // the key priority level.
+  std::unordered_map<std::size_t, std::vector<std::size_t>> priority_query_ids_;
 
   // Key = query ID, value = QueryManager* for the key query.
   std::unordered_map<std::size_t, std::unique_ptr<QueryManager>> admitted_queries_;
