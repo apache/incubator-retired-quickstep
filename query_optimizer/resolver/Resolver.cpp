@@ -228,13 +228,13 @@ struct Resolver::QueryAggregationInfo {
 };
 
 struct Resolver::WindowPlan {
-  WindowPlan(const E::WindowInfo &window_info_in,
-             const L::LogicalPtr &logical_plan_in)
-      : window_info(window_info_in),
-        logical_plan(logical_plan_in) {}
+  WindowPlan(const L::LogicalPtr &logical_plan_in,
+             E::WindowInfo &&window_info_in)  // NOLINT(whitespace/operators)
+      : logical_plan(logical_plan_in),
+        window_info(std::move(window_info_in)) {}
 
-  const E::WindowInfo window_info;
   const L::LogicalPtr logical_plan;
+  const E::WindowInfo window_info;
 };
 
 struct Resolver::WindowAggregationInfo {
@@ -1032,9 +1032,9 @@ L::LogicalPtr Resolver::resolveSelect(
       L::LogicalPtr sorted_logical_plan = resolveSortInWindow(logical_plan,
                                                               resolved_window);
 
-      WindowPlan window_plan(resolved_window, sorted_logical_plan);
+      WindowPlan window_plan(sorted_logical_plan, std::move(resolved_window));
 
-      sorted_window_map.emplace(window.name()->value(), window_plan);
+      sorted_window_map.emplace(window.name()->value(), std::move(window_plan));
     }
   }
 
