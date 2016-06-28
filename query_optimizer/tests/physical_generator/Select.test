@@ -2876,3 +2876,267 @@ TopLevelPlan
 +-output_attributes=
   +-AttributeReference[id=5,name=x,relation=,type=Int]
   +-AttributeReference[id=6,name=y,relation=,type=Int]
+==
+
+# Window Aggregate Function Test.
+SELECT avg(int_col) OVER w FROM test
+WINDOW w AS
+(PARTITION BY char_col
+ ORDER BY long_col DESC NULLS LAST
+ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=WindowAggregate
+| | +-input=Sort[is_ascending=[true,false],nulls_first=[false,false]]
+| | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-sort_expressions=
+| | |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-window_aggregate_expression=Alias[id=6,name=,alias=$window_aggregate0,
+| |   relation=$window_aggregate,type=Double NULL]
+| |   +-WindowAggregateFunction[function=AVG,window_name=w,is_ascending=[false],
+| |     nulls_first=[false],frame_mode=row,num_preceding=-1,num_following=0]
+| |     +-arguments=
+| |     | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |     +-partition_by=
+| |     | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| |     +-order_by=
+| |       +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=avg(int_col),relation=,type=Double NULL]
+|     +-AttributeReference[id=6,name=,alias=$window_aggregate0,
+|       relation=$window_aggregate,type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=avg(int_col),relation=,type=Double NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=Selection
+| +-input=WindowAggregate
+| | +-input=Sort[is_ascending=[true,false],nulls_first=[false,false]]
+| | | +-input=TableReference[relation=Test,alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-sort_attributes=
+| | |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-window_aggregate_expression=Alias[id=6,name=,alias=$window_aggregate0,
+| |   relation=$window_aggregate,type=Double NULL]
+| |   +-WindowAggregateFunction[function=AVG,window_name=w,is_ascending=[false],
+| |     nulls_first=[false],frame_mode=row,num_preceding=-1,num_following=0]
+| |     +-arguments=
+| |     | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |     +-partition_by=
+| |     | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| |     +-order_by=
+| |       +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| +-project_expressions=
+|   +-Alias[id=6,name=,alias=avg(int_col),relation=,type=Double NULL]
+|     +-AttributeReference[id=6,name=,alias=$window_aggregate0,
+|       relation=$window_aggregate,type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=avg(int_col),relation=,type=Double NULL]
+==
+
+SELECT int_col, sum(float_col) OVER
+(PARTITION BY vchar_col, long_col
+ ORDER BY double_col DESC NULLS LAST, int_col ASC NULLS FIRST
+ RANGE BETWEEN 3 PRECEDING AND 3 FOLLOWING)
+FROM test;
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=WindowAggregate
+| | +-input=Sort[is_ascending=[true,true,false,true],
+| | | nulls_first=[false,false,false,true]]
+| | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-sort_expressions=
+| | |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   | type=VarChar(20) NULL]
+| | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | |   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-window_aggregate_expression=Alias[id=6,name=,alias=$window_aggregate0,
+| |   relation=$window_aggregate,type=Double NULL]
+| |   +-WindowAggregateFunction[function=SUM,window_name=,
+| |     is_ascending=[false,true],nulls_first=[false,true],frame_mode=range,
+| |     num_preceding=3,num_following=3]
+| |     +-arguments=
+| |     | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |     +-partition_by=
+| |     | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| |     | | type=VarChar(20) NULL]
+| |     | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |     +-order_by=
+| |       +-AttributeReference[id=3,name=double_col,relation=test,
+| |       | type=Double NULL]
+| |       +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| +-project_list=
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   +-Alias[id=6,name=,alias=sum(float_col),relation=,type=Double NULL]
+|     +-AttributeReference[id=6,name=,alias=$window_aggregate0,
+|       relation=$window_aggregate,type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+  +-AttributeReference[id=6,name=,alias=sum(float_col),relation=,
+    type=Double NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=Selection
+| +-input=WindowAggregate
+| | +-input=Sort[is_ascending=[true,true,false,true],
+| | | nulls_first=[false,false,false,true]]
+| | | +-input=TableReference[relation=Test,alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-sort_attributes=
+| | |   +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   | type=VarChar(20) NULL]
+| | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | |   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-window_aggregate_expression=Alias[id=6,name=,alias=$window_aggregate0,
+| |   relation=$window_aggregate,type=Double NULL]
+| |   +-WindowAggregateFunction[function=SUM,window_name=,
+| |     is_ascending=[false,true],nulls_first=[false,true],frame_mode=range,
+| |     num_preceding=3,num_following=3]
+| |     +-arguments=
+| |     | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |     +-partition_by=
+| |     | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| |     | | type=VarChar(20) NULL]
+| |     | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |     +-order_by=
+| |       +-AttributeReference[id=3,name=double_col,relation=test,
+| |       | type=Double NULL]
+| |       +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| +-project_expressions=
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   +-Alias[id=6,name=,alias=sum(float_col),relation=,type=Double NULL]
+|     +-AttributeReference[id=6,name=,alias=$window_aggregate0,
+|       relation=$window_aggregate,type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+  +-AttributeReference[id=6,name=,alias=sum(float_col),relation=,
+    type=Double NULL]
+==
+
+SELECT sum(avg(int_col) OVER w) FROM test
+WINDOW w AS
+(PARTITION BY char_col
+ ORDER BY long_col
+ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=Aggregate
+| | +-input=WindowAggregate
+| | | +-input=Sort[is_ascending=[true,true],nulls_first=[false,false]]
+| | | | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | | +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | | | type=Double NULL]
+| | | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | |   type=VarChar(20) NULL]
+| | | | +-sort_expressions=
+| | | |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-window_aggregate_expression=Alias[id=6,name=,alias=$window_aggregate0,
+| | |   relation=$window_aggregate,type=Double NULL]
+| | |   +-WindowAggregateFunction[function=AVG,window_name=w,
+| | |     is_ascending=[true],nulls_first=[false],frame_mode=row,
+| | |     num_preceding=-1,num_following=0]
+| | |     +-arguments=
+| | |     | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |     +-partition_by=
+| | |     | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | |     +-order_by=
+| | |       +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=7,name=,alias=$aggregate0,relation=$aggregate,type=Double NULL]
+| |     +-AggregateFunction[function=SUM]
+| |       +-AttributeReference[id=6,name=,alias=$window_aggregate0,
+| |         relation=$window_aggregate,type=Double NULL]
+| +-project_list=
+|   +-Alias[id=7,name=,alias=sum(avg(int_col)),relation=,type=Double NULL]
+|     +-AttributeReference[id=7,name=,alias=$aggregate0,relation=$aggregate,
+|       type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=7,name=,alias=sum(avg(int_col)),relation=,
+    type=Double NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=Selection
+| +-input=Aggregate
+| | +-input=WindowAggregate
+| | | +-input=Sort[is_ascending=[true,true],nulls_first=[false,false]]
+| | | | +-input=TableReference[relation=Test,alias=test]
+| | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | | +-AttributeReference[id=3,name=double_col,relation=test,
+| | | | | | type=Double NULL]
+| | | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | | |   type=VarChar(20) NULL]
+| | | | +-sort_attributes=
+| | | |   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-window_aggregate_expression=Alias[id=6,name=,alias=$window_aggregate0,
+| | |   relation=$window_aggregate,type=Double NULL]
+| | |   +-WindowAggregateFunction[function=AVG,window_name=w,
+| | |     is_ascending=[true],nulls_first=[false],frame_mode=row,
+| | |     num_preceding=-1,num_following=0]
+| | |     +-arguments=
+| | |     | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |     +-partition_by=
+| | |     | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | |     +-order_by=
+| | |       +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=7,name=,alias=$aggregate0,relation=$aggregate,type=Double NULL]
+| |     +-AggregateFunction[function=SUM]
+| |       +-AttributeReference[id=6,name=,alias=$window_aggregate0,
+| |         relation=$window_aggregate,type=Double NULL]
+| +-project_expressions=
+|   +-Alias[id=7,name=,alias=sum(avg(int_col)),relation=,type=Double NULL]
+|     +-AttributeReference[id=7,name=,alias=$aggregate0,relation=$aggregate,
+|       type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=7,name=,alias=sum(avg(int_col)),relation=,
+    type=Double NULL]
+==

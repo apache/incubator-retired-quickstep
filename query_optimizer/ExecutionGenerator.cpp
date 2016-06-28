@@ -83,6 +83,7 @@
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
+#include "query_optimizer/physical/WindowAggregate.hpp"
 #include "relational_operators/AggregationOperator.hpp"
 #include "relational_operators/BuildHashOperator.hpp"
 #include "relational_operators/CreateIndexOperator.hpp"
@@ -282,6 +283,9 @@ void ExecutionGenerator::generatePlanInternal(
     case P::PhysicalType::kUpdateTable:
       return convertUpdateTable(
           std::static_pointer_cast<const P::UpdateTable>(physical_plan));
+    case P::PhysicalType::kWindowAggregate:
+      THROW_SQL_ERROR()
+          << "Window aggregate function is not supported yet :(";
     default:
       LOG(FATAL) << "Unknown physical plan node "
                  << physical_plan->getShortString();

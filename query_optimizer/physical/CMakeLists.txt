@@ -39,6 +39,7 @@ add_library(quickstep_queryoptimizer_physical_TableGenerator ../../empty_src.cpp
 add_library(quickstep_queryoptimizer_physical_TableReference TableReference.cpp TableReference.hpp)
 add_library(quickstep_queryoptimizer_physical_TopLevelPlan TopLevelPlan.cpp TopLevelPlan.hpp)
 add_library(quickstep_queryoptimizer_physical_UpdateTable UpdateTable.cpp UpdateTable.hpp)
+add_library(quickstep_queryoptimizer_physical_WindowAggregate WindowAggregate.cpp WindowAggregate.hpp)
 
 # Link dependencies:
 target_link_libraries(quickstep_queryoptimizer_physical_Aggregate
@@ -250,6 +251,17 @@ target_link_libraries(quickstep_queryoptimizer_physical_UpdateTable
                       quickstep_queryoptimizer_physical_PhysicalType
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_physical_WindowAggregate
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_expressions_Alias
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_expressions_NamedExpression
+                      quickstep_queryoptimizer_expressions_Predicate
+                      quickstep_queryoptimizer_physical_Physical
+                      quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_utility_Cast
+                      quickstep_utility_Macros)
 
 # Module all-in-one library:
 add_library(quickstep_queryoptimizer_physical ../../empty_src.cpp OptimizerPhysicalModule.hpp)
@@ -276,4 +288,5 @@ target_link_libraries(quickstep_queryoptimizer_physical
                       quickstep_queryoptimizer_physical_TableGenerator
                       quickstep_queryoptimizer_physical_TableReference
                       quickstep_queryoptimizer_physical_TopLevelPlan
-                      quickstep_queryoptimizer_physical_UpdateTable)
+                      quickstep_queryoptimizer_physical_UpdateTable
+                      quickstep_queryoptimizer_physical_WindowAggregate)

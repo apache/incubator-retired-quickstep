@@ -41,6 +41,7 @@
 #include "query_optimizer/logical/TableReference.hpp"
 #include "query_optimizer/logical/TopLevelPlan.hpp"
 #include "query_optimizer/logical/UpdateTable.hpp"
+#include "query_optimizer/logical/WindowAggregate.hpp"
 #include "query_optimizer/physical/CopyFrom.hpp"
 #include "query_optimizer/physical/CreateIndex.hpp"
 #include "query_optimizer/physical/CreateTable.hpp"
@@ -55,7 +56,7 @@
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
-#include "utility/SqlError.hpp"
+#include "query_optimizer/physical/WindowAggregate.hpp"
 
 namespace quickstep {
 namespace optimizer {
@@ -210,8 +211,12 @@ bool OneToOne::generatePlan(const L::LogicalPtr &logical_input,
       return true;
     }
     case L::LogicalType::kWindowAggregate: {
-      THROW_SQL_ERROR()
-          << "Window aggregate function is not supported currently :(";
+      const L::WindowAggregatePtr window_aggregate =
+          std::static_pointer_cast<const L::WindowAggregate>(logical_input);
+      *physical_output = P::WindowAggregate::Create(
+          physical_mapper_->createOrGetPhysicalFromLogical(window_aggregate->input()),
+          window_aggregate->window_aggregate_expression());
+      return true;
     }
     default:
       return false;

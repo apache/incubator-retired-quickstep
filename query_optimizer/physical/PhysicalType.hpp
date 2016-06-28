@@ -47,7 +47,8 @@ enum class PhysicalType {
   kTableGenerator,
   kTableReference,
   kTopLevelPlan,
-  kUpdateTable
+  kUpdateTable,
+  kWindowAggregate
 };
 
 /** @} */
