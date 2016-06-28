@@ -41,8 +41,9 @@ class AdmitRequestMessage {
    * @param query_handles The handles of the queries requesting to be admitted
    *        to the system.
    **/
-  explicit AdmitRequestMessage(const std::vector<QueryHandle*> &query_handles)
-      : query_handles_(query_handles) {}
+  explicit AdmitRequestMessage(std::vector<QueryHandle*> *query_handles)
+      : query_handles_(*DCHECK_NOTNULL(query_handles)) {
+  }
 
   /**
    * @brief Constructor for requesting single query admission.

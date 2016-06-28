@@ -74,7 +74,7 @@ class QueryExecutionUtil {
    *
    * @param sender_id The TMB client ID of the sender.
    * @param receiver_id The TMB client ID of the receiver.
-   * @param query_handle The QueryHandle used in the AdmitRequestMessage.
+   * @param query_handle The QueryHandles used in the AdmitRequestMessage.
    * @param bus A pointer to the TMB.
    * @param tagged_message A moved from reference to the tagged message.
    *
@@ -84,7 +84,7 @@ class QueryExecutionUtil {
   static tmb::MessageBus::SendStatus ConstructAndSendAdmitRequestMessage(
       const tmb::client_id sender_id,
       const tmb::client_id receiver_id,
-      QueryHandle *query_handle,
+      std::vector<QueryHandle*> *query_handle,
       MessageBus *bus) {
     std::unique_ptr<AdmitRequestMessage> request_message(
         new AdmitRequestMessage(query_handle));

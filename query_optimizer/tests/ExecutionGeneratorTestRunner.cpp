@@ -96,10 +96,12 @@ void ExecutionGeneratorTestRunner::runTestCase(
                 logical_generator.generatePlan(*result.parsed_statement));
         execution_generator.generatePlan(physical_plan);
 
+        std::vector<QueryHandle*> query_handles;
+        query_handles.push_back(&query_handle);
         QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
             main_thread_client_id_,
             foreman_->getBusClientID(),
-            &query_handle,
+            &query_handles,
             &bus_);
 
         QueryExecutionUtil::ReceiveQueryCompletionMessage(

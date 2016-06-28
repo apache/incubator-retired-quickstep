@@ -216,9 +216,11 @@ inline TypedValue executeQueryForSingleResult(
       query_processor->generateQueryHandle(*result.parsed_statement));
   DCHECK(query_handle->getQueryPlanMutable() != nullptr);
 
+  std::vector<QueryHandle*> query_handles;
+  query_handles.push_back(query_handle.get());
   // Use foreman to execute the query plan.
   QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
-      main_thread_client_id, foreman_client_id, query_handle.get(), bus);
+      main_thread_client_id, foreman_client_id, &query_handles, bus);
 
   QueryExecutionUtil::ReceiveQueryCompletionMessage(main_thread_client_id, bus);
 

@@ -433,11 +433,13 @@ int main(int argc, char* argv[]) {
         }
 
         DCHECK(query_handle->getQueryPlanMutable() != nullptr);
+        std::vector<QueryHandle*> query_handles;
+        query_handles.push_back(query_handle.get());
         start = std::chrono::steady_clock::now();
         QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
             main_thread_client_id,
             foreman.getBusClientID(),
-            query_handle.get(),
+            &query_handles,
             &bus);
 
         try {
