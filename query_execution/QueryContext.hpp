@@ -33,6 +33,7 @@
 #include "storage/AggregationOperationState.hpp"
 #include "storage/HashTable.hpp"
 #include "storage/InsertDestination.hpp"
+#include "storage/WindowAggregationOperationState.hpp"
 #include "types/containers/Tuple.hpp"
 #include "utility/BloomFilter.hpp"
 #include "utility/Macros.hpp"
@@ -118,6 +119,11 @@ class QueryContext {
    * @brief A unique identifier for a group of UpdateAssignments per query.
    **/
   typedef std::uint32_t update_group_id;
+
+  /**
+   * @brief A unique identifier for a window aggregation state.
+   **/
+  typedef std::uint32_t window_aggregation_state_id;
 
   /**
    * @brief Constructor.
@@ -460,6 +466,47 @@ class QueryContext {
     return update_groups_[id];
   }
 
+  /**
+   * @brief Whether the given WindowAggregationOperationState id is valid.
+   *
+   * @param id The WindowAggregationOperationState id.
+   *
+   * @return True if valid, otherwise false.
+   **/
+  bool isValidWindowAggregationStateId(const window_aggregation_state_id id) const {
+    return id < window_aggregation_states_.size();
+  }
+
+  /**
+   * @brief Get the WindowAggregationOperationState.
+   *
+   * @param id The WindowAggregationOperationState id in the query.
+   *
+   * @return The WindowAggregationOperationState, already created in the
+   *         constructor.
+   **/
+  inline WindowAggregationOperationState* getWindowAggregationState(
+      const window_aggregation_state_id id) {
+    DCHECK_LT(id, window_aggregation_states_.size());
+    DCHECK(window_aggregation_states_[id]);
+    return window_aggregation_states_[id].get();
+  }
+
+  /**
+   * @brief Release the given WindowAggregationOperationState.
+   *
+   * @param id The id of the WindowAggregationOperationState to destroy.
+   *
+   * @return The WindowAggregationOperationState, already created in the
+   *         constructor.
+   **/
+  inline WindowAggregationOperationState* releaseWindowAggregationState(
+      const window_aggregation_state_id id) {
+    DCHECK_LT(id, window_aggregation_states_.size());
+    DCHECK(window_aggregation_states_[id]);
+    return window_aggregation_states_[id].release();
+  }
+
  private:
   std::vector<std::unique_ptr<AggregationOperationState>> aggregation_states_;
   std::vector<std::unique_ptr<BloomFilter>> bloom_filters_;
@@ -471,6 +518,7 @@ class QueryContext {
   std::vector<std::unique_ptr<const SortConfiguration>> sort_configs_;
   std::vector<std::unique_ptr<Tuple>> tuples_;
   std::vector<std::unordered_map<attribute_id, std::unique_ptr<const Scalar>>> update_groups_;
+  std::vector<std::unique_ptr<WindowAggregationOperationState>> window_aggregation_states_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryContext);
 };

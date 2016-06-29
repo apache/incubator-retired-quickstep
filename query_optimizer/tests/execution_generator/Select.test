@@ -950,3 +950,42 @@ WHERE double_col < 0
 +--------------------+
 |                   5|
 +--------------------+
+==
+
+# Window Aggregation Test.
+# Currently this is not supported, an empty table will be returned.
+SELECT avg(int_col) OVER w FROM test
+WINDOW w AS
+(PARTITION BY char_col
+ ORDER BY long_col DESC NULLS LAST
+ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+--
++------------------------+
+|avg(int_col)            |
++------------------------+
++------------------------+
+==
+
+SELECT int_col, sum(float_col) OVER
+(PARTITION BY char_col, long_col
+ ORDER BY double_col DESC NULLS LAST, int_col ASC NULLS FIRST
+ RANGE BETWEEN 3 PRECEDING AND 3 FOLLOWING)
+FROM test;
+--
++-----------+------------------------+
+|int_col    |sum(float_col)          |
++-----------+------------------------+
++-----------+------------------------+
+==
+
+SELECT sum(avg(int_col) OVER w) FROM test
+WINDOW w AS
+(PARTITION BY char_col
+ ORDER BY long_col
+ ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW);
+--
++------------------------+
+|sum(avg(int_col))       |
++------------------------+
+|                    NULL|
++------------------------+

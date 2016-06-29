@@ -60,6 +60,7 @@
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
+#include "query_optimizer/physical/WindowAggregate.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -345,6 +346,13 @@ class ExecutionGenerator {
    * @param physical_plan The TableGenerator to be converted.
    */
   void convertTableGenerator(const physical::TableGeneratorPtr &physical_plan);
+
+  /**
+   * @brief Converts a physical WindowAggregate to a WindowAggregation operator.
+   *
+   * @param physical_plan The WindowAggregate to be converted.
+   */
+  void convertWindowAggregate(const physical::WindowAggregatePtr &physical_plan);
 
   /**
    * @brief Converts a list of NamedExpressions in the optimizer expression

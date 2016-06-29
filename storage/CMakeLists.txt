@@ -131,6 +131,9 @@ QS_PROTOBUF_GENERATE_CPP(storage_InsertDestination_proto_srcs
 QS_PROTOBUF_GENERATE_CPP(storage_StorageBlockLayout_proto_srcs
                          storage_StorageBlockLayout_proto_hdrs
                          StorageBlockLayout.proto)
+QS_PROTOBUF_GENERATE_CPP(storage_WindowAggregationOperationState_proto_srcs
+                         storage_WindowAggregationOperationState_proto_hdrs
+                         WindowAggregationOperationState.proto)
 
 if (ENABLE_DISTRIBUTED)
   GRPC_GENERATE_CPP(storage_DataExchange_proto_srcs
@@ -254,6 +257,11 @@ add_library(quickstep_storage_TupleReference ../empty_src.cpp TupleReference.hpp
 add_library(quickstep_storage_TupleStorageSubBlock TupleStorageSubBlock.cpp TupleStorageSubBlock.hpp)
 add_library(quickstep_storage_ValueAccessor ../empty_src.cpp ValueAccessor.hpp)
 add_library(quickstep_storage_ValueAccessorUtil ../empty_src.cpp ValueAccessorUtil.hpp)
+add_library(quickstep_storage_WindowAggregationOperationState
+            WindowAggregationOperationState.hpp
+            WindowAggregationOperationState.cpp)
+add_library(quickstep_storage_WindowAggregationOperationState_proto ${storage_WindowAggregationOperationState_proto_srcs})
+
 
 # Link dependencies:
 target_link_libraries(quickstep_storage_AggregationOperationState
@@ -1038,6 +1046,27 @@ target_link_libraries(quickstep_storage_ValueAccessorUtil
                       quickstep_storage_ValueAccessor
                       quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_storage_WindowAggregationOperationState
+                      glog
+                      quickstep_catalog_CatalogDatabaseLite
+                      quickstep_catalog_CatalogRelationSchema
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_ExpressionFactories
+                      quickstep_expressions_Expressions_proto
+                      quickstep_expressions_aggregation_AggregateFunction
+                      quickstep_expressions_aggregation_AggregateFunctionFactory
+                      quickstep_expressions_aggregation_AggregationHandle
+                      quickstep_expressions_aggregation_AggregationID
+                      quickstep_expressions_scalar_Scalar
+                      quickstep_expressions_scalar_ScalarAttribute
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageManager
+                      quickstep_storage_WindowAggregationOperationState_proto
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_storage_WindowAggregationOperationState_proto
+                      quickstep_expressions_aggregation_AggregateFunction_proto
+                      quickstep_expressions_Expressions_proto
+                      ${PROTOBUF_LIBRARY})
 
 # Module all-in-one library:
 add_library(quickstep_storage ../empty_src.cpp StorageModule.hpp)
@@ -1096,7 +1125,9 @@ target_link_libraries(quickstep_storage
                       quickstep_storage_TupleReference
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_storage_ValueAccessor
-                      quickstep_storage_ValueAccessorUtil)
+                      quickstep_storage_ValueAccessorUtil
+                      quickstep_storage_WindowAggregationOperationState
+                      quickstep_storage_WindowAggregationOperationState_proto)
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
   target_link_libraries(quickstep_storage
                         quickstep_storage_FileManagerHdfs)
@@ -1636,6 +1667,18 @@ target_link_libraries(StorageManager_unittest
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
                       quickstep_utility_ShardedLockManager)
+
+add_executable(WindowAggregationOperationState_unittest
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/WindowAggregationOperationState_unittest.cpp")
+target_link_libraries(WindowAggregationOperationState_unittest
+                      gtest
+                      gtest_main
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_storage_WindowAggregationOperationState
+                      quickstep_storage_WindowAggregationOperationState_proto
+                      ${LIBS})
 if (QUICKSTEP_HAVE_LIBNUMA)
   target_link_libraries(StorageManager_unittest
                         ${LIBNUMA_LIBRARY})

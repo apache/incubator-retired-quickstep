@@ -32,6 +32,7 @@
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "query_optimizer/physical/WindowAggregate.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -87,6 +88,10 @@ class SimpleCostModel : public CostModel {
   // cardinality of the input plan divided by 10.
   std::size_t estimateCardinalityForAggregate(
       const physical::AggregatePtr &physical_plan);
+
+  // Return the estimated cardinality of the input plan.
+  std::size_t estimateCardinalityForWindowAggregate(
+      const physical::WindowAggregatePtr &physical_plan);
 
   const std::vector<physical::PhysicalPtr> &shared_subplans_;
 

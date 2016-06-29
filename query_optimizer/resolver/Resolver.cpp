@@ -1860,11 +1860,16 @@ L::LogicalPtr Resolver::resolveJoinedTableReference(
 L::LogicalPtr Resolver::resolveSortInWindow(
     const L::LogicalPtr &logical_plan,
     const E::WindowInfo &window_info) {
-  // Sort the table by (p_key, o_key)
+  // Sort the table by (p_key, o_key).
   std::vector<E::AttributeReferencePtr> sort_attributes(window_info.partition_by_attributes);
   sort_attributes.insert(sort_attributes.end(),
                          window_info.order_by_attributes.begin(),
                          window_info.order_by_attributes.end());
+
+  // If (p_key, o_key) is empty, no sort is needed.
+  if (sort_attributes.empty()) {
+    return logical_plan;
+  }
 
   std::vector<bool> sort_directions(
       window_info.partition_by_attributes.size(), true);

@@ -33,6 +33,7 @@
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "query_optimizer/physical/WindowAggregate.hpp"
 
 #include "glog/logging.h"
 
@@ -72,6 +73,9 @@ std::size_t SimpleCostModel::estimateCardinality(
       return estimateCardinality(
           shared_subplans_[shared_subplan_reference->subplan_id()]);
     }
+    case P::PhysicalType::kWindowAggregate:
+      return estimateCardinalityForWindowAggregate(
+          std::static_pointer_cast<const P::WindowAggregate>(physical_plan));
     default:
       LOG(FATAL) << "Unsupported physical plan:" << physical_plan->toString();
   }
@@ -116,6 +120,11 @@ std::size_t SimpleCostModel::estimateCardinalityForAggregate(
   }
   return std::max(static_cast<std::size_t>(1),
                   estimateCardinality(physical_plan->input()) / 10);
+}
+
+std::size_t SimpleCostModel::estimateCardinalityForWindowAggregate(
+    const physical::WindowAggregatePtr &physical_plan) {
+  return estimateCardinality(physical_plan->input());
 }
 
 }  // namespace cost

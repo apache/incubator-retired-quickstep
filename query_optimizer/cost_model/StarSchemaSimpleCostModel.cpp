@@ -85,6 +85,9 @@ std::size_t StarSchemaSimpleCostModel::estimateCardinality(
     case P::PhysicalType::kSort:
       return estimateCardinality(
           std::static_pointer_cast<const P::Sort>(physical_plan)->input());
+    case P::PhysicalType::kWindowAggregate:
+      return estimateCardinalityForWindowAggregate(
+          std::static_pointer_cast<const P::WindowAggregate>(physical_plan));
     default:
       LOG(FATAL) << "Unsupported physical plan:" << physical_plan->toString();
   }
@@ -139,6 +142,11 @@ std::size_t StarSchemaSimpleCostModel::estimateCardinalityForAggregate(
   }
   return std::max(static_cast<std::size_t>(1),
                   estimateCardinality(physical_plan->input()) / 10);
+}
+
+std::size_t StarSchemaSimpleCostModel::estimateCardinalityForWindowAggregate(
+    const P::WindowAggregatePtr &physical_plan) {
+  return estimateCardinality(physical_plan->input());
 }
 
 double StarSchemaSimpleCostModel::estimateSelectivity(

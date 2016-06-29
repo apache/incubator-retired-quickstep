@@ -118,6 +118,7 @@ target_link_libraries(quickstep_queryexecution_QueryContext
                       quickstep_storage_HashTableFactory
                       quickstep_storage_InsertDestination
                       quickstep_storage_InsertDestination_proto
+                      quickstep_storage_WindowAggregationOperationState
                       quickstep_types_TypedValue
                       quickstep_types_containers_Tuple
                       quickstep_utility_BloomFilter
@@ -130,6 +131,7 @@ target_link_libraries(quickstep_queryexecution_QueryContext_proto
                       quickstep_storage_AggregationOperationState_proto
                       quickstep_storage_HashTable_proto
                       quickstep_storage_InsertDestination_proto
+                      quickstep_storage_WindowAggregationOperationState_proto
                       quickstep_types_containers_Tuple_proto
                       quickstep_utility_SortConfiguration_proto
                       ${PROTOBUF_LIBRARY})

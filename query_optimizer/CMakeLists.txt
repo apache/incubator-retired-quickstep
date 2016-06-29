@@ -88,6 +88,7 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_queryoptimizer_expressions_Predicate
                       quickstep_queryoptimizer_expressions_Scalar
                       quickstep_queryoptimizer_expressions_ScalarLiteral
+                      quickstep_queryoptimizer_expressions_WindowAggregateFunction
                       quickstep_queryoptimizer_physical_Aggregate
                       quickstep_queryoptimizer_physical_CopyFrom
                       quickstep_queryoptimizer_physical_CreateIndex
@@ -130,6 +131,7 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_relationaloperators_TableGeneratorOperator
                       quickstep_relationaloperators_TextScanOperator
                       quickstep_relationaloperators_UpdateOperator
+                      quickstep_relationaloperators_WindowAggregationOperator
                       quickstep_storage_AggregationOperationState_proto
                       quickstep_storage_HashTableFactory
                       quickstep_storage_HashTable_proto

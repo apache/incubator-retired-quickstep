@@ -63,6 +63,7 @@
 #include "query_optimizer/expressions/PatternMatcher.hpp"
 #include "query_optimizer/expressions/Scalar.hpp"
 #include "query_optimizer/expressions/ScalarLiteral.hpp"
+#include "query_optimizer/expressions/WindowAggregateFunction.hpp"
 #include "query_optimizer/physical/CopyFrom.hpp"
 #include "query_optimizer/physical/CreateIndex.hpp"
 #include "query_optimizer/physical/CreateTable.hpp"
@@ -104,6 +105,7 @@
 #include "relational_operators/TableGeneratorOperator.hpp"
 #include "relational_operators/TextScanOperator.hpp"
 #include "relational_operators/UpdateOperator.hpp"
+#include "relational_operators/WindowAggregationOperator.hpp"
 #include "storage/AggregationOperationState.pb.h"
 #include "storage/HashTable.pb.h"
 #include "storage/HashTableFactory.hpp"
@@ -284,8 +286,8 @@ void ExecutionGenerator::generatePlanInternal(
       return convertUpdateTable(
           std::static_pointer_cast<const P::UpdateTable>(physical_plan));
     case P::PhysicalType::kWindowAggregate:
-      THROW_SQL_ERROR()
-          << "Window aggregate function is not supported yet :(";
+      return convertWindowAggregate(
+          std::static_pointer_cast<const P::WindowAggregate>(physical_plan));
     default:
       LOG(FATAL) << "Unknown physical plan node "
                  << physical_plan->getShortString();
@@ -1637,6 +1639,101 @@ void ExecutionGenerator::convertTableGenerator(
       std::forward_as_tuple(tablegen_index,
                             output_relation));
   temporary_relation_info_vec_.emplace_back(tablegen_index, output_relation);
+}
+
+void ExecutionGenerator::convertWindowAggregate(
+    const P::WindowAggregatePtr &physical_plan) {
+  // Create window_aggregation_operation_state proto.
+  const QueryContext::window_aggregation_state_id window_aggr_state_index =
+      query_context_proto_->window_aggregation_states_size();
+  S::WindowAggregationOperationState *window_aggr_state_proto =
+      query_context_proto_->add_window_aggregation_states();
+
+  // Get input.
+  const CatalogRelationInfo *input_relation_info =
+      findRelationInfoOutputByPhysical(physical_plan->input());
+  window_aggr_state_proto->set_relation_id(input_relation_info->relation->getID());
+
+  // Get window aggregate function expression.
+  const E::AliasPtr &named_window_aggregate_expression =
+      physical_plan->window_aggregate_expression();
+  const E::WindowAggregateFunctionPtr &window_aggregate_function =
+      std::static_pointer_cast<const E::WindowAggregateFunction>(
+          named_window_aggregate_expression->expression());
+
+  // Set the AggregateFunction.
+  window_aggr_state_proto->mutable_function()->MergeFrom(
+      window_aggregate_function->window_aggregate().getProto());
+
+  // Set the arguments.
+  for (const E::ScalarPtr &argument : window_aggregate_function->arguments()) {
+    unique_ptr<const Scalar> concretized_argument(argument->concretize(attribute_substitution_map_));
+    window_aggr_state_proto->add_arguments()->MergeFrom(concretized_argument->getProto());
+  }
+
+  // Set partition keys.
+  const E::WindowInfo &window_info = window_aggregate_function->window_info();
+  for (const E::ScalarPtr &partition_by_attribute
+      : window_info.partition_by_attributes) {
+    unique_ptr<const Scalar> concretized_partition_by_attribute(
+        partition_by_attribute->concretize(attribute_substitution_map_));
+    window_aggr_state_proto->add_partition_by_attributes()
+        ->MergeFrom(concretized_partition_by_attribute->getProto());
+  }
+
+  // Set window frame info.
+  if (window_info.frame_info == nullptr) {
+    // If the frame is not specified, use the default setting:
+    //   1. If ORDER BY key is specified, use cumulative aggregation:
+    //      ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW.
+    //   2. If ORDER BY key is not specified either, use the whole partition:
+    //      ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING.
+    window_aggr_state_proto->set_is_row(true);  // frame mode: ROWS.
+    window_aggr_state_proto->set_num_preceding(-1);  // UNBOUNDED PRECEDING.
+    window_aggr_state_proto->set_num_following(
+        window_info.order_by_attributes.empty()
+            ? -1  // UNBOUNDED FOLLOWING.
+            : 0);  // CURRENT ROW.
+  } else {
+    const E::WindowFrameInfo *window_frame_info = window_info.frame_info;
+    window_aggr_state_proto->set_is_row(window_frame_info->is_row);
+    window_aggr_state_proto->set_num_preceding(window_frame_info->num_preceding);
+    window_aggr_state_proto->set_num_following(window_frame_info->num_following);
+  }
+
+  // Create InsertDestination proto.
+  const CatalogRelation *output_relation = nullptr;
+  const QueryContext::insert_destination_id insert_destination_index =
+      query_context_proto_->insert_destinations_size();
+  S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
+  createTemporaryCatalogRelation(physical_plan,
+                                 &output_relation,
+                                 insert_destination_proto);
+
+  const QueryPlan::DAGNodeIndex window_aggregation_operator_index =
+      execution_plan_->addRelationalOperator(
+          new WindowAggregationOperator(query_handle_->query_id(),
+                                        *output_relation,
+                                        window_aggr_state_index,
+                                        insert_destination_index));
+
+  // TODO(Shixuan): Once parallelism is introduced, the is_pipeline_breaker
+  //                could be set to false.
+  if (!input_relation_info->isStoredRelation()) {
+    execution_plan_->addDirectDependency(window_aggregation_operator_index,
+                                         input_relation_info->producer_operator_index,
+                                         true /* is_pipeline_breaker */);
+  }
+
+  insert_destination_proto->set_relational_op_index(window_aggregation_operator_index);
+
+  // Add to map and temp_relation_info_vec.
+  physical_to_output_relation_map_.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple(physical_plan),
+      std::forward_as_tuple(window_aggregation_operator_index, output_relation));
+  temporary_relation_info_vec_.emplace_back(window_aggregation_operator_index,
+                                            output_relation);
 }
 
 }  // namespace optimizer

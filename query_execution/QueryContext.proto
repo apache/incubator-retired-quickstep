@@ -22,6 +22,7 @@ import "expressions/table_generator/GeneratorFunction.proto";
 import "storage/AggregationOperationState.proto";
 import "storage/HashTable.proto";
 import "storage/InsertDestination.proto";
+import "storage/WindowAggregationOperationState.proto";
 import "types/containers/Tuple.proto";
 import "utility/BloomFilter.proto";
 import "utility/SortConfiguration.proto";
@@ -55,5 +56,7 @@ message QueryContext {
   // NOTE(zuyu): For UpdateWorkOrder only.
   repeated UpdateGroup update_groups = 10;
 
-  required uint64 query_id = 11;
+  repeated WindowAggregationOperationState window_aggregation_states = 11;
+
+  required uint64 query_id = 12;
 }

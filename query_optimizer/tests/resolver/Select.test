@@ -3269,6 +3269,39 @@ TopLevelPlan
     type=Double NULL]
 ==
 
+SELECT avg(int_col) OVER w FROM test
+WINDOW w AS
+(ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING);
+--
+TopLevelPlan
++-plan=Project
+| +-input=WindowAggregate
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-window_aggregate_expression=Alias[id=6,name=,alias=$window_aggregate0,
+| |   relation=$window_aggregate,type=Double NULL]
+| |   +-WindowAggregateFunction[function=AVG,window_name=w,is_ascending=[],
+| |     nulls_first=[],frame_mode=row,num_preceding=-1,num_following=-1]
+| |     +-arguments=
+| |     | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |     +-partition_by=
+| |     | +-[]
+| |     +-order_by=
+| |       +-[]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=avg(int_col),relation=,type=Double NULL]
+|     +-AttributeReference[id=6,name=,alias=$window_aggregate0,
+|       relation=$window_aggregate,type=Double NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=avg(int_col),relation=,type=Double NULL]
+==
+
 SELECT int_col, sum(float_col) OVER w1 FROM test
 WINDOW w2 AS
 (PARTITION BY vchar_col, long_col

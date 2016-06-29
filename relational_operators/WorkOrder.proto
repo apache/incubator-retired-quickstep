@@ -41,6 +41,7 @@ enum WorkOrderType {
   TABLE_GENERATOR = 17;
   TEXT_SCAN = 18;
   UPDATE = 19;
+  WINDOW_AGGREGATION = 20;
 }
 
 message WorkOrder {
@@ -241,5 +242,13 @@ message UpdateWorkOrder {
     optional int32 predicate_index = 323;
     optional uint32 update_group_index = 324;
     optional fixed64 block_id = 325;
+  }
+}
+
+message WindowAggregationWorkOrder {
+  extend WorkOrder {
+    // All required
+    optional uint32 window_aggr_state_index = 336;
+    optional int32 insert_destination_index = 337;
   }
 }

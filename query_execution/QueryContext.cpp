@@ -140,6 +140,13 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
 
     update_groups_.push_back(move(update_group));
   }
+
+  for (int i = 0; i < proto.window_aggregation_states_size(); ++i) {
+    window_aggregation_states_.emplace_back(
+        WindowAggregationOperationState::ReconstructFromProto(proto.window_aggregation_states(i),
+                                                              database,
+                                                              storage_manager));
+  }
 }
 
 bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
@@ -228,6 +235,13 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
           !ScalarFactory::ProtoIsValid(update_assignment_proto.scalar(), database)) {
         return false;
       }
+    }
+  }
+
+  for (int i = 0; i < proto.window_aggregation_states_size(); ++i) {
+    if (!WindowAggregationOperationState::ProtoIsValid(proto.window_aggregation_states(i),
+                                                       database)) {
+      return false;
     }
   }
 
