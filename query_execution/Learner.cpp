@@ -101,11 +101,12 @@ void Learner::updateProbabilitiesForQueriesInPriorityLevel(
     // queries.
     DCHECK(mean_workorders_per_query.find(query_id) !=
            mean_workorders_per_query.end());
-    DCHECK_NE(mean_workorders_per_query[query_id], 0);
-    current_probabilities_[priority_level]->addOrUpdateObjectNewDenominator(
-        query_id,
-        1 / static_cast<float>(mean_workorders_per_query[query_id]),
-        denominator);
+    if (mean_workorders_per_query[query_id] != 0) {
+      current_probabilities_[priority_level]->addOrUpdateObjectNewDenominator(
+          query_id,
+          1 / static_cast<float>(mean_workorders_per_query[query_id]),
+          denominator);
+    }
   } else {
     // At least one of the queries has predicted time for next work order as 0.
     // In such a case, we don't update the probabilities and continue to use

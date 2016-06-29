@@ -170,7 +170,7 @@ class PriorityPolicyEnforcer {
   }
 
  private:
-  static constexpr std::size_t kMaxConcurrentQueries = 2;
+  static constexpr std::size_t kMaxConcurrentQueries = 100;
 
   /**
    * @brief Record the execution time for a finished WorkOrder.
@@ -188,7 +188,7 @@ class PriorityPolicyEnforcer {
    *
    * @param priority_level The priority level from which the query will be
    *        chosen.
-   * @param finished_query_ids A vector of query IDs that have finished their
+   * @param finished_query_ids A map of query IDs that have finished their
    *        execution.
    *
    * @return A WorkerMessage. If no query can be chosen from this priority level,
@@ -196,7 +196,7 @@ class PriorityPolicyEnforcer {
    **/
   WorkerMessage *getNextWorkerMessageFromPriorityLevel(
       const std::size_t priority_level,
-      std::vector<std::size_t> *finished_queries_ids);
+      std::unordered_map<std::size_t, bool> *finished_queries_ids);
 
   const tmb::client_id foreman_client_id_;
   const std::size_t num_numa_nodes_;

@@ -62,6 +62,7 @@ bool PriorityPolicyEnforcer::admitQuery(QueryHandle *query_handle) {
     }
   } else {
     // This query will have to wait.
+    LOG(INFO) << "Query " << query_handle->query_id() << " waitlisted";
     waiting_queries_.push(query_handle);
     return false;
   }
@@ -166,7 +167,7 @@ void PriorityPolicyEnforcer::getWorkerMessages(
     return;
   }
   DCHECK_GT(per_query_share, 0u);
-  std::vector<std::size_t> finished_queries_ids;
+  std::unordered_map<std::size_t, bool> finished_queries_ids;
 
   if (learner_->hasActiveQueries()) {
     // Key = priority level. Value = Whether we have already checked the
@@ -196,8 +197,8 @@ void PriorityPolicyEnforcer::getWorkerMessages(
     DLOG(INFO) << "No active queries in the learner at this point.";
     return;
   }
-  for (const std::size_t finished_qid : finished_queries_ids) {
-    removeQuery(finished_qid);
+  for (auto finished_qid_pair : finished_queries_ids) {
+    removeQuery(finished_qid_pair.first);
   }
 }
 
@@ -225,6 +226,8 @@ void PriorityPolicyEnforcer::removeQuery(const std::size_t query_id) {
   }
   // Remove the query from the learner.
   learner_->removeQuery(query_id);
+  LOG(INFO) << "Query " << query_id << " removed. has queries? " << hasQueries();
+  // Admit waiting queries, if any.
 }
 
 bool PriorityPolicyEnforcer::admitQueries(
@@ -251,7 +254,7 @@ void PriorityPolicyEnforcer::recordTimeForWorkOrder(
 
 WorkerMessage* PriorityPolicyEnforcer::getNextWorkerMessageFromPriorityLevel(
     const std::size_t priority_level,
-    std::vector<std::size_t> *finished_queries_ids) {
+    std::unordered_map<std::size_t, bool> *finished_queries_ids) {
   // Key = query ID from the given priority level, value = whether we have
   // checked this query earlier.
   std::unordered_map<std::size_t, bool> checked_query_ids;
@@ -262,9 +265,28 @@ WorkerMessage* PriorityPolicyEnforcer::getNextWorkerMessageFromPriorityLevel(
       // No query available at this time in this priority level.
       return nullptr;
     } else if (checked_query_ids.find(static_cast<std::size_t>(chosen_query_id)) != checked_query_ids.end()) {
-      // We have already seen this query ID, try one more time.
-      LOG(INFO) << "We have already seen this query, continue";
-      continue;
+      // Find a query from the same priority level, but not present in the
+      // checked_query_ids map.
+      for (const std::size_t qid : priority_query_ids_[priority_level]) {
+        if (checked_query_ids.find(qid) == checked_query_ids.end() &&
+            finished_queries_ids->find(qid) == finished_queries_ids->end()) {
+          // Query not seen already.
+          QueryManager *chosen_query_manager = admitted_queries_[static_cast<std::size_t>(qid)].get();
+          DCHECK(chosen_query_manager != nullptr);
+          std::unique_ptr<WorkerMessage> next_worker_message(
+              chosen_query_manager->getNextWorkerMessage(0, kAnyNUMANodeID));
+          if (next_worker_message != nullptr) {
+            // LOG(INFO) << "Selecting a work order from query " << qid << " instead";
+            return next_worker_message.release();
+          } else {
+            // This query doesn't have any WorkerMessage right now. Mark as checked.
+            checked_query_ids[qid] = true;
+            if (chosen_query_manager->getQueryExecutionState().hasQueryExecutionFinished()) {
+              (*finished_queries_ids)[static_cast<std::size_t>(qid)] = true;
+            }
+          }
+        }
+      }
     } else {
       // We haven't seen this query earlier. Check if it has any schedulable
       // WorkOrder.
@@ -277,7 +299,7 @@ WorkerMessage* PriorityPolicyEnforcer::getNextWorkerMessageFromPriorityLevel(
         // This query doesn't have any WorkerMessage right now. Mark as checked.
         checked_query_ids[chosen_query_id] = true;
         if (chosen_query_manager->getQueryExecutionState().hasQueryExecutionFinished()) {
-          finished_queries_ids->emplace_back(static_cast<std::size_t>(chosen_query_id));
+          (*finished_queries_ids)[static_cast<std::size_t>(chosen_query_id)] = true;
         }
       }
     }

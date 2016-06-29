@@ -741,10 +741,8 @@ target_link_libraries(quickstep_cli_shell
                       quickstep_catalog_CatalogRelation
                       quickstep_cli_CommandExecutor
                       quickstep_cli_DefaultsConfigurator
-                      quickstep_cli_DropRelation
                       quickstep_cli_InputParserUtil
                       quickstep_cli_LineReader
-                      quickstep_cli_PrintToScreen
                       quickstep_parser_ParseStatement
                       quickstep_parser_SqlParserWrapper
                       quickstep_queryexecution_AdmitRequestMessage

@@ -451,8 +451,6 @@ class Learner {
     for (const auto &element : mean_workorder_per_query) {
       if (element.second != 0) {
         denominator += 1/static_cast<float>(element.second);
-      /*} else {
-        return 0;*/
       }
     }
     return denominator;

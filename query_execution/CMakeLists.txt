@@ -242,6 +242,7 @@ target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_Learner
                       quickstep_queryexecution_PolicyEnforcer
                       quickstep_queryexecution_PriorityPolicyEnforcer
+                      quickstep_queryexecution_ProbabilityStore
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
                       quickstep_queryexecution_QueryExecutionMessages_proto

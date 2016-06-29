@@ -24,6 +24,9 @@
 
 namespace quickstep {
 
+class QueryHandle;
+class QueryProcessor;
+
 /** \addtogroup CLI
  *  @{
  */
@@ -59,6 +62,9 @@ class InputParserUtil {
    *         from 0.
    **/
   static std::vector<int> GetNUMANodesForCPUs();
+
+  static void PrintAndDropOutputRelation(QueryHandle *query_handle,
+                                         QueryProcessor *query_processor);
 
  private:
   /**

@@ -286,7 +286,7 @@ class ProbabilityStore {
     for (auto it = individual_probabilities_.begin();
          it != individual_probabilities_.end();
          ++it) {
-      DCHECK_LE(it->second.first, common_denominator_);
+      // DCHECK_LE(it->second.first, common_denominator_);
       it->second.second = it->second.first / common_denominator_;
     }
     updateCumulativeProbabilities();

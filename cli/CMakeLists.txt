@@ -113,6 +113,10 @@ if(QUICKSTEP_HAVE_LIBNUMA)
 endif()
 target_link_libraries(quickstep_cli_InputParserUtil
                       glog
+                      quickstep_cli_DropRelation
+                      quickstep_cli_PrintToScreen
+                      quickstep_queryoptimizer_QueryHandle
+                      quickstep_queryoptimizer_QueryProcessor
                       quickstep_utility_Macros
                       quickstep_utility_StringUtil)
 if(QUICKSTEP_HAVE_LIBNUMA)

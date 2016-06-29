@@ -24,6 +24,10 @@
 #include <vector>
 
 #include "catalog/CatalogConfig.h"
+#include "cli/DropRelation.hpp"
+#include "cli/PrintToScreen.hpp"
+#include "query_optimizer/QueryHandle.hpp"
+#include "query_optimizer/QueryProcessor.hpp"
 #include "storage/StorageConfig.h"
 #include "utility/StringUtil.hpp"
 
@@ -34,6 +38,12 @@
 #endif
 
 using std::string;
+
+namespace quickstep {
+  class CatalogRelation;
+  class CatalogDatabase;
+  class StorageManager;
+}
 
 namespace quickstep {
 
@@ -85,6 +95,26 @@ std::vector<int> InputParserUtil::GetNUMANodesForCPUs() {
   }
 #endif
   return numa_nodes_of_cpus;
+}
+
+void InputParserUtil::PrintAndDropOutputRelation(
+    QueryHandle *query_handle, QueryProcessor *query_processor) {
+  const CatalogRelation *query_result_relation =
+      query_handle->getQueryResultRelation();
+  if (query_result_relation != nullptr) {
+    PrintToScreen::PrintRelation(*query_result_relation,
+                                 query_processor->getStorageManager(),
+                                 stdout);
+    PrintToScreen::PrintOutputSize(
+        *query_result_relation,
+        query_processor->getStorageManager(),
+        stdout);
+
+    DropRelation::Drop(*query_result_relation,
+                       query_processor->getDefaultDatabase(),
+                       query_processor->getStorageManager());
+  }
+
 }
 
 }  // namespace quickstep
