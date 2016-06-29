@@ -126,7 +126,7 @@ class UncheckedNumericCastOperator : public UncheckedUnaryOperator {
           result->appendNullValue();
         } else {
           *static_cast<typename TargetType::cpptype*>(result->getPtrForDirectWrite())
-              = static_cast<typename SourceType::cpptype>(*scalar_arg);
+              = static_cast<typename TargetType::cpptype>(*scalar_arg);
         }
       }
       return result;
