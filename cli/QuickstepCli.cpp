@@ -200,19 +200,18 @@ int main(int argc, char* argv[]) {
   // that we computed above, provided it did return a valid value.
   // TODO(jmp): May need to change this at some point to keep one thread
   //            available for the OS if the hardware concurrency level is high.
-  const unsigned int real_num_workers = quickstep::FLAGS_num_workers != 0
-                                      ? quickstep::FLAGS_num_workers
-                                      : (num_hw_threads != 0 ?
-                                         num_hw_threads
-                                         : 1);
-
-  if (real_num_workers > 0) {
-    printf("Starting Quickstep with %d worker thread(s) and a %.2f GB buffer pool\n",
-           real_num_workers,
-           (static_cast<double>(quickstep::FLAGS_buffer_pool_slots) * quickstep::kSlotSizeBytes)/quickstep::kAGigaByte);
-  } else {
-    LOG(FATAL) << "Quickstep needs at least one worker thread to run";
+  if (quickstep::FLAGS_num_workers <= 0) {
+    LOG(INFO) << "Quickstep expects at least one worker thread, switching to "
+                 "the default number of worker threads";
   }
+  const int real_num_workers = quickstep::FLAGS_num_workers > 0
+                                   ? quickstep::FLAGS_num_workers
+                                   : (num_hw_threads != 0 ? num_hw_threads : 1);
+
+  DCHECK_GT(real_num_workers, 0);
+  printf("Starting Quickstep with %d worker thread(s) and a %.2f GB buffer pool\n",
+         real_num_workers,
+         (static_cast<double>(quickstep::FLAGS_buffer_pool_slots) * quickstep::kSlotSizeBytes)/quickstep::kAGigaByte);
 
 #ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
   if (quickstep::FLAGS_use_hdfs) {
