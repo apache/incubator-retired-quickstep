@@ -19,6 +19,7 @@
 
 /* A standalone command-line interface to QuickStep */
 
+#include <algorithm>
 #include <chrono>
 #include <cstddef>
 #include <cstdio>
@@ -529,6 +530,10 @@ int main(int argc, char* argv[]) {
               for (std::size_t i = 0; i < query_handles.size(); ++i) {
                 InputParserUtil::PrintAndDropOutputRelation(
                     query_handles[i], query_processor.get());
+                printf("Time: %s ms\n",
+                       quickstep::DoubleToStringWithSignificantDigits(
+                           query_handles[i]->getExecutionTimeMillis(), 3)
+                           .c_str());
               }
               query_processor->saveCatalog();
               if (quickstep::FLAGS_profile_and_report_workorder_perf) {

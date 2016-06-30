@@ -218,6 +218,10 @@ class PriorityPolicyEnforcer {
   // The queries which haven't been admitted yet.
   std::queue<QueryHandle*> waiting_queries_;
 
+  // Key = query ID, value = a pointer to the QueryHandle.
+  // Note - This map has entries for active and waiting queries only.
+  std::unordered_map<std::size_t, QueryHandle*> query_id_to_handle_;
+
   // Key = Query ID.
   // Value = A tuple indicating a record of executing a work order.
   // Within a tuple ...

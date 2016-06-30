@@ -276,7 +276,7 @@ class Learner {
     CHECK_GT(priority_level, 0) << "Priority level should be non-zero";
     if (!isPriorityLevelPresent(priority_level)) {
       current_probabilities_[priority_level].reset(new ProbabilityStore());
-      execution_stats_[priority_level];
+      execution_stats_.emplace(priority_level, std::vector<std::pair<std::size_t, std::unique_ptr<ExecutionStats>>>());
       if (static_cast<int>(priority_level) > highest_priority_level_) {
         highest_priority_level_ = priority_level;
       }
@@ -380,6 +380,7 @@ class Learner {
       const std::size_t priority_level) const {
     // NOTE(harshad) : Not using this cache as it gets confusing.
     // return has_feedback_from_all_queries_.at(priority_level);
+    DCHECK(isPriorityLevelPresent(priority_level));
     const std::vector<std::pair<std::size_t, std::unique_ptr<ExecutionStats>>>
         &stats_vector = execution_stats_.at(priority_level);
     for (std::size_t i = 0; i < stats_vector.size(); ++i) {

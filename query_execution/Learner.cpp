@@ -245,6 +245,7 @@ void Learner::checkAndRemovePriorityLevel(const std::size_t priority_level) {
     execution_stats_.erase(priority_level);
     current_probabilities_.erase(priority_level);
     probabilities_of_priority_levels_->removeObject(priority_level);
+    default_probabilities_.erase(priority_level);
     // NOTE(harshad) : Not using this cache as it gets confusing.
     // has_feedback_from_all_queries_.erase(priority_level);
     if (hasActiveQueries()) {

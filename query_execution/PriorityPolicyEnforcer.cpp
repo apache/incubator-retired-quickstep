@@ -43,7 +43,6 @@ DEFINE_uint64(max_msgs_per_dispatch_round, 20, "Maximum number of messages that"
               " the workers.");
 
 bool PriorityPolicyEnforcer::admitQuery(QueryHandle *query_handle) {
-  Learner learner;
   if (admitted_queries_.size() < kMaxConcurrentQueries) {
     // Ok to admit the query.
     const std::size_t query_id = query_handle->query_id();
@@ -52,9 +51,11 @@ bool PriorityPolicyEnforcer::admitQuery(QueryHandle *query_handle) {
       admitted_queries_[query_id].reset(
           new QueryManager(foreman_client_id_, num_numa_nodes_, query_handle,
                            catalog_database_, storage_manager_, bus_));
-      LOG(INFO) << "Admitted query with ID: " << query_handle->query_id();
+      LOG(INFO) << "Admitted query with ID: " << query_handle->query_id() << " priority: " << query_handle->query_priority();
       priority_query_ids_[query_handle->query_priority()].emplace_back(query_id);
       learner_->addQuery(*query_handle);
+      query_handle->setAdmissionTime();
+      query_id_to_handle_[query_handle->query_id()] = query_handle;
       return true;
     } else {
       LOG(ERROR) << "Query with the same ID " << query_id << " exists";
@@ -63,6 +64,7 @@ bool PriorityPolicyEnforcer::admitQuery(QueryHandle *query_handle) {
   } else {
     // This query will have to wait.
     LOG(INFO) << "Query " << query_handle->query_id() << " waitlisted";
+    query_id_to_handle_[query_handle->query_id()] = query_handle;
     waiting_queries_.push(query_handle);
     return false;
   }
@@ -224,10 +226,11 @@ void PriorityPolicyEnforcer::removeQuery(const std::size_t query_id) {
     // No more queries for the given priority level. Remove the entry.
     priority_query_ids_.erase(query_priority_unsigned);
   }
+  query_id_to_handle_[query_id]->setCompletionTime();
   // Remove the query from the learner.
   learner_->removeQuery(query_id);
-  LOG(INFO) << "Query " << query_id << " removed. has queries? " << hasQueries();
-  // Admit waiting queries, if any.
+  // TODO(harshad) - Admit waiting queries, if any.
+  LOG(INFO) << "Removed query: " << query_id << " with priority: " << query_priority;
 }
 
 bool PriorityPolicyEnforcer::admitQueries(
