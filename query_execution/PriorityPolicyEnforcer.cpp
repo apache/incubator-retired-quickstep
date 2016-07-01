@@ -51,7 +51,8 @@ bool PriorityPolicyEnforcer::admitQuery(QueryHandle *query_handle) {
       admitted_queries_[query_id].reset(
           new QueryManager(foreman_client_id_, num_numa_nodes_, query_handle,
                            catalog_database_, storage_manager_, bus_));
-      LOG(INFO) << "Admitted query with ID: " << query_handle->query_id() << " priority: " << query_handle->query_priority();
+      DLOG(INFO) << "Admitted query with ID: " << query_handle->query_id()
+                 << " priority: " << query_handle->query_priority();
       priority_query_ids_[query_handle->query_priority()].emplace_back(query_id);
       learner_->addQuery(*query_handle);
       query_handle->setAdmissionTime();
@@ -63,7 +64,7 @@ bool PriorityPolicyEnforcer::admitQuery(QueryHandle *query_handle) {
     }
   } else {
     // This query will have to wait.
-    LOG(INFO) << "Query " << query_handle->query_id() << " waitlisted";
+    DLOG(INFO) << "Query " << query_handle->query_id() << " waitlisted";
     query_id_to_handle_[query_handle->query_id()] = query_handle;
     waiting_queries_.push(query_handle);
     return false;
@@ -139,7 +140,7 @@ void PriorityPolicyEnforcer::processMessage(const TaggedMessage &tagged_message)
   DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
   const QueryManager::QueryStatusCode return_code =
       admitted_queries_[query_id]->processMessage(tagged_message);
-  //NOTE: kQueryExecuted takes precedence over kOperatorExecuted.
+  // NOTE: kQueryExecuted takes precedence over kOperatorExecuted.
   if (return_code == QueryManager::QueryStatusCode::kQueryExecuted) {
     removeQuery(query_id);
     if (!waiting_queries_.empty()) {
@@ -178,11 +179,10 @@ void PriorityPolicyEnforcer::getWorkerMessages(
     while (checked_priority_levels.size() < priority_query_ids_.size()) {
       const int chosen_priority_level = learner_->pickRandomPriorityLevel();
       if (chosen_priority_level == kInvalidPriorityLevel) {
-        LOG(INFO) << "No valid priority level chosen";
+        DLOG(INFO) << "No valid priority level chosen";
         break;
       } else if (checked_priority_levels.find(static_cast<std::size_t>(
                      chosen_priority_level)) != checked_priority_levels.end()) {
-        DLOG(INFO) << "The chosen priority level " << chosen_priority_level << " was checked already";
         continue;
       } else {
         WorkerMessage *next_worker_message =
@@ -230,7 +230,7 @@ void PriorityPolicyEnforcer::removeQuery(const std::size_t query_id) {
   // Remove the query from the learner.
   learner_->removeQuery(query_id);
   // TODO(harshad) - Admit waiting queries, if any.
-  LOG(INFO) << "Removed query: " << query_id << " with priority: " << query_priority;
+  DLOG(INFO) << "Removed query: " << query_id << " with priority: " << query_priority;
 }
 
 bool PriorityPolicyEnforcer::admitQueries(
@@ -279,7 +279,6 @@ WorkerMessage* PriorityPolicyEnforcer::getNextWorkerMessageFromPriorityLevel(
           std::unique_ptr<WorkerMessage> next_worker_message(
               chosen_query_manager->getNextWorkerMessage(0, kAnyNUMANodeID));
           if (next_worker_message != nullptr) {
-            // LOG(INFO) << "Selecting a work order from query " << qid << " instead";
             return next_worker_message.release();
           } else {
             // This query doesn't have any WorkerMessage right now. Mark as checked.

@@ -472,6 +472,9 @@ class Learner {
 
   void printProbabilitiesForPriorityLevel(const std::size_t priority_level);
 
+  void printWorkOrderDetails(
+      const serialization::NormalWorkOrderCompletionMessage &proto) const;
+
   // Key = Priority level, value = A vector of pairs.
   // Each pair:
   // 1st element: Query ID.

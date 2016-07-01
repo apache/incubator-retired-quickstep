@@ -19,6 +19,7 @@
 
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "query_execution/AdmitRequestMessage.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"

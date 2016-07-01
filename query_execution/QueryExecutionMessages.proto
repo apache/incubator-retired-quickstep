@@ -39,6 +39,8 @@ message NormalWorkOrderCompletionMessage {
   required uint64 worker_thread_index = 2;
   required uint64 query_id = 3;
   optional uint64 execution_time_in_microseconds = 4;
+  // Indicates time elapsed in microseconds since epoch.  
+  optional uint64 execution_end_timestamp = 5;  
 }
 
 // A message sent upon completion of a rebuild WorkOrder execution.
@@ -47,6 +49,10 @@ message RebuildWorkOrderCompletionMessage {
   required uint64 worker_thread_index = 2;
   required uint64 query_id = 3;
   optional uint64 execution_time_in_microseconds = 4;
+  optional uint64 execution_end_timestamp = 5;  // Indicates time elapsed in 
+                                                // microseconds since epoch, 
+                                                // when the work order execution
+                                                // got over. 
 }
 
 message CatalogRelationNewBlockMessage {

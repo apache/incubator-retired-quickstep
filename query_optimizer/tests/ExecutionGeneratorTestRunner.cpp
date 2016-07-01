@@ -20,6 +20,7 @@
 #include <cstdio>
 #include <set>
 #include <string>
+#include <vector>
 
 #include "cli/DropRelation.hpp"
 #include "cli/PrintToScreen.hpp"

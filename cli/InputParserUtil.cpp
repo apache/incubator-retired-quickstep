@@ -40,9 +40,9 @@
 using std::string;
 
 namespace quickstep {
-  class CatalogRelation;
-  class CatalogDatabase;
-  class StorageManager;
+class CatalogRelation;
+class CatalogDatabase;
+class StorageManager;
 }
 
 namespace quickstep {
@@ -114,7 +114,6 @@ void InputParserUtil::PrintAndDropOutputRelation(
                        query_processor->getDefaultDatabase(),
                        query_processor->getStorageManager());
   }
-
 }
 
 }  // namespace quickstep

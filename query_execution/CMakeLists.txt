@@ -107,7 +107,6 @@ target_link_libraries(quickstep_queryexecution_Learner
 target_link_libraries(quickstep_queryexecution_PolicyEnforcer
                       ${GFLAGS_LIB_NAME}
                       glog
-                      quickstep_queryexecution_ExecutionStats
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_ProbabilityStore
                       quickstep_queryexecution_QueryExecutionMessages_proto
@@ -122,7 +121,6 @@ target_link_libraries(quickstep_queryexecution_PolicyEnforcer
 target_link_libraries(quickstep_queryexecution_PriorityPolicyEnforcer
                       ${GFLAGS_LIB_NAME}
                       glog
-                      quickstep_queryexecution_ExecutionStats
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_Learner
                       quickstep_queryexecution_ProbabilityStore

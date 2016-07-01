@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -42,6 +43,8 @@ DEFINE_uint64(max_past_entries_learner,
 Learner::Learner()
     : highest_priority_level_(kInvalidPriorityLevel) {
   probabilities_of_priority_levels_.reset(new ProbabilityStore());
+  // Format: Query ID, Operator ID, Worker ID, Time in micros, WO execution end timestamp.
+  LOG(INFO) << "Query ID|Operator ID|Worker ID|Time in microseconds|Workorder end timestamp";
 }
 
 void Learner::addCompletionFeedback(
@@ -61,16 +64,17 @@ void Learner::addCompletionFeedback(
   }
   updateProbabilitiesForQueriesInPriorityLevel(priority_level, query_id);
   updateProbabilitiesOfAllPriorityLevels();
-  printProbabilitiesForPriorityLevel(priority_level);
+  // printProbabilitiesForPriorityLevel(priority_level);
+  printWorkOrderDetails(workorder_completion_proto);
 }
 
 void Learner::updateProbabilitiesForQueriesInPriorityLevel(
     const std::size_t priority_level, const std::size_t query_id) {
   DCHECK(isPriorityLevelPresent(priority_level));
   if (execution_stats_[priority_level].empty()) {
-    LOG(INFO) << "Updating probabilities for query ID: " << query_id
-              << " and priority level: " << priority_level
-              << " that has no queries";
+    LOG(WARNING) << "Updating probabilities for query ID: " << query_id
+                 << " and priority level: " << priority_level
+                 << " that has no queries";
     return;
   } else if (execution_stats_[priority_level].size() == 1u) {
     DCHECK(current_probabilities_[priority_level] != nullptr);
@@ -284,6 +288,23 @@ void Learner::printProbabilitiesForPriorityLevel(const std::size_t priority_leve
       it->second->printIndividualProbabilities();
     }
   }
+}
+
+void Learner::printWorkOrderDetails(
+    const serialization::NormalWorkOrderCompletionMessage &proto) const {
+  // Format: Query ID, Operator ID, Worker ID, Time in micros, WO execution end timestamp.
+  std::string result = "";
+  result.reserve(30);
+  result += std::to_string(proto.query_id());  // 2 chars
+  result += "|";
+  result += std::to_string(proto.operator_index());  // 2 chars
+  result += "|";
+  result += std::to_string(proto.worker_thread_index());  // 2 chars
+  result += "|";
+  result += std::to_string(proto.execution_time_in_microseconds());  // 5 chars
+  result += "|";
+  result += std::to_string(proto.execution_end_timestamp());  // 12 chars
+  LOG(INFO) << result;
 }
 
 }  // namespace quickstep

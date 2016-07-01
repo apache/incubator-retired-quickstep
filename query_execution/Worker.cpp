@@ -123,11 +123,16 @@ void Worker::executeWorkOrderHelper(const TaggedMessage &tagged_message,
   const uint64_t execution_time_microseconds =
       std::chrono::duration_cast<std::chrono::microseconds>(end - start)
           .count();
+  const uint64_t execution_end_timestamp =
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          end.time_since_epoch())
+          .count();
   // Construct the proto message.
   proto->set_operator_index(worker_message.getRelationalOpIndex());
   proto->set_query_id(query_id_for_workorder);
   proto->set_worker_thread_index(worker_thread_index_);
   proto->set_execution_time_in_microseconds(execution_time_microseconds);
+  proto->set_execution_end_timestamp(execution_end_timestamp);
 }
 
 }  // namespace quickstep
