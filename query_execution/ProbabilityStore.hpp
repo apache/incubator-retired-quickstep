@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <random>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -232,6 +233,17 @@ class ProbabilityStore {
     std::random_device rd;
     const float chosen_probability = dist(rd);
     return getPropertyForProbability(chosen_probability);
+  }
+
+  void printIndividualProbabilities() const {
+    std::string result = "";
+    for (auto prob_pair : individual_probabilities_) {
+      result += std::to_string(prob_pair.first);
+      result += ":";
+      result += std::to_string(prob_pair.second.second);
+      result += "|";
+    }
+    LOG(INFO) << result;
   }
 
  private:

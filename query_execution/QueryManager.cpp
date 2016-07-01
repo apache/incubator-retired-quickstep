@@ -238,16 +238,17 @@ QueryManager::QueryStatusCode QueryManager::processMessage(
       LOG(FATAL) << "Unknown message type found in QueryManager";
   }
 
+  QueryStatusCode result = QueryStatusCode::kNone;
   if (query_exec_state_->hasExecutionFinished(op_index)) {
-    return QueryStatusCode::kOperatorExecuted;
+    result = QueryStatusCode::kOperatorExecuted;
   }
 
   // As kQueryExecuted takes precedence over kOperatorExecuted, we check again.
   if (query_exec_state_->hasQueryExecutionFinished()) {
-    return QueryStatusCode::kQueryExecuted;
+    result = QueryStatusCode::kQueryExecuted;
   }
 
-  return QueryStatusCode::kNone;
+  return result;
 }
 
 void QueryManager::processFeedbackMessage(

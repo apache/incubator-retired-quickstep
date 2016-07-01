@@ -61,6 +61,7 @@ void Learner::addCompletionFeedback(
   }
   updateProbabilitiesForQueriesInPriorityLevel(priority_level, query_id);
   updateProbabilitiesOfAllPriorityLevels();
+  printProbabilitiesForPriorityLevel(priority_level);
 }
 
 void Learner::updateProbabilitiesForQueriesInPriorityLevel(
@@ -264,6 +265,23 @@ void Learner::checkAndRemovePriorityLevel(const std::size_t priority_level) {
       }
     } else {
       highest_priority_level_ = kInvalidPriorityLevel;
+    }
+  }
+}
+
+void Learner::printProbabilitiesForPriorityLevel(const std::size_t priority_level) {
+  DCHECK(isPriorityLevelPresent(priority_level));
+  if (hasFeedbackFromAllQueriesInPriorityLevel(priority_level)) {
+    DCHECK(current_probabilities_.at(priority_level) != nullptr);
+    const auto it = current_probabilities_.find(priority_level);
+    if (it->second->getNumObjects() > 0) {
+      it->second->printIndividualProbabilities();
+    }
+  } else {
+    DCHECK(default_probabilities_.at(priority_level) != nullptr);
+    const auto it = default_probabilities_.find(priority_level);
+    if (it->second->getNumObjects() > 0) {
+      it->second->printIndividualProbabilities();
     }
   }
 }
