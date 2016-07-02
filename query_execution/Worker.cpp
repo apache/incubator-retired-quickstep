@@ -121,7 +121,7 @@ void Worker::executeWorkOrderHelper(const TaggedMessage &tagged_message,
   end = std::chrono::steady_clock::now();
   delete worker_message.getWorkOrder();
   const uint64_t execution_time_microseconds =
-      std::chrono::duration_cast<std::chrono::milliseconds>(end - start)
+      std::chrono::duration_cast<std::chrono::microseconds>(end - start)
           .count();
   // Construct the proto message.
   proto->set_operator_index(worker_message.getRelationalOpIndex());
