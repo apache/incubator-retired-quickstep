@@ -1371,13 +1371,9 @@ void ExecutionGenerator::convertAggregate(
   }
 
   if (!group_by_types.empty()) {
-    // SimplifyHashTableImplTypeProto() switches the hash table implementation
-    // from SeparateChaining to SimpleScalarSeparateChaining when there is a
-    // single scalar key type with a reversible hash function.
+    // Right now, only SeparateChaining is supported.
     aggr_state_proto->set_hash_table_impl_type(
-        SimplifyHashTableImplTypeProto(
-            HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type),
-            group_by_types));
+        serialization::HashTableImplType::SEPARATE_CHAINING);
   }
 
   for (const E::AliasPtr &named_aggregate_expression : physical_plan->aggregate_expressions()) {
@@ -1404,15 +1400,9 @@ void ExecutionGenerator::convertAggregate(
     if (unnamed_aggregate_expression->is_distinct()) {
       const std::vector<E::ScalarPtr> &arguments = unnamed_aggregate_expression->getArguments();
       DCHECK_GE(arguments.size(), 1u);
-      if (group_by_types.empty() && arguments.size() == 1) {
-        aggr_state_proto->add_distinctify_hash_table_impl_types(
-            SimplifyHashTableImplTypeProto(
-                HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type),
-                {&arguments[0]->getValueType()}));
-      } else {
-        aggr_state_proto->add_distinctify_hash_table_impl_types(
-            HashTableImplTypeProtoFromString(FLAGS_aggregate_hashtable_type));
-      }
+      // Right now only SeparateChaining implementation is supported.
+      aggr_state_proto->add_distinctify_hash_table_impl_types(
+          serialization::HashTableImplType::SEPARATE_CHAINING);
     }
   }
 

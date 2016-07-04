@@ -415,8 +415,7 @@ AggregationState* StorageBlock::aggregate(
 }
 
 void StorageBlock::aggregateGroupBy(
-    const AggregationHandle &handle,
-    const std::vector<std::unique_ptr<const Scalar>> &arguments,
+    const std::vector<std::vector<std::unique_ptr<const Scalar>>> &arguments,
     const std::vector<std::unique_ptr<const Scalar>> &group_by,
     const Predicate *predicate,
     AggregationStateHashTableBase *hash_table,
@@ -481,18 +480,23 @@ void StorageBlock::aggregateGroupBy(
     }
 
     // Compute argument vectors and add them to 'temp_result'.
-    for (const std::unique_ptr<const Scalar> &argument : arguments) {
-      temp_result.addColumn(argument->getAllValues(accessor.get(), &sub_blocks_ref));
-      argument_ids.push_back(attr_id++);
-    }
+    for (const std::vector<std::unique_ptr<const Scalar>> &argument : arguments) {
+        for (const std::unique_ptr<const Scalar> &args : argument) {
+          temp_result.addColumn(args->getAllValues(accessor.get(), &sub_blocks_ref));
+          argument_ids.push_back(attr_id++);
+        }
+        if (argument.empty()) {
+          argument_ids.push_back(kInvalidAttributeID);
+        }
+     }
   }
 
-  // Actually do aggregation into '*hash_table'.
-  handle.aggregateValueAccessorIntoHashTable(&temp_result,
-                                             argument_ids,
-                                             key_ids,
-                                             hash_table);
+  hash_table->upsertValueAccessorCompositeKeyFast(argument_ids,
+                                                  &temp_result,
+                                                  key_ids,
+                                                  true);
 }
+
 
 void StorageBlock::aggregateDistinct(
     const AggregationHandle &handle,
@@ -581,7 +585,6 @@ void StorageBlock::aggregateDistinct(
   handle.insertValueAccessorIntoDistinctifyHashTable(
       &temp_result, key_ids, distinctify_hash_table);
 }
-
 
 // TODO(chasseur): Vectorization for updates.
 StorageBlock::UpdateResult StorageBlock::update(

@@ -65,14 +65,15 @@ void AggregationHandleDistinct::aggregateValueAccessorIntoHashTable(
 
 ColumnVector* AggregationHandleDistinct::finalizeHashTable(
     const AggregationStateHashTableBase &hash_table,
-    std::vector<std::vector<TypedValue>> *group_by_keys) const {
+    std::vector<std::vector<TypedValue>> *group_by_keys,
+    int index) const {
   DCHECK(group_by_keys->empty());
 
   const auto keys_retriever = [&group_by_keys](std::vector<TypedValue> &group_by_key,
                                                const bool &dumb_placeholder) -> void {
     group_by_keys->emplace_back(std::move(group_by_key));
   };
-  static_cast<const AggregationStateHashTable<bool>&>(hash_table).forEachCompositeKey(&keys_retriever);
+  static_cast<const AggregationStateFastHashTable&>(hash_table).forEachCompositeKeyFast(&keys_retriever);
 
   return nullptr;
 }

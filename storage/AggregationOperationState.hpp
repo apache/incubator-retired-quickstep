@@ -102,16 +102,17 @@ class AggregationOperationState {
    *        tables. Single aggregation state (when GROUP BY list is not
    *        specified) is not allocated using memory from storage manager.
    */
-  AggregationOperationState(const CatalogRelationSchema &input_relation,
-                            const std::vector<const AggregateFunction*> &aggregate_functions,
-                            std::vector<std::vector<std::unique_ptr<const Scalar>>> &&arguments,
-                            std::vector<bool> &&is_distinct,
-                            std::vector<std::unique_ptr<const Scalar>> &&group_by,
-                            const Predicate *predicate,
-                            const std::size_t estimated_num_entries,
-                            const HashTableImplType hash_table_impl_type,
-                            const std::vector<HashTableImplType> &distinctify_hash_table_impl_types,
-                            StorageManager *storage_manager);
+  AggregationOperationState(
+      const CatalogRelationSchema &input_relation,
+      const std::vector<const AggregateFunction *> &aggregate_functions,
+      std::vector<std::vector<std::unique_ptr<const Scalar>>> &&arguments,
+      std::vector<bool> &&is_distinct,
+      std::vector<std::unique_ptr<const Scalar>> &&group_by,
+      const Predicate *predicate,
+      const std::size_t estimated_num_entries,
+      const HashTableImplType hash_table_impl_type,
+      const std::vector<HashTableImplType> &distinctify_hash_table_impl_types,
+      StorageManager *storage_manager);
 
   ~AggregationOperationState() {}
 
@@ -143,8 +144,9 @@ class AggregationOperationState {
    *        in.
    * @return Whether proto is fully-formed and valid.
    **/
-  static bool ProtoIsValid(const serialization::AggregationOperationState &proto,
-                           const CatalogDatabaseLite &database);
+  static bool ProtoIsValid(
+      const serialization::AggregationOperationState &proto,
+      const CatalogDatabaseLite &database);
 
   /**
    * @brief Compute aggregates on the tuples of the given storage block,
@@ -165,10 +167,16 @@ class AggregationOperationState {
    **/
   void finalizeAggregate(InsertDestination *output_destination);
 
+  static void mergeGroupByHashTables(AggregationStateHashTableBase *src,
+                                     AggregationStateHashTableBase *dst);
+
+  int dflag;
+
  private:
   // Merge locally (per storage block) aggregated states with global aggregation
   // states.
-  void mergeSingleState(const std::vector<std::unique_ptr<AggregationState>> &local_state);
+  void mergeSingleState(
+      const std::vector<std::unique_ptr<AggregationState>> &local_state);
 
   // Aggregate on input block.
   void aggregateBlockSingleState(const block_id input_block);
@@ -185,7 +193,8 @@ class AggregationOperationState {
 
   // Each individual aggregate in this operation has an AggregationHandle and
   // some number of Scalar arguments.
-  std::vector<std::unique_ptr<AggregationHandle>> handles_;
+  //  std::vector<std::unique_ptr<AggregationHandle>> handles_;
+  std::vector<AggregationHandle *> handles_;
   std::vector<std::vector<std::unique_ptr<const Scalar>>> arguments_;
 
   // For each aggregate, whether DISTINCT should be applied to the aggregate's
@@ -193,7 +202,8 @@ class AggregationOperationState {
   std::vector<bool> is_distinct_;
 
   // Hash table for obtaining distinct (i.e. unique) arguments.
-  std::vector<std::unique_ptr<AggregationStateHashTableBase>> distinctify_hashtables_;
+  std::vector<std::unique_ptr<AggregationStateHashTableBase>>
+      distinctify_hashtables_;
 
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
   // If all an aggregate's argument expressions are simply attributes in
@@ -208,10 +218,11 @@ class AggregationOperationState {
   //
   // TODO(shoban): We should ideally store the aggregation state together in one
   // hash table to prevent multiple lookups.
-  std::vector<std::unique_ptr<AggregationStateHashTableBase>> group_by_hashtables_;
+  std::vector<std::unique_ptr<AggregationStateHashTableBase>>
+      group_by_hashtables_;
 
-  // A vector of group by hash table pools, one for each group by clause.
-  std::vector<std::unique_ptr<HashTablePool>> group_by_hashtable_pools_;
+  // A vector of group by hash table pools.
+  std::unique_ptr<HashTablePool> group_by_hashtable_pool_;
 
   StorageManager *storage_manager_;
 

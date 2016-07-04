@@ -39,22 +39,19 @@ namespace quickstep {
 class StorageManager;
 
 AggregationHandleMin::AggregationHandleMin(const Type &type)
-    : type_(type) {
-  fast_comparator_.reset(ComparisonFactory::GetComparison(ComparisonID::kLess)
-                         .makeUncheckedComparatorForTypes(type,
-                                                          type.getNonNullableVersion()));
+    : type_(type), block_update_(false) {
+  fast_comparator_.reset(
+      ComparisonFactory::GetComparison(ComparisonID::kLess)
+          .makeUncheckedComparatorForTypes(type, type.getNonNullableVersion()));
 }
 
 AggregationStateHashTableBase* AggregationHandleMin::createGroupByHashTable(
     const HashTableImplType hash_table_impl,
-    const std::vector<const Type*> &group_by_types,
+    const std::vector<const Type *> &group_by_types,
     const std::size_t estimated_num_groups,
     StorageManager *storage_manager) const {
   return AggregationStateHashTableFactory<AggregationStateMin>::CreateResizable(
-      hash_table_impl,
-      group_by_types,
-      estimated_num_groups,
-      storage_manager);
+      hash_table_impl, group_by_types, estimated_num_groups, storage_manager);
 }
 
 AggregationState* AggregationHandleMin::accumulateColumnVectors(
@@ -62,9 +59,8 @@ AggregationState* AggregationHandleMin::accumulateColumnVectors(
   DCHECK_EQ(1u, column_vectors.size())
       << "Got wrong number of ColumnVectors for MIN: " << column_vectors.size();
 
-  return new AggregationStateMin(
-      fast_comparator_->accumulateColumnVector(type_.getNullableVersion().makeNullValue(),
-                                               *column_vectors.front()));
+  return new AggregationStateMin(fast_comparator_->accumulateColumnVector(
+      type_.getNullableVersion().makeNullValue(), *column_vectors.front()));
 }
 
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
@@ -74,10 +70,10 @@ AggregationState* AggregationHandleMin::accumulateValueAccessor(
   DCHECK_EQ(1u, accessor_ids.size())
       << "Got wrong number of attributes for MIN: " << accessor_ids.size();
 
-  return new AggregationStateMin(
-      fast_comparator_->accumulateValueAccessor(type_.getNullableVersion().makeNullValue(),
-                                                accessor,
-                                                accessor_ids.front()));
+  return new AggregationStateMin(fast_comparator_->accumulateValueAccessor(
+      type_.getNullableVersion().makeNullValue(),
+      accessor,
+      accessor_ids.front()));
 }
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
@@ -88,66 +84,55 @@ void AggregationHandleMin::aggregateValueAccessorIntoHashTable(
     AggregationStateHashTableBase *hash_table) const {
   DCHECK_EQ(1u, argument_ids.size())
       << "Got wrong number of arguments for MIN: " << argument_ids.size();
-
-  aggregateValueAccessorIntoHashTableUnaryHelper<
-      AggregationHandleMin,
-      AggregationStateMin,
-      AggregationStateHashTable<AggregationStateMin>>(
-          accessor,
-          argument_ids.front(),
-          group_by_key_ids,
-          AggregationStateMin(type_),
-          hash_table);
 }
 
-void AggregationHandleMin::mergeStates(
-    const AggregationState &source,
-    AggregationState *destination) const {
-  const AggregationStateMin &min_source = static_cast<const AggregationStateMin&>(source);
-  AggregationStateMin *min_destination = static_cast<AggregationStateMin*>(destination);
+void AggregationHandleMin::mergeStates(const AggregationState &source,
+                                       AggregationState *destination) const {
+  const AggregationStateMin &min_source =
+      static_cast<const AggregationStateMin &>(source);
+  AggregationStateMin *min_destination =
+      static_cast<AggregationStateMin *>(destination);
 
   if (!min_source.min_.isNull()) {
     compareAndUpdate(min_destination, min_source.min_);
   }
 }
 
-ColumnVector* AggregationHandleMin::finalizeHashTable(
-    const AggregationStateHashTableBase &hash_table,
-    std::vector<std::vector<TypedValue>> *group_by_keys) const {
-  return finalizeHashTableHelper<AggregationHandleMin,
-                                 AggregationStateHashTable<AggregationStateMin>>(
-      type_.getNonNullableVersion(),
-      hash_table,
-      group_by_keys);
+void AggregationHandleMin::mergeStatesFast(const std::uint8_t *source,
+                                           std::uint8_t *destination) const {
+  const TypedValue *src_min_ptr = reinterpret_cast<const TypedValue *>(source);
+  TypedValue *dst_min_ptr = reinterpret_cast<TypedValue *>(destination);
+
+  if (!(src_min_ptr->isNull())) {
+    compareAndUpdateFast(dst_min_ptr, *src_min_ptr);
+  }
 }
 
-AggregationState* AggregationHandleMin::aggregateOnDistinctifyHashTableForSingle(
+ColumnVector* AggregationHandleMin::finalizeHashTable(
+    const AggregationStateHashTableBase &hash_table,
+    std::vector<std::vector<TypedValue>> *group_by_keys,
+    int index) const {
+  return finalizeHashTableHelperFast<AggregationHandleMin,
+                                     AggregationStateFastHashTable>(
+      type_.getNonNullableVersion(), hash_table, group_by_keys, index);
+}
+
+AggregationState*
+AggregationHandleMin::aggregateOnDistinctifyHashTableForSingle(
     const AggregationStateHashTableBase &distinctify_hash_table) const {
-  return aggregateOnDistinctifyHashTableForSingleUnaryHelper<
+  return aggregateOnDistinctifyHashTableForSingleUnaryHelperFast<
       AggregationHandleMin,
-      AggregationStateMin>(
-          distinctify_hash_table);
+      AggregationStateMin>(distinctify_hash_table);
 }
 
 void AggregationHandleMin::aggregateOnDistinctifyHashTableForGroupBy(
     const AggregationStateHashTableBase &distinctify_hash_table,
-    AggregationStateHashTableBase *aggregation_hash_table) const {
-  aggregateOnDistinctifyHashTableForGroupByUnaryHelper<
+    AggregationStateHashTableBase *aggregation_hash_table,
+    std::size_t index) const {
+  aggregateOnDistinctifyHashTableForGroupByUnaryHelperFast<
       AggregationHandleMin,
-      AggregationStateMin,
-      AggregationStateHashTable<AggregationStateMin>>(
-          distinctify_hash_table,
-          AggregationStateMin(type_),
-          aggregation_hash_table);
-}
-
-void AggregationHandleMin::mergeGroupByHashTables(
-    const AggregationStateHashTableBase &source_hash_table,
-    AggregationStateHashTableBase *destination_hash_table) const {
-  mergeGroupByHashTablesHelper<AggregationHandleMin,
-                               AggregationStateMin,
-                               AggregationStateHashTable<AggregationStateMin>>(
-      source_hash_table, destination_hash_table);
+      AggregationStateFastHashTable>(
+      distinctify_hash_table, aggregation_hash_table, index);
 }
 
 }  // namespace quickstep

@@ -40,7 +40,6 @@ class ValueAccessor;
  *  @{
  */
 
-
 /**
  * @brief Abstract base class for aggregation state.
  **/
@@ -107,8 +106,7 @@ class AggregationHandle {
    * @brief Virtual destructor.
    *
    **/
-  virtual ~AggregationHandle() {
-  }
+  virtual ~AggregationHandle() {}
 
   /**
    * @brief Create an initial "blank" state for this aggregation.
@@ -132,11 +130,11 @@ class AggregationHandle {
    *        A StorageBlob will be allocated to serve as the HashTable's
    *        in-memory storage.
    * @return A new HashTable instance with the appropriate state type for this
-   *         aggregate as the ValueT.
+   *         aggregate.
    **/
   virtual AggregationStateHashTableBase* createGroupByHashTable(
       const HashTableImplType hash_table_impl,
-      const std::vector<const Type*> &group_by_types,
+      const std::vector<const Type *> &group_by_types,
       const std::size_t estimated_num_groups,
       StorageManager *storage_manager) const = 0;
 
@@ -261,14 +259,18 @@ class AggregationHandle {
    *        values returned in the ColumnVector. If this is already filled in,
    *        then this method will visit the GROUP BY keys in the exact order
    *        specified.
+   * @param index The index of the AggregationHandle to be finalized.
+   *
    * @return A ColumnVector containing each group's finalized aggregate value.
    **/
   virtual ColumnVector* finalizeHashTable(
       const AggregationStateHashTableBase &hash_table,
-      std::vector<std::vector<TypedValue>> *group_by_keys) const = 0;
+      std::vector<std::vector<TypedValue>> *group_by_keys,
+      int index) const = 0;
 
   /**
-   * @brief Create a new HashTable for the distinctify step for DISTINCT aggregation.
+   * @brief Create a new HashTable for the distinctify step for DISTINCT
+   * aggregation.
    *
    * Distinctify is the first step for DISTINCT aggregation. This step inserts
    * the GROUP BY expression values and aggregation arguments together as keys
@@ -281,8 +283,8 @@ class AggregationHandle {
    * we simply treat it as a special GROUP BY case that the GROUP BY expression
    * vector is empty.
    *
-   * @param hash_table_impl The choice of which concrete HashTable implementation
-   *        to use.
+   * @param hash_table_impl The choice of which concrete HashTable
+   *        implementation to use.
    * @param key_types The types of the GROUP BY expressions together with the
    *        types of the aggregation arguments.
    * @param estimated_num_distinct_keys The estimated number of distinct keys
@@ -291,14 +293,15 @@ class AggregationHandle {
    *        This is an estimate only, and the HashTable will be resized if it
    *        becomes over-full.
    * @param storage_manager The StorageManager to use to create the HashTable.
-   *        A StorageBlob will be allocated to serve as the HashTable's in-memory
-   *        storage.
+   *        A StorageBlob will be allocated to serve as the HashTable's
+   *        in-memory storage.
+   *
    * @return A new HashTable instance with the appropriate state type for this
-   *         aggregate as the ValueT.
+   *         aggregate.
    */
   virtual AggregationStateHashTableBase* createDistinctifyHashTable(
       const HashTableImplType hash_table_impl,
-      const std::vector<const Type*> &key_types,
+      const std::vector<const Type *> &key_types,
       const std::size_t estimated_num_distinct_keys,
       StorageManager *storage_manager) const = 0;
 
@@ -306,15 +309,16 @@ class AggregationHandle {
    * @brief Inserts the GROUP BY expressions and aggregation arguments together
    * as keys into the distinctify hash table.
    *
-   * @param accessor The ValueAccessor that will be iterated over to read tuples.
+   * @param accessor The ValueAccessor that will be iterated over to read
+   *        tuples.
    * @param key_ids The attribute_ids of the GROUP BY expressions in accessor
    *        together with the attribute_ids of the arguments to this aggregate
    *        in accessor, in order.
-   * @param distinctify_hash_table The HashTable to store the GROUP BY expressions
-   *        and the aggregation arguments together as hash table keys and a bool
-   *        constant \c true as hash table value (So the hash table actually
-   *        serves as a hash set). This should have been created by calling
-   *        createDistinctifyHashTable();
+   * @param distinctify_hash_table The HashTable to store the GROUP BY
+   *        expressions and the aggregation arguments together as hash table
+   *        keys and a bool constant \c true as hash table value (So the hash
+   *        table actually serves as a hash set). This should have been created
+   *        by calling createDistinctifyHashTable();
    */
   virtual void insertValueAccessorIntoDistinctifyHashTable(
       ValueAccessor *accessor,
@@ -339,32 +343,82 @@ class AggregationHandle {
    * @brief Perform GROUP BY aggregation on the keys from the distinctify hash
    * table and upserts states into the aggregation hash table.
    *
-   * @param distinctify_hash_table Hash table which stores the GROUP BY expression
-   *        values and aggregation arguments together as hash table keys.
+   * @param distinctify_hash_table Hash table which stores the GROUP BY
+   *        expression values and aggregation arguments together as hash table
+   *        keys.
    * @param aggregation_hash_table The HashTable to upsert AggregationStates in.
    *        This should have been created by calling createGroupByHashTable() on
    *        this same AggregationHandle.
+   * @param index The index of the distinctify hash table for which we perform
+   *        the DISTINCT aggregation.
    */
   virtual void aggregateOnDistinctifyHashTableForGroupBy(
       const AggregationStateHashTableBase &distinctify_hash_table,
-      AggregationStateHashTableBase *aggregation_hash_table) const = 0;
+      AggregationStateHashTableBase *aggregation_hash_table,
+      std::size_t index) const = 0;
 
   /**
-   * @brief Merge two GROUP BY hash tables in one.
-   *
-   * @note Both the hash tables should have the same structure.
-   *
-   * @param source_hash_table The hash table which will get merged.
-   * @param destination_hash_table The hash table to which we will merge the
-   *        other hash table.
+   * @brief Get the number of bytes needed to store the aggregation handle's
+   *        state.
    **/
-  virtual void mergeGroupByHashTables(
-      const AggregationStateHashTableBase &source_hash_table,
-      AggregationStateHashTableBase *destination_hash_table) const = 0;
+  virtual std::size_t getPayloadSize() const { return 1; }
+
+  /**
+   * @brief Update the aggregation state for nullary aggregation function e.g.
+   *        COUNT(*).
+   *
+   * @note This function should be overloaded by those aggregation function
+   *       which can perform nullary operations, e.g. COUNT.
+   *
+   * @param byte_ptr The pointer where the aggregation state is stored.
+   **/
+  virtual void updateStateNullary(std::uint8_t *byte_ptr) const {}
+
+  /**
+   * @brief Update the aggregation state for unary aggregation function e.g.
+   *        SUM(a).
+   *
+   * @param argument The argument which will be used to update the state of the
+   *        aggregation function.
+   * @param byte_ptr The pointer where the aggregation state is stored.
+   **/
+  virtual void updateStateUnary(const TypedValue &argument,
+                                std::uint8_t *byte_ptr) const {}
+
+  /**
+   * @brief Merge two aggregation states for this aggregation handle.
+   *
+   * @note This function should be used with the hash table specifically meant
+   *       for aggregations only.
+   *
+   * @param src A pointer to the source aggregation state.
+   * @param dst A pointer to the destination aggregation state.
+   **/
+  virtual void mergeStatesFast(const std::uint8_t *src,
+                               std::uint8_t *dst) const {}
+
+  /**
+   * @brief Initialize the payload (in the aggregation hash table) for the given
+   *        aggregation handle.
+   *
+   * @param byte_ptr The pointer to the aggregation state in the hash table.
+   **/
+  virtual void initPayload(std::uint8_t *byte_ptr) const {}
+
+  /**
+   * @brief Inform the aggregation handle to block (prohibit) updates on the
+   *        aggregation state.
+   **/
+  virtual void blockUpdate() {}
+
+  /**
+   * @brief Inform the aggregation handle to allow updates on the
+   *        aggregation state.
+   **/
+  virtual void allowUpdate() {}
 
  protected:
-  AggregationHandle() {
-  }
+  AggregationHandle() {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(AggregationHandle);

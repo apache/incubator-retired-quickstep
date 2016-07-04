@@ -31,6 +31,8 @@
 #include "expressions/aggregation/AggregationHandle.hpp"
 #include "expressions/aggregation/AggregationHandleMax.hpp"
 #include "expressions/aggregation/AggregationID.hpp"
+#include "storage/AggregationOperationState.hpp"
+#include "storage/FastHashTableFactory.hpp"
 #include "storage/HashTableBase.hpp"
 #include "storage/StorageManager.hpp"
 #include "types/CharType.hpp"
@@ -70,54 +72,59 @@ class AggregationHandleMaxTest : public ::testing::Test {
   // Helper method that calls AggregationHandleMax::iterateUnaryInl() to
   // aggregate 'value' into '*state'.
   void iterateHandle(AggregationState *state, const TypedValue &value) {
-    static_cast<const AggregationHandleMax&>(*aggregation_handle_max_).iterateUnaryInl(
-        static_cast<AggregationStateMax*>(state),
-        value);
+    static_cast<const AggregationHandleMax &>(*aggregation_handle_max_)
+        .iterateUnaryInl(static_cast<AggregationStateMax *>(state), value);
   }
 
   void initializeHandle(const Type &type) {
     aggregation_handle_max_.reset(
-        AggregateFunctionFactory::Get(AggregationID::kMax).createHandle(
-            std::vector<const Type*>(1, &type)));
+        AggregateFunctionFactory::Get(AggregationID::kMax)
+            .createHandle(std::vector<const Type *>(1, &type)));
     aggregation_handle_max_state_.reset(
         aggregation_handle_max_->createInitialState());
   }
 
   static bool ApplyToTypesTest(TypeID typeID) {
-    const Type &type = (typeID == kChar || typeID == kVarChar) ?
-        TypeFactory::GetType(typeID, static_cast<std::size_t>(10)) :
-        TypeFactory::GetType(typeID);
+    const Type &type =
+        (typeID == kChar || typeID == kVarChar)
+            ? TypeFactory::GetType(typeID, static_cast<std::size_t>(10))
+            : TypeFactory::GetType(typeID);
 
-    return AggregateFunctionFactory::Get(AggregationID::kMax).canApplyToTypes(
-        std::vector<const Type*>(1, &type));
+    return AggregateFunctionFactory::Get(AggregationID::kMax)
+        .canApplyToTypes(std::vector<const Type *>(1, &type));
   }
 
   static bool ResultTypeForArgumentTypeTest(TypeID input_type_id,
                                             TypeID output_type_id) {
-    const Type *result_type
-        = AggregateFunctionFactory::Get(AggregationID::kMax).resultTypeForArgumentTypes(
-            std::vector<const Type*>(1, &TypeFactory::GetType(input_type_id)));
+    const Type *result_type =
+        AggregateFunctionFactory::Get(AggregationID::kMax)
+            .resultTypeForArgumentTypes(std::vector<const Type *>(
+                1, &TypeFactory::GetType(input_type_id)));
     return (result_type->getTypeID() == output_type_id);
   }
 
   template <typename CppType>
-  static void CheckMaxValue(
-      CppType expected,
-      const AggregationHandle &handle,
-      const AggregationState &state) {
+  static void CheckMaxValue(CppType expected,
+                            const AggregationHandle &handle,
+                            const AggregationState &state) {
     EXPECT_EQ(expected, handle.finalize(state).getLiteral<CppType>());
   }
 
-  static void CheckMaxString(
-      const std::string &expected,
-      const AggregationHandle &handle,
-      const AggregationState &state) {
+  template <typename CppType>
+  static void CheckMaxValue(CppType expected, const TypedValue &value) {
+    EXPECT_EQ(expected, value.getLiteral<CppType>());
+  }
+
+  static void CheckMaxString(const std::string &expected,
+                             const AggregationHandle &handle,
+                             const AggregationState &state) {
     TypedValue value = handle.finalize(state);
 
     ASSERT_EQ(expected.length(), value.getAsciiStringLength());
-    EXPECT_EQ(0, std::strncmp(expected.c_str(),
-                              static_cast<const char*>(value.getDataPtr()),
-                              value.getAsciiStringLength()));
+    EXPECT_EQ(0,
+              std::strncmp(expected.c_str(),
+                           static_cast<const char *>(value.getDataPtr()),
+                           value.getAsciiStringLength()));
   }
 
   // Static templated method to initialize data types.
@@ -130,7 +137,9 @@ class AggregationHandleMaxTest : public ::testing::Test {
   void checkAggregationMaxGeneric() {
     const GenericType &type = GenericType::Instance(true);
     initializeHandle(type);
-    EXPECT_TRUE(aggregation_handle_max_->finalize(*aggregation_handle_max_state_).isNull());
+    EXPECT_TRUE(
+        aggregation_handle_max_->finalize(*aggregation_handle_max_state_)
+            .isNull());
 
     typename GenericType::cpptype val;
     typename GenericType::cpptype max;
@@ -142,16 +151,18 @@ class AggregationHandleMaxTest : public ::testing::Test {
         if (type.getTypeID() == kInt || type.getTypeID() == kLong) {
           SetDataType(i * kNumSamples + j - 10, &val);
         } else {
-          SetDataType(static_cast<float>(i * kNumSamples + j - 10)/10, &val);
+          SetDataType(static_cast<float>(i * kNumSamples + j - 10) / 10, &val);
         }
-        iterateHandle(aggregation_handle_max_state_.get(), type.makeValue(&val));
+        iterateHandle(aggregation_handle_max_state_.get(),
+                      type.makeValue(&val));
         if (max < val) {
           max = val;
         }
       }
     }
     iterateHandle(aggregation_handle_max_state_.get(), type.makeNullValue());
-    CheckMaxValue<typename GenericType::cpptype>(max, *aggregation_handle_max_, *aggregation_handle_max_state_);
+    CheckMaxValue<typename GenericType::cpptype>(
+        max, *aggregation_handle_max_, *aggregation_handle_max_state_);
 
     // Test mergeStates().
     std::unique_ptr<AggregationState> merge_state(
@@ -165,7 +176,7 @@ class AggregationHandleMaxTest : public ::testing::Test {
         if (type.getTypeID() == kInt || type.getTypeID() == kLong) {
           SetDataType(i * kNumSamples + j - 20, &val);
         } else {
-          SetDataType(static_cast<float>(i * kNumSamples + j - 20)/10, &val);
+          SetDataType(static_cast<float>(i * kNumSamples + j - 20) / 10, &val);
         }
         iterateHandle(merge_state.get(), type.makeValue(&val));
         if (max < val) {
@@ -176,14 +187,14 @@ class AggregationHandleMaxTest : public ::testing::Test {
     aggregation_handle_max_->mergeStates(*merge_state,
                                          aggregation_handle_max_state_.get());
     CheckMaxValue<typename GenericType::cpptype>(
-        max,
-        *aggregation_handle_max_,
-        *aggregation_handle_max_state_);
+        max, *aggregation_handle_max_, *aggregation_handle_max_state_);
   }
 
   template <typename GenericType>
-  ColumnVector *createColumnVectorGeneric(const Type &type, typename GenericType::cpptype *max) {
-    NativeColumnVector *column = new NativeColumnVector(type, kIterations * kNumSamples + 3);
+  ColumnVector* createColumnVectorGeneric(const Type &type,
+                                          typename GenericType::cpptype *max) {
+    NativeColumnVector *column =
+        new NativeColumnVector(type, kIterations * kNumSamples + 3);
 
     typename GenericType::cpptype val;
     SetDataType(0, max);
@@ -194,7 +205,7 @@ class AggregationHandleMaxTest : public ::testing::Test {
         if (type.getTypeID() == kInt || type.getTypeID() == kLong) {
           SetDataType(i * kNumSamples + j - 10, &val);
         } else {
-          SetDataType(static_cast<float>(i * kNumSamples + j - 10)/10, &val);
+          SetDataType(static_cast<float>(i * kNumSamples + j - 10) / 10, &val);
         }
         column->appendTypedValue(type.makeValue(&val));
         if (*max < val) {
@@ -202,7 +213,7 @@ class AggregationHandleMaxTest : public ::testing::Test {
         }
       }
       // One NULL in the middle.
-      if (i == kIterations/2) {
+      if (i == kIterations / 2) {
         column->appendTypedValue(type.makeNullValue());
       }
     }
@@ -215,11 +226,14 @@ class AggregationHandleMaxTest : public ::testing::Test {
   void checkAggregationMaxGenericColumnVector() {
     const GenericType &type = GenericType::Instance(true);
     initializeHandle(type);
-    EXPECT_TRUE(aggregation_handle_max_->finalize(*aggregation_handle_max_state_).isNull());
+    EXPECT_TRUE(
+        aggregation_handle_max_->finalize(*aggregation_handle_max_state_)
+            .isNull());
 
     typename GenericType::cpptype max;
     std::vector<std::unique_ptr<ColumnVector>> column_vectors;
-    column_vectors.emplace_back(createColumnVectorGeneric<GenericType>(type, &max));
+    column_vectors.emplace_back(
+        createColumnVectorGeneric<GenericType>(type, &max));
 
     std::unique_ptr<AggregationState> cv_state(
         aggregation_handle_max_->accumulateColumnVectors(column_vectors));
@@ -227,15 +241,12 @@ class AggregationHandleMaxTest : public ::testing::Test {
     // Test the state generated directly by accumulateColumnVectors(), and also
     // test after merging back.
     CheckMaxValue<typename GenericType::cpptype>(
-        max,
-        *aggregation_handle_max_,
-        *cv_state);
+        max, *aggregation_handle_max_, *cv_state);
 
-    aggregation_handle_max_->mergeStates(*cv_state, aggregation_handle_max_state_.get());
+    aggregation_handle_max_->mergeStates(*cv_state,
+                                         aggregation_handle_max_state_.get());
     CheckMaxValue<typename GenericType::cpptype>(
-        max,
-        *aggregation_handle_max_,
-        *aggregation_handle_max_state_);
+        max, *aggregation_handle_max_, *aggregation_handle_max_state_);
   }
 
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
@@ -243,29 +254,29 @@ class AggregationHandleMaxTest : public ::testing::Test {
   void checkAggregationMaxGenericValueAccessor() {
     const GenericType &type = GenericType::Instance(true);
     initializeHandle(type);
-    EXPECT_TRUE(aggregation_handle_max_->finalize(*aggregation_handle_max_state_).isNull());
+    EXPECT_TRUE(
+        aggregation_handle_max_->finalize(*aggregation_handle_max_state_)
+            .isNull());
 
-    std::unique_ptr<ColumnVectorsValueAccessor> accessor(new ColumnVectorsValueAccessor());
+    std::unique_ptr<ColumnVectorsValueAccessor> accessor(
+        new ColumnVectorsValueAccessor());
 
     typename GenericType::cpptype max;
     accessor->addColumn(createColumnVectorGeneric<GenericType>(type, &max));
 
     std::unique_ptr<AggregationState> va_state(
-        aggregation_handle_max_->accumulateValueAccessor(accessor.get(),
-                                                         std::vector<attribute_id>(1, 0)));
+        aggregation_handle_max_->accumulateValueAccessor(
+            accessor.get(), std::vector<attribute_id>(1, 0)));
 
     // Test the state generated directly by accumulateValueAccessor(), and also
     // test after merging back.
     CheckMaxValue<typename GenericType::cpptype>(
-        max,
-        *aggregation_handle_max_,
-        *va_state);
+        max, *aggregation_handle_max_, *va_state);
 
-    aggregation_handle_max_->mergeStates(*va_state, aggregation_handle_max_state_.get());
+    aggregation_handle_max_->mergeStates(*va_state,
+                                         aggregation_handle_max_state_.get());
     CheckMaxValue<typename GenericType::cpptype>(
-        max,
-        *aggregation_handle_max_,
-        *aggregation_handle_max_state_);
+        max, *aggregation_handle_max_, *aggregation_handle_max_state_);
   }
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
@@ -273,11 +284,14 @@ class AggregationHandleMaxTest : public ::testing::Test {
   void checkAggregationMaxString() {
     const StringType &type = StringType::Instance(10, true);
     initializeHandle(type);
-    EXPECT_TRUE(aggregation_handle_max_->finalize(*aggregation_handle_max_state_).isNull());
+    EXPECT_TRUE(
+        aggregation_handle_max_->finalize(*aggregation_handle_max_state_)
+            .isNull());
 
     std::unique_ptr<UncheckedComparator> fast_comparator_;
-    fast_comparator_.reset(ComparisonFactory::GetComparison(ComparisonID::kGreater)
-                           .makeUncheckedComparatorForTypes(type, type));
+    fast_comparator_.reset(
+        ComparisonFactory::GetComparison(ComparisonID::kGreater)
+            .makeUncheckedComparatorForTypes(type, type));
     std::string string_literal;
     std::string max = "";
     int val;
@@ -291,15 +305,17 @@ class AggregationHandleMaxTest : public ::testing::Test {
 
         iterateHandle(
             aggregation_handle_max_state_.get(),
-            type.makeValue(string_literal.c_str(),
-                           string_literal.length() + 1).ensureNotReference());
-        if (fast_comparator_->compareDataPtrs(string_literal.c_str(), max.c_str())) {
+            type.makeValue(string_literal.c_str(), string_literal.length() + 1)
+                .ensureNotReference());
+        if (fast_comparator_->compareDataPtrs(string_literal.c_str(),
+                                              max.c_str())) {
           max = string_literal;
         }
       }
     }
     iterateHandle(aggregation_handle_max_state_.get(), type.makeNullValue());
-    CheckMaxString(max, *aggregation_handle_max_, *aggregation_handle_max_state_);
+    CheckMaxString(
+        max, *aggregation_handle_max_, *aggregation_handle_max_state_);
 
     // Test mergeStates().
     std::unique_ptr<AggregationState> merge_state(
@@ -317,24 +333,28 @@ class AggregationHandleMaxTest : public ::testing::Test {
 
         iterateHandle(
             merge_state.get(),
-            type.makeValue(string_literal.c_str(),
-                           string_literal.length() + 1).ensureNotReference());
-        if (fast_comparator_->compareDataPtrs(string_literal.c_str(), max.c_str())) {
+            type.makeValue(string_literal.c_str(), string_literal.length() + 1)
+                .ensureNotReference());
+        if (fast_comparator_->compareDataPtrs(string_literal.c_str(),
+                                              max.c_str())) {
           max = string_literal;
         }
       }
     }
     aggregation_handle_max_->mergeStates(*merge_state,
                                          aggregation_handle_max_state_.get());
-    CheckMaxString(max, *aggregation_handle_max_, *aggregation_handle_max_state_);
+    CheckMaxString(
+        max, *aggregation_handle_max_, *aggregation_handle_max_state_);
   }
 
   template <typename ColumnVectorType>
-  ColumnVector *createColumnVectorString(const Type &type, std::string *max) {
-    ColumnVectorType *column = new ColumnVectorType(type, kIterations * kNumSamples + 3);
+  ColumnVector* createColumnVectorString(const Type &type, std::string *max) {
+    ColumnVectorType *column =
+        new ColumnVectorType(type, kIterations * kNumSamples + 3);
     std::unique_ptr<UncheckedComparator> fast_comparator_;
-    fast_comparator_.reset(ComparisonFactory::GetComparison(ComparisonID::kGreater)
-                           .makeUncheckedComparatorForTypes(type, type));
+    fast_comparator_.reset(
+        ComparisonFactory::GetComparison(ComparisonID::kGreater)
+            .makeUncheckedComparatorForTypes(type, type));
     std::string string_literal;
     *max = "";
     int val;
@@ -346,14 +366,16 @@ class AggregationHandleMaxTest : public ::testing::Test {
         oss << "max" << val;
         string_literal = oss.str();
 
-        column->appendTypedValue(type.makeValue(string_literal.c_str(), string_literal.length() + 1)
-            .ensureNotReference());
-        if (fast_comparator_->compareDataPtrs(string_literal.c_str(), max->c_str())) {
+        column->appendTypedValue(
+            type.makeValue(string_literal.c_str(), string_literal.length() + 1)
+                .ensureNotReference());
+        if (fast_comparator_->compareDataPtrs(string_literal.c_str(),
+                                              max->c_str())) {
           *max = string_literal;
         }
       }
       // One NULL in the middle.
-      if (i == kIterations/2) {
+      if (i == kIterations / 2) {
         column->appendTypedValue(type.makeNullValue());
       }
     }
@@ -366,25 +388,26 @@ class AggregationHandleMaxTest : public ::testing::Test {
   void checkAggregationMaxStringColumnVector() {
     const StringType &type = StringType::Instance(10, true);
     initializeHandle(type);
-    EXPECT_TRUE(aggregation_handle_max_->finalize(*aggregation_handle_max_state_).isNull());
+    EXPECT_TRUE(
+        aggregation_handle_max_->finalize(*aggregation_handle_max_state_)
+            .isNull());
 
     std::string max;
     std::vector<std::unique_ptr<ColumnVector>> column_vectors;
-    column_vectors.emplace_back(createColumnVectorString<ColumnVectorType>(type, &max));
+    column_vectors.emplace_back(
+        createColumnVectorString<ColumnVectorType>(type, &max));
 
     std::unique_ptr<AggregationState> cv_state(
         aggregation_handle_max_->accumulateColumnVectors(column_vectors));
 
     // Test the state generated directly by accumulateColumnVectors(), and also
     // test after merging back.
-    CheckMaxString(max,
-                   *aggregation_handle_max_,
-                   *cv_state);
+    CheckMaxString(max, *aggregation_handle_max_, *cv_state);
 
-    aggregation_handle_max_->mergeStates(*cv_state, aggregation_handle_max_state_.get());
-    CheckMaxString(max,
-                   *aggregation_handle_max_,
-                   *aggregation_handle_max_state_);
+    aggregation_handle_max_->mergeStates(*cv_state,
+                                         aggregation_handle_max_state_.get());
+    CheckMaxString(
+        max, *aggregation_handle_max_, *aggregation_handle_max_state_);
   }
 
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
@@ -392,26 +415,27 @@ class AggregationHandleMaxTest : public ::testing::Test {
   void checkAggregationMaxStringValueAccessor() {
     const StringType &type = StringType::Instance(10, true);
     initializeHandle(type);
-    EXPECT_TRUE(aggregation_handle_max_->finalize(*aggregation_handle_max_state_).isNull());
+    EXPECT_TRUE(
+        aggregation_handle_max_->finalize(*aggregation_handle_max_state_)
+            .isNull());
 
     std::string max;
-    std::unique_ptr<ColumnVectorsValueAccessor> accessor(new ColumnVectorsValueAccessor());
+    std::unique_ptr<ColumnVectorsValueAccessor> accessor(
+        new ColumnVectorsValueAccessor());
     accessor->addColumn(createColumnVectorString<ColumnVectorType>(type, &max));
 
     std::unique_ptr<AggregationState> va_state(
-        aggregation_handle_max_->accumulateValueAccessor(accessor.get(),
-                                                         std::vector<attribute_id>(1, 0)));
+        aggregation_handle_max_->accumulateValueAccessor(
+            accessor.get(), std::vector<attribute_id>(1, 0)));
 
     // Test the state generated directly by accumulateValueAccessor(), and also
     // test after merging back.
-    CheckMaxString(max,
-                   *aggregation_handle_max_,
-                   *va_state);
+    CheckMaxString(max, *aggregation_handle_max_, *va_state);
 
-    aggregation_handle_max_->mergeStates(*va_state, aggregation_handle_max_state_.get());
-    CheckMaxString(max,
-                   *aggregation_handle_max_,
-                   *aggregation_handle_max_state_);
+    aggregation_handle_max_->mergeStates(*va_state,
+                                         aggregation_handle_max_state_.get());
+    CheckMaxString(
+        max, *aggregation_handle_max_, *aggregation_handle_max_state_);
   }
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
@@ -422,9 +446,7 @@ class AggregationHandleMaxTest : public ::testing::Test {
 
 template <>
 void AggregationHandleMaxTest::CheckMaxValue<float>(
-    float val,
-    const AggregationHandle &handle,
-    const AggregationState &state) {
+    float val, const AggregationHandle &handle, const AggregationState &state) {
   EXPECT_FLOAT_EQ(val, handle.finalize(state).getLiteral<float>());
 }
 
@@ -437,17 +459,20 @@ void AggregationHandleMaxTest::CheckMaxValue<double>(
 }
 
 template <>
-void AggregationHandleMaxTest::SetDataType<DatetimeLit>(int value, DatetimeLit *data) {
+void AggregationHandleMaxTest::SetDataType<DatetimeLit>(int value,
+                                                        DatetimeLit *data) {
   data->ticks = value;
 }
 
 template <>
-void AggregationHandleMaxTest::SetDataType<DatetimeIntervalLit>(int value, DatetimeIntervalLit *data) {
+void AggregationHandleMaxTest::SetDataType<DatetimeIntervalLit>(
+    int value, DatetimeIntervalLit *data) {
   data->interval_ticks = value;
 }
 
 template <>
-void AggregationHandleMaxTest::SetDataType<YearMonthIntervalLit>(int value, YearMonthIntervalLit *data) {
+void AggregationHandleMaxTest::SetDataType<YearMonthIntervalLit>(
+    int value, YearMonthIntervalLit *data) {
   data->months = value;
 }
 
@@ -579,50 +604,67 @@ TEST_F(AggregationHandleMaxDeathTest, WrongTypeTest) {
   float float_val = 0;
 
   // Passes.
-  iterateHandle(aggregation_handle_max_state_.get(), int_non_null_type.makeValue(&int_val));
+  iterateHandle(aggregation_handle_max_state_.get(),
+                int_non_null_type.makeValue(&int_val));
 
-  EXPECT_DEATH(iterateHandle(aggregation_handle_max_state_.get(), long_type.makeValue(&long_val)), "");
-  EXPECT_DEATH(iterateHandle(aggregation_handle_max_state_.get(), double_type.makeValue(&double_val)), "");
-  EXPECT_DEATH(iterateHandle(aggregation_handle_max_state_.get(), float_type.makeValue(&float_val)), "");
-  EXPECT_DEATH(iterateHandle(aggregation_handle_max_state_.get(), char_type.makeValue("asdf", 5)), "");
-  EXPECT_DEATH(iterateHandle(aggregation_handle_max_state_.get(), varchar_type.makeValue("asdf", 5)), "");
+  EXPECT_DEATH(iterateHandle(aggregation_handle_max_state_.get(),
+                             long_type.makeValue(&long_val)),
+               "");
+  EXPECT_DEATH(iterateHandle(aggregation_handle_max_state_.get(),
+                             double_type.makeValue(&double_val)),
+               "");
+  EXPECT_DEATH(iterateHandle(aggregation_handle_max_state_.get(),
+                             float_type.makeValue(&float_val)),
+               "");
+  EXPECT_DEATH(iterateHandle(aggregation_handle_max_state_.get(),
+                             char_type.makeValue("asdf", 5)),
+               "");
+  EXPECT_DEATH(iterateHandle(aggregation_handle_max_state_.get(),
+                             varchar_type.makeValue("asdf", 5)),
+               "");
 
   // Test mergeStates() with incorrectly typed handles.
   std::unique_ptr<AggregationHandle> aggregation_handle_max_long(
-      AggregateFunctionFactory::Get(AggregationID::kMax).createHandle(
-          std::vector<const Type*>(1, &long_type)));
+      AggregateFunctionFactory::Get(AggregationID::kMax)
+          .createHandle(std::vector<const Type *>(1, &long_type)));
   std::unique_ptr<AggregationState> aggregation_state_max_merge_long(
       aggregation_handle_max_long->createInitialState());
-  static_cast<const AggregationHandleMax&>(*aggregation_handle_max_long).iterateUnaryInl(
-      static_cast<AggregationStateMax*>(aggregation_state_max_merge_long.get()),
-      long_type.makeValue(&long_val));
-  EXPECT_DEATH(aggregation_handle_max_->mergeStates(*aggregation_state_max_merge_long,
-                                                    aggregation_handle_max_state_.get()),
-               "");
+  static_cast<const AggregationHandleMax &>(*aggregation_handle_max_long)
+      .iterateUnaryInl(static_cast<AggregationStateMax *>(
+                           aggregation_state_max_merge_long.get()),
+                       long_type.makeValue(&long_val));
+  EXPECT_DEATH(
+      aggregation_handle_max_->mergeStates(*aggregation_state_max_merge_long,
+                                           aggregation_handle_max_state_.get()),
+      "");
 
   std::unique_ptr<AggregationHandle> aggregation_handle_max_double(
-      AggregateFunctionFactory::Get(AggregationID::kMax).createHandle(
-          std::vector<const Type*>(1, &double_type)));
+      AggregateFunctionFactory::Get(AggregationID::kMax)
+          .createHandle(std::vector<const Type *>(1, &double_type)));
   std::unique_ptr<AggregationState> aggregation_state_max_merge_double(
       aggregation_handle_max_double->createInitialState());
-  static_cast<const AggregationHandleMax&>(*aggregation_handle_max_double).iterateUnaryInl(
-      static_cast<AggregationStateMax*>(aggregation_state_max_merge_double.get()),
-      double_type.makeValue(&double_val));
-  EXPECT_DEATH(aggregation_handle_max_->mergeStates(*aggregation_state_max_merge_double,
-                                                    aggregation_handle_max_state_.get()),
-               "");
+  static_cast<const AggregationHandleMax &>(*aggregation_handle_max_double)
+      .iterateUnaryInl(static_cast<AggregationStateMax *>(
+                           aggregation_state_max_merge_double.get()),
+                       double_type.makeValue(&double_val));
+  EXPECT_DEATH(
+      aggregation_handle_max_->mergeStates(*aggregation_state_max_merge_double,
+                                           aggregation_handle_max_state_.get()),
+      "");
 
   std::unique_ptr<AggregationHandle> aggregation_handle_max_float(
-      AggregateFunctionFactory::Get(AggregationID::kMax).createHandle(
-          std::vector<const Type*>(1, &float_type)));
+      AggregateFunctionFactory::Get(AggregationID::kMax)
+          .createHandle(std::vector<const Type *>(1, &float_type)));
   std::unique_ptr<AggregationState> aggregation_state_max_merge_float(
       aggregation_handle_max_float->createInitialState());
-  static_cast<const AggregationHandleMax&>(*aggregation_handle_max_float).iterateUnaryInl(
-      static_cast<AggregationStateMax*>(aggregation_state_max_merge_float.get()),
-      float_type.makeValue(&float_val));
-  EXPECT_DEATH(aggregation_handle_max_->mergeStates(*aggregation_state_max_merge_float,
-                                                    aggregation_handle_max_state_.get()),
-               "");
+  static_cast<const AggregationHandleMax &>(*aggregation_handle_max_float)
+      .iterateUnaryInl(static_cast<AggregationStateMax *>(
+                           aggregation_state_max_merge_float.get()),
+                       float_type.makeValue(&float_val));
+  EXPECT_DEATH(
+      aggregation_handle_max_->mergeStates(*aggregation_state_max_merge_float,
+                                           aggregation_handle_max_state_.get()),
+      "");
 }
 #endif
 
@@ -647,25 +689,28 @@ TEST_F(AggregationHandleMaxTest, GroupByTableMergeTest) {
   initializeHandle(int_non_null_type);
   storage_manager_.reset(new StorageManager("./test_max_data"));
   std::unique_ptr<AggregationStateHashTableBase> source_hash_table(
-      aggregation_handle_max_->createGroupByHashTable(
-          HashTableImplType::kSimpleScalarSeparateChaining,
+      AggregationStateFastHashTableFactory::CreateResizable(
+          HashTableImplType::kSeparateChaining,
           std::vector<const Type *>(1, &int_non_null_type),
           10,
+          {aggregation_handle_max_.get()->getPayloadSize()},
+          {aggregation_handle_max_.get()},
           storage_manager_.get()));
   std::unique_ptr<AggregationStateHashTableBase> destination_hash_table(
-      aggregation_handle_max_->createGroupByHashTable(
-          HashTableImplType::kSimpleScalarSeparateChaining,
+      AggregationStateFastHashTableFactory::CreateResizable(
+          HashTableImplType::kSeparateChaining,
           std::vector<const Type *>(1, &int_non_null_type),
           10,
+          {aggregation_handle_max_.get()->getPayloadSize()},
+          {aggregation_handle_max_.get()},
           storage_manager_.get()));
 
-  AggregationStateHashTable<AggregationStateMax> *destination_hash_table_derived =
-      static_cast<AggregationStateHashTable<AggregationStateMax> *>(
+  AggregationStateFastHashTable *destination_hash_table_derived =
+      static_cast<AggregationStateFastHashTable *>(
           destination_hash_table.get());
 
-  AggregationStateHashTable<AggregationStateMax> *source_hash_table_derived =
-      static_cast<AggregationStateHashTable<AggregationStateMax> *>(
-          source_hash_table.get());
+  AggregationStateFastHashTable *source_hash_table_derived =
+      static_cast<AggregationStateFastHashTable *>(source_hash_table.get());
 
   AggregationHandleMax *aggregation_handle_max_derived =
       static_cast<AggregationHandleMax *>(aggregation_handle_max_.get());
@@ -730,35 +775,52 @@ TEST_F(AggregationHandleMaxTest, GroupByTableMergeTest) {
   EXPECT_EQ(exclusive_key_source_max_val.getLiteral<int>(), actual_val);
 
   // Add the key-state pairs to the hash tables.
-  source_hash_table_derived->putCompositeKey(common_key,
-                                             *common_key_source_state);
-  destination_hash_table_derived->putCompositeKey(
-      common_key, *common_key_destination_state);
-  source_hash_table_derived->putCompositeKey(exclusive_source_key,
-                                             *exclusive_key_source_state);
-  destination_hash_table_derived->putCompositeKey(
-      exclusive_destination_key, *exclusive_key_destination_state);
+  unsigned char buffer[100];
+  buffer[0] = '\0';
+  memcpy(buffer + 1,
+         common_key_source_state.get()->getPayloadAddress(),
+         aggregation_handle_max_.get()->getPayloadSize());
+  source_hash_table_derived->putCompositeKey(common_key, buffer);
+
+  memcpy(buffer + 1,
+         common_key_destination_state.get()->getPayloadAddress(),
+         aggregation_handle_max_.get()->getPayloadSize());
+  destination_hash_table_derived->putCompositeKey(common_key, buffer);
+
+  memcpy(buffer + 1,
+         exclusive_key_source_state.get()->getPayloadAddress(),
+         aggregation_handle_max_.get()->getPayloadSize());
+  source_hash_table_derived->putCompositeKey(exclusive_source_key, buffer);
+
+  memcpy(buffer + 1,
+         exclusive_key_destination_state.get()->getPayloadAddress(),
+         aggregation_handle_max_.get()->getPayloadSize());
+  destination_hash_table_derived->putCompositeKey(exclusive_destination_key,
+                                                      buffer);
 
   EXPECT_EQ(2u, destination_hash_table_derived->numEntries());
   EXPECT_EQ(2u, source_hash_table_derived->numEntries());
 
-  aggregation_handle_max_->mergeGroupByHashTables(*source_hash_table,
-                                                  destination_hash_table.get());
+  AggregationOperationState::mergeGroupByHashTables(
+      source_hash_table.get(), destination_hash_table.get());
 
   EXPECT_EQ(3u, destination_hash_table_derived->numEntries());
 
   CheckMaxValue<int>(
       common_key_destination_max_val.getLiteral<int>(),
-      *aggregation_handle_max_derived,
-      *(destination_hash_table_derived->getSingleCompositeKey(common_key)));
+      aggregation_handle_max_derived->finalizeHashTableEntryFast(
+          destination_hash_table_derived->getSingleCompositeKey(common_key) +
+          1));
   CheckMaxValue<int>(exclusive_key_destination_max_val.getLiteral<int>(),
-                     *aggregation_handle_max_derived,
-                     *(destination_hash_table_derived->getSingleCompositeKey(
-                         exclusive_destination_key)));
+                     aggregation_handle_max_derived->finalizeHashTableEntryFast(
+                         destination_hash_table_derived->getSingleCompositeKey(
+                             exclusive_destination_key) +
+                         1));
   CheckMaxValue<int>(exclusive_key_source_max_val.getLiteral<int>(),
-                     *aggregation_handle_max_derived,
-                     *(source_hash_table_derived->getSingleCompositeKey(
-                         exclusive_source_key)));
+                     aggregation_handle_max_derived->finalizeHashTableEntryFast(
+                         source_hash_table_derived->getSingleCompositeKey(
+                             exclusive_source_key) +
+                         1));
 }
 
 }  // namespace quickstep

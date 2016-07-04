@@ -419,7 +419,6 @@ class StorageBlock : public StorageBlockBase {
    * @brief Perform GROUP BY aggregation on the tuples in the this storage
    *        block.
    *
-   * @param handle Aggregation handle to compute aggregates with.
    * @param arguments The arguments to the aggregation function as Scalars.
    * @param group_by The list of GROUP BY attributes/expressions. The tuples in
    *        this storage block are grouped by these attributes before
@@ -459,14 +458,13 @@ class StorageBlock : public StorageBlockBase {
    * attributes as std::vector<attribute_id> (like in selectSimple()) for fast
    * path when there are no expressions specified in the query.
    */
-  void aggregateGroupBy(const AggregationHandle &handle,
-                        const std::vector<std::unique_ptr<const Scalar>> &arguments,
-                        const std::vector<std::unique_ptr<const Scalar>> &group_by,
-                        const Predicate *predicate,
-                        AggregationStateHashTableBase *hash_table,
-                        std::unique_ptr<TupleIdSequence> *reuse_matches,
-                        std::vector<std::unique_ptr<ColumnVector>>
-                            *reuse_group_by_vectors) const;
+  void aggregateGroupBy(
+      const std::vector<std::vector<std::unique_ptr<const Scalar>>> &arguments,
+      const std::vector<std::unique_ptr<const Scalar>> &group_by,
+      const Predicate *predicate,
+      AggregationStateHashTableBase *hash_table,
+      std::unique_ptr<TupleIdSequence> *reuse_matches,
+      std::vector<std::unique_ptr<ColumnVector>> *reuse_group_by_vectors) const;
 
   /**
    * @brief Inserts the GROUP BY expressions and aggregation arguments together

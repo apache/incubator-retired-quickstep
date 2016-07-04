@@ -363,8 +363,9 @@ class AggregationOperatorTest : public ::testing::Test {
     aggr_state_proto->set_estimated_num_entries(estimated_entries);
 
     // Also need to set the HashTable implementation for GROUP BY.
+    // Right now, only SeparateChaining is supported.
     aggr_state_proto->set_hash_table_impl_type(
-        serialization::HashTableImplType::LINEAR_OPEN_ADDRESSING);
+        serialization::HashTableImplType::SEPARATE_CHAINING);
 
     // Create Operators.
     op_.reset(new AggregationOperator(0, *table_, true, aggr_state_index));

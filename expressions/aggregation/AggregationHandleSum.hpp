@@ -28,6 +28,7 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/aggregation/AggregationConcreteHandle.hpp"
 #include "expressions/aggregation/AggregationHandle.hpp"
+#include "storage/FastHashTable.hpp"
 #include "storage/HashTableBase.hpp"
 #include "threading/SpinMutex.hpp"
 #include "types/Type.hpp"
@@ -57,25 +58,40 @@ class AggregationStateSum : public AggregationState {
    */
   AggregationStateSum(const AggregationStateSum &orig)
       : sum_(orig.sum_),
-        null_(orig.null_) {
+        null_(orig.null_),
+        sum_offset_(orig.sum_offset_),
+        null_offset_(orig.null_offset_) {}
+
+  std::size_t getPayloadSize() const {
+    std::size_t p1 = reinterpret_cast<std::size_t>(&sum_);
+    std::size_t p2 = reinterpret_cast<std::size_t>(&mutex_);
+    return (p2 - p1);
+  }
+
+  const std::uint8_t* getPayloadAddress() const {
+    return reinterpret_cast<const uint8_t *>(&sum_);
   }
 
  private:
   friend class AggregationHandleSum;
 
   AggregationStateSum()
-      : sum_(0), null_(true) {
-  }
+      : sum_(0),
+        null_(true),
+        sum_offset_(0),
+        null_offset_(reinterpret_cast<std::uint8_t *>(&null_) -
+                     reinterpret_cast<std::uint8_t *>(&sum_)) {}
 
   AggregationStateSum(TypedValue &&sum, const bool is_null)
-      : sum_(std::move(sum)), null_(is_null) {
-  }
+      : sum_(std::move(sum)), null_(is_null) {}
 
   // TODO(shoban): We might want to specialize sum_ to use atomics for int types
   // similar to in AggregationStateCount.
   TypedValue sum_;
   bool null_;
   SpinMutex mutex_;
+
+  int sum_offset_, null_offset_;
 };
 
 /**
@@ -83,8 +99,7 @@ class AggregationStateSum : public AggregationState {
  **/
 class AggregationHandleSum : public AggregationConcreteHandle {
  public:
-  ~AggregationHandleSum() override {
-  }
+  ~AggregationHandleSum() override {}
 
   AggregationState* createInitialState() const override {
     return new AggregationStateSum(blank_state_);
@@ -92,11 +107,12 @@ class AggregationHandleSum : public AggregationConcreteHandle {
 
   AggregationStateHashTableBase* createGroupByHashTable(
       const HashTableImplType hash_table_impl,
-      const std::vector<const Type*> &group_by_types,
+      const std::vector<const Type *> &group_by_types,
       const std::size_t estimated_num_groups,
       StorageManager *storage_manager) const override;
 
-  inline void iterateUnaryInl(AggregationStateSum *state, const TypedValue &value) const {
+  inline void iterateUnaryInl(AggregationStateSum *state,
+                              const TypedValue &value) const {
     DCHECK(value.isPlausibleInstanceOf(argument_type_.getSignature()));
     if (value.isNull()) return;
 
@@ -105,8 +121,41 @@ class AggregationHandleSum : public AggregationConcreteHandle {
     state->null_ = false;
   }
 
+  inline void iterateUnaryInlFast(const TypedValue &value,
+                                  std::uint8_t *byte_ptr) const {
+    DCHECK(value.isPlausibleInstanceOf(argument_type_.getSignature()));
+    if (value.isNull()) return;
+    TypedValue *sum_ptr =
+        reinterpret_cast<TypedValue *>(byte_ptr + blank_state_.sum_offset_);
+    bool *null_ptr =
+        reinterpret_cast<bool *>(byte_ptr + blank_state_.null_offset_);
+    *sum_ptr = fast_operator_->applyToTypedValues(*sum_ptr, value);
+    *null_ptr = false;
+  }
+
+  inline void updateStateUnary(const TypedValue &argument,
+                               std::uint8_t *byte_ptr) const override {
+    if (!block_update_) {
+      iterateUnaryInlFast(argument, byte_ptr);
+    }
+  }
+
+  void blockUpdate() override { block_update_ = true; }
+
+  void allowUpdate() override { block_update_ = false; }
+
+  void initPayload(std::uint8_t *byte_ptr) const override {
+    TypedValue *sum_ptr =
+        reinterpret_cast<TypedValue *>(byte_ptr + blank_state_.sum_offset_);
+    bool *null_ptr =
+        reinterpret_cast<bool *>(byte_ptr + blank_state_.null_offset_);
+    *sum_ptr = blank_state_.sum_;
+    *null_ptr = true;
+  }
+
   AggregationState* accumulateColumnVectors(
-      const std::vector<std::unique_ptr<ColumnVector>> &column_vectors) const override;
+      const std::vector<std::unique_ptr<ColumnVector>> &column_vectors)
+      const override;
 
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
   AggregationState* accumulateValueAccessor(
@@ -123,34 +172,51 @@ class AggregationHandleSum : public AggregationConcreteHandle {
   void mergeStates(const AggregationState &source,
                    AggregationState *destination) const override;
 
+  void mergeStatesFast(const std::uint8_t *source,
+                       std::uint8_t *destination) const override;
+
   TypedValue finalize(const AggregationState &state) const override;
 
-  inline TypedValue finalizeHashTableEntry(const AggregationState &state) const {
-    return static_cast<const AggregationStateSum&>(state).sum_;
+  inline TypedValue finalizeHashTableEntry(
+      const AggregationState &state) const {
+    return static_cast<const AggregationStateSum &>(state).sum_;
+  }
+
+  inline TypedValue finalizeHashTableEntryFast(
+      const std::uint8_t *byte_ptr) const {
+    std::uint8_t *value_ptr = const_cast<std::uint8_t *>(byte_ptr);
+    TypedValue *sum_ptr =
+        reinterpret_cast<TypedValue *>(value_ptr + blank_state_.sum_offset_);
+    return *sum_ptr;
   }
 
   ColumnVector* finalizeHashTable(
       const AggregationStateHashTableBase &hash_table,
-      std::vector<std::vector<TypedValue>> *group_by_keys) const override;
+      std::vector<std::vector<TypedValue>> *group_by_keys,
+      int index) const override;
 
   /**
-   * @brief Implementation of AggregationHandle::aggregateOnDistinctifyHashTableForSingle()
+   * @brief Implementation of
+   *        AggregationHandle::aggregateOnDistinctifyHashTableForSingle()
    *        for SUM aggregation.
    */
   AggregationState* aggregateOnDistinctifyHashTableForSingle(
-      const AggregationStateHashTableBase &distinctify_hash_table) const override;
+      const AggregationStateHashTableBase &distinctify_hash_table)
+      const override;
 
   /**
-   * @brief Implementation of AggregationHandle::aggregateOnDistinctifyHashTableForGroupBy()
+   * @brief Implementation of
+   *        AggregationHandle::aggregateOnDistinctifyHashTableForGroupBy()
    *        for SUM aggregation.
    */
   void aggregateOnDistinctifyHashTableForGroupBy(
       const AggregationStateHashTableBase &distinctify_hash_table,
-      AggregationStateHashTableBase *aggregation_hash_table) const override;
+      AggregationStateHashTableBase *aggregation_hash_table,
+      std::size_t index) const override;
 
-  void mergeGroupByHashTables(
-      const AggregationStateHashTableBase &source_hash_table,
-      AggregationStateHashTableBase *destination_hash_table) const override;
+  std::size_t getPayloadSize() const override {
+    return blank_state_.getPayloadSize();
+  }
 
  private:
   friend class AggregateFunctionSum;
@@ -167,6 +233,8 @@ class AggregationHandleSum : public AggregationConcreteHandle {
   AggregationStateSum blank_state_;
   std::unique_ptr<UncheckedBinaryOperator> fast_operator_;
   std::unique_ptr<UncheckedBinaryOperator> merge_operator_;
+
+  bool block_update_;
 
   DISALLOW_COPY_AND_ASSIGN(AggregationHandleSum);
 };

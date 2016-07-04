@@ -49,6 +49,8 @@ constexpr int kInvalidCatalogId = -1;
 // Used to indicate no preference for a NUMA Node ID.
 constexpr numa_node_id kAnyNUMANodeID = -1;
 
+constexpr attribute_id kInvalidAttributeID = -1;
+
 /** @} */
 
 }  // namespace quickstep

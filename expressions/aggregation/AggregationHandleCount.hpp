@@ -29,6 +29,7 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/aggregation/AggregationConcreteHandle.hpp"
 #include "expressions/aggregation/AggregationHandle.hpp"
+#include "storage/FastHashTable.hpp"
 #include "storage/HashTableBase.hpp"
 #include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
@@ -40,7 +41,8 @@ class StorageManager;
 class Type;
 class ValueAccessor;
 
-template <bool, bool> class AggregationHandleCount;
+template <bool, bool>
+class AggregationHandleCount;
 
 /** \addtogroup Expressions
  *  @{
@@ -62,19 +64,22 @@ class AggregationStateCount : public AggregationState {
    */
   ~AggregationStateCount() override {}
 
+  std::size_t getPayloadSize() const { return sizeof(count_); }
+
+  const std::uint8_t* getPayloadAddress() const {
+    return reinterpret_cast<const uint8_t *>(&count_);
+  }
+
  private:
   friend class AggregationHandleCount<false, false>;
   friend class AggregationHandleCount<false, true>;
   friend class AggregationHandleCount<true, false>;
   friend class AggregationHandleCount<true, true>;
 
-  AggregationStateCount()
-      : count_(0) {
-  }
+  AggregationStateCount() : count_(0) {}
 
   explicit AggregationStateCount(const std::int64_t initial_count)
-      : count_(initial_count) {
-  }
+      : count_(initial_count) {}
 
   std::atomic<std::int64_t> count_;
 };
@@ -91,8 +96,7 @@ class AggregationStateCount : public AggregationState {
 template <bool count_star, bool nullable_type>
 class AggregationHandleCount : public AggregationConcreteHandle {
  public:
-  ~AggregationHandleCount() override {
-  }
+  ~AggregationHandleCount() override {}
 
   AggregationState* createInitialState() const override {
     return new AggregationStateCount();
@@ -100,7 +104,7 @@ class AggregationHandleCount : public AggregationConcreteHandle {
 
   AggregationStateHashTableBase* createGroupByHashTable(
       const HashTableImplType hash_table_impl,
-      const std::vector<const Type*> &group_by_types,
+      const std::vector<const Type *> &group_by_types,
       const std::size_t estimated_num_groups,
       StorageManager *storage_manager) const override;
 
@@ -108,21 +112,59 @@ class AggregationHandleCount : public AggregationConcreteHandle {
     state->count_.fetch_add(1, std::memory_order_relaxed);
   }
 
+  inline void iterateNullaryInlFast(std::uint8_t *byte_ptr) const {
+    std::int64_t *count_ptr = reinterpret_cast<std::int64_t *>(byte_ptr);
+    (*count_ptr)++;
+  }
+
   /**
    * @brief Iterate with count aggregation state.
    */
-  inline void iterateUnaryInl(AggregationStateCount *state, const TypedValue &value) const {
+  inline void iterateUnaryInl(AggregationStateCount *state,
+                              const TypedValue &value) const {
     if ((!nullable_type) || (!value.isNull())) {
       state->count_.fetch_add(1, std::memory_order_relaxed);
     }
   }
 
-  AggregationState* accumulateNullary(const std::size_t num_tuples) const override {
+  inline void iterateUnaryInlFast(const TypedValue &value,
+                                  std::uint8_t *byte_ptr) const {
+    if ((!nullable_type) || (!value.isNull())) {
+      std::int64_t *count_ptr = reinterpret_cast<std::int64_t *>(byte_ptr);
+      (*count_ptr)++;
+    }
+  }
+
+  inline void updateStateUnary(const TypedValue &argument,
+                               std::uint8_t *byte_ptr) const override {
+    if (!block_update_) {
+      iterateUnaryInlFast(argument, byte_ptr);
+    }
+  }
+
+  inline void updateStateNullary(std::uint8_t *byte_ptr) const override {
+    if (!block_update_) {
+      iterateNullaryInlFast(byte_ptr);
+    }
+  }
+
+  void blockUpdate() override { block_update_ = true; }
+
+  void allowUpdate() override { block_update_ = false; }
+
+  void initPayload(std::uint8_t *byte_ptr) const override {
+    std::int64_t *count_ptr = reinterpret_cast<std::int64_t *>(byte_ptr);
+    *count_ptr = 0;
+  }
+
+  AggregationState* accumulateNullary(
+      const std::size_t num_tuples) const override {
     return new AggregationStateCount(num_tuples);
   }
 
   AggregationState* accumulateColumnVectors(
-      const std::vector<std::unique_ptr<ColumnVector>> &column_vectors) const override;
+      const std::vector<std::unique_ptr<ColumnVector>> &column_vectors)
+      const override;
 
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
   AggregationState* accumulateValueAccessor(
@@ -139,36 +181,54 @@ class AggregationHandleCount : public AggregationConcreteHandle {
   void mergeStates(const AggregationState &source,
                    AggregationState *destination) const override;
 
+  void mergeStatesFast(const std::uint8_t *source,
+                       std::uint8_t *destination) const override;
+
   TypedValue finalize(const AggregationState &state) const override {
-    return TypedValue(static_cast<const AggregationStateCount&>(state).count_.load(std::memory_order_relaxed));
+    return TypedValue(
+        static_cast<const AggregationStateCount &>(state).count_.load(
+            std::memory_order_relaxed));
   }
 
-  inline TypedValue finalizeHashTableEntry(const AggregationState &state) const {
-    return TypedValue(static_cast<const AggregationStateCount&>(state).count_.load(std::memory_order_relaxed));
+  inline TypedValue finalizeHashTableEntry(
+      const AggregationState &state) const {
+    return TypedValue(
+        static_cast<const AggregationStateCount &>(state).count_.load(
+            std::memory_order_relaxed));
+  }
+
+  inline TypedValue finalizeHashTableEntryFast(
+      const std::uint8_t *byte_ptr) const {
+    const std::int64_t *count_ptr =
+        reinterpret_cast<const std::int64_t *>(byte_ptr);
+    return TypedValue(*count_ptr);
   }
 
   ColumnVector* finalizeHashTable(
       const AggregationStateHashTableBase &hash_table,
-      std::vector<std::vector<TypedValue>> *group_by_keys) const override;
+      std::vector<std::vector<TypedValue>> *group_by_keys,
+      int index) const override;
 
   /**
-   * @brief Implementation of AggregationHandle::aggregateOnDistinctifyHashTableForSingle()
+   * @brief Implementation of
+   *        AggregationHandle::aggregateOnDistinctifyHashTableForSingle()
    *        for SUM aggregation.
    */
   AggregationState* aggregateOnDistinctifyHashTableForSingle(
-      const AggregationStateHashTableBase &distinctify_hash_table) const override;
+      const AggregationStateHashTableBase &distinctify_hash_table)
+      const override;
 
   /**
-   * @brief Implementation of AggregationHandle::aggregateOnDistinctifyHashTableForGroupBy()
+   * @brief Implementation of
+   *        AggregationHandle::aggregateOnDistinctifyHashTableForGroupBy()
    *        for SUM aggregation.
    */
   void aggregateOnDistinctifyHashTableForGroupBy(
       const AggregationStateHashTableBase &distinctify_hash_table,
-      AggregationStateHashTableBase *aggregation_hash_table) const override;
+      AggregationStateHashTableBase *aggregation_hash_table,
+      std::size_t index) const override;
 
-  void mergeGroupByHashTables(
-      const AggregationStateHashTableBase &source_hash_table,
-      AggregationStateHashTableBase *destination_hash_table) const override;
+  std::size_t getPayloadSize() const override { return sizeof(std::int64_t); }
 
  private:
   friend class AggregateFunctionCount;
@@ -176,8 +236,9 @@ class AggregationHandleCount : public AggregationConcreteHandle {
   /**
    * @brief Constructor.
    **/
-  AggregationHandleCount() {
-  }
+  AggregationHandleCount() : block_update_(false) {}
+
+  bool block_update_;
 
   DISALLOW_COPY_AND_ASSIGN(AggregationHandleCount);
 };

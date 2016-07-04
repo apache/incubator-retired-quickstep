@@ -21,7 +21,9 @@
 #define QUICKSTEP_STORAGE_HASH_TABLE_BASE_HPP_
 
 #include <cstddef>
+#include <vector>
 
+#include "ValueAccessor.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -52,6 +54,12 @@ struct HashTablePreallocationState {
 };
 
 /**
+ * @brief Codes which indicate the result of a call to put() or
+ *        putCompositeKey().
+ **/
+enum class HashTablePutResult { kOK = 0, kDuplicateKey, kOutOfSpace };
+
+/**
  * @brief An ultra-minimal base class that HashTables with different ValueT
  *        parameters inherit from. This allows for a bit more type-safety than
  *        just passing around void* pointers (although casting will still be
@@ -64,12 +72,35 @@ template <bool resizable,
           bool allow_duplicate_keys>
 class HashTableBase {
  public:
-  virtual ~HashTableBase() {
+  virtual ~HashTableBase() {}
+
+  /**
+   * TODO(harshad) We should get rid of this function from here. We are
+   * postponing it because of the amount of work to be done is significant.
+   * The steps are as follows:
+   * 1. Replace AggregationStateHashTableBase occurence in HashTablePool to
+   * the FastHashTable implementation (i.e. an implementation specialized for
+   * aggregation).
+   * 2. Remove createGroupByHashTable from the AggregationHandle* classes.
+   * 3. Replace AggregationStateHashTableBase occurences in AggregationHandle*
+   * clases to the FastHashTable implementation (i.e. an implementation
+   * specialized for aggregation).
+   * 4. Move this method to the FastHashTable class from here, so that it can
+   * be called from the AggregationHandle* classes.
+   *
+   * Optionally, we can also remove the AggregationStateHashTableBase
+   * specialization from this file.
+   **/
+  virtual bool upsertValueAccessorCompositeKeyFast(
+      const std::vector<attribute_id> &argument,
+      ValueAccessor *accessor,
+      const std::vector<attribute_id> &key_attr_ids,
+      const bool check_for_null_keys) {
+    return false;
   }
 
  protected:
-  HashTableBase() {
-  }
+  HashTableBase() {}
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HashTableBase);
