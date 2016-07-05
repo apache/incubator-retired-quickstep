@@ -174,6 +174,15 @@ class CompressionDictionaryLite {
     }
   }
 
+  template <bool check_null = true>
+  inline std::pair<const void*, std::size_t> getUntypedValueAndByteLengthForCode(const std::uint32_t code) const {
+    if (type_is_variable_length_) {
+      return variableLengthGetUntypedValueAndByteLengthHelper<std::uint32_t, check_null>(code);
+    } else {
+      return fixedLengthGetUntypedValueAndByteLengthHelper<std::uint32_t, check_null>(code);
+    }
+  }
+
   /**
    * @brief Get the value represented by the specified code as a TypedValue.
    * @note This version is for codes of 8 bits or less. Also see
@@ -253,6 +262,39 @@ class CompressionDictionaryLite {
                          + static_cast<const std::uint32_t*>(dictionary_memory_)[code + 2];
     DCHECK_LT(retval, static_cast<const char*>(dictionary_memory_) + dictionary_memory_size_);
     return retval;
+  }
+
+  template <typename CodeType, bool check_null = true>
+  inline std::pair<const void*, std::size_t> fixedLengthGetUntypedValueAndByteLengthHelper(
+      const CodeType code) const {
+    if (check_null && (code == getNullCode())) {
+      return std::make_pair(nullptr, 0);
+    }
+    DCHECK_LT(code, numberOfCodes());
+    return std::make_pair(static_cast<const char*>(dictionary_memory_)
+                              + 2 * sizeof(std::uint32_t)        // Header.
+                              + code * type_fixed_byte_length_,  // Index into value array.
+                          type_fixed_byte_length_);
+  }
+
+  template <typename CodeType, bool check_null = true>
+  inline std::pair<const void*, std::size_t> variableLengthGetUntypedValueAndByteLengthHelper(
+      const CodeType code) const {
+    if (check_null && (code == getNullCode())) {
+      return std::make_pair(nullptr, 0);
+    }
+    DCHECK_LT(code, numberOfCodes());
+
+    const std::uint32_t value_offset = static_cast<const std::uint32_t*>(dictionary_memory_)[code + 2];
+    const void *data_ptr = variable_length_data_region_ + value_offset;
+    DCHECK_LT(data_ptr, static_cast<const char*>(dictionary_memory_) + dictionary_memory_size_);
+
+    std::size_t data_size = (code == *static_cast<const std::uint32_t*>(dictionary_memory_) - 1) ?
+        (static_cast<const char*>(dictionary_memory_)
+            + dictionary_memory_size_
+            - static_cast<const char*>(data_ptr))
+        : (static_cast<const std::uint32_t*>(dictionary_memory_)[code + 3] - value_offset);
+    return std::make_pair(data_ptr, data_size);
   }
 
   template <typename CodeType>

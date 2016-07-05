@@ -375,6 +375,11 @@ class TupleIdSequenceAdapterValueAccessor : public ValueAccessor {
     return accessor_->template getUntypedValueAtAbsolutePosition<check_null>(attr_id, *current_position_);
   }
 
+  template <bool check_null = true>
+  inline std::pair<const void*, std::size_t> getUntypedValueAndByteLength(const attribute_id attr_id) const {
+    return accessor_->template getUntypedValueAndByteLengthAtAbsolutePosition<check_null>(attr_id, *current_position_);
+  }
+
   inline TypedValue getTypedValue(const attribute_id attr_id) const {
     return accessor_->getTypedValueAtAbsolutePosition(attr_id, *current_position_);
   }
@@ -384,6 +389,13 @@ class TupleIdSequenceAdapterValueAccessor : public ValueAccessor {
   inline const void* getUntypedValueAtAbsolutePosition(const attribute_id attr_id,
                                                        const tuple_id tid) const {
     return accessor_->template getUntypedValueAtAbsolutePosition<check_null>(attr_id, tid);
+  }
+
+  // Pass-through.
+  template <bool check_null = true>
+  inline std::pair<const void*, std::size_t> getUntypedValueAndByteLengthAtAbsolutePosition(const attribute_id attr_id,
+                                                                                            const tuple_id tid) const {
+    return accessor_->template getUntypedValueAndByteLengthAtAbsolutePosition<check_null>(attr_id, tid);
   }
 
   // Pass-through.
@@ -560,6 +572,12 @@ class OrderedTupleIdSequenceAdapterValueAccessor : public ValueAccessor {
                                                                              id_sequence_[current_position_]);
   }
 
+  template <bool check_null = true>
+  inline std::pair<const void*, std::size_t> getUntypedValueAndByteLength(const attribute_id attr_id) const {
+    return accessor_->template getUntypedValueAndByteLengthAtAbsolutePosition<check_null>(
+        attr_id, id_sequence_[current_position_]);
+  }
+
   inline TypedValue getTypedValue(const attribute_id attr_id) const {
     return accessor_->getTypedValueAtAbsolutePosition(attr_id, id_sequence_[current_position_]);
   }
@@ -568,6 +586,13 @@ class OrderedTupleIdSequenceAdapterValueAccessor : public ValueAccessor {
   inline const void* getUntypedValueAtAbsolutePosition(const attribute_id attr_id,
                                                        const tuple_id tid) const {
     FATAL_ERROR("getUntypedValueAtAbsolutePosition() not implemented in "
+                "OrderedTupleIdSequenceAdapterValueAccessor");
+  }
+
+  template <bool check_null = true>
+  inline std::pair<const void*, std::size_t> getUntypedValueAndByteLengthAtAbsolutePosition(const attribute_id attr_id,
+                                                                                            const tuple_id tid) const {
+    FATAL_ERROR("getUntypedValueAndByteLengthAtAbsolutePosition() not implemented in "
                 "OrderedTupleIdSequenceAdapterValueAccessor");
   }
 
@@ -737,6 +762,11 @@ class PackedTupleStorageSubBlockValueAccessor : public ValueAccessor {
     return getUntypedValueAtAbsolutePosition<check_null>(attr_id, current_tuple_);
   }
 
+  template <bool check_null = true>
+  inline std::pair<const void*, std::size_t> getUntypedValueAndByteLength(const attribute_id attr_id) const {
+    return getUntypedValueAndByteLengthAtAbsolutePosition<check_null>(attr_id, current_tuple_);
+  }
+
   inline TypedValue getTypedValue(const attribute_id attr_id) const {
     return getTypedValueAtAbsolutePosition(attr_id, current_tuple_);
   }
@@ -745,6 +775,12 @@ class PackedTupleStorageSubBlockValueAccessor : public ValueAccessor {
   inline const void* getUntypedValueAtAbsolutePosition(const attribute_id attr_id,
                                                        const tuple_id tid) const {
     return helper_.template getAttributeValue<check_null>(tid, attr_id);
+  }
+
+  template <bool check_null = true>
+  inline std::pair<const void*, std::size_t> getUntypedValueAndByteLengthAtAbsolutePosition(const attribute_id attr_id,
+                                                                                            const tuple_id tid) const {
+    return helper_.template getAttributeValueAndByteLength<check_null>(tid, attr_id);
   }
 
   inline TypedValue getTypedValueAtAbsolutePosition(const attribute_id attr_id,

@@ -18,6 +18,8 @@
 #ifndef QUICKSTEP_STORAGE_PACKED_ROW_STORE_VALUE_ACCESSOR_HPP_
 #define QUICKSTEP_STORAGE_PACKED_ROW_STORE_VALUE_ACCESSOR_HPP_
 
+#include <utility>
+
 #include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "storage/StorageBlockInfo.hpp"
@@ -40,7 +42,8 @@ class PackedRowStoreValueAccessorHelper {
       : relation_(relation),
         num_tuples_(num_tuples),
         tuple_storage_(tuple_storage),
-        null_bitmap_(null_bitmap) {
+        null_bitmap_(null_bitmap),
+        attr_max_lengths_(relation.getMaximumAttributeByteLengths()) {
   }
 
   inline tuple_id numPackedTuples() const {
@@ -65,6 +68,25 @@ class PackedRowStoreValueAccessorHelper {
            + relation_.getFixedLengthAttributeOffset(attr);  // Attribute offset within tuple.
   }
 
+  template <bool check_null>
+  inline std::pair<const void*, std::size_t> getAttributeValueAndByteLength(const tuple_id tuple,
+                                                                        const attribute_id attr) const {
+    DEBUG_ASSERT(tuple < num_tuples_);
+    DEBUG_ASSERT(relation_.hasAttributeWithId(attr));
+    if (check_null) {
+      const int nullable_idx = relation_.getNullableAttributeIndex(attr);
+      if ((nullable_idx != -1)
+          && null_bitmap_->getBit(tuple * relation_.numNullableAttributes() + nullable_idx)) {
+        return std::make_pair(nullptr, 0);
+      }
+    }
+
+    return std::make_pair(static_cast<const char*>(tuple_storage_)
+                              + (tuple * relation_.getFixedByteLength())
+                              + relation_.getFixedLengthAttributeOffset(attr),
+                          attr_max_lengths_[attr]);
+  }
+
   inline TypedValue getAttributeValueTyped(const tuple_id tuple,
                                            const attribute_id attr) const {
     const Type &attr_type = relation_.getAttributeById(attr)->getType();
@@ -79,6 +101,7 @@ class PackedRowStoreValueAccessorHelper {
   const tuple_id num_tuples_;
   const void *tuple_storage_;
   const BitVector<false> *null_bitmap_;
+  const std::vector<std::size_t> &attr_max_lengths_;
 
   DISALLOW_COPY_AND_ASSIGN(PackedRowStoreValueAccessorHelper);
 };
