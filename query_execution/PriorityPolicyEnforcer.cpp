@@ -38,7 +38,7 @@
 
 namespace quickstep {
 
-DEFINE_uint64(max_msgs_per_dispatch_round, 20, "Maximum number of messages that"
+DEFINE_uint64(max_msgs_per_dispatch_round, 80, "Maximum number of messages that"
               " can be allocated in a single round of dispatch of messages to"
               " the workers.");
 
@@ -160,23 +160,13 @@ void PriorityPolicyEnforcer::getWorkerMessages(
   // messages available, or the maximum number of messages have
   // been collected.
   DCHECK(worker_messages->empty());
-  // TODO(harshad) - Make this function generic enough so that it
-  // works well when multiple queries are getting executed.
-  std::size_t per_query_share = 0;
-  if (!admitted_queries_.empty()) {
-    per_query_share = FLAGS_max_msgs_per_dispatch_round / admitted_queries_.size();
-  } else {
-    LOG(WARNING) << "Requesting WorkerMessages when no query is running";
-    return;
-  }
-  DCHECK_GT(per_query_share, 0u);
   std::unordered_map<std::size_t, bool> finished_queries_ids;
 
   if (learner_->hasActiveQueries()) {
     // Key = priority level. Value = Whether we have already checked the
     std::unordered_map<std::size_t, bool> checked_priority_levels;
     // While there are more priority levels to be checked ..
-    while (checked_priority_levels.size() < priority_query_ids_.size()) {
+    while (checked_priority_levels.size() < priority_query_ids_.size() && worker_messages->size() < FLAGS_max_msgs_per_dispatch_round) {
       const int chosen_priority_level = learner_->pickRandomPriorityLevel();
       if (chosen_priority_level == kInvalidPriorityLevel) {
         DLOG(INFO) << "No valid priority level chosen";
