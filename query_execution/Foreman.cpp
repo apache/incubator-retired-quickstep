@@ -238,16 +238,17 @@ void Foreman::printWorkOrderProfilingResults(const std::size_t query_id,
   const std::vector<
       std::tuple<std::size_t, std::size_t, std::size_t>>
       &recorded_times = policy_enforcer_->getProfilingResults(query_id);
-  fputs("Worker ID, NUMA Socket, Operator ID, Time (microseconds)\n", out);
+  fputs("Query ID,Worker ID,NUMA Socket,Operator ID,Time (microseconds)\n", out);
   for (auto workorder_entry : recorded_times) {
     // Note: Index of the "worker thread index" in the tuple is 0.
     const std::size_t worker_id = std::get<0>(workorder_entry);
     fprintf(out,
-            "%lu, %d, %lu, %lu\n",
+            "%lu,%lu,%d,%lu,%lu\n",
+            query_id,
             worker_id,
             worker_directory_->getNUMANode(worker_id),
-            std::get<1>(workorder_entry),
-            std::get<2>(workorder_entry));
+            std::get<1>(workorder_entry),  // Operator ID.
+            std::get<2>(workorder_entry));  // Time.
   }
 }
 
