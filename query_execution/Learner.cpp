@@ -52,13 +52,13 @@ void Learner::addCompletionFeedback(
         &workorder_completion_proto) {
   const std::size_t query_id = workorder_completion_proto.query_id();
   DCHECK(isQueryPresent(query_id));
-  const std::size_t priority_level = getQueryPriorityUnsafe(query_id);
   ExecutionStats *execution_stats = getExecutionStats(query_id);
   DCHECK(execution_stats != nullptr);
   execution_stats->addEntry(
       workorder_completion_proto.execution_time_in_microseconds(),
       workorder_completion_proto.operator_index());
 
+  const std::size_t priority_level = getQueryPriorityUnsafe(query_id);
   if (!hasFeedbackFromAllQueriesInPriorityLevel(priority_level)) {
     updateFeedbackFromQueriesInPriorityLevel(priority_level);
   }

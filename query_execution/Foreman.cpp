@@ -46,7 +46,7 @@ using std::vector;
 
 namespace quickstep {
 
-DEFINE_uint64(min_load_per_worker, 1, "The minimum load defined as the number "
+DEFINE_uint64(min_load_per_worker, 2, "The minimum load defined as the number "
               "of pending work orders for the worker. This information is used "
               "by the Foreman to assign work orders to worker threads");
 

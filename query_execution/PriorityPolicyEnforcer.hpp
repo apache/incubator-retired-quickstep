@@ -65,16 +65,7 @@ class PriorityPolicyEnforcer {
                          StorageManager *storage_manager,
                          WorkerDirectory *worker_directory,
                          tmb::MessageBus *bus,
-                         const bool profile_individual_workorders = false)
-      : foreman_client_id_(foreman_client_id),
-        num_numa_nodes_(num_numa_nodes),
-        catalog_database_(catalog_database),
-        storage_manager_(storage_manager),
-        worker_directory_(worker_directory),
-        bus_(bus),
-        profile_individual_workorders_(profile_individual_workorders) {
-    learner_.reset(new Learner());
-  }
+                         const bool profile_individual_workorders = false);
 
   /**
    * @brief Destructor.

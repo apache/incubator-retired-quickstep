@@ -40,7 +40,6 @@ namespace quickstep {
 /** \addtogroup QueryExecution
  *  @{
  */
-
 class Learner {
  public:
   /**
@@ -151,6 +150,8 @@ class Learner {
    *
    * @note We use uniform random distribution.
    *
+   * TODO(harshad) - Use a default_probabilities_of_priority_levels data structure.
+   *
    * @return A priority level. If no queries are present in the learner, return
    *         kInvalidPriorityLevel.
    **/
@@ -177,7 +178,8 @@ class Learner {
       const int random_priority_level = pickRandomPriorityLevel();
       // Note : The valid priority level values are non-zero.
       DCHECK_GT(random_priority_level, 0);
-      const int result = pickRandomQueryFromPriorityLevel(
+      // TODO(harshad) - Make this function a template too.
+      const int result = pickRandomQueryFromPriorityLevel<true>(
           static_cast<std::size_t>(random_priority_level));
       return result;
     } else {
@@ -193,24 +195,50 @@ class Learner {
    * @return A query ID. If no queries are present for this priority level in
    *         the learner, return kInvalidQueryID.
    **/
+  template <bool dynamic_probabilities>
   inline const int pickRandomQueryFromPriorityLevel(
       const std::size_t priority_level) const {
     DCHECK(isPriorityLevelPresent(priority_level));
+    if (dynamic_probabilities) {
+      if (hasActiveQueries()) {
+        if (hasFeedbackFromAllQueriesInPriorityLevel(priority_level)) {
+          DCHECK(current_probabilities_.at(priority_level) != nullptr);
+          const auto it = current_probabilities_.find(priority_level);
+          if (it->second->getNumObjects() > 0) {
+            return static_cast<int>(
+                current_probabilities_.at(priority_level)->pickRandomProperty());
+          }
+        } else {
+          DCHECK(default_probabilities_.at(priority_level) != nullptr);
+          const auto it = default_probabilities_.find(priority_level);
+          if (it->second->getNumObjects() > 0) {
+            return static_cast<int>(
+                default_probabilities_.at(priority_level)->pickRandomProperty());
+          }
+        }
+      }
+      return kInvalidQueryID;
+    } else {
+      return pickRandomQueryFromPriorityLevelDefaultProbs(priority_level);
+    }
+  }
+
+  /**
+   * @brief Randomly pick a query from a given priority level using the default
+   *        probabilities.
+   *
+   * @note We use uniform random distribution.
+   *
+   * @return A query ID. If no queries are present for this priority level in
+   *         the learner, return kInvalidQueryID.
+   **/
+  inline const int pickRandomQueryFromPriorityLevelDefaultProbs(const std::size_t priority_level) const {
     if (hasActiveQueries()) {
-      if (hasFeedbackFromAllQueriesInPriorityLevel(priority_level)) {
-        DCHECK(current_probabilities_.at(priority_level) != nullptr);
-        const auto it = current_probabilities_.find(priority_level);
-        if (it->second->getNumObjects() > 0) {
-          return static_cast<int>(
-              current_probabilities_.at(priority_level)->pickRandomProperty());
-        }
-      } else {
-        DCHECK(default_probabilities_.at(priority_level) != nullptr);
-        const auto it = default_probabilities_.find(priority_level);
-        if (it->second->getNumObjects() > 0) {
-          return static_cast<int>(
-              default_probabilities_.at(priority_level)->pickRandomProperty());
-        }
+      DCHECK(default_probabilities_.at(priority_level) != nullptr);
+      const auto it = default_probabilities_.find(priority_level);
+      if (it->second->getNumObjects() > 0) {
+        return static_cast<int>(
+            default_probabilities_.at(priority_level)->pickRandomProperty());
       }
     }
     return kInvalidQueryID;

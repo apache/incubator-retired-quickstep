@@ -38,9 +38,28 @@
 
 namespace quickstep {
 
-DEFINE_uint64(max_msgs_per_dispatch_round, 80, "Maximum number of messages that"
+DEFINE_uint64(max_msgs_per_dispatch_round, 40, "Maximum number of messages that"
               " can be allocated in a single round of dispatch of messages to"
               " the workers.");
+
+DEFINE_bool(dynamic_probabilities_in_learner, true, "Whether the learner should have dynamic probabilities or static probabilities");
+
+PriorityPolicyEnforcer::PriorityPolicyEnforcer(const tmb::client_id foreman_client_id,
+                       const std::size_t num_numa_nodes,
+                       CatalogDatabaseLite *catalog_database,
+                       StorageManager *storage_manager,
+                       WorkerDirectory *worker_directory,
+                       tmb::MessageBus *bus,
+                       const bool profile_individual_workorders)
+    : foreman_client_id_(foreman_client_id),
+      num_numa_nodes_(num_numa_nodes),
+      catalog_database_(catalog_database),
+      storage_manager_(storage_manager),
+      worker_directory_(worker_directory),
+      bus_(bus),
+      profile_individual_workorders_(profile_individual_workorders) {
+  learner_.reset(new Learner());
+}
 
 bool PriorityPolicyEnforcer::admitQuery(QueryHandle *query_handle) {
   if (admitted_queries_.size() < kMaxConcurrentQueries) {
@@ -253,7 +272,12 @@ WorkerMessage* PriorityPolicyEnforcer::getNextWorkerMessageFromPriorityLevel(
   std::unordered_map<std::size_t, bool> checked_query_ids;
   // While there are more queries to be checked ..
   while (checked_query_ids.size() < priority_query_ids_[priority_level].size()) {
-    const int chosen_query_id = learner_->pickRandomQueryFromPriorityLevel(priority_level);
+    int chosen_query_id;
+    if (FLAGS_dynamic_probabilities_in_learner) {
+      chosen_query_id = learner_->pickRandomQueryFromPriorityLevel<true>(priority_level);
+    } else {
+      chosen_query_id = learner_->pickRandomQueryFromPriorityLevel<false>(priority_level);
+    }
     if (chosen_query_id == kInvalidQueryID) {
       // No query available at this time in this priority level.
       return nullptr;
