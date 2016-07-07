@@ -23,7 +23,7 @@
 #include <memory>
 #include <vector>
 
-#include "query_execution/ForemanLite.hpp"
+#include "query_execution/ForemanBase.hpp"
 #include "query_execution/PolicyEnforcer.hpp"
 #include "utility/Macros.hpp"
 
@@ -46,7 +46,7 @@ class WorkerMessage;
  *        policy enforcer and dispatches the work to worker threads. It also
  *        receives work completion messages from workers.
  **/
-class Foreman final : public ForemanLite {
+class ForemanSingleNode final : public ForemanBase {
  public:
   /**
    * @brief Constructor.
@@ -64,7 +64,7 @@ class Foreman final : public ForemanLite {
    * @note If cpu_id is not specified, Foreman thread can be possibly moved
    *       around on different CPUs by the OS.
   **/
-  Foreman(const tmb::client_id main_thread_client_id,
+  ForemanSingleNode(const tmb::client_id main_thread_client_id,
           WorkerDirectory *worker_directory,
           tmb::MessageBus *bus,
           CatalogDatabaseLite *catalog_database,
@@ -73,7 +73,7 @@ class Foreman final : public ForemanLite {
           const std::size_t num_numa_nodes = 1,
           const bool profile_individual_workorders = false);
 
-  ~Foreman() override {}
+  ~ForemanSingleNode() override {}
 
   /**
    * @brief Print the results of profiling individual work orders for a given
@@ -130,7 +130,7 @@ class Foreman final : public ForemanLite {
 
   std::unique_ptr<PolicyEnforcer> policy_enforcer_;
 
-  DISALLOW_COPY_AND_ASSIGN(Foreman);
+  DISALLOW_COPY_AND_ASSIGN(ForemanSingleNode);
 };
 
 /** @} */

@@ -58,7 +58,7 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #include "parser/ParseStatement.hpp"
 #include "parser/SqlParserWrapper.hpp"
 #include "query_execution/AdmitRequestMessage.hpp"
-#include "query_execution/Foreman.hpp"
+#include "query_execution/ForemanSingleNode.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/Worker.hpp"
@@ -104,7 +104,7 @@ using quickstep::AdmitRequestMessage;
 using quickstep::CatalogRelation;
 using quickstep::DefaultsConfigurator;
 using quickstep::DropRelation;
-using quickstep::Foreman;
+using quickstep::ForemanSingleNode;
 using quickstep::InputParserUtil;
 using quickstep::MessageBusImpl;
 using quickstep::MessageStyle;
@@ -353,14 +353,15 @@ int main(int argc, char* argv[]) {
                                    worker_client_ids,
                                    worker_numa_nodes);
 
-  Foreman foreman(main_thread_client_id,
-                  &worker_directory,
-                  &bus,
-                  query_processor->getDefaultDatabase(),
-                  query_processor->getStorageManager(),
-                  -1,  // Don't pin the Foreman thread.
-                  num_numa_nodes_system,
-                  quickstep::FLAGS_profile_and_report_workorder_perf);
+  ForemanSingleNode foreman(
+      main_thread_client_id,
+      &worker_directory,
+      &bus,
+      query_processor->getDefaultDatabase(),
+      query_processor->getStorageManager(),
+      -1,  // Don't pin the Foreman thread.
+      num_numa_nodes_system,
+      quickstep::FLAGS_profile_and_report_workorder_perf);
 
   // Start the worker threads.
   for (Worker &worker : workers) {

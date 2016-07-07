@@ -25,7 +25,7 @@
 #include "cli/PrintToScreen.hpp"
 #include "parser/ParseStatement.hpp"
 #include "query_execution/AdmitRequestMessage.hpp"
-#include "query_execution/Foreman.hpp"
+#include "query_execution/ForemanSingleNode.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/Worker.hpp"
 #include "query_optimizer/ExecutionGenerator.hpp"

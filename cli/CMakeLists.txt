@@ -89,7 +89,6 @@ target_link_libraries(quickstep_cli_CommandExecutor
                       quickstep_cli_PrintToScreen
                       quickstep_parser_ParseStatement
                       quickstep_parser_SqlParserWrapper
-                      quickstep_queryexecution_Foreman
                       quickstep_queryoptimizer_QueryHandle
                       quickstep_queryoptimizer_QueryPlan
                       quickstep_queryoptimizer_QueryProcessor

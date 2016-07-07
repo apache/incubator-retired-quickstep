@@ -14,8 +14,8 @@
  *   limitations under the License.
  **/
 
-#ifndef QUICKSTEP_QUERY_EXECUTION_FOREMAN_LITE_HPP_
-#define QUICKSTEP_QUERY_EXECUTION_FOREMAN_LITE_HPP_
+#ifndef QUICKSTEP_QUERY_EXECUTION_FOREMAN_BASE_HPP_
+#define QUICKSTEP_QUERY_EXECUTION_FOREMAN_BASE_HPP_
 
 #include "threading/Thread.hpp"
 #include "utility/Macros.hpp"
@@ -35,7 +35,7 @@ namespace quickstep {
  * @brief A base class that Foreman implements. This class is used to derive
  *        for implementations for both the single-node and distributed versions.
  **/
-class ForemanLite : public Thread {
+class ForemanBase : public Thread {
  public:
   /**
    * @brief Constructor.
@@ -46,14 +46,14 @@ class ForemanLite : public Thread {
    * @note If cpu_id is not specified, Foreman thread can be possibly moved
    *       around on different CPUs by the OS.
   **/
-  ForemanLite(tmb::MessageBus *bus,
+  ForemanBase(tmb::MessageBus *bus,
               const int cpu_id)
       : bus_(DCHECK_NOTNULL(bus)),
         cpu_id_(cpu_id) {
     foreman_client_id_ = bus_->Connect();
   }
 
-  ~ForemanLite() override {}
+  ~ForemanBase() override {}
 
   /**
    * @brief Get the TMB client ID of Foreman thread.
@@ -75,11 +75,11 @@ class ForemanLite : public Thread {
   const int cpu_id_;
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(ForemanLite);
+  DISALLOW_COPY_AND_ASSIGN(ForemanBase);
 };
 
 /** @} */
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_QUERY_EXECUTION_FOREMAN_LITE_HPP_
+#endif  // QUICKSTEP_QUERY_EXECUTION_FOREMAN_BASE_HPP_

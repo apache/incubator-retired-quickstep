@@ -15,7 +15,7 @@
  *   limitations under the License.
  **/
 
-#include "query_execution/Foreman.hpp"
+#include "query_execution/ForemanSingleNode.hpp"
 
 #include <cstddef>
 #include <cstdio>
@@ -50,15 +50,16 @@ DEFINE_uint64(min_load_per_worker, 2, "The minimum load defined as the number "
               "of pending work orders for the worker. This information is used "
               "by the Foreman to assign work orders to worker threads");
 
-Foreman::Foreman(const tmb::client_id main_thread_client_id,
-                 WorkerDirectory *worker_directory,
-                 tmb::MessageBus *bus,
-                 CatalogDatabaseLite *catalog_database,
-                 StorageManager *storage_manager,
-                 const int cpu_id,
-                 const size_t num_numa_nodes,
-                 const bool profile_individual_workorders)
-    : ForemanLite(bus, cpu_id),
+ForemanSingleNode::ForemanSingleNode(
+    const tmb::client_id main_thread_client_id,
+    WorkerDirectory *worker_directory,
+    tmb::MessageBus *bus,
+    CatalogDatabaseLite *catalog_database,
+    StorageManager *storage_manager,
+    const int cpu_id,
+    const size_t num_numa_nodes,
+    const bool profile_individual_workorders)
+    : ForemanBase(bus, cpu_id),
       main_thread_client_id_(main_thread_client_id),
       worker_directory_(DCHECK_NOTNULL(worker_directory)),
       catalog_database_(DCHECK_NOTNULL(catalog_database)),
@@ -97,7 +98,7 @@ Foreman::Foreman(const tmb::client_id main_thread_client_id,
       profile_individual_workorders));
 }
 
-void Foreman::run() {
+void ForemanSingleNode::run() {
   if (cpu_id_ >= 0) {
     // We can pin the foreman thread to a CPU if specified.
     ThreadUtil::BindToCPU(cpu_id_);
@@ -179,7 +180,7 @@ void Foreman::run() {
   }
 }
 
-bool Foreman::canCollectNewMessages(const tmb::message_type_id message_type) {
+bool ForemanSingleNode::canCollectNewMessages(const tmb::message_type_id message_type) {
   if (QUICKSTEP_EQUALS_ANY_CONSTANT(message_type,
                                     kCatalogRelationNewBlockMessage,
                                     kWorkOrderFeedbackMessage)) {
@@ -194,7 +195,7 @@ bool Foreman::canCollectNewMessages(const tmb::message_type_id message_type) {
   }
 }
 
-void Foreman::dispatchWorkerMessages(const vector<unique_ptr<WorkerMessage>> &messages) {
+void ForemanSingleNode::dispatchWorkerMessages(const vector<unique_ptr<WorkerMessage>> &messages) {
   for (const auto &message : messages) {
     DCHECK(message != nullptr);
     const int recipient_worker_thread_index = message->getRecipientHint();
@@ -210,8 +211,8 @@ void Foreman::dispatchWorkerMessages(const vector<unique_ptr<WorkerMessage>> &me
   }
 }
 
-void Foreman::sendWorkerMessage(const size_t worker_thread_index,
-                                const WorkerMessage &message) {
+void ForemanSingleNode::sendWorkerMessage(const size_t worker_thread_index,
+                                          const WorkerMessage &message) {
   tmb::message_type_id type;
   if (message.getType() == WorkerMessage::WorkerMessageType::kRebuildWorkOrder) {
     type = kRebuildWorkOrderMessage;
@@ -233,8 +234,8 @@ void Foreman::sendWorkerMessage(const size_t worker_thread_index,
       << worker_directory_->getClientID(worker_thread_index);
 }
 
-void Foreman::printWorkOrderProfilingResults(const std::size_t query_id,
-                                             std::FILE *out) const {
+void ForemanSingleNode::printWorkOrderProfilingResults(const std::size_t query_id,
+                                                       std::FILE *out) const {
   const std::vector<
       std::tuple<std::size_t, std::size_t, std::size_t>>
       &recorded_times = policy_enforcer_->getProfilingResults(query_id);

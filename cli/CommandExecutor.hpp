@@ -32,7 +32,6 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class CatalogDatabase;
-class Foreman;
 class ParseStatement;
 class QueryProcessor;
 class StorageManager;

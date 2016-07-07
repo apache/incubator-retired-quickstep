@@ -25,7 +25,7 @@
 #include <vector>
 
 #include "parser/SqlParserWrapper.hpp"
-#include "query_execution/Foreman.hpp"
+#include "query_execution/ForemanSingleNode.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/Worker.hpp"
@@ -77,11 +77,12 @@ class CommandExecutorTestRunner : public TextBasedTestRunner {
 
     workers_.reset(new WorkerDirectory(1 /* number of workers */,
                                        worker_client_ids, numa_nodes));
-    foreman_.reset(new Foreman(main_thread_client_id_,
-                               workers_.get(),
-                               &bus_,
-                               test_database_loader_.catalog_database(),
-                               test_database_loader_.storage_manager()));
+    foreman_.reset(
+        new ForemanSingleNode(main_thread_client_id_,
+                              workers_.get(),
+                              &bus_,
+                              test_database_loader_.catalog_database(),
+                              test_database_loader_.storage_manager()));
 
     foreman_->start();
     worker_->start();
@@ -104,7 +105,7 @@ class CommandExecutorTestRunner : public TextBasedTestRunner {
   tmb::client_id main_thread_client_id_;
 
   MessageBusImpl bus_;
-  std::unique_ptr<Foreman> foreman_;
+  std::unique_ptr<ForemanSingleNode> foreman_;
   std::unique_ptr<Worker> worker_;
 
   std::unique_ptr<WorkerDirectory> workers_;

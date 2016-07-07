@@ -1,6 +1,6 @@
 #   Copyright 2011-2015 Quickstep Technologies LLC.
 #   Copyright 2015-2016 Pivotal Software, Inc.
-#   Copyright 2016, Quickstep Research Group, Computer Sciences Department, 
+#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
 #     University of Wisconsin—Madison.
 #
 #   Licensed under the Apache License, Version 2.0 (the "License");
@@ -32,8 +32,8 @@ if (ENABLE_DISTRIBUTED)
   add_library(quickstep_queryexecution_BlockLocator BlockLocator.cpp BlockLocator.hpp)
 endif()
 add_library(quickstep_queryexecution_AdmitRequestMessage ../empty_src.cpp AdmitRequestMessage.hpp)
-add_library(quickstep_queryexecution_Foreman Foreman.cpp Foreman.hpp)
-add_library(quickstep_queryexecution_ForemanLite ../empty_src.cpp ForemanLite.hpp)
+add_library(quickstep_queryexecution_ForemanBase ../empty_src.cpp ForemanBase.hpp)
+add_library(quickstep_queryexecution_ForemanSingleNode ForemanSingleNode.cpp ForemanSingleNode.hpp)
 add_library(quickstep_queryexecution_PolicyEnforcer PolicyEnforcer.cpp PolicyEnforcer.hpp)
 add_library(quickstep_queryexecution_QueryContext QueryContext.cpp QueryContext.hpp)
 add_library(quickstep_queryexecution_QueryContext_proto
@@ -69,11 +69,15 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_utility_Macros
                         tmb)
 endif()
-target_link_libraries(quickstep_queryexecution_Foreman
-                      ${GFLAGS_LIB_NAME} 
+target_link_libraries(quickstep_queryexecution_ForemanBase
+                      glog
+                      quickstep_threading_Thread
+                      quickstep_utility_Macros
+                      tmb)
+target_link_libraries(quickstep_queryexecution_ForemanSingleNode
                       glog
                       quickstep_queryexecution_AdmitRequestMessage
-                      quickstep_queryexecution_ForemanLite
+                      quickstep_queryexecution_ForemanBase
                       quickstep_queryexecution_PolicyEnforcer
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
@@ -82,12 +86,8 @@ target_link_libraries(quickstep_queryexecution_Foreman
                       quickstep_threading_ThreadUtil
                       quickstep_utility_EqualsAnyConstant
                       quickstep_utility_Macros
-                      tmb)
-target_link_libraries(quickstep_queryexecution_ForemanLite
-                      glog
-                      quickstep_threading_Thread
-                      quickstep_utility_Macros
-                      tmb)
+                      tmb
+                      ${GFLAGS_LIB_NAME})
 target_link_libraries(quickstep_queryexecution_PolicyEnforcer
                       ${GFLAGS_LIB_NAME}
                       glog
@@ -199,8 +199,8 @@ target_link_libraries(quickstep_queryexecution_WorkerSelectionPolicy
 add_library(quickstep_queryexecution ../empty_src.cpp QueryExecutionModule.hpp)
 target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_AdmitRequestMessage
-                      quickstep_queryexecution_Foreman
-                      quickstep_queryexecution_ForemanLite
+                      quickstep_queryexecution_ForemanBase
+                      quickstep_queryexecution_ForemanSingleNode
                       quickstep_queryexecution_PolicyEnforcer
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
