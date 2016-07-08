@@ -22,6 +22,7 @@
 #include "types/CharType.hpp"
 #include "types/DatetimeIntervalType.hpp"
 #include "types/DatetimeType.hpp"
+#include "types/DecimalType.hpp"
 #include "types/DoubleType.hpp"
 #include "types/FloatType.hpp"
 #include "types/IntType.hpp"
@@ -49,6 +50,8 @@ const Type& TypeFactory::GetType(const TypeID id,
       return FloatType::Instance(nullable);
     case kDouble:
       return DoubleType::Instance(nullable);
+    case kDecimal:
+      return DecimalType::Instance(nullable);
     case kDatetime:
       return DatetimeType::Instance(nullable);
     case kDatetimeInterval:
@@ -90,6 +93,7 @@ bool TypeFactory::ProtoIsValid(const serialization::Type &proto) {
     case serialization::Type::LONG:
     case serialization::Type::FLOAT:
     case serialization::Type::DOUBLE:
+    case serialization::Type::DECIMAL:
     case serialization::Type::DATETIME:
     case serialization::Type::DATETIME_INTERVAL:
     case serialization::Type::YEAR_MONTH_INTERVAL:
@@ -119,6 +123,8 @@ const Type& TypeFactory::ReconstructFromProto(const serialization::Type &proto) 
       return FloatType::Instance(proto.nullable());
     case serialization::Type::DOUBLE:
       return DoubleType::Instance(proto.nullable());
+    case serialization::Type::DECIMAL:
+      return DecimalType::Instance(proto.nullable());
     case serialization::Type::DATETIME:
       return DatetimeType::Instance(proto.nullable());
     case serialization::Type::DATETIME_INTERVAL:
@@ -155,6 +161,8 @@ const Type* TypeFactory::GetUnifyingType(const Type &first, const Type &second) 
       if (((first.getTypeID() == kLong) && (second.getTypeID() == kFloat))
             || ((first.getTypeID() == kFloat) && (second.getTypeID() == kLong))) {
         unifier = &(DoubleType::Instance(true));
+      } else if (first.getTypeID() == kDecimal || second.getTypeID() == kDecimal) {
+        unifier = &(DecimalType::Instance(true));
       }
     }
   } else {
@@ -163,6 +171,8 @@ const Type* TypeFactory::GetUnifyingType(const Type &first, const Type &second) 
       if (((first.getTypeID() == kLong) && (second.getTypeID() == kFloat))
             || ((first.getTypeID() == kFloat) && (second.getTypeID() == kLong))) {
         unifier = &(DoubleType::Instance(false));
+      } else if (first.getTypeID() == kDecimal || second.getTypeID() == kDecimal) {
+        unifier = &(DecimalType::Instance(false));
       }
     }
   }

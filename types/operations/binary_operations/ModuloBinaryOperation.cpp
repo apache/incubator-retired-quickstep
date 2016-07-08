@@ -223,6 +223,13 @@ TypedValue ModuloBinaryOperation::applyToChecked(const TypedValue &left,
       }
       break;
     }
+    case kDecimal: {
+      if (right_type.getSuperTypeID() == Type::kNumeric) {
+        return applyToCheckedNumericHelper<FloatModuloFunctor>(left, left_type,
+                                                                 right, right_type);
+      }
+      break;
+    }
     default:
       break;
   }
@@ -243,6 +250,12 @@ UncheckedBinaryOperator* ModuloBinaryOperation::makeUncheckedBinaryOperatorForTy
     }  // Fall through
     case kFloat:
     case kDouble: {
+      if (right.getSuperTypeID() == Type::kNumeric) {
+        return makeNumericBinaryOperatorOuterHelper<FloatModuloArithmeticUncheckedBinaryOperator>(left, right);
+      }
+      break;
+    }
+    case kDecimal: {
       if (right.getSuperTypeID() == Type::kNumeric) {
         return makeNumericBinaryOperatorOuterHelper<FloatModuloArithmeticUncheckedBinaryOperator>(left, right);
       }

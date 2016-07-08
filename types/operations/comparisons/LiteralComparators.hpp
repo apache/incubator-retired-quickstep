@@ -45,10 +45,52 @@ template <typename LeftArgument, typename RightArgument> struct EqualFunctor
   }
 };
 
+template <> struct EqualFunctor<DecimalLit, DecimalLit>
+    : public std::binary_function<DecimalLit, DecimalLit, bool> {
+  inline bool operator() (const DecimalLit &left, const DecimalLit &right) const {
+    return left == right;
+  }
+};
+
+template <typename RightArgument> struct EqualFunctor<DecimalLit, RightArgument>
+    : public std::binary_function<DecimalLit, RightArgument, bool> {
+  inline bool operator() (const DecimalLit &left, const RightArgument &right) const {
+    return left == DecimalLit(right);
+  }
+};
+
+template <typename LeftArgument> struct EqualFunctor<LeftArgument, DecimalLit>
+    : public std::binary_function<LeftArgument, DecimalLit, bool> {
+  inline bool operator() (const LeftArgument &left, const DecimalLit &right) const {
+    return DecimalLit(left) == right;
+  }
+};
+
 template <typename LeftArgument, typename RightArgument> struct NotEqualFunctor
     : public std::binary_function<LeftArgument, RightArgument, bool> {
   inline bool operator() (const LeftArgument &left, const RightArgument &right) const {
     return left != right;
+  }
+};
+
+template <> struct NotEqualFunctor<DecimalLit, DecimalLit>
+    : public std::binary_function<DecimalLit, DecimalLit, bool> {
+  inline bool operator() (const DecimalLit &left, const DecimalLit &right) const {
+    return left != right;
+  }
+};
+
+template <typename RightArgument> struct NotEqualFunctor<DecimalLit, RightArgument>
+    : public std::binary_function<DecimalLit, RightArgument, bool> {
+  inline bool operator() (const DecimalLit &left, const RightArgument &right) const {
+    return left != DecimalLit(right);
+  }
+};
+
+template <typename LeftArgument> struct NotEqualFunctor<LeftArgument, DecimalLit>
+    : public std::binary_function<LeftArgument, DecimalLit, bool> {
+  inline bool operator() (const LeftArgument &left, const DecimalLit &right) const {
+    return DecimalLit(left) != right;
   }
 };
 
@@ -59,10 +101,52 @@ template <typename LeftArgument, typename RightArgument> struct LessFunctor
   }
 };
 
+template <> struct LessFunctor<DecimalLit, DecimalLit>
+    : public std::binary_function<DecimalLit, DecimalLit, bool> {
+  inline bool operator() (const DecimalLit &left, const DecimalLit &right) const {
+    return left < right;
+  }
+};
+
+template <typename RightArgument> struct LessFunctor<DecimalLit, RightArgument>
+    : public std::binary_function<DecimalLit, RightArgument, bool> {
+  inline bool operator() (const DecimalLit &left, const RightArgument &right) const {
+    return left < DecimalLit(right);
+  }
+};
+
+template <typename LeftArgument> struct LessFunctor<LeftArgument, DecimalLit>
+    : public std::binary_function<LeftArgument, DecimalLit, bool> {
+  inline bool operator() (const LeftArgument &left, const DecimalLit &right) const {
+    return DecimalLit(left) < right;
+  }
+};
+
 template <typename LeftArgument, typename RightArgument> struct LessOrEqualFunctor
     : public std::binary_function<LeftArgument, RightArgument, bool> {
   inline bool operator() (const LeftArgument &left, const RightArgument &right) const {
     return left <= right;
+  }
+};
+
+template <> struct LessOrEqualFunctor<DecimalLit, DecimalLit>
+    : public std::binary_function<DecimalLit, DecimalLit, bool> {
+  inline bool operator() (const DecimalLit &left, const DecimalLit &right) const {
+    return left <= right;
+  }
+};
+
+template <typename RightArgument> struct LessOrEqualFunctor<DecimalLit, RightArgument>
+    : public std::binary_function<DecimalLit, RightArgument, bool> {
+  inline bool operator() (const DecimalLit &left, const RightArgument &right) const {
+    return left <= DecimalLit(right);
+  }
+};
+
+template <typename LeftArgument> struct LessOrEqualFunctor<LeftArgument, DecimalLit>
+    : public std::binary_function<LeftArgument, DecimalLit, bool> {
+  inline bool operator() (const LeftArgument &left, const DecimalLit &right) const {
+    return DecimalLit(left) <= right;
   }
 };
 
@@ -73,12 +157,55 @@ template <typename LeftArgument, typename RightArgument> struct GreaterFunctor
   }
 };
 
+template <> struct GreaterFunctor<DecimalLit, DecimalLit>
+    : public std::binary_function<DecimalLit, DecimalLit, bool> {
+  inline bool operator() (const DecimalLit &left, const DecimalLit &right) const {
+    return left > right;
+  }
+};
+
+template <typename RightArgument> struct GreaterFunctor<DecimalLit, RightArgument>
+    : public std::binary_function<DecimalLit, RightArgument, bool> {
+  inline bool operator() (const DecimalLit &left, const RightArgument &right) const {
+    return left > DecimalLit(right);
+  }
+};
+
+template <typename LeftArgument> struct GreaterFunctor<LeftArgument, DecimalLit>
+    : public std::binary_function<LeftArgument, DecimalLit, bool> {
+  inline bool operator() (const LeftArgument &left, const DecimalLit &right) const {
+    return DecimalLit(left) > right;
+  }
+};
+
 template <typename LeftArgument, typename RightArgument> struct GreaterOrEqualFunctor
     : public std::binary_function<LeftArgument, RightArgument, bool> {
   inline bool operator() (const LeftArgument &left, const RightArgument &right) const {
     return left >= right;
   }
 };
+
+template <> struct GreaterOrEqualFunctor<DecimalLit, DecimalLit>
+    : public std::binary_function<DecimalLit, DecimalLit, bool> {
+  inline bool operator() (const DecimalLit &left, const DecimalLit &right) const {
+    return left >= right;
+  }
+};
+
+template <typename RightArgument> struct GreaterOrEqualFunctor<DecimalLit, RightArgument>
+    : public std::binary_function<DecimalLit, RightArgument, bool> {
+  inline bool operator() (const DecimalLit &left, const RightArgument &right) const {
+    return left >= DecimalLit(right);
+  }
+};
+
+template <typename LeftArgument> struct GreaterOrEqualFunctor<LeftArgument, DecimalLit>
+    : public std::binary_function<LeftArgument, DecimalLit, bool> {
+  inline bool operator() (const LeftArgument &left, const DecimalLit &right) const {
+    return DecimalLit(left) >= right;
+  }
+};
+
 
 template <template <typename LeftArgument, typename RightArgument> class ComparisonFunctor,
           typename LeftCppType, bool left_nullable,

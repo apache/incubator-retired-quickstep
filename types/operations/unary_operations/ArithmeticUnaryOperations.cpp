@@ -20,6 +20,7 @@
 #include <string>
 
 #include "types/DatetimeIntervalType.hpp"
+#include "types/DecimalType.hpp"
 #include "types/DoubleType.hpp"
 #include "types/FloatType.hpp"
 #include "types/IntType.hpp"
@@ -40,7 +41,7 @@ namespace quickstep {
 bool ArithmeticUnaryOperation::canApplyToType(const Type &type) const {
   return QUICKSTEP_EQUALS_ANY_CONSTANT(
       type.getTypeID(),
-      kInt, kLong, kFloat, kDouble, kDatetimeInterval, kYearMonthInterval);
+      kInt, kLong, kFloat, kDouble, kDecimal, kDatetimeInterval, kYearMonthInterval);
 }
 
 const Type* ArithmeticUnaryOperation::resultTypeForArgumentType(const Type &type) const {
@@ -66,7 +67,7 @@ const Type* ArithmeticUnaryOperation::pushDownTypeHint(const Type *type_hint) co
 bool NegateUnaryOperation::resultTypeIsPlausible(const Type &result_type) const {
   return QUICKSTEP_EQUALS_ANY_CONSTANT(
       result_type.getTypeID(),
-      kInt, kLong, kFloat, kDouble, kDatetimeInterval, kYearMonthInterval);
+      kInt, kLong, kFloat, kDouble, kDecimal, kDatetimeInterval, kYearMonthInterval);
 }
 
 TypedValue NegateUnaryOperation::applyToChecked(const TypedValue &argument,
@@ -86,6 +87,8 @@ TypedValue NegateUnaryOperation::applyToChecked(const TypedValue &argument,
       return TypedValue(-argument.getLiteral<typename FloatType::cpptype>());
     case kDouble:
       return TypedValue(-argument.getLiteral<typename DoubleType::cpptype>());
+    case kDecimal:
+      return TypedValue(-argument.getLiteral<typename DecimalType::cpptype>());
     case kDatetimeInterval:
       return TypedValue(-argument.getLiteral<typename DatetimeIntervalType::cpptype>());
     case kYearMonthInterval:
@@ -122,6 +125,12 @@ UncheckedUnaryOperator* NegateUnaryOperation::makeUncheckedUnaryOperatorForType(
         return new NegateUncheckedUnaryOperator<DoubleType, true>();
       } else {
         return new NegateUncheckedUnaryOperator<DoubleType, false>();
+      }
+    case kDecimal:
+      if (type.isNullable()) {
+        return new NegateUncheckedUnaryOperator<DecimalType, true>();
+      } else {
+        return new NegateUncheckedUnaryOperator<DecimalType, false>();
       }
     case kDatetimeInterval:
       if (type.isNullable()) {

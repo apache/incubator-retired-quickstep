@@ -35,6 +35,8 @@ add_library(quickstep_types_DateOperatorOverloads ../empty_src.cpp DateOperatorO
 add_library(quickstep_types_DatetimeIntervalType DatetimeIntervalType.cpp DatetimeIntervalType.hpp)
 add_library(quickstep_types_DatetimeLit ../empty_src.cpp DatetimeLit.hpp)
 add_library(quickstep_types_DatetimeType DatetimeType.cpp DatetimeType.hpp)
+add_library(quickstep_types_DecimalLit ../empty_src.cpp DecimalLit.hpp)
+add_library(quickstep_types_DecimalType DecimalType.cpp DecimalType.hpp)
 add_library(quickstep_types_DoubleType DoubleType.cpp DoubleType.hpp)
 add_library(quickstep_types_FloatType FloatType.cpp FloatType.hpp)
 add_library(quickstep_types_IntType IntType.cpp IntType.hpp)
@@ -93,6 +95,16 @@ target_link_libraries(quickstep_types_DatetimeType
                       quickstep_types_port_gmtime_r
                       quickstep_types_port_timegm
                       quickstep_utility_CheckSnprintf
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_types_DecimalType
+                      glog
+                      quickstep_types_DecimalLit
+                      quickstep_types_NullCoercibilityCheckMacro
+                      quickstep_types_NumericSuperType
+                      quickstep_types_Type
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
+                      quickstep_utility_EqualsAnyConstant
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_types_DoubleType
                       quickstep_types_NullCoercibilityCheckMacro
@@ -158,6 +170,7 @@ target_link_libraries(quickstep_types_TypeFactory
                       quickstep_types_CharType
                       quickstep_types_DatetimeIntervalType
                       quickstep_types_DatetimeType
+                      quickstep_types_DecimalType
                       quickstep_types_DoubleType
                       quickstep_types_FloatType
                       quickstep_types_IntType
@@ -173,6 +186,7 @@ target_link_libraries(quickstep_types_TypedValue
                       farmhash
                       glog
                       quickstep_types_DatetimeLit
+                      quickstep_types_DecimalLit
                       quickstep_types_IntervalLit
                       quickstep_types_TypeID
                       quickstep_types_Type_proto
@@ -213,6 +227,8 @@ target_link_libraries(quickstep_types
                       quickstep_types_DatetimeIntervalType
                       quickstep_types_DatetimeLit
                       quickstep_types_DatetimeType
+                      quickstep_types_DecimalLit
+                      quickstep_types_DecimalType
                       quickstep_types_DoubleType
                       quickstep_types_FloatType
                       quickstep_types_IntType
@@ -294,6 +310,17 @@ target_link_libraries(DatetimeType_unittest
                       quickstep_types_tests_TypeTest_common
                       quickstep_utility_MemStream)
 add_test(DatetimeType_unittest DatetimeType_unittest)
+
+add_executable(DecimalType_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/DecimalType_unittest.cpp")
+target_link_libraries(DecimalType_unittest
+                      gtest
+                      gtest_main
+                      quickstep_types_DecimalLit
+                      quickstep_types_DecimalType
+                      quickstep_types_Type
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypedValue)
+add_test(DecimalType_unittest DecimalType_unittest)
 
 add_executable(DoubleType_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/DoubleType_unittest.cpp")
 target_link_libraries(DoubleType_unittest

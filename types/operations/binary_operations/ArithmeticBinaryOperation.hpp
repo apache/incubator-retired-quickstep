@@ -22,6 +22,7 @@
 
 #include <string>
 
+#include "types/DecimalType.hpp"
 #include "types/DoubleType.hpp"
 #include "types/FloatType.hpp"
 #include "types/IntType.hpp"
@@ -309,6 +310,14 @@ UncheckedBinaryOperator* ArithmeticBinaryOperation::makeNumericBinaryOperatorOut
         return makeNumericBinaryOperatorInnerHelper<OperatorType, DoubleType, false>(
             left, right);
       }
+    case kDecimal:
+      if (left.isNullable()) {
+        return makeNumericBinaryOperatorInnerHelper<OperatorType, DecimalType,
+                                                    true>(left, right);
+      } else {
+        return makeNumericBinaryOperatorInnerHelper<OperatorType, DecimalType,
+                                                    false>(left, right);
+      }
     default:
       throw OperationInapplicableToType(getName(), 2, left.getName().c_str(), right.getName().c_str());
   }
@@ -361,6 +370,16 @@ UncheckedBinaryOperator* ArithmeticBinaryOperation::makeNumericBinaryOperatorInn
         return new OperatorType<typename NumericTypeUnifier<LeftType, DoubleType>::type,
                                 typename LeftType::cpptype, left_nullable,
                                 typename DoubleType::cpptype, false>();
+      }
+    case kDecimal:
+      if (right.isNullable()) {
+        return new OperatorType<typename NumericTypeUnifier<LeftType, DecimalType>::type,
+                                typename LeftType::cpptype, left_nullable,
+                                typename DecimalType::cpptype, true>();
+      } else {
+        return new OperatorType<typename NumericTypeUnifier<LeftType, DecimalType>::type,
+                                typename LeftType::cpptype, left_nullable,
+                                typename DecimalType::cpptype, false>();
       }
     default:
       throw OperationInapplicableToType(getName(), 2, left.getName().c_str(), right.getName().c_str());

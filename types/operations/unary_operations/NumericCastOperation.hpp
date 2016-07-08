@@ -29,6 +29,7 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "storage/ValueAccessor.hpp"
 #include "storage/ValueAccessorUtil.hpp"
+#include "types/DecimalType.hpp"
 #include "types/DoubleType.hpp"
 #include "types/FloatType.hpp"
 #include "types/IntType.hpp"
@@ -285,6 +286,8 @@ class NumericCastOperation : public UnaryOperation {
         return makeUncheckedUnaryOperatorHelperForTargetNullability<SourceType, source_nullability, FloatType>();
       case kDouble:
         return makeUncheckedUnaryOperatorHelperForTargetNullability<SourceType, source_nullability, DoubleType>();
+      case kDecimal:
+        return makeUncheckedUnaryOperatorHelperForTargetNullability<SourceType, source_nullability, DecimalType>();
       default:
         FATAL_ERROR("Unhandled type " << kTypeNames[target_type_.getTypeID()]);
     }

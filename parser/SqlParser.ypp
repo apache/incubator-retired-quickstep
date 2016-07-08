@@ -774,7 +774,7 @@ data_type:
     $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kDatetime));
   }
   | TOKEN_DECIMAL {
-    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kDouble));
+    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kDecimal));
   }
   | TOKEN_REAL {
     $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kDouble));

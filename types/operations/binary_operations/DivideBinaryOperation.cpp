@@ -47,6 +47,7 @@ bool DivideBinaryOperation::canApplyToTypes(const Type &left, const Type &right)
     case kLong:
     case kFloat:
     case kDouble:
+    case kDecimal:
     case kDatetimeInterval:
     case kYearMonthInterval: {
       return (right.getSuperTypeID() == Type::kNumeric);
@@ -238,7 +239,8 @@ TypedValue DivideBinaryOperation::applyToChecked(const TypedValue &left,
     case kInt:
     case kLong:
     case kFloat:
-    case kDouble: {
+    case kDouble:
+    case kDecimal: {
       if (right_type.getSuperTypeID() == Type::kNumeric) {
         return applyToCheckedNumericHelper<DivideFunctor>(left, left_type,
                                                           right, right_type);
@@ -321,7 +323,8 @@ UncheckedBinaryOperator* DivideBinaryOperation::makeUncheckedBinaryOperatorForTy
     case kInt:
     case kLong:
     case kFloat:
-    case kDouble: {
+    case kDouble:
+    case kDecimal: {
       if (right.getSuperTypeID() == Type::kNumeric) {
         return makeNumericBinaryOperatorOuterHelper<DivideArithmeticUncheckedBinaryOperator>(left, right);
       }

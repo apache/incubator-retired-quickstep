@@ -51,7 +51,7 @@ class NumericSuperType : public Type {
   }
 
   TypedValue makeZeroValue() const override {
-    return TypedValue(static_cast<CppType>(0));
+    return TypedValue(CppType());
   }
 
  protected:

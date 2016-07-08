@@ -51,6 +51,9 @@ bool MultiplyBinaryOperation::canApplyToTypes(const Type &left, const Type &righ
               right.getTypeID() == kDatetimeInterval   ||
               right.getTypeID() == kYearMonthInterval);
     }
+    case kDecimal: {
+      return (right.getSuperTypeID() == Type::kNumeric);
+    }
     case kDatetimeInterval:
     case kYearMonthInterval: {
       return (right.getSuperTypeID() == Type::kNumeric);
@@ -217,7 +220,8 @@ TypedValue MultiplyBinaryOperation::applyToChecked(const TypedValue &left,
     case kInt:
     case kLong:
     case kFloat:
-    case kDouble: {
+    case kDouble:
+    case kDecimal: {
       if (right_type.getSuperTypeID() == Type::kNumeric) {
         return applyToCheckedNumericHelper<MultiplyFunctor>(left, left_type,
                                                             right, right_type);
@@ -308,6 +312,12 @@ UncheckedBinaryOperator* MultiplyBinaryOperation::makeUncheckedBinaryOperatorFor
         return makeDateBinaryOperatorOuterHelper<MultiplyArithmeticUncheckedBinaryOperator,
                                                  YearMonthIntervalType,
                                                  DoubleType::cpptype, YearMonthIntervalLit>(left, right);
+      }
+      break;
+    }
+    case kDecimal: {
+      if (right.getSuperTypeID() == Type::kNumeric) {
+        return makeNumericBinaryOperatorOuterHelper<MultiplyArithmeticUncheckedBinaryOperator>(left, right);
       }
       break;
     }

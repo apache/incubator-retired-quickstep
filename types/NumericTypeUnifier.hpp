@@ -19,6 +19,7 @@
 
 namespace quickstep {
 
+class DecimalType;
 class DoubleType;
 class FloatType;
 class IntType;
@@ -76,6 +77,11 @@ struct NumericTypeUnifier<IntType, DoubleType> {
 };
 
 template<>
+struct NumericTypeUnifier<IntType, DecimalType> {
+  typedef DecimalType type;
+};
+
+template<>
 struct NumericTypeUnifier<LongType, IntType> {
   typedef LongType type;
 };
@@ -93,6 +99,11 @@ struct NumericTypeUnifier<LongType, FloatType> {
 template<>
 struct NumericTypeUnifier<LongType, DoubleType> {
   typedef DoubleType type;
+};
+
+template<>
+struct NumericTypeUnifier<LongType, DecimalType> {
+  typedef DecimalType type;
 };
 
 template<>
@@ -116,6 +127,11 @@ struct NumericTypeUnifier<FloatType, DoubleType> {
 };
 
 template<>
+struct NumericTypeUnifier<FloatType, DecimalType> {
+  typedef DecimalType type;
+};
+
+template<>
 struct NumericTypeUnifier<DoubleType, IntType> {
   typedef DoubleType type;
 };
@@ -133,6 +149,36 @@ struct NumericTypeUnifier<DoubleType, FloatType> {
 template<>
 struct NumericTypeUnifier<DoubleType, DoubleType> {
   typedef DoubleType type;
+};
+
+template<>
+struct NumericTypeUnifier<DoubleType, DecimalType> {
+  typedef DecimalType type;
+};
+
+template<>
+struct NumericTypeUnifier<DecimalType, IntType> {
+  typedef DecimalType type;
+};
+
+template<>
+struct NumericTypeUnifier<DecimalType, LongType> {
+  typedef DecimalType type;
+};
+
+template<>
+struct NumericTypeUnifier<DecimalType, FloatType> {
+  typedef DecimalType type;
+};
+
+template<>
+struct NumericTypeUnifier<DecimalType, DoubleType> {
+  typedef DecimalType type;
+};
+
+template<>
+struct NumericTypeUnifier<DecimalType, DecimalType> {
+  typedef DecimalType type;
 };
 
 }  // namespace quickstep

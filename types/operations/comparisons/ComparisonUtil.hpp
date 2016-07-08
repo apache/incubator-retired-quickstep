@@ -149,6 +149,11 @@ auto InvokeOnLessComparatorForTypeIgnoreNullability(const Type &type,
                                      double, false> comp;
       return functor(comp);
     }
+    case kDecimal: {
+      LessLiteralUncheckedComparator<DecimalLit, false,
+                                     DecimalLit, false> comp;
+      return functor(comp);
+    }
     case kChar: {
       const std::size_t string_length
           = static_cast<const AsciiStringSuperType&>(type).getStringLength();
@@ -254,6 +259,10 @@ auto InvokeOnLessComparatorForDifferentTypesIgnoreNullability(
           LessLiteralUncheckedComparator<int, false, double, false> comp;
           return functor(comp);
         }
+        case kDecimal: {
+          LessLiteralUncheckedComparator<int, false, DecimalLit, false> comp;
+          return functor(comp);
+        }
         default:
           return comparison_util_detail::InvokeOnLessComparatorForDifferentTypesFallback(
               left_type, right_type, functor);
@@ -280,6 +289,11 @@ auto InvokeOnLessComparatorForDifferentTypesIgnoreNullability(
                                          double, false> comp;
           return functor(comp);
         }
+        case kDecimal: {
+          LessLiteralUncheckedComparator<std::int64_t, false,
+                                         DecimalLit, false> comp;
+          return functor(comp);
+        }
         default:
           return comparison_util_detail::InvokeOnLessComparatorForDifferentTypesFallback(
               left_type, right_type, functor);
@@ -303,6 +317,10 @@ auto InvokeOnLessComparatorForDifferentTypesIgnoreNullability(
           LessLiteralUncheckedComparator<float, false, double, false> comp;
           return functor(comp);
         }
+        case kDecimal: {
+          LessLiteralUncheckedComparator<float, false, DecimalLit, false> comp;
+          return functor(comp);
+        }
         default:
           return comparison_util_detail::InvokeOnLessComparatorForDifferentTypesFallback(
               left_type, right_type, functor);
@@ -324,6 +342,37 @@ auto InvokeOnLessComparatorForDifferentTypesIgnoreNullability(
         }
         case kDouble: {
           LessLiteralUncheckedComparator<double, false, double, false> comp;
+          return functor(comp);
+        }
+        case kDecimal: {
+          LessLiteralUncheckedComparator<double, false, DecimalLit, false> comp;
+          return functor(comp);
+        }
+        default:
+          return comparison_util_detail::InvokeOnLessComparatorForDifferentTypesFallback(
+              left_type, right_type, functor);
+      }
+    }
+    case kDecimal: {
+      switch (right_type.getTypeID()) {
+        case kInt: {
+          LessLiteralUncheckedComparator<DecimalLit, false, int, false> comp;
+          return functor(comp);
+        }
+        case kLong: {
+          LessLiteralUncheckedComparator<DecimalLit, false, std::int64_t, false> comp;
+          return functor(comp);
+        }
+        case kFloat: {
+          LessLiteralUncheckedComparator<DecimalLit, false, float, false> comp;
+          return functor(comp);
+        }
+        case kDouble: {
+          LessLiteralUncheckedComparator<DecimalLit, false, double, false> comp;
+          return functor(comp);
+        }
+        case kDecimal: {
+          LessLiteralUncheckedComparator<DecimalLit, false, DecimalLit, false> comp;
           return functor(comp);
         }
         default:
@@ -544,6 +593,11 @@ auto InvokeOnBothLessComparatorsForDifferentTypesIgnoreNullability(
           LessLiteralUncheckedComparator<double, false, int, false> comp_reversed;
           return functor(comp, comp_reversed);
         }
+        case kDecimal: {
+          LessLiteralUncheckedComparator<int, false, DecimalLit, false> comp;
+          LessLiteralUncheckedComparator<DecimalLit, false, int, false> comp_reversed;
+          return functor(comp, comp_reversed);
+        }
         default:
           return comparison_util_detail::InvokeOnBothLessComparatorsForDifferentTypesFallback(
               left_type, right_type, functor);
@@ -575,6 +629,11 @@ auto InvokeOnBothLessComparatorsForDifferentTypesIgnoreNullability(
                                          std::int64_t, false> comp_reversed;
           return functor(comp, comp_reversed);
         }
+        case kDecimal: {
+          LessLiteralUncheckedComparator<std::int64_t, false, DecimalLit, false> comp;
+          LessLiteralUncheckedComparator<DecimalLit, false, std::int64_t, false> comp_reversed;
+          return functor(comp, comp_reversed);
+        }
         default:
           return comparison_util_detail::InvokeOnBothLessComparatorsForDifferentTypesFallback(
               left_type, right_type, functor);
@@ -599,6 +658,11 @@ auto InvokeOnBothLessComparatorsForDifferentTypesIgnoreNullability(
         case kDouble: {
           LessLiteralUncheckedComparator<float, false, double, false> comp;
           LessLiteralUncheckedComparator<double, false, float, false> comp_reversed;
+          return functor(comp, comp_reversed);
+        }
+        case kDecimal: {
+          LessLiteralUncheckedComparator<float, false, DecimalLit, false> comp;
+          LessLiteralUncheckedComparator<DecimalLit, false, float, false> comp_reversed;
           return functor(comp, comp_reversed);
         }
         default:
@@ -627,9 +691,45 @@ auto InvokeOnBothLessComparatorsForDifferentTypesIgnoreNullability(
           LessLiteralUncheckedComparator<double, false, double, false> comp;
           return functor(comp, comp);
         }
+        case kDecimal: {
+          LessLiteralUncheckedComparator<double, false, DecimalLit, false> comp;
+          LessLiteralUncheckedComparator<DecimalLit, false, double, false> comp_reversed;
+          return functor(comp, comp_reversed);
+        }
         default:
           return comparison_util_detail::InvokeOnBothLessComparatorsForDifferentTypesFallback(
               left_type, right_type, functor);
+      }
+    }
+    case kDecimal: {
+      switch (right_type.getTypeID()) {
+        case kInt: {
+          LessLiteralUncheckedComparator<DecimalLit, false, int, false> comp;
+          LessLiteralUncheckedComparator<int, false, DecimalLit, false> comp_reversed;
+          return functor(comp, comp_reversed);
+        }
+        case kLong: {
+          LessLiteralUncheckedComparator<DecimalLit, false, std::int64_t, false> comp;
+          LessLiteralUncheckedComparator<std::int64_t, false, DecimalLit, false> comp_reversed;
+          return functor(comp, comp_reversed);
+        }
+        case kFloat: {
+          LessLiteralUncheckedComparator<DecimalLit, false, float, false> comp;
+          LessLiteralUncheckedComparator<float, false, DecimalLit, false> comp_reversed;
+          return functor(comp, comp_reversed);
+        }
+        case kDouble: {
+          LessLiteralUncheckedComparator<DecimalLit, false, double, false> comp;
+          LessLiteralUncheckedComparator<double, false, DecimalLit, false> comp_reversed;
+          return functor(comp, comp_reversed);
+        }
+        case kDecimal: {
+          LessLiteralUncheckedComparator<DecimalLit, false, DecimalLit, false> comp;
+          return functor(comp, comp);
+        }
+      default:
+        return comparison_util_detail::InvokeOnBothLessComparatorsForDifferentTypesFallback(
+            left_type, right_type, functor);
       }
     }
     case kChar: {
@@ -959,6 +1059,8 @@ inline bool CheckUntypedValuesEqual(const Type &type, const void *left, const vo
       return STLLiteralEqual<float>()(left, right);
     case kDouble:
       return STLLiteralEqual<double>()(left, right);
+    case kDecimal:
+      return STLLiteralEqual<DecimalLit>()(left, right);
     case kChar:
       return STLCharEqual(static_cast<const AsciiStringSuperType&>(type).getStringLength())(left, right);
     case kVarChar:
@@ -1216,6 +1318,8 @@ inline TypedValue GetLastValueForType(const Type &type) {
       return TypedValue(std::numeric_limits<float>::max());
     case kDouble:
       return TypedValue(std::numeric_limits<double>::max());
+    case kDecimal:
+      return TypedValue(DecimalLit{std::numeric_limits<std::int64_t>::max()});
     case kChar:
       return TypedValue(kChar, kLastString, 2);
     case kVarChar:

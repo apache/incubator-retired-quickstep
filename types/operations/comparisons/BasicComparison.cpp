@@ -38,12 +38,14 @@ bool BasicComparison::canCompareTypes(const Type &left, const Type &right) const
     case kInt:
     case kLong:
     case kFloat:
-    case kDouble: {
+    case kDouble:
+    case kDecimal: {
       switch (right.getTypeID()) {
         case kInt:
         case kLong:
         case kFloat:
         case kDouble:
+        case kDecimal:
           return true;
         default:
           return false;

@@ -49,6 +49,7 @@ bool TypedValue::isPlausibleInstanceOf(const TypeSignature type) const {
     case kLong:
     case kFloat:
     case kDouble:
+    case kDecimal:
     case kDatetime:
     case kDatetimeInterval:
     case kYearMonthInterval:
@@ -102,6 +103,12 @@ serialization::TypedValue TypedValue::getProto() const {
       proto.set_type_id(serialization::Type::DOUBLE);
       if (!isNull()) {
         proto.set_double_value(getLiteral<double>());
+      }
+      break;
+    case kDecimal:
+      proto.set_type_id(serialization::Type::DECIMAL);
+      if (!isNull()) {
+        proto.set_decimal_value(value_union_.decimal_value.data_);
       }
       break;
     case kDatetime:
@@ -171,6 +178,15 @@ TypedValue TypedValue::ReconstructFromProto(const serialization::TypedValue &pro
       return proto.has_double_value() ?
           TypedValue(static_cast<double>(proto.double_value())) :
           TypedValue(kDouble);
+    case serialization::Type::DECIMAL: {
+      if (proto.has_decimal_value()) {
+        DecimalLit result;
+        result.data_ = proto.decimal_value();
+        return TypedValue(result);
+      } else {
+        return TypedValue(kDecimal);
+      }
+    }
     case serialization::Type::DATETIME:
       if (proto.has_datetime_value()) {
         DatetimeLit datetime;
