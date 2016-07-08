@@ -22,7 +22,7 @@
 #include <utility>
 #include <vector>
 
-#include "expressions/aggregation/AggregateFunction.hpp"
+#include "expressions/window_aggregation/WindowAggregateFunction.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/PatternMatcher.hpp"
@@ -59,7 +59,7 @@ const Type& WindowAggregateFunction::getValueType() const {
 }
 
 WindowAggregateFunctionPtr WindowAggregateFunction::Create(
-    const ::quickstep::AggregateFunction &window_aggregate,
+    const ::quickstep::WindowAggregateFunction &window_aggregate,
     const std::vector<ScalarPtr> &arguments,
     const WindowInfo &window_info,
     const std::string &window_name,

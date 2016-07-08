@@ -1053,19 +1053,26 @@ target_link_libraries(quickstep_storage_WindowAggregationOperationState
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_ExpressionFactories
                       quickstep_expressions_Expressions_proto
-                      quickstep_expressions_aggregation_AggregateFunction
-                      quickstep_expressions_aggregation_AggregateFunctionFactory
-                      quickstep_expressions_aggregation_AggregationHandle
-                      quickstep_expressions_aggregation_AggregationID
                       quickstep_expressions_scalar_Scalar
                       quickstep_expressions_scalar_ScalarAttribute
+                      quickstep_expressions_windowaggregation_WindowAggregateFunction
+                      quickstep_expressions_windowaggregation_WindowAggregateFunctionFactory
+                      quickstep_expressions_windowaggregation_WindowAggregationHandle
+                      quickstep_expressions_windowaggregation_WindowAggregationID
+                      quickstep_storage_InsertDestination
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
+                      quickstep_storage_SubBlocksReference
+                      quickstep_storage_ValueAccessor
+                      quickstep_storage_ValueAccessorUtil
                       quickstep_storage_WindowAggregationOperationState_proto
+                      quickstep_types_containers_ColumnVector
+                      quickstep_types_containers_ColumnVectorUtil
+                      quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_WindowAggregationOperationState_proto
-                      quickstep_expressions_aggregation_AggregateFunction_proto
                       quickstep_expressions_Expressions_proto
+                      quickstep_expressions_windowaggregation_WindowAggregateFunction_proto
                       ${PROTOBUF_LIBRARY})
 
 # Module all-in-one library:

@@ -58,16 +58,19 @@ class WindowAggregationOperator : public RelationalOperator {
    *
    * @param query_id The ID of this query.
    * @param input_relation The relation to perform aggregation over.
+   * @param output_relation The relation for output.
    * @param window_aggregation_state_index The index of WindowAggregationState
    *                                       in QueryContext.
    * @param output_destination_index The index of InsertDestination in
    *                                 QueryContext for the output.
    **/
   WindowAggregationOperator(const std::size_t query_id,
+                            const CatalogRelation &input_relation,
                             const CatalogRelation &output_relation,
                             const QueryContext::window_aggregation_state_id window_aggregation_state_index,
                             const QueryContext::insert_destination_id output_destination_index)
       : RelationalOperator(query_id),
+        input_relation_(input_relation),
         output_relation_(output_relation),
         window_aggregation_state_index_(window_aggregation_state_index),
         output_destination_index_(output_destination_index),
@@ -99,6 +102,7 @@ class WindowAggregationOperator : public RelationalOperator {
    **/
   serialization::WorkOrder* createWorkOrderProto();
 
+  const CatalogRelation &input_relation_;
   const CatalogRelation &output_relation_;
   const QueryContext::window_aggregation_state_id window_aggregation_state_index_;
   const QueryContext::insert_destination_id output_destination_index_;
@@ -117,43 +121,25 @@ class WindowAggregationWorkOrder : public WorkOrder {
    *
    * @param query_id The ID of this query.
    * @param state The WindowAggregationOperatorState to use.
+   * @param block_ids The blocks' id of the input relation.
    * @param output_destination The InsertDestination for output.
    **/
   WindowAggregationWorkOrder(const std::size_t query_id,
                              WindowAggregationOperationState *state,
+                             std::vector<block_id> &&block_ids,
                              InsertDestination *output_destination)
       : WorkOrder(query_id),
         state_(state),
+        block_ids_(std::move(block_ids)),
         output_destination_(output_destination)  {}
 
   ~WindowAggregationWorkOrder() override {}
-
-  /**
-   * @brief Get the pointer to WindowAggregationOperationState.
-   * @note This is a quickfix for "unused variable". After the window aggregate
-   *       functions are built, these methods might be dropped.
-   *
-   * @return A pointer to the window aggregation operation state.
-   **/
-  WindowAggregationOperationState* state() {
-    return state_;
-  }
-
-  /**
-   * @brief Get the pointer to output destination.
-   * @note This is a quickfix for "unused variable". After the window aggregate
-   *       functions are built, these methods might be dropped.
-   *
-   * @return A pointer to the output destination.
-   **/
-  InsertDestination* output_destination() {
-    return output_destination_;
-  }
 
   void execute() override;
 
  private:
   WindowAggregationOperationState *state_;
+  const std::vector<block_id> block_ids_;
   InsertDestination *output_destination_;
 
   DISALLOW_COPY_AND_ASSIGN(WindowAggregationWorkOrder);

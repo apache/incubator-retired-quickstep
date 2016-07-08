@@ -33,8 +33,8 @@
 
 namespace quickstep {
 
-class AggregateFunction;
 class Type;
+class WindowAggregateFunction;
 
 namespace optimizer {
 namespace expressions {
@@ -140,7 +140,7 @@ class WindowAggregateFunction : public Expression {
    * @return The WindowAggregateFunction singleton (from the expression system)
    *         for this node.
    **/
-  inline const ::quickstep::AggregateFunction& window_aggregate() const {
+  inline const ::quickstep::WindowAggregateFunction& window_aggregate() const {
     return window_aggregate_;
   }
 
@@ -185,7 +185,7 @@ class WindowAggregateFunction : public Expression {
    * @param is_distinct Whether this is a DISTINCT aggregation.
    * @return A new AggregateFunctionPtr.
    **/
-  static WindowAggregateFunctionPtr Create(const ::quickstep::AggregateFunction &window_aggregate,
+  static WindowAggregateFunctionPtr Create(const ::quickstep::WindowAggregateFunction &window_aggregate,
                                            const std::vector<ScalarPtr> &arguments,
                                            const WindowInfo &window_info,
                                            const std::string &window_name,
@@ -209,7 +209,7 @@ class WindowAggregateFunction : public Expression {
    * @param window_info The window info of the window aggregate function.
    * @param is_distinct Indicates whether this is a DISTINCT aggregation.
    */
-  WindowAggregateFunction(const ::quickstep::AggregateFunction &window_aggregate,
+  WindowAggregateFunction(const ::quickstep::WindowAggregateFunction &window_aggregate,
                           const std::vector<ScalarPtr> &arguments,
                           const WindowInfo &window_info,
                           const std::string &window_name,
@@ -228,7 +228,7 @@ class WindowAggregateFunction : public Expression {
   // window_aggregate_. If it really needs to be seperated from the
   // AggregationFunction, a new class for WindowAggregationFunction should be
   // created as quickstep::WindowAggregateFunction.
-  const ::quickstep::AggregateFunction &window_aggregate_;
+  const ::quickstep::WindowAggregateFunction &window_aggregate_;
   std::vector<ScalarPtr> arguments_;
   const WindowInfo window_info_;
   const std::string window_name_;
