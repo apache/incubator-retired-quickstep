@@ -17,6 +17,7 @@ add_subdirectory(aggregation)
 add_subdirectory(predicate)
 add_subdirectory(scalar)
 add_subdirectory(table_generator)
+add_subdirectory(window_aggregation)
 
 QS_PROTOBUF_GENERATE_CPP(expressions_Expressions_proto_srcs
                          expressions_Expressions_proto_hdrs

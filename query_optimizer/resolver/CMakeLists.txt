@@ -39,6 +39,8 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_expressions_tablegenerator_GeneratorFunction
                       quickstep_expressions_tablegenerator_GeneratorFunctionFactory
                       quickstep_expressions_tablegenerator_GeneratorFunctionHandle
+                      quickstep_expressions_windowaggregation_WindowAggregateFunction
+                      quickstep_expressions_windowaggregation_WindowAggregateFunctionFactory
                       quickstep_parser_ParseAssignment
                       quickstep_parser_ParseBasicExpressions
                       quickstep_parser_ParseBlockProperties

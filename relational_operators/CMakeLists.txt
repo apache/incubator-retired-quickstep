@@ -434,6 +434,7 @@ target_link_libraries(quickstep_relationaloperators_WindowAggregationOperator
                       quickstep_relationaloperators_WorkOrder
                       quickstep_relationaloperators_WorkOrder_proto
                       quickstep_storage_StorageBlockInfo
+                      quickstep_storage_WindowAggregationOperationState
                       quickstep_utility_Macros
                       tmb)                      
 target_link_libraries(quickstep_relationaloperators_WorkOrder

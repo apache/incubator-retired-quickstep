@@ -31,14 +31,21 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/ExpressionFactories.hpp"
 #include "expressions/Expressions.pb.h"
-#include "expressions/aggregation/AggregateFunction.hpp"
-#include "expressions/aggregation/AggregateFunctionFactory.hpp"
-#include "expressions/aggregation/AggregationHandle.hpp"
-#include "expressions/aggregation/AggregationID.hpp"
 #include "expressions/scalar/Scalar.hpp"
 #include "expressions/scalar/ScalarAttribute.hpp"
+#include "expressions/window_aggregation/WindowAggregateFunction.hpp"
+#include "expressions/window_aggregation/WindowAggregateFunctionFactory.hpp"
+#include "expressions/window_aggregation/WindowAggregationHandle.hpp"
+#include "expressions/window_aggregation/WindowAggregationID.hpp"
+#include "storage/InsertDestination.hpp"
 #include "storage/StorageManager.hpp"
+#include "storage/SubBlocksReference.hpp"
+#include "storage/ValueAccessor.hpp"
+#include "storage/ValueAccessorUtil.hpp"
 #include "storage/WindowAggregationOperationState.pb.h"
+#include "types/containers/ColumnVector.hpp"
+#include "types/containers/ColumnVectorsValueAccessor.hpp"
+#include "types/containers/ColumnVectorUtil.hpp"
 
 #include "glog/logging.h"
 
@@ -46,23 +53,21 @@ namespace quickstep {
 
 WindowAggregationOperationState::WindowAggregationOperationState(
     const CatalogRelationSchema &input_relation,
-    const AggregateFunction *window_aggregate_function,
+    const WindowAggregateFunction *window_aggregate_function,
     std::vector<std::unique_ptr<const Scalar>> &&arguments,
-    std::vector<std::unique_ptr<const Scalar>> &&partition_by_attributes,
+    const std::vector<std::unique_ptr<const Scalar>> &partition_by_attributes,
     const bool is_row,
     const std::int64_t num_preceding,
     const std::int64_t num_following,
     StorageManager *storage_manager)
     : input_relation_(input_relation),
       arguments_(std::move(arguments)),
-      partition_by_attributes_(std::move(partition_by_attributes)),
       is_row_(is_row),
       num_preceding_(num_preceding),
       num_following_(num_following),
       storage_manager_(storage_manager) {
   // Get the Types of this window aggregate's arguments so that we can create an
   // AggregationHandle.
-  // TODO(Shixuan): Next step: New handles for window aggregation function.
   std::vector<const Type*> argument_types;
   for (const std::unique_ptr<const Scalar> &argument : arguments_) {
     argument_types.emplace_back(&argument->getType());
@@ -71,28 +76,18 @@ WindowAggregationOperationState::WindowAggregationOperationState(
   // Check if window aggregate function could apply to the arguments.
   DCHECK(window_aggregate_function->canApplyToTypes(argument_types));
 
+  // IDs and types of partition keys.
+  std::vector<const Type*> partition_by_types;
+  for (const std::unique_ptr<const Scalar> &partition_by_attribute : partition_by_attributes) {
+    partition_by_ids_.push_back(
+        partition_by_attribute->getAttributeIdForValueAccessor());
+    partition_by_types.push_back(&partition_by_attribute->getType());
+  }
+
   // Create the handle and initial state.
   window_aggregation_handle_.reset(
-      window_aggregate_function->createHandle(argument_types));
-  window_aggregation_state_.reset(
-      window_aggregation_handle_->createInitialState());
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-  // See if all of this window aggregate's arguments are attributes in the input
-  // relation. If so, remember the attribute IDs so that we can do copy elision
-  // when actually performing the window aggregation.
-  arguments_as_attributes_.reserve(arguments_.size());
-  for (const std::unique_ptr<const Scalar> &argument : arguments_) {
-    const attribute_id argument_id = argument->getAttributeIdForValueAccessor();
-    if (argument_id == -1) {
-      arguments_as_attributes_.clear();
-      break;
-    } else {
-      DCHECK_EQ(input_relation_.getID(), argument->getRelationIdForValueAccessor());
-      arguments_as_attributes_.push_back(argument_id);
-    }
-  }
-#endif
+      window_aggregate_function->createHandle(std::move(argument_types),
+                                              std::move(partition_by_types)));
 }
 
 WindowAggregationOperationState* WindowAggregationOperationState::ReconstructFromProto(
@@ -100,10 +95,6 @@ WindowAggregationOperationState* WindowAggregationOperationState::ReconstructFro
     const CatalogDatabaseLite &database,
     StorageManager *storage_manager) {
   DCHECK(ProtoIsValid(proto, database));
-
-  // Rebuild contructor arguments from their representation in 'proto'.
-  const AggregateFunction *aggregate_function
-      = &AggregateFunctionFactory::ReconstructFromProto(proto.function());
 
   std::vector<std::unique_ptr<const Scalar>> arguments;
   arguments.reserve(proto.arguments_size());
@@ -126,10 +117,10 @@ WindowAggregationOperationState* WindowAggregationOperationState::ReconstructFro
   const std::int64_t num_preceding = proto.num_preceding();
   const std::int64_t num_following = proto.num_following();
 
-  return new WindowAggregationOperationState(database.getRelationSchemaById(proto.relation_id()),
-                                             aggregate_function,
+  return new WindowAggregationOperationState(database.getRelationSchemaById(proto.input_relation_id()),
+                                             &WindowAggregateFunctionFactory::ReconstructFromProto(proto.function()),
                                              std::move(arguments),
-                                             std::move(partition_by_attributes),
+                                             partition_by_attributes,
                                              is_row,
                                              num_preceding,
                                              num_following,
@@ -139,11 +130,11 @@ WindowAggregationOperationState* WindowAggregationOperationState::ReconstructFro
 bool WindowAggregationOperationState::ProtoIsValid(const serialization::WindowAggregationOperationState &proto,
                                                    const CatalogDatabaseLite &database) {
   if (!proto.IsInitialized() ||
-      !database.hasRelationWithId(proto.relation_id())) {
+      !database.hasRelationWithId(proto.input_relation_id())) {
     return false;
   }
 
-  if (!AggregateFunctionFactory::ProtoIsValid(proto.function())) {
+  if (!WindowAggregateFunctionFactory::ProtoIsValid(proto.function())) {
     return false;
   }
 
@@ -174,6 +165,124 @@ bool WindowAggregationOperationState::ProtoIsValid(const serialization::WindowAg
   }
 
   return true;
+}
+
+void WindowAggregationOperationState::windowAggregateBlocks(
+    InsertDestination *output_destination,
+    const std::vector<block_id> &block_ids) {
+  // TODO(Shixuan): This is a quick fix for currently unsupported functions in
+  // order to pass the query_optimizer test.
+  if (window_aggregation_handle_.get() == nullptr) {
+    std::cout << "The function will be supported in the near future :)\n";
+    return;
+  }
+
+  // TODO(Shixuan): RANGE frame mode should be supported to make SQL grammar
+  // work. This will need Order Key to be passed so that we know where the
+  // window should start and end.
+  if (!is_row_) {
+    std::cout << "Currently we don't support RANGE frame mode :(\n";
+    return;
+  }
+
+  // Get the total number of tuples.
+  int num_tuples = 0;
+  for (const block_id block_idx : block_ids) {
+    num_tuples +=
+        storage_manager_->getBlock(block_idx, input_relation_)->getNumTuples();
+  }
+
+  // Construct column vectors for attributes.
+  std::vector<ColumnVector*> attribute_vecs;
+  for (std::size_t attr_id = 0; attr_id < input_relation_.size(); ++attr_id) {
+    const CatalogAttribute *attr = input_relation_.getAttributeById(attr_id);
+    const Type &type = attr->getType();
+
+    if (NativeColumnVector::UsableForType(type)) {
+      attribute_vecs.push_back(new NativeColumnVector(type, num_tuples));
+    } else {
+      attribute_vecs.push_back(new IndirectColumnVector(type, num_tuples));
+    }
+  }
+
+  // Construct column vectors for arguments.
+  std::vector<ColumnVector*> argument_vecs;
+  for (const std::unique_ptr<const Scalar> &argument : arguments_) {
+    const Type &type = argument->getType();
+
+    if (NativeColumnVector::UsableForType(type)) {
+      argument_vecs.push_back(new NativeColumnVector(type, num_tuples));
+    } else {
+      argument_vecs.push_back(new IndirectColumnVector(type, num_tuples));
+    }
+  }
+
+  // TODO(Shixuan): Add Support for Vector Copy Elision Selection.
+  // Add tuples and arguments into ColumnVectors.
+  for (const block_id block_idx : block_ids) {
+    BlockReference block = storage_manager_->getBlock(block_idx, input_relation_);
+    const TupleStorageSubBlock &tuple_block = block->getTupleStorageSubBlock();
+    SubBlocksReference sub_block_ref(tuple_block,
+                                     block->getIndices(),
+                                     block->getIndicesConsistent());
+    ValueAccessor *tuple_accessor = tuple_block.createValueAccessor();
+    ColumnVectorsValueAccessor *argument_accessor = new ColumnVectorsValueAccessor();
+    for (const std::unique_ptr<const Scalar> &argument : arguments_) {
+      argument_accessor->addColumn(argument->getAllValues(tuple_accessor,
+                                                          &sub_block_ref));
+    }
+
+    InvokeOnAnyValueAccessor(tuple_accessor,
+                             [&] (auto *tuple_accessor) -> void {  // NOLINT(build/c++11)
+      tuple_accessor->beginIteration();
+      argument_accessor->beginIteration();
+
+      while (tuple_accessor->next() && argument_accessor->next()) {
+        for (std::size_t attr_id = 0; attr_id < attribute_vecs.size(); ++attr_id) {
+          ColumnVector *attr_vec = attribute_vecs[attr_id];
+          if (attr_vec->isNative()) {
+            static_cast<NativeColumnVector*>(attr_vec)->appendTypedValue(
+                tuple_accessor->getTypedValue(attr_id));
+          } else {
+            static_cast<IndirectColumnVector*>(attr_vec)->appendTypedValue(
+                tuple_accessor->getTypedValue(attr_id));
+          }
+        }
+
+        for (std::size_t argument_idx = 0;
+             argument_idx < argument_vecs.size();
+             ++argument_idx) {
+          ColumnVector *argument = argument_vecs[argument_idx];
+          if (argument->isNative()) {
+            static_cast<NativeColumnVector*>(argument)->appendTypedValue(
+                argument_accessor->getTypedValue(argument_idx));
+          } else {
+            static_cast<IndirectColumnVector*>(argument)->appendTypedValue(
+                argument_accessor->getTypedValue(argument_idx));
+          }
+        }
+      }
+    });
+  }
+
+  // Construct the value accessor for tuples in all blocks
+  ColumnVectorsValueAccessor *all_blocks_accessor
+      = new ColumnVectorsValueAccessor();
+  for (ColumnVector *attr_vec : attribute_vecs) {
+    all_blocks_accessor->addColumn(attr_vec);
+  }
+
+  // Do actual calculation in handle.
+  ColumnVector *window_aggregates =
+      window_aggregation_handle_->calculate(all_blocks_accessor,
+                                            std::move(argument_vecs),
+                                            partition_by_ids_,
+                                            is_row_,
+                                            num_preceding_,
+                                            num_following_);
+
+  all_blocks_accessor->addColumn(window_aggregates);
+  output_destination->bulkInsertTuples(all_blocks_accessor);
 }
 
 }  // namespace quickstep

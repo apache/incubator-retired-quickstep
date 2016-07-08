@@ -23,7 +23,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "query_optimizer/expressions/AggregateFunction.hpp"
 #include "query_optimizer/expressions/Alias.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
@@ -460,14 +459,14 @@ class Resolver {
    * @param expression_resolution_info Resolution info that contains the name
    *                                   resolver and info to be updated after
    *                                   resolution.
-   * @param aggregate The aggregate function.
+   * @param aggregate The window aggregate function.
    * @param resolved_arguments The resolved arguments.
    * @return An expression in the query optimizer.
    */
   expressions::ScalarPtr resolveWindowAggregateFunction(
       const ParseFunctionCall &parse_function_call,
       ExpressionResolutionInfo *expression_resolution_info,
-      const ::quickstep::AggregateFunction *aggregate,
+      const ::quickstep::WindowAggregateFunction *aggregate,
       const std::vector<expressions::ScalarPtr> &resolved_arguments);
 
   /**
