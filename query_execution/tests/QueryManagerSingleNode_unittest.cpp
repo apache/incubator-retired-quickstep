@@ -16,6 +16,7 @@
  **/
 
 #include <climits>
+#include <cstdlib>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -28,7 +29,7 @@
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionState.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
-#include "query_execution/QueryManager.hpp"
+#include "query_execution/QueryManagerSingleNode.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "query_execution/WorkerDirectory.hpp"
 #include "query_execution/WorkerMessage.hpp"
@@ -48,8 +49,9 @@
 #include "gtest/gtest.h"
 
 #include "tmb/id_typedefs.h"
-#include "tmb/message_bus.h"
 #include "tmb/tagged_message.h"
+
+namespace tmb { class MessageBus; }
 
 using std::move;
 using std::unique_ptr;
@@ -234,7 +236,7 @@ class QueryManagerTest : public ::testing::Test {
   }
 
   inline void constructQueryManager() {
-    query_manager_.reset(new QueryManager(
+    query_manager_.reset(new QueryManagerSingleNode(
         0, 1, query_handle_.get(), db_.get(), storage_manager_.get(), &bus_));
   }
 
@@ -343,7 +345,7 @@ class QueryManagerTest : public ::testing::Test {
 
   QueryPlan *query_plan_;
   unique_ptr<QueryHandle> query_handle_;
-  unique_ptr<QueryManager> query_manager_;
+  unique_ptr<QueryManagerSingleNode> query_manager_;
 
   MessageBusImpl bus_;
 
