@@ -503,6 +503,8 @@ class Learner {
   void printWorkOrderDetails(
       const serialization::NormalWorkOrderCompletionMessage &proto) const;
 
+  void printPredictedWorkOrderTimes();
+
   // Key = Priority level, value = A vector of pairs.
   // Each pair:
   // 1st element: Query ID.

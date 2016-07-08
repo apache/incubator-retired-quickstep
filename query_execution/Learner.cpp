@@ -66,6 +66,7 @@ void Learner::addCompletionFeedback(
   updateProbabilitiesOfAllPriorityLevels();
   // printProbabilitiesForPriorityLevel(priority_level);
   printWorkOrderDetails(workorder_completion_proto);
+  printPredictedWorkOrderTimes();
 }
 
 void Learner::updateProbabilitiesForQueriesInPriorityLevel(
@@ -305,6 +306,26 @@ void Learner::printWorkOrderDetails(
   result += "|";
   result += std::to_string(proto.execution_end_timestamp());  // 12 chars
   LOG(INFO) << result;
+}
+
+void Learner::printPredictedWorkOrderTimes() {
+  std::string output = "";
+  output.reserve(50);
+  for (auto qid_priority_pair : query_id_to_priority_lookup_) {
+    ExecutionStats *stats = getExecutionStats(qid_priority_pair.first);
+    auto query_stats = stats->getCurrentStats();
+    output += std::to_string(qid_priority_pair.first);
+    output += ",";
+    const float mean_workorder_time =
+        query_stats.first / static_cast<float>(query_stats.second);
+    output += std::to_string(mean_workorder_time);
+    output += ",";
+  }
+  if (!output.empty()) {
+    // Remove the trailing comma.
+    output.pop_back();
+    LOG(INFO) << output;
+  }
 }
 
 }  // namespace quickstep
