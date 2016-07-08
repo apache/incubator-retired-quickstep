@@ -26,7 +26,7 @@
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
-#include "query_execution/QueryManager.hpp"
+#include "query_execution/QueryManagerSingleNode.hpp"
 #include "query_execution/WorkerDirectory.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -47,8 +47,8 @@ bool PolicyEnforcer::admitQuery(QueryHandle *query_handle) {
     if (admitted_queries_.find(query_id) == admitted_queries_.end()) {
       // Query with the same ID not present, ok to admit.
       admitted_queries_[query_id].reset(
-          new QueryManager(foreman_client_id_, num_numa_nodes_, query_handle,
-                           catalog_database_, storage_manager_, bus_));
+          new QueryManagerSingleNode(foreman_client_id_, num_numa_nodes_, query_handle,
+                                     catalog_database_, storage_manager_, bus_));
       return true;
     } else {
       LOG(ERROR) << "Query with the same ID " << query_id << " exists";
@@ -124,9 +124,9 @@ void PolicyEnforcer::processMessage(const TaggedMessage &tagged_message) {
       LOG(FATAL) << "Unknown message type found in PolicyEnforcer";
   }
   DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
-  const QueryManager::QueryStatusCode return_code =
+  const QueryManagerBase::QueryStatusCode return_code =
       admitted_queries_[query_id]->processMessage(tagged_message);
-  if (return_code == QueryManager::QueryStatusCode::kQueryExecuted) {
+  if (return_code == QueryManagerBase::QueryStatusCode::kQueryExecuted) {
     removeQuery(query_id);
     if (!waiting_queries_.empty()) {
       // Admit the earliest waiting query.
@@ -156,12 +156,12 @@ void PolicyEnforcer::getWorkerMessages(
   std::vector<std::size_t> finished_queries_ids;
 
   for (const auto &admitted_query_info : admitted_queries_) {
-    QueryManager *curr_query_manager = admitted_query_info.second.get();
+    QueryManagerBase *curr_query_manager = admitted_query_info.second.get();
     DCHECK(curr_query_manager != nullptr);
     std::size_t messages_collected_curr_query = 0;
     while (messages_collected_curr_query < per_query_share) {
       WorkerMessage *next_worker_message =
-          curr_query_manager->getNextWorkerMessage(0, kAnyNUMANodeID);
+          static_cast<QueryManagerSingleNode*>(curr_query_manager)->getNextWorkerMessage(0, kAnyNUMANodeID);
       if (next_worker_message != nullptr) {
         ++messages_collected_curr_query;
         worker_messages->push_back(std::unique_ptr<WorkerMessage>(next_worker_message));

@@ -26,7 +26,7 @@
 #include <vector>
 
 #include "query_execution/QueryExecutionTypedefs.hpp"
-#include "query_execution/QueryManager.hpp"
+#include "query_execution/QueryManagerBase.hpp"
 #include "query_execution/WorkerMessage.hpp"
 #include "utility/Macros.hpp"
 
@@ -190,8 +190,8 @@ class PolicyEnforcer {
   tmb::MessageBus *bus_;
   const bool profile_individual_workorders_;
 
-  // Key = query ID, value = QueryManager* for the key query.
-  std::unordered_map<std::size_t, std::unique_ptr<QueryManager>> admitted_queries_;
+  // Key = query ID, value = QueryManagerBase* for the key query.
+  std::unordered_map<std::size_t, std::unique_ptr<QueryManagerBase>> admitted_queries_;
 
   // The queries which haven't been admitted yet.
   std::queue<QueryHandle*> waiting_queries_;
@@ -214,4 +214,4 @@ class PolicyEnforcer {
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_QUERY_EXECUTION_QUERY_MANAGER_HPP_
+#endif  // QUICKSTEP_QUERY_EXECUTION_POLICY_ENFORCER_HPP_
