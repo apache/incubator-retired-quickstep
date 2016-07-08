@@ -316,9 +316,13 @@ void Learner::printPredictedWorkOrderTimes() {
     auto query_stats = stats->getCurrentStats();
     output += std::to_string(qid_priority_pair.first);
     output += ",";
-    const float mean_workorder_time =
-        query_stats.first / static_cast<float>(query_stats.second);
-    output += std::to_string(mean_workorder_time);
+    if (query_stats.second != 0) {
+      const float mean_workorder_time =
+          query_stats.first / static_cast<float>(query_stats.second);
+      output += std::to_string(mean_workorder_time);
+    } else {
+      output += std::to_string(0.0);
+    }
     output += ",";
   }
   if (!output.empty()) {
