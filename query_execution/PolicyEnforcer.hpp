@@ -33,8 +33,8 @@
 #include "glog/logging.h"
 
 #include "tmb/id_typedefs.h"
-#include "tmb/message_bus.h"
-#include "tmb/tagged_message.h"
+
+namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
@@ -42,6 +42,12 @@ class CatalogDatabaseLite;
 class QueryHandle;
 class StorageManager;
 class WorkerDirectory;
+
+namespace serialization { class NormalWorkOrderCompletionMessage; }
+
+/** \addtogroup QueryExecution
+ *  @{
+ */
 
 /**
  * @brief A class that ensures that a high level policy is maintained

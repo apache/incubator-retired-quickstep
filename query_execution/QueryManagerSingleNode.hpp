@@ -68,6 +68,8 @@ class QueryManagerSingleNode final : public QueryManagerBase {
 
   ~QueryManagerSingleNode() override {}
 
+  bool fetchNormalWorkOrders(const dag_node_index index) override;
+
  /**
    * @brief Get the next workorder to be excuted, wrapped in a WorkerMessage.
    *
@@ -91,8 +93,6 @@ class QueryManagerSingleNode final : public QueryManagerBase {
   }
 
  private:
-  bool fetchNormalWorkOrders(const dag_node_index index) override;
-
   bool checkNormalExecutionOver(const dag_node_index index) const override {
     return (checkAllDependenciesMet(index) &&
             !workorders_container_->hasNormalWorkOrder(index) &&

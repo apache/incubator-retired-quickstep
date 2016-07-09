@@ -21,13 +21,8 @@
 #include <utility>
 #include <vector>
 
-#include "catalog/CatalogDatabase.hpp"
-#include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
-#include "catalog/PartitionScheme.hpp"
 #include "query_execution/QueryContext.hpp"
-#include "query_execution/QueryExecutionMessages.pb.h"
-#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryPlan.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -39,10 +34,8 @@ using std::pair;
 
 namespace quickstep {
 
-QueryManagerBase::QueryManagerBase(QueryHandle *query_handle,
-                                   CatalogDatabaseLite *catalog_database)
+QueryManagerBase::QueryManagerBase(QueryHandle *query_handle)
     : query_id_(DCHECK_NOTNULL(query_handle)->query_id()),
-      catalog_database_(DCHECK_NOTNULL(catalog_database)),
       query_dag_(DCHECK_NOTNULL(
           DCHECK_NOTNULL(query_handle->getQueryPlanMutable())->getQueryPlanDAGMutable())),
       num_operators_in_dag_(query_dag_->size()),
@@ -76,82 +69,8 @@ QueryManagerBase::QueryManagerBase(QueryHandle *query_handle,
   }
 }
 
-QueryManagerBase::QueryStatusCode QueryManagerBase::processMessage(
-    const TaggedMessage &tagged_message) {
-  dag_node_index op_index;
-  switch (tagged_message.message_type()) {
-    case kWorkOrderCompleteMessage: {
-      serialization::NormalWorkOrderCompletionMessage proto;
-      CHECK(proto.ParseFromArray(tagged_message.message(),
-                                 tagged_message.message_bytes()));
-
-      op_index = proto.operator_index();
-      processWorkOrderCompleteMessage(proto.operator_index());
-      break;
-    }
-    case kRebuildWorkOrderCompleteMessage: {
-      serialization::RebuildWorkOrderCompletionMessage proto;
-      CHECK(proto.ParseFromArray(tagged_message.message(),
-                                 tagged_message.message_bytes()));
-
-      op_index = proto.operator_index();
-      processRebuildWorkOrderCompleteMessage(proto.operator_index());
-      break;
-    }
-    case kCatalogRelationNewBlockMessage: {
-      serialization::CatalogRelationNewBlockMessage proto;
-      CHECK(proto.ParseFromArray(tagged_message.message(),
-                                 tagged_message.message_bytes()));
-
-      const block_id block = proto.block_id();
-
-      CatalogRelation *relation =
-          static_cast<CatalogDatabase*>(catalog_database_)->getRelationByIdMutable(proto.relation_id());
-      relation->addBlock(block);
-
-      if (proto.has_partition_id()) {
-        relation->getPartitionSchemeMutable()->addBlockToPartition(
-            proto.partition_id(), block);
-      }
-      return QueryStatusCode::kNone;
-    }
-    case kDataPipelineMessage: {
-      // Possible message senders include InsertDestinations and some
-      // operators which modify existing blocks.
-      serialization::DataPipelineMessage proto;
-      CHECK(proto.ParseFromArray(tagged_message.message(),
-                                 tagged_message.message_bytes()));
-
-      op_index = proto.operator_index();
-      processDataPipelineMessage(proto.operator_index(),
-                                 proto.block_id(),
-                                 proto.relation_id());
-      break;
-    }
-    case kWorkOrdersAvailableMessage: {
-      serialization::WorkOrdersAvailableMessage proto;
-      CHECK(proto.ParseFromArray(tagged_message.message(),
-                                 tagged_message.message_bytes()));
-
-      op_index = proto.operator_index();
-
-      // Check if new work orders are available.
-      fetchNormalWorkOrders(op_index);
-      break;
-    }
-    case kWorkOrderFeedbackMessage: {
-      WorkOrder::FeedbackMessage msg(
-          const_cast<void *>(tagged_message.message()),
-          tagged_message.message_bytes());
-
-      op_index = msg.header().rel_op_index;
-      processFeedbackMessage(msg);
-      break;
-    }
-    default:
-      LOG(FATAL) << "Unknown message type found in QueryManager";
-  }
-
+QueryManagerBase::QueryStatusCode QueryManagerBase::queryStatus(
+    const dag_node_index op_index) {
   if (query_exec_state_->hasExecutionFinished(op_index)) {
     return QueryStatusCode::kOperatorExecuted;
   }
@@ -165,9 +84,9 @@ QueryManagerBase::QueryStatusCode QueryManagerBase::processMessage(
 }
 
 void QueryManagerBase::processFeedbackMessage(
-    const WorkOrder::FeedbackMessage &msg) {
+    const dag_node_index op_index, const WorkOrder::FeedbackMessage &msg) {
   RelationalOperator *op =
-      query_dag_->getNodePayloadMutable(msg.header().rel_op_index);
+      query_dag_->getNodePayloadMutable(op_index);
   op->receiveFeedbackMessage(msg);
 }
 
