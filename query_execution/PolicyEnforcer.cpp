@@ -24,12 +24,19 @@
 #include <unordered_map>
 #include <vector>
 
+#include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/PartitionScheme.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
+#include "query_execution/QueryExecutionState.hpp"
+#include "query_execution/QueryManagerBase.hpp"
 #include "query_execution/QueryManagerSingleNode.hpp"
 #include "query_execution/WorkerDirectory.hpp"
+#include "query_execution/WorkerMessage.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "relational_operators/WorkOrder.hpp"
+#include "storage/StorageBlockInfo.hpp"
 
 #include "gflags/gflags.h"
 #include "glog/logging.h"
@@ -62,10 +69,9 @@ bool PolicyEnforcer::admitQuery(QueryHandle *query_handle) {
 }
 
 void PolicyEnforcer::processMessage(const TaggedMessage &tagged_message) {
-  // TODO(harshad) : Provide processXMessage() public functions in
-  // QueryManager, so that we need to extract message from the
-  // TaggedMessage only once.
   std::size_t query_id;
+  QueryManagerBase::dag_node_index op_index;
+
   switch (tagged_message.message_type()) {
     case kWorkOrderCompleteMessage: {
       serialization::NormalWorkOrderCompletionMessage proto;
@@ -73,12 +79,17 @@ void PolicyEnforcer::processMessage(const TaggedMessage &tagged_message) {
       // WorkOrder. It can be accessed in this scope.
       CHECK(proto.ParseFromArray(tagged_message.message(),
                                  tagged_message.message_bytes()));
-      query_id = proto.query_id();
       worker_directory_->decrementNumQueuedWorkOrders(
           proto.worker_thread_index());
       if (profile_individual_workorders_) {
         recordTimeForWorkOrder(proto);
       }
+
+      query_id = proto.query_id();
+      DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
+
+      op_index = proto.operator_index();
+      admitted_queries_[query_id]->processWorkOrderCompleteMessage(op_index);
       break;
     }
     case kRebuildWorkOrderCompleteMessage: {
@@ -87,23 +98,43 @@ void PolicyEnforcer::processMessage(const TaggedMessage &tagged_message) {
       // rebuild WorkOrder. It can be accessed in this scope.
       CHECK(proto.ParseFromArray(tagged_message.message(),
                                  tagged_message.message_bytes()));
-      query_id = proto.query_id();
       worker_directory_->decrementNumQueuedWorkOrders(
           proto.worker_thread_index());
+
+      query_id = proto.query_id();
+      DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
+
+      op_index = proto.operator_index();
+      admitted_queries_[query_id]->processRebuildWorkOrderCompleteMessage(op_index);
       break;
     }
     case kCatalogRelationNewBlockMessage: {
       serialization::CatalogRelationNewBlockMessage proto;
       CHECK(proto.ParseFromArray(tagged_message.message(),
                                  tagged_message.message_bytes()));
-      query_id = proto.query_id();
-      break;
+
+      const block_id block = proto.block_id();
+
+      CatalogRelation *relation =
+          static_cast<CatalogDatabase*>(catalog_database_)->getRelationByIdMutable(proto.relation_id());
+      relation->addBlock(block);
+
+      if (proto.has_partition_id()) {
+        relation->getPartitionSchemeMutable()->addBlockToPartition(
+            proto.partition_id(), block);
+      }
+      return;
     }
     case kDataPipelineMessage: {
       serialization::DataPipelineMessage proto;
       CHECK(proto.ParseFromArray(tagged_message.message(),
                                  tagged_message.message_bytes()));
       query_id = proto.query_id();
+      DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
+
+      op_index = proto.operator_index();
+      admitted_queries_[query_id]->processDataPipelineMessage(
+          op_index, proto.block_id(), proto.relation_id());
       break;
     }
     case kWorkOrdersAvailableMessage: {
@@ -111,6 +142,12 @@ void PolicyEnforcer::processMessage(const TaggedMessage &tagged_message) {
       CHECK(proto.ParseFromArray(tagged_message.message(),
                                  tagged_message.message_bytes()));
       query_id = proto.query_id();
+      DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
+
+      op_index = proto.operator_index();
+
+      // Check if new work orders are available.
+      admitted_queries_[query_id]->fetchNormalWorkOrders(op_index);
       break;
     }
     case kWorkOrderFeedbackMessage: {
@@ -118,15 +155,17 @@ void PolicyEnforcer::processMessage(const TaggedMessage &tagged_message) {
           const_cast<void *>(tagged_message.message()),
           tagged_message.message_bytes());
       query_id = msg.header().query_id;
+      DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
+
+      op_index = msg.header().rel_op_index;
+      admitted_queries_[query_id]->processFeedbackMessage(op_index, msg);
       break;
     }
     default:
       LOG(FATAL) << "Unknown message type found in PolicyEnforcer";
   }
-  DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
-  const QueryManagerBase::QueryStatusCode return_code =
-      admitted_queries_[query_id]->processMessage(tagged_message);
-  if (return_code == QueryManagerBase::QueryStatusCode::kQueryExecuted) {
+  if (admitted_queries_[query_id]->queryStatus(op_index) ==
+          QueryManagerBase::QueryStatusCode::kQueryExecuted) {
     removeQuery(query_id);
     if (!waiting_queries_.empty()) {
       // Admit the earliest waiting query.
