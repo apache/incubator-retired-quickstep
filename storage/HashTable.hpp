@@ -2231,6 +2231,7 @@ inline std::size_t HashTable<ValueT, resizable, serializable, force_key_copy, al
   }
 }
 
+
 template <typename ValueT,
           bool resizable,
           bool serializable,
@@ -2253,8 +2254,12 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
       bloom_filter_adapter.reset(
           new BloomFilterAdapter(probe_bloom_filters_, probe_attribute_ids_));
     }
+    std::size_t numFalsePositives = 0;
+    std::size_t numMisses = 0;
+    std::size_t numHits = 0;
     while (accessor->next()) {
       if (has_probe_side_bloom_filter_ && bloom_filter_adapter->miss(accessor)) {
+        numMisses++;
         continue;  // On a bloom filter miss, probing the hash table can be skipped.
       }
 
@@ -2268,13 +2273,23 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
                                                                : true_hash;
       std::size_t entry_num = 0;
       const ValueT *value;
+      bool wasHit = false;
       while (this->getNextEntryForKey(key, adjusted_hash, &value, &entry_num)) {
+        wasHit = true;
         (*functor)(*accessor, *value);
         if (!allow_duplicate_keys) {
           break;
         }
       }
+      if (!wasHit)
+        numFalsePositives++;
+      else
+        numHits++;
+
     }
+    std::cerr << "numFalsePositives: " << numFalsePositives
+              << " numMisses: " << numMisses
+              << " numHits: " << numHits << "\n";
   });
 }
 
