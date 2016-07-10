@@ -28,7 +28,7 @@ namespace quickstep {
 
 class BloomFilterTest : public ::testing::Test {
  public:
-  // static const std::uint64_t kBloomFilterSeed = 0xA5A5A5A55A5A5A5AULL;
+  static const std::uint64_t kBloomFilterSeed = 0xA5A5A5A55A5A5A5AULL;
   static const std::uint32_t kNumberOfHashFunctions = 20;
   static const std::uint32_t kBloomFilterSize = 100000;  // in bytes.
 };
@@ -44,7 +44,7 @@ TEST_F(BloomFilterTest, BloomFilterInsertTest) {
   const std::uint32_t bloom_filter_size = 1;
 
   bit_array.reset(new std::uint8_t[bloom_filter_size]);
-  bloom_filter.reset(new BloomFilter(//kBloomFilterSeed,
+  bloom_filter.reset(new BloomFilter(kBloomFilterSeed,
                                      num_hashes,
                                      bloom_filter_size,
                                      bit_array.get(),
@@ -61,7 +61,7 @@ TEST_F(BloomFilterTest, BloomFilterContainsTest) {
   std::unique_ptr<BloomFilter> bloom_filter;
 
   bit_array.reset(new std::uint8_t[kBloomFilterSize]);
-  bloom_filter.reset(new BloomFilter(// kBloomFilterSeed,
+  bloom_filter.reset(new BloomFilter(kBloomFilterSeed,
                                      kNumberOfHashFunctions,
                                      kBloomFilterSize,
                                      bit_array.get(),
