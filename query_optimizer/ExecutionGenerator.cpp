@@ -741,6 +741,13 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   }
 
   hash_table_proto->set_estimated_num_entries(build_cardinality);
+  // Add the memory estimate to the query handle.
+  // TODO(harshad) - Convert the build_cardinality to bytes.
+  const std::size_t hash_table_estimated_memory_in_bytes =
+      JoinHashTableFactory::GetEstimatedMemoryInBytes(
+          build_cardinality,
+          HashTableImplTypeProtoFromString(FLAGS_join_hashtable_type));
+  query_handle_->addMemoryToEstimate(hash_table_estimated_memory_in_bytes);
 
   // Create three operators.
   const QueryPlan::DAGNodeIndex build_operator_index =

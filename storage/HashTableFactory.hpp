@@ -135,6 +135,37 @@ template <typename ValueT,
           bool allow_duplicate_keys>
 class HashTableFactory {
  public:
+  static std::size_t GetEstimatedMemoryInBytes(
+      const std::size_t num_estimated_entries,
+      const serialization::HashTableImplType hash_table_type) {
+    switch (hash_table_type) {
+      case serialization::HashTableImplType::LINEAR_OPEN_ADDRESSING:
+        return LinearOpenAddressingHashTable<ValueT,
+                                             resizable,
+                                             serializable,
+                                             force_key_copy,
+                                             allow_duplicate_keys>::
+            GetEstimatedMemoryInBytes(num_estimated_entries);
+      case serialization::HashTableImplType::SEPARATE_CHAINING:
+        return SeparateChainingHashTable<ValueT,
+                                         resizable,
+                                         serializable,
+                                         force_key_copy,
+                                         allow_duplicate_keys>::
+            GetEstimatedMemoryInBytes(num_estimated_entries);
+      case serialization::HashTableImplType::SIMPLE_SCALAR_SEPARATE_CHAINING:
+        return SimpleScalarSeparateChainingHashTable<ValueT,
+                                                     resizable,
+                                                     serializable,
+                                                     force_key_copy,
+                                                     allow_duplicate_keys>::
+            GetEstimatedMemoryInBytes(num_estimated_entries);
+      default: {
+        LOG(FATAL) << "Unrecognized HashTableImplType\n";
+      }
+    }
+  }
+
   /**
    * @brief Create a new resizable HashTable, with the type selected by
    *        hash_table_type. Other parameters are forwarded to the HashTable's

@@ -61,6 +61,18 @@ class LinearOpenAddressingHashTable : public HashTable<ValueT,
                                                        force_key_copy,
                                                        allow_duplicate_keys> {
  public:
+  static std::size_t GetEstimatedMemoryInBytes(const std::size_t num_entries) {
+    const std::size_t num_slots_tmp = get_next_prime_number(num_entries * kHashTableLoadFactor);
+    const std::size_t bucket_size = LinearOpenAddressingHashTable::ComputeBucketSize(sizeof(std::size_t) * 2);
+    // TODO(harshad) - Refine the bucket_size below with the help of KeyManager.
+    // NOTE(harshad) - We ignore the estimated variable key size term below
+    // assuming that we don't have variable length keys in SSB queries.
+    const std::size_t required_memory = LinearOpenAddressingHashTable::ComputeBucketSize(sizeof(std::size_t) * 2)
+                                  + (num_slots_tmp / kHashTableLoadFactor)
+                                      * (bucket_size /*+ *key_manager_.getEstimatedVariableKeySize()*/);
+    return required_memory;
+  }
+
   // Bring in constants from HashTable.
   static constexpr unsigned char kEmptyHashByte
       = HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>::kEmptyHashByte;

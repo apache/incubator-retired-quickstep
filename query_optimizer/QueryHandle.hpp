@@ -50,6 +50,7 @@ class QueryHandle {
                        const std::uint64_t query_priority = 1)
       : query_id_(query_id),
         query_priority_(query_priority),
+        estimated_max_memory_in_bytes_(0),
         query_plan_(new QueryPlan()),
         query_result_relation_(nullptr) {}
 
@@ -153,9 +154,18 @@ class QueryHandle {
     return std::chrono::duration<double, std::milli>(admission_time_ - entry_time_).count();
   }
 
+  std::size_t getEstimatedMaxMemoryInBytes() const {
+    return estimated_max_memory_in_bytes_;
+  }
+
+  void addMemoryToEstimate(const std::size_t memory_bytes) {
+    estimated_max_memory_in_bytes_ += memory_bytes;
+  }
+
  private:
   const std::size_t query_id_;
   const std::uint64_t query_priority_;
+  std::size_t estimated_max_memory_in_bytes_;
 
   std::unique_ptr<QueryPlan> query_plan_;
 

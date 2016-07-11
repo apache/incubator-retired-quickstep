@@ -74,6 +74,14 @@ class SimpleScalarSeparateChainingHashTable : public HashTable<ValueT,
                                                                force_key_copy,
                                                                allow_duplicate_keys> {
  public:
+  static std::size_t GetEstimatedMemoryInBytes(const std::size_t num_entries) {
+    const std::size_t num_slots_tmp = get_next_prime_number(num_entries * kHashTableLoadFactor);
+    const std::size_t required_memory = sizeof(Header)
+                                  + num_slots_tmp * sizeof(std::atomic<std::size_t>)
+                                  + (num_slots_tmp / kHashTableLoadFactor) * sizeof(Bucket);
+    return required_memory;
+  }
+
   SimpleScalarSeparateChainingHashTable(const std::vector<const Type*> &key_types,
                                         const std::size_t num_entries,
                                         StorageManager *storage_manager);
