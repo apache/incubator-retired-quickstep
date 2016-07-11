@@ -1481,8 +1481,7 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
     }
     std::unique_ptr<BloomFilter> thread_local_bloom_filter;
     if (has_build_side_bloom_filter_) {
-      thread_local_bloom_filter.reset(new BloomFilter(build_bloom_filter_->getRandomSeed(),
-                                                      build_bloom_filter_->getNumberOfHashes(),
+      thread_local_bloom_filter.reset(new BloomFilter(build_bloom_filter_->getNumberOfHashes(),
                                                       build_bloom_filter_->getBitArraySize()));
     }
     if (resizable) {

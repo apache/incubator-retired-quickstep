@@ -57,15 +57,12 @@ class BloomFilter {
    * @note When no bit_array is being passed to the constructor,
    *       then the bit_array is owned and managed by this class.
    *
-   * @param random_seed A random_seed that generates unique hash functions.
    * @param hash_fn_count The number of hash functions used by this bloom filter.
    * @param bit_array_size_in_bytes Size of the bit array.
    **/
-  BloomFilter(const std::uint64_t random_seed,
-              const std::size_t hash_fn_count,
+  BloomFilter(const std::size_t hash_fn_count,
               const std::uint64_t bit_array_size_in_bytes)
-      : random_seed_(random_seed),
-        hash_fn_count_(hash_fn_count),
+      : hash_fn_count_(hash_fn_count),
         array_size_in_bytes_(bit_array_size_in_bytes),
         array_size_(array_size_in_bytes_ * kNumBitsPerByte),
         bit_array_(new std::uint8_t[array_size_in_bytes_]),
@@ -78,20 +75,17 @@ class BloomFilter {
    * @note When a bit_array is passed as an argument to the constructor,
    *       then the ownership of the bit array lies with the caller.
    *
-   * @param random_seed A random_seed that generates unique hash functions.
    * @param hash_fn_count The number of hash functions used by this bloom filter.
    * @param bit_array_size_in_bytes Size of the bit array.
    * @param bit_array A pointer to the memory region that is used to store bit array.
    * @param is_initialized A boolean that indicates whether to zero-out the region
    *                       before use or not.
    **/
-  BloomFilter(const std::uint64_t random_seed,
-              const std::size_t hash_fn_count,
+  BloomFilter(const std::size_t hash_fn_count,
               const std::uint64_t bit_array_size_in_bytes,
               std::uint8_t *bit_array,
               const bool is_initialized)
-      : random_seed_(random_seed),
-        hash_fn_count_(hash_fn_count),
+      : hash_fn_count_(hash_fn_count),
         array_size_in_bytes_(bit_array_size_in_bytes),
         array_size_(bit_array_size_in_bytes * kNumBitsPerByte),
         bit_array_(bit_array),  // Owned by the calling method.
@@ -110,8 +104,7 @@ class BloomFilter {
    *        bloom filter configuration.
    **/
   explicit BloomFilter(const serialization::BloomFilter &bloom_filter_proto)
-      : random_seed_(bloom_filter_proto.bloom_filter_seed()),
-        hash_fn_count_(bloom_filter_proto.number_of_hashes()),
+      : hash_fn_count_(bloom_filter_proto.number_of_hashes()),
         array_size_in_bytes_(bloom_filter_proto.bloom_filter_size()),
         array_size_(array_size_in_bytes_ * kNumBitsPerByte),
         bit_array_(new std::uint8_t[array_size_in_bytes_]),
@@ -141,15 +134,6 @@ class BloomFilter {
     // Initialize the bit_array with all zeros.
     std::fill_n(bit_array_.get(), array_size_in_bytes_, 0x00);
     inserted_element_count_ = 0;
-  }
-
-  /**
-   * @brief Get the random seed that was used to initialize this bloom filter.
-   *
-   * @return Returns the random seed.
-   **/
-  inline std::uint64_t getRandomSeed() const {
-    return random_seed_;
   }
 
   /**
@@ -320,7 +304,6 @@ class BloomFilter {
   }
 
  private:
-  const std::uint64_t random_seed_;
   std::vector<std::uint32_t> hash_fn_;
   const std::uint32_t hash_fn_count_;
   std::uint64_t array_size_in_bytes_;

@@ -21,10 +21,8 @@ message BloomFilter {
   // The default values were determined from empirical experiments.
   // These values control the amount of false positivity that
   // is expected from Bloom Filter.
-  // - Default seed for initializing family of hashes = 0xA5A5A5A55A5A5A5A.
   // - Default bloom filter size = 10 KB.
   // - Default number of hash functions used in bloom filter = 5.
-  optional fixed64 bloom_filter_seed = 1 [default = 0xA5A5A5A55A5A5A5A];
-  optional uint32 bloom_filter_size = 2 [default = 10000];
-  optional uint32 number_of_hashes = 3 [default = 5];
+  optional uint32 bloom_filter_size = 1 [default = 10000];
+  optional uint32 number_of_hashes = 2 [default = 5];
 }
