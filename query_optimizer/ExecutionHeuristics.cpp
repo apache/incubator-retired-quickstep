@@ -32,6 +32,13 @@
 namespace quickstep {
 namespace optimizer {
 
+static const std::size_t kNumBitsPerByte = 8;
+DEFINE_int32(bloom_num_bits_per_tuple, kNumBitsPerByte,
+    "Number of bits per tuple used to size the Bloom filter.");
+
+DEFINE_int32(bloom_num_hash_fns, 3,
+    "Number of hash functions used in the Bloom filter.");
+
 void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
                                                 serialization::QueryContext *query_context_proto) {
   // Currently this only optimizes left deep joins using bloom filters.
@@ -108,8 +115,9 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
 void ExecutionHeuristics::setBloomFilterProperties(serialization::BloomFilter *bloom_filter_proto,
                                                    const CatalogRelation *relation) {
   const std::size_t cardinality = relation->getStatistics().getNumTuples();
-  bloom_filter_proto->set_bloom_filter_size(cardinality);
-  bloom_filter_proto->set_number_of_hashes(3);
+  bloom_filter_proto->set_bloom_filter_size(
+      (FLAGS_bloom_num_bits_per_tuple * cardinality)/kNumBitsPerByte);
+  bloom_filter_proto->set_number_of_hashes(FLAGS_bloom_num_hash_fns);
 }
 
 }  // namespace optimizer
