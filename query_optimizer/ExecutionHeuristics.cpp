@@ -114,9 +114,10 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
 
 void ExecutionHeuristics::setBloomFilterProperties(serialization::BloomFilter *bloom_filter_proto,
                                                    const CatalogRelation *relation) {
-  const std::size_t cardinality = relation->getStatistics().getNumTuples();
   bloom_filter_proto->set_bloom_filter_size(
-      (FLAGS_bloom_num_bits_per_tuple * cardinality)/kNumBitsPerByte);
+      (FLAGS_bloom_num_bits_per_tuple * estimated_build_relation_cardinality_)/kNumBitsPerByte);
+  // std::cerr << "Est cardinality for " << relation->getID() << " is "
+  //           << estimated_build_relation_cardinality_ << "\n";
   bloom_filter_proto->set_number_of_hashes(FLAGS_bloom_num_hash_fns);
 }
 
