@@ -37,7 +37,6 @@
 #include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryPlan.hpp"
 #include "query_optimizer/cost_model/CostModel.hpp"
-#include "query_optimizer/cost_model/SimpleCostModel.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
@@ -415,6 +414,7 @@ class ExecutionGenerator {
    * @brief The cost model to use for creating the execution plan.
    */
   std::unique_ptr<cost::CostModel> cost_model_;
+  std::unique_ptr<cost::CostModel> star_schema_cost_model_;
 
   physical::TopLevelPlanPtr top_level_physical_plan_;
 

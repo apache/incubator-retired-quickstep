@@ -55,6 +55,7 @@
 #include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryPlan.hpp"
 #include "query_optimizer/cost_model/SimpleCostModel.hpp"
+#include "query_optimizer/cost_model/StarSchemaSimpleCostModel.hpp"
 #include "query_optimizer/expressions/AggregateFunction.hpp"
 #include "query_optimizer/expressions/Alias.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
@@ -161,6 +162,8 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
 
   cost_model_.reset(
       new cost::SimpleCostModel(top_level_physical_plan_->shared_subplans()));
+  star_schema_cost_model_.reset(
+      new cost::StarSchemaSimpleCostModel(top_level_physical_plan_->shared_subplans()));
 
   const CatalogRelation *result_relation = nullptr;
 
@@ -846,7 +849,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
                                            referenced_stored_probe_relation,
                                            std::move(build_original_attribute_ids),
                                            std::move(probe_original_attribute_ids),
-                                           join_hash_table_index);
+                                           join_hash_table_index,
+                                           star_schema_cost_model_->estimateCardinality(build_physical));
   }
 }
 
