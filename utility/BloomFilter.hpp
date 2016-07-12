@@ -304,14 +304,23 @@ class BloomFilter {
   }
 
  private:
-  std::vector<std::uint32_t> hash_fn_;
   const std::uint32_t hash_fn_count_;
   std::uint64_t array_size_in_bytes_;
   std::uint64_t array_size_;
   std::unique_ptr<std::uint8_t> bit_array_;
   std::uint32_t inserted_element_count_;
   const bool is_bit_array_owner_;
-
+  static constexpr std::size_t kMaxNumHashFns = 32;
+  const std::uint32_t hash_fn_[kMaxNumHashFns] = { // hash_fn_[i] is 2**(i+1) - 1
+      0x00000001, 0x00000003, 0x00000007, 0x0000000f,
+      0x0000001f, 0x0000003f, 0x0000007f, 0x000000ff,
+      0x000001ff, 0x000003ff, 0x000007ff, 0x00000fff,
+      0x00001fff, 0x00003fff, 0x00007fff, 0x0000ffff,
+      0x0001ffff, 0x0003ffff, 0x0007ffff, 0x000fffff,
+      0x001fffff, 0x003fffff, 0x007fffff, 0x00ffffff,
+      0x01ffffff, 0x03ffffff, 0x07ffffff, 0x0fffffff,
+      0x1fffffff, 0x3fffffff, 0x7fffffff, 0xffffffff
+    };
   alignas(kCacheLineBytes) mutable SpinSharedMutex<false> bloom_filter_insert_mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(BloomFilter);
