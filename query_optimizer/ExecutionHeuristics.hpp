@@ -141,18 +141,14 @@ class ExecutionHeuristics {
    *        of the given relation.
    *
    * @param bloom_filter_proto A mutable reference to the bloom filter protobuf representation.
-   * @param relation The catalog relation on which bloom filter is being built.
+   * @param hash_join_index Index into the hash_joins_ array which this
+   *                        Bloom filter is meant to set the properties for.
    **/
   void setBloomFilterProperties(serialization::BloomFilter *bloom_filter_proto,
-                                const CatalogRelation *relation);
-
-  std::size_t estimated_build_relation_cardinality() const {
-    return estimated_build_relation_cardinality_;
-  }
+                                const std::size_t hash_join_index);
 
  private:
   std::vector<HashJoinInfo> hash_joins_;
-  std::size_t estimated_build_relation_cardinality_;
 
   DISALLOW_COPY_AND_ASSIGN(ExecutionHeuristics);
 };

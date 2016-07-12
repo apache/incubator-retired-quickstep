@@ -78,7 +78,7 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
         serialization::BloomFilter *bloom_filter_proto = query_context_proto->add_bloom_filters();
 
         // Modify the bloom filter properties based on the statistics of the relation.
-        setBloomFilterProperties(bloom_filter_proto, hash_joins_[node].referenced_stored_build_relation_);
+        setBloomFilterProperties(bloom_filter_proto, node);
 
         // Add build-side bloom filter information to the corresponding hash table proto.
         query_context_proto->mutable_join_hash_tables(hash_joins_[node].join_hash_table_id_)
@@ -113,11 +113,10 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
 }
 
 void ExecutionHeuristics::setBloomFilterProperties(serialization::BloomFilter *bloom_filter_proto,
-                                                   const CatalogRelation *relation) {
+                                                   const std::size_t hash_join_index) {
+  auto cardinality = hash_joins_[hash_join_index].estimated_build_relation_cardinality_;
   bloom_filter_proto->set_bloom_filter_size(
-      (FLAGS_bloom_num_bits_per_tuple * estimated_build_relation_cardinality_)/kNumBitsPerByte);
-  // std::cerr << "Est cardinality for " << relation->getID() << " is "
-  //           << estimated_build_relation_cardinality_ << "\n";
+      (FLAGS_bloom_num_bits_per_tuple * cardinality)/kNumBitsPerByte);
   bloom_filter_proto->set_number_of_hashes(FLAGS_bloom_num_hash_fns);
 }
 
