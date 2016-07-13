@@ -16,22 +16,24 @@ syntax = "proto2";
 
 package quickstep.serialization;
 
+import "relational_operators/WorkOrder.proto";
+
 // Used for any messages that do not carry payloads.
 message EmptyMessage {
 }
 
 // Note: There are different types of completion messages for normal work orders
 // rebuild work orders. This can be potentially helpful when we want to collect
-// different statistics for executing different types of work orders. 
-// e.g. In select normal work order completion message, we could be interested 
-// in the selectivity of the block whose work order got execute. In rebuild work 
-// order completion message, we may be interested in adding the compression 
+// different statistics for executing different types of work orders.
+// e.g. In select normal work order completion message, we could be interested
+// in the selectivity of the block whose work order got execute. In rebuild work
+// order completion message, we may be interested in adding the compression
 // ratio or dictionary size of the rebuilt block.
 
-// TODO(harshad) : If there are different fields in the two message types below, 
+// TODO(harshad) : If there are different fields in the two message types below,
 // create a base message class called WorkOrderCompletionMessage and make the
 // two classes below extend the base class. All the common fields in both the
-// classes can be moved to the base class. 
+// classes can be moved to the base class.
 
 // A message sent upon completion of a normal (not rebuild) WorkOrder execution.
 message NormalWorkOrderCompletionMessage {
@@ -68,6 +70,26 @@ message DataPipelineMessage {
 message WorkOrdersAvailableMessage {
   required uint64 operator_index = 1;
   required uint64 query_id = 2;
+}
+
+// Distributed version related messages.
+message WorkOrderMessage {
+  required uint64 query_id = 1;
+  required uint64 operator_index = 2;
+  required WorkOrder work_order = 3;
+}
+
+message InitiateRebuildMessage {
+  required uint64 query_id = 1;
+  required uint64 operator_index = 2;
+  required uint64 insert_destination_index = 3;
+  required  int32 relation_id = 4;
+}
+
+message InitiateRebuildResponseMessage {
+  required uint64 query_id = 1;
+  required uint64 operator_index = 2;
+  required uint64 num_rebuild_work_orders = 3;
 }
 
 // BlockLocator related messages.
