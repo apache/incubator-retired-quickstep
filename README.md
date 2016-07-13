@@ -5,90 +5,50 @@
 [Travis]: https://travis-ci.org/apache/incubator-quickstep
 [Travis Widget]: https://travis-ci.org/apache/incubator-quickstep.svg?branch=master
 
-Apache Quickstep is an experimental high-performance database engine designed with the
-aim of Data at Bare-Metal Speed. It began life in 2011 as a
-[research project at the University of Wisconsin](https://quickstep.cs.wisc.edu)
-and was acquired by [Pivotal](https://pivotal.io) in 2015.
-Quickstep entered incubation at the
+## What is Quickstep?
+Apache Quickstep is high-performance database engine designed to exploit the full potential of hardware that is packed in modern computing boxes (servers and laptops). The initial version (available now!) targets single-node in-memory environments. If your data spills overs the memory limit Quickstep will still work, so you don't have to obsessively worry about the in-memory part. Also, if your working set fits in memory then Quickstep will transparently and automatically figure that out, and cache that hot set to  deliver in-memory performance.
+
+Distributed execution is the next big feature for Quickstep.  
+
+Quickstep began life in 2011 as a
+[research project at the University of Wisconsin](https://www.cs.wisc.edu/~jignesh)
+and entered incubation at the
 [Apache Software Foundation](https://www.apache.org) in April, 2016.
 
-## Getting Started (Building)
+## Why Quickstep?
+Did you know that the hardware that you have in your laptop was spread across a small cluster just a decade ago? (PS: Hopefully you are not using a very old laptop!) If you look at a high-end server box, then that packs compute and storage power that was a full rack about 5 years ago! And, the way hardware technology is going, that box is going to become even more powerful in the future. In fact, it is likely that the computing power in each box is going to grow faster than other hardware components (e.g. networking) in data centers. So, if you care about performance and/or total operating costs, paying attention to single box performance is likely to be super important in the long run.
 
-A [build guide](BUILDING.md) is available which includes instructions for
-building Quickstep for the first time. You may also find it useful to use one
-of the [pre-made Vagrant boxes](build/vagrant) for Quickstep that are already
-set up with all of the development tools needed to build Quickstep.
+In other words there is a small data center in an individual compute boxes today! Quickstep aims to allow you to fully exploit the potential of that data center that is hidden in each individual box today. We call this the **scaling-in approach**, and it complements a scaling-out approach. But without scaling-in, you are overpaying (by a lot!) when you run your data service.
 
-## Documentation
+## What are the key ingredients?
 
-All publicly-visible classes and functions in the Quickstep code base have
-Doxygen documentation. Simply run `doxygen` in the root of the Quickstep source
-to generate browsable HTML documentation. Of course, the Doxygen comments
-should also be useful when reading header files directly.
+Modern computing boxes contain a large number of computing cores and large main memory configuration. Quickstep allows you to fully exploit these hardware resources using novel data processing, data storage, and query processing methods that include:
 
-In addition to the Doxygen and inline code comments explaining implementation
-details, a high-level overview for each module that comprises Quickstep is
-included in the README files in each subdirectory.
+1. A unique **decoupling of data-flow from control-flow** for query execution that allows for unlimited intra and inter-query parallelism. Thus, using all the processing core effectively.
 
-## Architectural Overview
+2. A **template meta-programming** framework that provides fast vectorized query execution. Thus, using each processor cycle very efficiently.
 
-Quickstep is composed of several different modules that handle different
-concerns of a database system. The main modules are:
+3. A **hybrid data storage** architecture that includes columnar and row-store. Yes, this may surprise some of you, but sometimes a row-store beats a column-store!
 
-* [Utility](utility) - Reusable general-purpose code that is used by many
-  other modules.
-* [Threading](threading) - Provides a cross-platform abstraction for threads
-  and synchronization primitives that abstracts the underlying OS threading
-  features.
-* [Types](types) - The core type system used across all of Quickstep. Handles
-  details of how SQL types are stored, parsed, serialized & deserialized, and
-  converted. Also includes basic containers for typed values (tuples and
-  column-vectors) and low-level operations that apply to typed values (e.g.
-  basic arithmetic and comparisons).
-* [Catalog](catalog) - Keeps track of database schema as well as physical
-  storage information for relations (e.g. which physical blocks store a
-  relation's data, and any physical partitioning and placement information).
-* [Storage](storage) - Handles the physical storage of relation data in
-  self-contained, self-describing blocks, both in-memory and on persistent
-  storage (disk or a distributed filesystem). Also includes some heavyweight
-  run-time data structures used in query processing (e.g. hash tables for join
-  and aggregation). Includes a buffer manager component for managing memory
-  use and a file manager component that handles data persistence.
-* [Compression](compression) - A simple implementation of ordered dictionary
-  compression. Several storage formats in the Storage module are capable of
-  storing compressed column data and evaluating some expressions directly on
-  compressed data without decompressing. The common code supporting compression
-  is in this module.
-* [Expressions](expressions) - This module builds on the simple operations
-  provided by the Types module to support arbitrarily complex expressions over
-  data, including scalar expressions, predicates, and aggregate functions with
-  and without grouping.
-* [Relational Operators](relational_operators) - This module provides the
-  building blocks for queries in Quickstep. A query is represented as a
-  directed acyclic graph of relational operators, each of which is responsible
-  for applying some relational-algebraic operation(s) to tranform its input.
-  Operators generate individual self-contained "work orders" that can be
-  executed independently. Most operators are parallelism-friendly and generate
-  one work-order per storage block of input.
-* [Query Execution](query_execution) - Handles the actual scheduling and
-  execution of work from a query at runtime. The central class is the Foreman,
-  an independent thread with a global view of the query plan and progress. The
-  Foreman dispatches work-orders to stateless Worker threads and monitors their
-  progress, and also coordinates streaming of partial results between producers
-  and consumers in a query plan DAG to maximize parallelism. This module also
-  includes the QueryContext class, which holds global shared state for an
-  individual query and is designed to support easy
-  serialization/deserialization for distributed execution.
-* [Parser](parser) - A simple SQL lexer and parser that parses SQL syntax into
-  an abstract syntax tree for consumption by the Query Optimizer.
-* [Query Optimizer](query_optimizer) - Takes the abstract syntax tree generated
-  by the parser and transforms it into a runable query-plan DAG for the Query
-  Execution module. The Query Optimizer is responsible for resolving references
-  to relations and attributes in the query, checking it for semantic
-  correctness, and applying optimizations (e.g. filter pushdown, column
-  pruning, join ordering) as part of the transformation process.
-* [Command-Line Interface](cli) - An interactive SQL shell interface to
-  Quickstep.
+And, it is **open source!**
+
+## Giving it a spin
+
+1. Checkout the code: ```git clone https://git-wip-us.apache.org/repos/asf/incubator-quickstep.git quickstep```
+2. Then, go to the code directory: ```cd quickstep```
+3. Initialize the dependencies: ```git submodule init```
+4. Checkout the dependencies: ```git submodule update```
+5. Go into the build directory: ```cd build```
+6. Create the Makefile: ```cmake -D CMAKE_BUILD_TYPE=Release ..```  
+7. Build: ```make -j4```. Note you may replace the 4 with the number of cores on your machine.
+8. Start quickstep: ```./quickstep_cli_shell --initialize_db=true```. You can now fire SQL queries. To quit, you can type in ```quit;``` Your data is stored in the directory ```qsstor```
+
+
+## Additional pointers
+
+1. For other build options, see the more comprehensive [build guide](BUILDING.md).
+2. To get started as a developer, you should start with the [code organization guide](DEV_README.md).
+
 
 ## Licensing
 
