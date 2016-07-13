@@ -40,15 +40,17 @@ namespace quickstep {
 class BloomFilterAdapter {
  public:
   BloomFilterAdapter(const std::vector<const BloomFilter*> &bloom_filters,
-                     const std::vector<std::vector<attribute_id>> &attribute_ids)
+                     const std::vector<std::vector<attribute_id>> &attribute_ids,
+                     const std::vector<std::vector<std::size_t>> &attr_sizes)
       : num_bloom_filters_(bloom_filters.size()) {
     DCHECK_EQ(bloom_filters.size(), attribute_ids.size());
+    DCHECK_EQ(bloom_filters.size(), attr_sizes.size());
 
     bloom_filter_entries_.reserve(num_bloom_filters_);
     bloom_filter_entry_indices_.reserve(num_bloom_filters_);
 
     for (std::size_t i = 0; i < num_bloom_filters_; ++i) {
-      bloom_filter_entries_.emplace_back(bloom_filters[i], attribute_ids[i]);
+      bloom_filter_entries_.emplace_back(bloom_filters[i], attribute_ids[i], attr_sizes[i]);
       bloom_filter_entry_indices_.emplace_back(i);
     }
   }
@@ -68,17 +70,17 @@ class BloomFilterAdapter {
       }
 
       const BloomFilter *bloom_filter = entry.bloom_filter;
-      for (const attribute_id &attr_id : entry.attribute_ids) {
-        const std::pair<const void*, std::size_t> value_and_byte_length =
-            accessor->getUntypedValueAndByteLength(attr_id);
-        if (!bloom_filter->contains(static_cast<const std::uint8_t*>(value_and_byte_length.first),
-                                    value_and_byte_length.second)) {
+      for (std::size_t i = 0; i < entry.attribute_ids.size(); ++i) {
+        const attribute_id &attr_id = entry.attribute_ids[i];
+        const std::size_t size = entry.attribute_sizes[i];
+        auto value = static_cast<const std::uint8_t*>(accessor->template getUntypedValue<false>(attr_id));
+        if (!bloom_filter->contains(value, size)) {
           if (adapt_filters) {
             // Record miss
             ++entry.miss;
 
             // Update entry order
-            if (i > 0) {
+            if (!(entry.miss % kNumMissesBeforeAdapt) && i > 0) {
               const std::size_t prev_entry_idx = bloom_filter_entry_indices_[i-1];
               if (entry.isBetterThan(bloom_filter_entries_[prev_entry_idx])) {
                 bloom_filter_entry_indices_[i-1] = entry_idx;
@@ -96,9 +98,11 @@ class BloomFilterAdapter {
  private:
   struct BloomFilterEntry {
     BloomFilterEntry(const BloomFilter *in_bloom_filter,
-                     const std::vector<attribute_id> &in_attribute_ids)
+                     const std::vector<attribute_id> &in_attribute_ids,
+                     const std::vector<std::size_t> &in_attribute_sizes)
         : bloom_filter(in_bloom_filter),
           attribute_ids(in_attribute_ids),
+          attribute_sizes(in_attribute_sizes),
           miss(0),
           cnt(0) {
     }
@@ -110,10 +114,12 @@ class BloomFilterAdapter {
 
     const BloomFilter *bloom_filter;
     const std::vector<attribute_id> &attribute_ids;
+    std::vector<std::size_t> attribute_sizes;
     std::uint32_t miss;
     std::uint32_t cnt;
   };
 
+  const std::size_t kNumMissesBeforeAdapt = 64;
   const std::size_t num_bloom_filters_;
   std::vector<BloomFilterEntry> bloom_filter_entries_;
   std::vector<std::size_t> bloom_filter_entry_indices_;

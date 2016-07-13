@@ -2250,15 +2250,33 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
       [&](auto *accessor) -> void {  // NOLINT(build/c++11)
     std::unique_ptr<BloomFilterAdapter> bloom_filter_adapter;
     if (has_probe_side_bloom_filter_) {
-      bloom_filter_adapter.reset(
-          new BloomFilterAdapter(probe_bloom_filters_, probe_attribute_ids_));
+
+      // Find (and cache) the size of each attribute in the probe lists.
+      // NOTE(nav): This code uses the accessor to get the size,
+      // and hence only works if there's at least one tuple.
+      // NOTE(nav): This code is meant to be called only for PKs, and so
+      // we assume non-null values.
+      std::vector<std::vector<std::size_t>> attr_size_vectors;
+      attr_size_vectors.reserve(probe_attribute_ids_.size());
+      for (const auto &probe_attr_vector : probe_attribute_ids_) {
+        std::vector<std::size_t> attr_sizes;
+        attr_sizes.reserve(probe_attr_vector.size());
+        for (const auto &probe_attr : probe_attr_vector) {
+          auto val_and_size = accessor->getUntypedValueAndByteLengthAtAbsolutePosition(0, probe_attr);
+          attr_sizes.push_back(val_and_size.second);
+        }
+        attr_size_vectors.push_back(attr_sizes);
+      }
+
+      bloom_filter_adapter.reset(new BloomFilterAdapter(
+              probe_bloom_filters_, probe_attribute_ids_, attr_size_vectors));
     }
-    std::size_t numFalsePositives = 0;
-    std::size_t numMisses = 0;
-    std::size_t numHits = 0;
+    // std::size_t numFalsePositives = 0;
+    // std::size_t numMisses = 0;
+    // std::size_t numHits = 0;
     while (accessor->next()) {
       if (has_probe_side_bloom_filter_ && bloom_filter_adapter->miss(accessor)) {
-        numMisses++;
+        // numMisses++;
         continue;  // On a bloom filter miss, probing the hash table can be skipped.
       }
 
@@ -2280,15 +2298,16 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
           break;
         }
       }
-      if (!wasHit)
-        numFalsePositives++;
-      else
-        numHits++;
+
+      // if (!wasHit)
+      //   numFalsePositives++;
+      // else
+      //   numHits++;
 
     }
-    std::cerr << "numFalsePositives: " << numFalsePositives
-              << " numMisses: " << numMisses
-              << " numHits: " << numHits << "\n";
+    // std::cerr << "numFalsePositives: " << numFalsePositives
+    //           << " numMisses: " << numMisses
+    //           << " numHits: " << numHits << "\n";
   });
 }
 
