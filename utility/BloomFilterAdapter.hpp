@@ -40,59 +40,33 @@ namespace quickstep {
 class BloomFilterAdapter {
  public:
   BloomFilterAdapter(const std::vector<const BloomFilter*> &bloom_filters,
-                     const std::vector<std::vector<attribute_id>> &attribute_ids,
-                     const std::vector<std::vector<std::size_t>> &attr_sizes)
-      : num_bloom_filters_(bloom_filters.size()) {
+                     const std::vector<std::vector<attribute_id>> attribute_ids,
+                     const std::vector<std::vector<std::size_t>> attr_sizes) {
     DCHECK_EQ(bloom_filters.size(), attribute_ids.size());
     DCHECK_EQ(bloom_filters.size(), attr_sizes.size());
 
-    bloom_filter_entries_.reserve(num_bloom_filters_);
-    bloom_filter_entry_indices_.reserve(num_bloom_filters_);
-
-    for (std::size_t i = 0; i < num_bloom_filters_; ++i) {
-      bloom_filter_entries_.emplace_back(bloom_filters[i], attribute_ids[i], attr_sizes[i]);
-      bloom_filter_entry_indices_.emplace_back(i);
+    bloom_filter_entries_.reserve(bloom_filters.size());
+    for (std::size_t i = 0; i < bloom_filters.size(); ++i) {
+      auto entry = new BloomFilterEntry(
+          bloom_filters[i], attribute_ids[i], attr_sizes[i]);
+      bloom_filter_entries_.push_back(entry);
     }
   }
 
-  template <typename ValueAccessorT>
-  inline bool miss(const ValueAccessorT *accessor) {
-    return missImpl<ValueAccessorT, true>(accessor);
+  ~BloomFilterAdapter() {
+    for (auto &entry : bloom_filter_entries_)
+      delete entry;
   }
 
-  template <typename ValueAccessorT, bool adapt_filters>
-  inline bool missImpl(const ValueAccessorT *accessor) {
-    for (std::size_t i = 0; i < num_bloom_filters_; ++i) {
-      const std::size_t entry_idx = bloom_filter_entry_indices_[i];
-      BloomFilterEntry &entry = bloom_filter_entries_[entry_idx];
-      if (adapt_filters) {
-        ++entry.cnt;
-      }
-
-      const BloomFilter *bloom_filter = entry.bloom_filter;
-      for (std::size_t i = 0; i < entry.attribute_ids.size(); ++i) {
-        const attribute_id &attr_id = entry.attribute_ids[i];
-        const std::size_t size = entry.attribute_sizes[i];
-        auto value = static_cast<const std::uint8_t*>(accessor->template getUntypedValue<false>(attr_id));
-        if (!bloom_filter->contains(value, size)) {
-          if (adapt_filters) {
-            // Record miss
-            ++entry.miss;
-
-            // Update entry order
-            if (!(entry.miss % kNumMissesBeforeAdapt) && i > 0) {
-              const std::size_t prev_entry_idx = bloom_filter_entry_indices_[i-1];
-              if (entry.isBetterThan(bloom_filter_entries_[prev_entry_idx])) {
-                bloom_filter_entry_indices_[i-1] = entry_idx;
-                bloom_filter_entry_indices_[i] = prev_entry_idx;
-              }
-            }
-          }
-          return true;
-        }
-      }
-    }
-    return false;
+  template <typename ValueAccessorT, bool adapt_filters = true>
+  std::size_t bulkProbe(
+      const ValueAccessorT *accessor,
+      std::vector<tuple_id> &batch) {
+    std::size_t out_size = batch.size();
+    for (auto &entry : bloom_filter_entries_)
+      out_size = bulkProbeBloomFilterEntry(*entry, accessor, batch, out_size);
+    adaptEntryOrder();
+    return out_size;
   }
 
  private:
@@ -107,22 +81,59 @@ class BloomFilterAdapter {
           cnt(0) {
     }
 
-    inline bool isBetterThan(const BloomFilterEntry& other) {
-      return static_cast<std::uint64_t>(miss) * other.cnt
-                 > static_cast<std::uint64_t>(cnt + 5) * (other.miss + 5);
+    static bool isBetterThan(const BloomFilterEntry *a,
+                             const BloomFilterEntry *b) {
+      return a->miss_rate > b->miss_rate;
+      // return static_cast<std::uint64_t>(a.miss) * b.cnt
+      //            > static_cast<std::uint64_t>(a.cnt + 5) * (b.miss + 5);
     }
 
     const BloomFilter *bloom_filter;
-    const std::vector<attribute_id> &attribute_ids;
+    std::vector<attribute_id> attribute_ids;
     std::vector<std::size_t> attribute_sizes;
     std::uint32_t miss;
     std::uint32_t cnt;
+    float miss_rate;
   };
 
-  const std::size_t kNumMissesBeforeAdapt = 64;
-  const std::size_t num_bloom_filters_;
-  std::vector<BloomFilterEntry> bloom_filter_entries_;
-  std::vector<std::size_t> bloom_filter_entry_indices_;
+  template <typename ValueAccessorT, bool adapt_filters = true>
+  std::size_t bulkProbeBloomFilterEntry(
+      BloomFilterEntry &entry,
+      const ValueAccessorT *accessor,
+      std::vector<tuple_id> &batch,
+      const std::size_t in_size) {
+    std::size_t out_size = 0;
+    const BloomFilter *bloom_filter = entry.bloom_filter;
+
+    for (std::size_t t = 0; t < in_size; ++t) {
+      tuple_id tid = batch[t];
+      for (std::size_t a = 0; a < entry.attribute_ids.size(); ++a) {
+        const attribute_id &attr_id = entry.attribute_ids[a];
+        const std::size_t size = entry.attribute_sizes[a];
+        auto value = static_cast<const std::uint8_t*>(
+            accessor->getUntypedValueAtAbsolutePosition(attr_id, tid));
+        if (bloom_filter->contains(value, size)) {
+          batch[out_size] = tid;
+          ++out_size;
+        }
+      }
+    }
+    if (adapt_filters) {
+      entry.cnt += in_size;
+      entry.miss += (in_size - out_size);
+    }
+    return out_size;
+  }
+
+  void adaptEntryOrder() {
+    for (auto &entry : bloom_filter_entries_)
+      entry->miss_rate = static_cast<float>(entry->miss) / entry->cnt;
+    std::sort(bloom_filter_entries_.begin(),
+              bloom_filter_entries_.end(),
+              BloomFilterEntry::isBetterThan);
+  }
+
+  std::vector<BloomFilterEntry *> bloom_filter_entries_;
 
   DISALLOW_COPY_AND_ASSIGN(BloomFilterAdapter);
 };
