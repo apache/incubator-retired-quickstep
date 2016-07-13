@@ -73,6 +73,9 @@ enum QueryExecutionMessageType : message_type_id {
   kPoisonMessage,  // From the main thread to Foreman and Workers.
 
 #ifdef QUICKSTEP_DISTRIBUTED
+  kInitiateRebuildMessage,  // From Foreman to Shiftboss.
+  kInitiateRebuildResponseMessage,  // From Shiftboss to Foreman.
+
   // BlockLocator related messages, sorted in a life cycle of StorageManager
   // with a unique block domain.
   kBlockDomainRegistrationMessage,  // From Worker to BlockLocator.
