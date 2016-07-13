@@ -116,7 +116,7 @@ void ExecutionHeuristics::setBloomFilterProperties(serialization::BloomFilter *b
                                                    const std::size_t hash_join_index) {
   auto cardinality = hash_joins_[hash_join_index].estimated_build_relation_cardinality_;
   bloom_filter_proto->set_bloom_filter_size(
-      (FLAGS_bloom_num_bits_per_tuple * cardinality)/kNumBitsPerByte);
+      BloomFilter::getNearestAllowedSize((FLAGS_bloom_num_bits_per_tuple * cardinality)/kNumBitsPerByte));
   bloom_filter_proto->set_number_of_hashes(FLAGS_bloom_num_hash_fns);
 }
 

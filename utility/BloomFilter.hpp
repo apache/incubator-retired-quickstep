@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <utility>
 #include <vector>
@@ -60,7 +61,7 @@ typedef BloomFilterBlocked BloomFilter;
 class BloomFilterBlocked {
  public:
   static const std::uint8_t kNumBitsPerByte = 8;
-  static const std::uint8_t kMaxNumHashFns = 8;
+  static const std::uint8_t kMaxNumHashFns = 4;
 
   // This union allows us to read/write position in convenient fashion,
   // through nested structs and their bitfield members
@@ -79,6 +80,11 @@ class BloomFilterBlocked {
       unsigned byte_num : 29;
     } byte_pos;
   };
+
+  static std::uint64_t getNearestAllowedSize(const std::uint64_t approx_size) {
+    return (approx_size / kCacheLineBytes) * kCacheLineBytes;
+  }
+
 
   /**
    * @brief Constructor.
@@ -189,7 +195,7 @@ class BloomFilterBlocked {
   }
 
   template <typename T>
-  void insert(const T value) {
+  void insert(const T &value) {
     insert(reinterpret_cast<const std::uint8_t *>(&value), sizeof(T));
   }
 
@@ -200,18 +206,12 @@ class BloomFilterBlocked {
    * @param length Size of the value being inserted in bytes.
    */
   inline void insert(const std::uint8_t *key_begin, const std::size_t length) {
-    Position positions[kMaxNumHashFns];
-    getPositions(key_begin, length, positions);
-    {
       SpinSharedMutexExclusiveLock<false> exclusive_writer_lock(bloom_filter_insert_mutex_);
-      for (std::uint8_t i = 0; i < hash_fn_count_; ++i)
-        setBitAtPosition(positions[i]);
-    }
-    ++inserted_element_count_;
+      insertUnSafe(key_begin, length);
   }
 
   template <typename T>
-  void insertUnSafe(const T value) {
+  void insertUnSafe(const T &value) {
     insertUnSafe(reinterpret_cast<const std::uint8_t *>(&value), sizeof(T));
   }
 
@@ -224,15 +224,19 @@ class BloomFilterBlocked {
    * @param length Size of the value being inserted in bytes.
    */
   inline void insertUnSafe(const std::uint8_t *key_begin, const std::size_t length) {
-    Position positions[kMaxNumHashFns];
-    getPositions(key_begin, length, positions);
-    for (std::uint8_t i = 0; i < hash_fn_count_; ++i)
-      setBitAtPosition(positions[i]);
+    Position first_pos = getFirstPosition(key_begin, length);
+    if (!getBitAtPosition(first_pos))
+      setBitAtPosition(first_pos);
+    Position other_pos;
+    for (std::uint8_t i = 1; i <hash_fn_count_; ++i) {
+      other_pos = getOtherPosition(key_begin, length, first_pos, i);
+      setBitAtPosition(other_pos);
+    }
     ++inserted_element_count_;
   }
 
   template <typename T>
-  bool contains(const T value) {
+  bool contains(const T &value) {
     return contains(reinterpret_cast<const std::uint8_t *>(&value), sizeof(T));
   }
 
@@ -247,12 +251,20 @@ class BloomFilterBlocked {
    * @param key_begin A pointer to the value being tested for membership.
    * @param length Size of the value being inserted in bytes.
    */
-  inline bool contains(const std::uint8_t *key_begin, const std::size_t length) const {
-    Position positions[kMaxNumHashFns];
-    getPositions(key_begin, length, positions);
-    for (std::uint8_t i = 0; i < hash_fn_count_; ++i)
-      if (!getBitAtPosition(positions[i]))
+  inline bool contains(
+      const std::uint8_t *__restrict__ key_begin,
+      const std::size_t length) const {
+    Position first_pos = getFirstPosition(key_begin, length);
+    if (!getBitAtPosition(first_pos)) {
+      return false;
+    }
+    Position other_pos;
+    for (std::uint8_t i = 1; i < hash_fn_count_; ++i) {
+      other_pos = getOtherPosition(key_begin, length, first_pos, i);
+      if (!getBitAtPosition(other_pos)) {
         return false;
+      }
+    }
     return true;
   }
 
@@ -279,14 +291,33 @@ class BloomFilterBlocked {
   }
 
  protected:
-  void getPositions(
+  Position getFirstPosition(const std::uint8_t *begin, std::size_t length) const {
+    Position pos;
+    pos.hash = hash_identity(begin, length);
+    return pos;
+  }
+
+  Position getOtherPosition(
       const std::uint8_t *begin,
       std::size_t length,
+      const Position first_pos,
+      const std::uint8_t index) const {
+    Position pos;
+    pos.hash = hash_multiplicative(begin, length, hash_fn_[index-1]);
+    pos.cache_line_pos.line_num = first_pos.cache_line_pos.line_num;
+    return pos;
+  }
+
+  void fillPosition(
+      const std::uint8_t *begin,
+      std::size_t length,
+      const std::uint8_t index,
       Position positions[]) const {
-    positions[0].hash = hash_multiplicative(begin, length, hash_fn_[0]);
-    for (std::size_t i = 1; i < hash_fn_count_; ++i) {
-      positions[i].hash = hash_multiplicative(begin, length, hash_fn_[i]);
-      positions[i].cache_line_pos.line_num = positions[0].cache_line_pos.line_num;
+    if (index == 0)
+      positions[0].hash = hash_identity(begin, length);
+    else {
+      positions[index].hash = hash_multiplicative(begin, length, hash_fn_[index-1]);
+      positions[index].cache_line_pos.line_num = positions[0].cache_line_pos.line_num;
     }
   }
 
@@ -298,8 +329,19 @@ class BloomFilterBlocked {
     return (bit_array_.get())[pos.byte_pos.byte_num] & (1 << pos.byte_pos.index_in_byte);
   }
 
+  inline std::uint32_t hash_identity(
+      const std::uint8_t *__restrict__ begin,
+      std::size_t length) const {
+    std::uint32_t hash;
+    if (length >= 4)
+      hash = *reinterpret_cast<const std::uint32_t*> (begin);
+    else
+      std::memcpy(&hash, begin, length);
+    return hash % (array_size_in_bytes_ * kNumBitsPerByte);
+  }
+
   inline std::uint32_t hash_multiplicative(
-      const std::uint8_t *begin,
+      const std::uint8_t *__restrict__ begin,
       std::size_t length,
       const std::uint64_t multiplier) const {
     std::uint32_t hash = 0;
@@ -313,10 +355,10 @@ class BloomFilterBlocked {
     }
     while (bytes_hashed < length) {
       std::uint8_t val = *(begin + bytes_hashed);
-      hash += (multiplier * val) >> 32;
+      hash += (multiplier * val) >> 24;
       bytes_hashed++;
     }
-    return hash % (array_size_in_bytes_ * kNumBitsPerByte);
+    return hash;//  % (array_size_in_bytes_ * kNumBitsPerByte);
   }
 
  private:
@@ -328,13 +370,13 @@ class BloomFilterBlocked {
   static constexpr std::uint64_t kKnuthGoldenRatioNumber = 2654435761;
   const std::uint64_t hash_fn_[kMaxNumHashFns] = { // hash_fn_[i] is 2**(i+1) - 1
     0x00000001 * kKnuthGoldenRatioNumber, // 0x00000003, 0x00000007, 0x0000000f,
-    0x0000001f * kKnuthGoldenRatioNumber, // 0x0000003f, 0x0000007f, 0x000000ff,
+    // 0x0000001f * kKnuthGoldenRatioNumber, // 0x0000003f, 0x0000007f, 0x000000ff,
     0x000001ff * kKnuthGoldenRatioNumber, // 0x000003ff, 0x000007ff, 0x00000fff,
-    0x00001fff * kKnuthGoldenRatioNumber, // 0x00003fff, 0x00007fff, 0x0000ffff,
+    // 0x00001fff * kKnuthGoldenRatioNumber, // 0x00003fff, 0x00007fff, 0x0000ffff,
     0x0001ffff * kKnuthGoldenRatioNumber, // 0x0003ffff, 0x0007ffff, 0x000fffff,
-    0x001fffff * kKnuthGoldenRatioNumber, // 0x003fffff, 0x007fffff, 0x00ffffff,
+    // 0x001fffff * kKnuthGoldenRatioNumber, // 0x003fffff, 0x007fffff, 0x00ffffff,
     0x01ffffff * kKnuthGoldenRatioNumber, // 0x03ffffff, 0x07ffffff, 0x0fffffff,
-    0x1fffffff * kKnuthGoldenRatioNumber  // 0x3fffffff, 0x7fffffff, 0xffffffff
+    // 0x1fffffff * kKnuthGoldenRatioNumber  // 0x3fffffff, 0x7fffffff, 0xffffffff
     };
 
   alignas(kCacheLineBytes) std::unique_ptr<std::uint8_t> bit_array_;
