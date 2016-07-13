@@ -55,6 +55,7 @@
 #include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryPlan.hpp"
 #include "query_optimizer/cost_model/SimpleCostModel.hpp"
+#include "query_optimizer/cost_model/StarSchemaSimpleCostModel.hpp"
 #include "query_optimizer/expressions/AggregateFunction.hpp"
 #include "query_optimizer/expressions/Alias.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
@@ -161,6 +162,8 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
 
   cost_model_.reset(
       new cost::SimpleCostModel(top_level_physical_plan_->shared_subplans()));
+  ss_cost_model_.reset(new cost::StarSchemaSimpleCostModel(
+      top_level_physical_plan_->shared_subplans()));
 
   const CatalogRelation *result_relation = nullptr;
 
@@ -328,6 +331,10 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
   *catalog_relation_output = catalog_relation.get();
   const relation_id output_rel_id = optimizer_context_->catalog_database()->addRelation(
       catalog_relation.release());
+
+  const std::size_t estimated_cardinality = ss_cost_model_->estimateCardinality(physical);
+  const std::size_t estimated_tuple_size = (*catalog_relation_output)->getEstimatedByteLength();
+  query_handle_->addMemoryToEstimate(estimated_cardinality * estimated_tuple_size);
 
 #ifdef QUICKSTEP_DISTRIBUTED
   referenced_relation_ids_.insert(output_rel_id);

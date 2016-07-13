@@ -415,6 +415,8 @@ class ExecutionGenerator {
    * @brief The cost model to use for creating the execution plan.
    */
   std::unique_ptr<cost::CostModel> cost_model_;
+  // The star schema cost model.
+  std::unique_ptr<cost::CostModel> ss_cost_model_;
 
   physical::TopLevelPlanPtr top_level_physical_plan_;
 

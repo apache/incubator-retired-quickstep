@@ -78,6 +78,7 @@ bool PriorityPolicyEnforcer::admitQuery(QueryHandle *query_handle) {
       learner_->addQuery(*query_handle);
       query_handle->setAdmissionTime();
       query_id_to_handle_[query_handle->query_id()] = query_handle;
+      LOG(INFO) << "Query " << query_handle->query_id() << " mem estimate: " << query_handle->getEstimatedMaxMemoryInBytes() << " bytes";
       return true;
     } else {
       LOG(ERROR) << "Query with the same ID " << query_id << " exists";
