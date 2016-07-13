@@ -46,6 +46,8 @@
 
 namespace quickstep {
 
+DECLARE_int64(bloom_adapter_batch_size);
+
 /** \addtogroup Storage
  *  @{
  */
@@ -2272,7 +2274,7 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
       bloom_filter_adapter.reset(new BloomFilterAdapter(
               probe_bloom_filters_, probe_attribute_ids_, attr_size_vectors));
 
-      static const uint32_t kMaxBatchSize = 4000;
+      static const uint32_t kMaxBatchSize = FLAGS_bloom_adapter_batch_size;
       std::vector<tuple_id> batch;
       batch.reserve(kMaxBatchSize);
 

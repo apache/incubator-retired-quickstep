@@ -59,6 +59,9 @@ using std::vector;
 
 namespace quickstep {
 
+DEFINE_int64(bloom_adapter_batch_size, 4000,
+             "Number of tuples to probe in bulk in Bloom filter adapter.");
+
 namespace {
 
 // Functor passed to HashTable::getAllFromValueAccessor() to collect matching
