@@ -40,8 +40,79 @@ And, it is **open source!**
 4. Checkout the dependencies: ```git submodule update```
 5. Go into the build directory: ```cd build```
 6. Create the Makefile: ```cmake -D CMAKE_BUILD_TYPE=Release ..```  
-7. Build: ```make -j4```. Note you may replace the 4 with the number of cores on your machine.
-8. Start quickstep: ```./quickstep_cli_shell --initialize_db=true```. You can now fire SQL queries. To quit, you can type in ```quit;``` Your data is stored in the directory ```qsstor```
+7. Build: ```make -j4```. Note you may replace the 4 with the number of cores 
+   on your machine.
+8. Start quickstep: ```./quickstep_cli_shell --initialize_db=true```. You can 
+   now fire SQL queries. To quit, you can type in ```quit;``` Your data is 
+   stored in the directory ```qsstor```. Note the next time you start Quickstep,
+   you can omit the ``` --initialize_db``` flag (as the database has already 
+   been initialized), and simply start Quickstep as: ```./quickstep_cli_shell```.
+   There are also a number of optional flags that you can specify, and to see
+   the full list, you can type in: ```./quickstep_cli_shell --help```
+9. Next let us load some data and fire some queries. A few points to note:
+The SQL surface of Quickstep is small (it will grow over time). The
+traditional SQL CREATE TABLE and SELECT statements work. The data types
+that are supported include INTEGER, FLOAT, DOUBLE, VARCHAR, CHAR, DATE,
+and DATETIME. Quickstep also does not have support for NULLS or keys (yet).
+Let create two tables by typing into the Quickstep shell (which you opened
+in the step above.
+
+```
+CREATE TABLE Weather (cid INTEGER, recordDate DATE, highTemperature FLOAT, lowTemperature FLOAT);
+```
+
+and then,
+
+```
+CREATE TABLE City (cid Integer, name VARCHAR(80), state CHAR(2));
+```
+
+10. Next, let us insert some tuples in these two tables.
+    ```
+    INSERT INTO City VALUES (1, 'Madison', 'WI');
+    INSERT INTO City VALUES (2, 'Palo Alto', 'CA');
+    INSERT INTO Weather VALUES (1, '2015-11-1', 50, 30);
+    INSERT INTO Weather VALUES (1, '2015-11-2', 51, 32);
+    INSERT INTO Weather VALUES (2, '2015-11-1', 60, 50);
+    ```
+
+11. Now we can issue SQL queries such as:
+  a. Find all weather records for California:
+  ```
+  SELECT * FROM WEATHER W, City C WHERE C.cid = W.cid AND C.state = 'CA';
+  ```
+
+  b. Find the min and max temperature for each city, printing the ```cid```:
+  ```
+  SELECT cid, MIN(lowTemperature), MAX(highTemperature) FROM Weather GROUP BY cid;
+  ```
+
+  c. Find the min and max temperature for each city using a nested query, and 
+     printing thie city name:
+  ```
+  SELECT * FROM City C, (SELECT cid, MIN(lowTemperature), MAX(highTemperature) FROM Weather GROUP BY cid) AS T WHERE C.cid = T.cid;
+  ```
+
+12. Quickstep also supports a COPY TABLE command. If you want to try that, then
+    from a separate shell file type in the following: 
+
+    ```
+    echo "3|2015-11-3|49|29" > /tmp/tmp.tbl
+    echo "3|2015-11-4|48|28" >> /tmp/tmp.tbl
+    echo "3|2015-11-5|47|27" >> /tmp/tmp.tbl
+    ```
+   
+    Then, load this new data by typing the following SQL in the Quickstep shell:
+
+    ```
+    COPY Weather FROM '/tmp/tmp.tbl' WITH (DELIMITER '|');
+    ```
+
+    Now, you have loaded three more tuples into the Weather table, and you can
+    fire the SQL queries above again against this modified database.
+
+    Remember, to quit Quickstep, you can type in ```quit;``` into the Quickstep
+    shell.
 
 
 ## Additional pointers
