@@ -191,6 +191,8 @@ class PriorityPolicyEnforcer {
 
   void getWorkerMessagesHPF(std::vector<std::unique_ptr<WorkerMessage>> *worker_messages);
 
+  bool admissionMemoryCheck(const QueryHandle *query_handle);
+
   const tmb::client_id foreman_client_id_;
   const std::size_t num_numa_nodes_;
 
@@ -227,6 +229,8 @@ class PriorityPolicyEnforcer {
       workorder_time_recorder_;
 
   std::unique_ptr<Learner> learner_;
+
+  std::size_t committed_memory_;
 
   DISALLOW_COPY_AND_ASSIGN(PriorityPolicyEnforcer);
 };

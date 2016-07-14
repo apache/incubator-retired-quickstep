@@ -116,6 +116,7 @@ target_link_libraries(quickstep_queryexecution_PolicyEnforcer
                       quickstep_queryexecution_WorkerMessage
                       quickstep_queryoptimizer_QueryHandle
                       quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_StorageManager
                       quickstep_utility_Macros
                       tmb)
 target_link_libraries(quickstep_queryexecution_PriorityPolicyEnforcer
