@@ -49,8 +49,6 @@ class BloomFilterOriginal;
 class BloomFilterBlocked;
 typedef BloomFilterBlocked BloomFilter;
 
-#define PREV_CACHE_LINE_SIZE_MULTIPLE(n)  ((n)/kCacheLineBytes) * kCacheLineBytes
-
 /**
  * @brief A "blocked" version of Bloom Filter based on this paper:
  *        Putze, Felix, Peter Sanders, and Johannes Singler.
@@ -81,8 +79,18 @@ class BloomFilterBlocked {
     } byte_pos;
   };
 
-  static std::uint64_t getNearestAllowedSize(const std::uint64_t approx_size) {
-    return (approx_size / kCacheLineBytes) * kCacheLineBytes;
+  // This Bloom filter implementation requires the bit array to be a
+  // multiple of the cache-line size. So we either have to round up to a 
+  // multiple (default behavior) or round down to a multiple.
+  // Rounding up is usually preferable but rounding down is necessary when
+  // we are given a bit array that we don't control the size of, in the
+  // constructor.
+  static std::uint64_t getNearestAllowedSize(
+      const std::uint64_t approx_size,
+      bool round_down = false) {
+    if (round_down)
+      return (approx_size / kCacheLineBytes) * kCacheLineBytes;
+    return ((approx_size + kCacheLineBytes - 1)/ kCacheLineBytes) * kCacheLineBytes;
   }
 
 
@@ -97,7 +105,7 @@ class BloomFilterBlocked {
   BloomFilterBlocked(const std::uint8_t hash_fn_count,
               const std::uint64_t bit_array_size_in_bytes)
       : hash_fn_count_(hash_fn_count),
-        array_size_in_bytes_(PREV_CACHE_LINE_SIZE_MULTIPLE(bit_array_size_in_bytes)),
+        array_size_in_bytes_(getNearestAllowedSize(bit_array_size_in_bytes)),
         is_bit_array_owner_(true),
         bit_array_(new std::uint8_t[array_size_in_bytes_]) {
     reset();
@@ -119,7 +127,7 @@ class BloomFilterBlocked {
               std::uint8_t *bit_array,
               const bool is_initialized)
       : hash_fn_count_(hash_fn_count),
-        array_size_in_bytes_(PREV_CACHE_LINE_SIZE_MULTIPLE(bit_array_size_in_bytes)),
+        array_size_in_bytes_(getNearestAllowedSize(bit_array_size_in_bytes, true)),
         is_bit_array_owner_(false),
         bit_array_(bit_array) {  // Owned by the calling method.
     if (!is_initialized) {
