@@ -109,7 +109,9 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
 
 void ExecutionHeuristics::setBloomFilterProperties(serialization::BloomFilter *bloom_filter_proto,
                                                    const std::size_t hash_join_index) {
-  auto cardinality = hash_joins_[hash_join_index].estimated_build_relation_cardinality_;
+  // auto cardinality = hash_joins_[hash_join_index].estimated_build_relation_cardinality_;
+  auto relation = hash_joins_[hash_join_index].referenced_stored_build_relation_;
+  const std::size_t cardinality = relation->getStatistics().getNumTuples();
   bloom_filter_proto->set_bloom_filter_size(
       BloomFilter::getNearestAllowedSize(cardinality/kNumBitsPerByte));
   bloom_filter_proto->set_number_of_hashes(1);
