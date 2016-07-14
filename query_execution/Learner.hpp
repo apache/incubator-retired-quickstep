@@ -33,7 +33,7 @@
 
 #include "glog/logging.h"
 
-namespace serialization { class NormalWorkOrderCompletionMessage; }
+// namespace serialization { class NormalWorkOrderCompletionMessage; }
 
 namespace quickstep {
 
@@ -47,9 +47,29 @@ class Learner {
    **/
   Learner();
 
+  template <bool dynamic_probabilities>
   void addCompletionFeedback(
       const serialization::NormalWorkOrderCompletionMessage
-          &workorder_completion_proto);
+          &workorder_completion_proto) {
+    if (dynamic_probabilities) {
+      const std::size_t query_id = workorder_completion_proto.query_id();
+      DCHECK(isQueryPresent(query_id));
+      ExecutionStats *execution_stats = getExecutionStats(query_id);
+      DCHECK(execution_stats != nullptr);
+      execution_stats->addEntry(
+          workorder_completion_proto.execution_time_in_microseconds(),
+          workorder_completion_proto.operator_index());
+
+      const std::size_t priority_level = getQueryPriorityUnsafe(query_id);
+      if (!hasFeedbackFromAllQueriesInPriorityLevel(priority_level)) {
+        updateFeedbackFromQueriesInPriorityLevel(priority_level);
+      }
+      updateProbabilitiesForQueriesInPriorityLevel(priority_level, query_id);
+      updateProbabilitiesOfAllPriorityLevels();
+    }
+    printWorkOrderDetails(workorder_completion_proto);
+    // printPredictedWorkOrderTimes();
+  }
 
   /**
    * @brief Add a query to the Learner.

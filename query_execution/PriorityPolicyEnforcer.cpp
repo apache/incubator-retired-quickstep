@@ -107,7 +107,11 @@ void PriorityPolicyEnforcer::processMessage(const TaggedMessage &tagged_message)
       operator_id = proto.operator_index();
       worker_directory_->decrementNumQueuedWorkOrders(
           proto.worker_thread_index());
-      learner_->addCompletionFeedback(proto);
+      if (FLAGS_dynamic_probabilities_in_learner) {
+        learner_->addCompletionFeedback<true>(proto);
+      } else {
+        learner_->addCompletionFeedback<false>(proto);
+      }
       if (profile_individual_workorders_) {
         recordTimeForWorkOrder(proto);
       }

@@ -47,28 +47,6 @@ Learner::Learner()
   LOG(INFO) << "Query ID|Operator ID|Worker ID|Time in microseconds|Workorder end timestamp";
 }
 
-void Learner::addCompletionFeedback(
-    const serialization::NormalWorkOrderCompletionMessage
-        &workorder_completion_proto) {
-  const std::size_t query_id = workorder_completion_proto.query_id();
-  DCHECK(isQueryPresent(query_id));
-  ExecutionStats *execution_stats = getExecutionStats(query_id);
-  DCHECK(execution_stats != nullptr);
-  execution_stats->addEntry(
-      workorder_completion_proto.execution_time_in_microseconds(),
-      workorder_completion_proto.operator_index());
-
-  const std::size_t priority_level = getQueryPriorityUnsafe(query_id);
-  if (!hasFeedbackFromAllQueriesInPriorityLevel(priority_level)) {
-    updateFeedbackFromQueriesInPriorityLevel(priority_level);
-  }
-  updateProbabilitiesForQueriesInPriorityLevel(priority_level, query_id);
-  updateProbabilitiesOfAllPriorityLevels();
-  // printProbabilitiesForPriorityLevel(priority_level);
-  printWorkOrderDetails(workorder_completion_proto);
-  printPredictedWorkOrderTimes();
-}
-
 void Learner::updateProbabilitiesForQueriesInPriorityLevel(
     const std::size_t priority_level, const std::size_t query_id) {
   DCHECK(isPriorityLevelPresent(priority_level));
