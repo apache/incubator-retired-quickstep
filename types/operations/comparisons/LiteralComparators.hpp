@@ -257,8 +257,8 @@ class LiteralUncheckedComparator : public UncheckedComparator {
 };
 
 /**
- * @brief The equal UncheckedComparator for seven literals
- *        (int, std::int64_t, float, double, DatetimeLit, DatetimeIntervalLit, and YearMonthIntervalLit).
+ * @brief The equal UncheckedComparator for the following literals
+ *        (int, std::int64_t, float, double, DateLit, DatetimeLit, DatetimeIntervalLit, and YearMonthIntervalLit).
  **/
 template <typename LeftCppType, bool left_nullable,
           typename RightCppType, bool right_nullable>
@@ -267,8 +267,8 @@ using EqualLiteralUncheckedComparator = LiteralUncheckedComparator<EqualFunctor,
                                                                    RightCppType, right_nullable>;
 
 /**
- * @brief The not-equal UncheckedComparator for seven literals
- *        (int, std::int64_t, float, double, DatetimeLit, DatetimeIntervalLit, and YearMonthIntervalLit).
+ * @brief The not-equal UncheckedComparator for the following literals
+ *        (int, std::int64_t, float, double, DateLit, DatetimeLit, DatetimeIntervalLit, and YearMonthIntervalLit).
  **/
 template <typename LeftCppType, bool left_nullable,
           typename RightCppType, bool right_nullable>
@@ -277,8 +277,8 @@ using NotEqualLiteralUncheckedComparator = LiteralUncheckedComparator<NotEqualFu
                                                                       RightCppType, right_nullable>;
 
 /**
- * @brief The less-than UncheckedComparator for seven literals
- *        (int, std::int64_t, float, double, DatetimeLit, DatetimeIntervalLit, and YearMonthIntervalLit).
+ * @brief The less-than UncheckedComparator for the following literals
+ *        (int, std::int64_t, float, double, DateLit, DatetimeLit, DatetimeIntervalLit, and YearMonthIntervalLit).
  **/
 template <typename LeftCppType, bool left_nullable,
           typename RightCppType, bool right_nullable>
@@ -287,8 +287,8 @@ using LessLiteralUncheckedComparator = LiteralUncheckedComparator<LessFunctor,
                                                                   RightCppType, right_nullable>;
 
 /**
- * @brief The less-than-or-equal UncheckedComparator for seven literals
- *        (int, std::int64_t, float, double, DatetimeLit, DatetimeIntervalLit, and YearMonthIntervalLit).
+ * @brief The less-than-or-equal UncheckedComparator for the following literals
+ *        (int, std::int64_t, float, double, DateLit, DatetimeLit, DatetimeIntervalLit, and YearMonthIntervalLit).
  **/
 template <typename LeftCppType, bool left_nullable,
           typename RightCppType, bool right_nullable>
@@ -297,8 +297,8 @@ using LessOrEqualLiteralUncheckedComparator = LiteralUncheckedComparator<LessOrE
                                                                          RightCppType, right_nullable>;
 
 /**
- * @brief The greater-than UncheckedComparator for seven literals
- *        (int, std::int64_t, float, double, DatetimeLit, DatetimeIntervalLit, and YearMonthIntervalLit).
+ * @brief The greater-than UncheckedComparator for the following literals
+ *        (int, std::int64_t, float, double, DateLit, DatetimeLit, DatetimeIntervalLit, and YearMonthIntervalLit).
  **/
 template <typename LeftCppType, bool left_nullable,
           typename RightCppType, bool right_nullable>
@@ -307,8 +307,8 @@ using GreaterLiteralUncheckedComparator = LiteralUncheckedComparator<GreaterFunc
                                                                      RightCppType, right_nullable>;
 
 /**
- * @brief The greater-than-or-equal UncheckedComparator for seven literals
- *        (int, std::int64_t, float, double, DatetimeLit, DatetimeIntervalLit, and YearMonthIntervalLit).
+ * @brief The greater-than-or-equal UncheckedComparator for the following literals
+ *        (int, std::int64_t, float, double, DateLit, DatetimeLit, DatetimeIntervalLit, and YearMonthIntervalLit).
  **/
 template <typename LeftCppType, bool left_nullable,
           typename RightCppType, bool right_nullable>
