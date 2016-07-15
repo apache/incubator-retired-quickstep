@@ -23,7 +23,6 @@
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "utility/EqualsAnyConstant.hpp"
-#include "utility/Macros.hpp"
 
 #include "glog/logging.h"
 
@@ -48,6 +47,9 @@ bool BasicComparison::canCompareTypes(const Type &left, const Type &right) const
         default:
           return false;
       }
+    }
+    case kDate: {
+      return right.getTypeID() == kDate;
     }
     case kDatetime: {
       return right.getTypeID() == kDatetime;
@@ -89,7 +91,7 @@ bool BasicComparison::canComparePartialTypes(const Type *left_type,
   const Type *known_type = (left_type != nullptr) ? left_type : right_type;
   return QUICKSTEP_EQUALS_ANY_CONSTANT(known_type->getTypeID(),
                                        kInt, kLong, kFloat, kDouble,
-                                       kDatetime, kDatetimeInterval, kYearMonthInterval,
+                                       kDate, kDatetime, kDatetimeInterval, kYearMonthInterval,
                                        kChar, kVarChar);
 }
 

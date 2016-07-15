@@ -163,6 +163,11 @@ auto InvokeOnLessComparatorForTypeIgnoreNullability(const Type &type,
           comp(0, 0);
       return functor(comp);
     }
+    case kDate: {
+      LessLiteralUncheckedComparator<DateLit, false,
+                                     DateLit, false> comp;
+      return functor(comp);
+    }
     case kDatetime: {
       LessLiteralUncheckedComparator<DatetimeLit, false,
                                      DatetimeLit, false> comp;
@@ -423,6 +428,18 @@ auto InvokeOnLessComparatorForDifferentTypesIgnoreNullability(
                 comp(left_string_length, right_string_length);
             return functor(comp);
           }
+        }
+        default:
+          return comparison_util_detail::InvokeOnLessComparatorForDifferentTypesFallback(
+              left_type, right_type, functor);
+      }
+    }
+    case kDate: {
+      switch (right_type.getTypeID()) {
+        case kDate: {
+          LessLiteralUncheckedComparator<DateLit, false,
+                                         DateLit, false> comp;
+          return functor(comp);
         }
         default:
           return comparison_util_detail::InvokeOnLessComparatorForDifferentTypesFallback(
@@ -766,6 +783,18 @@ auto InvokeOnBothLessComparatorsForDifferentTypesIgnoreNullability(
               left_type, right_type, functor);
       }
     }
+    case kDate: {
+      switch (right_type.getTypeID()) {
+        case kDate: {
+          LessLiteralUncheckedComparator<DateLit, false,
+                                         DateLit, false> comp;
+          return functor(comp, comp);
+        }
+        default:
+          return comparison_util_detail::InvokeOnBothLessComparatorsForDifferentTypesFallback(
+              left_type, right_type, functor);
+      }
+    }
     case kDatetime: {
       switch (right_type.getTypeID()) {
         case kDatetime: {
@@ -963,6 +992,8 @@ inline bool CheckUntypedValuesEqual(const Type &type, const void *left, const vo
       return STLCharEqual(static_cast<const AsciiStringSuperType&>(type).getStringLength())(left, right);
     case kVarChar:
       return STLVarCharEqual()(left, right);
+    case kDate:
+      return STLLiteralEqual<DateLit>()(left, right);
     case kDatetime:
       return STLLiteralEqual<DatetimeLit>()(left, right);
     case kDatetimeInterval:
@@ -1220,6 +1251,9 @@ inline TypedValue GetLastValueForType(const Type &type) {
       return TypedValue(kChar, kLastString, 2);
     case kVarChar:
       return TypedValue(kVarChar, kLastString, 2);
+    case kDate: {
+      return TypedValue(DateLit::Create(99999, 12, 31));
+    }
     case kDatetime: {
       DatetimeLit lit;
       lit.ticks = std::numeric_limits<std::int64_t>::max();

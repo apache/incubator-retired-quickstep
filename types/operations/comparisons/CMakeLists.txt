@@ -64,8 +64,6 @@ target_link_libraries(quickstep_types_operations_comparisons_AsciiStringComparat
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_types_operations_comparisons_BasicComparison
                       glog
-                      quickstep_types_DatetimeLit
-                      quickstep_types_IntervalLit
                       quickstep_types_Type
                       quickstep_types_TypeErrors
                       quickstep_types_TypeFactory
