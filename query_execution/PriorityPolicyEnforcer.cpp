@@ -42,6 +42,8 @@ DEFINE_uint64(max_msgs_per_dispatch_round, 40, "Maximum number of messages that"
               " can be allocated in a single round of dispatch of messages to"
               " the workers.");
 
+DEFINE_bool(highest_priority_first, false, "Pick queries from the highest priority level first");
+
 DEFINE_bool(dynamic_probabilities_in_learner, true, "Whether the learner should have dynamic probabilities or static probabilities");
 
 PriorityPolicyEnforcer::PriorityPolicyEnforcer(const tmb::client_id foreman_client_id,
@@ -179,41 +181,71 @@ void PriorityPolicyEnforcer::processMessage(const TaggedMessage &tagged_message)
 
 void PriorityPolicyEnforcer::getWorkerMessages(
     std::vector<std::unique_ptr<WorkerMessage>> *worker_messages) {
+  if (!FLAGS_highest_priority_first) {
+    // Iterate over admitted queries until either there are no more
+    // messages available, or the maximum number of messages have
+    // been collected.
+    DCHECK(worker_messages->empty());
+    std::unordered_map<std::size_t, bool> finished_queries_ids;
+
+    if (learner_->hasActiveQueries()) {
+      // Key = priority level. Value = Whether we have already checked the
+      std::unordered_map<std::size_t, bool> checked_priority_levels;
+      // While there are more priority levels to be checked ..
+      while (checked_priority_levels.size() < priority_query_ids_.size() && worker_messages->size() < FLAGS_max_msgs_per_dispatch_round) {
+        const int chosen_priority_level = learner_->pickRandomPriorityLevel();
+        if (chosen_priority_level == kInvalidPriorityLevel) {
+          DLOG(INFO) << "No valid priority level chosen";
+          break;
+        } else if (checked_priority_levels.find(static_cast<std::size_t>(
+                       chosen_priority_level)) != checked_priority_levels.end()) {
+          continue;
+        } else {
+          WorkerMessage *next_worker_message =
+              getNextWorkerMessageFromPriorityLevel(chosen_priority_level,
+                                                    &finished_queries_ids);
+          if (next_worker_message != nullptr) {
+            worker_messages->push_back(std::unique_ptr<WorkerMessage>(next_worker_message));
+          } else {
+            checked_priority_levels[static_cast<std::size_t>(chosen_priority_level)] = true;
+          }
+        }
+      }
+    } else {
+      DLOG(INFO) << "No active queries in the learner at this point.";
+      return;
+    }
+    for (auto finished_qid_pair : finished_queries_ids) {
+      removeQuery(finished_qid_pair.first);
+    }
+  } else {
+    getWorkerMessagesHPF(worker_messages);
+  }
+}
+
+void PriorityPolicyEnforcer::getWorkerMessagesHPF(std::vector<std::unique_ptr<WorkerMessage>> *worker_messages) {
   // Iterate over admitted queries until either there are no more
   // messages available, or the maximum number of messages have
   // been collected.
   DCHECK(worker_messages->empty());
-  std::unordered_map<std::size_t, bool> finished_queries_ids;
-
   if (learner_->hasActiveQueries()) {
-    // Key = priority level. Value = Whether we have already checked the
-    std::unordered_map<std::size_t, bool> checked_priority_levels;
-    // While there are more priority levels to be checked ..
-    while (checked_priority_levels.size() < priority_query_ids_.size() && worker_messages->size() < FLAGS_max_msgs_per_dispatch_round) {
-      const int chosen_priority_level = learner_->pickRandomPriorityLevel();
-      if (chosen_priority_level == kInvalidPriorityLevel) {
-        DLOG(INFO) << "No valid priority level chosen";
-        break;
-      } else if (checked_priority_levels.find(static_cast<std::size_t>(
-                     chosen_priority_level)) != checked_priority_levels.end()) {
-        continue;
+    std::unordered_map<std::size_t, bool> finished_queries_ids;
+    const int chosen_priority_level = learner_->getHighestPriorityLevel();
+    if (chosen_priority_level == kInvalidPriorityLevel) {
+      DLOG(INFO) << "No valid priority level chosen";
+      return;
+    }
+    while (worker_messages->size() < FLAGS_max_msgs_per_dispatch_round) {
+      WorkerMessage *next_worker_message = getNextWorkerMessageFromPriorityLevel(chosen_priority_level, &finished_queries_ids);
+      if (next_worker_message != nullptr) {
+        worker_messages->push_back(std::unique_ptr<WorkerMessage>(next_worker_message));
       } else {
-        WorkerMessage *next_worker_message =
-            getNextWorkerMessageFromPriorityLevel(chosen_priority_level,
-                                                  &finished_queries_ids);
-        if (next_worker_message != nullptr) {
-          worker_messages->push_back(std::unique_ptr<WorkerMessage>(next_worker_message));
-        } else {
-          checked_priority_levels[static_cast<std::size_t>(chosen_priority_level)] = true;
-        }
+        break;
       }
     }
-  } else {
-    DLOG(INFO) << "No active queries in the learner at this point.";
-    return;
-  }
-  for (auto finished_qid_pair : finished_queries_ids) {
-    removeQuery(finished_qid_pair.first);
+    for (auto finished_qid_pair : finished_queries_ids) {
+      removeQuery(finished_qid_pair.first);
+    }
   }
 }
 

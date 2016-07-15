@@ -189,6 +189,8 @@ class PriorityPolicyEnforcer {
       const std::size_t priority_level,
       std::unordered_map<std::size_t, bool> *finished_queries_ids);
 
+  void getWorkerMessagesHPF(std::vector<std::unique_ptr<WorkerMessage>> *worker_messages);
+
   const tmb::client_id foreman_client_id_;
   const std::size_t num_numa_nodes_;
 
