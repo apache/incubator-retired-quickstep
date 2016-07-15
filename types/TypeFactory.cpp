@@ -18,8 +18,10 @@
 #include "types/TypeFactory.hpp"
 
 #include <cstddef>
+#include <string>
 
 #include "types/CharType.hpp"
+#include "types/DateType.hpp"
 #include "types/DatetimeIntervalType.hpp"
 #include "types/DatetimeType.hpp"
 #include "types/DoubleType.hpp"
@@ -49,6 +51,8 @@ const Type& TypeFactory::GetType(const TypeID id,
       return FloatType::Instance(nullable);
     case kDouble:
       return DoubleType::Instance(nullable);
+    case kDate:
+      return DateType::Instance(nullable);
     case kDatetime:
       return DatetimeType::Instance(nullable);
     case kDatetimeInterval:
@@ -90,6 +94,7 @@ bool TypeFactory::ProtoIsValid(const serialization::Type &proto) {
     case serialization::Type::LONG:
     case serialization::Type::FLOAT:
     case serialization::Type::DOUBLE:
+    case serialization::Type::DATE:
     case serialization::Type::DATETIME:
     case serialization::Type::DATETIME_INTERVAL:
     case serialization::Type::YEAR_MONTH_INTERVAL:
@@ -119,6 +124,8 @@ const Type& TypeFactory::ReconstructFromProto(const serialization::Type &proto) 
       return FloatType::Instance(proto.nullable());
     case serialization::Type::DOUBLE:
       return DoubleType::Instance(proto.nullable());
+    case serialization::Type::DATE:
+      return DateType::Instance(proto.nullable());
     case serialization::Type::DATETIME:
       return DatetimeType::Instance(proto.nullable());
     case serialization::Type::DATETIME_INTERVAL:

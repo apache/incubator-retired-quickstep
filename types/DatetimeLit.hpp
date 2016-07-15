@@ -31,6 +31,67 @@ namespace quickstep {
  */
 
 /**
+ * @brief A literal representing the date.
+ **/
+struct DateLit {
+  // Note that although there is no year 0 in the Gregorian calendar, ISO 8601
+  // has year 0 equivalent to 1 BCE, year -1 equivalent to 2 BCE, and so on.
+  std::int32_t year;
+  std::uint8_t month, day;
+
+  // The maximum number of characters needed to represent any date in ISO 8601
+  // notation.
+  static constexpr int kIsoChars
+      = 1     // + or - prefix
+        + 5   // Year digits
+        + 1   // -
+        + 2   // Month
+        + 1   // -
+        + 2;  // Day
+
+  static DateLit Create(const std::int32_t _year,
+                        const std::uint8_t _month,
+                        const std::uint8_t _day) {
+    DateLit date;
+    date.year = _year;
+    date.month = _month;
+    date.day = _day;
+
+    return date;
+  }
+
+  inline bool operator< (const DateLit& rhs) const {
+    return (year != rhs.year)
+        ? (year < rhs.year)
+        : ((month != rhs.month) ? (month < rhs.month) : (day < rhs.day));
+  }
+
+  inline bool operator> (const DateLit& rhs) const {
+    return (year != rhs.year)
+        ? (year > rhs.year)
+        : ((month != rhs.month) ? (month > rhs.month) : (day > rhs.day));
+  }
+
+  inline bool operator<=(const DateLit& rhs) const {
+    return !(*this > rhs);
+  }
+
+  inline bool operator>=(const DateLit& rhs) const {
+    return !(*this < rhs);
+  }
+
+  inline bool operator==(const DateLit& rhs) const {
+    return (year == rhs.year) &&
+           (month == rhs.month) &&
+           (day == rhs.day);
+  }
+
+  inline bool operator!=(const DateLit& rhs) const {
+    return !(*this == rhs);
+  }
+};
+
+/**
  * @brief A literal representing the datetime.
  **/
 struct DatetimeLit {

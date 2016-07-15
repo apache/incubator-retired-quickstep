@@ -34,6 +34,7 @@ enum TypeID {
   kDouble,
   kChar,
   kVarChar,
+  kDate,
   kDatetime,
   kDatetimeInterval,
   kYearMonthInterval,

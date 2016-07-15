@@ -101,7 +101,7 @@ void CheckIsCoercibleFrom(
   // Can't coerce from other types.
   for (const TypeID original_type_id
        : {kInt, kLong, kFloat, kDouble, kChar, kVarChar,
-          kDatetime, kDatetimeInterval, kYearMonthInterval}) {
+          kDate, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
     if (std::find(expected_coercible.begin(), expected_coercible.end(), original_type_id)
         == expected_coercible.end()) {
       const Type &original_type = TypeFactory::TypeRequiresLengthParameter(original_type_id)
@@ -183,7 +183,7 @@ void CheckStringTypeIsCoercibleFrom(const TypeID target_type_id,
 
   // Other types are not coercible to strings.
   for (const TypeID original_type_id
-       : {kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
+       : {kInt, kLong, kFloat, kDouble, kDate, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
     const Type &original_type = TypeFactory::TypeRequiresLengthParameter(original_type_id)
                                 ? TypeFactory::GetType(original_type_id, 10, false)
                                 : TypeFactory::GetType(original_type_id, false);
@@ -232,7 +232,7 @@ void CheckIsSafelyCoercibleFrom(
   // Can't coerce from other types.
   for (const TypeID original_type_id
        : {kInt, kLong, kFloat, kDouble, kChar, kVarChar,
-          kDatetime, kDatetimeInterval, kYearMonthInterval}) {
+          kDate, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
     if (std::find(expected_coercible.begin(), expected_coercible.end(), original_type_id)
         == expected_coercible.end()) {
       const Type &original_type = TypeFactory::TypeRequiresLengthParameter(original_type_id)
@@ -314,7 +314,7 @@ void CheckStringTypeIsSafelyCoercibleFrom(const TypeID target_type_id,
 
   // Other types are not coercible to strings.
   for (const TypeID original_type_id
-       : {kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
+       : {kInt, kLong, kFloat, kDouble, kDate, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
     const Type &original_type = TypeFactory::TypeRequiresLengthParameter(original_type_id)
                                 ? TypeFactory::GetType(original_type_id, 10, false)
                                 : TypeFactory::GetType(original_type_id, false);
