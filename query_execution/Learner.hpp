@@ -162,7 +162,11 @@ class Learner {
    *         kInvalidPriorityLevel.
    **/
   inline const int getHighestPriorityLevel() const {
-    return highest_priority_level_;
+    if (!priority_levels_set_.empty()) {
+      return static_cast<int>(*priority_levels_set_.rbegin());
+    } else {
+      return kInvalidPriorityLevel;
+    }
   }
 
   /**
@@ -325,9 +329,7 @@ class Learner {
     if (!isPriorityLevelPresent(priority_level)) {
       current_probabilities_[priority_level].reset(new ProbabilityStore());
       execution_stats_.emplace(priority_level, std::vector<std::pair<std::size_t, std::unique_ptr<ExecutionStats>>>());
-      if (static_cast<int>(priority_level) > highest_priority_level_) {
-        highest_priority_level_ = priority_level;
-      }
+      priority_levels_set_.insert(priority_level);
     }
   }
 
@@ -555,7 +557,7 @@ class Learner {
   // feedback from all the queries in the given priority level.
   // std::unordered_map<std::size_t, bool> has_feedback_from_all_queries_;
 
-  int highest_priority_level_;
+  std::set<std::size_t> priority_levels_set_;
 
   DISALLOW_COPY_AND_ASSIGN(Learner);
 };
