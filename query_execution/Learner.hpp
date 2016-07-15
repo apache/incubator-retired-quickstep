@@ -169,6 +169,10 @@ class Learner {
     }
   }
 
+  inline const std::set<std::size_t>& getSetOfPriorityLevels() const {
+    return priority_levels_set_;
+  }
+
   /**
    * @brief Randomly pick a priority level.
    *

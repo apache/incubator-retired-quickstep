@@ -229,18 +229,21 @@ void PriorityPolicyEnforcer::getWorkerMessagesHPF(std::vector<std::unique_ptr<Wo
   // been collected.
   DCHECK(worker_messages->empty());
   if (learner_->hasActiveQueries()) {
+    const std::set<std::size_t> &priority_set = learner_->getSetOfPriorityLevels();
     std::unordered_map<std::size_t, bool> finished_queries_ids;
-    const int chosen_priority_level = learner_->getHighestPriorityLevel();
-    if (chosen_priority_level == kInvalidPriorityLevel) {
-      DLOG(INFO) << "No valid priority level chosen";
+    auto priority_set_reverse_it = priority_set.rbegin();
+    if (priority_set.empty()) {
+      DLOG(INFO) << "No priority level available";
       return;
     }
-    while (worker_messages->size() < FLAGS_max_msgs_per_dispatch_round) {
-      WorkerMessage *next_worker_message = getNextWorkerMessageFromPriorityLevel(chosen_priority_level, &finished_queries_ids);
+    while (worker_messages->size() < FLAGS_max_msgs_per_dispatch_round && priority_set_reverse_it != priority_set.rend()) {
+      WorkerMessage *next_worker_message = getNextWorkerMessageFromPriorityLevel(*priority_set_reverse_it, &finished_queries_ids);
       if (next_worker_message != nullptr) {
         worker_messages->push_back(std::unique_ptr<WorkerMessage>(next_worker_message));
       } else {
-        break;
+        // No work orders available in the current priority level, check the
+        // next largest priority level.
+        ++priority_set_reverse_it;
       }
     }
     for (auto finished_qid_pair : finished_queries_ids) {
