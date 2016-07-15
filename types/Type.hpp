@@ -32,6 +32,7 @@
 
 namespace quickstep {
 
+struct DateLit;
 struct DatetimeIntervalLit;
 struct DatetimeLit;
 struct YearMonthIntervalLit;
@@ -95,7 +96,7 @@ class Type {
   enum SuperTypeID {
     kNumeric = 0,  // Fixed-length numeric types (Int, Long, Float, Double)
     kAsciiString,  // ASCII strings (Char, VarChar)
-    kOther         // Others (Datetime, DatetimeInterval, YearMonthInterval)
+    kOther         // Others (Date, Datetime, DatetimeInterval, YearMonthInterval)
   };
 
   /**
@@ -370,6 +371,8 @@ class Type {
         return TypedValue(*static_cast<const float*>(value_ptr));
       case kDouble:
         return TypedValue(*static_cast<const double*>(value_ptr));
+      case kDate:
+        return TypedValue(*static_cast<const DateLit*>(value_ptr));
       case kDatetime:
         return TypedValue(*static_cast<const DatetimeLit*>(value_ptr));
       case kDatetimeInterval:

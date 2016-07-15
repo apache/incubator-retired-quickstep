@@ -52,6 +52,7 @@ class TypeFactory {
       case kLong:
       case kFloat:
       case kDouble:
+      case kDate:
       case kDatetime:
       case kDatetimeInterval:
       case kYearMonthInterval:

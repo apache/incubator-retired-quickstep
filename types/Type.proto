@@ -29,6 +29,7 @@ message Type {
     DATETIME_INTERVAL = 7;
     YEAR_MONTH_INTERVAL = 8;
     NULL_TYPE = 9;
+    DATE = 10;
   }
 
   required TypeID type_id = 1;
