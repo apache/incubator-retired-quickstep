@@ -467,18 +467,18 @@ class Learner {
    * @return An unordered_map in which: Key = query ID.
    *         Value = Mean time per work order for that query.
    **/
-  inline std::unordered_map<std::size_t, std::size_t>
+  inline std::unordered_map<std::size_t, float>
   getMeanWorkOrderTimesForQueriesInPriorityLevel(
       const std::size_t priority_level) {
     DCHECK(isPriorityLevelPresent(priority_level));
-    std::unordered_map<std::size_t, std::size_t> result;
+    std::unordered_map<std::size_t, float> result;
     for (auto it = execution_stats_[priority_level].begin();
          it != execution_stats_[priority_level].end();
          ++it) {
       DCHECK(it->second.get() != nullptr);
       auto query_stats = it->second->getCurrentStats();
       result[it->first] =
-          query_stats.second == 0 ? 0 : query_stats.first / query_stats.second;
+          query_stats.second == 0 ? 0 : query_stats.first / float(query_stats.second);
     }
     return result;
   }
@@ -494,7 +494,7 @@ class Learner {
    * @return The denominator to be used for probability calculations.
    **/
   inline float calculateDenominator(
-      const std::unordered_map<std::size_t, std::size_t>
+      const std::unordered_map<std::size_t, float>
           &mean_workorder_per_query) const {
     float denominator = 0;
     for (const auto &element : mean_workorder_per_query) {

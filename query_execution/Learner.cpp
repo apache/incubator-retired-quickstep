@@ -76,7 +76,7 @@ void Learner::updateProbabilitiesForQueriesInPriorityLevel(
     return;
   }
   // Else, there are more than one queries for the given priority level.
-  std::unordered_map<std::size_t, std::size_t>
+  std::unordered_map<std::size_t, float>
       mean_workorders_per_query =
           getMeanWorkOrderTimesForQueriesInPriorityLevel(priority_level);
   const float denominator = calculateDenominator(mean_workorders_per_query);
@@ -108,16 +108,16 @@ void Learner::updateProbabilitiesOfAllPriorityLevels() {
     return;
   }
   // Compute the predicted work order execution times for all the level.
-  std::unordered_map<std::size_t, std::size_t> predicted_time_for_level;
+  std::unordered_map<std::size_t, float> predicted_time_for_level;
   std::size_t sum_active_priorities = 0;
   for (auto priority_iter = execution_stats_.begin();
        priority_iter != execution_stats_.end();
        ++priority_iter) {
-    std::size_t total_time_curr_level = 0;
+    float total_time_curr_level = 0;
     const std::size_t curr_priority_level = priority_iter->first;
     sum_active_priorities += curr_priority_level;
     // For each query, find its predicted work order execution time.
-    const std::unordered_map<std::size_t, std::size_t>
+    const std::unordered_map<std::size_t, float>
         mean_workorders_all_queries_curr_level =
             getMeanWorkOrderTimesForQueriesInPriorityLevel(
                 curr_priority_level);
@@ -138,7 +138,7 @@ void Learner::updateProbabilitiesOfAllPriorityLevels() {
   float total_num_workorders = 0;
   for (auto predicted_time_iter : predicted_time_for_level) {
     const std::size_t curr_priority_level = predicted_time_iter.first;
-    const std::size_t num_workorders_for_curr_level =
+    const float num_workorders_for_curr_level =
         (predicted_time_iter.second == 0)
             ? 0
             : static_cast<float>(curr_priority_level) /
