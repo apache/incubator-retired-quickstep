@@ -2274,12 +2274,22 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
       bloom_filter_adapter.reset(new BloomFilterAdapter(
               probe_bloom_filters_, probe_attribute_ids_, attr_size_vectors));
 
-      static const uint32_t kMaxBatchSize = FLAGS_bloom_adapter_batch_size;
+      // We want to have large batch sizes for cache efficiency while probeing,
+      // but small batch sizes to ensure that the adaptation logic kicks in
+      // (and does early). We use exponentially increasing batch sizes to
+      // achieve a balance between the two.
+      //
+      // We also keep track of num_tuples_left in the block, to ensure that
+      // we don't reserve an unnecessarily large vector.
+      std::uint32_t batch_size_try = FLAGS_bloom_adapter_batch_size;
+      std::uint32_t num_tuples_left = accessor->getNumTuples();
       std::vector<tuple_id> batch;
-      batch.reserve(kMaxBatchSize);
 
       do {
-        while (batch.size() < kMaxBatchSize && accessor->next())
+        std::uint32_t batch_size =
+            batch_size_try > num_tuples_left ? batch_size_try : num_tuples_left;
+        batch.reserve(batch_size);
+        while (batch.size() < batch_size && accessor->next())
           batch.push_back(accessor->getCurrentPosition());
 
         std::size_t num_hits = bloom_filter_adapter->bulkProbe(accessor, batch);
@@ -2303,6 +2313,8 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
           }
         }
         batch.clear();
+        num_tuples_left -= batch_size;
+        batch_size_try = batch_size * 2;
       } while (!accessor->iterationFinished());
     }
 
