@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_QUERY_EXECUTION_FOREMAN_HPP_
 #define QUICKSTEP_QUERY_EXECUTION_FOREMAN_HPP_
 
+#include <chrono>
 #include <cstddef>
 #include <cstdio>
 #include <memory>
@@ -121,6 +122,8 @@ class Foreman final : public ForemanLite {
    **/
   bool canCollectNewMessages(const tmb::message_type_id message_type);
 
+  bool checkAndAdmitHighPriorityQueries();
+
   const tmb::client_id main_thread_client_id_;
 
   WorkerDirectory *worker_directory_;
@@ -129,6 +132,15 @@ class Foreman final : public ForemanLite {
   StorageManager *storage_manager_;
 
   std::unique_ptr<PriorityPolicyEnforcer> policy_enforcer_;
+
+  // Start time for Foreman.
+  const std::chrono::steady_clock::time_point start_time_;
+  // Whether high priority queries have been admitted to the system.
+  std::vector<bool> high_priority_queries_admitted_;
+  // Defined in terms of number of milliseconds.
+  const std::vector<int> high_priority_queries_injection_points_;
+  std::queue<QueryHandle*> high_priority_query_handles_;
+
 
   DISALLOW_COPY_AND_ASSIGN(Foreman);
 };

@@ -79,6 +79,7 @@ target_link_libraries(quickstep_queryexecution_ExecutionStats
 target_link_libraries(quickstep_queryexecution_Foreman
                       ${GFLAGS_LIB_NAME}
                       glog
+                      quickstep_cli_InputParserUtil
                       quickstep_queryexecution_AdmitRequestMessage
                       quickstep_queryexecution_ForemanLite
                       quickstep_queryexecution_PriorityPolicyEnforcer

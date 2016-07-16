@@ -24,6 +24,7 @@
 #include <utility>
 #include <vector>
 
+#include "cli/InputParserUtil.hpp"
 #include "query_execution/AdmitRequestMessage.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
@@ -49,6 +50,8 @@ namespace quickstep {
 DEFINE_uint64(min_load_per_worker, 2, "The minimum load defined as the number "
               "of pending work orders for the worker. This information is used "
               "by the Foreman to assign work orders to worker threads");
+DEFINE_string(high_priority_queries_entry_points, "", "A comma separated list of entry points for high priority queries, each of which is defined in terms of milliseconds since the beginning of workload execution");
+DEFINE_uint64(num_high_priority_queries, 1, "Number of high priority queries to be admitted to the system");
 
 Foreman::Foreman(const tmb::client_id main_thread_client_id,
                  WorkerDirectory *worker_directory,
@@ -62,7 +65,10 @@ Foreman::Foreman(const tmb::client_id main_thread_client_id,
       main_thread_client_id_(main_thread_client_id),
       worker_directory_(DCHECK_NOTNULL(worker_directory)),
       catalog_database_(DCHECK_NOTNULL(catalog_database)),
-      storage_manager_(DCHECK_NOTNULL(storage_manager)) {
+      storage_manager_(DCHECK_NOTNULL(storage_manager)),
+      start_time_(std::chrono::steady_clock::now()),
+      high_priority_queries_injection_points_(InputParserUtil::ParseWorkerAffinities(FLAGS_num_high_priority_queries, FLAGS_high_priority_queries_entry_points))
+      {
   const std::vector<QueryExecutionMessageType> sender_message_types{
       kPoisonMessage,
       kRebuildWorkOrderMessage,
@@ -95,6 +101,10 @@ Foreman::Foreman(const tmb::client_id main_thread_client_id,
       worker_directory_,
       bus_,
       profile_individual_workorders));
+
+  CHECK(FLAGS_num_high_priority_queries == high_priority_queries_injection_points_.size()) << "Number of high priority queries should be same as number of entry points";
+
+  high_priority_queries_admitted_.resize(FLAGS_num_high_priority_queries, false);
 }
 
 void Foreman::run() {
@@ -125,6 +135,15 @@ void Foreman::run() {
         const AdmitRequestMessage *msg =
             static_cast<const AdmitRequestMessage *>(tagged_message.message());
         const vector<QueryHandle *> &query_handles = msg->getQueryHandles();
+        vector<QueryHandle*> reduced_query_handles_list;
+        CHECK(query_handles.size() > FLAGS_num_high_priority_queries) << "Number of high priority queries should be less than total number of queries";
+        for (std::size_t i = 0; i < query_handles.size(); ++i) {
+          if (i < query_handles.size() - FLAGS_num_high_priority_queries) {
+            reduced_query_handles_list.push_back(query_handles[i]);
+          } else {
+            high_priority_query_handles_.push(query_handles[i]);
+          }
+        }
 
         DCHECK(!query_handles.empty());
         bool all_queries_admitted = true;
@@ -132,7 +151,7 @@ void Foreman::run() {
           all_queries_admitted =
               policy_enforcer_->admitQuery(query_handles.front());
         } else {
-          all_queries_admitted = policy_enforcer_->admitQueries(query_handles);
+          all_queries_admitted = policy_enforcer_->admitQueries(reduced_query_handles_list);
         }
         if (!all_queries_admitted) {
           LOG(WARNING) << "The scheduler could not admit all the queries";
@@ -156,6 +175,8 @@ void Foreman::run() {
       policy_enforcer_->getWorkerMessages(&new_messages);
       dispatchWorkerMessages(new_messages);
     }
+
+    checkAndAdmitHighPriorityQueries();
 
     // We check again, as some queries may produce zero work orders and finish
     // their execution.
@@ -250,6 +271,29 @@ void Foreman::printWorkOrderProfilingResults(const std::size_t query_id,
             std::get<1>(workorder_entry),
             std::get<2>(workorder_entry));
   }
+}
+
+bool Foreman::checkAndAdmitHighPriorityQueries() {
+  for (std::size_t i = 0; i < high_priority_queries_admitted_.size(); ++i) {
+    if (!high_priority_queries_admitted_[i]) {
+      // Check the timestamp.
+      auto time_in_millis = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start_time_).count();
+      if (time_in_millis > high_priority_queries_injection_points_[i]) {
+        // Admit the query.
+        QueryHandle *next_query_handle = high_priority_query_handles_.front();
+        high_priority_query_handles_.pop();
+        if (!policy_enforcer_->admitQuery(next_query_handle)) {
+          LOG(INFO) << "Could not admit query with ID: " << next_query_handle->query_id();
+        }
+        high_priority_queries_admitted_[i] = true;
+        return true;
+      } else {
+        // Wait for some more time to admit this query.
+        return false;
+      }
+    }
+  }
+  return false;
 }
 
 }  // namespace quickstep
