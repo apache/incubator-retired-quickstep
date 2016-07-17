@@ -154,6 +154,7 @@ target_link_libraries(quickstep_queryexecution_QueryContext
                       quickstep_storage_HashTableFactory
                       quickstep_storage_InsertDestination
                       quickstep_storage_InsertDestination_proto
+                      quickstep_threading_SpinSharedMutex
                       quickstep_types_TypedValue
                       quickstep_types_containers_Tuple
                       quickstep_utility_BloomFilter

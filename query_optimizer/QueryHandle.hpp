@@ -21,15 +21,18 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <set>
 #include <utility>
 
 #include "catalog/Catalog.pb.h"
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.pb.h"
 #include "query_optimizer/QueryPlan.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
 
+class CatalogDatabase;
 class CatalogRelation;
 
 /** \addtogroup QueryOptimizer
@@ -47,11 +50,13 @@ class QueryHandle {
    * @param query_id The given query id.
    */
   explicit QueryHandle(const std::size_t query_id,
+                       CatalogDatabase *catalog_database,
                        const std::uint64_t query_priority = 1)
       : query_id_(query_id),
         query_priority_(query_priority),
         estimated_max_memory_in_bytes_(0),
         query_plan_(new QueryPlan()),
+        catalog_database_(catalog_database),
         query_result_relation_(nullptr) {}
 
   ~QueryHandle() {}
@@ -162,7 +167,21 @@ class QueryHandle {
     estimated_max_memory_in_bytes_ += memory_bytes;
   }
 
+  /**
+   * @brief Find the memory used by the temp relations in this query at the time
+   *        when this function is called.
+   **/
+  const std::size_t getMemoryTempRelationsBytes();
+
+  void addTempRelationID(const relation_id rid) {
+    temp_relation_ids_.insert(rid);
+  }
+
  private:
+  void removeTempRelationID(const relation_id rid) {
+    temp_relation_ids_.erase(rid);
+  }
+
   const std::size_t query_id_;
   const std::uint64_t query_priority_;
   std::size_t estimated_max_memory_in_bytes_;
@@ -174,6 +193,8 @@ class QueryHandle {
   // TODO(quickstep-team): Use Catalog to support multiple databases.
   serialization::CatalogDatabase catalog_database_cache_proto_;
 
+  CatalogDatabase *catalog_database_;
+
   // NOTE(zuyu): The relation gets created by the optimizer,
   //             and deleted by the Cli shell.
   const CatalogRelation *query_result_relation_;
@@ -184,6 +205,8 @@ class QueryHandle {
   std::chrono::steady_clock::time_point admission_time_;
   // Time when query finished its execution.
   std::chrono::steady_clock::time_point completion_time_;
+
+  std::set<relation_id> temp_relation_ids_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryHandle);
 };

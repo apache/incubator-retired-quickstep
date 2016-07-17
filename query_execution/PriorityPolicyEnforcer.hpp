@@ -193,6 +193,8 @@ class PriorityPolicyEnforcer {
 
   bool admissionMemoryCheck(const QueryHandle *query_handle);
 
+  const std::size_t getMemoryForQueryInBytes(const std::size_t query_id);
+
   const tmb::client_id foreman_client_id_;
   const std::size_t num_numa_nodes_;
 

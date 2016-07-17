@@ -551,6 +551,13 @@ class HashTable : public HashTableBase<resizable,
       FunctorT *functor);
 
   /**
+   * @brief Get the size of the hash table at the time this function is called.
+   **/
+  inline const std::size_t getHashTableMemorySizeBytes() const {
+    return hash_table_memory_size_;
+  }
+
+  /**
    * @brief Determine the number of entries (key-value pairs) contained in this
    *        HashTable.
    * @note For some HashTable implementations, this is O(1), but for others it

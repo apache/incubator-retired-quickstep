@@ -33,6 +33,7 @@
 #include "storage/AggregationOperationState.hpp"
 #include "storage/HashTable.hpp"
 #include "storage/InsertDestination.hpp"
+#include "threading/SpinSharedMutex.hpp"
 #include "types/containers/Tuple.hpp"
 #include "utility/BloomFilter.hpp"
 #include "utility/Macros.hpp"
@@ -303,6 +304,7 @@ class QueryContext {
    * @return True if valid, otherwise false.
    **/
   bool isValidJoinHashTableId(const join_hash_table_id id) const {
+    SpinSharedMutexSharedLock<false> lock(hash_tables_mutex_);
     return id < join_hash_tables_.size();
   }
 
@@ -314,6 +316,7 @@ class QueryContext {
    * @return The JoinHashTable, already created in the constructor.
    **/
   inline JoinHashTable* getJoinHashTable(const join_hash_table_id id) {
+    SpinSharedMutexSharedLock<false> lock(hash_tables_mutex_);
     DCHECK_LT(id, join_hash_tables_.size());
     return join_hash_tables_[id].get();
   }
@@ -324,6 +327,7 @@ class QueryContext {
    * @param id The id of the JoinHashTable to destroy.
    **/
   inline void destroyJoinHashTable(const join_hash_table_id id) {
+    SpinSharedMutexExclusiveLock<false> lock(hash_tables_mutex_);
     DCHECK_LT(id, join_hash_tables_.size());
     join_hash_tables_[id].reset();
   }
@@ -460,6 +464,11 @@ class QueryContext {
     return update_groups_[id];
   }
 
+  /**
+   * @brief Get the total memory footprint of the temp structures in bytes.
+   **/
+  const std::size_t getMemoryBytes();
+
  private:
   std::vector<std::unique_ptr<AggregationOperationState>> aggregation_states_;
   std::vector<std::unique_ptr<BloomFilter>> bloom_filters_;
@@ -472,6 +481,7 @@ class QueryContext {
   std::vector<std::unique_ptr<Tuple>> tuples_;
   std::vector<std::unordered_map<attribute_id, std::unique_ptr<const Scalar>>> update_groups_;
 
+  mutable SpinSharedMutex<false> hash_tables_mutex_;
   DISALLOW_COPY_AND_ASSIGN(QueryContext);
 };
 

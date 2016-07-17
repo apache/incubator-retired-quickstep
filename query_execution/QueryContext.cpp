@@ -234,4 +234,14 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
   return proto.IsInitialized();
 }
 
+
+const std::size_t QueryContext::getMemoryBytes() {
+  SpinSharedMutexSharedLock<false> lock(hash_tables_mutex_);
+  std::size_t memory = 0;
+  for (std::size_t i = 0; i < join_hash_tables_.size(); ++i) {
+    memory += join_hash_tables_[i]->getHashTableMemorySizeBytes();
+  }
+  return memory;
+}
+
 }  // namespace quickstep

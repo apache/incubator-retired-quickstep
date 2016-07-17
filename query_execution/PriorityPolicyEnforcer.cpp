@@ -392,4 +392,13 @@ bool PriorityPolicyEnforcer::admissionMemoryCheck(const QueryHandle *query_handl
   return false;
 }
 
+const std::size_t PriorityPolicyEnforcer::getMemoryForQueryInBytes(const std::size_t query_id) {
+  DCHECK(query_id_to_handle_.find(query_id) != query_id_to_handle_.end());
+  QueryHandle *query_handle = query_id_to_handle_[query_id];
+  std::size_t memory = query_handle->getMemoryTempRelationsBytes();
+  DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
+  memory += admitted_queries_[query_id]->getMemoryBytes();
+  return memory;
+}
+
 }  // namespace quickstep

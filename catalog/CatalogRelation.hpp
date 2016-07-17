@@ -338,6 +338,11 @@ class CatalogRelation : public CatalogRelationSchema {
     return blocks_.size();
   }
 
+  inline std::size_t getRelationSizeBytes() const {
+    SpinSharedMutexSharedLock<false> lock(blocks_mutex_);
+    return blocks_.size() * getDefaultStorageBlockLayout().getDescription().num_slots() * kSlotSizeBytes;
+  }
+
   /**
    * @brief Get the current set of blocks belonging to this relation.
    *

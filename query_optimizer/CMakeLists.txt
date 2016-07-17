@@ -50,7 +50,7 @@ add_library(quickstep_queryoptimizer_Optimizer Optimizer.cpp Optimizer.hpp)
 add_library(quickstep_queryoptimizer_OptimizerContext OptimizerContext.cpp OptimizerContext.hpp)
 add_library(quickstep_queryoptimizer_OptimizerTree ../empty_src.cpp OptimizerTree.hpp)
 add_library(quickstep_queryoptimizer_PhysicalGenerator PhysicalGenerator.cpp PhysicalGenerator.hpp)
-add_library(quickstep_queryoptimizer_QueryHandle ../empty_src.cpp QueryHandle.hpp)
+add_library(quickstep_queryoptimizer_QueryHandle QueryHandle.cpp QueryHandle.hpp)
 add_library(quickstep_queryoptimizer_QueryPlan ../empty_src.cpp QueryPlan.hpp)
 add_library(quickstep_queryoptimizer_QueryProcessor QueryProcessor.cpp QueryProcessor.hpp)
 add_library(quickstep_queryoptimizer_Validator ../empty_src.cpp Validator.hpp)
@@ -205,6 +205,8 @@ target_link_libraries(quickstep_queryoptimizer_PhysicalGenerator
                       quickstep_utility_Macros
                       quickstep_utility_PlanVisualizer)
 target_link_libraries(quickstep_queryoptimizer_QueryHandle
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
                       quickstep_catalog_Catalog_proto
                       quickstep_queryexecution_QueryContext_proto
                       quickstep_queryoptimizer_QueryPlan

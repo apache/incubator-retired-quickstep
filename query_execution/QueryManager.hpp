@@ -123,6 +123,10 @@ class QueryManager {
     return query_context_.get();
   }
 
+  const std::size_t getMemoryBytes() {
+    return query_context_->getMemoryBytes();
+  }
+
  private:
   /**
    * @brief Process the received WorkOrder complete message.

@@ -39,7 +39,7 @@ namespace quickstep {
 
 QueryHandle* QueryProcessor::generateQueryHandle(const ParseStatement &statement) {
   std::unique_ptr<QueryHandle> query_handle(
-      new QueryHandle(query_id_, statement.getPriority()));
+      new QueryHandle(query_id_, getDefaultDatabase(), statement.getPriority()));
 
   optimizer::Optimizer optimizer(query_id_, getDefaultDatabase(), storage_manager_.get());
   optimizer.generateQueryHandle(statement, query_handle.get());
