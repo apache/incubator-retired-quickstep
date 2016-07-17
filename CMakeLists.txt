@@ -281,6 +281,14 @@ else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
   endif()
 
+  # Clang reports such warning when using Protoc 3.0 beta.
+  if(${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
+    CHECK_CXX_COMPILER_FLAG("-Wno-extended-offsetof" COMPILER_HAS_WNO_EXTENDED_OFFSETOF)
+    if (COMPILER_HAS_WNO_EXTENDED_OFFSETOF)
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-extended-offsetof")
+    endif()
+  endif()
+
   # One of the protobuf headers includes a nested anonymous union within
   # another anonymous type. Ordinarily we work around this by compiling the
   # protobuf libraries themselves with "-Wno-nested-anon-types" and including
