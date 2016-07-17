@@ -29,6 +29,7 @@
 
 namespace quickstep {
 
+class CatalogAttribute;
 class ColumnVector;
 class Type;
 class ValueAccessor;
@@ -222,6 +223,14 @@ class Scalar {
       const relation_id right_relation_id,
       ValueAccessor *right_accessor,
       const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const = 0;
+
+  /**
+   * @brief Get a vector of all attributes that this Scalar depends on.
+   *
+   * @param Output parameter: vector to push the dependency attributes into.
+   */
+  virtual void getDependencyAttributes(
+      std::vector<const CatalogAttribute*> attrs) const = 0;
 
  protected:
   explicit Scalar(const Type &type) : type_(type) {

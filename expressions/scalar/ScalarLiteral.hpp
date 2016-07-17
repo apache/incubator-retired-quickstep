@@ -109,6 +109,8 @@ class ScalarLiteral : public Scalar {
       ValueAccessor *right_accessor,
       const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const override;
 
+  void getDependencyAttributes(std::vector<const CatalogAttribute*> attrs) const override {}
+
  private:
   TypedValue internal_literal_;
 

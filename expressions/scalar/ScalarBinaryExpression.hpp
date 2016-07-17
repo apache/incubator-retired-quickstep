@@ -105,6 +105,11 @@ class ScalarBinaryExpression : public Scalar {
       ValueAccessor *right_accessor,
       const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const override;
 
+  void getDependencyAttributes(std::vector<const CatalogAttribute*> attrs) const override {
+    left_operand_->getDependencyAttributes(attrs);
+    right_operand_->getDependencyAttributes(attrs);
+  }
+
  private:
   void initHelper(bool own_children);
 

@@ -140,6 +140,11 @@ class ScalarCaseExpression : public Scalar {
       ValueAccessor *right_accessor,
       const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const override;
 
+  void getDependencyAttributes(std::vector<const CatalogAttribute*> attrs) const override {
+    // TODO(nav): Implement this!
+    FATAL_ERROR("getDependencyAttributes() not defined for ScalarCaseExpression yet");
+  }
+
  private:
   // Merge the values in the NativeColumnVector 'case_result' into '*output' at
   // the positions specified by 'case_matches'. If '*source_sequence' is

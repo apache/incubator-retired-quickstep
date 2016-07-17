@@ -89,6 +89,10 @@ class ScalarAttribute : public Scalar {
     return attribute_;
   }
 
+  void getDependencyAttributes(std::vector<const CatalogAttribute*> attrs) const override {
+    attrs.push_back(&attribute_);
+  }
+  
  protected:
   const CatalogAttribute &attribute_;
 
