@@ -24,11 +24,12 @@
 #include <vector>
 
 #include "query_execution/ForemanBase.hpp"
-#include "query_execution/PolicyEnforcer.hpp"
+#include "query_execution/PolicyEnforcerSingleNode.hpp"
 #include "utility/Macros.hpp"
 
 #include "tmb/id_typedefs.h"
-#include "tmb/message_bus.h"
+
+namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
@@ -128,7 +129,7 @@ class ForemanSingleNode final : public ForemanBase {
   CatalogDatabaseLite *catalog_database_;
   StorageManager *storage_manager_;
 
-  std::unique_ptr<PolicyEnforcer> policy_enforcer_;
+  std::unique_ptr<PolicyEnforcerSingleNode> policy_enforcer_;
 
   DISALLOW_COPY_AND_ASSIGN(ForemanSingleNode);
 };

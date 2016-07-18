@@ -15,8 +15,8 @@
  *   limitations under the License.
  **/
 
-#ifndef QUICKSTEP_QUERY_EXECUTION_POLICY_ENFORCER_HPP_
-#define QUICKSTEP_QUERY_EXECUTION_POLICY_ENFORCER_HPP_
+#ifndef QUICKSTEP_QUERY_EXECUTION_POLICY_ENFORCER_BASE_HPP_
+#define QUICKSTEP_QUERY_EXECUTION_POLICY_ENFORCER_BASE_HPP_
 
 #include <cstddef>
 #include <memory>
@@ -27,21 +27,14 @@
 
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryManagerBase.hpp"
-#include "query_execution/WorkerMessage.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
-
-#include "tmb/id_typedefs.h"
-
-namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
 class CatalogDatabaseLite;
 class QueryHandle;
-class StorageManager;
-class WorkerDirectory;
 
 namespace serialization { class NormalWorkOrderCompletionMessage; }
 
@@ -50,53 +43,31 @@ namespace serialization { class NormalWorkOrderCompletionMessage; }
  */
 
 /**
- * @brief A class that ensures that a high level policy is maintained
+ * @brief A base class that ensures that a high level policy is maintained
  *        in sharing resources among concurrent queries.
  **/
-class PolicyEnforcer {
+class PolicyEnforcerBase {
  public:
   /**
    * @brief Constructor.
    *
-   * @param foreman_client_id The TMB client ID of the Foreman.
-   * @param num_numa_nodes Number of NUMA nodes used by the system.
    * @param catalog_database The CatalogDatabase used.
-   * @param storage_manager The StorageManager used.
-   * @param bus The TMB.
+   * @param profile_individual_workorders If true, profile each normal work order.
    **/
-  PolicyEnforcer(const tmb::client_id foreman_client_id,
-                 const std::size_t num_numa_nodes,
-                 CatalogDatabaseLite *catalog_database,
-                 StorageManager *storage_manager,
-                 WorkerDirectory *worker_directory,
-                 tmb::MessageBus *bus,
-                 const bool profile_individual_workorders = false)
-      : foreman_client_id_(foreman_client_id),
-        num_numa_nodes_(num_numa_nodes),
-        catalog_database_(catalog_database),
-        storage_manager_(storage_manager),
-        worker_directory_(worker_directory),
-        bus_(bus),
+  PolicyEnforcerBase(CatalogDatabaseLite *catalog_database,
+                     const bool profile_individual_workorders)
+      : catalog_database_(catalog_database),
         profile_individual_workorders_(profile_individual_workorders) {}
 
   /**
-   * @brief Destructor.
+   * @brief Virtual Destructor.
    **/
-  ~PolicyEnforcer() {
+  virtual ~PolicyEnforcerBase() {
     if (hasQueries()) {
       LOG(WARNING) << "Destructing PolicyEnforcer with some unfinished or "
                       "waiting queries";
     }
   }
-
-  /**
-   * @brief Admit a query to the system.
-   *
-   * @param query_handle The QueryHandle for the new query.
-   *
-   * @return Whether the query was admitted to the system.
-   **/
-  bool admitQuery(QueryHandle *query_handle);
 
   /**
    * @brief Admit multiple queries in the system.
@@ -124,15 +95,6 @@ class PolicyEnforcer {
    * @param query_id The ID of the query to be removed.
    **/
   void removeQuery(const std::size_t query_id);
-
-  /**
-   * @brief Get worker messages to be dispatched. These worker messages come
-   *        from the active queries.
-   *
-   * @param worker_messages The worker messages to be dispatched.
-   **/
-  void getWorkerMessages(
-      std::vector<std::unique_ptr<WorkerMessage>> *worker_messages);
 
   /**
    * @brief Process a message sent to the Foreman, which gets passed on to the
@@ -172,7 +134,7 @@ class PolicyEnforcer {
     return workorder_time_recorder_.at(query_id);
   }
 
- private:
+ protected:
   static constexpr std::size_t kMaxConcurrentQueries = 1;
 
   /**
@@ -186,14 +148,8 @@ class PolicyEnforcer {
   void recordTimeForWorkOrder(
       const serialization::NormalWorkOrderCompletionMessage &proto);
 
-  const tmb::client_id foreman_client_id_;
-  const std::size_t num_numa_nodes_;
-
   CatalogDatabaseLite *catalog_database_;
-  StorageManager *storage_manager_;
-  WorkerDirectory *worker_directory_;
 
-  tmb::MessageBus *bus_;
   const bool profile_individual_workorders_;
 
   // Key = query ID, value = QueryManagerBase* for the key query.
@@ -213,11 +169,28 @@ class PolicyEnforcer {
       std::vector<std::tuple<std::size_t, std::size_t, std::size_t>>>
       workorder_time_recorder_;
 
-  DISALLOW_COPY_AND_ASSIGN(PolicyEnforcer);
+ private:
+  /**
+   * @brief Admit a query to the system.
+   *
+   * @param query_handle The QueryHandle for the new query.
+   *
+   * @return Whether the query was admitted to the system.
+   **/
+  virtual bool admitQuery(QueryHandle *query_handle) = 0;
+
+  /**
+   * @brief Decrement the number of queued workorders for the given worker by 1.
+   *
+   * @param worker_index The logical ID of the given worker.
+   **/
+  virtual void decrementNumQueuedWorkOrders(const std::size_t worker_index) = 0;
+
+  DISALLOW_COPY_AND_ASSIGN(PolicyEnforcerBase);
 };
 
 /** @} */
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_QUERY_EXECUTION_POLICY_ENFORCER_HPP_
+#endif  // QUICKSTEP_QUERY_EXECUTION_POLICY_ENFORCER_BASE_HPP_
