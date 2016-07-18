@@ -140,6 +140,10 @@ class SimpleScalarSeparateChainingHashTable : public HashTable<ValueT,
     return getAll(key.front(), values);
   }
 
+  const std::size_t getHashTableMemorySizeBytes() const override {
+    return sizeof(Header) + numEntries() * sizeof(Bucket);
+  }
+
  protected:
   HashTablePutResult putInternal(const TypedValue &key,
                                  const std::size_t variable_key_size,

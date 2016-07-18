@@ -335,6 +335,7 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
   const std::size_t estimated_cardinality = ss_cost_model_->estimateCardinality(physical);
   const std::size_t estimated_tuple_size = (*catalog_relation_output)->getEstimatedByteLength();
   query_handle_->addMemoryToEstimate(estimated_cardinality * estimated_tuple_size);
+  query_handle_->addTempRelationID((*catalog_relation_output)->getID());
 
 #ifdef QUICKSTEP_DISTRIBUTED
   referenced_relation_ids_.insert(output_rel_id);

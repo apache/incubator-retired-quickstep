@@ -28,7 +28,9 @@ const std::size_t QueryHandle::getMemoryTempRelationsBytes() {
   std::size_t memory = 0;
   for (relation_id rid : temp_relation_ids_) {
     if (catalog_database_->hasRelationWithId(rid)) {
-      memory += catalog_database_->getRelationById(rid)->getRelationSizeBytes();
+      if (catalog_database_->getRelationById(rid) != nullptr) {
+        memory += catalog_database_->getRelationById(rid)->getRelationSizeBytes();
+      }
     } else {
       removeTempRelationID(rid);
     }
