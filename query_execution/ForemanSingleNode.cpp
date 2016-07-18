@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "query_execution/AdmitRequestMessage.hpp"
+#include "query_execution/PolicyEnforcerSingleNode.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/WorkerDirectory.hpp"
@@ -36,6 +37,7 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
+#include "tmb/id_typedefs.h"
 #include "tmb/message_bus.h"
 #include "tmb/tagged_message.h"
 
@@ -45,6 +47,8 @@ using std::unique_ptr;
 using std::vector;
 
 namespace quickstep {
+
+class QueryHandle;
 
 DEFINE_uint64(min_load_per_worker, 2, "The minimum load defined as the number "
               "of pending work orders for the worker. This information is used "
@@ -88,7 +92,7 @@ ForemanSingleNode::ForemanSingleNode(
     bus_->RegisterClientAsReceiver(foreman_client_id_, message_type);
   }
 
-  policy_enforcer_.reset(new PolicyEnforcer(
+  policy_enforcer_.reset(new PolicyEnforcerSingleNode(
       foreman_client_id_,
       num_numa_nodes,
       catalog_database_,

@@ -34,7 +34,8 @@ if (ENABLE_DISTRIBUTED)
 endif()
 add_library(quickstep_queryexecution_ForemanBase ../empty_src.cpp ForemanBase.hpp)
 add_library(quickstep_queryexecution_ForemanSingleNode ForemanSingleNode.cpp ForemanSingleNode.hpp)
-add_library(quickstep_queryexecution_PolicyEnforcer PolicyEnforcer.cpp PolicyEnforcer.hpp)
+add_library(quickstep_queryexecution_PolicyEnforcerBase PolicyEnforcerBase.cpp PolicyEnforcerBase.hpp)
+add_library(quickstep_queryexecution_PolicyEnforcerSingleNode PolicyEnforcerSingleNode.cpp PolicyEnforcerSingleNode.hpp)
 add_library(quickstep_queryexecution_QueryContext QueryContext.cpp QueryContext.hpp)
 add_library(quickstep_queryexecution_QueryContext_proto
             ${queryexecution_QueryContext_proto_srcs}
@@ -85,7 +86,7 @@ target_link_libraries(quickstep_queryexecution_ForemanSingleNode
                       glog
                       quickstep_queryexecution_AdmitRequestMessage
                       quickstep_queryexecution_ForemanBase
-                      quickstep_queryexecution_PolicyEnforcer
+                      quickstep_queryexecution_PolicyEnforcerSingleNode
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_WorkerDirectory
@@ -95,22 +96,29 @@ target_link_libraries(quickstep_queryexecution_ForemanSingleNode
                       quickstep_utility_Macros
                       tmb
                       ${GFLAGS_LIB_NAME})
-target_link_libraries(quickstep_queryexecution_PolicyEnforcer
+target_link_libraries(quickstep_queryexecution_PolicyEnforcerBase
                       glog
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
-                      quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_PartitionScheme
                       quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionState
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryManagerBase
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_utility_Macros
+                      tmb)
+target_link_libraries(quickstep_queryexecution_PolicyEnforcerSingleNode
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_PolicyEnforcerBase
+                      quickstep_queryexecution_QueryExecutionState
+                      quickstep_queryexecution_QueryManagerBase
                       quickstep_queryexecution_QueryManagerSingleNode
                       quickstep_queryexecution_WorkerDirectory
                       quickstep_queryexecution_WorkerMessage
                       quickstep_queryoptimizer_QueryHandle
-                      quickstep_relationaloperators_WorkOrder
-                      quickstep_storage_StorageBlockInfo
                       quickstep_utility_Macros
                       tmb
                       ${GFLAGS_LIB_NAME})
@@ -244,7 +252,8 @@ target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_AdmitRequestMessage
                       quickstep_queryexecution_ForemanBase
                       quickstep_queryexecution_ForemanSingleNode
-                      quickstep_queryexecution_PolicyEnforcer
+                      quickstep_queryexecution_PolicyEnforcerBase
+                      quickstep_queryexecution_PolicyEnforcerSingleNode
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
                       quickstep_queryexecution_QueryExecutionMessages_proto
