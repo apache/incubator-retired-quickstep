@@ -19,6 +19,7 @@
 #define QUICKSTEP_QUERY_EXECUTION_PRIORITY_POLICY_ENFORCER_HPP_
 
 #include <cstddef>
+#include <deque>
 #include <memory>
 #include <queue>
 #include <tuple>
@@ -195,6 +196,17 @@ class PriorityPolicyEnforcer {
 
   const std::size_t getMemoryForQueryInBytes(const std::size_t query_id);
 
+  // Return a pair:
+  // 1st element - Query ID (kInvalidQueryID if no such query)
+  // 2nd element - Memory foot print (0 for invalid query ID).
+  const std::pair<int, std::size_t> getQueryWithHighestMemoryFootprint();
+
+  void suspendQuery(const std::size_t query_id);
+
+  bool hasQuerySuspended(const std::size_t query_id) const;
+
+  bool admitSuspendedQuery(QueryHandle *query_handle);
+
   const tmb::client_id foreman_client_id_;
   const std::size_t num_numa_nodes_;
 
@@ -214,6 +226,11 @@ class PriorityPolicyEnforcer {
 
   // The queries which haven't been admitted yet.
   std::queue<QueryHandle*> waiting_queries_;
+
+  // The queries which have been suspended.
+  std::vector<QueryHandle*> suspended_queries_;
+
+  std::unordered_map<std::size_t, std::unique_ptr<QueryManager>> suspended_query_managers_;
 
   // Key = query ID, value = a pointer to the QueryHandle.
   // Note - This map has entries for active and waiting queries only.
