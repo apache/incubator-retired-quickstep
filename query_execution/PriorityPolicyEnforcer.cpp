@@ -62,65 +62,68 @@ PriorityPolicyEnforcer::PriorityPolicyEnforcer(const tmb::client_id foreman_clie
       worker_directory_(worker_directory),
       bus_(bus),
       profile_individual_workorders_(profile_individual_workorders),
-      committed_memory_(0) {
+      committed_memory_(0),
+      suspended_memory_(0) {
   learner_.reset(new Learner());
 }
 
 bool PriorityPolicyEnforcer::admitQuery(QueryHandle *query_handle) {
   // Find a victim query to be suspended.
-  while (!admissionMemoryCheck(query_handle)) {
-    std::pair<int, std::size_t> victim_query = getQueryWithHighestMemoryFootprint();
-    if (victim_query.first != kInvalidQueryID) {
-      // We need to suspend this query - move it from admitted to suspended.
-      suspendQuery(victim_query.first);
+  bool memory_available = admissionMemoryCheck(query_handle);
+  if (!memory_available) {
+    while (!memory_available) {
+      std::pair<int, std::size_t> victim_query = getQueryWithHighestMemoryFootprint();
+      if (victim_query.first != kInvalidQueryID) {
+        // We need to suspend this query - move it from admitted to suspended.
+        suspendQuery(victim_query.first);
+        memory_available = admissionMemoryCheck(query_handle);
+      } else {
+        std::cout << "No victim found, okay to admit query " << query_handle->query_id() << "\n";
+        break;
+      }
     }
   }
-  // if (admissionMemoryCheck(query_handle)) { //admitted_queries_.size() < kMaxConcurrentQueries)
-    // Ok to admit the query.
-    const std::size_t query_id = query_handle->query_id();
-    if (admitted_queries_.find(query_id) == admitted_queries_.end()) {
-      // Query with the same ID not present, ok to admit.
-      admitted_queries_[query_id].reset(
-          new QueryManager(foreman_client_id_, num_numa_nodes_, query_handle,
-                           catalog_database_, storage_manager_, bus_));
-      std::cout << "Admitted query with ID: " << query_handle->query_id()
-                 << " priority: " << query_handle->query_priority() << "\n";
-      priority_query_ids_[query_handle->query_priority()].emplace_back(query_id);
-      learner_->addQuery(*query_handle);
-      query_handle->setAdmissionTime();
-      query_id_to_handle_[query_handle->query_id()] = query_handle;
-      LOG(INFO) << "Query " << query_handle->query_id() << " mem estimate: " << query_handle->getEstimatedMaxMemoryInBytes() << " bytes";
-      return true;
-    } else {
-      LOG(ERROR) << "Query with the same ID " << query_id << " exists";
-      return false;
-    }
-  /*} else {
-    // This query will have to wait.
-    std::cout << "Query " << query_handle->query_id() << " waitlisted\n";
-    if (query_id_to_handle_.find(query_handle->query_id()) == query_id_to_handle_.end()) {
-      // This query was not waitlisted earlier.
-      query_id_to_handle_[query_handle->query_id()] = query_handle;
-      waiting_queries_.push(query_handle);
-    }
+  // Ok to admit the query.
+  const std::size_t query_id = query_handle->query_id();
+  if (admitted_queries_.find(query_id) == admitted_queries_.end()) {
+    // Query with the same ID not present, ok to admit.
+    admitted_queries_[query_id].reset(
+        new QueryManager(foreman_client_id_, num_numa_nodes_, query_handle,
+                         catalog_database_, storage_manager_, bus_));
+    std::cout << "Admitted query with ID: " << query_handle->query_id()
+               << " priority: " << query_handle->query_priority() << "\n";
+    priority_query_ids_[query_handle->query_priority()].emplace_back(query_id);
+    learner_->addQuery(*query_handle);
+    query_handle->setAdmissionTime();
+    query_id_to_handle_[query_handle->query_id()] = query_handle;
+    LOG(INFO) << "Query " << query_handle->query_id() << " mem estimate: " << query_handle->getEstimatedMaxMemoryInBytes() << " bytes";
+    return true;
+  } else {
+    LOG(ERROR) << "Query with the same ID " << query_id << " exists";
     return false;
-  }*/
+  }
 }
 
 bool PriorityPolicyEnforcer::admitSuspendedQuery(QueryHandle *query_handle) {
- if (admissionMemoryCheck(query_handle)) { //admitted_queries_.size() < kMaxConcurrentQueries)
+ if (admissionMemoryCheck(query_handle)) {
     // Ok to admit the query.
     const std::size_t query_id = query_handle->query_id();
+    // As we deducted the current query footprint from the committed memory in
+    // suspendQuery() we need to add it back.
+    const std::size_t curr_query_footprint = getMemoryForQueryInBytes(query_id);
+    suspended_memory_ -= curr_query_footprint;
     if (admitted_queries_.find(query_id) == admitted_queries_.end()) {
       // Query with the same ID not present, ok to admit.
-      admitted_queries_[query_id].reset(
-          new QueryManager(foreman_client_id_, num_numa_nodes_, query_handle,
-                           catalog_database_, storage_manager_, bus_));
-      std::cout << "Admitted query with ID: " << query_handle->query_id()
+      // Don't create a new QueryManager instance, it has already been created.
+      // Just move it from suspended_query_managers_ to admitted_queries_.
+      DCHECK(suspended_query_managers_.find(query_id) != suspended_query_managers_.end());
+      DCHECK(suspended_query_managers_.at(query_id) != nullptr);
+      admitted_queries_[query_id].reset(suspended_query_managers_[query_id].release());
+      std::cout << "Admitted suspended query with ID: " << query_handle->query_id()
                  << " priority: " << query_handle->query_priority() << "\n";
       priority_query_ids_[query_handle->query_priority()].emplace_back(query_id);
       learner_->addQuery(*query_handle);
-      query_handle->setAdmissionTime();
+      // query_handle->setAdmissionTime();
       query_id_to_handle_[query_handle->query_id()] = query_handle;
       LOG(INFO) << "Query " << query_handle->query_id() << " mem estimate: " << query_handle->getEstimatedMaxMemoryInBytes() << " bytes";
       return true;
@@ -130,13 +133,6 @@ bool PriorityPolicyEnforcer::admitSuspendedQuery(QueryHandle *query_handle) {
     }
   } else {
     // Let the query be in the suspended mode.
-    // This query will have to wait.
-    /*std::cout << "Query " << query_handle->query_id() << " waitlisted\n";
-    if (query_id_to_handle_.find(query_handle->query_id()) == query_id_to_handle_.end()) {
-      // This query was not waitlisted earlier.
-      query_id_to_handle_[query_handle->query_id()] = query_handle;
-      waiting_queries_.push(query_handle);
-    }*/
     return false;
   }
 }
@@ -214,23 +210,32 @@ void PriorityPolicyEnforcer::processMessage(const TaggedMessage &tagged_message)
     default:
       LOG(FATAL) << "Unknown message type found in PriorityPolicyEnforcer";
   }
-  DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
-  const QueryManager::QueryStatusCode return_code =
-      admitted_queries_[query_id]->processMessage(tagged_message);
+  QueryManager::QueryStatusCode return_code = QueryManager::QueryStatusCode::kNone;
+  if (!hasQuerySuspended(query_id)) {
+    DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
+       return_code = admitted_queries_[query_id]->processMessage(tagged_message);
+  } else {
+    DCHECK(suspended_query_managers_.find(query_id) != suspended_query_managers_.end());
+    return_code = suspended_query_managers_[query_id]->processMessage(tagged_message);
+  }
   // NOTE: kQueryExecuted takes precedence over kOperatorExecuted.
   if (return_code == QueryManager::QueryStatusCode::kQueryExecuted) {
     removeQuery(query_id);
     if (!suspended_queries_.empty()) {
       // Admit a suspended query.
       QueryHandle *suspended_query = suspended_queries_.back();
-      if (admitSuspendedQuery(suspended_query)) {
+      while (admitSuspendedQuery(suspended_query)) {
+        // Until we can admit more suspended queries ...
         std::cout << "Admitting suspended query " << suspended_query->query_id() << " back\n";
         suspended_queries_.pop_back();
         suspended_query_managers_.erase(suspended_query->query_id());
-        return;
+        if (!suspended_queries_.empty()) {
+          suspended_query = suspended_queries_.back();
+        } else {
+          break;
+        }
       }
-    }
-    if (!waiting_queries_.empty()) {
+    } else if (!waiting_queries_.empty()) {
       // Admit the earliest waiting query.
       QueryHandle *new_query = waiting_queries_.front();
       // waiting_queries_.pop();
@@ -345,6 +350,7 @@ void PriorityPolicyEnforcer::removeQuery(const std::size_t query_id) {
   // Remove the query from the learner.
   learner_->removeQuery(query_id);
   // TODO(harshad) - Admit waiting queries, if any.
+  query_id_to_handle_.erase(query_id);
   DLOG(INFO) << "Removed query: " << query_id << " with priority: " << query_priority;
 }
 
@@ -368,12 +374,14 @@ void PriorityPolicyEnforcer::suspendQuery(const std::size_t query_id) {
     // No more queries for the given priority level. Remove the entry.
     priority_query_ids_.erase(query_priority_unsigned);
   }
-  // TODO(harshad) - Support actually evicting the memory used up by the suspended query.
   const std::size_t estimated_memory_bytes = query_id_to_handle_[query_id]->getEstimatedMaxMemoryInBytes();
+  // TODO(harshad) - Support actually evicting the memory used up by the suspended query.
   committed_memory_ -= estimated_memory_bytes;
+  const std::size_t curr_query_footprint = getMemoryForQueryInBytes(query_id);
+  suspended_memory_ += curr_query_footprint;
   // Remove the query from the learner.
   learner_->removeQuery(query_id);
-  std::cout << "Suspended query: " << query_id << " with priority: " << query_priority;
+  std::cout << "Suspended query: " << query_id << " with priority: " << query_priority << "\n";
 }
 
 bool PriorityPolicyEnforcer::admitQueries(
@@ -461,13 +469,16 @@ WorkerMessage* PriorityPolicyEnforcer::getNextWorkerMessageFromPriorityLevel(
 bool PriorityPolicyEnforcer::admissionMemoryCheck(const QueryHandle *query_handle) {
   if (admitted_queries_.empty()) {
     // No query running in the system, let the query in.
+    const std::size_t estimated_memory_requirement_bytes = query_handle->getEstimatedMaxMemoryInBytes();
+    committed_memory_ += estimated_memory_requirement_bytes;
     return true;
   }
   const std::size_t estimated_memory_requirement_bytes = query_handle->getEstimatedMaxMemoryInBytes();
   const std::size_t estimated_slots = StorageManager::SlotsNeededForBytes(estimated_memory_requirement_bytes);
-  const std::size_t current_slots = StorageManager::SlotsNeededForBytes(storage_manager_->getMemorySize());
+  const std::size_t current_slots = StorageManager::SlotsNeededForBytes(storage_manager_->getMemorySize() - ((suspended_memory_ > 0) ? suspended_memory_ : 0));
   const std::size_t committed_slots = StorageManager::SlotsNeededForBytes(committed_memory_);
-  if (std::max(committed_slots, current_slots) + estimated_slots < storage_manager_->getMaxBufferPoolSlots()) {
+  /*std::cout << "Requested: " << std::max(committed_slots, current_slots) + estimated_slots << " Current: " << current_slots << " Limit: " << 0.8 * float(storage_manager_->getMaxBufferPoolSlots()) << "\n";*/
+  if (std::max(committed_slots, current_slots) + estimated_slots < (0.8 * float(storage_manager_->getMaxBufferPoolSlots()))) {
     committed_memory_ += estimated_memory_requirement_bytes;
     return true;
   }
@@ -478,8 +489,11 @@ const std::size_t PriorityPolicyEnforcer::getMemoryForQueryInBytes(const std::si
   DCHECK(query_id_to_handle_.find(query_id) != query_id_to_handle_.end());
   QueryHandle *query_handle = query_id_to_handle_[query_id];
   std::size_t memory = query_handle->getMemoryTempRelationsBytes();
-  DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
-  memory += admitted_queries_[query_id]->getMemoryBytes();
+  if (!hasQuerySuspended(query_id)) {
+    memory += admitted_queries_[query_id]->getMemoryBytes();
+  } else {
+    memory += suspended_query_managers_[query_id]->getMemoryBytes();
+  }
   return memory;
 }
 

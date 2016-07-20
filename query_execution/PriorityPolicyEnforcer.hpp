@@ -138,7 +138,7 @@ class PriorityPolicyEnforcer {
    *         the policy enforcer doesn't have any query.
    **/
   inline bool hasQueries() const {
-    return !(admitted_queries_.empty() && waiting_queries_.empty());
+    return !(admitted_queries_.empty() && waiting_queries_.empty() && suspended_query_managers_.empty());
   }
 
   /**
@@ -249,7 +249,8 @@ class PriorityPolicyEnforcer {
 
   std::unique_ptr<Learner> learner_;
 
-  std::size_t committed_memory_;
+  long committed_memory_;
+  long suspended_memory_;
 
   DISALLOW_COPY_AND_ASSIGN(PriorityPolicyEnforcer);
 };
