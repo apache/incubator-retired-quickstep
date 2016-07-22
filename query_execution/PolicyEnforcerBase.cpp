@@ -131,8 +131,11 @@ void PolicyEnforcerBase::processMessage(const TaggedMessage &tagged_message) {
     default:
       LOG(FATAL) << "Unknown message type found in PolicyEnforcer";
   }
+
   if (admitted_queries_[query_id]->queryStatus(op_index) ==
           QueryManagerBase::QueryStatusCode::kQueryExecuted) {
+    onQueryCompletion(admitted_queries_[query_id]->query_handle());
+
     removeQuery(query_id);
     if (!waiting_queries_.empty()) {
       // Admit the earliest waiting query.

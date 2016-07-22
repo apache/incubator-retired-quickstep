@@ -212,6 +212,10 @@ target_link_libraries(quickstep_queryoptimizer_QueryHandle
                       quickstep_queryexecution_QueryContext_proto
                       quickstep_queryoptimizer_QueryPlan
                       quickstep_utility_Macros)
+if (ENABLE_DISTRIBUTED)
+  target_link_libraries(quickstep_queryoptimizer_QueryHandle
+                        tmb)
+endif(ENABLE_DISTRIBUTED)
 target_link_libraries(quickstep_queryoptimizer_QueryPlan
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_utility_DAG

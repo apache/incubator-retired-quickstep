@@ -60,6 +60,13 @@ class AdmitRequestMessage {
     return query_handles_;
   }
 
+  /**
+   * @brief Get the mutable query handles from this message.
+   **/
+  std::vector<QueryHandle*>* getQueryHandlesMutable() {
+    return &query_handles_;
+  }
+
  private:
   std::vector<QueryHandle*> query_handles_;
 

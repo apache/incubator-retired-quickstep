@@ -111,15 +111,27 @@ message InitiateRebuildResponseMessage {
   required uint64 query_id = 1;
   required uint64 operator_index = 2;
   required uint64 num_rebuild_work_orders = 3;
+  required uint64 shiftboss_index = 4;
 }
 
 message SaveQueryResultMessage {
-  required int32 relation_id = 1;
-  repeated fixed64 blocks = 2 [packed=true];
+  required uint64 query_id = 1;
+  required int32 relation_id = 2;
+  repeated fixed64 blocks = 3 [packed=true];
+
+  // Defined in "tmb/id_typedefs.h".
+  required uint32 cli_id = 4;
 }
 
 message SaveQueryResultResponseMessage {
   required int32 relation_id = 1;
+
+  // Defined in "tmb/id_typedefs.h".
+  required uint32 cli_id = 2;
+}
+
+message QueryExecutionSuccessMessage {
+  optional CatalogRelationSchema result_relation = 1;
 }
 
 // BlockLocator related messages.

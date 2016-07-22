@@ -24,6 +24,7 @@
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryExecutionState.hpp"
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED.
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
@@ -79,6 +80,13 @@ class QueryManagerBase {
   }
 
   /**
+   * @brief Get the query handle.
+   **/
+  inline QueryHandle* query_handle() const {
+    return query_handle_;
+  }
+
+  /**
    * @brief Process the received WorkOrder complete message.
    *
    * @param op_index The index of the specified operator node in the query DAG
@@ -127,6 +135,20 @@ class QueryManagerBase {
    **/
   void processFeedbackMessage(const dag_node_index op_index,
                               const WorkOrder::FeedbackMessage &message);
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  /**
+   * @brief Process the initiate rebuild work order response message.
+   *
+   * @param shiftboss_index The Shiftboss index for the rebuild work orders.
+   * @param op_index The index of the specified operator node in the query DAG
+   *        for initiating the rebuild work order.
+   * @param num_rebuild_work_orders The number of the rebuild work orders
+   *        generated for the operator indexed by 'op_index'.
+   **/
+  virtual void processInitiateRebuildResponseMessage(const dag_node_index op_index,
+                                                     const std::size_t num_rebuild_work_orders) {}
+#endif  // QUICKSTEP_DISTRIBUTED
 
   /**
    * @brief Get the query status after processing an incoming message.
@@ -250,9 +272,11 @@ class QueryManagerBase {
     return query_exec_state_->hasRebuildInitiated(index);
   }
 
+  QueryHandle *query_handle_;  // Owned by the optimizer.
+
   const std::size_t query_id_;
 
-  DAG<RelationalOperator, bool> *query_dag_;
+  DAG<RelationalOperator, bool> *query_dag_;  // Owned by 'query_handle_'.
   const dag_node_index num_operators_in_dag_;
 
   // For all nodes, store their receiving dependents.
