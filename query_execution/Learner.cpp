@@ -19,6 +19,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <chrono>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -287,8 +288,13 @@ void Learner::printPredictedWorkOrderTimes() {
     output += ",";
   }
   if (!output.empty()) {
-    // Remove the trailing comma.
-    output.pop_back();
+    // Add the timestamp for the prediction in the end.
+    std::chrono::time_point<std::chrono::steady_clock> end = std::chrono::steady_clock::now();
+    const uint64_t execution_end_timestamp =
+        std::chrono::duration_cast<std::chrono::microseconds>(
+            end.time_since_epoch())
+            .count();
+    output += std::to_string(execution_end_timestamp);
     LOG(INFO) << output;
   }
 }
