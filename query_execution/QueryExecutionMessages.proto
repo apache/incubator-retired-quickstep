@@ -16,6 +16,8 @@ syntax = "proto2";
 
 package quickstep.serialization;
 
+import "catalog/Catalog.proto";
+import "query_execution/QueryContext.proto";
 import "relational_operators/WorkOrder.proto";
 
 // Used for any messages that do not carry payloads.
@@ -73,6 +75,25 @@ message WorkOrdersAvailableMessage {
 }
 
 // Distributed version related messages.
+message ShiftbossRegistrationMessage {
+  // The total Work Order processing capacity in Shiftboss, which equals to the
+  // sum of the capacity of each worker managed by Shiftboss.
+  required uint64 work_order_capacity = 1;
+}
+
+message ShiftbossRegistrationResponseMessage {
+}
+
+message QueryInitiateMessage {
+  required uint64 query_id = 1;
+  required CatalogDatabase catalog_database_cache = 2;
+  required QueryContext query_context = 3;
+}
+
+message QueryInitiateResponseMessage {
+  required uint64 query_id = 1;
+}
+
 message WorkOrderMessage {
   required uint64 query_id = 1;
   required uint64 operator_index = 2;
@@ -90,6 +111,15 @@ message InitiateRebuildResponseMessage {
   required uint64 query_id = 1;
   required uint64 operator_index = 2;
   required uint64 num_rebuild_work_orders = 3;
+}
+
+message QueryResultRelationMessage {
+  required int32 relation_id = 1;
+  repeated fixed64 blocks = 2 [packed=true];
+}
+
+message QueryResultRelationResponseMessage {
+  required int32 relation_id = 1;
 }
 
 // BlockLocator related messages.
