@@ -71,13 +71,14 @@ QueryManagerBase::QueryManagerBase(QueryHandle *query_handle)
 
 QueryManagerBase::QueryStatusCode QueryManagerBase::queryStatus(
     const dag_node_index op_index) {
-  if (query_exec_state_->hasExecutionFinished(op_index)) {
-    return QueryStatusCode::kOperatorExecuted;
-  }
-
-  // As kQueryExecuted takes precedence over kOperatorExecuted, we check again.
+  // As kQueryExecuted takes precedence over kOperatorExecuted, we first check
+  // whether the query has finished its execution.
   if (query_exec_state_->hasQueryExecutionFinished()) {
     return QueryStatusCode::kQueryExecuted;
+  }
+
+  if (query_exec_state_->hasExecutionFinished(op_index)) {
+    return QueryStatusCode::kOperatorExecuted;
   }
 
   return QueryStatusCode::kNone;
