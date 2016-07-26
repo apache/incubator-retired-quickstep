@@ -30,4 +30,5 @@ message WindowAggregationOperationState {
   required bool is_row = 5;
   required int64 num_preceding = 6;  // -1 means UNBOUNDED PRECEDING.
   required int64 num_following = 7;  // -1 means UNBOUNDED FOLLOWING.
+  repeated Scalar order_by_attributes = 8;
 }

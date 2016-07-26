@@ -44,7 +44,7 @@ add_library(quickstep_expressions_windowaggregation_WindowAggregateFunctionSum
             WindowAggregateFunctionSum.cpp
             WindowAggregateFunctionSum.hpp)
 add_library(quickstep_expressions_windowaggregation_WindowAggregationHandle
-            ../../empty_src.cpp
+            WindowAggregationHandle.cpp
             WindowAggregationHandle.hpp)
 add_library(quickstep_expressions_windowaggregation_WindowAggregationHandleAvg
             WindowAggregationHandleAvg.cpp
@@ -130,10 +130,17 @@ target_link_libraries(quickstep_expressions_windowaggregation_WindowAggregationH
                       glog
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_scalar_Scalar
                       quickstep_storage_StorageBlockInfo
+                      quickstep_types_Type
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
                       quickstep_types_TypedValue
                       quickstep_types_containers_ColumnVector
                       quickstep_types_containers_ColumnVectorsValueAccessor
+                      quickstep_types_operations_binaryoperations_BinaryOperation
+                      quickstep_types_operations_binaryoperations_BinaryOperationFactory
+                      quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
@@ -141,8 +148,6 @@ target_link_libraries(quickstep_expressions_windowaggregation_WindowAggregationH
 target_link_libraries(quickstep_expressions_windowaggregation_WindowAggregationHandleAvg
                       glog
                       quickstep_catalog_CatalogTypedefs
-                      quickstep_expressions_scalar_Scalar
-                      quickstep_expressions_scalar_ScalarAttribute
                       quickstep_expressions_windowaggregation_WindowAggregationHandle
                       quickstep_storage_ValueAccessor
                       quickstep_types_Type
@@ -179,11 +184,13 @@ add_executable(WindowAggregationHandle_tests
 target_link_libraries(WindowAggregationHandle_tests
                       gtest
                       gtest_main
+                      quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_scalar_Scalar
+                      quickstep_expressions_scalar_ScalarAttribute
                       quickstep_expressions_windowaggregation_WindowAggregateFunction
                       quickstep_expressions_windowaggregation_WindowAggregateFunctionFactory
                       quickstep_expressions_windowaggregation_WindowAggregationHandle
-                      quickstep_expressions_windowaggregation_WindowAggregationHandleAvg
                       quickstep_expressions_windowaggregation_WindowAggregationID
                       quickstep_storage_ValueAccessor
                       quickstep_types_CharType

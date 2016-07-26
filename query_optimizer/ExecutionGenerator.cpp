@@ -1663,7 +1663,7 @@ void ExecutionGenerator::convertWindowAggregate(
       std::static_pointer_cast<const E::WindowAggregateFunction>(
           named_window_aggregate_expression->expression());
 
-  // Set the AggregateFunction.
+  // Set the WindowAggregateFunction.
   window_aggr_state_proto->mutable_function()->MergeFrom(
       window_aggregate_function->window_aggregate().getProto());
 
@@ -1681,6 +1681,15 @@ void ExecutionGenerator::convertWindowAggregate(
         partition_by_attribute->concretize(attribute_substitution_map_));
     window_aggr_state_proto->add_partition_by_attributes()
         ->MergeFrom(concretized_partition_by_attribute->getProto());
+  }
+
+  // Set order keys.
+  for (const E::ScalarPtr &order_by_attribute
+      : window_info.order_by_attributes) {
+    unique_ptr<const Scalar> concretized_order_by_attribute(
+        order_by_attribute->concretize(attribute_substitution_map_));
+    window_aggr_state_proto->add_order_by_attributes()
+        ->MergeFrom(concretized_order_by_attribute->getProto());
   }
 
   // Set window frame info.

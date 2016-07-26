@@ -20,6 +20,7 @@
 #ifndef QUICKSTEP_EXPRESSIONS_WINDOW_AGGREGATION_WINDOW_AGGREGATE_FUNCTION_HPP_
 #define QUICKSTEP_EXPRESSIONS_WINDOW_AGGREGATION_WINDOW_AGGREGATE_FUNCTION_HPP_
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -32,6 +33,7 @@
 namespace quickstep {
 
 class CatalogRelationSchema;
+class Scalar;
 class Type;
 class WindowAggregationHandle;
 
@@ -120,16 +122,23 @@ class WindowAggregateFunction {
    *
    * @param argument_types A list of zero or more Types (in order) for
    *        arguments to this WindowAggregateFunction.
-   * @param partition_key_types A list or zero or more Types for partition keys
-   *                            to this WindowAggregateFunction.
+   * @param partition_by_attributes A list of attributes used as partition key.
+   * @param order_by_attributes A list of attributes used as order key.
+   * @param is_row True if the frame mode is ROWS, false if RANGE.
+   * @param num_preceding The number of rows/range that precedes the current row.
+   * @param num_following The number of rows/range that follows the current row.
    * 
    * @return A new WindowAggregationHandle that can be used to compute this
-   *         WindowAggregateFunction over the specified argument_types. Caller
-   *         is responsible for deleting the returned object.
+   *         WindowAggregateFunction over the specified window definition.
+   *         Caller is responsible for deleting the returned object.
    **/
   virtual WindowAggregationHandle* createHandle(
       const std::vector<const Type*> &argument_types,
-      const std::vector<const Type*> &partition_key_types) const = 0;
+      const std::vector<std::unique_ptr<const Scalar>> &partition_by_attributes,
+      const std::vector<std::unique_ptr<const Scalar>> &order_by_attributes,
+      const bool is_row,
+      const std::int64_t num_preceding,
+      const std::int64_t num_following) const = 0;
 
  protected:
   explicit WindowAggregateFunction(const WindowAggregationID win_agg_id)

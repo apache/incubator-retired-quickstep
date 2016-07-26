@@ -23,11 +23,13 @@
 #include <memory>
 #include <vector>
 
+#include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "expressions/scalar/Scalar.hpp"
+#include "expressions/scalar/ScalarAttribute.hpp"
 #include "expressions/window_aggregation/WindowAggregateFunction.hpp"
 #include "expressions/window_aggregation/WindowAggregateFunctionFactory.hpp"
 #include "expressions/window_aggregation/WindowAggregationHandle.hpp"
-#include "expressions/window_aggregation/WindowAggregationHandleAvg.hpp"
 #include "expressions/window_aggregation/WindowAggregationID.hpp"
 #include "storage/ValueAccessor.hpp"
 #include "types/CharType.hpp"
@@ -58,6 +60,9 @@ namespace {
   constexpr int kNullInterval = 25;
   constexpr int kNumPreceding = 2;
   constexpr int kNumFollowing = 2;
+  constexpr int kPartitionKeyIndex = 0;
+  constexpr int kOrderKeyIndex = 1;
+  constexpr int kNumTuplesPerOrderKey = 2;
 
 }  // namespace
 
@@ -65,12 +70,27 @@ namespace {
 class WindowAggregationHandleAvgTest : public::testing::Test {
  protected:
   // Handle initialization.
-  void initializeHandle(const Type &argument_type) {
+  WindowAggregationHandle* initializeHandle(const Type &argument_type,
+                                            const bool is_row = true,
+                                            const std::int64_t num_preceding = -1,
+                                            const std::int64_t num_following = 0) {
     const WindowAggregateFunction &function =
         WindowAggregateFunctionFactory::Get(WindowAggregationID::kAvg);
+    const Type &int_type = TypeFactory::GetType(kInt, false);
+    std::vector<std::unique_ptr<const Scalar>> partition_by_attributes;
+    std::vector<std::unique_ptr<const Scalar>> order_by_attributes;
+    partition_by_attributes.emplace_back(
+        new ScalarAttribute(CatalogAttribute(nullptr, "partition_key", int_type, kPartitionKeyIndex)));
+    order_by_attributes.emplace_back(
+        new ScalarAttribute(CatalogAttribute(nullptr, "order_key", int_type, kOrderKeyIndex)));
     std::vector<const Type*> partition_key_types(1, &TypeFactory::GetType(kInt, false));
-    handle_avg_.reset(function.createHandle(std::vector<const Type*>(1, &argument_type),
-                                            std::move(partition_key_types)));
+
+    return function.createHandle(std::vector<const Type*>(1, &argument_type),
+                                 partition_by_attributes,
+                                 order_by_attributes,
+                                 is_row,
+                                 num_preceding,
+                                 num_following);
   }
 
   // Test canApplyToTypes().
@@ -117,24 +137,25 @@ class WindowAggregationHandleAvgTest : public::testing::Test {
 
   template <typename GenericType, typename OutputType = DoubleType>
   void checkWindowAggregationAvgGeneric() {
-    const GenericType &type = GenericType::Instance(true);
-    initializeHandle(type);
-
     // Create argument, partition key and cpptype vectors.
     std::vector<typename GenericType::cpptype*> argument_cpp_vector;
     argument_cpp_vector.reserve(kNumTuples);
     ColumnVector *argument_type_vector =
         createArgumentGeneric<GenericType>(&argument_cpp_vector);
     NativeColumnVector *partition_key_vector =
-        new NativeColumnVector(IntType::InstanceNonNullable(), kNumTuples + 2);
+        new NativeColumnVector(IntType::InstanceNonNullable(), kNumTuples);
+    NativeColumnVector *order_key_vector =
+        new NativeColumnVector(IntType::InstanceNonNullable(), kNumTuples);
 
     for (int i = 0; i < kNumTuples; ++i) {
       partition_key_vector->appendTypedValue(TypedValue(i / kNumTuplesPerPartition));
+      order_key_vector->appendTypedValue(TypedValue(i / kNumTuplesPerOrderKey));
     }
 
     // Create tuple ValueAccessor.
     ColumnVectorsValueAccessor *tuple_accessor = new ColumnVectorsValueAccessor();
     tuple_accessor->addColumn(partition_key_vector);
+    tuple_accessor->addColumn(order_key_vector);
     tuple_accessor->addColumn(argument_type_vector);
 
     // Test UNBOUNDED PRECEDING AND CURRENT ROW.
@@ -182,45 +203,95 @@ class WindowAggregationHandleAvgTest : public::testing::Test {
                        const std::vector<typename GenericType::cpptype*> &argument_cpp_vector) {
     std::vector<ColumnVector*> arguments;
     arguments.push_back(argument_type_vector);
-    // The partition key index is 0.
-    std::vector<attribute_id> partition_key(1, 0);
 
-    ColumnVector *result =
-        handle_avg_->calculate(tuple_accessor,
-                               std::move(arguments),
-                               partition_key,
-                               true  /* is_row */,
-                               -1  /* num_preceding: UNBOUNDED PRECEDING */,
-                               0  /* num_following: CURRENT ROW */);
+    // Check ROWS mode.
+    WindowAggregationHandle *rows_handle =
+        initializeHandle(GenericType::Instance(true),
+                         true  /* is_row */,
+                         -1  /* num_preceding: UNBOUNDED PRECEDING */,
+                         0  /* num_following: CURRENT ROW */);
+    ColumnVector *rows_result =
+        rows_handle->calculate(tuple_accessor, arguments);
 
     // Get the cpptype result.
-    std::vector<typename OutputType::cpptype*> result_cpp_vector;
-    typename GenericType::cpptype sum;
-    int count;
+    std::vector<typename OutputType::cpptype*> rows_result_cpp_vector;
+    typename GenericType::cpptype rows_sum;
+    int rows_count;
     for (std::size_t i = 0; i < argument_cpp_vector.size(); ++i) {
       // Start of new partition
       if (i % kNumTuplesPerPartition == 0) {
-        SetDataType(0, &sum);
-        count = 0;
+        SetDataType(0, &rows_sum);
+        rows_count = 0;
       }
 
       typename GenericType::cpptype *value = argument_cpp_vector[i];
       if (value != nullptr) {
-        sum += *value;
-        count++;
+        rows_sum += *value;
+        rows_count++;
       }
 
-      if (count == 0) {
-        result_cpp_vector.push_back(nullptr);
+      if (rows_count == 0) {
+        rows_result_cpp_vector.push_back(nullptr);
       } else {
         typename OutputType::cpptype *result_cpp_value =
             new typename OutputType::cpptype;
-        *result_cpp_value = static_cast<typename OutputType::cpptype>(sum) / count;
-        result_cpp_vector.push_back(result_cpp_value);
+        *result_cpp_value = static_cast<typename OutputType::cpptype>(rows_sum) / rows_count;
+        rows_result_cpp_vector.push_back(result_cpp_value);
       }
     }
 
-    CheckAvgValues(result_cpp_vector, result);
+    CheckAvgValues(rows_result_cpp_vector, rows_result);
+
+    // Check RANGE mode.
+    WindowAggregationHandle *range_handle =
+        initializeHandle(GenericType::Instance(true),
+                         false  /* is_row */,
+                         -1  /* num_preceding: UNBOUNDED PRECEDING */,
+                         0  /* num_following: CURRENT ROW */);
+    ColumnVector *range_result =
+        range_handle->calculate(tuple_accessor, arguments);
+
+    // Get the cpptype result.
+    std::vector<typename OutputType::cpptype*> range_result_cpp_vector;
+    typename GenericType::cpptype range_sum;
+    int range_count;
+    std::size_t current_tuple = 0;
+    while (current_tuple < kNumTuples) {
+      // Start of new partition
+      if (current_tuple % kNumTuplesPerPartition == 0) {
+        SetDataType(0, &range_sum);
+        range_count = 0;
+      }
+
+      // We have to consider following tuples with the same order key value.
+      std::size_t next_tuple = current_tuple;
+      while (next_tuple < kNumTuples &&
+             next_tuple / kNumTuplesPerPartition == current_tuple / kNumTuplesPerPartition &&
+             next_tuple / kNumTuplesPerOrderKey == current_tuple / kNumTuplesPerOrderKey) {
+        typename GenericType::cpptype *value = argument_cpp_vector[next_tuple];
+        if (value != nullptr) {
+          range_sum += *value;
+          range_count++;
+        }
+
+        next_tuple++;
+      }
+
+      // Calculate the result cpp value.
+      typename OutputType::cpptype *result_cpp_value = nullptr;
+      if (range_count != 0) {
+        result_cpp_value = new typename OutputType::cpptype;
+        *result_cpp_value = static_cast<typename OutputType::cpptype>(range_sum) / range_count;
+      }
+
+      // Add the result values to the tuples with in the same order key value.
+      while (current_tuple != next_tuple) {
+        range_result_cpp_vector.push_back(result_cpp_value);
+        current_tuple++;
+      }
+    }
+
+    CheckAvgValues(range_result_cpp_vector, range_result);
   }
 
   template <typename GenericType, typename OutputType>
@@ -229,20 +300,19 @@ class WindowAggregationHandleAvgTest : public::testing::Test {
                           const std::vector<typename GenericType::cpptype*> &argument_cpp_vector) {
     std::vector<ColumnVector*> arguments;
     arguments.push_back(argument_type_vector);
-    // The partition key index is 0.
-    std::vector<attribute_id> partition_key(1, 0);
 
-    ColumnVector *result =
-        handle_avg_->calculate(tuple_accessor,
-                               std::move(arguments),
-                               partition_key,
-                               true  /* is_row */,
-                               kNumPreceding,
-                               kNumFollowing);
+    // Check ROWS mode.
+    WindowAggregationHandle *rows_handle =
+        initializeHandle(GenericType::Instance(true),
+                         true  /* is_row */,
+                         kNumPreceding,
+                         kNumFollowing);
+    ColumnVector *rows_result =
+        rows_handle->calculate(tuple_accessor, arguments);
 
     // Get the cpptype result.
     // For each value, calculate all surrounding values in the window.
-    std::vector<typename OutputType::cpptype*> result_cpp_vector;
+    std::vector<typename OutputType::cpptype*> rows_result_cpp_vector;
 
     for (std::size_t i = 0; i < argument_cpp_vector.size(); ++i) {
       typename GenericType::cpptype sum;
@@ -281,19 +351,81 @@ class WindowAggregationHandleAvgTest : public::testing::Test {
       }
 
       if (count == 0) {
-        result_cpp_vector.push_back(nullptr);
+        rows_result_cpp_vector.push_back(nullptr);
       } else {
         typename OutputType::cpptype *result_cpp_value =
             new typename OutputType::cpptype;
         *result_cpp_value = static_cast<typename OutputType::cpptype>(sum) / count;
-        result_cpp_vector.push_back(result_cpp_value);
+        rows_result_cpp_vector.push_back(result_cpp_value);
       }
     }
 
-    CheckAvgValues(result_cpp_vector, result);
-  }
+    CheckAvgValues(rows_result_cpp_vector, rows_result);
 
-  std::unique_ptr<WindowAggregationHandle> handle_avg_;
+    // Check RANGE mode.
+    WindowAggregationHandle *range_handle =
+        initializeHandle(GenericType::Instance(true),
+                         false  /* is_row */,
+                         kNumPreceding,
+                         kNumFollowing);
+    ColumnVector *range_result =
+        range_handle->calculate(tuple_accessor, arguments);
+
+    // Get the cpptype result.
+    // For each value, calculate all surrounding values in the window.
+    std::vector<typename OutputType::cpptype*> range_result_cpp_vector;
+
+    for (std::size_t i = 0; i < argument_cpp_vector.size(); ++i) {
+      typename GenericType::cpptype sum;
+      SetDataType(0, &sum);
+      int count = 0;
+
+      if (argument_cpp_vector[i] != nullptr) {
+        sum += *argument_cpp_vector[i];
+        count++;
+      }
+
+      int preceding_bound = i / kNumTuplesPerOrderKey - kNumPreceding;
+      for (std::size_t precede = 1; precede <= kNumTuples; ++precede) {
+        // Not in range or the same partition.
+        if (i / kNumTuplesPerPartition != (i - precede) / kNumTuplesPerPartition ||
+            static_cast<int>((i - precede) / kNumTuplesPerOrderKey) < preceding_bound) {
+          break;
+        }
+
+        if (argument_cpp_vector[i - precede] != nullptr) {
+          sum += *argument_cpp_vector[i - precede];
+          count++;
+        }
+      }
+
+      int following_bound = i / kNumTuplesPerOrderKey + kNumFollowing;
+      for (int follow = 1; follow <= kNumTuples; ++follow) {
+        // Not in range or the same partition.
+        if (i + follow >= kNumTuples ||
+            i / kNumTuplesPerPartition != (i + follow) / kNumTuplesPerPartition ||
+            static_cast<int>((i + follow) / kNumTuplesPerOrderKey) > following_bound) {
+          break;
+        }
+
+        if (argument_cpp_vector[i + follow] != nullptr) {
+          sum += *argument_cpp_vector[i + follow];
+          count++;
+        }
+      }
+
+      if (count == 0) {
+        rows_result_cpp_vector.push_back(nullptr);
+      } else {
+        typename OutputType::cpptype *result_cpp_value =
+            new typename OutputType::cpptype;
+        *result_cpp_value = static_cast<typename OutputType::cpptype>(sum) / count;
+        range_result_cpp_vector.push_back(result_cpp_value);
+      }
+    }
+
+    CheckAvgValues(range_result_cpp_vector, range_result);
+  }
 };
 
 template <>

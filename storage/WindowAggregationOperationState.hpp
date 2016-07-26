@@ -57,6 +57,7 @@ class WindowAggregationOperationState {
    *                                   computed.
    * @param arguments A list of argument expressions to that aggregate.
    * @param partition_by_attributes A list of window partition key.
+   * @param order_by_attributes A list of window order key.
    * @param is_row True if the window frame is calculated by ROW, false if it is
    *               calculated by RANGE.
    * @param num_preceding The number of rows/range for the tuples preceding the
@@ -69,6 +70,7 @@ class WindowAggregationOperationState {
                                   const WindowAggregateFunction *window_aggregate_function,
                                   std::vector<std::unique_ptr<const Scalar>> &&arguments,
                                   const std::vector<std::unique_ptr<const Scalar>> &partition_by_attributes,
+                                  const std::vector<std::unique_ptr<const Scalar>> &order_by_attributes,
                                   const bool is_row,
                                   const std::int64_t num_preceding,
                                   const std::int64_t num_following,
@@ -120,13 +122,6 @@ class WindowAggregationOperationState {
   const std::vector<block_id> block_ids_;
   std::unique_ptr<WindowAggregationHandle> window_aggregation_handle_;
   std::vector<std::unique_ptr<const Scalar>> arguments_;
-  std::vector<attribute_id> partition_by_ids_;
-
-  // Frame info.
-  const bool is_row_;
-  const std::int64_t num_preceding_;
-  const std::int64_t num_following_;
-
   StorageManager *storage_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(WindowAggregationOperationState);

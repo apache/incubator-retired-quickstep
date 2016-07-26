@@ -58,7 +58,11 @@ class WindowAggregateFunctionMin : public WindowAggregateFunction {
 
   WindowAggregationHandle* createHandle(
       const std::vector<const Type*> &argument_types,
-      const std::vector<const Type*> &partition_key_types) const override;
+      const std::vector<std::unique_ptr<const Scalar>> &partition_by_attributes,
+      const std::vector<std::unique_ptr<const Scalar>> &order_by_attributes,
+      const bool is_row,
+      const std::int64_t num_preceding,
+      const std::int64_t num_following) const override;
 
  private:
   WindowAggregateFunctionMin()

@@ -56,15 +56,13 @@ WindowAggregationOperationState::WindowAggregationOperationState(
     const WindowAggregateFunction *window_aggregate_function,
     std::vector<std::unique_ptr<const Scalar>> &&arguments,
     const std::vector<std::unique_ptr<const Scalar>> &partition_by_attributes,
+    const std::vector<std::unique_ptr<const Scalar>> &order_by_attributes,
     const bool is_row,
     const std::int64_t num_preceding,
     const std::int64_t num_following,
     StorageManager *storage_manager)
     : input_relation_(input_relation),
       arguments_(std::move(arguments)),
-      is_row_(is_row),
-      num_preceding_(num_preceding),
-      num_following_(num_following),
       storage_manager_(storage_manager) {
   // Get the Types of this window aggregate's arguments so that we can create an
   // AggregationHandle.
@@ -76,18 +74,14 @@ WindowAggregationOperationState::WindowAggregationOperationState(
   // Check if window aggregate function could apply to the arguments.
   DCHECK(window_aggregate_function->canApplyToTypes(argument_types));
 
-  // IDs and types of partition keys.
-  std::vector<const Type*> partition_by_types;
-  for (const std::unique_ptr<const Scalar> &partition_by_attribute : partition_by_attributes) {
-    partition_by_ids_.push_back(
-        partition_by_attribute->getAttributeIdForValueAccessor());
-    partition_by_types.push_back(&partition_by_attribute->getType());
-  }
-
   // Create the handle and initial state.
   window_aggregation_handle_.reset(
-      window_aggregate_function->createHandle(std::move(argument_types),
-                                              std::move(partition_by_types)));
+      window_aggregate_function->createHandle(argument_types,
+                                              partition_by_attributes,
+                                              order_by_attributes,
+                                              is_row,
+                                              num_preceding,
+                                              num_following));
 }
 
 WindowAggregationOperationState* WindowAggregationOperationState::ReconstructFromProto(
@@ -113,6 +107,15 @@ WindowAggregationOperationState* WindowAggregationOperationState::ReconstructFro
         database));
   }
 
+  std::vector<std::unique_ptr<const Scalar>> order_by_attributes;
+  for (int attribute_idx = 0;
+       attribute_idx < proto.order_by_attributes_size();
+       ++attribute_idx) {
+    order_by_attributes.emplace_back(ScalarFactory::ReconstructFromProto(
+        proto.order_by_attributes(attribute_idx),
+        database));
+  }
+
   const bool is_row = proto.is_row();
   const std::int64_t num_preceding = proto.num_preceding();
   const std::int64_t num_following = proto.num_following();
@@ -121,6 +124,7 @@ WindowAggregationOperationState* WindowAggregationOperationState::ReconstructFro
                                              &WindowAggregateFunctionFactory::ReconstructFromProto(proto.function()),
                                              std::move(arguments),
                                              partition_by_attributes,
+                                             order_by_attributes,
                                              is_row,
                                              num_preceding,
                                              num_following,
@@ -160,6 +164,15 @@ bool WindowAggregationOperationState::ProtoIsValid(const serialization::WindowAg
     }
   }
 
+  for (int attribute_idx = 0;
+       attribute_idx < proto.order_by_attributes_size();
+       ++attribute_idx) {
+    if (!ScalarFactory::ProtoIsValid(proto.order_by_attributes(attribute_idx),
+                                     database)) {
+      return false;
+    }
+  }
+
   if (proto.num_preceding() < -1 || proto.num_following() < -1) {
     return false;
   }
@@ -174,14 +187,6 @@ void WindowAggregationOperationState::windowAggregateBlocks(
   // order to pass the query_optimizer test.
   if (window_aggregation_handle_.get() == nullptr) {
     std::cout << "The function will be supported in the near future :)\n";
-    return;
-  }
-
-  // TODO(Shixuan): RANGE frame mode should be supported to make SQL grammar
-  // work. This will need Order Key to be passed so that we know where the
-  // window should start and end.
-  if (!is_row_) {
-    std::cout << "Currently we don't support RANGE frame mode :(\n";
     return;
   }
 
@@ -226,7 +231,11 @@ void WindowAggregationOperationState::windowAggregateBlocks(
                                      block->getIndices(),
                                      block->getIndicesConsistent());
     ValueAccessor *tuple_accessor = tuple_block.createValueAccessor();
-    ColumnVectorsValueAccessor *argument_accessor = new ColumnVectorsValueAccessor();
+    ColumnVectorsValueAccessor *argument_accessor = nullptr;
+    if (!arguments_.empty()) {
+      argument_accessor = new ColumnVectorsValueAccessor();
+    }
+
     for (const std::unique_ptr<const Scalar> &argument : arguments_) {
       argument_accessor->addColumn(argument->getAllValues(tuple_accessor,
                                                           &sub_block_ref));
@@ -235,9 +244,15 @@ void WindowAggregationOperationState::windowAggregateBlocks(
     InvokeOnAnyValueAccessor(tuple_accessor,
                              [&] (auto *tuple_accessor) -> void {  // NOLINT(build/c++11)
       tuple_accessor->beginIteration();
-      argument_accessor->beginIteration();
+      if (argument_accessor != nullptr) {
+        argument_accessor->beginIteration();
+      }
 
-      while (tuple_accessor->next() && argument_accessor->next()) {
+      while (tuple_accessor->next()) {
+        if (argument_accessor != nullptr) {
+          argument_accessor->next();
+        }
+
         for (std::size_t attr_id = 0; attr_id < attribute_vecs.size(); ++attr_id) {
           ColumnVector *attr_vec = attribute_vecs[attr_id];
           if (attr_vec->isNative()) {
@@ -275,11 +290,7 @@ void WindowAggregationOperationState::windowAggregateBlocks(
   // Do actual calculation in handle.
   ColumnVector *window_aggregates =
       window_aggregation_handle_->calculate(all_blocks_accessor,
-                                            std::move(argument_vecs),
-                                            partition_by_ids_,
-                                            is_row_,
-                                            num_preceding_,
-                                            num_following_);
+                                            argument_vecs);
 
   all_blocks_accessor->addColumn(window_aggregates);
   output_destination->bulkInsertTuples(all_blocks_accessor);

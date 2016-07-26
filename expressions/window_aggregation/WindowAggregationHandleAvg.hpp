@@ -31,7 +31,6 @@
 #include "types/Type.hpp"
 #include "types/TypedValue.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
-#include "types/operations/comparisons/Comparison.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -54,11 +53,7 @@ class WindowAggregationHandleAvg : public WindowAggregationHandle {
   ~WindowAggregationHandleAvg() override {}
 
   ColumnVector* calculate(ColumnVectorsValueAccessor* block_accessors,
-                          std::vector<ColumnVector*> &&arguments,
-                          const std::vector<attribute_id> &partition_by_ids,
-                          const bool is_row,
-                          const std::int64_t num_preceding,
-                          const std::int64_t num_following) const override;
+                          const std::vector<ColumnVector*> &arguments) const override;
 
  private:
   friend class WindowAggregateFunctionAvg;
@@ -66,29 +61,25 @@ class WindowAggregationHandleAvg : public WindowAggregationHandle {
   /**
    * @brief Constructor.
    *
-   * @param partition_key_types The Types of the partition key.
-   * @param type Type of the avg value.
+   * @param partition_by_attributes A list of attributes used as partition key.
+   * @param order_by_attributes A list of attributes used as order key.
+   * @param is_row True if the frame mode is ROWS, false if RANGE.
+   * @param num_preceding The number of rows/range that precedes the current row.
+   * @param num_following The number of rows/range that follows the current row.
+   * @param argument_type Type of the argument.
    **/
-  WindowAggregationHandleAvg(const std::vector<const Type*> &partition_key_types,
-                             const Type &type);
-
-  TypedValue calculateOneWindow(
-      ColumnVectorsValueAccessor *tuple_accessor,
-      ColumnVectorsValueAccessor *argument_accessor,
-      const std::vector<attribute_id> &partition_by_ids,
+  WindowAggregationHandleAvg(
+      const std::vector<std::unique_ptr<const Scalar>> &partition_by_attributes,
+      const std::vector<std::unique_ptr<const Scalar>> &order_by_attributes,
       const bool is_row,
       const std::int64_t num_preceding,
-      const std::int64_t num_following) const;
+      const std::int64_t num_following,
+      const Type *argument_type);
 
-  bool samePartition(const ColumnVectorsValueAccessor *tuple_accessor,
-                     const std::vector<TypedValue> &current_row_partition_key,
-                     const tuple_id boundary_tuple_id,
-                     const std::vector<attribute_id> &partition_by_ids) const;
-
-  const Type &argument_type_;
   const Type *sum_type_;
   const Type *result_type_;
   std::unique_ptr<UncheckedBinaryOperator> fast_add_operator_;
+  std::unique_ptr<UncheckedBinaryOperator> fast_subtract_operator_;
   std::unique_ptr<UncheckedBinaryOperator> divide_operator_;
 
   DISALLOW_COPY_AND_ASSIGN(WindowAggregationHandleAvg);

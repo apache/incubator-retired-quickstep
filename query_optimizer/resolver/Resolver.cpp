@@ -814,9 +814,9 @@ L::LogicalPtr Resolver::resolveInsertSelection(
       cast_expressions.emplace_back(selection_attributes[aid]);
     } else {
       // TODO(jianqiao): implement Cast operation for non-numeric types.
-      if (destination_type.getSuperTypeID() == Type::kNumeric
-          && selection_type.getSuperTypeID() == Type::kNumeric
-          && destination_type.isSafelyCoercibleFrom(selection_type)) {
+      if (destination_type.getSuperTypeID() == Type::SuperTypeID::kNumeric &&
+          selection_type.getSuperTypeID() == Type::SuperTypeID::kNumeric &&
+          destination_type.isSafelyCoercibleFrom(selection_type)) {
         // Add cast operation
         const E::AttributeReferencePtr attr = selection_attributes[aid];
         const E::ExpressionPtr cast_expr =
@@ -1691,6 +1691,19 @@ E::WindowInfo Resolver::resolveWindow(const ParseWindow &parse_window,
   // Resolve window frame
   if (parse_window.frame_info() != nullptr) {
     const quickstep::ParseFrameInfo *parse_frame_info = parse_window.frame_info();
+    // For FRAME mode, the first attribute in ORDER BY must be numeric.
+    // TODO(Shixuan): Time-related types should also be supported. To handle
+    // this, some changes in the parser needs to be done since the time range
+    // should be specified with time units. Also, UNBOUNDED flags might be
+    // needed because -1 might not make sense in this case.
+    if (!parse_frame_info->is_row &&
+        (order_by_attributes.empty() ||
+         order_by_attributes[0]->getValueType().getSuperTypeID() != Type::SuperTypeID::kNumeric)) {
+      THROW_SQL_ERROR_AT(&parse_window)
+          << "A numeric attribute should be specified as the first ORDER BY "
+          << "attribute in FRAME mode";
+    }
+
     frame_info = new E::WindowFrameInfo(parse_frame_info->is_row,
                                         parse_frame_info->num_preceding,
                                         parse_frame_info->num_following);
