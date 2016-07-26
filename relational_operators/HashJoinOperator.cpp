@@ -84,13 +84,32 @@ class MapBasedJoinedTupleCollector {
     return &joined_tuples_;
   }
 
- private:
+ protected:
   // NOTE(chasseur): It would also be possible to represent joined tuples for a
   // particular pair of blocks as a TupleIdSequence/BitVector over the
   // cross-product of all tuples from both blocks, but simply using pairs of
   // tuple-IDs is expected to be more space efficient if the result set is less
   // than 1/64 the cardinality of the cross-product.
   std::unordered_map<block_id, std::vector<std::pair<tuple_id, tuple_id>>> joined_tuples_;
+};
+
+class MapBasedJoinedTupleCollectorWithPredicate
+    : public MapBasedJoinedTupleCollector {
+ public:
+  MapBasedJoinedTupleCollectorWithPredicate(const Predicate *predicate)
+      : filter_predicate_(predicate) {
+  }
+
+  template <typename ValueAccessorT>
+  inline void operator()(const ValueAccessorT &accessor,
+                         const TupleReference &tref) {
+    const tuple_id tid = accessor.getCurrentPosition();
+    if (filter_predicate_->matchesForSingleTuple(accessor, tid)) {
+      joined_tuples_[tref.block].emplace_back(tref.tuple, tid);
+    }
+  }
+ private:
+  const Predicate *filter_predicate_;
 };
 
 class SemiAntiJoinTupleCollector {
@@ -203,7 +222,8 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
                                      selection,
                                      hash_table,
                                      output_destination,
-                                     storage_manager),
+                                     storage_manager,
+                                     filter_predicate_),
               op_index_);
         }
         started_ = true;
@@ -223,7 +243,8 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
                 selection,
                 hash_table,
                 output_destination,
-                storage_manager),
+                storage_manager,
+                filter_predicate_),
             op_index_);
         ++num_workorders_generated_;
       }  // end while
@@ -422,26 +443,32 @@ void HashInnerJoinWorkOrder::execute() {
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
 
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
-  MapBasedJoinedTupleCollector collector;
+
+
+  std::unique_ptr<MapBasedJoinedTupleCollector> collector
+    = (filter_predicate_ == nullptr)
+    ? std::make_unique<MapBasedJoinedTupleCollector>()
+    : std::make_unique<MapBasedJoinedTupleCollectorWithPredicate>(filter_predicate_);
+
   if (join_key_attributes_.size() == 1) {
     hash_table_.getAllFromValueAccessor(
         probe_accessor.get(),
         join_key_attributes_.front(),
         any_join_key_attributes_nullable_,
-        &collector);
+        collector.get());
   } else {
     hash_table_.getAllFromValueAccessorCompositeKey(
         probe_accessor.get(),
         join_key_attributes_,
         any_join_key_attributes_nullable_,
-        &collector);
+        collector.get());
   }
 
   const relation_id build_relation_id = build_relation_.getID();
   const relation_id probe_relation_id = probe_relation_.getID();
 
   for (std::pair<const block_id, std::vector<std::pair<tuple_id, tuple_id>>>
-           &build_block_entry : *collector.getJoinedTuples()) {
+           &build_block_entry : *collector->getJoinedTuples()) {
     BlockReference build_block =
         storage_manager_->getBlock(build_block_entry.first, build_relation_);
     const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();

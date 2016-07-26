@@ -129,7 +129,8 @@ class HashJoinOperator : public RelationalOperator {
       const QueryContext::predicate_id residual_predicate_index,
       const QueryContext::scalar_group_id selection_index,
       const std::vector<bool> *is_selection_on_build = nullptr,
-      const JoinType join_type = JoinType::kInnerJoin)
+      const JoinType join_type = JoinType::kInnerJoin,
+      const Predicate *filter_predicate = nullptr)
       : RelationalOperator(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -145,6 +146,7 @@ class HashJoinOperator : public RelationalOperator {
                                    ? std::vector<bool>()
                                    : *is_selection_on_build),
         join_type_(join_type),
+        filter_predicate_(filter_predicate),
         probe_relation_block_ids_(probe_relation_is_stored
                                       ? probe_relation.getBlocksSnapshot()
                                       : std::vector<block_id>()),
@@ -235,6 +237,7 @@ class HashJoinOperator : public RelationalOperator {
   const QueryContext::scalar_group_id selection_index_;
   const std::vector<bool> is_selection_on_build_;
   const JoinType join_type_;
+  const Predicate *filter_predicate_;
 
   std::vector<block_id> probe_relation_block_ids_;
   std::size_t num_workorders_generated_;
@@ -283,7 +286,8 @@ class HashInnerJoinWorkOrder : public WorkOrder {
       const std::vector<std::unique_ptr<const Scalar>> &selection,
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
-      StorageManager *storage_manager)
+      StorageManager *storage_manager,
+      const Predicate *filter_predicate = nullptr)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -294,7 +298,8 @@ class HashInnerJoinWorkOrder : public WorkOrder {
         selection_(selection),
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
+        filter_predicate_(filter_predicate) {}
 
   /**
    * @brief Constructor for the distributed version.
@@ -368,6 +373,8 @@ class HashInnerJoinWorkOrder : public WorkOrder {
   InsertDestination *output_destination_;
   StorageManager *storage_manager_;
 
+  const Predicate *filter_predicate_;
+
   DISALLOW_COPY_AND_ASSIGN(HashInnerJoinWorkOrder);
 };
 
@@ -411,7 +418,8 @@ class HashSemiJoinWorkOrder : public WorkOrder {
       const std::vector<std::unique_ptr<const Scalar>> &selection,
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
-      StorageManager *storage_manager)
+      StorageManager *storage_manager,
+      const Predicate *filter_predicate = nullptr)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -422,7 +430,8 @@ class HashSemiJoinWorkOrder : public WorkOrder {
         selection_(selection),
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
+        filter_predicate_(filter_predicate) {}
 
   /**
    * @brief Constructor for the distributed version.
@@ -492,6 +501,8 @@ class HashSemiJoinWorkOrder : public WorkOrder {
   InsertDestination *output_destination_;
   StorageManager *storage_manager_;
 
+  const Predicate *filter_predicate_;
+
   DISALLOW_COPY_AND_ASSIGN(HashSemiJoinWorkOrder);
 };
 
@@ -535,7 +546,8 @@ class HashAntiJoinWorkOrder : public WorkOrder {
       const std::vector<std::unique_ptr<const Scalar>> &selection,
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
-      StorageManager *storage_manager)
+      StorageManager *storage_manager,
+      const Predicate *filter_predicate)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -546,7 +558,8 @@ class HashAntiJoinWorkOrder : public WorkOrder {
         selection_(selection),
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
+        filter_predicate_(filter_predicate) {}
 
   /**
    * @brief Constructor for the distributed version.
@@ -621,6 +634,8 @@ class HashAntiJoinWorkOrder : public WorkOrder {
 
   InsertDestination *output_destination_;
   StorageManager *storage_manager_;
+
+  const Predicate *filter_predicate_;
 
   DISALLOW_COPY_AND_ASSIGN(HashAntiJoinWorkOrder);
 };

@@ -801,7 +801,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               residual_predicate_index,
               project_expressions_group_index,
               is_selection_on_build.get(),
-              join_type));
+              join_type,
+              nullptr /* filter predicate */));
   insert_destination_proto->set_relational_op_index(join_operator_index);
 
   const QueryPlan::DAGNodeIndex destroy_operator_index =

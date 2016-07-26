@@ -185,6 +185,8 @@ class HashJoin : public BinaryJoin {
   expressions::PredicatePtr residual_predicate_;
   JoinType join_type_;
 
+  expressions::PredicatePtr filter_predicate_;
+
   DISALLOW_COPY_AND_ASSIGN(HashJoin);
 };
 

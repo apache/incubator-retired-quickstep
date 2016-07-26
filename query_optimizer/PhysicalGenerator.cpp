@@ -99,6 +99,8 @@ P::PhysicalPtr PhysicalGenerator::optimizePlan() {
   }
   rules.emplace_back(new PruneColumns());
 
+  rules.emplace_back(new Fuse());
+
   for (std::unique_ptr<Rule<P::Physical>> &rule : rules) {
     physical_plan_ = rule->apply(physical_plan_);
     DVLOG(5) << "After applying rule " << rule->getName() << ":\n"
