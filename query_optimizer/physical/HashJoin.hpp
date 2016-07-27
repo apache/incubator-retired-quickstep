@@ -100,6 +100,13 @@ class HashJoin : public BinaryJoin {
   }
 
   /**
+   * @brief Fused filter predicate.
+   */
+  const expressions::PredicatePtr& filter_predicate() const {
+    return filter_predicate_;
+  }
+
+  /**
    * @return Join type of this hash join.
    */
   JoinType join_type() const {
@@ -155,6 +162,27 @@ class HashJoin : public BinaryJoin {
                      join_type));
   }
 
+  static HashJoinPtr CreateWithFusedSelect(
+      const PhysicalPtr &left,
+      const PhysicalPtr &right,
+      const std::vector<expressions::AttributeReferencePtr> &left_join_attributes,
+      const std::vector<expressions::AttributeReferencePtr> &right_join_attributes,
+      const expressions::PredicatePtr &residual_predicate,
+      const std::vector<expressions::NamedExpressionPtr> &project_expressions,
+      const JoinType join_type,
+      const expressions::PredicatePtr &filter_predicate) {
+    return HashJoinPtr(
+        new HashJoin(left,
+                     right,
+                     left_join_attributes,
+                     right_join_attributes,
+                     residual_predicate,
+                     project_expressions,
+                     join_type,
+                     filter_predicate));
+
+  }
+
  protected:
   void getFieldStringItems(
       std::vector<std::string> *inline_field_names,
@@ -172,12 +200,14 @@ class HashJoin : public BinaryJoin {
       const std::vector<expressions::AttributeReferencePtr> &right_join_attributes,
       const expressions::PredicatePtr &residual_predicate,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
-      const JoinType join_type)
+      const JoinType join_type,
+      const expressions::PredicatePtr &filter_predicate = nullptr)
       : BinaryJoin(left, right, project_expressions),
         left_join_attributes_(left_join_attributes),
         right_join_attributes_(right_join_attributes),
         residual_predicate_(residual_predicate),
-        join_type_(join_type) {
+        join_type_(join_type),
+        filter_predicate_(filter_predicate) {
   }
 
   std::vector<expressions::AttributeReferencePtr> left_join_attributes_;

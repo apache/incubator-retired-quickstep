@@ -695,6 +695,13 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
     query_context_proto_->add_predicates()->CopyFrom(residual_predicate->getProto());
   }
 
+  QueryContext::predicate_id filter_predicate_index = QueryContext::kInvalidPredicateId;
+  if (physical_plan->filter_predicate()) {
+    filter_predicate_index = query_context_proto_->predicates_size();
+    unique_ptr<const Predicate> filter_predicate(convertPredicate(physical_plan->filter_predicate()));
+    query_context_proto_->add_predicates()->CopyFrom(filter_predicate->getProto());
+  }
+
   // Convert the project expressions proto.
   const QueryContext::scalar_group_id project_expressions_group_index =
       query_context_proto_->scalar_groups_size();
@@ -802,7 +809,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               project_expressions_group_index,
               is_selection_on_build.get(),
               join_type,
-              nullptr /* filter predicate */));
+              filter_predicate_index));
   insert_destination_proto->set_relational_op_index(join_operator_index);
 
   const QueryPlan::DAGNodeIndex destroy_operator_index =

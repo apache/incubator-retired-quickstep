@@ -201,6 +201,8 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
 
     const Predicate *residual_predicate =
         query_context->getPredicate(residual_predicate_index_);
+    const Predicate *filter_predicate =
+        query_context->getPredicate(filter_predicate_index_);
     const vector<unique_ptr<const Scalar>> &selection =
         query_context->getScalarGroup(selection_index_);
     InsertDestination *output_destination =
@@ -223,7 +225,7 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
                                      hash_table,
                                      output_destination,
                                      storage_manager,
-                                     filter_predicate_),
+                                     filter_predicate),
               op_index_);
         }
         started_ = true;
@@ -244,7 +246,7 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
                 hash_table,
                 output_destination,
                 storage_manager,
-                filter_predicate_),
+                filter_predicate),
             op_index_);
         ++num_workorders_generated_;
       }  // end while
