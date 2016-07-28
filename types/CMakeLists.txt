@@ -32,6 +32,7 @@ QS_PROTOBUF_GENERATE_CPP(types_Type_proto_srcs types_Type_proto_hdrs Type.proto)
 # Declare micro-libs:
 add_library(quickstep_types_CharType CharType.cpp CharType.hpp)
 add_library(quickstep_types_DateOperatorOverloads ../empty_src.cpp DateOperatorOverloads.hpp)
+add_library(quickstep_types_DateType DateType.cpp DateType.hpp)
 add_library(quickstep_types_DatetimeIntervalType DatetimeIntervalType.cpp DatetimeIntervalType.hpp)
 add_library(quickstep_types_DatetimeLit ../empty_src.cpp DatetimeLit.hpp)
 add_library(quickstep_types_DatetimeType DatetimeType.cpp DatetimeType.hpp)
@@ -71,6 +72,15 @@ target_link_libraries(quickstep_types_DateOperatorOverloads
                       quickstep_types_IntervalLit
                       quickstep_types_port_gmtime_r
                       quickstep_types_port_timegm)
+target_link_libraries(quickstep_types_DateType
+                      glog
+                      quickstep_types_DatetimeLit
+                      quickstep_types_NullCoercibilityCheckMacro
+                      quickstep_types_Type
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
+                      quickstep_utility_CheckSnprintf
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_types_DatetimeIntervalType
                       glog
                       quickstep_types_IntervalLit
@@ -156,6 +166,7 @@ target_link_libraries(quickstep_types_Type
 target_link_libraries(quickstep_types_TypeFactory
                       glog
                       quickstep_types_CharType
+                      quickstep_types_DateType
                       quickstep_types_DatetimeIntervalType
                       quickstep_types_DatetimeType
                       quickstep_types_DoubleType
@@ -210,6 +221,7 @@ add_library(quickstep_types ../empty_src.cpp TypesModule.hpp)
 target_link_libraries(quickstep_types
                       quickstep_types_CharType
                       quickstep_types_DateOperatorOverloads
+                      quickstep_types_DateType
                       quickstep_types_DatetimeIntervalType
                       quickstep_types_DatetimeLit
                       quickstep_types_DatetimeType
@@ -263,6 +275,21 @@ target_link_libraries(CharType_unittest
                       quickstep_types_tests_TypeTest_common
                       quickstep_utility_MemStream)
 add_test(CharType_unittest CharType_unittest)
+
+add_executable(DateType_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/DateType_unittest.cpp")
+target_link_libraries(DateType_unittest
+                      gtest
+                      gtest_main
+                      quickstep_types_DatetimeLit
+                      quickstep_types_DateType
+                      quickstep_types_NullType
+                      quickstep_types_Type
+                      quickstep_types_TypeFactory
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
+                      quickstep_types_tests_TypeTest_common
+                      quickstep_utility_MemStream)
+add_test(DateType_unittest DateType_unittest)
 
 add_executable(DatetimeIntervalType_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/DatetimeIntervalType_unittest.cpp")

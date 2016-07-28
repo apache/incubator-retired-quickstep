@@ -23,7 +23,7 @@
 #include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
-#include "expressions/aggregation/AggregateFunction.pb.h"
+#include "expressions/window_aggregation/WindowAggregateFunction.pb.h"
 #include "storage/WindowAggregationOperationState.hpp"
 #include "storage/WindowAggregationOperationState.pb.h"
 
@@ -57,8 +57,8 @@ TEST_F(WindowAggregationOperationStateProtoTest, UninitializationTest) {
 
 TEST_F(WindowAggregationOperationStateProtoTest, InvalidRelationIdTest) {
   serialization::WindowAggregationOperationState proto;
-  proto.set_relation_id(kInvalidTableId);
-  proto.mutable_function()->set_aggregation_id(serialization::AggregateFunction::AVG);
+  proto.set_input_relation_id(kInvalidTableId);
+  proto.mutable_function()->set_window_aggregation_id(serialization::WindowAggregateFunction::AVG);
   proto.set_is_row(true);
   proto.set_num_preceding(kValidNum);
   proto.set_num_following(kValidNum);
@@ -67,8 +67,8 @@ TEST_F(WindowAggregationOperationStateProtoTest, InvalidRelationIdTest) {
 
 TEST_F(WindowAggregationOperationStateProtoTest, InvalidNumTest) {
   serialization::WindowAggregationOperationState proto;
-  proto.set_relation_id(rel_id_);
-  proto.mutable_function()->set_aggregation_id(serialization::AggregateFunction::AVG);
+  proto.set_input_relation_id(rel_id_);
+  proto.mutable_function()->set_window_aggregation_id(serialization::WindowAggregateFunction::AVG);
   proto.set_is_row(true);
   proto.set_num_preceding(kInvalidNum);
   proto.set_num_following(kValidNum);
@@ -81,8 +81,8 @@ TEST_F(WindowAggregationOperationStateProtoTest, InvalidNumTest) {
 
 TEST_F(WindowAggregationOperationStateProtoTest, ValidTest) {
   serialization::WindowAggregationOperationState proto;
-  proto.set_relation_id(rel_id_);
-  proto.mutable_function()->set_aggregation_id(serialization::AggregateFunction::AVG);
+  proto.set_input_relation_id(rel_id_);
+  proto.mutable_function()->set_window_aggregation_id(serialization::WindowAggregateFunction::AVG);
   proto.set_is_row(true);
   proto.set_num_preceding(kValidNum);
   proto.set_num_following(kValidNum);

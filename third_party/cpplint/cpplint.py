@@ -3,6 +3,7 @@
 # Original version: svn revision 141
 #
 # This file modified for quickstep as follows:
+#   - Allow no copyright message at the top of the file.
 #   - Allow line length up to 120 characters by default.
 #   - Recognize .hpp files as C++ source.
 #   - Allow use of C++11 <chrono> header.
@@ -5982,7 +5983,7 @@ def ProcessFileData(filename, file_extension, lines, error,
 
   ResetNolintSuppressions()
 
-  CheckForCopyright(filename, lines, error)
+  # CheckForCopyright(filename, lines, error)
 
   RemoveMultiLineComments(filename, lines, error)
   clean_lines = CleansedLines(lines)

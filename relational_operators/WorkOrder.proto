@@ -249,6 +249,7 @@ message WindowAggregationWorkOrder {
   extend WorkOrder {
     // All required
     optional uint32 window_aggr_state_index = 336;
-    optional int32 insert_destination_index = 337;
+    repeated fixed64 block_ids = 337;
+    optional int32 insert_destination_index = 338;
   }
 }

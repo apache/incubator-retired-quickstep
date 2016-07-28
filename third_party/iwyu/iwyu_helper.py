@@ -25,6 +25,7 @@ QUICKSTEP_INCLUDES = [ '.',
                        './third_party/benchmark/include',
                        './third_party/glog/src',
                        './third_party/googletest/googletest/include',
+                       './third_party/protobuf/src',
                        './third_party/re2',
                        './third_party/tmb/include']
 QUICKSTEP_DEFINES = [ '-DQUICKSTEP_DEBUG',

@@ -35,6 +35,8 @@
 #include "expressions/table_generator/GeneratorFunction.hpp"
 #include "expressions/table_generator/GeneratorFunctionFactory.hpp"
 #include "expressions/table_generator/GeneratorFunctionHandle.hpp"
+#include "expressions/window_aggregation/WindowAggregateFunction.hpp"
+#include "expressions/window_aggregation/WindowAggregateFunctionFactory.hpp"
 #include "parser/ParseAssignment.hpp"
 #include "parser/ParseBasicExpressions.hpp"
 #include "parser/ParseBlockProperties.hpp"
@@ -2624,11 +2626,19 @@ E::ScalarPtr Resolver::resolveFunctionCall(
         << "COUNT aggregate has both star (*) and non-star arguments.";
   }
 
-  // Try to look up the AggregateFunction by name using
-  // AggregateFunctionFactory.
-  const ::quickstep::AggregateFunction *aggregate
-      = AggregateFunctionFactory::GetByName(function_name);
-  if (aggregate == nullptr) {
+  // Try to look up the AggregateFunction/WindowAggregationFunction by name.
+  // TODO(Shixuan): We might want to create a new abstract class Function to
+  // include both AggregateFunction and WindowAggregateFunction, which will make
+  // this part of code cleaner.
+  const ::quickstep::AggregateFunction *aggregate = nullptr;
+  const ::quickstep::WindowAggregateFunction *window_aggregate = nullptr;
+  if (parse_function_call.isWindow()) {
+    window_aggregate = WindowAggregateFunctionFactory::GetByName(function_name);
+  } else {
+    aggregate = AggregateFunctionFactory::GetByName(function_name);
+  }
+
+  if (aggregate == nullptr && window_aggregate == nullptr) {
     THROW_SQL_ERROR_AT(&parse_function_call)
         << "Unrecognized function name \""
         << parse_function_call.name()->value()
@@ -2656,11 +2666,14 @@ E::ScalarPtr Resolver::resolveFunctionCall(
   }
 
   // Make sure a naked COUNT() with no arguments wasn't specified.
-  if ((aggregate->getAggregationID() == AggregationID::kCount)
-      && (resolved_arguments.empty())
-      && (!count_star)) {
-    THROW_SQL_ERROR_AT(&parse_function_call)
-        << "COUNT aggregate requires an argument (either scalar or star (*))";
+  if ((aggregate != nullptr &&
+       aggregate->getAggregationID() == AggregationID::kCount) ||
+      (window_aggregate != nullptr &&
+       window_aggregate->getWindowAggregationID() == WindowAggregationID::kCount)) {
+    if ((resolved_arguments.empty()) && !count_star) {
+      THROW_SQL_ERROR_AT(&parse_function_call)
+          << "COUNT aggregate requires an argument (either scalar or star (*))";
+    }
   }
 
   // Resolve each of the Scalar arguments to the aggregate.
@@ -2670,7 +2683,8 @@ E::ScalarPtr Resolver::resolveFunctionCall(
   }
 
   // Make sure that the aggregate can apply to the specified argument(s).
-  if (!aggregate->canApplyToTypes(argument_types)) {
+  if ((aggregate != nullptr && !aggregate->canApplyToTypes(argument_types))
+      || (window_aggregate != nullptr && !window_aggregate->canApplyToTypes(argument_types))) {
     THROW_SQL_ERROR_AT(&parse_function_call)
         << "Aggregate function " << aggregate->getName()
         << " can not apply to the given argument(s).";
@@ -2679,7 +2693,7 @@ E::ScalarPtr Resolver::resolveFunctionCall(
   if (parse_function_call.isWindow()) {
     return resolveWindowAggregateFunction(parse_function_call,
                                           expression_resolution_info,
-                                          aggregate,
+                                          window_aggregate,
                                           resolved_arguments);
   }
 
@@ -2705,7 +2719,7 @@ E::ScalarPtr Resolver::resolveFunctionCall(
 E::ScalarPtr Resolver::resolveWindowAggregateFunction(
     const ParseFunctionCall &parse_function_call,
     ExpressionResolutionInfo *expression_resolution_info,
-    const ::quickstep::AggregateFunction *window_aggregate,
+    const ::quickstep::WindowAggregateFunction *window_aggregate,
     const std::vector<E::ScalarPtr> &resolved_arguments) {
   // A window aggregate function might be defined OVER a window name or a window.
   E::WindowAggregateFunctionPtr window_aggregate_function;

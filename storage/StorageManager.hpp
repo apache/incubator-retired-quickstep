@@ -619,6 +619,7 @@ class StorageManager {
   FRIEND_TEST(BlockLocatorTest, BlockTest);
   FRIEND_TEST(BlockLocatorTest, BlobTest);
 
+  friend class Shiftboss;
   FRIEND_TEST(StorageManagerTest, DifferentNUMANodeBlobTestWithEviction);
   FRIEND_TEST(StorageManagerTest, EvictFromSameShardTest);
 

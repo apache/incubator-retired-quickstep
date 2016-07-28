@@ -25,8 +25,6 @@
 #include <utility>
 #include <vector>
 
-#include "gtest/gtest.h"
-
 #include "types/DatetimeLit.hpp"
 #include "types/IntervalLit.hpp"
 #include "types/Type.hpp"
@@ -39,6 +37,8 @@
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "utility/Macros.hpp"
 #include "utility/ScopedBuffer.hpp"
+
+#include "gtest/gtest.h"
 
 using std::int64_t;
 using std::min;
@@ -146,6 +146,23 @@ class ComparisonTest : public ::testing::Test {
                                        &TypeFactory::GetType(kDouble, false));
     numeric_typed_values_.emplace_back(double_min_.get(),
                                        &TypeFactory::GetType(kDouble, false));
+
+    date_null_.reset(new TypedValue(kDate));
+    date_positive_.reset(new TypedValue(DateLit::Create(2016, 7, 15)));
+    date_negative_.reset(new TypedValue(DateLit::Create(-18017, 4, 13)));
+    date_max_.reset(new TypedValue(DateLit::Create(99999, 12, 31)));
+    date_min_.reset(new TypedValue(DateLit::Create(-99999, 1, 1)));
+
+    date_typed_values_.emplace_back(date_null_.get(),
+                                    &TypeFactory::GetType(kDate, true));
+    date_typed_values_.emplace_back(date_positive_.get(),
+                                    &TypeFactory::GetType(kDate, false));
+    date_typed_values_.emplace_back(date_negative_.get(),
+                                    &TypeFactory::GetType(kDate, false));
+    date_typed_values_.emplace_back(date_max_.get(),
+                                    &TypeFactory::GetType(kDate, false));
+    date_typed_values_.emplace_back(date_min_.get(),
+                                    &TypeFactory::GetType(kDate, false));
 
     datetime_null_.reset(new TypedValue(kDatetime));
     DatetimeLit datetime;
@@ -347,6 +364,7 @@ class ComparisonTest : public ::testing::Test {
   void checkComparison(const Comparison &comparison) {
     checkNumericComparison(comparison);
     checkStringComparison(comparison);
+    checkDateComparison(comparison);
     checkDatetimeComparison(comparison);
     checkDatetimeIntervalComparison(comparison);
     checkYearMonthIntervalComparison(comparison);
@@ -521,6 +539,19 @@ class ComparisonTest : public ::testing::Test {
         return left_num >= right_num;
       default:
         FATAL_ERROR("Unsupported comparison type.");
+    }
+  }
+
+  void checkDateComparison(const Comparison &comparison) {
+    for (const std::pair<const TypedValue*, const Type*> &left_item : date_typed_values_) {
+      for (const std::pair<const TypedValue*, const Type*> &right_item : date_typed_values_) {
+        checkDateComparisonChecked<DateLit>(comparison,
+                                            *left_item.first, *left_item.second,
+                                            *right_item.first, *right_item.second);
+        checkDateComparisonUnchecked<DateLit>(comparison,
+                                              *left_item.first, *left_item.second,
+                                              *right_item.first, *right_item.second);
+      }
     }
   }
 
@@ -719,6 +750,7 @@ class ComparisonTest : public ::testing::Test {
       char_ref_extended_short_, char_lit_extended_short_,
       char_ref_extended_long_, char_lit_extended_long_,
       varchar_null_, varchar_ref_short_, varchar_lit_short_, varchar_ref_long_, varchar_lit_long_,
+      date_null_, date_positive_, date_negative_, date_max_, date_min_,
       datetime_null_, datetime_zero_, datetime_positive_, datetime_negative_, datetime_max_, datetime_min_,
       datetime_interval_null_, datetime_interval_zero_, datetime_interval_positive_, datetime_interval_negative_,
       year_month_interval_null_, year_month_interval_zero_,
@@ -727,7 +759,7 @@ class ComparisonTest : public ::testing::Test {
   unique_ptr<ScopedBuffer> extended_short_char_buffer_, extended_long_char_buffer_;
 
   vector<pair<const TypedValue*, const Type*>>
-      numeric_typed_values_, datetime_typed_values_, datetime_interval_typed_values_,
+      numeric_typed_values_, date_typed_values_, datetime_typed_values_, datetime_interval_typed_values_,
       year_month_interval_typed_values_, string_typed_values_;
 };
 
@@ -803,7 +835,7 @@ void CheckBasicComparisonApplicableToPartialTypes(const Comparison &comparison) 
 
   // If only one argument is known, any orderable Type is OK.
   for (const TypeID type_id
-       : {kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
+       : {kInt, kLong, kFloat, kDouble, kDate, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
     EXPECT_TRUE(comparison.canComparePartialTypes(
         &TypeFactory::GetType(type_id, false), nullptr));
     EXPECT_TRUE(comparison.canComparePartialTypes(
@@ -827,12 +859,12 @@ void CheckBasicComparisonApplicableToPartialTypes(const Comparison &comparison) 
 
   // If both types are known, expect the same thing as canCompareTypes().
   for (const TypeID first_type_id
-       : {kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
+       : {kInt, kLong, kFloat, kDouble, kDate, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
     const Type &first_type = TypeFactory::GetType(first_type_id, false);
     const Type &first_type_nullable = TypeFactory::GetType(first_type_id, true);
 
     for (const TypeID second_type_id
-         : {kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
+         : {kInt, kLong, kFloat, kDouble, kDate, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
       const Type &second_type = TypeFactory::GetType(second_type_id, false);
       const Type &second_type_nullable = TypeFactory::GetType(second_type_id, true);
       EXPECT_EQ(comparison.canCompareTypes(first_type, second_type),
@@ -864,7 +896,7 @@ void CheckBasicComparisonApplicableToPartialTypes(const Comparison &comparison) 
     const Type &first_type_nullable = TypeFactory::GetType(first_type_id, 10, true);
 
     for (const TypeID second_type_id
-         : {kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
+         : {kInt, kLong, kFloat, kDouble, kDate, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
       const Type &second_type = TypeFactory::GetType(second_type_id, false);
       const Type &second_type_nullable = TypeFactory::GetType(second_type_id, true);
       EXPECT_EQ(comparison.canCompareTypes(first_type, second_type),

@@ -21,11 +21,13 @@
 
 #include <vector>
 
+#include "catalog/CatalogRelation.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/WorkOrder.pb.h"
 #include "storage/StorageBlockInfo.hpp"
+#include "storage/WindowAggregationOperationState.hpp"
 
 #include "tmb/id_typedefs.h"
 
@@ -40,10 +42,14 @@ bool WindowAggregationOperator::getAllWorkOrders(
   DCHECK(query_context != nullptr);
 
   if (blocking_dependencies_met_ && !generated_) {
+    std::vector<block_id> relation_blocks =
+        input_relation_.getBlocksSnapshot();
+
     container->addNormalWorkOrder(
         new WindowAggregationWorkOrder(
             query_id_,
             query_context->releaseWindowAggregationState(window_aggregation_state_index_),
+            std::move(relation_blocks),
             query_context->getInsertDestination(output_destination_index_)),
         op_index_);
     generated_ = true;
@@ -67,6 +73,11 @@ serialization::WorkOrder* WindowAggregationOperator::createWorkOrderProto() {
   proto->set_query_id(query_id_);
   proto->SetExtension(serialization::WindowAggregationWorkOrder::window_aggr_state_index,
                       window_aggregation_state_index_);
+
+  const std::vector<block_id> relation_blocks = input_relation_.getBlocksSnapshot();
+  for (const block_id bid : relation_blocks) {
+    proto->AddExtension(serialization::WindowAggregationWorkOrder::block_ids, bid);
+  }
   proto->SetExtension(serialization::WindowAggregationWorkOrder::insert_destination_index,
                       output_destination_index_);
 
@@ -75,8 +86,8 @@ serialization::WorkOrder* WindowAggregationOperator::createWorkOrderProto() {
 
 
 void WindowAggregationWorkOrder::execute() {
-  std::cout << "Window aggregation is not supported yet.\n"
-      << "An empty table is returned\n";
+  state_->windowAggregateBlocks(output_destination_,
+                                block_ids_);
 }
 
 }  // namespace quickstep

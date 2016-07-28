@@ -28,13 +28,14 @@ else()
 endif()
 
 # Declare micro-libs:
+add_library(quickstep_queryexecution_AdmitRequestMessage ../empty_src.cpp AdmitRequestMessage.hpp)
 if (ENABLE_DISTRIBUTED)
   add_library(quickstep_queryexecution_BlockLocator BlockLocator.cpp BlockLocator.hpp)
 endif()
-add_library(quickstep_queryexecution_AdmitRequestMessage ../empty_src.cpp AdmitRequestMessage.hpp)
 add_library(quickstep_queryexecution_ForemanBase ../empty_src.cpp ForemanBase.hpp)
 add_library(quickstep_queryexecution_ForemanSingleNode ForemanSingleNode.cpp ForemanSingleNode.hpp)
-add_library(quickstep_queryexecution_PolicyEnforcer PolicyEnforcer.cpp PolicyEnforcer.hpp)
+add_library(quickstep_queryexecution_PolicyEnforcerBase PolicyEnforcerBase.cpp PolicyEnforcerBase.hpp)
+add_library(quickstep_queryexecution_PolicyEnforcerSingleNode PolicyEnforcerSingleNode.cpp PolicyEnforcerSingleNode.hpp)
 add_library(quickstep_queryexecution_QueryContext QueryContext.cpp QueryContext.hpp)
 add_library(quickstep_queryexecution_QueryContext_proto
             ${queryexecution_QueryContext_proto_srcs}
@@ -45,7 +46,15 @@ add_library(quickstep_queryexecution_QueryExecutionMessages_proto
 add_library(quickstep_queryexecution_QueryExecutionState ../empty_src.cpp QueryExecutionState.hpp)
 add_library(quickstep_queryexecution_QueryExecutionTypedefs ../empty_src.cpp QueryExecutionTypedefs.hpp)
 add_library(quickstep_queryexecution_QueryExecutionUtil ../empty_src.cpp QueryExecutionUtil.hpp)
-add_library(quickstep_queryexecution_QueryManager QueryManager.cpp QueryManager.hpp)
+add_library(quickstep_queryexecution_QueryManagerBase QueryManagerBase.cpp QueryManagerBase.hpp)
+if (ENABLE_DISTRIBUTED)
+  add_library(quickstep_queryexecution_QueryManagerDistributed QueryManagerDistributed.cpp QueryManagerDistributed.hpp)
+endif()
+add_library(quickstep_queryexecution_QueryManagerSingleNode QueryManagerSingleNode.cpp QueryManagerSingleNode.hpp)
+if (ENABLE_DISTRIBUTED)
+  add_library(quickstep_queryexecution_Shiftboss Shiftboss.cpp Shiftboss.hpp)
+  add_library(quickstep_queryexecution_ShiftbossDirectory ../empty_src.cpp ShiftbossDirectory.hpp)
+endif()
 add_library(quickstep_queryexecution_WorkOrderProtosContainer ../empty_src.cpp WorkOrderProtosContainer.hpp)
 add_library(quickstep_queryexecution_WorkOrdersContainer WorkOrdersContainer.cpp WorkOrdersContainer.hpp)
 add_library(quickstep_queryexecution_Worker Worker.cpp Worker.hpp)
@@ -78,7 +87,7 @@ target_link_libraries(quickstep_queryexecution_ForemanSingleNode
                       glog
                       quickstep_queryexecution_AdmitRequestMessage
                       quickstep_queryexecution_ForemanBase
-                      quickstep_queryexecution_PolicyEnforcer
+                      quickstep_queryexecution_PolicyEnforcerSingleNode
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_WorkerDirectory
@@ -88,19 +97,32 @@ target_link_libraries(quickstep_queryexecution_ForemanSingleNode
                       quickstep_utility_Macros
                       tmb
                       ${GFLAGS_LIB_NAME})
-target_link_libraries(quickstep_queryexecution_PolicyEnforcer
-                      ${GFLAGS_LIB_NAME}
+target_link_libraries(quickstep_queryexecution_PolicyEnforcerBase
+                      glog
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_PartitionScheme
+                      quickstep_queryexecution_QueryExecutionMessages_proto
+                      quickstep_queryexecution_QueryExecutionState
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_QueryManagerBase
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_utility_Macros
+                      tmb)
+target_link_libraries(quickstep_queryexecution_PolicyEnforcerSingleNode
                       glog
                       quickstep_catalog_CatalogTypedefs
-                      quickstep_queryexecution_QueryExecutionMessages_proto
-                      quickstep_queryexecution_QueryExecutionTypedefs
-                      quickstep_queryexecution_QueryManager
+                      quickstep_queryexecution_PolicyEnforcerBase
+                      quickstep_queryexecution_QueryExecutionState
+                      quickstep_queryexecution_QueryManagerBase
+                      quickstep_queryexecution_QueryManagerSingleNode
                       quickstep_queryexecution_WorkerDirectory
                       quickstep_queryexecution_WorkerMessage
                       quickstep_queryoptimizer_QueryHandle
-                      quickstep_relationaloperators_WorkOrder
                       quickstep_utility_Macros
-                      tmb)
+                      tmb
+                      ${GFLAGS_LIB_NAME})
 target_link_libraries(quickstep_queryexecution_QueryContext
                       glog
                       quickstep_catalog_CatalogDatabaseLite
@@ -136,6 +158,9 @@ target_link_libraries(quickstep_queryexecution_QueryContext_proto
                       quickstep_utility_SortConfiguration_proto
                       ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_queryexecution_QueryExecutionMessages_proto
+                      quickstep_catalog_Catalog_proto
+                      quickstep_queryexecution_QueryContext_proto
+                      quickstep_relationaloperators_WorkOrder_proto
                       ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_queryexecution_QueryExecutionState
                       glog
@@ -149,26 +174,73 @@ target_link_libraries(quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_WorkerMessage
                       quickstep_utility_Macros
                       tmb)
-target_link_libraries(quickstep_queryexecution_QueryManager
-                      quickstep_catalog_CatalogDatabase
-                      quickstep_catalog_CatalogRelation
+target_link_libraries(quickstep_queryexecution_QueryManagerBase
                       quickstep_catalog_CatalogTypedefs
-                      quickstep_catalog_PartitionScheme
                       quickstep_queryexecution_QueryContext
-                      quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionState
-                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryoptimizer_QueryHandle
+                      quickstep_queryoptimizer_QueryPlan
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_utility_DAG
+                      quickstep_utility_Macros)
+if (ENABLE_DISTRIBUTED)
+  target_link_libraries(quickstep_queryexecution_QueryManagerDistributed
+                        quickstep_queryexecution_QueryContext
+                        quickstep_queryexecution_QueryExecutionMessages_proto
+                        quickstep_queryexecution_QueryExecutionState
+                        quickstep_queryexecution_QueryExecutionTypedefs
+                        quickstep_queryexecution_QueryExecutionUtil
+                        quickstep_queryexecution_QueryManagerBase
+                        quickstep_queryexecution_ShiftbossDirectory
+                        quickstep_queryexecution_WorkOrderProtosContainer
+                        quickstep_relationaloperators_RelationalOperator
+                        quickstep_relationaloperators_WorkOrder_proto
+                        quickstep_utility_DAG
+                        quickstep_utility_Macros
+                        tmb)
+endif()
+target_link_libraries(quickstep_queryexecution_QueryManagerSingleNode
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryExecutionState
+                      quickstep_queryexecution_QueryManagerBase
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_queryexecution_WorkerMessage
                       quickstep_queryoptimizer_QueryHandle
                       quickstep_relationaloperators_RebuildWorkOrder
                       quickstep_relationaloperators_RelationalOperator
-                      quickstep_relationaloperators_WorkOrder
+                      quickstep_storage_InsertDestination
                       quickstep_storage_StorageBlock
-                      quickstep_storage_StorageBlockInfo
                       quickstep_utility_DAG
                       quickstep_utility_Macros
                       tmb)
+if (ENABLE_DISTRIBUTED)
+  target_link_libraries(quickstep_queryexecution_Shiftboss
+                        glog
+                        quickstep_catalog_CatalogDatabaseCache
+                        quickstep_catalog_CatalogTypedefs
+                        quickstep_queryexecution_QueryContext
+                        quickstep_queryexecution_QueryExecutionMessages_proto
+                        quickstep_queryexecution_QueryExecutionTypedefs
+                        quickstep_queryexecution_QueryExecutionUtil
+                        quickstep_queryexecution_WorkerDirectory
+                        quickstep_queryexecution_WorkerMessage
+                        quickstep_relationaloperators_RebuildWorkOrder
+                        quickstep_relationaloperators_WorkOrderFactory
+                        quickstep_storage_InsertDestination
+                        quickstep_storage_StorageBlock
+                        quickstep_storage_StorageBlockInfo
+                        quickstep_storage_StorageManager
+                        quickstep_threading_Thread
+                        quickstep_threading_ThreadUtil
+                        quickstep_utility_Macros
+                        tmb)
+  target_link_libraries(quickstep_queryexecution_ShiftbossDirectory
+                        quickstep_utility_Macros
+                        tmb)
+endif()
 target_link_libraries(quickstep_queryexecution_WorkOrderProtosContainer
                       glog
                       quickstep_relationaloperators_WorkOrder_proto
@@ -203,14 +275,16 @@ target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_AdmitRequestMessage
                       quickstep_queryexecution_ForemanBase
                       quickstep_queryexecution_ForemanSingleNode
-                      quickstep_queryexecution_PolicyEnforcer
+                      quickstep_queryexecution_PolicyEnforcerBase
+                      quickstep_queryexecution_PolicyEnforcerSingleNode
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
                       quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionState
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
-                      quickstep_queryexecution_QueryManager
+                      quickstep_queryexecution_QueryManagerBase
+                      quickstep_queryexecution_QueryManagerSingleNode
                       quickstep_queryexecution_WorkOrderProtosContainer
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_queryexecution_Worker
@@ -219,7 +293,10 @@ target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_WorkerSelectionPolicy)
 if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_queryexecution
-                        quickstep_queryexecution_BlockLocator)
+                        quickstep_queryexecution_BlockLocator
+                        quickstep_queryexecution_QueryManagerDistributed
+                        quickstep_queryexecution_Shiftboss
+                        quickstep_queryexecution_ShiftbossDirectory)
 endif()
 
 # Tests:
@@ -248,9 +325,9 @@ if (ENABLE_DISTRIBUTED)
   add_test(BlockLocator_unittest BlockLocator_unittest)
 endif()
 
-add_executable(QueryManager_unittest
-  "${CMAKE_CURRENT_SOURCE_DIR}/tests/QueryManager_unittest.cpp")
-target_link_libraries(QueryManager_unittest
+add_executable(QueryManagerSingleNode_unittest
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/QueryManagerSingleNode_unittest.cpp")
+target_link_libraries(QueryManagerSingleNode_unittest
                       glog
                       gtest
                       gtest_main
@@ -262,7 +339,7 @@ target_link_libraries(QueryManager_unittest
                       quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionState
                       quickstep_queryexecution_QueryExecutionTypedefs
-                      quickstep_queryexecution_QueryManager
+                      quickstep_queryexecution_QueryManagerSingleNode
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_queryexecution_WorkerDirectory
                       quickstep_queryexecution_WorkerMessage
@@ -278,7 +355,7 @@ target_link_libraries(QueryManager_unittest
                       quickstep_utility_DAG
                       quickstep_utility_Macros
                       tmb)
-add_test(QueryManager_unittest QueryManager_unittest)
+add_test(QueryManagerSingleNode_unittest QueryManagerSingleNode_unittest)
 
 add_executable(WorkOrdersContainer_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/WorkOrdersContainer_unittest.cpp")

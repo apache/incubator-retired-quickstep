@@ -22,8 +22,6 @@
 #include <cstdint>
 #include <string>
 
-#include "types/DatetimeLit.hpp"
-#include "types/IntervalLit.hpp"
 #include "types/Type.hpp"
 #include "types/TypeErrors.hpp"
 #include "types/TypeFactory.hpp"
@@ -36,6 +34,11 @@
 #include "glog/logging.h"
 
 namespace quickstep {
+
+struct DateLit;
+struct DatetimeIntervalLit;
+struct DatetimeLit;
+struct YearMonthIntervalLit;
 
 /** \addtogroup Types
  *  @{
@@ -161,6 +164,18 @@ bool BasicComparison::compareTypedValuesCheckedHelper(const TypedValue &left,
       }
       break;
     }
+    case kDate: {
+      if (right.getTypeID() == kDate) {
+        if (left.isNull() || right.isNull()) {
+          return false;
+        }
+
+        ComparisonFunctor<DateLit> comparison_functor;
+        return comparison_functor(left.getLiteral<DateLit>(), right.getLiteral<DateLit>());
+      }
+      LOG(FATAL) << "Comparison " << getName() << " can not be applied to types "
+                 << left_type.getName() << " and " << right_type.getName();
+    }
     case kDatetime: {
       if (right.getTypeID() == kDatetime) {
         if (left.isNull() || right.isNull()) {
@@ -269,7 +284,8 @@ UncheckedComparator* BasicComparison::makeUncheckedComparatorForTypesHelper(cons
                                                                             const Type &right) const {
   if (left.getSuperTypeID() == Type::kNumeric && right.getSuperTypeID() == Type::kNumeric) {
     return makeNumericComparatorOuterHelper<LiteralComparator>(left, right);
-  } else if ((left.getTypeID() == kDatetime && right.getTypeID() == kDatetime)                 ||
+  } else if ((left.getTypeID() == kDate && right.getTypeID() == kDate)                         ||
+             (left.getTypeID() == kDatetime && right.getTypeID() == kDatetime)                 ||
              (left.getTypeID() == kDatetimeInterval && right.getTypeID() == kDatetimeInterval) ||
              (left.getTypeID() == kYearMonthInterval && right.getTypeID() == kYearMonthInterval)) {
     return makeDateComparatorOuterHelper<LiteralComparator>(left, right);
@@ -358,6 +374,12 @@ UncheckedComparator* BasicComparison::makeDateComparatorOuterHelper(
     const Type &left,
     const Type &right) const {
   switch (left.getTypeID()) {
+    case kDate:
+      if (left.isNullable()) {
+        return makeDateComparatorInnerHelper<ComparatorType, DateLit, true>(left, right);
+      } else {
+        return makeDateComparatorInnerHelper<ComparatorType, DateLit, false>(left, right);
+      }
     case kDatetime:
       if (left.isNullable()) {
         return makeDateComparatorInnerHelper<ComparatorType, DatetimeLit, true>(left, right);
@@ -389,6 +411,7 @@ UncheckedComparator* BasicComparison::makeDateComparatorInnerHelper(
     const Type &left,
     const Type &right) const {
   switch (right.getTypeID()) {
+    case kDate:
     case kDatetime:
     case kDatetimeInterval:
     case kYearMonthInterval:

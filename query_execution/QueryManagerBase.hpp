@@ -15,49 +15,40 @@
  *   limitations under the License.
  **/
 
-#ifndef QUICKSTEP_QUERY_EXECUTION_QUERY_MANAGER_HPP_
-#define QUICKSTEP_QUERY_EXECUTION_QUERY_MANAGER_HPP_
+#ifndef QUICKSTEP_QUERY_EXECUTION_QUERY_MANAGER_BASE_HPP_
+#define QUICKSTEP_QUERY_EXECUTION_QUERY_MANAGER_BASE_HPP_
 
 #include <cstddef>
 #include <memory>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
-#include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionState.hpp"
-#include "query_execution/QueryExecutionTypedefs.hpp"
-#include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/DAG.hpp"
 #include "utility/Macros.hpp"
 
-#include "tmb/id_typedefs.h"
-#include "tmb/message_bus.h"
-#include "tmb/tagged_message.h"
-
 namespace quickstep {
 
-class CatalogDatabaseLite;
 class QueryHandle;
-class StorageManager;
-class WorkerMessage;
 
 /** \addtogroup QueryExecution
  *  @{
  */
 
 /**
- * @brief A class that manages the execution of a query including generation
- *        of new work orders, keeping track of the query exection state.
+ * @brief A base class that manages the execution of a query including
+ *        generation of new work orders, and keeping track of the query
+ *        exection state.
  **/
-class QueryManager {
+class QueryManagerBase {
  public:
   typedef DAG<RelationalOperator, bool>::size_type_nodes dag_node_index;
 
   /**
-   * @brief Return codes for processMessage() function.
+   * @brief Return codes for queryStatus() function.
    *
    * @note When both operator and query get executed, kQueryExecuted takes
    *       precedence over kOperatorExecuted.
@@ -71,43 +62,14 @@ class QueryManager {
   /**
    * @brief Constructor.
    *
-   * @param foreman_client_id The TMB client ID of the foreman thread.
-   * @param num_numa_nodes The number of NUMA nodes used by the system.
    * @param query_handle The QueryHandle object for this query.
-   * @param catalog_database The CatalogDatabse used by the query.
-   * @param storage_manager The StorageManager used by the query.
-   * @param bus The TMB used for communication.
    **/
-  QueryManager(const tmb::client_id foreman_client_id,
-               const std::size_t num_numa_nodes,
-               QueryHandle *query_handle,
-               CatalogDatabaseLite *catalog_database,
-               StorageManager *storage_manager,
-               tmb::MessageBus *bus);
-
- /**
-   * @brief Get the next workorder to be excuted, wrapped in a WorkerMessage.
-   *
-   * @param start_operator_index Begin the search for the schedulable WorkOrder
-   *        with the operator at this index.
-   * @param numa_node The next WorkOrder should preferably have its input(s)
-   *        from this numa_node. This is a hint and not a binding requirement.
-   *
-   * @return A pointer to the WorkerMessage. If there's no WorkOrder to be
-   *         executed, return NULL.
-   **/
-  WorkerMessage *getNextWorkerMessage(
-      const dag_node_index start_operator_index,
-      const numa_node_id node_id = -1);
+  explicit QueryManagerBase(QueryHandle *query_handle);
 
   /**
-   * @brief Process a message sent to the QueryManager.
-   *
-   * @param tagged_message TaggedMessage sent to the QueryManager.
-   *
-   * @return QueryStatusCode as determined after the message is processed.
+   * @brief Virtual destructor.
    **/
-  QueryStatusCode processMessage(const TaggedMessage &tagged_message);
+  virtual ~QueryManagerBase() {}
 
   /**
    * @brief Get the QueryExecutionState for this query.
@@ -117,17 +79,9 @@ class QueryManager {
   }
 
   /**
-   * @brief Get a pointer to the QueryContext.
-   **/
-  inline QueryContext* getQueryContextMutable() {
-    return query_context_.get();
-  }
-
- private:
-  /**
    * @brief Process the received WorkOrder complete message.
    *
-   * @param node_index The index of the specified operator node in the query DAG
+   * @param op_index The index of the specified operator node in the query DAG
    *        for the completed WorkOrder.
    **/
   void processWorkOrderCompleteMessage(const dag_node_index op_index);
@@ -135,11 +89,56 @@ class QueryManager {
   /**
    * @brief Process the received RebuildWorkOrder complete message.
    *
-   * @param node_index The index of the specified operator node in the query DAG
+   * @param op_index The index of the specified operator node in the query DAG
    *        for the completed RebuildWorkOrder.
    **/
   void processRebuildWorkOrderCompleteMessage(const dag_node_index op_index);
 
+  /**
+   * @brief Process the received data pipeline message.
+   *
+   * @param op_index The index of the specified operator node in the query DAG
+   *        for the pipelining block.
+   * @param block The block id.
+   * @param rel_id The ID of the relation that produced 'block'.
+   **/
+  void processDataPipelineMessage(const dag_node_index op_index,
+                                  const block_id block,
+                                  const relation_id rel_id);
+
+  /**
+   * @brief Fetch all work orders currently available in relational operator and
+   *        store them internally.
+   *
+   * @param index The index of the relational operator to be processed in the
+   *        query plan DAG.
+   *
+   * @return Whether any work order was generated by op.
+   **/
+  virtual bool fetchNormalWorkOrders(const dag_node_index index) = 0;
+
+  /**
+   * @brief Process the received work order feedback message and notify
+   *        relational operator.
+   *
+   * @param op_index The index of the specified operator node in the query DAG
+   *        for the feedback message.
+   * @param message Feedback message from work order.
+   **/
+  void processFeedbackMessage(const dag_node_index op_index,
+                              const WorkOrder::FeedbackMessage &message);
+
+  /**
+   * @brief Get the query status after processing an incoming message.
+   *
+   * @param op_index The index of the specified operator node in the query DAG
+   *        for the incoming message.
+   *
+   * @return QueryStatusCode as determined after the message is processed.
+   **/
+  QueryStatusCode queryStatus(const dag_node_index op_index);
+
+ protected:
   /**
    * @brief Process a current relational operator: Get its workorders and store
    *        them in the WorkOrdersContainer for this query. If the operator can
@@ -152,37 +151,6 @@ class QueryManager {
    **/
   void processOperator(const dag_node_index index,
                        const bool recursively_check_dependents);
-
-  /**
-   * @brief Process the received data pipeline message.
-   *
-   * @param node_index The index of the specified operator node in the query DAG
-   *        for the pipelining block.
-   * @param block The block id.
-   * @param rel_id The ID of the relation that produced 'block'.
-   **/
-  void processDataPipelineMessage(const dag_node_index op_index,
-                                  const block_id block,
-                                  const relation_id rel_id);
-
-  /**
-   * @brief Process the received work order feedback message and notify
-   *        relational operator.
-   *
-   * @param message Feedback message from work order.
-   **/
-  void processFeedbackMessage(const WorkOrder::FeedbackMessage &message);
-
-  /**
-   * @brief Fetch all work orders currently available in relational operator and
-   *        store them internally.
-   *
-   * @param index The index of the relational operator to be processed in the
-   *        query plan DAG.
-   *
-   * @return Whether any work order was generated by op.
-   **/
-  bool fetchNormalWorkOrders(const dag_node_index index);
 
   /**
    * @brief This function does the following things:
@@ -255,32 +223,8 @@ class QueryManager {
    *         otherwise.
    **/
   inline bool checkOperatorExecutionOver(const dag_node_index index) const {
-    if (checkRebuildRequired(index)) {
-      return (checkNormalExecutionOver(index) && checkRebuildOver(index));
-    } else {
-      return checkNormalExecutionOver(index);
-    }
-  }
-
-  /**
-   * @brief Check if the given operator's normal execution is over.
-   *
-   * @note The conditions for a given operator's normal execution to get over:
-   *       1. All of its  normal (i.e. non rebuild) WorkOrders have finished
-   *       execution.
-   *       2. The operator is done generating work orders.
-   *       3. All of the dependencies of the given operator have been met.
-   *
-   * @param index The index of the given operator in the DAG.
-   *
-   * @return True if the normal execution of the given operator is over, false
-   *         otherwise.
-   **/
-  inline bool checkNormalExecutionOver(const dag_node_index index) const {
-    return (checkAllDependenciesMet(index) &&
-            !workorders_container_->hasNormalWorkOrder(index) &&
-            query_exec_state_->getNumQueuedWorkOrders(index) == 0 &&
-            query_exec_state_->hasDoneGenerationWorkOrders(index));
+    return this->checkNormalExecutionOver(index) &&
+           (!checkRebuildRequired(index) || this->checkRebuildOver(index));
   }
 
   /**
@@ -295,19 +239,6 @@ class QueryManager {
   }
 
   /**
-   * @brief Check if the rebuild operation for a given operator is over.
-   *
-   * @param index The index of the given operator in the DAG.
-   *
-   * @return True if the rebuild operation is over, false otherwise.
-   **/
-  inline bool checkRebuildOver(const dag_node_index index) const {
-    return query_exec_state_->hasRebuildInitiated(index) &&
-           !workorders_container_->hasRebuildWorkOrder(index) &&
-           (query_exec_state_->getNumRebuildWorkOrders(index) == 0);
-  }
-
-  /**
    * @brief Check if the rebuild operation for a given operator has been
    *        initiated.
    *
@@ -319,40 +250,10 @@ class QueryManager {
     return query_exec_state_->hasRebuildInitiated(index);
   }
 
-  /**
-   * @brief Initiate the rebuild process for partially filled blocks generated
-   *        during the execution of the given operator.
-   *
-   * @param index The index of the given operator in the DAG.
-   *
-   * @return True if the rebuild is over immediately, i.e. the operator didn't
-   *         generate any rebuild WorkOrders, false otherwise.
-   **/
-  bool initiateRebuild(const dag_node_index index);
-
-  /**
-   * @brief Get the rebuild WorkOrders for an operator.
-   *
-   * @note This function should be called only once, when all the normal
-   *       WorkOrders generated by an operator finish their execution.
-   *
-   * @param index The index of the operator in the query plan DAG.
-   * @param container A pointer to a WorkOrdersContainer to be used to store the
-   *        generated WorkOrders.
-   **/
-  void getRebuildWorkOrders(const dag_node_index index,
-                            WorkOrdersContainer *container);
-
-  const tmb::client_id foreman_client_id_;
   const std::size_t query_id_;
 
-  CatalogDatabaseLite *catalog_database_;
-  StorageManager *storage_manager_;
-  tmb::MessageBus *bus_;
-
   DAG<RelationalOperator, bool> *query_dag_;
-
-  std::unique_ptr<QueryContext> query_context_;
+  const dag_node_index num_operators_in_dag_;
 
   // For all nodes, store their receiving dependents.
   std::vector<std::vector<dag_node_index>> output_consumers_;
@@ -362,13 +263,48 @@ class QueryManager {
 
   std::unique_ptr<QueryExecutionState> query_exec_state_;
 
-  std::unique_ptr<WorkOrdersContainer> workorders_container_;
+ private:
+  /**
+   * @brief Check if the given operator's normal execution is over.
+   *
+   * @note The conditions for a given operator's normal execution to get over:
+   *       1. All of its  normal (i.e. non rebuild) WorkOrders have finished
+   *       execution.
+   *       2. The operator is done generating work orders.
+   *       3. All of the dependencies of the given operator have been met.
+   *
+   * @param index The index of the given operator in the DAG.
+   *
+   * @return True if the normal execution of the given operator is over, false
+   *         otherwise.
+   **/
+  virtual bool checkNormalExecutionOver(const dag_node_index index) const = 0;
 
-  DISALLOW_COPY_AND_ASSIGN(QueryManager);
+  /**
+   * @brief Initiate the rebuild process for partially filled blocks generated
+   *        during the execution of the given operator.
+   *
+   * @param index The index of the given operator in the DAG.
+   *
+   * @return True if the rebuild is over immediately, i.e. the operator didn't
+   *         generate any rebuild WorkOrders, false otherwise.
+   **/
+  virtual bool initiateRebuild(const dag_node_index index) = 0;
+
+  /**
+   * @brief Check if the rebuild operation for a given operator is over.
+   *
+   * @param index The index of the given operator in the DAG.
+   *
+   * @return True if the rebuild operation is over, false otherwise.
+   **/
+  virtual bool checkRebuildOver(const dag_node_index index) const = 0;
+
+  DISALLOW_COPY_AND_ASSIGN(QueryManagerBase);
 };
 
 /** @} */
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_QUERY_EXECUTION_QUERY_MANAGER_HPP_
+#endif  // QUICKSTEP_QUERY_EXECUTION_QUERY_MANAGER_BASE_HPP_

@@ -25,10 +25,9 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
-#include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionState.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
-#include "query_execution/QueryManager.hpp"
+#include "query_execution/QueryManagerSingleNode.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "query_execution/WorkerDirectory.hpp"
 #include "query_execution/WorkerMessage.hpp"
@@ -48,8 +47,8 @@
 #include "gtest/gtest.h"
 
 #include "tmb/id_typedefs.h"
-#include "tmb/message_bus.h"
-#include "tmb/tagged_message.h"
+
+namespace tmb { class MessageBus; }
 
 using std::move;
 using std::unique_ptr;
@@ -234,7 +233,7 @@ class QueryManagerTest : public ::testing::Test {
   }
 
   inline void constructQueryManager() {
-    query_manager_.reset(new QueryManager(
+    query_manager_.reset(new QueryManagerSingleNode(
         0, 1, query_handle_.get(), db_.get(), storage_manager_.get(), &bus_));
   }
 
@@ -252,89 +251,33 @@ class QueryManagerTest : public ::testing::Test {
 
   inline bool placeDataPipelineMessage(const QueryPlan::DAGNodeIndex source_operator_index) {
     VLOG(3) << "Place DataPipeline message for Op[" << source_operator_index << "]";
-    serialization::DataPipelineMessage proto;
-    proto.set_operator_index(source_operator_index);
 
-    proto.set_block_id(0);  // dummy block ID
-    proto.set_relation_id(0);  // dummy relation ID.
-    proto.set_query_id(0);  // dummy query ID.
-
-    // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
-    const std::size_t proto_length = proto.ByteSize();
-    char *proto_bytes = static_cast<char*>(std::malloc(proto_length));
-    CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-    tmb::TaggedMessage tagged_message(static_cast<const void *>(proto_bytes),
-                                      proto_length,
-                                      kDataPipelineMessage);
-    std::free(proto_bytes);
-    query_manager_->processMessage(tagged_message);
+    query_manager_->processDataPipelineMessage(source_operator_index,
+                                               0 /* dummy block ID */,
+                                               0 /* dummy relation ID */);
     return query_manager_->getQueryExecutionState().hasQueryExecutionFinished();
   }
 
   inline bool placeWorkOrderCompleteMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place WorkOrderComplete message for Op[" << index << "]";
-    TaggedMessage tagged_message;
-    serialization::NormalWorkOrderCompletionMessage proto;
-    proto.set_operator_index(index);
-    proto.set_worker_thread_index(1);  // dummy worker ID.
-    proto.set_query_id(0);  // dummy query ID.
 
-    // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
-    const size_t proto_length = proto.ByteSize();
-    char *proto_bytes = static_cast<char*>(std::malloc(proto_length));
-    CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-    TaggedMessage message(static_cast<const void*>(proto_bytes),
-                          proto_length,
-                          kWorkOrderCompleteMessage);
-    std::free(proto_bytes);
-    query_manager_->processMessage(message);
-
+    query_manager_->processWorkOrderCompleteMessage(index);
     return query_manager_->getQueryExecutionState().hasQueryExecutionFinished();
   }
 
   inline bool placeRebuildWorkOrderCompleteMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place RebuildWorkOrderComplete message for Op[" << index << "]";
-    serialization::RebuildWorkOrderCompletionMessage proto;
-    proto.set_operator_index(index);
-    proto.set_worker_thread_index(1);  // dummy worker thread ID.
-    proto.set_query_id(0);  // dummy query ID.
 
-    // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
-    const size_t proto_length = proto.ByteSize();
-    char *proto_bytes = static_cast<char*>(std::malloc(proto_length));
-    CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-    TaggedMessage message(static_cast<const void*>(proto_bytes),
-                          proto_length,
-                          kRebuildWorkOrderCompleteMessage);
-
-    std::free(proto_bytes);
-    query_manager_->processMessage(message);
-
+    query_manager_->processRebuildWorkOrderCompleteMessage(index);
     return query_manager_->getQueryExecutionState().hasQueryExecutionFinished();
   }
 
   inline bool placeOutputBlockMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place OutputBlock message for Op[" << index << "]";
-    serialization::DataPipelineMessage proto;
-    proto.set_operator_index(index);
 
-    proto.set_block_id(0);  // dummy block ID
-    proto.set_relation_id(0);  // dummy relation ID.
-    proto.set_query_id(0);  // dummy query ID.
-
-    // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
-    const std::size_t proto_length = proto.ByteSize();
-    char *proto_bytes = static_cast<char*>(std::malloc(proto_length));
-    CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-    tmb::TaggedMessage tagged_message(static_cast<const void *>(proto_bytes),
-                                      proto_length,
-                                      kDataPipelineMessage);
-    std::free(proto_bytes);
-    query_manager_->processMessage(tagged_message);
+    query_manager_->processDataPipelineMessage(index,
+                                               0 /* dummy block ID */,
+                                               0 /* dummy relation ID */);
     return query_manager_->getQueryExecutionState().hasQueryExecutionFinished();
   }
 
@@ -343,7 +286,7 @@ class QueryManagerTest : public ::testing::Test {
 
   QueryPlan *query_plan_;
   unique_ptr<QueryHandle> query_handle_;
-  unique_ptr<QueryManager> query_manager_;
+  unique_ptr<QueryManagerSingleNode> query_manager_;
 
   MessageBusImpl bus_;
 

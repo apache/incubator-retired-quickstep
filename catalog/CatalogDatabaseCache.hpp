@@ -54,6 +54,11 @@ namespace serialization { class CatalogDatabase; }
 class CatalogDatabaseCache : public CatalogDatabaseLite {
  public:
   /**
+   * @brief Constructor.
+   **/
+  CatalogDatabaseCache() {}
+
+  /**
    * @brief Constructor. Reconstruct a database cache from its serialized
    *        Protocol Buffer form.
    *
