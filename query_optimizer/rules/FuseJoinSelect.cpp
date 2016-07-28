@@ -16,14 +16,13 @@ namespace P = ::quickstep::optimizer::physical;
 namespace E = ::quickstep::optimizer::expressions;
 
 P::PhysicalPtr FuseJoinSelect::applyToNode(const P::PhysicalPtr &input) {
-
   P::HashJoinPtr hash_join;
   P::SelectionPtr selection;
   P::TableReferencePtr table_reference;
 
   if (P::SomeHashJoin::MatchesWithConditionalCast(input, &hash_join)
       && hash_join->join_type() == P::HashJoin::JoinType::kInnerJoin
-      && P::SomeSelection::MatchesWithConditionalCast(hash_join->right(), &selection)
+      && P::SomeSelection::MatchesWithConditionalCast(hash_join->left(), &selection)
       && P::SomeTableReference::MatchesWithConditionalCast(selection->input(), &table_reference)) {
     const E::PredicatePtr filter_predicate = selection->filter_predicate();
     P::PhysicalPtr output = P::HashJoin::CreateWithFusedSelect(hash_join->left(),

@@ -669,6 +669,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
     key_types.push_back(&left_attribute_type);
   }
 
+  /**
   std::size_t probe_cardinality = cost_model_->estimateCardinality(probe_physical);
   std::size_t build_cardinality = cost_model_->estimateCardinality(build_physical);
   // For inner join, we may swap the probe table and the build table.
@@ -685,6 +686,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       std::swap(referenced_stored_probe_relation, referenced_stored_build_relation);
     }
   }
+  **/
 
   // Convert the residual predicate proto.
   QueryContext::predicate_id residual_predicate_index = QueryContext::kInvalidPredicateId;
@@ -749,7 +751,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
         build_relation->getAttributeById(build_attribute)->getType().getProto());
   }
 
-  hash_table_proto->set_estimated_num_entries(build_cardinality);
+  // hash_table_proto->set_estimated_num_entries(build_cardinality);
+  hash_table_proto->set_estimated_num_entries(0);
 
   // Create three operators.
   const QueryPlan::DAGNodeIndex build_operator_index =

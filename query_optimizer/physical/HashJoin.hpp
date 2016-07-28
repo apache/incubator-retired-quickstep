@@ -103,7 +103,7 @@ class HashJoin : public BinaryJoin {
    * @brief Fused filter predicate.
    */
   const expressions::PredicatePtr& filter_predicate() const {
-    return filter_predicate_;
+    return left_filter_predicate_;
   }
 
   /**
@@ -201,13 +201,13 @@ class HashJoin : public BinaryJoin {
       const expressions::PredicatePtr &residual_predicate,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
       const JoinType join_type,
-      const expressions::PredicatePtr &filter_predicate = nullptr)
+      const expressions::PredicatePtr &left_filter_predicate = nullptr)
       : BinaryJoin(left, right, project_expressions),
         left_join_attributes_(left_join_attributes),
         right_join_attributes_(right_join_attributes),
         residual_predicate_(residual_predicate),
         join_type_(join_type),
-        filter_predicate_(filter_predicate) {
+        left_filter_predicate_(left_filter_predicate) {
   }
 
   std::vector<expressions::AttributeReferencePtr> left_join_attributes_;
@@ -215,7 +215,7 @@ class HashJoin : public BinaryJoin {
   expressions::PredicatePtr residual_predicate_;
   JoinType join_type_;
 
-  expressions::PredicatePtr filter_predicate_;
+  expressions::PredicatePtr left_filter_predicate_;
 
   DISALLOW_COPY_AND_ASSIGN(HashJoin);
 };

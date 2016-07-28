@@ -102,9 +102,9 @@ void HashJoin::getFieldStringItems(
     non_container_child_field_names->push_back("residual_predicate");
     non_container_child_fields->push_back(residual_predicate_);
   }
-  if (filter_predicate_ != nullptr) {
-    non_container_child_field_names->push_back("right_filter_predicate");
-    non_container_child_fields->push_back(filter_predicate_);
+  if (left_filter_predicate_ != nullptr) {
+    non_container_child_field_names->push_back("left_filter_predicate");
+    non_container_child_fields->push_back(left_filter_predicate_);
   }
 
   container_child_field_names->push_back("left_join_attributes");
