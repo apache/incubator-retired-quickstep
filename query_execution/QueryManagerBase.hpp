@@ -24,6 +24,7 @@
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryExecutionState.hpp"
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED.
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
@@ -127,6 +128,19 @@ class QueryManagerBase {
    **/
   void processFeedbackMessage(const dag_node_index op_index,
                               const WorkOrder::FeedbackMessage &message);
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  /**
+   * @brief Process the initiate rebuild work order response message.
+   *
+   * @param op_index The index of the specified operator node in the query DAG
+   *        for initiating the rebuild work order.
+   * @param num_rebuild_work_orders The number of the rebuild work orders
+   *        generated for the operator indexed by 'op_index'.
+   **/
+  virtual void processInitiateRebuildResponseMessage(const dag_node_index op_index,
+                                                     const std::size_t num_rebuild_work_orders) {}
+#endif  // QUICKSTEP_DISTRIBUTED
 
   /**
    * @brief Get the query status after processing an incoming message.

@@ -29,6 +29,7 @@
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionState.hpp"
 #include "query_execution/QueryManagerBase.hpp"
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED.
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
 
@@ -60,6 +61,23 @@ void PolicyEnforcerBase::processMessage(const TaggedMessage &tagged_message) {
       admitted_queries_[query_id]->processWorkOrderCompleteMessage(op_index);
       break;
     }
+#ifdef QUICKSTEP_DISTRIBUTED
+    case kInitiateRebuildResponseMessage: {
+      serialization::InitiateRebuildResponseMessage proto;
+      CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+      query_id = proto.query_id();
+      DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
+
+      op_index = proto.operator_index();
+      const std::size_t num_rebuild_work_orders = proto.num_rebuild_work_orders();
+
+      // Check if new work orders are available.
+      admitted_queries_[query_id]->processInitiateRebuildResponseMessage(op_index, num_rebuild_work_orders);
+      incrementNumQueuedWorkOrders(proto.shiftboss_index(), num_rebuild_work_orders);
+      break;
+    }
+#endif  // QUICKSTEP_DISTRIBUTED
     case kRebuildWorkOrderCompleteMessage: {
       serialization::RebuildWorkOrderCompletionMessage proto;
       // Note: This proto message contains the time it took to execute the

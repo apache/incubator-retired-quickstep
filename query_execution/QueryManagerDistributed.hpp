@@ -15,6 +15,7 @@
 #ifndef QUICKSTEP_QUERY_EXECUTION_QUERY_MANAGER_DISTRIBUTED_HPP_
 #define QUICKSTEP_QUERY_EXECUTION_QUERY_MANAGER_DISTRIBUTED_HPP_
 
+#include <cstddef>
 #include <memory>
 
 #include "query_execution/QueryExecutionState.hpp"
@@ -59,6 +60,9 @@ class QueryManagerDistributed final : public QueryManagerBase {
   ~QueryManagerDistributed() override {}
 
   bool fetchNormalWorkOrders(const dag_node_index index) override;
+
+  void processInitiateRebuildResponseMessage(const dag_node_index op_index,
+                                             const std::size_t num_rebuild_work_orders) override;
 
  /**
    * @brief Get the next normal workorder to be excuted, wrapped in a
