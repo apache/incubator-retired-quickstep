@@ -47,7 +47,7 @@ In addition to methods that allow inspection of a type's properties (e.g. those
 listed above), the Type class defines an interface with useful functionality
 common to all types:
 
-  * Serialization (of the type itself) - the getProto() method produces a
+  * Serialization (of the type itself) - the `getProto()` method produces a
     protobuf message that can be serialized and deserialized and later passed to
     the TypeFactory to get back the same type.
   * Relationship to other types - `equals()` determines if two types are exactly
