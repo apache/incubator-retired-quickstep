@@ -27,6 +27,7 @@
 
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryManagerBase.hpp"
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED.
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -178,6 +179,18 @@ class PolicyEnforcerBase {
    * @return Whether the query was admitted to the system.
    **/
   virtual bool admitQuery(QueryHandle *query_handle) = 0;
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  /**
+   * @brief Increment the number of queued workorders for the given worker.
+   *
+   * @param worker_index The logical ID of the given worker.
+   * @param num_new_work_orders The number of the new work orders will be
+   *        executed on Worker indexed by 'worker_index'.
+   **/
+  virtual void incrementNumQueuedWorkOrders(const std::size_t worker_index,
+                                            const std::size_t num_new_work_orders) {}
+#endif  // QUICKSTEP_DISTRIBUTED
 
   /**
    * @brief Decrement the number of queued workorders for the given worker by 1.
