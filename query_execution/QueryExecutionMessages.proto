@@ -113,12 +113,12 @@ message InitiateRebuildResponseMessage {
   required uint64 num_rebuild_work_orders = 3;
 }
 
-message QueryResultRelationMessage {
+message SaveQueryResultMessage {
   required int32 relation_id = 1;
   repeated fixed64 blocks = 2 [packed=true];
 }
 
-message QueryResultRelationResponseMessage {
+message SaveQueryResultResponseMessage {
   required int32 relation_id = 1;
 }
 

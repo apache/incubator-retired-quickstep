@@ -81,8 +81,8 @@ enum QueryExecutionMessageType : message_type_id {
   kInitiateRebuildMessage,  // From Foreman to Shiftboss.
   kInitiateRebuildResponseMessage,  // From Shiftboss to Foreman.
 
-  kQueryResultRelationMessage,  // From Foreman to Shiftboss.
-  kQueryResultRelationResponseMessage,  // From Shiftboss to Foreman.
+  kSaveQueryResultMessage,  // From Foreman to Shiftboss.
+  kSaveQueryResultResponseMessage,  // From Shiftboss to Foreman.
 
   // BlockLocator related messages, sorted in a life cycle of StorageManager
   // with a unique block domain.

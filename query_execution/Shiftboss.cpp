@@ -149,11 +149,10 @@ void Shiftboss::run() {
                                            move(annotated_message.tagged_message));
         break;
       }
-      case kQueryResultRelationMessage: {
-        // TODO(zuyu): Rename to kSaveQueryResultMessage.
+      case kSaveQueryResultMessage: {
         const TaggedMessage &tagged_message = annotated_message.tagged_message;
 
-        serialization::QueryResultRelationMessage proto;
+        serialization::SaveQueryResultMessage proto;
         CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
 
         for (int i = 0; i < proto.blocks_size(); ++i) {
@@ -168,25 +167,25 @@ void Shiftboss::run() {
           }
         }
 
-        serialization::QueryResultRelationResponseMessage ack_proto;
-        ack_proto.set_relation_id(proto.relation_id());
+        serialization::SaveQueryResultResponseMessage proto_response;
+        proto_response.set_relation_id(proto.relation_id());
 
-        const size_t ack_proto_length = ack_proto.ByteSize();
-        char *ack_proto_bytes = static_cast<char*>(malloc(ack_proto_length));
-        CHECK(ack_proto.SerializeToArray(ack_proto_bytes, ack_proto_length));
+        const size_t proto_response_length = proto_response.ByteSize();
+        char *proto_response_bytes = static_cast<char*>(malloc(proto_response_length));
+        CHECK(proto_response.SerializeToArray(proto_response_bytes, proto_response_length));
 
-        TaggedMessage ack_message(static_cast<const void*>(ack_proto_bytes),
-                                  ack_proto_length,
-                                  kQueryResultRelationResponseMessage);
-        free(ack_proto_bytes);
+        TaggedMessage message_response(static_cast<const void*>(proto_response_bytes),
+                                       proto_response_length,
+                                       kSaveQueryResultResponseMessage);
+        free(proto_response_bytes);
 
         LOG(INFO) << "Shiftboss (id '" << shiftboss_client_id_
-                  << "') sent QueryResultRelationResponseMessage (typed '" << kQueryResultRelationResponseMessage
-                  << ") to Foreman";
+                  << "') sent SaveQueryResultResponseMessage (typed '" << kSaveQueryResultResponseMessage
+                  << "') to Foreman";
         QueryExecutionUtil::SendTMBMessage(bus_,
                                            shiftboss_client_id_,
                                            foreman_client_id_,
-                                           move(ack_message));
+                                           move(message_response));
         break;
       }
       case kPoisonMessage: {
@@ -280,15 +279,15 @@ void Shiftboss::processQueryInitiateMessage(
   char *proto_bytes = static_cast<char*>(malloc(proto_length));
   CHECK(proto.SerializeToArray(proto_bytes, proto_length));
 
-  TaggedMessage ack_message(static_cast<const void*>(proto_bytes),
-                            proto_length,
-                            kQueryInitiateResponseMessage);
+  TaggedMessage message_response(static_cast<const void*>(proto_bytes),
+                                 proto_length,
+                                 kQueryInitiateResponseMessage);
   free(proto_bytes);
 
   QueryExecutionUtil::SendTMBMessage(bus_,
                                      shiftboss_client_id_,
                                      foreman_client_id_,
-                                     move(ack_message));
+                                     move(message_response));
 }
 
 void Shiftboss::processInitiateRebuildMessage(const std::size_t query_id,
@@ -317,15 +316,15 @@ void Shiftboss::processInitiateRebuildMessage(const std::size_t query_id,
   char *proto_bytes = static_cast<char*>(malloc(proto_length));
   CHECK(proto.SerializeToArray(proto_bytes, proto_length));
 
-  TaggedMessage ack_message(static_cast<const void*>(proto_bytes),
-                            proto_length,
-                            kInitiateRebuildResponseMessage);
+  TaggedMessage message_response(static_cast<const void*>(proto_bytes),
+                                 proto_length,
+                                 kInitiateRebuildResponseMessage);
   free(proto_bytes);
 
   QueryExecutionUtil::SendTMBMessage(bus_,
                                      shiftboss_client_id_,
                                      foreman_client_id_,
-                                     move(ack_message));
+                                     move(message_response));
 
   for (size_t i = 0; i < partially_filled_block_refs.size(); ++i) {
     // NOTE(zuyu): Worker releases the memory after the execution of
