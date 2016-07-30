@@ -20,10 +20,6 @@ import "catalog/Catalog.proto";
 import "query_execution/QueryContext.proto";
 import "relational_operators/WorkOrder.proto";
 
-// Used for any messages that do not carry payloads.
-message EmptyMessage {
-}
-
 // Note: There are different types of completion messages for normal work orders
 // rebuild work orders. This can be potentially helpful when we want to collect
 // different statistics for executing different types of work orders.

@@ -167,9 +167,7 @@ void ForemanSingleNode::run() {
     if (!policy_enforcer_->hasQueries()) {
       // Signal the main thread that there are no queries to be executed.
       // Currently the message doesn't have any real content.
-      const int dummy_payload = 0;
-      TaggedMessage completion_tagged_message(
-          &dummy_payload, sizeof(dummy_payload), kWorkloadCompletionMessage);
+      TaggedMessage completion_tagged_message(kWorkloadCompletionMessage);
       const tmb::MessageBus::SendStatus send_status =
           QueryExecutionUtil::SendTMBMessage(
               bus_,

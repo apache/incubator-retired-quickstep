@@ -90,16 +90,7 @@ class BlockLocatorTest : public ::testing::Test {
   virtual void TearDown() {
     storage_manager_.reset();
 
-    serialization::EmptyMessage proto;
-
-    const int proto_length = proto.ByteSize();
-    char *proto_bytes = static_cast<char*>(malloc(proto_length));
-    CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-    TaggedMessage message(static_cast<const void*>(proto_bytes),
-                          proto_length,
-                          kPoisonMessage);
-    free(proto_bytes);
+    TaggedMessage message(kPoisonMessage);
 
     LOG(INFO) << "Worker (id '" << worker_client_id_
               << "') sent PoisonMessage (typed '" << kPoisonMessage

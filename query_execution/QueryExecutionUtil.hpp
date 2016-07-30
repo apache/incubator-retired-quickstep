@@ -123,10 +123,7 @@ class QueryExecutionUtil {
     style.Broadcast(true);
     Address address;
     address.All(true);
-    std::unique_ptr<WorkerMessage> poison_message(WorkerMessage::PoisonMessage());
-    TaggedMessage poison_tagged_message(poison_message.get(),
-                                        sizeof(*poison_message),
-                                        kPoisonMessage);
+    TaggedMessage poison_tagged_message(kPoisonMessage);
 
     const tmb::MessageBus::SendStatus send_status = bus->Send(
         sender_id, address, style, std::move(poison_tagged_message));

@@ -35,7 +35,6 @@ class WorkerMessage {
   enum class WorkerMessageType {
     kRebuildWorkOrder = 0,
     kWorkOrder,
-    kPoison
   };
 
   /**
@@ -67,15 +66,6 @@ class WorkerMessage {
     return new WorkerMessage(workorder,
                              relational_op_index,
                              WorkerMessageType::kWorkOrder);
-  }
-
-  /**
-   * @brief A static factory method for generating a poison message.
-   *
-   * @return The constructed PoisonMessage.
-   **/
-  static WorkerMessage* PoisonMessage() {
-    return new WorkerMessage(nullptr, 0, WorkerMessageType::kPoison);
   }
 
   /**
@@ -128,8 +118,7 @@ class WorkerMessage {
   /**
    * @brief Constructor.
    *
-   * @param work_unit The work order to be executed by the worker. A NULL
-   *        workorder indicates a poison message.
+   * @param work_unit The work order to be executed by the worker.
    * @param relational_op_index The index of the relational operator in the
    *        query plan DAG that generated the given WorkOrder.
    * @param type Type of the WorkerMessage.
