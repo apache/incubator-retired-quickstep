@@ -143,21 +143,7 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelationSchema &pro
 }
 
 serialization::CatalogRelationSchema CatalogRelation::getProto() const {
-  serialization::CatalogRelationSchema proto;
-
-  proto.set_relation_id(id_);
-  proto.set_name(name_);
-  proto.set_temporary(temporary_);
-
-  for (PtrVector<CatalogAttribute, true>::const_iterator it = attr_vec_.begin();
-       it != attr_vec_.end();
-       ++it) {
-    if (it.isNull()) {
-      proto.add_attributes();
-    } else {
-      proto.add_attributes()->MergeFrom(it->getProto());
-    }
-  }
+  serialization::CatalogRelationSchema proto = CatalogRelationSchema::getProto();
 
   proto.MutableExtension(serialization::CatalogRelation::default_layout)
       ->MergeFrom(getDefaultStorageBlockLayout().getDescription());
