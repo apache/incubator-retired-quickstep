@@ -63,6 +63,15 @@ class TaggedMessage {
   }
 
   /**
+   * @brief Constructor which creates an empty, but typed message.
+   **/
+  explicit TaggedMessage(const message_type_id message_type)
+      : payload_inline_(true),
+        message_type_(message_type) {
+    payload_.in_line.size = 0;
+  }
+
+  /**
    * @brief Constructor.
    *
    * @param msg A pointer to the message contents in memory, which will be
