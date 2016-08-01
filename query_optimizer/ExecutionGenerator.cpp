@@ -604,6 +604,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   const CatalogRelation *referenced_stored_probe_relation = nullptr;
   const CatalogRelation *referenced_stored_build_relation = nullptr;
 
+  std::size_t build_cardinality = cost_model_->estimateCardinality(build_physical);
+
   bool any_probe_attributes_nullable = false;
   bool any_build_attributes_nullable = false;
 
@@ -669,23 +671,6 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
                            "is not allowed in HashJoin";
     }
     key_types.push_back(&left_attribute_type);
-  }
-
-  std::size_t probe_cardinality = cost_model_->estimateCardinality(probe_physical);
-  std::size_t build_cardinality = cost_model_->estimateCardinality(build_physical);
-  // For inner join, we may swap the probe table and the build table.
-  if (physical_plan->join_type() == P::HashJoin::JoinType::kInnerJoin)  {
-    // Choose the smaller table as the inner build table,
-    // and the other one as the outer probe table.
-    if (probe_cardinality < build_cardinality) {
-      // Switch the probe and build physical nodes.
-      std::swap(probe_physical, build_physical);
-      std::swap(probe_cardinality, build_cardinality);
-      std::swap(probe_attribute_ids, build_attribute_ids);
-      std::swap(any_probe_attributes_nullable, any_build_attributes_nullable);
-      std::swap(probe_original_attribute_ids, build_original_attribute_ids);
-      std::swap(referenced_stored_probe_relation, referenced_stored_build_relation);
-    }
   }
 
   // Convert the residual predicate proto.
