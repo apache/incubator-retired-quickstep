@@ -2232,10 +2232,7 @@ TopLevelPlan
 [Physical Plan]
 TopLevelPlan
 +-plan=HashJoin
-| +-left=TableReference[relation=b]
-| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
-| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
-| +-right=Aggregate
+| +-left=Aggregate
 | | +-input=TableReference[relation=c]
 | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
 | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
@@ -2245,6 +2242,9 @@ TopLevelPlan
 | |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
 | |     +-AggregateFunction[function=SUM]
 | |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| +-right=TableReference[relation=b]
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
 | +-project_expressions=
 | | +-Alias[id=5,name=,alias=(x+SubqueryExpression),relation=,type=Long NULL]
 | |   +-Add
@@ -2252,9 +2252,9 @@ TopLevelPlan
 | |     +-AttributeReference[id=4,name=,alias=$aggregate0,relation=$aggregate,
 | |       type=Long NULL]
 | +-left_join_attributes=
-| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=2,name=x,relation=c,type=Int]
 | +-right_join_attributes=
-|   +-AttributeReference[id=2,name=x,relation=c,type=Int]
+|   +-AttributeReference[id=0,name=w,relation=b,type=Int]
 +-output_attributes=
   +-AttributeReference[id=5,name=,alias=(x+SubqueryExpression),relation=,
     type=Long NULL]
@@ -2369,10 +2369,7 @@ TopLevelPlan
 [Physical Plan]
 TopLevelPlan
 +-plan=HashJoin
-| +-left=TableReference[relation=b]
-| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
-| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
-| +-right=Aggregate
+| +-left=Aggregate
 | | +-input=TableReference[relation=c]
 | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
 | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
@@ -2382,6 +2379,9 @@ TopLevelPlan
 | |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
 | |     +-AggregateFunction[function=SUM]
 | |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
+| +-right=TableReference[relation=b]
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
 | +-residual_predicate=Greater
 | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
 | | +-AttributeReference[id=4,name=,alias=$aggregate0,relation=$aggregate,
@@ -2390,9 +2390,9 @@ TopLevelPlan
 | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
 | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
 | +-left_join_attributes=
-| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=2,name=x,relation=c,type=Int]
 | +-right_join_attributes=
-|   +-AttributeReference[id=2,name=x,relation=c,type=Int]
+|   +-AttributeReference[id=0,name=w,relation=b,type=Int]
 +-output_attributes=
   +-AttributeReference[id=0,name=w,relation=b,type=Int]
   +-AttributeReference[id=1,name=x,relation=b,type=Int]
@@ -2476,10 +2476,7 @@ TopLevelPlan
 [Physical Plan]
 TopLevelPlan
 +-plan=HashJoin
-| +-left=TableReference[relation=b]
-| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
-| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
-| +-right=NestedLoopsJoin
+| +-left=NestedLoopsJoin
 | | +-left=Aggregate
 | | | +-input=TableReference[relation=c]
 | | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
@@ -2518,6 +2515,9 @@ TopLevelPlan
 | |       | type=Long NULL]
 | |       +-AttributeReference[id=9,name=,alias=$aggregate0,relation=$aggregate,
 | |         type=Long NULL]
+| +-right=TableReference[relation=b]
+| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=1,name=x,relation=b,type=Int]
 | +-project_expressions=
 | | +-Alias[id=11,name=,alias=(x+SubqueryExpression),relation=,type=Long NULL]
 | |   +-Add
@@ -2525,9 +2525,9 @@ TopLevelPlan
 | |     +-AttributeReference[id=10,name=,alias=(SUM(y)+SubqueryExpression),
 | |       relation=,type=Long NULL]
 | +-left_join_attributes=
-| | +-AttributeReference[id=0,name=w,relation=b,type=Int]
+| | +-AttributeReference[id=2,name=x,relation=c,type=Int]
 | +-right_join_attributes=
-|   +-AttributeReference[id=2,name=x,relation=c,type=Int]
+|   +-AttributeReference[id=0,name=w,relation=b,type=Int]
 +-output_attributes=
   +-AttributeReference[id=11,name=,alias=(x+SubqueryExpression),relation=,
     type=Long NULL]

@@ -54,6 +54,7 @@ class BottomUpRule : public Rule<TreeType> {
   TreeNodePtr apply(const TreeNodePtr &tree) override {
     DCHECK(tree != nullptr);
 
+    init(tree);
     std::vector<std::shared_ptr<const TreeType>> new_children;
     bool has_changed_children = false;
     for (const std::shared_ptr<const TreeType> &child : tree->children()) {
@@ -79,6 +80,15 @@ class BottomUpRule : public Rule<TreeType> {
    * @param The updated node by the rule.
    */
   virtual TreeNodePtr applyToNode(const TreeNodePtr &node) = 0;
+
+  /**
+   * @brief Override this method to implement the initialization code
+   *        for the rule.
+   *
+   * @param input The input tree.
+   */
+  virtual void init(const TreeNodePtr &input) {
+  }
 
  private:
   DISALLOW_COPY_AND_ASSIGN(BottomUpRule);
