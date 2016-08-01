@@ -24,8 +24,13 @@
 
 #include "catalog/Catalog.pb.h"
 #include "query_execution/QueryContext.pb.h"
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED.
 #include "query_optimizer/QueryPlan.hpp"
 #include "utility/Macros.hpp"
+
+#ifdef QUICKSTEP_DISTRIBUTED
+#include "tmb/id_typedefs.h"
+#endif  // QUICKSTEP_DISTRIBUTED
 
 namespace quickstep {
 
@@ -119,6 +124,22 @@ class QueryHandle {
     query_result_relation_ = relation;
   }
 
+#ifdef QUICKSTEP_DISTRIBUTED
+  /**
+   * @brief Get the client id.
+   */
+  tmb::client_id getClientId() const {
+    return cli_id_;
+  }
+
+  /**
+   * @brief Set the client id.
+   */
+  void setClientId(const tmb::client_id cli_id) {
+    cli_id_ = cli_id;
+  }
+#endif  // QUICKSTEP_DISTRIBUTED
+
  private:
   const std::size_t query_id_;
   const std::uint64_t query_priority_;
@@ -133,6 +154,11 @@ class QueryHandle {
   // NOTE(zuyu): The relation gets created by the optimizer,
   //             and deleted by the Cli shell.
   const CatalogRelation *query_result_relation_;
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  // The client id of the CLI which sends the query.
+  tmb::client_id cli_id_;
+#endif  // QUICKSTEP_DISTRIBUTED
 
   DISALLOW_COPY_AND_ASSIGN(QueryHandle);
 };

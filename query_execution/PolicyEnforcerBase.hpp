@@ -148,6 +148,13 @@ class PolicyEnforcerBase {
   void recordTimeForWorkOrder(
       const serialization::NormalWorkOrderCompletionMessage &proto);
 
+  /**
+   * @brief Add custom actions upon the completion of a query.
+   *
+   * @param query_handle The query handle.
+   **/
+  virtual void onQueryCompletion(QueryHandle *query_handle) {}
+
   CatalogDatabaseLite *catalog_database_;
 
   const bool profile_individual_workorders_;

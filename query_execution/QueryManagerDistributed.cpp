@@ -32,6 +32,7 @@
 #include "glog/logging.h"
 
 #include "tmb/id_typedefs.h"
+#include "tmb/message_bus.h"
 
 using std::free;
 using std::malloc;
@@ -42,11 +43,11 @@ using std::unique_ptr;
 namespace quickstep {
 
 QueryManagerDistributed::QueryManagerDistributed(QueryHandle *query_handle,
-                                                 ShiftbossDirectory *shiftbosses,
+                                                 ShiftbossDirectory *shiftboss_directory,
                                                  const tmb::client_id foreman_client_id,
                                                  tmb::MessageBus *bus)
     : QueryManagerBase(query_handle),
-      shiftbosses_(shiftbosses),
+      shiftboss_directory_(shiftboss_directory),
       foreman_client_id_(foreman_client_id),
       bus_(bus),
       normal_workorder_protos_container_(
@@ -119,6 +120,27 @@ bool QueryManagerDistributed::fetchNormalWorkOrders(const dag_node_index index) 
   return generated_new_workorder_protos;
 }
 
+void QueryManagerDistributed::processInitiateRebuildResponseMessage(const dag_node_index op_index,
+                                                                    const std::size_t num_rebuild_work_orders) {
+  // TODO(zuyu): Multiple workers support.
+  query_exec_state_->setRebuildStatus(op_index, num_rebuild_work_orders, true);
+
+  if (num_rebuild_work_orders != 0u) {
+    // Wait for the rebuild work orders finish.
+    return;
+  }
+
+  markOperatorFinished(op_index);
+
+  for (const std::pair<dag_node_index, bool> &dependent_link :
+       query_dag_->getDependents(op_index)) {
+    const dag_node_index dependent_op_index = dependent_link.first;
+    if (checkAllBlockingDependenciesMet(dependent_op_index)) {
+      processOperator(dependent_op_index, true);
+    }
+  }
+}
+
 bool QueryManagerDistributed::initiateRebuild(const dag_node_index index) {
   DCHECK(checkRebuildRequired(index));
   DCHECK(!checkRebuildInitiated(index));
@@ -127,6 +149,7 @@ bool QueryManagerDistributed::initiateRebuild(const dag_node_index index) {
   DCHECK_NE(op.getInsertDestinationID(), QueryContext::kInvalidInsertDestinationId);
 
   serialization::InitiateRebuildMessage proto;
+  proto.set_query_id(query_id_);
   proto.set_operator_index(index);
   proto.set_insert_destination_index(op.getInsertDestinationID());
   proto.set_relation_id(op.getOutputRelationID());
@@ -140,13 +163,17 @@ bool QueryManagerDistributed::initiateRebuild(const dag_node_index index) {
                            kInitiateRebuildMessage);
   free(proto_bytes);
 
-  LOG(INFO) << "ForemanDistributed sent InitiateRebuildMessage (typed '" << kInitiateRebuildMessage
+  LOG(INFO) << "QueryManagerDistributed sent InitiateRebuildMessage (typed '" << kInitiateRebuildMessage
             << "') to Shiftboss";
   // TODO(zuyu): Multiple workers support.
-  QueryExecutionUtil::SendTMBMessage(bus_,
-                                     foreman_client_id_,
-                                     shiftbosses_->getClientId(0),
-                                     move(tagged_msg));
+  const tmb::MessageBus::SendStatus send_status =
+      QueryExecutionUtil::SendTMBMessage(bus_,
+                                         foreman_client_id_,
+                                         shiftboss_directory_->getClientId(0),
+                                         move(tagged_msg));
+  CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
+      << "Message could not be sent from Foreman with TMB client ID " << foreman_client_id_
+      << " to Shiftboss with TMB client ID " << shiftboss_directory_->getClientId(0);
 
   // The negative value indicates that the number of rebuild work orders is to be
   // determined.

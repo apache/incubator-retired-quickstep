@@ -15,6 +15,7 @@
 #ifndef QUICKSTEP_QUERY_EXECUTION_QUERY_MANAGER_DISTRIBUTED_HPP_
 #define QUICKSTEP_QUERY_EXECUTION_QUERY_MANAGER_DISTRIBUTED_HPP_
 
+#include <cstddef>
 #include <memory>
 
 #include "query_execution/QueryExecutionState.hpp"
@@ -47,18 +48,21 @@ class QueryManagerDistributed final : public QueryManagerBase {
    * @brief Constructor.
    *
    * @param query_handle The QueryHandle object for this query.
-   * @param shiftbosses The ShiftbossDirectory to use.
+   * @param shiftboss_directory The ShiftbossDirectory to use.
    * @param foreman_client_id The TMB client ID of the foreman thread.
    * @param bus The TMB used for communication.
    **/
   QueryManagerDistributed(QueryHandle *query_handle,
-                          ShiftbossDirectory *shiftbosses,
+                          ShiftbossDirectory *shiftboss_directory,
                           const tmb::client_id foreman_client_id,
                           tmb::MessageBus *bus);
 
   ~QueryManagerDistributed() override {}
 
   bool fetchNormalWorkOrders(const dag_node_index index) override;
+
+  void processInitiateRebuildResponseMessage(const dag_node_index op_index,
+                                             const std::size_t num_rebuild_work_orders) override;
 
  /**
    * @brief Get the next normal workorder to be excuted, wrapped in a
@@ -88,7 +92,7 @@ class QueryManagerDistributed final : public QueryManagerBase {
            (query_exec_state_->getNumRebuildWorkOrders(index) == 0);
   }
 
-  ShiftbossDirectory *shiftbosses_;
+  ShiftbossDirectory *shiftboss_directory_;
 
   const tmb::client_id foreman_client_id_;
   tmb::MessageBus *bus_;
