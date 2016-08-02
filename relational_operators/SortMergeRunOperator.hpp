@@ -19,6 +19,7 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_SORT_MERGE_RUN_OPERATOR_HPP_
 
 #include <cstddef>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -128,6 +129,10 @@ class SortMergeRunOperator : public RelationalOperator {
    * @brief Destructor.
    **/
   ~SortMergeRunOperator() {}
+
+  std::string getName() const override {
+    return "SortMergeRunOperator";
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,

@@ -20,6 +20,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -93,6 +94,10 @@ class UpdateOperator : public RelationalOperator {
         started_(false) {}
 
   ~UpdateOperator() override {}
+
+  std::string getName() const override {
+    return "UpdateOperator";
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,

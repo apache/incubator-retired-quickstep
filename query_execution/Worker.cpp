@@ -120,14 +120,21 @@ void Worker::executeWorkOrderHelper(const TaggedMessage &tagged_message,
   worker_message.getWorkOrder()->execute();
   end = std::chrono::steady_clock::now();
   delete worker_message.getWorkOrder();
-  const uint64_t execution_time_microseconds =
-      std::chrono::duration_cast<std::chrono::microseconds>(end - start)
-          .count();
+
+  // Convert the measured timestamps to epoch times in microseconds.
+  const uint64_t execution_start_time =
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          start.time_since_epoch()).count();
+  const uint64_t execution_end_time =
+      std::chrono::duration_cast<std::chrono::microseconds>(
+          end.time_since_epoch()).count();
+
   // Construct the proto message.
   proto->set_operator_index(worker_message.getRelationalOpIndex());
   proto->set_query_id(query_id_for_workorder);
   proto->set_worker_thread_index(worker_thread_index_);
-  proto->set_execution_time_in_microseconds(execution_time_microseconds);
+  proto->set_execution_start_time(execution_start_time);
+  proto->set_execution_end_time(execution_end_time);
 }
 
 }  // namespace quickstep

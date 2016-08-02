@@ -167,6 +167,9 @@ add_library(quickstep_utility_Cast ../empty_src.cpp Cast.hpp)
 add_library(quickstep_utility_CheckSnprintf ../empty_src.cpp CheckSnprintf.hpp)
 add_library(quickstep_utility_DAG ../empty_src.cpp DAG.hpp)
 add_library(quickstep_utility_EqualsAnyConstant ../empty_src.cpp EqualsAnyConstant.hpp)
+add_library(quickstep_utility_ExecutionDAGVisualizer
+            ExecutionDAGVisualizer.cpp
+            ExecutionDAGVisualizer.hpp)
 add_library(quickstep_utility_Glob Glob.cpp Glob.hpp)
 add_library(quickstep_utility_HashPair ../empty_src.cpp HashPair.hpp)
 add_library(quickstep_utility_Macros ../empty_src.cpp Macros.hpp)
@@ -225,6 +228,16 @@ target_link_libraries(quickstep_utility_CheckSnprintf
 target_link_libraries(quickstep_utility_DAG
                       glog
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_utility_ExecutionDAGVisualizer
+                      quickstep_catalog_CatalogRelationSchema
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryoptimizer_QueryPlan
+                      quickstep_relationaloperators_AggregationOperator
+                      quickstep_relationaloperators_BuildHashOperator
+                      quickstep_relationaloperators_HashJoinOperator
+                      quickstep_relationaloperators_SelectOperator
+                      quickstep_utility_Macros
+                      quickstep_utility_StringUtil)
 target_link_libraries(quickstep_utility_Glob
                       glog)
 target_link_libraries(quickstep_utility_MemStream
@@ -303,6 +316,7 @@ target_link_libraries(quickstep_utility
                       quickstep_utility_CheckSnprintf
                       quickstep_utility_DAG
                       quickstep_utility_EqualsAnyConstant
+                      quickstep_utility_ExecutionDAGVisualizer
                       quickstep_utility_Glob
                       quickstep_utility_HashPair
                       quickstep_utility_Macros

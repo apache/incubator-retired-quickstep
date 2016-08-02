@@ -19,6 +19,7 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_DROP_TABLE_OPERATOR_HPP_
 
 #include <cstddef>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -73,6 +74,10 @@ class DropTableOperator : public RelationalOperator {
         work_generated_(false) {}
 
   ~DropTableOperator() override {}
+
+  std::string getName() const override {
+    return "DropTableOperator";
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,

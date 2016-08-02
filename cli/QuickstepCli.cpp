@@ -75,6 +75,7 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 
 #include "storage/PreloaderThread.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
+#include "utility/ExecutionDAGVisualizer.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
 #include "utility/SqlError.hpp"
@@ -185,6 +186,10 @@ DEFINE_string(profile_file_name, "",
               // To put things in perspective, the first run is, in my experiments, about 5-10
               // times more expensive than the average run. That means the query needs to be
               // run at least a hundred times to make the impact of the first run small (< 5 %).
+DEFINE_bool(visualize_execution_dag, false,
+            "If true, visualize the execution plan DAG into a graph in DOT "
+            "format (DOT is a plain text graph description language) which is "
+            "then printed via stderr.");
 
 }  // namespace quickstep
 
@@ -361,7 +366,7 @@ int main(int argc, char* argv[]) {
       query_processor->getStorageManager(),
       -1,  // Don't pin the Foreman thread.
       num_numa_nodes_system,
-      quickstep::FLAGS_profile_and_report_workorder_perf);
+      quickstep::FLAGS_profile_and_report_workorder_perf || quickstep::FLAGS_visualize_execution_dag);
 
   // Start the worker threads.
   for (Worker &worker : workers) {
@@ -438,6 +443,12 @@ int main(int argc, char* argv[]) {
         }
 
         DCHECK(query_handle->getQueryPlanMutable() != nullptr);
+        std::unique_ptr<quickstep::ExecutionDAGVisualizer> dag_visualizer;
+        if (quickstep::FLAGS_visualize_execution_dag) {
+          dag_visualizer.reset(
+              new quickstep::ExecutionDAGVisualizer(*query_handle->getQueryPlanMutable()));
+        }
+
         start = std::chrono::steady_clock::now();
         QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
             main_thread_client_id,
@@ -474,6 +485,12 @@ int main(int argc, char* argv[]) {
             // TODO(harshad) - Allow user specified file instead of stdout.
             foreman.printWorkOrderProfilingResults(query_handle->query_id(),
                                                    stdout);
+          }
+          if (quickstep::FLAGS_visualize_execution_dag) {
+            const auto &profiling_stats =
+                foreman.getWorkOrderProfilingResults(query_handle->query_id());
+            dag_visualizer->bindProfilingStats(profiling_stats);
+            std::cerr << "\n" << dag_visualizer->toDOT() << "\n";
           }
         } catch (const std::exception &e) {
           fprintf(stderr, "QUERY EXECUTION ERROR: %s\n", e.what());

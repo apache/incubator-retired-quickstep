@@ -18,6 +18,9 @@
 #ifndef QUICKSTEP_QUERY_EXECUTION_QUERY_EXECUTION_TYPEDEFS_HPP_
 #define QUICKSTEP_QUERY_EXECUTION_QUERY_EXECUTION_TYPEDEFS_HPP_
 
+#include <unordered_map>
+#include <vector>
+
 #include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED
 #include "threading/ThreadIDBasedMap.hpp"
 
@@ -97,6 +100,18 @@ enum QueryExecutionMessageType : message_type_id {
   kBlockDomainUnregistrationMessage,  // From StorageManager to BlockLocator.
 #endif
 };
+
+// WorkOrder profiling data structures.
+// Profiling record for an individual work order.
+struct WorkOrderTimeEntry {
+  std::size_t worker_id;
+  std::size_t operator_id;
+  std::size_t start_time;  // Epoch time measured in microseconds
+  std::size_t end_time;  // Epoch time measured in microseconds
+};
+// Key = query ID.
+// Value = vector of work order profiling records.
+typedef std::unordered_map<std::size_t, std::vector<WorkOrderTimeEntry>> WorkOrderTimeRecorder;
 
 /** @} */
 

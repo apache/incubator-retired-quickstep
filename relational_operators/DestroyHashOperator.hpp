@@ -18,6 +18,8 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_DESTROY_HASH_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_DESTROY_HASH_OPERATOR_HPP_
 
+#include <string>
+
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -57,6 +59,10 @@ class DestroyHashOperator : public RelationalOperator {
         work_generated_(false) {}
 
   ~DestroyHashOperator() override {}
+
+  std::string getName() const override {
+    return "DestroyHashOperator";
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,

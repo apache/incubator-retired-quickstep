@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -156,6 +157,29 @@ class HashJoinOperator : public RelationalOperator {
   }
 
   ~HashJoinOperator() override {}
+
+  std::string getName() const override {
+    switch (join_type_) {
+      case JoinType::kInnerJoin:
+        return "HashJoinOperator";
+      case JoinType::kLeftSemiJoin:
+        return "HashJoinOperator(LeftSemi)";
+      case JoinType::kLeftAntiJoin:
+        return "HashJoinOperator(LeftAnti)";
+      case JoinType::kLeftOuterJoin:
+        return "HashJoinOperator(LeftOuter)";
+      default: break;
+    }
+    LOG(FATAL) << "Unknown join type in HashJoinOperator::getName()";
+  }
+
+  const CatalogRelation& build_relation() const {
+    return build_relation_;
+  }
+
+  const CatalogRelation& probe_relation() const {
+    return probe_relation_;
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,

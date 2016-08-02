@@ -38,7 +38,10 @@ message NormalWorkOrderCompletionMessage {
   required uint64 operator_index = 1;
   required uint64 worker_thread_index = 2;
   required uint64 query_id = 3;
-  optional uint64 execution_time_in_microseconds = 4;
+  
+  // Epoch time in microseconds.  
+  optional uint64 execution_start_time = 4;
+  optional uint64 execution_end_time = 5;
 }
 
 // A message sent upon completion of a rebuild WorkOrder execution.
@@ -46,7 +49,10 @@ message RebuildWorkOrderCompletionMessage {
   required uint64 operator_index = 1;
   required uint64 worker_thread_index = 2;
   required uint64 query_id = 3;
-  optional uint64 execution_time_in_microseconds = 4;
+
+  // Epoch time in microseconds.
+  optional uint64 execution_start_time = 4;
+  optional uint64 execution_end_time = 5;
 }
 
 message CatalogRelationNewBlockMessage {
