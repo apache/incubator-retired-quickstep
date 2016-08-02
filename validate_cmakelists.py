@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 """Script to do basic sanity checking for target_link_libraries() commands in
 CMakeLists.txt files.
@@ -30,6 +30,10 @@ TODO List / Known Issues & Limitations:
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import os
 import sys
@@ -334,8 +338,8 @@ def process_cmakelists_file(cmakelists_filename, qs_module_dirs):
                 if "CMAKE_VALIDATE_IGNORE_END" in line:
                     scan_state = previous_state
                 elif "CMAKE_VALIDATE_IGNORE_BEGIN" in line:
-                    print "Nested IGNORE_BEGIN directives found in: "\
-                        + cmakelists_filename + ", exiting"
+                    print("Nested IGNORE_BEGIN directives found in: "
+                        + cmakelists_filename + ", exiting")
                     exit(-1)
                 else:
                     continue
@@ -397,25 +401,25 @@ def process_cmakelists_file(cmakelists_filename, qs_module_dirs):
                     stitched_string = ""
                     scan_state = CMAKE_SCANNING_NONE
     # After scanning, report any missing dependencies.
-    for target, include_deps in deps_from_includes.iteritems():
+    for target, include_deps in iter(deps_from_includes.items()):
         if target in skipped_targets:
             pass
         elif len(include_deps) != 0:
             if target not in deps_in_cmake:
                 if not (target in include_deps and len(include_deps) == 1):
                     validation_failed_targets.add(target)
-                    print "Missing target_link_libraries() for " + target + ":"
+                    print("Missing target_link_libraries() for " + target + ":")
                     for dep in sorted(include_deps):
-                        print "\t" + dep
+                        print("\t" + dep)
             else:
                 missing_deps = (include_deps
                                 - deps_in_cmake[target]
                                 - IGNORED_DEPENDENCIES)
                 if len(missing_deps) != 0:
                     validation_failed_targets.add(target)
-                    print "Missing target_link_libraries() for " + target + ":"
+                    print("Missing target_link_libraries() for " + target + ":")
                     for dep in sorted(missing_deps):
-                        print "\t" + dep
+                        print("\t" + dep)
         elif target == module_targetname:
             # Special case hack for module all-in-one library
             missing_deps = (frozenset(deps_from_includes.keys())
@@ -427,21 +431,21 @@ def process_cmakelists_file(cmakelists_filename, qs_module_dirs):
                     true_missing_deps.add(dep)
             if len(true_missing_deps) != 0:
                 validation_failed_targets.add(target)
-                print "Missing target_link_libraries() for " + target + ":"
+                print("Missing target_link_libraries() for " + target + ":")
                 for dep in sorted(true_missing_deps):
-                    print "\t" + dep
+                    print("\t" + dep)
     # Also report possibly superfluous extra dependencies.
-    for target, cmake_deps in deps_in_cmake.iteritems():
+    for target, cmake_deps in iter(deps_in_cmake.items()):
         if (target not in skipped_targets) and (target in deps_from_includes):
             extra_deps = cmake_deps - deps_from_includes[target]
             if target in extra_deps:
                 extra_deps.remove(target)
             if len(extra_deps) != 0 and target != module_targetname:
                 validation_failed_targets.add(target)
-                print ("Possibly superfluous target_link_libraries() for "
+                print("Possibly superfluous target_link_libraries() for "
                        + target + ":")
                 for dep in sorted(extra_deps):
-                    print "\t" + dep
+                    print("\t" + dep)
     return (validation_failed_targets, skipped_targets, generated_targets)
 
 def main(cmakelists_to_process):
@@ -461,8 +465,8 @@ def main(cmakelists_to_process):
             missing or superfluous dependencies.
     """
     if not os.getcwd().endswith("quickstep"):
-        print ("WARNING: you don't appear to be running in the root quickstep "
-               "source directory. Don't blame me if something goes wrong.")
+        print("WARNING: you don't appear to be running in the root quickstep "
+              "source directory. Don't blame me if something goes wrong.")
     qs_module_dirs = []
     for filename in os.listdir("."):
         if (os.path.isdir(filename)
@@ -493,17 +497,17 @@ def main(cmakelists_to_process):
         global_skipped_targets.update(local_skipped_targets)
         global_generated_targets.update(local_generated_targets)
     if len(global_skipped_targets) != 0:
-        print ("WARNING: The following targets had multiple add_library() "
+        print("WARNING: The following targets had multiple add_library() "
                + "commands and were NOT checked by this script (they should "
                + "be manually checked):")
         for target in sorted(global_skipped_targets):
-            print "\t" + target
+            print("\t" + target)
     if len(global_generated_targets) != 0:
-        print ("INFO: The add_library() commands for the following targets "
+        print("INFO: The add_library() commands for the following targets "
                + "appear to reference generated sources, so they were not "
                + "checked):")
         for target in sorted(global_generated_targets):
-            print "\t" + target
+            print("\t" + target)
     return len(global_validation_failed_targets)
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 # Script to do analyze the dependencies in Quickstep particularly cycles in the
 # dependency graph. This script can be used to find:
@@ -32,6 +32,10 @@
 #   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
+
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
 
 import itertools
 import networkx as nx
@@ -110,18 +114,18 @@ def process_cmakelists_file(cmakelists_filename, qs_module_dirs):
 # target mapping, and target to node mapping.
 def create_graph(deps_in_cmake):
     nodes = set()
-    for source, dest_set in deps_in_cmake.iteritems():
+    for source, dest_set in iter(deps_in_cmake.items()):
         nodes.add(source)
         nodes.update(dest_set)
 
     nodes_list = list(nodes)
     nodes_map = {}
-    for i, n in zip(xrange(len(nodes_list)), nodes_list):
+    for i, n in zip(range(len(nodes_list)), nodes_list):
         nodes_map[n] = i
 
     G = nx.DiGraph()
 
-    for source, dest_set in deps_in_cmake.iteritems():
+    for source, dest_set in iter(deps_in_cmake.items()):
         source_node = nodes_map[source]
         for dest in dest_set:
             if source == dest: continue
@@ -137,17 +141,17 @@ def find_strongly_connected_components(G, nodes_list):
         if len(n) > 1:
             components += 1
             # Only output components bigger than 1.
-            print [nodes_list[i] for i in n]
+            print([nodes_list[i] for i in n])
     return components
 
 # Lists cycles in the graph truncating to 100 cycles.
 def find_cycles(G, nodes_list, truncate):
     cycles = 0
     for n in nx.simple_cycles(G):
-        print [nodes_list[i] for i in n]
+        print([nodes_list[i] for i in n])
         cycles += 1
         if cycles >= truncate:
-            print "Many cycles found. Truncating to {0} cycles.".format(truncate)
+            print("Many cycles found. Truncating to {0} cycles.".format(truncate))
             break
     return cycles
 
@@ -156,16 +160,16 @@ def find_path(G, nodes_list, nodes_map, source, target):
     source_node = nodes_map[source]
     target_node = nodes_map[target]
     if nx.has_path(G, source_node, target_node):
-        print [nodes_list[i] for i in nx.shortest_path(G,
+        print([nodes_list[i] for i in nx.shortest_path(G,
                 source_node,
-                target_node)]
+                target_node)])
     else:
-        print 'No path.'
+        print('No path.')
 
 def main():
     if not os.getcwd().endswith("quickstep"):
-        print ("WARNING: you don't appear to be running in the root quickstep "
-               "source directory. Don't blame me if something goes wrong.")
+        print("WARNING: you don't appear to be running in the root quickstep "
+              "source directory. Don't blame me if something goes wrong.")
     qs_module_dirs = []
     for filename in os.listdir("."):
         if (os.path.isdir(filename)
