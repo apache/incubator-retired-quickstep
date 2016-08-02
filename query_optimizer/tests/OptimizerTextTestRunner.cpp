@@ -47,8 +47,7 @@ void OptimizerTextTestRunner::runTestCase(const std::string &input,
   sql_parser_.feedNextBuffer(new std::string(input));
   ParseResult result = sql_parser_.getNextStatement();
 
-  OptimizerContext optimizer_context(0 /* query_id */,
-                                     test_database_loader_.catalog_database(),
+  OptimizerContext optimizer_context(test_database_loader_.catalog_database(),
                                      nullptr /* storage_manager */);
   if (result.condition != ParseResult::kSuccess) {
     *output = result.error_message;

@@ -26,6 +26,8 @@
 #include <type_traits>
 #include <unordered_map>
 
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED.
+
 #ifdef QUICKSTEP_DISTRIBUTED
 #include <unordered_set>
 #endif
@@ -299,7 +301,7 @@ void ExecutionGenerator::generatePlanInternal(
 std::string ExecutionGenerator::getNewRelationName() {
   std::ostringstream out;
   out << OptimizerContext::kInternalTemporaryRelationNamePrefix
-      << optimizer_context_->query_id() << "_" << rel_id_;
+      << query_handle_->query_id() << "_" << rel_id_;
   ++rel_id_;
   return out.str();
 }

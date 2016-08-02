@@ -76,8 +76,7 @@ void CommandExecutorTestRunner::runTestCase(
   while (true) {
     ParseResult result = sql_parser_.getNextStatement();
 
-    O::OptimizerContext optimizer_context(0 /* query_id */,
-                                          test_database_loader_.catalog_database(),
+    O::OptimizerContext optimizer_context(test_database_loader_.catalog_database(),
                                           test_database_loader_.storage_manager());
 
     if (result.condition != ParseResult::kSuccess) {
@@ -99,7 +98,7 @@ void CommandExecutorTestRunner::runTestCase(
               nullptr,
               output_stream.file());
         } else  {
-          QueryHandle query_handle(optimizer_context.query_id());
+          QueryHandle query_handle(0 /* query_id */);
           O::LogicalGenerator logical_generator(&optimizer_context);
           O::PhysicalGenerator physical_generator;
           O::ExecutionGenerator execution_generator(&optimizer_context, &query_handle);

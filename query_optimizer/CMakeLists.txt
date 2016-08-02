@@ -185,7 +185,6 @@ target_link_libraries(quickstep_queryoptimizer_Optimizer
                       quickstep_queryoptimizer_PhysicalGenerator
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_OptimizerContext
-                      quickstep_catalog_CatalogTypedefs
                       quickstep_queryoptimizer_expressions_ExprId
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_OptimizerTree
@@ -219,8 +218,6 @@ target_link_libraries(quickstep_queryoptimizer_QueryPlan
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_QueryProcessor
                       quickstep_catalog_Catalog
-                      quickstep_catalog_CatalogDatabase
-                      quickstep_catalog_CatalogRelation
                       quickstep_catalog_Catalog_proto
                       quickstep_parser_ParseStatement
                       quickstep_queryoptimizer_Optimizer

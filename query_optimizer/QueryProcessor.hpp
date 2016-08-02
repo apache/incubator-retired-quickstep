@@ -26,6 +26,7 @@
 #include <string>
 
 #include "catalog/Catalog.hpp"
+#include "query_optimizer/Optimizer.hpp"
 #include "storage/StorageManager.hpp"
 #include "utility/Macros.hpp"
 
@@ -139,6 +140,9 @@ class QueryProcessor {
         query_id_(0) {
     loadCatalog();
     storage_manager_.reset(new StorageManager(storage_path));
+
+    // Construct after Catalog loads and StorageManager initializes.
+    optimizer_.reset(new optimizer::Optimizer(getDefaultDatabase(), storage_manager_.get()));
   }
 
   /**
@@ -190,6 +194,9 @@ class QueryProcessor {
 
   std::unique_ptr<Catalog> catalog_;
   std::unique_ptr<StorageManager> storage_manager_;
+
+  std::unique_ptr<optimizer::Optimizer> optimizer_;
+
   bool catalog_altered_;
 
   std::size_t query_id_;

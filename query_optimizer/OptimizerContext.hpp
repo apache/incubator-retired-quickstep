@@ -18,18 +18,12 @@
 #ifndef QUICKSTEP_QUERY_OPTIMIZER_OPTIMIZER_CONTEXT_HPP_
 #define QUICKSTEP_QUERY_OPTIMIZER_OPTIMIZER_CONTEXT_HPP_
 
-#include <cstddef>
-#include <cstdlib>
-#include <string>
-
-#include "catalog/CatalogTypedefs.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
 
 class CatalogDatabase;
-class CatalogRelation;
 class StorageManager;
 
 namespace optimizer {
@@ -49,16 +43,13 @@ class OptimizerContext {
   /**
    * @brief Constructor.
    *
-   * @param query_id The query ID.
    * @param catalog_database The catalog database where this query is executed.
    * @param storage_manager The storage manager to use for allocating storage
    *        blocks.
    */
-  OptimizerContext(const std::size_t query_id,
-                   CatalogDatabase *catalog_database,
+  OptimizerContext(CatalogDatabase *catalog_database,
                    StorageManager *storage_manager)
-      : query_id_(query_id),
-        current_expr_id_(-1),
+      : current_expr_id_(-1),
         catalog_database_(catalog_database),
         storage_manager_(storage_manager),
         has_nested_queries_(false),
@@ -92,11 +83,6 @@ class OptimizerContext {
    *         allocating storage blocks.
    */
   StorageManager* storage_manager() { return storage_manager_; }
-
-  /**
-   * @return Query ID.
-   */
-  std::size_t query_id() const { return query_id_; }
 
   /**
    * @brief Gets the next ExprId.
@@ -133,8 +119,6 @@ class OptimizerContext {
   bool is_catalog_changed() const { return is_catalog_changed_; }
 
  private:
-  const std::size_t query_id_;
-
   expressions::ExprId current_expr_id_;
 
   CatalogDatabase *catalog_database_;

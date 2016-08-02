@@ -73,8 +73,7 @@ void ExecutionGeneratorTestRunner::runTestCase(
   while (true) {
     ParseResult result = sql_parser_.getNextStatement();
 
-    OptimizerContext optimizer_context(0 /* query_id */,
-                                       test_database_loader_.catalog_database(),
+    OptimizerContext optimizer_context(test_database_loader_.catalog_database(),
                                        test_database_loader_.storage_manager());
 
     if (result.condition != ParseResult::kSuccess) {
@@ -85,7 +84,7 @@ void ExecutionGeneratorTestRunner::runTestCase(
     } else {
       std::printf("%s\n", result.parsed_statement->toString().c_str());
       try {
-        QueryHandle query_handle(optimizer_context.query_id());
+        QueryHandle query_handle(0 /* query_id */);
         LogicalGenerator logical_generator(&optimizer_context);
         PhysicalGenerator physical_generator;
         ExecutionGenerator execution_generator(&optimizer_context,

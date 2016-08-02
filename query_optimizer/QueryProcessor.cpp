@@ -17,20 +17,15 @@
 
 #include "query_optimizer/QueryProcessor.hpp"
 
-#include <cstdint>
-#include <cstdlib>
 #include <fstream>
 #include <memory>
 #include <string>
 
 #include "catalog/Catalog.hpp"
 #include "catalog/Catalog.pb.h"
-#include "catalog/CatalogDatabase.hpp"
-#include "catalog/CatalogRelation.hpp"
 #include "parser/ParseStatement.hpp"
 #include "query_optimizer/Optimizer.hpp"
 #include "query_optimizer/QueryHandle.hpp"
-#include "storage/StorageManager.hpp"
 
 using std::ifstream;
 using std::ofstream;
@@ -41,10 +36,9 @@ QueryHandle* QueryProcessor::generateQueryHandle(const ParseStatement &statement
   std::unique_ptr<QueryHandle> query_handle(
       new QueryHandle(query_id_, statement.getPriority()));
 
-  optimizer::Optimizer optimizer(query_id_, getDefaultDatabase(), storage_manager_.get());
-  optimizer.generateQueryHandle(statement, query_handle.get());
+  optimizer_->generateQueryHandle(statement, query_handle.get());
 
-  if (optimizer.isCatalogChanged() && !catalog_altered_) {
+  if (optimizer_->isCatalogChanged() && !catalog_altered_) {
     catalog_altered_ = true;
   }
 

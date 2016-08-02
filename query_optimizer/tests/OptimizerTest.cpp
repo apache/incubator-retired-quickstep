@@ -59,8 +59,7 @@ OptimizerTest::OptimizerTest()
     : catalog_(new Catalog),
       catalog_database_(
           new CatalogDatabase(catalog_.get(), "TestDatabase" /* name */, 0)),
-      optimizer_context_(new OptimizerContext(0 /* query_id */,
-                                              catalog_database_.get(),
+      optimizer_context_(new OptimizerContext(catalog_database_.get(),
                                               nullptr /* storage_manager */)),
       physical_generator_(new PhysicalGenerator()) {}
 

@@ -18,8 +18,6 @@
 #ifndef QUICKSTEP_QUERY_OPTIMIZER_OPTIMIZER_HPP_
 #define QUICKSTEP_QUERY_OPTIMIZER_OPTIMIZER_HPP_
 
-#include <cstddef>
-
 #include "query_optimizer/OptimizerContext.hpp"
 #include "utility/Macros.hpp"
 
@@ -45,15 +43,12 @@ class Optimizer {
   /**
    * @brief Constructor.
    *
-   * @param query_id The query id. Used to identify a query and create distinct
-   *        names for temporary relations.
    * @param database The database that the query is executed on.
    * @param storage_manager The storage manager for the database.
    */
-  Optimizer(const std::size_t query_id,
-            CatalogDatabase *database,
+  Optimizer(CatalogDatabase *database,
             StorageManager *storage_manager)
-      : optimizer_context_(query_id, database, storage_manager) {}
+      : optimizer_context_(database, storage_manager) {}
 
   /**
    * @brief Destructor.
