@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_AGGREGATION_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_AGGREGATION_OPERATOR_HPP_
 
+#include <string>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
@@ -68,6 +69,7 @@ class AggregationOperator : public RelationalOperator {
                       bool input_relation_is_stored,
                       const QueryContext::aggregation_state_id aggr_state_index)
       : RelationalOperator(query_id),
+        input_relation_(input_relation),
         input_relation_is_stored_(input_relation_is_stored),
         input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
                                                            : std::vector<block_id>()),
@@ -76,6 +78,14 @@ class AggregationOperator : public RelationalOperator {
         started_(false) {}
 
   ~AggregationOperator() override {}
+
+  std::string getName() const override {
+    return "AggregationOperator";
+  }
+
+  const CatalogRelation& input_relation() const {
+    return input_relation_;
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,
@@ -103,6 +113,7 @@ class AggregationOperator : public RelationalOperator {
    **/
   serialization::WorkOrder* createWorkOrderProto(const block_id block);
 
+  const CatalogRelation &input_relation_;
   const bool input_relation_is_stored_;
   std::vector<block_id> input_relation_block_ids_;
   const QueryContext::aggregation_state_id aggr_state_index_;

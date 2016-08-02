@@ -19,6 +19,7 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_INSERT_OPERATOR_HPP_
 
 #include <cstddef>
+#include <string>
 #include <memory>
 
 #include "catalog/CatalogRelation.hpp"
@@ -72,6 +73,10 @@ class InsertOperator : public RelationalOperator {
         work_generated_(false) {}
 
   ~InsertOperator() override {}
+
+  std::string getName() const override {
+    return "InsertOperator";
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,

@@ -19,6 +19,7 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_SAVE_BLOCKS_OPERATOR_HPP_
 
 #include <cstddef>
+#include <string>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -63,6 +64,10 @@ class SaveBlocksOperator : public RelationalOperator {
         num_workorders_generated_(0) {}
 
   ~SaveBlocksOperator() override {}
+
+  std::string getName() const override {
+    return "SaveBlocksOperator";
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,

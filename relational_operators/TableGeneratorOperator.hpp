@@ -19,6 +19,7 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_TABLE_GENERATOR_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_TABLE_GENERATOR_OPERATOR_HPP_
 
+#include <string>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
@@ -75,6 +76,10 @@ class TableGeneratorOperator : public RelationalOperator {
         started_(false) {}
 
   ~TableGeneratorOperator() override {}
+
+  std::string getName() const override {
+    return "TableGeneratorOperator";
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,

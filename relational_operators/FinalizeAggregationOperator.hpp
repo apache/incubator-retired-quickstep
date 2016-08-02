@@ -19,6 +19,7 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_FINALIZE_AGGREGATION_OPERATOR_HPP_
 
 #include <cstddef>
+#include <string>
 #include <memory>
 
 #include "catalog/CatalogRelation.hpp"
@@ -73,6 +74,10 @@ class FinalizeAggregationOperator : public RelationalOperator {
         started_(false) {}
 
   ~FinalizeAggregationOperator() override {}
+
+  std::string getName() const override {
+    return "FinalizeAggregationOperator";
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,

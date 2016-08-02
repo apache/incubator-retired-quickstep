@@ -19,6 +19,7 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_CREATE_TABLE_OPERATOR_HPP_
 
 #include <cstddef>
+#include <string>
 #include <memory>
 
 #include "catalog/CatalogRelation.hpp"
@@ -65,6 +66,10 @@ class CreateTableOperator : public RelationalOperator {
         database_(DCHECK_NOTNULL(database)) {}
 
   ~CreateTableOperator() override {}
+
+  std::string getName() const override {
+    return "CreateTableOperator";
+  }
 
   /**
    * @note No WorkOrder generated for this operator.

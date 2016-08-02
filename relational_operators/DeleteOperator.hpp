@@ -19,6 +19,7 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_DELETE_OPERATOR_HPP_
 
 #include <cstddef>
+#include <string>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
@@ -80,6 +81,10 @@ class DeleteOperator : public RelationalOperator {
         num_workorders_generated_(0) {}
 
   ~DeleteOperator() override {}
+
+  std::string getName() const override {
+    return "DeleteOperator";
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,

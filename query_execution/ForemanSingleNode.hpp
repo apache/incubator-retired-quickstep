@@ -76,6 +76,17 @@ class ForemanSingleNode final : public ForemanBase {
 
   ~ForemanSingleNode() override {}
 
+
+  /**
+   * @brief Get the results of profiling individual work orders for a given
+   *        query.
+   *
+   * @param query_id The ID of the query for which the results are to be printed.
+   * @return A vector of tuples, each being a single profiling entry.
+   **/
+  const std::vector<WorkOrderTimeEntry>& getWorkOrderProfilingResults(
+      const std::size_t query_id) const;
+
   /**
    * @brief Print the results of profiling individual work orders for a given
    *        query.

@@ -19,6 +19,7 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_RELATIONAL_OPERATOR_HPP_
 
 #include <cstddef>
+#include <string>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -53,6 +54,13 @@ class RelationalOperator {
    * @brief Virtual destructor.
    **/
   virtual ~RelationalOperator() {}
+
+  /**
+   * @brief Get the name of this relational operator.
+   *
+   * @return The name of this relational operator.
+   */
+  virtual std::string getName() const = 0;
 
   /**
    * @brief Generate all the next WorkOrders for this RelationalOperator.
@@ -224,6 +232,15 @@ class RelationalOperator {
    **/
   void setOperatorIndex(const std::size_t operator_index) {
     op_index_ = operator_index;
+  }
+
+  /**
+   * @brief Get the index of this operator in the query plan DAG.
+   *
+   * @return The index of this operator in the query plan DAG.
+   */
+  std::size_t getOperatorIndex() const {
+    return op_index_;
   }
 
  protected:

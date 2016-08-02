@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_SORT_RUN_GENERATION_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_SORT_RUN_GENERATION_OPERATOR_HPP_
 
+#include <string>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
@@ -108,6 +109,10 @@ class SortRunGenerationOperator : public RelationalOperator {
         input_relation_is_stored_(input_relation_is_stored) {}
 
   ~SortRunGenerationOperator() {}
+
+  std::string getName() const override {
+    return "SortRunGenerationOperator";
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,

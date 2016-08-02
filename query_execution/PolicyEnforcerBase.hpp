@@ -126,8 +126,8 @@ class PolicyEnforcerBase {
    *
    * @return A vector of tuples, each being a single profiling entry.
    **/
-  inline const std::vector<std::tuple<std::size_t, std::size_t, std::size_t>>&
-      getProfilingResults(const std::size_t query_id) const {
+  inline const std::vector<WorkOrderTimeEntry>& getProfilingResults(
+      const std::size_t query_id) const {
     DCHECK(profile_individual_workorders_);
     DCHECK(workorder_time_recorder_.find(query_id) !=
            workorder_time_recorder_.end());
@@ -158,16 +158,7 @@ class PolicyEnforcerBase {
   // The queries which haven't been admitted yet.
   std::queue<QueryHandle*> waiting_queries_;
 
-  // Key = Query ID.
-  // Value = A tuple indicating a record of executing a work order.
-  // Within a tuple ...
-  // 1st element: Logical worker ID.
-  // 2nd element: Operator ID.
-  // 3rd element: Time in microseconds to execute the work order.
-  std::unordered_map<
-      std::size_t,
-      std::vector<std::tuple<std::size_t, std::size_t, std::size_t>>>
-      workorder_time_recorder_;
+  WorkOrderTimeRecorder workorder_time_recorder_;
 
  private:
   /**

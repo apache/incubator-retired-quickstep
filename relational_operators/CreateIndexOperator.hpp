@@ -69,6 +69,10 @@ class CreateIndexOperator : public RelationalOperator {
 
   ~CreateIndexOperator() override {}
 
+  std::string getName() const override {
+    return "CreateIndexOperator";
+  }
+
   /**
    * @note No WorkOrder generated for this operator.
    **/

@@ -236,22 +236,26 @@ void ForemanSingleNode::sendWorkerMessage(const size_t worker_thread_index,
       << worker_directory_->getClientID(worker_thread_index);
 }
 
+const std::vector<WorkOrderTimeEntry>& ForemanSingleNode
+    ::getWorkOrderProfilingResults(const std::size_t query_id) const {
+  return policy_enforcer_->getProfilingResults(query_id);
+}
+
 void ForemanSingleNode::printWorkOrderProfilingResults(const std::size_t query_id,
                                                        std::FILE *out) const {
-  const std::vector<
-      std::tuple<std::size_t, std::size_t, std::size_t>>
-      &recorded_times = policy_enforcer_->getProfilingResults(query_id);
+  const std::vector<WorkOrderTimeEntry> &recorded_times =
+      policy_enforcer_->getProfilingResults(query_id);
   fputs("Query ID,Worker ID,NUMA Socket,Operator ID,Time (microseconds)\n", out);
   for (auto workorder_entry : recorded_times) {
     // Note: Index of the "worker thread index" in the tuple is 0.
-    const std::size_t worker_id = std::get<0>(workorder_entry);
+    const std::size_t worker_id = workorder_entry.worker_id;
     fprintf(out,
             "%lu,%lu,%d,%lu,%lu\n",
             query_id,
             worker_id,
             worker_directory_->getNUMANode(worker_id),
-            std::get<1>(workorder_entry),  // Operator ID.
-            std::get<2>(workorder_entry));  // Time.
+            workorder_entry.operator_id,  // Operator ID.
+            workorder_entry.end_time - workorder_entry.start_time);  // Time.
   }
 }
 

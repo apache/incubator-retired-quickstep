@@ -17,6 +17,7 @@
 
 #include <climits>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -102,6 +103,10 @@ class MockOperator: public RelationalOperator {
         num_calls_feedblock_(0),
         num_calls_feedblocks_(0),
         num_calls_donefeedingblocks_(0) {
+  }
+
+  std::string getName() const override {
+    return "MockOperator";
   }
 
 #define MOCK_OP_LOG(x) VLOG(x) << "Op[" << op_index_ << "]: " << __func__ << ": "

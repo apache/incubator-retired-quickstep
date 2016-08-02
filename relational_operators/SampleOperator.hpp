@@ -20,6 +20,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
@@ -92,6 +93,10 @@ class SampleOperator : public RelationalOperator {
         started_(false) {}
 
   ~SampleOperator() override {}
+
+  std::string getName() const override {
+    return "SampleOperator";
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,

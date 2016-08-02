@@ -19,6 +19,7 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_SELECT_OPERATOR_HPP_
 
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -188,6 +189,14 @@ class SelectOperator : public RelationalOperator {
   }
 
   ~SelectOperator() override {}
+
+  std::string getName() const override {
+    return "SelectOperator";
+  }
+
+  const CatalogRelation& input_relation() const {
+    return input_relation_;
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,

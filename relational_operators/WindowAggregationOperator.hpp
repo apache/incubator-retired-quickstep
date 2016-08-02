@@ -20,6 +20,7 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_WINDOW_AGGREGATION_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_WINDOW_AGGREGATION_OPERATOR_HPP_
 
+#include <string>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
@@ -77,6 +78,10 @@ class WindowAggregationOperator : public RelationalOperator {
         generated_(false) {}
 
   ~WindowAggregationOperator() override {}
+
+  std::string getName() const override {
+    return "WindowAggregationOperator";
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,

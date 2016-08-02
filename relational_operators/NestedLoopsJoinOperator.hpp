@@ -20,6 +20,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
@@ -115,6 +116,10 @@ class NestedLoopsJoinOperator : public RelationalOperator {
   }
 
   ~NestedLoopsJoinOperator() override {}
+
+  std::string getName() const override {
+    return "NestedLoopsJoinOperator";
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,

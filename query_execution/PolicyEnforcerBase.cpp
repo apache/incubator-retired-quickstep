@@ -28,6 +28,7 @@
 #include "catalog/PartitionScheme.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionState.hpp"
+#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryManagerBase.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
@@ -165,13 +166,14 @@ bool PolicyEnforcerBase::admitQueries(
 void PolicyEnforcerBase::recordTimeForWorkOrder(
     const serialization::NormalWorkOrderCompletionMessage &proto) {
   const std::size_t query_id = proto.query_id();
-  if (workorder_time_recorder_.find(query_id) == workorder_time_recorder_.end()) {
-    workorder_time_recorder_[query_id];
-  }
-  workorder_time_recorder_[query_id].emplace_back(
-      proto.worker_thread_index(),
-      proto.operator_index(),
-      proto.execution_time_in_microseconds());
+  std::vector<WorkOrderTimeEntry> &workorder_time_entries
+      = workorder_time_recorder_[query_id];
+  workorder_time_entries.emplace_back();
+  WorkOrderTimeEntry &entry = workorder_time_entries.back();
+  entry.worker_id = proto.worker_thread_index(),
+  entry.operator_id = proto.operator_index(),
+  entry.start_time = proto.execution_start_time(),
+  entry.end_time = proto.execution_end_time();
 }
 
 }  // namespace quickstep

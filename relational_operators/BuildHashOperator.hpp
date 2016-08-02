@@ -18,6 +18,7 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_BUILD_HASH_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_BUILD_HASH_OPERATOR_HPP_
 
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -92,6 +93,14 @@ class BuildHashOperator : public RelationalOperator {
       started_(false) {}
 
   ~BuildHashOperator() override {}
+
+  const CatalogRelation& input_relation() const {
+    return input_relation_;
+  }
+
+  std::string getName() const override {
+    return "BuildHashOperator";
+  }
 
   bool getAllWorkOrders(WorkOrdersContainer *container,
                         QueryContext *query_context,
@@ -195,6 +204,10 @@ class BuildHashWorkOrder : public WorkOrder {
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
 
   ~BuildHashWorkOrder() override {}
+
+  const CatalogRelationSchema& input_relation() const {
+    return input_relation_;
+  }
 
   void execute() override;
 
