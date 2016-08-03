@@ -98,7 +98,7 @@ void CommandExecutorTestRunner::runTestCase(
               nullptr,
               output_stream.file());
         } else  {
-          QueryHandle query_handle(0 /* query_id */);
+          QueryHandle query_handle(0 /* query_id */, main_thread_client_id_);
           O::LogicalGenerator logical_generator(&optimizer_context);
           O::PhysicalGenerator physical_generator;
           O::ExecutionGenerator execution_generator(&optimizer_context, &query_handle);

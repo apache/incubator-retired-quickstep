@@ -403,16 +403,17 @@ int main(int argc, char* argv[]) {
     bool reset_parser = false;
     for (;;) {
       ParseResult result = parser_wrapper->getNextStatement();
+      const ParseStatement &statement = *result.parsed_statement;
       if (result.condition == ParseResult::kSuccess) {
-        if (result.parsed_statement->getStatementType() == ParseStatement::kQuit) {
+        if (statement.getStatementType() == ParseStatement::kQuit) {
           quitting = true;
           break;
         }
 
-        if (result.parsed_statement->getStatementType() == ParseStatement::kCommand) {
+        if (statement.getStatementType() == ParseStatement::kCommand) {
           try {
             quickstep::cli::executeCommand(
-                *result.parsed_statement,
+                statement,
                 *(query_processor->getDefaultDatabase()),
                 main_thread_client_id,
                 foreman.getBusClientID(),
@@ -426,12 +427,15 @@ int main(int argc, char* argv[]) {
             reset_parser = true;
             break;
           }
-        continue;
+          continue;
         }
 
-        std::unique_ptr<QueryHandle> query_handle;
+        std::unique_ptr<QueryHandle> query_handle(
+            std::make_unique<QueryHandle>(query_processor->query_id(),
+                                          main_thread_client_id,
+                                          statement.getPriority()));
         try {
-          query_handle.reset(query_processor->generateQueryHandle(*result.parsed_statement));
+          query_processor->generateQueryHandle(statement, query_handle.get());
         } catch (const quickstep::SqlError &sql_error) {
           fprintf(stderr, "%s", sql_error.formatMessage(*command_string).c_str());
           reset_parser = true;

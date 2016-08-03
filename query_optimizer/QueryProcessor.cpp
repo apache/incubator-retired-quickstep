@@ -23,28 +23,22 @@
 
 #include "catalog/Catalog.hpp"
 #include "catalog/Catalog.pb.h"
-#include "parser/ParseStatement.hpp"
 #include "query_optimizer/Optimizer.hpp"
-#include "query_optimizer/QueryHandle.hpp"
 
 using std::ifstream;
 using std::ofstream;
 
 namespace quickstep {
 
-QueryHandle* QueryProcessor::generateQueryHandle(const ParseStatement &statement) {
-  std::unique_ptr<QueryHandle> query_handle(
-      new QueryHandle(query_id_, statement.getPriority()));
-
-  optimizer_->generateQueryHandle(statement, query_handle.get());
+void QueryProcessor::generateQueryHandle(const ParseStatement &statement,
+                                         QueryHandle *query_handle) {
+  optimizer_->generateQueryHandle(statement, query_handle);
 
   if (optimizer_->isCatalogChanged() && !catalog_altered_) {
     catalog_altered_ = true;
   }
 
   ++query_id_;
-
-  return query_handle.release();
 }
 
 void QueryProcessor::saveCatalog() {
