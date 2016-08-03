@@ -151,13 +151,21 @@ class QueryProcessor {
   ~QueryProcessor() {}
 
   /**
-   * @brief Create a query handle for the given parsed SQL statement. This
+   * @brief Get the next query id.
+   **/
+  std::size_t query_id() const {
+    return query_id_;
+  }
+
+  /**
+   * @brief Fill a query handle for the given parsed SQL statement. This
    *        includes that the optimizer creates a QueryPlan inside the handle.
    *
    * @param statement The parsed SQL statement to generate a query handle for.
-   * @return A query handle for statement.
+   * @param query_handle The generated query handle to output.
    **/
-  QueryHandle* generateQueryHandle(const ParseStatement &statement);
+  void generateQueryHandle(const ParseStatement &statement,
+                           QueryHandle *query_handle);
 
   /**
    * @brief Save the catalog back to disk.

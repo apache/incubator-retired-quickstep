@@ -210,9 +210,14 @@ inline TypedValue executeQueryForSingleResult(
   ParseResult result = parser_wrapper->getNextStatement();
   DCHECK(result.condition == ParseResult::kSuccess);
 
+  const ParseStatement &statement = *result.parsed_statement;
+
   // Generate the query plan.
   std::unique_ptr<QueryHandle> query_handle(
-      query_processor->generateQueryHandle(*result.parsed_statement));
+      std::make_unique<QueryHandle>(query_processor->query_id(),
+                                    main_thread_client_id,
+                                    statement.getPriority()));
+  query_processor->generateQueryHandle(statement, query_handle.get());
   DCHECK(query_handle->getQueryPlanMutable() != nullptr);
 
   // Use foreman to execute the query plan.

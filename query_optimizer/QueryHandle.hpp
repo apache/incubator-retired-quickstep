@@ -20,12 +20,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
-#include <utility>
 
 #include "catalog/Catalog.pb.h"
 #include "query_execution/QueryContext.pb.h"
 #include "query_optimizer/QueryPlan.hpp"
 #include "utility/Macros.hpp"
+
+#include "tmb/id_typedefs.h"
 
 namespace quickstep {
 
@@ -44,10 +45,14 @@ class QueryHandle {
    * @brief Constructor.
    *
    * @param query_id The given query id.
+   * @param cli_id The client id of the CLI which submits the query.
+   * @param query_priority The priority of this query.
    */
   explicit QueryHandle(const std::size_t query_id,
+                       const tmb::client_id cli_id,
                        const std::uint64_t query_priority = 1)
       : query_id_(query_id),
+        cli_id_(cli_id),
         query_priority_(query_priority),
         query_plan_(new QueryPlan()),
         query_result_relation_(nullptr) {}
@@ -61,6 +66,13 @@ class QueryHandle {
    */
   std::size_t query_id() const {
     return query_id_;
+  }
+
+  /**
+   * @brief Get the client id of the CLI which submits the query.
+   */
+  tmb::client_id getClientId() const {
+    return cli_id_;
   }
 
   /**
@@ -121,6 +133,10 @@ class QueryHandle {
 
  private:
   const std::size_t query_id_;
+
+  // The client id of the CLI which submits the query.
+  const tmb::client_id cli_id_;
+
   const std::uint64_t query_priority_;
 
   std::unique_ptr<QueryPlan> query_plan_;

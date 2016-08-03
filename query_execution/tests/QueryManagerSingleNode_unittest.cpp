@@ -227,7 +227,7 @@ class QueryManagerTest : public ::testing::Test {
     db_.reset(new CatalogDatabase(nullptr /* catalog */, "database"));
     storage_manager_.reset(new StorageManager("./"));
     bus_.Initialize();
-    query_handle_.reset(new QueryHandle(0));  // dummy query ID.
+    query_handle_.reset(new QueryHandle(0 /* dummy query ID */, tmb::kClientIdNone /* cli_id */));
     query_plan_ = query_handle_->getQueryPlanMutable();
     query_handle_->getQueryContextProtoMutable()->set_query_id(query_handle_->query_id());
   }
