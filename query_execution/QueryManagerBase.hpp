@@ -74,6 +74,13 @@ class QueryManagerBase {
   virtual ~QueryManagerBase() {}
 
   /**
+   * @brief Get the query handle.
+   **/
+  const QueryHandle* query_handle() const {
+    return query_handle_;
+  }
+
+  /**
    * @brief Get the QueryExecutionState for this query.
    **/
   inline const QueryExecutionState& getQueryExecutionState() const {
@@ -252,9 +259,11 @@ class QueryManagerBase {
     return query_exec_state_->hasRebuildInitiated(index);
   }
 
+  const QueryHandle *query_handle_;
+
   const std::size_t query_id_;
 
-  DAG<RelationalOperator, bool> *query_dag_;
+  DAG<RelationalOperator, bool> *query_dag_;  // Owned by 'query_handle_'.
   const dag_node_index num_operators_in_dag_;
 
   // For all nodes, store their receiving dependents.

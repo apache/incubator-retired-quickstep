@@ -140,6 +140,13 @@ class PolicyEnforcerBase {
   static constexpr std::size_t kMaxConcurrentQueries = 1;
 
   /**
+   * @brief Add custom actions upon the completion of a query.
+   *
+   * @param query_manager The query manager.
+   **/
+  virtual void onQueryCompletion(QueryManagerBase *query_manager) {}
+
+  /**
    * @brief Record the execution time for a finished WorkOrder.
    *
    * TODO(harshad) - Extend the functionality to rebuild work orders.
