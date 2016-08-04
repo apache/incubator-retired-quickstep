@@ -516,11 +516,6 @@ int main(int argc, char* argv[]) {
               main_thread_client_id, &bus);
           end = std::chrono::steady_clock::now();
 
-          if (quickstep::FLAGS_visualize_dag) {
-            quickstep::DAGVisualizer visualizer(*query_handle->getQueryPlanMutable());
-            std::cerr << "\n" << visualizer.toDOT() << "\n";
-          }
-
           const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
           if (query_result_relation) {
             PrintToScreen::PrintRelation(*query_result_relation,
