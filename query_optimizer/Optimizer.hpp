@@ -18,7 +18,9 @@
 #ifndef QUICKSTEP_QUERY_OPTIMIZER_OPTIMIZER_HPP_
 #define QUICKSTEP_QUERY_OPTIMIZER_OPTIMIZER_HPP_
 
+#include "query_optimizer/LogicalGenerator.hpp"
 #include "query_optimizer/OptimizerContext.hpp"
+#include "query_optimizer/PhysicalGenerator.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -48,7 +50,8 @@ class Optimizer {
    */
   Optimizer(CatalogDatabase *database,
             StorageManager *storage_manager)
-      : optimizer_context_(database, storage_manager) {}
+      : optimizer_context_(database, storage_manager),
+        logical_generator_(&optimizer_context_) {}
 
   /**
    * @brief Destructor.
@@ -77,6 +80,8 @@ class Optimizer {
 
  private:
   OptimizerContext optimizer_context_;
+  LogicalGenerator logical_generator_;
+  PhysicalGenerator physical_generator_;
 
   DISALLOW_COPY_AND_ASSIGN(Optimizer);
 };

@@ -26,13 +26,11 @@ namespace optimizer {
 
 void Optimizer::generateQueryHandle(const ParseStatement &parse_statement,
                                     QueryHandle *query_handle) {
-  LogicalGenerator logical_generator(&optimizer_context_);
-  PhysicalGenerator physical_generator;
   ExecutionGenerator execution_generator(&optimizer_context_, query_handle);
 
   execution_generator.generatePlan(
-      physical_generator.generatePlan(
-          logical_generator.generatePlan(parse_statement)));
+      physical_generator_.generatePlan(
+          logical_generator_.generatePlan(parse_statement)));
 }
 
 }  // namespace optimizer
