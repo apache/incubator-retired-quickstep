@@ -92,15 +92,6 @@ InsertDestination* InsertDestination::ReconstructFromProto(
   }
 
   switch (proto.insert_destination_type()) {
-    case serialization::InsertDestinationType::ALWAYS_CREATE_BLOCK: {
-      return new AlwaysCreateBlockInsertDestination(relation,
-                                                    layout,
-                                                    storage_manager,
-                                                    proto.relational_op_index(),
-                                                    query_id,
-                                                    scheduler_client_id,
-                                                    bus);
-    }
     case serialization::InsertDestinationType::BLOCK_POOL: {
       vector<block_id> blocks;
       for (int i = 0; i < proto.ExtensionSize(serialization::BlockPoolInsertDestination::blocks); ++i) {
@@ -260,54 +251,6 @@ void InsertDestination::insertTuplesFromVector(std::vector<Tuple>::const_iterato
     }
   }
   returnBlock(std::move(dest_block), false);
-}
-
-MutableBlockReference AlwaysCreateBlockInsertDestination::createNewBlock() {
-  const block_id new_id = storage_manager_->createBlock(relation_, *layout_);
-
-  // Notify Foreman to add the newly created block id in the master Catalog.
-  serialization::CatalogRelationNewBlockMessage proto;
-  proto.set_relation_id(relation_.getID());
-  proto.set_block_id(new_id);
-  proto.set_query_id(getQueryID());
-
-  const size_t proto_length = proto.ByteSize();
-  char *proto_bytes = static_cast<char*>(malloc(proto_length));
-  CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-  TaggedMessage tagged_msg(static_cast<const void *>(proto_bytes),
-                           proto_length,
-                           kCatalogRelationNewBlockMessage);
-  free(proto_bytes);
-
-  const tmb::MessageBus::SendStatus send_status =
-      QueryExecutionUtil::SendTMBMessage(bus_,
-                                         thread_id_map_.getValue(),
-                                         scheduler_client_id_,
-                                         move(tagged_msg));
-  CHECK(send_status == tmb::MessageBus::SendStatus::kOK)
-      << "CatalogRelationNewBlockMessage could not be sent from InsertDestination to Foreman.";
-
-  return storage_manager_->getBlockMutable(new_id, relation_);
-}
-
-MutableBlockReference AlwaysCreateBlockInsertDestination::getBlockForInsertion() {
-  SpinMutexLock lock(mutex_);
-  return createNewBlock();
-}
-
-void AlwaysCreateBlockInsertDestination::returnBlock(MutableBlockReference &&block, const bool full) {
-  {
-    SpinMutexLock lock(mutex_);
-    returned_block_ids_.push_back(block->getID());
-  }
-  if (!block->rebuild()) {
-    LOG_WARNING("Rebuilding of StorageBlock with ID: " << block->getID() <<
-                "invalidated one or more IndexSubBlocks.");
-  }
-  // Due to the nature of this InsertDestination, a block will always be
-  // streamed no matter if it's full or not.
-  sendBlockFilledMessage(block->getID());
 }
 
 MutableBlockReference BlockPoolInsertDestination::createNewBlock() {

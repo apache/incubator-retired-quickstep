@@ -21,7 +21,6 @@ import "catalog/Catalog.proto";
 import "storage/StorageBlockLayout.proto";
 
 enum InsertDestinationType {
-  ALWAYS_CREATE_BLOCK = 0;
   BLOCK_POOL = 1;
   PARTITION_AWARE = 2;
 }
