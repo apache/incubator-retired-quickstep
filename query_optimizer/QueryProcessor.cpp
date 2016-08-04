@@ -32,9 +32,11 @@ namespace quickstep {
 
 void QueryProcessor::generateQueryHandle(const ParseStatement &statement,
                                          QueryHandle *query_handle) {
-  optimizer_->generateQueryHandle(statement, query_handle);
+  optimizer::Optimizer optimizer(getDefaultDatabase(), storage_manager_.get());
 
-  if (optimizer_->isCatalogChanged() && !catalog_altered_) {
+  optimizer.generateQueryHandle(statement, query_handle);
+
+  if (optimizer.isCatalogChanged() && !catalog_altered_) {
     catalog_altered_ = true;
   }
 
@@ -66,7 +68,7 @@ void QueryProcessor::loadCatalog() {
     throw CatalogNotProto(catalog_filename_);
   }
   catalog_file.close();
-  catalog_.reset(new Catalog(catalog_proto));
+  catalog_ = std::make_unique<Catalog>(catalog_proto);
 
   catalog_altered_ = false;
 }
