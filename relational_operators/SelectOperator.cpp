@@ -42,6 +42,8 @@ class Predicate;
 void SelectOperator::addWorkOrders(WorkOrdersContainer *container,
                                    StorageManager *storage_manager,
                                    const Predicate *predicate,
+                                   const std::vector<const BloomFilter *> &bloom_filters,
+                                   const std::vector<attribute_id> &bloom_filter_attribute_ids,
                                    const std::vector<std::unique_ptr<const Scalar>> *selection,
                                    InsertDestination *output_destination) {
   if (input_relation_is_stored_) {
@@ -50,6 +52,8 @@ void SelectOperator::addWorkOrders(WorkOrdersContainer *container,
                                                         input_relation_,
                                                         input_block_id,
                                                         predicate,
+                                                        bloom_filters,
+                                                        bloom_filter_attribute_ids,
                                                         simple_projection_,
                                                         simple_selection_,
                                                         selection,
@@ -65,6 +69,8 @@ void SelectOperator::addWorkOrders(WorkOrdersContainer *container,
               input_relation_,
               input_relation_block_ids_[num_workorders_generated_],
               predicate,
+              bloom_filters,
+              bloom_filter_attribute_ids,
               simple_projection_,
               simple_selection_,
               selection,
@@ -80,6 +86,8 @@ void SelectOperator::addWorkOrders(WorkOrdersContainer *container,
 void SelectOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
                                                  StorageManager *storage_manager,
                                                  const Predicate *predicate,
+                                                 const std::vector<const BloomFilter *> &bloom_filters,
+                                                 const std::vector<attribute_id> &bloom_filter_attribute_ids,
                                                  const std::vector<std::unique_ptr<const Scalar>> *selection,
                                                  InsertDestination *output_destination) {
   DCHECK(placement_scheme_ != nullptr);
@@ -94,6 +102,8 @@ void SelectOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
                 input_relation_,
                 input_block_id,
                 predicate,
+                bloom_filters,
+                bloom_filter_attribute_ids,
                 simple_projection_,
                 simple_selection_,
                 selection,
@@ -115,6 +125,8 @@ void SelectOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
                 input_relation_,
                 block_in_partition,
                 predicate,
+                bloom_filters,
+                bloom_filter_attribute_ids,
                 simple_projection_,
                 simple_selection_,
                 selection,
@@ -137,6 +149,15 @@ bool SelectOperator::getAllWorkOrders(
     tmb::MessageBus *bus) {
   DCHECK(query_context != nullptr);
 
+  if (bloom_filters_ == nullptr) {
+    bloom_filters_.reset(new std::vector<const BloomFilter*>());
+    for (const auto bloom_filter_id : bloom_filter_ids_) {
+      // Add the pointer to the probe bloom filter within the list of probe bloom filters to use.
+      bloom_filters_->emplace_back(
+          query_context->getBloomFilter(bloom_filter_id));
+    }
+  }
+
   const Predicate *predicate =
       query_context->getPredicate(predicate_index_);
   const std::vector<std::unique_ptr<const Scalar>> *selection =
@@ -151,11 +172,23 @@ bool SelectOperator::getAllWorkOrders(
       if (input_relation_.hasPartitionScheme()) {
 #ifdef QUICKSTEP_HAVE_LIBNUMA
         if (input_relation_.hasNUMAPlacementScheme()) {
-          addPartitionAwareWorkOrders(container, storage_manager, predicate, selection, output_destination);
+          addPartitionAwareWorkOrders(container,
+                                      storage_manager,
+                                      predicate,
+                                      *bloom_filters_,
+                                      bloom_filter_attribute_ids_,
+                                      selection,
+                                      output_destination);
         }
 #endif
       } else {
-        addWorkOrders(container, storage_manager, predicate, selection, output_destination);
+        addWorkOrders(container,
+                      storage_manager,
+                      predicate,
+                      *bloom_filters_,
+                      bloom_filter_attribute_ids_,
+                      selection,
+                      output_destination);
       }
       started_ = true;
     }
@@ -164,11 +197,23 @@ bool SelectOperator::getAllWorkOrders(
     if (input_relation_.hasPartitionScheme()) {
 #ifdef QUICKSTEP_HAVE_LIBNUMA
         if (input_relation_.hasNUMAPlacementScheme()) {
-          addPartitionAwareWorkOrders(container, storage_manager, predicate, selection, output_destination);
+          addPartitionAwareWorkOrders(container,
+                                      storage_manager,
+                                      predicate,
+                                      *bloom_filters_,
+                                      bloom_filter_attribute_ids_,
+                                      selection,
+                                      output_destination);
         }
 #endif
     } else {
-        addWorkOrders(container, storage_manager, predicate, selection, output_destination);
+        addWorkOrders(container,
+                      storage_manager,
+                      predicate,
+                      *bloom_filters_,
+                      bloom_filter_attribute_ids_,
+                      selection,
+                      output_destination);
     }
     return done_feeding_input_relation_;
   }
@@ -222,10 +267,14 @@ void SelectWorkOrder::execute() {
   if (simple_projection_) {
     block->selectSimple(simple_selection_,
                         predicate_,
+                        bloom_filters_,
+                        bloom_filter_attribute_ids_,
                         output_destination_);
   } else {
     block->select(*DCHECK_NOTNULL(selection_),
                   predicate_,
+                  bloom_filters_,
+                  bloom_filter_attribute_ids_,
                   output_destination_);
   }
 }

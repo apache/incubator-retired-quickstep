@@ -37,6 +37,7 @@
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
+#include "utility/BloomFilterAdapter.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -47,6 +48,7 @@ namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
+class BloomFitler;
 class CatalogRelationSchema;
 class InsertDestination;
 class Predicate;
@@ -246,15 +248,25 @@ class SelectOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  void addBloomFilter(const QueryContext::bloom_filter_id bloom_filter_id,
+                      const attribute_id bloom_filter_attribute_id) {
+    bloom_filter_ids_.emplace_back(bloom_filter_id);
+    bloom_filter_attribute_ids_.emplace_back(bloom_filter_attribute_id);
+  }
+
   void addWorkOrders(WorkOrdersContainer *container,
                      StorageManager *storage_manager,
                      const Predicate *predicate,
+                     const std::vector<const BloomFilter *> &bloom_filters,
+                     const std::vector<attribute_id> &bloom_filter_attribute_ids,
                      const std::vector<std::unique_ptr<const Scalar>> *selection,
                      InsertDestination *output_destination);
 
   void addPartitionAwareWorkOrders(WorkOrdersContainer *container,
                                    StorageManager *storage_manager,
                                    const Predicate *predicate,
+                                   const std::vector<const BloomFilter *> &bloom_filters,
+                                   const std::vector<attribute_id> &bloom_filter_attribute_ids,
                                    const std::vector<std::unique_ptr<const Scalar>> *selection,
                                    InsertDestination *output_destination);
 
@@ -270,6 +282,9 @@ class SelectOperator : public RelationalOperator {
   const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
   const QueryContext::predicate_id predicate_index_;
+  std::vector<QueryContext::bloom_filter_id> bloom_filter_ids_;
+  std::vector<attribute_id> bloom_filter_attribute_ids_;
+  std::unique_ptr<std::vector<const BloomFilter*>> bloom_filters_;
 
   const QueryContext::scalar_group_id selection_index_;
   const std::vector<attribute_id> simple_selection_;
@@ -323,6 +338,8 @@ class SelectWorkOrder : public WorkOrder {
                   const CatalogRelationSchema &input_relation,
                   const block_id input_block_id,
                   const Predicate *predicate,
+                  const std::vector<const BloomFilter *> &bloom_filters,
+                  const std::vector<attribute_id> &bloom_filter_attribute_ids,
                   const bool simple_projection,
                   const std::vector<attribute_id> &simple_selection,
                   const std::vector<std::unique_ptr<const Scalar>> *selection,
@@ -333,6 +350,8 @@ class SelectWorkOrder : public WorkOrder {
         input_relation_(input_relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
+        bloom_filters_(bloom_filters),
+        bloom_filter_attribute_ids_(bloom_filter_attribute_ids),
         simple_projection_(simple_projection),
         simple_selection_(simple_selection),
         selection_(selection),
@@ -365,6 +384,8 @@ class SelectWorkOrder : public WorkOrder {
                   const CatalogRelationSchema &input_relation,
                   const block_id input_block_id,
                   const Predicate *predicate,
+                  const std::vector<const BloomFilter *> &bloom_filters,
+                  const std::vector<attribute_id> &bloom_filter_attribute_ids,
                   const bool simple_projection,
                   std::vector<attribute_id> &&simple_selection,
                   const std::vector<std::unique_ptr<const Scalar>> *selection,
@@ -375,6 +396,8 @@ class SelectWorkOrder : public WorkOrder {
         input_relation_(input_relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
+        bloom_filters_(bloom_filters),
+        bloom_filter_attribute_ids_(bloom_filter_attribute_ids),
         simple_projection_(simple_projection),
         simple_selection_(std::move(simple_selection)),
         selection_(selection),
@@ -399,6 +422,8 @@ class SelectWorkOrder : public WorkOrder {
   const CatalogRelationSchema &input_relation_;
   const block_id input_block_id_;
   const Predicate *predicate_;
+  const std::vector<const BloomFilter *> &bloom_filters_;
+  const std::vector<attribute_id> &bloom_filter_attribute_ids_;
 
   const bool simple_projection_;
   const std::vector<attribute_id> simple_selection_;

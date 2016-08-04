@@ -30,10 +30,11 @@ message Predicate {
   enum PredicateType {
     TRUE = 0;
     FALSE = 1;
-    COMPARISON = 2;
-    NEGATION = 3;
-    CONJUNCTION = 4;
-    DISJUNCTION = 5;
+    BLOOM_FILTERS = 2;
+    COMPARISON = 3;
+    NEGATION = 4;
+    CONJUNCTION = 5;
+    DISJUNCTION = 6;
   }
 
   required PredicateType predicate_type = 1;

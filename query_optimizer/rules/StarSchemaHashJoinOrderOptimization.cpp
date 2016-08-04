@@ -221,11 +221,14 @@ physical::PhysicalPtr StarSchemaHashJoinOrderOptimization::generatePlan(
                   attribute_id_to_reference_map.at(build_it->second));
             }
           }
-          if (!build_attrs.empty()
-              && build_table_info->table->impliesUniqueAttributes(build_attrs)) {
-            std::unique_ptr<JoinPair> new_join(
-                new JoinPair(probe_table_info, build_table_info));
-            if (best_join == nullptr || new_join->isBetterThan(*best_join)) {
+
+          const bool build_side_unique =
+              !build_attrs.empty() && build_table_info->table->impliesUniqueAttributes(build_attrs);
+          std::unique_ptr<JoinPair> new_join(
+              new JoinPair(probe_table_info,
+                           build_table_info,
+                           build_side_unique));
+          if (best_join == nullptr || new_join->isBetterThan(*best_join)) {
 //              if (best_join != nullptr) {
 //                std::cerr << "(" << best_join->probe->estimated_selectivity
 //                          << ", " << best_join->probe->estimated_cardinality << ")"
@@ -241,24 +244,23 @@ physical::PhysicalPtr StarSchemaHashJoinOrderOptimization::generatePlan(
 //                        << "(" << new_join->build->estimated_selectivity
 //                        << ", " << new_join->build->estimated_cardinality << ")"
 //                        << "\n****\n";
-              best_join.reset(new_join.release());
-            }
+            best_join.reset(new_join.release());
           }
         }
       }
     }
 
-    TableInfo *selected_probe_table_info = nullptr;
-    TableInfo *selected_build_table_info = nullptr;
+    CHECK(best_join != nullptr);
 
-    if (best_join != nullptr) {
-      selected_probe_table_info = best_join->probe;
-      selected_build_table_info = best_join->build;
+    TableInfo *selected_probe_table_info = best_join->probe;
+    TableInfo *selected_build_table_info = best_join->build;
+    std::cerr << "card: " << selected_probe_table_info->estimated_cardinality << "\n";
+    std::cerr << "card: " << selected_build_table_info->estimated_cardinality << "\n";
+    std::cerr << "--------\n";
+    if (!best_join->build_side_unique &&
+        selected_probe_table_info->estimated_cardinality < selected_build_table_info->estimated_cardinality) {
+      std::swap(selected_probe_table_info, selected_build_table_info);
     }
-
-    // TODO(jianqiao): Handle the case when there is no primary key-foreign key information available.
-    CHECK(selected_probe_table_info != nullptr);
-    CHECK(selected_build_table_info != nullptr);
 
 //    std::cerr << selected_probe_table_info->estimated_selectivity
 //              << " -- "

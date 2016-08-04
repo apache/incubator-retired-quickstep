@@ -34,6 +34,7 @@
 #include "storage/StorageBlockLayout.pb.h"
 #include "storage/TupleIdSequence.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
+#include "utility/BloomFilter.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
 
@@ -349,6 +350,8 @@ class StorageBlock : public StorageBlockBase {
    **/
   void select(const std::vector<std::unique_ptr<const Scalar>> &selection,
               const Predicate *predicate,
+              const std::vector<const BloomFilter *> &bloom_filters,
+              const std::vector<attribute_id> &bloom_filter_attribute_ids,
               InsertDestinationInterface *destination) const;
 
   /**
@@ -372,6 +375,8 @@ class StorageBlock : public StorageBlockBase {
    **/
   void selectSimple(const std::vector<attribute_id> &selection,
                     const Predicate *predicate,
+                    const std::vector<const BloomFilter *> &bloom_filters,
+                    const std::vector<attribute_id> &bloom_filter_attribute_ids,
                     InsertDestinationInterface *destination) const;
 
   /**
@@ -587,7 +592,8 @@ class StorageBlock : public StorageBlockBase {
    **/
   const std::size_t getNumTuples() const;
 
-  TupleIdSequence* getMatchesForPredicate(const Predicate *predicate) const;
+  TupleIdSequence* getMatchesForPredicate(const Predicate *predicate,
+                                          const TupleIdSequence *sequence = nullptr) const;
 
  private:
   static TupleStorageSubBlock* CreateTupleStorageSubBlock(

@@ -28,6 +28,7 @@
 #include "query_execution/QueryContext.pb.h"
 #include "query_optimizer/QueryPlan.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
+#include "relational_operators/SelectOperator.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -112,6 +113,22 @@ class ExecutionHeuristics {
     const QueryContext::aggregation_state_id aggregate_state_id_;
   };
 
+  struct SelectInfo {
+    SelectInfo(const QueryPlan::DAGNodeIndex select_operator_index,
+               const physical::BloomFilterConfig &bloom_filter_config,
+               std::vector<attribute_id> &&bloom_filter_ids,
+               SelectOperator *select_operator)
+        : select_operator_index_(select_operator_index),
+          bloom_filter_config_(bloom_filter_config),
+          bloom_filter_ids_(bloom_filter_ids),
+          select_operator_(select_operator) {
+    }
+
+    const QueryPlan::DAGNodeIndex select_operator_index_;
+    const physical::BloomFilterConfig &bloom_filter_config_;
+    const std::vector<attribute_id> bloom_filter_ids_;
+    SelectOperator *select_operator_;
+  };
 
   /**
    * @brief Constructor.
@@ -161,6 +178,16 @@ class ExecutionHeuristics {
                              aggregate_state_id);
   }
 
+  inline void addSelectInfo(const QueryPlan::DAGNodeIndex select_operator_index,
+                            const physical::BloomFilterConfig &bloom_filter_config,
+                            std::vector<attribute_id> &&bloom_filter_ids,
+                            SelectOperator *select_operator) {
+    selects_.emplace_back(select_operator_index,
+                          bloom_filter_config,
+                          std::move(bloom_filter_ids),
+                          select_operator);
+  }
+
   /**
    * @brief Optimize the execution plan based on heuristics generated
    *        during physical plan to execution plan conversion.
@@ -184,6 +211,7 @@ class ExecutionHeuristics {
  private:
   std::vector<HashJoinInfo> hash_joins_;
   std::vector<AggregateInfo> aggregates_;
+  std::vector<SelectInfo> selects_;
 
   DISALLOW_COPY_AND_ASSIGN(ExecutionHeuristics);
 };

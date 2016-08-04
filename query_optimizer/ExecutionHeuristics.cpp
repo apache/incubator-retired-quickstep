@@ -127,6 +127,30 @@ void ExecutionHeuristics::optimizeExecutionPlan(QueryPlan *query_plan,
                                       true /* is_pipeline_breaker */);
     }
   }
+
+  for (const auto &info : selects_) {
+    const auto &bloom_filter_config = info.bloom_filter_config_;
+
+    for (std::size_t i = 0; i < info.bloom_filter_ids_.size(); ++i) {
+      const auto &bf =
+          bloom_filter_config.probe_side_bloom_filters[i];
+      std::cerr << "Select probe " << bf.attribute->toString()
+                << " @" << bf.builder << "\n";
+
+      const auto &build_side_info =
+           bloom_filter_map.at(
+               std::make_pair(bf.source_attribute->id(),
+                              bf.builder));
+      info.select_operator_->addBloomFilter(
+          build_side_info.first, info.bloom_filter_ids_[i]);
+//      std::cerr << "Select probe attr_id = "
+//                << info.bloom_filter_ids_[i] << "\n";
+
+      query_plan->addDirectDependency(info.select_operator_index_,
+                                      build_side_info.second,
+                                      true /* is_pipeline_breaker */);
+    }
+  }
 }
 
 void ExecutionHeuristics::setBloomFilterProperties(serialization::BloomFilter *bloom_filter_proto,

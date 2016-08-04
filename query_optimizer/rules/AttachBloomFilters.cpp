@@ -17,6 +17,8 @@
 
 #include "query_optimizer/rules/AttachBloomFilters.hpp"
 
+#include <algorithm>
+#include <iterator>
 #include <memory>
 #include <set>
 #include <unordered_set>
@@ -33,8 +35,6 @@
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
-
-#include "glog/logging.h"
 
 namespace quickstep {
 namespace optimizer {
@@ -70,7 +70,10 @@ P::PhysicalPtr AttachBloomFilters::apply(const P::PhysicalPtr &input) {
 //    std::cerr << "********\n";
 //  }
 
-  return visitAndAttach(input);
+  std::set<E::ExprId> used_bloom_filters;
+  decideAttach(input, &used_bloom_filters);
+
+  return performAttach(input);
 }
 
 void AttachBloomFilters::visitProducer(const P::PhysicalPtr &node, const int depth) {
@@ -140,6 +143,52 @@ void AttachBloomFilters::visitConsumer(const P::PhysicalPtr &node) {
   // Bloom filters from parent
   const auto &parent_bloom_filters = consumers_[node];
   if (!parent_bloom_filters.empty()) {
+//    if (node->getPhysicalType() == P::PhysicalType::kHashJoin) {
+//      const P::HashJoinPtr hash_join =
+//          std::static_pointer_cast<const P::HashJoin>(node);
+//      const std::vector<const std::vector<E::AttributeReferencePtr>*> join_attributes =
+//          { &hash_join->left_join_attributes(), &hash_join->right_join_attributes() };
+//
+//      for (std::size_t i = 0; i < 2; ++i) {
+//        const auto child = hash_join->children()[i];
+//        std::unordered_set<E::ExprId> child_output_attribute_ids;
+//        for (const auto &attr : child->getOutputAttributes()) {
+//          child_output_attribute_ids.emplace(attr->id());
+//        }
+//
+//        std::unordered_map<E::ExprId, E::AttributeReferencePtr> join_attribute_map;
+//        for (std::size_t k = 0; k < hash_join->left_join_attributes().size(); ++k) {
+//          join_attribute_map.emplace(
+//              join_attributes[1-i]->at(k)->id(),
+//              join_attributes[i]->at(k));
+//        }
+//
+//        std::vector<BloomFilterInfo> bloom_filters;
+//        for (const auto &info : parent_bloom_filters) {
+//          if (child_output_attribute_ids.find(info.attribute->id())
+//                  != child_output_attribute_ids.end()) {
+//            bloom_filters.emplace_back(info.source,
+//                                       info.attribute,
+//                                       info.depth,
+//                                       info.selectivity,
+//                                       false,
+//                                       info.source_attribute);
+//          } else {
+//            auto attr_it = join_attribute_map.find(info.attribute->id());
+//            if (attr_it != join_attribute_map.end()) {
+//              bloom_filters.emplace_back(info.source,
+//                                         attr_it->second,
+//                                         info.depth,
+//                                         info.selectivity,
+//                                         false,
+//                                         info.source_attribute);
+//
+//            }
+//          }
+//        }
+//        consumers_.emplace(child, std::move(bloom_filters));
+//      }
+//    }
     for (const auto &child : node->children()) {
       std::unordered_set<E::ExprId> child_output_attribute_ids;
       for (const auto &attr : child->getOutputAttributes()) {
@@ -195,12 +244,30 @@ void AttachBloomFilters::visitConsumer(const P::PhysicalPtr &node) {
     }
   }
 
+  for (const auto &child : node->children()) {
+    visitConsumer(child);
+  }
+}
+
+void AttachBloomFilters::decideAttach(
+    const P::PhysicalPtr &node,
+    std::set<E::ExprId> *used_bloom_filters) {
+  for (const auto &child : node->children()) {
+    std::set<E::ExprId> child_bloom_filters;
+    decideAttach(child, &child_bloom_filters);
+    used_bloom_filters->insert(child_bloom_filters.begin(),
+                               child_bloom_filters.end());
+  }
+
   P::PhysicalPtr consumer_child = nullptr;
   if (node->getPhysicalType() == P::PhysicalType::kHashJoin) {
     consumer_child = std::static_pointer_cast<const P::HashJoin>(node)->left();
   }
   if (node->getPhysicalType() == P::PhysicalType::kAggregate) {
     consumer_child = std::static_pointer_cast<const P::Aggregate>(node)->input();
+  }
+  if (node->getPhysicalType() == P::PhysicalType::kSelection) {
+    consumer_child = std::static_pointer_cast<const P::Selection>(node)->input();
   }
 
   if (consumer_child != nullptr) {
@@ -222,27 +289,27 @@ void AttachBloomFilters::visitConsumer(const P::PhysicalPtr &node) {
 
       auto &probe_attaches = getBloomFilterConfig(node);
       for (const auto &pair : filters) {
-        auto &build_attaches = getBloomFilterConfig(pair.second->source);
-        build_attaches.addBuildSideBloomFilter(
-            pair.second->source_attribute);
-        probe_attaches.addProbeSideBloomFilter(
-            pair.first,
-            pair.second->source_attribute,
-            pair.second->source);
+        const E::ExprId source_attr_id = pair.second->source_attribute->id();
+        if (used_bloom_filters->find(source_attr_id) == used_bloom_filters->end()) {
+          auto &build_attaches = getBloomFilterConfig(pair.second->source);
+          build_attaches.addBuildSideBloomFilter(
+              pair.second->source_attribute);
+          probe_attaches.addProbeSideBloomFilter(
+              pair.first,
+              pair.second->source_attribute,
+              pair.second->source);
+          used_bloom_filters->emplace(source_attr_id);
+        }
       }
     }
   }
-
-  for (const auto &child : node->children()) {
-    visitConsumer(child);
-  }
 }
 
-P::PhysicalPtr AttachBloomFilters::visitAndAttach(const physical::PhysicalPtr &node) {
+P::PhysicalPtr AttachBloomFilters::performAttach(const physical::PhysicalPtr &node) {
   std::vector<P::PhysicalPtr> new_children;
   bool has_changed = false;
   for (const auto &child : node->children()) {
-    P::PhysicalPtr new_child = visitAndAttach(child);
+    P::PhysicalPtr new_child = performAttach(child);
     if (new_child != child) {
       has_changed = true;
     }
@@ -286,6 +353,24 @@ P::PhysicalPtr AttachBloomFilters::visitAndAttach(const physical::PhysicalPtr &n
           aggregate->grouping_expressions(),
           aggregate->aggregate_expressions(),
           aggregate->filter_predicate(),
+          attach_it->second);
+    }
+  }
+
+  if (node->getPhysicalType() == P::PhysicalType::kSelection) {
+    const auto attach_it = attaches_.find(node);
+    if (attach_it != attaches_.end()) {
+//      for (const auto& item : attach_it->second.probe_side_bloom_filters) {
+//        std::cout << "Attach probe from " << item.builder
+//                  << " to " << node << "\n";
+//      }
+
+      const P::SelectionPtr selection =
+          std::static_pointer_cast<const P::Selection>(node);
+      return P::Selection::Create(
+          selection->input(),
+          selection->project_expressions(),
+          selection->filter_predicate(),
           attach_it->second);
     }
   }

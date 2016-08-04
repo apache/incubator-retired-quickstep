@@ -96,12 +96,21 @@ class StarSchemaHashJoinOrderOptimization : public Rule<physical::Physical> {
   };
 
   struct JoinPair {
-    JoinPair(TableInfo *probe_in, TableInfo *build_in)
-        : probe(probe_in), build(build_in) {
+    JoinPair(TableInfo *probe_in,
+             TableInfo *build_in,
+             const bool build_side_unique_in)
+        : probe(probe_in),
+          build(build_in),
+          build_side_unique(build_side_unique_in) {
     }
 
     inline bool isBetterThan(const JoinPair &rhs) const {
       const auto &lhs = *this;
+
+      if (lhs.build_side_unique != rhs.build_side_unique) {
+        return lhs.build_side_unique;
+      }
+
       const bool lhs_has_large_output =
           lhs.build->estimated_num_output_attributes
               + lhs.probe->estimated_num_output_attributes > 5;
@@ -151,6 +160,7 @@ class StarSchemaHashJoinOrderOptimization : public Rule<physical::Physical> {
 
     TableInfo *probe;
     TableInfo *build;
+    const bool build_side_unique;
   };
 
   physical::PhysicalPtr applyInternal(const physical::PhysicalPtr &input,

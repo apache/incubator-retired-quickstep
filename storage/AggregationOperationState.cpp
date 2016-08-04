@@ -54,6 +54,8 @@
 #include "types/containers/Tuple.hpp"
 #include "utility/BloomFilterAdapter.hpp"
 
+#include "gflags/gflags.h"
+
 #include "glog/logging.h"
 
 using std::unique_ptr;

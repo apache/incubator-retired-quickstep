@@ -59,7 +59,11 @@
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
 #include "types/containers/Tuple.hpp"
 #include "types/operations/comparisons/ComparisonUtil.hpp"
+#include "utility/BloomFilter.hpp"
+#include "utility/BloomFilterAdapter.hpp"
 #include "utility/Macros.hpp"
+
+#include "gflags/gflags.h"
 
 #include "glog/logging.h"
 
@@ -77,6 +81,8 @@ using std::unordered_map;
 using std::vector;
 
 namespace quickstep {
+
+DECLARE_int64(bloom_adapter_batch_size);
 
 class Type;
 
@@ -341,6 +347,8 @@ void StorageBlock::sample(const bool is_block_sample,
 
 void StorageBlock::select(const vector<unique_ptr<const Scalar>> &selection,
                           const Predicate *predicate,
+                          const std::vector<const BloomFilter *> &bloom_filters,
+                          const std::vector<attribute_id> &bloom_filter_attribute_ids,
                           InsertDestinationInterface *destination) const {
   ColumnVectorsValueAccessor temp_result;
   {
@@ -350,10 +358,58 @@ void StorageBlock::select(const vector<unique_ptr<const Scalar>> &selection,
 
     std::unique_ptr<TupleIdSequence> matches;
     std::unique_ptr<ValueAccessor> accessor;
-    if (predicate == nullptr) {
+
+    if (bloom_filters.size() > 0) {
+      const std::size_t num_tuples = tuple_store_->numTuples();
+      matches.reset(new TupleIdSequence(num_tuples));
+//      std::cerr << "Before: " << num_tuples << "\n";
       accessor.reset(tuple_store_->createValueAccessor());
+      InvokeOnAnyValueAccessor(
+          accessor.get(),
+          [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+        std::vector<std::size_t> attr_size_vector;
+        attr_size_vector.reserve(bloom_filter_attribute_ids.size());
+        for (const auto &attr : bloom_filter_attribute_ids) {
+          auto val_and_size =
+              accessor->template getUntypedValueAndByteLengthAtAbsolutePosition<false>(0, attr);
+          attr_size_vector.emplace_back(val_and_size.second);
+        }
+
+        std::unique_ptr<BloomFilterAdapter> bloom_filter_adapter;
+        bloom_filter_adapter.reset(new BloomFilterAdapter(
+            bloom_filters, bloom_filter_attribute_ids, attr_size_vector));
+
+        std::uint32_t batch_size_try = FLAGS_bloom_adapter_batch_size;
+        std::uint32_t num_tuples_left = accessor->getNumTuples();
+        std::vector<tuple_id> batch(num_tuples_left);
+
+        do {
+          std::uint32_t batch_size =
+              batch_size_try < num_tuples_left ? batch_size_try : num_tuples_left;
+          for (std::size_t i = 0; i < batch_size; ++i) {
+            accessor->next();
+            batch.push_back(accessor->getCurrentPosition());
+          }
+
+          std::size_t num_hits =
+              bloom_filter_adapter->bulkProbe<true>(accessor, batch, batch_size);
+          for (std::size_t t = 0; t < num_hits; ++t){
+            matches->set(batch[t], true);
+          }
+
+          batch.clear();
+          num_tuples_left -= batch_size;
+          batch_size_try = batch_size * 2;
+        } while (num_tuples_left > 0);
+      });
+//      std::cerr << "After: " << matches->numTuples() << "\n";
+    }
+
+    if (predicate == nullptr) {
+      accessor.reset(tuple_store_->createValueAccessor(matches.get()));
     } else {
-      matches.reset(getMatchesForPredicate(predicate));
+      auto *new_matches = getMatchesForPredicate(predicate, matches.get());
+      matches.reset(new_matches);
       accessor.reset(tuple_store_->createValueAccessor(matches.get()));
     }
 
@@ -371,13 +427,63 @@ void StorageBlock::select(const vector<unique_ptr<const Scalar>> &selection,
 
 void StorageBlock::selectSimple(const std::vector<attribute_id> &selection,
                                 const Predicate *predicate,
+                                const std::vector<const BloomFilter *> &bloom_filters,
+                                const std::vector<attribute_id> &bloom_filter_attribute_ids,
                                 InsertDestinationInterface *destination) const {
   std::unique_ptr<ValueAccessor> accessor;
   std::unique_ptr<TupleIdSequence> matches;
-  if (predicate == nullptr) {
+
+  if (bloom_filters.size() > 0) {
+    const std::size_t num_tuples = tuple_store_->numTuples();
+    matches.reset(new TupleIdSequence(num_tuples));
+//    std::cerr << "Before: " << num_tuples << "\n";
     accessor.reset(tuple_store_->createValueAccessor());
+    InvokeOnAnyValueAccessor(
+        accessor.get(),
+        [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+      std::vector<std::size_t> attr_size_vector;
+      attr_size_vector.reserve(bloom_filter_attribute_ids.size());
+      for (const auto &attr : bloom_filter_attribute_ids) {
+        auto val_and_size =
+            accessor->template getUntypedValueAndByteLengthAtAbsolutePosition<false>(0, attr);
+        attr_size_vector.emplace_back(val_and_size.second);
+      }
+
+      std::unique_ptr<BloomFilterAdapter> bloom_filter_adapter;
+      bloom_filter_adapter.reset(new BloomFilterAdapter(
+          bloom_filters, bloom_filter_attribute_ids, attr_size_vector));
+
+      std::uint32_t batch_size_try = FLAGS_bloom_adapter_batch_size;
+      std::uint32_t num_tuples_left = accessor->getNumTuples();
+      std::vector<tuple_id> batch(num_tuples_left);
+
+      do {
+        std::uint32_t batch_size =
+            batch_size_try < num_tuples_left ? batch_size_try : num_tuples_left;
+        for (std::size_t i = 0; i < batch_size; ++i) {
+          accessor->next();
+          batch.push_back(accessor->getCurrentPosition());
+        }
+
+        std::size_t num_hits =
+            bloom_filter_adapter->bulkProbe<true>(accessor, batch, batch_size);
+        for (std::size_t t = 0; t < num_hits; ++t){
+          matches->set(batch[t], true);
+        }
+
+        batch.clear();
+        num_tuples_left -= batch_size;
+        batch_size_try = batch_size * 2;
+      } while (num_tuples_left > 0);
+    });
+//    std::cerr << "After: " << matches->numTuples() << "\n";
+  }
+
+  if (predicate == nullptr) {
+    accessor.reset(tuple_store_->createValueAccessor(matches.get()));
   } else {
-    matches.reset(getMatchesForPredicate(predicate));
+    auto *new_matches = getMatchesForPredicate(predicate, matches.get());
+    matches.reset(new_matches);
     accessor.reset(tuple_store_->createValueAccessor(matches.get()));
   }
 
@@ -1219,12 +1325,13 @@ bool StorageBlock::rebuildIndexes(bool short_circuit) {
   return all_indices_consistent_;
 }
 
-TupleIdSequence* StorageBlock::getMatchesForPredicate(const Predicate *predicate) const {
+TupleIdSequence* StorageBlock::getMatchesForPredicate(const Predicate *predicate,
+                                                      const TupleIdSequence *sequence) const {
   if (predicate == nullptr) {
     return tuple_store_->getExistenceMap();
   }
 
-  std::unique_ptr<ValueAccessor> value_accessor(tuple_store_->createValueAccessor());
+  std::unique_ptr<ValueAccessor> value_accessor(tuple_store_->createValueAccessor(sequence));
   std::unique_ptr<TupleIdSequence> existence_map;
   if (!tuple_store_->isPacked()) {
     existence_map.reset(tuple_store_->getExistenceMap());

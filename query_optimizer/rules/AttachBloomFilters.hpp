@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -97,7 +98,10 @@ class AttachBloomFilters : public Rule<physical::Physical> {
 
   void visitConsumer(const physical::PhysicalPtr &node);
 
-  physical::PhysicalPtr visitAndAttach(const physical::PhysicalPtr &node);
+  void decideAttach(const physical::PhysicalPtr &node,
+                    std::set<expressions::ExprId> *used_bloom_filters);
+
+  physical::PhysicalPtr performAttach(const physical::PhysicalPtr &node);
 
   physical::BloomFilterConfig &getBloomFilterConfig(const physical::PhysicalPtr &node);
 
