@@ -32,7 +32,6 @@
 #include "relational_operators/WorkOrderFactory.hpp"
 #include "storage/InsertDestination.hpp"
 #include "storage/StorageBlock.hpp"
-#include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
 #include "threading/ThreadUtil.hpp"
 
@@ -156,15 +155,7 @@ void Shiftboss::run() {
         CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
 
         for (int i = 0; i < proto.blocks_size(); ++i) {
-          const block_id block = proto.blocks(i);
-          storage_manager_->saveBlockOrBlob(block);
-          if (storage_manager_->blockOrBlobIsLoaded(block)) {
-            // NOTE(zuyu): eviction is required to avoid accesses to the query
-            // result relation schema in CatalogDatabaseCache, for all query
-            // optimizer execution generator unit tests and the single-process
-            // Quickstep CLI.
-            storage_manager_->evictBlockOrBlob(block);
-          }
+          storage_manager_->saveBlockOrBlob(proto.blocks(i));
         }
 
         serialization::SaveQueryResultResponseMessage proto_response;

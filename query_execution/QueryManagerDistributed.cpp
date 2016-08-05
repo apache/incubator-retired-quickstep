@@ -42,11 +42,11 @@ using std::unique_ptr;
 namespace quickstep {
 
 QueryManagerDistributed::QueryManagerDistributed(QueryHandle *query_handle,
-                                                 ShiftbossDirectory *shiftbosses,
+                                                 ShiftbossDirectory *shiftboss_directory,
                                                  const tmb::client_id foreman_client_id,
                                                  tmb::MessageBus *bus)
     : QueryManagerBase(query_handle),
-      shiftbosses_(shiftbosses),
+      shiftboss_directory_(shiftboss_directory),
       foreman_client_id_(foreman_client_id),
       bus_(bus),
       normal_workorder_protos_container_(
@@ -168,7 +168,7 @@ bool QueryManagerDistributed::initiateRebuild(const dag_node_index index) {
   // TODO(zuyu): Multiple workers support.
   QueryExecutionUtil::SendTMBMessage(bus_,
                                      foreman_client_id_,
-                                     shiftbosses_->getClientId(0),
+                                     shiftboss_directory_->getClientId(0),
                                      move(tagged_msg));
 
   // The negative value indicates that the number of rebuild work orders is to be

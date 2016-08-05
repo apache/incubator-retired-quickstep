@@ -231,7 +231,6 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_relationaloperators_WorkOrderFactory
                         quickstep_storage_InsertDestination
                         quickstep_storage_StorageBlock
-                        quickstep_storage_StorageBlockInfo
                         quickstep_storage_StorageManager
                         quickstep_threading_Thread
                         quickstep_threading_ThreadUtil

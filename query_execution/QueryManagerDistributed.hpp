@@ -48,12 +48,12 @@ class QueryManagerDistributed final : public QueryManagerBase {
    * @brief Constructor.
    *
    * @param query_handle The QueryHandle object for this query.
-   * @param shiftbosses The ShiftbossDirectory to use.
+   * @param shiftboss_directory The ShiftbossDirectory to use.
    * @param foreman_client_id The TMB client ID of the foreman thread.
    * @param bus The TMB used for communication.
    **/
   QueryManagerDistributed(QueryHandle *query_handle,
-                          ShiftbossDirectory *shiftbosses,
+                          ShiftbossDirectory *shiftboss_directory,
                           const tmb::client_id foreman_client_id,
                           tmb::MessageBus *bus);
 
@@ -100,7 +100,7 @@ class QueryManagerDistributed final : public QueryManagerBase {
            (query_exec_state_->getNumRebuildWorkOrders(index) == 0);
   }
 
-  ShiftbossDirectory *shiftbosses_;
+  ShiftbossDirectory *shiftboss_directory_;
 
   const tmb::client_id foreman_client_id_;
   tmb::MessageBus *bus_;
