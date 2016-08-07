@@ -1,4 +1,4 @@
-At the time of the intial commit in January 2016, here are the commit stats of the Quickstep committers over the past many years. 
+At the time of the intial commit in January 2016, here are the commit stats of the Quickstep committers over the past many years.
 
 | **Committer**   | **# commits**    | **++ lines**      | **-- lines**      |
 | :-------------- |-----------------:|------------------:|------------------:|

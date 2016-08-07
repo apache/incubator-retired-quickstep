@@ -1,19 +1,19 @@
-#   Copyright 2011-2015 Quickstep Technologies LLC.
-#   Copyright 2015-2016 Pivotal Software, Inc.
-#   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
-#     University of Wisconsin—Madison.
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
 #
-#   Licensed under the Apache License, Version 2.0 (the "License");
-#   you may not use this file except in compliance with the License.
-#   You may obtain a copy of the License at
+#   http://www.apache.org/licenses/LICENSE-2.0
 #
-#       http://www.apache.org/licenses/LICENSE-2.0
-#
-#   Unless required by applicable law or agreed to in writing, software
-#   distributed under the License is distributed on an "AS IS" BASIS,
-#   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-#   See the License for the specific language governing permissions and
-#   limitations under the License.
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
 
 QS_PROTOBUF_GENERATE_CPP(relationaloperators_SortMergeRunOperator_proto_srcs
                          relationaloperators_SortMergeRunOperator_proto_hdrs
@@ -436,7 +436,7 @@ target_link_libraries(quickstep_relationaloperators_WindowAggregationOperator
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_WindowAggregationOperationState
                       quickstep_utility_Macros
-                      tmb)                      
+                      tmb)
 target_link_libraries(quickstep_relationaloperators_WorkOrder
                       glog
                       quickstep_queryexecution_QueryExecutionTypedefs

@@ -37,7 +37,7 @@ ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/
 ```
 
 Once you have brew installed, simply use brew to install cmake from the
-Terminal app by typing: 
+Terminal app by typing:
 
 ```
 brew install cmake
@@ -90,13 +90,13 @@ cp -R ../qsstor .
 ```
 
 The above command ensures that you now have the appropriate directory structure
-and a starting catalog file to start Quickstep. The default database is called 
-simply "default" and no relations in it upfront. 
+and a starting catalog file to start Quickstep. The default database is called
+simply "default" and no relations in it upfront.
 
 There are other ways of specifying where Quickstep stores the data and catalog.
 In particular there is a  `-storage_path` option that could be an alternative
 way of specifying the storage path and avoiding the copy above. You can find
-these and other command line options by typing: 
+these and other command line options by typing:
 
 ```
 ./quickstep_cli_shell -help
@@ -104,15 +104,15 @@ these and other command line options by typing:
 
 
 ###4: Debug Quickstep
-Now you can debug as you would any normal process in Xcode. Note the 
+Now you can debug as you would any normal process in Xcode. Note the
 linenoise option in the cmake command above is important if you are going
-to run quickstep from Xcode (by hitting the "play" button). If you are 
-curious why we have that option, see 
+to run quickstep from Xcode (by hitting the "play" button). If you are
+curious why we have that option, see
 https://github.com/antirez/linenoise/issues/85. Quickstep uses the linenoise
 package, and Xcode's embedded terminal has limited functionality. With the
 cmake option above, we turn off using linenoise.
 
-Sometimes you may want to run quickstep from the command line and still 
+Sometimes you may want to run quickstep from the command line and still
 debug with Xcode. For that scenario, you do the following:
 a) In Xcode, go to `Debug -> Attach to Processs` and type in
 `quickstep_cli_shell`. If you want to set a breakpoint, you can do
@@ -136,7 +136,7 @@ you can examine the stack in Xcode.
 
 ###5: Unit Tests
 Individual unit tests show up as target schemas, so you can simply select them
-and run the unit test of interest. 
+and run the unit test of interest.
 
 Running all the unit tests is complicated, and simply picking the `RUN_TESTS`
 does not work. So, this is a known limitation at this point. You can, however,

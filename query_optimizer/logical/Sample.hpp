@@ -1,18 +1,20 @@
 /**
- *   Copyright 2016, Quickstep Research Group, Computer Sciences Department,
- *     University of Wisconsin—Madison.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
  *
- *   Licensed under the Apache License, Version 2.0 (the "License");
- *   you may not use this file except in compliance with the License.
- *   You may obtain a copy of the License at
+ *   http://www.apache.org/licenses/LICENSE-2.0
  *
- *       http://www.apache.org/licenses/LICENSE-2.0
- *
- *   Unless required by applicable law or agreed to in writing, software
- *   distributed under the License is distributed on an "AS IS" BASIS,
- *   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *   See the License for the specific language governing permissions and
- *   limitations under the License.
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
  **/
 
 #ifndef QUICKSTEP_QUERY_OPTIMIZER_LOGICAL_SAMPLE_HPP_
@@ -41,7 +43,7 @@ class Sample;
 typedef std::shared_ptr<const Sample> SamplePtr;
 
 /**
- * @brief Sample operator that samples the data at a block level or 
+ * @brief Sample operator that samples the data at a block level or
  *        at the tuple level and outputs them as a new relation.
  */
 class Sample : public Logical {
@@ -87,7 +89,7 @@ class Sample : public Logical {
    *        relation produced by \p input.
    * @param input The input operator to this Sample.
    * @param is_block_sample Flag indicating if the sampling is either a block or
-   *                        tuple level sampling 
+   *                        tuple level sampling
    * @param percentage The percentage of tuples/blocks to be sampled
    *
    * @return An immutable Sample.

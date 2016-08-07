@@ -65,12 +65,12 @@ It is a theta-join between two generated relations. The output will be:
 
 4. At the final stage of query planning, the physical plan node is transformed into a relational operator.
  - *See `TableGeneratorOperator` as the relational operator class that represents a operator that will produce run-time work orders.*
- 
+
 5. At the time of query execution, the function handle's `populateColumns()` method is invoked to actually generate a relation.
  - *See `TableGeneratorWorkOrder` as the work order class that actually invokes the generator function to populate a relation at run time.*
- 
+
 ##Implement a new generator function
-There are just three steps to implement a new generator function. 
+There are just three steps to implement a new generator function.
 
 1. Subclass **`GeneratorFunctionHandle`** and implement all virtual methods.
  - *See `GenerateSeriesHandle` as an example.*

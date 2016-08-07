@@ -8,7 +8,7 @@
 ## What is Quickstep?
 Apache Quickstep is high-performance database engine designed to exploit the full potential of hardware that is packed in modern computing boxes (servers and laptops). The initial version (available now!) targets single-node in-memory environments. If your data spills overs the memory limit Quickstep will still work, so you don't have to obsessively worry about the in-memory part. Also, if your working set fits in memory then Quickstep will transparently and automatically figure that out, and cache that hot set to  deliver in-memory performance.
 
-Distributed execution is the next big feature for Quickstep.  
+Distributed execution is the next big feature for Quickstep.
 
 Quickstep began life in 2011 as a
 [research project at the University of Wisconsin](https://www.cs.wisc.edu/~jignesh)
@@ -39,13 +39,13 @@ And, it is **open source!**
 3. Initialize the dependencies: ```git submodule init```
 4. Checkout the dependencies: ```git submodule update```
 5. Go into the build directory: ```cd build```
-6. Create the Makefile: ```cmake -D CMAKE_BUILD_TYPE=Release ..```  
-7. Build: ```make -j4```. Note you may replace the 4 with the number of cores 
+6. Create the Makefile: ```cmake -D CMAKE_BUILD_TYPE=Release ..```
+7. Build: ```make -j4```. Note you may replace the 4 with the number of cores
    on your machine.
-8. Start quickstep: ```./quickstep_cli_shell --initialize_db=true```. You can 
-   now fire SQL queries. To quit, you can type in ```quit;``` Your data is 
+8. Start quickstep: ```./quickstep_cli_shell --initialize_db=true```. You can
+   now fire SQL queries. To quit, you can type in ```quit;``` Your data is
    stored in the directory ```qsstor```. Note the next time you start Quickstep,
-   you can omit the ``` --initialize_db``` flag (as the database has already 
+   you can omit the ``` --initialize_db``` flag (as the database has already
    been initialized), and simply start Quickstep as: ```./quickstep_cli_shell```.
    There are also a number of optional flags that you can specify, and to see
    the full list, you can type in: ```./quickstep_cli_shell --help```
@@ -87,21 +87,21 @@ CREATE TABLE City (cid Integer, name VARCHAR(80), state CHAR(2));
   SELECT cid, MIN(lowTemperature), MAX(highTemperature) FROM Weather GROUP BY cid;
   ```
 
-  c. Find the min and max temperature for each city using a nested query, and 
+  c. Find the min and max temperature for each city using a nested query, and
      printing thie city name:
   ```
   SELECT * FROM City C, (SELECT cid, MIN(lowTemperature), MAX(highTemperature) FROM Weather GROUP BY cid) AS T WHERE C.cid = T.cid;
   ```
 
 12. Quickstep also supports a COPY TABLE command. If you want to try that, then
-    from a separate shell file type in the following: 
+    from a separate shell file type in the following:
 
     ```
     echo "3|2015-11-3|49|29" > /tmp/tmp.tbl
     echo "3|2015-11-4|48|28" >> /tmp/tmp.tbl
     echo "3|2015-11-5|47|27" >> /tmp/tmp.tbl
     ```
-   
+
     Then, load this new data by typing the following SQL in the Quickstep shell:
 
     ```
