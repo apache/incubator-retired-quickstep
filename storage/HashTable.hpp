@@ -38,8 +38,8 @@
 #include "storage/TupleReference.hpp"
 #include "storage/ValueAccessor.hpp"
 #include "storage/ValueAccessorUtil.hpp"
+#include "threading/Mutex.hpp"
 #include "threading/SpinSharedMutex.hpp"
-#include "threading/SpinMutex.hpp"
 #include "types/Type.hpp"
 #include "types/TypedValue.hpp"
 #include "utility/BloomFilter.hpp"
@@ -1353,7 +1353,7 @@ class HashTable : public HashTableBase<resizable,
   bool has_probe_side_bloom_filter_ = false;
   std::vector<BloomFilter *> build_bloom_filters_;
   std::map<std::thread::id, std::vector<std::unique_ptr<BloomFilter>>> thread_local_bloom_filters_;
-  SpinMutex bloom_filter_mutex_;
+  Mutex bloom_filter_mutex_;
   std::vector<attribute_id> build_attribute_ids_;
   std::vector<const BloomFilter*> probe_bloom_filters_;
   std::vector<attribute_id> probe_attribute_ids_;
@@ -1506,7 +1506,7 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
     BloomFilter *thread_local_bloom_filter = nullptr;
     if (has_build_side_bloom_filter_) {
       const auto tid = std::this_thread::get_id();
-      SpinMutexLock lock(bloom_filter_mutex_);
+      MutexLock lock(bloom_filter_mutex_);
       auto bf_it = thread_local_bloom_filters_.find(tid);
       if (bf_it == thread_local_bloom_filters_.end()) {
         auto &bf_vector = thread_local_bloom_filters_[tid];
@@ -1644,7 +1644,7 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
       const auto tid = std::this_thread::get_id();
       std::vector<std::unique_ptr<BloomFilter>> *thread_local_bf_vector;
       {
-        SpinMutexLock lock(bloom_filter_mutex_);
+        MutexLock lock(bloom_filter_mutex_);
         auto bf_it = thread_local_bloom_filters_.find(tid);
         if (bf_it == thread_local_bloom_filters_.end()) {
           thread_local_bf_vector = &thread_local_bloom_filters_[tid];
