@@ -89,7 +89,7 @@ class DropTableOperator : public RelationalOperator {
 
   bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
-  void updateCatalogOnCompletion() override;
+  void actionOnCompletion() override;
 
  private:
   const CatalogRelation &relation_;

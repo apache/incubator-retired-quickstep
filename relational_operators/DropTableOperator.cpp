@@ -80,7 +80,7 @@ bool DropTableOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *containe
   return work_generated_;
 }
 
-void DropTableOperator::updateCatalogOnCompletion() {
+void DropTableOperator::actionOnCompletion() {
   const relation_id rel_id = relation_.getID();
   if (only_drop_blocks_) {
     database_->getRelationByIdMutable(rel_id)->clearBlocks();

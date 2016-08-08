@@ -23,7 +23,9 @@
 #include <atomic>
 #include <cstddef>
 #include <cstdlib>
+#include <map>
 #include <memory>
+#include <thread>
 #include <type_traits>
 #include <vector>
 
@@ -37,6 +39,7 @@
 #include "storage/ValueAccessor.hpp"
 #include "storage/ValueAccessorUtil.hpp"
 #include "threading/SpinSharedMutex.hpp"
+#include "threading/SpinMutex.hpp"
 #include "types/Type.hpp"
 #include "types/TypedValue.hpp"
 #include "utility/BloomFilter.hpp"
@@ -1028,6 +1031,17 @@ class HashTable : public HashTableBase<resizable,
     build_attribute_ids_.push_back(build_attribute_id);
   }
 
+  inline void finalizeBuildSideThreadLocalBloomFilters() {
+    if (has_build_side_bloom_filter_) {
+      for (const auto &thread_local_bf_pair : thread_local_bloom_filters_) {
+        for (std::size_t i = 0; i < build_bloom_filters_.size(); ++i) {
+          build_bloom_filters_[i]->bitwiseOr(
+              thread_local_bf_pair.second[i].get());
+        }
+      }
+    }
+  }
+
   /**
    * @brief This function adds a pointer to the list of bloom filters to be
    *        used during the probe phase of this hash table.
@@ -1338,6 +1352,8 @@ class HashTable : public HashTableBase<resizable,
   bool has_build_side_bloom_filter_ = false;
   bool has_probe_side_bloom_filter_ = false;
   std::vector<BloomFilter *> build_bloom_filters_;
+  std::map<std::thread::id, std::vector<std::unique_ptr<BloomFilter>>> thread_local_bloom_filters_;
+  SpinMutex bloom_filter_mutex_;
   std::vector<attribute_id> build_attribute_ids_;
   std::vector<const BloomFilter*> probe_bloom_filters_;
   std::vector<attribute_id> probe_attribute_ids_;
@@ -1487,22 +1503,19 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
       }
     }
 
+    BloomFilter *thread_local_bloom_filter = nullptr;
     if (has_build_side_bloom_filter_) {
-      for (std::size_t i = 0; i < build_bloom_filters_.size(); ++i) {
-        auto *build_bloom_filter = build_bloom_filters_[i];
-        std::unique_ptr<BloomFilter> thread_local_bloom_filter(
-            new BloomFilter(build_bloom_filter->getNumberOfHashes(),
-                            build_bloom_filter->getBitArraySize()));
-        const auto &build_attr = build_attribute_ids_[i];
-        const std::size_t attr_size =
-            accessor->template getUntypedValueAndByteLengthAtAbsolutePosition<false>(0, build_attr).second;
-        while (accessor->next()) {
-          thread_local_bloom_filter->insertUnSafe(
-              static_cast<const std::uint8_t *>(accessor->getUntypedValue(build_attr)),
-              attr_size);
-        }
-        build_bloom_filter->bitwiseOr(thread_local_bloom_filter.get());
-        accessor->beginIteration();
+      const auto tid = std::this_thread::get_id();
+      SpinMutexLock lock(bloom_filter_mutex_);
+      auto bf_it = thread_local_bloom_filters_.find(tid);
+      if (bf_it == thread_local_bloom_filters_.end()) {
+        auto &bf_vector = thread_local_bloom_filters_[tid];
+        bf_vector.emplace_back(
+            std::make_unique<BloomFilter>(build_bloom_filters_[0]->getNumberOfHashes(),
+                                          build_bloom_filters_[0]->getBitArraySize()));
+        thread_local_bloom_filter = bf_vector[0].get();
+      } else {
+        thread_local_bloom_filter = bf_it->second[0].get();
       }
     }
 
@@ -1521,6 +1534,11 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
                                        variable_size,
                                        (*functor)(*accessor),
                                        using_prealloc ? &prealloc_state : nullptr);
+            // Insert into bloom filter, if enabled.
+            if (has_build_side_bloom_filter_) {
+              thread_local_bloom_filter->insertUnSafe(static_cast<const std::uint8_t *>(key.getDataPtr()),
+                                                      key.getDataSize());
+            }
             if (result == HashTablePutResult::kDuplicateKey) {
               DEBUG_ASSERT(!using_prealloc);
               return result;
@@ -1546,6 +1564,11 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
                                    variable_size,
                                    (*functor)(*accessor),
                                    using_prealloc ? &prealloc_state : nullptr);
+        // Insert into bloom filter, if enabled.
+        if (has_build_side_bloom_filter_) {
+          thread_local_bloom_filter->insertUnSafe(static_cast<const std::uint8_t *>(key.getDataPtr()),
+                                                  key.getDataSize());
+        }
         if (result != HashTablePutResult::kOK) {
           return result;
         }
@@ -1618,12 +1641,26 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
     }
 
     if (has_build_side_bloom_filter_) {
+      const auto tid = std::this_thread::get_id();
+      std::vector<std::unique_ptr<BloomFilter>> *thread_local_bf_vector;
+      {
+        SpinMutexLock lock(bloom_filter_mutex_);
+        auto bf_it = thread_local_bloom_filters_.find(tid);
+        if (bf_it == thread_local_bloom_filters_.end()) {
+          thread_local_bf_vector = &thread_local_bloom_filters_[tid];
+          for (const auto &build_side_bf : build_bloom_filters_) {
+            thread_local_bf_vector->emplace_back(
+                std::make_unique<BloomFilter>(build_side_bf->getNumberOfHashes(),
+                                              build_side_bf->getBitArraySize()));
+          }
+        } else {
+          thread_local_bf_vector = &bf_it->second;
+        }
+      }
+
       for (std::size_t i = 0; i < build_bloom_filters_.size(); ++i) {
-        auto *build_bloom_filter = build_bloom_filters_[i];
-        std::unique_ptr<BloomFilter> thread_local_bloom_filter(
-            new BloomFilter(build_bloom_filter->getNumberOfHashes(),
-                            build_bloom_filter->getBitArraySize()));
         const auto &build_attr = build_attribute_ids_[i];
+        BloomFilter *thread_local_bloom_filter = (*thread_local_bf_vector)[i].get();
         const std::size_t attr_size =
             accessor->template getUntypedValueAndByteLengthAtAbsolutePosition<false>(0, build_attr).second;
         while (accessor->next()) {
@@ -1631,7 +1668,6 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
               static_cast<const std::uint8_t *>(accessor->getUntypedValue(build_attr)),
               attr_size);
         }
-        build_bloom_filter->bitwiseOr(thread_local_bloom_filter.get());
         accessor->beginIteration();
       }
     }

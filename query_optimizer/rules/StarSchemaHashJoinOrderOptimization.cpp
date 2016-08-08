@@ -254,9 +254,9 @@ physical::PhysicalPtr StarSchemaHashJoinOrderOptimization::generatePlan(
 
     TableInfo *selected_probe_table_info = best_join->probe;
     TableInfo *selected_build_table_info = best_join->build;
-    std::cerr << "card: " << selected_probe_table_info->estimated_cardinality << "\n";
-    std::cerr << "card: " << selected_build_table_info->estimated_cardinality << "\n";
-    std::cerr << "--------\n";
+//    std::cerr << "card: " << selected_probe_table_info->estimated_cardinality << "\n";
+//    std::cerr << "card: " << selected_build_table_info->estimated_cardinality << "\n";
+//    std::cerr << "--------\n";
     if (!best_join->build_side_unique &&
         selected_probe_table_info->estimated_cardinality < selected_build_table_info->estimated_cardinality) {
       std::swap(selected_probe_table_info, selected_build_table_info);

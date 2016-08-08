@@ -119,7 +119,7 @@ std::size_t SimpleCostModel::estimateCardinalityForAggregate(
     return 1;
   }
   return std::max(static_cast<std::size_t>(1),
-                  estimateCardinality(physical_plan->input()));
+                  estimateCardinality(physical_plan->input()) / 10);
 }
 
 std::size_t SimpleCostModel::estimateCardinalityForWindowAggregate(

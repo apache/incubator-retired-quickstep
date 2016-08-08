@@ -90,7 +90,7 @@ class CreateIndexOperator : public RelationalOperator {
     return true;
   }
 
-  void updateCatalogOnCompletion() override;
+  void actionOnCompletion() override;
 
  private:
   CatalogRelation *relation_;

@@ -114,11 +114,11 @@ class RelationalOperator {
   virtual bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) = 0;
 
   /**
-   * @brief Update Catalog upon the completion of this RelationalOperator, if
+   * @brief Perform action upon the completion of this RelationalOperator, if
    *        necessary.
    *
    **/
-  virtual void updateCatalogOnCompletion() {
+  virtual void actionOnCompletion() {
   }
 
   /**

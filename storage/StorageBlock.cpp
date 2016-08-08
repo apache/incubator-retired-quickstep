@@ -1326,12 +1326,16 @@ bool StorageBlock::rebuildIndexes(bool short_circuit) {
 }
 
 TupleIdSequence* StorageBlock::getMatchesForPredicate(const Predicate *predicate,
-                                                      const TupleIdSequence *sequence) const {
+                                                      const TupleIdSequence *filter) const {
   if (predicate == nullptr) {
-    return tuple_store_->getExistenceMap();
+    TupleIdSequence *sequence = tuple_store_->getExistenceMap();
+    if (filter != nullptr) {
+      sequence->intersectWith(*filter);
+    }
+    return sequence;
   }
 
-  std::unique_ptr<ValueAccessor> value_accessor(tuple_store_->createValueAccessor(sequence));
+  std::unique_ptr<ValueAccessor> value_accessor(tuple_store_->createValueAccessor());
   std::unique_ptr<TupleIdSequence> existence_map;
   if (!tuple_store_->isPacked()) {
     existence_map.reset(tuple_store_->getExistenceMap());
@@ -1341,7 +1345,7 @@ TupleIdSequence* StorageBlock::getMatchesForPredicate(const Predicate *predicate
                                     indices_consistent_);
   return predicate->getAllMatches(value_accessor.get(),
                                   &sub_blocks_ref,
-                                  nullptr,
+                                  filter,
                                   existence_map.get());
 }
 

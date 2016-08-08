@@ -89,6 +89,7 @@ class BuildHashOperator : public RelationalOperator {
       join_key_attributes_(join_key_attributes),
       any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
       hash_table_index_(hash_table_index),
+      hash_table_(nullptr),
       input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
                                                          : std::vector<block_id>()),
       num_workorders_generated_(0),
@@ -124,6 +125,8 @@ class BuildHashOperator : public RelationalOperator {
                                      partially_filled_blocks->end());
   }
 
+  void actionOnCompletion() override;
+
  private:
   /**
    * @brief Create Work Order proto.
@@ -137,6 +140,7 @@ class BuildHashOperator : public RelationalOperator {
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
   const QueryContext::join_hash_table_id hash_table_index_;
+  JoinHashTable *hash_table_;
 
   std::vector<block_id> input_relation_block_ids_;
   std::vector<block_id>::size_type num_workorders_generated_;

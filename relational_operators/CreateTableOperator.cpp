@@ -36,7 +36,7 @@ bool CreateTableOperator::getAllWorkOrders(
   return true;
 }
 
-void CreateTableOperator::updateCatalogOnCompletion() {
+void CreateTableOperator::actionOnCompletion() {
   database_->addRelation(relation_.release());
 }
 

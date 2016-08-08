@@ -593,7 +593,7 @@ class StorageBlock : public StorageBlockBase {
   const std::size_t getNumTuples() const;
 
   TupleIdSequence* getMatchesForPredicate(const Predicate *predicate,
-                                          const TupleIdSequence *sequence = nullptr) const;
+                                          const TupleIdSequence *filter = nullptr) const;
 
  private:
   static TupleStorageSubBlock* CreateTupleStorageSubBlock(

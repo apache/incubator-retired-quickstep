@@ -209,7 +209,7 @@ void QueryManagerBase::markOperatorFinished(const dag_node_index index) {
   query_exec_state_->setExecutionFinished(index);
 
   RelationalOperator *op = query_dag_->getNodePayloadMutable(index);
-  op->updateCatalogOnCompletion();
+  op->actionOnCompletion();
 
   const relation_id output_rel = op->getOutputRelationID();
   for (const pair<dag_node_index, bool> &dependent_link : query_dag_->getDependents(index)) {

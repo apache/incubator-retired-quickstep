@@ -68,7 +68,10 @@ bool BuildHashOperator::getAllWorkOrders(
     tmb::MessageBus *bus) {
   DCHECK(query_context != nullptr);
 
-  JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_index_);
+  if (hash_table_ == nullptr) {
+    hash_table_ = query_context->getJoinHashTable(hash_table_index_);
+  }
+
   if (input_relation_is_stored_) {
     if (!started_) {
       for (const block_id input_block_id : input_relation_block_ids_) {
@@ -78,7 +81,7 @@ bool BuildHashOperator::getAllWorkOrders(
                                    join_key_attributes_,
                                    any_join_key_attributes_nullable_,
                                    input_block_id,
-                                   hash_table,
+                                   hash_table_,
                                    storage_manager),
             op_index_);
       }
@@ -94,7 +97,7 @@ bool BuildHashOperator::getAllWorkOrders(
               join_key_attributes_,
               any_join_key_attributes_nullable_,
               input_relation_block_ids_[num_workorders_generated_],
-              hash_table,
+              hash_table_,
               storage_manager),
           op_index_);
       ++num_workorders_generated_;
@@ -140,6 +143,9 @@ serialization::WorkOrder* BuildHashOperator::createWorkOrderProto(const block_id
   return proto;
 }
 
+void BuildHashOperator::actionOnCompletion() {
+  hash_table_->finalizeBuildSideThreadLocalBloomFilters();
+}
 
 void BuildHashWorkOrder::execute() {
   BlockReference block(

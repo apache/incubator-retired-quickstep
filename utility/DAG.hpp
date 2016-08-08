@@ -293,8 +293,8 @@ class DAG {
      *                      node at node_index.
      **/
      inline void addDependent(const size_type_nodes node_index, const LinkMetadataT &link_metadata) {
-       DCHECK(dependents_with_metadata_.find(node_index) == dependents_with_metadata_.end());
-       dependents_with_metadata_.emplace(node_index, link_metadata);
+       // DCHECK(dependents_with_metadata_.find(node_index) == dependents_with_metadata_.end());
+       dependents_with_metadata_[node_index] = link_metadata;
      }
 
     /**

@@ -89,7 +89,7 @@ class CreateTableOperator : public RelationalOperator {
     return true;
   }
 
-  void updateCatalogOnCompletion() override;
+  void actionOnCompletion() override;
 
  private:
   std::unique_ptr<CatalogRelation> relation_;

@@ -143,12 +143,11 @@ void AttachBloomFilters::visitConsumer(const P::PhysicalPtr &node) {
   // Bloom filters from parent
   const auto &parent_bloom_filters = consumers_[node];
   if (!parent_bloom_filters.empty()) {
-//    if (node->getPhysicalType() == P::PhysicalType::kHashJoin) {
-//      const P::HashJoinPtr hash_join =
-//          std::static_pointer_cast<const P::HashJoin>(node);
+//    P::HashJoinPtr hash_join;
+//    if (P::SomeHashJoin::MatchesWithConditionalCast(node, &hash_join) &&
+//        hash_join->join_type() == P::HashJoin::JoinType::kInnerJoin) {
 //      const std::vector<const std::vector<E::AttributeReferencePtr>*> join_attributes =
 //          { &hash_join->left_join_attributes(), &hash_join->right_join_attributes() };
-//
 //      for (std::size_t i = 0; i < 2; ++i) {
 //        const auto child = hash_join->children()[i];
 //        std::unordered_set<E::ExprId> child_output_attribute_ids;
@@ -188,7 +187,7 @@ void AttachBloomFilters::visitConsumer(const P::PhysicalPtr &node) {
 //        }
 //        consumers_.emplace(child, std::move(bloom_filters));
 //      }
-//    }
+//    } else {
     for (const auto &child : node->children()) {
       std::unordered_set<E::ExprId> child_output_attribute_ids;
       for (const auto &attr : child->getOutputAttributes()) {
@@ -209,6 +208,7 @@ void AttachBloomFilters::visitConsumer(const P::PhysicalPtr &node) {
       }
       consumers_.emplace(child, std::move(bloom_filters));
     }
+//    }
   }
 
   // Bloom filters from build side to probe side via HashJoin
@@ -260,14 +260,18 @@ void AttachBloomFilters::decideAttach(
   }
 
   P::PhysicalPtr consumer_child = nullptr;
-  if (node->getPhysicalType() == P::PhysicalType::kHashJoin) {
-    consumer_child = std::static_pointer_cast<const P::HashJoin>(node)->left();
-  }
-  if (node->getPhysicalType() == P::PhysicalType::kAggregate) {
-    consumer_child = std::static_pointer_cast<const P::Aggregate>(node)->input();
-  }
-  if (node->getPhysicalType() == P::PhysicalType::kSelection) {
-    consumer_child = std::static_pointer_cast<const P::Selection>(node)->input();
+  switch (node->getPhysicalType()) {
+    case P::PhysicalType::kHashJoin:
+      consumer_child = std::static_pointer_cast<const P::HashJoin>(node)->left();
+      break;
+    case P::PhysicalType::kAggregate:
+      consumer_child = std::static_pointer_cast<const P::Aggregate>(node)->input();
+      break;
+    case P::PhysicalType::kSelection:
+      consumer_child = std::static_pointer_cast<const P::Selection>(node)->input();
+      break;
+    default:
+      break;
   }
 
   if (consumer_child != nullptr) {
@@ -320,7 +324,7 @@ P::PhysicalPtr AttachBloomFilters::performAttach(const physical::PhysicalPtr &no
     const auto attach_it = attaches_.find(node);
     if (attach_it != attaches_.end()) {
 //      for (const auto& item : attach_it->second.probe_side_bloom_filters) {
-//        std::cout << "Attach probe from " << item.builder
+//        std::cerr << "Attach probe from " << item.builder
 //                  << " to " << node << "\n";
 //      }
 
@@ -342,14 +346,14 @@ P::PhysicalPtr AttachBloomFilters::performAttach(const physical::PhysicalPtr &no
     const auto attach_it = attaches_.find(node);
     if (attach_it != attaches_.end()) {
 //      for (const auto& item : attach_it->second.probe_side_bloom_filters) {
-//        std::cout << "Attach probe from " << item.builder
+//        std::cerr << "Attach probe from " << item.builder
 //                  << " to " << node << "\n";
 //      }
 
       const P::AggregatePtr aggregate =
           std::static_pointer_cast<const P::Aggregate>(node);
       return P::Aggregate::Create(
-          aggregate->input(),
+          new_children[0],
           aggregate->grouping_expressions(),
           aggregate->aggregate_expressions(),
           aggregate->filter_predicate(),
@@ -361,14 +365,14 @@ P::PhysicalPtr AttachBloomFilters::performAttach(const physical::PhysicalPtr &no
     const auto attach_it = attaches_.find(node);
     if (attach_it != attaches_.end()) {
 //      for (const auto& item : attach_it->second.probe_side_bloom_filters) {
-//        std::cout << "Attach probe from " << item.builder
+//        std::cerr << "Attach probe from " << item.builder
 //                  << " to " << node << "\n";
 //      }
 
       const P::SelectionPtr selection =
           std::static_pointer_cast<const P::Selection>(node);
       return P::Selection::Create(
-          selection->input(),
+          new_children[0],
           selection->project_expressions(),
           selection->filter_predicate(),
           attach_it->second);
@@ -378,7 +382,6 @@ P::PhysicalPtr AttachBloomFilters::performAttach(const physical::PhysicalPtr &no
   if (has_changed) {
     return node->copyWithNewChildren(new_children);
   }
-
   return node;
 }
 

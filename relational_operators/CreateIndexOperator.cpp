@@ -33,7 +33,7 @@ bool CreateIndexOperator::getAllWorkOrders(WorkOrdersContainer *container,
   return true;
 }
 
-void CreateIndexOperator::updateCatalogOnCompletion() {
+void CreateIndexOperator::actionOnCompletion() {
   relation_->addIndex(index_name_, std::move(index_description_));
 }
 

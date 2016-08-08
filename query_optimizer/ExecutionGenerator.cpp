@@ -630,8 +630,6 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   bool any_probe_attributes_nullable = false;
   bool any_build_attributes_nullable = false;
 
-  bool skip_hash_join_optimization = false;
-
   const std::vector<E::AttributeReferencePtr> &left_join_attributes =
       physical_plan->left_join_attributes();
   for (const E::AttributeReferencePtr &left_join_attribute : left_join_attributes) {
@@ -839,17 +837,15 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   temporary_relation_info_vec_.emplace_back(join_operator_index, output_relation);
 
   // Add heuristics for the Hash Join, if enabled.
-  if (FLAGS_optimize_joins && !skip_hash_join_optimization) {
-    execution_heuristics_->addHashJoinInfo(build_operator_index,
-                                           join_operator_index,
-                                           referenced_stored_build_relation,
-                                           referenced_stored_probe_relation,
-                                           bloom_filter_config,
-                                           std::move(build_side_bloom_filter_attribute_ids),
-                                           std::move(probe_side_bloom_filter_attribute_ids),
-                                           join_hash_table_index,
-                                           star_schema_cost_model_->estimateCardinality(build_physical));
-  }
+  execution_heuristics_->addHashJoinInfo(build_operator_index,
+                                         join_operator_index,
+                                         referenced_stored_build_relation,
+                                         referenced_stored_probe_relation,
+                                         bloom_filter_config,
+                                         std::move(build_side_bloom_filter_attribute_ids),
+                                         std::move(probe_side_bloom_filter_attribute_ids),
+                                         join_hash_table_index,
+                                         star_schema_cost_model_->estimateCardinality(build_physical));
 }
 
 void ExecutionGenerator::convertNestedLoopsJoin(
@@ -1442,7 +1438,9 @@ void ExecutionGenerator::convertAggregate(
     aggr_state_proto->mutable_predicate()->CopyFrom(predicate->getProto());
   }
 
-  aggr_state_proto->set_estimated_num_entries(cost_model_->estimateCardinality(physical_plan));
+//  aggr_state_proto->set_estimated_num_entries(cost_model_->estimateCardinality(physical_plan));
+  aggr_state_proto->set_estimated_num_entries(
+      star_schema_cost_model_->estimateCardinality(physical_plan) * 10);
 
   const QueryPlan::DAGNodeIndex aggregation_operator_index =
       execution_plan_->addRelationalOperator(
