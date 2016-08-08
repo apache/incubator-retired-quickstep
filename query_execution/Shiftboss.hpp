@@ -223,6 +223,9 @@ class Shiftboss : public Thread {
 
   tmb::client_id shiftboss_client_id_, foreman_client_id_;
 
+  // Unique per Shiftboss instance.
+  std::uint64_t shiftboss_index_;
+
   // TMB recipients for all workers managed by this Shiftboss.
   tmb::Address worker_addresses_;
 

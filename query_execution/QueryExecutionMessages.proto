@@ -87,6 +87,7 @@ message ShiftbossRegistrationMessage {
 }
 
 message ShiftbossRegistrationResponseMessage {
+  required uint64 shiftboss_index = 1;
 }
 
 message QueryInitiateMessage {
