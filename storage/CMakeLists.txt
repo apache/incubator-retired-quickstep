@@ -50,7 +50,9 @@ endif()
 # See if mmap can be used to allocate Linux hugetlb pages.
 include(CheckCXXSourceCompiles)
 CHECK_CXX_SOURCE_COMPILES("
+  #ifndef _GNU_SOURCE
   #define _GNU_SOURCE
+  #endif
   #include <sys/mman.h>
 
   int main() {
