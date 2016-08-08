@@ -21,6 +21,7 @@
 #define QUICKSTEP_QUERY_EXECUTION_SHIFTBOSS_HPP_
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <unordered_map>
 
@@ -97,27 +98,34 @@ class Shiftboss : public Thread {
     bus_->RegisterClientAsReceiver(shiftboss_client_id_, kInitiateRebuildMessage);
     bus_->RegisterClientAsSender(shiftboss_client_id_, kInitiateRebuildResponseMessage);
 
+    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kSaveQueryResultMessage);
+    bus_->RegisterClientAsSender(shiftboss_client_id_, kSaveQueryResultResponseMessage);
+
     // Message sent to Worker.
     bus_->RegisterClientAsSender(shiftboss_client_id_, kRebuildWorkOrderMessage);
-
-    // Message sent to Foreman.
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kCatalogRelationNewBlockMessage);
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kDataPipelineMessage);
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kWorkOrderFeedbackMessage);
 
     // Forward the following message types from Foreman to Workers.
     bus_->RegisterClientAsReceiver(shiftboss_client_id_, kWorkOrderMessage);
     bus_->RegisterClientAsSender(shiftboss_client_id_, kWorkOrderMessage);
 
     // Forward the following message types from Workers to Foreman.
+    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kCatalogRelationNewBlockMessage);
+    bus_->RegisterClientAsSender(shiftboss_client_id_, kCatalogRelationNewBlockMessage);
+
+    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kDataPipelineMessage);
+    bus_->RegisterClientAsSender(shiftboss_client_id_, kDataPipelineMessage);
+
+    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kWorkOrderFeedbackMessage);
+    bus_->RegisterClientAsSender(shiftboss_client_id_, kWorkOrderFeedbackMessage);
+
     bus_->RegisterClientAsReceiver(shiftboss_client_id_, kWorkOrderCompleteMessage);
     bus_->RegisterClientAsSender(shiftboss_client_id_, kWorkOrderCompleteMessage);
 
     bus_->RegisterClientAsReceiver(shiftboss_client_id_, kRebuildWorkOrderCompleteMessage);
     bus_->RegisterClientAsSender(shiftboss_client_id_, kRebuildWorkOrderCompleteMessage);
 
-    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kSaveQueryResultMessage);
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kSaveQueryResultResponseMessage);
+    // Clean up query execution states, i.e., QueryContext.
+    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kQueryTeardownMessage);
 
     // Stop itself.
     bus_->RegisterClientAsReceiver(shiftboss_client_id_, kPoisonMessage);
