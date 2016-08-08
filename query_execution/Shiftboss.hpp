@@ -103,7 +103,6 @@ class Shiftboss : public Thread {
     // Message sent to Foreman.
     bus_->RegisterClientAsSender(shiftboss_client_id_, kCatalogRelationNewBlockMessage);
     bus_->RegisterClientAsSender(shiftboss_client_id_, kDataPipelineMessage);
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kWorkOrdersAvailableMessage);
     bus_->RegisterClientAsSender(shiftboss_client_id_, kWorkOrderFeedbackMessage);
 
     // Forward the following message types from Foreman to Workers.

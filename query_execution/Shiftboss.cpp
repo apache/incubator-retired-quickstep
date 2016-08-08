@@ -152,7 +152,6 @@ void Shiftboss::run() {
       case kWorkOrderCompleteMessage:  // Fall through.
       case kRebuildWorkOrderCompleteMessage:
       case kDataPipelineMessage:
-      case kWorkOrdersAvailableMessage:
       case kWorkOrderFeedbackMessage: {
         LOG(INFO) << "Shiftboss (id '" << shiftboss_client_id_
                   << "') forwarded typed '" << annotated_message.tagged_message.message_type()

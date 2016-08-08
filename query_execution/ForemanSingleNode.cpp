@@ -87,7 +87,6 @@ ForemanSingleNode::ForemanSingleNode(
       kPoisonMessage,
       kRebuildWorkOrderCompleteMessage,
       kWorkOrderFeedbackMessage,
-      kWorkOrdersAvailableMessage,
       kWorkOrderCompleteMessage};
 
   for (const auto message_type : receiver_message_types) {
@@ -122,8 +121,7 @@ void ForemanSingleNode::run() {
       case kDataPipelineMessage:
       case kRebuildWorkOrderCompleteMessage:
       case kWorkOrderCompleteMessage:
-      case kWorkOrderFeedbackMessage:
-      case kWorkOrdersAvailableMessage: {
+      case kWorkOrderFeedbackMessage: {
         policy_enforcer_->processMessage(tagged_message);
         break;
       }

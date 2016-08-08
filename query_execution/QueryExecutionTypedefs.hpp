@@ -69,7 +69,6 @@ enum QueryExecutionMessageType : message_type_id {
   kWorkOrderCompleteMessage,  // From Worker to Foreman.
   kCatalogRelationNewBlockMessage,  // From InsertDestination to Foreman.
   kDataPipelineMessage,  // From InsertDestination or some WorkOrders to Foreman.
-  kWorkOrdersAvailableMessage,  // From some WorkOrders to Foreman.
   kWorkOrderFeedbackMessage,  // From some WorkOrders to Foreman on behalf of
                               // their corresponding RelationalOperators.
   kRebuildWorkOrderMessage,  // From Foreman to Worker.

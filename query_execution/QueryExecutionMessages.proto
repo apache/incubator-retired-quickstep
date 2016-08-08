@@ -74,11 +74,6 @@ message DataPipelineMessage {
   required uint64 query_id = 4;
 }
 
-message WorkOrdersAvailableMessage {
-  required uint64 operator_index = 1;
-  required uint64 query_id = 2;
-}
-
 // Distributed version related messages.
 message ShiftbossRegistrationMessage {
   // The total Work Order processing capacity in Shiftboss, which equals to the
