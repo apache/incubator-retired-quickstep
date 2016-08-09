@@ -393,6 +393,7 @@ bool HashJoinOperator::getAllOuterJoinWorkOrderProtos(WorkOrderProtosContainer *
 serialization::WorkOrder* HashJoinOperator::createOuterJoinWorkOrderProto(const block_id block) {
   serialization::WorkOrder *proto = new serialization::WorkOrder;
   proto->set_work_order_type(serialization::HASH_JOIN);
+  proto->set_query_id(query_id_);
 
   proto->SetExtension(serialization::HashJoinWorkOrder::hash_join_work_order_type,
                       serialization::HashJoinWorkOrder::HASH_OUTER_JOIN);
