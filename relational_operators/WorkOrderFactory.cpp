@@ -46,6 +46,7 @@
 #include "relational_operators/TableGeneratorOperator.hpp"
 #include "relational_operators/TextScanOperator.hpp"
 #include "relational_operators/UpdateOperator.hpp"
+#include "relational_operators/WindowAggregationOperator.hpp"
 #include "relational_operators/WorkOrder.pb.h"
 #include "storage/StorageBlockInfo.hpp"
 
@@ -419,6 +420,22 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           shiftboss_client_id,
           bus);
     }
+    case serialization::WINDOW_AGGREGATION: {
+      LOG(INFO) << "Creating WindowAggregationWorkOrder";
+      vector<block_id> blocks;
+      for (int i = 0; i < proto.ExtensionSize(serialization::WindowAggregationWorkOrder::block_ids); ++i) {
+        blocks.push_back(
+            proto.GetExtension(serialization::WindowAggregationWorkOrder::block_ids, i));
+      }
+
+      return new WindowAggregationWorkOrder(
+          proto.query_id(),
+          query_context->getWindowAggregationState(
+              proto.GetExtension(serialization::WindowAggregationWorkOrder::window_aggr_state_index)),
+          move(blocks),
+          query_context->getInsertDestination(
+              proto.GetExtension(serialization::FinalizeAggregationWorkOrder::insert_destination_index)));
+    }
     default:
       LOG(FATAL) << "Unknown WorkOrder Type in WorkOrderFactory::ReconstructFromProto";
   }
@@ -696,6 +713,14 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
                  proto.GetExtension(serialization::UpdateWorkOrder::update_group_index)) &&
              proto.HasExtension(serialization::UpdateWorkOrder::operator_index) &&
              proto.HasExtension(serialization::UpdateWorkOrder::block_id);
+    }
+    case serialization::WINDOW_AGGREGATION: {
+      return proto.HasExtension(serialization::WindowAggregationWorkOrder::window_aggr_state_index) &&
+             query_context.isValidWindowAggregationStateId(
+                 proto.GetExtension(serialization::WindowAggregationWorkOrder::window_aggr_state_index)) &&
+             proto.HasExtension(serialization::WindowAggregationWorkOrder::insert_destination_index) &&
+             query_context.isValidInsertDestinationId(
+                 proto.GetExtension(serialization::WindowAggregationWorkOrder::insert_destination_index));
     }
     default:
       return false;
