@@ -303,7 +303,7 @@ class TupleStorageSubBlock {
   virtual tuple_id bulkInsertPartialTuples(
       const std::vector<attribute_id> &attribute_map,
       ValueAccessor *accessor,
-      tuple_id max_num_tuples_to_insert) = 0;
+      const tuple_id max_num_tuples_to_insert) = 0;
 
   /**
    * @brief Update header after a bulkInsertPartialTuples.
@@ -315,7 +315,8 @@ class TupleStorageSubBlock {
    *        advance the header.num_tuples by). Should be equal to the return
    *        value of bulkInsertPartialTuples.
    **/
-  virtual void bulkInsertPartialTuplesFinalize(tuple_id num_tuples_inserted) = 0;
+  virtual void bulkInsertPartialTuplesFinalize(
+      const tuple_id num_tuples_inserted) = 0;
   
   /**
    * @brief Get the (untyped) value of an attribute in a tuple in this buffer.

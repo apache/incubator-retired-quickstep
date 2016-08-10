@@ -284,6 +284,30 @@ tuple_id StorageBlock::bulkInsertTuplesWithRemappedAttributes(
   return num_inserted;
 }
 
+tuple_id StorageBlock::bulkInsertPartialTuples(
+    const std::vector<attribute_id> &attribute_map,
+    ValueAccessor *accessor,
+    const tuple_id max_num_tuples_to_insert) {
+  const tuple_id num_inserted
+      = tuple_store_->bulkInsertPartialTuples(attribute_map,
+                                              accessor,
+                                              max_num_tuples_to_insert);
+  if (num_inserted != 0) {
+    invalidateAllIndexes();
+    dirty_ = true;
+  } else if (tuple_store_->isEmpty()) {
+    if (!accessor->iterationFinishedVirtual()) {
+      throw TupleTooLargeForBlock(0);
+    }
+  }
+  return num_inserted;
+}
+
+void StorageBlock::bulkInsertPartialTuplesFinalize(
+    const tuple_id num_tuples_inserted) {
+  tuple_store_->bulkInsertPartialTuplesFinalize(num_tuples_inserted);
+}
+
 void StorageBlock::sample(const bool is_block_sample,
                           const int percentage,
                           InsertDestinationInterface *destination) const {
