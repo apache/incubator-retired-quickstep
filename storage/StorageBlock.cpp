@@ -269,10 +269,12 @@ tuple_id StorageBlock::bulkInsertTuples(ValueAccessor *accessor) {
 
 tuple_id StorageBlock::bulkInsertTuplesWithRemappedAttributes(
     const std::vector<attribute_id> &attribute_map,
-    ValueAccessor *accessor) {
+    ValueAccessor *accessor,
+    const tuple_id max_tuples_to_insert) {
   const tuple_id num_inserted
       = tuple_store_->bulkInsertTuplesWithRemappedAttributes(attribute_map,
-                                                             accessor);
+                                                             accessor,
+                                                             max_tuples_to_insert);
   if (num_inserted != 0) {
     invalidateAllIndexes();
     dirty_ = true;

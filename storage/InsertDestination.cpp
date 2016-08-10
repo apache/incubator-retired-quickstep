@@ -247,6 +247,72 @@ void InsertDestination::bulkInsertTuplesWithRemappedAttributes(
   });
 }
 
+void InsertDestination::bulkInsertTuplesFromValueAccessors(
+    std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> accessor_attribute_map,
+    bool always_mark_full) {
+  // Handle pathological corner case where there are no accessors
+  if (accessor_attribute_map.size() != 0)
+    return;
+
+  // First off, initialize iteration through each accessor
+  for (auto &p : accessor_attribute_map) {
+    p.first->beginIterationVirtual();
+  }
+
+  // We assume that all input accessors have the same number of tuples, so
+  // the iterations finish together. Therefore, we can just check the first one.
+  auto first_accessor = accessor_attribute_map[0].first;
+  while (!first_accessor->iterationFinishedVirtual()) {
+    tuple_id num_tuples_to_insert = kCatalogMaxID;
+    tuple_id num_tuples_inserted = 0;
+    MutableBlockReference output_block = this->getBlockForInsertion();
+
+    // Now iterate through all the accessors and do one round of bulk-insertion
+    // of partial tuples into the selected output_block.
+    // While inserting from the first ValueAccessor, space is reserved for
+    // all the columns including those coming from other ValueAccessors.
+    // Thereafter, in a given round, we only insert the remaining columns of the
+    // same tuples from the other ValueAccessors.
+    for (auto &p : accessor_attribute_map) {
+      ValueAccessor *accessor = p.first;
+      std::vector<attribute_id> attribute_map = p.second;
+
+      InvokeOnAnyValueAccessor(
+          accessor,
+          [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+            num_tuples_inserted = output_block->bulkInsertPartialTuples(
+                attribute_map, accessor, num_tuples_to_insert);
+      });
+
+      if (accessor == first_accessor) {
+        // Now we know how many full tuples can be inserted into this
+        // output_block (viz. number of tuples inserted from first ValueAccessor).
+        // We should only insert that many tuples from the remaining
+        // ValueAccessors as well.
+        num_tuples_to_insert = num_tuples_inserted;
+      }
+      else {
+        // Since the bulk insertion of the first ValueAccessor should already
+        // have reserved the space for all the other ValueAccessors' columns,
+        // we must have been able to insert all the tuples we asked to insert.
+        DCHECK(num_tuples_inserted == num_tuples_to_insert);
+      }
+    }
+
+    // After one round of insertions, we have successfully inserted as many
+    // tuples as possible into the output_block. Strictly speaking, it's
+    // possible that there is more space for insertions because the size
+    // estimation of variable length columns is conservative. But we will ignore
+    // that case and proceed assuming that this output_block is full.
+
+    // Update the header for output_block and then return it.
+    output_block->bulkInsertPartialTuplesFinalize(num_tuples_inserted);
+    const bool mark_full = always_mark_full
+                           || !first_accessor->iterationFinishedVirtual();
+    this->returnBlock(std::move(output_block), mark_full);
+  }
+}
+
 void InsertDestination::insertTuplesFromVector(std::vector<Tuple>::const_iterator begin,
                                                std::vector<Tuple>::const_iterator end) {
   if (begin == end) {
