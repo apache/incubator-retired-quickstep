@@ -28,7 +28,8 @@
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
-
+#include "catalog/CatalogRelationStatistics.hpp"
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_optimizer/cost_model/StarSchemaSimpleCostModel.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
@@ -131,7 +132,27 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
 
     for (const auto &attr : child->getOutputAttributes()) {
       if (referenced_ids.find(attr->id()) != referenced_ids.end()) {
-        edge_info.labels.emplace_back(attr->attribute_alias());
+        std::string attr_info = attr->attribute_alias();
+        const CatalogRelationStatistics *stat = nullptr;
+        attribute_id attr_id = 0;
+        cost_model_->getStatistics(child, attr, &stat, &attr_id);
+        if (stat != nullptr) {
+          if (stat->hasNumDistinctValues(attr_id)) {
+            attr_info.append(", # distinct = ");
+            attr_info.append(std::to_string(static_cast<std::size_t>(
+                stat->getNumDistinctValues(attr_id) * cost_model_->estimateSelectivity(child))));
+          }
+          const Type& attr_type = attr->getValueType();
+          if (stat->hasMinValue(attr_id)) {
+            attr_info.append(", min = ");
+            attr_info.append(attr_type.printValueToString(stat->getMinValue(attr_id)));
+          }
+          if (stat->hasMaxValue(attr_id)) {
+            attr_info.append(", max = ");
+            attr_info.append(attr_type.printValueToString(stat->getMaxValue(attr_id)));
+          }
+        }
+        edge_info.labels.emplace_back(attr_info);
       }
     }
   }

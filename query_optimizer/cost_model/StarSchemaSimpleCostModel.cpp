@@ -25,6 +25,8 @@
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
+#include "catalog/CatalogRelationStatistics.hpp"
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ComparisonExpression.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
@@ -282,6 +284,40 @@ double StarSchemaSimpleCostModel::estimateSelectivityForPredicate(
   }
   return 1.0;
 }
+
+
+void StarSchemaSimpleCostModel::getStatistics(
+    const physical::PhysicalPtr &physical_plan,
+    const expressions::AttributeReferencePtr &attribute,
+    const CatalogRelationStatistics** stat,
+    attribute_id* attr_id) {
+  switch (physical_plan->getPhysicalType()) {
+    case P::PhysicalType::kTableReference: {
+      const P::TableReferencePtr table_reference =
+          std::static_pointer_cast<const P::TableReference>(physical_plan);
+      const CatalogRelation *catalog_relation = table_reference->relation();
+      const std::vector<E::AttributeReferencePtr> &attributes =
+          table_reference->attribute_list();
+      for (std::size_t i = 0; i < attributes.size(); ++i) {
+        if (attributes[i]->id() == attribute->id()) {
+          *stat = &catalog_relation->getStatistics();
+          *attr_id = i;
+        }
+      }
+    }
+    default:
+      break;
+  }
+
+  for (const auto &child : physical_plan->children()) {
+    for (const auto &attr : child->getOutputAttributes()) {
+      if (attr->id() == attribute->id()) {
+        getStatistics(child, attribute, stat, attr_id);
+      }
+    }
+  }
+}
+
 
 }  // namespace cost
 }  // namespace optimizer

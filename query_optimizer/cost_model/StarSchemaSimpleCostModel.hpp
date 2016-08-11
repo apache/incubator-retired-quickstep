@@ -24,7 +24,9 @@
 #include <unordered_map>
 #include <vector>
 
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_optimizer/cost_model/CostModel.hpp"
+#include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
@@ -39,6 +41,9 @@
 #include "utility/Macros.hpp"
 
 namespace quickstep {
+
+class CatalogRelationStatistics;
+
 namespace optimizer {
 namespace cost {
 
@@ -74,6 +79,11 @@ class StarSchemaSimpleCostModel : public CostModel {
    * @return The estimated selectivity.
    */
   double estimateSelectivity(const physical::PhysicalPtr &physical_plan);
+
+  void getStatistics(const physical::PhysicalPtr &physical_plan,
+                     const expressions::AttributeReferencePtr &attribute,
+                     const CatalogRelationStatistics** stat,
+                     attribute_id* attr_id);
 
  private:
   std::size_t estimateCardinalityForTopLevelPlan(
