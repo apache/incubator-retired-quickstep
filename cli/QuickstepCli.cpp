@@ -347,10 +347,10 @@ int main(int argc, char* argv[]) {
 
 //  addPrimaryKeyInfoForTPCHTables(query_processor->getDefaultDatabase());
 //  addPrimaryKeyInfoForSSBTables(query_processor->getDefaultDatabase());
-//  std::string proto_str;
-//  google::protobuf::TextFormat::PrintToString(
-//      query_processor->getDefaultDatabase()->getProto(), &proto_str);
-//  std::cerr << proto_str << "\n";
+  std::string proto_str;
+  google::protobuf::TextFormat::PrintToString(
+      query_processor->getDefaultDatabase()->getProto(), &proto_str);
+  std::cerr << proto_str << "\n";
 //  query_processor->markCatalogAltered();
 //  query_processor->saveCatalog();
 

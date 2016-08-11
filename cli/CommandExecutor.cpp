@@ -196,10 +196,7 @@ void executeDescribeTable(
   }
 }
 
-/**
- * @brief A helper function that executes a SQL query to obtain a scalar result.
- */
-inline TypedValue executeQueryForSingleResult(
+inline std::vector<TypedValue> executeQueryForSingleRow(
     const tmb::client_id main_thread_client_id,
     const tmb::client_id foreman_client_id,
     const std::string &query_string,
@@ -232,22 +229,29 @@ inline TypedValue executeQueryForSingleResult(
   const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
   DCHECK(query_result_relation != nullptr);
 
-  TypedValue value;
+  std::vector<TypedValue> values;
   {
     std::vector<block_id> blocks = query_result_relation->getBlocksSnapshot();
     DCHECK_EQ(1u, blocks.size());
+
     BlockReference block = storage_manager->getBlock(blocks[0], *query_result_relation);
     const TupleStorageSubBlock &tuple_store = block->getTupleStorageSubBlock();
     DCHECK_EQ(1, tuple_store.numTuples());
-    DCHECK_EQ(1u, tuple_store.getRelation().size());
 
+    const std::size_t num_columns = tuple_store.getRelation().size();
     if (tuple_store.isPacked()) {
-      value = tuple_store.getAttributeValueTyped(0, 0);
+      for (std::size_t i = 0; i < num_columns; ++i) {
+        values.emplace_back(tuple_store.getAttributeValueTyped(0, i));
+        values[i].ensureNotReference();
+      }
     } else {
       std::unique_ptr<TupleIdSequence> existence_map(tuple_store.getExistenceMap());
-      value = tuple_store.getAttributeValueTyped(*existence_map->begin(), 0);
+      for (std::size_t i = 0; i < num_columns; ++i) {
+        values.emplace_back(
+            tuple_store.getAttributeValueTyped(*existence_map->begin(), i));
+        values[i].ensureNotReference();
+      }
     }
-    value.ensureNotReference();
   }
 
   // Drop the result relation.
@@ -255,7 +259,31 @@ inline TypedValue executeQueryForSingleResult(
                      query_processor->getDefaultDatabase(),
                      query_processor->getStorageManager());
 
-  return value;
+  return values;
+}
+
+/**
+ * @brief A helper function that executes a SQL query to obtain a scalar result.
+ */
+inline TypedValue executeQueryForSingleResult(
+    const tmb::client_id main_thread_client_id,
+    const tmb::client_id foreman_client_id,
+    const std::string &query_string,
+    tmb::MessageBus *bus,
+    StorageManager *storage_manager,
+    QueryProcessor *query_processor,
+    SqlParserWrapper *parser_wrapper) {
+  std::vector<TypedValue> results =
+      executeQueryForSingleRow(
+          main_thread_client_id,
+          foreman_client_id,
+          query_string,
+          bus,
+          storage_manager,
+          query_processor,
+          parser_wrapper);
+  DCHECK_EQ(1u, results.size());
+  return results[0];
 }
 
 void executeAnalyze(const PtrVector<ParseString> *arguments,
@@ -292,25 +320,47 @@ void executeAnalyze(const PtrVector<ParseString> *arguments,
 
     // Get the number of distinct values for each column.
     for (const CatalogAttribute &attribute : relation) {
+      const Type &attr_type = attribute.getType();
+      bool is_min_max_applicable =
+          (attr_type.getSuperTypeID() == Type::SuperTypeID::kNumeric);
+
       std::string query_string = "SELECT COUNT(DISTINCT ";
       query_string.append(attribute.getName());
-      query_string.append(") FROM ");
+      query_string.append(")");
+      if (is_min_max_applicable) {
+        query_string.append(", MIN(");
+        query_string.append(attribute.getName());
+        query_string.append("), MAX(");
+        query_string.append(attribute.getName());
+        query_string.append(")");
+      }
+      query_string.append(" FROM ");
       query_string.append(relation.getName());
       query_string.append(";");
 
-      TypedValue num_distinct_values =
-          executeQueryForSingleResult(main_thread_client_id,
-                                      foreman_client_id,
-                                      query_string,
-                                      bus,
-                                      storage_manager,
-                                      query_processor,
-                                      parser_wrapper.get());
+      std::vector<TypedValue> results =
+          executeQueryForSingleRow(main_thread_client_id,
+                                   foreman_client_id,
+                                   query_string,
+                                   bus,
+                                   storage_manager,
+                                   query_processor,
+                                   parser_wrapper.get());
 
-      DCHECK(num_distinct_values.getTypeID() == TypeID::kLong);
-      mutable_relation->getStatisticsMutable()->setNumDistinctValues(
-          attribute.getID(),
-          num_distinct_values.getLiteral<std::int64_t>());
+      auto *stat = mutable_relation->getStatisticsMutable();
+      const attribute_id attr_id = attribute.getID();
+
+      DCHECK(results[0].getTypeID() == TypeID::kLong);
+      stat->setNumDistinctValues(attr_id,
+                                 results[0].getLiteral<std::int64_t>());
+
+      if (is_min_max_applicable) {
+        DCHECK_GE(results.size(), 3u);
+        DCHECK(results[1].getTypeID() == attr_type.getTypeID());
+        DCHECK(results[2].getTypeID() == attr_type.getTypeID());
+        stat->setMinValue(attr_id, results[1]);
+        stat->setMaxValue(attr_id, results[2]);
+      }
     }
 
     // Get the number of tuples for the relation.
