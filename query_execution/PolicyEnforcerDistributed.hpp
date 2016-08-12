@@ -78,7 +78,7 @@ class PolicyEnforcerDistributed final : public PolicyEnforcerBase {
    *
    * @param work_order_messages The work order messages to be dispatched.
    **/
-  void getWorkOrderMessages(
+  void getWorkOrderProtoMessages(
       std::vector<std::unique_ptr<serialization::WorkOrderMessage>> *work_order_messages);
 
   /**

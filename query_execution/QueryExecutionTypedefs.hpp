@@ -63,7 +63,7 @@ using ClientIDMap = ThreadIDBasedMap<client_id,
 
 // We sort the following message types in the order of a life cycle of a query.
 enum QueryExecutionMessageType : message_type_id {
-  kAdmitRequestMessage,  // Requesting a query (or queries) to be admitted, from
+  kAdmitRequestMessage = 0,  // Requesting a query (or queries) to be admitted, from
                          // the main thread to Foreman.
   kWorkOrderMessage,  // From Foreman to Worker.
   kWorkOrderCompleteMessage,  // From Worker to Foreman.

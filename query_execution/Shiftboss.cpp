@@ -147,10 +147,11 @@ void Shiftboss::run() {
                                       proto.relation_id());
         break;
       }
-      case kWorkOrderCompleteMessage:  // Fall through.
-      case kRebuildWorkOrderCompleteMessage:
+      case kCatalogRelationNewBlockMessage:  // Fall through.
       case kDataPipelineMessage:
-      case kWorkOrderFeedbackMessage: {
+      case kWorkOrderFeedbackMessage:
+      case kWorkOrderCompleteMessage:
+      case kRebuildWorkOrderCompleteMessage: {
         DLOG(INFO) << "Shiftboss (id '" << shiftboss_client_id_
                    << "') forwarded typed '" << annotated_message.tagged_message.message_type()
                    << "' message from Worker with TMB client ID '" << annotated_message.sender
@@ -165,6 +166,15 @@ void Shiftboss::run() {
         CHECK(send_status == MessageBus::SendStatus::kOK);
         break;
       }
+      case kQueryTeardownMessage: {
+        const TaggedMessage &tagged_message = annotated_message.tagged_message;
+
+        serialization::QueryTeardownMessage proto;
+        CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+        query_contexts_.erase(proto.query_id());
+        break;
+      }
       case kSaveQueryResultMessage: {
         const TaggedMessage &tagged_message = annotated_message.tagged_message;
 
@@ -175,8 +185,12 @@ void Shiftboss::run() {
           storage_manager_->saveBlockOrBlob(proto.blocks(i));
         }
 
+        // Clean up query execution states, i.e., QueryContext.
+        query_contexts_.erase(proto.query_id());
+
         serialization::SaveQueryResultResponseMessage proto_response;
         proto_response.set_relation_id(proto.relation_id());
+        proto_response.set_cli_id(proto.cli_id());
 
         const size_t proto_response_length = proto_response.ByteSize();
         char *proto_response_bytes = static_cast<char*>(malloc(proto_response_length));
