@@ -21,6 +21,7 @@
 #define QUICKSTEP_UTILITY_BLOOM_FILTER_HPP
 
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -100,36 +101,13 @@ class BloomFilterBlocked {
    * @param bit_array_size_in_bytes Size of the bit array.
    **/
   BloomFilterBlocked(const std::uint8_t hash_fn_count,
-              const std::uint64_t bit_array_size_in_bytes)
+                     const std::uint64_t bit_array_size_in_bytes)
       : hash_fn_count_(hash_fn_count),
         array_size_in_bytes_(getNearestAllowedSize(bit_array_size_in_bytes)),
-        is_bit_array_owner_(true),
-        bit_array_(new std::uint8_t[array_size_in_bytes_]) {
-    reset();
-  }
-
-  /**
-   * @brief Constructor.
-   * @note When a bit_array is passed as an argument to the constructor,
-   *       then the ownership of the bit array lies with the caller.
-   *
-   * @param hash_fn_count The number of hash functions used by this bloom filter.
-   * @param bit_array_size_in_bytes Size of the bit array.
-   * @param bit_array A pointer to the memory region that is used to store bit array.
-   * @param is_initialized A boolean that indicates whether to zero-out the region
-   *                       before use or not.
-   **/
-  BloomFilterBlocked(const std::uint8_t hash_fn_count,
-              const std::uint64_t bit_array_size_in_bytes,
-              std::uint8_t *bit_array,
-              const bool is_initialized)
-      : hash_fn_count_(hash_fn_count),
-        array_size_in_bytes_(getNearestAllowedSize(bit_array_size_in_bytes, true)),
-        is_bit_array_owner_(false),
-        bit_array_(bit_array) {  // Owned by the calling method.
-    if (!is_initialized) {
-      reset();
-    }
+        bit_array_(bit_array_size_in_bytes) {
+    std::memset(bit_array_.data(),
+                0x0,
+                sizeof(std::atomic<std::uint8_t>) * bit_array_size_in_bytes);
   }
 
   /**
@@ -141,35 +119,18 @@ class BloomFilterBlocked {
    *        bloom filter configuration.
    **/
   explicit BloomFilterBlocked(const serialization::BloomFilter &bloom_filter_proto)
-      : hash_fn_count_(bloom_filter_proto.number_of_hashes()),
-        array_size_in_bytes_(bloom_filter_proto.bloom_filter_size()),
-        is_bit_array_owner_(true),
-        bit_array_(new std::uint8_t[array_size_in_bytes_]) {
-    reset();
+      : BloomFilterBlocked(bloom_filter_proto.number_of_hashes(),
+                           bloom_filter_proto.bloom_filter_size()) {
   }
 
   /**
    * @brief Destructor.
    **/
   ~BloomFilterBlocked() {
-    if (is_bit_array_owner_) {
-      bit_array_.reset();
-    } else {
-      bit_array_.release();
-    }
   }
 
   static bool ProtoIsValid(const serialization::BloomFilter &bloom_filter_proto) {
     return bloom_filter_proto.IsInitialized();
-  }
-
-  /**
-   * @brief Zeros out the contents of the bit array.
-   **/
-  inline void reset() {
-    // Initialize the bit_array with all zeros.
-    std::fill_n(bit_array_.get(), array_size_in_bytes_, 0x00);
-    inserted_element_count_ = 0;
   }
 
   /**
@@ -190,18 +151,9 @@ class BloomFilterBlocked {
     return array_size_in_bytes_;
   }
 
-  /**
-   * @brief Get the constant pointer to the bit array for this bloom filter
-   *
-   * @return Returns constant pointer to the bit array.
-   **/
-  inline const std::uint8_t* getBitArray() const {
-    return bit_array_.get();
-  }
-
   template <typename T>
-  void insert(const T &value) {
-    insert(reinterpret_cast<const std::uint8_t *>(&value), sizeof(T));
+  inline void insert(const T &value) {
+    insert(reinterpret_cast<const std::uint8_t*>(&value), sizeof(T));
   }
 
   /**
@@ -211,14 +163,14 @@ class BloomFilterBlocked {
    * @param length Size of the value being inserted in bytes.
    */
   inline void insert(const std::uint8_t *key_begin, const std::size_t length) {
-      SpinSharedMutexExclusiveLock<false> exclusive_writer_lock(bloom_filter_insert_mutex_);
-      insertUnSafe(key_begin, length);
+    const std::uint32_t pos = hash_identity(key_begin, length);
+    bit_array_[pos >> 3].fetch_or(1 << (pos & 0x7), std::memory_order_relaxed);
   }
 
-  template <typename T>
-  void insertUnSafe(const T &value) {
-    insertUnSafe(reinterpret_cast<const std::uint8_t *>(&value), sizeof(T));
-  }
+//  template <typename T>
+//  void insertUnSafe(const T &value) {
+//    insertUnSafe(reinterpret_cast<const std::uint8_t *>(&value), sizeof(T));
+//  }
 
   /**
    * @brief Inserts a given value into the bloom filter.
@@ -228,16 +180,16 @@ class BloomFilterBlocked {
    * @param key_begin A pointer to the value being inserted.
    * @param length Size of the value being inserted in bytes.
    */
-  inline void insertUnSafe(const std::uint8_t *key_begin, const std::size_t length) {
-    Position first_pos = getFirstPosition(key_begin, length);
-    setBitAtPosition(first_pos);
-    Position other_pos;
-    for (std::uint8_t i = 1; i <hash_fn_count_; ++i) {
-      other_pos = getOtherPosition(key_begin, length, first_pos, i);
-      setBitAtPosition(other_pos);
-    }
-    ++inserted_element_count_;
-  }
+//  inline void insertUnSafe(const std::uint8_t *key_begin, const std::size_t length) {
+//    Position first_pos = getFirstPosition(key_begin, length);
+//    setBitAtPosition(first_pos);
+//    Position other_pos;
+//    for (std::uint8_t i = 1; i <hash_fn_count_; ++i) {
+//      other_pos = getOtherPosition(key_begin, length, first_pos, i);
+//      setBitAtPosition(other_pos);
+//    }
+//    ++inserted_element_count_;
+//  }
 
   template <typename T>
   bool contains(const T &value) {
@@ -258,18 +210,20 @@ class BloomFilterBlocked {
   inline bool contains(
       const std::uint8_t *__restrict__ key_begin,
       const std::size_t length) const {
-    Position first_pos = getFirstPosition(key_begin, length);
-    if (!getBitAtPosition(first_pos)) {
-      return false;
-    }
-    Position other_pos;
-    for (std::uint8_t i = 1; i < hash_fn_count_; ++i) {
-      other_pos = getOtherPosition(key_begin, length, first_pos, i);
-      if (!getBitAtPosition(other_pos)) {
-        return false;
-      }
-    }
-    return true;
+//    Position first_pos = getFirstPosition(key_begin, length);
+//    if (!getBitAtPosition(first_pos)) {
+//      return false;
+//    }
+//    Position other_pos;
+//    for (std::uint8_t i = 1; i < hash_fn_count_; ++i) {
+//      other_pos = getOtherPosition(key_begin, length, first_pos, i);
+//      if (!getBitAtPosition(other_pos)) {
+//        return false;
+//      }
+//    }
+//    return true;
+    const std::uint32_t pos = hash_identity(key_begin, length);
+    return ((bit_array_[pos >> 3].load(std::memory_order_relaxed) & (1 << (pos & 0x7))) > 0);
   }
 
   /**
@@ -278,21 +232,21 @@ class BloomFilterBlocked {
    *
    * @param bloom_filter A const pointer to the bloom filter object to do bitwise-OR with.
    */
-  inline void bitwiseOr(const BloomFilterBlocked *bloom_filter) {
-    SpinSharedMutexExclusiveLock<false> exclusive_writer_lock(bloom_filter_insert_mutex_);
-    for (std::size_t byte_index = 0; byte_index < bloom_filter->getBitArraySize(); ++byte_index) {
-      (bit_array_.get())[byte_index] |= bloom_filter->getBitArray()[byte_index];
-    }
-  }
+//  inline void bitwiseOr(const BloomFilterBlocked *bloom_filter) {
+//    SpinSharedMutexExclusiveLock<false> exclusive_writer_lock(bloom_filter_insert_mutex_);
+//    for (std::size_t byte_index = 0; byte_index < bloom_filter->getBitArraySize(); ++byte_index) {
+//      (bit_array_.get())[byte_index] |= bloom_filter->getBitArray()[byte_index];
+//    }
+//  }
 
   /**
    * @brief Return the number of elements currently inserted into bloom filter.
    *
    * @return The number of elements inserted into bloom filter.
    **/
-  inline std::uint32_t element_count() const {
-    return inserted_element_count_;
-  }
+//  inline std::uint32_t element_count() const {
+//    return inserted_element_count_;
+//  }
 
  protected:
   Position getFirstPosition(const std::uint8_t *begin, std::size_t length) const {
@@ -325,23 +279,23 @@ class BloomFilterBlocked {
     }
   }
 
-  void setBitAtPosition(const Position &pos) {
-    (bit_array_.get())[pos.byte_pos.byte_num] |= (1 << pos.byte_pos.index_in_byte);
-  }
-
-  bool getBitAtPosition(const Position &pos) const {
-    return (bit_array_.get())[pos.byte_pos.byte_num] & (1 << pos.byte_pos.index_in_byte);
-  }
+//  inline void setBitAtPosition(const Position &pos) {
+//    (bit_array_.get())[pos.byte_pos.byte_num] |= (1 << pos.byte_pos.index_in_byte);
+//  }
+//
+//  inline bool getBitAtPosition(const Position &pos) const {
+//    return (bit_array_.get())[pos.byte_pos.byte_num] & (1 << pos.byte_pos.index_in_byte);
+//  }
 
   inline std::uint32_t hash_identity(
       const std::uint8_t *__restrict__ begin,
-      std::size_t length) const {
+      const std::size_t length) const {
     std::uint32_t hash;
     if (length >= 4)
-      hash = *reinterpret_cast<const std::uint32_t*> (begin);
+      hash = *reinterpret_cast<const std::uint32_t*>(begin);
     else
       std::memcpy(&hash, begin, length);
-    return hash % (array_size_in_bytes_ * kNumBitsPerByte);
+    return hash % (array_size_in_bytes_ << 3);
   }
 
   inline std::uint32_t hash_multiplicative(
@@ -368,8 +322,7 @@ class BloomFilterBlocked {
  private:
   const std::uint32_t hash_fn_count_;
   const std::uint64_t array_size_in_bytes_;
-  std::uint32_t inserted_element_count_;
-  const bool is_bit_array_owner_;
+//  std::uint32_t inserted_element_count_;
 
   static constexpr std::uint64_t kKnuthGoldenRatioNumber = 2654435761;
   const std::uint64_t hash_fn_[kMaxNumHashFns] = { // hash_fn_[i] is 2**(i+1) - 1
@@ -383,8 +336,7 @@ class BloomFilterBlocked {
     // 0x1fffffff * kKnuthGoldenRatioNumber  // 0x3fffffff, 0x7fffffff, 0xffffffff
     };
 
-  alignas(kCacheLineBytes) std::unique_ptr<std::uint8_t> bit_array_;
-  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> bloom_filter_insert_mutex_;
+  alignas(kCacheLineBytes) std::vector<std::atomic<std::uint8_t>> bit_array_;
 
   DISALLOW_COPY_AND_ASSIGN(BloomFilterBlocked);
 };

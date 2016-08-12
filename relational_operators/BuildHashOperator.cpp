@@ -144,7 +144,7 @@ serialization::WorkOrder* BuildHashOperator::createWorkOrderProto(const block_id
 }
 
 void BuildHashOperator::actionOnCompletion() {
-  hash_table_->finalizeBuildSideThreadLocalBloomFilters();
+//  hash_table_->finalizeBuildSideThreadLocalBloomFilters();
 }
 
 void BuildHashWorkOrder::execute() {

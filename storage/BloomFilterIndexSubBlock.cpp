@@ -62,29 +62,30 @@ BloomFilterIndexSubBlock::BloomFilterIndexSubBlock(const TupleStorageSubBlock &t
   CHECK(DescriptionIsValid(relation_, description_))
       << "Attempted to construct an BloomFilterIndexSubBlock from an invalid description.";
 
-  // Store the attribute ids that are being indexed.
-  indexed_attribute_ids_.reserve(description.indexed_attribute_ids_size());
-  for (int i = 0; i < description.indexed_attribute_ids_size(); ++i) {
-    indexed_attribute_ids_.push_back(description.indexed_attribute_ids(i));
-  }
-
-  // Make the bit_array_ point to sub_block_memory.
-  bit_array_.reset(static_cast<std::uint8_t*>(sub_block_memory));
-
-  bool is_bloom_filter_initialized = !is_new_block;
-  const std::uint32_t salt_count = description.GetExtension(BloomFilterIndexSubBlockDescription::number_of_hashes);
-
-  // Initialize the bloom_filter_ data structure to operate on bit_array.
-  bloom_filter_.reset(new BloomFilter(salt_count,
-                                      bit_array_size_in_bytes_,
-                                      bit_array_.get(),
-                                      is_bloom_filter_initialized));
-  is_initialized_ = true;
-  is_consistent_ = true;
+//  // Store the attribute ids that are being indexed.
+//  indexed_attribute_ids_.reserve(description.indexed_attribute_ids_size());
+//  for (int i = 0; i < description.indexed_attribute_ids_size(); ++i) {
+//    indexed_attribute_ids_.push_back(description.indexed_attribute_ids(i));
+//  }
+//
+//  // Make the bit_array_ point to sub_block_memory.
+//  bit_array_.reset(static_cast<std::uint8_t*>(sub_block_memory));
+//
+//  bool is_bloom_filter_initialized = !is_new_block;
+//  const std::uint32_t salt_count = description.GetExtension(BloomFilterIndexSubBlockDescription::number_of_hashes);
+//
+//  // Initialize the bloom_filter_ data structure to operate on bit_array.
+//  bloom_filter_.reset(new BloomFilter(salt_count,
+//                                      bit_array_size_in_bytes_,
+//                                      bit_array_.get(),
+//                                      is_bloom_filter_initialized));
+//  is_initialized_ = true;
+//  is_consistent_ = true;
+  LOG(FATAL) << "BloomFilterIndexSubBlock disabled";
 }
 
 BloomFilterIndexSubBlock::~BloomFilterIndexSubBlock() {
-  bit_array_.release();  // De-allocation of bit_array_ is handled by StorageBlock.
+//  bit_array_.release();  // De-allocation of bit_array_ is handled by StorageBlock.
 }
 
 bool BloomFilterIndexSubBlock::DescriptionIsValid(const CatalogRelationSchema &relation,
@@ -258,22 +259,24 @@ BloomFilterIndexSubBlock::BloomFilterSelectivity
 }
 
 bool BloomFilterIndexSubBlock::rebuild() {
-  DCHECK(is_initialized_);
-  bloom_filter_->reset();
-  bool didSucceed = true;
-  if (tuple_store_.isPacked()) {
-    for (tuple_id tid = 0; didSucceed && tid <= tuple_store_.getMaxTupleID(); ++tid) {
-      didSucceed = addEntry(tid);
-    }
-  } else {
-    for (tuple_id tid = 0; didSucceed && tid <= tuple_store_.getMaxTupleID(); ++tid) {
-      if (tuple_store_.hasTupleWithID(tid)) {
-        didSucceed = addEntry(tid);
-      }
-    }
-  }
-  is_consistent_ = true;
-  return didSucceed;
+//  DCHECK(is_initialized_);
+//  bloom_filter_->reset();
+//  bool didSucceed = true;
+//  if (tuple_store_.isPacked()) {
+//    for (tuple_id tid = 0; didSucceed && tid <= tuple_store_.getMaxTupleID(); ++tid) {
+//      didSucceed = addEntry(tid);
+//    }
+//  } else {
+//    for (tuple_id tid = 0; didSucceed && tid <= tuple_store_.getMaxTupleID(); ++tid) {
+//      if (tuple_store_.hasTupleWithID(tid)) {
+//        didSucceed = addEntry(tid);
+//      }
+//    }
+//  }
+//  is_consistent_ = true;
+//  return didSucceed;
+  LOG(FATAL) << "BloomFilterIndexSubBlock disabled";
+  return false;
 }
 
 }  // namespace quickstep
