@@ -58,7 +58,7 @@ DEFINE_uint64(max_msgs_per_dispatch_round, 20, "Maximum number of messages that"
               " can be allocated in a single round of dispatch of messages to"
               " the workers.");
 
-void PolicyEnforcerDistributed::getWorkOrderMessages(
+void PolicyEnforcerDistributed::getWorkOrderProtoMessages(
     vector<unique_ptr<S::WorkOrderMessage>> *work_order_messages) {
   // Iterate over admitted queries until either there are no more
   // messages available, or the maximum number of messages have
@@ -67,7 +67,7 @@ void PolicyEnforcerDistributed::getWorkOrderMessages(
   // TODO(harshad) - Make this function generic enough so that it
   // works well when multiple queries are getting executed.
   if (admitted_queries_.empty()) {
-    LOG(WARNING) << "Requesting WorkerMessages when no query is running";
+    LOG(WARNING) << "Requesting WorkOrderProtoMessages when no query is running";
     return;
   }
 
