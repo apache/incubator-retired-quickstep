@@ -1439,8 +1439,9 @@ void ExecutionGenerator::convertAggregate(
   }
 
 //  aggr_state_proto->set_estimated_num_entries(cost_model_->estimateCardinality(physical_plan));
-  aggr_state_proto->set_estimated_num_entries(
-      star_schema_cost_model_->estimateCardinality(physical_plan) * 10);
+//  aggr_state_proto->set_estimated_num_entries(
+//      star_schema_cost_model_->estimateCardinality(physical_plan) * 10);
+  aggr_state_proto->set_estimated_num_entries(64u);
 
   const QueryPlan::DAGNodeIndex aggregation_operator_index =
       execution_plan_->addRelationalOperator(

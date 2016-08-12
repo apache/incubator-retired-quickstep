@@ -142,15 +142,15 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
             attr_info.append(std::to_string(static_cast<std::size_t>(
                 stat->getNumDistinctValues(attr_id) * cost_model_->estimateSelectivity(child))));
           }
-          const Type& attr_type = attr->getValueType();
-          if (stat->hasMinValue(attr_id)) {
-            attr_info.append(", min = ");
-            attr_info.append(attr_type.printValueToString(stat->getMinValue(attr_id)));
-          }
-          if (stat->hasMaxValue(attr_id)) {
-            attr_info.append(", max = ");
-            attr_info.append(attr_type.printValueToString(stat->getMaxValue(attr_id)));
-          }
+//          const Type& attr_type = attr->getValueType();
+//          if (stat->hasMinValue(attr_id)) {
+//            attr_info.append(", min = ");
+//            attr_info.append(attr_type.printValueToString(stat->getMinValue(attr_id)));
+//          }
+//          if (stat->hasMaxValue(attr_id)) {
+//            attr_info.append(", max = ");
+//            attr_info.append(attr_type.printValueToString(stat->getMaxValue(attr_id)));
+//          }
         }
         edge_info.labels.emplace_back(attr_info);
       }
