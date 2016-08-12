@@ -148,6 +148,16 @@ class PackedRowStoreTupleStorageSubBlock: public TupleStorageSubBlock {
       const std::vector<attribute_id> &attribute_map,
       ValueAccessor *accessor) override;
 
+  tuple_id bulkInsertPartialTuples(
+      const std::vector<attribute_id> &attribute_map,
+      ValueAccessor *accessor,
+      const tuple_id max_num_tuples_to_insert) override;
+
+  void bulkInsertPartialTuplesFinalize(
+      const tuple_id num_tuples_inserted) override {
+    header_->num_tuples += num_tuples_inserted;
+  };
+  
   const void* getAttributeValue(const tuple_id tuple,
                                 const attribute_id attr) const override;
 
@@ -204,9 +214,23 @@ class PackedRowStoreTupleStorageSubBlock: public TupleStorageSubBlock {
   // Helper function for bulkInsertTuplesWithRemappedAttributes which is
   // templated on the 'nullable_attrs' flag (similar in semantics to its use in
   // the above functions). 
-  template <bool nullable_attrs>
-  tuple_id bulkInsertTuplesWithRemappedAttributesHelper(
-      const std::vector<attribute_id> &attribute_map, ValueAccessor *accessor);
+  template <bool nullable_attrs, bool has_gaps, bool merge_contigous_attrs>
+  tuple_id bulkInsertTuplesHelper(
+      const std::vector<attribute_id> &attribute_map,
+      ValueAccessor *accessor,
+      const tuple_id max_num_tuples_to_insert);
+
+  // A dispatcher function that calls the above helper with the template
+  // parameters set appropriately.
+  template <bool has_gaps> tuple_id bulkInsertTuplesDispatcher(
+      const std::vector<attribute_id> &attribute_map,
+      ValueAccessor *accessor,
+      const tuple_id max_num_tuples_to_insert);
+
+  // Estimate the number of tuples that can be inserted into the table at this
+  // point. Note that this estimate is conservative, in the sense that we are
+  // guaranteed that at least these many tuples can definitely be inserted.
+  template <bool nullable_attrs> tuple_id estimateNumTuplesInsertable() const;
 
   PackedRowStoreHeader *header_;
   std::unique_ptr<BitVector<false>> null_bitmap_;

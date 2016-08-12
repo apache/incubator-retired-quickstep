@@ -20,7 +20,6 @@
 #ifndef QUICKSTEP_STORAGE_INSERT_DESTINATION_INTERFACE_HPP_
 #define QUICKSTEP_STORAGE_INSERT_DESTINATION_INTERFACE_HPP_
 
-#include <unordered_map>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"

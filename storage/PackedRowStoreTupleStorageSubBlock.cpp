@@ -19,6 +19,7 @@
 
 #include "storage/PackedRowStoreTupleStorageSubBlock.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <vector>
@@ -137,321 +138,376 @@ std::size_t PackedRowStoreTupleStorageSubBlock::EstimateBytesPerTuple(
          + ((relation.numNullableAttributes() + 7) >> 3);
 }
 
-tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *accessor) {
-  const tuple_id original_num_tuples = header_->num_tuples;
-  char *dest_addr = static_cast<char*>(tuple_storage_)
-                      + header_->num_tuples * relation_.getFixedByteLength();
-  const unsigned num_nullable_attrs = relation_.numNullableAttributes();
-
-  InvokeOnAnyValueAccessor(
-      accessor,
-      [this, &dest_addr, &num_nullable_attrs](auto *accessor) -> void {  // NOLINT(build/c++11)
-    const std::size_t num_attrs = relation_.size();
-    const std::vector<std::size_t> &attrs_max_size =
-        relation_.getMaximumAttributeByteLengths();
-
-    if (num_nullable_attrs != 0) {
-      while (this->hasSpaceToInsert<true>(1) && accessor->next()) {
-        for (std::size_t curr_attr = 0; curr_attr < num_attrs; ++curr_attr) {
-          const std::size_t attr_size = attrs_max_size[curr_attr];
-          const attribute_id nullable_idx = relation_.getNullableAttributeIndex(curr_attr);
-          // If this attribute is nullable, check for a returned null value.
-          if (nullable_idx != kInvalidCatalogId) {
-            const void *attr_value
-                = accessor->template getUntypedValue<true>(curr_attr);
-            if (attr_value == nullptr) {
-              null_bitmap_->setBit(
-                  header_->num_tuples * num_nullable_attrs + nullable_idx,
-                  true);
-            } else {
-              memcpy(dest_addr, attr_value, attr_size);
-            }
-          } else {
-            memcpy(dest_addr,
-                   accessor->template getUntypedValue<false>(curr_attr),
-                   attr_size);
-          }
-          dest_addr += attr_size;
-        }
-        ++(header_->num_tuples);
-      }
-    } else {
-      // If the accessor is from a packed row store, we can optimize the
-      // memcpy by avoiding iterating over each attribute.
-      const bool fast_copy =
-          (accessor->getImplementationType() ==
-              ValueAccessor::Implementation::kCompressedPackedRowStore);
-      const std::size_t attrs_total_size = relation_.getMaximumByteLength();
-      while (this->hasSpaceToInsert<false>(1) && accessor->next()) {
-        if (fast_copy) {
-          memcpy(dest_addr,
-                 accessor->template getUntypedValue<false>(0),
-                 attrs_total_size);
-        } else {
-          for (std::size_t curr_attr = 0; curr_attr < num_attrs; ++curr_attr) {
-            const std::size_t attr_size = attrs_max_size[curr_attr];
-            memcpy(dest_addr,
-                   accessor->template getUntypedValue<false>(curr_attr),
-                   attr_size);
-            dest_addr += attr_size;
-          }
-        }
-        ++(header_->num_tuples);
-      }
-    }
-  });
-
-  return header_->num_tuples - original_num_tuples;
-}
-
 // Unnamed namespace for helper functions that are implementation details and
 // need not be exposed in the interface of the class (i.e., in the *.hpp file).
 // 
 // The first helper function here is used to provide an optimized bulk insertion path
 // from RowStore to RowStore blocks, where contiguous attributes are copied
 // together. For uniformity, there is another helper function that provides
-// semantically identical `runs` for other layouts as well.
+// semantically identical `runs` for other input layouts as well.
 namespace {
 enum RunType {
   kContiguousAttributes,
   kNullableAttribute,
+  kGap,
 };
 
-struct RunInfo {
-  RunType run_type_;
-  attribute_id mapped_attr_id_;
-  std::size_t size_;
-  int nullable_attr_idx_;
 
-  static const int invalid_nullable_attr_idx_ = -1;
+// struct Run contains information about ane run of attributes in the source
+// ValueAccessor that can be copied into the output block. The
+// getRunsForAttributeMap function below takes an attribute map for a source
+// and converts it into a sequence of runs. The goal is to minimize the number
+// of memcpy calls and address that occur during bulk insertion.
+// Contiguous attributes from a rowstore source are merged into a single run.
+//
+// A ContiguousAttrsRun consists of contiguous attributes, nullable or not.
+// "Contiguous" here means that their attribute IDs are successive in both
+// the source and destination relations.
+//
+// A NullAttrRun refers to a nullable attribute. Nullable columns are
+// represented using fixed length inline data as well as a null bitmap.
+// In a particular tuple, if the attribute has a null value, the inline data
+// has no meaning. So it is safe to copy it or not. We use this fact to merge
+// runs together aggressively, i.e., a ContiguousAttrsRun may include a nullable
+// attribute. However, we also create a NullAttrRun in that case (with 0 bytes
+// to copy) in order to check the null bitmap.
+//
+// A GapRun is a run of destination (output) attributes that don't come from a
+// particular source. This occurs during bulkInsertPartialTuples. They must be
+// skipped during the insert (not copied over). They are indicated by a
+// kInvalidCatalogId in the attribute map. Note that for efficiency, a GapRun
+// is only created when it is at the start. Otherwise, the gap size is merged
+// into the bytes_to_advance_ of previous run.
+//
+// eg. For 4B integer attrs, from a row store source,
+// if the input attribute_map is {-1,0,5,6,7,-1,2,4,9,10}
+// with input/output attributes 4 and 7 being nullable,
+// we will create the following runs. (Note that the order may be different.)
+//
+//  ------------------------------------------------------------------------
+//  |         run_type_ |source_attr_id_| bytes_to_copy_| bytes_to_advance_|
+//  |-------------------|---------------|---------------|------------------|
+//  |            GapRun |             -1|              0|                 4|
+//  | ContigousAttrsRun |              0|              4|                 4|
+//  | ContigousAttrsRun |              5|             12|                12|
+//  |   NullableAttrRun |              7|              0|                 0|
+//  | ContigousAttrsRun |              2|              4|                 4|
+//  |   NullableAttrRun |              4|              4|                 4|
+//  | ContigousAttrsRun |              9|              8|                 8|
+//  ------------------------------------------------------------------------
+// In this example, there are only 5 memcpy calls and 6 address calculations
+// needed, even though there are 10 attributes in the attribute map.
+//
+struct Run {
+  RunType run_type_;             // Type of run 
+  attribute_id source_attr_id_;  // attr_id of starting input attribute for run
+  std::size_t bytes_to_copy_;    // Number of bytes to copy from source
+  std::size_t bytes_to_advance_; // Number of bytes to advance destination ptr
+  int nullable_attr_idx_;        // For NullableAttrRun, index into null bitmap
 
-  RunInfo(RunType run_type, attribute_id mapped_attr_id, std::size_t size,
-          int nullable_attr_idx)
+  Run(const RunType run_type,
+      const attribute_id mapped_attr_id,
+      const std::size_t bytes_to_copy,
+      const std::size_t bytes_to_advance,
+      const int nullable_attr_idx)
       : run_type_(run_type),
-        mapped_attr_id_(mapped_attr_id),
-        size_(size),
-        nullable_attr_idx_(nullable_attr_idx) {}
+        source_attr_id_(mapped_attr_id),
+        bytes_to_copy_(bytes_to_copy),
+        bytes_to_advance_(bytes_to_advance),
+        nullable_attr_idx_(nullable_attr_idx) {};
 
-  static RunInfo getContiguousAttrsRun(attribute_id mapped_attr_id,
-                               std::size_t size) {
-    return RunInfo(kContiguousAttributes, mapped_attr_id,
-                   size, invalid_nullable_attr_idx_);
+  static Run ContiguousAttrsRun(
+      const std::vector<std::size_t> &attrs_max_size,
+      const attribute_id start_attr_id,
+      const attribute_id num_contiguous_attrs,
+      const attribute_id num_gap_attrs) {
+    // Accumulate number of bytes to copy for contiguous attrs
+    std::size_t bytes_to_copy = 0;
+    for (attribute_id i = 0; i < num_contiguous_attrs; i++) {
+      bytes_to_copy += attrs_max_size[start_attr_id + i];
+    }
+
+    // Accumulate number of bytes to skip for gap attrs
+    std::size_t bytes_to_advance = bytes_to_copy;
+    const std::size_t gap_start_attr_id = start_attr_id + num_contiguous_attrs;
+    for (attribute_id i = 0; i < num_gap_attrs; i++) {
+      bytes_to_advance += attrs_max_size[gap_start_attr_id + i];
+    }
+
+    return Run(kContiguousAttributes,
+               start_attr_id,
+               bytes_to_copy,
+               bytes_to_advance,
+               kInvalidCatalogId);
   }
 
-  static RunInfo getNullableAttrRun(attribute_id mapped_attr_id, std::size_t size,
-                            int nullable_attr_idx) {
-    return RunInfo(kNullableAttribute, mapped_attr_id,
-                   size, nullable_attr_idx);
+  static Run NullableAttrRun(
+      const std::vector<std::size_t> &attrs_max_size,
+      const attribute_id attr_id,
+      const int nullable_attr_idx,
+      const attribute_id num_gap_attrs) {
+    std::size_t bytes_to_copy = attrs_max_size[attr_id];
+
+    // Accumulate number of bytes to skip for gap attrs
+    std::size_t bytes_to_advance = bytes_to_copy;
+    const std::size_t gap_start_attr_id = attr_id + 1;
+    for (attribute_id i = 0; i < num_gap_attrs; i++) {
+      bytes_to_advance += attrs_max_size[gap_start_attr_id + i];
+    }
+
+    return Run(kNullableAttribute,
+               attr_id,
+               bytes_to_copy,
+               bytes_to_advance,
+               nullable_attr_idx);
   }
 
+  static Run GapRun(
+      const std::vector<std::size_t> &attrs_max_size,
+      const attribute_id num_gap_attrs) {
+    std::size_t bytes_to_copy = 0;
+
+    // Accumulate number of bytes to skip for gap attrs
+    std::size_t bytes_to_advance = bytes_to_copy;
+    for (attribute_id i = 0; i < num_gap_attrs; i++) {
+      bytes_to_advance += attrs_max_size[i];
+    }
+
+    return Run(kGap,
+               kInvalidCatalogId,
+               bytes_to_copy,
+               bytes_to_advance,
+               kInvalidCatalogId);
+    
+  }
 };
+
+template <bool has_nullable_attrs>
+bool isNullable(const CatalogRelationSchema &relation,
+                const attribute_id attr_id,
+                int &null_idx) {
+  if (!has_nullable_attrs)
+    return false;
+  null_idx = relation.getNullableAttributeIndex(attr_id);
+  return null_idx != kInvalidCatalogId;
+}
+
 
 // This helper function examines the schema of the input and output blocks
 // and determines runs of attributes that can be copied at once.
-// 
-// For the i-th run of contiguous non-nullable attributes in the attribute map,
-// `runs[i]` will contain a RunInfo struct.
-//   run_start is the starting (mapped) attribute id of the run, and
-//   size is the total size (i.e., num bytes) of all attributes in the run.
-//
-// For 4B integer attrs, with attribute_map {0,2,5,6,7,3,4,10}
-// `runs` will be {(0,4), (2,4), (5,12), (3,8), (10,4)}
-//
-// Nullable attributes also break runs, just like non-contiguous attributes.
-// They are recorded in `runs` using a sentinel run size kNullAttrRunSize (-1).
-// In the above example, if 6 was nullable,
-// `runs` will be {(0,4), (2,4), (5,4), (6,-1), (7,4), (3,8), (10,4)}
-void getRunsForRowLayoutHelper(
+// has_nullable_attrs: Check and break runs when there are nullable attributes.
+//                     Caller should set based on relation schema.
+// has_gaps: Check and break runs when there are gaps.
+//           Caller should set this when there is more than one source ValueAccessor.
+// merge_contiguous_attrs: Successive attribute IDs are merged into one run.
+//                         Caller should set this when source is a row store.
+template <bool has_nullable_attrs, bool has_gaps, bool merge_contiguous_attrs>
+void getRunsForAttributeMap(
     const CatalogRelationSchema &relation,
     const std::vector<attribute_id> &attribute_map,
     const std::vector<std::size_t> &attrs_max_size,
-    std::vector<RunInfo> &runs) {
-  std::size_t num_attrs = attribute_map.size();
-  std::size_t curr_run_size = 0;
-  std::size_t curr_run_start = 0;
-  for (std::size_t curr_attr = 0; curr_attr < num_attrs; ++curr_attr) {
-    int null_idx = relation.getNullableAttributeIndex(curr_attr);
-    if (null_idx == kInvalidCatalogId) {
-      if (curr_run_size != 0) {
-        if (attribute_map[curr_attr] == 1 + attribute_map[curr_attr - 1]) {
-          // If curr_attr is non-nullable,
-          // ... and if there is an ongoing run,
-          // ... and if curr_attr is adjacent to the previous attribute,
-          // ... then we continue the current run.
-          curr_run_size += attrs_max_size[curr_attr];
-        } else {
-          // If curr_attr is non-nullable
-          // ... and there is an ongoing run,
-          // ... but curr_attr is not adjacent to the previous attribute,
-          // ... then we end the current run,
-          runs.push_back(RunInfo::getContiguousAttrsRun(
-              attribute_map[curr_run_start], curr_run_size));
+    std::vector<Run> &runs) {
+  attribute_id num_attrs = attribute_map.size();
+  std::size_t curr_attr = 0;
 
-          // ... and begin a new run.
-          curr_run_size = attrs_max_size[curr_attr];
-          curr_run_start = curr_attr;
-        }
-      } else {
-        // If curr_attr is non-nullable, ...
-        // ... but there is no ongoing run,
-        // ... then we begin a new run.
-        curr_run_size = attrs_max_size[curr_attr];
-        curr_run_start = curr_attr;
+  // First handle a starting GapRun
+  if (has_gaps) {
+    while (curr_attr < num_attrs && attribute_map[curr_attr] == kInvalidCatalogId)
+      ++curr_attr;
+    if (curr_attr > 0)
+      runs.push_back(Run::GapRun(attrs_max_size, curr_attr));
+  }
+
+  // Starting with curr_attr set to the first non-gap attribute,
+  // scan attribute_map to find contiguous runs.
+  while (curr_attr < num_attrs) {
+    std::size_t run_start = curr_attr;
+    int null_idx = kInvalidCatalogId;
+    if (!isNullable<has_nullable_attrs>(relation, curr_attr, null_idx)) {
+      ++curr_attr;
+      // Start of this run is non-nullable, so it is a ContiguousAttrsRun.
+      // Find all following non-nullable contiguous attributes
+      if (merge_contiguous_attrs) {
+        while (curr_attr < num_attrs
+             && attribute_map[curr_attr] == 1 + attribute_map[curr_attr-1]
+             && !isNullable<has_nullable_attrs>(relation, curr_attr, null_idx))
+          ++curr_attr;
       }
-    } else {
-      if (curr_run_size != 0) {
-        // If curr_attr is nullable,
-        // ... and there is an ongoing run,
-        // ... then we end the current run,
-        runs.push_back(RunInfo::getContiguousAttrsRun(
-            attribute_map[curr_run_start], curr_run_size));
-        curr_run_size = 0;
+      // curr_attr should now be 1 beyond list of contiguous attributes to merge
+      const attribute_id num_contiguous_attrs = curr_attr - run_start;
 
-        // ... and record nulability of curr_attr as below.
-      } else {
-        // If curr_attr is nullable,
-        // ... and there is no ongoing run,
-        // ... we just have to record the nullability of curr_attr as below.
-        // (Nothing to do here.)
+      // Now find how many gap attributes are next.
+      const attribute_id gap_start = curr_attr;
+      if (has_gaps) {
+        while (curr_attr < num_attrs
+               && attribute_map[curr_attr] == kInvalidCatalogId)
+          ++curr_attr;
       }
-
-      // We must record that curr_attr is nullable, by inserting it into `runs`
-      runs.push_back(RunInfo::getNullableAttrRun(
-          attribute_map[curr_attr], attrs_max_size[curr_attr], null_idx));
+      const attribute_id num_gap_attrs = curr_attr - gap_start;
+      runs.push_back(Run::ContiguousAttrsRun(
+          attrs_max_size, run_start, num_contiguous_attrs, num_gap_attrs));
     }
-  } // end for-loop on attributes in attribute_map
-
-  if (curr_run_size != 0) {
-    // If there is an ongoing run, then we end it. 
-    runs.push_back(RunInfo::getContiguousAttrsRun(
-        attribute_map[curr_run_start], curr_run_size));
+    else {
+      // Start of this run is nullable, so it is a NullableAttrRun.
+      // Find how many gap attributes are next.
+      ++curr_attr;
+      const attribute_id gap_start = curr_attr;
+      if (has_gaps) {
+        while (curr_attr < num_attrs
+              && attribute_map[curr_attr] == kInvalidCatalogId)
+          ++curr_attr;
+      }
+      attribute_id num_gap_attrs = curr_attr - gap_start;
+      runs.push_back(Run::NullableAttrRun(
+          attrs_max_size, run_start, null_idx, num_gap_attrs));
+    }
   }
 }
 
-// (See comments for above function for context.)
-// For other layouts (not Row Store), the input attributes may not be contiguous,
-// even if they have successive attribute IDs. So we just create a dummy `runs`
-// vector, with every attribute being a run of its size. Again, as above,
-// nullable attributes are given a sentinel run size kNullAttrRunSize.
-void getRunsForOtherLayoutHelper(
-    const CatalogRelationSchema &relation,
-    const std::vector<attribute_id> &attribute_map,
-    const std::vector<std::size_t> &attrs_max_size,
-    std::vector<RunInfo> &runs) {
-  std::size_t num_attrs = attribute_map.size();
-  for (std::size_t curr_attr = 0; curr_attr < num_attrs; ++curr_attr) {
-    int null_idx = relation.getNullableAttributeIndex(curr_attr);
-    if (null_idx == kInvalidCatalogId) {
-      runs.push_back(RunInfo::getContiguousAttrsRun(
-          attribute_map[curr_attr], attrs_max_size[curr_attr]));
-    } else {
-      runs.push_back(RunInfo::getNullableAttrRun(
-          attribute_map[curr_attr], attrs_max_size[curr_attr], null_idx));
-    }
-  }
-
-}
 } // end Unnamed Namespace
 
-template <bool nullable_attrs> tuple_id
-PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttributesHelper(
-    const std::vector<attribute_id> &attribute_map, ValueAccessor *accessor) {
+template <bool has_nullable_attrs,
+          bool has_gaps,
+          bool merge_contiguous_attrs>
+tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesHelper(
+    const std::vector<attribute_id> &attribute_map,
+    ValueAccessor *accessor,
+    const tuple_id max_num_tuples_to_insert) {
   DEBUG_ASSERT(attribute_map.size() == relation_.size());
 
-  const tuple_id original_num_tuples = header_->num_tuples;
+  tuple_id num_tuples_inserted = 0;
   char *dest_addr = static_cast<char *>(tuple_storage_) +
                     header_->num_tuples * relation_.getFixedByteLength();
   const unsigned num_nullable_attrs = relation_.numNullableAttributes();
   const std::vector<std::size_t> &attrs_max_size =
       relation_.getMaximumAttributeByteLengths();
 
-  std::vector<RunInfo> runs;
+  std::vector<Run> runs;
   runs.reserve(attribute_map.size());
-
-  // We have an optimized implementation for RowStore to RowStore bulk insert.
-  // For other layouts, we just create dummy `runs` for uniformity.
-  auto impl = accessor->getImplementationType();
-  if (impl == ValueAccessor::Implementation::kPackedRowStore ||
-      impl == ValueAccessor::Implementation::kSplitRowStore) {
-    getRunsForRowLayoutHelper(relation_, attribute_map, attrs_max_size, runs);
-  } else {
-    getRunsForOtherLayoutHelper(relation_, attribute_map, attrs_max_size, runs);
-  }
+  getRunsForAttributeMap<has_nullable_attrs, has_gaps, merge_contiguous_attrs>
+      (relation_, attribute_map, attrs_max_size, runs);
 
   InvokeOnAnyValueAccessor(
     accessor,
-    [this, &num_nullable_attrs, &dest_addr, &runs, &attrs_max_size]
-    (auto *accessor) -> void {  // NOLINT(build/c++11)
+    [&] (auto *accessor) -> void {  // NOLINT(build/c++11)
 
       // Inner lambda inserts one tuple.
       // Defining a lambda here reduces code duplication. It can't be defined
       // as a separate function because getUntypedValue is only a member of
-      // the downcasted ValueAccessor subtypes, not the
-      // base ValueAccessor type. So the inner lambda has to be nested inside
-      // the outer lambda. 
+      // the downcasted ValueAccessor subtypes, not the base ValueAccessor type.
+      // So the inner lambda must be nested inside the outer lambda. 
       auto insertOneTupleUsingRuns =
-          [this, &accessor, &runs, &dest_addr, num_nullable_attrs]() -> void {
-        for (auto &run : runs) {
-          if (!nullable_attrs
-              || run.run_type_ == RunType::kContiguousAttributes) {
+          [&]() -> void {
+        accessor->next();
+        for (auto &run : runs) {  // NOLINT(build/c++11)
+          if (run.run_type_ == RunType::kContiguousAttributes) {
+            // It's a run with one or more non-nullable attributes. Copy data.
             memcpy(dest_addr,
-                   accessor->template getUntypedValue<false>(run.mapped_attr_id_),
-                   run.size_);
-            dest_addr += run.size_;
-          } else {
+                   accessor->template getUntypedValue<false>(run.source_attr_id_),
+                   run.bytes_to_copy_);
+            dest_addr += run.bytes_to_advance_;
+          } else if (has_nullable_attrs
+                     && run.run_type_ == RunType::kNullableAttribute){
             // It's a nullable attribute. Does it have null value?
             const void *attr_value =
-                accessor->template getUntypedValue<true>(run.mapped_attr_id_);
+            accessor->template getUntypedValue<true>(run.source_attr_id_);
             if (attr_value != nullptr) {
-              memcpy(dest_addr, attr_value, run.size_);
+              memcpy(dest_addr, attr_value, run.bytes_to_copy_);
             } else {
               this->null_bitmap_->setBit(
                   this->header_->num_tuples * num_nullable_attrs
-                      + run.nullable_attr_idx_,
+                  + run.nullable_attr_idx_,
                   true);
             }
             // In either case, increment dest_addr (leaving blank space in
             // case of null values)
-            dest_addr += run.size_;
+            dest_addr += run.bytes_to_advance_;
+          } else if (has_gaps
+                     && run.run_type_ == RunType::kGap) {
+            // It's a gap. Simply skip the bytes.
+            dest_addr += run.bytes_to_advance_;
           }
         }
-        ++(this->header_->num_tuples);
+        ++num_tuples_inserted;
       }; // end (inner) lambda: insertOneTupleUsingRuns
 
-      // Insert one tuple at a time into this subblock using the lambda fn above.
-      // We have split the loop in two and inserted in batches in order to make
-      // fewer calls to the somewhat expensive function hasSpaceToInsert.
-      //
-      // Note the order of the test conditions in the inner for-loop here. The
-      // loop terminates either when i == kNumTuplesInBatch, in which case
-      // accessor position has not been incremented past the last insert,
-      // or when accessor->next() returns false, in which case all tuples have
-      // been inserted. So there is no possibility of missing a tuple between the
-      // two loops.
-      const unsigned kNumTuplesInBatch = 1000;
-      while (this->hasSpaceToInsert<nullable_attrs>(kNumTuplesInBatch)
-             && !accessor->iterationFinished()) {
-        for (unsigned i = 0; i < kNumTuplesInBatch && accessor->next(); ++i)
-          insertOneTupleUsingRuns();
-      }
-      while (this->hasSpaceToInsert<nullable_attrs>(1) && accessor->next())
+      const tuple_id num_tuples_to_insert = std::min(
+          estimateNumTuplesInsertable<has_nullable_attrs>(),
+          max_num_tuples_to_insert);
+      while(num_tuples_inserted < num_tuples_to_insert
+            && !accessor->iterationFinished())
         insertOneTupleUsingRuns();
     });  // End (outer) lambda: argument to InvokeOnAnyValueAccessor
 
-  return header_->num_tuples - original_num_tuples;
+  if (!has_gaps)
+    header_->num_tuples += num_tuples_inserted;
+  return num_tuples_inserted;
+}
+
+template <bool has_gaps> tuple_id
+PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesDispatcher(
+    const std::vector<attribute_id> &attribute_map,
+    ValueAccessor *accessor,
+    const tuple_id max_num_tuples_to_insert) {
+  const bool has_nullable_attrs = (relation_.numNullableAttributes() > 0);
+  auto impl = accessor->getImplementationType();
+  const bool is_rowstore_source =
+      (impl == ValueAccessor::Implementation::kPackedRowStore ||
+       impl == ValueAccessor::Implementation::kSplitRowStore);
+
+  // bool has_gaps = false;
+  // for (auto &i : attribute_map)
+  //   if (i == -1) {
+  //     has_gaps = true;
+  //     break;
+  //   }
+
+  if (has_nullable_attrs) {
+      if (is_rowstore_source)
+        return bulkInsertTuplesHelper<1,has_gaps,1>(
+            attribute_map, accessor, max_num_tuples_to_insert);
+      else
+        return bulkInsertTuplesHelper<1,has_gaps,0>(
+            attribute_map, accessor, max_num_tuples_to_insert);
+    }
+    else {
+      if (is_rowstore_source)
+        return bulkInsertTuplesHelper<0,has_gaps,1>(
+            attribute_map, accessor, max_num_tuples_to_insert);
+      else
+        return bulkInsertTuplesHelper<0,has_gaps,0>(
+            attribute_map, accessor, max_num_tuples_to_insert);
+    }
+}
+
+tuple_id
+PackedRowStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *accessor) {
+  // Create a dummy attribute map and call bulkInsertTuples.
+  std::vector<attribute_id> attribute_map;
+  const attribute_id num_attrs = relation_.size();
+  attribute_map.reserve(num_attrs);
+  for (attribute_id i = 0; i < num_attrs; ++i)
+    attribute_map.push_back(i);
+
+  return bulkInsertTuplesWithRemappedAttributes(attribute_map, accessor);
 }
 
 tuple_id
 PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttributes(
     const std::vector<attribute_id> &attribute_map, ValueAccessor *accessor) {
-  const unsigned num_nullable_attrs = relation_.numNullableAttributes();
-  if (num_nullable_attrs > 0)
-    return bulkInsertTuplesWithRemappedAttributesHelper<true>(
-        attribute_map, accessor);
-  
-  return bulkInsertTuplesWithRemappedAttributesHelper<false>(
-        attribute_map, accessor);
+  // This function does not permit an attribute_map containing gaps.
+  return bulkInsertTuplesDispatcher<false>(
+      attribute_map, accessor, kCatalogMaxID);
 }
+
+tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertPartialTuples(
+    const std::vector<attribute_id> &attribute_map,
+    ValueAccessor *accessor,
+    const tuple_id max_num_tuples_to_insert) {
+  return bulkInsertTuplesDispatcher<true>(
+      attribute_map, accessor, max_num_tuples_to_insert);
+}
+
 
 const void *PackedRowStoreTupleStorageSubBlock::getAttributeValue(
     const tuple_id tuple, const attribute_id attr) const {
@@ -613,6 +669,23 @@ bool PackedRowStoreTupleStorageSubBlock::bulkDeleteTuples(TupleIdSequence *tuple
 
   return true;
 }
+
+template <bool nullable_attrs>
+tuple_id PackedRowStoreTupleStorageSubBlock::estimateNumTuplesInsertable() const{
+  std::size_t tuple_size = relation_.getFixedByteLength();
+  std::size_t remaining_subblock_bytes = sub_block_memory_size_
+                                         - sizeof(PackedRowStoreHeader)
+                                         - null_bitmap_bytes_
+                                         - header_->num_tuples * tuple_size;
+  tuple_id est_num_tuples = remaining_subblock_bytes/tuple_size;
+  if (nullable_attrs) {
+    tuple_id remaining_null_bitmap_bits = null_bitmap_->size()
+                                          - header_->num_tuples;
+    return std::min(est_num_tuples, remaining_null_bitmap_bits);
+  } 
+  return est_num_tuples;
+}
+
 
 template <bool nullable_attrs>
 bool PackedRowStoreTupleStorageSubBlock::hasSpaceToInsert(const tuple_id num_tuples) const {
