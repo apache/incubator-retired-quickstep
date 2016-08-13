@@ -26,6 +26,7 @@
 #include <string>
 
 #include "catalog/Catalog.hpp"
+#include "query_optimizer/Optimizer.hpp"
 #include "storage/StorageManager.hpp"
 #include "utility/Macros.hpp"
 
@@ -193,6 +194,8 @@ class QueryProcessor {
 
  private:
   void loadCatalog();  // If it exists, free catalog_ before calling this
+
+  optimizer::Optimizer optimizer_;
 
   std::string catalog_filename_;
 

@@ -61,8 +61,7 @@ OptimizerTest::OptimizerTest()
     : catalog_(new Catalog),
       catalog_database_(
           new CatalogDatabase(catalog_.get(), "TestDatabase" /* name */, 0)),
-      optimizer_context_(new OptimizerContext(catalog_database_.get(),
-                                              nullptr /* storage_manager */)),
+      optimizer_context_(new OptimizerContext),
       physical_generator_(new PhysicalGenerator()) {}
 
 E::AliasPtr OptimizerTest::createAlias(const E::ExpressionPtr &expression,

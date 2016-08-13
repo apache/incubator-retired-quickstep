@@ -32,6 +32,7 @@
 #include "query_execution/Worker.hpp"
 #include "query_execution/WorkerDirectory.hpp"
 #include "query_execution/WorkerMessage.hpp"
+#include "query_optimizer/Optimizer.hpp"
 #include "query_optimizer/tests/TestDatabaseLoader.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
 #include "utility/Macros.hpp"
@@ -41,7 +42,6 @@
 #include "tmb/message_bus.h"
 
 namespace quickstep {
-
 namespace optimizer {
 
 /**
@@ -106,6 +106,7 @@ class ExecutionGeneratorTestRunner : public TextBasedTestRunner {
  private:
   SqlParserWrapper sql_parser_;
   TestDatabaseLoader test_database_loader_;
+  Optimizer optimizer_;
 
   MessageBusImpl bus_;
   std::unique_ptr<ForemanSingleNode> foreman_;

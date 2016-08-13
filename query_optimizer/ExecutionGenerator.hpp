@@ -68,6 +68,7 @@
 namespace quickstep {
 
 class CatalogAttribute;
+class CatalogDatabase;
 class CatalogRelation;
 class Predicate;
 
@@ -82,8 +83,6 @@ class InsertDestination;
 
 namespace optimizer {
 
-class OptimizerContext;
-
 /** \addtogroup QueryOptimizer
  *  @{
  */
@@ -96,12 +95,12 @@ class ExecutionGenerator {
   /**
    * @brief Constructor. Does not take ownership of \p query_handle.
    *
-   * @param optimizer_context Optimizer context.
+   * @param catalog_database The catalog database where this query is executed.
    * @param query_handle The pointer to the output query handle.
    */
-  ExecutionGenerator(OptimizerContext *optimizer_context,
+  ExecutionGenerator(CatalogDatabase *catalog_database,
                      QueryHandle *query_handle)
-      : optimizer_context_(DCHECK_NOTNULL(optimizer_context)),
+      : catalog_database_(DCHECK_NOTNULL(catalog_database)),
         query_handle_(DCHECK_NOTNULL(query_handle)),
         execution_plan_(DCHECK_NOTNULL(query_handle->getQueryPlanMutable())),
         query_context_proto_(DCHECK_NOTNULL(query_handle->getQueryContextProtoMutable())),
@@ -383,7 +382,8 @@ class ExecutionGenerator {
    */
   void dropAllTemporaryRelations();
 
-  OptimizerContext *optimizer_context_;
+  CatalogDatabase *catalog_database_;
+
   QueryHandle *query_handle_;
   QueryPlan *execution_plan_;  // A part of QueryHandle.
   serialization::QueryContext *query_context_proto_;  // A part of QueryHandle.

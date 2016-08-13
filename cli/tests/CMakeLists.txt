@@ -36,19 +36,13 @@ target_link_libraries(quickstep_cli_tests_CommandExecutorTest
                       quickstep_parser_SqlParserWrapper
                       quickstep_queryexecution_AdmitRequestMessage
                       quickstep_queryexecution_ForemanSingleNode
-                      quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_Worker
                       quickstep_queryexecution_WorkerDirectory
-                      quickstep_queryexecution_WorkerMessage
-                      quickstep_queryoptimizer_ExecutionGenerator
-                      quickstep_queryoptimizer_LogicalGenerator
+                      quickstep_queryoptimizer_Optimizer
                       quickstep_queryoptimizer_OptimizerContext
-                      quickstep_queryoptimizer_PhysicalGenerator
                       quickstep_queryoptimizer_QueryHandle
-                      quickstep_queryoptimizer_QueryPlan
-                      quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_tests_TestDatabaseLoader
                       quickstep_utility_Macros
                       quickstep_utility_MemStream

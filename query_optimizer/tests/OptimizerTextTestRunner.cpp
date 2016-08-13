@@ -23,7 +23,6 @@
 #include <string>
 #include <vector>
 
-#include "parser/ParseStatement.hpp"
 #include "query_optimizer/LogicalGenerator.hpp"
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/PhysicalGenerator.hpp"
@@ -49,8 +48,7 @@ void OptimizerTextTestRunner::runTestCase(const std::string &input,
   sql_parser_.feedNextBuffer(new std::string(input));
   ParseResult result = sql_parser_.getNextStatement();
 
-  OptimizerContext optimizer_context(test_database_loader_.catalog_database(),
-                                     nullptr /* storage_manager */);
+  OptimizerContext optimizer_context;
   if (result.condition != ParseResult::kSuccess) {
     *output = result.error_message;
   } else {
@@ -115,7 +113,7 @@ void OptimizerTextTestRunner::runTestCase(const std::string &input,
 logical::LogicalPtr OptimizerTextTestRunner::resolveParseTree(
     const ParseStatement &parse_statement,
     OptimizerContext *optimizer_context) {
-  resolver::Resolver resolver(optimizer_context);
+  resolver::Resolver resolver(*test_database_loader_.catalog_database(), optimizer_context);
   return resolver.resolve(parse_statement);
 }
 
@@ -123,7 +121,8 @@ logical::LogicalPtr OptimizerTextTestRunner::generateLogicalPlan(
     const ParseStatement &parse_statement,
     OptimizerContext *optimizer_context) {
   LogicalGenerator logical_generator(optimizer_context);
-  return logical_generator.generatePlan(parse_statement);
+  return logical_generator.generatePlan(*test_database_loader_.catalog_database(),
+                                        parse_statement);
 }
 
 physical::PhysicalPtr OptimizerTextTestRunner::generatePhysicalPlan(

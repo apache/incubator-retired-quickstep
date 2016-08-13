@@ -439,7 +439,7 @@ L::LogicalPtr Resolver::resolveCreateTable(
   // Resolve relation name.
   const std::string relation_name =
       create_table_statement.relation_name()->value();
-  if (context_->catalog_database()->hasRelationWithName(relation_name)) {
+  if (catalog_database_.hasRelationWithName(relation_name)) {
     THROW_SQL_ERROR_AT(create_table_statement.relation_name())
         << "Relation " << create_table_statement.relation_name()->value()
         << " already exists";
@@ -1719,7 +1719,7 @@ E::WindowInfo Resolver::resolveWindow(const ParseWindow &parse_window,
 const CatalogRelation* Resolver::resolveRelationName(
     const ParseString *relation_name) {
   const CatalogRelation *relation =
-      context_->catalog_database()->getRelationByName(
+      catalog_database_.getRelationByName(
           ToLower(relation_name->value()));
   if (relation == nullptr) {
     THROW_SQL_ERROR_AT(relation_name) << "Unrecognized relation "

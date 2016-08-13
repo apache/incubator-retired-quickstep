@@ -26,26 +26,15 @@
 #include "cli/DropRelation.hpp"
 #include "cli/PrintToScreen.hpp"
 #include "parser/ParseStatement.hpp"
-#include "query_execution/AdmitRequestMessage.hpp"
 #include "query_execution/ForemanSingleNode.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
-#include "query_execution/Worker.hpp"
-#include "query_optimizer/ExecutionGenerator.hpp"
-#include "query_optimizer/LogicalGenerator.hpp"
+#include "query_optimizer/Optimizer.hpp"
 #include "query_optimizer/OptimizerContext.hpp"
-#include "query_optimizer/PhysicalGenerator.hpp"
 #include "query_optimizer/QueryHandle.hpp"
-#include "query_optimizer/QueryPlan.hpp"
-#include "query_optimizer/physical/Physical.hpp"
-#include "utility/Macros.hpp"
 #include "utility/MemStream.hpp"
-#include "utility/PtrList.hpp"
 #include "utility/SqlError.hpp"
 
 #include "glog/logging.h"
-
-#include "tmb/id_typedefs.h"
-#include "tmb/message_bus.h"
 
 namespace quickstep {
 
@@ -74,28 +63,22 @@ void ExecutionGeneratorTestRunner::runTestCase(
 
   while (true) {
     ParseResult result = sql_parser_.getNextStatement();
-
-    OptimizerContext optimizer_context(test_database_loader_.catalog_database(),
-                                       test_database_loader_.storage_manager());
-
     if (result.condition != ParseResult::kSuccess) {
       if (result.condition == ParseResult::kError) {
         *output = result.error_message;
       }
       break;
     } else {
-      std::printf("%s\n", result.parsed_statement->toString().c_str());
+      const ParseStatement &parse_statement = *result.parsed_statement;
+      std::printf("%s\n", parse_statement.toString().c_str());
       try {
         QueryHandle query_handle(0 /* query_id */, main_thread_client_id_);
-        LogicalGenerator logical_generator(&optimizer_context);
-        PhysicalGenerator physical_generator;
-        ExecutionGenerator execution_generator(&optimizer_context,
-                                               &query_handle);
+        OptimizerContext optimizer_context;
 
-        const physical::PhysicalPtr physical_plan =
-            physical_generator.generatePlan(
-                logical_generator.generatePlan(*result.parsed_statement));
-        execution_generator.generatePlan(physical_plan);
+        optimizer_.generateQueryHandle(parse_statement,
+                                       test_database_loader_.catalog_database(),
+                                       &optimizer_context,
+                                       &query_handle);
 
         QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
             main_thread_client_id_,

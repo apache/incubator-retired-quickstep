@@ -26,6 +26,7 @@
 #include "catalog/Catalog.hpp"
 #include "catalog/Catalog.pb.h"
 #include "query_optimizer/Optimizer.hpp"
+#include "query_optimizer/OptimizerContext.hpp"
 
 using std::ifstream;
 using std::ofstream;
@@ -34,11 +35,11 @@ namespace quickstep {
 
 void QueryProcessor::generateQueryHandle(const ParseStatement &statement,
                                          QueryHandle *query_handle) {
-  optimizer::Optimizer optimizer(getDefaultDatabase(), storage_manager_.get());
+  optimizer::OptimizerContext optimizer_context;
 
-  optimizer.generateQueryHandle(statement, query_handle);
+  optimizer_.generateQueryHandle(statement, getDefaultDatabase(), &optimizer_context, query_handle);
 
-  if (optimizer.isCatalogChanged() && !catalog_altered_) {
+  if (optimizer_context.is_catalog_changed() && !catalog_altered_) {
     catalog_altered_ = true;
   }
 

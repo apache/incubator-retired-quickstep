@@ -25,6 +25,7 @@
 
 namespace quickstep {
 
+class CatalogDatabase;
 class ParseStatement;
 
 namespace optimizer {
@@ -61,10 +62,12 @@ class LogicalGenerator {
    * @brief Converts the parse tree to a logical plan and optimizes the logical
    *        plan by using rules.
    *
+   * @param catalog_database The catalog database where this query is executed.
    * @param parse_statement The parse tree to be converted.
    * @return An optimized logical plan.
    */
-  logical::LogicalPtr generatePlan(const ParseStatement &parse_statement);
+  logical::LogicalPtr generatePlan(const CatalogDatabase &catalog_database,
+                                   const ParseStatement &parse_statement);
 
  private:
   /**

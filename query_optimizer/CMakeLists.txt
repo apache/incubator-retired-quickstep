@@ -181,7 +181,6 @@ target_link_libraries(quickstep_queryoptimizer_LogicalToPhysicalMapper
 target_link_libraries(quickstep_queryoptimizer_Optimizer
                       quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_queryoptimizer_LogicalGenerator
-                      quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_PhysicalGenerator
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_OptimizerContext
@@ -221,6 +220,7 @@ target_link_libraries(quickstep_queryoptimizer_QueryProcessor
                       quickstep_catalog_Catalog
                       quickstep_catalog_Catalog_proto
                       quickstep_queryoptimizer_Optimizer
+                      quickstep_queryoptimizer_OptimizerContext
                       quickstep_storage_StorageManager
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_Validator

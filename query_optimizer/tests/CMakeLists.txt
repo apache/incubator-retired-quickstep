@@ -110,7 +110,6 @@ add_executable(quickstep_queryoptimizer_tests_OptimizerTextTest
                "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.hpp")
 
 target_link_libraries(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
-                      ${GFLAGS_LIB_NAME}
                       glog
                       gtest
                       quickstep_catalog_CatalogDatabase
@@ -118,21 +117,14 @@ target_link_libraries(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
                       quickstep_cli_PrintToScreen
                       quickstep_parser_ParseStatement
                       quickstep_parser_SqlParserWrapper
-                      quickstep_queryexecution_AdmitRequestMessage
                       quickstep_queryexecution_ForemanSingleNode
-                      quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_Worker
                       quickstep_queryexecution_WorkerDirectory
-                      quickstep_queryexecution_WorkerMessage
-                      quickstep_queryoptimizer_ExecutionGenerator
-                      quickstep_queryoptimizer_LogicalGenerator
+                      quickstep_queryoptimizer_Optimizer
                       quickstep_queryoptimizer_OptimizerContext
-                      quickstep_queryoptimizer_PhysicalGenerator
                       quickstep_queryoptimizer_QueryHandle
-                      quickstep_queryoptimizer_QueryPlan
-                      quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_tests_TestDatabaseLoader
                       quickstep_threading_ThreadIDBasedMap
                       quickstep_utility_Macros
@@ -140,13 +132,13 @@ target_link_libraries(quickstep_queryoptimizer_tests_ExecutionGeneratorTest
                       quickstep_utility_SqlError
                       quickstep_utility_TextBasedTestDriver
                       tmb
+                      ${GFLAGS_LIB_NAME}
                       ${LIBS})
 target_link_libraries(quickstep_queryoptimizer_tests_OptimizerTextTest
                       ${GFLAGS_LIB_NAME}
                       glog
                       gtest
                       gtest_main
-                      quickstep_parser_ParseStatement
                       quickstep_parser_SqlParserWrapper
                       quickstep_queryoptimizer_LogicalGenerator
                       quickstep_queryoptimizer_OptimizerContext

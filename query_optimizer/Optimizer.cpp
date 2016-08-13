@@ -21,20 +21,20 @@
 
 #include "query_optimizer/ExecutionGenerator.hpp"
 #include "query_optimizer/LogicalGenerator.hpp"
-#include "query_optimizer/PhysicalGenerator.hpp"
 
 namespace quickstep {
 namespace optimizer {
 
 void Optimizer::generateQueryHandle(const ParseStatement &parse_statement,
+                                    CatalogDatabase *catalog_database,
+                                    OptimizerContext *optimizer_context,
                                     QueryHandle *query_handle) {
-  LogicalGenerator logical_generator(&optimizer_context_);
-  PhysicalGenerator physical_generator;
-  ExecutionGenerator execution_generator(&optimizer_context_, query_handle);
+  LogicalGenerator logical_generator(optimizer_context);
+  ExecutionGenerator execution_generator(catalog_database, query_handle);
 
   execution_generator.generatePlan(
-      physical_generator.generatePlan(
-          logical_generator.generatePlan(parse_statement)));
+      physical_generator_.generatePlan(
+          logical_generator.generatePlan(*catalog_database, parse_statement)));
 }
 
 }  // namespace optimizer

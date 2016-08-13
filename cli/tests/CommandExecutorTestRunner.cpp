@@ -31,17 +31,10 @@
 #include "query_execution/AdmitRequestMessage.hpp"
 #include "query_execution/ForemanSingleNode.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
-#include "query_execution/Worker.hpp"
-#include "query_optimizer/ExecutionGenerator.hpp"
-#include "query_optimizer/LogicalGenerator.hpp"
+#include "query_optimizer/Optimizer.hpp"
 #include "query_optimizer/OptimizerContext.hpp"
-#include "query_optimizer/PhysicalGenerator.hpp"
 #include "query_optimizer/QueryHandle.hpp"
-#include "query_optimizer/QueryPlan.hpp"
-#include "query_optimizer/physical/Physical.hpp"
-#include "utility/Macros.hpp"
 #include "utility/MemStream.hpp"
-#include "utility/PtrList.hpp"
 #include "utility/SqlError.hpp"
 
 #include "glog/logging.h"
@@ -53,8 +46,6 @@ namespace quickstep {
 class CatalogRelation;
 
 namespace O = ::quickstep::optimizer;
-namespace P = ::quickstep::optimizer::physical;
-namespace L = ::quickstep::optimizer::logical;
 
 const char CommandExecutorTestRunner::kResetOption[] =
     "reset_before_execution";
@@ -77,19 +68,16 @@ void CommandExecutorTestRunner::runTestCase(
 
   while (true) {
     ParseResult result = sql_parser_.getNextStatement();
-
-    O::OptimizerContext optimizer_context(test_database_loader_.catalog_database(),
-                                          test_database_loader_.storage_manager());
-
     if (result.condition != ParseResult::kSuccess) {
       if (result.condition == ParseResult::kError) {
         *output = result.error_message;
       }
       break;
     } else {
-      std::printf("%s\n", result.parsed_statement->toString().c_str());
+      const ParseStatement &parse_statement = *result.parsed_statement;
+      std::printf("%s\n", parse_statement.toString().c_str());
       try {
-        if (result.parsed_statement->getStatementType() == ParseStatement::kCommand) {
+        if (parse_statement.getStatementType() == ParseStatement::kCommand) {
           quickstep::cli::executeCommand(
               *result.parsed_statement,
               *(test_database_loader_.catalog_database()),
@@ -99,15 +87,14 @@ void CommandExecutorTestRunner::runTestCase(
               test_database_loader_.storage_manager(),
               nullptr,
               output_stream.file());
-        } else  {
+        } else {
           QueryHandle query_handle(0 /* query_id */, main_thread_client_id_);
-          O::LogicalGenerator logical_generator(&optimizer_context);
-          O::PhysicalGenerator physical_generator;
-          O::ExecutionGenerator execution_generator(&optimizer_context, &query_handle);
-          const P::PhysicalPtr physical_plan =
-              physical_generator.generatePlan(
-                  logical_generator.generatePlan(*result.parsed_statement));
-          execution_generator.generatePlan(physical_plan);
+          O::OptimizerContext optimizer_context;
+
+          optimizer_.generateQueryHandle(parse_statement,
+                                         test_database_loader_.catalog_database(),
+                                         &optimizer_context,
+                                         &query_handle);
 
           AdmitRequestMessage request_message(&query_handle);
           TaggedMessage admit_tagged_message(

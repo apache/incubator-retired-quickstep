@@ -25,9 +25,6 @@
 
 namespace quickstep {
 
-class CatalogDatabase;
-class StorageManager;
-
 namespace optimizer {
 
 /** \addtogroup QueryOptimizer
@@ -44,16 +41,9 @@ class OptimizerContext {
 
   /**
    * @brief Constructor.
-   *
-   * @param catalog_database The catalog database where this query is executed.
-   * @param storage_manager The storage manager to use for allocating storage
-   *        blocks.
    */
-  OptimizerContext(CatalogDatabase *catalog_database,
-                   StorageManager *storage_manager)
+  OptimizerContext()
       : current_expr_id_(-1),
-        catalog_database_(catalog_database),
-        storage_manager_(storage_manager),
         has_nested_queries_(false),
         is_catalog_changed_(false) {}
 
@@ -61,30 +51,6 @@ class OptimizerContext {
    * @brief Destructor.
    */
   ~OptimizerContext() {}
-
-  /**
-   * @return Const pointer to the catalog database
-   *         where the query is executed.
-   */
-  const CatalogDatabase* catalog_database() const { return catalog_database_; }
-
-  /**
-   * @return Mutable pointer to the catalog database
-   *         where this query is executed.
-   */
-  CatalogDatabase* catalog_database() { return catalog_database_; }
-
-  /**
-   * @return Const pointer to the storage manager to use for
-   *         allocating storage blocks.
-   */
-  const StorageManager* storage_manager() const { return storage_manager_; }
-
-  /**
-   * @return Mutable pointer to the storage manager to use for
-   *         allocating storage blocks.
-   */
-  StorageManager* storage_manager() { return storage_manager_; }
 
   /**
    * @brief Gets the next ExprId.
@@ -122,9 +88,6 @@ class OptimizerContext {
 
  private:
   expressions::ExprId current_expr_id_;
-
-  CatalogDatabase *catalog_database_;
-  StorageManager *storage_manager_;
 
   bool has_nested_queries_;
 

@@ -33,6 +33,7 @@
 #include "query_execution/Worker.hpp"
 #include "query_execution/WorkerDirectory.hpp"
 #include "query_execution/WorkerMessage.hpp"
+#include "query_optimizer/Optimizer.hpp"
 #include "query_optimizer/tests/TestDatabaseLoader.hpp"
 #include "utility/Macros.hpp"
 #include "utility/textbased_test/TextBasedTestDriver.hpp"
@@ -103,6 +104,7 @@ class CommandExecutorTestRunner : public TextBasedTestRunner {
  private:
   SqlParserWrapper sql_parser_;
   optimizer::TestDatabaseLoader test_database_loader_;
+  optimizer::Optimizer optimizer_;
 
   tmb::client_id main_thread_client_id_;
 

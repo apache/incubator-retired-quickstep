@@ -20,7 +20,7 @@
 #ifndef QUICKSTEP_QUERY_OPTIMIZER_OPTIMIZER_HPP_
 #define QUICKSTEP_QUERY_OPTIMIZER_OPTIMIZER_HPP_
 
-#include "query_optimizer/OptimizerContext.hpp"
+#include "query_optimizer/PhysicalGenerator.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -28,9 +28,10 @@ namespace quickstep {
 class CatalogDatabase;
 class ParseStatement;
 class QueryHandle;
-class StorageManager;
 
 namespace optimizer {
+
+class OptimizerContext;
 
 /** \addtogroup QueryOptimizer
  *  @{
@@ -44,13 +45,8 @@ class Optimizer {
  public:
   /**
    * @brief Constructor.
-   *
-   * @param database The database that the query is executed on.
-   * @param storage_manager The storage manager for the database.
    */
-  Optimizer(CatalogDatabase *database,
-            StorageManager *storage_manager)
-      : optimizer_context_(database, storage_manager) {}
+  Optimizer() {}
 
   /**
    * @brief Destructor.
@@ -64,21 +60,17 @@ class Optimizer {
    * @note Does not take ownership of \p query_handle.
    *
    * @param parse_statement The parse tree of the input query.
+   * @param catalog_database The database that the query is executed on.
+   * @param optimizer_context The optimizer context of the input query.
    * @param query_handle The generated query handle to output.
    */
   void generateQueryHandle(const ParseStatement &parse_statement,
+                           CatalogDatabase *catalog_database,
+                           OptimizerContext *optimizer_context,
                            QueryHandle *query_handle);
 
-  /**
-   * @return True if the catalog will be permanently changed after executing the
-   *         query and needs to be saved.
-   */
-  bool isCatalogChanged() const {
-    return optimizer_context_.is_catalog_changed();
-  }
-
  private:
-  OptimizerContext optimizer_context_;
+  PhysicalGenerator physical_generator_;
 
   DISALLOW_COPY_AND_ASSIGN(Optimizer);
 };

@@ -195,14 +195,14 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
     const CatalogRelation *temporary_relation = temporary_relation_info.relation;
     if (temporary_relation == result_relation) {
       query_handle_->setQueryResultRelation(
-          optimizer_context_->catalog_database()->getRelationByIdMutable(result_relation->getID()));
+          catalog_database_->getRelationByIdMutable(result_relation->getID()));
       continue;
     }
     const QueryPlan::DAGNodeIndex drop_table_index =
         execution_plan_->addRelationalOperator(
             new DropTableOperator(query_handle_->query_id(),
                                   *temporary_relation,
-                                  optimizer_context_->catalog_database(),
+                                  catalog_database_,
                                   false /* only_drop_blocks */));
     DCHECK(!temporary_relation_info.isStoredRelation());
     execution_plan_->addDependenciesForDropOperator(
@@ -216,12 +216,12 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
   }
 
 #ifdef QUICKSTEP_DISTRIBUTED
-  catalog_database_cache_proto_->set_name(optimizer_context_->catalog_database()->getName());
+  catalog_database_cache_proto_->set_name(catalog_database_->getName());
 
   LOG(INFO) << "CatalogDatabaseCache proto has " << referenced_relation_ids_.size() << " relation(s)";
   for (const relation_id rel_id : referenced_relation_ids_) {
     const CatalogRelationSchema &relation =
-        optimizer_context_->catalog_database()->getRelationSchemaById(rel_id);
+        catalog_database_->getRelationSchemaById(rel_id);
     LOG(INFO) << "RelationSchema " << rel_id
               << ", name: " << relation.getName()
               << ", " << relation.size()  << " attribute(s)";
@@ -311,7 +311,7 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
     const CatalogRelation **catalog_relation_output,
     S::InsertDestination *insert_destination_proto) {
   std::unique_ptr<CatalogRelation> catalog_relation(
-      new CatalogRelation(optimizer_context_->catalog_database(),
+      new CatalogRelation(catalog_database_,
                           getNewRelationName(),
                           -1 /* id */,
                           true /* is_temporary*/));
@@ -332,7 +332,7 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
   }
 
   *catalog_relation_output = catalog_relation.get();
-  const relation_id output_rel_id = optimizer_context_->catalog_database()->addRelation(
+  const relation_id output_rel_id = catalog_database_->addRelation(
       catalog_relation.release());
 
 #ifdef QUICKSTEP_DISTRIBUTED
@@ -344,11 +344,10 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
 }
 
 void ExecutionGenerator::dropAllTemporaryRelations() {
-  CatalogDatabase *catalog_database = optimizer_context_->catalog_database();
   for (const CatalogRelationInfo &temporary_relation_info :
        temporary_relation_info_vec_) {
     DCHECK_EQ(temporary_relation_info.relation->size_blocks(), 0u);
-    catalog_database->dropRelationById(temporary_relation_info.relation->getID());
+    catalog_database_->dropRelationById(temporary_relation_info.relation->getID());
   }
 }
 
@@ -618,7 +617,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   for (const E::AttributeReferencePtr &left_join_attribute : left_join_attributes) {
     // Try to determine the original stored relation referenced in the Hash Join.
     referenced_stored_probe_relation =
-        optimizer_context_->catalog_database()->getRelationByName(left_join_attribute->relation_name());
+        catalog_database_->getRelationByName(left_join_attribute->relation_name());
     if (referenced_stored_probe_relation == nullptr) {
       // Hash Join optimizations are not possible, if the referenced relation cannot be determined.
       skip_hash_join_optimization = true;
@@ -642,7 +641,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   for (const E::AttributeReferencePtr &right_join_attribute : right_join_attributes) {
     // Try to determine the original stored relation referenced in the Hash Join.
     referenced_stored_build_relation =
-        optimizer_context_->catalog_database()->getRelationByName(right_join_attribute->relation_name());
+        catalog_database_->getRelationByName(right_join_attribute->relation_name());
     if (referenced_stored_build_relation == nullptr) {
       // Hash Join optimizations are not possible, if the referenced relation cannot be determined.
       skip_hash_join_optimization = true;
@@ -958,7 +957,7 @@ void ExecutionGenerator::convertCreateIndex(
   const CatalogRelationInfo *input_relation_info =
       findRelationInfoOutputByPhysical(physical_plan->input());
   CatalogRelation *input_relation =
-      optimizer_context_->catalog_database()->getRelationByIdMutable(
+      catalog_database_->getRelationByIdMutable(
             input_relation_info->relation->getID());
 
   // Check if any index with the specified name already exists.
@@ -1004,7 +1003,7 @@ void ExecutionGenerator::convertCreateTable(
   // CreateTable is converted to a CreateTable operator.
 
   std::unique_ptr<CatalogRelation> catalog_relation(new CatalogRelation(
-      optimizer_context_->catalog_database(),
+      catalog_database_,
       physical_plan->relation_name(),
       -1 /* id */,
       false /* is_temporary*/));
@@ -1038,7 +1037,7 @@ void ExecutionGenerator::convertCreateTable(
   execution_plan_->addRelationalOperator(
       new CreateTableOperator(query_handle_->query_id(),
                               catalog_relation.release(),
-                              optimizer_context_->catalog_database()));
+                              catalog_database_));
 }
 
 void ExecutionGenerator::convertDeleteTuples(
@@ -1065,7 +1064,7 @@ void ExecutionGenerator::convertDeleteTuples(
         execution_plan_->addRelationalOperator(
             new DropTableOperator(query_handle_->query_id(),
                                   *input_relation_info->relation,
-                                  optimizer_context_->catalog_database(),
+                                  catalog_database_,
                                   true /* only_drop_blocks */));
     if (!input_relation_info->isStoredRelation()) {
       execution_plan_->addDirectDependency(drop_table_index,
@@ -1110,7 +1109,7 @@ void ExecutionGenerator::convertDropTable(
   execution_plan_->addRelationalOperator(
       new DropTableOperator(query_handle_->query_id(),
                             catalog_relation,
-                            optimizer_context_->catalog_database()));
+                            catalog_database_));
 }
 
 void ExecutionGenerator::convertInsertTuple(
@@ -1120,7 +1119,7 @@ void ExecutionGenerator::convertInsertTuple(
   const CatalogRelationInfo *input_relation_info =
       findRelationInfoOutputByPhysical(physical_plan->input());
   const CatalogRelation &input_relation =
-      *optimizer_context_->catalog_database()->getRelationById(
+      *catalog_database_->getRelationById(
           input_relation_info->relation->getID());
 
   // Construct the tuple proto to be inserted.
@@ -1320,7 +1319,7 @@ void ExecutionGenerator::convertUpdateTable(
   const QueryPlan::DAGNodeIndex update_operator_index =
       execution_plan_->addRelationalOperator(new UpdateOperator(
           query_handle_->query_id(),
-          *optimizer_context_->catalog_database()->getRelationById(
+          *catalog_database_->getRelationById(
               input_rel_id),
           relocation_destination_index,
           execution_predicate_index,
@@ -1578,7 +1577,7 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
           new DropTableOperator(
               query_handle_->query_id(),
               *merged_runs_relation,
-              optimizer_context_->catalog_database(),
+              catalog_database_,
               false /* only_drop_blocks */));
   execution_plan_->addDirectDependency(
       drop_merged_runs_index,
