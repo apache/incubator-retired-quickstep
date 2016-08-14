@@ -58,16 +58,16 @@ DEFINE_uint64(max_msgs_per_dispatch_round, 20, "Maximum number of messages that"
               " can be allocated in a single round of dispatch of messages to"
               " the workers.");
 
-void PolicyEnforcerDistributed::getWorkOrderMessages(
-    vector<unique_ptr<S::WorkOrderMessage>> *work_order_messages) {
+void PolicyEnforcerDistributed::getWorkOrderProtoMessages(
+    vector<unique_ptr<S::WorkOrderMessage>> *work_order_proto_messages) {
   // Iterate over admitted queries until either there are no more
   // messages available, or the maximum number of messages have
   // been collected.
-  DCHECK(work_order_messages->empty());
+  DCHECK(work_order_proto_messages->empty());
   // TODO(harshad) - Make this function generic enough so that it
   // works well when multiple queries are getting executed.
   if (admitted_queries_.empty()) {
-    LOG(WARNING) << "Requesting WorkerMessages when no query is running";
+    LOG(WARNING) << "Requesting WorkOrderProtoMessages when no query is running";
     return;
   }
 
@@ -86,7 +86,7 @@ void PolicyEnforcerDistributed::getWorkOrderMessages(
           static_cast<QueryManagerDistributed*>(curr_query_manager)->getNextWorkOrderMessage(0);
       if (next_work_order_message != nullptr) {
         ++messages_collected_curr_query;
-        work_order_messages->push_back(unique_ptr<S::WorkOrderMessage>(next_work_order_message));
+        work_order_proto_messages->push_back(unique_ptr<S::WorkOrderMessage>(next_work_order_message));
       } else {
         // No more work ordes from the current query at this time.
         // Check if the query's execution is over.

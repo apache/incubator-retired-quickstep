@@ -76,10 +76,10 @@ class PolicyEnforcerDistributed final : public PolicyEnforcerBase {
    * @brief Get work order messages to be dispatched. These messages come from
    *        the active queries.
    *
-   * @param work_order_messages The work order messages to be dispatched.
+   * @param work_order_proto_messages The work order messages to be dispatched.
    **/
-  void getWorkOrderMessages(
-      std::vector<std::unique_ptr<serialization::WorkOrderMessage>> *work_order_messages);
+  void getWorkOrderProtoMessages(
+      std::vector<std::unique_ptr<serialization::WorkOrderMessage>> *work_order_proto_messages);
 
   /**
    * @brief Process the initiate rebuild work order response message.
