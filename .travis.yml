@@ -1,4 +1,4 @@
-# NOTE(quickstep-team): In Travis-CI, jobs timeout if they take more than 120
+# NOTE(quickstep-team): In Travis-CI, jobs timeout if they take more than 50
 # mins or if there is no log output for more than 10 mins. Hence, we use -O0 to
 # speed up compilation in release build. Also, jobs can only use upto 20GB of
 # disk space. Hence, we minimize the amount of debug symbol using -g0 (DEBUG
@@ -15,13 +15,13 @@ compiler:
   - clang
 
 env:
-  - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
-  - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
   - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=selection
   - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=selection
+  - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=none
+  - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=none
 
 install:
-  - if [ "$CC" = "gcc" ]; then
+  - if [ "$VECTOR_COPY_ELISION_LEVEL" = "selection" ] && [ "$CC" = "gcc" ]; then
       export MAKE_JOBS=1;
     else
       export MAKE_JOBS=2;
@@ -38,14 +38,24 @@ install:
   - export DEBUG_FLAGS="-g0";
   - export RELEASE_FLAGS="-O0 -DNDEBUG";
   - export LINKER_FLAGS="-s"
+  # Protobuf 3 beta.
+  - wget https://github.com/google/protobuf/releases/download/v3.0.0-beta-3/protobuf-cpp-3.0.0-beta-3.tar.gz
+  - tar -xzvf protobuf-cpp-3.0.0-beta-3.tar.gz
+  - pushd protobuf-3.0.0-beta-3 && ./configure --prefix=/usr && make && sudo make install && popd
+  - rm -rf protobuf*
+  - export PROTOC=`which protoc`
+  # gRPC.
+  - git clone https://github.com/grpc/grpc.git
+  - pushd grpc && git checkout release-0_14_1 && git submodule update --init && make && sudo make install && popd
+  - rm -rf grpc
 
 before_script:
   - $CC --version
   - $CXX --version
   - $CLINKER --version
+  - $PROTOC --version
   - (cd build &&
      cmake -D CMAKE_BUILD_TYPE=$BUILD_TYPE
-           -D BUILD_SHARED_LIBS=On
            -D CMAKE_C_FLAGS_DEBUG="$DEBUG_FLAGS"
            -D CMAKE_CXX_FLAGS_DEBUG="$DEBUG_FLAGS"
            -D CMAKE_C_FLAGS_RELEASE="$RELEASE_FLAGS"
@@ -55,14 +65,15 @@ before_script:
            -D CMAKE_CXX_COMPILER=$CXX
            -D CMAKE_LINKER=$CLINKER
            -D USE_TCMALLOC=0
-           -D VECTOR_COPY_ELISION_LEVEL=$VECTOR_COPY_ELISION_LEVEL ..)
+           -D VECTOR_COPY_ELISION_LEVEL=$VECTOR_COPY_ELISION_LEVEL
+           -D ENABLE_DISTRIBUTED=ON ..)
 
 script:
   - ./third_party/cpplint/lint_everything.py
   - ./validate_cmakelists.py
   - ./cyclic_dependency.py
   - (cd build && make -j$MAKE_JOBS)
-  - (cd build && ctest --output-on-failure -j$TEST_JOBS)
+  - (cd build && ctest -R distributed --output-on-failure -j$TEST_JOBS)
 
 after_failure:
   - df -h
@@ -84,8 +95,6 @@ addons:
       - g++-5
       - clang-3.7
       - binutils-gold
-      - libprotobuf-dev
-      - protobuf-compiler
       - libgtest-dev
       - python-networkx
       - libnuma-dev
