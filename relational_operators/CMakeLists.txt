@@ -302,6 +302,8 @@ target_link_libraries(quickstep_relationaloperators_SelectOperator
                       quickstep_storage_StorageBlock
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
+                      quickstep_utility_BloomFilterAdapter
+                      quickstep_utility_EventProfiler
                       quickstep_utility_Macros
                       tmb)
 if(QUICKSTEP_HAVE_LIBNUMA)

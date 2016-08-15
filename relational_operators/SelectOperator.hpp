@@ -345,8 +345,9 @@ class SelectWorkOrder : public WorkOrder {
                   const std::vector<std::unique_ptr<const Scalar>> *selection,
                   InsertDestination *output_destination,
                   StorageManager *storage_manager,
-                  const numa_node_id numa_node = 0)
-      : WorkOrder(query_id),
+                  const numa_node_id numa_node = 0,
+                  const int op_index = -1)
+      : WorkOrder(query_id, op_index),
         input_relation_(input_relation),
         input_block_id_(input_block_id),
         predicate_(predicate),
@@ -391,8 +392,9 @@ class SelectWorkOrder : public WorkOrder {
                   const std::vector<std::unique_ptr<const Scalar>> *selection,
                   InsertDestination *output_destination,
                   StorageManager *storage_manager,
-                  const numa_node_id numa_node = 0)
-      : WorkOrder(query_id),
+                  const numa_node_id numa_node = 0,
+                  const int op_index = -1)
+      : WorkOrder(query_id, op_index),
         input_relation_(input_relation),
         input_block_id_(input_block_id),
         predicate_(predicate),

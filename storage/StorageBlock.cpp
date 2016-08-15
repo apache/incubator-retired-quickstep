@@ -61,6 +61,7 @@
 #include "types/operations/comparisons/ComparisonUtil.hpp"
 #include "utility/BloomFilter.hpp"
 #include "utility/BloomFilterAdapter.hpp"
+#include "utility/EventProfiler.hpp"
 #include "utility/Macros.hpp"
 
 #include "gflags/gflags.h"
@@ -432,6 +433,8 @@ void StorageBlock::selectSimple(const std::vector<attribute_id> &selection,
                                 InsertDestinationInterface *destination) const {
   std::unique_ptr<ValueAccessor> accessor;
   std::unique_ptr<TupleIdSequence> matches;
+//  auto *container = simple_profiler.getContainer();
+//  auto *line = container->getEventLine(1);
 
   if (bloom_filters.size() > 0) {
     const std::size_t num_tuples = tuple_store_->numTuples();
@@ -486,7 +489,6 @@ void StorageBlock::selectSimple(const std::vector<attribute_id> &selection,
     matches.reset(new_matches);
     accessor.reset(tuple_store_->createValueAccessor(matches.get()));
   }
-
   destination->bulkInsertTuplesWithRemappedAttributes(selection,
                                                       accessor.get());
 }
@@ -1337,16 +1339,23 @@ TupleIdSequence* StorageBlock::getMatchesForPredicate(const Predicate *predicate
 
   std::unique_ptr<ValueAccessor> value_accessor(tuple_store_->createValueAccessor());
   std::unique_ptr<TupleIdSequence> existence_map;
+  const TupleIdSequence *combined_filter;
   if (!tuple_store_->isPacked()) {
     existence_map.reset(tuple_store_->getExistenceMap());
+    if (filter != nullptr) {
+      existence_map->intersectWith(*filter);
+    }
+    combined_filter = existence_map.get();
+  } else {
+    combined_filter = filter;
   }
   SubBlocksReference sub_blocks_ref(*tuple_store_,
                                     indices_,
                                     indices_consistent_);
   return predicate->getAllMatches(value_accessor.get(),
                                   &sub_blocks_ref,
-                                  filter,
-                                  existence_map.get());
+                                  nullptr,
+                                  combined_filter);
 }
 
 std::unordered_map<attribute_id, TypedValue>* StorageBlock::generateUpdatedValues(

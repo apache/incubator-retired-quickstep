@@ -45,6 +45,8 @@ target_link_libraries(quickstep_queryoptimizer_costmodel_SimpleCostModel
 target_link_libraries(quickstep_queryoptimizer_costmodel_StarSchemaSimpleCostModel
                       glog
                       quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogRelationStatistics
+                      quickstep_catalog_CatalogTypedefs
                       quickstep_queryoptimizer_costmodel_CostModel
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ComparisonExpression

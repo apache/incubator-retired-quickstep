@@ -30,6 +30,7 @@
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
+#include "utility/EventProfiler.hpp"
 
 #include "glog/logging.h"
 
@@ -58,7 +59,9 @@ void SelectOperator::addWorkOrders(WorkOrdersContainer *container,
                                                         simple_selection_,
                                                         selection,
                                                         output_destination,
-                                                        storage_manager),
+                                                        storage_manager,
+                                                        0,
+                                                        op_index_),
                                     op_index_);
     }
   } else {
@@ -75,7 +78,9 @@ void SelectOperator::addWorkOrders(WorkOrdersContainer *container,
               simple_selection_,
               selection,
               output_destination,
-              storage_manager),
+              storage_manager,
+              0,
+              op_index_),
           op_index_);
       ++num_workorders_generated_;
     }
@@ -109,7 +114,8 @@ void SelectOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
                 selection,
                 output_destination,
                 storage_manager,
-                placement_scheme_->getNUMANodeForBlock(input_block_id)),
+                placement_scheme_->getNUMANodeForBlock(input_block_id),
+                op_index_),
             op_index_);
       }
     }
@@ -132,7 +138,8 @@ void SelectOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
                 selection,
                 output_destination,
                 storage_manager,
-                placement_scheme_->getNUMANodeForBlock(block_in_partition)),
+                placement_scheme_->getNUMANodeForBlock(block_in_partition),
+                op_index_),
             op_index_);
         ++num_workorders_generated_in_partition_[part_id];
       }
@@ -261,6 +268,10 @@ serialization::WorkOrder* SelectOperator::createWorkOrderProto(const block_id bl
 
 
 void SelectWorkOrder::execute() {
+//  auto *container = simple_profiler.getContainer();
+//  container->setContext(getOperatorIndex());
+//  auto *line = container->getEventLine(0);
+//  line->emplace_back();
   BlockReference block(
       storage_manager_->getBlock(input_block_id_, input_relation_, getPreferredNUMANodes()[0]));
 
@@ -277,6 +288,8 @@ void SelectWorkOrder::execute() {
                   bloom_filter_attribute_ids_,
                   output_destination_);
   }
+//  line->back().endEvent();
+//  line->back().setPayload(getOperatorIndex(), 0);
 }
 
 }  // namespace quickstep

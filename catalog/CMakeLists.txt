@@ -127,6 +127,9 @@ target_link_libraries(quickstep_catalog_CatalogRelationConstraints
 target_link_libraries(quickstep_catalog_CatalogRelationStatistics
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_Catalog_proto
+                      quickstep_types_LongType
+                      quickstep_types_NullType
+                      quickstep_types_TypedValue
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_catalog_IndexScheme
                       glog

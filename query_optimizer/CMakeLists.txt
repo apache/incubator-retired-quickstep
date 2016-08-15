@@ -160,6 +160,9 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionHeuristics
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
                       quickstep_queryoptimizer_QueryPlan
+                      quickstep_queryoptimizer_physical_HashJoin
+                      quickstep_queryoptimizer_physical_Physical
+                      quickstep_relationaloperators_SelectOperator
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_LogicalGenerator
                       glog
