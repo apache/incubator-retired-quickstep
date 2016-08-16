@@ -58,7 +58,7 @@ class QueryManagerDistributed final : public QueryManagerBase {
    * @param bus The TMB used for communication.
    **/
   QueryManagerDistributed(QueryHandle *query_handle,
-                          ShiftbossDirectory *shiftboss_directory,
+                          const ShiftbossDirectory *shiftboss_directory,
                           const tmb::client_id foreman_client_id,
                           tmb::MessageBus *bus);
 
@@ -105,7 +105,7 @@ class QueryManagerDistributed final : public QueryManagerBase {
            (query_exec_state_->getNumRebuildWorkOrders(index) == 0);
   }
 
-  ShiftbossDirectory *shiftboss_directory_;
+  const ShiftbossDirectory *shiftboss_directory_;
 
   const tmb::client_id foreman_client_id_;
   tmb::MessageBus *bus_;

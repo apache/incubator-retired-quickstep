@@ -47,7 +47,7 @@ using std::unique_ptr;
 namespace quickstep {
 
 QueryManagerDistributed::QueryManagerDistributed(QueryHandle *query_handle,
-                                                 ShiftbossDirectory *shiftboss_directory,
+                                                 const ShiftbossDirectory *shiftboss_directory,
                                                  const tmb::client_id foreman_client_id,
                                                  tmb::MessageBus *bus)
     : QueryManagerBase(query_handle),

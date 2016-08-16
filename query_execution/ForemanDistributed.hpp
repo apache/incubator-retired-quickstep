@@ -102,7 +102,7 @@ class ForemanDistributed final : public ForemanBase {
                             const serialization::WorkOrderMessage &proto);
 
   void processShiftbossRegistrationMessage(const tmb::client_id shiftboss_client_id,
-                                            const std::size_t work_order_capacity);
+                                           const std::size_t work_order_capacity);
 
   void processSaveQueryResultResponseMessage(const tmb::client_id cli_id,
                                              const relation_id result_relation_id);

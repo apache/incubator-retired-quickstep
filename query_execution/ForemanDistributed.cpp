@@ -279,7 +279,7 @@ void ForemanDistributed::printWorkOrderProfilingResults(const std::size_t query_
 }
 
 void ForemanDistributed::processShiftbossRegistrationMessage(const client_id shiftboss_client_id,
-                                                              const std::size_t work_order_capacity) {
+                                                             const std::size_t work_order_capacity) {
   S::ShiftbossRegistrationResponseMessage proto;
   proto.set_shiftboss_index(shiftboss_directory_.size());
 
