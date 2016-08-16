@@ -84,7 +84,7 @@ class ForemanSingleNode final : public ForemanBase {
    *        query.
    *
    * @param query_id The ID of the query for which the results are to be printed.
-   * @return A vector of tuples, each being a single profiling entry.
+   * @return A vector of records, each being a single profiling entry.
    **/
   const std::vector<WorkOrderTimeEntry>& getWorkOrderProfilingResults(
       const std::size_t query_id) const;

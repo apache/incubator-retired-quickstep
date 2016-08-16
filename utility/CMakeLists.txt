@@ -238,6 +238,8 @@ target_link_libraries(quickstep_utility_ExecutionDAGVisualizer
                       quickstep_relationaloperators_BuildHashOperator
                       quickstep_relationaloperators_HashJoinOperator
                       quickstep_relationaloperators_SelectOperator
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_utility_DAG
                       quickstep_utility_Macros
                       quickstep_utility_StringUtil)
 target_link_libraries(quickstep_utility_Glob

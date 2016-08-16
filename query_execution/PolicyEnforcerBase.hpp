@@ -23,7 +23,6 @@
 #include <cstddef>
 #include <memory>
 #include <queue>
-#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -126,7 +125,7 @@ class PolicyEnforcerBase {
    * @param query_id The ID of the query for which the profiling results are
    *        requested.
    *
-   * @return A vector of tuples, each being a single profiling entry.
+   * @return A vector of records, each being a single profiling entry.
    **/
   inline const std::vector<WorkOrderTimeEntry>& getProfilingResults(
       const std::size_t query_id) const {

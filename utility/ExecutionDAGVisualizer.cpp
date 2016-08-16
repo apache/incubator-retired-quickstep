@@ -20,7 +20,6 @@
 #include "utility/ExecutionDAGVisualizer.hpp"
 
 #include <algorithm>
-#include <cmath>
 #include <cstddef>
 #include <iomanip>
 #include <limits>
@@ -36,7 +35,9 @@
 #include "relational_operators/AggregationOperator.hpp"
 #include "relational_operators/BuildHashOperator.hpp"
 #include "relational_operators/HashJoinOperator.hpp"
+#include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/SelectOperator.hpp"
+#include "utility/DAG.hpp"
 #include "utility/StringUtil.hpp"
 
 #include "glog/logging.h"

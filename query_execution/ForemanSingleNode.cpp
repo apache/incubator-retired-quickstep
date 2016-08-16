@@ -22,7 +22,6 @@
 #include <cstddef>
 #include <cstdio>
 #include <memory>
-#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -245,7 +244,6 @@ void ForemanSingleNode::printWorkOrderProfilingResults(const std::size_t query_i
       policy_enforcer_->getProfilingResults(query_id);
   fputs("Query ID,Worker ID,NUMA Socket,Operator ID,Time (microseconds)\n", out);
   for (auto workorder_entry : recorded_times) {
-    // Note: Index of the "worker thread index" in the tuple is 0.
     const std::size_t worker_id = workorder_entry.worker_id;
     fprintf(out,
             "%lu,%lu,%d,%lu,%lu\n",
