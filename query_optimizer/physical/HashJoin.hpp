@@ -107,6 +107,10 @@ class HashJoin : public BinaryJoin {
     return join_type_;
   }
 
+  const expressions::PredicatePtr& left_filter_predicate() const {
+    return left_filter_predicate_;
+  }
+
   PhysicalPtr copyWithNewChildren(
       const std::vector<PhysicalPtr> &new_children) const override {
     DCHECK_EQ(children().size(), new_children.size());
@@ -117,7 +121,8 @@ class HashJoin : public BinaryJoin {
                   residual_predicate_,
                   project_expressions(),
                   join_type_,
-                  bloom_filter_config_);
+                  bloom_filter_config_,
+                  left_filter_predicate_);
   }
 
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override;
@@ -144,6 +149,7 @@ class HashJoin : public BinaryJoin {
    * @param residual_predicate Optional filtering predicate evaluated after join.
    * @param project_expressions The project expressions.
    * @param Join type of this hash join.
+   * @param left_filter_predicate Optional filtering predicate for probe side before join.
    * @return An immutable physical HashJoin.
    */
   static HashJoinPtr Create(
@@ -154,6 +160,7 @@ class HashJoin : public BinaryJoin {
       const expressions::PredicatePtr &residual_predicate,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
       const JoinType join_type,
+      const expressions::PredicatePtr &left_filter_predicate = nullptr,
       const BloomFilterConfig bloom_filter_config = BloomFilterConfig()) {
     return HashJoinPtr(
         new HashJoin(left,
@@ -163,6 +170,7 @@ class HashJoin : public BinaryJoin {
                      residual_predicate,
                      project_expressions,
                      join_type,
+                     left_filter_predicate,
                      bloom_filter_config));
   }
 
@@ -184,12 +192,14 @@ class HashJoin : public BinaryJoin {
       const expressions::PredicatePtr &residual_predicate,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
       const JoinType join_type,
+      const expressions::PredicatePtr &left_filter_predicate,
       const BloomFilterConfig &bloom_filter_config)
       : BinaryJoin(left, right, project_expressions),
         left_join_attributes_(left_join_attributes),
         right_join_attributes_(right_join_attributes),
         residual_predicate_(residual_predicate),
         join_type_(join_type),
+        left_filter_predicate_(left_filter_predicate),
         bloom_filter_config_(bloom_filter_config) {
   }
 
@@ -197,6 +207,7 @@ class HashJoin : public BinaryJoin {
   std::vector<expressions::AttributeReferencePtr> right_join_attributes_;
   expressions::PredicatePtr residual_predicate_;
   JoinType join_type_;
+  expressions::PredicatePtr left_filter_predicate_;
   BloomFilterConfig bloom_filter_config_;
 
   DISALLOW_COPY_AND_ASSIGN(HashJoin);

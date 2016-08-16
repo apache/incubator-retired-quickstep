@@ -338,6 +338,7 @@ P::PhysicalPtr AttachBloomFilters::performAttach(const physical::PhysicalPtr &no
           hash_join->residual_predicate(),
           hash_join->project_expressions(),
           hash_join->join_type(),
+          hash_join->left_filter_predicate(),
           attach_it->second);
     }
   }
