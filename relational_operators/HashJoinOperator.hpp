@@ -128,6 +128,7 @@ class HashJoinOperator : public RelationalOperator {
       const QueryContext::insert_destination_id output_destination_index,
       const QueryContext::join_hash_table_id hash_table_index,
       const QueryContext::predicate_id residual_predicate_index,
+      const QueryContext::predicate_id left_filter_predicate_index,
       const QueryContext::scalar_group_id selection_index,
       const std::vector<bool> *is_selection_on_build = nullptr,
       const JoinType join_type = JoinType::kInnerJoin)
@@ -141,6 +142,7 @@ class HashJoinOperator : public RelationalOperator {
         output_destination_index_(output_destination_index),
         hash_table_index_(hash_table_index),
         residual_predicate_index_(residual_predicate_index),
+        left_filter_predicate_index_(left_filter_predicate_index),
         selection_index_(selection_index),
         is_selection_on_build_(is_selection_on_build == nullptr
                                    ? std::vector<bool>()
@@ -256,6 +258,7 @@ class HashJoinOperator : public RelationalOperator {
   const QueryContext::insert_destination_id output_destination_index_;
   const QueryContext::join_hash_table_id hash_table_index_;
   const QueryContext::predicate_id residual_predicate_index_;
+  const QueryContext::predicate_id left_filter_predicate_index_;
   const QueryContext::scalar_group_id selection_index_;
   const std::vector<bool> is_selection_on_build_;
   const JoinType join_type_;
@@ -304,6 +307,7 @@ class HashInnerJoinWorkOrder : public WorkOrder {
       const bool any_join_key_attributes_nullable,
       const block_id lookup_block_id,
       const Predicate *residual_predicate,
+      const Predicate *left_filter_predicate,
       const std::vector<std::unique_ptr<const Scalar>> &selection,
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
@@ -315,6 +319,7 @@ class HashInnerJoinWorkOrder : public WorkOrder {
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
+        left_filter_predicate_(left_filter_predicate),
         selection_(selection),
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
@@ -386,6 +391,7 @@ class HashInnerJoinWorkOrder : public WorkOrder {
   const bool any_join_key_attributes_nullable_;
   const block_id block_id_;
   const Predicate *residual_predicate_;
+  const Predicate *left_filter_predicate_;
   const std::vector<std::unique_ptr<const Scalar>> &selection_;
   const JoinHashTable &hash_table_;
 
@@ -432,6 +438,7 @@ class HashSemiJoinWorkOrder : public WorkOrder {
       const bool any_join_key_attributes_nullable,
       const block_id lookup_block_id,
       const Predicate *residual_predicate,
+      const Predicate *left_filter_predicate,
       const std::vector<std::unique_ptr<const Scalar>> &selection,
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
@@ -443,6 +450,7 @@ class HashSemiJoinWorkOrder : public WorkOrder {
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
+        left_filter_predicate_(left_filter_predicate),
         selection_(selection),
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
@@ -510,6 +518,7 @@ class HashSemiJoinWorkOrder : public WorkOrder {
   const bool any_join_key_attributes_nullable_;
   const block_id block_id_;
   const Predicate *residual_predicate_;
+  const Predicate *left_filter_predicate_;
   const std::vector<std::unique_ptr<const Scalar>> &selection_;
   const JoinHashTable &hash_table_;
 
@@ -556,6 +565,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
       const bool any_join_key_attributes_nullable,
       const block_id lookup_block_id,
       const Predicate *residual_predicate,
+      const Predicate *left_filter_predicate,
       const std::vector<std::unique_ptr<const Scalar>> &selection,
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
@@ -567,6 +577,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
+        left_filter_predicate_(left_filter_predicate),
         selection_(selection),
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
@@ -640,6 +651,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
   const bool any_join_key_attributes_nullable_;
   const block_id block_id_;
   const Predicate *residual_predicate_;
+  const Predicate *left_filter_predicate_;
   const std::vector<std::unique_ptr<const Scalar>> &selection_;
   const JoinHashTable &hash_table_;
 

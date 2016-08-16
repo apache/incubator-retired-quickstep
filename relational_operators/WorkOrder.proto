@@ -128,6 +128,7 @@ message HashJoinWorkOrder {
 
     // Used by all but HashOuterJoinWorkOrder.
     optional int32 residual_predicate_index = 169;
+    optional int32 left_filter_predicate_index = 400;
     // Used by HashOuterJoinWorkOrder only.
     repeated bool is_selection_on_build = 170;
   }

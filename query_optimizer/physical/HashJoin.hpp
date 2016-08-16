@@ -107,6 +107,10 @@ class HashJoin : public BinaryJoin {
     return join_type_;
   }
 
+  const expressions::PredicatePtr& left_filter_predicate() const {
+    return left_filter_predicate_;
+  }
+
   PhysicalPtr copyWithNewChildren(
       const std::vector<PhysicalPtr> &new_children) const override {
     DCHECK_EQ(children().size(), new_children.size());
@@ -136,6 +140,7 @@ class HashJoin : public BinaryJoin {
    * @param residual_predicate Optional filtering predicate evaluated after join.
    * @param project_expressions The project expressions.
    * @param Join type of this hash join.
+   * @param left_filter_predicate Optional filtering predicate for probe side before join.
    * @return An immutable physical HashJoin.
    */
   static HashJoinPtr Create(
@@ -145,7 +150,8 @@ class HashJoin : public BinaryJoin {
       const std::vector<expressions::AttributeReferencePtr> &right_join_attributes,
       const expressions::PredicatePtr &residual_predicate,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
-      const JoinType join_type) {
+      const JoinType join_type,
+      const expressions::PredicatePtr &left_filter_predicate = nullptr) {
     return HashJoinPtr(
         new HashJoin(left,
                      right,
@@ -153,7 +159,8 @@ class HashJoin : public BinaryJoin {
                      right_join_attributes,
                      residual_predicate,
                      project_expressions,
-                     join_type));
+                     join_type,
+                     left_filter_predicate));
   }
 
  protected:
@@ -173,18 +180,21 @@ class HashJoin : public BinaryJoin {
       const std::vector<expressions::AttributeReferencePtr> &right_join_attributes,
       const expressions::PredicatePtr &residual_predicate,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
-      const JoinType join_type)
+      const JoinType join_type,
+      const expressions::PredicatePtr &left_filter_predicate = nullptr)
       : BinaryJoin(left, right, project_expressions),
         left_join_attributes_(left_join_attributes),
         right_join_attributes_(right_join_attributes),
         residual_predicate_(residual_predicate),
-        join_type_(join_type) {
+        join_type_(join_type),
+        left_filter_predicate_(left_filter_predicate) {
   }
 
   std::vector<expressions::AttributeReferencePtr> left_join_attributes_;
   std::vector<expressions::AttributeReferencePtr> right_join_attributes_;
   expressions::PredicatePtr residual_predicate_;
   JoinType join_type_;
+  expressions::PredicatePtr left_filter_predicate_;
 
   DISALLOW_COPY_AND_ASSIGN(HashJoin);
 };

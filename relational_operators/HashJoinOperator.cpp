@@ -182,6 +182,8 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
 
     const Predicate *residual_predicate =
         query_context->getPredicate(residual_predicate_index_);
+    const Predicate *left_filter_predicate =
+        query_context->getPredicate(left_filter_predicate_index_);
     const vector<unique_ptr<const Scalar>> &selection =
         query_context->getScalarGroup(selection_index_);
     InsertDestination *output_destination =
@@ -200,6 +202,7 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
                                      any_join_key_attributes_nullable_,
                                      probe_block_id,
                                      residual_predicate,
+                                     left_filter_predicate,
                                      selection,
                                      hash_table,
                                      output_destination,
@@ -220,6 +223,7 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
                 any_join_key_attributes_nullable_,
                 probe_relation_block_ids_[num_workorders_generated_],
                 residual_predicate,
+                left_filter_predicate,
                 selection,
                 hash_table,
                 output_destination,
@@ -360,6 +364,7 @@ serialization::WorkOrder* HashJoinOperator::createNonOuterJoinWorkOrderProto(
   proto->SetExtension(serialization::HashJoinWorkOrder::selection_index, selection_index_);
   proto->SetExtension(serialization::HashJoinWorkOrder::block_id, block);
   proto->SetExtension(serialization::HashJoinWorkOrder::residual_predicate_index, residual_predicate_index_);
+  proto->SetExtension(serialization::HashJoinWorkOrder::left_filter_predicate_index, left_filter_predicate_index_);
 
   return proto;
 }
@@ -422,7 +427,13 @@ void HashInnerJoinWorkOrder::execute() {
       storage_manager_->getBlock(block_id_, probe_relation_));
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
 
-  std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
+  std::unique_ptr<ValueAccessor> probe_accessor(
+      probe_store.createValueAccessor(
+          left_filter_predicate_ == nullptr
+          ? nullptr
+          : probe_block->getMatchesForPredicate(left_filter_predicate_)));
+
+
   MapBasedJoinedTupleCollector collector;
   if (join_key_attributes_.size() == 1) {
     hash_table_.getAllFromValueAccessor(

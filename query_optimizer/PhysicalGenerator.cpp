@@ -26,6 +26,7 @@
 #include "query_optimizer/Validator.hpp"
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/physical/Physical.hpp"
+#include "query_optimizer/rules/FuseJoinSelect.hpp"
 #include "query_optimizer/rules/PruneColumns.hpp"
 #include "query_optimizer/rules/StarSchemaHashJoinOrderOptimization.hpp"
 #include "query_optimizer/rules/SwapProbeBuild.hpp"
@@ -100,6 +101,7 @@ P::PhysicalPtr PhysicalGenerator::optimizePlan() {
   }
   rules.emplace_back(new PruneColumns());
   rules.emplace_back(new SwapProbeBuild());
+  rules.emplace_back(new FuseJoinSelect());
 
   for (std::unique_ptr<Rule<P::Physical>> &rule : rules) {
     physical_plan_ = rule->apply(physical_plan_);

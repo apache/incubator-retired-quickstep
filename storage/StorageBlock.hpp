@@ -590,6 +590,14 @@ class StorageBlock : public StorageBlockBase {
    **/
   const std::size_t getNumTuples() const;
 
+  /**
+   * @brief Get the ids of tuples that matches with the predicate.
+   *
+   * @param predicate The predicate that filters the tuples.
+   * @return The id sequence of matched tuples.
+   **/
+  TupleIdSequence* getMatchesForPredicate(const Predicate *predicate) const;
+
  private:
   static TupleStorageSubBlock* CreateTupleStorageSubBlock(
       const CatalogRelationSchema &relation,
@@ -628,8 +636,6 @@ class StorageBlock : public StorageBlockBase {
   // rebuild, without rebuilding any subsequent IndexSubBlocks or updating this
   // StorageBlock's header.
   bool rebuildIndexes(bool short_circuit);
-
-  TupleIdSequence* getMatchesForPredicate(const Predicate *predicate) const;
 
   std::unordered_map<attribute_id, TypedValue>* generateUpdatedValues(
       const ValueAccessor &accessor,
