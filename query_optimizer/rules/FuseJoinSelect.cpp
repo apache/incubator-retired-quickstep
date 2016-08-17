@@ -23,8 +23,8 @@ P::PhysicalPtr FuseJoinSelect::applyToNode(const P::PhysicalPtr &input) {
       && P::SomeSelection::MatchesWithConditionalCast(hash_join->left(), &selection)
       && P::SomeTableReference::MatchesWithConditionalCast(selection->input(), &table_reference)) {
     const E::PredicatePtr filter_predicate = selection->filter_predicate();
-    P::PhysicalPtr output = P::HashJoin::Create(hash_join->left(),
-                                                table_reference,
+    P::PhysicalPtr output = P::HashJoin::Create(table_reference,
+                                                hash_join->right(),
                                                 hash_join->left_join_attributes(),
                                                 hash_join->right_join_attributes(),
                                                 hash_join->residual_predicate(),
