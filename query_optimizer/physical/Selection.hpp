@@ -75,6 +75,8 @@ class Selection : public Physical {
    */
   inline const PhysicalPtr& input() const { return children()[0]; }
 
+  bool isSimpleSelection() const;
+
   PhysicalPtr copyWithNewChildren(
       const std::vector<PhysicalPtr> &new_children) const override;
 

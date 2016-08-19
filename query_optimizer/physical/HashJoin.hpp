@@ -121,8 +121,8 @@ class HashJoin : public BinaryJoin {
                   residual_predicate_,
                   project_expressions(),
                   join_type_,
-                  bloom_filter_config_,
-                  left_filter_predicate_);
+                  left_filter_predicate_,
+                  bloom_filter_config_);
   }
 
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override;

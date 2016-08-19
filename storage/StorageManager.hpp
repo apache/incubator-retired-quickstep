@@ -96,9 +96,10 @@ class StorageManager {
       : StorageManager(storage_path,
                        FLAGS_block_domain,
                        FLAGS_buffer_pool_slots,
-                       LRUKEvictionPolicyFactory::ConstructLRUKEvictionPolicy(
-                           2,
-                           std::chrono::milliseconds(200))) {
+//                       LRUKEvictionPolicyFactory::ConstructLRUKEvictionPolicy(
+//                           2,
+//                           std::chrono::milliseconds(200))) {
+                       new EvictAnyBlockEvictionPolicy()) {
   }
 
   /**
@@ -122,9 +123,10 @@ class StorageManager {
       : StorageManager(storage_path,
                        FLAGS_block_domain,
                        max_memory_usage,
-                       LRUKEvictionPolicyFactory::ConstructLRUKEvictionPolicy(
-                           2,
-                           std::chrono::milliseconds(200))) {
+//                       LRUKEvictionPolicyFactory::ConstructLRUKEvictionPolicy(
+//                           2,
+//                           std::chrono::milliseconds(200))) {
+                       new EvictAnyBlockEvictionPolicy()) {
   }
 
 #ifdef QUICKSTEP_DISTRIBUTED

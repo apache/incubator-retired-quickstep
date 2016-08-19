@@ -16,21 +16,18 @@ namespace E = ::quickstep::optimizer::expressions;
 P::PhysicalPtr FuseJoinSelect::applyToNode(const P::PhysicalPtr &input) {
   P::HashJoinPtr hash_join;
   P::SelectionPtr selection;
-  P::TableReferencePtr table_reference;
 
   if (P::SomeHashJoin::MatchesWithConditionalCast(input, &hash_join)
-      && hash_join->join_type() == P::HashJoin::JoinType::kInnerJoin
       && P::SomeSelection::MatchesWithConditionalCast(hash_join->left(), &selection)
-      && P::SomeTableReference::MatchesWithConditionalCast(selection->input(), &table_reference)) {
-    const E::PredicatePtr filter_predicate = selection->filter_predicate();
-    P::PhysicalPtr output = P::HashJoin::Create(table_reference,
+      && selection->isSimpleSelection()) {
+    P::PhysicalPtr output = P::HashJoin::Create(selection->input(),
                                                 hash_join->right(),
                                                 hash_join->left_join_attributes(),
                                                 hash_join->right_join_attributes(),
                                                 hash_join->residual_predicate(),
                                                 hash_join->project_expressions(),
                                                 hash_join->join_type(),
-                                                filter_predicate);
+                                                selection->filter_predicate());
     LOG_APPLYING_RULE(input, output);
     return output;
   }

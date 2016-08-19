@@ -63,36 +63,36 @@ class ShardedLockManager {
    * @return The corresponding SharedMutex if there is no collision; otherwise,
    *         the collision SharedMutex.
    */
-  SharedMutexT* get(const T key, bool *has_collision = nullptr) {
+  inline SharedMutexT* get(const T key) {
     const std::size_t shard = hash_(key) % N;
-
-    if (has_collision != nullptr) {
-      // In StorageManager::makeRoomForBlock, check whether the evicting block
-      // or blob has a shard collision with existing referenced shards.
-      SpinSharedMutexSharedLock<false> read_lock(shard_count_mutex_);
-      if (shard_count_.find(shard) != shard_count_.end()) {
-        *has_collision = true;
-        return &collision_mutex_;
-      }
-    }
-
-    {
-      SpinSharedMutexExclusiveLock<false> write_lock(shard_count_mutex_);
-
-      // Check one more time for the evicting block or blob if there is a shard
-      // collision.
-      auto it = shard_count_.find(shard);
-      if (it != shard_count_.end()) {
-        if (has_collision != nullptr) {
-          *has_collision = true;
-          return &collision_mutex_;
-        }
-
-        ++it->second;
-      } else {
-        shard_count_.emplace(shard, 1);
-      }
-    }
+//
+//    if (has_collision != nullptr) {
+//      // In StorageManager::makeRoomForBlock, check whether the evicting block
+//      // or blob has a shard collision with existing referenced shards.
+//      SpinSharedMutexSharedLock<false> read_lock(shard_count_mutex_);
+//      if (shard_count_.find(shard) != shard_count_.end()) {
+//        *has_collision = true;
+//        return &collision_mutex_;
+//      }
+//    }
+//
+//    {
+//      SpinSharedMutexExclusiveLock<false> write_lock(shard_count_mutex_);
+//
+//      // Check one more time for the evicting block or blob if there is a shard
+//      // collision.
+//      auto it = shard_count_.find(shard);
+//      if (it != shard_count_.end()) {
+//        if (has_collision != nullptr) {
+//          *has_collision = true;
+//          return &collision_mutex_;
+//        }
+//
+//        ++it->second;
+//      } else {
+//        shard_count_.emplace(shard, 1);
+//      }
+//    }
     return &sharded_mutexes_[shard];
   }
 
@@ -100,15 +100,15 @@ class ShardedLockManager {
    * @brief Release the shard corresponding to the provided key.
    * @param key The key to compute the shard.
    */
-  void release(const T key) {
-    SpinSharedMutexExclusiveLock<false> write_lock(shard_count_mutex_);
-    auto it = shard_count_.find(hash_(key) % N);
-    DCHECK(it != shard_count_.end());
-
-    if (--it->second == 0) {
-      shard_count_.erase(it);
-    }
-  }
+//  void release(const T key) {
+//    SpinSharedMutexExclusiveLock<false> write_lock(shard_count_mutex_);
+//    auto it = shard_count_.find(hash_(key) % N);
+//    DCHECK(it != shard_count_.end());
+//
+//    if (--it->second == 0) {
+//      shard_count_.erase(it);
+//    }
+//  }
 
  private:
   std::hash<T> hash_;
@@ -120,8 +120,8 @@ class ShardedLockManager {
   // Count all shards referenced by StorageManager in multiple threads.
   // The key is the shard, while the value is the count. If the count equals to
   // zero, we delete the shard entry.
-  std::unordered_map<std::size_t, std::size_t> shard_count_;
-  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> shard_count_mutex_;
+//  std::unordered_map<std::size_t, std::size_t> shard_count_;
+//  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> shard_count_mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(ShardedLockManager);
 };

@@ -511,6 +511,10 @@ class HashSemiJoinWorkOrder : public WorkOrder {
 
   void execute() override;
 
+  const Predicate *left_filter_predicate() const {
+    return left_filter_predicate_;
+  }
+
  private:
   void executeWithoutResidualPredicate();
 
@@ -643,6 +647,10 @@ class HashAntiJoinWorkOrder : public WorkOrder {
     } else {
       executeWithResidualPredicate();
     }
+  }
+
+  const Predicate *left_filter_predicate() const {
+    return left_filter_predicate_;
   }
 
  private:

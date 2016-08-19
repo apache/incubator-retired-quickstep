@@ -253,11 +253,11 @@ double StarSchemaSimpleCostModel::estimateSelectivityForPredicate(
           double unit_selectivity = 1.0 / it->second;
           return comparison_expression->isEqualityComparisonPredicate()
                      ? unit_selectivity
-                     : 0.5;
+                     : 0.1;
         }
       }
 
-      return comparison_expression->isEqualityComparisonPredicate() ? 0.1 : 0.5;
+      return 0.1;
     }
     case E::ExpressionType::kLogicalAnd: {
       const E::LogicalAndPtr &logical_and =

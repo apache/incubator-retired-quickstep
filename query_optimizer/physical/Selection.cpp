@@ -20,6 +20,7 @@
 #include "query_optimizer/physical/Selection.hpp"
 
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "query_optimizer/OptimizerTree.hpp"
@@ -35,6 +36,19 @@ namespace optimizer {
 namespace physical {
 
 namespace E = ::quickstep::optimizer::expressions;
+
+bool Selection::isSimpleSelection() const {
+  std::unordered_set<E::ExprId> input_attr_ids;
+  for (const auto &attr : input()->getOutputAttributes()) {
+    input_attr_ids.emplace(attr->id());
+  }
+  for (const auto &attr : getOutputAttributes()) {
+    if (input_attr_ids.find(attr->id()) == input_attr_ids.end()) {
+      return false;
+    }
+  }
+  return true;
+}
 
 PhysicalPtr Selection::copyWithNewChildren(
     const std::vector<PhysicalPtr> &new_children) const {
@@ -86,7 +100,6 @@ bool Selection::impliesUniqueAttributes(
     const std::vector<expressions::AttributeReferencePtr> &attributes) const {
   return input()->impliesUniqueAttributes(attributes);
 }
-
 
 void Selection::getFieldStringItems(
     std::vector<std::string> *inline_field_names,

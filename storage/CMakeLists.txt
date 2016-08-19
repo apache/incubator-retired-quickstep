@@ -994,6 +994,7 @@ target_link_libraries(quickstep_storage_StorageManager
                       quickstep_threading_SpinSharedMutex
                       quickstep_utility_Alignment
                       quickstep_utility_CalculateInstalledMemory
+                      quickstep_utility_EventProfiler
                       quickstep_utility_Macros
                       quickstep_utility_ShardedLockManager
                       tmb)

@@ -189,6 +189,10 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
         node_info.labels.emplace_back("RIGHT join attrs unique");
       }
 
+      if (hash_join->left_filter_predicate()) {
+        node_info.labels.emplace_back("has left filter predicate");
+      }
+
       const auto &bf_config = hash_join->bloom_filter_config();
       for (const auto &bf : bf_config.build_side_bloom_filters) {
         node_info.labels.emplace_back(

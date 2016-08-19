@@ -48,6 +48,7 @@
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVector.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
+#include "utility/EventProfiler.hpp"
 
 #include "gflags/gflags.h"
 #include "glog/logging.h"
@@ -216,7 +217,8 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
                                      selection,
                                      hash_table,
                                      output_destination,
-                                     storage_manager),
+                                     storage_manager,
+                                     getOperatorIndex()),
               op_index_);
         }
         started_ = true;
@@ -237,7 +239,8 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
                 selection,
                 hash_table,
                 output_destination,
-                storage_manager),
+                storage_manager,
+                getOperatorIndex()),
             op_index_);
         ++num_workorders_generated_;
       }  // end while
@@ -436,13 +439,13 @@ void HashInnerJoinWorkOrder::execute() {
   BlockReference probe_block(
       storage_manager_->getBlock(block_id_, probe_relation_));
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
+//  auto *container = simple_profiler.getContainer();
 
   std::unique_ptr<ValueAccessor> probe_accessor(
       probe_store.createValueAccessor(
           left_filter_predicate_ == nullptr
           ? nullptr
           : probe_block->getMatchesForPredicate(left_filter_predicate_)));
-
 
   MapBasedJoinedTupleCollector collector;
   if (join_key_attributes_.size() == 1) {
@@ -462,11 +465,23 @@ void HashInnerJoinWorkOrder::execute() {
   const relation_id build_relation_id = build_relation_.getID();
   const relation_id probe_relation_id = probe_relation_.getID();
 
+//  auto *materialize_line = container->getEventLine("materialize");
+//  auto *iterate_line = container->getEventLine("iterate_blocks");
+//  auto *get_block_line = container->getEventLine("get_block");
+
+//  materialize_line->emplace_back();
+//  iterate_line->emplace_back();
   ColumnVectorsValueAccessor temp_result;
   for (std::pair<const block_id, std::vector<std::pair<tuple_id, tuple_id>>>
            &build_block_entry : *collector.getJoinedTuples()) {
+//    iterate_line->back().endEvent();
+//    iterate_line->back().setPayload(getOperatorIndex(), build_block_entry.second.size());
+
+//    get_block_line->emplace_back();
     BlockReference build_block =
         storage_manager_->getBlock(build_block_entry.first, build_relation_);
+//    get_block_line->back().endEvent();
+//    get_block_line->back().setPayload(getOperatorIndex(), 0);
     const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
     std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
 
@@ -514,7 +529,6 @@ void HashInnerJoinWorkOrder::execute() {
     // benefit (probably only a real performance win when there are very few
     // matching tuples in each individual inner block but very many inner
     // blocks with at least one match).
-    //ColumnVectorsValueAccessor temp_result;
     std::size_t i = 0;
     for (vector<unique_ptr<const Scalar>>::const_iterator selection_cit = selection_.begin();
          selection_cit != selection_.end();
@@ -527,13 +541,23 @@ void HashInnerJoinWorkOrder::execute() {
                                i);
     }
 
-    // NOTE(chasseur): calling the bulk-insert method of InsertDestination once
-    // for each pair of joined blocks incurs some extra overhead that could be
-    // avoided by keeping checked-out MutableBlockReferences across iterations
-    // of this loop, but that would get messy when combined with partitioning.
-    //        output_destination_->bulkInsertTuples(&temp_result);
+//    iterate_line->emplace_back();
   }
+//  iterate_line->back().endEvent();
+//  iterate_line->back().setPayload(getOperatorIndex(), 0);
+
   output_destination_->bulkInsertTuples(&temp_result);
+
+//  materialize_line->back().endEvent();
+//  materialize_line->back().setPayload(getOperatorIndex(), collector.getJoinedTuples()->size());
+
+  if (build_relation_id == 0 &&
+      probe_relation_id == 0 &&
+      residual_predicate_ == nullptr &&
+      output_destination_ == nullptr &&
+      selection_.empty()) {
+    return;
+  }
 }
 
 void HashSemiJoinWorkOrder::execute() {

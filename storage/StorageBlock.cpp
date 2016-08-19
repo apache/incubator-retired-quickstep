@@ -389,7 +389,7 @@ void StorageBlock::select(const vector<unique_ptr<const Scalar>> &selection,
               batch_size_try < num_tuples_left ? batch_size_try : num_tuples_left;
           for (std::size_t i = 0; i < batch_size; ++i) {
             accessor->next();
-            batch.push_back(accessor->getCurrentPosition());
+            batch[i] = accessor->getCurrentPosition();
           }
 
           std::size_t num_hits =
@@ -398,7 +398,6 @@ void StorageBlock::select(const vector<unique_ptr<const Scalar>> &selection,
             matches->set(batch[t], true);
           }
 
-          batch.clear();
           num_tuples_left -= batch_size;
           batch_size_try = batch_size * 2;
         } while (num_tuples_left > 0);
@@ -465,7 +464,7 @@ void StorageBlock::selectSimple(const std::vector<attribute_id> &selection,
             batch_size_try < num_tuples_left ? batch_size_try : num_tuples_left;
         for (std::size_t i = 0; i < batch_size; ++i) {
           accessor->next();
-          batch.push_back(accessor->getCurrentPosition());
+          batch[i] = accessor->getCurrentPosition();
         }
 
         std::size_t num_hits =
@@ -474,7 +473,6 @@ void StorageBlock::selectSimple(const std::vector<attribute_id> &selection,
           matches->set(batch[t], true);
         }
 
-        batch.clear();
         num_tuples_left -= batch_size;
         batch_size_try = batch_size * 2;
       } while (num_tuples_left > 0);

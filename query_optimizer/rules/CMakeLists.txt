@@ -74,7 +74,8 @@ target_link_libraries(quickstep_queryoptimizer_rules_FuseJoinSelect
                       quickstep_queryoptimizer_physical_Selection
                       quickstep_queryoptimizer_physical_TableReference
                       quickstep_queryoptimizer_rules_BottomUpRule
-                      quickstep_queryoptimizer_rules_Rule)
+                      quickstep_queryoptimizer_rules_Rule
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_rules_GenerateJoins
                       glog
                       quickstep_queryoptimizer_expressions_AttributeReference

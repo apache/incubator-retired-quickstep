@@ -202,6 +202,7 @@ target_link_libraries(quickstep_relationaloperators_HashJoinOperator
                       quickstep_types_TypedValue
                       quickstep_types_containers_ColumnVector
                       quickstep_types_containers_ColumnVectorsValueAccessor
+                      quickstep_utility_EventProfiler
                       quickstep_utility_Macros
                       tmb)
 target_link_libraries(quickstep_relationaloperators_InsertOperator

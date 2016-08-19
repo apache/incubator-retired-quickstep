@@ -2314,7 +2314,7 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
             batch_size_try < num_tuples_left ? batch_size_try : num_tuples_left;
         for (std::size_t i = 0; i < batch_size; ++i) {
           accessor->next();
-          batch.push_back(accessor->getCurrentPosition());
+          batch[i] = accessor->getCurrentPosition();
         }
 
         std::size_t num_hits =
@@ -2338,13 +2338,11 @@ void HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_
               break;
           }
         }
-        batch.clear();
+
         num_tuples_left -= batch_size;
         batch_size_try = batch_size * 2;
       } while (!accessor->iterationFinished());
-    }
-
-    else { // no Bloom filters to probe
+    } else { // no Bloom filters to probe
       while(accessor->next()) {
         TypedValue key = accessor->getTypedValue(key_attr_id);
         if (check_for_null_keys && key.isNull()) {

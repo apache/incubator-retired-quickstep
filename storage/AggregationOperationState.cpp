@@ -460,7 +460,7 @@ void AggregationOperationState::aggregateBlockHashTable(const block_id input_blo
             batch_size_try < num_tuples_left ? batch_size_try : num_tuples_left;
         for (std::size_t i = 0; i < batch_size; ++i) {
           accessor->next();
-          batch.push_back(accessor->getCurrentPosition());
+          batch[i] = accessor->getCurrentPosition();
         }
 
         std::size_t num_hits =
@@ -469,7 +469,6 @@ void AggregationOperationState::aggregateBlockHashTable(const block_id input_blo
           filtered->set(batch[t], true);
         }
 
-        batch.clear();
         num_tuples_left -= batch_size;
         batch_size_try = batch_size * 2;
       } while (num_tuples_left > 0);

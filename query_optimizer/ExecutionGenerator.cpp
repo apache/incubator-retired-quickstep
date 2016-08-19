@@ -693,7 +693,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
 
   // Convert the left filter predicate proto.
   QueryContext::predicate_id left_filter_predicate_index = QueryContext::kInvalidPredicateId;
-  if (physical_plan->residual_predicate()) {
+  if (physical_plan->left_filter_predicate()) {
     left_filter_predicate_index = query_context_proto_->predicates_size();
     unique_ptr<const Predicate> left_filter_predicate(convertPredicate(physical_plan->left_filter_predicate()));
     query_context_proto_->add_predicates()->CopyFrom(left_filter_predicate->getProto());
