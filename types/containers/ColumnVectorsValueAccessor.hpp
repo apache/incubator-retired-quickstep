@@ -92,6 +92,20 @@ class ColumnVectorsValueAccessor : public ValueAccessor {
           : static_cast<const IndirectColumnVector*>(column)->size();
   }
 
+  void appendColumn(ColumnVector *column, const std::size_t index, const bool owns = true) {
+    if (index >= columns_.size()) {
+      addColumn(column, owns);
+    } else {
+      ColumnVector *old_column = columns_[index];
+      old_column->append(column);
+      const int appended_column_length
+          = column->isNative()
+              ? static_cast<const NativeColumnVector*>(column)->size()
+              : static_cast<const IndirectColumnVector*>(column)->size();
+      column_length_ += appended_column_length;
+    }
+  }
+
   inline void beginIteration() {
     current_position_ = std::numeric_limits<std::size_t>::max();
   }

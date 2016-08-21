@@ -441,6 +441,7 @@ void HashInnerJoinWorkOrder::execute() {
   const relation_id build_relation_id = build_relation_.getID();
   const relation_id probe_relation_id = probe_relation_.getID();
 
+  ColumnVectorsValueAccessor temp_result;
   for (std::pair<const block_id, std::vector<std::pair<tuple_id, tuple_id>>>
            &build_block_entry : *collector.getJoinedTuples()) {
     BlockReference build_block =
@@ -492,23 +493,26 @@ void HashInnerJoinWorkOrder::execute() {
     // benefit (probably only a real performance win when there are very few
     // matching tuples in each individual inner block but very many inner
     // blocks with at least one match).
-    ColumnVectorsValueAccessor temp_result;
+    //ColumnVectorsValueAccessor temp_result;
+    std::size_t i = 0;
     for (vector<unique_ptr<const Scalar>>::const_iterator selection_cit = selection_.begin();
          selection_cit != selection_.end();
-         ++selection_cit) {
-      temp_result.addColumn((*selection_cit)->getAllValuesForJoin(build_relation_id,
-                                                                  build_accessor.get(),
-                                                                  probe_relation_id,
-                                                                  probe_accessor.get(),
-                                                                  build_block_entry.second));
+         ++selection_cit, ++i) {
+      temp_result.appendColumn((*selection_cit)->getAllValuesForJoin(build_relation_id,
+                                                                     build_accessor.get(),
+                                                                     probe_relation_id,
+                                                                     probe_accessor.get(),
+                                                                     build_block_entry.second),
+                               i);
     }
 
     // NOTE(chasseur): calling the bulk-insert method of InsertDestination once
     // for each pair of joined blocks incurs some extra overhead that could be
     // avoided by keeping checked-out MutableBlockReferences across iterations
     // of this loop, but that would get messy when combined with partitioning.
-    output_destination_->bulkInsertTuples(&temp_result);
+    //        output_destination_->bulkInsertTuples(&temp_result);
   }
+  output_destination_->bulkInsertTuples(&temp_result);
 }
 
 void HashSemiJoinWorkOrder::execute() {

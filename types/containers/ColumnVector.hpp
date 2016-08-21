@@ -107,6 +107,8 @@ class ColumnVector {
    **/
   virtual bool isNative() const = 0;
 
+  virtual bool append(ColumnVector *column_vector) = 0;
+
  protected:
   const Type &type_;
 
@@ -383,10 +385,45 @@ class NativeColumnVector : public ColumnVector {
     }
   }
 
+  bool append(ColumnVector *column_vector) override {
+    // Other ColumnVector also has to be native.
+    if (!column_vector->isNative()) {
+      return false;
+    }
+    NativeColumnVector *casted_column_vector = static_cast<NativeColumnVector*>(column_vector);
+    // Both ColumnVectors has to have same type to be appended.
+    if (!type_.equals(casted_column_vector->type_)
+            || type_length_ != casted_column_vector->type_length_) {
+      return false;
+    }
+    // Let's be generous about new reserved space.
+    std::size_t new_actual_length = actual_length_ + casted_column_vector->actual_length_;
+    std::size_t new_reserved_lenth = 0;
+    if (new_actual_length > reserved_length_) {
+      new_reserved_length_ = 2 * new_actual_length;
+    } else {
+      new_reserved_length_ = reserved_length_;
+    }
+
+    void *new_buffer = std::realloc(values_, new_reserved_length);
+    if (new_buffer == nullptr) {
+      return false;
+    }
+    std::swap(values_, new_buffer);
+    std::memcpy(static_cast<char*>(values_)
+                    + (type_length_ * actual_length_), // First empty position of this' buffer
+                casted_column_vector->values_,         // First postion of other's buffer
+                type_length_ * casted_column_vector->actual_length_);  // Number of bytes
+
+    reserved_length_ = new_reserved_length;
+    actual_length_ = new_actual_length;
+    return true;
+  }
+
  private:
   const std::size_t type_length_;
   void *values_;
-  const std::size_t reserved_length_;
+  std::size_t reserved_length_;
   std::size_t actual_length_;
   std::unique_ptr<BitVector<false>> null_bitmap_;
 
@@ -554,6 +591,10 @@ class IndirectColumnVector : public ColumnVector {
     DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
     DCHECK_LT(position, values_.size());
     values_[position] = std::move(value);
+  }
+
+  bool append(ColumnVector *column_vector) override {
+    return true;
   }
 
  private:
