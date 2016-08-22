@@ -414,11 +414,11 @@ class NativeColumnVector : public ColumnVector {
     }
     // Let's be generous about new reserved space.
     std::size_t new_actual_length = actual_length_ + casted_column_vector->actual_length_;
-    std::size_t new_reserved_lenth = 0;
+    std::size_t new_reserved_length = 0;
     if (new_actual_length > reserved_length_) {
-      new_reserved_length_ = 2 * new_actual_length;
+      new_reserved_length = 2 * new_actual_length;
     } else {
-      new_reserved_length_ = reserved_length_;
+      new_reserved_length = reserved_length_;
     }
 
     void *new_buffer = std::realloc(values_, new_reserved_length);
