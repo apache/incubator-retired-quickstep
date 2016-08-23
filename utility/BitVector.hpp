@@ -829,6 +829,33 @@ class BitVector {
     return num_bits_;
   }
 
+  bool append(BitVector *other) {
+    std::size_t total_data_array_size = data_array_size_ + other->data_array_size_;
+
+    std::size_t *new_data_array_ = reinterpret_cast<std::size_t*>(std::realloc(data_array_, total_data_array_size));
+    if (new_data_array_ == nullptr) {
+      return false;
+    }
+    // Swap pointers.
+    std::swap(data_array_, new_data_array_);
+
+    // Copy other BitVector's data.
+    std::memcpy(reinterpret_cast<std::uint8_t*>(data_array_) + data_array_size_,
+                other->data_array_,
+                other->data_array_size_);
+
+    // Not complete (it is working only under vector<std::size_t> impl.)
+    const std::size_t excess_bits_at_original = num_bits_ % kSizeTBits;
+    const std::size_t old_num_bits = num_bits_;
+    // Update private fields to make shiftTailForward work correctly.
+    data_array_size_ = total_data_array_size;
+    num_bits_ = num_bits_ + other->num_bits_;
+
+    shiftTailForward(old_num_bits, excess_bits_at_original);
+
+    return true;
+  }
+
  private:
   // This works as long as the bit-width of size_t is power of 2:
   static const std::size_t kLowerOrderMask = (sizeof(std::size_t) << 3) - 1;
@@ -1166,8 +1193,8 @@ class BitVector {
   const bool owned_;
   const bool short_version_;  // Vector is 32 bits or less, so we use not even a full size_t.
   std::size_t *data_array_;
-  const std::size_t num_bits_;
-  const std::size_t data_array_size_;
+  std::size_t num_bits_;
+  std::size_t data_array_size_;
 
   DISALLOW_COPY_AND_ASSIGN(BitVector);
 };

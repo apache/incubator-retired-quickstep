@@ -98,11 +98,13 @@ class ColumnVectorsValueAccessor : public ValueAccessor {
     } else {
       ColumnVector *old_column = columns_[index];
       old_column->append(column);
-      const int appended_column_length
-          = column->isNative()
+      if (index == columns_.size() - 1) {
+        const int appended_column_length
+            = column->isNative()
               ? static_cast<const NativeColumnVector*>(column)->size()
               : static_cast<const IndirectColumnVector*>(column)->size();
-      column_length_ += appended_column_length;
+        column_length_ += appended_column_length;
+      }
     }
   }
 
