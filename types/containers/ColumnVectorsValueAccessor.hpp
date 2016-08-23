@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <limits>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -92,18 +93,22 @@ class ColumnVectorsValueAccessor : public ValueAccessor {
           : static_cast<const IndirectColumnVector*>(column)->size();
   }
 
-  void appendColumn(ColumnVector *column, const std::size_t index, const bool owns = true) {
-    if (index >= columns_.size()) {
-      addColumn(column, owns);
+  void appendColumns(std::vector<std::unique_ptr<ColumnVector>> *columns,
+                     const std::size_t length) {
+    if (columns_.empty()) {
+      for (auto &column : *columns) {
+        addColumn(column.release(), true);
+      }
     } else {
-      ColumnVector *old_column = columns_[index];
-      old_column->append(column);
-      const int appended_column_length
-          = column->isNative()
-              ? static_cast<const NativeColumnVector*>(column)->size()
-              : static_cast<const IndirectColumnVector*>(column)->size();
-      column_length_ += appended_column_length;
+      for (std::size_t i = 0; i < columns_.size(); ++i) {
+        columns_[i]->append(columns->at(i).get());
+      }
+      column_length_ += length;
     }
+  }
+
+  void increaseColumnLength(const std::size_t delta_length) {
+    column_length_ += delta_length;
   }
 
   inline void beginIteration() {

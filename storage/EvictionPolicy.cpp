@@ -44,14 +44,15 @@ using std::chrono::microseconds;
 namespace quickstep {
 
 EvictionPolicy::Status EvictAnyBlockEvictionPolicy::chooseBlockToEvict(block_id* block) {
-  MutexLock lock(mutex_);
-  if (nonreferenced_blocks_.empty()) {
-    return Status::kBlockNotFound;
-  }
-  std::unordered_set<block_id>::const_iterator it = nonreferenced_blocks_.begin();
-  *block = *it;
-  ref_counts_.erase(*it);
-  nonreferenced_blocks_.erase(it);
+//  MutexLock lock(mutex_);
+//  if (nonreferenced_blocks_.empty()) {
+//    return Status::kBlockNotFound;
+//  }
+//  std::unordered_set<block_id>::const_iterator it = nonreferenced_blocks_.begin();
+//  *block = *it;
+//  ref_counts_.erase(*it);
+//  nonreferenced_blocks_.erase(it);
+  LOG(FATAL) << "No eviction allowed";
   return Status::kOk;
 }
 

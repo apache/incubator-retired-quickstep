@@ -66,7 +66,7 @@ class CountedReference {
    **/
   CountedReference(T *block, EvictionPolicy *eviction_policy)
       : block_(block), eviction_policy_(eviction_policy) {
-//    eviction_policy_->blockReferenced(block_->getID());
+    eviction_policy_->blockReferenced(block_->getID());
 #ifdef QUICKSTEP_DEBUG
     block_->ref();
 #endif
@@ -111,7 +111,7 @@ class CountedReference {
 #ifdef QUICKSTEP_DEBUG
         block_->unref();
 #endif
-//        eviction_policy_->blockUnreferenced(block_->getID());
+        eviction_policy_->blockUnreferenced(block_->getID());
       }
   }
 

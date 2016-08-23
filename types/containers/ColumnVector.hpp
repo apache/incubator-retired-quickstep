@@ -107,7 +107,7 @@ class ColumnVector {
    **/
   virtual bool isNative() const = 0;
 
-  virtual bool append(ColumnVector *column_vector) = 0;
+  virtual bool append(const ColumnVector *column_vector) = 0;
 
  protected:
   const Type &type_;
@@ -401,12 +401,13 @@ class NativeColumnVector : public ColumnVector {
     }
   }
 
-  bool append(ColumnVector *column_vector) override {
+  bool append(const ColumnVector *column_vector) override {
     // Other ColumnVector also has to be native.
     if (!column_vector->isNative()) {
       return false;
     }
-    NativeColumnVector *casted_column_vector = static_cast<NativeColumnVector*>(column_vector);
+    const NativeColumnVector *casted_column_vector =
+        static_cast<const NativeColumnVector*>(column_vector);
     // Both ColumnVectors has to have same type to be appended.
     if (!type_.equals(casted_column_vector->type_)
             || type_length_ != casted_column_vector->type_length_) {
@@ -421,7 +422,9 @@ class NativeColumnVector : public ColumnVector {
       new_reserved_length = reserved_length_;
     }
 
-    void *new_buffer = std::realloc(values_, new_reserved_length);
+    void *new_buffer = std::realloc(values_,
+                                    type_length_ * new_reserved_length);
+
     if (new_buffer == nullptr) {
       return false;
     }
@@ -433,6 +436,11 @@ class NativeColumnVector : public ColumnVector {
 
     reserved_length_ = new_reserved_length;
     actual_length_ = new_actual_length;
+
+    if (null_bitmap_) {
+      return null_bitmap_->append((casted_column_vector->null_bitmap_).get());
+    }
+
     return true;
   }
 
@@ -628,13 +636,36 @@ class IndirectColumnVector : public ColumnVector {
     values_[position] = std::move(value);
   }
 
-  bool append(ColumnVector *column_vector) override {
+  bool append(const ColumnVector *column_vector) override {
+    if (column_vector->isNative()) {
+      return false;
+    }
+    const IndirectColumnVector *casted_column_vector =
+        static_cast<const IndirectColumnVector*>(column_vector);
+    // Both ColumnVectors has to have same type to be appended.
+    if (!type_.equals(casted_column_vector->type_)
+        || type_is_nullable_ != casted_column_vector->type_is_nullable_) {
+      return false;
+    }
+
+    std::size_t new_actual_length = values_.size() + casted_column_vector->values_.size();
+    std::size_t new_reserved_length
+        = (new_actual_length > reserved_length_)
+          ? (new_actual_length * 2)
+          : (reserved_length_);
+
+    values_.reserve(new_reserved_length);
+    values_.insert(values_.end(),
+                   casted_column_vector->values_.begin(),
+                   casted_column_vector->values_.end());
+    reserved_length_ = new_reserved_length;
+
     return true;
   }
 
  private:
   const bool type_is_nullable_;
-  const std::size_t reserved_length_;
+  std::size_t reserved_length_;
   std::vector<TypedValue> values_;
 
   DISALLOW_COPY_AND_ASSIGN(IndirectColumnVector);
