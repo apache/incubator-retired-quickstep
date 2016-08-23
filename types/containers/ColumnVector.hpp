@@ -601,12 +601,34 @@ class IndirectColumnVector : public ColumnVector {
   }
 
   bool append(ColumnVector *column_vector) override {
+    if (column_vector->isNative()) {
+      return false;
+    }
+    IndirectColumnVector *casted_column_vector = static_cast<IndirectColumnVector*>(column_vector);
+    // Both ColumnVectors has to have same type to be appended.
+    if (!type_.equals(casted_column_vector->type_)
+        || type_is_nullable_ != casted_column_vector->type_is_nullable_) {
+      return false;
+    }
+
+    std::size_t new_actual_length = values_.size() + casted_column_vector->values_.size();
+    std::size_t new_reserved_length
+        = (new_actual_length > reserved_length_)
+          ? (new_actual_length * 2)
+          : (reserved_length_);
+
+    values_.reserve(new_reserved_length);
+    values_.insert(values_.end(),
+                   casted_column_vector->values_.begin(),
+                   casted_column_vector->values_.end());
+    reserved_length_ = new_reserved_length;
+
     return true;
   }
 
  private:
   const bool type_is_nullable_;
-  const std::size_t reserved_length_;
+  std::size_t reserved_length_;
   std::vector<TypedValue> values_;
 
   DISALLOW_COPY_AND_ASSIGN(IndirectColumnVector);
