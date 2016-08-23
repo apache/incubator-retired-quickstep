@@ -17,60 +17,48 @@
  * under the License.
  **/
 
-#include "relational_operators/FinalizeAggregationOperator.hpp"
+#include "relational_operators/DestroyAggregationStateOperator.hpp"
 
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/WorkOrder.pb.h"
-#include "storage/AggregationOperationState.hpp"
-
-#include "glog/logging.h"
 
 #include "tmb/id_typedefs.h"
 
 namespace quickstep {
 
-bool FinalizeAggregationOperator::getAllWorkOrders(
+bool DestroyAggregationStateOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
     QueryContext *query_context,
     StorageManager *storage_manager,
     const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
-  DCHECK(query_context != nullptr);
-
-  if (blocking_dependencies_met_ && !started_) {
-    started_ = true;
+  if (blocking_dependencies_met_ && !work_generated_) {
+    work_generated_ = true;
     container->addNormalWorkOrder(
-        new FinalizeAggregationWorkOrder(
-            query_id_,
-            query_context->getAggregationState(aggr_state_index_),
-            query_context->getInsertDestination(output_destination_index_)),
+        new DestroyAggregationStateWorkOrder(query_id_, aggr_state_index_, query_context),
         op_index_);
   }
-  return started_;
+  return work_generated_;
 }
 
-bool FinalizeAggregationOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
-  if (blocking_dependencies_met_ && !started_) {
-    started_ = true;
+bool DestroyAggregationStateOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
+  if (blocking_dependencies_met_ && !work_generated_) {
+    work_generated_ = true;
 
     serialization::WorkOrder *proto = new serialization::WorkOrder;
-    proto->set_work_order_type(serialization::FINALIZE_AGGREGATION);
+    proto->set_work_order_type(serialization::DESTROY_AGGREGATION_STATE);
     proto->set_query_id(query_id_);
-    proto->SetExtension(serialization::FinalizeAggregationWorkOrder::aggr_state_index,
-                        aggr_state_index_);
-    proto->SetExtension(serialization::FinalizeAggregationWorkOrder::insert_destination_index,
-                        output_destination_index_);
+    proto->SetExtension(serialization::DestroyAggregationStateWorkOrder::aggr_state_index, aggr_state_index_);
 
     container->addWorkOrderProto(proto, op_index_);
   }
-  return started_;
+  return work_generated_;
 }
 
-
-void FinalizeAggregationWorkOrder::execute() {
-  state_->finalizeAggregate(output_destination_);
+void DestroyAggregationStateWorkOrder::execute() {
+  query_context_->destroyAggregationState(aggr_state_index_);
 }
 
 }  // namespace quickstep

@@ -42,6 +42,7 @@ enum WorkOrderType {
   TEXT_SCAN = 18;
   UPDATE = 19;
   WINDOW_AGGREGATION = 20;
+  DESTROY_AGGREGATION_STATE = 21;
 }
 
 message WorkOrder {
@@ -251,5 +252,11 @@ message WindowAggregationWorkOrder {
     optional uint32 window_aggr_state_index = 336;
     repeated fixed64 block_ids = 337;
     optional int32 insert_destination_index = 338;
+  }
+}
+
+message DestroyAggregationStateWorkOrder {
+  extend WorkOrder {
+    optional uint32 aggr_state_index = 339;
   }
 }

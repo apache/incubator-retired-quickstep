@@ -22,7 +22,6 @@
 
 #include <cstddef>
 #include <string>
-#include <memory>
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
@@ -133,7 +132,7 @@ class FinalizeAggregationWorkOrder : public WorkOrder {
   void execute() override;
 
  private:
-  std::unique_ptr<AggregationOperationState> state_;
+  AggregationOperationState *state_;
   InsertDestination *output_destination_;
 
   DISALLOW_COPY_AND_ASSIGN(FinalizeAggregationWorkOrder);

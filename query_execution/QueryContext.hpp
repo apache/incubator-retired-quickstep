@@ -182,16 +182,14 @@ class QueryContext {
   }
 
   /**
-   * @brief Release the given AggregationOperationState.
+   * @brief Destroy the given aggregation state.
    *
-   * @param id The id of the AggregationOperationState to destroy.
-   *
-   * @return The AggregationOperationState, alreadly created in the constructor.
+   * @param id The ID of the AggregationOperationState to destroy.
    **/
-  inline AggregationOperationState* releaseAggregationState(const aggregation_state_id id) {
+  inline void destroyAggregationState(const aggregation_state_id id) {
     DCHECK_LT(id, aggregation_states_.size());
     DCHECK(aggregation_states_[id]);
-    return aggregation_states_[id].release();
+    aggregation_states_[id].reset(nullptr);
   }
 
   /**

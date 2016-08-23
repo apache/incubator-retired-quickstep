@@ -33,6 +33,9 @@ add_library(quickstep_relationaloperators_AggregationOperator AggregationOperato
 add_library(quickstep_relationaloperators_BuildHashOperator BuildHashOperator.cpp BuildHashOperator.hpp)
 add_library(quickstep_relationaloperators_CreateIndexOperator CreateIndexOperator.cpp CreateIndexOperator.hpp)
 add_library(quickstep_relationaloperators_CreateTableOperator CreateTableOperator.cpp CreateTableOperator.hpp)
+add_library(quickstep_relationaloperators_DestroyAggregationStateOperator 
+            DestroyAggregationStateOperator.cpp 
+            DestroyAggregationStateOperator.hpp)
 add_library(quickstep_relationaloperators_DeleteOperator DeleteOperator.cpp DeleteOperator.hpp)
 add_library(quickstep_relationaloperators_DestroyHashOperator DestroyHashOperator.cpp DestroyHashOperator.hpp)
 add_library(quickstep_relationaloperators_DropTableOperator DropTableOperator.cpp DropTableOperator.hpp)
@@ -134,6 +137,16 @@ target_link_libraries(quickstep_relationaloperators_DeleteOperator
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
                       quickstep_threading_ThreadIDBasedMap
+                      quickstep_utility_Macros
+                      tmb)
+target_link_libraries(quickstep_relationaloperators_DestroyAggregationStateOperator
+                      glog
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrderProtosContainer
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_relationaloperators_WorkOrder_proto
                       quickstep_utility_Macros
                       tmb)
 target_link_libraries(quickstep_relationaloperators_DestroyHashOperator
@@ -451,6 +464,7 @@ target_link_libraries(quickstep_relationaloperators_WorkOrderFactory
                       quickstep_relationaloperators_AggregationOperator
                       quickstep_relationaloperators_BuildHashOperator
                       quickstep_relationaloperators_DeleteOperator
+                      quickstep_relationaloperators_DestroyAggregationStateOperator
                       quickstep_relationaloperators_DestroyHashOperator
                       quickstep_relationaloperators_DropTableOperator
                       quickstep_relationaloperators_FinalizeAggregationOperator
@@ -484,6 +498,7 @@ target_link_libraries(quickstep_relationaloperators
                       quickstep_relationaloperators_CreateIndexOperator
                       quickstep_relationaloperators_CreateTableOperator
                       quickstep_relationaloperators_DeleteOperator
+                      quickstep_relationaloperators_DestroyAggregationStateOperator
                       quickstep_relationaloperators_DestroyHashOperator
                       quickstep_relationaloperators_DropTableOperator
                       quickstep_relationaloperators_FinalizeAggregationOperator
@@ -533,6 +548,7 @@ target_link_libraries(AggregationOperator_unittest
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_relationaloperators_AggregationOperator
+                      quickstep_relationaloperators_DestroyAggregationStateOperator
                       quickstep_relationaloperators_FinalizeAggregationOperator
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_AggregationOperationState_proto
