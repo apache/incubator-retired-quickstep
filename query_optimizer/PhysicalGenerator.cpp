@@ -97,12 +97,12 @@ P::PhysicalPtr PhysicalGenerator::generateInitialPlan(
 
 P::PhysicalPtr PhysicalGenerator::optimizePlan() {
   std::vector<std::unique_ptr<Rule<P::Physical>>> rules;
-  if (FLAGS_reorder_hash_joins) {
     rules.emplace_back(new PruneColumns());
+  if (FLAGS_reorder_hash_joins) {
     rules.emplace_back(new StarSchemaHashJoinOrderOptimization());
+  } else {
+    rules.emplace_back(new SwapProbeBuild());
   }
-  rules.emplace_back(new PruneColumns());
-  // rules.emplace_back(new SwapProbeBuild());
   rules.emplace_back(new FuseJoinSelect());
   rules.emplace_back(new PruneColumns());
   rules.emplace_back(new AttachBloomFilters());

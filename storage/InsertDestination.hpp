@@ -147,6 +147,11 @@ class InsertDestination : public InsertDestinationInterface {
 
   void bulkInsertTuples(ValueAccessor *accessor, bool always_mark_full = false) override;
 
+  void bulkInsertTuples(ValueAccessor *accessor,
+                        MutableBlockReference *output_block);
+
+  void returnBlock(MutableBlockReference *block);
+
   void bulkInsertTuplesWithRemappedAttributes(
       const std::vector<attribute_id> &attribute_map,
       ValueAccessor *accessor,

@@ -221,6 +221,32 @@ void InsertDestination::bulkInsertTuples(ValueAccessor *accessor, bool always_ma
   });
 }
 
+void InsertDestination::bulkInsertTuples(ValueAccessor *accessor,
+                                         MutableBlockReference *output_block) {
+  InvokeOnAnyValueAccessor(
+      accessor,
+      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+    accessor->beginIteration();
+    while (!accessor->iterationFinished()) {
+      // FIXME(chasseur): Deal with TupleTooLargeForBlock exception.
+      if (!output_block->valid()) {
+        *output_block = this->getBlockForInsertion();
+      }
+      if ((*output_block)->bulkInsertTuples(accessor) == 0 ||
+          !accessor->iterationFinished()) {
+        // output_block is full.
+        this->returnBlock(std::move(*output_block), true);
+      }
+    }
+  });
+}
+
+void InsertDestination::returnBlock(MutableBlockReference *output_block) {
+  if (output_block->valid()) {
+    this->returnBlock(std::move(*output_block), false);
+  }
+}
+
 void InsertDestination::bulkInsertTuplesWithRemappedAttributes(
     const std::vector<attribute_id> &attribute_map,
     ValueAccessor *accessor,
@@ -312,6 +338,7 @@ void AlwaysCreateBlockInsertDestination::returnBlock(MutableBlockReference &&blo
   // Due to the nature of this InsertDestination, a block will always be
   // streamed no matter if it's full or not.
   sendBlockFilledMessage(block->getID());
+  block.release();
 }
 
 MutableBlockReference BlockPoolInsertDestination::createNewBlock() {
@@ -389,6 +416,7 @@ void BlockPoolInsertDestination::returnBlock(MutableBlockReference &&block, cons
   }
   // Note that the block will only be sent if it's full (true).
   sendBlockFilledMessage(block->getID());
+  block.release();
 }
 
 const std::vector<block_id>& BlockPoolInsertDestination::getTouchedBlocksInternal() {

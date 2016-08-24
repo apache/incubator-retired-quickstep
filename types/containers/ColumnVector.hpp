@@ -107,8 +107,6 @@ class ColumnVector {
    **/
   virtual bool isNative() const = 0;
 
-  virtual bool append(const ColumnVector *column_vector) = 0;
-
  protected:
   const Type &type_;
 
@@ -401,49 +399,6 @@ class NativeColumnVector : public ColumnVector {
     }
   }
 
-  bool append(const ColumnVector *column_vector) override {
-    // Other ColumnVector also has to be native.
-    if (!column_vector->isNative()) {
-      return false;
-    }
-    const NativeColumnVector *casted_column_vector =
-        static_cast<const NativeColumnVector*>(column_vector);
-    // Both ColumnVectors has to have same type to be appended.
-    if (!type_.equals(casted_column_vector->type_)
-            || type_length_ != casted_column_vector->type_length_) {
-      return false;
-    }
-    // Let's be generous about new reserved space.
-    std::size_t new_actual_length = actual_length_ + casted_column_vector->actual_length_;
-    std::size_t new_reserved_length = 0;
-    if (new_actual_length > reserved_length_) {
-      new_reserved_length = 2 * new_actual_length;
-    } else {
-      new_reserved_length = reserved_length_;
-    }
-
-    void *new_buffer = std::realloc(values_,
-                                    type_length_ * new_reserved_length);
-
-    if (new_buffer == nullptr) {
-      return false;
-    }
-    std::swap(values_, new_buffer);
-    std::memcpy(static_cast<char*>(values_)
-                    + (type_length_ * actual_length_), // First empty position of this' buffer
-                casted_column_vector->values_,         // First postion of other's buffer
-                type_length_ * casted_column_vector->actual_length_);  // Number of bytes
-
-    reserved_length_ = new_reserved_length;
-    actual_length_ = new_actual_length;
-
-    if (null_bitmap_) {
-      return null_bitmap_->append((casted_column_vector->null_bitmap_).get());
-    }
-
-    return true;
-  }
-
  private:
   const std::size_t type_length_;
   void *values_;
@@ -634,33 +589,6 @@ class IndirectColumnVector : public ColumnVector {
     DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
     DCHECK_LT(position, values_.size());
     values_[position] = std::move(value);
-  }
-
-  bool append(const ColumnVector *column_vector) override {
-    if (column_vector->isNative()) {
-      return false;
-    }
-    const IndirectColumnVector *casted_column_vector =
-        static_cast<const IndirectColumnVector*>(column_vector);
-    // Both ColumnVectors has to have same type to be appended.
-    if (!type_.equals(casted_column_vector->type_)
-        || type_is_nullable_ != casted_column_vector->type_is_nullable_) {
-      return false;
-    }
-
-    std::size_t new_actual_length = values_.size() + casted_column_vector->values_.size();
-    std::size_t new_reserved_length
-        = (new_actual_length > reserved_length_)
-          ? (new_actual_length * 2)
-          : (reserved_length_);
-
-    values_.reserve(new_reserved_length);
-    values_.insert(values_.end(),
-                   casted_column_vector->values_.begin(),
-                   casted_column_vector->values_.end());
-    reserved_length_ = new_reserved_length;
-
-    return true;
   }
 
  private:

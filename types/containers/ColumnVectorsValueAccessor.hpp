@@ -93,20 +93,6 @@ class ColumnVectorsValueAccessor : public ValueAccessor {
           : static_cast<const IndirectColumnVector*>(column)->size();
   }
 
-  void appendColumns(std::vector<std::unique_ptr<ColumnVector>> *columns,
-                     const std::size_t length) {
-    if (columns_.empty()) {
-      for (auto &column : *columns) {
-        addColumn(column.release(), true);
-      }
-    } else {
-      for (std::size_t i = 0; i < columns_.size(); ++i) {
-        columns_[i]->append(columns->at(i).get());
-      }
-      column_length_ += length;
-    }
-  }
-
   void increaseColumnLength(const std::size_t delta_length) {
     column_length_ += delta_length;
   }

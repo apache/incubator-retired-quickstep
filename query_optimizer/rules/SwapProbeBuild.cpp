@@ -45,7 +45,18 @@ P::PhysicalPtr SwapProbeBuild::applyToNode(const P::PhysicalPtr &input) {
     std::size_t left_cardinality = cost_model_->estimateCardinality(left);
     std::size_t right_cardinality = cost_model_->estimateCardinality(right);
 
-    if (right_cardinality > left_cardinality) {
+    const bool left_unique =
+        left->impliesUniqueAttributes(hash_join->left_join_attributes());
+    const bool right_unique =
+        right->impliesUniqueAttributes(hash_join->right_join_attributes());
+
+    if (!left_unique && right_unique) {
+      LOG_IGNORING_RULE(input);
+      return input;
+    }
+
+    if ((left_unique && !right_unique) ||
+        right_cardinality > left_cardinality) {
       std::vector<E::AttributeReferencePtr> left_join_attributes = hash_join->left_join_attributes();
       std::vector<E::AttributeReferencePtr> right_join_attributes = hash_join->right_join_attributes();
 

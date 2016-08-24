@@ -471,8 +471,7 @@ void HashInnerJoinWorkOrder::execute() {
 
 //  materialize_line->emplace_back();
 //  iterate_line->emplace_back();
-//  std::cout << "here!\n";
-  ColumnVectorsValueAccessor temp_result;
+  MutableBlockReference output_block;
   for (std::pair<const block_id, std::vector<std::pair<tuple_id, tuple_id>>>
            &build_block_entry : *collector.getJoinedTuples()) {
 //    iterate_line->back().endEvent();
@@ -530,40 +529,25 @@ void HashInnerJoinWorkOrder::execute() {
     // benefit (probably only a real performance win when there are very few
     // matching tuples in each individual inner block but very many inner
     // blocks with at least one match).
-    std::vector<std::unique_ptr<ColumnVector>> columns;
+    ColumnVectorsValueAccessor temp_result;
     for (vector<unique_ptr<const Scalar>>::const_iterator selection_cit = selection_.begin();
          selection_cit != selection_.end();
          ++selection_cit) {
-      columns.emplace_back(
-          std::unique_ptr<ColumnVector>(
-              (*selection_cit)->getAllValuesForJoin(build_relation_id,
-                                                    build_accessor.get(),
-                                                    probe_relation_id,
-                                                    probe_accessor.get(),
-                                                    build_block_entry.second)));
+      temp_result.addColumn(
+          (*selection_cit)->getAllValuesForJoin(build_relation_id,
+                                                build_accessor.get(),
+                                                probe_relation_id,
+                                                probe_accessor.get(),
+                                                build_block_entry.second));
     }
-
-    temp_result.appendColumns(&columns, build_block_entry.second.size());
-
-//    ColumnVectorsValueAccessor temp_result;
-//    for (vector<unique_ptr<const Scalar>>::const_iterator selection_cit = selection_.begin();
-//         selection_cit != selection_.end();
-//         ++selection_cit) {
-//      temp_result.addColumn(
-//          (*selection_cit)->getAllValuesForJoin(build_relation_id,
-//                                                build_accessor.get(),
-//                                                probe_relation_id,
-//                                                probe_accessor.get(),
-//                                                build_block_entry.second));
-//    }
-//    output_destination_->bulkInsertTuples(&temp_result);
+    output_destination_->bulkInsertTuples(&temp_result, &output_block);
 
 //    iterate_line->emplace_back();
   }
 //  iterate_line->back().endEvent();
 //  iterate_line->back().setPayload(getOperatorIndex(), 0);
 
-  output_destination_->bulkInsertTuples(&temp_result);
+  output_destination_->returnBlock(&output_block);
 
 //  materialize_line->back().endEvent();
 //  materialize_line->back().setPayload(getOperatorIndex(), collector.getJoinedTuples()->size());
