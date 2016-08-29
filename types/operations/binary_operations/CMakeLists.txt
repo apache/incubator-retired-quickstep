@@ -51,6 +51,7 @@ add_library(quickstep_types_operations_binaryoperations_SubtractBinaryOperation
 target_link_libraries(quickstep_types_operations_binaryoperations_AddBinaryOperation
                       glog
                       quickstep_types_DateOperatorOverloads
+                      quickstep_types_DateType
                       quickstep_types_DatetimeIntervalType
                       quickstep_types_DatetimeLit
                       quickstep_types_DatetimeType
@@ -164,6 +165,7 @@ target_link_libraries(quickstep_types_operations_binaryoperations_MultiplyBinary
 target_link_libraries(quickstep_types_operations_binaryoperations_SubtractBinaryOperation
                       glog
                       quickstep_types_DateOperatorOverloads
+                      quickstep_types_DateType
                       quickstep_types_DatetimeIntervalType
                       quickstep_types_DatetimeLit
                       quickstep_types_DatetimeType

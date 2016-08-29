@@ -31,6 +31,7 @@
 #include "types/operations/unary_operations/DateExtractOperation.hpp"
 #include "types/operations/unary_operations/UnaryOperation.hpp"
 #include "types/operations/unary_operations/UnaryOperationFactory.hpp"
+#include "utility/EqualsAnyConstant.hpp"
 
 #include "gtest/gtest.h"
 
@@ -44,10 +45,13 @@ namespace quickstep {
 class DateExtractOperationTest : public ::testing::Test {
  protected:
   virtual void SetUp() {
-    dt_literal_.ticks = 1431359664 * DatetimeLit::kTicksPerSecond;  // Mon, 11 May 2015 15:54:24 GMT.
-    datetime_.reset(new TypedValue(dt_literal_));
-
+    datetime_literal_.ticks = 1431359664 * DatetimeLit::kTicksPerSecond;  // Mon, 11 May 2015 15:54:24 GMT.
+    datetime_.reset(new TypedValue(datetime_literal_));
     datetime_null_.reset(new TypedValue(kDatetime));
+
+    date_literal_ = DateLit::Create(2015, 05, 11);  // 11 May 2015.
+    date_.reset(new TypedValue(date_literal_));
+    date_null_.reset(new TypedValue(kDate));
   }
 
   void checkDateExtractOperationSerialization(const DateExtractOperation &operation) {
@@ -57,7 +61,7 @@ class DateExtractOperationTest : public ::testing::Test {
     EXPECT_TRUE(operation.equals(UnaryOperationFactory::ReconstructFromProto(proto)));
   }
 
-  void checkDateExtract(int64_t expected, const DateExtractUnit unit) {
+  void checkDatetimeExtract(int64_t expected, const DateExtractUnit unit) {
     const DateExtractOperation &operation = DateExtractOperation::Instance(unit);
     checkDateExtractOperationSerialization(operation);
 
@@ -74,22 +78,42 @@ class DateExtractOperationTest : public ::testing::Test {
     EXPECT_TRUE(unchecked_operator_->applyToTypedValue(*datetime_null_).isNull());
   }
 
+  void checkDateExtract(int32_t expected, const DateExtractUnit unit) {
+    const DateExtractOperation &operation = DateExtractOperation::Instance(unit);
+    checkDateExtractOperationSerialization(operation);
+
+    EXPECT_EQ(expected,
+              operation.applyToChecked(*date_,
+                                       TypeFactory::GetType(kDate, true)).getLiteral<int32_t>());
+    EXPECT_TRUE(operation.applyToChecked(*date_null_,
+                                         TypeFactory::GetType(kDate, true)).isNull());
+
+    unchecked_operator_.reset(
+        operation.makeUncheckedUnaryOperatorForType(TypeFactory::GetType(kDate, true)));
+    EXPECT_EQ(expected, unchecked_operator_->applyToTypedValue(*date_).getLiteral<int32_t>());
+
+    EXPECT_TRUE(unchecked_operator_->applyToTypedValue(*date_null_).isNull());
+  }
+
   static void CheckFixedNullableResultTypeForField(const DateExtractUnit field) {
     const Type *fixed_result_type
         = DateExtractOperation::Instance(field).fixedNullableResultType();
-    ASSERT_NE(fixed_result_type, nullptr);
-    EXPECT_TRUE(TypeFactory::GetType(kLong, true).equals(*fixed_result_type));
+    ASSERT_EQ(fixed_result_type, nullptr);
   }
 
   static void CheckResultTypeIsPlausibleForField(const DateExtractUnit field) {
-    // Only Long is plausible.
+    // Long and Int are plausible.
     EXPECT_TRUE(DateExtractOperation::Instance(field).resultTypeIsPlausible(
         TypeFactory::GetType(kLong, false)));
     EXPECT_TRUE(DateExtractOperation::Instance(field).resultTypeIsPlausible(
         TypeFactory::GetType(kLong, true)));
+    EXPECT_TRUE(DateExtractOperation::Instance(field).resultTypeIsPlausible(
+        TypeFactory::GetType(kInt, false)));
+    EXPECT_TRUE(DateExtractOperation::Instance(field).resultTypeIsPlausible(
+        TypeFactory::GetType(kInt, true)));
 
     for (const TypeID type_id
-         : {kInt, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
+         : {kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval}) {
       EXPECT_FALSE(DateExtractOperation::Instance(field).resultTypeIsPlausible(
           TypeFactory::GetType(type_id, false)));
       EXPECT_FALSE(DateExtractOperation::Instance(field).resultTypeIsPlausible(
@@ -109,16 +133,34 @@ class DateExtractOperationTest : public ::testing::Test {
   static void CheckPushDownTypeHintForField(const DateExtractUnit field) {
     const UnaryOperation &op = DateExtractOperation::Instance(field);
 
-    // If hint is Long, then the argument is a Datetime with the same
-    // nullability.
+    // For nullable types.
     const Type *argument_hint
         = op.pushDownTypeHint(&TypeFactory::GetType(kLong, true));
-    ASSERT_NE(argument_hint, nullptr);
-    EXPECT_TRUE(TypeFactory::GetType(kDatetime, true).equals(*argument_hint));
+    if ((field == DateExtractUnit::kMonth) || (field == DateExtractUnit::kYear)) {
+      // If field is either Year or Month, the argument is NULL.
+      ASSERT_EQ(argument_hint, nullptr);
+    } else if (QUICKSTEP_EQUALS_ANY_CONSTANT(field,
+                                             DateExtractUnit::kDay,
+                                             DateExtractUnit::kHour,
+                                             DateExtractUnit::kMinute,
+                                             DateExtractUnit::kSecond)) {
+      // Otherwise, if hint is Long, then the argument is a Datetime with the
+      // same nullability.
+      ASSERT_NE(argument_hint, nullptr);
+      EXPECT_TRUE(TypeFactory::GetType(kDatetime, true).equals(*argument_hint));
+    }
 
+    // For non-nullable types.
     argument_hint = op.pushDownTypeHint(&TypeFactory::GetType(kLong, false));
-    ASSERT_NE(argument_hint, nullptr);
-    EXPECT_TRUE(TypeFactory::GetType(kDatetime, false).equals(*argument_hint));
+    if ((field == DateExtractUnit::kMonth) || (field == DateExtractUnit::kYear)) {
+      // If field is either Year or Month, the argument is NULL.
+      ASSERT_EQ(argument_hint, nullptr);
+    } else {
+      // Otherwise, if hint is Long, then the argument is a Datetime with the
+      // same nullability.
+      ASSERT_NE(argument_hint, nullptr);
+      EXPECT_TRUE(TypeFactory::GetType(kDatetime, false).equals(*argument_hint));
+    }
 
     // Anything else can't be returned, so there is no hint for argument type.
     EXPECT_EQ(nullptr, op.pushDownTypeHint(nullptr));
@@ -135,19 +177,26 @@ class DateExtractOperationTest : public ::testing::Test {
     EXPECT_EQ(nullptr, op.pushDownTypeHint(&TypeFactory::GetType(kVarChar, 10, true)));
   }
 
-  DatetimeLit dt_literal_;
+  DatetimeLit datetime_literal_;
+  DateLit date_literal_;
   unique_ptr<TypedValue> datetime_, datetime_null_;
+  unique_ptr<TypedValue> date_, date_null_;
 
   unique_ptr<UncheckedUnaryOperator> unchecked_operator_;
 };
 
-TEST_F(DateExtractOperationTest, DateExtratUnaryOperationTest) {
-  checkDateExtract(dt_literal_.yearField(), DateExtractUnit::kYear);
-  checkDateExtract(dt_literal_.monthField(), DateExtractUnit::kMonth);
-  checkDateExtract(dt_literal_.dayField(), DateExtractUnit::kDay);
-  checkDateExtract(dt_literal_.hourField(), DateExtractUnit::kHour);
-  checkDateExtract(dt_literal_.minuteField(), DateExtractUnit::kMinute);
-  checkDateExtract(dt_literal_.secondField(), DateExtractUnit::kSecond);
+TEST_F(DateExtractOperationTest, DateTimeExtractUnaryOperationTest) {
+  checkDatetimeExtract(datetime_literal_.yearField(), DateExtractUnit::kYear);
+  checkDatetimeExtract(datetime_literal_.monthField(), DateExtractUnit::kMonth);
+  checkDatetimeExtract(datetime_literal_.dayField(), DateExtractUnit::kDay);
+  checkDatetimeExtract(datetime_literal_.hourField(), DateExtractUnit::kHour);
+  checkDatetimeExtract(datetime_literal_.minuteField(), DateExtractUnit::kMinute);
+  checkDatetimeExtract(datetime_literal_.secondField(), DateExtractUnit::kSecond);
+}
+
+TEST_F(DateExtractOperationTest, DateExtractUnaryOperationTest) {
+  checkDateExtract(date_literal_.yearField(), DateExtractUnit::kYear);
+  checkDateExtract(date_literal_.monthField(), DateExtractUnit::kMonth);
 }
 
 TEST_F(DateExtractOperationTest, FixedNullableResultTypeTest) {

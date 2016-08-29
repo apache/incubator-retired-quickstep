@@ -91,6 +91,14 @@ struct DateLit {
   inline bool operator!=(const DateLit& rhs) const {
     return !(*this == rhs);
   }
+
+  inline std::int32_t yearField() const {
+    return year;
+  }
+
+  inline std::int32_t monthField() const {
+    return static_cast<std::int32_t>(month);
+  }
 };
 
 /**

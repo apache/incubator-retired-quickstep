@@ -60,6 +60,7 @@ target_link_libraries(quickstep_types_operations_unaryoperations_DateExtractOper
                       quickstep_storage_ValueAccessor
                       quickstep_storage_ValueAccessorUtil
                       quickstep_types_DatetimeLit
+                      quickstep_types_IntType
                       quickstep_types_LongType
                       quickstep_types_Type
                       quickstep_types_TypeFactory
@@ -164,5 +165,6 @@ target_link_libraries(UnaryOperation_tests
                       quickstep_types_operations_unaryoperations_UnaryOperation
                       quickstep_types_operations_unaryoperations_UnaryOperationFactory
                       quickstep_types_operations_unaryoperations_UnaryOperationID
+                      quickstep_utility_EqualsAnyConstant
                       quickstep_utility_Macros)
 add_test(UnaryOperation_tests UnaryOperation_tests)

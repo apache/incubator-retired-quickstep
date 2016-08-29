@@ -23,8 +23,9 @@
 #include <utility>
 
 #include "types/DateOperatorOverloads.hpp"
-#include "types/DatetimeLit.hpp"
+#include "types/DateType.hpp"
 #include "types/DatetimeIntervalType.hpp"
+#include "types/DatetimeLit.hpp"
 #include "types/DatetimeType.hpp"
 #include "types/IntervalLit.hpp"
 #include "types/Type.hpp"
@@ -47,6 +48,9 @@ bool SubtractBinaryOperation::canApplyToTypes(const Type &left, const Type &righ
     case kDouble: {
       return (right.getSuperTypeID() == Type::kNumeric);
     }
+    case kDate: {
+      return (right.getTypeID() == kYearMonthInterval);
+    }
     case kDatetime: {
       return (right.getTypeID() == kDatetime         ||
               right.getTypeID() == kDatetimeInterval ||
@@ -56,7 +60,8 @@ bool SubtractBinaryOperation::canApplyToTypes(const Type &left, const Type &righ
       return (right.getTypeID() == kDatetimeInterval);
     }
     case kYearMonthInterval: {
-      return (right.getTypeID() == kYearMonthInterval);
+      return (right.getTypeID() == kYearMonthInterval ||
+              right.getTypeID() == kDate);
     }
     default:
       return false;
@@ -66,6 +71,9 @@ bool SubtractBinaryOperation::canApplyToTypes(const Type &left, const Type &righ
 const Type* SubtractBinaryOperation::resultTypeForArgumentTypes(const Type &left, const Type &right) const {
   if (left.getSuperTypeID() == Type::kNumeric && right.getSuperTypeID() == Type::kNumeric) {
     return TypeFactory::GetUnifyingType(left, right);
+  } else if ((left.getTypeID() == kDate && right.getTypeID() == kYearMonthInterval)) {
+    // For DATE type, only one possibility: DATE - YEAR-MONTH-INTERVAL.
+    return &(DateType::Instance(left.isNullable() || right.isNullable()));
   } else if ((left.getTypeID() == kDatetime && right.getTypeID() == kDatetime) ||
              (left.getTypeID() == kDatetimeInterval && right.getTypeID() == kDatetimeInterval)) {
     // NOTE(zuyu): we set the result type of the Subtract
@@ -108,6 +116,10 @@ const Type* SubtractBinaryOperation::resultTypeForPartialArgumentTypes(
         case kDouble:
           // Double has highest precedence of numeric types.
           return &TypeFactory::GetType(kDouble, true);
+        case kDate:
+          // If left is a Date, right must be a YearMonthInterval and the result
+          // must be a Date.
+          return &TypeFactory::GetType(kDate, true);
         case kDatetimeInterval:
           // If minuend is a DatetimeInterval, the subtrahend and result must
           // also be DatetimeInterval.
@@ -149,9 +161,15 @@ bool SubtractBinaryOperation::partialTypeSignatureIsPlausible(
       } else {
         // Only result type is known, just check that it is one of the types
         // that can possibly be returned.
-        return QUICKSTEP_EQUALS_ANY_CONSTANT(
-            result_type->getTypeID(),
-            kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval);
+        return QUICKSTEP_EQUALS_ANY_CONSTANT(result_type->getTypeID(),
+                                             kInt,
+                                             kLong,
+                                             kFloat,
+                                             kDouble,
+                                             kDate,
+                                             kDatetime,
+                                             kDatetimeInterval,
+                                             kYearMonthInterval);
       }
     }
 
@@ -159,9 +177,14 @@ bool SubtractBinaryOperation::partialTypeSignatureIsPlausible(
       // Right (minuend) argument type is known, left (subtrahend) argument and
       // result types are unknown. Just check that right (minuend) type can be
       // subtracted.
-      return QUICKSTEP_EQUALS_ANY_CONSTANT(
-          right_argument_type->getTypeID(),
-          kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval);
+      return QUICKSTEP_EQUALS_ANY_CONSTANT(right_argument_type->getTypeID(),
+                                           kInt,
+                                           kLong,
+                                           kFloat,
+                                           kDouble,
+                                           kDatetime,
+                                           kDatetimeInterval,
+                                           kYearMonthInterval);
     }
 
     // Return type and right (minuend) argument type are known, left
@@ -182,6 +205,8 @@ bool SubtractBinaryOperation::partialTypeSignatureIsPlausible(
             kFloat, kDouble);
       case kDouble:
         return (result_type->getTypeID() == kDouble);
+      case kDate:
+        return (result_type->getTypeID() == kDate);
       case kDatetime:
         return (result_type->getTypeID() == kDatetimeInterval);
       case kDatetimeInterval:
@@ -191,7 +216,7 @@ bool SubtractBinaryOperation::partialTypeSignatureIsPlausible(
       case kYearMonthInterval:
         return QUICKSTEP_EQUALS_ANY_CONSTANT(
             result_type->getTypeID(),
-            kDatetime, kYearMonthInterval);
+            kDate, kDatetime, kYearMonthInterval);
       default:
         return false;
     }
@@ -201,9 +226,15 @@ bool SubtractBinaryOperation::partialTypeSignatureIsPlausible(
         // Left (subtrahend) argument type is known, right (minuend) argument
         // type and result type are unknown. Just check that the left
         // (subtrahend) type can be subtracted from.
-        return QUICKSTEP_EQUALS_ANY_CONSTANT(
-            left_argument_type->getTypeID(),
-            kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval);
+        return QUICKSTEP_EQUALS_ANY_CONSTANT(left_argument_type->getTypeID(),
+                                             kInt,
+                                             kLong,
+                                             kFloat,
+                                             kDouble,
+                                             kDate,
+                                             kDatetime,
+                                             kDatetimeInterval,
+                                             kYearMonthInterval);
       }
 
       // Result type and left (subtrahend) argument type are known, but right
@@ -224,6 +255,8 @@ bool SubtractBinaryOperation::partialTypeSignatureIsPlausible(
               kFloat, kDouble);
         case kDouble:
           return (result_type->getTypeID() == kDouble);
+        case kDate:
+          return (result_type->getTypeID() == kDate);
         case kDatetime:
           return QUICKSTEP_EQUALS_ANY_CONSTANT(
               result_type->getTypeID(),
@@ -267,6 +300,10 @@ std::pair<const Type*, const Type*> SubtractBinaryOperation::pushDownTypeHint(
     case kDouble:
     case kYearMonthInterval:
       return std::pair<const Type*, const Type*>(result_type_hint, result_type_hint);
+    case kDate:
+      // Left should be a Date, right should be YearMonthInterval.
+      return std::pair<const Type *, const Type *>(
+          result_type_hint, &TypeFactory::GetType(kYearMonthInterval, true));
     case kDatetime:
       // Left should be a Datetime, right may be either interval type.
       return std::pair<const Type*, const Type*>(result_type_hint, nullptr);
@@ -291,6 +328,16 @@ TypedValue SubtractBinaryOperation::applyToChecked(const TypedValue &left,
       if (right_type.getSuperTypeID() == Type::kNumeric) {
         return applyToCheckedNumericHelper<SubtractFunctor>(left, left_type,
                                                             right, right_type);
+      }
+      break;
+    }
+    case kDate: {
+      if (right_type.getTypeID() == kYearMonthInterval) {
+        if (left.isNull() || right.isNull()) {
+          return TypedValue(kDate);
+        }
+
+        return TypedValue(left.getLiteral<DateLit>() - right.getLiteral<YearMonthIntervalLit>());
       }
       break;
     }
@@ -355,6 +402,16 @@ UncheckedBinaryOperator* SubtractBinaryOperation::makeUncheckedBinaryOperatorFor
     case kDouble: {
       if (right.getSuperTypeID() == Type::kNumeric) {
         return makeNumericBinaryOperatorOuterHelper<SubtractArithmeticUncheckedBinaryOperator>(left, right);
+      }
+      break;
+    }
+    case kDate: {
+      if (right.getTypeID() == kYearMonthInterval) {
+        return makeDateBinaryOperatorOuterHelper<
+            SubtractArithmeticUncheckedBinaryOperator,
+            DateType,
+            DateLit,
+            YearMonthIntervalLit>(left, right);
       }
       break;
     }

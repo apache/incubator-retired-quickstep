@@ -20,6 +20,7 @@
 #ifndef QUICKSTEP_TYPES_DATE_BINARY_OPERATORS_HPP_
 #define QUICKSTEP_TYPES_DATE_BINARY_OPERATORS_HPP_
 
+#include <cstdint>
 #include <ctime>
 
 #include "types/DatetimeLit.hpp"
@@ -36,7 +37,29 @@ namespace quickstep {
  */
 
 // Month arithmetic clamps to the actual last day of a given month.
-inline void ClampDayOfMonth(struct tm *timeinfo) {
+inline int ClampDayOfMonth(const int year, const int month, const int day) {
+  DCHECK_LT(day, 32);
+  switch (month) {
+    case 2: {
+      const int days_in_february =
+          (year % 4 == 0 && (year % 100 != 0 || year % 400 == 0))
+              ? 29
+              : 28;
+      return (day > days_in_february) ? days_in_february : day;
+    }
+    case 4:
+    case 6:
+    case 9:
+    case 11: {
+      return day == 31 ? 30 : day;
+    }
+    default:
+      return day;
+  }
+}
+
+// We have a separate function here because timeinfo's months begin from 0.
+inline void ClampDayOfMonthStructTM(struct tm *timeinfo) {
   DCHECK_LT(timeinfo->tm_mday, 32);
   switch (timeinfo->tm_mon) {
     case 1: {
@@ -87,7 +110,7 @@ inline DatetimeLit operator+(const DatetimeLit &lhs, const YearMonthIntervalLit 
     ++timeinfo.tm_year;
   }
 
-  ClampDayOfMonth(&timeinfo);
+  ClampDayOfMonthStructTM(&timeinfo);
 
   DatetimeLit datetime(DatetimeLit::FromEpochTime(quickstep::timegm(&timeinfo)));
   datetime.ticks += lhs.subseconds();
@@ -95,6 +118,25 @@ inline DatetimeLit operator+(const DatetimeLit &lhs, const YearMonthIntervalLit 
 }
 
 inline DatetimeLit operator+(const YearMonthIntervalLit &lhs, const DatetimeLit &rhs) {
+  return rhs + lhs;
+}
+
+inline DateLit operator+(const DateLit &lhs, const YearMonthIntervalLit &rhs) {
+  std::int32_t result_year = lhs.year + (rhs.months / 12);
+  std::uint8_t result_month = lhs.month + (rhs.months % 12);
+
+  if (result_month > 11) {
+    result_month -= 12;
+    ++result_year;
+  }
+
+  const std::uint8_t result_day = static_cast<std::uint8_t>(
+      ClampDayOfMonth(result_year, result_month, lhs.day));
+
+  return DateLit::Create(result_year, result_month, result_day);
+}
+
+inline DateLit operator+(const YearMonthIntervalLit &lhs, const DateLit &rhs) {
   return rhs + lhs;
 }
 
@@ -137,11 +179,26 @@ inline DatetimeLit operator-(const DatetimeLit &lhs, const YearMonthIntervalLit 
     timeinfo.tm_mon += 12;
   }
 
-  ClampDayOfMonth(&timeinfo);
+  ClampDayOfMonthStructTM(&timeinfo);
 
   DatetimeLit datetime(DatetimeLit::FromEpochTime(quickstep::timegm(&timeinfo)));
   datetime.ticks += lhs.subseconds();
   return datetime;  // Datetime in GMT.
+}
+
+inline DateLit operator-(const DateLit &lhs, const YearMonthIntervalLit &rhs) {
+  std::int32_t result_year = lhs.year - (rhs.months / 12);
+  std::int8_t result_month = lhs.month - (rhs.months % 12);
+
+  if (result_month < 0) {
+    --result_year;
+    result_month += 12;
+  }
+
+  const std::uint8_t result_day = static_cast<std::uint8_t>(
+      ClampDayOfMonth(result_year, result_month, lhs.day));
+
+  return DateLit::Create(result_year, result_month, result_day);
 }
 
 inline DatetimeIntervalLit operator-(const DatetimeIntervalLit &lhs, const DatetimeIntervalLit &rhs) {

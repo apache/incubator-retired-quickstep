@@ -61,6 +61,40 @@ enum class DateExtractUnit {
 };
 
 /**
+ * @brief UncheckedUnaryOperator for Datetime Extract.
+ */
+template <DateExtractUnit unit, bool argument_nullable>
+class DatetimeExtractUncheckedOperator : public UncheckedUnaryOperator {
+ public:
+  DatetimeExtractUncheckedOperator()
+      : UncheckedUnaryOperator() {}
+
+  TypedValue applyToTypedValue(const TypedValue &argument) const override;
+
+  TypedValue applyToDataPtr(const void *argument) const override;
+
+  ColumnVector* applyToColumnVector(const ColumnVector &argument) const override;
+
+#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
+  ColumnVector* applyToValueAccessor(ValueAccessor *accessor,
+                                     const attribute_id argument_attr_id) const override;
+#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
+
+#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
+  ColumnVector* applyToValueAccessorForJoin(
+      ValueAccessor *accessor,
+      const bool use_left_relation,
+      const attribute_id argument_attr_id,
+      const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const override;
+#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
+
+ private:
+  inline std::int64_t dateExtract(const DatetimeLit &argument) const;
+
+  DISALLOW_COPY_AND_ASSIGN(DatetimeExtractUncheckedOperator);
+};
+
+/**
  * @brief UncheckedUnaryOperator for Date Extract.
  */
 template <DateExtractUnit unit, bool argument_nullable>
@@ -89,7 +123,7 @@ class DateExtractUncheckedOperator : public UncheckedUnaryOperator {
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 
  private:
-  inline std::int64_t dateExtract(const DatetimeLit &argument) const;
+  inline std::int32_t dateExtract(const DateLit &argument) const;
 
   DISALLOW_COPY_AND_ASSIGN(DateExtractUncheckedOperator);
 };
@@ -114,23 +148,17 @@ class DateExtractOperation : public UnaryOperation {
   std::string getName() const override;
 
   bool canApplyToType(const Type &type) const override {
-    return type.getTypeID() == TypeID::kDatetime;
+    return type.getTypeID() == TypeID::kDatetime || type.getTypeID() == kDate;
   }
 
-  const Type* resultTypeForArgumentType(const Type &type) const override {
-    if (canApplyToType(type)) {
-      return &LongType::Instance(type.isNullable());
-    } else {
-      return nullptr;
-    }
-  }
+  const Type* resultTypeForArgumentType(const Type &type) const override;
 
   const Type* fixedNullableResultType() const override {
-    return &LongType::InstanceNullable();
+    return nullptr;
   }
 
   bool resultTypeIsPlausible(const Type &result_type) const override {
-    return (result_type.getTypeID() == kLong);
+    return result_type.getTypeID() == kLong || result_type.getTypeID() == kInt;
   }
 
   const Type* pushDownTypeHint(const Type *type_hint) const override;
@@ -139,7 +167,7 @@ class DateExtractOperation : public UnaryOperation {
                             const Type &argument_type) const override;
 
   UncheckedUnaryOperator* makeUncheckedUnaryOperatorForType(const Type &type) const override {
-    DCHECK_EQ(TypeID::kDatetime, type.getTypeID());
+    DCHECK(canApplyToType(type));
 
     return makeUncheckedUnaryOperatorForTypeHelper(type);
   }

@@ -63,6 +63,13 @@ TEST(SubtractBinaryOperationTest, ResultTypeForPartialArgumentTypesTest) {
   ASSERT_NE(result_type, nullptr);
   EXPECT_TRUE(TypeFactory::GetType(kDouble, true).equals(*result_type));
 
+  // If the left argument is a Date, then the result should be a Date.
+  result_type =
+      SubtractBinaryOperation::Instance().resultTypeForPartialArgumentTypes(
+          &TypeFactory::GetType(kDate, false), nullptr);
+  ASSERT_NE(result_type, nullptr);
+  EXPECT_TRUE(TypeFactory::GetType(kDate, true).equals(*result_type));
+
   // If the left argument (the minuend) is an interval, then the subtrahend and
   // the result must also be the same kind of interval.
   result_type = SubtractBinaryOperation::Instance().resultTypeForPartialArgumentTypes(
@@ -150,8 +157,14 @@ TEST(SubtractBinaryOperationTest, PartialTypeSignatureIsPlausibleTest) {
   // Result type unknown, one argument type known.
   BinaryOperationTestUtil::CheckPlausibilityWithUnknownResultAndSingleKnownArgument(
       SubtractBinaryOperation::Instance(),
-      {kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval},
+      {kInt, kLong, kFloat, kDouble, kDate, kDatetime, kDatetimeInterval, kYearMonthInterval},
       true,
+      false);
+
+  BinaryOperationTestUtil::CheckPlausibilityWithUnknownResultAndSingleKnownArgument(
+      SubtractBinaryOperation::Instance(),
+      {kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval},
+      false,
       true);
 
   // --------------------------------------------------------------------------
@@ -164,6 +177,8 @@ TEST(SubtractBinaryOperationTest, PartialTypeSignatureIsPlausibleTest) {
       SubtractBinaryOperation::Instance(), kFloat, {kInt, kFloat}, true, false);
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
       SubtractBinaryOperation::Instance(), kDouble, {kInt, kLong, kFloat, kDouble}, true, false);
+  BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
+      SubtractBinaryOperation::Instance(), kDate, {kDate}, true, false);
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
       SubtractBinaryOperation::Instance(), kDatetime, {kDatetime}, true, false);
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
@@ -223,6 +238,12 @@ TEST(SubtractBinaryOperationTest, PushDownTypeHintTest) {
     EXPECT_TRUE(result_type->equals(*hints.first));
     EXPECT_TRUE(result_type->equals(*hints.second));
   }
+
+  result_type = &TypeFactory::GetType(kDate, false);
+  hints = SubtractBinaryOperation::Instance().pushDownTypeHint(result_type);
+  ASSERT_NE(hints.first, nullptr);
+  EXPECT_TRUE(result_type->equals(*hints.first));
+  EXPECT_EQ(&TypeFactory::GetType(kYearMonthInterval, true), hints.second);
 
   // A hint of Datetime means the left argument should be Datetime and the
   // right could be either interval type.

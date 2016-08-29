@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <type_traits>
 
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 #include <utility>
@@ -35,6 +36,7 @@
 #include "storage/ValueAccessor.hpp"
 #include "storage/ValueAccessorUtil.hpp"
 #include "types/DatetimeLit.hpp"
+#include "types/IntType.hpp"
 #include "types/LongType.hpp"
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
@@ -46,12 +48,13 @@
 
 #include "glog/logging.h"
 
+using std::int32_t;
 using std::int64_t;
 
 namespace quickstep {
 
 template <DateExtractUnit unit, bool argument_nullable>
-TypedValue DateExtractUncheckedOperator<unit, argument_nullable>::applyToTypedValue(
+TypedValue DatetimeExtractUncheckedOperator<unit, argument_nullable>::applyToTypedValue(
     const TypedValue &argument) const {
   if (argument_nullable && argument.isNull()) {
     return TypedValue(kLong);
@@ -61,7 +64,17 @@ TypedValue DateExtractUncheckedOperator<unit, argument_nullable>::applyToTypedVa
 }
 
 template <DateExtractUnit unit, bool argument_nullable>
-TypedValue DateExtractUncheckedOperator<unit, argument_nullable>::applyToDataPtr(const void *argument) const {
+TypedValue DateExtractUncheckedOperator<unit, argument_nullable>::applyToTypedValue(
+    const TypedValue &argument) const {
+  if (argument_nullable && argument.isNull()) {
+    return TypedValue(kInt);
+  }
+
+  return TypedValue(dateExtract(argument.getLiteral<DateLit>()));
+}
+
+template <DateExtractUnit unit, bool argument_nullable>
+TypedValue DatetimeExtractUncheckedOperator<unit, argument_nullable>::applyToDataPtr(const void *argument) const {
   if (argument_nullable && argument == nullptr) {
     return TypedValue(kLong);
   }
@@ -70,7 +83,16 @@ TypedValue DateExtractUncheckedOperator<unit, argument_nullable>::applyToDataPtr
 }
 
 template <DateExtractUnit unit, bool argument_nullable>
-ColumnVector* DateExtractUncheckedOperator<unit, argument_nullable>::applyToColumnVector(
+TypedValue DateExtractUncheckedOperator<unit, argument_nullable>::applyToDataPtr(const void *argument) const {
+  if (argument_nullable && argument == nullptr) {
+    return TypedValue(kInt);
+  }
+
+  return TypedValue(dateExtract(*static_cast<const DateLit*>(argument)));
+}
+
+template <DateExtractUnit unit, bool argument_nullable>
+ColumnVector* DatetimeExtractUncheckedOperator<unit, argument_nullable>::applyToColumnVector(
     const ColumnVector &argument) const {
   // Datetime are usable with NativeColumnVector, so 'argument' should always
   // be native.
@@ -96,9 +118,36 @@ ColumnVector* DateExtractUncheckedOperator<unit, argument_nullable>::applyToColu
   return result.release();
 }
 
+template <DateExtractUnit unit, bool argument_nullable>
+ColumnVector* DateExtractUncheckedOperator<unit, argument_nullable>::applyToColumnVector(
+    const ColumnVector &argument) const {
+  // Date is usable with NativeColumnVector, so 'argument' should always
+  // be native.
+  DCHECK(argument.isNative());
+
+  const NativeColumnVector &native_argument = static_cast<const NativeColumnVector&>(argument);
+  std::unique_ptr<NativeColumnVector> result(
+      new NativeColumnVector(IntType::Instance(argument_nullable), native_argument.size()));
+
+  for (std::size_t pos = 0;
+       pos < native_argument.size();
+       ++pos) {
+    const DateLit *date_arg =
+        static_cast<const DateLit*>(native_argument.getUntypedValue<argument_nullable>(pos));
+    if (argument_nullable && (date_arg == nullptr)) {
+      result->appendNullValue();
+    } else {
+      *static_cast<int32_t*>(result->getPtrForDirectWrite())
+          = dateExtract(*date_arg);
+    }
+  }
+
+  return result.release();
+}
+
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 template <DateExtractUnit unit, bool argument_nullable>
-ColumnVector* DateExtractUncheckedOperator<unit, argument_nullable>::applyToValueAccessor(
+ColumnVector* DatetimeExtractUncheckedOperator<unit, argument_nullable>::applyToValueAccessor(
     ValueAccessor *accessor,
     const attribute_id argument_attr_id) const {
   return InvokeOnValueAccessorMaybeTupleIdSequenceAdapter(
@@ -121,11 +170,36 @@ ColumnVector* DateExtractUncheckedOperator<unit, argument_nullable>::applyToValu
     return result.release();
   });
 }
+
+template <DateExtractUnit unit, bool argument_nullable>
+ColumnVector* DateExtractUncheckedOperator<unit, argument_nullable>::applyToValueAccessor(
+    ValueAccessor *accessor,
+    const attribute_id argument_attr_id) const {
+  return InvokeOnValueAccessorMaybeTupleIdSequenceAdapter(
+      accessor,
+      [&](auto *accessor) -> ColumnVector* {  // NOLINT(build/c++11)
+    std::unique_ptr<NativeColumnVector> result(
+        new NativeColumnVector(IntType::Instance(argument_nullable), accessor->getNumTuples()));
+    accessor->beginIteration();
+    while (accessor->next()) {
+      const DateLit *date_arg =
+          static_cast<const DateLit*>(
+              accessor->template getUntypedValue<argument_nullable>(argument_attr_id));
+      if (argument_nullable && (date_arg == nullptr)) {
+        result->appendNullValue();
+      } else {
+        *static_cast<int32_t*>(result->getPtrForDirectWrite())
+            = this->dateExtract(*date_arg);
+      }
+    }
+    return result.release();
+  });
+}
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 template <DateExtractUnit unit, bool argument_nullable>
-ColumnVector* DateExtractUncheckedOperator<unit, argument_nullable>::applyToValueAccessorForJoin(
+ColumnVector* DatetimeExtractUncheckedOperator<unit, argument_nullable>::applyToValueAccessorForJoin(
     ValueAccessor *accessor,
     const bool use_left_relation,
     const attribute_id argument_attr_id,
@@ -151,10 +225,40 @@ ColumnVector* DateExtractUncheckedOperator<unit, argument_nullable>::applyToValu
     return result.release();
   });
 }
+
+template <DateExtractUnit unit, bool argument_nullable>
+ColumnVector* DateExtractUncheckedOperator<unit, argument_nullable>::applyToValueAccessorForJoin(
+    ValueAccessor *accessor,
+    const bool use_left_relation,
+    const attribute_id argument_attr_id,
+    const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const {
+  std::unique_ptr<NativeColumnVector> result(
+      new NativeColumnVector(IntType::Instance(argument_nullable), joined_tuple_ids.size()));
+  return InvokeOnValueAccessorNotAdapter(
+      accessor,
+      [&](auto *accessor) -> ColumnVector* {  // NOLINT(build/c++11)
+    for (const std::pair<tuple_id, tuple_id> &joined_pair : joined_tuple_ids) {
+      const DateLit *date_arg =
+          static_cast<const DateLit*>(
+              accessor->template getUntypedValueAtAbsolutePosition<argument_nullable>(
+                  argument_attr_id,
+                  use_left_relation ? joined_pair.first : joined_pair.second));
+      if (argument_nullable && (date_arg == nullptr)) {
+        result->appendNullValue();
+      } else {
+        *static_cast<int32_t*>(result->getPtrForDirectWrite())
+            = this->dateExtract(*date_arg);
+      }
+    }
+    return result.release();
+  });
+}
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 
 template <DateExtractUnit unit, bool argument_nullable>
-inline int64_t DateExtractUncheckedOperator<unit, argument_nullable>::dateExtract(const DatetimeLit &argument) const {
+inline int64_t
+DatetimeExtractUncheckedOperator<unit, argument_nullable>::dateExtract(
+    const DatetimeLit &argument) const {
   switch (unit) {
     case DateExtractUnit::kYear:
       return argument.yearField();
@@ -168,6 +272,18 @@ inline int64_t DateExtractUncheckedOperator<unit, argument_nullable>::dateExtrac
       return argument.minuteField();
     case DateExtractUnit::kSecond:
       return argument.secondField();
+    default:
+      FATAL_ERROR("Unsupported DateExtractUnit in DatetimeExtractUncheckedOperator::dateExtract.");
+  }
+}
+
+template <DateExtractUnit unit, bool argument_nullable>
+inline int32_t DateExtractUncheckedOperator<unit, argument_nullable>::dateExtract(const DateLit &argument) const {
+  switch (unit) {
+    case DateExtractUnit::kYear:
+      return argument.yearField();
+    case DateExtractUnit::kMonth:
+      return argument.monthField();
     default:
       FATAL_ERROR("Unsupported DateExtractUnit in DateExtractUncheckedOperator::dateExtract.");
   }
@@ -270,7 +386,20 @@ const Type* DateExtractOperation::pushDownTypeHint(const Type *type_hint) const 
   }
 
   if (type_hint->getTypeID() == kLong) {
-    return &TypeFactory::GetType(kDatetime, type_hint->isNullable());
+    switch (unit_) {
+      case DateExtractUnit::kYear:  // Fall through.
+      case DateExtractUnit::kMonth:
+        // There are two possibilities for the return type, based on whether we
+        // have Datetime or Date as the underlying date implementation.
+        return nullptr;
+      case DateExtractUnit::kDay:  // Fall through.
+      case DateExtractUnit::kHour:
+      case DateExtractUnit::kMinute:
+      case DateExtractUnit::kSecond:
+        return &TypeFactory::GetType(kDatetime, type_hint->isNullable());
+      default:
+        return nullptr;
+    }
   } else {
     return nullptr;
   }
@@ -278,8 +407,10 @@ const Type* DateExtractOperation::pushDownTypeHint(const Type *type_hint) const 
 
 TypedValue DateExtractOperation::applyToChecked(const TypedValue &argument,
                                                 const Type &argument_type) const {
-  if ((argument.getTypeID() != TypeID::kDatetime)
-      || (argument_type.getTypeID() != TypeID::kDatetime)) {
+  if (((argument.getTypeID() != TypeID::kDatetime) ||
+       (argument_type.getTypeID() != TypeID::kDatetime)) &&
+      ((argument.getTypeID() != TypeID::kDate) ||
+       (argument_type.getTypeID() != TypeID::kDate))) {
     LOG(FATAL) << "UnaryOperation " << getName() << " is only applicable to Type "
                << kTypeNames[TypeID::kDatetime] << ", but applyToChecked() was "
                << "called with 'argument' of Type " << kTypeNames[argument.getTypeID()]
@@ -288,14 +419,34 @@ TypedValue DateExtractOperation::applyToChecked(const TypedValue &argument,
   }
 
   if (argument.isNull()) {
-    return TypedValue(kLong);
+    if (argument.getTypeID() == TypeID::kDatetime) {
+      return TypedValue(kLong);
+    } else {
+      // argument type is kDate.
+      DCHECK_EQ(TypeID::kDate, argument.getTypeID());
+      return TypedValue(kInt);
+    }
   }
 
   switch (unit_) {
-    case DateExtractUnit::kYear:
-      return TypedValue(argument.getLiteral<DatetimeLit>().yearField());
-    case DateExtractUnit::kMonth:
-      return TypedValue(argument.getLiteral<DatetimeLit>().monthField());
+    case DateExtractUnit::kYear: {
+      if (argument.getTypeID() == TypeID::kDatetime) {
+        return TypedValue(argument.getLiteral<DatetimeLit>().yearField());
+      } else {
+        // argument type is kDate.
+        DCHECK_EQ(TypeID::kDate, argument.getTypeID());
+        return TypedValue(argument.getLiteral<DateLit>().yearField());
+      }
+    }
+    case DateExtractUnit::kMonth: {
+      if (argument.getTypeID() == TypeID::kDatetime) {
+        return TypedValue(argument.getLiteral<DatetimeLit>().monthField());
+      } else {
+        // argument type is kDate.
+        DCHECK_EQ(TypeID::kDate, argument.getTypeID());
+        return TypedValue(argument.getLiteral<DateLit>().monthField());
+      }
+    }
     case DateExtractUnit::kDay:
       return TypedValue(argument.getLiteral<DatetimeLit>().dayField());
     case DateExtractUnit::kHour:
@@ -312,44 +463,79 @@ TypedValue DateExtractOperation::applyToChecked(const TypedValue &argument,
 
 UncheckedUnaryOperator* DateExtractOperation::makeUncheckedUnaryOperatorForTypeHelper(const Type &type) const {
   switch (unit_) {
-    case DateExtractUnit::kYear:
-      if (type.isNullable()) {
-        return new DateExtractUncheckedOperator<DateExtractUnit::kYear, true>();
+    case DateExtractUnit::kYear: {
+      if (type.getTypeID() == TypeID::kDatetime) {
+        if (type.isNullable()) {
+          return new DatetimeExtractUncheckedOperator<DateExtractUnit::kYear, true>();
+        } else {
+          return new DatetimeExtractUncheckedOperator<DateExtractUnit::kYear, false>();
+        }
       } else {
-        return new DateExtractUncheckedOperator<DateExtractUnit::kYear, false>();
+        DCHECK_EQ(TypeID::kDate, type.getTypeID());
+        // type is kDate.
+        if (type.isNullable()) {
+          return new DateExtractUncheckedOperator<DateExtractUnit::kYear, true>();
+        } else {
+          return new DateExtractUncheckedOperator<DateExtractUnit::kYear, false>();
+        }
       }
-    case DateExtractUnit::kMonth:
-      if (type.isNullable()) {
-        return new DateExtractUncheckedOperator<DateExtractUnit::kMonth, true>();
+    }
+    case DateExtractUnit::kMonth: {
+      if (type.getTypeID() == TypeID::kDatetime) {
+        if (type.isNullable()) {
+          return new DatetimeExtractUncheckedOperator<DateExtractUnit::kMonth, true>();
+        } else {
+          return new DatetimeExtractUncheckedOperator<DateExtractUnit::kMonth, false>();
+        }
       } else {
-        return new DateExtractUncheckedOperator<DateExtractUnit::kMonth, false>();
+        // type is kDate.
+        DCHECK_EQ(TypeID::kDate, type.getTypeID());
+        if (type.isNullable()) {
+          return new DateExtractUncheckedOperator<DateExtractUnit::kMonth, true>();
+        } else {
+          return new DateExtractUncheckedOperator<DateExtractUnit::kMonth, false>();
+        }
       }
+    }
     case DateExtractUnit::kDay:
       if (type.isNullable()) {
-        return new DateExtractUncheckedOperator<DateExtractUnit::kDay, true>();
+        return new DatetimeExtractUncheckedOperator<DateExtractUnit::kDay, true>();
       } else {
-        return new DateExtractUncheckedOperator<DateExtractUnit::kDay, false>();
+        return new DatetimeExtractUncheckedOperator<DateExtractUnit::kDay, false>();
       }
     case DateExtractUnit::kHour:
       if (type.isNullable()) {
-        return new DateExtractUncheckedOperator<DateExtractUnit::kHour, true>();
+        return new DatetimeExtractUncheckedOperator<DateExtractUnit::kHour, true>();
       } else {
-        return new DateExtractUncheckedOperator<DateExtractUnit::kHour, false>();
+        return new DatetimeExtractUncheckedOperator<DateExtractUnit::kHour, false>();
       }
     case DateExtractUnit::kMinute:
       if (type.isNullable()) {
-        return new DateExtractUncheckedOperator<DateExtractUnit::kMinute, true>();
+        return new DatetimeExtractUncheckedOperator<DateExtractUnit::kMinute, true>();
       } else {
-        return new DateExtractUncheckedOperator<DateExtractUnit::kMinute, false>();
+        return new DatetimeExtractUncheckedOperator<DateExtractUnit::kMinute, false>();
       }
     case DateExtractUnit::kSecond:
       if (type.isNullable()) {
-        return new DateExtractUncheckedOperator<DateExtractUnit::kSecond, true>();
+        return new DatetimeExtractUncheckedOperator<DateExtractUnit::kSecond, true>();
       } else {
-        return new DateExtractUncheckedOperator<DateExtractUnit::kSecond, false>();
+        return new DatetimeExtractUncheckedOperator<DateExtractUnit::kSecond, false>();
       }
     default:
       FATAL_ERROR("Unsupported DateExtractUnit in DateExtractOperation::makeUncheckedUnaryOperatorForTypeHelper.");
+  }
+}
+
+const Type* DateExtractOperation::resultTypeForArgumentType(const Type &type) const {
+  if (canApplyToType(type)) {
+    if (type.getTypeID() == kDatetime) {
+      return &LongType::Instance(type.isNullable());
+    } else {
+      DCHECK_EQ(kDate, type.getTypeID());
+      return &IntType::Instance(type.isNullable());
+    }
+  } else {
+    return nullptr;
   }
 }
 

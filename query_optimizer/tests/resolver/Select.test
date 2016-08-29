@@ -2148,10 +2148,10 @@ name
 ,relation=,type=Float]
 ==
 
-select date '1998-12-12' + interval '5 day',
+select datetime '1998-12-12' + interval '5 day',
        date '1998-12-12' - interval '5 month',
        interval '5 year' + date '1998-12-12',
-       date '1998-12-12' - date '1998-12-11',
+       datetime '1998-12-12' - datetime '1998-12-11',
        interval '10 day' + interval '11 day',
        interval '30 month' + interval '1 year',
        interval '30 month' - interval '1 year'
@@ -2172,18 +2172,16 @@ TopLevelPlan
 |   | +-Add
 |   |   +-Literal[value=1998-12-12T00:00:00,type=Datetime]
 |   |   +-Literal[value=5 days 00:00:00,type=DatetimeInterval]
-|   +-Alias[id=7,name=,
-|   | alias=(Datetime('1998-12-12')-YearMonthInterval('5 month')),relation=,
-|   | type=Datetime]
+|   +-Alias[id=7,name=,alias=(Date('1998-12-12')-YearMonthInterval('5 month')),
+|   | relation=,type=Date]
 |   | +-Subtract
-|   |   +-Literal[value=1998-12-12T00:00:00,type=Datetime]
+|   |   +-Literal[value=1998-12-12,type=Date]
 |   |   +-Literal[value=5 mons,type=YearMonthInterval]
-|   +-Alias[id=8,name=,
-|   | alias=(YearMonthInterval('5 year')+Datetime('1998-12-12')),relation=,
-|   | type=Datetime]
+|   +-Alias[id=8,name=,alias=(YearMonthInterval('5 year')+Date('1998-12-12')),
+|   | relation=,type=Date]
 |   | +-Add
 |   |   +-Literal[value=5 years,type=YearMonthInterval]
-|   |   +-Literal[value=1998-12-12T00:00:00,type=Datetime]
+|   |   +-Literal[value=1998-12-12,type=Date]
 |   +-Alias[id=9,name=,alias=(Datetime('1998-12-12')-Datetime('1998-12-11')),
 |   | relation=,type=DatetimeInterval]
 |   | +-Subtract
@@ -2212,11 +2210,9 @@ TopLevelPlan
   | alias=(Datetime('1998-12-12')+DatetimeInterval('5 day')),relation=,
   | type=Datetime]
   +-AttributeReference[id=7,name=,
-  | alias=(Datetime('1998-12-12')-YearMonthInterval('5 month')),relation=,
-  | type=Datetime]
+  | alias=(Date('1998-12-12')-YearMonthInterval('5 month')),relation=,type=Date]
   +-AttributeReference[id=8,name=,
-  | alias=(YearMonthInterval('5 year')+Datetime('1998-12-12')),relation=,
-  | type=Datetime]
+  | alias=(YearMonthInterval('5 year')+Date('1998-12-12')),relation=,type=Date]
   +-AttributeReference[id=9,name=,
   | alias=(Datetime('1998-12-12')-Datetime('1998-12-11')),relation=,
   | type=DatetimeInterval]
@@ -2270,9 +2266,9 @@ TopLevelPlan
     relation=,type=YearMonthInterval]
 ==
 
-SELECT EXTRACT(YEAR FROM DATE '2016-01-02 10:20:30') * 10000 +
-       EXTRACT(MONTH FROM DATE '2016-01-02 10:20:30') * 100 +
-       EXTRACT(DAY FROM DATE '2016-01-02 10:20:30') AS date_digits
+SELECT EXTRACT(YEAR FROM DATETIME '2016-01-02 10:20:30') * 10000 +
+       EXTRACT(MONTH FROM DATETIME '2016-01-02 10:20:30') * 100 +
+       EXTRACT(DAY FROM DATETIME '2016-01-02 10:20:30') AS date_digits
 FROM generate_series(1, 1);
 --
 TopLevelPlan
@@ -2445,24 +2441,48 @@ select interval '4 day' + interval '5 year'
 select date '1998-12-12' + date '1998-12-12'
 from test
 --
-ERROR: Can not apply binary operation "Add" to arguments of types Datetime and Datetime (1 : 26)
+ERROR: Can not apply binary operation "Add" to arguments of types Date and Date (1 : 26)
 select date '1998-12-12' + date '1998-12-12'
                          ^
 ==
 
+select datetime '1998-12-12' + datetime '1998-12-12'
+from test
+--
+ERROR: Can not apply binary operation "Add" to arguments of types Datetime and Datetime (1 : 30)
+select datetime '1998-12-12' + datetime '1998-12-12'
+                             ^
+==
+
 select date '1998-12-12' * date '1998-12-12'
 from test
 --
-ERROR: Can not apply binary operation "Multiply" to arguments of types Datetime and Datetime (1 : 26)
+ERROR: Can not apply binary operation "Multiply" to arguments of types Date and Date (1 : 26)
 select date '1998-12-12' * date '1998-12-12'
                          ^
+==
+
+select datetime '1998-12-12' * datetime '1998-12-12'
+from test
+--
+ERROR: Can not apply binary operation "Multiply" to arguments of types Datetime and Datetime (1 : 30)
+select datetime '1998-12-12' * datetime '1998-12-12'
+                             ^
 ==
 
 select interval '5 day' - date '1998-12-12'
 from test
 --
-ERROR: Can not apply binary operation "Subtract" to arguments of types DatetimeInterval and Datetime (1 : 25)
+ERROR: Can not apply binary operation "Subtract" to arguments of types DatetimeInterval and Date (1 : 25)
 select interval '5 day' - date '1998-12-12'
+                        ^
+==
+
+select interval '5 day' - datetime '1998-12-12'
+from test
+--
+ERROR: Can not apply binary operation "Subtract" to arguments of types DatetimeInterval and Datetime (1 : 25)
+select interval '5 day' - datetime '1998-12-12'
                         ^
 ==
 
@@ -2477,10 +2497,19 @@ ERROR: Can not apply binary operation "Add" to arguments of types DatetimeInterv
 select 5 / (date '1999-10-12' + yearmonth interval '10 year')
 from test
 --
-ERROR: Can not apply binary operation "Divide" to arguments of types Int and Datetime (1 : 10)
+ERROR: Can not apply binary operation "Divide" to arguments of types Int and Date (1 : 10)
 select 5 / (date '1999-10-12' + yearmont...
          ^
 ==
+
+select 5 / (datetime '1999-10-12' + yearmonth interval '10 year')
+from test
+--
+ERROR: Can not apply binary operation "Divide" to arguments of types Int and Datetime (1 : 10)
+select 5 / (datetime '1999-10-12' + yearmont...
+         ^
+==
+
 
 # CASE expressions.
 SELECT CASE int_col%2

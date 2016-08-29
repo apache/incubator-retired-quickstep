@@ -23,8 +23,9 @@
 #include <utility>
 
 #include "types/DateOperatorOverloads.hpp"
-#include "types/DatetimeLit.hpp"
+#include "types/DateType.hpp"
 #include "types/DatetimeIntervalType.hpp"
+#include "types/DatetimeLit.hpp"
 #include "types/DatetimeType.hpp"
 #include "types/IntervalLit.hpp"
 #include "types/Type.hpp"
@@ -47,6 +48,9 @@ bool AddBinaryOperation::canApplyToTypes(const Type &left, const Type &right) co
     case kDouble: {
       return (right.getSuperTypeID() == Type::kNumeric);
     }
+    case kDate: {
+      return (right.getTypeID() == kYearMonthInterval);
+    }
     case kDatetime: {
       return (right.getTypeID() == kDatetimeInterval ||
               right.getTypeID() == kYearMonthInterval);
@@ -56,7 +60,8 @@ bool AddBinaryOperation::canApplyToTypes(const Type &left, const Type &right) co
               right.getTypeID() == kDatetimeInterval);
     }
     case kYearMonthInterval: {
-      return (right.getTypeID() == kDatetime ||
+      return (right.getTypeID() == kDate ||
+              right.getTypeID() == kDatetime ||
               right.getTypeID() == kYearMonthInterval);
     }
     default:
@@ -72,6 +77,9 @@ const Type* AddBinaryOperation::resultTypeForArgumentTypes(const Type &left, con
              (left.getTypeID() == kDatetime && right.getTypeID() == kYearMonthInterval) ||
              (left.getTypeID() == kYearMonthInterval && right.getTypeID() == kDatetime)) {
     return &(DatetimeType::Instance(left.isNullable() || right.isNullable()));
+  } else if ((left.getTypeID() == kDate && right.getTypeID() == kYearMonthInterval) ||
+             (left.getTypeID() == kYearMonthInterval && right.getTypeID() == kDate)) {
+    return &(DateType::Instance(left.isNullable() || right.isNullable()));
   } else if (left.getTypeID() == kDatetimeInterval && right.getTypeID() == kDatetimeInterval) {
     return &(DatetimeIntervalType::Instance(left.isNullable() || right.isNullable()));
   } else if (left.getTypeID() == kYearMonthInterval && right.getTypeID() == kYearMonthInterval) {
@@ -102,6 +110,10 @@ const Type* AddBinaryOperation::resultTypeForPartialArgumentTypes(const Type *le
       // Datetime can be added with either interval type, and always yields
       // Datetime.
       return &TypeFactory::GetType(kDatetime, true);
+    case kDate:
+      // Date can be added with YearMonthInterval type only, and always yields
+      // Date.
+      return &TypeFactory::GetType(kDate, true);
     default:
       // Ambiguous or inapplicable.
       return nullptr;
@@ -121,9 +133,15 @@ bool AddBinaryOperation::partialTypeSignatureIsPlausible(
       // Type is not plausible with unknown arguments.
       return false;
     } else {
-      return QUICKSTEP_EQUALS_ANY_CONSTANT(
-          result_type->getTypeID(),
-          kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval);
+      return QUICKSTEP_EQUALS_ANY_CONSTANT(result_type->getTypeID(),
+                                           kInt,
+                                           kLong,
+                                           kFloat,
+                                           kDouble,
+                                           kDate,
+                                           kDatetime,
+                                           kDatetimeInterval,
+                                           kYearMonthInterval);
     }
   }
 
@@ -148,9 +166,15 @@ bool AddBinaryOperation::partialTypeSignatureIsPlausible(
                                     ? left_argument_type
                                     : right_argument_type;
   if (result_type == nullptr) {
-    return QUICKSTEP_EQUALS_ANY_CONSTANT(
-        known_argument_type->getTypeID(),
-        kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval);
+    return QUICKSTEP_EQUALS_ANY_CONSTANT(known_argument_type->getTypeID(),
+                                         kInt,
+                                         kLong,
+                                         kFloat,
+                                         kDouble,
+                                         kDate,
+                                         kDatetime,
+                                         kDatetimeInterval,
+                                         kYearMonthInterval);
   }
 
   if (!result_type->isNullable()) {
@@ -176,10 +200,12 @@ bool AddBinaryOperation::partialTypeSignatureIsPlausible(
       return QUICKSTEP_EQUALS_ANY_CONSTANT(
           known_argument_type->getTypeID(),
           kInt, kLong, kFloat, kDouble);
+    case kDate:
+      return (known_argument_type->getTypeID() == kDate);
     case kDatetime:
       return QUICKSTEP_EQUALS_ANY_CONSTANT(
           known_argument_type->getTypeID(),
-          kDatetime, kDatetimeInterval, kYearMonthInterval);
+          kDatetime, kDatetimeInterval);
     case kDatetimeInterval:
       return (known_argument_type->getTypeID() == kDatetimeInterval);
     case kYearMonthInterval:
@@ -208,6 +234,10 @@ std::pair<const Type*, const Type*> AddBinaryOperation::pushDownTypeHint(
       // choose the highest-precision suitable Type (i.e. the same as the
       // result type) in such cases.
       return std::pair<const Type*, const Type*>(result_type_hint, result_type_hint);
+    case kDate:
+      // Hint is ambiguous: one argument should be a Date, other has to be
+      // kYearMonthInterval, but order is not important.
+      return std::pair<const Type*, const Type*>(nullptr, nullptr);
     case kDatetime:
       // Hint is ambiguous: one argument should be a Datetime, the other should
       // be one of the interval types, but either order is acceptable.
@@ -239,6 +269,16 @@ TypedValue AddBinaryOperation::applyToChecked(const TypedValue &left,
                                                          right, right_type);
         default:
           break;
+      }
+      break;
+    }
+    case kDate: {
+      if (right_type.getTypeID() == kYearMonthInterval) {
+        if (left.isNull() || right.isNull()) {
+          return TypedValue(kDate);
+        }
+
+        return TypedValue(left.getLiteral<DateLit>() + right.getLiteral<YearMonthIntervalLit>());
       }
       break;
     }
@@ -275,7 +315,13 @@ TypedValue AddBinaryOperation::applyToChecked(const TypedValue &left,
       break;
     }
     case kYearMonthInterval: {
-      if (right_type.getTypeID() == kDatetime) {
+      if (right_type.getTypeID() == kDate) {
+        if (left.isNull() || right.isNull()) {
+          return TypedValue(kDatetime);
+        }
+
+        return TypedValue(left.getLiteral<YearMonthIntervalLit>() + right.getLiteral<DateLit>());
+      } else if (right_type.getTypeID() == kDatetime) {
         if (left.isNull() || right.isNull()) {
           return TypedValue(kDatetime);
         }
@@ -310,6 +356,16 @@ UncheckedBinaryOperator* AddBinaryOperation::makeUncheckedBinaryOperatorForTypes
       }
       break;
     }
+    case kDate: {
+      if (right.getTypeID() == kYearMonthInterval) {
+        return makeDateBinaryOperatorOuterHelper<
+            AddArithmeticUncheckedBinaryOperator,
+            DateType,
+            DateLit,
+            YearMonthIntervalLit>(left, right);
+      }
+      break;
+    }
     case kDatetime: {
       if (right.getTypeID() == kDatetimeInterval) {
         return makeDateBinaryOperatorOuterHelper<AddArithmeticUncheckedBinaryOperator,
@@ -335,7 +391,13 @@ UncheckedBinaryOperator* AddBinaryOperation::makeUncheckedBinaryOperatorForTypes
       break;
     }
     case kYearMonthInterval: {
-      if (right.getTypeID() == kDatetime) {
+      if (right.getTypeID() == kDate) {
+        return makeDateBinaryOperatorOuterHelper<
+            AddArithmeticUncheckedBinaryOperator,
+            DateType,
+            YearMonthIntervalLit,
+            DateLit>(left, right);
+      } else if (right.getTypeID() == kDatetime) {
         return makeDateBinaryOperatorOuterHelper<AddArithmeticUncheckedBinaryOperator,
                                                  DatetimeType,
                                                  YearMonthIntervalLit, DatetimeLit>(left, right);

@@ -62,6 +62,13 @@ TEST(AddBinaryOperationTest, ResultTypeForPartialArgumentTypesTest) {
   ASSERT_NE(result_type, nullptr);
   EXPECT_TRUE(TypeFactory::GetType(kDouble, true).equals(*result_type));
 
+  // A Date can be added with only YearMonthIntervalType resulting in a Date.
+  result_type =
+      AddBinaryOperation::Instance().resultTypeForPartialArgumentTypes(
+          &TypeFactory::GetType(kDate, true), nullptr);
+  ASSERT_NE(result_type, nullptr);
+  EXPECT_TRUE(TypeFactory::GetType(kDate, true).equals(*result_type));
+
   // If one of the arguments is a Datetime, then it can be added with either
   // interval type and will always yield a Datetime.
   result_type = AddBinaryOperation::Instance().resultTypeForPartialArgumentTypes(
@@ -143,13 +150,13 @@ TEST(AddBinaryOperationTest, PartialTypeSignatureIsPlausibleTest) {
   // might possibly return is plausible.
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndUnknownArguments(
       AddBinaryOperation::Instance(),
-      {kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval});
+      {kInt, kLong, kFloat, kDouble, kDate, kDatetime, kDatetimeInterval, kYearMonthInterval});
 
   // --------------------------------------------------------------------------
   // Result type unknown, one argument type known.
   BinaryOperationTestUtil::CheckPlausibilityWithUnknownResultAndSingleKnownArgument(
       AddBinaryOperation::Instance(),
-      {kInt, kLong, kFloat, kDouble, kDatetime, kDatetimeInterval, kYearMonthInterval},
+      {kInt, kLong, kFloat, kDouble, kDate, kDatetime, kDatetimeInterval, kYearMonthInterval},
       true,
       true);
 
@@ -165,7 +172,10 @@ TEST(AddBinaryOperationTest, PartialTypeSignatureIsPlausibleTest) {
       AddBinaryOperation::Instance(), kDouble, {kInt, kLong, kFloat, kDouble}, true, true);
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
       AddBinaryOperation::Instance(),
-      kDatetime, {kDatetime, kDatetimeInterval, kYearMonthInterval}, true, true);
+      kDate, {kDate}, true, true);
+  BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
+      AddBinaryOperation::Instance(),
+      kDatetime, {kDatetime, kDatetimeInterval}, true, true);
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
       AddBinaryOperation::Instance(), kDatetimeInterval, {kDatetimeInterval}, true, true);
   BinaryOperationTestUtil::CheckPlausibilityWithKnownResultAndSingleArgument(
@@ -199,6 +209,13 @@ TEST(AddBinaryOperationTest, PushDownTypeHintTest) {
     EXPECT_TRUE(result_type->equals(*hints.first));
     EXPECT_TRUE(result_type->equals(*hints.second));
   }
+
+  // A hint of Date is ambiguous, because one argument should be Date and other
+  // should be YearMonthInterval, but the order does not matter.
+  result_type = &TypeFactory::GetType(kDate, false);
+  hints = AddBinaryOperation::Instance().pushDownTypeHint(result_type);
+  EXPECT_EQ(nullptr, hints.first);
+  EXPECT_EQ(nullptr, hints.second);
 
   // A hint of Datetime is ambiguous, because one argument should be Datetime
   // and the other should be some interval type.

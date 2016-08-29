@@ -87,7 +87,7 @@ SelectStatement
   | +-left_operand=AttributeReference[attribute_name=l_shipdate]
   | +-right_operand=Subtract
   |   +-left_operand=Literal
-  |   | +-StringLiteral[value=1998-12-01,explicit_type=Datetime]
+  |   | +-StringLiteral[value=1998-12-01,explicit_type=Date]
   |   +-right_operand=Literal
   |     +-StringLiteral[value=96 day,explicit_type=DatetimeInterval]
   +-group_by=GroupBy
@@ -297,11 +297,11 @@ SelectStatement
   | +-Less
   | | +-left_operand=AttributeReference[attribute_name=o_orderdate]
   | | +-right_operand=Literal
-  | |   +-StringLiteral[value=1995-03-17,explicit_type=Datetime]
+  | |   +-StringLiteral[value=1995-03-17,explicit_type=Date]
   | +-Greater
   |   +-left_operand=AttributeReference[attribute_name=l_shipdate]
   |   +-right_operand=Literal
-  |     +-StringLiteral[value=1995-03-17,explicit_type=Datetime]
+  |     +-StringLiteral[value=1995-03-17,explicit_type=Date]
   +-group_by=GroupBy
   | +-AttributeReference[attribute_name=l_orderkey]
   | +-AttributeReference[attribute_name=o_orderdate]
@@ -353,12 +353,12 @@ SelectStatement
   | +-GreaterOrEqual
   | | +-left_operand=AttributeReference[attribute_name=o_orderdate]
   | | +-right_operand=Literal
-  | |   +-StringLiteral[value=1995-08-01,explicit_type=Datetime]
+  | |   +-StringLiteral[value=1995-08-01,explicit_type=Date]
   | +-Less
   | | +-left_operand=AttributeReference[attribute_name=o_orderdate]
   | | +-right_operand=Add
   | |   +-left_operand=Literal
-  | |   | +-StringLiteral[value=1995-08-01,explicit_type=Datetime]
+  | |   | +-StringLiteral[value=1995-08-01,explicit_type=Date]
   | |   +-right_operand=Literal
   | |     +-StringLiteral[value=3 month,explicit_type=YearMonthInterval]
   | +-Exists
@@ -448,12 +448,12 @@ SelectStatement
   | +-GreaterOrEqual
   | | +-left_operand=AttributeReference[attribute_name=o_orderdate]
   | | +-right_operand=Literal
-  | |   +-StringLiteral[value=1997-01-01,explicit_type=Datetime]
+  | |   +-StringLiteral[value=1997-01-01,explicit_type=Date]
   | +-Less
   |   +-left_operand=AttributeReference[attribute_name=o_orderdate]
   |   +-right_operand=Add
   |     +-left_operand=Literal
-  |     | +-StringLiteral[value=1997-01-01,explicit_type=Datetime]
+  |     | +-StringLiteral[value=1997-01-01,explicit_type=Date]
   |     +-right_operand=Literal
   |       +-StringLiteral[value=1 year,explicit_type=YearMonthInterval]
   +-group_by=GroupBy
@@ -493,12 +493,12 @@ SelectStatement
   | +-GreaterOrEqual
   | | +-left_operand=AttributeReference[attribute_name=l_shipdate]
   | | +-right_operand=Literal
-  | |   +-StringLiteral[value=1997-01-01,explicit_type=Datetime]
+  | |   +-StringLiteral[value=1997-01-01,explicit_type=Date]
   | +-Less
   | | +-left_operand=AttributeReference[attribute_name=l_shipdate]
   | | +-right_operand=Add
   | |   +-left_operand=Literal
-  | |   | +-StringLiteral[value=1997-01-01,explicit_type=Datetime]
+  | |   | +-StringLiteral[value=1997-01-01,explicit_type=Date]
   | |   +-right_operand=Literal
   | |     +-StringLiteral[value=1 year,explicit_type=YearMonthInterval]
   | +-Between
@@ -649,9 +649,9 @@ SelectStatement
           | +-Between
           |   +-check_operand=AttributeReference[attribute_name=l_shipdate]
           |   +-lower_bound_operand=Literal
-          |   | +-StringLiteral[value=1995-01-01,explicit_type=Datetime]
+          |   | +-StringLiteral[value=1995-01-01,explicit_type=Date]
           |   +-upper_bound_operand=Literal
-          |     +-StringLiteral[value=1996-12-31,explicit_type=Datetime]
+          |     +-StringLiteral[value=1996-12-31,explicit_type=Date]
           +-from_clause=
             +-TableReference[table=supplier]
             +-TableReference[table=lineitem]
@@ -777,9 +777,9 @@ SelectStatement
           | +-Between
           | | +-check_operand=AttributeReference[attribute_name=o_orderdate]
           | | +-lower_bound_operand=Literal
-          | | | +-StringLiteral[value=1995-01-01,explicit_type=Datetime]
+          | | | +-StringLiteral[value=1995-01-01,explicit_type=Date]
           | | +-upper_bound_operand=Literal
-          | |   +-StringLiteral[value=1996-12-31,explicit_type=Datetime]
+          | |   +-StringLiteral[value=1996-12-31,explicit_type=Date]
           | +-Equal
           |   +-left_operand=AttributeReference[attribute_name=p_type]
           |   +-right_operand=Literal
@@ -973,12 +973,12 @@ SelectStatement
   | +-GreaterOrEqual
   | | +-left_operand=AttributeReference[attribute_name=o_orderdate]
   | | +-right_operand=Literal
-  | |   +-StringLiteral[value=1994-03-01,explicit_type=Datetime]
+  | |   +-StringLiteral[value=1994-03-01,explicit_type=Date]
   | +-Less
   | | +-left_operand=AttributeReference[attribute_name=o_orderdate]
   | | +-right_operand=Add
   | |   +-left_operand=Literal
-  | |   | +-StringLiteral[value=1994-03-01,explicit_type=Datetime]
+  | |   | +-StringLiteral[value=1994-03-01,explicit_type=Date]
   | |   +-right_operand=Literal
   | |     +-StringLiteral[value=3 month,explicit_type=YearMonthInterval]
   | +-Equal
@@ -1198,12 +1198,12 @@ SelectStatement
   | +-GreaterOrEqual
   | | +-left_operand=AttributeReference[attribute_name=l_receiptdate]
   | | +-right_operand=Literal
-  | |   +-StringLiteral[value=1997-01-01,explicit_type=Datetime]
+  | |   +-StringLiteral[value=1997-01-01,explicit_type=Date]
   | +-Less
   |   +-left_operand=AttributeReference[attribute_name=l_receiptdate]
   |   +-right_operand=Add
   |     +-left_operand=Literal
-  |     | +-StringLiteral[value=1997-01-01,explicit_type=Datetime]
+  |     | +-StringLiteral[value=1997-01-01,explicit_type=Date]
   |     +-right_operand=Literal
   |       +-StringLiteral[value=1 year,explicit_type=YearMonthInterval]
   +-group_by=GroupBy
@@ -1335,12 +1335,12 @@ SelectStatement
   | +-GreaterOrEqual
   | | +-left_operand=AttributeReference[attribute_name=l_shipdate]
   | | +-right_operand=Literal
-  | |   +-StringLiteral[value=1994-11-01,explicit_type=Datetime]
+  | |   +-StringLiteral[value=1994-11-01,explicit_type=Date]
   | +-Less
   |   +-left_operand=AttributeReference[attribute_name=l_shipdate]
   |   +-right_operand=Add
   |     +-left_operand=Literal
-  |     | +-StringLiteral[value=1994-11-01,explicit_type=Datetime]
+  |     | +-StringLiteral[value=1994-11-01,explicit_type=Date]
   |     +-right_operand=Literal
   |       +-StringLiteral[value=1 month,explicit_type=YearMonthInterval]
   +-from_clause=
@@ -1433,12 +1433,12 @@ SelectStatement
         | +-GreaterOrEqual
         | | +-left_operand=AttributeReference[attribute_name=l_shipdate]
         | | +-right_operand=Literal
-        | |   +-StringLiteral[value=1996-11-01,explicit_type=Datetime]
+        | |   +-StringLiteral[value=1996-11-01,explicit_type=Date]
         | +-Less
         |   +-left_operand=AttributeReference[attribute_name=l_shipdate]
         |   +-right_operand=Add
         |     +-left_operand=Literal
-        |     | +-StringLiteral[value=1996-11-01,explicit_type=Datetime]
+        |     | +-StringLiteral[value=1996-11-01,explicit_type=Date]
         |     +-right_operand=Literal
         |       +-StringLiteral[value=3 month,explicit_type=YearMonthInterval]
         +-group_by=GroupBy
@@ -1996,14 +1996,13 @@ SelectStatement
   | |     |       | | +-left_operand=AttributeReference[
   | |     |       | | | attribute_name=l_shipdate]
   | |     |       | | +-right_operand=Literal
-  | |     |       | |   +-StringLiteral[value=1993-01-01,explicit_type=Datetime]
+  | |     |       | |   +-StringLiteral[value=1993-01-01,explicit_type=Date]
   | |     |       | +-Less
   | |     |       |   +-left_operand=AttributeReference[
   | |     |       |   | attribute_name=l_shipdate]
   | |     |       |   +-right_operand=Add
   | |     |       |     +-left_operand=Literal
-  | |     |       |     | +-StringLiteral[value=1993-01-01,
-  | |     |       |     |   explicit_type=Datetime]
+  | |     |       |     | +-StringLiteral[value=1993-01-01,explicit_type=Date]
   | |     |       |     +-right_operand=Literal
   | |     |       |       +-StringLiteral[value=1 year,
   | |     |       |         explicit_type=YearMonthInterval]

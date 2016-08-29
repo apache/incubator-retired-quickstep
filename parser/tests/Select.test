@@ -961,7 +961,7 @@ SelectStatement
   | |   +-StringLiteral[value=1998-12-01]
   | +-SelectListItem
   |   +-Literal
-  |     +-StringLiteral[value=1998-12-01,explicit_type=Datetime]
+  |     +-StringLiteral[value=1998-12-01,explicit_type=Date]
   +-from_clause=
     +-TableReference[table=test]
 ==
@@ -975,10 +975,10 @@ SelectStatement
   +-select_clause=SelectList
   | +-SelectListItem
   | | +-Literal
-  | |   +-StringLiteral[value=1960-12-12,explicit_type=Datetime]
+  | |   +-StringLiteral[value=1960-12-12,explicit_type=Date]
   | +-SelectListItem
   |   +-Literal
-  |     +-StringLiteral[value=1901-12-14,explicit_type=Datetime]
+  |     +-StringLiteral[value=1901-12-14,explicit_type=Date]
   +-from_clause=
     +-TableReference[table=test]
 ==
@@ -990,10 +990,10 @@ SelectStatement
   +-select_clause=SelectList
   | +-SelectListItem
   | | +-Literal
-  | |   +-StringLiteral[value=1998-2-12,explicit_type=Datetime]
+  | |   +-StringLiteral[value=1998-2-12,explicit_type=Date]
   | +-SelectListItem
   |   +-Literal
-  |     +-StringLiteral[value=1998-12-2,explicit_type=Datetime]
+  |     +-StringLiteral[value=1998-12-2,explicit_type=Date]
   +-from_clause=
     +-TableReference[table=test]
 ==
@@ -1007,10 +1007,10 @@ SelectStatement
   +-select_clause=SelectList
   | +-SelectListItem
   | | +-Literal
-  | |   +-StringLiteral[value=+1921-12-12,explicit_type=Datetime]
+  | |   +-StringLiteral[value=+1921-12-12,explicit_type=Date]
   | +-SelectListItem
   |   +-Literal
-  |     +-StringLiteral[value=+10001-12-12,explicit_type=Datetime]
+  |     +-StringLiteral[value=+10001-12-12,explicit_type=Date]
   +-from_clause=
     +-TableReference[table=test]
 ==
@@ -1059,13 +1059,13 @@ SelectStatement
   +-select_clause=SelectList
   | +-SelectListItem
   | | +-Literal
-  | |   +-StringLiteral[value=1996-02-29,explicit_type=Datetime]
+  | |   +-StringLiteral[value=1996-02-29,explicit_type=Date]
   | +-SelectListItem
   | | +-Literal
-  | |   +-StringLiteral[value=1997-03-31,explicit_type=Datetime]
+  | |   +-StringLiteral[value=1997-03-31,explicit_type=Date]
   | +-SelectListItem
   |   +-Literal
-  |     +-StringLiteral[value=1998-04-30,explicit_type=Datetime]
+  |     +-StringLiteral[value=1998-04-30,explicit_type=Date]
   +-from_clause=
     +-TableReference[table=test]
 ==
@@ -1077,9 +1077,9 @@ SELECT DATE '1999-02-29' FROM test
                        ^
 ==
 
-# Quickstep accepts time in the DATE type.
-SELECT DATE '2007-05-08 12:35:29',
-       DATE '2007-05-08 12:35:29.010'
+# Quickstep accepts time in the DATETIME type.
+SELECT DATETIME '2007-05-08 12:35:29',
+       DATETIME '2007-05-08 12:35:29.010'
 FROM test
 --
 SelectStatement
@@ -1114,7 +1114,7 @@ SelectStatement
   | +-left_operand=AttributeReference[attribute_name=attr_date]
   | +-right_operand=Subtract
   |   +-left_operand=Literal
-  |   | +-StringLiteral[value=1998-12-01,explicit_type=Datetime]
+  |   | +-StringLiteral[value=1998-12-01,explicit_type=Date]
   |   +-right_operand=Literal
   |     +-StringLiteral[value=96 day,explicit_type=DatetimeInterval]
   +-from_clause=

@@ -760,7 +760,7 @@ data_type:
     YYERROR;
   }
   | TOKEN_DATE {
-    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kDatetime));
+    $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kDate));
   }
   | TOKEN_DATETIME {
     $$ = new quickstep::ParseDataType(quickstep::TypeFactory::GetType(quickstep::kDatetime));

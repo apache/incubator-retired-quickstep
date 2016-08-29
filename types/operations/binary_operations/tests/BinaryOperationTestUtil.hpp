@@ -92,7 +92,7 @@ class BinaryOperationTestUtil {
       const bool check_left_argument,
       const bool check_right_argument) {
     for (const TypeID argument_type_id
-         : {kInt, kLong, kFloat, kDouble, kChar, kVarChar, kDatetime,
+         : {kInt, kLong, kFloat, kDouble, kChar, kVarChar, kDate, kDatetime,
             kDatetimeInterval, kYearMonthInterval}) {
       const Type *argument_type = TypeFactory::TypeRequiresLengthParameter(argument_type_id)
                                   ? &TypeFactory::GetType(argument_type_id, 10, false)
@@ -159,7 +159,7 @@ class BinaryOperationTestUtil {
     const Type *result_type_nullable = &result_type->getNullableVersion();
 
     for (const TypeID argument_type_id
-        : {kInt, kLong, kFloat, kDouble, kChar, kVarChar, kDatetime,
+        : {kInt, kLong, kFloat, kDouble, kChar, kVarChar, kDate, kDatetime,
             kDatetimeInterval, kYearMonthInterval}) {
       const Type *argument_type = TypeFactory::TypeRequiresLengthParameter(argument_type_id)
                                   ? &TypeFactory::GetType(argument_type_id, 10, false)
