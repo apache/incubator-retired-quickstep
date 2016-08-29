@@ -113,6 +113,10 @@ class StarSchemaSimpleCostModel : public CostModel {
   double estimateSelectivityForSelection(
       const physical::SelectionPtr &physical_plan);
 
+  double estimateSelectivityForPlanWithFilterPredicate(
+      const physical::PhysicalPtr &input_plan,
+      const expressions::PredicatePtr &filter_predicate);
+
   double estimateSelectivityForPredicate(
       const std::unordered_map<expressions::ExprId, std::size_t> &num_distinct_values_map,
       const expressions::PredicatePtr &filter_predicate);

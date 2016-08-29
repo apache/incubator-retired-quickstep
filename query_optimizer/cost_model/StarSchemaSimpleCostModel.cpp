@@ -177,7 +177,11 @@ double StarSchemaSimpleCostModel::estimateSelectivity(
     case P::PhysicalType::kHashJoin: {
       const P::HashJoinPtr &hash_join =
           std::static_pointer_cast<const P::HashJoin>(physical_plan);
-      double left_selectivity = estimateSelectivity(hash_join->left());
+      double left_selectivity =
+          hash_join->left_filter_predicate() == nullptr
+              ? estimateSelectivity(hash_join->left())
+              : estimateSelectivityForPlanWithFilterPredicate(hash_join->left(),
+                                                              hash_join->left_filter_predicate());
       double right_selectivity = estimateSelectivity(hash_join->right());
       double min_sel = std::min(left_selectivity, right_selectivity);
       double max_sel = std::max(left_selectivity, right_selectivity);
@@ -205,14 +209,20 @@ double StarSchemaSimpleCostModel::estimateSelectivity(
 
 double StarSchemaSimpleCostModel::estimateSelectivityForSelection(
     const physical::SelectionPtr &physical_plan) {
-  const E::PredicatePtr &filter_predicate = physical_plan->filter_predicate();
+  return estimateSelectivityForPlanWithFilterPredicate(physical_plan->input(),
+                                                       physical_plan->filter_predicate());
+}
 
+
+double StarSchemaSimpleCostModel::estimateSelectivityForPlanWithFilterPredicate(
+    const physical::PhysicalPtr &input_plan,
+    const expressions::PredicatePtr &filter_predicate) {
   // If the subplan is a table reference, gather the number of distinct values
   // statistics for each column (attribute).
   std::unordered_map<E::ExprId, std::size_t> num_distinct_values_map;
-  if (physical_plan->input()->getPhysicalType() == P::PhysicalType::kTableReference) {
+  if (input_plan->getPhysicalType() == P::PhysicalType::kTableReference) {
     const P::TableReferencePtr &table_reference =
-        std::static_pointer_cast<const P::TableReference>(physical_plan->input());
+        std::static_pointer_cast<const P::TableReference>(input_plan);
     const CatalogRelation &relation = *table_reference->relation();
     const std::vector<E::AttributeReferencePtr> &attributes = table_reference->attribute_list();
     for (std::size_t i = 0; i < attributes.size(); ++i) {
@@ -225,6 +235,7 @@ double StarSchemaSimpleCostModel::estimateSelectivityForSelection(
 
   return estimateSelectivityForPredicate(num_distinct_values_map, filter_predicate);
 }
+
 
 double StarSchemaSimpleCostModel::estimateSelectivityForPredicate(
     const std::unordered_map<expressions::ExprId, std::size_t> &num_distinct_values_map,
