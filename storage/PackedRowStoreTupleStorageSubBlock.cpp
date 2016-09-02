@@ -164,13 +164,13 @@ enum RunType {
 // "Contiguous" here means that their attribute IDs are successive in both
 // the source and destination relations.
 //
-// A NullAttrRun refers to a nullable attribute. Nullable columns are
+// A NullAttrRun refers to exactly one nullable attribute. Nullable columns are
 // represented using fixed length inline data as well as a null bitmap.
 // In a particular tuple, if the attribute has a null value, the inline data
 // has no meaning. So it is safe to copy it or not. We use this fact to merge
 // runs together aggressively, i.e., a ContiguousAttrsRun may include a nullable
-// attribute. However, we also create a NullAttrRun in that case (with 0 bytes
-// to copy) in order to check the null bitmap.
+// attribute. However, we also create an empty NullAttrRun in that case (with 
+// 0 bytes to copy/advance) in order to check the null bitmap.
 //
 // A GapRun is a run of destination (output) attributes that don't come from a
 // particular source. This occurs during bulkInsertPartialTuples. They must be
@@ -189,7 +189,7 @@ enum RunType {
 //  |-------------------|---------------|---------------|------------------|
 //  |            GapRun |             -1|              0|                 4|
 //  | ContigousAttrsRun |              0|              4|                 4|
-//  | ContigousAttrsRun |              5|             12|                12|
+//  | ContigousAttrsRun |              5|             12|                16|
 //  |   NullableAttrRun |              7|              0|                 0|
 //  | ContigousAttrsRun |              2|              4|                 4|
 //  |   NullableAttrRun |              4|              4|                 4|
@@ -197,6 +197,9 @@ enum RunType {
 //  ------------------------------------------------------------------------
 // In this example, there are only 5 memcpy calls and 6 address calculations
 // needed, even though there are 10 attributes in the attribute map.
+//
+// Implementation note: While inheritance might have made sense here, that might
+// result in virtual function calls which we don't want.
 //
 struct Run {
   RunType run_type_;             // Type of run 
@@ -216,65 +219,79 @@ struct Run {
         bytes_to_advance_(bytes_to_advance),
         nullable_attr_idx_(nullable_attr_idx) {};
 
+  // Create and return a ContigousAttrsRun starting with given attribute.
   static Run ContiguousAttrsRun(
-      const std::vector<std::size_t> &attrs_max_size,
-      const attribute_id start_attr_id,
+      const std::vector<attribute_id> &attribute_map,
+      const std::vector<std::size_t> &my_attrs_max_size,
+      const attribute_id my_start_attr_id,
       const attribute_id num_contiguous_attrs,
       const attribute_id num_gap_attrs) {
     // Accumulate number of bytes to copy for contiguous attrs
     std::size_t bytes_to_copy = 0;
-    for (attribute_id i = 0; i < num_contiguous_attrs; i++) {
-      bytes_to_copy += attrs_max_size[start_attr_id + i];
+    for (attribute_id i = 0; i < num_contiguous_attrs; ++i) {
+      bytes_to_copy += my_attrs_max_size[my_start_attr_id + i];
     }
 
     // Accumulate number of bytes to skip for gap attrs
     std::size_t bytes_to_advance = bytes_to_copy;
-    const std::size_t gap_start_attr_id = start_attr_id + num_contiguous_attrs;
-    for (attribute_id i = 0; i < num_gap_attrs; i++) {
-      bytes_to_advance += attrs_max_size[gap_start_attr_id + i];
+    const attribute_id my_gap_start_attr_id = my_start_attr_id + num_contiguous_attrs;
+    for (attribute_id i = 0; i < num_gap_attrs; ++i) {
+      bytes_to_advance += my_attrs_max_size[my_gap_start_attr_id + i];
     }
 
     return Run(kContiguousAttributes,
-               start_attr_id,
+               attribute_map[my_start_attr_id],
                bytes_to_copy,
                bytes_to_advance,
                kInvalidCatalogId);
   }
 
+  // Create and return a NullableAttrRun starting with given nullable attribute.
   static Run NullableAttrRun(
-      const std::vector<std::size_t> &attrs_max_size,
-      const attribute_id attr_id,
+      const std::vector<attribute_id> &attribute_map,
+      const std::vector<std::size_t> &my_attrs_max_size,
+      const attribute_id my_attr_id,
       const int nullable_attr_idx,
       const attribute_id num_gap_attrs) {
-    std::size_t bytes_to_copy = attrs_max_size[attr_id];
+    std::size_t bytes_to_copy = my_attrs_max_size[my_attr_id];
 
     // Accumulate number of bytes to skip for gap attrs
     std::size_t bytes_to_advance = bytes_to_copy;
-    const std::size_t gap_start_attr_id = attr_id + 1;
-    for (attribute_id i = 0; i < num_gap_attrs; i++) {
-      bytes_to_advance += attrs_max_size[gap_start_attr_id + i];
+    const std::size_t gap_start_attr_id = my_attr_id + 1;
+    for (attribute_id i = 0; i < num_gap_attrs; ++i) {
+      bytes_to_advance += my_attrs_max_size[gap_start_attr_id + i];
     }
 
     return Run(kNullableAttribute,
-               attr_id,
+               attribute_map[my_attr_id],
                bytes_to_copy,
                bytes_to_advance,
                nullable_attr_idx);
   }
 
+  // Create and return a NullableAttrRun with 0 bytes to copy/advance.
+  static Run EmptyNullableAttrRun(
+      const std::vector<attribute_id> &attribute_map,
+      const attribute_id my_attr_id,
+      const int nullable_attr_idx) {
+    return Run(kNullableAttribute, attribute_map[my_attr_id], 0, 0, nullable_attr_idx);
+  }
+
+  // Create and return a GapRun, starting at attribute 0 of current schema.
   static Run GapRun(
-      const std::vector<std::size_t> &attrs_max_size,
+      const std::vector<attribute_id> &attribute_map,
+      const std::vector<std::size_t> &my_attrs_max_size,
       const attribute_id num_gap_attrs) {
     std::size_t bytes_to_copy = 0;
 
     // Accumulate number of bytes to skip for gap attrs
     std::size_t bytes_to_advance = bytes_to_copy;
     for (attribute_id i = 0; i < num_gap_attrs; i++) {
-      bytes_to_advance += attrs_max_size[i];
+      bytes_to_advance += my_attrs_max_size[i];
     }
 
     return Run(kGap,
-               kInvalidCatalogId,
+               kInvalidCatalogId, // Source attribute ID must be -1
                bytes_to_copy,
                bytes_to_advance,
                kInvalidCatalogId);
@@ -285,11 +302,11 @@ struct Run {
 template <bool has_nullable_attrs>
 bool isNullable(const CatalogRelationSchema &relation,
                 const attribute_id attr_id,
-                int &null_idx) {
+                int &my_null_idx) {
   if (!has_nullable_attrs)
     return false;
-  null_idx = relation.getNullableAttributeIndex(attr_id);
-  return null_idx != kInvalidCatalogId;
+  my_null_idx = relation.getNullableAttributeIndex(attr_id);
+  return my_null_idx != kInvalidCatalogId;
 }
 
 
@@ -303,65 +320,83 @@ bool isNullable(const CatalogRelationSchema &relation,
 //                         Caller should set this when source is a row store.
 template <bool has_nullable_attrs, bool has_gaps, bool merge_contiguous_attrs>
 void getRunsForAttributeMap(
-    const CatalogRelationSchema &relation,
+    const CatalogRelationSchema &my_relation,
     const std::vector<attribute_id> &attribute_map,
-    const std::vector<std::size_t> &attrs_max_size,
+    const std::vector<std::size_t> &my_attrs_max_size,
     std::vector<Run> &runs) {
   attribute_id num_attrs = attribute_map.size();
-  std::size_t curr_attr = 0;
+  std::size_t my_attr = 0;
+  int my_null_idx = kInvalidCatalogId;
 
   // First handle a starting GapRun
   if (has_gaps) {
-    while (curr_attr < num_attrs && attribute_map[curr_attr] == kInvalidCatalogId)
-      ++curr_attr;
-    if (curr_attr > 0)
-      runs.push_back(Run::GapRun(attrs_max_size, curr_attr));
+    if (merge_contiguous_attrs) {
+      while (my_attr < num_attrs && attribute_map[my_attr] == kInvalidCatalogId)
+        ++my_attr;
+      if (my_attr > 0)
+        runs.push_back(Run::GapRun(attribute_map, my_attrs_max_size, my_attr));
+    }
   }
 
-  // Starting with curr_attr set to the first non-gap attribute,
+  // Starting with my_attr set to the first non-gap attribute,
   // scan attribute_map to find contiguous runs.
-  while (curr_attr < num_attrs) {
-    std::size_t run_start = curr_attr;
-    int null_idx = kInvalidCatalogId;
-    if (!isNullable<has_nullable_attrs>(relation, curr_attr, null_idx)) {
-      ++curr_attr;
-      // Start of this run is non-nullable, so it is a ContiguousAttrsRun.
-      // Find all following non-nullable contiguous attributes
+  while (my_attr < num_attrs) {
+    const attribute_id run_start = my_attr;
+    if (!isNullable<has_nullable_attrs>(my_relation, my_attr, my_null_idx))  {
+      // Starting attr in the run is non-nullable, so create a ContiguousAttrsRun
+      ++my_attr;
       if (merge_contiguous_attrs) {
-        while (curr_attr < num_attrs
-             && attribute_map[curr_attr] == 1 + attribute_map[curr_attr-1]
-             && !isNullable<has_nullable_attrs>(relation, curr_attr, null_idx))
-          ++curr_attr;
+        while (my_attr < num_attrs
+              && attribute_map[my_attr] == 1 + attribute_map[my_attr-1])
+          ++my_attr;
       }
-      // curr_attr should now be 1 beyond list of contiguous attributes to merge
-      const attribute_id num_contiguous_attrs = curr_attr - run_start;
+      // my_attr should now be 1 beyond list of contiguous attributes to merge
+      // Identify any following gaps that can be merged
+      const attribute_id gap_start = my_attr;
+      if (has_gaps) {
+        while (my_attr < num_attrs
+               && attribute_map[my_attr] == kInvalidCatalogId)
+          ++my_attr;
+      }
 
-      // Now find how many gap attributes are next.
-      const attribute_id gap_start = curr_attr;
-      if (has_gaps) {
-        while (curr_attr < num_attrs
-               && attribute_map[curr_attr] == kInvalidCatalogId)
-          ++curr_attr;
-      }
-      const attribute_id num_gap_attrs = curr_attr - gap_start;
+      // Create a run with the details above
       runs.push_back(Run::ContiguousAttrsRun(
-          attrs_max_size, run_start, num_contiguous_attrs, num_gap_attrs));
-    }
-    else {
-      // Start of this run is nullable, so it is a NullableAttrRun.
-      // Find how many gap attributes are next.
-      ++curr_attr;
-      const attribute_id gap_start = curr_attr;
-      if (has_gaps) {
-        while (curr_attr < num_attrs
-              && attribute_map[curr_attr] == kInvalidCatalogId)
-          ++curr_attr;
+          attribute_map,
+          my_attrs_max_size,
+          run_start,
+          gap_start - run_start,   // number of contiguous attributes to merge
+          my_attr - gap_start)); // number of gap attributes to merge
+
+      // If there were any nullable attrs in this ContiguousAttrsRun,
+      // create 0-byte NullAttrRuns for them
+      for (attribute_id a = run_start + 1; a < gap_start; ++a) {
+        if (isNullable<has_nullable_attrs>(my_relation, a, my_null_idx))
+          runs.push_back(Run::EmptyNullableAttrRun(attribute_map, a, my_null_idx));
       }
-      attribute_id num_gap_attrs = curr_attr - gap_start;
+    } else {
+      // Starting attr in the run is nullable, so create a NullableAttrRun
+      // Note that we don't merge contiguous attrs here (though it
+      // might have been possible to)
+      ++my_attr;
+
+      // my_attr should now be 1 beyond the nullable attribute.
+      // Identify any following gaps that can be merged
+      const attribute_id gap_start = my_attr;
+      if (has_gaps) {
+        while (my_attr < num_attrs
+               && attribute_map[my_attr] == kInvalidCatalogId)
+          ++my_attr;
+      }
+
+      // Create a run with the details above
       runs.push_back(Run::NullableAttrRun(
-          attrs_max_size, run_start, null_idx, num_gap_attrs));
+          attribute_map,
+          my_attrs_max_size,
+          run_start,
+          my_null_idx,
+          my_attr - gap_start)); // number of gap attributes to merge
     }
-  }
+  } // end while loop through attribute map
 }
 
 } // end Unnamed Namespace
@@ -379,13 +414,13 @@ tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesHelper(
   char *dest_addr = static_cast<char *>(tuple_storage_) +
                     header_->num_tuples * relation_.getFixedByteLength();
   const unsigned num_nullable_attrs = relation_.numNullableAttributes();
-  const std::vector<std::size_t> &attrs_max_size =
+  const std::vector<std::size_t> &my_attrs_max_size =
       relation_.getMaximumAttributeByteLengths();
 
   std::vector<Run> runs;
   runs.reserve(attribute_map.size());
   getRunsForAttributeMap<has_nullable_attrs, has_gaps, merge_contiguous_attrs>
-      (relation_, attribute_map, attrs_max_size, runs);
+      (relation_, attribute_map, my_attrs_max_size, runs);
 
   InvokeOnAnyValueAccessor(
     accessor,
@@ -402,9 +437,9 @@ tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesHelper(
         for (auto &run : runs) {  // NOLINT(build/c++11)
           if (run.run_type_ == RunType::kContiguousAttributes) {
             // It's a run with one or more non-nullable attributes. Copy data.
-            memcpy(dest_addr,
-                   accessor->template getUntypedValue<false>(run.source_attr_id_),
-                   run.bytes_to_copy_);
+            const void *attr_value =
+                accessor->template getUntypedValue<false>(run.source_attr_id_);
+            memcpy(dest_addr, attr_value, run.bytes_to_copy_);
             dest_addr += run.bytes_to_advance_;
           } else if (has_nullable_attrs
                      && run.run_type_ == RunType::kNullableAttribute){
@@ -415,7 +450,7 @@ tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesHelper(
               memcpy(dest_addr, attr_value, run.bytes_to_copy_);
             } else {
               this->null_bitmap_->setBit(
-                  this->header_->num_tuples * num_nullable_attrs
+                  (this->header_->num_tuples + num_tuples_inserted) * num_nullable_attrs
                   + run.nullable_attr_idx_,
                   true);
             }
