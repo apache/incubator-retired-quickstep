@@ -304,7 +304,8 @@ class TupleStorageSubBlock {
       const std::vector<attribute_id> &attribute_map,
       ValueAccessor *accessor,
       const tuple_id max_num_tuples_to_insert) {
-    FATAL_ERROR("Partial bulk insert is not supported for this TupleStorageBlock type.");
+    FATAL_ERROR("Partial bulk insert is not supported for this TupleStorageBlock type ("
+                << getTupleStorageSubBlockType() << ").");
   };
 
   /**
@@ -319,7 +320,8 @@ class TupleStorageSubBlock {
    **/
   virtual void bulkInsertPartialTuplesFinalize(
       const tuple_id num_tuples_inserted) {
-    FATAL_ERROR("Partial bulk insert is not supported for this TupleStorageBlock type.");
+    FATAL_ERROR("Partial bulk insert is not supported for this TupleStorageBlock type ("
+                << getTupleStorageSubBlockType() << ").");
   };
   
   /**
