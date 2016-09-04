@@ -139,7 +139,7 @@ class InsertDestinationInterface {
    *        insertion from ValueAccessor even when partially full.
    **/
   virtual void bulkInsertTuplesFromValueAccessors(
-      std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> accessor_attribute_map,
+      const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map,
       bool always_mark_full = false) = 0;
 
   /**

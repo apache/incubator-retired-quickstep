@@ -290,16 +290,19 @@ void getCopyGroupsForAttributeMap(
   std::size_t my_attr = 0;
   int my_null_idx = kInvalidCatalogId;
 
-  // First handle a starting gap copy group
-  if (has_gaps && merge_contiguous_attrs) {
+  // First handle a starting gap copy group. Note that we can merge
+  // gaps irrespective of merge_contiguous_attrs because the source layout
+  // doesn't matter since we don't copy any data.
+  if (has_gaps) {
     // Find a run of gaps
     while (my_attr < num_attrs && attribute_map[my_attr] == kInvalidCatalogId)
       ++my_attr;
 
-    // Create ContiguousAttrs with source_attr_id_ = dummy-value and bytes_to_copy_ = 0
-    if (my_attr > 0)
-      copy_groups.contiguous_attrs_.push_back(ContiguousAttrs(
-          attribute_map, my_attrs_max_size, kInvalidCatalogId, 0, my_attr));
+    // Create ContiguousAttrs with source_attr_id_ = 0 and bytes_to_copy_ = 0
+    if (my_attr > 0) {
+        copy_groups.contiguous_attrs_.push_back(ContiguousAttrs(
+            attribute_map, my_attrs_max_size, 0, 0, my_attr));
+    }
   }
 
   // Starting with my_attr set to the first non-gap attribute,
@@ -370,10 +373,11 @@ tuple_id PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesHelper(
             && !accessor->iterationFinished()) {
         accessor->next();
         for (auto &run : copy_groups.contiguous_attrs_) {
-          // It's a run with one or more non-nullable attributes. Copy data.
-          const void *attr_value =
+          if (run.bytes_to_copy_ > 0) {
+            const void *attr_value =
               accessor->template getUntypedValue<false>(run.source_attr_id_);
-          memcpy(dest_addr, attr_value, run.bytes_to_copy_);
+            memcpy(dest_addr, attr_value, run.bytes_to_copy_);
+          }
           dest_addr += run.bytes_to_advance_;
         }
         if (has_nullable_attrs) {
@@ -408,13 +412,6 @@ PackedRowStoreTupleStorageSubBlock::bulkInsertTuplesDispatcher(
   const bool is_rowstore_source =
       (impl == ValueAccessor::Implementation::kPackedRowStore ||
        impl == ValueAccessor::Implementation::kSplitRowStore);
-
-  // bool has_gaps = false;
-  // for (auto &i : attribute_map)
-  //   if (i == -1) {
-  //     has_gaps = true;
-  //     break;
-  //   }
 
   if (has_nullable_attrs) {
       if (is_rowstore_source)

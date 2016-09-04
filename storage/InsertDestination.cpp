@@ -248,20 +248,32 @@ void InsertDestination::bulkInsertTuplesWithRemappedAttributes(
 }
 
 void InsertDestination::bulkInsertTuplesFromValueAccessors(
-    std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> accessor_attribute_map,
+    const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map,
     bool always_mark_full) {
   // Handle pathological corner case where there are no accessors
-  if (accessor_attribute_map.size() != 0)
+  if (accessor_attribute_map.size() == 0)
     return;
 
-  // First off, initialize iteration through each accessor
-  for (auto &p : accessor_attribute_map) {
-    p.first->beginIterationVirtual();
+  // A common case that we can optimize away is when the attribute_map
+  // for an accessor only contains gaps. e.g. This happens for a join when
+  // there are no attributes selected from one side.
+  std::vector<std::pair<ValueAccessor *, const std::vector<attribute_id>>> reduced_accessor_attribute_map;
+  for (std::size_t i = 0; i < accessor_attribute_map.size(); ++i) {
+    bool all_gaps = true;
+    for (const auto &attr: accessor_attribute_map[i].second)
+      if (attr != kInvalidCatalogId) {
+        all_gaps = false;
+        break;
+      }
+    if (all_gaps)
+      continue;
+    reduced_accessor_attribute_map.push_back(accessor_attribute_map[i]);
+    accessor_attribute_map[i].first->beginIterationVirtual();
   }
 
   // We assume that all input accessors have the same number of tuples, so
   // the iterations finish together. Therefore, we can just check the first one.
-  auto first_accessor = accessor_attribute_map[0].first;
+  auto first_accessor = reduced_accessor_attribute_map[0].first;
   while (!first_accessor->iterationFinishedVirtual()) {
     tuple_id num_tuples_to_insert = kCatalogMaxID;
     tuple_id num_tuples_inserted = 0;
@@ -273,9 +285,10 @@ void InsertDestination::bulkInsertTuplesFromValueAccessors(
     // all the columns including those coming from other ValueAccessors.
     // Thereafter, in a given round, we only insert the remaining columns of the
     // same tuples from the other ValueAccessors.
-    for (auto &p : accessor_attribute_map) {
+    for (auto &p : reduced_accessor_attribute_map) {
       ValueAccessor *accessor = p.first;
       std::vector<attribute_id> attribute_map = p.second;
+
 
       InvokeOnAnyValueAccessor(
           accessor,

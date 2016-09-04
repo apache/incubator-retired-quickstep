@@ -153,7 +153,7 @@ class InsertDestination : public InsertDestinationInterface {
       bool always_mark_full = false) override;
 
   void bulkInsertTuplesFromValueAccessors(
-      std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> accessor_attribute_map,
+      const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map,
       bool always_mark_full = false) override;
 
   void insertTuplesFromVector(std::vector<Tuple>::const_iterator begin,
@@ -320,7 +320,7 @@ class AlwaysCreateBlockInsertDestination : public InsertDestination {
   }
 
   void bulkInsertTuplesFromValueAccessors(
-      std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> accessor_attribute_map,
+      const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map,
       bool always_mark_full = false) override  {
     FATAL_ERROR("bulkInsertTuplesFromValueAccessors is not implemented for AlwaysCreateBlockInsertDestination");
   }
@@ -530,7 +530,7 @@ class PartitionAwareInsertDestination : public InsertDestination {
       bool always_mark_full = false) override;
 
   void bulkInsertTuplesFromValueAccessors(
-      std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> accessor_attribute_map,
+      const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map,
       bool always_mark_full = false) override  {
     FATAL_ERROR("bulkInsertTuplesFromValueAccessors is not implemented for PartitionAwareInsertDestination");
   }
