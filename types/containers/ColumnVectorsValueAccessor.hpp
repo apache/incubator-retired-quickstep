@@ -121,6 +121,10 @@ class ColumnVectorsValueAccessor : public ValueAccessor {
     return column_length_;
   }
 
+  inline std::size_t getNumColumns() const {
+    return columns_.size();
+  }
+
   template <bool check_null = true>
   inline const void* getUntypedValue(const attribute_id attr_id) const {
     return getUntypedValueAtAbsolutePosition<check_null>(attr_id, current_position_);
