@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "query_optimizer/cost_model/StarSchemaSimpleCostModel.hpp"
+#include "query_optimizer/physical/LIPFilterConfiguration.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "utility/Macros.hpp"
 
@@ -73,6 +74,7 @@ class PlanVisualizer {
     int src_node_id;
     int dst_node_id;
     std::vector<std::string> labels;
+    bool dashed;
   };
 
   void visit(const optimizer::physical::PhysicalPtr &input);
@@ -85,6 +87,7 @@ class PlanVisualizer {
   std::vector<EdgeInfo> edges_;
 
   std::unique_ptr<optimizer::cost::StarSchemaSimpleCostModel> cost_model_;
+  optimizer::physical::LIPFilterConfigurationPtr lip_filter_conf_;
 
   DISALLOW_COPY_AND_ASSIGN(PlanVisualizer);
 };

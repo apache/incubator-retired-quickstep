@@ -21,15 +21,16 @@
 
 #include <cstddef>
 #include <memory>
+#include <set>
 #include <sstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
-
 #include "query_optimizer/cost_model/StarSchemaSimpleCostModel.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
@@ -47,9 +48,12 @@ namespace C = ::quickstep::optimizer::cost;
 
 std::string PlanVisualizer::visualize(const P::PhysicalPtr &input) {
   DCHECK(input->getPhysicalType() == P::PhysicalType::kTopLevelPlan);
+  const P::TopLevelPlanPtr top_level_plan =
+      std::static_pointer_cast<const P::TopLevelPlan>(input);
   cost_model_.reset(
       new C::StarSchemaSimpleCostModel(
-          std::static_pointer_cast<const P::TopLevelPlan>(input)->shared_subplans()));
+          top_level_plan->shared_subplans()));
+  lip_filter_conf_ = top_level_plan->lip_filter_configuration();
 
   color_map_["TableReference"] = "skyblue";
   color_map_["Selection"] = "#90EE90";
@@ -86,6 +90,9 @@ std::string PlanVisualizer::visualize(const P::PhysicalPtr &input) {
   for (const EdgeInfo &edge_info : edges_) {
     graph_oss << "  " << edge_info.src_node_id << " -> "
               << edge_info.dst_node_id << " [";
+    if (edge_info.dashed) {
+      graph_oss << "style=dashed ";
+    }
     if (!edge_info.labels.empty()) {
       graph_oss << "label=\""
                 << EscapeSpecialChars(JoinToString(edge_info.labels, "&#10;"))
@@ -103,6 +110,10 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
   int node_id = ++id_counter_;
   node_id_map_.emplace(input, node_id);
 
+  std::set<E::ExprId> referenced_ids;
+  for (const auto &attr : input->getReferencedAttributes()) {
+    referenced_ids.emplace(attr->id());
+  }
   for (const auto &child : input->children()) {
     visit(child);
 
@@ -112,12 +123,18 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
     EdgeInfo &edge_info = edges_.back();
     edge_info.src_node_id = child_id;
     edge_info.dst_node_id = node_id;
+    edge_info.dashed = false;
 
-    // Print output attributes except for TableReference -- there are just too many
-    // attributes out of TableReference.
-    if (child->getPhysicalType() != P::PhysicalType::kTableReference) {
-      for (const auto &attr : child->getOutputAttributes()) {
-        edge_info.labels.emplace_back(attr->attribute_alias());
+    if (input->getPhysicalType() == P::PhysicalType::kHashJoin &&
+        child == input->children()[1]) {
+      edge_info.dashed = true;
+    }
+
+    for (const auto &attr : child->getOutputAttributes()) {
+      if (referenced_ids.find(attr->id()) != referenced_ids.end()) {
+        edge_info.labels.emplace_back(
+            attr->attribute_alias() + ", est # distinct = " +
+            std::to_string(cost_model_->estimateNumDistinctValues(attr->id(), child)));
       }
     }
   }
@@ -154,6 +171,26 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
       break;
     }
   }
+
+  if (lip_filter_conf_ != nullptr) {
+    const auto &build_filters = lip_filter_conf_->getBuildInfoMap();
+    const auto build_it = build_filters.find(input);
+    if (build_it != build_filters.end()) {
+      for (const auto &build_info : build_it->second) {
+        node_info.labels.emplace_back(
+            std::string("[LIP build] ") + build_info.build_attribute->attribute_alias());
+      }
+    }
+    const auto &probe_filters = lip_filter_conf_->getProbeInfoMap();
+    const auto probe_it = probe_filters.find(input);
+    if (probe_it != probe_filters.end()) {
+      for (const auto &probe_info : probe_it->second) {
+        node_info.labels.emplace_back(
+            std::string("[LIP probe] ") + probe_info.probe_attribute->attribute_alias());
+      }
+    }
+  }
+
   node_info.labels.emplace_back(
       "est. # = " + std::to_string(cost_model_->estimateCardinality(input)));
   node_info.labels.emplace_back(

@@ -358,7 +358,7 @@ double StarSchemaSimpleCostModel::estimateSelectivityForPredicate(
           std::static_pointer_cast<const E::LogicalAnd>(filter_predicate);
       double selectivity = 1.0;
       for (const auto &predicate : logical_and->operands()) {
-        selectivity = selectivity * estimateSelectivityForPredicate(predicate, physical_plan);
+        selectivity = std::min(selectivity, estimateSelectivityForPredicate(predicate, physical_plan));
       }
       return selectivity;
     }

@@ -26,6 +26,7 @@
 #include "query_optimizer/Validator.hpp"
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/physical/Physical.hpp"
+#include "query_optimizer/rules/AttachLIPFilters.hpp"
 #include "query_optimizer/rules/PruneColumns.hpp"
 #include "query_optimizer/rules/StarSchemaHashJoinOrderOptimization.hpp"
 #include "query_optimizer/rules/SwapProbeBuild.hpp"
@@ -48,6 +49,12 @@ DEFINE_bool(reorder_hash_joins, true,
             "joins. The optimization applies a greedy algorithm to favor smaller "
             "cardinality and selective tables to be joined first, which is suitable "
             "for queries on star-schema tables.");
+
+DEFINE_bool(use_lip_filters, false,
+            "If true, use LIP (Lookahead Information Passing) filters to accelerate "
+            "query processing. LIP filters are effective for queries on star schema "
+            "tables (e.g. the SSB benchmark) and snowflake schema tables (e.g. the "
+            "TPC-H benchmark).");
 
 DEFINE_bool(visualize_plan, false,
             "If true, visualize the final physical plan into a graph in DOT format "
@@ -95,11 +102,16 @@ P::PhysicalPtr PhysicalGenerator::generateInitialPlan(
 
 P::PhysicalPtr PhysicalGenerator::optimizePlan() {
   std::vector<std::unique_ptr<Rule<P::Physical>>> rules;
+  rules.emplace_back(new PruneColumns());
   if (FLAGS_reorder_hash_joins) {
     rules.emplace_back(new StarSchemaHashJoinOrderOptimization());
+    rules.emplace_back(new PruneColumns());
+  } else {
+    rules.emplace_back(new SwapProbeBuild());
   }
-  rules.emplace_back(new PruneColumns());
-  rules.emplace_back(new SwapProbeBuild());
+  if (FLAGS_use_lip_filters) {
+    rules.emplace_back(new AttachLIPFilters());
+  }
 
   for (std::unique_ptr<Rule<P::Physical>> &rule : rules) {
     physical_plan_ = rule->apply(physical_plan_);
@@ -110,7 +122,7 @@ P::PhysicalPtr PhysicalGenerator::optimizePlan() {
   DVLOG(4) << "Optimized physical plan:\n" << physical_plan_->toString();
 
   if (FLAGS_visualize_plan) {
-  quickstep::PlanVisualizer plan_visualizer;
+    quickstep::PlanVisualizer plan_visualizer;
     std::cerr << "\n" << plan_visualizer.visualize(physical_plan_) << "\n";
   }
 

@@ -29,6 +29,7 @@
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
+#include "query_optimizer/physical/LIPFilterConfiguration.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
 #include "utility/Macros.hpp"
@@ -89,6 +90,29 @@ class TopLevelPlan : public Physical {
     return shared_subplans_[index];
   }
 
+  /**
+   * @brief Creates a copy of the TopLevelPlan with lip_filter_configuration_
+   *        replaced by \p new_lip_filter_configuration.
+   *
+   * @param new_lip_filter_configuration The new lip_filter_configuration to be
+   *        substituted for the existing one.
+   * @return A copy of this TopLevelPlan with the new lip_filter_configuration.
+   */
+  TopLevelPlanPtr copyWithLIPFilterConfiguration(
+      const LIPFilterConfigurationPtr &new_lip_filter_configuration) const {
+    return TopLevelPlan::Create(plan_,
+                                shared_subplans_,
+                                uncorrelated_subquery_map_,
+                                new_lip_filter_configuration);
+  }
+
+  /**
+   * @return The LIPFilter configuration information for the overall query plan.
+   */
+  const LIPFilterConfigurationPtr& lip_filter_configuration() const {
+    return lip_filter_configuration_;
+  }
+
   PhysicalPtr copyWithNewChildren(
       const std::vector<PhysicalPtr> &new_children) const override {
     DCHECK_EQ(getNumChildren(), new_children.size());
@@ -125,18 +149,22 @@ class TopLevelPlan : public Physical {
    *
    * @param plan The query plan.
    * @param shared_subplans The subplans referenced in the main input plan.
-   * @param Map from the expression ID of an attribute reference to the
-   *        uncorrelated subquery that produces the attribute.
+   * @param uncorrelated_subquery_map Map from the expression ID of an attribute
+   *        reference to the uncorrelated subquery that produces the attribute.
+   * @param lip_filter_configuration The LIPFilter configuration information
+   *        for the overall query plan.
    * @return An immutable TopLevelPlan.
    */
   static TopLevelPlanPtr Create(
       const PhysicalPtr &plan,
       const std::vector<PhysicalPtr> &shared_subplans = {},
       const std::unordered_map<expressions::ExprId, int> &uncorrelated_subquery_map
-          = std::unordered_map<expressions::ExprId, int>()) {
+          = std::unordered_map<expressions::ExprId, int>(),
+      const LIPFilterConfigurationPtr &lip_filter_configuration = nullptr) {
     return TopLevelPlanPtr(new TopLevelPlan(plan,
                                             shared_subplans,
-                                            uncorrelated_subquery_map));
+                                            uncorrelated_subquery_map,
+                                            lip_filter_configuration));
   }
 
  protected:
@@ -151,10 +179,12 @@ class TopLevelPlan : public Physical {
  private:
   TopLevelPlan(const PhysicalPtr &plan,
                const std::vector<PhysicalPtr> &shared_subplans,
-               const std::unordered_map<expressions::ExprId, int> &uncorrelated_subquery_map)
+               const std::unordered_map<expressions::ExprId, int> &uncorrelated_subquery_map,
+               const LIPFilterConfigurationPtr &lip_filter_configuration)
       : plan_(plan),
         shared_subplans_(shared_subplans),
-        uncorrelated_subquery_map_(uncorrelated_subquery_map) {
+        uncorrelated_subquery_map_(uncorrelated_subquery_map),
+        lip_filter_configuration_(lip_filter_configuration) {
     addChild(plan);
     for (const PhysicalPtr &shared_subplan : shared_subplans) {
       addChild(shared_subplan);
@@ -165,6 +195,7 @@ class TopLevelPlan : public Physical {
   // Stored in the topological ordering based on dependencies.
   std::vector<PhysicalPtr> shared_subplans_;
   std::unordered_map<expressions::ExprId, int> uncorrelated_subquery_map_;
+  LIPFilterConfigurationPtr lip_filter_configuration_;
 
   DISALLOW_COPY_AND_ASSIGN(TopLevelPlan);
 };
