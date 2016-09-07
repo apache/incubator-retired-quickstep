@@ -110,10 +110,7 @@ serialization::TypedValue TypedValue::getProto() const {
     case kDate:
       proto.set_type_id(serialization::Type::DATE);
       if (!isNull()) {
-        serialization::TypedValue::DateLit *literal_date_proto = proto.mutable_date_value();
-        literal_date_proto->set_year(value_union_.date_value.year);
-        literal_date_proto->set_month(value_union_.date_value.month);
-        literal_date_proto->set_day(value_union_.date_value.day);
+        proto.set_date_value(getLiteral<DateLit>().year_month_day);
       }
       break;
     case kDatetime:
@@ -185,9 +182,7 @@ TypedValue TypedValue::ReconstructFromProto(const serialization::TypedValue &pro
           TypedValue(kDouble);
     case serialization::Type::DATE:
       if (proto.has_date_value()) {
-        return TypedValue(DateLit::Create(proto.date_value().year(),
-                                          proto.date_value().month(),
-                                          proto.date_value().day()));
+        return TypedValue(DateLit::Create(proto.date_value()));
       } else {
         return TypedValue(kDate);
       }

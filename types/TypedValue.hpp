@@ -393,10 +393,10 @@ class TypedValue {
     switch (getTypeID()) {
       case kInt:
       case kFloat:
+      case kDate:
         return sizeof(int);
       case kLong:
       case kDouble:
-      case kDate:
       case kDatetime:
       case kDatetimeInterval:
       case kYearMonthInterval:
@@ -552,6 +552,8 @@ class TypedValue {
           // 4 bytes byte-for-byte copy.
           *static_cast<int*>(destination) = value_union_.int_value;
           break;
+        case kDate:
+          *static_cast<DateLit*>(destination) = value_union_.date_value;
         default:
           // 8 bytes byte-for-byte copy.
           *static_cast<ValueUnion*>(destination) = value_union_;

@@ -36,10 +36,13 @@ namespace quickstep {
  * @brief A literal representing the date.
  **/
 struct DateLit {
-  // Note that although there is no year 0 in the Gregorian calendar, ISO 8601
-  // has year 0 equivalent to 1 BCE, year -1 equivalent to 2 BCE, and so on.
-  std::int32_t year;
-  std::uint8_t month, day;
+  // ----------------------------------------------------
+  // |  23 bits                       | 4 bits | 5 bits |
+  // ----------------------------------------------------
+  // |       year                     |  month |   day  |
+  // | (unsigned)  (18 bits used)     |  (unsigned)     |
+  // ----------------------------------------------------
+  std::uint32_t year_month_day;
 
   // The maximum number of characters needed to represent any date in ISO 8601
   // notation.
@@ -51,53 +54,70 @@ struct DateLit {
         + 1   // -
         + 2;  // Day
 
+  // Years should be between [-kMaxYear, +kMaxYear] inclusive both end.
+  static constexpr std::int32_t kMaxYear = 99999;
+  static constexpr std::uint8_t kBitsNeededForDay = 5u;
+  static constexpr std::uint8_t kBitsNeededForMonth = 4u;
+
   static DateLit Create(const std::int32_t _year,
                         const std::uint8_t _month,
                         const std::uint8_t _day) {
     DateLit date;
-    date.year = _year;
-    date.month = _month;
-    date.day = _day;
+    // Normalize year by adding kMaxYear value, because we try to
+    // encode signed year value into an unsigned integer.
+    std::uint32_t representation
+        = (static_cast<std::uint32_t>(_year + kMaxYear) << (kBitsNeededForDay + kBitsNeededForMonth))
+          | (_month << kBitsNeededForDay)
+          | _day;
+    date.year_month_day = representation;
+    return date;
+  }
 
+  static DateLit Create(const std::uint32_t serialized) {
+    DateLit date;
+    date.year_month_day = serialized;
     return date;
   }
 
   inline bool operator< (const DateLit& rhs) const {
-    return (year != rhs.year)
-        ? (year < rhs.year)
-        : ((month != rhs.month) ? (month < rhs.month) : (day < rhs.day));
+    return year_month_day < rhs.year_month_day;
   }
 
   inline bool operator> (const DateLit& rhs) const {
-    return (year != rhs.year)
-        ? (year > rhs.year)
-        : ((month != rhs.month) ? (month > rhs.month) : (day > rhs.day));
+    return year_month_day < rhs.year_month_day;
   }
 
   inline bool operator<=(const DateLit& rhs) const {
-    return !(*this > rhs);
+    return year_month_day <= rhs.year_month_day;
   }
 
   inline bool operator>=(const DateLit& rhs) const {
-    return !(*this < rhs);
+    return year_month_day >= rhs.year_month_day;
   }
 
   inline bool operator==(const DateLit& rhs) const {
-    return (year == rhs.year) &&
-           (month == rhs.month) &&
-           (day == rhs.day);
+    return year_month_day == rhs.year_month_day;
   }
 
   inline bool operator!=(const DateLit& rhs) const {
-    return !(*this == rhs);
+    return year_month_day != rhs.year_month_day;
   }
 
   inline std::int32_t yearField() const {
+    const std::int32_t year =
+        static_cast<std::int32_t>(year_month_day >>
+                                  (kBitsNeededForDay + kBitsNeededForMonth)) - kMaxYear;
     return year;
   }
 
-  inline std::int32_t monthField() const {
-    return static_cast<std::int32_t>(month);
+  inline std::uint32_t monthField() const {
+    const std::uint32_t mask = 0x1E0u;  // 0b111100000
+    return (year_month_day & mask) >> kBitsNeededForDay;
+  }
+
+  inline std::uint32_t dayField() const {
+    const std::uint32_t mask = 0x1Fu;  // 0b11111
+    return year_month_day & mask;
   }
 };
 
