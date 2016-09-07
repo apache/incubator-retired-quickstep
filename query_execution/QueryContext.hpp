@@ -37,6 +37,8 @@
 #include "types/containers/Tuple.hpp"
 #include "utility/Macros.hpp"
 #include "utility/SortConfiguration.hpp"
+#include "utility/lip_filter/LIPFilter.hpp"
+#include "utility/lip_filter/LIPFilterDeployment.hpp"
 
 #include "glog/logging.h"
 
@@ -82,6 +84,17 @@ class QueryContext {
    * @brief A unique identifier for a JoinHashTable per query.
    **/
   typedef std::uint32_t join_hash_table_id;
+
+  /**
+   * @brief A unique identifier for a LIPFilterDeployment per query.
+   **/
+  typedef std::uint32_t lip_deployment_id;
+  static constexpr lip_deployment_id kInvalidLIPDeploymentId = static_cast<lip_deployment_id>(-1);
+
+  /**
+   * @brief A unique identifier for a LIPFilter per query.
+   **/
+  typedef std::uint32_t lip_filter_id;
 
   /**
    * @brief A unique identifier for a Predicate per query.
@@ -295,6 +308,87 @@ class QueryContext {
   }
 
   /**
+   * @brief Whether the given LIPFilterDeployment id is valid.
+   *
+   * @param id The LIPFilterDeployment id.
+   *
+   * @return True if valid, otherwise false.
+   **/
+  bool isValidLIPDeploymentId(const lip_deployment_id id) const {
+    return id < lip_deployments_.size();
+  }
+
+  /**
+   * @brief Get a constant pointer to the LIPFilterDeployment.
+   *
+   * @param id The LIPFilterDeployment id.
+   *
+   * @return The constant pointer to LIPFilterDeployment that is
+   *         already created in the constructor.
+   **/
+  inline const LIPFilterDeployment* getLIPDeployment(
+      const lip_deployment_id id) const {
+    DCHECK_LT(id, lip_deployments_.size());
+    return lip_deployments_[id].get();
+  }
+
+  /**
+   * @brief Destory the given LIPFilterDeployment.
+   *
+   * @param id The id of the LIPFilterDeployment to destroy.
+   **/
+  inline void destroyLIPDeployment(const lip_deployment_id id) {
+    DCHECK_LT(id, lip_deployments_.size());
+    lip_deployments_[id].reset();
+  }
+
+  /**
+   * @brief Whether the given LIPFilter id is valid.
+   *
+   * @param id The LIPFilter id.
+   *
+   * @return True if valid, otherwise false.
+   **/
+  bool isValidLIPFilterId(const lip_filter_id id) const {
+    return id < lip_filters_.size();
+  }
+
+  /**
+   * @brief Get a mutable reference to the LIPFilter.
+   *
+   * @param id The LIPFilter id.
+   *
+   * @return The LIPFilter, already created in the constructor.
+   **/
+  inline LIPFilter* getLIPFilterMutable(const lip_filter_id id) {
+    DCHECK_LT(id, lip_filters_.size());
+    return lip_filters_[id].get();
+  }
+
+  /**
+   * @brief Get a constant pointer to the LIPFilter.
+   *
+   * @param id The LIPFilter id.
+   *
+   * @return The constant pointer to LIPFilter that is
+   *         already created in the constructor.
+   **/
+  inline const LIPFilter* getLIPFilter(const lip_filter_id id) const {
+    DCHECK_LT(id, lip_filters_.size());
+    return lip_filters_[id].get();
+  }
+
+  /**
+   * @brief Destory the given LIPFilter.
+   *
+   * @param id The id of the LIPFilter to destroy.
+   **/
+  inline void destroyLIPFilter(const lip_filter_id id) {
+    DCHECK_LT(id, lip_filters_.size());
+    lip_filters_[id].reset();
+  }
+
+  /**
    * @brief Whether the given Predicate id is valid or no predicate.
    *
    * @param id The Predicate id.
@@ -472,6 +566,8 @@ class QueryContext {
   std::vector<std::unique_ptr<const GeneratorFunctionHandle>> generator_functions_;
   std::vector<std::unique_ptr<InsertDestination>> insert_destinations_;
   std::vector<std::unique_ptr<JoinHashTable>> join_hash_tables_;
+  std::vector<std::unique_ptr<LIPFilterDeployment>> lip_deployments_;
+  std::vector<std::unique_ptr<LIPFilter>> lip_filters_;
   std::vector<std::unique_ptr<const Predicate>> predicates_;
   std::vector<std::vector<std::unique_ptr<const Scalar>>> scalar_groups_;
   std::vector<std::unique_ptr<const SortConfiguration>> sort_configs_;

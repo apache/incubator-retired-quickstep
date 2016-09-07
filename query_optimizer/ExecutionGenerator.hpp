@@ -33,6 +33,7 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
+#include "query_optimizer/LIPFilterGenerator.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryPlan.hpp"
 #include "query_optimizer/cost_model/CostModel.hpp"
@@ -426,6 +427,9 @@ class ExecutionGenerator {
   std::unique_ptr<cost::CostModel> cost_model_for_hash_join_;
 
   physical::TopLevelPlanPtr top_level_physical_plan_;
+
+  // Sub-generator for deploying LIP (lookahead information passing) filters.
+  std::unique_ptr<LIPFilterGenerator> lip_filter_generator_;
 
   DISALLOW_COPY_AND_ASSIGN(ExecutionGenerator);
 };

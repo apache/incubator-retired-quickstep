@@ -74,6 +74,38 @@ class QueryPlan {
   }
 
   /**
+   * @brief Creates a link or upgrades the existing link from \p producer_operator_index
+   *        to \p consumer_operator_index in the DAG.
+   *
+   * Depending on whether there is an existing link from \p producer_operator_index
+   * to \p consumer_operator_index:
+   *   - Case 1, no existing link:
+   *         Creates a link with metadata set to is_pipeline_breaker.
+   *   - Case 2, existing link with metadata \p m:
+   *         Set m = (m | is_pipeline_break).
+   *
+   * @param consumer_operator_index The index of the consumer operator.
+   * @param producer_operator_index The index of the producer operator.
+   * @param is_pipeline_breaker True if the result from the producer cannot be
+   *                            pipelined to the consumer, otherwise false.
+   */
+  inline void addOrUpgradeDirectDependency(DAGNodeIndex consumer_operator_index,
+                                           DAGNodeIndex producer_operator_index,
+                                           bool is_pipeline_breaker) {
+    const auto &dependents = dag_operators_.getDependents(producer_operator_index);
+    const auto consumer_it = dependents.find(consumer_operator_index);
+    if (consumer_it == dependents.end()) {
+      dag_operators_.createLink(producer_operator_index,
+                                consumer_operator_index,
+                                is_pipeline_breaker);
+    } else {
+      dag_operators_.setLinkMetadata(producer_operator_index,
+                                     consumer_operator_index,
+                                     consumer_it->second | is_pipeline_breaker);
+    }
+  }
+
+  /**
    * @brief Creates dependencies for a DropTable operator with index
    *        \p drop_operator_index. If \p producer_operator_index
    *        has any dependent, creates a link from \p drop_operator_index

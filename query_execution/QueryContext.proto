@@ -26,8 +26,8 @@ import "storage/HashTable.proto";
 import "storage/InsertDestination.proto";
 import "storage/WindowAggregationOperationState.proto";
 import "types/containers/Tuple.proto";
-import "utility/BloomFilter.proto";
 import "utility/SortConfiguration.proto";
+import "utility/lip_filter/LIPFilter.proto";
 
 message QueryContext {
   message ScalarGroup {
@@ -46,19 +46,20 @@ message QueryContext {
   }
 
   repeated AggregationOperationState aggregation_states = 1;
-  repeated BloomFilter bloom_filters = 2;
-  repeated GeneratorFunctionHandle generator_functions = 3;
-  repeated HashTable join_hash_tables = 4;
-  repeated InsertDestination insert_destinations = 5;
-  repeated Predicate predicates = 6;
-  repeated ScalarGroup scalar_groups = 7;
-  repeated SortConfiguration sort_configs = 8;
-  repeated Tuple tuples = 9;
+  repeated GeneratorFunctionHandle generator_functions = 2;
+  repeated HashTable join_hash_tables = 3;
+  repeated InsertDestination insert_destinations = 4;
+  repeated LIPFilter lip_filters = 5;
+  repeated LIPFilterDeployment lip_filter_deployments = 6;
+  repeated Predicate predicates = 7;
+  repeated ScalarGroup scalar_groups = 8;
+  repeated SortConfiguration sort_configs = 9;
+  repeated Tuple tuples = 10;
 
   // NOTE(zuyu): For UpdateWorkOrder only.
-  repeated UpdateGroup update_groups = 10;
+  repeated UpdateGroup update_groups = 11;
 
-  repeated WindowAggregationOperationState window_aggregation_states = 11;
+  repeated WindowAggregationOperationState window_aggregation_states = 12;
 
-  required uint64 query_id = 12;
+  required uint64 query_id = 13;
 }

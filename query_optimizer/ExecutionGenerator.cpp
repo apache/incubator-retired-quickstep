@@ -54,6 +54,7 @@
 #include "expressions/window_aggregation/WindowAggregateFunction.pb.h"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryContext.pb.h"
+#include "query_optimizer/LIPFilterGenerator.hpp"
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryPlan.hpp"
@@ -76,6 +77,7 @@
 #include "query_optimizer/physical/HashJoin.hpp"
 #include "query_optimizer/physical/InsertSelection.hpp"
 #include "query_optimizer/physical/InsertTuple.hpp"
+#include "query_optimizer/physical/LIPFilterConfiguration.hpp"
 #include "query_optimizer/physical/NestedLoopsJoin.hpp"
 #include "query_optimizer/physical/PatternMatcher.hpp"
 #include "query_optimizer/physical/Physical.hpp"
@@ -153,9 +155,6 @@ static const volatile bool aggregate_hashtable_type_dummy
 
 DEFINE_bool(parallelize_load, true, "Parallelize loading data files.");
 
-DEFINE_bool(optimize_joins, false,
-            "Enable post execution plan generation optimizations for joins.");
-
 namespace E = ::quickstep::optimizer::expressions;
 namespace P = ::quickstep::optimizer::physical;
 namespace S = ::quickstep::serialization;
@@ -171,6 +170,12 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
   cost_model_for_hash_join_.reset(
       new cost::SimpleCostModel(top_level_physical_plan_->shared_subplans()));
 
+  const auto &lip_filter_configuration =
+      top_level_physical_plan_->lip_filter_configuration();
+  if (lip_filter_configuration != nullptr) {
+    lip_filter_generator_.reset(new LIPFilterGenerator(lip_filter_configuration));
+  }
+
   const CatalogRelation *result_relation = nullptr;
 
   try {
@@ -178,6 +183,11 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
       generatePlanInternal(shared_subplan);
     }
     generatePlanInternal(top_level_physical_plan_->plan());
+
+    // Deploy LIPFilters if enabled.
+    if (lip_filter_generator_ != nullptr) {
+      lip_filter_generator_->deployLIPFilters(execution_plan_, query_context_proto_);
+    }
 
     // Set the query result relation if the input plan exists in physical_to_execution_map_,
     // which indicates the plan is the result of a SELECT query.
@@ -233,6 +243,11 @@ void ExecutionGenerator::generatePlanInternal(
   // Generate the execution plan in bottom-up.
   for (const P::PhysicalPtr &child : physical_plan->children()) {
     generatePlanInternal(child);
+  }
+
+  // If enabled, collect attribute substitution map for LIPFilterGenerator.
+  if (lip_filter_generator_ != nullptr) {
+    lip_filter_generator_->registerAttributeMap(physical_plan, attribute_substitution_map_);
   }
 
   switch (physical_plan->getPhysicalType()) {
@@ -566,6 +581,10 @@ void ExecutionGenerator::convertSelection(
       std::forward_as_tuple(select_index,
                             output_relation));
   temporary_relation_info_vec_.emplace_back(select_index, output_relation);
+
+  if (lip_filter_generator_ != nullptr) {
+    lip_filter_generator_->addSelectionInfo(physical_selection, select_index);
+  }
 }
 
 void ExecutionGenerator::convertSharedSubplanReference(const physical::SharedSubplanReferencePtr &physical_plan) {
@@ -794,6 +813,12 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       std::forward_as_tuple(join_operator_index,
                             output_relation));
   temporary_relation_info_vec_.emplace_back(join_operator_index, output_relation);
+
+  if (lip_filter_generator_ != nullptr) {
+    lip_filter_generator_->addHashJoinInfo(physical_plan,
+                                           build_operator_index,
+                                           join_operator_index);
+  }
 }
 
 void ExecutionGenerator::convertNestedLoopsJoin(
@@ -1421,6 +1446,11 @@ void ExecutionGenerator::convertAggregate(
   execution_plan_->addDirectDependency(destroy_aggregation_state_operator_index,
                                        finalize_aggregation_operator_index,
                                        true);
+
+  if (lip_filter_generator_ != nullptr) {
+    lip_filter_generator_->addAggregateInfo(physical_plan,
+                                            aggregation_operator_index);
+  }
 }
 
 void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {

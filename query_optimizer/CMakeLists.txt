@@ -41,6 +41,7 @@ add_subdirectory(tests)
 
 # Declare micro-libs:
 add_library(quickstep_queryoptimizer_ExecutionGenerator ExecutionGenerator.cpp ExecutionGenerator.hpp)
+add_library(quickstep_queryoptimizer_LIPFilterGenerator LIPFilterGenerator.cpp LIPFilterGenerator.hpp)
 add_library(quickstep_queryoptimizer_LogicalGenerator LogicalGenerator.cpp LogicalGenerator.hpp)
 add_library(quickstep_queryoptimizer_LogicalToPhysicalMapper
             ../empty_src.cpp
@@ -72,6 +73,7 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_expressions_windowaggregation_WindowAggregateFunction_proto
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryoptimizer_LIPFilterGenerator
                       quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_QueryHandle
                       quickstep_queryoptimizer_QueryPlan
@@ -99,6 +101,7 @@ target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                       quickstep_queryoptimizer_physical_HashJoin
                       quickstep_queryoptimizer_physical_InsertSelection
                       quickstep_queryoptimizer_physical_InsertTuple
+                      quickstep_queryoptimizer_physical_LIPFilterConfiguration
                       quickstep_queryoptimizer_physical_NestedLoopsJoin
                       quickstep_queryoptimizer_physical_PatternMatcher
                       quickstep_queryoptimizer_physical_Physical
@@ -152,6 +155,23 @@ if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                         quickstep_catalog_Catalog_proto)
 endif()
+target_link_libraries(quickstep_queryoptimizer_LIPFilterGenerator
+                      glog
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_QueryContext_proto
+                      quickstep_queryoptimizer_QueryPlan
+                      quickstep_queryoptimizer_expressions_ExprId
+                      quickstep_queryoptimizer_physical_Aggregate
+                      quickstep_queryoptimizer_physical_HashJoin
+                      quickstep_queryoptimizer_physical_LIPFilterConfiguration
+                      quickstep_queryoptimizer_physical_Physical
+                      quickstep_queryoptimizer_physical_Selection
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_types_Type
+                      quickstep_utility_Macros
+                      quickstep_utility_lipfilter_LIPFilter
+                      quickstep_utility_lipfilter_LIPFilter_proto)
 target_link_libraries(quickstep_queryoptimizer_LogicalGenerator
                       glog
                       quickstep_parser_ParseStatement
@@ -225,6 +245,7 @@ target_link_libraries(quickstep_queryoptimizer_Validator
 add_library(quickstep_queryoptimizer ../empty_src.cpp QueryOptimizerModule.hpp)
 target_link_libraries(quickstep_queryoptimizer
                       quickstep_queryoptimizer_ExecutionGenerator
+                      quickstep_queryoptimizer_LIPFilterGenerator
                       quickstep_queryoptimizer_LogicalGenerator
                       quickstep_queryoptimizer_LogicalToPhysicalMapper
                       quickstep_queryoptimizer_Optimizer

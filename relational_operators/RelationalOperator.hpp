@@ -245,6 +245,13 @@ class RelationalOperator {
     return op_index_;
   }
 
+  /**
+   * @brief Deploy a group of LIPFilters to this operator.
+   */
+  void deployLIPFilters(const QueryContext::lip_deployment_id lip_deployment_index) {
+    lip_deployment_index_ = lip_deployment_index;
+  }
+
  protected:
   /**
    * @brief Constructor
@@ -257,13 +264,16 @@ class RelationalOperator {
                               const bool blocking_dependencies_met = false)
       : query_id_(query_id),
         blocking_dependencies_met_(blocking_dependencies_met),
-        done_feeding_input_relation_(false) {}
+        done_feeding_input_relation_(false),
+        lip_deployment_index_(QueryContext::kInvalidLIPDeploymentId) {}
 
   const std::size_t query_id_;
 
   bool blocking_dependencies_met_;
   bool done_feeding_input_relation_;
   std::size_t op_index_;
+
+  QueryContext::lip_deployment_id lip_deployment_index_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(RelationalOperator);
