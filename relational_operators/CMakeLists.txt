@@ -15,6 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
+include(CheckIncludeFiles)
+check_include_files("unistd.h" QUICKSTEP_HAVE_UNISTD)
+configure_file (
+  "${CMAKE_CURRENT_SOURCE_DIR}/RelationalOperatorsConfig.h.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/RelationalOperatorsConfig.h"
+)
+
 QS_PROTOBUF_GENERATE_CPP(relationaloperators_SortMergeRunOperator_proto_srcs
                          relationaloperators_SortMergeRunOperator_proto_hdrs
                          SortMergeRunOperator.proto)

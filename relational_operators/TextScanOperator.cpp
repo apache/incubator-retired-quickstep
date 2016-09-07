@@ -19,6 +19,12 @@
 
 #include "relational_operators/TextScanOperator.hpp"
 
+#include "relational_operators/RelationalOperatorsConfig.h"  // For QUICKSTEP_HAVE_UNISTD.
+
+#ifdef QUICKSTEP_HAVE_UNISTD
+#include <unistd.h>
+#endif  // QUICKSTEP_HAVE_UNISTD
+
 #include <algorithm>
 #include <cctype>
 #include <cstddef>
@@ -91,6 +97,14 @@ bool TextScanOperator::getAllWorkOrders(
   if (blocking_dependencies_met_ && !work_generated_) {
     for (const std::string &file : files) {
       // Use standard C libary to retrieve the file size.
+
+#ifdef QUICKSTEP_HAVE_UNISTD
+      // Check file permissions before trying to open it.
+      const int access_result = access(file.c_str(), R_OK);
+      CHECK_EQ(0, access_result)
+          << "File " << file << " is not readable due to permission issues.";
+#endif  // QUICKSTEP_HAVE_UNISTD
+
       FILE *fp = std::fopen(file.c_str(), "rb");
       std::fseek(fp, 0, SEEK_END);
       const std::size_t file_size = std::ftell(fp);
