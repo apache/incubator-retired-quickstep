@@ -35,7 +35,6 @@
 #include "storage/InsertDestination.hpp"
 #include "storage/WindowAggregationOperationState.hpp"
 #include "types/containers/Tuple.hpp"
-#include "utility/BloomFilter.hpp"
 #include "utility/Macros.hpp"
 #include "utility/SortConfiguration.hpp"
 
@@ -65,11 +64,6 @@ class QueryContext {
    * @brief A unique identifier for an AggregationOperationState per query.
    **/
   typedef std::uint32_t aggregation_state_id;
-
-  /**
-   * @brief A unique identifier for a BloomFilter per query.
-   **/
-  typedef std::uint32_t bloom_filter_id;
 
   /**
    * @brief A unique identifier for a GeneratorFunctionHandle per query.
@@ -190,52 +184,6 @@ class QueryContext {
     DCHECK_LT(id, aggregation_states_.size());
     DCHECK(aggregation_states_[id]);
     aggregation_states_[id].reset(nullptr);
-  }
-
-  /**
-   * @brief Whether the given BloomFilter id is valid.
-   *
-   * @param id The BloomFilter id.
-   *
-   * @return True if valid, otherwise false.
-   **/
-  bool isValidBloomFilterId(const bloom_filter_id id) const {
-    return id < bloom_filters_.size();
-  }
-
-  /**
-   * @brief Get a mutable reference to the BloomFilter.
-   *
-   * @param id The BloomFilter id.
-   *
-   * @return The BloomFilter, already created in the constructor.
-   **/
-  inline BloomFilter* getBloomFilterMutable(const bloom_filter_id id) {
-    DCHECK_LT(id, bloom_filters_.size());
-    return bloom_filters_[id].get();
-  }
-
-  /**
-   * @brief Get a constant pointer to the BloomFilter.
-   *
-   * @param id The BloomFilter id.
-   *
-   * @return The constant pointer to BloomFilter that is
-   *         already created in the constructor.
-   **/
-  inline const BloomFilter* getBloomFilter(const bloom_filter_id id) const {
-    DCHECK_LT(id, bloom_filters_.size());
-    return bloom_filters_[id].get();
-  }
-
-  /**
-   * @brief Destory the given BloomFilter.
-   *
-   * @param id The id of the BloomFilter to destroy.
-   **/
-  inline void destroyBloomFilter(const bloom_filter_id id) {
-    DCHECK_LT(id, bloom_filters_.size());
-    bloom_filters_[id].reset();
   }
 
   /**
@@ -507,7 +455,6 @@ class QueryContext {
 
  private:
   std::vector<std::unique_ptr<AggregationOperationState>> aggregation_states_;
-  std::vector<std::unique_ptr<BloomFilter>> bloom_filters_;
   std::vector<std::unique_ptr<const GeneratorFunctionHandle>> generator_functions_;
   std::vector<std::unique_ptr<InsertDestination>> insert_destinations_;
   std::vector<std::unique_ptr<JoinHashTable>> join_hash_tables_;
