@@ -27,6 +27,8 @@
 #include "relational_operators/WorkOrder.pb.h"
 #include "storage/AggregationOperationState.hpp"
 #include "storage/StorageBlockInfo.hpp"
+#include "utility/lip_filter/LIPFilterAdaptiveProber.hpp"
+#include "utility/lip_filter/LIPFilterUtil.hpp"
 
 #include "tmb/id_typedefs.h"
 
@@ -45,7 +47,8 @@ bool AggregationOperator::getAllWorkOrders(
             new AggregationWorkOrder(
                 query_id_,
                 input_block_id,
-                query_context->getAggregationState(aggr_state_index_)),
+                query_context->getAggregationState(aggr_state_index_),
+                CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
             op_index_);
       }
       started_ = true;
@@ -57,7 +60,8 @@ bool AggregationOperator::getAllWorkOrders(
           new AggregationWorkOrder(
               query_id_,
               input_relation_block_ids_[num_workorders_generated_],
-              query_context->getAggregationState(aggr_state_index_)),
+              query_context->getAggregationState(aggr_state_index_),
+              CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
           op_index_);
       ++num_workorders_generated_;
     }
@@ -92,13 +96,13 @@ serialization::WorkOrder* AggregationOperator::createWorkOrderProto(const block_
 
   proto->SetExtension(serialization::AggregationWorkOrder::block_id, block);
   proto->SetExtension(serialization::AggregationWorkOrder::aggr_state_index, aggr_state_index_);
+  proto->SetExtension(serialization::AggregationWorkOrder::lip_deployment_index, lip_deployment_index_);
 
   return proto;
 }
 
-
 void AggregationWorkOrder::execute() {
-  state_->aggregateBlock(input_block_id_);
+  state_->aggregateBlock(input_block_id_, lip_filter_adaptive_prober_.get());
 }
 
 }  // namespace quickstep

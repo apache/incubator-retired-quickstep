@@ -35,6 +35,7 @@
 #include "storage/HashTable.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
+#include "utility/lip_filter/LIPFilterAdaptiveProber.hpp"
 
 #include "glog/logging.h"
 
@@ -295,6 +296,7 @@ class HashInnerJoinWorkOrder : public WorkOrder {
    * @param hash_table The JoinHashTable to use.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
+   * @param lip_filter_adaptive_prober The attached LIP filter prober.
    **/
   HashInnerJoinWorkOrder(
       const std::size_t query_id,
@@ -307,7 +309,8 @@ class HashInnerJoinWorkOrder : public WorkOrder {
       const std::vector<std::unique_ptr<const Scalar>> &selection,
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
-      StorageManager *storage_manager)
+      StorageManager *storage_manager,
+      LIPFilterAdaptiveProber *lip_filter_adaptive_prober = nullptr)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -318,7 +321,8 @@ class HashInnerJoinWorkOrder : public WorkOrder {
         selection_(selection),
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
+        lip_filter_adaptive_prober_(lip_filter_adaptive_prober) {}
 
   /**
    * @brief Constructor for the distributed version.
@@ -342,6 +346,7 @@ class HashInnerJoinWorkOrder : public WorkOrder {
    * @param hash_table The JoinHashTable to use.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
+   * @param lip_filter_adaptive_prober The attached LIP filter prober.
    **/
   HashInnerJoinWorkOrder(
       const std::size_t query_id,
@@ -354,7 +359,8 @@ class HashInnerJoinWorkOrder : public WorkOrder {
       const std::vector<std::unique_ptr<const Scalar>> &selection,
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
-      StorageManager *storage_manager)
+      StorageManager *storage_manager,
+      LIPFilterAdaptiveProber *lip_filter_adaptive_prober = nullptr)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -365,7 +371,8 @@ class HashInnerJoinWorkOrder : public WorkOrder {
         selection_(selection),
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
+        lip_filter_adaptive_prober_(lip_filter_adaptive_prober) {}
 
   ~HashInnerJoinWorkOrder() override {}
 
@@ -391,6 +398,8 @@ class HashInnerJoinWorkOrder : public WorkOrder {
 
   InsertDestination *output_destination_;
   StorageManager *storage_manager_;
+
+  std::unique_ptr<LIPFilterAdaptiveProber> lip_filter_adaptive_prober_;
 
   DISALLOW_COPY_AND_ASSIGN(HashInnerJoinWorkOrder);
 };
@@ -423,6 +432,7 @@ class HashSemiJoinWorkOrder : public WorkOrder {
    * @param hash_table The JoinHashTable to use.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
+   * @param lip_filter_adaptive_prober The attached LIP filter prober.
    **/
   HashSemiJoinWorkOrder(
       const std::size_t query_id,
@@ -435,7 +445,8 @@ class HashSemiJoinWorkOrder : public WorkOrder {
       const std::vector<std::unique_ptr<const Scalar>> &selection,
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
-      StorageManager *storage_manager)
+      StorageManager *storage_manager,
+      LIPFilterAdaptiveProber *lip_filter_adaptive_prober = nullptr)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -446,7 +457,8 @@ class HashSemiJoinWorkOrder : public WorkOrder {
         selection_(selection),
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
+        lip_filter_adaptive_prober_(lip_filter_adaptive_prober) {}
 
   /**
    * @brief Constructor for the distributed version.
@@ -470,6 +482,7 @@ class HashSemiJoinWorkOrder : public WorkOrder {
    * @param hash_table The JoinHashTable to use.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
+   * @param lip_filter_adaptive_prober The attached LIP filter prober.
    **/
   HashSemiJoinWorkOrder(
       const std::size_t query_id,
@@ -482,7 +495,8 @@ class HashSemiJoinWorkOrder : public WorkOrder {
       const std::vector<std::unique_ptr<const Scalar>> &selection,
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
-      StorageManager *storage_manager)
+      StorageManager *storage_manager,
+      LIPFilterAdaptiveProber *lip_filter_adaptive_prober = nullptr)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -493,7 +507,8 @@ class HashSemiJoinWorkOrder : public WorkOrder {
         selection_(selection),
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
+        lip_filter_adaptive_prober_(lip_filter_adaptive_prober) {}
 
   ~HashSemiJoinWorkOrder() override {}
 
@@ -515,6 +530,8 @@ class HashSemiJoinWorkOrder : public WorkOrder {
 
   InsertDestination *output_destination_;
   StorageManager *storage_manager_;
+
+  std::unique_ptr<LIPFilterAdaptiveProber> lip_filter_adaptive_prober_;
 
   DISALLOW_COPY_AND_ASSIGN(HashSemiJoinWorkOrder);
 };
@@ -547,6 +564,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
    * @param hash_table The JoinHashTable to use.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
+   * @param lip_filter_adaptive_prober The attached LIP filter prober.
    **/
   HashAntiJoinWorkOrder(
       const std::size_t query_id,
@@ -559,7 +577,8 @@ class HashAntiJoinWorkOrder : public WorkOrder {
       const std::vector<std::unique_ptr<const Scalar>> &selection,
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
-      StorageManager *storage_manager)
+      StorageManager *storage_manager,
+      LIPFilterAdaptiveProber *lip_filter_adaptive_prober = nullptr)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -570,7 +589,8 @@ class HashAntiJoinWorkOrder : public WorkOrder {
         selection_(selection),
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
+        lip_filter_adaptive_prober_(lip_filter_adaptive_prober) {}
 
   /**
    * @brief Constructor for the distributed version.
@@ -594,6 +614,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
    * @param hash_table The JoinHashTable to use.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
+   * @param lip_filter_adaptive_prober The attached LIP filter prober.
    **/
   HashAntiJoinWorkOrder(
       const std::size_t query_id,
@@ -606,7 +627,8 @@ class HashAntiJoinWorkOrder : public WorkOrder {
       const std::vector<std::unique_ptr<const Scalar>> &selection,
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
-      StorageManager *storage_manager)
+      StorageManager *storage_manager,
+      LIPFilterAdaptiveProber *lip_filter_adaptive_prober = nullptr)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -617,7 +639,8 @@ class HashAntiJoinWorkOrder : public WorkOrder {
         selection_(selection),
         hash_table_(hash_table),
         output_destination_(DCHECK_NOTNULL(output_destination)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
+        lip_filter_adaptive_prober_(lip_filter_adaptive_prober) {}
 
   ~HashAntiJoinWorkOrder() override {}
 
@@ -645,6 +668,8 @@ class HashAntiJoinWorkOrder : public WorkOrder {
 
   InsertDestination *output_destination_;
   StorageManager *storage_manager_;
+
+  std::unique_ptr<LIPFilterAdaptiveProber> lip_filter_adaptive_prober_;
 
   DISALLOW_COPY_AND_ASSIGN(HashAntiJoinWorkOrder);
 };
@@ -675,6 +700,7 @@ class HashOuterJoinWorkOrder : public WorkOrder {
    * @param hash_table The JoinHashTable to use.
    * @param output_destination The InsertDestination to insert the join results.
    * @param storage_manager The StorageManager to use.
+   * @param lip_filter_adaptive_prober The attached LIP filter prober.
    **/
   HashOuterJoinWorkOrder(
       const std::size_t query_id,
@@ -687,7 +713,8 @@ class HashOuterJoinWorkOrder : public WorkOrder {
       const std::vector<bool> &is_selection_on_build,
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
-      StorageManager *storage_manager)
+      StorageManager *storage_manager,
+      LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -698,7 +725,8 @@ class HashOuterJoinWorkOrder : public WorkOrder {
         is_selection_on_build_(is_selection_on_build),
         hash_table_(hash_table),
         output_destination_(output_destination),
-        storage_manager_(storage_manager) {}
+        storage_manager_(storage_manager),
+        lip_filter_adaptive_prober_(lip_filter_adaptive_prober) {}
 
   /**
    * @brief Constructor for the distributed version.
@@ -733,7 +761,8 @@ class HashOuterJoinWorkOrder : public WorkOrder {
       std::vector<bool> &&is_selection_on_build,
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
-      StorageManager *storage_manager)
+      StorageManager *storage_manager,
+      LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -744,7 +773,8 @@ class HashOuterJoinWorkOrder : public WorkOrder {
         is_selection_on_build_(std::move(is_selection_on_build)),
         hash_table_(hash_table),
         output_destination_(output_destination),
-        storage_manager_(storage_manager) {}
+        storage_manager_(storage_manager),
+        lip_filter_adaptive_prober_(lip_filter_adaptive_prober) {}
 
   ~HashOuterJoinWorkOrder() override {}
 
@@ -762,6 +792,8 @@ class HashOuterJoinWorkOrder : public WorkOrder {
 
   InsertDestination *output_destination_;
   StorageManager *storage_manager_;
+
+  std::unique_ptr<LIPFilterAdaptiveProber> lip_filter_adaptive_prober_;
 
   DISALLOW_COPY_AND_ASSIGN(HashOuterJoinWorkOrder);
 };

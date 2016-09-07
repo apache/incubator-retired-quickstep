@@ -88,7 +88,7 @@ class QueryContext {
   /**
    * @brief A unique identifier for a LIPFilterDeployment per query.
    **/
-  typedef std::uint32_t lip_deployment_id;
+  typedef std::int32_t lip_deployment_id;
   static constexpr lip_deployment_id kInvalidLIPDeploymentId = static_cast<lip_deployment_id>(-1);
 
   /**
@@ -315,7 +315,7 @@ class QueryContext {
    * @return True if valid, otherwise false.
    **/
   bool isValidLIPDeploymentId(const lip_deployment_id id) const {
-    return id < lip_deployments_.size();
+    return static_cast<std::size_t>(id) < lip_deployments_.size();
   }
 
   /**
@@ -328,7 +328,7 @@ class QueryContext {
    **/
   inline const LIPFilterDeployment* getLIPDeployment(
       const lip_deployment_id id) const {
-    DCHECK_LT(id, lip_deployments_.size());
+    DCHECK_LT(static_cast<std::size_t>(id), lip_deployments_.size());
     return lip_deployments_[id].get();
   }
 
@@ -338,7 +338,7 @@ class QueryContext {
    * @param id The id of the LIPFilterDeployment to destroy.
    **/
   inline void destroyLIPDeployment(const lip_deployment_id id) {
-    DCHECK_LT(id, lip_deployments_.size());
+    DCHECK_LT(static_cast<std::size_t>(id), lip_deployments_.size());
     lip_deployments_[id].reset();
   }
 

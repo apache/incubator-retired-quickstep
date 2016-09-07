@@ -30,6 +30,7 @@
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
+#include "utility/lip_filter/LIPFilterAdaptiveProber.hpp"
 
 #include "glog/logging.h"
 
@@ -137,13 +138,16 @@ class AggregationWorkOrder : public WorkOrder {
    * @param query_id The ID of this query.
    * @param input_block_id The block id.
    * @param state The AggregationState to use.
+   * @param lip_filter_adaptive_prober The attached LIP filter prober.
    **/
   AggregationWorkOrder(const std::size_t query_id,
                        const block_id input_block_id,
-                       AggregationOperationState *state)
+                       AggregationOperationState *state,
+                       LIPFilterAdaptiveProber *lip_filter_adaptive_prober = nullptr)
       : WorkOrder(query_id),
         input_block_id_(input_block_id),
-        state_(DCHECK_NOTNULL(state)) {}
+        state_(DCHECK_NOTNULL(state)),
+        lip_filter_adaptive_prober_(lip_filter_adaptive_prober) {}
 
   ~AggregationWorkOrder() override {}
 
@@ -152,6 +156,8 @@ class AggregationWorkOrder : public WorkOrder {
  private:
   const block_id input_block_id_;
   AggregationOperationState *state_;
+
+  std::unique_ptr<LIPFilterAdaptiveProber> lip_filter_adaptive_prober_;
 
   DISALLOW_COPY_AND_ASSIGN(AggregationWorkOrder);
 };

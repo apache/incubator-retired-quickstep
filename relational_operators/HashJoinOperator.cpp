@@ -48,6 +48,8 @@
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVector.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
+#include "utility/lip_filter/LIPFilterAdaptiveProber.hpp"
+#include "utility/lip_filter/LIPFilterUtil.hpp"
 
 #include "gflags/gflags.h"
 #include "glog/logging.h"
@@ -95,28 +97,22 @@ class MapBasedJoinedTupleCollector {
 
 class SemiAntiJoinTupleCollector {
  public:
-  explicit SemiAntiJoinTupleCollector(const TupleStorageSubBlock &tuple_store) {
-    filter_.reset(tuple_store.getExistenceMap());
-  }
+  explicit SemiAntiJoinTupleCollector(TupleIdSequence *filter)
+      : filter_(filter) {}
 
   template <typename ValueAccessorT>
   inline void operator()(const ValueAccessorT &accessor) {
     filter_->set(accessor.getCurrentPosition(), false);
   }
 
-  const TupleIdSequence* filter() const {
-    return filter_.get();
-  }
-
  private:
-  std::unique_ptr<TupleIdSequence> filter_;
+  TupleIdSequence *filter_;
 };
 
 class OuterJoinTupleCollector {
  public:
-  explicit OuterJoinTupleCollector(const TupleStorageSubBlock &tuple_store) {
-    filter_.reset(tuple_store.getExistenceMap());
-  }
+  explicit OuterJoinTupleCollector(TupleIdSequence *filter)
+      : filter_(filter) {}
 
   template <typename ValueAccessorT>
   inline void operator()(const ValueAccessorT &accessor,
@@ -134,14 +130,10 @@ class OuterJoinTupleCollector {
     return &joined_tuples_;
   }
 
-  const TupleIdSequence* filter() const {
-    return filter_.get();
-  }
-
  private:
   std::unordered_map<block_id, std::vector<std::pair<tuple_id, tuple_id>>> joined_tuples_;
   // BitVector on the probe relation. 1 if the corresponding tuple has no match.
-  std::unique_ptr<TupleIdSequence> filter_;
+  TupleIdSequence *filter_;
 };
 
 }  // namespace
@@ -203,7 +195,8 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
                                      selection,
                                      hash_table,
                                      output_destination,
-                                     storage_manager),
+                                     storage_manager,
+                                     CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
               op_index_);
         }
         started_ = true;
@@ -223,7 +216,8 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
                 selection,
                 hash_table,
                 output_destination,
-                storage_manager),
+                storage_manager,
+                CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
             op_index_);
         ++num_workorders_generated_;
       }  // end while
@@ -264,7 +258,8 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
                   is_selection_on_build_,
                   hash_table,
                   output_destination,
-                  storage_manager),
+                  storage_manager,
+                  CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
               op_index_);
         }
         started_ = true;
@@ -284,7 +279,8 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
                 is_selection_on_build_,
                 hash_table,
                 output_destination,
-                storage_manager),
+                storage_manager,
+                CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
             op_index_);
         ++num_workorders_generated_;
       }
@@ -360,6 +356,7 @@ serialization::WorkOrder* HashJoinOperator::createNonOuterJoinWorkOrderProto(
   proto->SetExtension(serialization::HashJoinWorkOrder::selection_index, selection_index_);
   proto->SetExtension(serialization::HashJoinWorkOrder::block_id, block);
   proto->SetExtension(serialization::HashJoinWorkOrder::residual_predicate_index, residual_predicate_index_);
+  proto->SetExtension(serialization::HashJoinWorkOrder::lip_deployment_index, lip_deployment_index_);
 
   return proto;
 }
@@ -408,6 +405,7 @@ serialization::WorkOrder* HashJoinOperator::createOuterJoinWorkOrderProto(const 
   proto->SetExtension(serialization::HashJoinWorkOrder::join_hash_table_index, hash_table_index_);
   proto->SetExtension(serialization::HashJoinWorkOrder::selection_index, selection_index_);
   proto->SetExtension(serialization::HashJoinWorkOrder::block_id, block);
+  proto->SetExtension(serialization::HashJoinWorkOrder::lip_deployment_index, lip_deployment_index_);
 
   for (const bool is_attribute_on_build : is_selection_on_build_) {
     proto->AddExtension(serialization::HashJoinWorkOrder::is_selection_on_build, is_attribute_on_build);
@@ -421,8 +419,19 @@ void HashInnerJoinWorkOrder::execute() {
   BlockReference probe_block(
       storage_manager_->getBlock(block_id_, probe_relation_));
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
-
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
+
+  // Probe the LIPFilters to generate an existence bitmap for probe_accessor, if enabled.
+  std::unique_ptr<TupleIdSequence> existence_map;
+  std::unique_ptr<ValueAccessor> base_accessor;
+  if (lip_filter_adaptive_prober_ != nullptr) {
+    base_accessor.reset(probe_accessor.release());
+    existence_map.reset(
+        lip_filter_adaptive_prober_->filterValueAccessor(base_accessor.get()));
+    probe_accessor.reset(
+        base_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
+  }
+
   MapBasedJoinedTupleCollector collector;
   if (join_key_attributes_.size() == 1) {
     hash_table_.getAllFromValueAccessor(
@@ -526,8 +535,18 @@ void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
   BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                           probe_relation_);
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
-
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
+
+  // Probe the LIPFilters to generate an existence bitmap for probe_accessor, if enabled.
+  std::unique_ptr<TupleIdSequence> existence_map;
+  std::unique_ptr<ValueAccessor> base_accessor;
+  if (lip_filter_adaptive_prober_ != nullptr) {
+    base_accessor.reset(probe_accessor.release());
+    existence_map.reset(
+        lip_filter_adaptive_prober_->filterValueAccessor(base_accessor.get()));
+    probe_accessor.reset(
+        base_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
+  }
 
   // We collect all the matching probe relation tuples, as there's a residual
   // preidcate that needs to be applied after collecting these matches.
@@ -548,7 +567,6 @@ void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
 
   // Get a filter for tuples in the given probe block.
   TupleIdSequence filter(probe_store.getMaxTupleID() + 1);
-  filter.setRange(0, filter.length(), false);
   for (const std::pair<const block_id,
                        std::vector<std::pair<tuple_id, tuple_id>>>
            &build_block_entry : *collector.getJoinedTuples()) {
@@ -607,9 +625,24 @@ void HashSemiJoinWorkOrder::executeWithoutResidualPredicate() {
   BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                           probe_relation_);
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
-
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
-  SemiAntiJoinTupleCollector collector(probe_store);
+
+  // Probe the LIPFilters to generate an existence bitmap for probe_accessor, if enabled.
+  std::unique_ptr<TupleIdSequence> existence_map;
+  std::unique_ptr<ValueAccessor> base_accessor;
+  if (lip_filter_adaptive_prober_ != nullptr) {
+    base_accessor.reset(probe_accessor.release());
+    existence_map.reset(
+        lip_filter_adaptive_prober_->filterValueAccessor(base_accessor.get()));
+    probe_accessor.reset(
+        base_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
+  }
+
+  if (existence_map == nullptr) {
+    existence_map.reset(probe_store.getExistenceMap());
+  }
+
+  SemiAntiJoinTupleCollector collector(existence_map.get());
   // We collect all the probe relation tuples which have at least one matching
   // tuple in the build relation. As a performance optimization, the hash table
   // just looks for the existence of the probing key in the hash table and sets
@@ -637,7 +670,7 @@ void HashSemiJoinWorkOrder::executeWithoutResidualPredicate() {
                                     probe_block->getIndicesConsistent());
 
   std::unique_ptr<ValueAccessor> probe_accessor_with_filter(
-      probe_store.createValueAccessor(collector.filter()));
+      probe_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
   ColumnVectorsValueAccessor temp_result;
   for (vector<unique_ptr<const Scalar>>::const_iterator selection_it = selection_.begin();
        selection_it != selection_.end(); ++selection_it) {
@@ -654,9 +687,24 @@ void HashAntiJoinWorkOrder::executeWithoutResidualPredicate() {
   BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                           probe_relation_);
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
-
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
-  SemiAntiJoinTupleCollector collector(probe_store);
+
+  // Probe the LIPFilters to generate an existence bitmap for probe_accessor, if enabled.
+  std::unique_ptr<TupleIdSequence> existence_map;
+  std::unique_ptr<ValueAccessor> base_accessor;
+  if (lip_filter_adaptive_prober_ != nullptr) {
+    base_accessor.reset(probe_accessor.release());
+    existence_map.reset(
+        lip_filter_adaptive_prober_->filterValueAccessor(base_accessor.get()));
+    probe_accessor.reset(
+        base_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
+  }
+
+  if (existence_map == nullptr) {
+    existence_map.reset(probe_store.getExistenceMap());
+  }
+
+  SemiAntiJoinTupleCollector collector(existence_map.get());
   // We probe the hash table to find the keys which have an entry in the
   // hash table.
   if (join_key_attributes_.size() == 1) {
@@ -680,7 +728,7 @@ void HashAntiJoinWorkOrder::executeWithoutResidualPredicate() {
                                     probe_block->getIndicesConsistent());
 
   std::unique_ptr<ValueAccessor> probe_accessor_with_filter(
-      probe_store.createValueAccessor(collector.filter()));
+      probe_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
   ColumnVectorsValueAccessor temp_result;
   for (vector<unique_ptr<const Scalar>>::const_iterator selection_it = selection_.begin();
        selection_it != selection_.end(); ++selection_it) {
@@ -698,8 +746,19 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
   BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                           probe_relation_);
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
-
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
+
+  // Probe the LIPFilters to generate an existence bitmap for probe_accessor, if enabled.
+  std::unique_ptr<TupleIdSequence> existence_map;
+  std::unique_ptr<ValueAccessor> base_accessor;
+  if (lip_filter_adaptive_prober_ != nullptr) {
+    base_accessor.reset(probe_accessor.release());
+    existence_map.reset(
+        lip_filter_adaptive_prober_->filterValueAccessor(base_accessor.get()));
+    probe_accessor.reset(
+        base_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
+  }
+
   MapBasedJoinedTupleCollector collector;
   // We probe the hash table and get all the matches. Unlike
   // executeWithoutResidualPredicate(), we have to collect all the matching
@@ -719,8 +778,12 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
         &collector);
   }
 
-  // Create a filter for all the tuples from the given probe block.
-  std::unique_ptr<TupleIdSequence> filter(probe_store.getExistenceMap());
+  // If the existence map has not been initialized by the pre-filtering LIPFilters.
+  // Then create it for all the tuples from the given probe block.
+  if (existence_map == nullptr) {
+    existence_map.reset(probe_store.getExistenceMap());
+  }
+
   for (const std::pair<const block_id, std::vector<std::pair<tuple_id, tuple_id>>>
            &build_block_entry : *collector.getJoinedTuples()) {
     // First element of the pair build_block_entry is the build block ID
@@ -733,7 +796,7 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
     std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
     for (const std::pair<tuple_id, tuple_id> &hash_match
          : build_block_entry.second) {
-      if (!filter->get(hash_match.second)) {
+      if (!existence_map->get(hash_match.second)) {
         // We have already seen this tuple, skip it.
         continue;
       }
@@ -743,9 +806,9 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
                                                       *probe_accessor,
                                                       probe_relation_id,
                                                       hash_match.second)) {
-        // Note that the filter marks a match as false, as needed by the anti
-        // join definition.
-        filter->set(hash_match.second, false);
+        // Note that the existence map marks a match as false, as needed by the
+        // anti join definition.
+        existence_map->set(hash_match.second, false);
       }
     }
   }
@@ -755,7 +818,7 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
                                     probe_block->getIndicesConsistent());
 
   std::unique_ptr<ValueAccessor> probe_accessor_with_filter(
-      probe_store.createValueAccessor(filter.get()));
+      probe_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
   ColumnVectorsValueAccessor temp_result;
   for (vector<unique_ptr<const Scalar>>::const_iterator selection_it = selection_.begin();
        selection_it != selection_.end();
@@ -775,9 +838,24 @@ void HashOuterJoinWorkOrder::execute() {
   const BlockReference probe_block = storage_manager_->getBlock(block_id_,
                                                                 probe_relation_);
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
-
   std::unique_ptr<ValueAccessor> probe_accessor(probe_store.createValueAccessor());
-  OuterJoinTupleCollector collector(probe_store);
+
+  // Probe the LIPFilters to generate an existence bitmap for probe_accessor, if enabled.
+  std::unique_ptr<TupleIdSequence> existence_map;
+  std::unique_ptr<ValueAccessor> base_accessor;
+  if (lip_filter_adaptive_prober_ != nullptr) {
+    base_accessor.reset(probe_accessor.release());
+    existence_map.reset(
+        lip_filter_adaptive_prober_->filterValueAccessor(base_accessor.get()));
+    probe_accessor.reset(
+        base_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
+  }
+
+  if (existence_map == nullptr) {
+    existence_map.reset(probe_store.getExistenceMap());
+  }
+
+  OuterJoinTupleCollector collector(existence_map.get());
   if (join_key_attributes_.size() == 1) {
     hash_table_.getAllFromValueAccessorWithExtraWorkForFirstMatch(
         probe_accessor.get(),
@@ -822,11 +900,10 @@ void HashOuterJoinWorkOrder::execute() {
                                     probe_block->getIndicesConsistent());
 
   // Populate the output tuples for non-matches.
-  const TupleIdSequence *filter = collector.filter();
-  const TupleIdSequence::size_type num_tuples_without_matches = filter->size();
+  const TupleIdSequence::size_type num_tuples_without_matches = existence_map->size();
   if (num_tuples_without_matches > 0) {
     std::unique_ptr<ValueAccessor> probe_accessor_with_filter(
-        probe_store.createValueAccessor(filter));
+        probe_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
     ColumnVectorsValueAccessor temp_result;
 
     for (std::size_t i = 0; i < selection_.size(); ++i) {

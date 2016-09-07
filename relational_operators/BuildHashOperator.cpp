@@ -34,6 +34,8 @@
 #include "storage/TupleReference.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
 #include "storage/ValueAccessor.hpp"
+#include "utility/lip_filter/LIPFilterBuilder.hpp"
+#include "utility/lip_filter/LIPFilterUtil.hpp"
 
 #include "glog/logging.h"
 
@@ -79,7 +81,8 @@ bool BuildHashOperator::getAllWorkOrders(
                                    any_join_key_attributes_nullable_,
                                    input_block_id,
                                    hash_table,
-                                   storage_manager),
+                                   storage_manager,
+                                   CreateLIPFilterBuilderHelper(lip_deployment_index_, query_context)),
             op_index_);
       }
       started_ = true;
@@ -95,7 +98,8 @@ bool BuildHashOperator::getAllWorkOrders(
               any_join_key_attributes_nullable_,
               input_relation_block_ids_[num_workorders_generated_],
               hash_table,
-              storage_manager),
+              storage_manager,
+              CreateLIPFilterBuilderHelper(lip_deployment_index_, query_context)),
           op_index_);
       ++num_workorders_generated_;
     }
@@ -136,10 +140,10 @@ serialization::WorkOrder* BuildHashOperator::createWorkOrderProto(const block_id
                       any_join_key_attributes_nullable_);
   proto->SetExtension(serialization::BuildHashWorkOrder::join_hash_table_index, hash_table_index_);
   proto->SetExtension(serialization::BuildHashWorkOrder::block_id, block);
+  proto->SetExtension(serialization::BuildHashWorkOrder::lip_deployment_index, lip_deployment_index_);
 
   return proto;
 }
-
 
 void BuildHashWorkOrder::execute() {
   BlockReference block(
@@ -147,6 +151,13 @@ void BuildHashWorkOrder::execute() {
 
   TupleReferenceGenerator generator(build_block_id_);
   std::unique_ptr<ValueAccessor> accessor(block->getTupleStorageSubBlock().createValueAccessor());
+
+  // Build LIPFilters if enabled.
+  if (lip_filter_builder_ != nullptr) {
+    lip_filter_builder_->insertValueAccessor(accessor.get());
+    accessor->beginIterationVirtual();
+  }
+
   HashTablePutResult result;
   if (join_key_attributes_.size() == 1) {
     result = hash_table_->putValueAccessor(accessor.get(),

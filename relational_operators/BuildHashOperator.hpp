@@ -20,6 +20,7 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_BUILD_HASH_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_BUILD_HASH_OPERATOR_HPP_
 
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -31,6 +32,7 @@
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
+#include "utility/lip_filter/LIPFilterBuilder.hpp"
 
 #include "glog/logging.h"
 
@@ -162,6 +164,7 @@ class BuildHashWorkOrder : public WorkOrder {
    * @param build_block_id The block id.
    * @param hash_table The JoinHashTable to use.
    * @param storage_manager The StorageManager to use.
+   * @param lip_filter_builder The attached LIP filter builer.
    **/
   BuildHashWorkOrder(const std::size_t query_id,
                      const CatalogRelationSchema &input_relation,
@@ -169,14 +172,16 @@ class BuildHashWorkOrder : public WorkOrder {
                      const bool any_join_key_attributes_nullable,
                      const block_id build_block_id,
                      JoinHashTable *hash_table,
-                     StorageManager *storage_manager)
+                     StorageManager *storage_manager,
+                     LIPFilterBuilder *lip_filter_builder = nullptr)
       : WorkOrder(query_id),
         input_relation_(input_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         build_block_id_(build_block_id),
         hash_table_(DCHECK_NOTNULL(hash_table)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
+        lip_filter_builder_(lip_filter_builder) {}
 
   /**
    * @brief Constructor for the distributed version.
@@ -189,6 +194,7 @@ class BuildHashWorkOrder : public WorkOrder {
    * @param build_block_id The block id.
    * @param hash_table The JoinHashTable to use.
    * @param storage_manager The StorageManager to use.
+   * @param lip_filter_builder The attached LIP filter builer.
    **/
   BuildHashWorkOrder(const std::size_t query_id,
                      const CatalogRelationSchema &input_relation,
@@ -196,14 +202,16 @@ class BuildHashWorkOrder : public WorkOrder {
                      const bool any_join_key_attributes_nullable,
                      const block_id build_block_id,
                      JoinHashTable *hash_table,
-                     StorageManager *storage_manager)
+                     StorageManager *storage_manager,
+                     LIPFilterBuilder *lip_filter_builder = nullptr)
       : WorkOrder(query_id),
         input_relation_(input_relation),
         join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         build_block_id_(build_block_id),
         hash_table_(DCHECK_NOTNULL(hash_table)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
+        storage_manager_(DCHECK_NOTNULL(storage_manager)),
+        lip_filter_builder_(lip_filter_builder) {}
 
   ~BuildHashWorkOrder() override {}
 
@@ -221,6 +229,8 @@ class BuildHashWorkOrder : public WorkOrder {
 
   JoinHashTable *hash_table_;
   StorageManager *storage_manager_;
+
+  std::unique_ptr<LIPFilterBuilder> lip_filter_builder_;
 
   DISALLOW_COPY_AND_ASSIGN(BuildHashWorkOrder);
 };

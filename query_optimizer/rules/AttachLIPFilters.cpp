@@ -36,6 +36,7 @@
 #include "query_optimizer/physical/PhysicalType.hpp"
 #include "query_optimizer/physical/Selection.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "types/TypedValue.hpp"
 #include "utility/lip_filter/LIPFilter.hpp"
 
 #include "glog/logging.h"
@@ -174,12 +175,16 @@ const std::vector<AttachLIPFilters::LIPFilterInfoPtr>& AttachLIPFilters
       if (selectivity < 1.0) {
         std::size_t cardinality = cost_model_->estimateCardinality(build_node);
         for (const auto &attr : hash_join->right_join_attributes()) {
-          lip_filters.emplace_back(
-              std::make_shared<LIPFilterInfo>(attr,
-                                              path.cdr()->node,
-                                              path.depth,
-                                              selectivity,
-                                              cardinality));
+          // NOTE(jianqiao): currently we only consider attributes of primitive
+          // fixed-length types.
+          if (TypedValue::HashIsReversible(attr->getValueType().getTypeID())) {
+            lip_filters.emplace_back(
+                std::make_shared<LIPFilterInfo>(attr,
+                                                path.cdr()->node,
+                                                path.depth,
+                                                selectivity,
+                                                cardinality));
+          }
         }
       }
     }

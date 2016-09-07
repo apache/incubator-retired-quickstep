@@ -92,6 +92,8 @@ target_link_libraries(quickstep_relationaloperators_AggregationOperator
                       quickstep_storage_AggregationOperationState
                       quickstep_storage_StorageBlockInfo
                       quickstep_utility_Macros
+                      quickstep_utility_lipfilter_LIPFilterAdaptiveProber
+                      quickstep_utility_lipfilter_LIPFilterUtil
                       tmb)
 target_link_libraries(quickstep_relationaloperators_BuildHashOperator
                       glog
@@ -111,6 +113,8 @@ target_link_libraries(quickstep_relationaloperators_BuildHashOperator
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_storage_ValueAccessor
                       quickstep_utility_Macros
+                      quickstep_utility_lipfilter_LIPFilterBuilder
+                      quickstep_utility_lipfilter_LIPFilterUtil
                       tmb)
 target_link_libraries(quickstep_relationaloperators_CreateIndexOperator
                       glog
@@ -223,6 +227,8 @@ target_link_libraries(quickstep_relationaloperators_HashJoinOperator
                       quickstep_types_containers_ColumnVector
                       quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_utility_Macros
+                      quickstep_utility_lipfilter_LIPFilterAdaptiveProber
+                      quickstep_utility_lipfilter_LIPFilterUtil
                       tmb)
 target_link_libraries(quickstep_relationaloperators_InsertOperator
                       glog
@@ -322,7 +328,11 @@ target_link_libraries(quickstep_relationaloperators_SelectOperator
                       quickstep_storage_StorageBlock
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
+                      quickstep_storage_TupleIdSequence
+                      quickstep_storage_ValueAccessor
                       quickstep_utility_Macros
+                      quickstep_utility_lipfilter_LIPFilterAdaptiveProber
+                      quickstep_utility_lipfilter_LIPFilterUtil
                       tmb)
 if(QUICKSTEP_HAVE_LIBNUMA)
 target_link_libraries(quickstep_relationaloperators_SelectOperator
@@ -492,6 +502,7 @@ target_link_libraries(quickstep_relationaloperators_WorkOrderFactory
                       quickstep_relationaloperators_WorkOrder_proto
                       quickstep_storage_StorageBlockInfo
                       quickstep_utility_Macros
+                      quickstep_utility_lipfilter_LIPFilterUtil
                       tmb)
 target_link_libraries(quickstep_relationaloperators_WorkOrder_proto
                       quickstep_relationaloperators_SortMergeRunOperator_proto

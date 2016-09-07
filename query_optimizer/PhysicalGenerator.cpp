@@ -50,7 +50,7 @@ DEFINE_bool(reorder_hash_joins, true,
             "cardinality and selective tables to be joined first, which is suitable "
             "for queries on star-schema tables.");
 
-DEFINE_bool(use_lip_filters, false,
+DEFINE_bool(use_lip_filters, true,
             "If true, use LIP (Lookahead Information Passing) filters to accelerate "
             "query processing. LIP filters are effective for queries on star schema "
             "tables (e.g. the SSB benchmark) and snowflake schema tables (e.g. the "

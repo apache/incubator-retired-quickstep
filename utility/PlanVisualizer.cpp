@@ -132,9 +132,7 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
 
     for (const auto &attr : child->getOutputAttributes()) {
       if (referenced_ids.find(attr->id()) != referenced_ids.end()) {
-        edge_info.labels.emplace_back(
-            attr->attribute_alias() + ", est # distinct = " +
-            std::to_string(cost_model_->estimateNumDistinctValues(attr->id(), child)));
+        edge_info.labels.emplace_back(attr->attribute_alias());
       }
     }
   }

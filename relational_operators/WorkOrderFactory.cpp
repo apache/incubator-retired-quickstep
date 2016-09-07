@@ -50,6 +50,7 @@
 #include "relational_operators/WindowAggregationOperator.hpp"
 #include "relational_operators/WorkOrder.pb.h"
 #include "storage/StorageBlockInfo.hpp"
+#include "utility/lip_filter/LIPFilterUtil.hpp"
 
 #include "glog/logging.h"
 
@@ -61,6 +62,7 @@ using std::vector;
 namespace quickstep {
 
 class InsertDestination;
+class LIPFilterAdaptiveProber;
 class Predicate;
 class Scalar;
 
@@ -82,7 +84,9 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           proto.query_id(),
           proto.GetExtension(serialization::AggregationWorkOrder::block_id),
           query_context->getAggregationState(
-              proto.GetExtension(serialization::AggregationWorkOrder::aggr_state_index)));
+              proto.GetExtension(serialization::AggregationWorkOrder::aggr_state_index)),
+          CreateLIPFilterAdaptiveProberHelper(
+              proto.GetExtension(serialization::AggregationWorkOrder::lip_deployment_index), query_context));
     }
     case serialization::BUILD_HASH: {
       LOG(INFO) << "Creating BuildHashWorkOrder";
@@ -101,7 +105,9 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           proto.GetExtension(serialization::BuildHashWorkOrder::block_id),
           query_context->getJoinHashTable(
               proto.GetExtension(serialization::BuildHashWorkOrder::join_hash_table_index)),
-          storage_manager);
+          storage_manager,
+          CreateLIPFilterBuilderHelper(
+              proto.GetExtension(serialization::BuildHashWorkOrder::lip_deployment_index), query_context));
     }
     case serialization::DELETE: {
       LOG(INFO) << "Creating DeleteWorkOrder";
@@ -200,6 +206,9 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
       InsertDestination *output_destination =
           query_context->getInsertDestination(
               proto.GetExtension(serialization::HashJoinWorkOrder::insert_destination_index));
+      LIPFilterAdaptiveProber *lip_filter_adaptive_prober =
+          CreateLIPFilterAdaptiveProberHelper(
+              proto.GetExtension(serialization::HashJoinWorkOrder::lip_deployment_index), query_context);
 
       switch (hash_join_work_order_type) {
         case serialization::HashJoinWorkOrder::HASH_ANTI_JOIN: {
@@ -215,7 +224,8 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               selection,
               hash_table,
               output_destination,
-              storage_manager);
+              storage_manager,
+              lip_filter_adaptive_prober);
         }
         case serialization::HashJoinWorkOrder::HASH_INNER_JOIN: {
           LOG(INFO) << "Creating HashInnerJoinWorkOrder";
@@ -230,7 +240,8 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               selection,
               hash_table,
               output_destination,
-              storage_manager);
+              storage_manager,
+              lip_filter_adaptive_prober);
         }
         case serialization::HashJoinWorkOrder::HASH_OUTER_JOIN: {
           vector<bool> is_selection_on_build;
@@ -253,7 +264,8 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               move(is_selection_on_build),
               hash_table,
               output_destination,
-              storage_manager);
+              storage_manager,
+              lip_filter_adaptive_prober);
         }
         case serialization::HashJoinWorkOrder::HASH_SEMI_JOIN: {
           LOG(INFO) << "Creating HashSemiJoinWorkOrder";
@@ -268,7 +280,8 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               selection,
               hash_table,
               output_destination,
-              storage_manager);
+              storage_manager,
+              lip_filter_adaptive_prober);
         }
         default:
           LOG(FATAL) << "Unknown HashJoinWorkOrder Type in WorkOrderFactory::ReconstructFromProto";
@@ -346,7 +359,9 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
                                   proto.GetExtension(serialization::SelectWorkOrder::selection_index)),
           query_context->getInsertDestination(
               proto.GetExtension(serialization::SelectWorkOrder::insert_destination_index)),
-          storage_manager);
+          storage_manager,
+          CreateLIPFilterAdaptiveProberHelper(
+              proto.GetExtension(serialization::HashJoinWorkOrder::lip_deployment_index), query_context));
     }
     case serialization::SORT_MERGE_RUN: {
       LOG(INFO) << "Creating SortMergeRunWorkOrder";
@@ -459,6 +474,17 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
 
   switch (proto.work_order_type()) {
     case serialization::AGGREGATION: {
+      if (!proto.HasExtension(serialization::AggregationWorkOrder::lip_deployment_index)) {
+        return false;
+      } else {
+        const QueryContext::lip_deployment_id lip_deployment_index =
+            proto.GetExtension(serialization::AggregationWorkOrder::lip_deployment_index);
+        if (lip_deployment_index != QueryContext::kInvalidLIPDeploymentId &&
+            !query_context.isValidLIPDeploymentId(lip_deployment_index)) {
+          return false;
+        }
+      }
+
       return proto.HasExtension(serialization::AggregationWorkOrder::block_id) &&
              proto.HasExtension(serialization::AggregationWorkOrder::aggr_state_index) &&
              query_context.isValidAggregationStateId(
@@ -478,6 +504,17 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
       for (int i = 0; i < proto.ExtensionSize(serialization::BuildHashWorkOrder::join_key_attributes); ++i) {
         if (!relation.hasAttributeWithId(
                 proto.GetExtension(serialization::BuildHashWorkOrder::join_key_attributes, i))) {
+          return false;
+        }
+      }
+
+      if (!proto.HasExtension(serialization::BuildHashWorkOrder::lip_deployment_index)) {
+        return false;
+      } else {
+        const QueryContext::lip_deployment_id lip_deployment_index =
+            proto.GetExtension(serialization::BuildHashWorkOrder::lip_deployment_index);
+        if (lip_deployment_index != QueryContext::kInvalidLIPDeploymentId &&
+            !query_context.isValidLIPDeploymentId(lip_deployment_index)) {
           return false;
         }
       }
@@ -552,6 +589,17 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
         const attribute_id attr_id =
             proto.GetExtension(serialization::HashJoinWorkOrder::join_key_attributes, i);
         if (!probe_relation.hasAttributeWithId(attr_id)) {
+          return false;
+        }
+      }
+
+      if (!proto.HasExtension(serialization::HashJoinWorkOrder::lip_deployment_index)) {
+        return false;
+      } else {
+        const QueryContext::lip_deployment_id lip_deployment_index =
+            proto.GetExtension(serialization::HashJoinWorkOrder::lip_deployment_index);
+        if (lip_deployment_index != QueryContext::kInvalidLIPDeploymentId &&
+            !query_context.isValidLIPDeploymentId(lip_deployment_index)) {
           return false;
         }
       }
@@ -653,6 +701,17 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
               query_context.isValidScalarGroupId(
                   proto.GetExtension(serialization::SelectWorkOrder::selection_index))) {
         return false;
+      }
+
+      if (!proto.HasExtension(serialization::SelectWorkOrder::lip_deployment_index)) {
+        return false;
+      } else {
+        const QueryContext::lip_deployment_id lip_deployment_index =
+            proto.GetExtension(serialization::SelectWorkOrder::lip_deployment_index);
+        if (lip_deployment_index != QueryContext::kInvalidLIPDeploymentId &&
+            !query_context.isValidLIPDeploymentId(lip_deployment_index)) {
+          return false;
+        }
       }
 
       return proto.HasExtension(serialization::SelectWorkOrder::insert_destination_index) &&

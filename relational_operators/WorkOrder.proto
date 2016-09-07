@@ -59,6 +59,7 @@ message AggregationWorkOrder {
     // All required.
     optional uint32 aggr_state_index = 16;
     optional fixed64 block_id = 17;
+    optional int32 lip_deployment_index = 18;
   }
 }
 
@@ -70,6 +71,7 @@ message BuildHashWorkOrder {
     optional bool any_join_key_attributes_nullable = 34;
     optional uint32 join_hash_table_index = 35;
     optional fixed64 block_id = 36;
+    optional int32 lip_deployment_index = 37;
   }
 }
 
@@ -131,6 +133,8 @@ message HashJoinWorkOrder {
     optional int32 residual_predicate_index = 169;
     // Used by HashOuterJoinWorkOrder only.
     repeated bool is_selection_on_build = 170;
+
+    optional int32 lip_deployment_index = 171;
   }
 }
 
@@ -185,9 +189,10 @@ message SelectWorkOrder {
 
     // When 'simple_projection' is true.
     repeated int32 simple_selection = 245;
-
     // Otherwise.
     optional int32 selection_index = 246;
+
+    optional int32 lip_deployment_index = 247;
   }
 }
 

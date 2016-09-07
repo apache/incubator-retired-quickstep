@@ -39,9 +39,6 @@ class ValueAccessor;
  *  @{
  */
 
-class LIPFilterBuilder;
-typedef std::shared_ptr<LIPFilterBuilder> LIPFilterBuilderPtr;
-
 /**
  * @brief Helper class for building LIPFilters from a relation (i.e. ValueAccessor).
  */

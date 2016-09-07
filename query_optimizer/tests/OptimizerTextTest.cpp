@@ -32,6 +32,7 @@ namespace quickstep {
 namespace optimizer {
 
 DECLARE_bool(reorder_hash_joins);
+DECLARE_bool(use_lip_filters);
 
 }
 }
@@ -57,9 +58,10 @@ int main(int argc, char** argv) {
   test_driver->registerOptions(
       quickstep::optimizer::OptimizerTextTestRunner::kTestOptions);
 
-  // Turn off join order optimization for optimizer test since it is up to change
-  // and affects a large number of test cases.
+  // Turn off join order optimization and LIPFilter for optimizer test since
+  // it is up to change and affects a large number of test cases.
   quickstep::optimizer::FLAGS_reorder_hash_joins = false;
+  quickstep::optimizer::FLAGS_use_lip_filters = false;
 
   ::testing::InitGoogleTest(&argc, argv);
   int success = RUN_ALL_TESTS();

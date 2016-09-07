@@ -313,6 +313,17 @@ class StorageBlock : public StorageBlockBase {
       ValueAccessor *accessor);
 
   /**
+   * @brief Get the IDs of tuples in this StorageBlock which match a given Predicate.
+   *
+   * @param predicate The predicate to match.
+   * @param filter If non-NULL, then only tuple IDs which are set in the
+   *        filter will be checked (all others will be assumed to be false).
+   * @return A TupleIdSequence which contains matching tuple IDs for predicate.
+   **/
+  TupleIdSequence* getMatchesForPredicate(const Predicate *predicate,
+                                          const TupleIdSequence *filter = nullptr) const;
+
+  /**
    * @brief Perform a random sampling of data on  the StorageBlock. The number
    *       of records sampled is determined by the sample percentage in case of
    *       tuple sample. For block sample all the records in a block are taken.
@@ -336,8 +347,8 @@ class StorageBlock : public StorageBlockBase {
    *
    * @param selection A list of scalars, which will be evaluated to obtain
    *        attribute values for each result tuple.
-   * @param predicate A predicate for selection. NULL indicates that all tuples
-   *        should be matched.
+   * @param filter If non-NULL, then only tuple IDs which are set in the
+   *        filter will be checked (all others will be assumed to be false).
    * @param destination Where to insert the tuples resulting from the SELECT
    *        query.
    * @exception TupleTooLargeForBlock A tuple produced by this selection was
@@ -348,18 +359,18 @@ class StorageBlock : public StorageBlockBase {
    *
    **/
   void select(const std::vector<std::unique_ptr<const Scalar>> &selection,
-              const Predicate *predicate,
+              const TupleIdSequence *filter,
               InsertDestinationInterface *destination) const;
 
   /**
    * @brief Perform a simple SELECT query on this StorageBlock which only
    *        projects attributes and does not evaluate expressions.
    *
+   * @param selection The attributes to project.
+   * @param filter If non-NULL, then only tuple IDs which are set in the
+   *        filter will be checked (all others will be assumed to be false).
    * @param destination Where to insert the tuples resulting from the SELECT
    *        query.
-   * @param selection The attributes to project.
-   * @param predicate A predicate for selection. NULL indicates that all tuples
-   *        should be matched.
    * @exception TupleTooLargeForBlock A tuple produced by this selection was
    *            too large to insert into an empty block provided by
    *            destination. Selection may be partially complete (with some
@@ -371,7 +382,7 @@ class StorageBlock : public StorageBlockBase {
    *         an inconsistent IndexSubBlock (see indicesAreConsistent()).
    **/
   void selectSimple(const std::vector<attribute_id> &selection,
-                    const Predicate *predicate,
+                    const TupleIdSequence *filter,
                     InsertDestinationInterface *destination) const;
 
   /**
@@ -384,23 +395,8 @@ class StorageBlock : public StorageBlockBase {
    * @param arguments_as_attributes If non-NULL, indicates a valid attribute_id
    *        for each of the elements in arguments, and is used to elide a copy.
    *        Has no effect if NULL, or if VECTOR_COPY_ELISION_LEVEL is NONE.
-   * @param predicate A predicate for selection. nullptr indicates that all
-   *        tuples should be aggregated on.
-   * @param reuse_matches This parameter is used to store and reuse tuple-id
-   *        sequence of matches pre-computed in an earlier invocations to
-   *        aggregate(). \c reuse_matches is never \c nullptr for ease of use.
-   *        Current invocation of aggregate() will reuse TupleIdSequence if
-   *        passed, otherwise compute a TupleIdSequence based on \c predicate
-   *        and store in \c reuse_matches. We use std::unique_ptr for each of
-   *        use, since the caller will not have to selective free.
-   *
-   * For example, see this relevant pseudo-C++ code:
-   * \code
-   * std::unique_ptr<TupleIdSequence> matches;
-   * for each aggregate {
-   *   block.aggregate(..., &matches);
-   * }
-   * \endcode
+   * @param filter If non-NULL, then only tuple IDs which are set in the
+   *        filter will be checked (all others will be assumed to be false).
    *
    * @return Aggregated state for this block in the form of an
    *         AggregationState. AggregationHandle::mergeStates() can be called
@@ -412,8 +408,7 @@ class StorageBlock : public StorageBlockBase {
       const AggregationHandle &handle,
       const std::vector<std::unique_ptr<const Scalar>> &arguments,
       const std::vector<attribute_id> *arguments_as_attributes,
-      const Predicate *predicate,
-      std::unique_ptr<TupleIdSequence> *reuse_matches) const;
+      const TupleIdSequence *filter) const;
 
   /**
    * @brief Perform GROUP BY aggregation on the tuples in the this storage
@@ -423,18 +418,10 @@ class StorageBlock : public StorageBlockBase {
    * @param group_by The list of GROUP BY attributes/expressions. The tuples in
    *        this storage block are grouped by these attributes before
    *        aggregation.
-   * @param predicate A predicate for selection. nullptr indicates that all
-   *        tuples should be aggregated on.
+   * @param filter If non-NULL, then only tuple IDs which are set in the
+   *        filter will be checked (all others will be assumed to be false).
    * @param hash_table Hash table to store aggregation state mapped based on
    *        GROUP BY value list (defined by \c group_by).
-   * @param reuse_matches This parameter is used to store and reuse tuple-id
-   *        sequence of matches pre-computed in an earlier invocations of
-   *        aggregateGroupBy(). \c reuse_matches is never \c nullptr for ease of
-   *        use.  Current invocation of aggregateGroupBy() will reuse
-   *        TupleIdSequence if passed, otherwise computes a TupleIdSequence based
-   *        on \c predicate and stores in \c reuse_matches. We use
-   *        std::unique_ptr for each of use, since the caller will not have to
-   *        selective free.
    * @param reuse_group_by_vectors This parameter is used to store and reuse
    *        GROUP BY attribute vectors pre-computed in an earlier invocation of
    *        aggregateGroupBy(). \c reuse_group_by_vectors is never \c nullptr
@@ -444,10 +431,9 @@ class StorageBlock : public StorageBlockBase {
    *
    * For sample usage of aggregateGroupBy, see this relevant pseudo-C++ code:
    * \code
-   * std::unique_ptr<TupleIdSequence> matches;
    * std::vector<std::unique_ptr<ColumnVector>> group_by_vectors;
    * for each aggregate {
-   *   block.aggregateGroupBy(..., &matches, &group_by_vectors);
+   *   block.aggregateGroupBy(..., &group_by_vectors);
    * }
    * \endcode
    **/
@@ -461,9 +447,8 @@ class StorageBlock : public StorageBlockBase {
   void aggregateGroupBy(
       const std::vector<std::vector<std::unique_ptr<const Scalar>>> &arguments,
       const std::vector<std::unique_ptr<const Scalar>> &group_by,
-      const Predicate *predicate,
+      const TupleIdSequence *filter,
       AggregationStateHashTableBase *hash_table,
-      std::unique_ptr<TupleIdSequence> *reuse_matches,
       std::vector<std::unique_ptr<ColumnVector>> *reuse_group_by_vectors) const;
 
   /**
@@ -481,19 +466,11 @@ class StorageBlock : public StorageBlockBase {
    *        for each of the elements in arguments, and is used to elide a copy.
    *        Has no effect if NULL, or if VECTOR_COPY_ELISION_LEVEL is NONE.
    * @param group_by The list of GROUP BY attributes/expressions.
-   * @param predicate A predicate for selection. \c nullptr indicates that all
-   *        tuples should be aggregated on.
+   * @param filter If non-NULL, then only tuple IDs which are set in the
+   *        filter will be checked (all others will be assumed to be false).
    * @param distinctify_hash_table Hash table to store the arguments and GROUP
    *        BY expressions together as hash table key and a bool constant \c true
    *        as hash table value. (So the hash table actually serves as a hash set.)
-   * @param reuse_matches This parameter is used to store and reuse tuple-id
-   *        sequence of matches pre-computed in an earlier invocations of
-   *        aggregateGroupBy(). \c reuse_matches is never \c nullptr for ease of
-   *        use.  Current invocation of aggregateGroupBy() will reuse
-   *        TupleIdSequence if passed, otherwise computes a TupleIdSequence based
-   *        on \c predicate and stores in \c reuse_matches. We use
-   *        std::unique_ptr for each of use, since the caller will not have to
-   *        selective free.
    * @param reuse_group_by_vectors This parameter is used to store and reuse
    *        GROUP BY attribute vectors pre-computed in an earlier invocation of
    *        aggregateGroupBy(). \c reuse_group_by_vectors is never \c nullptr
@@ -505,9 +482,8 @@ class StorageBlock : public StorageBlockBase {
                          const std::vector<std::unique_ptr<const Scalar>> &arguments,
                          const std::vector<attribute_id> *arguments_as_attributes,
                          const std::vector<std::unique_ptr<const Scalar>> &group_by,
-                         const Predicate *predicate,
+                         const TupleIdSequence *filter,
                          AggregationStateHashTableBase *distinctify_hash_table,
-                         std::unique_ptr<TupleIdSequence> *reuse_matches,
                          std::vector<std::unique_ptr<ColumnVector>> *reuse_group_by_vectors) const;
 
   /**
@@ -626,8 +602,6 @@ class StorageBlock : public StorageBlockBase {
   // rebuild, without rebuilding any subsequent IndexSubBlocks or updating this
   // StorageBlock's header.
   bool rebuildIndexes(bool short_circuit);
-
-  TupleIdSequence* getMatchesForPredicate(const Predicate *predicate) const;
 
   std::unordered_map<attribute_id, TypedValue>* generateUpdatedValues(
       const ValueAccessor &accessor,

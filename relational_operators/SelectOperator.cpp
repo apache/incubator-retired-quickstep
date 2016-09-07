@@ -30,6 +30,10 @@
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
+#include "storage/TupleIdSequence.hpp"
+#include "storage/ValueAccessor.hpp"
+#include "utility/lip_filter/LIPFilterAdaptiveProber.hpp"
+#include "utility/lip_filter/LIPFilterUtil.hpp"
 
 #include "glog/logging.h"
 
@@ -40,22 +44,26 @@ namespace quickstep {
 class Predicate;
 
 void SelectOperator::addWorkOrders(WorkOrdersContainer *container,
+                                   QueryContext *query_context,
                                    StorageManager *storage_manager,
                                    const Predicate *predicate,
                                    const std::vector<std::unique_ptr<const Scalar>> *selection,
                                    InsertDestination *output_destination) {
   if (input_relation_is_stored_) {
     for (const block_id input_block_id : input_relation_block_ids_) {
-      container->addNormalWorkOrder(new SelectWorkOrder(query_id_,
-                                                        input_relation_,
-                                                        input_block_id,
-                                                        predicate,
-                                                        simple_projection_,
-                                                        simple_selection_,
-                                                        selection,
-                                                        output_destination,
-                                                        storage_manager),
-                                    op_index_);
+      container->addNormalWorkOrder(
+          new SelectWorkOrder(
+              query_id_,
+              input_relation_,
+              input_block_id,
+              predicate,
+              simple_projection_,
+              simple_selection_,
+              selection,
+              output_destination,
+              storage_manager,
+              CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
+          op_index_);
     }
   } else {
     while (num_workorders_generated_ < input_relation_block_ids_.size()) {
@@ -69,7 +77,8 @@ void SelectOperator::addWorkOrders(WorkOrdersContainer *container,
               simple_selection_,
               selection,
               output_destination,
-              storage_manager),
+              storage_manager,
+              CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
           op_index_);
       ++num_workorders_generated_;
     }
@@ -78,6 +87,7 @@ void SelectOperator::addWorkOrders(WorkOrdersContainer *container,
 
 #ifdef QUICKSTEP_HAVE_LIBNUMA
 void SelectOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
+                                                 QueryContext *query_context,
                                                  StorageManager *storage_manager,
                                                  const Predicate *predicate,
                                                  const std::vector<std::unique_ptr<const Scalar>> *selection,
@@ -99,6 +109,7 @@ void SelectOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
                 selection,
                 output_destination,
                 storage_manager,
+                CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context),
                 placement_scheme_->getNUMANodeForBlock(input_block_id)),
             op_index_);
       }
@@ -120,6 +131,7 @@ void SelectOperator::addPartitionAwareWorkOrders(WorkOrdersContainer *container,
                 selection,
                 output_destination,
                 storage_manager,
+                CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context),
                 placement_scheme_->getNUMANodeForBlock(block_in_partition)),
             op_index_);
         ++num_workorders_generated_in_partition_[part_id];
@@ -151,11 +163,21 @@ bool SelectOperator::getAllWorkOrders(
       if (input_relation_.hasPartitionScheme()) {
 #ifdef QUICKSTEP_HAVE_LIBNUMA
         if (input_relation_.hasNUMAPlacementScheme()) {
-          addPartitionAwareWorkOrders(container, storage_manager, predicate, selection, output_destination);
+          addPartitionAwareWorkOrders(container,
+                                      query_context,
+                                      storage_manager,
+                                      predicate,
+                                      selection,
+                                      output_destination);
         }
 #endif
       } else {
-        addWorkOrders(container, storage_manager, predicate, selection, output_destination);
+        addWorkOrders(container,
+                      query_context,
+                      storage_manager,
+                      predicate,
+                      selection,
+                      output_destination);
       }
       started_ = true;
     }
@@ -164,11 +186,21 @@ bool SelectOperator::getAllWorkOrders(
     if (input_relation_.hasPartitionScheme()) {
 #ifdef QUICKSTEP_HAVE_LIBNUMA
         if (input_relation_.hasNUMAPlacementScheme()) {
-          addPartitionAwareWorkOrders(container, storage_manager, predicate, selection, output_destination);
+          addPartitionAwareWorkOrders(container,
+                                      query_context,
+                                      storage_manager,
+                                      predicate,
+                                      selection,
+                                      output_destination);
         }
 #endif
     } else {
-        addWorkOrders(container, storage_manager, predicate, selection, output_destination);
+        addWorkOrders(container,
+                      query_context,
+                      storage_manager,
+                      predicate,
+                      selection,
+                      output_destination);
     }
     return done_feeding_input_relation_;
   }
@@ -210,22 +242,41 @@ serialization::WorkOrder* SelectOperator::createWorkOrderProto(const block_id bl
     }
   }
   proto->SetExtension(serialization::SelectWorkOrder::selection_index, selection_index_);
+  proto->SetExtension(serialization::SelectWorkOrder::lip_deployment_index, lip_deployment_index_);
 
   return proto;
 }
-
 
 void SelectWorkOrder::execute() {
   BlockReference block(
       storage_manager_->getBlock(input_block_id_, input_relation_, getPreferredNUMANodes()[0]));
 
+  // NOTE(jianqiao): For SSB and TPCH queries, experiments show that it is almost
+  // always better to apply the predicate BEFORE the LIPFilters. But as a future
+  // work this ordering may even be adaptive.
+  std::unique_ptr<TupleIdSequence> predicate_matches;
+  if (predicate_ != nullptr) {
+    predicate_matches.reset(
+        block->getMatchesForPredicate(predicate_));
+  }
+
+  std::unique_ptr<TupleIdSequence> matches;
+  if (lip_filter_adaptive_prober_ != nullptr) {
+    std::unique_ptr<ValueAccessor> accessor(
+        block->getTupleStorageSubBlock().createValueAccessor(predicate_matches.get()));
+    matches.reset(
+        lip_filter_adaptive_prober_->filterValueAccessor(accessor.get()));
+  } else {
+    matches.reset(predicate_matches.release());
+  }
+
   if (simple_projection_) {
     block->selectSimple(simple_selection_,
-                        predicate_,
+                        matches.get(),
                         output_destination_);
   } else {
     block->select(*DCHECK_NOTNULL(selection_),
-                  predicate_,
+                  matches.get(),
                   output_destination_);
   }
 }
