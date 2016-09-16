@@ -367,184 +367,111 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *acce
 tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttributes(
     const std::vector<attribute_id> &attribute_map,
     ValueAccessor *accessor) {
-  DEBUG_ASSERT(attribute_map.size() == relation_.size());
+  DCHECK_EQ(relation_.size(), attribute_map.size());
   const tuple_id original_num_tuples = header_->num_tuples;
   tuple_id pos = 0;
 
+  BasicInsertInfo insertInfo(relation_);
+
   InvokeOnAnyValueAccessor(
-      accessor,
-      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
-    if (relation_.hasNullableAttributes()) {
-      if (relation_.isVariableLength()) {
-        while (accessor->next()) {
-          pos = this->isPacked() ? header_->num_tuples
-                                 : occupancy_bitmap_->firstZero(pos);
+    accessor,
+    [&](auto *accessor) -> void {  // NOLINT(build/c++11
+      while (accessor->next()) {
+        // If packed, insert at the end of the slot array, otherwise find the
+        // first hole.
+        pos = this->isPacked() ? header_->num_tuples
+                               : occupancy_bitmap_->firstZero(pos);
+
+        // Only calculate space used if needed.
+        if (!this->spaceToInsert(pos, insertInfo.max_var_length_)) {
           const std::size_t tuple_variable_bytes
-              = CalculateVariableSizeWithRemappedAttributes<decltype(*accessor), true>(
-                  relation_, *accessor, attribute_map);
+            = CalculateVariableSizeWithRemappedAttributes<decltype(*accessor), true>(relation_, *accessor, attribute_map);
           if (!this->spaceToInsert(pos, tuple_variable_bytes)) {
             accessor->previous();
             break;
           }
-          header_->variable_length_bytes_allocated += tuple_variable_bytes;
-
-          void *tuple_slot = static_cast<char*>(tuple_storage_) + pos * tuple_slot_bytes_;
-          BitVector<true> tuple_null_bitmap(tuple_slot,
-                                            relation_.numNullableAttributes());
-          tuple_null_bitmap.clear();
-          char *fixed_length_attr_storage = static_cast<char*>(tuple_slot) + per_tuple_null_bitmap_bytes_;
-          std::uint32_t *variable_length_info_array = reinterpret_cast<std::uint32_t*>(
-              fixed_length_attr_storage + relation_.getFixedByteLength());
-          std::uint32_t current_variable_position
-              = tuple_storage_bytes_ - header_->variable_length_bytes_allocated;
-
-          std::vector<attribute_id>::const_iterator attr_map_it = attribute_map.begin();
-          for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
-               attr_it != relation_.end();
-               ++attr_it, ++attr_map_it) {
-            const int nullable_idx = relation_.getNullableAttributeIndex(attr_it->getID());
-            const int variable_idx = relation_.getVariableLengthAttributeIndex(attr_it->getID());
-            TypedValue attr_value(accessor->getTypedValue(*attr_map_it));
-            if ((nullable_idx != -1) && (attr_value.isNull())) {
-              tuple_null_bitmap.setBit(nullable_idx, true);
-              continue;
-            }
-            if (variable_idx != -1) {
-              const std::size_t attr_size = attr_value.getDataSize();
-              variable_length_info_array[variable_idx << 1] = current_variable_position;
-              variable_length_info_array[(variable_idx << 1) + 1] = attr_size;
-              attr_value.copyInto(static_cast<char*>(tuple_storage_) + current_variable_position);
-              current_variable_position += attr_size;
-            } else {
-              attr_value.copyInto(fixed_length_attr_storage
-                                  + relation_.getFixedLengthAttributeOffset(attr_it->getID()));
-            }
-          }
-          occupancy_bitmap_->setBit(pos, true);
-          ++(header_->num_tuples);
-          if (pos > header_->max_tid) {
-            header_->max_tid = pos;
-          }
         }
-      } else {
-        while (accessor->next()) {
-          pos = this->isPacked() ? header_->num_tuples
-                                 : occupancy_bitmap_->firstZero(pos);
-          if (!this->spaceToInsert(pos, 0)) {
-            accessor->previous();
-            break;
-          }
-          void *tuple_slot = static_cast<char*>(tuple_storage_) + pos * tuple_slot_bytes_;
-          BitVector<true> tuple_null_bitmap(tuple_slot,
-                                            relation_.numNullableAttributes());
-          tuple_null_bitmap.clear();
-          char *fixed_length_attr_storage = static_cast<char*>(tuple_slot) + per_tuple_null_bitmap_bytes_;
 
-          std::vector<attribute_id>::const_iterator attr_map_it = attribute_map.begin();
-          for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
-               attr_it != relation_.end();
-               ++attr_it, ++attr_map_it) {
-            const int nullable_idx = relation_.getNullableAttributeIndex(attr_it->getID());
-            if (nullable_idx != -1) {
-              const void *attr_value = accessor->template getUntypedValue<true>(*attr_map_it);
-              if (attr_value == nullptr) {
-                tuple_null_bitmap.setBit(nullable_idx, true);
-              } else {
-                std::memcpy(fixed_length_attr_storage
-                                + relation_.getFixedLengthAttributeOffset(attr_it->getID()),
-                            attr_value,
-                            attr_it->getType().maximumByteLength());
-              }
-            } else {
-              const void *attr_value = accessor->template getUntypedValue<false>(*attr_map_it);
-              std::memcpy(fixed_length_attr_storage
-                              + relation_.getFixedLengthAttributeOffset(attr_it->getID()),
-                          attr_value,
-                          attr_it->getType().maximumByteLength());
-            }
-          }
-          occupancy_bitmap_->setBit(pos, true);
-          ++(header_->num_tuples);
-          if (pos > header_->max_tid) {
-            header_->max_tid = pos;
-          }
-        }
-      }
-    } else {
-      if (relation_.isVariableLength()) {
-        while (accessor->next()) {
-          pos = this->isPacked() ? header_->num_tuples
-                                 : occupancy_bitmap_->firstZero(pos);
-          const std::size_t tuple_variable_bytes
-              = CalculateVariableSizeWithRemappedAttributes<decltype(*accessor), false>(
-                  relation_, *accessor, attribute_map);
-          if (!this->spaceToInsert(pos, tuple_variable_bytes)) {
-            accessor->previous();
-            break;
-          }
-          header_->variable_length_bytes_allocated += tuple_variable_bytes;
+        // Find the slot and locate its sub-structures.
+        void *tuple_slot = static_cast<char *>(tuple_storage_) + pos * tuple_slot_bytes_;
 
-          void *tuple_slot = static_cast<char*>(tuple_storage_) + pos * tuple_slot_bytes_;
-          char *fixed_length_attr_storage = static_cast<char*>(tuple_slot) + per_tuple_null_bitmap_bytes_;
-          std::uint32_t *variable_length_info_array = reinterpret_cast<std::uint32_t*>(
-              fixed_length_attr_storage + relation_.getFixedByteLength());
-          std::uint32_t current_variable_position
-              = tuple_storage_bytes_ - header_->variable_length_bytes_allocated;
+        BitVector<true> tuple_null_bitmap(tuple_slot, insertInfo.num_nullable_attrs_);
+        tuple_null_bitmap.clear();
+        char *fixed_length_attr_storage = static_cast<char *>(tuple_slot) + insertInfo.fixed_len_offset_;
+        std::uint32_t *variable_length_info_array =
+          reinterpret_cast<std::uint32_t *>(static_cast<char *>(tuple_slot) + insertInfo.var_len_offset_);
 
-          std::vector<attribute_id>::const_iterator attr_map_it = attribute_map.begin();
-          for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
-               attr_it != relation_.end();
-               ++attr_it, ++attr_map_it) {
-            const int variable_idx = relation_.getVariableLengthAttributeIndex(attr_it->getID());
-            TypedValue attr_value(accessor->getTypedValue(*attr_map_it));
-            if (variable_idx != -1) {
-              const std::size_t attr_size = attr_value.getDataSize();
-              variable_length_info_array[variable_idx << 1] = current_variable_position;
-              variable_length_info_array[(variable_idx << 1) + 1] = attr_size;
-              attr_value.copyInto(static_cast<char*>(tuple_storage_) + current_variable_position);
-              current_variable_position += attr_size;
-            } else {
-              attr_value.copyInto(fixed_length_attr_storage
-                                  + relation_.getFixedLengthAttributeOffset(attr_it->getID()));
-            }
-          }
-          occupancy_bitmap_->setBit(pos, true);
-          ++(header_->num_tuples);
-          if (pos > header_->max_tid) {
-            header_->max_tid = pos;
-          }
-        }
-      } else {
-        while (accessor->next()) {
-          pos = this->isPacked() ? header_->num_tuples
-                                 : occupancy_bitmap_->firstZero(pos);
-          if (!this->spaceToInsert(pos, 0)) {
-            accessor->previous();
-            break;
-          }
-          void *tuple_slot = static_cast<char*>(tuple_storage_) + pos * tuple_slot_bytes_;
-          char *fixed_length_attr_storage = static_cast<char*>(tuple_slot) + per_tuple_null_bitmap_bytes_;
+        // Start writing variable-length data at the beginning of the
+        // newly allocated range.
+        std::size_t current_variable_position = tuple_storage_bytes_ - header_->variable_length_bytes_allocated;
+        std::uint32_t current_null_idx = 0;
+        for (attribute_id accessor_attr_id = 0; accessor_attr_id < insertInfo.num_attrs_; ++accessor_attr_id) {
+          bool nullable = insertInfo.is_nullable_.getBit(accessor_attr_id);
+          bool variable = insertInfo.is_variable_.getBit(accessor_attr_id);
 
-          std::vector<attribute_id>::const_iterator attr_map_it = attribute_map.begin();
-          for (CatalogRelationSchema::const_iterator attr_it = relation_.begin();
-               attr_it != relation_.end();
-               ++attr_it, ++attr_map_it) {
-            const void *attr_value = accessor->template getUntypedValue<false>(*attr_map_it);
-            std::memcpy(fixed_length_attr_storage
-                            + relation_.getFixedLengthAttributeOffset(attr_it->getID()),
+          if (!nullable && !variable) {
+            DCHECK_EQ(-1, relation_.getNullableAttributeIndex(accessor_attr_id));
+
+            const void *attr_value = accessor->template getUntypedValue<false>(attribute_map[accessor_attr_id]);
+            std::memcpy(fixed_length_attr_storage + insertInfo.fixed_len_offsets_[accessor_attr_id],
                         attr_value,
-                        attr_it->getType().maximumByteLength());
-          }
-          occupancy_bitmap_->setBit(pos, true);
-          ++(header_->num_tuples);
-          if (pos > header_->max_tid) {
-            header_->max_tid = pos;
+                        insertInfo.fixed_len_sizes_[accessor_attr_id]);
+          } else if (nullable && !variable) {
+            DCHECK_EQ(relation_.getNullableAttributeIndex(accessor_attr_id), current_null_idx);
+
+            TypedValue attr_value(accessor->getTypedValue(attribute_map[accessor_attr_id]));
+            if (attr_value.isNull()) {
+              tuple_null_bitmap.setBit(current_null_idx, true);
+            } else {
+              std::memcpy(fixed_length_attr_storage + insertInfo.fixed_len_offsets_[accessor_attr_id],
+                          attr_value.getDataPtr(),
+                          insertInfo.fixed_len_sizes_[accessor_attr_id]);
+            }
+            current_null_idx++;
+          } else if (!nullable && variable) {
+            TypedValue attr_value(accessor->getTypedValue(attribute_map[accessor_attr_id]));
+
+            DCHECK_EQ(-1, relation_.getNullableAttributeIndex(accessor_attr_id));
+            DCHECK_EQ(insertInfo.var_len_offsets_[accessor_attr_id],
+                      relation_.getVariableLengthAttributeIndex(accessor_attr_id));
+            DCHECK(!attr_value.isNull());
+
+            const std::size_t attr_size = attr_value.getDataSize();
+            current_variable_position -= attr_size;
+            const int var_len_info_idx = insertInfo.var_len_offsets_[accessor_attr_id] * 2;
+            variable_length_info_array[var_len_info_idx] = current_variable_position;
+            variable_length_info_array[var_len_info_idx + 1] = attr_size;
+            attr_value.copyInto(static_cast<char *>(tuple_storage_) + current_variable_position);
+
+            header_->variable_length_bytes_allocated += attr_size;
+          } else {  // nullable, variable length
+            DCHECK_EQ(current_null_idx, relation_.getNullableAttributeIndex(accessor_attr_id));
+
+            TypedValue attr_value(accessor->getTypedValue(attribute_map[accessor_attr_id]));
+            if (attr_value.isNull()) {
+              tuple_null_bitmap.setBit(current_null_idx, true);
+            } else {
+              DCHECK_EQ(relation_.getVariableLengthAttributeIndex(accessor_attr_id),
+                        insertInfo.var_len_offsets_[accessor_attr_id]);
+
+              const std::size_t attr_size = attr_value.getDataSize();
+              current_variable_position -= attr_size;
+              const int var_len_info_idx = insertInfo.var_len_offsets_[accessor_attr_id] * 2;
+              variable_length_info_array[var_len_info_idx] = current_variable_position;
+              variable_length_info_array[var_len_info_idx + 1] = attr_size;
+              attr_value.copyInto(static_cast<char *>(tuple_storage_) + current_variable_position);
+              header_->variable_length_bytes_allocated += attr_size;
+            }
+            current_null_idx++;
           }
         }
+        occupancy_bitmap_->setBit(pos, true);
+        ++(header_->num_tuples);
+        if (pos > header_->max_tid) {
+          header_->max_tid = pos;
+        }
       }
-    }
-  });
-
+    });
   return header_->num_tuples - original_num_tuples;
 }
 
