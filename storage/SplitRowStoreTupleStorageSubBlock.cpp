@@ -257,111 +257,13 @@ TupleStorageSubBlock::InsertResult SplitRowStoreTupleStorageSubBlock::insertTupl
 }
 
 tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *accessor) {
-  const tuple_id original_num_tuples = header_->num_tuples;
-  tuple_id pos = 0;
-
-  BasicInsertInfo insertInfo(relation_);
-
-  InvokeOnAnyValueAccessor(
-    accessor,
-    [&](auto *accessor) -> void {  // NOLINT(build/c++11
-      while (accessor->next()) {
-        // If packed, insert at the end of the slot array, otherwise find the
-        // first hole.
-        pos = this->isPacked() ? header_->num_tuples
-                               : occupancy_bitmap_->firstZero(pos);
-
-        // Only calculate space used if needed.
-        if (!this->spaceToInsert(pos, insertInfo.max_var_length_)) {
-          const std::size_t tuple_variable_bytes
-            = CalculateVariableSize<decltype(*accessor), true>(relation_, *accessor);
-          if (!this->spaceToInsert(pos, tuple_variable_bytes)) {
-            accessor->previous();
-            break;
-          }
-        }
-
-        // Find the slot and locate its sub-structures.
-        void *tuple_slot = static_cast<char *>(tuple_storage_) + pos * tuple_slot_bytes_;
-
-        BitVector<true> tuple_null_bitmap(tuple_slot, insertInfo.num_nullable_attrs_);
-        tuple_null_bitmap.clear();
-        char *fixed_length_attr_storage = static_cast<char *>(tuple_slot) + insertInfo.fixed_len_offset_;
-        std::uint32_t *variable_length_info_array =
-          reinterpret_cast<std::uint32_t *>(static_cast<char *>(tuple_slot) + insertInfo.var_len_offset_);
-
-        // Start writing variable-length data at the beginning of the
-        // newly allocated range.
-        std::size_t current_variable_position = tuple_storage_bytes_ - header_->variable_length_bytes_allocated;
-        std::uint32_t current_null_idx = 0;
-        for (attribute_id accessor_attr_id = 0; accessor_attr_id < insertInfo.num_attrs_; ++accessor_attr_id) {
-          bool nullable = insertInfo.is_nullable_.getBit(accessor_attr_id);
-          bool variable = insertInfo.is_variable_.getBit(accessor_attr_id);
-
-          if (!nullable && !variable) {
-            DCHECK_EQ(-1, relation_.getNullableAttributeIndex(accessor_attr_id));
-
-            const void *attr_value = accessor->template getUntypedValue<false>(accessor_attr_id);
-            std::memcpy(fixed_length_attr_storage + insertInfo.fixed_len_offsets_[accessor_attr_id],
-                        attr_value,
-                        insertInfo.fixed_len_sizes_[accessor_attr_id]);
-          } else if (nullable && !variable) {
-            DCHECK_EQ(relation_.getNullableAttributeIndex(accessor_attr_id), current_null_idx);
-
-            TypedValue attr_value(accessor->getTypedValue(accessor_attr_id));
-            if (attr_value.isNull()) {
-              tuple_null_bitmap.setBit(current_null_idx, true);
-            } else {
-              std::memcpy(fixed_length_attr_storage + insertInfo.fixed_len_offsets_[accessor_attr_id],
-                          attr_value.getDataPtr(),
-                          insertInfo.fixed_len_sizes_[accessor_attr_id]);
-            }
-            current_null_idx++;
-          } else if (!nullable && variable) {
-            TypedValue attr_value(accessor->getTypedValue(accessor_attr_id));
-
-            DCHECK_EQ(-1, relation_.getNullableAttributeIndex(accessor_attr_id));
-            DCHECK_EQ(insertInfo.var_len_offsets_[accessor_attr_id],
-                      relation_.getVariableLengthAttributeIndex(accessor_attr_id));
-            DCHECK(!attr_value.isNull());
-
-            const std::size_t attr_size = attr_value.getDataSize();
-            current_variable_position -= attr_size;
-            const int var_len_info_idx = insertInfo.var_len_offsets_[accessor_attr_id] * 2;
-            variable_length_info_array[var_len_info_idx] = current_variable_position;
-            variable_length_info_array[var_len_info_idx + 1] = attr_size;
-            attr_value.copyInto(static_cast<char *>(tuple_storage_) + current_variable_position);
-
-            header_->variable_length_bytes_allocated += attr_size;
-          } else {  // nullable, variable length
-            DCHECK_EQ(current_null_idx, relation_.getNullableAttributeIndex(accessor_attr_id));
-
-            TypedValue attr_value(accessor->getTypedValue(accessor_attr_id));
-            if (attr_value.isNull()) {
-              tuple_null_bitmap.setBit(current_null_idx, true);
-            } else {
-              DCHECK_EQ(relation_.getVariableLengthAttributeIndex(accessor_attr_id),
-                        insertInfo.var_len_offsets_[accessor_attr_id]);
-
-              const std::size_t attr_size = attr_value.getDataSize();
-              current_variable_position -= attr_size;
-              const int var_len_info_idx = insertInfo.var_len_offsets_[accessor_attr_id] * 2;
-              variable_length_info_array[var_len_info_idx] = current_variable_position;
-              variable_length_info_array[var_len_info_idx + 1] = attr_size;
-              attr_value.copyInto(static_cast<char *>(tuple_storage_) + current_variable_position);
-              header_->variable_length_bytes_allocated += attr_size;
-            }
-            current_null_idx++;
-          }
-        }
-        occupancy_bitmap_->setBit(pos, true);
-        ++(header_->num_tuples);
-        if (pos > header_->max_tid) {
-          header_->max_tid = pos;
-        }
-      }
-    });
-  return header_->num_tuples - original_num_tuples;
+  std::vector<attribute_id> simple_remap;
+  for (attribute_id attr_id = 0; 
+			attr_id < static_cast<attribute_id>(relation_.size());
+			++attr_id) {
+    simple_remap.push_back(attr_id);
+  }
+  return bulkInsertTuplesWithRemappedAttributes(simple_remap, accessor);
 }
 
 tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttributes(
@@ -385,7 +287,8 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribut
         // Only calculate space used if needed.
         if (!this->spaceToInsert(pos, insertInfo.max_var_length_)) {
           const std::size_t tuple_variable_bytes
-            = CalculateVariableSizeWithRemappedAttributes<decltype(*accessor), true>(relation_, *accessor, attribute_map);
+            = CalculateVariableSizeWithRemappedAttributes<decltype(*accessor), true>(relation_, *accessor,
+                                                                                     attribute_map);
           if (!this->spaceToInsert(pos, tuple_variable_bytes)) {
             accessor->previous();
             break;
@@ -405,7 +308,8 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribut
         // newly allocated range.
         std::size_t current_variable_position = tuple_storage_bytes_ - header_->variable_length_bytes_allocated;
         std::uint32_t current_null_idx = 0;
-        for (attribute_id accessor_attr_id = 0; accessor_attr_id < insertInfo.num_attrs_; ++accessor_attr_id) {
+        for (attribute_id accessor_attr_id = 0;
+             static_cast<std::size_t >(accessor_attr_id) < insertInfo.num_attrs_; ++accessor_attr_id) {
           bool nullable = insertInfo.is_nullable_.getBit(accessor_attr_id);
           bool variable = insertInfo.is_variable_.getBit(accessor_attr_id);
 
@@ -417,7 +321,7 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribut
                         attr_value,
                         insertInfo.fixed_len_sizes_[accessor_attr_id]);
           } else if (nullable && !variable) {
-            DCHECK_EQ(relation_.getNullableAttributeIndex(accessor_attr_id), current_null_idx);
+            DCHECK_EQ(relation_.getNullableAttributeIndex(accessor_attr_id), static_cast<int>(current_null_idx));
 
             TypedValue attr_value(accessor->getTypedValue(attribute_map[accessor_attr_id]));
             if (attr_value.isNull()) {
@@ -445,7 +349,7 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribut
 
             header_->variable_length_bytes_allocated += attr_size;
           } else {  // nullable, variable length
-            DCHECK_EQ(current_null_idx, relation_.getNullableAttributeIndex(accessor_attr_id));
+            DCHECK_EQ(static_cast<int>(current_null_idx), relation_.getNullableAttributeIndex(accessor_attr_id));
 
             TypedValue attr_value(accessor->getTypedValue(attribute_map[accessor_attr_id]));
             if (attr_value.isNull()) {
