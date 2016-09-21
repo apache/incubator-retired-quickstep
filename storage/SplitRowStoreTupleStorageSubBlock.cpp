@@ -149,6 +149,16 @@ struct BasicInsertInfo {
   std::vector<std::int32_t> var_len_offsets_;
 };
 
+// Information related to inserting a single attribute into a table
+struct AttributeInsertInfo {
+
+  bool is_variable_;
+  bool is_null_;
+
+  std::size_t fixed_length_offset_;
+  std::size_t fixed_length_size_;
+  std::size_t var_length_offset_;
+};
 }  // namespace
 
 SplitRowStoreTupleStorageSubBlock::SplitRowStoreTupleStorageSubBlock(
@@ -266,14 +276,42 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *acce
   return bulkInsertTuplesWithRemappedAttributes(simple_remap, accessor);
 }
 
+template <typename ValueAccessorT, bool nullable_attrs>
+inline std::size_t CalculateVariableSizeWithRemappedAttributes(
+  const CatalogRelationSchema &relation,
+  const ValueAccessorT &accessor,
+  const std::vector<attribute_id> &attribute_map) {
+  std::size_t total_size = 0;
+  std::vector<attribute_id>::const_iterator attr_map_it = attribute_map.begin();
+  for (CatalogRelationSchema::const_iterator attr_it = relation.begin();
+       attr_it != relation.end();
+       ++attr_it, ++attr_map_it) {
+    if (!attr_it->getType().isVariableLength()) {
+      continue;
+    }
+
+    TypedValue value(accessor.getTypedValue(*attr_map_it));
+    if (nullable_attrs && value.isNull()) {
+      continue;
+    }
+    total_size += value.getDataSize();
+  }
+  return total_size;
+}
+
 tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttributes(
     const std::vector<attribute_id> &attribute_map,
     ValueAccessor *accessor) {
   DCHECK_EQ(relation_.size(), attribute_map.size());
   const tuple_id original_num_tuples = header_->num_tuples;
-  tuple_id pos = 0;
 
   BasicInsertInfo insertInfo(relation_);
+
+  // only append to the end of the block
+  tuple_id pos = header_->num_tuples;
+  // the minimum number of tuples possible to append
+  int append_lower_bound = 0;
+  void *tuple_slot = static_cast<char *>(tuple_storage_) + pos * tuple_slot_bytes_;
 
   InvokeOnAnyValueAccessor(
     accessor,
@@ -281,22 +319,23 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribut
       while (accessor->next()) {
         // If packed, insert at the end of the slot array, otherwise find the
         // first hole.
-        pos = this->isPacked() ? header_->num_tuples
-                               : occupancy_bitmap_->firstZero(pos);
 
-        // Only calculate space used if needed.
-        if (!this->spaceToInsert(pos, insertInfo.max_var_length_)) {
-          const std::size_t tuple_variable_bytes
-            = CalculateVariableSizeWithRemappedAttributes<decltype(*accessor), true>(relation_, *accessor,
-                                                                                     attribute_map);
-          if (!this->spaceToInsert(pos, tuple_variable_bytes)) {
+        // recalculate the lower bound for number of tuples to append
+        if (append_lower_bound == 0) {
+          std::size_t remaining_storage = (tuple_storage_bytes_ - header_->variable_length_bytes_allocated)
+                                          - ((header_->max_tid + 1) * tuple_slot_bytes_);
+          DCHECK_LE(static_cast<std::size_t>(0), remaining_storage);
+          append_lower_bound = remaining_storage/relation_.getMaximumByteLength(); // TODO prefetch
+
+          // We have run out of space to append.
+          // TODO(marc) We may want to go into a 'fill in the gaps' mode here if there are deleted tuples.
+          // TODO(marc) We may also want to check the available space against the actual tuples size versus the
+          //            estimated maximum size.
+         if (append_lower_bound == 0) {
             accessor->previous();
             break;
           }
         }
-
-        // Find the slot and locate its sub-structures.
-        void *tuple_slot = static_cast<char *>(tuple_storage_) + pos * tuple_slot_bytes_;
 
         BitVector<true> tuple_null_bitmap(tuple_slot, insertInfo.num_nullable_attrs_);
         tuple_null_bitmap.clear();
@@ -323,16 +362,18 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribut
           } else if (nullable && !variable) {
             DCHECK_EQ(relation_.getNullableAttributeIndex(accessor_attr_id), static_cast<int>(current_null_idx));
 
-            TypedValue attr_value(accessor->getTypedValue(attribute_map[accessor_attr_id]));
-            if (attr_value.isNull()) {
+            const void *attr_value = accessor->getUntypedValue(attribute_map[accessor_attr_id]);
+            if (attr_value == nullptr) {
               tuple_null_bitmap.setBit(current_null_idx, true);
             } else {
               std::memcpy(fixed_length_attr_storage + insertInfo.fixed_len_offsets_[accessor_attr_id],
-                          attr_value.getDataPtr(),
+                          attr_value,
                           insertInfo.fixed_len_sizes_[accessor_attr_id]);
             }
             current_null_idx++;
           } else if (!nullable && variable) {
+            // TODO(marc) this TypedValue can be replaced by a call for a pointer + length once that is implemented
+            // in ValueAccessor
             TypedValue attr_value(accessor->getTypedValue(attribute_map[accessor_attr_id]));
 
             DCHECK_EQ(-1, relation_.getNullableAttributeIndex(accessor_attr_id));
@@ -345,7 +386,9 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribut
             const int var_len_info_idx = insertInfo.var_len_offsets_[accessor_attr_id] * 2;
             variable_length_info_array[var_len_info_idx] = current_variable_position;
             variable_length_info_array[var_len_info_idx + 1] = attr_size;
-            attr_value.copyInto(static_cast<char *>(tuple_storage_) + current_variable_position);
+            std::memcpy(static_cast<char *>(tuple_storage_) + current_variable_position,
+                        attr_value.getDataPtr(),
+                        attr_size);
 
             header_->variable_length_bytes_allocated += attr_size;
           } else {  // nullable, variable length
@@ -369,11 +412,15 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribut
             current_null_idx++;
           }
         }
+
         occupancy_bitmap_->setBit(pos, true);
         ++(header_->num_tuples);
-        if (pos > header_->max_tid) {
-          header_->max_tid = pos;
-        }
+        header_->max_tid = pos;
+        append_lower_bound -= 1;
+        pos += 1;
+        tuple_slot = static_cast<void *>(static_cast<char *>(tuple_slot) + tuple_slot_bytes_);
+
+        DCHECK_EQ(static_cast<char *>(tuple_storage_) + pos * tuple_slot_bytes_, static_cast<char *>(tuple_slot));
       }
     });
   return header_->num_tuples - original_num_tuples;
