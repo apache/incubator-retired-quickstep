@@ -52,6 +52,61 @@ class BasicColumnStoreValueAccessorHelper {
     return num_tuples_;
   }
 
+  /**
+   * @brief Returns whether this accessor has a fast strided ColumnAccessor available
+   *        that can be used to optimize memory access in a tight loop iteration
+   *        over the underlying storage block.
+   *
+   * @return true if fast ColumnAccessor is supported, otherwise false.
+   */
+  inline bool isColumnAccessorSupported() const {
+    return true;
+  }
+
+  /**
+   * @brief Get a pointer to a ColumnAccessor object that provides a fast strided memory
+   *        access on the underlying storage block.
+   * @note The ownership of the returned object lies with the caller.
+   * @warning This method should only be called if isColumnAccessorSupported() method
+   *          returned true. If ColumnAccessor is not supported this method will return a nullptr.
+   *
+   * @param current_tuple_position A constant reference to the tuple position in the containing
+   *        ValueAccessor. This reference value is shared between the containing ValueAccessor &
+   *        a ColumnAccessor. However, a ColumnAccessor *CANNOT* modify this tuple position.
+   * @param attr_id The attribute id on which this ColumnAccessor will be created.
+   *
+   * @return A pointer to a ColumnAccessor object with specific properties set that can be used
+   *         in a tight loop iterations over the underlying storage block.
+   **/
+  template <bool check_null = true>
+  inline const ColumnAccessor<check_null>* getColumnAccessor(const tuple_id &current_tuple_position,
+                                                             const attribute_id attr_id) const {
+    DEBUG_ASSERT(relation_.hasAttributeWithId(attr_id));
+    const void* base_location = static_cast<const char*>(column_stripes_[attr_id]);
+    const std::size_t stride = relation_.getAttributeById(attr_id)->getType().maximumByteLength();
+    std::unique_ptr<ColumnAccessor<check_null>> column_accessor;
+    if (check_null) {
+      // The nullable_base might get initialized to -1 if column_null_bitmaps returns false for
+      // the given attribute. Setting the nullable_base to -1 will mean that
+      // column accessor will always evaluate null check to false.
+      const int nullable_base = (!column_null_bitmaps_.elementIsNull(attr_id)) ? 0 : -1;
+      const unsigned nullable_stride = 1;
+      column_accessor.reset(new ColumnAccessor<check_null>(current_tuple_position,
+                                                           num_tuples_,
+                                                           base_location,
+                                                           stride,
+                                                           &(column_null_bitmaps_[attr_id]),
+                                                           nullable_base,
+                                                           nullable_stride));
+    } else {
+      column_accessor.reset(new ColumnAccessor<check_null>(current_tuple_position,
+                                                           num_tuples_,
+                                                           base_location,
+                                                           stride));
+    }
+    return column_accessor.release();
+  }
+
   template <bool check_null>
   inline const void* getAttributeValue(const tuple_id tuple,
                                        const attribute_id attr) const {

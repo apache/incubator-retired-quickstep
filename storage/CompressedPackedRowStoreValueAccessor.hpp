@@ -75,6 +75,39 @@ class CompressedPackedRowStoreValueAccessorHelper {
     return num_tuples_;
   }
 
+  /**
+   * @brief Returns whether this accessor has a fast strided ColumnAccessor available
+   *        that can be used to optimize memory access in a tight loop iteration
+   *        over the underlying storage block.
+   *
+   * @return true if fast ColumnAccessor is supported, otherwise false.
+   */
+  inline bool isColumnAccessorSupported() const {
+    return false;
+  }
+
+  /**
+   * @brief Get a pointer to a ColumnAccessor object that provides a fast strided memory
+   *        access on the underlying storage block.
+   * @note The ownership of the returned object lies with the caller.
+   * @warning This method should only be called if isColumnAccessorSupported() method
+   *          returned true. If ColumnAccessor is not supported this method will return a nullptr.
+   *
+   * @param current_tuple_position A constant reference to the tuple position in the containing
+   *        ValueAccessor. This reference value is shared between the containing ValueAccessor &
+   *        a ColumnAccessor. However, a ColumnAccessor *CANNOT* modify this tuple position.
+   * @param attr_id The attribute id on which this ColumnAccessor will be created.
+   *
+   * @return A pointer to a ColumnAccessor object with specific properties set that can be used
+   *         in a tight loop iterations over the underlying storage block.
+   **/
+  template <bool check_null = true>
+  inline const ColumnAccessor<check_null>* getColumnAccessor(const tuple_id &current_tuple_position,
+                                                             const attribute_id attr_id) const {
+    // Return nullptr because this value accessor does not support column accessor yet.
+    return nullptr;
+  }
+
   template <bool check_null>
   inline const void* getAttributeValue(const tuple_id tuple,
                                        const attribute_id attr) const {

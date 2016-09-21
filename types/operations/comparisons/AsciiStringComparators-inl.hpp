@@ -273,13 +273,32 @@ TupleIdSequence* AsciiStringUncheckedComparator<ComparisonFunctor,
       }
     } else {
       accessor->beginIteration();
-      while (accessor->next()) {
-        const void *left_value = accessor->template getUntypedValue<left_nullable>(left_id);
-        const void *right_value = accessor->template getUntypedValue<right_nullable>(right_id);
-        result->set(accessor->getCurrentPosition(),
-                    (!(left_nullable && (left_value == nullptr))
-                        || (right_nullable && (right_value == nullptr)))
-                            && this->compareDataPtrsHelper<true>(left_value, right_value));
+      if (accessor->isColumnAccessorSupported()) {
+        // If ColumnAccessor is supported on the underlying accessor, we have a fast strided
+        // column accessor available for the iteration on the underlying block.
+        std::unique_ptr<const ColumnAccessor<left_nullable>>
+            left_column_accessor(accessor->template getColumnAccessor<left_nullable>(left_id));
+        std::unique_ptr<const ColumnAccessor<right_nullable>>
+            right_column_accessor(accessor->template getColumnAccessor<right_nullable>(right_id));
+        DEBUG_ASSERT(left_column_accessor != nullptr);
+        DEBUG_ASSERT(right_column_accessor != nullptr);
+        while (accessor->next()) {
+          const void *left_value = left_column_accessor->getUntypedValue();
+          const void *right_value = right_column_accessor->getUntypedValue();
+          result->set(accessor->getCurrentPosition(),
+                      (!(left_nullable && (left_value == nullptr))
+                          || (right_nullable && (right_value == nullptr)))
+                          && this->compareDataPtrsHelper<true>(left_value, right_value));
+        }
+      } else {
+        while (accessor->next()) {
+          const void *left_value = accessor->template getUntypedValue<left_nullable>(left_id);
+          const void *right_value = accessor->template getUntypedValue<right_nullable>(right_id);
+          result->set(accessor->getCurrentPosition(),
+                      (!(left_nullable && (left_value == nullptr))
+                          || (right_nullable && (right_value == nullptr)))
+                          && this->compareDataPtrsHelper<true>(left_value, right_value));
+        }
       }
       if (!short_circuit && (filter != nullptr)) {
         result->intersectWith(*filter);
@@ -333,12 +352,28 @@ TupleIdSequence* AsciiStringUncheckedComparator<ComparisonFunctor,
       }
     } else {
       accessor->beginIteration();
-      while (accessor->next()) {
-        const void *va_value
-            = accessor->template getUntypedValue<va_nullable>(value_accessor_attr_id);
-        result->set(accessor->getCurrentPosition(),
-                    !(va_nullable && (va_value == nullptr))
-                        && this->compareDataPtrsHelper<value_accessor_on_left>(va_value, static_string));
+      if (accessor->isColumnAccessorSupported()) {
+        // If ColumnAccessor is supported on the underlying accessor, we have a fast strided
+        // column accessor available for the iteration on the underlying block.
+        std::unique_ptr<const ColumnAccessor<va_nullable>>
+            column_accessor(accessor->template getColumnAccessor<va_nullable>(value_accessor_attr_id));
+        DEBUG_ASSERT(column_accessor != nullptr);
+        while (accessor->next()) {
+          const void *va_value = column_accessor->getUntypedValue();
+          result->set(accessor->getCurrentPosition(),
+                      !(va_nullable && (va_value == nullptr))
+                          && this->compareDataPtrsHelper<value_accessor_on_left>(va_value,
+                                                                                 static_string));
+        }
+      } else {
+        while (accessor->next()) {
+          const void *va_value
+              = accessor->template getUntypedValue<va_nullable>(value_accessor_attr_id);
+          result->set(accessor->getCurrentPosition(),
+                      !(va_nullable && (va_value == nullptr))
+                          && this->compareDataPtrsHelper<value_accessor_on_left>(va_value,
+                                                                                 static_string));
+        }
       }
       if (!short_circuit && (filter != nullptr)) {
         result->intersectWith(*filter);
@@ -448,16 +483,36 @@ TupleIdSequence* AsciiStringUncheckedComparator<ComparisonFunctor,
         } else {
           accessor->beginIteration();
           std::size_t cv_pos = 0;
-          while (accessor->next()) {
-            const void *cv_value
-                = column_vector.template getUntypedValue<cv_nullable>(cv_pos);
-            const void *va_value
-                = accessor->template getUntypedValue<va_nullable>(value_accessor_attr_id);
-            result->set(cv_pos,
-                        (!((cv_nullable && (cv_value == nullptr))
-                            || (va_nullable && (va_value == nullptr))))
-                                && this->compareDataPtrsHelper<column_vector_on_left>(cv_value, va_value));
-            ++cv_pos;
+          if (accessor->isColumnAccessorSupported()) {
+            // If ColumnAccessor is supported on the underlying accessor, we have a fast strided
+            // column accessor available for the iteration on the underlying block.
+            std::unique_ptr<const ColumnAccessor<va_nullable>>
+                column_accessor(accessor->template getColumnAccessor<va_nullable>(value_accessor_attr_id));
+            DEBUG_ASSERT(column_accessor != nullptr);
+            while (accessor->next()) {
+              const void *cv_value
+                  = column_vector.template getUntypedValue<cv_nullable>(cv_pos);
+              const void *va_value = column_accessor->getUntypedValue();
+              result->set(cv_pos,
+                          (!((cv_nullable && (cv_value == nullptr))
+                              || (va_nullable && (va_value == nullptr))))
+                              && this->compareDataPtrsHelper<column_vector_on_left>(cv_value,
+                                                                                    va_value));
+              ++cv_pos;
+            }
+          } else {
+            while (accessor->next()) {
+              const void *cv_value
+                  = column_vector.template getUntypedValue<cv_nullable>(cv_pos);
+              const void *va_value
+                  = accessor->template getUntypedValue<va_nullable>(value_accessor_attr_id);
+              result->set(cv_pos,
+                          (!((cv_nullable && (cv_value == nullptr))
+                              || (va_nullable && (va_value == nullptr))))
+                              && this->compareDataPtrsHelper<column_vector_on_left>(cv_value,
+                                                                                    va_value));
+              ++cv_pos;
+            }
           }
         }
         if (!short_circuit && (filter != nullptr)) {

@@ -309,11 +309,28 @@ TupleIdSequence* UncheckedComparator::compareSingleValueAccessorDefaultImpl(
       }
     } else {
       accessor->beginIteration();
-      while (accessor->next()) {
-        result->set(accessor->getCurrentPosition(),
-                    this->compareDataPtrs(
-                        accessor->template getUntypedValue<left_nullable>(left_id),
-                        accessor->template getUntypedValue<right_nullable>(right_id)));
+      if (accessor->isColumnAccessorSupported()) {
+        // If ColumnAccessor is supported on the underlying accessor, we have a fast strided
+        // column accessor available for the iteration on the underlying block.
+        std::unique_ptr<const ColumnAccessor<left_nullable>>
+            left_column_accessor(accessor->template getColumnAccessor<left_nullable>(left_id));
+        std::unique_ptr<const ColumnAccessor<right_nullable>>
+            right_column_accessor(accessor->template getColumnAccessor<right_nullable>(right_id));
+        DEBUG_ASSERT(left_column_accessor != nullptr);
+        DEBUG_ASSERT(right_column_accessor != nullptr);
+        while (accessor->next()) {
+          result->set(accessor->getCurrentPosition(),
+                      this->compareDataPtrs(
+                          left_column_accessor->getUntypedValue(),
+                          right_column_accessor->getUntypedValue()));
+        }
+      } else {
+        while (accessor->next()) {
+          result->set(accessor->getCurrentPosition(),
+                      this->compareDataPtrs(
+                          accessor->template getUntypedValue<left_nullable>(left_id),
+                          accessor->template getUntypedValue<right_nullable>(right_id)));
+        }
       }
       if (!short_circuit && (filter != nullptr)) {
         result->intersectWith(*filter);

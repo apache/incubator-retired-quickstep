@@ -41,6 +41,9 @@ namespace quickstep {
 
 class TupleStorageSubBlock;
 
+template <bool check_null = true>
+class ColumnAccessor;
+
 // TODO(chasseur): Iteration on ValueAccessors is row-at-a-time, but in some
 // cases column-wise data movement may be more efficient.
 
@@ -180,6 +183,18 @@ class ValueAccessor {
    * @return The actual number of tuples accessible via this ValueAccessor.
    **/
   virtual tuple_id getNumTuplesVirtual() const = 0;
+
+  /**
+   * @brief Returns whether this accessor has a fast strided ColumnAccessor available
+   *        that can be used to optimize memory access in a tight loop iteration
+   *        over the underlying storage block. Specific derived classes should override
+   *        this method if they support ColumnAccessor.
+   *
+   * @return true if fast ColumnAccessor is supported, otherwise false.
+   */
+  virtual inline bool isColumnAccessorSupported() const {
+    return false;
+  }
 
   /**
    * @brief Get a pointer to an untyped value for the current tuple in stateful
@@ -372,6 +387,24 @@ class TupleIdSequenceAdapterValueAccessor : public ValueAccessor {
     return id_sequence_.numTuples();
   }
 
+  /**
+   * @brief Get a pointer to a ColumnAccessor object that provides a fast strided memory
+   *        access on the underlying storage block.
+   * @note The ownership of the returned object lies with the caller.
+   * @warning This method should only be called if isColumnAccessorSupported() method
+   *          returned true. If ColumnAccessor is not supported this method will return a nullptr.
+   *
+   * @param attr_id The attribute id on which this ColumnAccessor will be created.
+   *
+   * @return A pointer to a ColumnAccessor object with specific properties set that can be used
+   *         in a tight loop iterations over the underlying storage block.
+   **/
+  template <bool check_null = true>
+  inline const ColumnAccessor<check_null>* getColumnAccessor(const attribute_id attr_id) const {
+    // Column Accessors are currently unsupported for this accessor, hence nullptr.
+    return nullptr;
+  }
+
   template <bool check_null = true>
   inline const void* getUntypedValue(const attribute_id attr_id) const {
     return accessor_->template getUntypedValueAtAbsolutePosition<check_null>(attr_id, *current_position_);
@@ -554,6 +587,24 @@ class OrderedTupleIdSequenceAdapterValueAccessor : public ValueAccessor {
 
   inline tuple_id getNumTuples() const {
     return id_sequence_.size();
+  }
+
+  /**
+   * @brief Get a pointer to a ColumnAccessor object that provides a fast strided memory
+   *        access on the underlying storage block.
+   * @note The ownership of the returned object lies with the caller.
+   * @warning This method should only be called if isColumnAccessorSupported() method
+   *          returned true. If ColumnAccessor is not supported this method will return a nullptr.
+   *
+   * @param attr_id The attribute id on which this ColumnAccessor will be created.
+   *
+   * @return A pointer to a ColumnAccessor object with specific properties set that can be used
+   *         in a tight loop iterations over the underlying storage block.
+   **/
+  template <bool check_null = true>
+  inline const ColumnAccessor<check_null>* getColumnAccessor(const attribute_id attr_id) const {
+    // Column Accessors are currently unsupported for this accessor, hence nullptr.
+    return nullptr;
   }
 
   template <bool check_null = true>
@@ -743,6 +794,27 @@ class PackedTupleStorageSubBlockValueAccessor : public ValueAccessor {
     return getTypedValueAtAbsolutePosition(attr_id, current_tuple_);
   }
 
+  inline bool isColumnAccessorSupported() const override {
+    return helper_.isColumnAccessorSupported();
+  }
+
+  /**
+   * @brief Get a pointer to a ColumnAccessor object that provides a fast strided memory
+   *        access on the underlying storage block.
+   * @note The ownership of the returned object lies with the caller.
+   * @warning This method should only be called if isColumnAccessorSupported() method
+   *          returned true. If ColumnAccessor is not supported this method will return a nullptr.
+   *
+   * @param attr_id The attribute id on which this ColumnAccessor will be created.
+   *
+   * @return A pointer to a ColumnAccessor object with specific properties set that can be used
+   *         in a tight loop iterations over the underlying storage block.
+   **/
+  template <bool check_null = true>
+  inline const ColumnAccessor<check_null>* getColumnAccessor(const attribute_id attr_id) const {
+    return helper_.template getColumnAccessor<check_null>(current_tuple_, attr_id);
+  }
+
   template <bool check_null = true>
   inline const void* getUntypedValueAtAbsolutePosition(const attribute_id attr_id,
                                                        const tuple_id tid) const {
@@ -894,6 +966,77 @@ class PackedTupleStorageSubBlockValueAccessor : public ValueAccessor {
   friend TupleStorageSubBlockT;
 
   DISALLOW_COPY_AND_ASSIGN(PackedTupleStorageSubBlockValueAccessor);
+};
+
+
+/**
+ * @brief ColumnAccessor is a helper template class that is used to optimize memory
+ *        access patterns for a ValueAccessor when it is used in a tight loop
+ *        to extract values for a given attribute from a given storage block.
+ **/
+template <bool check_null>
+class ColumnAccessor {
+ public:
+  /**
+   * @brief Constructor.
+   *
+   * @param current_tuple_position A constant reference to the tuple position in the containing
+   *        ValueAccessor. This reference value is shared between the containing ValueAccessor &
+   *        a ColumnAccessor. However, a ColumnAccessor *CANNOT* modify this tuple position.
+   * @param num_tuples Number of tuples for this block.
+   * @param base_address The starting address in memory for the first column value.
+   * @param stride The memory offset at which other column values will be found.
+   * @param null_bitmap The bitmap that will be referred in case of nullable attributes.
+   * @param nullable_base The starting index for the first nullable attribute in the bitmap.
+   *        Note that setting this value to -1 will essentially cause null checks to always
+   *        return false.
+   * @param nullable_stride The offset at which null bits will be found for
+   *        different attribute values.
+   **/
+  ColumnAccessor(const tuple_id &current_tuple_position,
+                 const std::size_t num_tuples,
+                 const void *base_address,
+                 const std::size_t stride,
+                 const BitVector<false> *null_bitmap = nullptr,
+                 const int nullable_base = -1,
+                 const unsigned nullable_stride = 0)
+      : current_tuple_position_(current_tuple_position),
+        num_tuples_(num_tuples),
+        base_address_(base_address),
+        stride_(stride),
+        null_bitmap_(null_bitmap),
+        nullable_base_(nullable_base),
+        nullable_stride_(nullable_stride) {
+  }
+
+  /**
+   * @brief Get a pointer to an untyped value for the current tuple in stateful
+   *        iteration over the given column.
+   *
+   * @return An untyped pointer to the attribute value for the current tuple.
+   **/
+  inline const void* getUntypedValue() const {
+    DEBUG_ASSERT(current_tuple_position_ < num_tuples_);
+    if (check_null) {
+      DEBUG_ASSERT(null_bitmap_ != nullptr);
+      if ((nullable_base_ != -1)
+          && null_bitmap_->getBit(current_tuple_position_ * nullable_stride_ + nullable_base_)) {
+        return nullptr;
+      }
+    }
+    return static_cast<const char*>(base_address_) + current_tuple_position_ * stride_;
+  }
+
+ private:
+  const tuple_id &current_tuple_position_;
+  const tuple_id num_tuples_;
+  const void *base_address_;
+  const std::size_t stride_;
+  const BitVector<false> *null_bitmap_;
+  const int nullable_base_;
+  const unsigned nullable_stride_;
+
+  DISALLOW_COPY_AND_ASSIGN(ColumnAccessor);
 };
 
 /** @} */

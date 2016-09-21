@@ -241,11 +241,25 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
       }
     } else {
       accessor->beginIteration();
-      while (accessor->next()) {
-        const void *va_value
-            = accessor->template getUntypedValue<left_nullable>(value_accessor_attr_id);
-        result->set(accessor->getCurrentPosition(),
-                    this->matchDataPtrWithPattern(va_value, re2_pattern));
+      if (accessor->isColumnAccessorSupported()) {
+        // If ColumnAccessor is supported on the underlying accessor, we have a fast strided
+        // column accessor available for the iteration on the underlying block.
+        std::unique_ptr<const ColumnAccessor<left_nullable>>
+            column_accessor
+            (accessor->template getColumnAccessor<left_nullable>(value_accessor_attr_id));
+        DEBUG_ASSERT(column_accessor != nullptr);
+        while (accessor->next()) {
+          const void *va_value = column_accessor->getUntypedValue();
+          result->set(accessor->getCurrentPosition(),
+                      this->matchDataPtrWithPattern(va_value, re2_pattern));
+        }
+      } else {
+        while (accessor->next()) {
+          const void *va_value
+              = accessor->template getUntypedValue<left_nullable>(value_accessor_attr_id);
+          result->set(accessor->getCurrentPosition(),
+                      this->matchDataPtrWithPattern(va_value, re2_pattern));
+        }
       }
       if (!short_circuit && (filter != nullptr)) {
         result->intersectWith(*filter);

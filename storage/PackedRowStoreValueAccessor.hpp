@@ -49,6 +49,60 @@ class PackedRowStoreValueAccessorHelper {
     return num_tuples_;
   }
 
+  /**
+   * @brief Returns whether this accessor has a fast strided ColumnAccessor available
+   *        that can be used to optimize memory access in a tight loop iteration
+   *        over the underlying storage block.
+   *
+   * @return true if fast ColumnAccessor is supported, otherwise false.
+   */
+  inline bool isColumnAccessorSupported() const {
+    return true;
+  }
+
+  /**
+   * @brief Get a pointer to a ColumnAccessor object that provides a fast strided memory
+   *        access on the underlying storage block.
+   * @note The ownership of the returned object lies with the caller.
+   * @warning This method should only be called if isColumnAccessorSupported() method
+   *          returned true. If ColumnAccessor is not supported this method will return a nullptr.
+   *
+   * @param current_tuple_position A constant reference to the tuple position in the containing
+   *        ValueAccessor. This reference value is shared between the containing ValueAccessor &
+   *        a ColumnAccessor. However, a ColumnAccessor *CANNOT* modify this tuple position.
+   * @param attr_id The attribute id on which this ColumnAccessor will be created.
+   *
+   * @return A pointer to a ColumnAccessor object with specific properties set that can be used
+   *         in a tight loop iterations over the underlying storage block.
+   **/
+  template <bool check_null = true>
+  inline const ColumnAccessor<check_null>* getColumnAccessor(const tuple_id &current_tuple_position,
+                                                             const attribute_id attr_id) const {
+    DEBUG_ASSERT(relation_.hasAttributeWithId(attr_id));
+    const void* base_location = static_cast<const char*>(tuple_storage_)
+        + relation_.getFixedLengthAttributeOffset(attr_id);
+    const std::size_t stride = relation_.getFixedByteLength();
+
+    std::unique_ptr<ColumnAccessor<check_null>> column_accessor;
+    if (check_null) {
+      const int nullable_base = relation_.getNullableAttributeIndex(attr_id);
+      const unsigned nullable_stride = relation_.numNullableAttributes();
+      column_accessor.reset(new ColumnAccessor<check_null>(current_tuple_position,
+                                                           num_tuples_,
+                                                           base_location,
+                                                           stride,
+                                                           null_bitmap_,
+                                                           nullable_base,
+                                                           nullable_stride));
+    } else {
+      column_accessor.reset(new ColumnAccessor<check_null>(current_tuple_position,
+                                                           num_tuples_,
+                                                           base_location,
+                                                           stride));
+    }
+    return column_accessor.release();
+  }
+
   template <bool check_null>
   inline const void* getAttributeValue(const tuple_id tuple,
                                        const attribute_id attr) const {

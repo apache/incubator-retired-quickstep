@@ -121,6 +121,24 @@ class ColumnVectorsValueAccessor : public ValueAccessor {
     return column_length_;
   }
 
+  /**
+   * @brief Get a pointer to a ColumnAccessor object that provides a fast strided memory
+   *        access on the underlying storage block.
+   * @note The ownership of the returned object lies with the caller.
+   * @warning This method should only be called if isColumnAccessorSupported() method
+   *          returned true. If ColumnAccessor is not supported this method will return a nullptr.
+   *
+   * @param attr_id The attribute id on which this ColumnAccessor will be created.
+   *
+   * @return A pointer to a ColumnAccessor object with specific properties set that can be used
+   *         in a tight loop iterations over the underlying storage block.
+   **/
+  template <bool check_null = true>
+  inline const ColumnAccessor<check_null>* getColumnAccessor(const attribute_id attr_id) const {
+    // Column Accessors are currently unsupported for this value accessor, hence nullptr.
+    return nullptr;
+  }
+
   template <bool check_null = true>
   inline const void* getUntypedValue(const attribute_id attr_id) const {
     return getUntypedValueAtAbsolutePosition<check_null>(attr_id, current_position_);
