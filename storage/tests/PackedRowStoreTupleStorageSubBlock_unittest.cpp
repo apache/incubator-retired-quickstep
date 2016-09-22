@@ -37,6 +37,8 @@
 #include "storage/StorageErrors.hpp"
 #include "storage/TupleIdSequence.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
+#include "storage/ValueAccessor.hpp"
+#include "storage/ValueAccessorUtil.hpp"
 #include "types/CharType.hpp"
 #include "types/DoubleType.hpp"
 #include "types/IntType.hpp"
@@ -248,6 +250,36 @@ class PackedRowStoreTupleStorageSubBlockTest : public ::testing::TestWithParam<b
                                                     tuple_store_->getAttributeValueTyped(tid, 2)));
     }
   }
+  
+  template<bool check_null>
+  void checkColumnAccessor() {
+    initializeNewBlock(kSubBlockSize);
+    fillBlockWithSampleData();
+    ASSERT_TRUE(tuple_store_->isPacked());
+    std::unique_ptr<ValueAccessor> accessor(tuple_store_->createValueAccessor());
+    attribute_id  value_accessor_id = 0;
+    tuple_id tid = 0;
+    InvokeOnAnyValueAccessor(accessor.get(),
+                             [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+      accessor->beginIteration();
+      ASSERT_TRUE(accessor->isColumnAccessorSupported());
+      std::unique_ptr<const ColumnAccessor<check_null>>
+      column_accessor(accessor->template getColumnAccessor<check_null>(value_accessor_id));
+      ASSERT_TRUE(column_accessor != nullptr);
+      while (accessor->next()) {
+        const void *va_value = column_accessor->getUntypedValue();
+        std::unique_ptr<Tuple> expected_tuple(createSampleTuple(tid));
+         
+        if (expected_tuple->getAttributeValue(value_accessor_id).isNull()) {
+          ASSERT_TRUE(va_value == nullptr);
+        } else {
+          ASSERT_TRUE(eq_comp_int_->compareDataPtrs(expected_tuple->getAttributeValue(value_accessor_id).getDataPtr(),
+                                                    va_value));
+        }
+        ++tid;
+      }
+    });
+  }
 
   std::unique_ptr<CatalogRelation> relation_;
   ScopedBuffer tuple_store_memory_;
@@ -373,6 +405,14 @@ TEST_P(PackedRowStoreTupleStorageSubBlockTest, InsertInBatchTest) {
   EXPECT_TRUE(tuple_store_->isPacked());
   EXPECT_EQ(row_capacity - 1, tuple_store_->getMaxTupleID());
   EXPECT_EQ(row_capacity, tuple_store_->numTuples());
+}
+  
+TEST_P(PackedRowStoreTupleStorageSubBlockTest, ColumnAccessorTest) {
+  if (GetParam()) { // when true, the attributes can be nullable.
+    checkColumnAccessor<true>();
+  } else { // when false, the attributes are non-null.
+    checkColumnAccessor<false>();
+  }
 }
 
 TEST_P(PackedRowStoreTupleStorageSubBlockTest, GetAttributeValueTest) {
