@@ -550,7 +550,7 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, BulkInsertWithRemappedAttributesTe
           relation_->getAttributeById(2)->getType(),
           max_tuple_capacity));
 
-  // TODO This code is shared with BulkInsertCode and can be refactored out.
+  // TODO(marc) This code is shared with BulkInsertCode and can be refactored out.
   std::size_t storage_used = 0;
   int current_tuple_idx = 0;
   std::size_t tuple_max_size = relation_->getMaximumByteLength();

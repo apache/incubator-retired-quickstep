@@ -111,11 +111,10 @@ struct AttributeInsertInfo {
 
 // Information related to inserting a relation into a table
 struct RelationInsertInfo {
-  RelationInsertInfo(const CatalogRelationSchema &relation)
+  RelationInsertInfo(const CatalogRelationSchema &relation, std::size_t tuple_slot_size)
     : num_attrs_(relation.size()),
       num_nullable_attrs_(relation.numNullableAttributes()),
-      max_tuple_size_(relation.getMaximumByteLength()),
-      max_var_length_(relation.getMaximumVariableByteLength()),
+      max_tuple_size_bytes_(tuple_slot_size + relation.getMaximumVariableByteLength()),
       fixed_len_offset_(BitVector<true>::BytesNeeded(num_nullable_attrs_)),
       var_len_offset_(fixed_len_offset_ + relation.getFixedByteLength()),
       attribute_info_() {
@@ -148,7 +147,7 @@ struct RelationInsertInfo {
   }
 
   ~RelationInsertInfo() {
-    for(attribute_id attr_info_idx = 0;
+    for (attribute_id attr_info_idx = 0;
         attr_info_idx < static_cast<attribute_id>(attribute_info_.size());
         ++attr_info_idx) {
       delete attribute_info_[attr_info_idx];
@@ -157,8 +156,7 @@ struct RelationInsertInfo {
 
   std::size_t num_attrs_;
   std::size_t num_nullable_attrs_;
-  std::size_t max_tuple_size_;
-  std::size_t max_var_length_;
+  std::size_t max_tuple_size_bytes_;
 
   // byte offset from the beginning of a tuple to the first fixed length attribute
   std::uint32_t fixed_len_offset_;
@@ -276,9 +274,9 @@ TupleStorageSubBlock::InsertResult SplitRowStoreTupleStorageSubBlock::insertTupl
 
 tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuples(ValueAccessor *accessor) {
   std::vector<attribute_id> simple_remap;
-  for (attribute_id attr_id = 0; 
-			attr_id < static_cast<attribute_id>(relation_.size());
-			++attr_id) {
+  for (attribute_id attr_id = 0;
+      attr_id < static_cast<attribute_id>(relation_.size());
+      ++attr_id) {
     simple_remap.push_back(attr_id);
   }
   return bulkInsertTuplesWithRemappedAttributes(simple_remap, accessor);
@@ -290,7 +288,7 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribut
   DCHECK_EQ(relation_.size(), attribute_map.size());
   const tuple_id original_num_tuples = header_->num_tuples;
 
-  RelationInsertInfo insert_info(relation_);
+  RelationInsertInfo insert_info(relation_, tuple_slot_bytes_);
 
   // only append to the end of the block
   tuple_id pos = header_->num_tuples;
@@ -299,17 +297,20 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribut
   void *tuple_slot = static_cast<char *>(tuple_storage_) + pos * tuple_slot_bytes_;
   BitVector<true> tuple_null_bitmap(tuple_slot, insert_info.num_nullable_attrs_);
 
+  // Start writing variable-length data at the beginning of the newly allocated range.
+  std::size_t current_variable_position = tuple_storage_bytes_ - header_->variable_length_bytes_allocated;
+
   InvokeOnAnyValueAccessor(
     accessor,
     [&](auto *accessor) -> void {  // NOLINT(build/c++11
       while (accessor->next()) {
-
         // Recalculate the lower bound for number of tuples to append.
         if (append_lower_bound == 0) {
-          std::size_t remaining_storage = (tuple_storage_bytes_ - header_->variable_length_bytes_allocated)
-                                          - ((header_->max_tid + 1) * tuple_slot_bytes_);
-          DCHECK_LE(static_cast<std::size_t>(0), remaining_storage);
-          append_lower_bound = remaining_storage/insert_info.max_tuple_size_;
+          std::size_t remaining_storage_bytes = tuple_storage_bytes_ -
+                                          (header_->variable_length_bytes_allocated +
+                                          ((header_->max_tid + 1) * tuple_slot_bytes_));
+          DCHECK_LE(static_cast<std::size_t>(0), remaining_storage_bytes);
+          append_lower_bound = remaining_storage_bytes/insert_info.max_tuple_size_bytes_;
 
           // We have run out of space to append.
           // TODO(marc) We may want to go into a 'fill in the gaps' mode here if there are deleted tuples.
@@ -320,14 +321,14 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribut
             break;
           }
         }
+
         tuple_null_bitmap.setMemory(tuple_slot);
         tuple_null_bitmap.clear();
         char *fixed_length_attr_storage = static_cast<char *>(tuple_slot) + insert_info.fixed_len_offset_;
         std::uint32_t *variable_length_info_array =
           reinterpret_cast<std::uint32_t *>(static_cast<char *>(tuple_slot) + insert_info.var_len_offset_);
 
-        // Start writing variable-length data at the beginning of the newly allocated range.
-        std::size_t current_variable_position = tuple_storage_bytes_ - header_->variable_length_bytes_allocated;
+
         std::uint32_t current_null_idx = 0;
         for (attribute_id accessor_attr_id = 0;
              accessor_attr_id < static_cast<attribute_id>(insert_info.num_attrs_);
@@ -366,6 +367,9 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribut
             DCHECK(!attr_value.isNull());
 
             const std::size_t attr_size = attr_value.getDataSize();
+
+            DCHECK_GE(current_variable_position, attr_size);
+
             current_variable_position -= attr_size;
             const int var_len_info_idx = attribute_insert_info.var_length_offset_ * 2;
             variable_length_info_array[var_len_info_idx] = current_variable_position;
@@ -386,6 +390,9 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribut
                         static_cast<int>(attribute_insert_info.var_length_offset_));
 
               const std::size_t attr_size = attr_value.getDataSize();
+
+              DCHECK_GE(current_variable_position, attr_size);
+
               current_variable_position -= attr_size;
               const int var_len_info_idx = attribute_insert_info.var_length_offset_ * 2;
               variable_length_info_array[var_len_info_idx] = current_variable_position;
@@ -400,12 +407,12 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertTuplesWithRemappedAttribut
         }
 
         occupancy_bitmap_->setBit(pos, true);
-        ++(header_->num_tuples);
+        header_->num_tuples += 1;
         header_->max_tid = pos;
         append_lower_bound -= 1;
         pos += 1;
-        tuple_slot = static_cast<void *>(static_cast<char *>(tuple_slot) + tuple_slot_bytes_);
 
+        tuple_slot = static_cast<char *>(tuple_slot) + tuple_slot_bytes_;
         DCHECK_EQ(static_cast<char *>(tuple_storage_) + pos * tuple_slot_bytes_, static_cast<char *>(tuple_slot));
       }
     });
