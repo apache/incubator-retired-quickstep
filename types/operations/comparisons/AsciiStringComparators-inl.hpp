@@ -280,8 +280,8 @@ TupleIdSequence* AsciiStringUncheckedComparator<ComparisonFunctor,
             left_column_accessor(accessor->template getColumnAccessor<left_nullable>(left_id));
         std::unique_ptr<const ColumnAccessor<right_nullable>>
             right_column_accessor(accessor->template getColumnAccessor<right_nullable>(right_id));
-        DEBUG_ASSERT(left_column_accessor != nullptr);
-        DEBUG_ASSERT(right_column_accessor != nullptr);
+        DCHECK(left_column_accessor != nullptr);
+        DCHECK(right_column_accessor != nullptr);
         while (accessor->next()) {
           const void *left_value = left_column_accessor->getUntypedValue();
           const void *right_value = right_column_accessor->getUntypedValue();
@@ -357,7 +357,7 @@ TupleIdSequence* AsciiStringUncheckedComparator<ComparisonFunctor,
         // column accessor available for the iteration on the underlying block.
         std::unique_ptr<const ColumnAccessor<va_nullable>>
             column_accessor(accessor->template getColumnAccessor<va_nullable>(value_accessor_attr_id));
-        DEBUG_ASSERT(column_accessor != nullptr);
+        DCHECK(column_accessor != nullptr);
         while (accessor->next()) {
           const void *va_value = column_accessor->getUntypedValue();
           result->set(accessor->getCurrentPosition(),
@@ -488,7 +488,7 @@ TupleIdSequence* AsciiStringUncheckedComparator<ComparisonFunctor,
             // column accessor available for the iteration on the underlying block.
             std::unique_ptr<const ColumnAccessor<va_nullable>>
                 column_accessor(accessor->template getColumnAccessor<va_nullable>(value_accessor_attr_id));
-            DEBUG_ASSERT(column_accessor != nullptr);
+            DCHECK(column_accessor != nullptr);
             while (accessor->next()) {
               const void *cv_value
                   = column_vector.template getUntypedValue<cv_nullable>(cv_pos);

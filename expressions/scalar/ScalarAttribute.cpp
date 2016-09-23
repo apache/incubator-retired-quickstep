@@ -100,18 +100,43 @@ ColumnVector* ScalarAttribute::getAllValues(ValueAccessor *accessor,
                                                           accessor->getNumTuples());
       accessor->beginIteration();
       if (result_type.isNullable()) {
-        while (accessor->next()) {
-          const void *value = accessor->template getUntypedValue<true>(attr_id);
-          if (value == nullptr) {
-            result->appendNullValue();
-          } else {
-            result->appendUntypedValue(value);
+        if (accessor->isColumnAccessorSupported()) {
+          // If ColumnAccessor is supported on the underlying accessor, we have a fast strided
+          // column accessor available for the iteration on the underlying block.
+          // Since the attributes can be null, ColumnAccessor template takes a 'true' argument.
+          std::unique_ptr<const ColumnAccessor<true>>
+              column_accessor(accessor->template getColumnAccessor<true>(attr_id));
+          while (accessor->next()) {
+            const void *value = column_accessor->getUntypedValue();  // Fast strided access.
+            if (value == nullptr) {
+              result->appendNullValue();
+            } else {
+              result->appendUntypedValue(value);
+            }
+          }
+        } else {
+          while (accessor->next()) {
+            const void *value = accessor->template getUntypedValue<true>(attr_id);
+            if (value == nullptr) {
+              result->appendNullValue();
+            } else {
+              result->appendUntypedValue(value);
+            }
           }
         }
       } else {
-        while (accessor->next()) {
-          result->appendUntypedValue(
-              accessor->template getUntypedValue<false>(attr_id));
+        if (accessor->isColumnAccessorSupported()) {
+          // Since the attributes cannot be null, ColumnAccessor template takes a 'false' argument.
+          std::unique_ptr<const ColumnAccessor<false>>
+              column_accessor(accessor->template getColumnAccessor<false>(attr_id));
+          while (accessor->next()) {
+            result->appendUntypedValue(column_accessor->getUntypedValue());  // Fast strided access.
+          }
+        } else {
+          while (accessor->next()) {
+            result->appendUntypedValue(
+                accessor->template getUntypedValue<false>(attr_id));
+          }
         }
       }
       return result;

@@ -247,7 +247,7 @@ TupleIdSequence* PatternMatchingUncheckedComparator<is_like_pattern, is_negation
         std::unique_ptr<const ColumnAccessor<left_nullable>>
             column_accessor
             (accessor->template getColumnAccessor<left_nullable>(value_accessor_attr_id));
-        DEBUG_ASSERT(column_accessor != nullptr);
+        DCHECK(column_accessor != nullptr);
         while (accessor->next()) {
           const void *va_value = column_accessor->getUntypedValue();
           result->set(accessor->getCurrentPosition(),

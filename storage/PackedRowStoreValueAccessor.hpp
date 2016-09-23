@@ -78,7 +78,7 @@ class PackedRowStoreValueAccessorHelper {
   template <bool check_null = true>
   inline const ColumnAccessor<check_null>* getColumnAccessor(const tuple_id &current_tuple_position,
                                                              const attribute_id attr_id) const {
-    DEBUG_ASSERT(relation_.hasAttributeWithId(attr_id));
+    DCHECK(relation_.hasAttributeWithId(attr_id));
     const void* base_location = static_cast<const char*>(tuple_storage_)
         + relation_.getFixedLengthAttributeOffset(attr_id);
     const std::size_t stride = relation_.getFixedByteLength();

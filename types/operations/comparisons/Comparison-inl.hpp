@@ -316,8 +316,8 @@ TupleIdSequence* UncheckedComparator::compareSingleValueAccessorDefaultImpl(
             left_column_accessor(accessor->template getColumnAccessor<left_nullable>(left_id));
         std::unique_ptr<const ColumnAccessor<right_nullable>>
             right_column_accessor(accessor->template getColumnAccessor<right_nullable>(right_id));
-        DEBUG_ASSERT(left_column_accessor != nullptr);
-        DEBUG_ASSERT(right_column_accessor != nullptr);
+        DCHECK(left_column_accessor != nullptr);
+        DCHECK(right_column_accessor != nullptr);
         while (accessor->next()) {
           result->set(accessor->getCurrentPosition(),
                       this->compareDataPtrs(

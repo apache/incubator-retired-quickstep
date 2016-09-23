@@ -250,7 +250,7 @@ class PackedRowStoreTupleStorageSubBlockTest : public ::testing::TestWithParam<b
                                                     tuple_store_->getAttributeValueTyped(tid, 2)));
     }
   }
-  
+
   template<bool check_null>
   void checkColumnAccessor() {
     initializeNewBlock(kSubBlockSize);
@@ -269,7 +269,7 @@ class PackedRowStoreTupleStorageSubBlockTest : public ::testing::TestWithParam<b
       while (accessor->next()) {
         const void *va_value = column_accessor->getUntypedValue();
         std::unique_ptr<Tuple> expected_tuple(createSampleTuple(tid));
-         
+
         if (expected_tuple->getAttributeValue(value_accessor_id).isNull()) {
           ASSERT_TRUE(va_value == nullptr);
         } else {
@@ -406,11 +406,11 @@ TEST_P(PackedRowStoreTupleStorageSubBlockTest, InsertInBatchTest) {
   EXPECT_EQ(row_capacity - 1, tuple_store_->getMaxTupleID());
   EXPECT_EQ(row_capacity, tuple_store_->numTuples());
 }
-  
+
 TEST_P(PackedRowStoreTupleStorageSubBlockTest, ColumnAccessorTest) {
-  if (GetParam()) { // when true, the attributes can be nullable.
+  if (GetParam()) {   // when true, the attributes can be nullable.
     checkColumnAccessor<true>();
-  } else { // when false, the attributes are non-null.
+  } else {   // when false, the attributes are non-null.
     checkColumnAccessor<false>();
   }
 }
