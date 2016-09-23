@@ -1554,6 +1554,20 @@ target_link_libraries(EvictionPolicy_unittest
                       ${LIBS})
 add_test(EvictionPolicy_unittest EvictionPolicy_unittest)
 
+add_executable(SplitRowStoreRegression_unittest
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/SplitRowStoreRegression.cpp")
+target_link_libraries(SplitRowStoreRegression_unittest
+  gtest
+  gtest_main
+  quickstep_catalog_CatalogAttribute
+  quickstep_catalog_CatalogRelation
+  quickstep_storage_SplitRowStoreTupleStorageSubBlock
+  quickstep_storage_StorageBlockLayout_proto
+  quickstep_types_TypeFactory
+  quickstep_utility_ScopedBuffer
+  ${LIBS})
+add_test(SplitRowStoreRegression_unittest SplitRowStoreRegression_unittest)
+
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
 add_executable(FileManagerHdfs_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/FileManagerHdfs_unittest.cpp")
