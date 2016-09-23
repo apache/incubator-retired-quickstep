@@ -21,7 +21,7 @@ class SplitRowStoreRegression : public ::testing::TestWithParam<std::size_t> {
     relation_.reset(new CatalogRelation(nullptr, "RegressionRelation"));
 
     std::size_t num_of_attributes = GetParam();
-    for (std::size_t i = 0; num_of_attributes; ++i) {
+    for (std::size_t i = 0; i < num_of_attributes; ++i) {
       std::string name_of_attribute = "double_attr" + std::to_string(i);
       CatalogAttribute *double_attr = new CatalogAttribute(relation_.get(),
                                                            name_of_attribute,
