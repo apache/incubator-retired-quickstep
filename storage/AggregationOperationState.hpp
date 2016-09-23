@@ -167,6 +167,11 @@ class AggregationOperationState {
    **/
   void finalizeAggregate(InsertDestination *output_destination);
 
+  /**
+   * @brief Destroy the payloads in the aggregation hash tables.
+   **/
+  void destroyAggregationHashTablePayload();
+
   static void mergeGroupByHashTables(AggregationStateHashTableBase *src,
                                      AggregationStateHashTableBase *dst);
 
@@ -185,6 +190,9 @@ class AggregationOperationState {
   void finalizeSingleState(InsertDestination *output_destination);
   void finalizeHashTable(InsertDestination *output_destination);
 
+  // A vector of group by hash table pools.
+  std::unique_ptr<HashTablePool> group_by_hashtable_pool_;
+
   // Common state for all aggregates in this operation: the input relation, the
   // filter predicate (if any), and the list of GROUP BY expressions (if any).
   const CatalogRelationSchema &input_relation_;
@@ -193,7 +201,6 @@ class AggregationOperationState {
 
   // Each individual aggregate in this operation has an AggregationHandle and
   // some number of Scalar arguments.
-  //  std::vector<std::unique_ptr<AggregationHandle>> handles_;
   std::vector<AggregationHandle *> handles_;
   std::vector<std::vector<std::unique_ptr<const Scalar>>> arguments_;
 
@@ -220,9 +227,6 @@ class AggregationOperationState {
   // hash table to prevent multiple lookups.
   std::vector<std::unique_ptr<AggregationStateHashTableBase>>
       group_by_hashtables_;
-
-  // A vector of group by hash table pools.
-  std::unique_ptr<HashTablePool> group_by_hashtable_pool_;
 
   StorageManager *storage_manager_;
 

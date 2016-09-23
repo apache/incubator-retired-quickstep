@@ -406,6 +406,14 @@ class AggregationHandle {
   virtual void initPayload(std::uint8_t *byte_ptr) const {}
 
   /**
+   * @brief Destroy the payload (in the aggregation hash table) for the given
+   *        aggregation handle.
+   *
+   * @param byte_ptr The pointer to the aggregation state in the hash table.
+   **/
+  virtual void destroyPayload(std::uint8_t *byte_ptr) const {}
+
+  /**
    * @brief Inform the aggregation handle to block (prohibit) updates on the
    *        aggregation state.
    **/

@@ -187,6 +187,20 @@ class QueryContext {
   }
 
   /**
+   * @brief Destroy the payloads from the aggregation hash tables.
+   *
+   * @warning After calling these methods, the hash table will be in an invalid
+   *          state. No other operation should be performed on them.
+   *
+   * @param id The ID of the AggregationOperationState.
+   **/
+  inline void destroyAggregationHashTablePayload(const aggregation_state_id id) {
+    DCHECK_LT(id, aggregation_states_.size());
+    DCHECK(aggregation_states_[id]);
+    aggregation_states_[id]->destroyAggregationHashTablePayload();
+  }
+
+  /**
    * @brief Whether the given GeneratorFunctionHandle id is valid.
    *
    * @param id The GeneratorFunctionHandle id.

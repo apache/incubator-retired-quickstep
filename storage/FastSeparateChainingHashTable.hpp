@@ -27,6 +27,7 @@
 #include <utility>
 #include <vector>
 
+#include "expressions/aggregation/AggregationHandle.hpp"
 #include "storage/FastHashTable.hpp"
 #include "storage/HashTable.hpp"
 #include "storage/HashTableBase.hpp"
@@ -67,35 +68,7 @@ class FastSeparateChainingHashTable
                                 const std::vector<AggregationHandle *> &handles,
                                 StorageManager *storage_manager);
 
-  FastSeparateChainingHashTable(const std::vector<const Type *> &key_types,
-                                void *hash_table_memory,
-                                const std::size_t hash_table_memory_size,
-                                const bool new_hash_table,
-                                const bool hash_table_memory_zeroed);
-
-  // Delegating constructors for single scalar keys.
-  FastSeparateChainingHashTable(const Type &key_type,
-                                const std::size_t num_entries,
-                                StorageManager *storage_manager)
-      : FastSeparateChainingHashTable(std::vector<const Type *>(1, &key_type),
-                                      num_entries,
-                                      storage_manager) {}
-
-  FastSeparateChainingHashTable(const Type &key_type,
-                                void *hash_table_memory,
-                                const std::size_t hash_table_memory_size,
-                                const bool new_hash_table,
-                                const bool hash_table_memory_zeroed)
-      : FastSeparateChainingHashTable(std::vector<const Type *>(1, &key_type),
-                                      hash_table_memory,
-                                      hash_table_memory_size,
-                                      new_hash_table,
-                                      hash_table_memory_zeroed) {}
-
   ~FastSeparateChainingHashTable() override {
-    DestroyValues(buckets_,
-                  header_->buckets_allocated.load(std::memory_order_relaxed),
-                  bucket_size_);
     std::free(init_payload_);
   }
 
@@ -167,6 +140,23 @@ class FastSeparateChainingHashTable
       const std::size_t total_variable_key_size,
       HashTablePreallocationState *prealloc_state) override;
 
+  void destroyPayload() override {
+    void *hash_buckets = buckets_;
+    const std::size_t num_buckets =
+        header_->buckets_allocated.load(std::memory_order_relaxed);
+    const std::size_t bucket_size = bucket_size_;
+    void *bucket_ptr = static_cast<char *>(hash_buckets) + kValueOffset;
+    for (std::size_t bucket_num = 0; bucket_num < num_buckets; ++bucket_num) {
+      void *value_internal_ptr = bucket_ptr;
+      for (std::size_t handle_num = 0; handle_num < handles_.size(); ++handle_num) {
+        value_internal_ptr =
+            static_cast<char *>(value_internal_ptr) + this->payload_offsets_[handle_num];
+        handles_[handle_num]->destroyPayload(static_cast<std::uint8_t *>(value_internal_ptr));
+      }
+      bucket_ptr = static_cast<char *>(bucket_ptr) + bucket_size;
+    }
+  }
+
  private:
   struct Header {
     std::size_t num_slots;
@@ -190,13 +180,6 @@ class FastSeparateChainingHashTable
             1) *
            kBucketAlignment;
   }
-  // If ValueT is not trivially destructible, invoke its destructor for all
-  // values held in the specified buckets (including those in "empty" buckets
-  // that were default constructed). If ValueT is trivially destructible, this
-  // is a no-op.
-  void DestroyValues(void *buckets,
-                     const std::size_t num_buckets,
-                     const std::size_t bucket_size);
 
   // Attempt to find an empty bucket to insert 'hash_code' into, starting after
   // '*bucket' in the chain (or, if '*bucket' is NULL, starting from the slot
@@ -241,6 +224,8 @@ class FastSeparateChainingHashTable
   // Checks that there is at least one unallocated bucket, and that there is
   // at least 'extra_variable_storage' bytes of variable-length storage free.
   bool isFull(const std::size_t extra_variable_storage) const;
+
+  const std::vector<AggregationHandle *> &handles_;
 
   // Helper object to manage key storage.
   HashTableKeyManager<serializable, force_key_copy> key_manager_;
@@ -309,12 +294,14 @@ FastSeparateChainingHashTable<resizable,
                                           true),
       kBucketAlignment(alignof(std::atomic<std::size_t>)),
       kValueOffset(sizeof(std::atomic<std::size_t>) + sizeof(std::size_t)),
+      handles_(handles),
       key_manager_(this->key_types_, kValueOffset + this->total_payload_size_),
       bucket_size_(ComputeBucketSize(key_manager_.getFixedKeySize())) {
   init_payload_ =
       static_cast<std::uint8_t *>(calloc(this->total_payload_size_, 1));
+  DCHECK(init_payload_ != nullptr);
   int k = 0;
-  for (auto handle : handles) {
+  for (auto handle : this->handles_) {
     handle->initPayload(init_payload_ + this->payload_offsets_[k]);
     k++;
   }
@@ -433,155 +420,6 @@ template <bool resizable,
           bool serializable,
           bool force_key_copy,
           bool allow_duplicate_keys>
-FastSeparateChainingHashTable<resizable,
-                              serializable,
-                              force_key_copy,
-                              allow_duplicate_keys>::
-    FastSeparateChainingHashTable(const std::vector<const Type *> &key_types,
-                                  void *hash_table_memory,
-                                  const std::size_t hash_table_memory_size,
-                                  const bool new_hash_table,
-                                  const bool hash_table_memory_zeroed)
-    : FastHashTable<resizable,
-                    serializable,
-                    force_key_copy,
-                    allow_duplicate_keys>(key_types,
-                                          hash_table_memory,
-                                          hash_table_memory_size,
-                                          new_hash_table,
-                                          hash_table_memory_zeroed,
-                                          false,
-                                          false,
-                                          true),
-      kBucketAlignment(alignof(std::atomic<std::size_t>) < alignof(std::uint8_t)
-                           ? alignof(std::uint8_t)
-                           : alignof(std::atomic<std::size_t>)),
-      kValueOffset(sizeof(std::atomic<std::size_t>) + sizeof(std::size_t)),
-      key_manager_(this->key_types_, kValueOffset + sizeof(std::uint8_t)),
-      bucket_size_(ComputeBucketSize(key_manager_.getFixedKeySize())) {
-  // Bucket size always rounds up to the alignment requirement of the atomic
-  // size_t "next" pointer at the front or a ValueT, whichever is larger.
-  //
-  // Make sure that the larger of the two alignment requirements also satisfies
-  // the smaller.
-  static_assert(
-      alignof(std::atomic<std::size_t>) < alignof(std::uint8_t)
-          ? alignof(std::uint8_t) % alignof(std::atomic<std::size_t>) == 0
-          : alignof(std::atomic<std::size_t>) % alignof(std::uint8_t) == 0,
-      "Alignment requirement of std::atomic<std::size_t> does not "
-      "evenly divide with alignment requirement of ValueT.");
-
-  // Give base HashTable information about what key components are stored
-  // inline from 'key_manager_'.
-  this->setKeyInline(key_manager_.getKeyInline());
-
-  // FIXME(chasseur): If we are reconstituting a HashTable using a block of
-  // memory whose start was aligned differently than the memory block that was
-  // originally used (modulo alignof(Header)), we could wind up with all of our
-  // data structures misaligned. If memory is inside a
-  // StorageBlock/StorageBlob, this will never occur, since the StorageManager
-  // always allocates slots aligned to kCacheLineBytes. Similarly, this isn't
-  // a problem for memory inside any other allocation aligned to at least
-  // alignof(Header) == kCacheLineBytes.
-
-  void *aligned_memory_start = this->hash_table_memory_;
-  std::size_t available_memory = this->hash_table_memory_size_;
-
-  if (align(alignof(Header),
-            sizeof(Header),
-            aligned_memory_start,
-            available_memory) == nullptr) {
-    FATAL_ERROR("Attempted to create a non-resizable "
-                << "SeparateChainingHashTable with "
-                << available_memory
-                << " bytes of memory at "
-                << aligned_memory_start
-                << " which either can not fit a "
-                << "SeparateChainingHashTable::Header or meet its alignement "
-                << "requirement.");
-  } else if (aligned_memory_start != this->hash_table_memory_) {
-    // In general, we could get memory of any alignment, although at least
-    // cache-line aligned would be nice.
-    DEV_WARNING("StorageBlob memory adjusted by "
-                << (this->hash_table_memory_size_ - available_memory)
-                << " bytes to meet alignment requirement for "
-                << "SeparateChainingHashTable::Header.");
-  }
-
-  header_ = static_cast<Header *>(aligned_memory_start);
-  aligned_memory_start =
-      static_cast<char *>(aligned_memory_start) + sizeof(Header);
-  available_memory -= sizeof(Header);
-
-  if (new_hash_table) {
-    std::size_t estimated_bucket_capacity =
-        available_memory /
-        (kHashTableLoadFactor * sizeof(std::atomic<std::size_t>) +
-         bucket_size_ + key_manager_.getEstimatedVariableKeySize());
-    std::size_t num_slots = get_previous_prime_number(
-        estimated_bucket_capacity * kHashTableLoadFactor);
-
-    // Fill in the header.
-    header_->num_slots = num_slots;
-    header_->num_buckets = num_slots / kHashTableLoadFactor;
-    header_->buckets_allocated.store(0, std::memory_order_relaxed);
-    header_->variable_length_bytes_allocated.store(0,
-                                                   std::memory_order_relaxed);
-  }
-
-  // Locate the slot array.
-  slots_ = static_cast<std::atomic<std::size_t> *>(aligned_memory_start);
-  aligned_memory_start = static_cast<char *>(aligned_memory_start) +
-                         sizeof(std::atomic<std::size_t>) * header_->num_slots;
-  available_memory -= sizeof(std::atomic<std::size_t>) * header_->num_slots;
-
-  if (new_hash_table && !hash_table_memory_zeroed) {
-    std::memset(
-        slots_, 0x0, sizeof(std::atomic<std::size_t>) * header_->num_slots);
-  }
-
-  // Locate the buckets.
-  buckets_ = aligned_memory_start;
-  // Extra-paranoid: sizeof(Header) should almost certainly be a multiple of
-  // kBucketAlignment, unless ValueT has some members with seriously big
-  // (> kCacheLineBytes) alignment requirements specified using alignas().
-  if (align(kBucketAlignment, bucket_size_, buckets_, available_memory) ==
-      nullptr) {
-    FATAL_ERROR("Attempted to create a non-resizable "
-                << "SeparateChainingHashTable with "
-                << this->hash_table_memory_size_
-                << " bytes of memory at "
-                << this->hash_table_memory_
-                << ", which can hold an aligned "
-                << "SeparateChainingHashTable::Header but does not have "
-                << "enough remaining space for even a single hash bucket.");
-  } else if (buckets_ != aligned_memory_start) {
-    DEV_WARNING(
-        "Bucket array start position adjusted to meet alignment "
-        "requirement for SeparateChainingHashTable's value type.");
-    if (header_->num_buckets * bucket_size_ > available_memory) {
-      DEBUG_ASSERT(new_hash_table);
-      --(header_->num_buckets);
-    }
-  }
-  available_memory -= bucket_size_ * header_->num_buckets;
-
-  // Make sure "next" pointers in buckets are zeroed-out.
-  if (new_hash_table && !hash_table_memory_zeroed) {
-    std::memset(buckets_, 0x0, header_->num_buckets * bucket_size_);
-  }
-
-  // Locate variable-length key storage region.
-  key_manager_.setVariableLengthStorageInfo(
-      static_cast<char *>(buckets_) + header_->num_buckets * bucket_size_,
-      available_memory,
-      &(header_->variable_length_bytes_allocated));
-}
-
-template <bool resizable,
-          bool serializable,
-          bool force_key_copy,
-          bool allow_duplicate_keys>
 void FastSeparateChainingHashTable<resizable,
                                    serializable,
                                    force_key_copy,
@@ -589,7 +427,7 @@ void FastSeparateChainingHashTable<resizable,
   const std::size_t used_buckets =
       header_->buckets_allocated.load(std::memory_order_relaxed);
   // Destroy existing values, if necessary.
-  DestroyValues(buckets_, used_buckets, bucket_size_);
+  destroyPayload();
 
   // Zero-out slot array.
   std::memset(
@@ -995,10 +833,11 @@ std::uint8_t* FastSeparateChainingHashTable<resizable,
 
   // Copy the supplied 'initial_value' into place.
   std::uint8_t *value = static_cast<unsigned char *>(bucket) + kValueOffset;
-  if (init_value_ptr == nullptr)
+  if (init_value_ptr == nullptr) {
     memcpy(value, init_payload_, this->total_payload_size_);
-  else
+  } else {
     memcpy(value, init_value_ptr, this->total_payload_size_);
+  }
 
   // Update the previous chain pointer to point to the new bucket.
   pending_chain_ptr->store(pending_chain_ptr_finish_value,
@@ -1466,8 +1305,7 @@ void FastSeparateChainingHashTable<
                 original_variable_storage_used);
   }
 
-  // Destroy values in the original hash table, if neccesary,
-  DestroyValues(buckets_, original_buckets_used, bucket_size_);
+  destroyPayload();
 
   // Make resized structures active.
   std::swap(this->blob_, resized_blob);
@@ -1556,26 +1394,6 @@ bool FastSeparateChainingHashTable<resizable,
             total_variable_key_size);
   }
   return true;
-}
-
-template <bool resizable,
-          bool serializable,
-          bool force_key_copy,
-          bool allow_duplicate_keys>
-void FastSeparateChainingHashTable<
-    resizable,
-    serializable,
-    force_key_copy,
-    allow_duplicate_keys>::DestroyValues(void *hash_buckets,
-                                         const std::size_t num_buckets,
-                                         const std::size_t bucket_size) {
-  if (!std::is_trivially_destructible<std::uint8_t>::value) {
-    void *value_ptr = static_cast<char *>(hash_buckets) + kValueOffset;
-    for (std::size_t bucket_num = 0; bucket_num < num_buckets; ++bucket_num) {
-      static_cast<std::uint8_t *>(value_ptr)->~uint8_t();
-      value_ptr = static_cast<char *>(value_ptr) + bucket_size;
-    }
-  }
 }
 
 template <bool resizable,

@@ -131,6 +131,13 @@ class AggregationHandleMin : public AggregationConcreteHandle {
     *min_ptr = t1;
   }
 
+  void destroyPayload(std::uint8_t *byte_ptr) const override {
+    TypedValue *min_ptr = reinterpret_cast<TypedValue *>(byte_ptr);
+    if (min_ptr != nullptr) {
+      min_ptr->~TypedValue();
+    }
+  }
+
   AggregationState* accumulateColumnVectors(
       const std::vector<std::unique_ptr<ColumnVector>> &column_vectors)
       const override;

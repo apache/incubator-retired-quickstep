@@ -99,6 +99,12 @@ class HashTableBase {
     return false;
   }
 
+  /**
+   * @brief Destroy the payload stored in the hash table.
+   **/
+  virtual void destroyPayload() {
+  }
+
  protected:
   HashTableBase() {}
 

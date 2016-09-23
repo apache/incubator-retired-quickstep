@@ -129,6 +129,13 @@ class AggregationHandleMax : public AggregationConcreteHandle {
     *max_ptr = t1;
   }
 
+  void destroyPayload(std::uint8_t *byte_ptr) const override {
+    TypedValue *max_ptr = reinterpret_cast<TypedValue *>(byte_ptr);
+    if (max_ptr != nullptr) {
+      max_ptr->~TypedValue();
+    }
+  }
+
   AggregationState* accumulateColumnVectors(
       const std::vector<std::unique_ptr<ColumnVector>> &column_vectors)
       const override;

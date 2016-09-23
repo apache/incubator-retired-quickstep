@@ -58,6 +58,13 @@ bool DestroyAggregationStateOperator::getAllWorkOrderProtos(WorkOrderProtosConta
 }
 
 void DestroyAggregationStateWorkOrder::execute() {
+  // NOTE(harshad) : The destroyAggregationHashTablePayload call is separate
+  // from the destroyAggregationState call. The reason is that the aggregation
+  // hash tables don't own the AggregationHandle objects. However the hash table
+  // class requires the handles for destroying the payload (see the
+  // destroyPayload methods in AggregationHandle classes). Therefore, we first
+  // destroy the payloads in the hash table and then destroy the hash table.
+  query_context_->destroyAggregationHashTablePayload(aggr_state_index_);
   query_context_->destroyAggregationState(aggr_state_index_);
 }
 

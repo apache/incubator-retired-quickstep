@@ -166,8 +166,7 @@ AggregationOperationState::AggregationOperationState(
       }
 
       // Initialize the corresponding distinctify hash table if this is a
-      // DISTINCT
-      // aggregation.
+      // DISTINCT aggregation.
       if (*is_distinct_it) {
         std::vector<const Type *> key_types(group_by_types);
         key_types.insert(
@@ -593,6 +592,16 @@ void AggregationOperationState::finalizeHashTable(
 
   // Bulk-insert the complete result.
   output_destination->bulkInsertTuples(&complete_result);
+}
+
+void AggregationOperationState::destroyAggregationHashTablePayload() {
+  if (group_by_hashtable_pool_ != nullptr) {
+    auto all_hash_tables = group_by_hashtable_pool_->getAllHashTables();
+    DCHECK(all_hash_tables != nullptr);
+    for (std::size_t ht_index = 0; ht_index < all_hash_tables->size(); ++ht_index) {
+      (*all_hash_tables)[ht_index]->destroyPayload();
+    }
+  }
 }
 
 }  // namespace quickstep
