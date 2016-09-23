@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include "catalog/CatalogAttribute.hpp"
@@ -29,9 +30,19 @@ class SplitRowStoreRegression : public ::testing::TestWithParam<std::size_t> {
       ASSERT_EQ(i, relation_->addAttribute(double_attr));
     }
 
-    tuple_store_description_.reset();
-    tuple_store_.reset();
-    tuple_store_memory_.reset();
+    tuple_store_description_.reset(new TupleStorageSubBlockDescription());
+    tuple_store_description_->set_sub_block_type(TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
+
+
+    tuple_store_memory_.reset(kSubBlockSize);
+    std::memset(tuple_store_memory_.get(), 0x0, kSubBlockSize);
+
+    tuple_store_.reset(new SplitRowStoreTupleStorageSubBlock(*relation_,
+                                                             *tuple_store_description_,
+                                                             true,
+                                                             tuple_store_memory_.get(),
+                                                             kSubBlockSize));
+
   }
 
   std::unique_ptr<CatalogRelation> relation_;
@@ -41,8 +52,15 @@ class SplitRowStoreRegression : public ::testing::TestWithParam<std::size_t> {
 };
 
 TEST_P(SplitRowStoreRegression, StrideAccess) {
-  std::size_t param = GetParam();
-  ASSERT_LT(param, 10);
+  std::size_t bytes_for_value = sizeof(double);
+  std::size_t step = GetParam();
+  std::size_t bytes_for_step = sizeof(double) * step;
+  ASSERT_NE(tuple_store_->numTuples(), 0);
+  double sum = 0;
+
+  for (std::size_t i = 0; i < 1; i += bytes_for_step) {
+    sum += i + bytes_for_value;
+  }
 }
 
 INSTANTIATE_TEST_CASE_P(SplitRowStoreRegressionStrideTest,
