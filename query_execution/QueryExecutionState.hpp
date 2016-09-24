@@ -92,8 +92,15 @@ class QueryExecutionState {
                                const std::size_t num_rebuild_workorders,
                                const bool rebuild_initiated) {
     DCHECK(operator_index < num_operators_);
-    rebuild_status_[operator_index].second = num_rebuild_workorders;
-    rebuild_status_[operator_index].first = rebuild_initiated;
+    auto search_res = rebuild_status_.find(operator_index);
+    if (search_res != rebuild_status_.end()) {
+      search_res->second.has_initiated = rebuild_initiated;
+      search_res->second.num_pending_workorders = num_rebuild_workorders;
+    } else {
+      RebuildStatus rebuild_status(rebuild_initiated, num_rebuild_workorders);
+
+      rebuild_status_.emplace(operator_index, std::move(rebuild_status));
+    }
   }
 
   /**
@@ -107,7 +114,7 @@ class QueryExecutionState {
     DCHECK(operator_index < num_operators_);
     const auto search_res = rebuild_status_.find(operator_index);
     if (search_res != rebuild_status_.end()) {
-      return search_res->second.first;
+      return search_res->second.has_initiated;
     }
     return false;
   }
@@ -124,11 +131,29 @@ class QueryExecutionState {
     DCHECK(operator_index < num_operators_);
     const auto search_res = rebuild_status_.find(operator_index);
     if (search_res != rebuild_status_.end()) {
-      return search_res->second.second;
+      return search_res->second.num_pending_workorders;
     }
     LOG(WARNING) << "Called QueryExecutionState::getNumRebuildWorkOrders() "
                     "for an operator whose rebuild entry doesn't exist.";
     return 0;
+  }
+
+  /**
+   * @brief Increment the number of rebuild WorkOrders for the given operator.
+   *
+   * @param operator_index The index of the given operator.
+   * @param num_rebuild_workorders The number of rebuild workorders of the given
+   *        operator.
+   **/
+  inline void incrementNumRebuildWorkOrders(const std::size_t operator_index,
+                                            const std::size_t num_rebuild_workorders) {
+    DCHECK_LT(operator_index, num_operators_);
+    auto search_res = rebuild_status_.find(operator_index);
+    DCHECK(search_res != rebuild_status_.end())
+        << "Called for an operator whose rebuild status does not exist.";
+    DCHECK(search_res->second.has_initiated);
+
+    search_res->second.num_pending_workorders += num_rebuild_workorders;
   }
 
   /**
@@ -138,16 +163,15 @@ class QueryExecutionState {
    **/
   inline void decrementNumRebuildWorkOrders(const std::size_t operator_index) {
     DCHECK(operator_index < num_operators_);
-    const auto search_res = rebuild_status_.find(operator_index);
-    if (search_res != rebuild_status_.end()) {
-      DCHECK(search_res->second.first);
-      DCHECK_GE(search_res->second.second, 1u);
-      --rebuild_status_[operator_index].second;
-    } else {
-      LOG(FATAL) <<
-          "Called QueryExecutionState::decrementNumRebuildWorkOrders() for an "
-          "operator whose rebuild entry doesn't exist.";
-    }
+    auto search_res = rebuild_status_.find(operator_index);
+    CHECK(search_res != rebuild_status_.end())
+        << "Called QueryExecutionState::decrementNumRebuildWorkOrders() for an "
+           "operator whose rebuild entry doesn't exist.";
+
+    DCHECK(search_res->second.has_initiated);
+    DCHECK_GE(search_res->second.num_pending_workorders, 1u);
+
+    --(search_res->second.num_pending_workorders);
   }
 
   /**
@@ -279,11 +303,21 @@ class QueryExecutionState {
   // The ith bit denotes if the operator with ID = i has finished its execution.
   std::vector<bool> execution_finished_;
 
-  // Key is dag_node_index for which rebuild is required. Value is a pair -
-  // first element is a bool (whether rebuild for operator at index i has been
-  // initiated) and if the boolean is true, the second element denotes the
-  // number of pending rebuild workorders for the operator.
-  std::unordered_map<std::size_t, std::pair<bool, std::size_t>> rebuild_status_;
+  struct RebuildStatus {
+    RebuildStatus(const bool initiated,
+                  const std::size_t num_workorders)
+        : has_initiated(initiated),
+          num_pending_workorders(num_workorders) {}
+
+    // Whether rebuild for operator at index i has been initiated.
+    bool has_initiated;
+    // The number of pending rebuild workorders for the operator.
+    // Valid if and only if 'has_initiated' is true.
+    std::size_t num_pending_workorders;
+  };
+
+  // Key is dag_node_index for which rebuild is required.
+  std::unordered_map<std::size_t, RebuildStatus> rebuild_status_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryExecutionState);
 };
