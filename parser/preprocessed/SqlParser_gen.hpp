@@ -1,19 +1,19 @@
-/* A Bison parser, made by GNU Bison 2.7.  */
+/* A Bison parser, made by GNU Bison 3.0.2.  */
 
 /* Bison interface for Yacc-like parsers in C
-   
-      Copyright (C) 1984, 1989-1990, 2000-2012 Free Software Foundation, Inc.
-   
+
+   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
+
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation, either version 3 of the License, or
    (at your option) any later version.
-   
+
    This program is distributed in the hope that it will be useful,
    but WITHOUT ANY WARRANTY; without even the implied warranty of
    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
    GNU General Public License for more details.
-   
+
    You should have received a copy of the GNU General Public License
    along with this program.  If not, see <http://www.gnu.org/licenses/>.  */
 
@@ -26,13 +26,13 @@
    special exception, which will cause the skeleton and the resulting
    Bison output files to be licensed under the GNU General Public
    License without this special exception.
-   
+
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
 #ifndef YY_QUICKSTEP_YY_SQLPARSER_GEN_HPP_INCLUDED
 # define YY_QUICKSTEP_YY_SQLPARSER_GEN_HPP_INCLUDED
-/* Enabling traces.  */
+/* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
 #endif
@@ -40,152 +40,151 @@
 extern int quickstep_yydebug;
 #endif
 
-/* Tokens.  */
+/* Token type.  */
 #ifndef YYTOKENTYPE
 # define YYTOKENTYPE
-   /* Put the tokens into the symbol table, so that GDB and other debuggers
-      know about them.  */
-   enum yytokentype {
-     TOKEN_COMMAND = 258,
-     TOKEN_NAME = 259,
-     TOKEN_STRING_SINGLE_QUOTED = 260,
-     TOKEN_STRING_DOUBLE_QUOTED = 261,
-     TOKEN_UNSIGNED_NUMVAL = 262,
-     TOKEN_OR = 263,
-     TOKEN_AND = 264,
-     TOKEN_NOT = 265,
-     TOKEN_EQ = 266,
-     TOKEN_NEQ = 267,
-     TOKEN_GEQ = 268,
-     TOKEN_GT = 269,
-     TOKEN_LEQ = 270,
-     TOKEN_LT = 271,
-     TOKEN_REGEXP = 272,
-     TOKEN_LIKE = 273,
-     TOKEN_BETWEEN = 274,
-     TOKEN_IS = 275,
-     UNARY_MINUS = 276,
-     UNARY_PLUS = 277,
-     TOKEN_ADD = 278,
-     TOKEN_ALL = 279,
-     TOKEN_ALTER = 280,
-     TOKEN_AS = 281,
-     TOKEN_ASC = 282,
-     TOKEN_BIGINT = 283,
-     TOKEN_BIT = 284,
-     TOKEN_BITWEAVING = 285,
-     TOKEN_BLOCKPROPERTIES = 286,
-     TOKEN_BLOCKSAMPLE = 287,
-     TOKEN_BLOOM_FILTER = 288,
-     TOKEN_CSB_TREE = 289,
-     TOKEN_BY = 290,
-     TOKEN_CASE = 291,
-     TOKEN_CHARACTER = 292,
-     TOKEN_CHECK = 293,
-     TOKEN_COLUMN = 294,
-     TOKEN_CONSTRAINT = 295,
-     TOKEN_COPY = 296,
-     TOKEN_CREATE = 297,
-     TOKEN_CURRENT = 298,
-     TOKEN_DATE = 299,
-     TOKEN_DATETIME = 300,
-     TOKEN_DAY = 301,
-     TOKEN_DECIMAL = 302,
-     TOKEN_DEFAULT = 303,
-     TOKEN_DELETE = 304,
-     TOKEN_DELIMITER = 305,
-     TOKEN_DESC = 306,
-     TOKEN_DISTINCT = 307,
-     TOKEN_DOUBLE = 308,
-     TOKEN_DROP = 309,
-     TOKEN_ELSE = 310,
-     TOKEN_END = 311,
-     TOKEN_ESCAPE_STRINGS = 312,
-     TOKEN_EXISTS = 313,
-     TOKEN_EXTRACT = 314,
-     TOKEN_FALSE = 315,
-     TOKEN_FIRST = 316,
-     TOKEN_FLOAT = 317,
-     TOKEN_FOLLOWING = 318,
-     TOKEN_FOR = 319,
-     TOKEN_FOREIGN = 320,
-     TOKEN_FROM = 321,
-     TOKEN_FULL = 322,
-     TOKEN_GROUP = 323,
-     TOKEN_HASH = 324,
-     TOKEN_HAVING = 325,
-     TOKEN_HOUR = 326,
-     TOKEN_IN = 327,
-     TOKEN_INDEX = 328,
-     TOKEN_INNER = 329,
-     TOKEN_INSERT = 330,
-     TOKEN_INTEGER = 331,
-     TOKEN_INTERVAL = 332,
-     TOKEN_INTO = 333,
-     TOKEN_JOIN = 334,
-     TOKEN_KEY = 335,
-     TOKEN_LAST = 336,
-     TOKEN_LEFT = 337,
-     TOKEN_LIMIT = 338,
-     TOKEN_LONG = 339,
-     TOKEN_MINUTE = 340,
-     TOKEN_MONTH = 341,
-     TOKEN_NULL = 342,
-     TOKEN_NULLS = 343,
-     TOKEN_OFF = 344,
-     TOKEN_ON = 345,
-     TOKEN_ORDER = 346,
-     TOKEN_OUTER = 347,
-     TOKEN_OVER = 348,
-     TOKEN_PARTITION = 349,
-     TOKEN_PARTITIONS = 350,
-     TOKEN_PERCENT = 351,
-     TOKEN_PRECEDING = 352,
-     TOKEN_PRIMARY = 353,
-     TOKEN_PRIORITY = 354,
-     TOKEN_QUIT = 355,
-     TOKEN_RANGE = 356,
-     TOKEN_REAL = 357,
-     TOKEN_REFERENCES = 358,
-     TOKEN_RIGHT = 359,
-     TOKEN_ROW = 360,
-     TOKEN_ROW_DELIMITER = 361,
-     TOKEN_ROWS = 362,
-     TOKEN_SECOND = 363,
-     TOKEN_SELECT = 364,
-     TOKEN_SET = 365,
-     TOKEN_SMA = 366,
-     TOKEN_SMALLINT = 367,
-     TOKEN_SUBSTRING = 368,
-     TOKEN_TABLE = 369,
-     TOKEN_THEN = 370,
-     TOKEN_TIME = 371,
-     TOKEN_TIMESTAMP = 372,
-     TOKEN_TRUE = 373,
-     TOKEN_TUPLESAMPLE = 374,
-     TOKEN_UNBOUNDED = 375,
-     TOKEN_UNIQUE = 376,
-     TOKEN_UPDATE = 377,
-     TOKEN_USING = 378,
-     TOKEN_VALUES = 379,
-     TOKEN_VARCHAR = 380,
-     TOKEN_WHEN = 381,
-     TOKEN_WHERE = 382,
-     TOKEN_WINDOW = 383,
-     TOKEN_WITH = 384,
-     TOKEN_YEAR = 385,
-     TOKEN_YEARMONTH = 386,
-     TOKEN_EOF = 387,
-     TOKEN_LEX_ERROR = 388
-   };
+  enum yytokentype
+  {
+    TOKEN_COMMAND = 258,
+    TOKEN_NAME = 259,
+    TOKEN_STRING_SINGLE_QUOTED = 260,
+    TOKEN_STRING_DOUBLE_QUOTED = 261,
+    TOKEN_UNSIGNED_NUMVAL = 262,
+    TOKEN_OR = 263,
+    TOKEN_AND = 264,
+    TOKEN_NOT = 265,
+    TOKEN_EQ = 266,
+    TOKEN_LT = 267,
+    TOKEN_LEQ = 268,
+    TOKEN_GT = 269,
+    TOKEN_GEQ = 270,
+    TOKEN_NEQ = 271,
+    TOKEN_LIKE = 272,
+    TOKEN_REGEXP = 273,
+    TOKEN_BETWEEN = 274,
+    TOKEN_IS = 275,
+    UNARY_PLUS = 276,
+    UNARY_MINUS = 277,
+    TOKEN_ADD = 278,
+    TOKEN_ALL = 279,
+    TOKEN_ALTER = 280,
+    TOKEN_AS = 281,
+    TOKEN_ASC = 282,
+    TOKEN_BIGINT = 283,
+    TOKEN_BIT = 284,
+    TOKEN_BITWEAVING = 285,
+    TOKEN_BLOCKPROPERTIES = 286,
+    TOKEN_BLOCKSAMPLE = 287,
+    TOKEN_BLOOM_FILTER = 288,
+    TOKEN_CSB_TREE = 289,
+    TOKEN_BY = 290,
+    TOKEN_CASE = 291,
+    TOKEN_CHARACTER = 292,
+    TOKEN_CHECK = 293,
+    TOKEN_COLUMN = 294,
+    TOKEN_CONSTRAINT = 295,
+    TOKEN_COPY = 296,
+    TOKEN_CREATE = 297,
+    TOKEN_CURRENT = 298,
+    TOKEN_DATE = 299,
+    TOKEN_DATETIME = 300,
+    TOKEN_DAY = 301,
+    TOKEN_DECIMAL = 302,
+    TOKEN_DEFAULT = 303,
+    TOKEN_DELETE = 304,
+    TOKEN_DELIMITER = 305,
+    TOKEN_DESC = 306,
+    TOKEN_DISTINCT = 307,
+    TOKEN_DOUBLE = 308,
+    TOKEN_DROP = 309,
+    TOKEN_ELSE = 310,
+    TOKEN_END = 311,
+    TOKEN_ESCAPE_STRINGS = 312,
+    TOKEN_EXISTS = 313,
+    TOKEN_EXTRACT = 314,
+    TOKEN_FALSE = 315,
+    TOKEN_FIRST = 316,
+    TOKEN_FLOAT = 317,
+    TOKEN_FOLLOWING = 318,
+    TOKEN_FOR = 319,
+    TOKEN_FOREIGN = 320,
+    TOKEN_FROM = 321,
+    TOKEN_FULL = 322,
+    TOKEN_GROUP = 323,
+    TOKEN_HASH = 324,
+    TOKEN_HAVING = 325,
+    TOKEN_HOUR = 326,
+    TOKEN_IN = 327,
+    TOKEN_INDEX = 328,
+    TOKEN_INNER = 329,
+    TOKEN_INSERT = 330,
+    TOKEN_INTEGER = 331,
+    TOKEN_INTERVAL = 332,
+    TOKEN_INTO = 333,
+    TOKEN_JOIN = 334,
+    TOKEN_KEY = 335,
+    TOKEN_LAST = 336,
+    TOKEN_LEFT = 337,
+    TOKEN_LIMIT = 338,
+    TOKEN_LONG = 339,
+    TOKEN_MINUTE = 340,
+    TOKEN_MONTH = 341,
+    TOKEN_NULL = 342,
+    TOKEN_NULLS = 343,
+    TOKEN_OFF = 344,
+    TOKEN_ON = 345,
+    TOKEN_ORDER = 346,
+    TOKEN_OUTER = 347,
+    TOKEN_OVER = 348,
+    TOKEN_PARTITION = 349,
+    TOKEN_PARTITIONS = 350,
+    TOKEN_PERCENT = 351,
+    TOKEN_PRECEDING = 352,
+    TOKEN_PRIMARY = 353,
+    TOKEN_PRIORITY = 354,
+    TOKEN_QUIT = 355,
+    TOKEN_RANGE = 356,
+    TOKEN_REAL = 357,
+    TOKEN_REFERENCES = 358,
+    TOKEN_RIGHT = 359,
+    TOKEN_ROW = 360,
+    TOKEN_ROW_DELIMITER = 361,
+    TOKEN_ROWS = 362,
+    TOKEN_SECOND = 363,
+    TOKEN_SELECT = 364,
+    TOKEN_SET = 365,
+    TOKEN_SMA = 366,
+    TOKEN_SMALLINT = 367,
+    TOKEN_SUBSTRING = 368,
+    TOKEN_TABLE = 369,
+    TOKEN_THEN = 370,
+    TOKEN_TIME = 371,
+    TOKEN_TIMESTAMP = 372,
+    TOKEN_TRUE = 373,
+    TOKEN_TUPLESAMPLE = 374,
+    TOKEN_UNBOUNDED = 375,
+    TOKEN_UNIQUE = 376,
+    TOKEN_UPDATE = 377,
+    TOKEN_USING = 378,
+    TOKEN_VALUES = 379,
+    TOKEN_VARCHAR = 380,
+    TOKEN_WHEN = 381,
+    TOKEN_WHERE = 382,
+    TOKEN_WINDOW = 383,
+    TOKEN_WITH = 384,
+    TOKEN_YEAR = 385,
+    TOKEN_YEARMONTH = 386,
+    TOKEN_EOF = 387,
+    TOKEN_LEX_ERROR = 388
+  };
 #endif
 
-
+/* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef union YYSTYPE
+typedef union YYSTYPE YYSTYPE;
+union YYSTYPE
 {
-/* Line 2058 of yacc.c  */
-#line 120 "../SqlParser.ypp"
+#line 120 "../SqlParser.ypp" /* yacc.c:1909  */
 
   quickstep::ParseString *string_value_;
 
@@ -285,41 +284,28 @@ typedef union YYSTYPE
 
   quickstep::ParsePriority *opt_priority_clause_;
 
-
-/* Line 2058 of yacc.c  */
-#line 291 "SqlParser_gen.hpp"
-} YYSTYPE;
+#line 288 "SqlParser_gen.hpp" /* yacc.c:1909  */
+};
 # define YYSTYPE_IS_TRIVIAL 1
-# define yystype YYSTYPE /* obsolescent; will be withdrawn */
 # define YYSTYPE_IS_DECLARED 1
 #endif
 
+/* Location type.  */
 #if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED
-typedef struct YYLTYPE
+typedef struct YYLTYPE YYLTYPE;
+struct YYLTYPE
 {
   int first_line;
   int first_column;
   int last_line;
   int last_column;
-} YYLTYPE;
-# define yyltype YYLTYPE /* obsolescent; will be withdrawn */
+};
 # define YYLTYPE_IS_DECLARED 1
 # define YYLTYPE_IS_TRIVIAL 1
 #endif
 
 
-#ifdef YYPARSE_PARAM
-#if defined __STDC__ || defined __cplusplus
-int quickstep_yyparse (void *YYPARSE_PARAM);
-#else
-int quickstep_yyparse ();
-#endif
-#else /* ! YYPARSE_PARAM */
-#if defined __STDC__ || defined __cplusplus
+
 int quickstep_yyparse (yyscan_t yyscanner, quickstep::ParseStatement **parsedStatement);
-#else
-int quickstep_yyparse ();
-#endif
-#endif /* ! YYPARSE_PARAM */
 
 #endif /* !YY_QUICKSTEP_YY_SQLPARSER_GEN_HPP_INCLUDED  */
