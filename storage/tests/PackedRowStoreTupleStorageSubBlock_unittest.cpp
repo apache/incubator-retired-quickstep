@@ -256,29 +256,27 @@ class PackedRowStoreTupleStorageSubBlockTest : public ::testing::TestWithParam<b
     initializeNewBlock(kSubBlockSize);
     fillBlockWithSampleData();
     ASSERT_TRUE(tuple_store_->isPacked());
-    std::unique_ptr<ValueAccessor> accessor(tuple_store_->createValueAccessor());
+    std::unique_ptr<PackedRowStoreValueAccessor> accessor(
+      static_cast<PackedRowStoreValueAccessor*>(tuple_store_->createValueAccessor()));
     attribute_id  value_accessor_id = 0;
     tuple_id tid = 0;
-    InvokeOnAnyValueAccessor(accessor.get(),
-                             [&](auto *accessor) -> void {  // NOLINT(build/c++11)
-      accessor->beginIteration();
-      ASSERT_TRUE(accessor->isColumnAccessorSupported());
-      std::unique_ptr<const ColumnAccessor<check_null>>
-      column_accessor(accessor->template getColumnAccessor<check_null>(value_accessor_id));
-      ASSERT_TRUE(column_accessor != nullptr);
-      while (accessor->next()) {
-        const void *va_value = column_accessor->getUntypedValue();
-        std::unique_ptr<Tuple> expected_tuple(createSampleTuple(tid));
+    accessor->beginIteration();
+    ASSERT_TRUE(accessor->isColumnAccessorSupported());
+    std::unique_ptr<const ColumnAccessor<check_null>>
+    column_accessor(accessor->template getColumnAccessor<check_null>(value_accessor_id));
+    ASSERT_TRUE(column_accessor != nullptr);
+    while (accessor->next()) {
+      const void *va_value = column_accessor->getUntypedValue();
+      std::unique_ptr<Tuple> expected_tuple(createSampleTuple(tid));
 
-        if (expected_tuple->getAttributeValue(value_accessor_id).isNull()) {
-          ASSERT_TRUE(va_value == nullptr);
-        } else {
-          ASSERT_TRUE(eq_comp_int_->compareDataPtrs(expected_tuple->getAttributeValue(value_accessor_id).getDataPtr(),
-                                                    va_value));
-        }
-        ++tid;
+      if (expected_tuple->getAttributeValue(value_accessor_id).isNull()) {
+        ASSERT_TRUE(va_value == nullptr);
+      } else {
+        ASSERT_TRUE(eq_comp_int_->compareDataPtrs(expected_tuple->getAttributeValue(value_accessor_id).getDataPtr(),
+                                                  va_value));
       }
-    });
+      ++tid;
+    }
   }
 
   std::unique_ptr<CatalogRelation> relation_;
