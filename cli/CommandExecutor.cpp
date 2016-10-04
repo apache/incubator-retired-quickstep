@@ -197,9 +197,9 @@ void executeDescribeTable(
 }
 
 /**
- * @brief A helper function that executes a SQL query to obtain a scalar result.
+ * @brief A helper function that executes a SQL query to obtain a row of results.
  */
-inline TypedValue executeQueryForSingleResult(
+inline std::vector<TypedValue> executeQueryForSingleRow(
     const tmb::client_id main_thread_client_id,
     const tmb::client_id foreman_client_id,
     const std::string &query_string,
@@ -232,22 +232,29 @@ inline TypedValue executeQueryForSingleResult(
   const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
   DCHECK(query_result_relation != nullptr);
 
-  TypedValue value;
+  std::vector<TypedValue> values;
   {
     std::vector<block_id> blocks = query_result_relation->getBlocksSnapshot();
     DCHECK_EQ(1u, blocks.size());
+
     BlockReference block = storage_manager->getBlock(blocks[0], *query_result_relation);
     const TupleStorageSubBlock &tuple_store = block->getTupleStorageSubBlock();
     DCHECK_EQ(1, tuple_store.numTuples());
-    DCHECK_EQ(1u, tuple_store.getRelation().size());
 
+    const std::size_t num_columns = tuple_store.getRelation().size();
     if (tuple_store.isPacked()) {
-      value = tuple_store.getAttributeValueTyped(0, 0);
+      for (std::size_t i = 0; i < num_columns; ++i) {
+        values.emplace_back(tuple_store.getAttributeValueTyped(0, i));
+        values[i].ensureNotReference();
+      }
     } else {
       std::unique_ptr<TupleIdSequence> existence_map(tuple_store.getExistenceMap());
-      value = tuple_store.getAttributeValueTyped(*existence_map->begin(), 0);
+      for (std::size_t i = 0; i < num_columns; ++i) {
+        values.emplace_back(
+            tuple_store.getAttributeValueTyped(*existence_map->begin(), i));
+        values[i].ensureNotReference();
+      }
     }
-    value.ensureNotReference();
   }
 
   // Drop the result relation.
@@ -255,10 +262,34 @@ inline TypedValue executeQueryForSingleResult(
                      query_processor->getDefaultDatabase(),
                      query_processor->getStorageManager());
 
-  return value;
+  return values;
 }
 
-void executeAnalyze(const tmb::client_id main_thread_client_id,
+/**
+ * @brief A helper function that executes a SQL query to obtain a scalar result.
+ */
+inline TypedValue executeQueryForSingleResult(
+    const tmb::client_id main_thread_client_id,
+    const tmb::client_id foreman_client_id,
+    const std::string &query_string,
+    tmb::MessageBus *bus,
+    StorageManager *storage_manager,
+    QueryProcessor *query_processor,
+    SqlParserWrapper *parser_wrapper) {
+  std::vector<TypedValue> results =
+      executeQueryForSingleRow(main_thread_client_id,
+                               foreman_client_id,
+                               query_string,
+                               bus,
+                               storage_manager,
+                               query_processor,
+                               parser_wrapper);
+  DCHECK_EQ(1u, results.size());
+  return results[0];
+}
+
+void executeAnalyze(const PtrVector<ParseString> *arguments,
+                    const tmb::client_id main_thread_client_id,
                     const tmb::client_id foreman_client_id,
                     MessageBus *bus,
                     QueryProcessor *query_processor,
@@ -267,8 +298,19 @@ void executeAnalyze(const tmb::client_id main_thread_client_id,
   StorageManager *storage_manager = query_processor->getStorageManager();
 
   std::unique_ptr<SqlParserWrapper> parser_wrapper(new SqlParserWrapper());
-  std::vector<std::reference_wrapper<const CatalogRelation>> relations(
-      database.begin(), database.end());
+  std::vector<std::reference_wrapper<const CatalogRelation>> relations;
+  if (arguments->size() == 0) {
+    relations.insert(relations.begin(), database.begin(), database.end());
+  } else {
+    for (const auto &rel_name : *arguments) {
+      const CatalogRelation *rel = database.getRelationByName(rel_name.value());
+      if (rel == nullptr) {
+        THROW_SQL_ERROR_AT(&rel_name) << "Table does not exist";
+      } else {
+        relations.emplace_back(*rel);
+      }
+    }
+  }
 
   // Analyze each relation in the database.
   for (const CatalogRelation &relation : relations) {
@@ -286,19 +328,21 @@ void executeAnalyze(const tmb::client_id main_thread_client_id,
       query_string.append(relation.getName());
       query_string.append(";");
 
-      TypedValue num_distinct_values =
-          executeQueryForSingleResult(main_thread_client_id,
-                                      foreman_client_id,
-                                      query_string,
-                                      bus,
-                                      storage_manager,
-                                      query_processor,
-                                      parser_wrapper.get());
+      std::vector<TypedValue> results =
+          executeQueryForSingleRow(main_thread_client_id,
+                                   foreman_client_id,
+                                   query_string,
+                                   bus,
+                                   storage_manager,
+                                   query_processor,
+                                   parser_wrapper.get());
 
-      DCHECK(num_distinct_values.getTypeID() == TypeID::kLong);
-      mutable_relation->getStatisticsMutable()->setNumDistinctValues(
-          attribute.getID(),
-          num_distinct_values.getLiteral<std::int64_t>());
+      auto *stat = mutable_relation->getStatisticsMutable();
+      const attribute_id attr_id = attribute.getID();
+
+      DCHECK(results[0].getTypeID() == TypeID::kLong);
+      stat->setNumDistinctValues(attr_id,
+                                 results[0].getLiteral<std::int64_t>());
     }
 
     // Get the number of tuples for the relation.
@@ -348,8 +392,11 @@ void executeCommand(const ParseStatement &statement,
       executeDescribeTable(arguments, catalog_database, out);
     }
   } else if (command_str == C::kAnalyzeCommand) {
-    executeAnalyze(
-        main_thread_client_id, foreman_client_id, bus, query_processor, out);
+    executeAnalyze(arguments,
+                   main_thread_client_id,
+                   foreman_client_id,
+                   bus,
+                   query_processor, out);
   } else {
     THROW_SQL_ERROR_AT(command.command()) << "Invalid Command";
   }
