@@ -95,6 +95,25 @@ bool ContainsExpression(
 }
 
 /**
+ * @brief Checks whether expr_id equals any expression's id in \p expressions.
+ *
+ * @param expressions A list of expressions to be checked with.
+ * @param expr_id The ExprId that is to be checked if it is in \p expressions.
+ * @return True if \p expr_id is contained by \p expressions.
+ */
+template <class NamedExpressionType>
+bool ContainsExprId(
+    const std::vector<std::shared_ptr<const NamedExpressionType>> &expressions,
+    const ExprId expr_id) {
+  for (const std::shared_ptr<const NamedExpressionType> &expression : expressions) {
+    if (expression->id() == expr_id) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * @brief Checks whether \p left is a subset of \p right.
  *
  * @param left The left operand of the subset operator (i.e. the one that may be

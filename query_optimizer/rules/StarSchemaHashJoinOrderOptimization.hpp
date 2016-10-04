@@ -103,7 +103,7 @@ class StarSchemaHashJoinOrderOptimization : public Rule<physical::Physical> {
 
       if (lhs->estimated_selectivity < rhs->estimated_selectivity) {
         return !swapped;
-      } else if (lhs->estimated_cardinality < 1000u &&
+      } else if (lhs->estimated_cardinality < 100u &&
                  rhs->estimated_cardinality > 10000u &&
                  lhs->estimated_selectivity < rhs->estimated_selectivity * 1.5) {
         return !swapped;

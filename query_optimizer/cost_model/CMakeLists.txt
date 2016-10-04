@@ -24,6 +24,7 @@ add_library(quickstep_queryoptimizer_costmodel_StarSchemaSimpleCostModel
 
 # Link dependencies:
 target_link_libraries(quickstep_queryoptimizer_costmodel_CostModel
+                      quickstep_queryoptimizer_physical_Aggregate
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_costmodel_SimpleCostModel
@@ -50,6 +51,7 @@ target_link_libraries(quickstep_queryoptimizer_costmodel_StarSchemaSimpleCostMod
                       quickstep_queryoptimizer_expressions_ComparisonExpression
                       quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_ExpressionType
+                      quickstep_queryoptimizer_expressions_ExpressionUtil
                       quickstep_queryoptimizer_expressions_LogicalAnd
                       quickstep_queryoptimizer_expressions_LogicalOr
                       quickstep_queryoptimizer_expressions_PatternMatcher
@@ -57,6 +59,7 @@ target_link_libraries(quickstep_queryoptimizer_costmodel_StarSchemaSimpleCostMod
                       quickstep_queryoptimizer_physical_Aggregate
                       quickstep_queryoptimizer_physical_HashJoin
                       quickstep_queryoptimizer_physical_NestedLoopsJoin
+                      quickstep_queryoptimizer_physical_PatternMatcher
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
                       quickstep_queryoptimizer_physical_Selection

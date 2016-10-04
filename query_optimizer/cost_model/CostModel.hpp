@@ -22,6 +22,7 @@
 
 #include <cstddef>
 
+#include "query_optimizer/physical/Aggregate.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "utility/Macros.hpp"
 
@@ -52,6 +53,16 @@ class CostModel {
    */
   virtual std::size_t estimateCardinality(
       const physical::PhysicalPtr &physical_plan) = 0;
+
+  /**
+   * @brief Estimate the number of groups of an aggregation.
+   *
+   * @param aggregate The physical plan of the aggregation.
+   * @return The estimated number of groups.
+   */
+  virtual std::size_t estimateNumGroupsForAggregate(const physical::AggregatePtr &aggregate) {
+    return estimateCardinality(aggregate);
+  }
 
  protected:
   /**

@@ -58,7 +58,7 @@
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryPlan.hpp"
-#include "query_optimizer/cost_model/SimpleCostModel.hpp"
+#include "query_optimizer/cost_model/StarSchemaSimpleCostModel.hpp"
 #include "query_optimizer/expressions/AggregateFunction.hpp"
 #include "query_optimizer/expressions/Alias.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
@@ -167,7 +167,7 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
       << "The physical plan must be rooted by a TopLevelPlan";
 
   cost_model_.reset(
-      new cost::SimpleCostModel(top_level_physical_plan_->shared_subplans()));
+      new cost::StarSchemaSimpleCostModel(top_level_physical_plan_->shared_subplans()));
 
   const CatalogRelation *result_relation = nullptr;
 
@@ -1411,7 +1411,9 @@ void ExecutionGenerator::convertAggregate(
     aggr_state_proto->mutable_predicate()->CopyFrom(predicate->getProto());
   }
 
-  aggr_state_proto->set_estimated_num_entries(cost_model_->estimateCardinality(physical_plan));
+  const std::size_t estimated_num_groups =
+      cost_model_->estimateNumGroupsForAggregate(physical_plan);
+  aggr_state_proto->set_estimated_num_entries(std::max(16uL, estimated_num_groups));
 
   const QueryPlan::DAGNodeIndex aggregation_operator_index =
       execution_plan_->addRelationalOperator(
