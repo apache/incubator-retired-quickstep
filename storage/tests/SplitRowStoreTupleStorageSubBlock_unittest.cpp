@@ -473,14 +473,11 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, BulkInsertTest) {
 
   std::size_t storage_used = 0;
   int current_tuple_idx = 0;
+  std::size_t tuple_max_size = relation_->getMaximumByteLength();
+  std::size_t tuple_slot_size = getTupleSlotSize();
   for (;;) {
     Tuple current_tuple(createSampleTuple(current_tuple_idx));
-    const std::size_t current_tuple_storage_bytes
-        = getTupleSlotSize()
-          + (testVariableLength() ? (current_tuple.getAttributeValue(2).isNull() ?
-                                     0 : current_tuple.getAttributeValue(2).getDataSize())
-                                  : 0);
-    if (storage_used + current_tuple_storage_bytes <= getTupleStorageSize()) {
+    if ((getTupleStorageSize() - storage_used) / tuple_max_size > 0) {
       int_vector->appendTypedValue(current_tuple.getAttributeValue(0));
       double_vector->appendTypedValue(current_tuple.getAttributeValue(1));
       if (testVariableLength()) {
@@ -491,7 +488,11 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, BulkInsertTest) {
             ->appendTypedValue(current_tuple.getAttributeValue(2));
       }
 
-      storage_used += current_tuple_storage_bytes;
+      storage_used += tuple_slot_size;
+      if (testVariableLength() && !current_tuple.getAttributeValue(2).isNull()) {
+        storage_used += current_tuple.getAttributeValue(2).getDataSize();
+      }
+
       ++current_tuple_idx;
     } else {
       break;
@@ -549,27 +550,29 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, BulkInsertWithRemappedAttributesTe
           relation_->getAttributeById(2)->getType(),
           max_tuple_capacity));
 
+  // TODO(marc) This code is shared with BulkInsertCode and can be refactored out.
   std::size_t storage_used = 0;
   int current_tuple_idx = 0;
+  std::size_t tuple_max_size = relation_->getMaximumByteLength();
+  std::size_t tuple_slot_size = getTupleSlotSize();
   for (;;) {
     Tuple current_tuple(createSampleTuple(current_tuple_idx));
-    const std::size_t current_tuple_storage_bytes
-        = getTupleSlotSize()
-          + (testVariableLength() ? (current_tuple.getAttributeValue(2).isNull() ?
-                                     0 : current_tuple.getAttributeValue(2).getDataSize())
-                                  : 0);
-    if (storage_used + current_tuple_storage_bytes <= getTupleStorageSize()) {
+    if ((getTupleStorageSize() - storage_used) / tuple_max_size > 0) {
       int_vector->appendTypedValue(current_tuple.getAttributeValue(0));
       double_vector->appendTypedValue(current_tuple.getAttributeValue(1));
       if (testVariableLength()) {
         static_cast<IndirectColumnVector*>(string_vector)
-            ->appendTypedValue(current_tuple.getAttributeValue(2));
+          ->appendTypedValue(current_tuple.getAttributeValue(2));
       } else {
         static_cast<NativeColumnVector*>(string_vector)
-            ->appendTypedValue(current_tuple.getAttributeValue(2));
+          ->appendTypedValue(current_tuple.getAttributeValue(2));
       }
 
-      storage_used += current_tuple_storage_bytes;
+      storage_used += tuple_slot_size;
+      if (testVariableLength() && !current_tuple.getAttributeValue(2).isNull()) {
+        storage_used += current_tuple.getAttributeValue(2).getDataSize();
+      }
+
       ++current_tuple_idx;
     } else {
       break;
