@@ -1450,26 +1450,10 @@ void FastSeparateChainingHashTable<
   //       d. Relative pointers are not used with resizable hash tables.
   //     4. If values are not trivially copyable, then we invoke ValueT's copy
   //        or move constructor with placement new.
+  // NOTE(harshad) - Regarding point 4 above, as this is a specialized
+  // hash table implemented for aggregation, the values are trivially copyable,
+  // therefore we don't need to invoke payload values' copy/move constructors.
   std::memcpy(resized_buckets, buckets_, original_buckets_used * bucket_size_);
-
-  // TODO(chasseur): std::is_trivially_copyable is not yet implemented in
-  // GCC 4.8.3, so we assume we need to invoke ValueT's copy or move
-  // constructor, even though the plain memcpy above could suffice for many
-  // possible ValueTs.
-  void *current_value_original = static_cast<char *>(buckets_) + kValueOffset;
-  void *current_value_resized =
-      static_cast<char *>(resized_buckets) + kValueOffset;
-  for (std::size_t bucket_num = 0; bucket_num < original_buckets_used;
-       ++bucket_num) {
-    // Use a move constructor if available to avoid a deep-copy, since resizes
-    // always succeed.
-    new (current_value_resized) std::uint8_t(
-        std::move(*static_cast<std::uint8_t *>(current_value_original)));
-    current_value_original =
-        static_cast<char *>(current_value_original) + bucket_size_;
-    current_value_resized =
-        static_cast<char *>(current_value_resized) + bucket_size_;
-  }
 
   // Copy over variable-length key components, if any.
   if (original_variable_storage_used > 0) {
