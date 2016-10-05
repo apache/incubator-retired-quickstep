@@ -183,6 +183,20 @@ class BitVector {
   }
 
   /**
+   * @brief Assign this BitVector's contents to the pointed-to memory.
+   *
+   * @warning caller is responsible for ensuring the Bitvector has the correct
+   *          ownership and size.
+   *
+   * @param ptr Pointer to data representing a BitVector with the same parameters
+   *            as this BitVector.
+   **/
+  inline void setMemory(void *ptr) {
+    DCHECK(!owned_);
+    this->data_array_ = static_cast<std::size_t*>(ptr);
+  }
+
+  /**
    * @brief Similar to assignFrom(), but the other BitVector to assign from is
    *        allowed to be longer than this one.
    * @warning Only available when enable_short_version is false.

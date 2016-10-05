@@ -22,6 +22,7 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
+#include <string>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -61,6 +62,11 @@ using std::snprintf;
 
 namespace quickstep {
 
+using splitrow_internal::CopyGroupList;
+using splitrow_internal::ContiguousAttrs;
+using splitrow_internal::NullableAttr;
+using splitrow_internal::VarLenAttr;
+
 namespace {
 
 // Used to set up a value-parameterized test with certain features for
@@ -76,9 +82,11 @@ enum class AttributeTypeFeatures {
 
 class SplitRowStoreTupleStorageSubBlockTest
     : public ::testing::TestWithParam<AttributeTypeFeatures> {
- protected:
+ public:
   static const std::size_t kSubBlockSize = 0x100000;  // 1 MB
+  static const std::size_t kVarLenSize = 26;
 
+ protected:
   virtual void SetUp() {
     // Create a sample relation with a variety of attribute types.
     relation_.reset(new CatalogRelation(nullptr, "TestRelation"));
@@ -102,7 +110,7 @@ class SplitRowStoreTupleStorageSubBlockTest
         relation_.get(),
         "string_attr",
         TypeFactory::GetType(testVariableLength() ? kVarChar : kChar,
-                             26,
+                             kVarLenSize,
                              testNullable()));
     ASSERT_EQ(2, relation_->addAttribute(current_attr));
 
@@ -147,6 +155,14 @@ class SplitRowStoreTupleStorageSubBlockTest
     return tuple_store_->tuple_storage_bytes_;
   }
 
+  std::size_t getTupleInsertLowerBound() const {
+    return tuple_store_->getInsertLowerBound();
+  }
+
+  std::size_t getInsertLowerBoundThreshold() const {
+    return tuple_store_->getInsertLowerBoundThreshold();
+  }
+
   Tuple createSampleTuple(const int base_value) const {
     std::vector<TypedValue> attribute_values;
 
@@ -174,10 +190,10 @@ class SplitRowStoreTupleStorageSubBlockTest
       char string_buffer[13];
       int written = snprintf(string_buffer, sizeof(string_buffer), "%d", base_value);
       if (testVariableLength()) {
-        attribute_values.emplace_back((VarCharType::InstanceNonNullable(26).makeValue(string_buffer,
+        attribute_values.emplace_back((VarCharType::InstanceNonNullable(kVarLenSize).makeValue(string_buffer,
                                                                                       written + 1)));
       } else {
-        attribute_values.emplace_back((CharType::InstanceNonNullable(26).makeValue(string_buffer,
+        attribute_values.emplace_back((CharType::InstanceNonNullable(kVarLenSize).makeValue(string_buffer,
                                                                                    written + 1)));
       }
       attribute_values.back().ensureNotReference();
@@ -195,6 +211,11 @@ class SplitRowStoreTupleStorageSubBlockTest
     }
 
     tuple_store_->rebuild();
+  }
+
+  void getCopyGroupsForAttributeMap(const std::vector<attribute_id> &attribute_map,
+                                    CopyGroupList *copy_groups) {
+    tuple_store_->getCopyGroupsForAttributeMap(attribute_map, copy_groups);
   }
 
   void checkTupleValuesUntyped(const tuple_id tid,
@@ -268,6 +289,135 @@ class SplitRowStoreTupleStorageSubBlockTest
   std::unique_ptr<SplitRowStoreTupleStorageSubBlock> tuple_store_;
 };
 typedef SplitRowStoreTupleStorageSubBlockTest SplitRowStoreTupleStorageSubBlockDeathTest;
+
+class SplitRowWrapper {
+ public:
+  enum AttrType {
+    kInt = 0,
+    kDouble,
+    kString,
+    kNumAttrTypes
+  };
+
+  /**
+   * Builds a catalog relation given a list of attributes.
+   *
+   * @param attribute_ordering The ordering of the attributes in the represented relation. Attribute #1 is an
+   *                integer attribute, #2 is a double, and #3 is a string.
+   * @param contains_nullable If the relation contains nullable attributes.
+   * @param contains_varlen If the relation contains variable length attributes.
+   * @return A caller-owned catalog relation.
+   */
+  static CatalogRelation *
+  GetRelationFromAttributeList(const std::vector<attribute_id> &attribute_ordering, bool contains_nullable,
+                               bool contains_varlen) {
+    // Create a unique name.
+    std::string rel_name("TempRelation");
+    for (auto attr_itr = attribute_ordering.begin();
+         attr_itr != attribute_ordering.end();
+         ++attr_itr) {
+      rel_name += "_" + std::to_string(*attr_itr);
+    }
+    CatalogRelation *relation = new CatalogRelation(nullptr, rel_name.c_str());
+
+    std::vector<int> attr_counts(AttrType::kNumAttrTypes);
+    std::string attr_name;
+    for (auto attr_itr = attribute_ordering.begin();
+         attr_itr != attribute_ordering.end();
+         ++attr_itr) {
+      switch (*attr_itr) {
+        case AttrType::kInt:
+          // An integer.
+          attr_name = "int_attr_" + std::to_string(attr_counts[AttrType::kInt]);
+          relation->addAttribute(new CatalogAttribute(
+            relation,
+            attr_name.c_str(),
+            TypeFactory::GetType(TypeID::kInt, contains_nullable)));
+          attr_counts[AttrType::kInt]++;
+          break;
+        case AttrType::kDouble:
+          // A double.
+          attr_name = "double_attr_" + std::to_string(attr_counts[AttrType::kDouble]);
+          relation->addAttribute(new CatalogAttribute(
+            relation,
+            attr_name.c_str(),
+            TypeFactory::GetType(TypeID::kDouble, contains_nullable)));
+          attr_counts[AttrType::kDouble]++;
+          break;
+        case AttrType::kString:
+          // A (possibly variable-length) string.
+          attr_name = "string_attr_" + std::to_string(attr_counts[AttrType::kString]);
+          relation->addAttribute(new CatalogAttribute(
+            relation,
+            attr_name.c_str(),
+            TypeFactory::GetType(contains_varlen ? TypeID::kVarChar : TypeID::kChar,
+                                 SplitRowStoreTupleStorageSubBlockTest::kVarLenSize,
+                                 contains_nullable)));
+          attr_counts[AttrType::kString]++;
+          break;
+        default:
+          LOG(FATAL) << "Unknown type was specified in SplitRowWrapper.";
+          break;
+      }
+    }
+    return relation;
+  }
+
+  /**
+   * A wrapper for an empty SplitRowstore.
+   *
+   * @param attribute_ordering The ordering of the attributes in the represented relation. Attribute #1 is an
+   *                integer attribute, #2 is a double, and #3 is a string.
+   * @param contains_nullable If the relation contains nullable attributes.
+   * @param contains_varlen If the relation contains variable length attributes.
+   */
+  SplitRowWrapper(const std::vector<attribute_id> &attribute_ordering, bool contains_nullable, bool contains_varlen)
+    : contains_nullable_(contains_nullable),
+      contains_varlen_(contains_varlen) {
+    initialize(attribute_ordering);
+  }
+
+  SplitRowWrapper(bool contains_nullable, bool contains_varlen)
+    : contains_nullable_(contains_nullable),
+      contains_varlen_(contains_varlen) {
+    // Make a clone of the Test Block type using the 3 basic attributes.
+    std::vector<attribute_id> attrs;
+    for (attribute_id attr = 0; attr < 3; ++attr) {
+      attrs.push_back(attr);
+    }
+    initialize(attrs);
+  }
+
+  SplitRowStoreTupleStorageSubBlock *operator->() {
+    return tuple_store_.get();
+  }
+
+  const bool contains_nullable_;
+  const bool contains_varlen_;
+
+  std::unique_ptr<CatalogRelation> relation_;
+  std::unique_ptr<TupleStorageSubBlockDescription> tuple_store_description_;
+  ScopedBuffer tuple_store_memory_;
+  std::unique_ptr<SplitRowStoreTupleStorageSubBlock> tuple_store_;
+
+ private:
+  void initialize(const std::vector<attribute_id> &attribute_ordering) {
+    // Create a sample relation with a variety of attribute types.
+    relation_.reset(GetRelationFromAttributeList(attribute_ordering, contains_nullable_, contains_varlen_));
+
+    tuple_store_description_.reset(new TupleStorageSubBlockDescription());
+    tuple_store_description_->set_sub_block_type(TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
+
+    // Initialize the actual block.
+    tuple_store_memory_.reset(SplitRowStoreTupleStorageSubBlockTest::kSubBlockSize);
+    std::memset(tuple_store_memory_.get(), 0x0, SplitRowStoreTupleStorageSubBlockTest::kSubBlockSize);
+    tuple_store_.reset(new SplitRowStoreTupleStorageSubBlock(*relation_,
+                                                             *tuple_store_description_,
+                                                             true,
+                                                             tuple_store_memory_.get(),
+                                                             SplitRowStoreTupleStorageSubBlockTest::kSubBlockSize));
+  }
+};
 
 TEST_P(SplitRowStoreTupleStorageSubBlockTest, DescriptionIsValidTest) {
   // The descriptions we use for the other tests (which includes nullable and
@@ -458,37 +608,37 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, BulkInsertTest) {
   const std::size_t max_tuple_capacity = getTupleStorageSize() / getTupleSlotSize();
 
   NativeColumnVector *int_vector = new NativeColumnVector(
-      relation_->getAttributeById(0)->getType(),
-      max_tuple_capacity);
+    relation_->getAttributeById(0)->getType(),
+    max_tuple_capacity);
   NativeColumnVector *double_vector = new NativeColumnVector(
-      relation_->getAttributeById(1)->getType(),
-      max_tuple_capacity);
+    relation_->getAttributeById(1)->getType(),
+    max_tuple_capacity);
   ColumnVector *string_vector = testVariableLength() ?
-      static_cast<ColumnVector*>(new IndirectColumnVector(
-          relation_->getAttributeById(2)->getType(),
-          max_tuple_capacity))
-      : static_cast<ColumnVector*>(new NativeColumnVector(
-          relation_->getAttributeById(2)->getType(),
-          max_tuple_capacity));
+                                static_cast<ColumnVector*>(new IndirectColumnVector(
+                                  relation_->getAttributeById(2)->getType(),
+                                  max_tuple_capacity))
+                                                     : static_cast<ColumnVector*>(new NativeColumnVector(
+      relation_->getAttributeById(2)->getType(),
+      max_tuple_capacity));
 
   std::size_t storage_used = 0;
   int current_tuple_idx = 0;
   for (;;) {
     Tuple current_tuple(createSampleTuple(current_tuple_idx));
     const std::size_t current_tuple_storage_bytes
-        = getTupleSlotSize()
-          + (testVariableLength() ? (current_tuple.getAttributeValue(2).isNull() ?
-                                     0 : current_tuple.getAttributeValue(2).getDataSize())
-                                  : 0);
+      = getTupleSlotSize()
+        + (testVariableLength() ? (current_tuple.getAttributeValue(2).isNull() ?
+                                   0 : current_tuple.getAttributeValue(2).getDataSize())
+                                : 0);
     if (storage_used + current_tuple_storage_bytes <= getTupleStorageSize()) {
       int_vector->appendTypedValue(current_tuple.getAttributeValue(0));
       double_vector->appendTypedValue(current_tuple.getAttributeValue(1));
       if (testVariableLength()) {
         static_cast<IndirectColumnVector*>(string_vector)
-            ->appendTypedValue(current_tuple.getAttributeValue(2));
+          ->appendTypedValue(current_tuple.getAttributeValue(2));
       } else {
         static_cast<NativeColumnVector*>(string_vector)
-            ->appendTypedValue(current_tuple.getAttributeValue(2));
+          ->appendTypedValue(current_tuple.getAttributeValue(2));
       }
 
       storage_used += current_tuple_storage_bytes;
@@ -505,16 +655,21 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, BulkInsertTest) {
 
   // Actually do the bulk-insert.
   accessor.beginIteration();
-  EXPECT_EQ(current_tuple_idx, tuple_store_->bulkInsertTuples(&accessor));
-  EXPECT_TRUE(accessor.iterationFinished());
-
-  // Shouldn't be able to insert any more tuples.
-  accessor.beginIteration();
-  EXPECT_EQ(0, tuple_store_->bulkInsertTuples(&accessor));
+  tuple_id num_inserted = tuple_store_->bulkInsertTuples(&accessor);
+  if (testVariableLength()) {
+    EXPECT_LE(current_tuple_idx - num_inserted, getInsertLowerBoundThreshold());
+  } else {
+    EXPECT_EQ(current_tuple_idx, num_inserted);
+    ASSERT_TRUE(accessor.iterationFinished());
+    // Shouldn't be able to insert any more tuples.
+    accessor.beginIteration();
+    tuple_id num_inserted_second_round = tuple_store_->bulkInsertTuples(&accessor);
+    ASSERT_EQ(0, num_inserted_second_round);
+  }
 
   tuple_store_->rebuild();
-  EXPECT_EQ(current_tuple_idx, tuple_store_->numTuples());
-  EXPECT_EQ(current_tuple_idx - 1, tuple_store_->getMaxTupleID());
+  EXPECT_EQ(num_inserted, tuple_store_->numTuples());
+  EXPECT_EQ(num_inserted - 1, tuple_store_->getMaxTupleID());
 
   // Check the inserted values.
   ASSERT_TRUE(tuple_store_->isPacked());
@@ -522,6 +677,146 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, BulkInsertTest) {
        tid <= tuple_store_->getMaxTupleID();
        ++tid) {
     checkTupleValuesUntyped(tid, tid);
+  }
+}
+
+TEST_P(SplitRowStoreTupleStorageSubBlockTest, PartialBulkInsertTest) {
+  // Build up a ColumnVectorsValueAccessor to bulk-insert from. We'll reserve
+  // enough space for the maximum possible number of tuples in the block, even
+  // though we won't use all of it if testVariableLength() is true.
+  const std::size_t max_tuple_capacity = getTupleStorageSize() / getTupleSlotSize();
+
+  NativeColumnVector *int_vector = new NativeColumnVector(
+    relation_->getAttributeById(0)->getType(),
+    max_tuple_capacity);
+  NativeColumnVector *double_vector = new NativeColumnVector(
+    relation_->getAttributeById(1)->getType(),
+    max_tuple_capacity);
+  ColumnVector *string_vector = testVariableLength() ?
+                                static_cast<ColumnVector *>(new IndirectColumnVector(
+                                  relation_->getAttributeById(2)->getType(),
+                                  max_tuple_capacity))
+                                                     : static_cast<ColumnVector *>(new NativeColumnVector(
+      relation_->getAttributeById(2)->getType(),
+      max_tuple_capacity));
+
+  const int max_tuples_insert = 1000;
+  for (int tuple_idx = 0; tuple_idx < max_tuples_insert; ++tuple_idx) {
+    Tuple current_tuple(createSampleTuple(tuple_idx));
+    int_vector->appendTypedValue(current_tuple.getAttributeValue(0));
+    double_vector->appendTypedValue(current_tuple.getAttributeValue(1));
+    if (testVariableLength()) {
+      static_cast<IndirectColumnVector *>(string_vector)
+        ->appendTypedValue(current_tuple.getAttributeValue(2));
+    } else {
+      static_cast<NativeColumnVector *>(string_vector)
+        ->appendTypedValue(current_tuple.getAttributeValue(2));
+    }
+  }
+
+  std::vector<attribute_id> attr_map_pt1 = {kInvalidCatalogId, 0, kInvalidCatalogId};
+  std::vector<attribute_id> attr_map_pt2 = {0, kInvalidCatalogId, 1};
+
+  ColumnVectorsValueAccessor accessor_pt1;
+  accessor_pt1.addColumn(double_vector);
+
+  ColumnVectorsValueAccessor accessor_pt2;
+  accessor_pt2.addColumn(int_vector);
+  accessor_pt2.addColumn(string_vector);
+
+
+  // Actually do the bulk-insert.
+  accessor_pt1.beginIteration();
+  const tuple_id num_inserted_pt1 = tuple_store_->bulkInsertPartialTuples(attr_map_pt1, &accessor_pt1, kCatalogMaxID);
+  ASSERT_GT(num_inserted_pt1, 0);
+  const tuple_id num_inserted_pt2 = tuple_store_->bulkInsertPartialTuples(attr_map_pt2, &accessor_pt2,
+                                                                          num_inserted_pt1);
+  ASSERT_EQ(num_inserted_pt1, num_inserted_pt2);
+
+  tuple_store_->bulkInsertPartialTuplesFinalize(num_inserted_pt1);
+  ASSERT_EQ(max_tuples_insert, tuple_store_->getMaxTupleID() + 1);
+  ASSERT_EQ(num_inserted_pt1, tuple_store_->getMaxTupleID() + 1);
+  EXPECT_TRUE(accessor_pt2.iterationFinished());
+
+  tuple_store_->rebuild();
+
+  // Should be the same order as if we inserted them serially.
+  ASSERT_TRUE(tuple_store_->isPacked());
+  for (tuple_id tid = 0;
+       tid <= tuple_store_->getMaxTupleID();
+       ++tid) {
+    checkTupleValuesUntyped(tid, tid);
+  }
+}
+
+TEST_P(SplitRowStoreTupleStorageSubBlockTest, GetCopyGroupsForAttributeMapTest) {
+  const bool nullable_attrs = testNullable();
+  std::vector<attribute_id> relation_attrs = {
+    SplitRowWrapper::AttrType::kInt,
+    SplitRowWrapper::AttrType::kInt,
+    SplitRowWrapper::AttrType::kInt,
+    SplitRowWrapper::AttrType::kString,
+    SplitRowWrapper::AttrType::kString,
+    SplitRowWrapper::AttrType::kString};
+  SplitRowWrapper dst_store(relation_attrs, nullable_attrs, testVariableLength());
+  std::vector<attribute_id> attr_map = { kInvalidCatalogId, 0, 1, kInvalidCatalogId, 2, 1 };
+  CopyGroupList copy_groups;
+  dst_store->getCopyGroupsForAttributeMap(attr_map, &copy_groups);
+
+  std::vector<ContiguousAttrs>& contiguous_attrs = copy_groups.contiguous_attrs_;
+  std::vector<VarLenAttr>& varlen_attrs = copy_groups.varlen_attrs_;
+
+  const std::size_t size_of_string = dst_store->getRelation().getAttributeById(3)->getType().maximumByteLength();
+
+  // Fixed length attributes.
+  EXPECT_EQ(0, contiguous_attrs[0].src_attr_id_);
+  EXPECT_EQ(4, contiguous_attrs[0].bytes_to_advance_);
+  EXPECT_EQ(4, contiguous_attrs[0].bytes_to_copy_);
+
+  EXPECT_EQ(1, contiguous_attrs[1].src_attr_id_);
+  EXPECT_EQ(4, contiguous_attrs[1].bytes_to_advance_);
+  EXPECT_EQ(4, contiguous_attrs[1].bytes_to_copy_);
+
+  if (testVariableLength()) {
+    ASSERT_EQ(2, contiguous_attrs.size());
+    ASSERT_EQ(2, varlen_attrs.size());
+
+    EXPECT_EQ(2, varlen_attrs[0].src_attr_id_);
+    EXPECT_EQ(sizeof(int) + SplitRowStoreTupleStorageSubBlock::kVarLenSlotSize, varlen_attrs[0].bytes_to_advance_);
+
+    EXPECT_EQ(1, varlen_attrs[1].src_attr_id_);
+    EXPECT_EQ(SplitRowStoreTupleStorageSubBlock::kVarLenSlotSize, varlen_attrs[1].bytes_to_advance_);
+
+  } else {
+    ASSERT_EQ(4, copy_groups.contiguous_attrs_.size());
+    ASSERT_EQ(0, copy_groups.varlen_attrs_.size());
+
+    EXPECT_EQ(2, contiguous_attrs[2].src_attr_id_);
+    EXPECT_EQ(4 + size_of_string, contiguous_attrs[2].bytes_to_advance_);
+    EXPECT_EQ(size_of_string, contiguous_attrs[2].bytes_to_copy_);
+  }
+
+  int null_count =  copy_groups.nullable_attrs_.size();
+  if (testNullable()) {
+    // The relation contains 6 nullable attributes, but only 3 are inserted.
+    EXPECT_EQ(4, null_count);
+  } else {
+    EXPECT_EQ(0, null_count);
+  }
+
+  // test that merging works.
+  copy_groups.merge_contiguous();
+  EXPECT_EQ(0, contiguous_attrs[0].src_attr_id_);
+  EXPECT_EQ(4, contiguous_attrs[0].bytes_to_advance_);
+
+  if (testVariableLength()) {
+    EXPECT_EQ(1, contiguous_attrs.size());
+    EXPECT_EQ(sizeof(int) * 2 + SplitRowStoreTupleStorageSubBlock::kVarLenSlotSize,
+              varlen_attrs[0].bytes_to_advance_);
+  } else {
+    EXPECT_EQ(3, contiguous_attrs.size());
+    EXPECT_EQ(8, contiguous_attrs[0].bytes_to_copy_);
+    EXPECT_EQ(8 + size_of_string, contiguous_attrs[1].bytes_to_advance_);
   }
 }
 
@@ -551,25 +846,26 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, BulkInsertWithRemappedAttributesTe
 
   std::size_t storage_used = 0;
   int current_tuple_idx = 0;
+  std::size_t tuple_max_size = relation_->getMaximumByteLength();
+  std::size_t tuple_slot_size = getTupleSlotSize();
   for (;;) {
     Tuple current_tuple(createSampleTuple(current_tuple_idx));
-    const std::size_t current_tuple_storage_bytes
-        = getTupleSlotSize()
-          + (testVariableLength() ? (current_tuple.getAttributeValue(2).isNull() ?
-                                     0 : current_tuple.getAttributeValue(2).getDataSize())
-                                  : 0);
-    if (storage_used + current_tuple_storage_bytes <= getTupleStorageSize()) {
+    if ((getTupleStorageSize() - storage_used) / tuple_max_size > 0) {
       int_vector->appendTypedValue(current_tuple.getAttributeValue(0));
       double_vector->appendTypedValue(current_tuple.getAttributeValue(1));
       if (testVariableLength()) {
         static_cast<IndirectColumnVector*>(string_vector)
-            ->appendTypedValue(current_tuple.getAttributeValue(2));
+          ->appendTypedValue(current_tuple.getAttributeValue(2));
       } else {
         static_cast<NativeColumnVector*>(string_vector)
-            ->appendTypedValue(current_tuple.getAttributeValue(2));
+          ->appendTypedValue(current_tuple.getAttributeValue(2));
       }
 
-      storage_used += current_tuple_storage_bytes;
+      storage_used += tuple_slot_size;
+      if (testVariableLength() && !current_tuple.getAttributeValue(2).isNull()) {
+        storage_used += current_tuple.getAttributeValue(2).getDataSize();
+      }
+
       ++current_tuple_idx;
     } else {
       break;
@@ -588,18 +884,21 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, BulkInsertWithRemappedAttributesTe
 
   // Actually do the bulk-insert.
   accessor.beginIteration();
-  EXPECT_EQ(current_tuple_idx,
-            tuple_store_->bulkInsertTuplesWithRemappedAttributes(attribute_map, &accessor));
-  EXPECT_TRUE(accessor.iterationFinished());
-
-  // Shouldn't be able to insert any more tuples.
-  accessor.beginIteration();
-  EXPECT_EQ(0,
-            tuple_store_->bulkInsertTuplesWithRemappedAttributes(attribute_map, &accessor));
+  tuple_id num_inserted = tuple_store_->bulkInsertTuplesWithRemappedAttributes(attribute_map, &accessor);
+  if (testVariableLength()) {
+    EXPECT_LE(current_tuple_idx - num_inserted, getInsertLowerBoundThreshold());
+  } else {
+    EXPECT_EQ(current_tuple_idx, num_inserted);
+    ASSERT_TRUE(accessor.iterationFinished());
+    // Shouldn't be able to insert any more tuples.
+    accessor.beginIteration();
+    tuple_id num_inserted_second_round = tuple_store_->bulkInsertTuplesWithRemappedAttributes(attribute_map, &accessor);
+    ASSERT_EQ(0, num_inserted_second_round);
+  }
 
   tuple_store_->rebuild();
-  EXPECT_EQ(current_tuple_idx, tuple_store_->numTuples());
-  EXPECT_EQ(current_tuple_idx - 1, tuple_store_->getMaxTupleID());
+  EXPECT_EQ(num_inserted, tuple_store_->numTuples());
+  EXPECT_EQ(num_inserted - 1, tuple_store_->getMaxTupleID());
 
   // Check the inserted values.
   ASSERT_TRUE(tuple_store_->isPacked());
@@ -629,6 +928,53 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, GetAttributeValueTypedTest) {
        tid <= tuple_store_->getMaxTupleID();
        ++tid) {
     checkTupleValuesTyped(tid, tid);
+  }
+}
+
+TEST_P(SplitRowStoreTupleStorageSubBlockTest, SplitRowToSplitRowTest) {
+  // Test insertion of data from a SplitRow to a SplitRow with no reordering.
+  fillBlockWithSampleData();
+  std::vector<attribute_id> relation_attrs = {
+    SplitRowWrapper::AttrType::kInt,
+    SplitRowWrapper::AttrType::kDouble,
+    SplitRowWrapper::AttrType::kDouble,
+    SplitRowWrapper::AttrType::kInt,
+    SplitRowWrapper::AttrType::kString,
+    SplitRowWrapper::AttrType::kString,
+    SplitRowWrapper::AttrType::kString};
+  SplitRowWrapper dst_store(relation_attrs, testNullable(), testVariableLength());
+
+  std::vector<attribute_id> attribute_map = {0, kInvalidCatalogId, 1, 0, 2, kInvalidCatalogId, 2};
+
+  std::unique_ptr<ValueAccessor> accessor(tuple_store_->createValueAccessor());
+  ASSERT_EQ(ValueAccessor::Implementation::kSplitRowStore,
+            accessor->getImplementationType());
+  ASSERT_FALSE(accessor->isTupleIdSequenceAdapter());
+
+  SplitRowStoreValueAccessor &cast_accessor = static_cast<SplitRowStoreValueAccessor &>(*accessor);
+  std::size_t num_inserted = dst_store->bulkInsertPartialTuples(attribute_map, &cast_accessor, kCatalogMaxID);
+  attribute_map = {kInvalidCatalogId, 1, kInvalidCatalogId, kInvalidCatalogId, kInvalidCatalogId, 2, kInvalidCatalogId};
+  cast_accessor.beginIteration();
+  dst_store->bulkInsertPartialTuples(attribute_map, &cast_accessor, num_inserted);
+  dst_store->bulkInsertPartialTuplesFinalize(num_inserted);
+
+  EXPECT_EQ(num_inserted - 1, dst_store->getMaxTupleID());
+  // The inserted relation should hold roughly 1/3 the tuples of the src. The more varlen
+  // attributes, the fewer the relation will accept due to how it estimates.
+  EXPECT_LT(0.15 * tuple_store_->getMaxTupleID(), dst_store->getMaxTupleID());
+  EXPECT_GT(0.5 * tuple_store_->getMaxTupleID(), dst_store->getMaxTupleID());
+
+  attribute_map = {0, 1, 4};
+  for (tuple_id tid = 0; tid < dst_store->getMaxTupleID(); ++tid) {
+    for (attribute_id aid = 0; aid < tuple_store_->getRelation().getMaxAttributeId(); ++aid) {
+      const TypedValue &dst_value = dst_store->getAttributeValueTyped(tid, attribute_map[aid]);
+      const TypedValue &src_value = tuple_store_->getAttributeValueTyped(tid, aid);
+      if (src_value.isNull() || dst_value.isNull()) {
+        EXPECT_TRUE(src_value.isNull() && dst_value.isNull());
+      } else {
+        EXPECT_TRUE(src_value.fastEqualCheck(dst_value));
+      }
+    }
   }
 }
 
@@ -721,7 +1067,7 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, SetAttributeValueTypedTest) {
     // It's also OK to replace a variable-length value with a shorter value, or
     // with null.
     std::unordered_map<attribute_id, TypedValue> variable_new_values;
-    variable_new_values.emplace(2, VarCharType::InstanceNonNullable(26).makeValue("x", 2));
+    variable_new_values.emplace(2, VarCharType::InstanceNonNullable(kVarLenSize).makeValue("x", 2));
     ASSERT_TRUE(tuple_store_->canSetAttributeValuesInPlaceTyped(33, variable_new_values));
     tuple_store_->setAttributeValueInPlaceTyped(33, 2, variable_new_values[2]);
     EXPECT_STREQ("x", static_cast<const char*>(tuple_store_->getAttributeValue(33, 2)));
@@ -747,12 +1093,13 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, SetAttributeValueTypedTest) {
     EXPECT_TRUE(tuple_store_->insertTupleInBatch(createSampleTuple(0)));
     tuple_store_->rebuild();
 
-    variable_new_values[2] = VarCharType::InstanceNonNullable(26).makeValue("hello world", 12);
+    variable_new_values[2] = VarCharType::InstanceNonNullable(kVarLenSize).makeValue("hello world", 12);
     ASSERT_TRUE(tuple_store_->canSetAttributeValuesInPlaceTyped(0, variable_new_values));
     tuple_store_->setAttributeValueInPlaceTyped(0, 2, variable_new_values[2]);
     EXPECT_STREQ("hello world", static_cast<const char*>(tuple_store_->getAttributeValue(0, 2)));
   }
 }
+
 
 TEST_P(SplitRowStoreTupleStorageSubBlockTest, DeleteAndRebuildTest) {
   fillBlockWithSampleData();
@@ -806,7 +1153,7 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, DeleteAndRebuildTest) {
       reinsert_attr_values.emplace_back(testVariableLength() ? kVarChar : kChar);
     } else {
       reinsert_attr_values.emplace_back(
-          CharType::InstanceNonNullable(26).makeValue("foo", 4));
+          CharType::InstanceNonNullable(kVarLenSize).makeValue("foo", 4));
       reinsert_attr_values.back().ensureNotReference();
     }
     Tuple reinsert_tuple(std::move(reinsert_attr_values));
@@ -831,7 +1178,7 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, DeleteAndRebuildTest) {
     std::vector<TypedValue> extra_variable_attr_values;
     extra_variable_attr_values.emplace_back(-123);
     extra_variable_attr_values.emplace_back(static_cast<double>(-100.5));
-    extra_variable_attr_values.emplace_back((VarCharType::InstanceNonNullable(26).makeValue(
+    extra_variable_attr_values.emplace_back((VarCharType::InstanceNonNullable(kVarLenSize).makeValue(
         kExtraVarCharValue,
         27)));
     extra_variable_tuple = Tuple(std::move(extra_variable_attr_values));
