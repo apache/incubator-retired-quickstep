@@ -217,7 +217,6 @@ target_link_libraries(quickstep_queryexecution_QueryExecutionTypedefs
 target_link_libraries(quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_AdmitRequestMessage
                       quickstep_queryexecution_QueryExecutionTypedefs
-                      quickstep_queryexecution_WorkerMessage
                       quickstep_utility_Macros
                       tmb)
 target_link_libraries(quickstep_queryexecution_QueryManagerBase

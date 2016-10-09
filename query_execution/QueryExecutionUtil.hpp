@@ -20,25 +20,29 @@
 #ifndef QUICKSTEP_QUERY_EXECUTION_QUERY_EXECUTION_UTIL_HPP_
 #define QUICKSTEP_QUERY_EXECUTION_QUERY_EXECUTION_UTIL_HPP_
 
+#include <cstddef>
 #include <memory>
 #include <utility>
 
 #include "query_execution/AdmitRequestMessage.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
-#include "query_execution/WorkerMessage.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
 
 #include "tmb/address.h"
 #include "tmb/id_typedefs.h"
-#include "tmb/message_style.h"
 #include "tmb/message_bus.h"
+#include "tmb/message_style.h"
 #include "tmb/tagged_message.h"
 
 namespace quickstep {
 
 class QueryHandle;
+
+/** \addtogroup QueryExecution
+ *  @{
+ */
 
 /**
  * @brief A static class for reusable methods in query_execution module.
@@ -57,14 +61,14 @@ class QueryExecutionUtil {
    *         The caller should ensure that the status is SendStatus::kOK.
    **/
   static tmb::MessageBus::SendStatus SendTMBMessage(
-      MessageBus *bus,
-      client_id sender_id,
-      client_id receiver_id,
-      TaggedMessage &&tagged_message) {  // NOLINT(whitespace/operators)
-    Address receiver_address;
+      tmb::MessageBus *bus,
+      tmb::client_id sender_id,
+      tmb::client_id receiver_id,
+      tmb::TaggedMessage &&tagged_message) {  // NOLINT(whitespace/operators)
+    tmb::Address receiver_address;
     receiver_address.AddRecipient(receiver_id);
 
-    MessageStyle single_receiver_style;
+    tmb::MessageStyle single_receiver_style;
     return bus->Send(sender_id,
                      receiver_address,
                      single_receiver_style,
@@ -88,11 +92,11 @@ class QueryExecutionUtil {
       const tmb::client_id sender_id,
       const tmb::client_id receiver_id,
       QueryHandle *query_handle,
-      MessageBus *bus) {
+      tmb::MessageBus *bus) {
     std::unique_ptr<AdmitRequestMessage> request_message(
         new AdmitRequestMessage(query_handle));
     const std::size_t size_of_request_msg = sizeof(*request_message);
-    TaggedMessage admit_tagged_message(
+    tmb::TaggedMessage admit_tagged_message(
         request_message.release(), size_of_request_msg, kAdmitRequestMessage);
 
     return QueryExecutionUtil::SendTMBMessage(
@@ -111,9 +115,9 @@ class QueryExecutionUtil {
    **/
   static void ReceiveQueryCompletionMessage(const tmb::client_id receiver_id,
                                             tmb::MessageBus *bus) {
-    const AnnotatedMessage annotated_msg =
+    const tmb::AnnotatedMessage annotated_msg =
         bus->Receive(receiver_id, 0, true);
-    const TaggedMessage &tagged_message = annotated_msg.tagged_message;
+    const tmb::TaggedMessage &tagged_message = annotated_msg.tagged_message;
     DCHECK_EQ(kWorkloadCompletionMessage, tagged_message.message_type());
   }
 
@@ -122,11 +126,11 @@ class QueryExecutionUtil {
     // The sender thread broadcasts poison message to the workers and foreman.
     // Each worker dies after receiving poison message. The order of workers'
     // death is irrelavant.
-    MessageStyle style;
+    tmb::MessageStyle style;
     style.Broadcast(true);
-    Address address;
+    tmb::Address address;
     address.All(true);
-    TaggedMessage poison_tagged_message(kPoisonMessage);
+    tmb::TaggedMessage poison_tagged_message(kPoisonMessage);
 
     DLOG(INFO) << "TMB client ID " << sender_id
                << " broadcast PoisonMessage (typed '" << kPoisonMessage << "') to all";
