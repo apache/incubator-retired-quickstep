@@ -121,6 +121,19 @@ class QueryExecutionUtil {
     DCHECK_EQ(kWorkloadCompletionMessage, tagged_message.message_type());
   }
 
+  static void BroadcastMessage(const tmb::client_id sender_id,
+                               const tmb::Address &addresses,
+                               tmb::TaggedMessage &&tagged_message,  // NOLINT(whitespace/operators)
+                               tmb::MessageBus *bus) {
+    // The sender broadcasts the given message to all 'addresses'.
+    tmb::MessageStyle style;
+    style.Broadcast(true);
+
+    const tmb::MessageBus::SendStatus send_status =
+        bus->Send(sender_id, addresses, style, std::move(tagged_message));
+    CHECK(send_status == tmb::MessageBus::SendStatus::kOK);
+  }
+
   static void BroadcastPoisonMessage(const tmb::client_id sender_id, tmb::MessageBus *bus) {
     // Terminate all threads.
     // The sender thread broadcasts poison message to the workers and foreman.

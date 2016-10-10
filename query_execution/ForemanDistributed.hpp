@@ -18,6 +18,8 @@
 #include <cstddef>
 #include <cstdio>
 #include <memory>
+#include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -119,6 +121,9 @@ class ForemanDistributed final : public ForemanBase {
   CatalogDatabaseLite *catalog_database_;
 
   std::unique_ptr<PolicyEnforcerDistributed> policy_enforcer_;
+
+  // From a query id to a set of Shiftbosses that save query result.
+  std::unordered_map<std::size_t, std::unordered_set<std::size_t>> query_result_saved_shiftbosses_;
 
   DISALLOW_COPY_AND_ASSIGN(ForemanDistributed);
 };

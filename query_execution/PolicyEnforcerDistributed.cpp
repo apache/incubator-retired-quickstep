@@ -37,6 +37,7 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
+#include "tmb/address.h"
 #include "tmb/id_typedefs.h"
 #include "tmb/message_bus.h"
 #include "tmb/tagged_message.h"
@@ -170,25 +171,18 @@ void PolicyEnforcerDistributed::initiateQueryInShiftboss(QueryHandle *query_hand
                         kQueryInitiateMessage);
   free(proto_bytes);
 
-  // TODO(zuyu): Multiple Shiftbosses support.
+  // TODO(quickstep-team): Dynamically scale-up/down Shiftbosses.
+  tmb::Address shiftboss_addresses;
+  for (std::size_t i = 0; i < shiftboss_directory_->size(); ++i) {
+    shiftboss_addresses.AddRecipient(shiftboss_directory_->getClientId(i));
+  }
+
   DLOG(INFO) << "PolicyEnforcerDistributed sent QueryInitiateMessage (typed '" << kQueryInitiateMessage
-             << "') to Shiftboss with TMB client ID " << shiftboss_directory_->getClientId(0);
-  const tmb::MessageBus::SendStatus send_status =
-      QueryExecutionUtil::SendTMBMessage(bus_,
-                                         foreman_client_id_,
-                                         shiftboss_directory_->getClientId(0),
-                                         move(message));
-  CHECK(send_status == tmb::MessageBus::SendStatus::kOK);
-
-  // Wait Shiftboss for QueryInitiateResponseMessage.
-  const tmb::AnnotatedMessage annotated_message = bus_->Receive(foreman_client_id_, 0, true);
-  const TaggedMessage &tagged_message = annotated_message.tagged_message;
-  DCHECK_EQ(kQueryInitiateResponseMessage, tagged_message.message_type());
-  DLOG(INFO) << "PolicyEnforcerDistributed received typed '" << tagged_message.message_type()
-             << "' message from client " << annotated_message.sender;
-
-  S::QueryInitiateResponseMessage proto_response;
-  CHECK(proto_response.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+             << "') to all Shiftbosses";
+  QueryExecutionUtil::BroadcastMessage(foreman_client_id_,
+                                       shiftboss_addresses,
+                                       move(message),
+                                       bus_);
 }
 
 void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manager) {
@@ -198,8 +192,14 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
   const tmb::client_id cli_id = query_handle->getClientId();
   const std::size_t query_id = query_handle->query_id();
 
+  // TODO(quickstep-team): Dynamically scale-up/down Shiftbosses.
+  tmb::Address shiftboss_addresses;
+  for (std::size_t i = 0; i < shiftboss_directory_->size(); ++i) {
+    shiftboss_addresses.AddRecipient(shiftboss_directory_->getClientId(i));
+  }
+
   if (query_result == nullptr) {
-    // Clean up query execution states, i.e., QueryContext, in Shiftboss.
+    // Clean up query execution states, i.e., QueryContext, in Shiftbosses.
     serialization::QueryTeardownMessage proto;
     proto.set_query_id(query_id);
 
@@ -211,15 +211,12 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
                           proto_length,
                           kQueryTeardownMessage);
 
-    // TODO(zuyu): Support multiple shiftbosses.
     DLOG(INFO) << "PolicyEnforcerDistributed sent QueryTeardownMessage (typed '" << kQueryTeardownMessage
-               << "') to Shiftboss with TMB client ID " << shiftboss_directory_->getClientId(0);
-    tmb::MessageBus::SendStatus send_status =
-        QueryExecutionUtil::SendTMBMessage(bus_,
-                                           foreman_client_id_,
-                                           shiftboss_directory_->getClientId(0),
-                                           move(message));
-    CHECK(send_status == tmb::MessageBus::SendStatus::kOK);
+               << "') to all Shiftbosses";
+    QueryExecutionUtil::BroadcastMessage(foreman_client_id_,
+                                         shiftboss_addresses,
+                                         move(message),
+                                         bus_);
 
     TaggedMessage cli_message(kQueryExecutionSuccessMessage);
 
@@ -227,7 +224,7 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
     DLOG(INFO) << "PolicyEnforcerDistributed sent QueryExecutionSuccessMessage (typed '"
                << kQueryExecutionSuccessMessage
                << "') to CLI with TMB client id " << cli_id;
-    send_status =
+    const tmb::MessageBus::SendStatus send_status =
         QueryExecutionUtil::SendTMBMessage(bus_,
                                            foreman_client_id_,
                                            cli_id,
@@ -257,15 +254,13 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
                         kSaveQueryResultMessage);
   free(proto_bytes);
 
-  // TODO(zuyu): Support multiple shiftbosses.
+  // TODO(quickstep-team): Dynamically scale-up/down Shiftbosses.
   DLOG(INFO) << "PolicyEnforcerDistributed sent SaveQueryResultMessage (typed '" << kSaveQueryResultMessage
-             << "') to Shiftboss with TMB client ID " << shiftboss_directory_->getClientId(0);
-  const tmb::MessageBus::SendStatus send_status =
-      QueryExecutionUtil::SendTMBMessage(bus_,
-                                         foreman_client_id_,
-                                         shiftboss_directory_->getClientId(0),
-                                         move(message));
-  CHECK(send_status == tmb::MessageBus::SendStatus::kOK);
+             << "') to all Shiftbosses";
+  QueryExecutionUtil::BroadcastMessage(foreman_client_id_,
+                                       shiftboss_addresses,
+                                       move(message),
+                                       bus_);
 }
 
 }  // namespace quickstep

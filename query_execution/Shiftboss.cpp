@@ -189,8 +189,10 @@ void Shiftboss::run() {
         query_contexts_.erase(proto.query_id());
 
         serialization::SaveQueryResultResponseMessage proto_response;
+        proto_response.set_query_id(proto.query_id());
         proto_response.set_relation_id(proto.relation_id());
         proto_response.set_cli_id(proto.cli_id());
+        proto_response.set_shiftboss_index(shiftboss_index_);
 
         const size_t proto_response_length = proto_response.ByteSize();
         char *proto_response_bytes = static_cast<char*>(malloc(proto_response_length));

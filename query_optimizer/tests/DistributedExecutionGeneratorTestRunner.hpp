@@ -49,7 +49,7 @@ namespace quickstep {
 namespace optimizer {
 
 namespace {
-constexpr int kNumInstances = 1;
+constexpr int kNumInstances = 3;
 }  // namespace
 
 /**

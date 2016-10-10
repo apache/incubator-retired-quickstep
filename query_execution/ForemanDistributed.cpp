@@ -18,6 +18,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <memory>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -163,7 +165,9 @@ void ForemanDistributed::run() {
         break;
       }
       case kQueryInitiateResponseMessage: {
-        // TODO(zuyu): check the query id.
+        S::QueryInitiateResponseMessage proto;
+        CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+        CHECK(policy_enforcer_->existQuery(proto.query_id()));
         break;
       }
       case kCatalogRelationNewBlockMessage:  // Fall through
@@ -183,7 +187,14 @@ void ForemanDistributed::run() {
         S::SaveQueryResultResponseMessage proto;
         CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
 
-        processSaveQueryResultResponseMessage(proto.cli_id(), proto.relation_id());
+        const std::size_t query_id = proto.query_id();
+        query_result_saved_shiftbosses_[query_id].insert(proto.shiftboss_index());
+
+        // TODO(quickstep-team): Dynamically scale-up/down Shiftbosses.
+        if (query_result_saved_shiftbosses_[query_id].size() == shiftboss_directory_.size()) {
+          processSaveQueryResultResponseMessage(proto.cli_id(), proto.relation_id());
+          query_result_saved_shiftbosses_.erase(query_id);
+        }
         break;
       }
       case kPoisonMessage: {
