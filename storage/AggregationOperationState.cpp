@@ -537,7 +537,7 @@ void AggregationOperationState::finalizeHashTable(
       // However for aggregateOnDistinctifyHashTableForGroupBy to work
       // correctly, we should create an empty group by hash table.
       AggregationStateHashTableBase *new_hash_table =
-          group_by_hashtable_pool_->getHashTable();
+          group_by_hashtable_pool_->getHashTableFast();
       group_by_hashtable_pool_->returnHashTable(new_hash_table);
       hash_tables = group_by_hashtable_pool_->getAllHashTables();
     }
