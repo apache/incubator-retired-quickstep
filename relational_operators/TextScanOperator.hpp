@@ -24,6 +24,7 @@
 #include <cstddef>
 #include <exception>
 #include <string>
+#include <vector>
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
@@ -241,6 +242,18 @@ class TextScanWorkOrder : public WorkOrder {
                           std::string *field_string) const;
 
   /**
+   * @brief This method helps incorporate fault tolerance while ingesting data.
+   *        It is called whenever a faulty row is encountered and it is
+   *        required to move \p *field_ptr to the next row.
+   *
+   * @param field_ptr \p *field_ptr points to the current position of the input
+   *        char stream while parsing a faulty row. After the call, \p *field_ptr
+   *        will be modified to the start position of the NEXT record in the
+   *        stream.
+   */
+  void skipFaultyRow(const char **field_ptr) const;
+
+  /**
    * @brief Make a tuple by parsing all of the individual fields from a char stream.
    *
    * @param \p *row_ptr points to the current position of the input char stream
@@ -248,10 +261,12 @@ class TextScanWorkOrder : public WorkOrder {
    *        After the call, \p *row_ptr will be modified to the start position of
    *        the NEXT text row.
    * @param relation The relation schema for the tuple.
+   * @param is_faulty OUTPUT parameter. Set to true if the row is faulty,
    * @return The tuple parsed from the char stream.
    */
-  Tuple parseRow(const char **row_ptr,
-                 const CatalogRelationSchema &relation) const;
+std::vector<TypedValue> parseRow(const char **row_ptr,
+                 const CatalogRelationSchema &relation,
+                 bool *is_faulty) const;
 
   /**
    * @brief Parse up to three octal digits (0-7) starting at \p *literal_ptr as

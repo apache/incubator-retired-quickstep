@@ -1,0 +1,4 @@
+1234	12.34	foo	1994-04-27T08:20:50	12 days	right_row
+1234	abcd	foo	1994-04-27T08:20:50	12 days	row_with_wrong_datatype_value
+1234	foo	1994-04-27T08:20:50	12 days	row_with_less_values
+1234	abcd	foo	1994-04-27T08:20:50	12 days	bar	row_with_more_values

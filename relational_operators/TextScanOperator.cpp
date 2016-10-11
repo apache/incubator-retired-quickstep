@@ -196,7 +196,9 @@ serialization::WorkOrder* TextScanOperator::createWorkOrderProto(const string &f
 void TextScanWorkOrder::execute() {
   const CatalogRelationSchema &relation = output_destination_->getRelation();
   std::vector<Tuple> tuples;
+  bool is_faulty;
 
+  std::vector<TypedValue> vector_tuple_returned;
   constexpr std::size_t kSmallBufferSize = 0x4000;
   char *buffer = reinterpret_cast<char *>(malloc(std::max(text_segment_size_, kSmallBufferSize)));
 
@@ -218,7 +220,6 @@ void TextScanWorkOrder::execute() {
   } else {
     --row_ptr;
   }
-
   if (row_ptr >= buffer_end) {
     // This block does not even contain a newline character.
     return;
@@ -238,16 +239,23 @@ void TextScanWorkOrder::execute() {
   // RIGHT AFTER the LAST newline character in this text segment.
 
   // Process the tuples which are between the first newline character and the
-  // last newline character.
+  // last newline character. SKIP any row which is corrupt instead of ABORTING the
+  // whole COPY operation.
   while (row_ptr < end_ptr) {
     if (*row_ptr == '\r' || *row_ptr == '\n') {
       // Skip empty lines.
       ++row_ptr;
     } else {
-      tuples.emplace_back(parseRow(&row_ptr, relation));
+      vector_tuple_returned = parseRow(&row_ptr, relation, &is_faulty);
+      if (is_faulty) {
+          // Skip faulty rows
+          LOG(INFO) << "Faulty row found. Hence switching to next row.";
+      } else {
+            // Convert vector returned to tuple only when a valid row is encountered.
+            tuples.emplace_back(Tuple(std::move(vector_tuple_returned)));
+      }
     }
   }
-
   // Process the tuple that is right after the last newline character.
   // NOTE(jianqiao): dynamic_read_size is trying to balance between the cases
   // that the last tuple is very small / very large.
@@ -279,7 +287,15 @@ void TextScanWorkOrder::execute() {
       row_string.push_back('\n');
     }
     row_ptr = row_string.c_str();
-    tuples.emplace_back(parseRow(&row_ptr, relation));
+
+    vector_tuple_returned = parseRow(&row_ptr, relation, &is_faulty);
+    if (is_faulty) {
+        // Skip the faulty row.
+        LOG(INFO) << "Faulty row found. Hence switching to next row.";
+    } else {
+        // Convert vector returned to tuple only when a valid row is encountered.
+        tuples.emplace_back(Tuple(std::move(vector_tuple_returned)));
+    }
   }
 
   std::fclose(file);
@@ -312,19 +328,26 @@ void TextScanWorkOrder::execute() {
   output_destination_->bulkInsertTuples(&column_vectors);
 }
 
-Tuple TextScanWorkOrder::parseRow(const char **row_ptr,
-                                  const CatalogRelationSchema &relation) const {
+std::vector<TypedValue> TextScanWorkOrder::parseRow(const char **row_ptr,
+                                  const CatalogRelationSchema &relation, bool *is_faulty) const {
   std::vector<TypedValue> attribute_values;
+  // Always assume current row is not faulty initially.
+  *is_faulty = false;
 
   bool is_null_literal;
   bool has_reached_end_of_line = false;
   std::string value_str;
   for (const auto &attr : relation) {
     if (has_reached_end_of_line) {
-      throw TextScanFormatError("Row has too few fields");
+        // Do not abort if one of the row is faulty.
+        // Set is_faulty to true and SKIP the current row.
+        *is_faulty = true;
+        LOG(INFO) << "Row has too few fields.";
+        return attribute_values;
     }
 
     value_str.clear();
+
     extractFieldString(row_ptr,
                        &is_null_literal,
                        &has_reached_end_of_line,
@@ -333,24 +356,46 @@ Tuple TextScanWorkOrder::parseRow(const char **row_ptr,
     if (is_null_literal) {
       // NULL literal.
       if (!attr.getType().isNullable()) {
-        throw TextScanFormatError(
-            "NULL literal '\\N' was specified for a column with a "
-            "non-nullable Type");
+          *is_faulty = true;
+          LOG(INFO) << "NULL literal '\\N' was specified for a column with a "
+                     "non-nullable Type.";
+          skipFaultyRow(row_ptr);
+          return attribute_values;
       }
       attribute_values.emplace_back(attr.getType().makeNullValue());
     } else {
       attribute_values.emplace_back();
       if (!attr.getType().parseValueFromString(value_str, &(attribute_values.back()))) {
-        throw TextScanFormatError("Failed to parse value");
+          // Do not abort if one of the row is faulty.
+          *is_faulty = true;
+          LOG(INFO) << "Failed to parse value.";
+          skipFaultyRow(row_ptr);
+          return attribute_values;
       }
     }
   }
 
   if (!has_reached_end_of_line) {
-    throw TextScanFormatError("Row has too many fields");
+      // Do not abort if one of the row is faulty.
+      // Set is_faulty to true and SKIP the current row.
+      *is_faulty = true;
+      LOG(INFO) << "Row has too many fields.";
+      skipFaultyRow(row_ptr);
   }
 
-  return Tuple(std::move(attribute_values));
+  return attribute_values;
+}
+
+void TextScanWorkOrder::skipFaultyRow(const char **field_ptr) const {
+    const char *cur_ptr = *field_ptr;
+    // Move row pointer to the end of faulty row.
+    for (;; ++cur_ptr) {
+        const char c = *cur_ptr;
+        if (c == '\n') {
+            break;
+        }
+    }
+    *field_ptr = cur_ptr + 1;
 }
 
 void TextScanWorkOrder::extractFieldString(const char **field_ptr,

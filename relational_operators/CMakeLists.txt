@@ -784,3 +784,17 @@ add_test(TextScanOperator_unittest
          ${TEXT_SCAN_INPUT_FILE}
          ${TEXT_SCAN_GOLDEN_OUTPUT_FILE}
          ${TEXT_SCAN_FAILURE_OUTPUT_FILE})
+file(TO_NATIVE_PATH
+     "${CMAKE_CURRENT_SOURCE_DIR}/tests/text_scan_faulty_input.txt"
+     TEXT_SCAN_FAULTY_INPUT_FILE)
+file(TO_NATIVE_PATH
+     "${CMAKE_CURRENT_SOURCE_DIR}/tests/text_scan_faulty_golden_output.txt"
+     TEXT_SCAN_FAULTY_GOLDEN_OUTPUT_FILE)
+file(TO_NATIVE_PATH
+     "${CMAKE_CURRENT_BINARY_DIR}/text_scan_faulty_failure_output.txt"
+     TEXT_SCAN_FAULTY_FAILURE_OUTPUT_FILE)
+add_test(TextScanOperator_faulty_unittest
+         TextScanOperator_unittest
+         ${TEXT_SCAN_FAULTY_INPUT_FILE}
+         ${TEXT_SCAN_FAULTY_GOLDEN_OUTPUT_FILE}
+         ${TEXT_SCAN_FAULTY_FAILURE_OUTPUT_FILE})
