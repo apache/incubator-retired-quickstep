@@ -695,45 +695,80 @@ HashTablePutResult
   const std::size_t hash_code = key.getHash();
   void *bucket = nullptr;
   std::atomic<std::size_t> *pending_chain_ptr;
-  std::size_t pending_chain_ptr_finish_value;
+  //std::size_t pending_chain_ptr_finish_value;
+ 
+  const std::size_t allocated_bucket_num
+    = (prealloc_state == nullptr)
+    ? header_->buckets_allocated.fetch_add(1, std::memory_order_relaxed)
+    : (prealloc_state->bucket_position)++;
+
+  if (allocated_bucket_num >= header_->num_buckets) {
+    header_->buckets_allocated.fetch_sub(1, std::memory_order_relaxed);
+    key_manager_.deallocateVariableLengthKeyStorage(variable_key_size);
+    return HashTablePutResult::kOutOfSpace;
+  }
+  bucket = static_cast<char*>(buckets_) + allocated_bucket_num * bucket_size_;
+  
+  // Why is prealloc taken as an argument?
+  writeScalarKeyToBucket(key, hash_code, bucket, prealloc_state);
+  new(static_cast<char*>(bucket) + kValueOffset) ValueT(value);
+  
+  std::atomic<std::size_t>* buckets_next_ptr = static_cast<std::atomic<std::size_t>*>(bucket);
+
+  pending_chain_ptr = &(slots_[hash_code % header_->num_slots]);
   for (;;) {
-    if (locateBucketForInsertion(hash_code,
-                                 0,
-                                 &bucket,
-                                 &pending_chain_ptr,
-                                 &pending_chain_ptr_finish_value,
-                                 prealloc_state)) {
-      // Found an empty bucket.
+    // Save the address;
+    std::size_t existing_chain_ptr = pending_chain_ptr->load(std::memory_order_release);
+
+    // Make bucket's (new head) ptr to hold address of old head.
+    buckets_next_ptr->store(existing_chain_ptr, std::memory_order_release);
+    if (pending_chain_ptr->compare_exchange_strong(existing_chain_ptr,
+						   allocated_bucket_num + 1,
+						   std::memory_order_acq_rel)) {
       break;
-    } else if (bucket == nullptr) {
-      // Ran out of buckets. Deallocate any variable space that we were unable
-      // to use.
-      DEBUG_ASSERT(prealloc_state == nullptr);
-      key_manager_.deallocateVariableLengthKeyStorage(variable_key_size);
-      return HashTablePutResult::kOutOfSpace;
-    } else {
-      // Hash collision found, and duplicates aren't allowed.
-      DEBUG_ASSERT(!allow_duplicate_keys);
-      DEBUG_ASSERT(prealloc_state == nullptr);
-      if (key_manager_.scalarKeyCollisionCheck(key, bucket)) {
-        // Duplicate key. Deallocate any variable storage space and return.
-        key_manager_.deallocateVariableLengthKeyStorage(variable_key_size);
-        return HashTablePutResult::kDuplicateKey;
-      }
     }
   }
+  return HashTablePutResult::kOK;
+  
+  // OLD CODE
+  // for (;;) {
+  //   if (locateBucketForInsertion(hash_code,
+  //                                0,
+  //                                &bucket,
+  //                                &pending_chain_ptr,
+  //                                &pending_chain_ptr_finish_value,
+  //                                prealloc_state)) {
+  //     // Found an empty bucket.
+  //     break;
+  //   } else if (bucket == nullptr) {
+  //     // Ran out of buckets. Deallocate any variable space that we were unable
+  //     // to use.
+  //     DEBUG_ASSERT(prealloc_state == nullptr);
+  //     key_manager_.deallocateVariableLengthKeyStorage(variable_key_size);
+  //     return HashTablePutResult::kOutOfSpace;
+  //   } else {
+  //     // Hash collision found, and duplicates aren't allowed.
+  //     DEBUG_ASSERT(!allow_duplicate_keys);
+  //     DEBUG_ASSERT(prealloc_state == nullptr);
+  //     if (key_manager_.scalarKeyCollisionCheck(key, bucket)) {
+  //       // Duplicate key. Deallocate any variable storage space and return.
+  //       key_manager_.deallocateVariableLengthKeyStorage(variable_key_size);
+  //       return HashTablePutResult::kDuplicateKey;
+  //     }
+  //   }
+  // }
 
-  // Write the key and hash.
-  writeScalarKeyToBucket(key, hash_code, bucket, prealloc_state);
+  // // Write the key and hash.
+  // writeScalarKeyToBucket(key, hash_code, bucket, prealloc_state);
 
-  // Store the value by using placement new with ValueT's copy constructor.
-  new(static_cast<char*>(bucket) + kValueOffset) ValueT(value);
+  // // Store the value by using placement new with ValueT's copy constructor.
+  // new(static_cast<char*>(bucket) + kValueOffset) ValueT(value);
 
-  // Update the previous chain pointer to point to the new bucket.
-  pending_chain_ptr->store(pending_chain_ptr_finish_value, std::memory_order_release);
+  // // Update the previous chain pointer to point to the new bucket.
+  // pending_chain_ptr->store(pending_chain_ptr_finish_value, std::memory_order_release);
 
   // We're all done.
-  return HashTablePutResult::kOK;
+  //return HashTablePutResult::kOK;
 }
 
 template <typename ValueT,
