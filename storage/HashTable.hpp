@@ -35,6 +35,7 @@
 #include "storage/TupleReference.hpp"
 #include "storage/ValueAccessor.hpp"
 #include "storage/ValueAccessorUtil.hpp"
+#include "threading/ConditionVariable.hpp"
 #include "threading/SpinSharedMutex.hpp"
 #include "types/Type.hpp"
 #include "types/TypedValue.hpp"
@@ -1316,12 +1317,32 @@ class HashTable : public HashTableBase<resizable,
                                    const attribute_id key_attr_id,
                                    FunctorT *functor) const;
 
+  void incrementNumActiveWriters() {
+    SpinSharedMutexExclusiveLock<true> lock(resize_shared_mutex_);
+    ++num_active_writers_;
+  }
+
+  void decrementNumActiveWriters() {
+    SpinSharedMutexExclusiveLock<true> lock(resize_shared_mutex_);
+    --num_active_writers_;
+    if (num_active_writers_ == 0) {
+      no_active_writer_condition_->signalAll();
+    }
+  }
+
   // Data structures used for bloom filter optimized semi-joins.
   bool has_build_side_bloom_filter_ = false;
   bool has_probe_side_bloom_filter_ = false;
   BloomFilter *build_bloom_filter_;
   std::vector<const BloomFilter*> probe_bloom_filters_;
   std::vector<std::vector<attribute_id>> probe_attribute_ids_;
+
+  // Number of active writers to the hash table.
+  // TODO(harshad) - Can we make this an atomic?
+  std::size_t num_active_writers_;
+
+  alignas(kCacheLineBytes) SpinSharedMutex<true> active_writer_mutex_;
+  ConditionVariable *no_active_writer_condition_;
 
   DISALLOW_COPY_AND_ASSIGN(HashTable);
 };
@@ -1588,7 +1609,12 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
                                                                 &prealloc_state);
           }
           if (!prealloc_succeeded) {
+            while (num_active_writers_ != 0) {
+              no_active_writer_condition_->await();
+            }
             this->resize(total_entries, total_variable_key_size);
+          } else {
+            incrementNumActiveWriters();
           }
         }
       } else {
@@ -1628,6 +1654,7 @@ HashTablePutResult HashTable<ValueT, resizable, serializable, force_key_copy, al
           accessor->previous();
         }
       }
+      decrementNumActiveWriters();
     } else {
       while (accessor->next()) {
         if (this->GetCompositeKeyFromValueAccessor(*accessor,

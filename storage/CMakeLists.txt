@@ -725,6 +725,7 @@ target_link_libraries(quickstep_storage_HashTable
                       quickstep_storage_TupleReference
                       quickstep_storage_ValueAccessor
                       quickstep_storage_ValueAccessorUtil
+                      quickstep_threading_ConditionVariable
                       quickstep_threading_SpinSharedMutex
                       quickstep_types_Type
                       quickstep_types_TypedValue
