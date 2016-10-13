@@ -192,6 +192,7 @@ class BitVector {
    *            as this BitVector.
    **/
   inline void setMemory(void *ptr) {
+    DCHECK(!owned_);
     this->data_array_ = static_cast<std::size_t*>(ptr);
   }
 
