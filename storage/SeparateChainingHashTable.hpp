@@ -713,7 +713,8 @@ HashTablePutResult
   writeScalarKeyToBucket(key, hash_code, bucket, prealloc_state);
   new(static_cast<char*>(bucket) + kValueOffset) ValueT(value);
   
-  std::atomic<std::size_t>* buckets_next_ptr = static_cast<std::atomic<std::size_t>*>(bucket);
+  std::atomic<std::size_t> *buckets_next_ptr 
+      = static_cast<std::atomic<std::size_t>*>(bucket);
 
   pending_chain_ptr = &(slots_[hash_code % header_->num_slots]);
   for (;;) {

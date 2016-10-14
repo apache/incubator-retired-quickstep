@@ -634,34 +634,36 @@ HashTablePutResult
   const std::size_t hash_code = key.getHashScalarLiteral();
   Bucket *bucket = nullptr;
   std::atomic<std::size_t> *pending_chain_ptr;
-  std::size_t pending_chain_ptr_finish_value;
-  if (locateBucketForInsertion(hash_code,
-                               &bucket,
-                               &pending_chain_ptr,
-                               &pending_chain_ptr_finish_value,
-                               prealloc_state)) {
-    // Found an empty bucket.
-    // Write the hash, which can be reversed to recover the key.
-    bucket->hash = hash_code;
-
-    // Store the value by using placement new with ValueT's copy constructor.
-    new(&(bucket->value)) ValueT(value);
-
-    // Update the previous chain pointer to point to the new bucket.
-    pending_chain_ptr->store(pending_chain_ptr_finish_value, std::memory_order_release);
-
-    // We're all done.
-    return HashTablePutResult::kOK;
-  } else if (bucket == nullptr) {
-    // Ran out of buckets.
-    DCHECK(prealloc_state == nullptr);
+  
+  const std::size_t allocated_bucket_num
+    = (prealloc_state == nullptr)
+    ? header_->buckets_allocated.fetch_add(1, std::memory_order_relaxed)
+    : (prealloc_state->bucket_position)++;
+  
+  if (allocated_bucket_num >= header_->num_buckets) {
+    header_->buckets_allocated.fetch_sub(1, std::memory_order_relaxed);
     return HashTablePutResult::kOutOfSpace;
-  } else {
-    // Collision found, and duplicates aren't allowed.
-    DCHECK(!allow_duplicate_keys);
-    DCHECK(prealloc_state == nullptr);
-    return HashTablePutResult::kDuplicateKey;
   }
+  
+  bucket = buckets_ + allocated_bucket_num;
+  bucket->hash = hash_code;
+  new(&(bucket->value)) ValueT(value);
+
+  std::atomic<std::size_t> *buckets_next_ptr = &(bucket->next);
+
+  pending_chain_ptr = &(slots_[hash_code % header_->num_slots]);
+  for (;;) {
+    // Save the old address;
+    std::size_t existing_chain_ptr = pending_chain_ptr->load(std::memory_order_release);
+
+    if (pending_chain_ptr->compare_exchange_strong(existing_chain_ptr,
+						   allocated_bucket_num + 1,
+						   std::memory_order_acq_rel)) {
+      buckets_next_ptr->store(existing_chain_ptr, std::memory_order_release);
+      break;
+    }
+  }
+  return HashTablePutResult::kOK;
 }
 
 template <typename ValueT,
