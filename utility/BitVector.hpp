@@ -890,13 +890,32 @@ class BitVector {
   }
 
   inline void setBitRegularVersion(const std::size_t bit_num, bool value) {
-    if (value) {
-      data_array_[bit_num >> kHigherOrderShift]
-          |= (TopBit<std::size_t>() >> (bit_num & kLowerOrderMask));
-    } else {
-      data_array_[bit_num >> kHigherOrderShift]
-          &= ~(TopBit<std::size_t>() >> (bit_num & kLowerOrderMask));
-    }
+    // The mask has all the bits set to 1, except the bit at the required bit position
+    // in the word that has be to set/unset based on the boolean value.
+    std::size_t mask = ~(TopBit<std::size_t>() >> (bit_num & kLowerOrderMask));
+
+    // The bit_value type casts the value argument (true or false) to either (1 or 0).
+    std::size_t bit_value = value;
+
+    // Subtracting 1 from the bit_value, will generate a value
+    // that will either be all zeros (if the required bit_value is true),
+    // or all ones (if the required bit_value was false). The trick here is that
+    // subtracting one from an unsigned zero value will set all the bits to 1.
+    // Finally, bitwise OR with the mask followed by negation will generate an op_value
+    // that will have all bits as 0's if the required bit_value was false, or
+    // will have only 1 at the required bit position if the bit_value was true.
+    std::size_t op_value = ~((bit_value - 1) | mask);
+
+    // Get the index position in the data_array_ that is being operated upon.
+    std::size_t index_pos_in_data_array = bit_num >> kHigherOrderShift;
+
+    // First, by doing a bitwise AND with the mask, we clear the required bit position.
+    data_array_[index_pos_in_data_array] &= mask;
+
+    // Then, we set the required bit position with the op_value the we generated above.
+    // Note that bitwise OR with op_value will set the required bit position to 1 if the
+    // value was indeed true, but it will be a no-op if the value was false.
+    data_array_[index_pos_in_data_array] |= op_value;
   }
 
   template <typename VectorType>
