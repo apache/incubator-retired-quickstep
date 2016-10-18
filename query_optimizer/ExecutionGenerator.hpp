@@ -416,9 +416,14 @@ class ExecutionGenerator {
   std::vector<CatalogRelationInfo> temporary_relation_info_vec_;
 
   /**
-   * @brief The cost model to use for creating the execution plan.
+   * @brief The cost model to use for estimating aggregation hash table size.
    */
-  std::unique_ptr<cost::CostModel> cost_model_;
+  std::unique_ptr<cost::CostModel> cost_model_for_aggregation_;
+
+  /**
+   * @brief The cost model to use for estimating join hash table size.
+   */
+  std::unique_ptr<cost::CostModel> cost_model_for_hash_join_;
 
   physical::TopLevelPlanPtr top_level_physical_plan_;
 

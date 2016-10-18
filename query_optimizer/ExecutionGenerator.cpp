@@ -57,6 +57,7 @@
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryPlan.hpp"
+#include "query_optimizer/cost_model/SimpleCostModel.hpp"
 #include "query_optimizer/cost_model/StarSchemaSimpleCostModel.hpp"
 #include "query_optimizer/expressions/AggregateFunction.hpp"
 #include "query_optimizer/expressions/Alias.hpp"
@@ -165,8 +166,10 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
   CHECK(P::SomeTopLevelPlan::MatchesWithConditionalCast(physical_plan, &top_level_physical_plan_))
       << "The physical plan must be rooted by a TopLevelPlan";
 
-  cost_model_.reset(
+  cost_model_for_aggregation_.reset(
       new cost::StarSchemaSimpleCostModel(top_level_physical_plan_->shared_subplans()));
+  cost_model_for_hash_join_.reset(
+      new cost::SimpleCostModel(top_level_physical_plan_->shared_subplans()));
 
   const CatalogRelation *result_relation = nullptr;
 
@@ -594,7 +597,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   std::vector<attribute_id> probe_attribute_ids;
   std::vector<attribute_id> build_attribute_ids;
 
-  std::size_t build_cardinality = cost_model_->estimateCardinality(build_physical);
+  std::size_t build_cardinality =
+      cost_model_for_hash_join_->estimateCardinality(build_physical);
 
   bool any_probe_attributes_nullable = false;
   bool any_build_attributes_nullable = false;
@@ -1363,7 +1367,7 @@ void ExecutionGenerator::convertAggregate(
   }
 
   const std::size_t estimated_num_groups =
-      cost_model_->estimateNumGroupsForAggregate(physical_plan);
+      cost_model_for_aggregation_->estimateNumGroupsForAggregate(physical_plan);
   aggr_state_proto->set_estimated_num_entries(std::max(16uL, estimated_num_groups));
 
   const QueryPlan::DAGNodeIndex aggregation_operator_index =

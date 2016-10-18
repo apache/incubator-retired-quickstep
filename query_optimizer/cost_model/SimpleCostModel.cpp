@@ -30,6 +30,7 @@
 #include "query_optimizer/physical/PhysicalType.hpp"
 #include "query_optimizer/physical/Selection.hpp"
 #include "query_optimizer/physical/SharedSubplanReference.hpp"
+#include "query_optimizer/physical/Sort.hpp"
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
@@ -73,6 +74,9 @@ std::size_t SimpleCostModel::estimateCardinality(
       return estimateCardinality(
           shared_subplans_[shared_subplan_reference->subplan_id()]);
     }
+    case P::PhysicalType::kSort:
+      return estimateCardinalityForSort(
+          std::static_pointer_cast<const P::Sort>(physical_plan));
     case P::PhysicalType::kWindowAggregate:
       return estimateCardinalityForWindowAggregate(
           std::static_pointer_cast<const P::WindowAggregate>(physical_plan));
@@ -94,6 +98,13 @@ std::size_t SimpleCostModel::estimateCardinalityForTableReference(
 std::size_t SimpleCostModel::estimateCardinalityForSelection(
     const P::SelectionPtr &physical_plan) {
   return estimateCardinality(physical_plan->input());
+}
+
+std::size_t SimpleCostModel::estimateCardinalityForSort(
+    const physical::SortPtr &physical_plan) {
+  std::size_t cardinality = estimateCardinality(
+      std::static_pointer_cast<const P::Sort>(physical_plan)->input());
+  return std::min(cardinality, static_cast<std::size_t>(physical_plan->limit()));
 }
 
 std::size_t SimpleCostModel::estimateCardinalityForTableGenerator(
