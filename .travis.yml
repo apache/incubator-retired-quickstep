@@ -21,7 +21,7 @@ env:
   - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=selection
 
 install:
-  - if [ "$CC" = "gcc" ] || [[ "$BUILD_TYPE" = "Release" &&  "$VECTOR_COPY_ELISION_LEVEL" = "selection" ]]; then
+  - if [ "$CC" = "gcc" ] || [[ "$BUILD_TYPE" = "Release" ]]; then
       export MAKE_JOBS=1;
     else
       export MAKE_JOBS=2;
