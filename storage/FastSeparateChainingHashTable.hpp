@@ -141,19 +141,16 @@ class FastSeparateChainingHashTable
       HashTablePreallocationState *prealloc_state) override;
 
   void destroyPayload() override {
-    void *hash_buckets = buckets_;
     const std::size_t num_buckets =
         header_->buckets_allocated.load(std::memory_order_relaxed);
-    const std::size_t bucket_size = bucket_size_;
-    void *bucket_ptr = static_cast<char *>(hash_buckets) + kValueOffset;
+    void *bucket_ptr = static_cast<char *>(buckets_) + kValueOffset;
     for (std::size_t bucket_num = 0; bucket_num < num_buckets; ++bucket_num) {
-      void *value_internal_ptr = bucket_ptr;
       for (std::size_t handle_num = 0; handle_num < handles_.size(); ++handle_num) {
-        value_internal_ptr =
-            static_cast<char *>(value_internal_ptr) + this->payload_offsets_[handle_num];
+        void *value_internal_ptr =
+            static_cast<char *>(bucket_ptr) + this->payload_offsets_[handle_num];
         handles_[handle_num]->destroyPayload(static_cast<std::uint8_t *>(value_internal_ptr));
       }
-      bucket_ptr = static_cast<char *>(bucket_ptr) + bucket_size;
+      bucket_ptr = static_cast<char *>(bucket_ptr) + bucket_size_;
     }
   }
 
