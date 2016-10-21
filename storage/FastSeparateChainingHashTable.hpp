@@ -145,10 +145,10 @@ class FastSeparateChainingHashTable
         header_->buckets_allocated.load(std::memory_order_relaxed);
     void *bucket_ptr = static_cast<char *>(buckets_) + kValueOffset;
     for (std::size_t bucket_num = 0; bucket_num < num_buckets; ++bucket_num) {
-      for (std::size_t handle_num = 0; handle_num < handles_.size(); ++handle_num) {
+      for (std::size_t handle_id = 0; handle_id < num_handles_; ++handle_id) {
         void *value_internal_ptr =
-            static_cast<char *>(bucket_ptr) + this->payload_offsets_[handle_num];
-        handles_[handle_num]->destroyPayload(static_cast<std::uint8_t *>(value_internal_ptr));
+            static_cast<char *>(bucket_ptr) + this->payload_offsets_[handle_id];
+        handles_[handle_id]->destroyPayload(static_cast<std::uint8_t *>(value_internal_ptr));
       }
       bucket_ptr = static_cast<char *>(bucket_ptr) + bucket_size_;
     }
@@ -223,6 +223,7 @@ class FastSeparateChainingHashTable
   bool isFull(const std::size_t extra_variable_storage) const;
 
   const std::vector<AggregationHandle *> &handles_;
+  const std::size_t num_handles_;
 
   // Helper object to manage key storage.
   HashTableKeyManager<serializable, force_key_copy> key_manager_;
@@ -292,6 +293,7 @@ FastSeparateChainingHashTable<resizable,
       kBucketAlignment(alignof(std::atomic<std::size_t>)),
       kValueOffset(sizeof(std::atomic<std::size_t>) + sizeof(std::size_t)),
       handles_(handles),
+      num_handles_(handles.size()),
       key_manager_(this->key_types_, kValueOffset + this->total_payload_size_),
       bucket_size_(ComputeBucketSize(key_manager_.getFixedKeySize())) {
   init_payload_ =
