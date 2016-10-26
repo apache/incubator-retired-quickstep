@@ -173,7 +173,7 @@ class HashTablePool {
    * @param All the hash tables in the pool.
    *
    **/
-  const std::vector<std::unique_ptr<AggregationStateHashTableBase>>*
+  std::vector<std::unique_ptr<AggregationStateHashTableBase>>*
       getAllHashTables() {
     return &hash_tables_;
   }

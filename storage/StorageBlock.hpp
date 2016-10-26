@@ -43,6 +43,7 @@ class AggregationHandle;
 class AggregationState;
 class CatalogRelationSchema;
 class ColumnVector;
+class ColumnVectorsValueAccessor;
 class InsertDestinationInterface;
 class Predicate;
 class Scalar;
@@ -449,6 +450,55 @@ class StorageBlock : public StorageBlockBase {
       const std::vector<std::unique_ptr<const Scalar>> &group_by,
       const TupleIdSequence *filter,
       AggregationStateHashTableBase *hash_table,
+      std::vector<std::unique_ptr<ColumnVector>> *reuse_group_by_vectors) const;
+
+
+  /**
+   * @brief Perform the GROUP BY aggregation for the case when aggregation is
+   *        partitioned.
+   *
+   * TODO(harshad) - Refactor this class to use only one function
+   *       aggregateGroupBy.
+   * @note The difference between this method and the aggregateGroupBy method
+   *       is that in this method, the tuples are routed to different HashTables
+   *       based on the partition to which they belong to. The partition is
+   *       determined by the GROUP BY attributes. Right now hash based
+   *       partitioning is performed.
+   *
+   * @note This function only creates the ColumnVectorsValueAccessor needed for
+   *       the insertion in the hash table. The actual insertion in respective
+   *       hash tables should be handled by the caller. See
+   *       AggregationOperationState::aggregateHashTable() for one such
+   *       implementation.
+   *
+   * @param arguments The arguments to the aggregation function as Scalars.
+   * @param group_by The list of GROUP BY attributes/expressions. The tuples in
+   *        this storage block are grouped by these attributes before
+   *        aggregation.
+   * @param filter If non-NULL, then only tuple IDs which are set in the
+   *        filter will be checked (all others will be assumed to be false).
+   * @param num_partitions The number of partitions used for the aggregation.
+   * @param temp_result The ColumnVectorsValueAccessor used for collecting
+   *        the attribute values from this StorageBlock.
+   * @param arguments_ids The attribute IDs used for the aggregation, which
+   *        come from the arguments vector. If arguments is empty, this vector
+   *        is filled with invalid attribute IDs.
+   * @param key_ids The attribute IDs of the group by attributes.
+   * @param reuse_group_by_vectors This parameter is used to store and reuse
+   *        GROUP BY attribute vectors pre-computed in an earlier invocation of
+   *        aggregateGroupBy(). \c reuse_group_by_vectors is never \c nullptr
+   *        for ease of use. Current invocation of aggregateGroupBy() will reuse
+   *        ColumnVectors if non-empty, otherwise computes ColumnVectors based
+   *        on \c group_by and stores them in \c reuse_group_by_vectors.
+   **/
+  void aggregateGroupByPartitioned(
+      const std::vector<std::vector<std::unique_ptr<const Scalar>>> &arguments,
+      const std::vector<std::unique_ptr<const Scalar>> &group_by,
+      const TupleIdSequence *filter,
+      const std::size_t num_partitions,
+      ColumnVectorsValueAccessor *temp_result,
+      std::vector<attribute_id> *argument_ids,
+      std::vector<attribute_id> *key_ids,
       std::vector<std::unique_ptr<ColumnVector>> *reuse_group_by_vectors) const;
 
   /**

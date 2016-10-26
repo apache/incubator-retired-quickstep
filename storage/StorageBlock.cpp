@@ -1329,4 +1329,59 @@ const std::size_t StorageBlock::getNumTuples() const {
   return tuple_store_->numTuples();
 }
 
+void StorageBlock::aggregateGroupByPartitioned(
+    const std::vector<std::vector<std::unique_ptr<const Scalar>>> &arguments,
+    const std::vector<std::unique_ptr<const Scalar>> &group_by,
+    const TupleIdSequence *filter,
+    const std::size_t num_partitions,
+    ColumnVectorsValueAccessor *temp_result,
+    std::vector<attribute_id> *argument_ids,
+    std::vector<attribute_id> *key_ids,
+    std::vector<std::unique_ptr<ColumnVector>> *reuse_group_by_vectors) const {
+  DCHECK(!group_by.empty())
+      << "Called aggregateGroupByPartitioned() with zero GROUP BY expressions";
+
+  SubBlocksReference sub_blocks_ref(*tuple_store_,
+                                    indices_,
+                                    indices_consistent_);
+
+  std::unique_ptr<ValueAccessor> accessor(
+      tuple_store_->createValueAccessor(filter));
+
+  attribute_id attr_id = 0;
+
+  // First, put GROUP BY keys into 'temp_result'.
+  if (reuse_group_by_vectors->empty()) {
+    // Compute GROUP BY values from group_by Scalars, and store them in
+    // reuse_group_by_vectors for reuse by other aggregates on this same
+    // block.
+    reuse_group_by_vectors->reserve(group_by.size());
+    for (const std::unique_ptr<const Scalar> &group_by_element : group_by) {
+      reuse_group_by_vectors->emplace_back(
+          group_by_element->getAllValues(accessor.get(), &sub_blocks_ref));
+      temp_result->addColumn(reuse_group_by_vectors->back().get(), false);
+      key_ids->push_back(attr_id++);
+    }
+  } else {
+    // Reuse precomputed GROUP BY values from reuse_group_by_vectors.
+    DCHECK_EQ(group_by.size(), reuse_group_by_vectors->size())
+        << "Wrong number of reuse_group_by_vectors";
+    for (const std::unique_ptr<ColumnVector> &reuse_cv : *reuse_group_by_vectors) {
+      temp_result->addColumn(reuse_cv.get(), false);
+      key_ids->push_back(attr_id++);
+    }
+  }
+
+  // Compute argument vectors and add them to 'temp_result'.
+  for (const std::vector<std::unique_ptr<const Scalar>> &argument : arguments) {
+    for (const std::unique_ptr<const Scalar> &args : argument) {
+      temp_result->addColumn(args->getAllValues(accessor.get(), &sub_blocks_ref));
+      argument_ids->push_back(attr_id++);
+    }
+    if (argument.empty()) {
+      argument_ids->push_back(kInvalidAttributeID);
+    }
+  }
+}
+
 }  // namespace quickstep

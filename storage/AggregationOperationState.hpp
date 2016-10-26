@@ -32,8 +32,11 @@
 #include "storage/AggregationOperationState.pb.h"
 #include "storage/HashTableBase.hpp"
 #include "storage/HashTablePool.hpp"
+#include "storage/PartitionedHashTablePool.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
+
+#include "gflags/gflags.h"
 
 namespace quickstep {
 
@@ -43,6 +46,9 @@ class CatalogRelationSchema;
 class InsertDestination;
 class LIPFilterAdaptiveProber;
 class StorageManager;
+
+DECLARE_int32(num_aggregation_partitions);
+DECLARE_int32(partition_aggregation_num_groups_threshold);
 
 /** \addtogroup Storage
  *  @{
@@ -176,8 +182,38 @@ class AggregationOperationState {
    **/
   void destroyAggregationHashTablePayload();
 
+  /**
+   * @brief Generate the final results for the aggregates managed by this
+   *        AggregationOperationState and write them out to StorageBlock(s).
+   *        In this implementation, each thread picks a hash table belonging to
+   *        a partition and writes its values to StorageBlock(s). There is no
+   *        need to merge multiple hash tables in one, because there is no
+   *        overlap in the keys across two hash tables.
+   *
+   * @param partition_id The ID of the partition for which finalize is being
+   *        performed.
+   * @param output_destination An InsertDestination where the finalized output
+   *        tuple(s) from this aggregate are to be written.
+   **/
+  void finalizeAggregatePartitioned(
+      const std::size_t partition_id, InsertDestination *output_destination);
+
   static void mergeGroupByHashTables(AggregationStateHashTableBase *src,
                                      AggregationStateHashTableBase *dst);
+
+  bool isAggregatePartitioned() const {
+    return is_aggregate_partitioned_;
+  }
+
+  /**
+   * @brief Get the number of partitions to be used for the aggregation.
+   *        For non-partitioned aggregations, we return 1.
+   **/
+  std::size_t getNumPartitions() const {
+    return is_aggregate_partitioned_
+               ? partitioned_group_by_hashtable_pool_->getNumPartitions()
+               : 1;
+  }
 
   int dflag;
 
@@ -195,12 +231,41 @@ class AggregationOperationState {
   void finalizeSingleState(InsertDestination *output_destination);
   void finalizeHashTable(InsertDestination *output_destination);
 
-  // A vector of group by hash table pools.
-  std::unique_ptr<HashTablePool> group_by_hashtable_pool_;
+  bool checkAggregatePartitioned(
+      const std::size_t estimated_num_groups,
+      const std::vector<bool> &is_distinct,
+      const std::vector<std::unique_ptr<const Scalar>> &group_by,
+      const std::vector<const AggregateFunction *> &aggregate_functions) const {
+    // If there's no aggregation, return false.
+    if (aggregate_functions.empty()) {
+      return false;
+    }
+    // Check if there's a distinct operation involved in any aggregate, if so
+    // the aggregate can't be partitioned.
+    for (auto distinct : is_distinct) {
+      if (distinct) {
+        return false;
+      }
+    }
+    // There's no distinct aggregation involved, Check if there's at least one
+    // GROUP BY operation.
+    if (group_by.empty()) {
+      return false;
+    }
+    // There are GROUP BYs without DISTINCT. Check if the estimated number of
+    // groups is large enough to warrant a partitioned aggregation.
+    return estimated_num_groups >
+           static_cast<std::size_t>(
+               FLAGS_partition_aggregation_num_groups_threshold);
+  }
 
   // Common state for all aggregates in this operation: the input relation, the
   // filter predicate (if any), and the list of GROUP BY expressions (if any).
   const CatalogRelationSchema &input_relation_;
+
+  // Whether the aggregation is partitioned or not.
+  const bool is_aggregate_partitioned_;
+
   std::unique_ptr<const Predicate> predicate_;
   std::vector<std::unique_ptr<const Scalar>> group_by_list_;
 
@@ -232,6 +297,11 @@ class AggregationOperationState {
   // hash table to prevent multiple lookups.
   std::vector<std::unique_ptr<AggregationStateHashTableBase>>
       group_by_hashtables_;
+
+  // A vector of group by hash table pools.
+  std::unique_ptr<HashTablePool> group_by_hashtable_pool_;
+
+  std::unique_ptr<PartitionedHashTablePool> partitioned_group_by_hashtable_pool_;
 
   StorageManager *storage_manager_;
 

@@ -60,6 +60,14 @@ using std::unique_ptr;
 
 namespace quickstep {
 
+DEFINE_int32(num_aggregation_partitions,
+             41,
+             "The number of partitions used for performing the aggregation");
+DEFINE_int32(partition_aggregation_num_groups_threshold,
+             500000,
+             "The threshold used for deciding whether the aggregation is done "
+             "in a partitioned way or not");
+
 AggregationOperationState::AggregationOperationState(
     const CatalogRelationSchema &input_relation,
     const std::vector<const AggregateFunction *> &aggregate_functions,
@@ -72,6 +80,8 @@ AggregationOperationState::AggregationOperationState(
     const std::vector<HashTableImplType> &distinctify_hash_table_impl_types,
     StorageManager *storage_manager)
     : input_relation_(input_relation),
+      is_aggregate_partitioned_(checkAggregatePartitioned(
+          estimated_num_entries, is_distinct, group_by, aggregate_functions)),
       predicate_(predicate),
       group_by_list_(std::move(group_by)),
       arguments_(std::move(arguments)),
@@ -175,11 +185,10 @@ AggregationOperationState::AggregationOperationState(
         key_types.insert(
             key_types.end(), argument_types.begin(), argument_types.end());
         // TODO(jianqiao): estimated_num_entries is quite inaccurate for
-        // estimating
-        // the number of entries in the distinctify hash table. We may estimate
-        // for each distinct aggregation an estimated_num_distinct_keys value
-        // during
-        // query optimization, if it worths.
+        // estimating the number of entries in the distinctify hash table.
+        // We may estimate for each distinct aggregation an
+        // estimated_num_distinct_keys value during query optimization, if it's
+        // worth.
         distinctify_hashtables_.emplace_back(
             AggregationStateFastHashTableFactory::CreateResizable(
                 *distinctify_hash_table_impl_types_it,
@@ -195,14 +204,24 @@ AggregationOperationState::AggregationOperationState(
     }
 
     if (!group_by_handles.empty()) {
-      // Aggregation with GROUP BY: create a HashTable pool for per-group
-      // states.
-      group_by_hashtable_pool_.reset(new HashTablePool(estimated_num_entries,
-                                                       hash_table_impl_type,
-                                                       group_by_types,
-                                                       payload_sizes,
-                                                       group_by_handles,
-                                                       storage_manager));
+      // Aggregation with GROUP BY: create a HashTable pool.
+      if (!is_aggregate_partitioned_) {
+        group_by_hashtable_pool_.reset(new HashTablePool(estimated_num_entries,
+                                                         hash_table_impl_type,
+                                                         group_by_types,
+                                                         payload_sizes,
+                                                         group_by_handles,
+                                                         storage_manager));
+      } else {
+        partitioned_group_by_hashtable_pool_.reset(
+            new PartitionedHashTablePool(estimated_num_entries,
+                                         FLAGS_num_aggregation_partitions,
+                                         hash_table_impl_type,
+                                         group_by_types,
+                                         payload_sizes,
+                                         group_by_handles,
+                                         storage_manager));
+      }
     }
   }
 }
@@ -450,19 +469,71 @@ void AggregationOperationState::aggregateBlockHashTable(
     }
   }
 
-  // Call StorageBlock::aggregateGroupBy() to aggregate this block's values
-  // directly into the (threadsafe) shared global HashTable for this
-  // aggregate.
-  DCHECK(group_by_hashtable_pool_ != nullptr);
-  AggregationStateHashTableBase *agg_hash_table =
+  if (!is_aggregate_partitioned_) {
+    // Call StorageBlock::aggregateGroupBy() to aggregate this block's values
+    // directly into the (threadsafe) shared global HashTable for this
+    // aggregate.
+    DCHECK(group_by_hashtable_pool_ != nullptr);
+    AggregationStateHashTableBase *agg_hash_table =
       group_by_hashtable_pool_->getHashTableFast();
-  DCHECK(agg_hash_table != nullptr);
-  block->aggregateGroupBy(arguments_,
-                          group_by_list_,
-                          matches.get(),
-                          agg_hash_table,
-                          &reuse_group_by_vectors);
-  group_by_hashtable_pool_->returnHashTable(agg_hash_table);
+    DCHECK(agg_hash_table != nullptr);
+    block->aggregateGroupBy(arguments_,
+                            group_by_list_,
+                            matches.get(),
+                            agg_hash_table,
+                            &reuse_group_by_vectors);
+    group_by_hashtable_pool_->returnHashTable(agg_hash_table);
+  } else {
+    ColumnVectorsValueAccessor temp_result;
+    // IDs of 'arguments' as attributes in the ValueAccessor we create below.
+    std::vector<attribute_id> argument_ids;
+
+    // IDs of GROUP BY key element(s) in the ValueAccessor we create below.
+    std::vector<attribute_id> key_ids;
+    const std::size_t num_partitions = partitioned_group_by_hashtable_pool_->getNumPartitions();
+    block->aggregateGroupByPartitioned(
+        arguments_,
+        group_by_list_,
+        matches.get(),
+        num_partitions,
+        &temp_result,
+        &argument_ids,
+        &key_ids,
+        &reuse_group_by_vectors);
+    // Compute the partitions for the tuple formed by group by values.
+    std::vector<std::unique_ptr<TupleIdSequence>> partition_membership;
+    partition_membership.resize(num_partitions);
+
+    // Create a tuple-id sequence for each partition.
+    for (std::size_t partition = 0; partition < num_partitions; ++partition) {
+      partition_membership[partition].reset(
+          new TupleIdSequence(temp_result.getEndPosition()));
+    }
+
+    // Iterate over ValueAccessor for each tuple,
+    // set a bit in the appropriate TupleIdSequence.
+    temp_result.beginIteration();
+    while (temp_result.next()) {
+      // We need a unique_ptr because getTupleWithAttributes() uses "new".
+      std::unique_ptr<Tuple> curr_tuple(temp_result.getTupleWithAttributes(key_ids));
+      const std::size_t curr_tuple_partition_id =
+          curr_tuple->getTupleHash() % num_partitions;
+      partition_membership[curr_tuple_partition_id]->set(
+          temp_result.getCurrentPosition(), true);
+    }
+    // For each partition, create an adapter around Value Accessor and
+    // TupleIdSequence.
+    std::vector<std::unique_ptr<
+        TupleIdSequenceAdapterValueAccessor<ColumnVectorsValueAccessor>>> adapter;
+    adapter.resize(num_partitions);
+    for (std::size_t partition = 0; partition < num_partitions; ++partition) {
+      adapter[partition].reset(temp_result.createSharedTupleIdSequenceAdapter(
+          *(partition_membership)[partition]));
+      partitioned_group_by_hashtable_pool_->getHashTable(partition)
+          ->upsertValueAccessorCompositeKeyFast(
+              argument_ids, adapter[partition].get(), key_ids, true);
+    }
+  }
 }
 
 void AggregationOperationState::finalizeSingleState(
@@ -606,13 +677,81 @@ void AggregationOperationState::finalizeHashTable(
 }
 
 void AggregationOperationState::destroyAggregationHashTablePayload() {
-  if (group_by_hashtable_pool_ != nullptr) {
-    auto all_hash_tables = group_by_hashtable_pool_->getAllHashTables();
-    DCHECK(all_hash_tables != nullptr);
+  std::vector<std::unique_ptr<AggregationStateHashTableBase>> *all_hash_tables =
+      nullptr;
+  if (!is_aggregate_partitioned_) {
+    if (group_by_hashtable_pool_ != nullptr) {
+      all_hash_tables = group_by_hashtable_pool_->getAllHashTables();
+    }
+  } else {
+    if (partitioned_group_by_hashtable_pool_ != nullptr) {
+      all_hash_tables = partitioned_group_by_hashtable_pool_->getAllHashTables();
+    }
+  }
+  if (all_hash_tables != nullptr) {
     for (std::size_t ht_index = 0; ht_index < all_hash_tables->size(); ++ht_index) {
       (*all_hash_tables)[ht_index]->destroyPayload();
     }
   }
+}
+
+void AggregationOperationState::finalizeAggregatePartitioned(
+    const std::size_t partition_id, InsertDestination *output_destination) {
+  // Each element of 'group_by_keys' is a vector of values for a particular
+  // group (which is also the prefix of the finalized Tuple for that group).
+  std::vector<std::vector<TypedValue>> group_by_keys;
+
+  // Collect per-aggregate finalized values.
+  std::vector<std::unique_ptr<ColumnVector>> final_values;
+  for (std::size_t agg_idx = 0; agg_idx < handles_.size(); ++agg_idx) {
+    AggregationStateHashTableBase *hash_table =
+        partitioned_group_by_hashtable_pool_->getHashTable(partition_id);
+    ColumnVector *agg_result_col = handles_[agg_idx]->finalizeHashTable(
+        *hash_table, &group_by_keys, agg_idx);
+    if (agg_result_col != nullptr) {
+      final_values.emplace_back(agg_result_col);
+    }
+  }
+
+  // Reorganize 'group_by_keys' in column-major order so that we can make a
+  // ColumnVectorsValueAccessor to bulk-insert results.
+  //
+  // TODO(chasseur): Shuffling around the GROUP BY keys like this is suboptimal
+  // if there is only one aggregate. The need to do this should hopefully go
+  // away when we work out storing composite structures for multiple aggregates
+  // in a single HashTable.
+  std::vector<std::unique_ptr<ColumnVector>> group_by_cvs;
+  std::size_t group_by_element_idx = 0;
+  for (const std::unique_ptr<const Scalar> &group_by_element : group_by_list_) {
+    const Type &group_by_type = group_by_element->getType();
+    if (NativeColumnVector::UsableForType(group_by_type)) {
+      NativeColumnVector *element_cv = new NativeColumnVector(group_by_type, group_by_keys.size());
+      group_by_cvs.emplace_back(element_cv);
+      for (std::vector<TypedValue> &group_key : group_by_keys) {
+        element_cv->appendTypedValue(std::move(group_key[group_by_element_idx]));
+      }
+    } else {
+      IndirectColumnVector *element_cv = new IndirectColumnVector(group_by_type, group_by_keys.size());
+      group_by_cvs.emplace_back(element_cv);
+      for (std::vector<TypedValue> &group_key : group_by_keys) {
+        element_cv->appendTypedValue(std::move(group_key[group_by_element_idx]));
+      }
+    }
+    ++group_by_element_idx;
+  }
+
+  // Stitch together a ColumnVectorsValueAccessor combining the GROUP BY keys
+  // and the finalized aggregates.
+  ColumnVectorsValueAccessor complete_result;
+  for (std::unique_ptr<ColumnVector> &group_by_cv : group_by_cvs) {
+    complete_result.addColumn(group_by_cv.release());
+  }
+  for (std::unique_ptr<ColumnVector> &final_value_cv : final_values) {
+    complete_result.addColumn(final_value_cv.release());
+  }
+
+  // Bulk-insert the complete result.
+  output_destination->bulkInsertTuples(&complete_result);
 }
 
 }  // namespace quickstep
