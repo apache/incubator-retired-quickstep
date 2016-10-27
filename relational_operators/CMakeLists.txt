@@ -303,6 +303,7 @@ target_link_libraries(quickstep_relationaloperators_SampleOperator
                       tmb)
 target_link_libraries(quickstep_relationaloperators_SaveBlocksOperator
                       glog
+                      quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_WorkOrderProtosContainer
                       quickstep_queryexecution_WorkOrdersContainer

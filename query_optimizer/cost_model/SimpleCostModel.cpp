@@ -94,13 +94,12 @@ std::size_t SimpleCostModel::estimateCardinalityForTopLevelPlan(
 
 std::size_t SimpleCostModel::estimateCardinalityForTableReference(
     const P::TableReferencePtr &physical_plan) {
-  const std::size_t num_tuples_in_relation =
-      physical_plan->relation()->getStatistics().getNumTuples();
-  if (num_tuples_in_relation == 0) {
-    return physical_plan->relation()->estimateTupleCardinality();
-  } else {
-    return num_tuples_in_relation;
-  }
+  const CatalogRelation *relation = physical_plan->relation();
+  const CatalogRelationStatistics &stat = relation->getStatistics();
+  const std::size_t num_tuples =
+      stat.hasNumTuples() ? stat.getNumTuples()
+                          : relation->estimateTupleCardinality();
+  return num_tuples;
 }
 
 std::size_t SimpleCostModel::estimateCardinalityForSelection(

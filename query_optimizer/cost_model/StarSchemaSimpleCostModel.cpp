@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
+#include "catalog/CatalogRelationStatistics.hpp"
 #include "query_optimizer/cost_model/CostModel.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ComparisonExpression.hpp"
@@ -105,10 +106,11 @@ std::size_t StarSchemaSimpleCostModel::estimateCardinalityForTopLevelPlan(
 
 std::size_t StarSchemaSimpleCostModel::estimateCardinalityForTableReference(
     const P::TableReferencePtr &physical_plan) {
-  std::size_t num_tuples = physical_plan->relation()->getStatistics().getNumTuples();
-  if (num_tuples == 0) {
-    num_tuples = physical_plan->relation()->estimateTupleCardinality();
-  }
+  const CatalogRelation *relation = physical_plan->relation();
+  const CatalogRelationStatistics &stat = relation->getStatistics();
+  const std::size_t num_tuples =
+      stat.hasNumTuples() ? stat.getNumTuples()
+                          : relation->estimateTupleCardinality();
   return num_tuples;
 }
 
@@ -385,9 +387,9 @@ std::size_t StarSchemaSimpleCostModel::getNumDistinctValues(
   const std::vector<E::AttributeReferencePtr> &attributes = table_reference->attribute_list();
   for (std::size_t i = 0; i < attributes.size(); ++i) {
     if (attributes[i]->id() == attribute_id) {
-      std::size_t num_distinct_values = relation.getStatistics().getNumDistinctValues(i);
-      if (num_distinct_values > 0) {
-        return num_distinct_values;
+      const CatalogRelationStatistics &stat = relation.getStatistics();
+      if (stat.hasNumDistinctValues(i)) {
+        return stat.getNumDistinctValues(i);
       }
       break;
     }

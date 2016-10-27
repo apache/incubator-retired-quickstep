@@ -38,6 +38,7 @@ namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
+class CatalogRelation;
 class QueryContext;
 class StorageManager;
 class WorkOrderProtosContainer;
@@ -56,13 +57,16 @@ class SaveBlocksOperator : public RelationalOperator {
    * @brief Constructor for saving only modified blocks in a relation.
    *
    * @param query_id The ID of the query to which this operator belongs.
+   * @param relation The relation whose blocks will be saved.
    * @param force If true, force writing of all blocks to disk, otherwise only
    *        write dirty blocks.
    **/
   explicit SaveBlocksOperator(const std::size_t query_id,
+                              CatalogRelation *relation,
                               const bool force = false)
       : RelationalOperator(query_id),
         force_(force),
+        relation_(relation),
         num_workorders_generated_(0) {}
 
   ~SaveBlocksOperator() override {}
@@ -89,9 +93,12 @@ class SaveBlocksOperator : public RelationalOperator {
     }
   }
 
+  void updateCatalogOnCompletion() override;
+
  private:
   const bool force_;
 
+  CatalogRelation *relation_;
   std::vector<block_id> destination_block_ids_;
 
   std::vector<block_id>::size_type num_workorders_generated_;

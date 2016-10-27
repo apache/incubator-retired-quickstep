@@ -21,6 +21,7 @@
 
 #include <vector>
 
+#include "catalog/CatalogRelation.hpp"
 #include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/WorkOrder.pb.h"
@@ -68,6 +69,16 @@ bool SaveBlocksOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *contain
 
 void SaveBlocksOperator::feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) {
   destination_block_ids_.push_back(input_block_id);
+}
+
+void SaveBlocksOperator::updateCatalogOnCompletion() {
+  // Note(jianqiao): We need to reset the exactness flag whenever a stored
+  // relation gets changed. Given the pre-condition that all the data manipulation
+  // operations (insert, delete, update, copy) use this SaveBlocksOperator as a
+  // common routine. It is valid to put the updating call here to minimize the
+  // changes to other relational operators (e.g. InsertOperator, DeleteOperator,
+  // TextScanOperator, SelectOperator, etc.).
+  relation_->getStatisticsMutable()->setExactness(false);
 }
 
 void SaveBlocksWorkOrder::execute() {

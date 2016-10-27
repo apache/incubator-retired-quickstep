@@ -31,8 +31,11 @@
 #include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
+#include "catalog/CatalogRelationStatistics.hpp"
 #include "cli/DropRelation.hpp"
 #include "cli/PrintToScreen.hpp"
+#include "expressions/aggregation/AggregateFunctionMax.hpp"
+#include "expressions/aggregation/AggregateFunctionMin.hpp"
 #include "parser/ParseStatement.hpp"
 #include "parser/ParseString.hpp"
 #include "parser/SqlParserWrapper.hpp"
@@ -69,7 +72,7 @@ namespace {
 
 namespace C = ::quickstep::cli;
 
-void executeDescribeDatabase(
+void ExecuteDescribeDatabase(
     const PtrVector<ParseString> *arguments,
     const CatalogDatabase &catalog_database,
     StorageManager *storage_manager,
@@ -131,7 +134,7 @@ void executeDescribeDatabase(
   }
 }
 
-void executeDescribeTable(
+void ExecuteDescribeTable(
     const PtrVector<ParseString> *arguments,
     const CatalogDatabase &catalog_database, FILE *out) {
   const ParseString &table_name = arguments->front();
@@ -199,7 +202,7 @@ void executeDescribeTable(
 /**
  * @brief A helper function that executes a SQL query to obtain a row of results.
  */
-inline std::vector<TypedValue> executeQueryForSingleRow(
+inline std::vector<TypedValue> ExecuteQueryForSingleRow(
     const tmb::client_id main_thread_client_id,
     const tmb::client_id foreman_client_id,
     const std::string &query_string,
@@ -270,7 +273,7 @@ inline std::vector<TypedValue> executeQueryForSingleRow(
 /**
  * @brief A helper function that executes a SQL query to obtain a scalar result.
  */
-inline TypedValue executeQueryForSingleResult(
+inline TypedValue ExecuteQueryForSingleResult(
     const tmb::client_id main_thread_client_id,
     const tmb::client_id foreman_client_id,
     const std::string &query_string,
@@ -279,7 +282,7 @@ inline TypedValue executeQueryForSingleResult(
     QueryProcessor *query_processor,
     SqlParserWrapper *parser_wrapper) {
   std::vector<TypedValue> results =
-      executeQueryForSingleRow(main_thread_client_id,
+      ExecuteQueryForSingleRow(main_thread_client_id,
                                foreman_client_id,
                                query_string,
                                bus,
@@ -290,7 +293,21 @@ inline TypedValue executeQueryForSingleResult(
   return results[0];
 }
 
-void executeAnalyze(const PtrVector<ParseString> *arguments,
+/**
+ * @brief A helper function for escaping quotes (i.e. ' or ").
+ */
+std::string EscapeQuotes(const std::string &str, const char quote) {
+  std::string ret;
+  for (const char c : str) {
+    ret.push_back(c);
+    if (c == quote) {
+      ret.push_back(c);
+    }
+  }
+  return ret;
+}
+
+void ExecuteAnalyze(const PtrVector<ParseString> *arguments,
                     const tmb::client_id main_thread_client_id,
                     const tmb::client_id foreman_client_id,
                     MessageBus *bus,
@@ -321,17 +338,42 @@ void executeAnalyze(const PtrVector<ParseString> *arguments,
 
     CatalogRelation *mutable_relation =
         query_processor->getDefaultDatabase()->getRelationByIdMutable(relation.getID());
+    CatalogRelationStatistics *mutable_stat =
+        mutable_relation->getStatisticsMutable();
+
+    const std::string rel_name = EscapeQuotes(relation.getName(), '"');
 
     // Get the number of distinct values for each column.
     for (const CatalogAttribute &attribute : relation) {
-      std::string query_string = "SELECT COUNT(DISTINCT ";
-      query_string.append(attribute.getName());
-      query_string.append(") FROM ");
-      query_string.append(relation.getName());
-      query_string.append(";");
+      const std::string attr_name = EscapeQuotes(attribute.getName(), '"');
+      const Type &attr_type = attribute.getType();
+      bool is_min_applicable =
+          AggregateFunctionMin::Instance().canApplyToTypes({&attr_type});
+      bool is_max_applicable =
+          AggregateFunctionMax::Instance().canApplyToTypes({&attr_type});
+
+      // NOTE(jianqiao): Note that the relation name and the attribute names may
+      // contain non-letter characters, e.g. CREATE TABLE "with space"("1" int).
+      // So here we need to format the names with double quotes (").
+      std::string query_string = "SELECT COUNT(DISTINCT \"";
+      query_string.append(attr_name);
+      query_string.append("\")");
+      if (is_min_applicable) {
+        query_string.append(", MIN(\"");
+        query_string.append(attr_name);
+        query_string.append("\")");
+      }
+      if (is_max_applicable) {
+        query_string.append(", MAX(\"");
+        query_string.append(attr_name);
+        query_string.append("\")");
+      }
+      query_string.append(" FROM \"");
+      query_string.append(rel_name);
+      query_string.append("\";");
 
       std::vector<TypedValue> results =
-          executeQueryForSingleRow(main_thread_client_id,
+          ExecuteQueryForSingleRow(main_thread_client_id,
                                    foreman_client_id,
                                    query_string,
                                    bus,
@@ -339,21 +381,29 @@ void executeAnalyze(const PtrVector<ParseString> *arguments,
                                    query_processor,
                                    parser_wrapper.get());
 
-      auto *stat = mutable_relation->getStatisticsMutable();
-      const attribute_id attr_id = attribute.getID();
+      auto results_it = results.begin();
+      DCHECK(results_it->getTypeID() == TypeID::kLong);
 
-      DCHECK(results[0].getTypeID() == TypeID::kLong);
-      stat->setNumDistinctValues(attr_id,
-                                 results[0].getLiteral<std::int64_t>());
+      const attribute_id attr_id = attribute.getID();
+      mutable_stat->setNumDistinctValues(attr_id,
+                                         results_it->getLiteral<std::int64_t>());
+      if (is_min_applicable) {
+        ++results_it;
+        mutable_stat->setMinValue(attr_id, *results_it);
+      }
+      if (is_max_applicable) {
+        ++results_it;
+        mutable_stat->setMaxValue(attr_id, *results_it);
+      }
     }
 
     // Get the number of tuples for the relation.
-    std::string query_string = "SELECT COUNT(*) FROM ";
-    query_string.append(relation.getName());
-    query_string.append(";");
+    std::string query_string = "SELECT COUNT(*) FROM \"";
+    query_string.append(rel_name);
+    query_string.append("\";");
 
     TypedValue num_tuples =
-        executeQueryForSingleResult(main_thread_client_id,
+        ExecuteQueryForSingleResult(main_thread_client_id,
                                     foreman_client_id,
                                     query_string,
                                     bus,
@@ -362,8 +412,9 @@ void executeAnalyze(const PtrVector<ParseString> *arguments,
                                     parser_wrapper.get());
 
     DCHECK(num_tuples.getTypeID() == TypeID::kLong);
-    mutable_relation->getStatisticsMutable()->setNumTuples(
-        num_tuples.getLiteral<std::int64_t>());
+    mutable_stat->setNumTuples(num_tuples.getLiteral<std::int64_t>());
+
+    mutable_stat->setExactness(true);
 
     fprintf(out, "done\n");
     fflush(out);
@@ -386,15 +437,15 @@ void executeCommand(const ParseStatement &statement,
   const PtrVector<ParseString> *arguments = command.arguments();
   const std::string &command_str = command.command()->value();
   if (command_str == C::kDescribeDatabaseCommand) {
-    executeDescribeDatabase(arguments, catalog_database, storage_manager, out);
+    ExecuteDescribeDatabase(arguments, catalog_database, storage_manager, out);
   } else if (command_str == C::kDescribeTableCommand) {
     if (arguments->size() == 0) {
-      executeDescribeDatabase(arguments, catalog_database, storage_manager, out);
+      ExecuteDescribeDatabase(arguments, catalog_database, storage_manager, out);
     } else {
-      executeDescribeTable(arguments, catalog_database, out);
+      ExecuteDescribeTable(arguments, catalog_database, out);
     }
   } else if (command_str == C::kAnalyzeCommand) {
-    executeAnalyze(arguments,
+    ExecuteAnalyze(arguments,
                    main_thread_client_id,
                    foreman_client_id,
                    bus,

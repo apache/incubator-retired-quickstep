@@ -89,8 +89,11 @@ target_link_libraries(quickstep_cli_CommandExecutor
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogRelationSchema
+                      quickstep_catalog_CatalogRelationStatistics
                       quickstep_cli_DropRelation
                       quickstep_cli_PrintToScreen
+                      quickstep_expressions_aggregation_AggregateFunctionMax
+                      quickstep_expressions_aggregation_AggregateFunctionMin
                       quickstep_parser_ParseStatement
                       quickstep_parser_SqlParserWrapper
                       quickstep_queryoptimizer_QueryHandle
