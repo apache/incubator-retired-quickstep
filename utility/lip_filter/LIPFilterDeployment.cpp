@@ -28,45 +28,49 @@
 #include "utility/lip_filter/LIPFilterBuilder.hpp"
 #include "utility/lip_filter/LIPFilterAdaptiveProber.hpp"
 
-#include "glog/logging.h"
-
 namespace quickstep {
 
 LIPFilterDeployment::LIPFilterDeployment(
     const serialization::LIPFilterDeployment &proto,
     const std::vector<std::unique_ptr<LIPFilter>> &lip_filters) {
-  switch (proto.action_type()) {
-    case serialization::LIPFilterActionType::BUILD:
-      action_type_ = LIPFilterActionType::kBuild;
-      break;
-    case serialization::LIPFilterActionType::PROBE:
-      action_type_ = LIPFilterActionType::kProbe;
-      break;
-    default:
-      LOG(FATAL) << "Unsupported LIPFilterActionType: "
-                 << serialization::LIPFilterActionType_Name(proto.action_type());
+  if (proto.build_entries_size() > 0) {
+    build_.reset(new LIPFilterDeploymentInfo());
+    for (int i = 0; i < proto.build_entries_size(); ++i) {
+      const auto &entry_proto = proto.build_entries(i);
+      build_->lip_filters_.emplace_back(
+          lip_filters.at(entry_proto.lip_filter_id()).get());
+      build_->attr_ids_.emplace_back(entry_proto.attribute_id());
+      build_->attr_types_.emplace_back(
+          &TypeFactory::ReconstructFromProto(entry_proto.attribute_type()));
+    }
   }
 
-  for (int i = 0; i < proto.entries_size(); ++i) {
-    const auto &entry_proto = proto.entries(i);
-    lip_filters_.emplace_back(lip_filters.at(entry_proto.lip_filter_id()).get());
-    attr_ids_.emplace_back(entry_proto.attribute_id());
-    attr_types_.emplace_back(&TypeFactory::ReconstructFromProto(entry_proto.attribute_type()));
+  if (proto.probe_entries_size() > 0) {
+    probe_.reset(new LIPFilterDeploymentInfo());
+    for (int i = 0; i < proto.probe_entries_size(); ++i) {
+      const auto &entry_proto = proto.probe_entries(i);
+      probe_->lip_filters_.emplace_back(
+          lip_filters.at(entry_proto.lip_filter_id()).get());
+      probe_->attr_ids_.emplace_back(entry_proto.attribute_id());
+      probe_->attr_types_.emplace_back(
+          &TypeFactory::ReconstructFromProto(entry_proto.attribute_type()));
+    }
   }
 }
 
 bool LIPFilterDeployment::ProtoIsValid(
     const serialization::LIPFilterDeployment &proto) {
-  if (proto.action_type() != serialization::LIPFilterActionType::BUILD &&
-      proto.action_type() != serialization::LIPFilterActionType::PROBE) {
-    LOG(FATAL) << "Unsupported LIPFilterActionType: "
-               << serialization::LIPFilterActionType_Name(proto.action_type());
-  }
-  if (proto.entries_size() == 0) {
+  if (proto.build_entries_size() == 0 && proto.probe_entries_size() == 0) {
     return false;
   }
-  for (int i = 0; i < proto.entries_size(); ++i) {
-    const auto &entry_proto = proto.entries(i);
+  for (int i = 0; i < proto.build_entries_size(); ++i) {
+    const auto &entry_proto = proto.build_entries(i);
+    if (!TypeFactory::ProtoIsValid(entry_proto.attribute_type())) {
+      return false;
+    }
+  }
+  for (int i = 0; i < proto.probe_entries_size(); ++i) {
+    const auto &entry_proto = proto.probe_entries(i);
     if (!TypeFactory::ProtoIsValid(entry_proto.attribute_type())) {
       return false;
     }
@@ -75,13 +79,23 @@ bool LIPFilterDeployment::ProtoIsValid(
 }
 
 LIPFilterBuilder* LIPFilterDeployment::createLIPFilterBuilder() const {
-  DCHECK(action_type_ == LIPFilterActionType::kBuild);
-  return new LIPFilterBuilder(lip_filters_, attr_ids_, attr_types_);
+  if (build_ == nullptr) {
+    return nullptr;
+  }
+
+  return new LIPFilterBuilder(build_->lip_filters_,
+                              build_->attr_ids_,
+                              build_->attr_types_);
 }
 
 LIPFilterAdaptiveProber* LIPFilterDeployment::createLIPFilterAdaptiveProber() const {
-  DCHECK(action_type_ == LIPFilterActionType::kProbe);
-  return new LIPFilterAdaptiveProber(lip_filters_, attr_ids_, attr_types_);
+  if (probe_ == nullptr) {
+    return nullptr;
+  }
+
+  return new LIPFilterAdaptiveProber(probe_->lip_filters_,
+                                     probe_->attr_ids_,
+                                     probe_->attr_types_);
 }
 
 }  // namespace quickstep

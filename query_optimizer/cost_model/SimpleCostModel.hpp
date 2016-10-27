@@ -26,6 +26,7 @@
 #include "query_optimizer/cost_model/CostModel.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
 #include "query_optimizer/physical/NestedLoopsJoin.hpp"
+#include "query_optimizer/physical/FilterJoin.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/Selection.hpp"
@@ -79,6 +80,10 @@ class SimpleCostModel : public CostModel {
   // otherwise returns the estimated cardinality of the input plan.
   std::size_t estimateCardinalityForSort(
       const physical::SortPtr &physical_plan);
+
+  // Returns the left child's cardinality
+  std::size_t estimateCardinalityForFilterJoin(
+      const physical::FilterJoinPtr &physical_plan);
 
   // Returns the larger value of the estimated cardinalities of two
   // input plans.

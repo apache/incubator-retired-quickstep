@@ -39,11 +39,6 @@ class Type;
  *  @{
  */
 
-enum class LIPFilterActionType {
-  kBuild = 0,
-  kProbe
-};
-
 /**
  * @brief Helper class for organizing a group of LIPFilters in the backend.
  *        Each LIPFilterDeployment object is attached to a RelationalOperator.
@@ -69,16 +64,6 @@ class LIPFilterDeployment {
   static bool ProtoIsValid(const serialization::LIPFilterDeployment &proto);
 
   /**
-   * @brief Get the action type for this group of LIPFilters (i.e. whether
-   *        to build or probe the filters).
-   *
-   * @return The action type.
-   */
-  LIPFilterActionType getActionType() const {
-    return action_type_;
-  }
-
-  /**
    * @brief Create a LIPFilterBuilder for this group of LIPFilters.
    *
    * @return A new LIPFilterBuilder object for this group of LIPFilters.
@@ -95,11 +80,14 @@ class LIPFilterDeployment {
   LIPFilterAdaptiveProber* createLIPFilterAdaptiveProber() const;
 
  private:
-  LIPFilterActionType action_type_;
+  struct LIPFilterDeploymentInfo {
+    std::vector<LIPFilter *> lip_filters_;
+    std::vector<attribute_id> attr_ids_;
+    std::vector<const Type *> attr_types_;
+  };
 
-  std::vector<LIPFilter *> lip_filters_;
-  std::vector<attribute_id> attr_ids_;
-  std::vector<const Type *> attr_types_;
+  std::unique_ptr<LIPFilterDeploymentInfo> build_;
+  std::unique_ptr<LIPFilterDeploymentInfo> probe_;
 
   DISALLOW_COPY_AND_ASSIGN(LIPFilterDeployment);
 };

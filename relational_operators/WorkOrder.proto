@@ -24,25 +24,26 @@ import "relational_operators/SortMergeRunOperator.proto";
 enum WorkOrderType {
   AGGREGATION = 1;
   BUILD_HASH = 2;
-  CREATE_INDEX = 3;  // Placeholder.
-  CREATE_TABLE = 4;  // Placeholder.
-  DELETE = 5;
-  DESTROY_HASH = 6;
-  DROP_TABLE = 7;
-  FINALIZE_AGGREGATION = 8;
-  HASH_JOIN = 9;
-  INSERT = 10;
-  NESTED_LOOP_JOIN = 11;
-  SAMPLE = 12;
-  SAVE_BLOCKS = 13;
-  SELECT = 14;
-  SORT_MERGE_RUN = 15;
-  SORT_RUN_GENERATION = 16;
-  TABLE_GENERATOR = 17;
-  TEXT_SCAN = 18;
-  UPDATE = 19;
-  WINDOW_AGGREGATION = 20;
-  DESTROY_AGGREGATION_STATE = 21;
+  BUILD_LIP_FILTER = 3;
+  CREATE_INDEX = 4;  // Placeholder.
+  CREATE_TABLE = 5;  // Placeholder.
+  DELETE = 6;
+  DESTROY_HASH = 7;
+  DROP_TABLE = 8;
+  FINALIZE_AGGREGATION = 9;
+  HASH_JOIN = 10;
+  INSERT = 11;
+  NESTED_LOOP_JOIN = 12;
+  SAMPLE = 13;
+  SAVE_BLOCKS = 14;
+  SELECT = 15;
+  SORT_MERGE_RUN = 16;
+  SORT_RUN_GENERATION = 17;
+  TABLE_GENERATOR = 18;
+  TEXT_SCAN = 19;
+  UPDATE = 20;
+  WINDOW_AGGREGATION = 21;
+  DESTROY_AGGREGATION_STATE = 22;
 }
 
 message WorkOrder {
@@ -74,6 +75,16 @@ message BuildHashWorkOrder {
     optional uint64 partition_id = 38;
     optional fixed64 block_id = 36;
     optional int32 lip_deployment_index = 37;
+  }
+}
+
+message BuildLIPFilterWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional int32 relation_id = 48;
+    optional fixed64 build_block_id = 49;
+    optional int32 build_side_predicate_index = 50;
+    optional int32 lip_deployment_index = 51;
   }
 }
 

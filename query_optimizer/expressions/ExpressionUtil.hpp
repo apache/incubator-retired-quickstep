@@ -122,12 +122,12 @@ bool ContainsExprId(
  *              contain the other operand).
  * @return True if \p left is a subset of \p right.
  */
-template <class NamedExpressionType>
+template <class LeftNamedExpressionType, class RightNamedExpressionType>
 bool SubsetOfExpressions(
-    const std::vector<std::shared_ptr<const NamedExpressionType>> &left,
-    const std::vector<std::shared_ptr<const NamedExpressionType>> &right) {
+    const std::vector<std::shared_ptr<const LeftNamedExpressionType>> &left,
+    const std::vector<std::shared_ptr<const RightNamedExpressionType>> &right) {
   UnorderedNamedExpressionSet supset(right.begin(), right.end());
-  for (const std::shared_ptr<const NamedExpressionType> &expr : left) {
+  for (const std::shared_ptr<const LeftNamedExpressionType> &expr : left) {
     if (supset.find(expr) == supset.end()) {
       return false;
     }

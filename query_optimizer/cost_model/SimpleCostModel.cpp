@@ -27,6 +27,7 @@
 #include "query_optimizer/cost_model/CostModel.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
 #include "query_optimizer/physical/NestedLoopsJoin.hpp"
+#include "query_optimizer/physical/FilterJoin.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
@@ -61,6 +62,9 @@ std::size_t SimpleCostModel::estimateCardinality(
     case P::PhysicalType::kTableGenerator:
       return estimateCardinalityForTableGenerator(
           std::static_pointer_cast<const P::TableGenerator>(physical_plan));
+    case P::PhysicalType::kFilterJoin:
+      return estimateCardinalityForFilterJoin(
+          std::static_pointer_cast<const P::FilterJoin>(physical_plan));
     case P::PhysicalType::kHashJoin:
       return estimateCardinalityForHashJoin(
           std::static_pointer_cast<const P::HashJoin>(physical_plan));
@@ -117,6 +121,11 @@ std::size_t SimpleCostModel::estimateCardinalityForSort(
 std::size_t SimpleCostModel::estimateCardinalityForTableGenerator(
     const P::TableGeneratorPtr &physical_plan) {
   return physical_plan->generator_function_handle()->getEstimatedCardinality();
+}
+
+std::size_t SimpleCostModel::estimateCardinalityForFilterJoin(
+    const P::FilterJoinPtr &physical_plan) {
+  return estimateCardinality(physical_plan->left());
 }
 
 std::size_t SimpleCostModel::estimateCardinalityForHashJoin(

@@ -23,6 +23,7 @@
 #include <cstdint>
 
 #include "utility/lip_filter/LIPFilter.pb.h"
+#include "utility/lip_filter/BitVectorExactFilter.hpp"
 #include "utility/lip_filter/SingleIdentityHashFilter.hpp"
 
 #include "glog/logging.h"
@@ -31,6 +32,46 @@ namespace quickstep {
 
 LIPFilter* LIPFilterFactory::ReconstructFromProto(const serialization::LIPFilter &proto) {
   switch (proto.lip_filter_type()) {
+    case serialization::LIPFilterType::BIT_VECTOR_EXACT_FILTER: {
+      const std::size_t attr_size =
+          proto.GetExtension(serialization::BitVectorExactFilter::attribute_size);
+      const std::int64_t min_value =
+          proto.GetExtension(serialization::BitVectorExactFilter::min_value);
+      const std::int64_t max_value =
+          proto.GetExtension(serialization::BitVectorExactFilter::max_value);
+      const bool is_anti_filter =
+          proto.GetExtension(serialization::BitVectorExactFilter::is_anti_filter);
+
+      switch (attr_size) {
+        case 1:
+          if (is_anti_filter) {
+            return new BitVectorExactFilter<std::int8_t, true>(min_value, max_value);
+          } else {
+            return new BitVectorExactFilter<std::int8_t, false>(min_value, max_value);
+          }
+        case 2:
+          if (is_anti_filter) {
+            return new BitVectorExactFilter<std::int16_t, true>(min_value, max_value);
+          } else {
+            return new BitVectorExactFilter<std::int16_t, false>(min_value, max_value);
+          }
+        case 4:
+          if (is_anti_filter) {
+            return new BitVectorExactFilter<std::int32_t, true>(min_value, max_value);
+          } else {
+            return new BitVectorExactFilter<std::int32_t, false>(min_value, max_value);
+          }
+        case 8:
+          if (is_anti_filter) {
+            return new BitVectorExactFilter<std::int64_t, true>(min_value, max_value);
+          } else {
+            return new BitVectorExactFilter<std::int64_t, false>(min_value, max_value);
+          }
+        default:
+          LOG(FATAL) << "Invalid attribute size for BitVectorExactFilter: "
+                     << attr_size;
+      }
+    }
     case serialization::LIPFilterType::SINGLE_IDENTITY_HASH_FILTER: {
       const std::size_t attr_size =
           proto.GetExtension(serialization::SingleIdentityHashFilter::attribute_size);
@@ -57,6 +98,15 @@ LIPFilter* LIPFilterFactory::ReconstructFromProto(const serialization::LIPFilter
 
 bool LIPFilterFactory::ProtoIsValid(const serialization::LIPFilter &proto) {
   switch (proto.lip_filter_type()) {
+    case serialization::LIPFilterType::BIT_VECTOR_EXACT_FILTER: {
+      const std::size_t attr_size =
+          proto.GetExtension(serialization::BitVectorExactFilter::attribute_size);
+      const std::int64_t min_value =
+          proto.GetExtension(serialization::BitVectorExactFilter::min_value);
+      const std::int64_t max_value =
+          proto.GetExtension(serialization::BitVectorExactFilter::max_value);
+      return (attr_size != 0 && max_value >= min_value);
+    }
     case serialization::LIPFilterType::SINGLE_IDENTITY_HASH_FILTER: {
       const std::size_t attr_size =
           proto.GetExtension(serialization::SingleIdentityHashFilter::attribute_size);

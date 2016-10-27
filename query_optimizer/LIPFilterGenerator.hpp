@@ -30,6 +30,7 @@
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/physical/LIPFilterConfiguration.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
+#include "query_optimizer/physical/FilterJoin.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/Selection.hpp"
@@ -39,7 +40,12 @@
 
 namespace quickstep {
 
-namespace serialization { class QueryContext; }
+namespace serialization {
+
+class QueryContext;
+class LIPFilterDeployment;
+
+}
 
 class CatalogAttribute;
 
@@ -93,6 +99,20 @@ class LIPFilterGenerator {
 
   /**
    * @brief Add physical-to-execution mapping information for deploying LIPFilters
+   *        to a FilterJoin node.
+   *
+   * @param filter_join A physical FilterJoin node.
+   * @param build_filter_operator_index The index of the BuildLIPFilterOperator
+   *        that corresponds to \p filter_join in the execution plan.
+   */
+  void addFilterJoinInfo(const physical::FilterJoinPtr &filter_join,
+                         const QueryPlan::DAGNodeIndex build_filter_operator_index) {
+    builder_infos_.emplace_back(filter_join, build_filter_operator_index);
+    prober_infos_.emplace_back(filter_join, build_filter_operator_index);
+  }
+
+  /**
+   * @brief Add physical-to-execution mapping information for deploying LIPFilters
    *        to a hash-join.
    *
    * @param hash_join A physical HashJoin node.
@@ -128,7 +148,7 @@ class LIPFilterGenerator {
    * @param query_context_proto QueryContext protobuf for the execution plan.
    */
   void deployLIPFilters(QueryPlan *execution_plan,
-                        serialization::QueryContext *query_context_proto) const;
+                        serialization::QueryContext *query_context_proto);
 
  private:
   /**
@@ -157,24 +177,21 @@ class LIPFilterGenerator {
     const QueryPlan::DAGNodeIndex prober_operator_index;
   };
 
-  // Maps each LIPFilter's building attribute to the LIPFilter's id in QueryContext
-  // as well as the LIPFilter's building relational operator's index.
-  typedef std::map<std::pair<expressions::ExprId, physical::PhysicalPtr>,
-                   std::pair<QueryContext::lip_filter_id, QueryPlan::DAGNodeIndex>> LIPFilterBuilderMap;
-
   void deployBuilderInternal(QueryPlan *execution_plan,
                              serialization::QueryContext *query_context_proto,
                              const physical::PhysicalPtr &builder_node,
                              const QueryPlan::DAGNodeIndex builder_operator_index,
-                             const std::vector<physical::LIPFilterBuildInfo> &build_info_vec,
-                             LIPFilterBuilderMap *lip_filter_builder_map) const;
+                             const std::vector<physical::LIPFilterBuildInfoPtr> &build_info_vec);
 
   void deployProberInteral(QueryPlan *execution_plan,
                            serialization::QueryContext *query_context_proto,
                            const physical::PhysicalPtr &prober_node,
                            const QueryPlan::DAGNodeIndex prober_operator_index,
-                           const std::vector<physical::LIPFilterProbeInfo> &probe_info_vec,
-                           const LIPFilterBuilderMap &lip_filter_builder_map) const;
+                           const std::vector<physical::LIPFilterProbeInfoPtr> &probe_info_vec);
+
+  serialization::LIPFilterDeployment* getLIPFilterDeploymentProto(
+      const QueryPlan::DAGNodeIndex op_index,
+      serialization::QueryContext *query_context_proto);
 
   const physical::LIPFilterConfigurationPtr lip_filter_configuration_;
 
@@ -182,6 +199,16 @@ class LIPFilterGenerator {
   std::vector<ProberInfo> prober_infos_;
 
   std::map<physical::PhysicalPtr, std::map<expressions::ExprId, const CatalogAttribute *>> attribute_map_;
+
+  // Maps each LIPFilter's building attribute to the LIPFilter's id in QueryContext
+  // as well as the LIPFilter's building relational operator's index.
+  std::map<std::pair<expressions::ExprId, physical::PhysicalPtr>,
+           std::pair<QueryContext::lip_filter_id, QueryPlan::DAGNodeIndex>> lip_filter_builder_map_;
+
+  // Maps each relational operator's index to the attached LIPFilterDeployment's
+  // index and proto.
+  std::map<QueryPlan::DAGNodeIndex,
+           std::pair<int, serialization::LIPFilterDeployment *>> lip_filter_deployment_protos_;
 
   DISALLOW_COPY_AND_ASSIGN(LIPFilterGenerator);
 };

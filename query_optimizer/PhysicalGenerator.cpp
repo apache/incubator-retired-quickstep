@@ -27,6 +27,7 @@
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/rules/AttachLIPFilters.hpp"
+#include "query_optimizer/rules/InjectJoinFilters.hpp"
 #include "query_optimizer/rules/PruneColumns.hpp"
 #include "query_optimizer/rules/PushDownLowCostDisjunctivePredicate.hpp"
 #include "query_optimizer/rules/ReorderColumns.hpp"
@@ -55,6 +56,14 @@ DEFINE_bool(reorder_hash_joins, true,
             "joins. The optimization applies a greedy algorithm to favor smaller "
             "cardinality and selective tables to be joined first, which is suitable "
             "for queries on star-schema tables.");
+
+DEFINE_bool(use_filter_joins, true,
+            "If true, apply an optimization that strength-reduces HashJoins to "
+            "FilterJoins (implemented as LIPFilters attached to some anchoring "
+            "operators. Briefly speaking, in the case that the join attribute has "
+            "consecutive integer values bounded in a reasonably small range, we "
+            "build a BitVector on the build-side attribute and use the BitVector "
+            "to filter the probe side table.");
 
 DEFINE_bool(use_lip_filters, true,
             "If true, use LIP (Lookahead Information Passing) filters to accelerate "
@@ -133,9 +142,13 @@ P::PhysicalPtr PhysicalGenerator::optimizePlan() {
     rules.emplace_back(new ReorderColumns());
   }
 
-  // NOTE(jianqiao): Adding rules after AttachLIPFilters requires extra handling
-  // of LIPFilterConfiguration for transformed nodes. So currently it is suggested
-  // that all the new rules be placed before this point.
+  // NOTE(jianqiao): Adding rules after InjectJoinFilters (or AttachLIPFilters) requires
+  // extra handling of LIPFilterConfiguration for transformed nodes. So currently it is
+  // suggested that all the new rules be placed before this point.
+  if (FLAGS_use_filter_joins) {
+    rules.emplace_back(new InjectJoinFilters());
+  }
+
   if (FLAGS_use_lip_filters) {
     rules.emplace_back(new AttachLIPFilters());
   }

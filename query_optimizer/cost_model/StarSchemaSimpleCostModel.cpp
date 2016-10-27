@@ -21,11 +21,11 @@
 
 #include <algorithm>
 #include <memory>
-#include <unordered_map>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogRelationStatistics.hpp"
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_optimizer/cost_model/CostModel.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ComparisonExpression.hpp"
@@ -38,6 +38,7 @@
 #include "query_optimizer/expressions/PatternMatcher.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
 #include "query_optimizer/physical/NestedLoopsJoin.hpp"
+#include "query_optimizer/physical/FilterJoin.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
 #include "query_optimizer/physical/PatternMatcher.hpp"
 #include "query_optimizer/physical/Physical.hpp"
@@ -48,6 +49,8 @@
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "types/TypedValue.hpp"
+#include "types/NullType.hpp"
 
 #include "glog/logging.h"
 
@@ -73,6 +76,9 @@ std::size_t StarSchemaSimpleCostModel::estimateCardinality(
     case P::PhysicalType::kTableGenerator:
       return estimateCardinalityForTableGenerator(
           std::static_pointer_cast<const P::TableGenerator>(physical_plan));
+    case P::PhysicalType::kFilterJoin:
+      return estimateCardinalityForFilterJoin(
+          std::static_pointer_cast<const P::FilterJoin>(physical_plan));
     case P::PhysicalType::kHashJoin:
       return estimateCardinalityForHashJoin(
           std::static_pointer_cast<const P::HashJoin>(physical_plan));
@@ -132,6 +138,17 @@ std::size_t StarSchemaSimpleCostModel::estimateCardinalityForSort(
 std::size_t StarSchemaSimpleCostModel::estimateCardinalityForTableGenerator(
     const P::TableGeneratorPtr &physical_plan) {
   return physical_plan->generator_function_handle()->getEstimatedCardinality();
+}
+
+std::size_t StarSchemaSimpleCostModel::estimateCardinalityForFilterJoin(
+    const P::FilterJoinPtr &physical_plan) {
+  double build_side_filter_selectivity =
+      estimateSelectivityForPredicate(physical_plan->build_side_filter_predicate(),
+                                      physical_plan->right());
+  std::size_t left_cardinality = estimateCardinality(physical_plan->left());
+  double right_selectivity = estimateSelectivity(physical_plan->right());
+  return static_cast<std::size_t>(
+      left_cardinality * build_side_filter_selectivity * right_selectivity + 0.5);
 }
 
 std::size_t StarSchemaSimpleCostModel::estimateCardinalityForHashJoin(
@@ -216,6 +233,18 @@ std::size_t StarSchemaSimpleCostModel::estimateNumDistinctValues(
       }
       break;
     }
+    case P::PhysicalType::kFilterJoin: {
+      const P::FilterJoinPtr &filter_join =
+          std::static_pointer_cast<const P::FilterJoin>(physical_plan);
+      if (E::ContainsExprId(filter_join->left()->getOutputAttributes(), attribute_id)) {
+        std::size_t left_child_num_distinct_values =
+            estimateNumDistinctValues(attribute_id, filter_join->left());
+        double right_child_selectivity =
+            estimateSelectivity(filter_join->right());
+        return static_cast<std::size_t>(
+            left_child_num_distinct_values * right_child_selectivity + 0.5);
+      }
+    }
     case P::PhysicalType::kHashJoin: {
       const P::HashJoinPtr &hash_join =
           std::static_pointer_cast<const P::HashJoin>(physical_plan);
@@ -253,6 +282,16 @@ double StarSchemaSimpleCostModel::estimateSelectivity(
           estimateSelectivityForPredicate(selection->filter_predicate(), selection);
       double child_selectivity = estimateSelectivity(selection->input());
       return filter_selectivity * child_selectivity;
+    }
+    case P::PhysicalType::kFilterJoin: {
+      const P::FilterJoinPtr &filter_join =
+          std::static_pointer_cast<const P::FilterJoin>(physical_plan);
+      double left_selectivity = estimateSelectivity(filter_join->left());
+      double right_selectivity = estimateSelectivity(filter_join->right());
+      double build_side_filter_selectivity =
+          estimateSelectivityForPredicate(filter_join->build_side_filter_predicate(),
+                                          filter_join->right());
+      return left_selectivity * right_selectivity * build_side_filter_selectivity;
     }
     case P::PhysicalType::kHashJoin: {
       const P::HashJoinPtr &hash_join =
@@ -383,18 +422,124 @@ double StarSchemaSimpleCostModel::estimateSelectivityForPredicate(
 std::size_t StarSchemaSimpleCostModel::getNumDistinctValues(
     const E::ExprId attribute_id,
     const P::TableReferencePtr &table_reference) {
-  const CatalogRelation &relation = *table_reference->relation();
-  const std::vector<E::AttributeReferencePtr> &attributes = table_reference->attribute_list();
-  for (std::size_t i = 0; i < attributes.size(); ++i) {
-    if (attributes[i]->id() == attribute_id) {
-      const CatalogRelationStatistics &stat = relation.getStatistics();
-      if (stat.hasNumDistinctValues(i)) {
-        return stat.getNumDistinctValues(i);
-      }
-      break;
+  const auto rel_attr_id =
+      findCatalogRelationAttributeId(table_reference, attribute_id);
+  if (rel_attr_id != kInvalidAttributeID) {
+    const CatalogRelationStatistics &stat =
+        table_reference->relation()->getStatistics();
+    if (stat.hasNumDistinctValues(rel_attr_id)) {
+      return stat.getNumDistinctValues(rel_attr_id);
     }
   }
   return estimateCardinalityForTableReference(table_reference);
+}
+
+bool StarSchemaSimpleCostModel::impliesUniqueAttributes(
+    const P::PhysicalPtr &physical_plan,
+    const std::vector<E::AttributeReferencePtr> &attributes) {
+  switch (physical_plan->getPhysicalType()) {
+    case P::PhysicalType::kAggregate: {
+      const P::AggregatePtr &aggregate =
+          std::static_pointer_cast<const P::Aggregate>(physical_plan);
+      return E::SubsetOfExpressions(aggregate->grouping_expressions(), attributes);
+    }
+    case P::PhysicalType::kHashJoin: {
+      const P::HashJoinPtr &hash_join =
+          std::static_pointer_cast<const P::HashJoin>(physical_plan);
+      bool unique_from_left =
+          impliesUniqueAttributes(hash_join->right(), hash_join->right_join_attributes())
+              && impliesUniqueAttributes(hash_join->left(), attributes);
+      bool unique_from_right =
+          impliesUniqueAttributes(hash_join->left(), hash_join->left_join_attributes())
+              && impliesUniqueAttributes(hash_join->right(), attributes);
+      return unique_from_left || unique_from_right;
+    }
+    case P::PhysicalType::kTableReference: {
+      const P::TableReferencePtr &table_reference =
+          std::static_pointer_cast<const P::TableReference>(physical_plan);
+      const CatalogRelationStatistics &stat =
+          table_reference->relation()->getStatistics();
+      if (stat.hasNumTuples()) {
+        const std::size_t num_tuples = stat.getNumTuples();
+        for (const auto &attr : attributes) {
+          const attribute_id rel_attr_id =
+              findCatalogRelationAttributeId(table_reference, attr->id());
+          if (rel_attr_id != kInvalidAttributeID &&
+              stat.hasNumDistinctValues(rel_attr_id) &&
+              stat.getNumDistinctValues(rel_attr_id) == num_tuples) {
+            return true;
+          }
+        }
+      }
+      return false;
+    }
+    case P::PhysicalType::kSample:  // Fall through
+    case P::PhysicalType::kSelection:
+    case P::PhysicalType::kSort: {
+      DCHECK_EQ(physical_plan->getNumChildren(), 1u);
+      return impliesUniqueAttributes(physical_plan->children()[0], attributes);
+    }
+    default:
+      break;
+  }
+  return false;
+}
+
+TypedValue StarSchemaSimpleCostModel::findCatalogRelationStat(
+    const P::PhysicalPtr &physical_plan,
+    const E::ExprId attr_id,
+    const StatType stat_type,
+    bool *is_exact_stat) {
+  P::TableReferencePtr table_reference;
+  if (P::SomeTableReference::MatchesWithConditionalCast(physical_plan, &table_reference)) {
+    const attribute_id rel_attr_id =
+        findCatalogRelationAttributeId(table_reference, attr_id);
+    if (rel_attr_id != kInvalidAttributeID) {
+      const CatalogRelationStatistics &stat =
+          table_reference->relation()->getStatistics();
+
+      if (is_exact_stat != nullptr) {
+        *is_exact_stat = stat.isExact();
+      }
+
+      switch (stat_type) {
+        case StatType::kMin: {
+          if (stat.hasMinValue(rel_attr_id)) {
+            return stat.getMinValue(rel_attr_id);
+          }
+          break;
+        }
+        case StatType::kMax: {
+          if (stat.hasMaxValue(rel_attr_id)) {
+            return stat.getMaxValue(rel_attr_id);
+          }
+          break;
+        }
+        default:
+          break;
+      }
+      return NullType::InstanceNullable().makeNullValue();
+    }
+  }
+
+  for (const auto &child : physical_plan->children()) {
+    if (E::ContainsExprId(child->getOutputAttributes(), attr_id)) {
+      return findCatalogRelationStat(child, attr_id, stat_type, is_exact_stat);
+    }
+  }
+  return NullType::InstanceNullable().makeNullValue();
+}
+
+attribute_id StarSchemaSimpleCostModel::findCatalogRelationAttributeId(
+    const physical::TableReferencePtr &table_reference,
+    const expressions::ExprId expr_id) {
+  const auto &attribute_list = table_reference->attribute_list();
+  for (std::size_t i = 0; i < attribute_list.size(); ++i) {
+    if (attribute_list[i]->id() == expr_id) {
+      return i;
+    }
+  }
+  return kInvalidAttributeID;
 }
 
 }  // namespace cost

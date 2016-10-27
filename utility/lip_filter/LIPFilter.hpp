@@ -37,8 +37,8 @@ class ValueAccessor;
  */
 
 enum class LIPFilterType {
+  kBitVectorExactFilter,
   kBloomFilter,
-  kExactFilter,
   kSingleIdentityHashFilter
 };
 

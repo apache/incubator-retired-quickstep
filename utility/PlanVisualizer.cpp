@@ -32,6 +32,7 @@
 #include "query_optimizer/cost_model/StarSchemaSimpleCostModel.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
+#include "query_optimizer/physical/FilterJoin.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
@@ -58,6 +59,8 @@ std::string PlanVisualizer::visualize(const P::PhysicalPtr &input) {
 
   color_map_["TableReference"] = "skyblue";
   color_map_["Selection"] = "#90EE90";
+  color_map_["FilterJoin"] = "pink";
+  color_map_["FilterJoin(Anti)"] = "pink";
   color_map_["HashJoin"] = "red";
   color_map_["HashLeftOuterJoin"] = "orange";
   color_map_["HashLeftSemiJoin"] = "orange";
@@ -126,7 +129,8 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
     edge_info.dst_node_id = node_id;
     edge_info.dashed = false;
 
-    if (input->getPhysicalType() == P::PhysicalType::kHashJoin &&
+    if ((input->getPhysicalType() == P::PhysicalType::kHashJoin ||
+         input->getPhysicalType() == P::PhysicalType::kFilterJoin) &&
         child == input->children()[1]) {
       edge_info.dashed = true;
     }
@@ -165,6 +169,20 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
       }
       break;
     }
+    case P::PhysicalType::kFilterJoin: {
+      const P::FilterJoinPtr filter_join =
+          std::static_pointer_cast<const P::FilterJoin>(input);
+      node_info.labels.emplace_back(input->getName());
+
+      const auto &probe_attributes = filter_join->probe_attributes();
+      const auto &build_attributes = filter_join->build_attributes();
+      for (std::size_t i = 0; i < probe_attributes.size(); ++i) {
+        node_info.labels.emplace_back(
+            probe_attributes[i]->attribute_alias() + " = " +
+                build_attributes[i]->attribute_alias());
+      }
+      break;
+    }
     default: {
       node_info.labels.emplace_back(input->getName());
       break;
@@ -177,7 +195,7 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
     if (build_it != build_filters.end()) {
       for (const auto &build_info : build_it->second) {
         node_info.labels.emplace_back(
-            std::string("[LIP build] ") + build_info.build_attribute->attribute_alias());
+            std::string("[LIP build] ") + build_info->build_attribute()->attribute_alias());
       }
     }
     const auto &probe_filters = lip_filter_conf_->getProbeInfoMap();
@@ -185,7 +203,7 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
     if (probe_it != probe_filters.end()) {
       for (const auto &probe_info : probe_it->second) {
         node_info.labels.emplace_back(
-            std::string("[LIP probe] ") + probe_info.probe_attribute->attribute_alias());
+            std::string("[LIP probe] ") + probe_info->probe_attribute()->attribute_alias());
       }
     }
   }

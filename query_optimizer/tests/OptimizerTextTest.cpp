@@ -34,6 +34,7 @@ namespace optimizer {
 DECLARE_bool(reorder_columns);
 DECLARE_bool(reorder_hash_joins);
 DECLARE_bool(use_lip_filters);
+DECLARE_bool(use_filter_joins);
 
 }
 }
@@ -64,6 +65,7 @@ int main(int argc, char** argv) {
   quickstep::optimizer::FLAGS_reorder_columns = false;
   quickstep::optimizer::FLAGS_reorder_hash_joins = false;
   quickstep::optimizer::FLAGS_use_lip_filters = false;
+  quickstep::optimizer::FLAGS_use_filter_joins = false;
 
   ::testing::InitGoogleTest(&argc, argv);
   int success = RUN_ALL_TESTS();

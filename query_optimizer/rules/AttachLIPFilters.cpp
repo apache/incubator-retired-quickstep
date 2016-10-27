@@ -55,7 +55,14 @@ P::PhysicalPtr AttachLIPFilters::apply(const P::PhysicalPtr &input) {
   cost_model_.reset(
       new cost::StarSchemaSimpleCostModel(
           top_level_plan->shared_subplans()));
-  lip_filter_configuration_.reset(new P::LIPFilterConfiguration());
+
+  const P::LIPFilterConfigurationPtr &existing_configuration =
+      top_level_plan->lip_filter_configuration();
+  if (existing_configuration != nullptr) {
+    lip_filter_configuration_.reset(existing_configuration->clone());
+  } else {
+    lip_filter_configuration_.reset(new P::LIPFilterConfiguration());
+  }
 
   std::set<E::ExprId> already_filtered_attributes;
   attachLIPFilters(NodeList(input), &already_filtered_attributes);
@@ -101,7 +108,7 @@ void AttachLIPFilters::attachLIPFilters(
   }
 
   if (probe_child != nullptr &&
-      cost_model_->estimateCardinality(probe_child) > 10000000) {
+      cost_model_->estimateCardinality(probe_child) >= 100000) {
     const auto &candidate_lip_filters = getProbeSideInfo(path.cons(probe_child));
     if (!candidate_lip_filters.empty()) {
       std::map<E::AttributeReferencePtr, LIPFilterInfoPtr> selected_filters;
@@ -119,15 +126,16 @@ void AttachLIPFilters::attachLIPFilters(
         if (already_filtered_attributes->find(source_attr_id)
                 == already_filtered_attributes->end()) {
           lip_filter_configuration_->addBuildInfo(
-              pair.second->source_attribute,
-              pair.second->source,
-              pair.second->estimated_cardinality * 8,
-              LIPFilterType::kSingleIdentityHashFilter);
-          lip_filter_configuration_->addProbeInfo(
-              pair.first,
-              node,
-              pair.second->source_attribute,
+              P::SingleIdentityHashFilterBuildInfo::Create(
+                  pair.second->source_attribute,
+                  pair.second->estimated_cardinality * 8),
               pair.second->source);
+          lip_filter_configuration_->addProbeInfo(
+              P::LIPFilterProbeInfo::Create(
+                  pair.first,
+                  pair.second->source_attribute,
+                  pair.second->source),
+              node);
           already_filtered_attributes->emplace(source_attr_id);
         }
       }

@@ -126,7 +126,8 @@ class TopLevelPlan : public Physical {
     }
     return TopLevelPlan::Create(new_children[0],
                                 new_shared_subplans,
-                                uncorrelated_subquery_map_);
+                                uncorrelated_subquery_map_,
+                                lip_filter_configuration_);
   }
 
   std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {

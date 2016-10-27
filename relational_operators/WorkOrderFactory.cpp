@@ -30,6 +30,7 @@
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/AggregationOperator.hpp"
 #include "relational_operators/BuildHashOperator.hpp"
+#include "relational_operators/BuildLIPFilterOperator.hpp"
 #include "relational_operators/DeleteOperator.hpp"
 #include "relational_operators/DestroyAggregationStateOperator.hpp"
 #include "relational_operators/DestroyHashOperator.hpp"
@@ -89,6 +90,23 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               proto.GetExtension(serialization::AggregationWorkOrder::aggr_state_index)),
           CreateLIPFilterAdaptiveProberHelper(
               proto.GetExtension(serialization::AggregationWorkOrder::lip_deployment_index), query_context));
+    }
+    case serialization::BUILD_LIP_FILTER: {
+      LOG(INFO) << "Creating BuildLIPFilterWorkOrder in Shiftboss " << shiftboss_index;
+
+      const QueryContext::lip_deployment_id lip_deployment_index =
+          proto.GetExtension(serialization::BuildLIPFilterWorkOrder::lip_deployment_index);
+
+      return new BuildLIPFilterWorkOrder(
+          proto.query_id(),
+          catalog_database->getRelationSchemaById(
+              proto.GetExtension(serialization::BuildLIPFilterWorkOrder::relation_id)),
+          proto.GetExtension(serialization::BuildLIPFilterWorkOrder::build_block_id),
+          query_context->getPredicate(
+              proto.GetExtension(serialization::BuildLIPFilterWorkOrder::build_side_predicate_index)),
+          storage_manager,
+          CreateLIPFilterAdaptiveProberHelper(lip_deployment_index, query_context),
+          CreateLIPFilterBuilderHelper(lip_deployment_index, query_context));
     }
     case serialization::BUILD_HASH: {
       LOG(INFO) << "Creating BuildHashWorkOrder in Shiftboss " << shiftboss_index;
@@ -540,6 +558,33 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
              query_context.isValidJoinHashTableId(
                  proto.GetExtension(serialization::BuildHashWorkOrder::join_hash_table_index),
                  proto.GetExtension(serialization::BuildHashWorkOrder::partition_id));
+    }
+    case serialization::BUILD_LIP_FILTER: {
+      if (!proto.HasExtension(serialization::BuildLIPFilterWorkOrder::relation_id)) {
+        return false;
+      }
+
+      const relation_id rel_id =
+          proto.GetExtension(serialization::BuildLIPFilterWorkOrder::relation_id);
+      if (!catalog_database.hasRelationWithId(rel_id)) {
+        return false;
+      }
+
+      if (!proto.HasExtension(serialization::BuildLIPFilterWorkOrder::lip_deployment_index)) {
+        return false;
+      } else {
+        const QueryContext::lip_deployment_id lip_deployment_index =
+            proto.GetExtension(serialization::BuildLIPFilterWorkOrder::lip_deployment_index);
+        if (lip_deployment_index != QueryContext::kInvalidLIPDeploymentId &&
+            !query_context.isValidLIPDeploymentId(lip_deployment_index)) {
+          return false;
+        }
+      }
+
+      return proto.HasExtension(serialization::BuildLIPFilterWorkOrder::build_block_id) &&
+             proto.HasExtension(serialization::BuildLIPFilterWorkOrder::build_side_predicate_index) &&
+             query_context.isValidPredicate(
+                 proto.GetExtension(serialization::BuildLIPFilterWorkOrder::build_side_predicate_index));
     }
     case serialization::DELETE: {
       return proto.HasExtension(serialization::DeleteWorkOrder::relation_id) &&
