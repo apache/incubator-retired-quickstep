@@ -670,6 +670,11 @@ if (WIN32)
     APPEND PROPERTY COMPILE_DEFINITIONS GOOGLE_GLOG_DLL_DECL=
   )
   include_directories(${THIRD_PARTY_SOURCE_DIR}/glog/src/windows)
+elseif (APPLE)
+  set_property(
+    TARGET glog
+    APPEND PROPERTY COMPILE_OPTIONS " -Wno-deprecated-declarations "
+  )
 else()
   include_directories(${THIRD_PARTY_SOURCE_DIR}/glog/src)
   include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party)
