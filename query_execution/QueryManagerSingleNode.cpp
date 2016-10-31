@@ -59,11 +59,13 @@ QueryManagerSingleNode::QueryManagerSingleNode(
                                       bus_)),
       workorders_container_(
           new WorkOrdersContainer(num_operators_in_dag_, num_numa_nodes)) {
-  // Collect all the workorders from all the relational operators in the DAG.
+  // Mark the active operators in the DAG.
   for (dag_node_index index = 0; index < num_operators_in_dag_; ++index) {
     if (checkAllBlockingDependenciesMet(index)) {
-      query_dag_->getNodePayloadMutable(index)->informAllBlockingDependenciesMet();
-      processOperator(index, false);
+      active_operators_.push_back(index);
+      activateOperator(index);
+    } else {
+      inactive_operators_.push_back(index);
     }
   }
 }
@@ -71,14 +73,44 @@ QueryManagerSingleNode::QueryManagerSingleNode(
 WorkerMessage* QueryManagerSingleNode::getNextWorkerMessage(
     const dag_node_index start_operator_index, const numa_node_id numa_node) {
   // Default policy: Operator with lowest index first.
-  WorkOrder *work_order = nullptr;
-  size_t num_operators_checked = 0;
-  for (dag_node_index index = start_operator_index;
-       num_operators_checked < num_operators_in_dag_;
-       index = (index + 1) % num_operators_in_dag_, ++num_operators_checked) {
-    if (query_exec_state_->hasExecutionFinished(index)) {
-      continue;
+  WorkerMessage *worker_message = getNextWorkerMessageFromActiveOperators(numa_node);
+  if (worker_message != nullptr) {
+    return worker_message;
+  }
+  // Check the operators that have finished execution.
+  std::vector<dag_node_index> execution_finished_operator_indexes;
+  for (dag_node_index active_operator_index : active_operators_) {
+    if (query_exec_state_->hasExecutionFinished(active_operator_index)) {
+      execution_finished_operator_indexes.push_back(active_operator_index);
     }
+  }
+  // Remove the "done" operators from the list of active operators.
+  for (dag_node_index index : execution_finished_operator_indexes) {
+    auto iter =
+        std::find(active_operators_.begin(), active_operators_.end(), index);
+    DCHECK(iter != active_operators_.end());
+    active_operators_.erase(iter);
+  }
+  // Move some inactive operators to active operators.
+  if (!inactive_operators_.empty()) {
+    for (dag_node_index inactive_op_count = 0;
+         inactive_op_count < execution_finished_operator_indexes.size();
+         ++inactive_op_count) {
+      if (checkAllBlockingDependenciesMet(inactive_operators_.front())) {
+        active_operators_.push_back(inactive_operators_.front());
+        inactive_operators_.pop_front();
+        activateOperator(active_operators_.back());
+      }
+    }
+  }
+  worker_message = getNextWorkerMessageFromActiveOperators(numa_node);
+  return worker_message;
+}
+
+WorkerMessage* QueryManagerSingleNode::getNextWorkerMessageFromActiveOperators(
+    const numa_node_id numa_node) {
+  WorkOrder *work_order = nullptr;
+  for (dag_node_index index : active_operators_) {
     if (numa_node != kAnyNUMANodeID) {
       // First try to get a normal WorkOrder from the specified NUMA node.
       work_order = workorders_container_->getNormalWorkOrderForNUMANode(index, numa_node);
@@ -110,7 +142,6 @@ WorkerMessage* QueryManagerSingleNode::getNextWorkerMessage(
       }
     }
   }
-  // No WorkOrders available right now.
   return nullptr;
 }
 

@@ -21,7 +21,9 @@
 #define QUICKSTEP_QUERY_EXECUTION_QUERY_MANAGER_SINGLE_NODE_HPP_
 
 #include <cstddef>
+#include <deque>
 #include <memory>
+#include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
@@ -123,6 +125,16 @@ class QueryManagerSingleNode final : public QueryManagerBase {
   void getRebuildWorkOrders(const dag_node_index index,
                             WorkOrdersContainer *container);
 
+  void activateOperator(const dag_node_index index) {
+    DCHECK(checkAllBlockingDependenciesMet(index));
+    // It is okay to call the line below multiple times.
+    query_dag_->getNodePayloadMutable(index)->informAllBlockingDependenciesMet();
+    processOperator(index, false);
+  }
+
+  WorkerMessage *getNextWorkerMessageFromActiveOperators(
+      const numa_node_id numa_node);
+
   const tmb::client_id foreman_client_id_;
 
   StorageManager *storage_manager_;
@@ -131,6 +143,10 @@ class QueryManagerSingleNode final : public QueryManagerBase {
   std::unique_ptr<QueryContext> query_context_;
 
   std::unique_ptr<WorkOrdersContainer> workorders_container_;
+
+  std::vector<dag_node_index> active_operators_;
+
+  std::deque<dag_node_index> inactive_operators_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryManagerSingleNode);
 };
