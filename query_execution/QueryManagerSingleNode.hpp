@@ -21,7 +21,6 @@
 #define QUICKSTEP_QUERY_EXECUTION_QUERY_MANAGER_SINGLE_NODE_HPP_
 
 #include <cstddef>
-#include <deque>
 #include <memory>
 #include <vector>
 
@@ -146,7 +145,7 @@ class QueryManagerSingleNode final : public QueryManagerBase {
 
   std::vector<dag_node_index> active_operators_;
 
-  std::deque<dag_node_index> inactive_operators_;
+  std::vector<dag_node_index> inactive_operators_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryManagerSingleNode);
 };

@@ -60,8 +60,9 @@ QueryManagerSingleNode::QueryManagerSingleNode(
       workorders_container_(
           new WorkOrdersContainer(num_operators_in_dag_, num_numa_nodes)) {
   // Mark the active operators in the DAG.
+  const std::size_t kNumMaxInitialActiveOperators = 2;
   for (dag_node_index index = 0; index < num_operators_in_dag_; ++index) {
-    if (checkAllBlockingDependenciesMet(index)) {
+    if (checkAllBlockingDependenciesMet(index) && active_operators_.size() < kNumMaxInitialActiveOperators) {
       active_operators_.push_back(index);
       activateOperator(index);
     } else {
@@ -72,7 +73,6 @@ QueryManagerSingleNode::QueryManagerSingleNode(
 
 WorkerMessage* QueryManagerSingleNode::getNextWorkerMessage(
     const dag_node_index start_operator_index, const numa_node_id numa_node) {
-  // Default policy: Operator with lowest index first.
   WorkerMessage *worker_message = getNextWorkerMessageFromActiveOperators(numa_node);
   if (worker_message != nullptr) {
     return worker_message;
@@ -91,17 +91,34 @@ WorkerMessage* QueryManagerSingleNode::getNextWorkerMessage(
     DCHECK(iter != active_operators_.end());
     active_operators_.erase(iter);
   }
-  // Move some inactive operators to active operators.
-  if (!inactive_operators_.empty()) {
-    for (dag_node_index inactive_op_count = 0;
-         inactive_op_count < execution_finished_operator_indexes.size();
-         ++inactive_op_count) {
-      if (checkAllBlockingDependenciesMet(inactive_operators_.front())) {
-        active_operators_.push_back(inactive_operators_.front());
-        inactive_operators_.pop_front();
-        activateOperator(active_operators_.back());
-      }
+  // Collect the list of "ready to be active" operators.
+  std::vector<dag_node_index> ready_to_be_active_operators;
+  for (dag_node_index index : inactive_operators_) {
+    if (checkAllBlockingDependenciesMet(index)) {
+      ready_to_be_active_operators.push_back(index);
     }
+  }
+  // Move as many inactive operators to active operators, as the size of
+  // execution_finished_operator_indexes.
+  std::size_t num_operators_activated = 0;
+  if (!inactive_operators_.empty() &&
+      !execution_finished_operator_indexes.empty() &&
+      !ready_to_be_active_operators.empty()) {
+    for (; num_operators_activated <
+           std::min(execution_finished_operator_indexes.size(),
+                    inactive_operators_.size());
+         ++num_operators_activated) {
+      active_operators_.push_back(ready_to_be_active_operators[num_operators_activated]);
+      activateOperator(active_operators_.back());
+    }
+  }
+  // Remove the newly activated operators.
+  for (std::size_t i = 0; i < num_operators_activated; ++i) {
+    auto iter = std::find(inactive_operators_.begin(),
+                          inactive_operators_.end(),
+                          ready_to_be_active_operators[i]);
+    DCHECK(iter != inactive_operators_.end());
+    inactive_operators_.erase(iter);
   }
   worker_message = getNextWorkerMessageFromActiveOperators(numa_node);
   return worker_message;
