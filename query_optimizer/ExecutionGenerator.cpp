@@ -729,6 +729,9 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               any_build_attributes_nullable,
               join_hash_table_index));
 
+  // Add the index of build operator to QueryContext.
+  query_context_proto_->add_build_hash_operator_ids(build_operator_index);
+
   // Create InsertDestination proto.
   const CatalogRelation *output_relation = nullptr;
   const QueryContext::insert_destination_id insert_destination_index =

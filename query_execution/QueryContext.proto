@@ -62,4 +62,6 @@ message QueryContext {
   repeated WindowAggregationOperationState window_aggregation_states = 12;
 
   required uint64 query_id = 13;
+
+  repeated uint32 build_hash_operator_ids = 14;
 }

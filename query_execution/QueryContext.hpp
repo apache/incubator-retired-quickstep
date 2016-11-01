@@ -133,6 +133,11 @@ class QueryContext {
   typedef std::uint32_t window_aggregation_state_id;
 
   /**
+   * @brief A unique identifier of a relational operator in the DAG.
+   **/
+  typedef std::uint32_t dag_operator_id;
+
+  /**
    * @brief Constructor.
    *
    * @param proto A serialized Protocol Buffer representation of a
@@ -574,6 +579,10 @@ class QueryContext {
   std::vector<std::unique_ptr<Tuple>> tuples_;
   std::vector<std::unordered_map<attribute_id, std::unique_ptr<const Scalar>>> update_groups_;
   std::vector<std::unique_ptr<WindowAggregationOperationState>> window_aggregation_states_;
+
+  // The IDs of the BuildHashOperator nodes in the query plan DAG.
+  // This vector has a 1-1 correspondence with join_hash_tables_ vector.
+  std::vector<dag_operator_id> build_hash_operator_ids_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryContext);
 };
