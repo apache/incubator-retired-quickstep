@@ -334,6 +334,7 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertPartialTuplesImpl(
       varlen_reserve -= relation_.getAttributeById(
         copy_groups.varlen_attrs_[vattr_idx].dst_attr_id_)->getType().maximumByteLength();
     }
+    DCHECK_GE(relation_.getMaximumVariableByteLength(), varlen_reserve);
   }
 
   InvokeOnAnyValueAccessor(
@@ -392,7 +393,7 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertPartialTuplesImpl(
                                                           (varlen_heap_offset_orig - varlen_heap_offset));
           DCHECK_LE(0, remaining_storage_after_inserts);
           std::size_t additional_tuples_insert =
-            remaining_storage_after_inserts / this->relation_.getMaximumByteLength();
+            remaining_storage_after_inserts / (tuple_slot_bytes_ + this->relation_.getMaximumByteLength());
           // We want to avoid a situation where we have several short insert iterations
           // near the end of an insertion cycle.
           if (additional_tuples_insert > this->getInsertLowerBoundThreshold()) {

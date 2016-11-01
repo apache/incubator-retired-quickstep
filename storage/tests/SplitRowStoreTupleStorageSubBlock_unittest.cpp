@@ -656,9 +656,7 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, BulkInsertTest) {
   // Actually do the bulk-insert.
   accessor.beginIteration();
   tuple_id num_inserted = tuple_store_->bulkInsertTuples(&accessor);
-  if (testVariableLength()) {
-    EXPECT_LE(current_tuple_idx - num_inserted, getInsertLowerBoundThreshold());
-  } else {
+  if (!testVariableLength()) {
     EXPECT_EQ(current_tuple_idx, num_inserted);
     ASSERT_TRUE(accessor.iterationFinished());
     // Shouldn't be able to insert any more tuples.
@@ -885,9 +883,7 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, BulkInsertWithRemappedAttributesTe
   // Actually do the bulk-insert.
   accessor.beginIteration();
   tuple_id num_inserted = tuple_store_->bulkInsertTuplesWithRemappedAttributes(attribute_map, &accessor);
-  if (testVariableLength()) {
-    EXPECT_LE(current_tuple_idx - num_inserted, getInsertLowerBoundThreshold());
-  } else {
+  if (!testVariableLength()) {
     EXPECT_EQ(current_tuple_idx, num_inserted);
     ASSERT_TRUE(accessor.iterationFinished());
     // Shouldn't be able to insert any more tuples.
