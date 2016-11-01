@@ -77,6 +77,10 @@ class SimpleScalarSeparateChainingHashTable : public HashTable<ValueT,
                                                                force_key_copy,
                                                                allow_duplicate_keys> {
  public:
+  static const std::size_t GetBucketSize() {
+    return sizeof(Bucket);
+  }
+
   SimpleScalarSeparateChainingHashTable(const std::vector<const Type*> &key_types,
                                         const std::size_t num_entries,
                                         StorageManager *storage_manager);

@@ -71,6 +71,16 @@ class LinearOpenAddressingHashTable : public HashTable<ValueT,
   static constexpr std::size_t kPendingHash
       = HashTable<ValueT, resizable, serializable, force_key_copy, allow_duplicate_keys>::kPendingHash;
 
+  // Round bucket size up to a multiple of kBucketAlignment.
+  static constexpr std::size_t ComputeBucketSize(const std::size_t fixed_key_size) {
+    return (((kValueOffset + sizeof(ValueT) + fixed_key_size - 1) / kBucketAlignment) + 1)
+           * kBucketAlignment;
+  }
+
+  static constexpr std::size_t GetKeyStartInBucketOffset() {
+    return kValueOffset + sizeof(ValueT);
+  }
+
   LinearOpenAddressingHashTable(const std::vector<const Type*> &key_types,
                                 const std::size_t num_entries,
                                 StorageManager *storage_manager);
@@ -210,12 +220,6 @@ class LinearOpenAddressingHashTable : public HashTable<ValueT,
   // hash code.
   static constexpr std::size_t kValueOffset
       = (((sizeof(std::atomic<std::size_t>) - 1) / alignof(ValueT)) + 1) * alignof(ValueT);
-
-  // Round bucket size up to a multiple of kBucketAlignment.
-  static constexpr std::size_t ComputeBucketSize(const std::size_t fixed_key_size) {
-    return (((kValueOffset + sizeof(ValueT) + fixed_key_size - 1) / kBucketAlignment) + 1)
-           * kBucketAlignment;
-  }
 
   // Attempt to find an empty bucket to insert 'hash_code' into, starting from
   // '*bucket_num'. Returns true and stores kPendingHash in bucket if an empty

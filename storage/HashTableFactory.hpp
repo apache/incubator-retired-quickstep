@@ -139,6 +139,75 @@ template <typename ValueT,
 class HashTableFactory {
  public:
   /**
+   * @brief Find the estimated memory in bytes for the given hash table.
+   *
+   * @param proto A protobuf description of a HashTable.
+   *
+   * @return The estimated memory in bytes for the hash table.
+   **/
+  static std::size_t GetHashTableEstimatedMemorySize(
+      const serialization::HashTable &proto) {
+    auto hash_table_type =
+        HashTableImplTypeFromProto(proto.hash_table_impl_type());
+    switch (hash_table_type) {
+      case HashTableImplType::kLinearOpenAddressing: {
+        std::vector<const Type *> key_types;
+        for (int i = 0; i < proto.key_types_size(); ++i) {
+          key_types.emplace_back(
+              &TypeFactory::ReconstructFromProto(proto.key_types(i)));
+        } const std::size_t key_start_in_bucket_offset =
+            HashTableKeyManager<serializable,
+                                force_key_copy>::GetKeyStartInBucketOffset();
+        std::vector<std::size_t> key_offsets;
+        const std::size_t fixed_key_size =
+            HashTableKeyManager<serializable, force_key_copy>::
+                CalculateFixedKeySize(
+                    key_types, key_start_in_bucket_offset, &key_offsets);
+        return proto.estimated_num_entries() *
+               LinearOpenAddressingHashTable<
+                   ValueT,
+                   resizable,
+                   serializable,
+                   force_key_copy,
+                   allow_duplicate_keys>::ComputeBucketSize(fixed_key_size);
+      }
+      case HashTableImplType::kSeparateChaining: {
+        std::vector<const Type*> key_types;
+        for (int i = 0; i < proto.key_types_size(); ++i) {
+          key_types.emplace_back(
+              &TypeFactory::ReconstructFromProto(proto.key_types(i)));
+        }
+        const std::size_t key_start_in_bucket_offset =
+            HashTableKeyManager<serializable,
+                                force_key_copy>::GetKeyStartInBucketOffset();
+        std::vector<std::size_t> key_offsets;
+        const std::size_t fixed_key_size =
+            HashTableKeyManager<serializable, force_key_copy>::
+                CalculateFixedKeySize(
+                    key_types, key_start_in_bucket_offset, &key_offsets);
+        return proto.estimated_num_entries() *
+               SeparateChainingHashTable<
+                   ValueT,
+                   resizable,
+                   serializable,
+                   force_key_copy,
+                   allow_duplicate_keys>::ComputeBucketSize(fixed_key_size);
+      }
+      case HashTableImplType::kSimpleScalarSeparateChaining:
+        return proto.estimated_num_entries() *
+               SimpleScalarSeparateChainingHashTable<
+                   ValueT,
+                   resizable,
+                   serializable,
+                   force_key_copy,
+                   allow_duplicate_keys>::GetBucketSize();
+      default: {
+        LOG(FATAL) << "Unrecognized HashTableImplType in HashTableFactory::createResizable()\n";
+      }
+    }
+  }
+
+  /**
    * @brief Create a new resizable HashTable, with the type selected by
    *        hash_table_type. Other parameters are forwarded to the HashTable's
    *        constructor.

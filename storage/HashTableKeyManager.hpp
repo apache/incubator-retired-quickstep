@@ -62,6 +62,50 @@ template <bool serializable, bool force_key_copy>
 class HashTableKeyManager {
  public:
   /**
+   * @brief Calculate the fixed key size for the hash table.
+   *
+   * @param key_types A vector of pointers to the Types of key components for
+   *        a HashTable.
+   * @param key_start_in_bucket The position in the HashTable's buckets where
+   *        storage for keys begins, measured as the number of bytes from the
+   *        start of the bucket.
+   * @param key_offsets The offsets of the keys with respect to the beginning.
+   *
+   * @return The fixed key size for the HashTable.
+   **/
+  static std::size_t CalculateFixedKeySize(
+      const std::vector<const Type *> &key_types,
+      const std::size_t key_start_in_bucket,
+      std::vector<std::size_t> *key_offsets) {
+    DCHECK(!key_types.empty());
+    DCHECK_NOTNULL(key_offsets);
+    std::size_t fixed_key_size = 0;
+
+    for (const Type *subkey_type : key_types) {
+      key_offsets->push_back(key_start_in_bucket + fixed_key_size);
+
+      if (force_key_copy) {
+        if (subkey_type->isVariableLength()) {
+          fixed_key_size += sizeof(std::size_t) * 2;
+        } else {
+          fixed_key_size += subkey_type->maximumByteLength();
+        }
+      } else {
+        constexpr std::size_t ptr_size = serializable ? sizeof(std::ptrdiff_t)
+                                                      : sizeof(const void*);
+        if ((!subkey_type->isVariableLength())
+            && (subkey_type->maximumByteLength() <= ptr_size + sizeof(std::size_t))) {
+          fixed_key_size += subkey_type->maximumByteLength();
+        } else {
+          // A pointer to external memory, paired with a length.
+          fixed_key_size += ptr_size + sizeof(std::size_t);
+        }
+      }
+    }
+    return fixed_key_size;
+  }
+
+  /**
    * @brief Constructor.
    *
    * @param key_types A vector of pointers to the Types of key components for
@@ -308,17 +352,44 @@ HashTableKeyManager<serializable, force_key_copy>::HashTableKeyManager(
       next_variable_length_key_offset_(0) {
   DCHECK(!key_types_.empty());
 
-  for (const Type *subkey_type : key_types_) {
-    key_offsets_.push_back(key_start_in_bucket + fixed_key_size_);
+  switch(serializable) {
+    case true:
+      switch(force_key_copy) {
+        case true:
+          fixed_key_size_ =
+              HashTableKeyManager<true, true>::CalculateFixedKeySize(
+                  key_types, key_start_in_bucket, &key_offsets_);
+          break;
+        case false:
+          fixed_key_size_ =
+              HashTableKeyManager<true, false>::CalculateFixedKeySize(
+                  key_types, key_start_in_bucket, &key_offsets_);
+          break;
+      }
+      break;
+    case false:
+      switch(force_key_copy) {
+        case true:
+          fixed_key_size_ =
+              HashTableKeyManager<false, true>::CalculateFixedKeySize(
+                  key_types, key_start_in_bucket, &key_offsets_);
+          break;
+        case false:
+          fixed_key_size_ =
+              HashTableKeyManager<false, false>::CalculateFixedKeySize(
+                  key_types, key_start_in_bucket, &key_offsets_);
+          break;
+      }
+      break;
+  }
 
+  for (const Type *subkey_type : key_types_) {
     if (force_key_copy) {
       if (subkey_type->isVariableLength()) {
         // An offset into the variable length storage region, paired with a length.
-        fixed_key_size_ += sizeof(std::size_t) * 2;
         estimated_variable_key_size_ += subkey_type->estimateAverageByteLength();
         key_inline_.push_back(false);
       } else {
-        fixed_key_size_ += subkey_type->maximumByteLength();
         key_inline_.push_back(true);
       }
     } else {
@@ -326,11 +397,9 @@ HashTableKeyManager<serializable, force_key_copy>::HashTableKeyManager(
                                                     : sizeof(const void*);
       if ((!subkey_type->isVariableLength())
           && (subkey_type->maximumByteLength() <= ptr_size + sizeof(std::size_t))) {
-        fixed_key_size_ += subkey_type->maximumByteLength();
         key_inline_.push_back(true);
       } else {
         // A pointer to external memory, paired with a length.
-        fixed_key_size_ += ptr_size + sizeof(std::size_t);
         key_inline_.push_back(false);
       }
     }

@@ -63,6 +63,19 @@ class SeparateChainingHashTable : public HashTable<ValueT,
                                                    force_key_copy,
                                                    allow_duplicate_keys> {
  public:
+  // Round bucket size up to a multiple of kBucketAlignment.
+  static constexpr std::size_t ComputeBucketSize(
+      const std::size_t fixed_key_size) {
+    return (((kValueOffset + sizeof(ValueT) + fixed_key_size - 1) /
+             kBucketAlignment) +
+            1) *
+           kBucketAlignment;
+  }
+
+  static constexpr std::size_t GetKeyStartInBucketOffset() {
+    return kValueOffset + sizeof(ValueT);
+  }
+
   SeparateChainingHashTable(const std::vector<const Type*> &key_types,
                             const std::size_t num_entries,
                             StorageManager *storage_manager);
@@ -187,12 +200,6 @@ class SeparateChainingHashTable : public HashTable<ValueT,
   // next pointer and hash code.
   static constexpr std::size_t kValueOffset
       = (((sizeof(std::atomic<std::size_t>) + sizeof(std::size_t) - 1) / alignof(ValueT)) + 1) * alignof(ValueT);
-
-  // Round bucket size up to a multiple of kBucketAlignment.
-  static constexpr std::size_t ComputeBucketSize(const std::size_t fixed_key_size) {
-    return (((kValueOffset + sizeof(ValueT) + fixed_key_size - 1) / kBucketAlignment) + 1)
-           * kBucketAlignment;
-  }
 
   // If ValueT is not trivially destructible, invoke its destructor for all
   // values held in the specified buckets (including those in "empty" buckets
