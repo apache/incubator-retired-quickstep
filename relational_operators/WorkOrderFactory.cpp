@@ -361,7 +361,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               proto.GetExtension(serialization::SelectWorkOrder::insert_destination_index)),
           storage_manager,
           CreateLIPFilterAdaptiveProberHelper(
-              proto.GetExtension(serialization::HashJoinWorkOrder::lip_deployment_index), query_context));
+              proto.GetExtension(serialization::SelectWorkOrder::lip_deployment_index), query_context));
     }
     case serialization::SORT_MERGE_RUN: {
       LOG(INFO) << "Creating SortMergeRunWorkOrder";
