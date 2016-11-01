@@ -566,6 +566,8 @@ class QueryContext {
     return window_aggregation_states_[id].release();
   }
 
+  std::size_t getHashTableSize(const std::size_t operator_id);
+
  private:
   std::vector<std::unique_ptr<AggregationOperationState>> aggregation_states_;
   std::vector<std::unique_ptr<const GeneratorFunctionHandle>> generator_functions_;
@@ -583,6 +585,8 @@ class QueryContext {
   // The IDs of the BuildHashOperator nodes in the query plan DAG.
   // This vector has a 1-1 correspondence with join_hash_tables_ vector.
   std::vector<dag_operator_id> build_hash_operator_ids_;
+
+  std::vector<std::size_t> join_hash_table_estimated_sizes_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryContext);
 };

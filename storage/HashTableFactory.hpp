@@ -155,9 +155,14 @@ class HashTableFactory {
         for (int i = 0; i < proto.key_types_size(); ++i) {
           key_types.emplace_back(
               &TypeFactory::ReconstructFromProto(proto.key_types(i)));
-        } const std::size_t key_start_in_bucket_offset =
-            HashTableKeyManager<serializable,
-                                force_key_copy>::GetKeyStartInBucketOffset();
+        }
+        const std::size_t key_start_in_bucket_offset =
+               LinearOpenAddressingHashTable<
+                   ValueT,
+                   resizable,
+                   serializable,
+                   force_key_copy,
+                   allow_duplicate_keys>::GetKeyStartInBucketOffset();
         std::vector<std::size_t> key_offsets;
         const std::size_t fixed_key_size =
             HashTableKeyManager<serializable, force_key_copy>::
@@ -178,8 +183,12 @@ class HashTableFactory {
               &TypeFactory::ReconstructFromProto(proto.key_types(i)));
         }
         const std::size_t key_start_in_bucket_offset =
-            HashTableKeyManager<serializable,
-                                force_key_copy>::GetKeyStartInBucketOffset();
+               SeparateChainingHashTable<
+                   ValueT,
+                   resizable,
+                   serializable,
+                   force_key_copy,
+                   allow_duplicate_keys>::GetKeyStartInBucketOffset();
         std::vector<std::size_t> key_offsets;
         const std::size_t fixed_key_size =
             HashTableKeyManager<serializable, force_key_copy>::

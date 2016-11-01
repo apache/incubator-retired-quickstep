@@ -19,6 +19,8 @@
 
 #include "query_execution/QueryContext.hpp"
 
+#include <algorithm>
+#include <iterator>
 #include <memory>
 #include <unordered_map>
 #include <utility>
@@ -82,6 +84,9 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
     join_hash_tables_.emplace_back(
         JoinHashTableFactory::CreateResizableFromProto(proto.join_hash_tables(i),
                                                        storage_manager));
+    join_hash_table_estimated_sizes_.emplace_back(
+        JoinHashTableFactory::GetHashTableEstimatedMemorySize(
+            proto.join_hash_tables(i)));
   }
 
   for (int i = 0; i < proto.insert_destinations_size(); ++i) {
@@ -261,6 +266,18 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
   }
 
   return proto.IsInitialized();
+}
+
+std::size_t QueryContext::getHashTableSize(const std::size_t operator_id) {
+  auto iter = std::find(build_hash_operator_ids_.begin(),
+                        build_hash_operator_ids_.end(),
+                        operator_id);
+  if (iter != build_hash_operator_ids_.end()) {
+    const std::size_t index = std::distance(build_hash_operator_ids_.begin(), iter);
+    DCHECK_LT(index, join_hash_tables_.size());
+    return join_hash_table_estimated_sizes_[index];
+  }
+  return 0;
 }
 
 }  // namespace quickstep
