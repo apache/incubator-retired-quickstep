@@ -241,4 +241,13 @@ void QueryManagerSingleNode::getRebuildWorkOrders(const dag_node_index index,
   }
 }
 
+void QueryManagerSingleNode::activateOperator(const dag_node_index index) {
+  DCHECK(checkAllBlockingDependenciesMet(index));
+  // It is okay to call the line below multiple times.
+  query_dag_->getNodePayloadMutable(index)->informAllBlockingDependenciesMet();
+  query_context_->activateOperator(
+      query_handle()->getQueryContextProto(), index, storage_manager_);
+  processOperator(index, false);
+}
+
 }  // namespace quickstep

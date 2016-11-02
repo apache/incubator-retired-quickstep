@@ -124,12 +124,7 @@ class QueryManagerSingleNode final : public QueryManagerBase {
   void getRebuildWorkOrders(const dag_node_index index,
                             WorkOrdersContainer *container);
 
-  void activateOperator(const dag_node_index index) {
-    DCHECK(checkAllBlockingDependenciesMet(index));
-    // It is okay to call the line below multiple times.
-    query_dag_->getNodePayloadMutable(index)->informAllBlockingDependenciesMet();
-    processOperator(index, false);
-  }
+  void activateOperator(const dag_node_index index);
 
   WorkerMessage *getNextWorkerMessageFromActiveOperators(
       const numa_node_id numa_node);
