@@ -81,9 +81,10 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
   }
 
   for (int i = 0; i < proto.join_hash_tables_size(); ++i) {
-    join_hash_tables_.emplace_back(
+    /*join_hash_tables_.emplace_back(
         JoinHashTableFactory::CreateResizableFromProto(proto.join_hash_tables(i),
-                                                       storage_manager));
+                                                       storage_manager));*/
+    join_hash_tables_.emplace_back(nullptr);
     join_hash_table_estimated_sizes_.emplace_back(
         JoinHashTableFactory::GetHashTableEstimatedMemorySize(
             proto.join_hash_tables(i)));
@@ -274,10 +275,27 @@ std::size_t QueryContext::getHashTableSize(const std::size_t operator_id) {
                         operator_id);
   if (iter != build_hash_operator_ids_.end()) {
     const std::size_t index = std::distance(build_hash_operator_ids_.begin(), iter);
-    DCHECK_LT(index, join_hash_tables_.size());
+    DCHECK_LT(index, join_hash_table_estimated_sizes_.size());
     return join_hash_table_estimated_sizes_[index];
   }
   return 0;
+}
+
+void QueryContext::activateOperator(const serialization::QueryContext &proto,
+                                    const std::size_t operator_id,
+                                    StorageManager *storage_manager) {
+  auto iter = std::find(build_hash_operator_ids_.begin(),
+                        build_hash_operator_ids_.end(),
+                        operator_id);
+  if (iter != build_hash_operator_ids_.end()) {
+    // index denotes the relative position of this build hash operator among all
+    // other build hash operators in the query.
+    const std::size_t index = std::distance(build_hash_operator_ids_.begin(), iter);
+    DCHECK_LT(index, join_hash_table_estimated_sizes_.size());
+    join_hash_tables_[index].reset(
+        JoinHashTableFactory::CreateResizableFromProto(
+            proto.join_hash_tables(index), storage_manager));
+  }
 }
 
 }  // namespace quickstep
