@@ -352,35 +352,23 @@ HashTableKeyManager<serializable, force_key_copy>::HashTableKeyManager(
       next_variable_length_key_offset_(0) {
   DCHECK(!key_types_.empty());
 
-  switch(serializable) {
-    case true:
-      switch(force_key_copy) {
-        case true:
-          fixed_key_size_ =
-              HashTableKeyManager<true, true>::CalculateFixedKeySize(
-                  key_types, key_start_in_bucket, &key_offsets_);
-          break;
-        case false:
-          fixed_key_size_ =
-              HashTableKeyManager<true, false>::CalculateFixedKeySize(
-                  key_types, key_start_in_bucket, &key_offsets_);
-          break;
-      }
-      break;
-    case false:
-      switch(force_key_copy) {
-        case true:
-          fixed_key_size_ =
-              HashTableKeyManager<false, true>::CalculateFixedKeySize(
-                  key_types, key_start_in_bucket, &key_offsets_);
-          break;
-        case false:
-          fixed_key_size_ =
-              HashTableKeyManager<false, false>::CalculateFixedKeySize(
-                  key_types, key_start_in_bucket, &key_offsets_);
-          break;
-      }
-      break;
+  if (serializable) {
+    if (force_key_copy) {
+      fixed_key_size_ = HashTableKeyManager<true, true>::CalculateFixedKeySize(
+          key_types, key_start_in_bucket, &key_offsets_);
+    } else {
+      fixed_key_size_ = HashTableKeyManager<true, false>::CalculateFixedKeySize(
+          key_types, key_start_in_bucket, &key_offsets_);
+    }
+  } else {
+    if (force_key_copy) {
+      fixed_key_size_ = HashTableKeyManager<false, true>::CalculateFixedKeySize(
+          key_types, key_start_in_bucket, &key_offsets_);
+    } else {
+      fixed_key_size_ =
+          HashTableKeyManager<false, false>::CalculateFixedKeySize(
+              key_types, key_start_in_bucket, &key_offsets_);
+    }
   }
 
   for (const Type *subkey_type : key_types_) {
