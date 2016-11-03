@@ -50,50 +50,13 @@ bool SortMergeRunOperator::getAllWorkOrders(
     StorageManager *storage_manager,
     const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
-  if (input_relation_is_stored_) {
-    // Input blocks (or runs) are from base relation. Only possible when base
-    // relation is stored sorted.
-    if (!started_) {
-      // Initialize merge tree completely, since all input runs are known.
-      merge_tree_.initializeTree(input_relation_block_ids_.size());
-      started_ = true;
-      initializeInputRuns();
-    }
-  } else {
-    // Input blocks (or runs) are pipelined from the sorted run generation
-    // operator.
-    if (!started_ && !input_stream_done_) {
-      // Initialize merge tree for first pipeline mode.
-      merge_tree_.initializeForPipeline();
-      started_ = true;
-      initializeInputRuns();
-    }
-  }
+  initializeOperatorState();
   // Generate runs from merge tree.
   return generateWorkOrders(container, query_context, storage_manager, scheduler_client_id, bus);
 }
 
 bool SortMergeRunOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
-  if (input_relation_is_stored_) {
-    // Input blocks (or runs) are from base relation. Only possible when base
-    // relation is stored sorted.
-    if (!started_) {
-      // Initialize merge tree completely, since all input runs are known.
-      merge_tree_.initializeTree(input_relation_block_ids_.size());
-      started_ = true;
-      initializeInputRuns();
-    }
-  } else {
-    // Input blocks (or runs) are pipelined from the sorted run generation
-    // operator.
-    if (!started_ && !input_stream_done_) {
-      // Initialize merge tree for first pipeline mode.
-      merge_tree_.initializeForPipeline();
-      started_ = true;
-      initializeInputRuns();
-    }
-  }
-
+  initializeOperatorState();
   // Get merge jobs from merge tree.
   std::vector<MergeTree::MergeJob> jobs;
   const bool done_generating = merge_tree_.getMergeJobs(&jobs);
@@ -216,6 +179,8 @@ void SortMergeRunOperator::doneFeedingInputBlocks(const relation_id input_relati
     return;
   }
 
+  initializeOperatorState();
+
   // Now we know all the input blocks; compute the merge tree.
   merge_tree_.initializeTree(input_relation_block_ids_.size());
 
@@ -225,6 +190,28 @@ void SortMergeRunOperator::doneFeedingInputBlocks(const relation_id input_relati
   // If the final merge was already scheduled, fix it to write to correct output
   // destinaton.
   merge_tree_.checkAndFixFinalMerge();
+}
+
+void SortMergeRunOperator::initializeOperatorState() {
+  if (input_relation_is_stored_) {
+    // Input blocks (or runs) are from base relation. Only possible when base
+    // relation is stored sorted.
+    if (!started_) {
+      // Initialize merge tree completely, since all input runs are known.
+      merge_tree_.initializeTree(input_relation_block_ids_.size());
+      started_ = true;
+      initializeInputRuns();
+    }
+  } else {
+    // Input blocks (or runs) are pipelined from the sorted run generation
+    // operator.
+    if (!started_ && !input_stream_done_) {
+      // Initialize merge tree for first pipeline mode.
+      merge_tree_.initializeForPipeline();
+      started_ = true;
+      initializeInputRuns();
+    }
+  }
 }
 
 namespace {

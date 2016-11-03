@@ -173,7 +173,7 @@ class QueryManagerBase {
    *
    * @param index The index of the given relational operator in the DAG.
    **/
-  void markOperatorFinished(const dag_node_index index);
+  virtual void markOperatorFinished(const dag_node_index index);
 
   /**
    * @brief Check if all the dependencies of the node at specified index have

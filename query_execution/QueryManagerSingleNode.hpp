@@ -95,7 +95,11 @@ class QueryManagerSingleNode final : public QueryManagerBase {
     return query_context_.get();
   }
 
+  void markOperatorFinished(const dag_node_index index) override;
+
  private:
+  static constexpr float kAdmissionNumSlotsThreshold = 0.25;
+
   bool checkNormalExecutionOver(const dag_node_index index) const override {
     return (checkAllDependenciesMet(index) &&
             !workorders_container_->hasNormalWorkOrder(index) &&
@@ -129,6 +133,12 @@ class QueryManagerSingleNode final : public QueryManagerBase {
   WorkerMessage *getNextWorkerMessageFromActiveOperators(
       const numa_node_id numa_node);
 
+  bool isOperatorActive(const dag_node_index index) const;
+
+  bool canActivateOperator(const std::size_t estimated_memory_for_operator) const;
+
+  void updateActiveOperators();
+
   const tmb::client_id foreman_client_id_;
 
   StorageManager *storage_manager_;
@@ -141,6 +151,8 @@ class QueryManagerSingleNode final : public QueryManagerBase {
   std::vector<dag_node_index> active_operators_;
 
   std::vector<dag_node_index> inactive_operators_;
+
+  std::size_t estimated_memory_consumption_in_bytes_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryManagerSingleNode);
 };

@@ -201,6 +201,15 @@ class SortMergeRunOperator : public RelationalOperator {
    **/
   serialization::WorkOrder* createWorkOrderProto(merge_run_operator::MergeTree::MergeJob *job);
 
+  /**
+   * @brief Initialize the operator's internal state.
+   *
+   * @note This function can be called a number of times, but the changes will
+   *       only be in effect because of the first call. Subsequent calls will
+   *       not do anything.
+   **/
+  void initializeOperatorState();
+
   const CatalogRelation &input_relation_;
 
   const CatalogRelation &output_relation_;

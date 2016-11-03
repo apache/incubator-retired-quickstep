@@ -135,7 +135,7 @@ class QueryContext {
   /**
    * @brief A unique identifier of a relational operator in the DAG.
    **/
-  typedef std::uint32_t dag_operator_id;
+  typedef std::uint64_t dag_operator_id;
 
   /**
    * @brief Constructor.

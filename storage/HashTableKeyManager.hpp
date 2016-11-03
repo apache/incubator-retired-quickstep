@@ -78,7 +78,7 @@ class HashTableKeyManager {
       const std::size_t key_start_in_bucket,
       std::vector<std::size_t> *key_offsets) {
     DCHECK(!key_types.empty());
-    DCHECK_NOTNULL(key_offsets);
+    DCHECK(key_offsets != nullptr);
     std::size_t fixed_key_size = 0;
 
     for (const Type *subkey_type : key_types) {

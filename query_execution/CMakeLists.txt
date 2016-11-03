@@ -260,6 +260,7 @@ target_link_libraries(quickstep_queryexecution_QueryManagerSingleNode
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_storage_InsertDestination
                       quickstep_storage_StorageBlock
+                      quickstep_storage_StorageManager
                       quickstep_utility_DAG
                       quickstep_utility_Macros
                       tmb)
