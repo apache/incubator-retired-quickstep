@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "parser/SqlParserWrapper.hpp"
+#include "query_execution/BlockLocator.hpp"
 #include "query_execution/ForemanDistributed.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
@@ -36,6 +37,8 @@
 #include "query_execution/WorkerDirectory.hpp"
 #include "query_optimizer/Optimizer.hpp"
 #include "query_optimizer/tests/TestDatabaseLoader.hpp"
+#include "storage/DataExchangerAsync.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 #include "utility/textbased_test/TextBasedTestRunner.hpp"
 
@@ -86,6 +89,25 @@ class DistributedExecutionGeneratorTestRunner : public TextBasedTestRunner {
     }
 
     foreman_->join();
+
+    test_database_loader_data_exchanger_.shutdown();
+    test_database_loader_.reset();
+    for (int i = 0; i < kNumInstances; ++i) {
+      data_exchangers_[i].shutdown();
+      storage_managers_[i].reset();
+    }
+
+    CHECK(MessageBus::SendStatus::kOK ==
+        QueryExecutionUtil::SendTMBMessage(&bus_,
+                                           cli_id_,
+                                           locator_client_id_,
+                                           tmb::TaggedMessage(quickstep::kPoisonMessage)));
+
+    test_database_loader_data_exchanger_.join();
+    for (int i = 0; i < kNumInstances; ++i) {
+      data_exchangers_[i].join();
+    }
+    block_locator_->join();
   }
 
   void runTestCase(const std::string &input,
@@ -93,20 +115,26 @@ class DistributedExecutionGeneratorTestRunner : public TextBasedTestRunner {
                    std::string *output) override;
 
  private:
+  block_id_domain getBlockDomain(const std::string &network_address);
+
   std::size_t query_id_;
 
   SqlParserWrapper sql_parser_;
-  TestDatabaseLoader test_database_loader_;
+  std::unique_ptr<TestDatabaseLoader> test_database_loader_;
+  DataExchangerAsync test_database_loader_data_exchanger_;
   Optimizer optimizer_;
 
   MessageBusImpl bus_;
+  tmb::client_id cli_id_, locator_client_id_;
 
-  tmb::client_id cli_id_;
+  std::unique_ptr<BlockLocator> block_locator_;
 
   std::unique_ptr<ForemanDistributed> foreman_;
 
   std::vector<std::unique_ptr<Worker>> workers_;
   std::vector<std::unique_ptr<WorkerDirectory>> worker_directories_;
+  std::vector<DataExchangerAsync> data_exchangers_;
+  std::vector<std::unique_ptr<StorageManager>> storage_managers_;
   std::vector<std::unique_ptr<Shiftboss>> shiftbosses_;
 
   DISALLOW_COPY_AND_ASSIGN(DistributedExecutionGeneratorTestRunner);

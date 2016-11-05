@@ -79,6 +79,10 @@ target_link_libraries(quickstep_queryoptimizer_tests_TestDatabaseLoader
                       quickstep_types_containers_Tuple
                       quickstep_utility_Macros
                       tmb)
+if (ENABLE_DISTRIBUTED)
+  target_link_libraries(quickstep_queryoptimizer_tests_TestDatabaseLoader
+                        quickstep_storage_StorageBlockInfo)
+endif(ENABLE_DISTRIBUTED)
 
 if (ENABLE_DISTRIBUTED)
   add_executable(quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest
@@ -110,7 +114,9 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_cli_PrintToScreen
                         quickstep_parser_ParseStatement
                         quickstep_parser_SqlParserWrapper
+                        quickstep_queryexecution_BlockLocator
                         quickstep_queryexecution_ForemanDistributed
+                        quickstep_queryexecution_QueryExecutionMessages_proto
                         quickstep_queryexecution_QueryExecutionTypedefs
                         quickstep_queryexecution_QueryExecutionUtil
                         quickstep_queryexecution_Shiftboss
@@ -120,6 +126,8 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_queryoptimizer_OptimizerContext
                         quickstep_queryoptimizer_QueryHandle
                         quickstep_queryoptimizer_tests_TestDatabaseLoader
+                        quickstep_storage_DataExchangerAsync
+                        quickstep_storage_StorageBlockInfo
                         quickstep_utility_Macros
                         quickstep_utility_MemStream
                         quickstep_utility_SqlError

@@ -24,11 +24,20 @@
 
 #include "catalog/CatalogDatabase.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
+
+#ifdef QUICKSTEP_DISTRIBUTED
+#include "storage/StorageBlockInfo.hpp"
+#endif  // QUICKSTEP_DISTRIBUTED
+
 #include "storage/StorageManager.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
 #include "utility/Macros.hpp"
 
 #include "tmb/id_typedefs.h"
+
+#ifdef QUICKSTEP_DISTRIBUTED
+namespace tmb { class MessageBus; }
+#endif  // QUICKSTEP_DISTRIBUTED
 
 namespace quickstep {
 
@@ -60,18 +69,34 @@ class TestDatabaseLoader {
                           0 /* id */),
         storage_manager_(storage_path),
         test_relation_(nullptr) {
-    bus_.Initialize();
-
-    const tmb::client_id worker_thread_client_id = bus_.Connect();
-    bus_.RegisterClientAsSender(worker_thread_client_id, kCatalogRelationNewBlockMessage);
-
-    // Refer to InsertDestination::sendBlockFilledMessage for the rationale
-    // behind using ClientIDMap.
-    thread_id_map_->addValue(worker_thread_client_id);
-
-    scheduler_client_id_ = bus_.Connect();
-    bus_.RegisterClientAsReceiver(scheduler_client_id_, kCatalogRelationNewBlockMessage);
+    init();
   }
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  /**
+   * @brief Constructor for the distributed version.
+   *
+   * @param storage_path A filesystem directory where the blocks may be
+   *                     evicted to during the execution of a test query.
+   *                     Can be empty if the test query is not executed
+   *                     in the query engine.
+   * @param block_domain The block_domain for StorageManager.
+   * @param locator_client_id The client id of BlockLocator for StorageManager.
+   * @param bus_global The Bus for StorageManager.
+   */
+  TestDatabaseLoader(const std::string &storage_path,
+                     const block_id_domain block_domain,
+                     const tmb::client_id locator_client_id,
+                     tmb::MessageBus *bus_global)
+      : thread_id_map_(ClientIDMap::Instance()),
+        catalog_database_(nullptr /* parent */,
+                          "TestDatabase" /* name */,
+                          0 /* id */),
+        storage_manager_(storage_path, block_domain, locator_client_id, bus_global),
+        test_relation_(nullptr) {
+    init();
+  }
+#endif  // QUICKSTEP_DISTRIBUTED
 
   ~TestDatabaseLoader() {
     clear();
@@ -139,6 +164,20 @@ class TestDatabaseLoader {
   void clear();
 
  private:
+  void init() {
+    bus_.Initialize();
+
+    const tmb::client_id worker_thread_client_id = bus_.Connect();
+    bus_.RegisterClientAsSender(worker_thread_client_id, kCatalogRelationNewBlockMessage);
+
+    // Refer to InsertDestination::sendBlockFilledMessage for the rationale
+    // behind using ClientIDMap.
+    thread_id_map_->addValue(worker_thread_client_id);
+
+    scheduler_client_id_ = bus_.Connect();
+    bus_.RegisterClientAsReceiver(scheduler_client_id_, kCatalogRelationNewBlockMessage);
+  }
+
   /**
    * @brief Simulate Foreman to add all new blocks to the relation.
    */

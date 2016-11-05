@@ -155,11 +155,11 @@ void DataExchangerAsync::run() {
       if (ok) {
         call_context->Proceed();
       } else {
-        LOG(WARNING) << "Not ok\n";
+        LOG(WARNING) << "DataExchangerAsync " << server_address_ << " is not ok";
         delete call_context;
       }
     } else {
-      LOG(INFO) << "Shutdown\n";
+      LOG(INFO) << "DataExchangerAsync " << server_address_ << " shuts down";
       return;
     }
   }
