@@ -23,6 +23,7 @@
 #include <memory>
 
 #include "catalog/CatalogRelation.hpp"
+#include "catalog/CatalogRelationStatistics.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
 #include "query_optimizer/physical/NestedLoopsJoin.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
@@ -92,7 +93,13 @@ std::size_t SimpleCostModel::estimateCardinalityForTopLevelPlan(
 
 std::size_t SimpleCostModel::estimateCardinalityForTableReference(
     const P::TableReferencePtr &physical_plan) {
-  return physical_plan->relation()->estimateTupleCardinality();
+  const std::size_t num_tuples_in_relation =
+      physical_plan->relation()->getStatistics().getNumTuples();
+  if (num_tuples_in_relation == 0) {
+    return physical_plan->relation()->estimateTupleCardinality();
+  } else {
+    return num_tuples_in_relation;
+  }
 }
 
 std::size_t SimpleCostModel::estimateCardinalityForSelection(

@@ -30,6 +30,7 @@ target_link_libraries(quickstep_queryoptimizer_costmodel_CostModel
 target_link_libraries(quickstep_queryoptimizer_costmodel_SimpleCostModel
                       glog
                       quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogRelationStatistics
                       quickstep_queryoptimizer_costmodel_CostModel
                       quickstep_queryoptimizer_physical_Aggregate
                       quickstep_queryoptimizer_physical_HashJoin
