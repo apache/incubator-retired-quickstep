@@ -61,7 +61,7 @@ class DataExchangerAsync final : public Thread {
    *
    * @return Its network address.
    **/
-  std::string network_address() const {
+  const std::string& network_address() const {
     DCHECK(!server_address_.empty());
     return server_address_;
   }
