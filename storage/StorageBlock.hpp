@@ -307,11 +307,55 @@ class StorageBlock : public StorageBlockBase {
    *        iteration will be advanced to the first non-inserted tuple or, if
    *        all accessible tuples were inserted in this block, to the end
    *        position.
+   * @param max_tuples_to_insert Insert at most these many tuples
    * @return The number of tuples inserted from accessor.
    **/
   tuple_id bulkInsertTuplesWithRemappedAttributes(
       const std::vector<attribute_id> &attribute_map,
       ValueAccessor *accessor);
+
+  /**
+   * @brief Insert up to max_num_tuples_to_insert tuples from a ValueAccessor
+   *        as a single batch, using the attribute_map to project and reorder
+   *        columns from the input ValueAccessor. Does not update header.
+   *
+   * @note Typical usage is where you want to bulk-insert columns from two
+   *       or more value accessors. Instead of writing out the columns into
+   *       one or more column vector value accessors, you can simply use this
+   *       function with the appropriate attribute_map for each value
+   *       accessor (InsertDestination::bulkInsertTuplesFromValueAccessors
+   *       handles all the details) to insert tuples without an extra temp copy.
+   * 
+   * @warning Must call bulkInsertPartialTuplesFinalize() to update the header,
+   *          until which point, the insertion is not visible to others.
+   * @warning The inserted tuples may be placed in sub-optimal locations in this
+   *          TupleStorageSubBlock.
+   *
+   * @param attribute_map A vector which maps the attributes of this
+   *        TupleStorageSubBlock's relation (gaps indicated with kInvalidCatalogId)
+   *         to the corresponding attributes which should be read from accessor.
+   * @param accessor A ValueAccessor to insert tuples from. The accessor's
+   *        iteration will be advanced to the first non-inserted tuple or, if
+   *        all accessible tuples were inserted in this sub-block, to the end
+   *        position.
+   * @return The number of tuples inserted from accessor.
+   **/
+  tuple_id bulkInsertPartialTuples(
+    const std::vector<attribute_id> &attribute_map,
+    ValueAccessor *accessor,
+    const tuple_id max_num_tuples_to_insert);
+
+  /**
+   * @brief Update header after a bulkInsertPartialTuples.
+   *
+   * @warning Only call this after a bulkInsertPartialTuples, passing in the
+   *          number of tuples that were inserted (return value of that function).
+   *
+   * @param num_tuples_inserted Number of tuples inserted (i.e., how much to
+   *        advance the header.num_tuples by). Should be equal to the return
+   *        value of bulkInsertPartialTuples.
+   **/
+  void bulkInsertPartialTuplesFinalize(tuple_id num_tuples_inserted);
 
   /**
    * @brief Get the IDs of tuples in this StorageBlock which match a given Predicate.

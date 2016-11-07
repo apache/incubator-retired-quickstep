@@ -247,6 +247,90 @@ void InsertDestination::bulkInsertTuplesWithRemappedAttributes(
   });
 }
 
+// A common case that we can optimize away is when the attribute_map
+// for an accessor only contains gaps. e.g. This happens for a join when
+// there are no attributes selected from one side.
+void removeGapOnlyAccessors(
+  const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>>* accessor_attribute_map,
+  std::vector<std::pair<ValueAccessor *, const std::vector<attribute_id>>>* reduced_accessor_attribute_map) {
+  for (std::size_t i = 0; i < accessor_attribute_map->size(); ++i) {
+    bool all_gaps = true;
+    for (const auto &attr : (*accessor_attribute_map)[i].second)
+      if (attr != kInvalidCatalogId) {
+        all_gaps = false;
+        break;
+      }
+    if (all_gaps)
+      continue;
+    reduced_accessor_attribute_map->push_back((*accessor_attribute_map)[i]);
+    (*accessor_attribute_map)[i].first->beginIterationVirtual();
+  }
+}
+
+void InsertDestination::bulkInsertTuplesFromValueAccessors(
+    const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map,
+    bool always_mark_full) {
+  // Handle pathological corner case where there are no accessors
+  if (accessor_attribute_map.size() == 0)
+    return;
+
+  std::vector<std::pair<ValueAccessor *, const std::vector<attribute_id>>> reduced_accessor_attribute_map;
+  removeGapOnlyAccessors(&accessor_attribute_map, &reduced_accessor_attribute_map);
+
+  // We assume that all input accessors have the same number of tuples, so
+  // the iterations finish together. Therefore, we can just check the first one.
+  auto first_accessor = reduced_accessor_attribute_map[0].first;
+  while (!first_accessor->iterationFinishedVirtual()) {
+    tuple_id num_tuples_to_insert = kCatalogMaxID;
+    tuple_id num_tuples_inserted = 0;
+    MutableBlockReference output_block = this->getBlockForInsertion();
+
+    // Now iterate through all the accessors and do one round of bulk-insertion
+    // of partial tuples into the selected output_block.
+    // While inserting from the first ValueAccessor, space is reserved for
+    // all the columns including those coming from other ValueAccessors.
+    // Thereafter, in a given round, we only insert the remaining columns of the
+    // same tuples from the other ValueAccessors.
+    for (auto &p : reduced_accessor_attribute_map) {
+      ValueAccessor *accessor = p.first;
+      std::vector<attribute_id> attribute_map = p.second;
+
+
+      InvokeOnAnyValueAccessor(
+          accessor,
+          [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+            num_tuples_inserted = output_block->bulkInsertPartialTuples(
+                attribute_map, accessor, num_tuples_to_insert);
+      });
+
+      if (accessor == first_accessor) {
+        // Now we know how many full tuples can be inserted into this
+        // output_block (viz. number of tuples inserted from first ValueAccessor).
+        // We should only insert that many tuples from the remaining
+        // ValueAccessors as well.
+        num_tuples_to_insert = num_tuples_inserted;
+      } else {
+        // Since the bulk insertion of the first ValueAccessor should already
+        // have reserved the space for all the other ValueAccessors' columns,
+        // we must have been able to insert all the tuples we asked to insert.
+        DCHECK(num_tuples_inserted == num_tuples_to_insert);
+      }
+    }
+
+    // After one round of insertions, we have successfully inserted as many
+    // tuples as possible into the output_block. Strictly speaking, it's
+    // possible that there is more space for insertions because the size
+    // estimation of variable length columns is conservative. But we will ignore
+    // that case and proceed assuming that this output_block is full.
+
+    // Update the header for output_block and then return it.
+    output_block->bulkInsertPartialTuplesFinalize(num_tuples_inserted);
+    const bool mark_full = always_mark_full
+                           || !first_accessor->iterationFinishedVirtual();
+    this->returnBlock(std::move(output_block), mark_full);
+  }
+}
+
 void InsertDestination::insertTuplesFromVector(std::vector<Tuple>::const_iterator begin,
                                                std::vector<Tuple>::const_iterator end) {
   if (begin == end) {
