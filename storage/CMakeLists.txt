@@ -229,12 +229,6 @@ add_library(quickstep_storage_InsertDestination_proto
 add_library(quickstep_storage_LinearOpenAddressingHashTable
             ../empty_src.cpp
             LinearOpenAddressingHashTable.hpp)
-add_library(quickstep_storage_PackedRowStoreTupleStorageSubBlock
-            PackedRowStoreTupleStorageSubBlock.cpp
-            PackedRowStoreTupleStorageSubBlock.hpp)
-add_library(quickstep_storage_PackedRowStoreValueAccessor
-            ../empty_src.cpp
-            PackedRowStoreValueAccessor.hpp)
 add_library(quickstep_storage_PartitionedHashTablePool ../empty_src.cpp PartitionedHashTablePool.hpp)
 add_library(quickstep_storage_PreloaderThread PreloaderThread.cpp PreloaderThread.hpp)
 add_library(quickstep_storage_SMAIndexSubBlock SMAIndexSubBlock.cpp SMAIndexSubBlock.hpp)
@@ -827,35 +821,6 @@ target_link_libraries(quickstep_storage_LinearOpenAddressingHashTable
                       quickstep_utility_Alignment
                       quickstep_utility_Macros
                       quickstep_utility_PrimeNumber)
-target_link_libraries(quickstep_storage_PackedRowStoreTupleStorageSubBlock
-                      quickstep_catalog_CatalogAttribute
-                      quickstep_catalog_CatalogRelationSchema
-                      quickstep_catalog_CatalogTypedefs
-                      quickstep_expressions_predicate_PredicateCost
-                      quickstep_storage_PackedRowStoreValueAccessor
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_storage_StorageBlockLayout_proto
-                      quickstep_storage_StorageErrors
-                      quickstep_storage_SubBlockTypeRegistry
-                      quickstep_storage_SubBlockTypeRegistryMacros
-                      quickstep_storage_TupleIdSequence
-                      quickstep_storage_TupleStorageSubBlock
-                      quickstep_storage_ValueAccessor
-                      quickstep_storage_ValueAccessorUtil
-                      quickstep_types_Type
-                      quickstep_types_TypedValue
-                      quickstep_types_containers_Tuple
-                      quickstep_utility_BitVector
-                      quickstep_utility_Macros)
-target_link_libraries(quickstep_storage_PackedRowStoreValueAccessor
-                      quickstep_catalog_CatalogRelationSchema
-                      quickstep_catalog_CatalogTypedefs
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_storage_ValueAccessor
-                      quickstep_types_Type
-                      quickstep_types_TypedValue
-                      quickstep_utility_BitVector
-                      quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_PartitionedHashTablePool
                       glog
                       quickstep_expressions_aggregation_AggregationHandle
@@ -984,7 +949,6 @@ target_link_libraries(quickstep_storage_StorageBlock
                       quickstep_storage_HashTableBase
                       quickstep_storage_IndexSubBlock
                       quickstep_storage_InsertDestinationInterface
-                      quickstep_storage_PackedRowStoreTupleStorageSubBlock
                       quickstep_storage_SMAIndexSubBlock
                       quickstep_storage_SplitRowStoreTupleStorageSubBlock
                       quickstep_storage_StorageBlockBase
@@ -1109,7 +1073,6 @@ target_link_libraries(quickstep_storage_ValueAccessorUtil
                       quickstep_storage_BasicColumnStoreValueAccessor
                       quickstep_storage_CompressedColumnStoreValueAccessor
                       quickstep_storage_CompressedPackedRowStoreValueAccessor
-                      quickstep_storage_PackedRowStoreValueAccessor
                       quickstep_storage_SplitRowStoreValueAccessor
                       quickstep_storage_ValueAccessor
                       quickstep_types_containers_ColumnVectorsValueAccessor
@@ -1179,8 +1142,6 @@ target_link_libraries(quickstep_storage
                       quickstep_storage_InsertDestinationInterface
                       quickstep_storage_InsertDestination_proto
                       quickstep_storage_LinearOpenAddressingHashTable
-                      quickstep_storage_PackedRowStoreTupleStorageSubBlock
-                      quickstep_storage_PackedRowStoreValueAccessor
                       quickstep_storage_PartitionedHashTablePool
                       quickstep_storage_PreloaderThread
                       quickstep_storage_SMAIndexSubBlock
@@ -1599,37 +1560,6 @@ target_link_libraries(LinearOpenAddressingHashTable_unittest
                       quickstep_storage_tests_HashTable_unittest_common
                       ${LIBS})
 add_test(LinearOpenAddressingHashTable_unittest LinearOpenAddressingHashTable_unittest)
-
-add_executable(PackedRowStoreTupleStorageSubBlock_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/PackedRowStoreTupleStorageSubBlock_unittest.cpp")
-target_link_libraries(PackedRowStoreTupleStorageSubBlock_unittest
-                      gtest
-                      gtest_main
-                      quickstep_catalog_CatalogAttribute
-                      quickstep_catalog_CatalogRelation
-                      quickstep_storage_PackedRowStoreTupleStorageSubBlock
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_storage_StorageBlockLayout
-                      quickstep_storage_StorageBlockLayout_proto
-                      quickstep_storage_StorageConstants
-                      quickstep_storage_StorageErrors
-                      quickstep_storage_TupleIdSequence
-                      quickstep_storage_TupleStorageSubBlock
-                      quickstep_types_CharType
-                      quickstep_types_DoubleType
-                      quickstep_types_IntType
-                      quickstep_types_Type
-                      quickstep_types_TypeFactory
-                      quickstep_types_TypeID
-                      quickstep_types_TypedValue
-                      quickstep_types_containers_Tuple
-                      quickstep_types_operations_comparisons_Comparison
-                      quickstep_types_operations_comparisons_ComparisonFactory
-                      quickstep_types_operations_comparisons_ComparisonID
-                      quickstep_utility_BitVector
-                      quickstep_utility_PtrMap
-                      quickstep_utility_ScopedBuffer
-                      ${LIBS})
-add_test(PackedRowStoreTupleStorageSubBlock_unittest PackedRowStoreTupleStorageSubBlock_unittest)
 
 add_executable(SMAIndexSubBlock_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/SMAIndexSubBlock_unittest.cpp")
 target_link_libraries(SMAIndexSubBlock_unittest
