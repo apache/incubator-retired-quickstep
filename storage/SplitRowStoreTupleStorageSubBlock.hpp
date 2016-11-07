@@ -304,9 +304,9 @@ class SplitRowStoreTupleStorageSubBlock: public TupleStorageSubBlock {
   tuple_id bulkInsertPartialTuples(
     const std::vector<attribute_id> &attribute_map,
     ValueAccessor *accessor,
-    const tuple_id max_num_tuples_to_insert);
+    const tuple_id max_num_tuples_to_insert) override;
 
-  void bulkInsertPartialTuplesFinalize(const tuple_id num_tuples_inserted);
+  void bulkInsertPartialTuplesFinalize(const tuple_id num_tuples_inserted) override;
 
   const void* getAttributeValue(const tuple_id tuple,
                                 const attribute_id attr) const override;
