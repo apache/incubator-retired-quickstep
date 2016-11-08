@@ -672,25 +672,25 @@ predicate_cost_t SMAIndexSubBlock::estimatePredicateEvaluationCost(
 TupleIdSequence* SMAIndexSubBlock::getMatchesForPredicate(
     const ComparisonPredicate &predicate,
     const TupleIdSequence *filter) const {
-  if (filter != nullptr) {
-    LOG(FATAL) << "SMAIndex cannot evaluate filters.";
-  }
-
   Selectivity selectivity = getSelectivityForPredicate(predicate);
   if (selectivity == Selectivity::kAll) {
-    TupleIdSequence* tidseq = new TupleIdSequence(tuple_store_.numTuples());
-
-    // Set all existing tuples to true, selected.
-    if (tuple_store_.isPacked()) {
-      tidseq->setRange(0, tuple_store_.numTuples(), true);
+    if (filter != nullptr) {
+      return new TupleIdSequence(filter->length(), filter->getInternalBitVector());
     } else {
-      for (tuple_id tid = 0; tid <= tuple_store_.getMaxTupleID(); ++tid) {
-        if (tuple_store_.hasTupleWithID(tid)) {
-          tidseq->set(tid, true);
+      TupleIdSequence* tidseq = new TupleIdSequence(tuple_store_.numTuples());
+
+      // Set all existing tuples to true, selected.
+      if (tuple_store_.isPacked()) {
+        tidseq->setRange(0, tuple_store_.numTuples(), true);
+      } else {
+        for (tuple_id tid = 0; tid <= tuple_store_.getMaxTupleID(); ++tid) {
+          if (tuple_store_.hasTupleWithID(tid)) {
+            tidseq->set(tid, true);
+          }
         }
       }
+      return tidseq;
     }
-    return tidseq;
   } else if (selectivity == Selectivity::kNone) {
     // A new tuple ID sequence is initialized to false for all values.
     return new TupleIdSequence(tuple_store_.numTuples());
