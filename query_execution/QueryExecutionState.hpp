@@ -22,6 +22,12 @@
 
 #include <cstddef>
 #include <unordered_map>
+
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED.
+#ifdef QUICKSTEP_DISTRIBUTED
+#include <unordered_set>
+#endif  // QUICKSTEP_DISTRIBUTED
+
 #include <utility>
 #include <vector>
 
@@ -102,6 +108,49 @@ class QueryExecutionState {
       rebuild_status_.emplace(operator_index, std::move(rebuild_status));
     }
   }
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  /**
+   * @brief Update the rebuild status of the given operator the number of
+   *        pending rebuild work orders, after the rebuild has been initiated.
+   *
+   * @param operator_index The index of the given operator.
+   * @param num_rebuild_workorders The number of rebuild workorders of the given
+   *        operator.
+   * @param shiftboss_index The index of the Shiftboss that rebuilt.
+   **/
+  void updateRebuildStatus(const std::size_t operator_index,
+                           const std::size_t num_rebuild_workorders,
+                           const std::size_t shiftboss_index) {
+    DCHECK_LT(operator_index, num_operators_);
+    auto search_res = rebuild_status_.find(operator_index);
+    DCHECK(search_res != rebuild_status_.end() && search_res->second.has_initiated);
+    search_res->second.num_pending_workorders += num_rebuild_workorders;
+    search_res->second.rebuilt_shiftboss_indexes.insert(shiftboss_index);
+  }
+
+  /**
+   * @brief Check if the rebuild has been finished for the given operator.
+   *
+   * @param operator_index The index of the given operator.
+   * @param num_shiftbosses The number of the Shiftbosses for rebuilt.
+   *
+   * @return True if the rebuild has been finished, false otherwise.
+   **/
+  inline bool hasRebuildFinished(const std::size_t operator_index,
+                                 const std::size_t num_shiftbosses) const {
+    DCHECK_LT(operator_index, num_operators_);
+    const auto search_res = rebuild_status_.find(operator_index);
+    DCHECK(search_res != rebuild_status_.end());
+
+    const auto &rebuild_status = search_res->second;
+    DCHECK(rebuild_status.has_initiated);
+
+    return rebuild_status.rebuilt_shiftboss_indexes.size() == num_shiftbosses &&
+           rebuild_status.num_pending_workorders == 0u;
+  }
+
+#endif  // QUICKSTEP_DISTRIBUTED
 
   /**
    * @brief Check if the rebuild has been initiated for the given operator.
@@ -314,6 +363,10 @@ class QueryExecutionState {
     // The number of pending rebuild workorders for the operator.
     // Valid if and only if 'has_initiated' is true.
     std::size_t num_pending_workorders;
+
+#ifdef QUICKSTEP_DISTRIBUTED
+    std::unordered_set<std::size_t> rebuilt_shiftboss_indexes;
+#endif  // QUICKSTEP_DISTRIBUTED
   };
 
   // Key is dag_node_index for which rebuild is required.

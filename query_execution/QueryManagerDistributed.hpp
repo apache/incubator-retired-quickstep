@@ -73,9 +73,11 @@ class QueryManagerDistributed final : public QueryManagerBase {
    *        for initiating the rebuild work order.
    * @param num_rebuild_work_orders The number of the rebuild work orders
    *        generated for the operator indexed by 'op_index'.
+   * @param shiftboss_index The index of the Shiftboss that sends the message.
    **/
   void processInitiateRebuildResponseMessage(const dag_node_index op_index,
-                                             const std::size_t num_rebuild_work_orders);
+                                             const std::size_t num_rebuild_work_orders,
+                                             const std::size_t shiftboss_index);
 
   /**
    * @brief Get the next normal workorder to be excuted, wrapped in a

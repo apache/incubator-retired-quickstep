@@ -140,8 +140,10 @@ void PolicyEnforcerDistributed::processInitiateRebuildResponseMessage(const tmb:
   QueryManagerDistributed *query_manager = static_cast<QueryManagerDistributed*>(admitted_queries_[query_id].get());
 
   const std::size_t num_rebuild_work_orders = proto.num_rebuild_work_orders();
-  query_manager->processInitiateRebuildResponseMessage(proto.operator_index(), num_rebuild_work_orders);
-  shiftboss_directory_->addNumQueuedWorkOrders(proto.shiftboss_index(), num_rebuild_work_orders);
+  const size_t shiftboss_index = proto.shiftboss_index();
+  query_manager->processInitiateRebuildResponseMessage(
+      proto.operator_index(), num_rebuild_work_orders, shiftboss_index);
+  shiftboss_directory_->addNumQueuedWorkOrders(shiftboss_index, num_rebuild_work_orders);
 
   if (query_manager->getQueryExecutionState().hasQueryExecutionFinished()) {
     onQueryCompletion(query_manager);

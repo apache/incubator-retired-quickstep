@@ -36,7 +36,9 @@
 
 #include "glog/logging.h"
 
+#include "tmb/address.h"
 #include "tmb/id_typedefs.h"
+#include "tmb/tagged_message.h"
 
 using std::free;
 using std::malloc;
@@ -125,16 +127,16 @@ bool QueryManagerDistributed::fetchNormalWorkOrders(const dag_node_index index) 
 }
 
 void QueryManagerDistributed::processInitiateRebuildResponseMessage(const dag_node_index op_index,
-                                                                    const std::size_t num_rebuild_work_orders) {
-  // TODO(zuyu): Multiple Shiftbosses support.
-  query_exec_state_->setRebuildStatus(op_index, num_rebuild_work_orders, true);
+                                                                    const std::size_t num_rebuild_work_orders,
+                                                                    const std::size_t shiftboss_index) {
+  query_exec_state_->updateRebuildStatus(op_index, num_rebuild_work_orders, shiftboss_index);
 
-  if (num_rebuild_work_orders != 0u) {
+  if (!query_exec_state_->hasRebuildFinished(op_index, shiftboss_directory_->size())) {
     // Wait for the rebuild work orders to finish.
     return;
   }
 
-  // No needs for rebuilds.
+  // No needs for rebuilds, or the rebuild has finished.
   markOperatorFinished(op_index);
 
   for (const std::pair<dag_node_index, bool> &dependent_link :
@@ -168,17 +170,20 @@ bool QueryManagerDistributed::initiateRebuild(const dag_node_index index) {
                            kInitiateRebuildMessage);
   free(proto_bytes);
 
-  LOG(INFO) << "ForemanDistributed sent InitiateRebuildMessage (typed '" << kInitiateRebuildMessage
-            << "') to Shiftboss";
-  // TODO(zuyu): Multiple workers support.
-  QueryExecutionUtil::SendTMBMessage(bus_,
-                                     foreman_client_id_,
-                                     shiftboss_directory_->getClientId(0),
-                                     move(tagged_msg));
+  // TODO(quickstep-team): Dynamically scale-up/down Shiftbosses.
+  tmb::Address shiftboss_addresses;
+  for (std::size_t i = 0; i < shiftboss_directory_->size(); ++i) {
+    shiftboss_addresses.AddRecipient(shiftboss_directory_->getClientId(i));
+  }
 
-  // The negative value indicates that the number of rebuild work orders is to be
-  // determined.
-  query_exec_state_->setRebuildStatus(index, -1, true);
+  LOG(INFO) << "ForemanDistributed sent InitiateRebuildMessage (typed '" << kInitiateRebuildMessage
+            << "') to all Shiftbosses";
+  QueryExecutionUtil::BroadcastMessage(foreman_client_id_,
+                                       shiftboss_addresses,
+                                       move(tagged_msg),
+                                       bus_);
+
+  query_exec_state_->setRebuildStatus(index, 0, true);
 
   // Wait for Shiftbosses to report the number of rebuild work orders.
   return false;

@@ -238,17 +238,19 @@ void ForemanDistributed::run() {
 bool ForemanDistributed::canCollectNewMessages(const tmb::message_type_id message_type) {
   return !QUICKSTEP_EQUALS_ANY_CONSTANT(message_type,
                                         kCatalogRelationNewBlockMessage,
-                                        kWorkOrderFeedbackMessage) &&
-         // TODO(zuyu): Multiple Shiftbosses support.
-         !shiftboss_directory_.hasReachedCapacity(0);
+                                        kWorkOrderFeedbackMessage);
 }
 
 void ForemanDistributed::dispatchWorkOrderMessages(const vector<unique_ptr<S::WorkOrderMessage>> &messages) {
+  const size_t num_shiftbosses = shiftboss_directory_.size();
+  size_t shiftboss_index = 0u;
   for (const auto &message : messages) {
     DCHECK(message != nullptr);
-    // TODO(zuyu): Multiple Shiftbosses support.
-    sendWorkOrderMessage(0, *message);
-    shiftboss_directory_.incrementNumQueuedWorkOrders(0);
+    sendWorkOrderMessage(shiftboss_index, *message);
+    shiftboss_directory_.incrementNumQueuedWorkOrders(shiftboss_index);
+
+    // TO(zuyu): Take data-locality into account for scheduling.
+    shiftboss_index = (shiftboss_index + 1) % num_shiftbosses;
   }
 }
 
