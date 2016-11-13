@@ -34,6 +34,8 @@ namespace tmb { class TaggedMessge; }
 
 namespace quickstep {
 
+namespace serialization { class WorkOrderCompletionMessage; }
+
 /** \addtogroup QueryExecution
  *  @{
  */
@@ -100,7 +102,6 @@ class Worker : public Thread {
    * @brief A helper method to execute the WorkOrder and construct a
    *        completion message.
    *
-   * @note CompletionMessageProtoT is the type of the completion message.
    * @note Right now a single helper method works for all message types.
    *       If different message types need to collect different statistics for
    *       the WorkOrder execution, we need to create different helper methods,
@@ -108,23 +109,21 @@ class Worker : public Thread {
    *
    * @param tagged_message The TaggedMessage which consists of the WorkOrder.
    * @param proto The proto message to be sent.
+   * @param is_rebuild_work_order Whether it is used for a RebuildWorkOrder.
    **/
-  template <typename CompletionMessageProtoT>
   void executeWorkOrderHelper(const TaggedMessage &tagged_message,
-                              CompletionMessageProtoT *proto);
+                              serialization::WorkOrderCompletionMessage *proto,
+                              const bool is_rebuild_work_order = false);
 
   /**
    * @brief A helper method to send the WorkOrder completion message.
-   *
-   * @note CompletionMessageProtoT is the type of the completion message.
    *
    * @param receiver The TMB client ID of the receiver.
    * @param proto The proto message to be sent.
    * @param message_type The ID of the type of the message being sent.
    **/
-  template <typename CompletionMessageProtoT>
   void sendWorkOrderCompleteMessage(const tmb::client_id receiver,
-                                    const CompletionMessageProtoT &proto,
+                                    const serialization::WorkOrderCompletionMessage &proto,
                                     const message_type_id message_type);
 
   const std::size_t worker_thread_index_;

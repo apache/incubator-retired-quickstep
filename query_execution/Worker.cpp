@@ -47,6 +47,8 @@ using tmb::TaggedMessage;
 
 namespace quickstep {
 
+using serialization::WorkOrderCompletionMessage;
+
 void Worker::run() {
   if (cpu_id_ >= 0) {
     ThreadUtil::BindToCPU(cpu_id_);
@@ -61,21 +63,16 @@ void Worker::run() {
     const TaggedMessage &tagged_message = annotated_msg.tagged_message;
     switch (tagged_message.message_type()) {
       case kWorkOrderMessage: {
-        serialization::NormalWorkOrderCompletionMessage proto;
-        executeWorkOrderHelper<serialization::NormalWorkOrderCompletionMessage>(
-            tagged_message, &proto);
-        sendWorkOrderCompleteMessage<
-            serialization::NormalWorkOrderCompletionMessage>(
+        WorkOrderCompletionMessage proto;
+        executeWorkOrderHelper(tagged_message, &proto);
+        sendWorkOrderCompleteMessage(
             annotated_msg.sender, proto, kWorkOrderCompleteMessage);
         break;
       }
       case kRebuildWorkOrderMessage: {
-        serialization::RebuildWorkOrderCompletionMessage proto;
-        executeWorkOrderHelper<
-            serialization::RebuildWorkOrderCompletionMessage>(tagged_message,
-                                                              &proto);
-        sendWorkOrderCompleteMessage<
-            serialization::RebuildWorkOrderCompletionMessage>(
+        WorkOrderCompletionMessage proto;
+        executeWorkOrderHelper(tagged_message, &proto, true /* is_rebuild */);
+        sendWorkOrderCompleteMessage(
             annotated_msg.sender, proto, kRebuildWorkOrderCompleteMessage);
         break;
       }
@@ -88,9 +85,8 @@ void Worker::run() {
   }
 }
 
-template <typename CompletionMessageProtoT>
 void Worker::sendWorkOrderCompleteMessage(const tmb::client_id receiver,
-                                          const CompletionMessageProtoT &proto,
+                                          const WorkOrderCompletionMessage &proto,
                                           const message_type_id message_type) {
   // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
   const size_t proto_length = proto.ByteSize();
@@ -109,9 +105,9 @@ void Worker::sendWorkOrderCompleteMessage(const tmb::client_id receiver,
   CHECK(send_status == tmb::MessageBus::SendStatus::kOK);
 }
 
-template <typename CompletionMessageProtoT>
 void Worker::executeWorkOrderHelper(const TaggedMessage &tagged_message,
-                                    CompletionMessageProtoT *proto) {
+                                    WorkOrderCompletionMessage *proto,
+                                    const bool is_rebuild_work_order) {
   std::chrono::time_point<std::chrono::steady_clock> start, end;
   WorkerMessage worker_message(
       *static_cast<const WorkerMessage *>(tagged_message.message()));
@@ -133,6 +129,8 @@ void Worker::executeWorkOrderHelper(const TaggedMessage &tagged_message,
           end.time_since_epoch()).count();
 
   // Construct the proto message.
+  proto->set_work_order_type(is_rebuild_work_order ? WorkOrderCompletionMessage::REBUILD
+                                                   : WorkOrderCompletionMessage::NORMAL);
   proto->set_operator_index(worker_message.getRelationalOpIndex());
   proto->set_query_id(query_id_for_workorder);
   proto->set_worker_thread_index(worker_thread_index_);

@@ -38,7 +38,7 @@ namespace quickstep {
 class CatalogDatabaseLite;
 class QueryHandle;
 
-namespace serialization { class NormalWorkOrderCompletionMessage; }
+namespace serialization { class WorkOrderCompletionMessage; }
 
 /** \addtogroup QueryExecution
  *  @{
@@ -165,7 +165,7 @@ class PolicyEnforcerBase {
    *        execution.
    **/
   void recordTimeForWorkOrder(
-      const serialization::NormalWorkOrderCompletionMessage &proto);
+      const serialization::WorkOrderCompletionMessage &proto);
 
   CatalogDatabaseLite *catalog_database_;
 

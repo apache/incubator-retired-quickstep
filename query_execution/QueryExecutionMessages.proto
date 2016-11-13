@@ -31,31 +31,21 @@ import "relational_operators/WorkOrder.proto";
 // order completion message, we may be interested in adding the compression
 // ratio or dictionary size of the rebuilt block.
 
-// TODO(harshad) : If there are different fields in the two message types below,
-// create a base message class called WorkOrderCompletionMessage and make the
-// two classes below extend the base class. All the common fields in both the
-// classes can be moved to the base class.
+message WorkOrderCompletionMessage {
+  enum WorkOrderType {
+    NORMAL = 0;
+    REBUILD = 1;
+  }
 
-// A message sent upon completion of a normal (not rebuild) WorkOrder execution.
-message NormalWorkOrderCompletionMessage {
-  required uint64 operator_index = 1;
-  required uint64 worker_thread_index = 2;
-  required uint64 query_id = 3;
+  required WorkOrderType work_order_type = 1;
 
-  // Epoch time in microseconds.
-  optional uint64 execution_start_time = 4;
-  optional uint64 execution_end_time = 5;
-}
-
-// A message sent upon completion of a rebuild WorkOrder execution.
-message RebuildWorkOrderCompletionMessage {
-  required uint64 operator_index = 1;
-  required uint64 worker_thread_index = 2;
-  required uint64 query_id = 3;
+  required uint64 operator_index = 2;
+  required uint64 worker_thread_index = 3;
+  required uint64 query_id = 4;
 
   // Epoch time in microseconds.
-  optional uint64 execution_start_time = 4;
-  optional uint64 execution_end_time = 5;
+  optional uint64 execution_start_time = 5;
+  optional uint64 execution_end_time = 6;
 }
 
 message CatalogRelationNewBlockMessage {

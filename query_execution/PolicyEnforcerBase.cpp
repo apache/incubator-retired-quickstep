@@ -45,7 +45,7 @@ void PolicyEnforcerBase::processMessage(const TaggedMessage &tagged_message) {
 
   switch (tagged_message.message_type()) {
     case kWorkOrderCompleteMessage: {
-      serialization::NormalWorkOrderCompletionMessage proto;
+      serialization::WorkOrderCompletionMessage proto;
       // Note: This proto message contains the time it took to execute the
       // WorkOrder. It can be accessed in this scope.
       CHECK(proto.ParseFromArray(tagged_message.message(),
@@ -64,7 +64,7 @@ void PolicyEnforcerBase::processMessage(const TaggedMessage &tagged_message) {
       break;
     }
     case kRebuildWorkOrderCompleteMessage: {
-      serialization::RebuildWorkOrderCompletionMessage proto;
+      serialization::WorkOrderCompletionMessage proto;
       // Note: This proto message contains the time it took to execute the
       // rebuild WorkOrder. It can be accessed in this scope.
       CHECK(proto.ParseFromArray(tagged_message.message(),
@@ -157,7 +157,7 @@ bool PolicyEnforcerBase::admitQueries(
 }
 
 void PolicyEnforcerBase::recordTimeForWorkOrder(
-    const serialization::NormalWorkOrderCompletionMessage &proto) {
+    const serialization::WorkOrderCompletionMessage &proto) {
   const std::size_t query_id = proto.query_id();
   std::vector<WorkOrderTimeEntry> &workorder_time_entries
       = workorder_time_recorder_[query_id];
