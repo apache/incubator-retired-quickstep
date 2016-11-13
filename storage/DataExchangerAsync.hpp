@@ -79,8 +79,6 @@ class DataExchangerAsync final : public Thread {
   void run() override;
 
  private:
-  static const char *kLocalNetworkAddress;
-
   DataExchange::AsyncService service_;
 
   int port_ = -1;

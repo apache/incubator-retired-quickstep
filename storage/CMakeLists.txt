@@ -625,6 +625,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_storage_StorageManager
                         quickstep_threading_Thread
                         quickstep_utility_Macros
+                        quickstep_utility_NetworkUtil
                         ${GRPCPLUSPLUS_LIBRARIES})
 endif()
 

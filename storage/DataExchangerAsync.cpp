@@ -28,6 +28,7 @@
 #include "storage/DataExchange.grpc.pb.h"
 #include "storage/DataExchange.pb.h"
 #include "storage/StorageManager.hpp"
+#include "utility/NetworkUtil.hpp"
 
 #include "glog/logging.h"
 
@@ -127,18 +128,18 @@ void CallContext::Proceed() {
 
 }  // namespace
 
-const char *DataExchangerAsync::kLocalNetworkAddress = "0.0.0.0:";
-
 DataExchangerAsync::DataExchangerAsync() {
+  const std::string ipv4_address(GetIpv4Address() + ':');
+
   grpc::ServerBuilder builder;
-  builder.AddListeningPort(kLocalNetworkAddress, grpc::InsecureServerCredentials(), &port_);
+  builder.AddListeningPort(ipv4_address, grpc::InsecureServerCredentials(), &port_);
   builder.RegisterService(&service_);
 
   queue_ = builder.AddCompletionQueue();
   server_ = builder.BuildAndStart();
 
   DCHECK_GT(port_, 0);
-  server_address_ = kLocalNetworkAddress + std::to_string(port_);
+  server_address_ = ipv4_address + std::to_string(port_);
   LOG(INFO) << "DataExchangerAsync Service listening on " << server_address_;
 }
 
