@@ -15,6 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+if (BUILD_SHARED_LIBS)
+  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
+else()
+  set(GFLAGS_LIB_NAME gflags_nothreads-static)
+endif()
+
 include(CheckCXXSourceCompiles)
 
 # Look for GCC-style builtins (also in clang, ICC, and possibly others) that
@@ -180,6 +186,7 @@ add_library(quickstep_utility_Glob Glob.cpp Glob.hpp)
 add_library(quickstep_utility_HashPair ../empty_src.cpp HashPair.hpp)
 add_library(quickstep_utility_Macros ../empty_src.cpp Macros.hpp)
 add_library(quickstep_utility_MemStream ../empty_src.cpp MemStream.hpp)
+add_library(quickstep_utility_NetworkUtil NetworkUtil.cpp NetworkUtil.hpp)
 add_library(quickstep_utility_PlanVisualizer PlanVisualizer.cpp PlanVisualizer.hpp)
 add_library(quickstep_utility_PrimeNumber PrimeNumber.cpp PrimeNumber.hpp)
 add_library(quickstep_utility_PtrList ../empty_src.cpp PtrList.hpp)
@@ -257,6 +264,9 @@ target_link_libraries(quickstep_utility_Glob
 target_link_libraries(quickstep_utility_MemStream
                       glog
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_utility_NetworkUtil
+                      glog
+                      ${GFLAGS_LIB_NAME})
 target_link_libraries(quickstep_utility_PrimeNumber
                       glog)
 target_link_libraries(quickstep_utility_PlanVisualizer
@@ -339,6 +349,7 @@ target_link_libraries(quickstep_utility
                       quickstep_utility_HashPair
                       quickstep_utility_Macros
                       quickstep_utility_MemStream
+                      quickstep_utility_NetworkUtil
                       quickstep_utility_PlanVisualizer
                       quickstep_utility_PrimeNumber
                       quickstep_utility_PtrList
@@ -403,6 +414,15 @@ target_link_libraries(EqualsAnyConstant_unittest
                       quickstep_utility_EqualsAnyConstant
                       ${LIBS})
 add_test(EqualsAnyConstant_unittest EqualsAnyConstant_unittest)
+
+add_executable(NetworkUtil_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/NetworkUtil_unittest.cpp")
+target_link_libraries(NetworkUtil_unittest
+                      gtest
+                      gtest_main
+                      quickstep_utility_NetworkUtil
+                      ${GFLAGS_LIB_NAME}
+                      ${LIBS})
+add_test(NetworkUtil_unittest NetworkUtil_unittest)
 
 add_executable(PrimeNumber_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/PrimeNumber_unittest.cpp")
 target_link_libraries(PrimeNumber_unittest
