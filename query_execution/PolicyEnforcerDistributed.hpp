@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "query_execution/PolicyEnforcerBase.hpp"
+#include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/ShiftbossDirectory.hpp"
 #include "utility/Macros.hpp"
@@ -87,6 +88,24 @@ class PolicyEnforcerDistributed final : public PolicyEnforcerBase {
    * @param tagged_message The message.
    **/
   void processInitiateRebuildResponseMessage(const tmb::TaggedMessage &tagged_message);
+
+  /**
+   * @brief Get or set the index of Shiftboss for a HashJoin related WorkOrder.
+   * If it is the first BuildHash on <join_hash_table_index>, <shiftboss_index>
+   * will be set to <next_shiftboss_index_to_schedule>. Otherwise,
+   * <shiftboss_index> will be set to the index of the Shiftboss that has
+   * executed the first BuildHash.
+   *
+   * @param query_id The query id.
+   * @param join_hash_table_index The Hash Table for the Join.
+   * @param next_shiftboss_index The index of Shiftboss to schedule a next WorkOrder.
+   * @param shiftboss_index The index of Shiftboss to schedule the WorkOrder.
+   **/
+  void getShiftbossIndexForHashJoin(
+      const std::size_t query_id,
+      const QueryContext::join_hash_table_id join_hash_table_index,
+      const std::size_t next_shiftboss_index_to_schedule,
+      std::size_t *shiftboss_index);
 
  private:
   void decrementNumQueuedWorkOrders(const serialization::WorkOrderCompletionMessage &proto) override {

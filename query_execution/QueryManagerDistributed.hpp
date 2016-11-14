@@ -22,7 +22,9 @@
 
 #include <cstddef>
 #include <memory>
+#include <unordered_map>
 
+#include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionState.hpp"
 #include "query_execution/QueryManagerBase.hpp"
 #include "query_execution/WorkOrderProtosContainer.hpp"
@@ -92,6 +94,26 @@ class QueryManagerDistributed final : public QueryManagerBase {
   serialization::WorkOrderMessage* getNextWorkOrderMessage(
       const dag_node_index start_operator_index);
 
+  /**
+   * @brief Get the index of Shiftboss for a HashJoin related WorkOrder. If the
+   * Shiftboss index is not found, set using <next_shiftboss_index_to_schedule>.
+   *
+   * @param join_hash_table_index The Hash Table for the Join.
+   * @param next_shiftboss_index The index of Shiftboss to schedule a next WorkOrder.
+   * @param shiftboss_index The index of Shiftboss to schedule the WorkOrder.
+   **/
+  void getShiftbossIndexForHashJoin(const QueryContext::join_hash_table_id join_hash_table_index,
+                                    const std::size_t next_shiftboss_index_to_schedule,
+                                    std::size_t *shiftboss_index) {
+    const auto cit = shiftboss_indexes_for_hash_joins_.find(join_hash_table_index);
+    if (cit != shiftboss_indexes_for_hash_joins_.end()) {
+      *shiftboss_index = cit->second;
+    } else {
+      shiftboss_indexes_for_hash_joins_.emplace(join_hash_table_index, next_shiftboss_index_to_schedule);
+      *shiftboss_index = next_shiftboss_index_to_schedule;
+    }
+  }
+
  private:
   bool checkNormalExecutionOver(const dag_node_index index) const override {
     return (checkAllDependenciesMet(index) &&
@@ -113,6 +135,9 @@ class QueryManagerDistributed final : public QueryManagerBase {
   tmb::MessageBus *bus_;
 
   std::unique_ptr<WorkOrderProtosContainer> normal_workorder_protos_container_;
+
+  // A map from a join hash table to its scheduled Shiftboss index.
+  std::unordered_map<QueryContext::join_hash_table_id, std::size_t> shiftboss_indexes_for_hash_joins_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryManagerDistributed);
 };

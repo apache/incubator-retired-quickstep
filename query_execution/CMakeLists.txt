@@ -108,10 +108,12 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_queryexecution_ForemanBase
                         quickstep_queryexecution_PolicyEnforcerBase
                         quickstep_queryexecution_PolicyEnforcerDistributed
+                        quickstep_queryexecution_QueryContext
                         quickstep_queryexecution_QueryExecutionMessages_proto
                         quickstep_queryexecution_QueryExecutionTypedefs
                         quickstep_queryexecution_QueryExecutionUtil
                         quickstep_queryexecution_ShiftbossDirectory
+                        quickstep_relationaloperators_WorkOrder_proto
                         quickstep_threading_ThreadUtil
                         quickstep_utility_EqualsAnyConstant
                         quickstep_utility_Macros
@@ -153,6 +155,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_catalog_CatalogRelation
                         quickstep_catalog_Catalog_proto
                         quickstep_queryexecution_PolicyEnforcerBase
+                        quickstep_queryexecution_QueryContext
                         quickstep_queryexecution_QueryContext_proto
                         quickstep_queryexecution_QueryExecutionMessages_proto
                         quickstep_queryexecution_QueryExecutionState

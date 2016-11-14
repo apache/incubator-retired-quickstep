@@ -30,10 +30,12 @@
 #include "query_execution/AdmitRequestMessage.hpp"
 #include "query_execution/PolicyEnforcerBase.hpp"
 #include "query_execution/PolicyEnforcerDistributed.hpp"
+#include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/ShiftbossDirectory.hpp"
+#include "relational_operators/WorkOrder.pb.h"
 #include "threading/ThreadUtil.hpp"
 #include "utility/EqualsAnyConstant.hpp"
 
@@ -241,16 +243,53 @@ bool ForemanDistributed::canCollectNewMessages(const tmb::message_type_id messag
                                         kWorkOrderFeedbackMessage);
 }
 
+bool ForemanDistributed::isHashJoinRelatedWorkOrder(const S::WorkOrderMessage &proto,
+                                                    const size_t next_shiftboss_index_to_schedule,
+                                                    size_t *shiftboss_index_for_hash_join) {
+  const S::WorkOrder &work_order_proto = proto.work_order();
+  QueryContext::join_hash_table_id join_hash_table_index;
+
+  switch (work_order_proto.work_order_type()) {
+    case S::BUILD_HASH:
+      join_hash_table_index = work_order_proto.GetExtension(serialization::BuildHashWorkOrder::join_hash_table_index);
+      break;
+    case S::DESTROY_HASH:
+      join_hash_table_index = work_order_proto.GetExtension(serialization::DestroyHashWorkOrder::join_hash_table_index);
+      break;
+    case S::HASH_JOIN:
+      join_hash_table_index = work_order_proto.GetExtension(serialization::HashJoinWorkOrder::join_hash_table_index);
+      break;
+    default:
+      return false;
+  }
+
+  static_cast<PolicyEnforcerDistributed*>(policy_enforcer_.get())->getShiftbossIndexForHashJoin(
+      proto.query_id(), join_hash_table_index, next_shiftboss_index_to_schedule, shiftboss_index_for_hash_join);
+
+  return true;
+}
+
 void ForemanDistributed::dispatchWorkOrderMessages(const vector<unique_ptr<S::WorkOrderMessage>> &messages) {
   const size_t num_shiftbosses = shiftboss_directory_.size();
   size_t shiftboss_index = 0u;
   for (const auto &message : messages) {
     DCHECK(message != nullptr);
-    sendWorkOrderMessage(shiftboss_index, *message);
-    shiftboss_directory_.incrementNumQueuedWorkOrders(shiftboss_index);
+    const S::WorkOrderMessage &proto = *message;
+    size_t shiftboss_index_for_hash_join;
+    if (isHashJoinRelatedWorkOrder(proto, shiftboss_index, &shiftboss_index_for_hash_join)) {
+      sendWorkOrderMessage(shiftboss_index_for_hash_join, proto);
+      shiftboss_directory_.incrementNumQueuedWorkOrders(shiftboss_index_for_hash_join);
 
-    // TO(zuyu): Take data-locality into account for scheduling.
-    shiftboss_index = (shiftboss_index + 1) % num_shiftbosses;
+      if (shiftboss_index == shiftboss_index_for_hash_join) {
+        shiftboss_index = (shiftboss_index + 1) % num_shiftbosses;
+      }
+    } else {
+      sendWorkOrderMessage(shiftboss_index, proto);
+      shiftboss_directory_.incrementNumQueuedWorkOrders(shiftboss_index);
+
+      // TODO(zuyu): Take data-locality into account for scheduling.
+      shiftboss_index = (shiftboss_index + 1) % num_shiftbosses;
+    }
   }
 }
 

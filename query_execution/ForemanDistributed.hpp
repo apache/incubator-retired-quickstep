@@ -71,6 +71,10 @@ class ForemanDistributed final : public ForemanBase {
   void run() override;
 
  private:
+  bool isHashJoinRelatedWorkOrder(const serialization::WorkOrderMessage &proto,
+                                  const std::size_t next_shiftboss_index_to_schedule,
+                                  std::size_t *shiftboss_index_for_hash_join);
+
   /**
    * @brief Dispatch schedulable WorkOrders, wrapped in WorkOrderMessages to the
    *        worker threads.
