@@ -24,9 +24,6 @@
 
 #include "utility/Macros.hpp"
 
-using std::size_t;
-using std::string;
-
 namespace quickstep {
 
 /** \addtogroup CLI

@@ -21,13 +21,8 @@
 #define QUICKSTEP_CLI_COMMAND_COMMAND_EXECUTOR_HPP_
 
 #include <cstdio>
-#include <string>
 
 #include "tmb/id_typedefs.h"
-
-using std::fprintf;
-using std::fputc;
-using std::string;
 
 namespace tmb { class MessageBus; }
 
