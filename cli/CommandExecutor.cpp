@@ -260,7 +260,7 @@ inline std::vector<TypedValue> executeQueryForSingleRow(
   // Drop the result relation.
   DropRelation::Drop(*query_result_relation,
                      query_processor->getDefaultDatabase(),
-                     query_processor->getStorageManager());
+                     storage_manager);
 
   return values;
 }
@@ -292,10 +292,10 @@ void executeAnalyze(const PtrVector<ParseString> *arguments,
                     const tmb::client_id main_thread_client_id,
                     const tmb::client_id foreman_client_id,
                     MessageBus *bus,
+                    StorageManager *storage_manager,
                     QueryProcessor *query_processor,
                     FILE *out) {
   const CatalogDatabase &database = *query_processor->getDefaultDatabase();
-  StorageManager *storage_manager = query_processor->getStorageManager();
 
   std::unique_ptr<SqlParserWrapper> parser_wrapper(new SqlParserWrapper());
   std::vector<std::reference_wrapper<const CatalogRelation>> relations;
@@ -396,6 +396,7 @@ void executeCommand(const ParseStatement &statement,
                    main_thread_client_id,
                    foreman_client_id,
                    bus,
+                   storage_manager,
                    query_processor, out);
   } else {
     THROW_SQL_ERROR_AT(command.command()) << "Invalid Command";

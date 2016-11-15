@@ -27,7 +27,6 @@
 
 #include "catalog/Catalog.hpp"
 #include "query_optimizer/Optimizer.hpp"
-#include "storage/StorageManager.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -130,13 +129,9 @@ class QueryProcessor {
    * @brief Constructor.
    *
    * @param catalog_filename The file to read the serialized catalog from.
-   * @param storage_path The filesystem directory where blocks are stored on
-   *        disk.
    **/
-  QueryProcessor(const std::string &catalog_filename,
-                 const std::string &storage_path)
+  explicit QueryProcessor(const std::string &catalog_filename)
       : catalog_filename_(catalog_filename),
-        storage_manager_(std::make_unique<StorageManager>(storage_path)),
         catalog_altered_(false),
         query_id_(0) {
     loadCatalog();
@@ -185,13 +180,6 @@ class QueryProcessor {
     return catalog_->getDatabaseByNameMutable("default");
   }
 
-  /**
-   * @brief Get the StorageManager held by this QueryProcessor.
-   **/
-  StorageManager* getStorageManager() const {
-    return storage_manager_.get();
-  }
-
  private:
   void loadCatalog();  // If it exists, free catalog_ before calling this
 
@@ -200,7 +188,6 @@ class QueryProcessor {
   std::string catalog_filename_;
 
   std::unique_ptr<Catalog> catalog_;
-  std::unique_ptr<StorageManager> storage_manager_;
 
   bool catalog_altered_;
 

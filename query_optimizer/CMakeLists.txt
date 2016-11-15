@@ -234,7 +234,6 @@ target_link_libraries(quickstep_queryoptimizer_QueryProcessor
                       quickstep_catalog_Catalog_proto
                       quickstep_queryoptimizer_Optimizer
                       quickstep_queryoptimizer_OptimizerContext
-                      quickstep_storage_StorageManager
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_Validator
                       glog

@@ -240,6 +240,7 @@ int main(int argc, char* argv[]) {
       && (fixed_storage_path.back() != quickstep::kPathSeparator)) {
     fixed_storage_path.push_back(quickstep::kPathSeparator);
   }
+  quickstep::StorageManager storage_manager(fixed_storage_path);
 
   string catalog_path(fixed_storage_path);
   catalog_path.append("catalog.pb.bin");
@@ -281,10 +282,10 @@ int main(int argc, char* argv[]) {
     catalog_file.close();
   }
 
-  // Setup QueryProcessor, including CatalogDatabase and StorageManager.
+  // Setup QueryProcessor, including CatalogDatabase.
   std::unique_ptr<QueryProcessor> query_processor;
   try {
-    query_processor.reset(new QueryProcessor(catalog_path, fixed_storage_path));
+    query_processor = std::make_unique<QueryProcessor>(catalog_path);
   } catch (const std::exception &e) {
     LOG(FATAL) << "FATAL ERROR DURING STARTUP: "
                << e.what()
@@ -308,7 +309,7 @@ int main(int argc, char* argv[]) {
     printf("Preloading the buffer pool ... ");
     fflush(stdout);
     quickstep::PreloaderThread preloader(*query_processor->getDefaultDatabase(),
-                                         query_processor->getStorageManager(),
+                                         &storage_manager,
                                          worker_cpu_affinities.front());
 
     preloader.start();
@@ -357,7 +358,7 @@ int main(int argc, char* argv[]) {
       &worker_directory,
       &bus,
       query_processor->getDefaultDatabase(),
-      query_processor->getStorageManager(),
+      &storage_manager,
       -1,  // Don't pin the Foreman thread.
       num_numa_nodes_system,
       quickstep::FLAGS_profile_and_report_workorder_perf || quickstep::FLAGS_visualize_execution_dag);
@@ -412,7 +413,7 @@ int main(int argc, char* argv[]) {
                 main_thread_client_id,
                 foreman.getBusClientID(),
                 &bus,
-                query_processor->getStorageManager(),
+                &storage_manager,
                 query_processor.get(),
                 stdout);
           } catch (const quickstep::SqlError &sql_error) {
@@ -458,16 +459,16 @@ int main(int argc, char* argv[]) {
           const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
           if (query_result_relation) {
             PrintToScreen::PrintRelation(*query_result_relation,
-                                         query_processor->getStorageManager(),
+                                         &storage_manager,
                                          stdout);
             PrintToScreen::PrintOutputSize(
                 *query_result_relation,
-                query_processor->getStorageManager(),
+                &storage_manager,
                 stdout);
 
             DropRelation::Drop(*query_result_relation,
                                query_processor->getDefaultDatabase(),
-                               query_processor->getStorageManager());
+                               &storage_manager);
           }
 
           query_processor->saveCatalog();
