@@ -23,11 +23,21 @@
 #include <cstddef>
 #include <cstdint>
 
+#include "cli/CliConfig.h"  // For QUICKSTEP_OS_WINDOWS.
+
 namespace quickstep {
 
 /** \addtogroup Storage
  *  @{
  */
+
+#ifdef QUICKSTEP_OS_WINDOWS
+constexpr char kPathSeparator = '\\';
+constexpr char kDefaultStoragePath[] = "qsstor\\";
+#else
+constexpr char kPathSeparator = '/';
+constexpr char kDefaultStoragePath[] = "qsstor/";
+#endif
 
 // Size of a memory slot managed by the StorageManager. This is the smallest
 // quantum of allocation for StorageBlocks and StorageBlobs. 2 MB is the large

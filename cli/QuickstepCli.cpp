@@ -29,6 +29,8 @@
 #include <vector>
 #include <fstream>
 
+#include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE, QUICKSTEP_ENABLE_GOOGLE_PROFILER, and QUICKSTEP_OS_WINDOWS.
+
 // TODO(jmp): If filesystem shows up in C++-17, we can switch to just using that.
 #ifdef QUICKSTEP_OS_WINDOWS
 #include <filesystem>
@@ -36,7 +38,6 @@
 #include <stdlib.h>
 #endif
 
-#include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE, QUICKSTEP_ENABLE_GOOGLE_PROFILER.
 #include "cli/CommandExecutor.hpp"
 #include "cli/DropRelation.hpp"
 
@@ -74,6 +75,7 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #endif
 
 #include "storage/PreloaderThread.hpp"
+#include "storage/StorageConstants.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
 #include "utility/ExecutionDAGVisualizer.hpp"
 #include "utility/Macros.hpp"
@@ -129,14 +131,6 @@ using quickstep::kWorkloadCompletionMessage;
 using tmb::client_id;
 
 namespace quickstep {
-
-#ifdef QUICKSTEP_OS_WINDOWS
-static constexpr char kPathSeparator = '\\';
-static constexpr char kDefaultStoragePath[] = "qsstor\\";
-#else
-static constexpr char kPathSeparator = '/';
-static constexpr char kDefaultStoragePath[] = "qsstor/";
-#endif
 
 DEFINE_bool(profile_and_report_workorder_perf, false,
     "If true, Quickstep will record the exceution time of all the individual "

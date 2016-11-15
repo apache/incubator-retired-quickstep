@@ -769,6 +769,7 @@ target_link_libraries(quickstep_cli_shell
                       quickstep_queryoptimizer_QueryPlan
                       quickstep_queryoptimizer_QueryProcessor
                       quickstep_storage_PreloaderThread
+                      quickstep_storage_StorageConstants
                       quickstep_threading_ThreadIDBasedMap
                       quickstep_utility_ExecutionDAGVisualizer
                       quickstep_utility_Macros
