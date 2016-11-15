@@ -15,17 +15,10 @@ compiler:
   - clang
 
 env:
-  - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
   - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
-  - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=selection
   - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=selection
 
 install:
-  - if [ "$CC" = "gcc" ] || [[ "$BUILD_TYPE" = "Release" ]]; then
-      export MAKE_JOBS=1;
-    else
-      export MAKE_JOBS=2;
-    fi
   - export TEST_JOBS=2;
   - if [ "$CC" = "gcc" ]; then
       export CC="gcc-5";
@@ -61,7 +54,7 @@ script:
   - ./third_party/cpplint/lint_everything.py
   - ./validate_cmakelists.py
   - ./cyclic_dependency.py
-  - (cd build && make -j$MAKE_JOBS)
+  - (cd build && make)
   - (cd build && ctest --output-on-failure -j$TEST_JOBS)
 
 after_failure:
