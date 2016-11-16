@@ -725,6 +725,9 @@ if (ENABLE_DISTRIBUTED)
   include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party/tmb/include)
 endif()
 
+# Add third_party json (temporary).
+include_directories("${THIRD_PARTY_SOURCE_DIR}/json")
+
 # Add all of the module subdirectories. CMakeLists.txt in each of the subdirectories
 # defines how to build that module's libraries.
 add_subdirectory(catalog)
@@ -740,6 +743,7 @@ add_subdirectory(threading)
 add_subdirectory(transaction)
 add_subdirectory(types)
 add_subdirectory(utility)
+add_subdirectory(viz)
 add_subdirectory(yarn)
 
 # Build the quickstep_cli_shell executable.
@@ -775,7 +779,8 @@ target_link_libraries(quickstep_cli_shell
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector
                       quickstep_utility_SqlError
-                      quickstep_utility_StringUtil)
+                      quickstep_utility_StringUtil
+                      quickstep_viz_VizHelper)
 if (ENABLE_HDFS)
   target_link_libraries(quickstep_cli_shell
                         quickstep_storage_FileManagerHdfs)

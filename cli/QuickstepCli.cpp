@@ -82,6 +82,7 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #include "utility/PtrVector.hpp"
 #include "utility/SqlError.hpp"
 #include "utility/StringUtil.hpp"
+#include "viz/VizHelper.hpp"
 
 #include "gflags/gflags.h"
 
@@ -361,7 +362,7 @@ int main(int argc, char* argv[]) {
       &storage_manager,
       -1,  // Don't pin the Foreman thread.
       num_numa_nodes_system,
-      quickstep::FLAGS_profile_and_report_workorder_perf || quickstep::FLAGS_visualize_execution_dag);
+      true /* profile_individual_workorders */);
 
   // Start the worker threads.
   for (Worker &worker : workers) {
@@ -456,7 +457,16 @@ int main(int argc, char* argv[]) {
               main_thread_client_id, &bus);
           end = std::chrono::steady_clock::now();
 
-          const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
+          const CatalogRelation *query_result_relation =
+              query_handle->getQueryResultRelation();
+
+          quickstep::viz::VizHelper::Visualize(statement,
+                                               query_handle->getQueryPlanMutable(),
+                                               &foreman.getWorkOrderProfilingResults(query_handle->query_id()),
+                                               query_result_relation,
+                                               query_processor->getDefaultDatabase(),
+                                               query_processor->getStorageManager());
+
           if (query_result_relation) {
             PrintToScreen::PrintRelation(*query_result_relation,
                                          &storage_manager,
