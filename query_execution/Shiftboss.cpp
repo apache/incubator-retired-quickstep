@@ -99,6 +99,7 @@ void Shiftboss::run() {
         DCHECK_EQ(1u, query_contexts_.count(query_id));
 
         WorkOrder *work_order = WorkOrderFactory::ReconstructFromProto(proto.work_order(),
+                                                                       shiftboss_index_,
                                                                        &database_cache_,
                                                                        query_contexts_[query_id].get(),
                                                                        storage_manager_,
