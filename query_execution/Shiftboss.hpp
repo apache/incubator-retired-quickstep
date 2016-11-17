@@ -191,6 +191,8 @@ class Shiftboss : public Thread {
  private:
   void registerWithForeman();
 
+  void processShiftbossRegistrationResponseMessage();
+
   /**
    * @brief Process the Shiftboss initiate message and ack back.
    *
