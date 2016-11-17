@@ -233,10 +233,6 @@ OptimizerProtoRepresentation<TreeNodeType>* getOptimizerRepresentationForProto(
   const ::quickstep::TupleStorageSubBlockDescription &storage_block_description
       = description->tuple_store_description();
   switch (storage_block_description.sub_block_type()) {
-    case TupleStorageSubBlockDescription::PACKED_ROW_STORE: {
-      node->addProperty("blocktype", "rowstore");
-      break;
-    }
     case TupleStorageSubBlockDescription::SPLIT_ROW_STORE: {
       node->addProperty("blocktype", "split_rowstore");
       break;

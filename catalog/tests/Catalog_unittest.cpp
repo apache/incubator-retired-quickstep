@@ -52,7 +52,6 @@ QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(BasicColumnStoreTupleStorageSubBlock);
 QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(CSBTreeIndexSubBlock);
 QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(CompressedColumnStoreTupleStorageSubBlock);
 QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(CompressedPackedRowStoreTupleStorageSubBlock);
-QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(PackedRowStoreTupleStorageSubBlock);
 QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(SMAIndexSubBlock);
 QUICKSTEP_FORCE_SUB_BLOCK_REGISTRATION(SplitRowStoreTupleStorageSubBlock);
 
@@ -79,8 +78,6 @@ class CatalogTest : public ::testing::Test {
     EXPECT_EQ(expected.sub_block_type(), checked.sub_block_type());
 
     switch (expected.sub_block_type()) {
-      case TupleStorageSubBlockDescription::PACKED_ROW_STORE:
-        break;
       case TupleStorageSubBlockDescription::BASIC_COLUMN_STORE:
         EXPECT_TRUE(expected.HasExtension(BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id));
         EXPECT_TRUE(checked.HasExtension(BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id));
@@ -436,27 +433,6 @@ TEST_F(CatalogTest, DroppedCatalogRelationSerializationTest) {
   checkCatalogSerialization();
 }
 
-TEST_F(CatalogTest, CatalogPackedRowStoreSerializationTest) {
-  CatalogRelation* const rel = createCatalogRelation("rel");
-  StorageBlockLayoutDescription layout_description(rel->getDefaultStorageBlockLayout().getDescription());
-
-  rel->addAttribute(new CatalogAttribute(nullptr, "attr_int", TypeFactory::GetType(kInt)));
-  rel->addAttribute(new CatalogAttribute(nullptr, "attr_long", TypeFactory::GetType(kLong)));
-  rel->addAttribute(new CatalogAttribute(nullptr, "attr_float", TypeFactory::GetType(kFloat)));
-  rel->addAttribute(new CatalogAttribute(nullptr, "attr_double", TypeFactory::GetType(kDouble)));
-
-  const std::size_t str_type_length = 20;
-  rel->addAttribute(new CatalogAttribute(nullptr, "attr_char", TypeFactory::GetType(kChar, str_type_length)));
-  // NOTE(zuyu): PackedRowStoreTupleStorageSubBlock does NOT support variable-length attributes.
-
-  layout_description.mutable_tuple_store_description()->set_sub_block_type(
-      TupleStorageSubBlockDescription::PACKED_ROW_STORE);
-
-  rel->setDefaultStorageBlockLayout(new StorageBlockLayout(*rel, layout_description));
-
-  checkCatalogSerialization();
-}
-
 TEST_F(CatalogTest, CatalogBasicColumnStoreSerializationTest) {
   CatalogRelation* const rel = createCatalogRelation("rel");
   StorageBlockLayoutDescription layout_description(rel->getDefaultStorageBlockLayout().getDescription());
@@ -569,7 +545,7 @@ TEST_F(CatalogTest, CatalogIndexTest) {
   rel->addAttribute(new CatalogAttribute(nullptr, "attr_idx2", TypeFactory::GetType(kInt)));
 
   layout_description.mutable_tuple_store_description()->set_sub_block_type(
-      TupleStorageSubBlockDescription::PACKED_ROW_STORE);
+      TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
 
   rel->setDefaultStorageBlockLayout(new StorageBlockLayout(*rel, layout_description));
 

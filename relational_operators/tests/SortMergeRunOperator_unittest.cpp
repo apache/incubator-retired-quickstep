@@ -51,7 +51,6 @@
 #include "storage/CountedReference.hpp"
 #include "storage/InsertDestination.hpp"
 #include "storage/InsertDestination.pb.h"
-#include "storage/PackedRowStoreValueAccessor.hpp"
 #include "storage/SplitRowStoreValueAccessor.hpp"
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"

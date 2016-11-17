@@ -245,9 +245,7 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertDispatcher(
   CopyGroupList copy_groups;
   getCopyGroupsForAttributeMap(attribute_map, &copy_groups);
   auto impl = accessor->getImplementationType();
-  const bool is_rowstore_source =
-    (impl == ValueAccessor::Implementation::kPackedRowStore ||
-     impl == ValueAccessor::Implementation::kSplitRowStore);
+  const bool is_rowstore_source = impl == ValueAccessor::Implementation::kSplitRowStore;
   if (is_rowstore_source) {
     copy_groups.merge_contiguous();
   }

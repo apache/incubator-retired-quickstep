@@ -90,20 +90,20 @@ create table "_qstemp_result_s" (col int)
 
 # Cannot repeat Block properties.
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
-(TYPE rowstore, TYPE columnstore);
+(TYPE columnstore, TYPE columnstore);
 --
-ERROR: Properties must be specified at most once. (2 : 17)
-(TYPE rowstore, TYPE columnstore);
-                ^
+ERROR: Properties must be specified at most once. (2 : 20)
+(TYPE columnstore, TYPE columnstore);
+                   ^
 ==
 
 # Unrecognized BLOCKPROPERTIES should throw.
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
-(TYPE rowstore, INVALID_PROP val);
+(TYPE split_rowstore, INVALID_PROP val);
 --
-ERROR: Unrecognized property name. (2 : 17)
-(TYPE rowstore, INVALID_PROP val);
-                ^
+ERROR: Unrecognized property name. (2 : 23)
+(TYPE split_rowstore, INVALID_PROP val);
+                      ^
 ==
 
 # TYPE property only accepts names of storage blocks.
@@ -126,11 +126,11 @@ BLOCKPROPERTIES (BLOCKSIZEMB 1...
 
 # Rowstores cannot have a sorted attribute.
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
-(TYPE rowstore, SORT attr);
+(TYPE split_rowstore, SORT attr);
 --
-ERROR: The SORT property does not apply to this block type. (2 : 22)
-(TYPE rowstore, SORT attr);
-                     ^
+ERROR: The SORT property does not apply to this block type. (2 : 28)
+(TYPE split_rowstore, SORT attr);
+                           ^
 ==
 
 # Columnstores require a sort attribute.
@@ -197,35 +197,35 @@ ERROR: The given attribute was not found. (2 : 44)
 
 # BLOCKSIZEMB property must be an integer.
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
-(TYPE rowstore, BLOCKSIZEMB ten);
+(TYPE split_rowstore, BLOCKSIZEMB ten);
 --
-ERROR: The BLOCKSIZEMB property must be an integer. (2 : 17)
-(TYPE rowstore, BLOCKSIZEMB ten);
-                ^
+ERROR: The BLOCKSIZEMB property must be an integer. (2 : 23)
+(TYPE split_rowstore, BLOCKSIZEMB ten);
+                      ^
 ==
 
 # BLOCKSIZEMB property must be multiple times of the slot size.
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
-(TYPE rowstore, BLOCKSIZEMB 25);
+(TYPE split_rowstore, BLOCKSIZEMB 25);
 --
-ERROR: The BLOCKSIZEMB property must be multiple times of 2MB. (2 : 17)
-(TYPE rowstore, BLOCKSIZEMB 25);
-                ^
+ERROR: The BLOCKSIZEMB property must be multiple times of 2MB. (2 : 23)
+(TYPE split_rowstore, BLOCKSIZEMB 25);
+                      ^
 ==
 
 # BLOCKSIZEMB must be greater than the minimum (defined in StorageConstants.hpp).
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
-(TYPE rowstore, BLOCKSIZEMB 0);
+(TYPE split_rowstore, BLOCKSIZEMB 0);
 --
-ERROR: The BLOCKSIZEMB property must be between 2MB and 1024MB. (2 : 17)
-(TYPE rowstore, BLOCKSIZEMB 0);
-                ^
+ERROR: The BLOCKSIZEMB property must be between 2MB and 1024MB. (2 : 23)
+(TYPE split_rowstore, BLOCKSIZEMB 0);
+                      ^
 ==
 
 # BLOCKSIZEMB must be less than the maximum (defined in StorageConstants.hpp).
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
-(TYPE rowstore, BLOCKSIZEMB 2000);
+(TYPE split_rowstore, BLOCKSIZEMB 2000);
 --
-ERROR: The BLOCKSIZEMB property must be between 2MB and 1024MB. (2 : 17)
-(TYPE rowstore, BLOCKSIZEMB 2000);
-                ^
+ERROR: The BLOCKSIZEMB property must be between 2MB and 1024MB. (2 : 23)
+(TYPE split_rowstore, BLOCKSIZEMB 2000);
+                      ^

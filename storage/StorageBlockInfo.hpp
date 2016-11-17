@@ -118,7 +118,6 @@ const tuple_id kMaxTupleID = INT_MAX;
  * @brief Codes for the different implementations of TupleStorageSubBlock.
  **/
 enum TupleStorageSubBlockType {
-  kPackedRowStore = 0,
   kBasicColumnStore,
   kCompressedPackedRowStore,
   kCompressedColumnStore,

@@ -47,7 +47,7 @@ class CatalogRelationSchema;
  *        (.cpp) file, and put an invocation of the
  *        QUICKSTEP_REGISTER_TUPLE_STORE() macro in the quickstep namespace.
  *        For example:
- *        QUICKSTEP_REGISTER_TUPLE_STORE(PackedRowStoreTupleStorageSubBlock, PACKED_ROW_STORE);
+ *        QUICKSTEP_REGISTER_TUPLE_STORE(SplitRowStoreTupleStorageSubBlock, SPLIT_ROW_STORE);
  *        The first argument to the macro is the name of the class, the second
  *        is the name of the class' corresponding case in the
  *        TupleStorageSubBlockDescription::TupleStorageSubBlockType enum.
@@ -55,7 +55,7 @@ class CatalogRelationSchema;
  *        file, and put an invocation of the
  *        QUICKSTEP_DECLARE_SUB_BLOCK_TYPE_REGISTERED() macro in the quickstep
  *        namespace like so:
- *        QUICKSTEP_DECLARE_SUB_BLOCK_TYPE_REGISTERED(PackedRowStoreTupleStorageSubBlock);
+ *        QUICKSTEP_DECLARE_SUB_BLOCK_TYPE_REGISTERED(SplitRowStoreTupleStorageSubBlock);
  *
  * Registration of IndexSubBlock implementations works the same way, except the
  * first macro used should be QUICKSTEP_REGISTER_INDEX() instead of

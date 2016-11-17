@@ -37,7 +37,6 @@ string BlockIdUtil::ToString(const block_id block) {
 }
 
 const char *kTupleStorageSubBlockTypeNames[] = {
-  "PackedRowStore",
   "BasicColumnStore",
   "CompressedPackedRowStore",
   "CompressedColumnStore",
@@ -46,7 +45,7 @@ const char *kTupleStorageSubBlockTypeNames[] = {
 
 const char *kIndexSubBlockTypeNames[] = {
   "CSBTree",
+  "SMA",
 };
 
 }  // namespace quickstep
-

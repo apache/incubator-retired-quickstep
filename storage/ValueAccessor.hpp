@@ -78,7 +78,6 @@ class ValueAccessor {
     kBasicColumnStore,
     kCompressedColumnStore,
     kCompressedPackedRowStore,
-    kPackedRowStore,
     kSplitRowStore,
     // Accessor for a group of ColumnVectors:
     kColumnVectors

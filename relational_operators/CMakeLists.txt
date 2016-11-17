@@ -674,7 +674,6 @@ target_link_libraries(SortMergeRunOperator_unittest
                       quickstep_storage_CountedReference
                       quickstep_storage_InsertDestination
                       quickstep_storage_InsertDestination_proto
-                      quickstep_storage_PackedRowStoreValueAccessor
                       quickstep_storage_SplitRowStoreValueAccessor
                       quickstep_storage_StorageBlock
                       quickstep_storage_StorageBlockInfo
@@ -723,7 +722,6 @@ target_link_libraries(SortRunGenerationOperator_unittest
                       quickstep_storage_CompressedPackedRowStoreValueAccessor
                       quickstep_storage_CountedReference
                       quickstep_storage_InsertDestination
-                      quickstep_storage_PackedRowStoreValueAccessor
                       quickstep_storage_SplitRowStoreValueAccessor
                       quickstep_storage_StorageBlock
                       quickstep_storage_StorageBlockInfo

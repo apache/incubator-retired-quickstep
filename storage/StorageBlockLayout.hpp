@@ -73,9 +73,7 @@ class StorageBlockLayout {
    * @brief Static method to generate a default layout for a particular
    *        relation.
    * @note The current policy is that a default layout takes up one slot, uses
-   *       PackedRowStoreTupleStorageSubBlock for fixed-length relations or
-   *       SplitRowStoreTupleStorageSubBlock for variable-length relations, and
-   *       has no indices.
+   *       SplitRowStoreTupleStorageSubBlock and uses no indices.
    *
    * @param relation The relation to generate a layout for.
    * @param relation_variable_length Whether relation is variable-length.

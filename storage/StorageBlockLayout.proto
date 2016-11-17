@@ -22,11 +22,10 @@ package quickstep;
 // Options for TupleStorageSubBlocks.
 message TupleStorageSubBlockDescription {
   enum TupleStorageSubBlockType {
-    PACKED_ROW_STORE = 0;
-    BASIC_COLUMN_STORE = 1;
-    COMPRESSED_PACKED_ROW_STORE = 2;
-    COMPRESSED_COLUMN_STORE = 3;
-    SPLIT_ROW_STORE = 4;
+    BASIC_COLUMN_STORE = 0;
+    COMPRESSED_PACKED_ROW_STORE = 1;
+    COMPRESSED_COLUMN_STORE = 2;
+    SPLIT_ROW_STORE = 3;
   }
 
   required TupleStorageSubBlockType sub_block_type = 1;

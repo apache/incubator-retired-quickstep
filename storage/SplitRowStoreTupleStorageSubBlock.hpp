@@ -421,4 +421,4 @@ class SplitRowStoreTupleStorageSubBlock: public TupleStorageSubBlock {
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_STORAGE_PACKED_ROW_STORE_TUPLE_STORAGE_SUB_BLOCK_HPP_
+#endif  // QUICKSTEP_STORAGE_SPLIT_ROW_STORE_TUPLE_STORAGE_SUB_BLOCK_HPP_

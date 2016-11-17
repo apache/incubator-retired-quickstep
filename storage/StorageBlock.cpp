@@ -40,7 +40,6 @@
 #include "storage/HashTableBase.hpp"
 #include "storage/IndexSubBlock.hpp"
 #include "storage/InsertDestinationInterface.hpp"
-#include "storage/PackedRowStoreTupleStorageSubBlock.hpp"
 #include "storage/SMAIndexSubBlock.hpp"
 #include "storage/SplitRowStoreTupleStorageSubBlock.hpp"
 #include "storage/StorageBlockBase.hpp"
@@ -958,12 +957,6 @@ TupleStorageSubBlock* StorageBlock::CreateTupleStorageSubBlock(
     const std::size_t sub_block_memory_size) {
   DEBUG_ASSERT(description.IsInitialized());
   switch (description.sub_block_type()) {
-    case TupleStorageSubBlockDescription::PACKED_ROW_STORE:
-      return new PackedRowStoreTupleStorageSubBlock(relation,
-                                                    description,
-                                                    new_block,
-                                                    sub_block_memory,
-                                                    sub_block_memory_size);
     case TupleStorageSubBlockDescription::BASIC_COLUMN_STORE:
       return new BasicColumnStoreTupleStorageSubBlock(relation,
                                                       description,

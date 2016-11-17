@@ -16,12 +16,12 @@
 # under the License.
 
 [default optimized_logical_plan]
-CREATE TABLE foo (attr int) WITH BLOCKPROPERTIES (TYPE rowstore, BLOCKSIZEMB 10)
+CREATE TABLE foo (attr int) WITH BLOCKPROPERTIES (TYPE split_rowstore, BLOCKSIZEMB 10)
 --
 TopLevelPlan
 +-plan=CreateTable[relation=foo]
 | +-block_properties=ProtoDescription
-| | +-Property=ProtoProperty[Property=blocktype,Value=rowstore]
+| | +-Property=ProtoProperty[Property=blocktype,Value=split_rowstore]
 | | +-Property=ProtoProperty[Property=slots,Value=5]
 | +-attributes=
 |   +-AttributeReference[id=0,name=attr,relation=foo,type=Int]

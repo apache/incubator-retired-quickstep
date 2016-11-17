@@ -859,7 +859,7 @@ TEST_P(BasicColumnStoreTupleStorageSubBlockTest, DescriptionIsValidTest) {
 
   // A description that specifies the wrong sub_block_type is not valid.
   tuple_store_description_->set_sub_block_type(
-      TupleStorageSubBlockDescription::PACKED_ROW_STORE);
+      TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
   EXPECT_FALSE(BasicColumnStoreTupleStorageSubBlock::DescriptionIsValid(
                    *relation_,
                    *tuple_store_description_));

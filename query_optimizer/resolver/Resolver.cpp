@@ -520,10 +520,7 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
         << "TYPE property must be specified and be a string.";
   }
   const std::string type_string = ToLower(type_parse_string->value());
-  if (type_string.compare("rowstore") == 0) {
-    description->set_sub_block_type(
-        quickstep::TupleStorageSubBlockDescription::PACKED_ROW_STORE);
-  } else if (type_string.compare("split_rowstore") == 0) {
+  if (type_string.compare("split_rowstore") == 0) {
     description->set_sub_block_type(
         quickstep::TupleStorageSubBlockDescription::SPLIT_ROW_STORE);
   } else if (type_string.compare("columnstore") == 0) {

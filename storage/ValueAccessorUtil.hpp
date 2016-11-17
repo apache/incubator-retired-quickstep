@@ -25,7 +25,6 @@
 #include "storage/BasicColumnStoreValueAccessor.hpp"
 #include "storage/CompressedColumnStoreValueAccessor.hpp"
 #include "storage/CompressedPackedRowStoreValueAccessor.hpp"
-#include "storage/PackedRowStoreValueAccessor.hpp"
 #include "storage/SplitRowStoreValueAccessor.hpp"
 #include "storage/ValueAccessor.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
@@ -70,8 +69,6 @@ auto InvokeOnValueAccessorNotAdapter(
       return functor(static_cast<CompressedColumnStoreValueAccessor*>(accessor));
     case ValueAccessor::Implementation::kCompressedPackedRowStore:
       return functor(static_cast<CompressedPackedRowStoreValueAccessor*>(accessor));
-    case ValueAccessor::Implementation::kPackedRowStore:
-      return functor(static_cast<PackedRowStoreValueAccessor*>(accessor));
     case ValueAccessor::Implementation::kSplitRowStore:
       return functor(static_cast<SplitRowStoreValueAccessor*>(accessor));
     case ValueAccessor::Implementation::kColumnVectors:
@@ -120,10 +117,6 @@ auto InvokeOnTupleIdSequenceAdapterValueAccessor(
     case ValueAccessor::Implementation::kCompressedPackedRowStore:
       return functor(
           static_cast<TupleIdSequenceAdapterValueAccessor<CompressedPackedRowStoreValueAccessor>*>(
-              accessor));
-    case ValueAccessor::Implementation::kPackedRowStore:
-      return functor(
-          static_cast<TupleIdSequenceAdapterValueAccessor<PackedRowStoreValueAccessor>*>(
               accessor));
     case ValueAccessor::Implementation::kSplitRowStore:
       return functor(
@@ -176,10 +169,6 @@ auto InvokeOnOrderedTupleIdSequenceAdapterValueAccessor(
     case ValueAccessor::Implementation::kCompressedPackedRowStore:
       return functor(
           static_cast<OrderedTupleIdSequenceAdapterValueAccessor<CompressedPackedRowStoreValueAccessor>*>(
-              accessor));
-    case ValueAccessor::Implementation::kPackedRowStore:
-      return functor(
-          static_cast<OrderedTupleIdSequenceAdapterValueAccessor<PackedRowStoreValueAccessor>*>(
               accessor));
     case ValueAccessor::Implementation::kSplitRowStore:
       return functor(
