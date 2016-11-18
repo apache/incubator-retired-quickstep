@@ -108,8 +108,4 @@ bool PolicyEnforcerSingleNode::admitQuery(QueryHandle *query_handle) {
   }
 }
 
-void PolicyEnforcerSingleNode::decrementNumQueuedWorkOrders(const std::size_t worker_index) {
-  worker_directory_->decrementNumQueuedWorkOrders(worker_index);
-}
-
 }  // namespace quickstep

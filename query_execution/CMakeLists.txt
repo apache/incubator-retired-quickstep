@@ -160,6 +160,7 @@ target_link_libraries(quickstep_queryexecution_PolicyEnforcerSingleNode
                       glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_PolicyEnforcerBase
+                      quickstep_queryexecution_QueryExecutionMessages_proto
                       quickstep_queryexecution_QueryExecutionState
                       quickstep_queryexecution_QueryManagerBase
                       quickstep_queryexecution_QueryManagerSingleNode

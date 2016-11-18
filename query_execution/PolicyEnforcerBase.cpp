@@ -50,7 +50,7 @@ void PolicyEnforcerBase::processMessage(const TaggedMessage &tagged_message) {
       // WorkOrder. It can be accessed in this scope.
       CHECK(proto.ParseFromArray(tagged_message.message(),
                                  tagged_message.message_bytes()));
-      decrementNumQueuedWorkOrders(proto.worker_thread_index());
+      decrementNumQueuedWorkOrders(proto);
 
       if (profile_individual_workorders_) {
         recordTimeForWorkOrder(proto);
@@ -69,7 +69,7 @@ void PolicyEnforcerBase::processMessage(const TaggedMessage &tagged_message) {
       // rebuild WorkOrder. It can be accessed in this scope.
       CHECK(proto.ParseFromArray(tagged_message.message(),
                                  tagged_message.message_bytes()));
-      decrementNumQueuedWorkOrders(proto.worker_thread_index());
+      decrementNumQueuedWorkOrders(proto);
 
       query_id = proto.query_id();
       DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());

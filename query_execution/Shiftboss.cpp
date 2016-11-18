@@ -273,7 +273,7 @@ void Shiftboss::registerWithForeman() {
 }
 
 void Shiftboss::processShiftbossRegistrationResponseMessage() {
-  const AnnotatedMessage annotated_message(bus_->Receive(shiftboss_client_id_, 0, true));
+  AnnotatedMessage annotated_message(bus_->Receive(shiftboss_client_id_, 0, true));
   const TaggedMessage &tagged_message = annotated_message.tagged_message;
   DCHECK_EQ(kShiftbossRegistrationResponseMessage, tagged_message.message_type());
 
@@ -286,6 +286,12 @@ void Shiftboss::processShiftbossRegistrationResponseMessage() {
   CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
 
   shiftboss_index_ = proto.shiftboss_index();
+
+  // Forward this message to Workers regarding <shiftboss_index_>.
+  QueryExecutionUtil::BroadcastMessage(shiftboss_client_id_,
+                                       worker_addresses_,
+                                       move(annotated_message.tagged_message),
+                                       bus_);
 }
 
 void Shiftboss::processQueryInitiateMessage(

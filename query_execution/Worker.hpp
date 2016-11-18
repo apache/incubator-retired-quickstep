@@ -24,6 +24,7 @@
 #include <cstdint>
 
 #include "query_execution/QueryExecutionTypedefs.hpp"
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED.
 #include "threading/Thread.hpp"
 #include "utility/Macros.hpp"
 
@@ -75,6 +76,10 @@ class Worker : public Thread {
     bus_->RegisterClientAsReceiver(worker_client_id_, kWorkOrderMessage);
     bus_->RegisterClientAsReceiver(worker_client_id_, kRebuildWorkOrderMessage);
     bus_->RegisterClientAsReceiver(worker_client_id_, kPoisonMessage);
+
+#ifdef QUICKSTEP_DISTRIBUTED
+    bus_->RegisterClientAsReceiver(worker_client_id_, kShiftbossRegistrationResponseMessage);
+#endif  // QUICKSTEP_DISTRIBUTED
   }
 
   ~Worker() override {}
@@ -131,6 +136,10 @@ class Worker : public Thread {
 
   const int cpu_id_;
   client_id worker_client_id_;
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  std::size_t shiftboss_index_;
+#endif  // QUICKSTEP_DISTRIBUTED
 
   DISALLOW_COPY_AND_ASSIGN(Worker);
 };

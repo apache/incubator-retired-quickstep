@@ -46,6 +46,9 @@ message WorkOrderCompletionMessage {
   // Epoch time in microseconds.
   optional uint64 execution_start_time = 5;
   optional uint64 execution_end_time = 6;
+
+  // Required in the distributed version.
+  optional uint64 shiftboss_index = 7;
 }
 
 message CatalogRelationNewBlockMessage {

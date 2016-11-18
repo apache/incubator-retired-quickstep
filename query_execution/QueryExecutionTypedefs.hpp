@@ -79,7 +79,8 @@ enum QueryExecutionMessageType : message_type_id {
 
 #ifdef QUICKSTEP_DISTRIBUTED
   kShiftbossRegistrationMessage,  // From Shiftboss to Foreman.
-  kShiftbossRegistrationResponseMessage,  // From Foreman to Shiftboss.
+  kShiftbossRegistrationResponseMessage,  // From Foreman to Shiftboss, or from
+                                          // Shiftboss to Worker.
   kQueryInitiateMessage,  // From Foreman to Shiftboss.
   kQueryInitiateResponseMessage,  // From Shiftboss to Foreman.
 

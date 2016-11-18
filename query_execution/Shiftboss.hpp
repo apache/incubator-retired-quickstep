@@ -102,6 +102,7 @@ class Shiftboss : public Thread {
     bus_->RegisterClientAsSender(shiftboss_client_id_, kSaveQueryResultResponseMessage);
 
     // Message sent to Worker.
+    bus_->RegisterClientAsSender(shiftboss_client_id_, kShiftbossRegistrationResponseMessage);
     bus_->RegisterClientAsSender(shiftboss_client_id_, kRebuildWorkOrderMessage);
 
     // Forward the following message types from Foreman to Workers.

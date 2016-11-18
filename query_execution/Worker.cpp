@@ -29,6 +29,7 @@
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/WorkerMessage.hpp"
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED.
 #include "relational_operators/WorkOrder.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
 #include "threading/ThreadUtil.hpp"
@@ -62,6 +63,15 @@ void Worker::run() {
         bus_->Receive(worker_client_id_, 0, true);
     const TaggedMessage &tagged_message = annotated_msg.tagged_message;
     switch (tagged_message.message_type()) {
+#ifdef QUICKSTEP_DISTRIBUTED
+      case kShiftbossRegistrationResponseMessage: {
+        serialization::ShiftbossRegistrationResponseMessage proto;
+        CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+        shiftboss_index_ = proto.shiftboss_index();
+        break;
+      }
+#endif  // QUICKSTEP_DISTRIBUTED
       case kWorkOrderMessage: {
         WorkOrderCompletionMessage proto;
         executeWorkOrderHelper(tagged_message, &proto);
@@ -136,6 +146,10 @@ void Worker::executeWorkOrderHelper(const TaggedMessage &tagged_message,
   proto->set_worker_thread_index(worker_thread_index_);
   proto->set_execution_start_time(execution_start_time);
   proto->set_execution_end_time(execution_end_time);
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  proto->set_shiftboss_index(shiftboss_index_);
+#endif  // QUICKSTEP_DISTRIBUTED
 }
 
 }  // namespace quickstep

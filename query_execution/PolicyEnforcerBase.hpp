@@ -196,9 +196,11 @@ class PolicyEnforcerBase {
   /**
    * @brief Decrement the number of queued workorders for the given worker by 1.
    *
-   * @param worker_index The logical ID of the given worker.
+   * @param proto The completion message proto received after the WorkOrder
+   *        execution.
    **/
-  virtual void decrementNumQueuedWorkOrders(const std::size_t worker_index) = 0;
+  virtual void decrementNumQueuedWorkOrders(
+      const serialization::WorkOrderCompletionMessage &proto) = 0;
 
   DISALLOW_COPY_AND_ASSIGN(PolicyEnforcerBase);
 };

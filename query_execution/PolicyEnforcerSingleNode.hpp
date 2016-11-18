@@ -25,6 +25,8 @@
 #include <vector>
 
 #include "query_execution/PolicyEnforcerBase.hpp"
+#include "query_execution/QueryExecutionMessages.pb.h"
+#include "query_execution/WorkerDirectory.hpp"
 #include "utility/Macros.hpp"
 
 #include "tmb/id_typedefs.h"
@@ -36,7 +38,6 @@ namespace quickstep {
 class CatalogDatabaseLite;
 class QueryHandle;
 class StorageManager;
-class WorkerDirectory;
 class WorkerMessage;
 
 /** \addtogroup QueryExecution
@@ -89,7 +90,9 @@ class PolicyEnforcerSingleNode final : public PolicyEnforcerBase {
       std::vector<std::unique_ptr<WorkerMessage>> *worker_messages);
 
  private:
-  void decrementNumQueuedWorkOrders(const std::size_t worker_index) override;
+  void decrementNumQueuedWorkOrders(const serialization::WorkOrderCompletionMessage &proto) override {
+    worker_directory_->decrementNumQueuedWorkOrders(proto.worker_thread_index());
+  }
 
   const tmb::client_id foreman_client_id_;
   const std::size_t num_numa_nodes_;

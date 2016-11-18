@@ -20,6 +20,7 @@
 #include <vector>
 
 #include "query_execution/PolicyEnforcerBase.hpp"
+#include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/ShiftbossDirectory.hpp"
 #include "utility/Macros.hpp"
 
@@ -89,8 +90,8 @@ class PolicyEnforcerDistributed final : public PolicyEnforcerBase {
   void processInitiateRebuildResponseMessage(const tmb::TaggedMessage &tagged_message);
 
  private:
-  void decrementNumQueuedWorkOrders(const std::size_t shiftboss_index) override {
-    shiftboss_directory_->decrementNumQueuedWorkOrders(shiftboss_index);
+  void decrementNumQueuedWorkOrders(const serialization::WorkOrderCompletionMessage &proto) override {
+    shiftboss_directory_->decrementNumQueuedWorkOrders(proto.shiftboss_index());
   }
 
   void onQueryCompletion(QueryManagerBase *query_manager) override;
