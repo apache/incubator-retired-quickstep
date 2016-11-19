@@ -285,7 +285,7 @@ int main(int argc, char* argv[]) {
   // Setup QueryProcessor, including CatalogDatabase.
   std::unique_ptr<QueryProcessor> query_processor;
   try {
-    query_processor = std::make_unique<QueryProcessor>(catalog_path);
+    query_processor = std::make_unique<QueryProcessor>(std::move(catalog_path));
   } catch (const std::exception &e) {
     LOG(FATAL) << "FATAL ERROR DURING STARTUP: "
                << e.what()

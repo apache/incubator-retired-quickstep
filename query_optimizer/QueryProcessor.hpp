@@ -24,6 +24,7 @@
 #include <exception>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "catalog/Catalog.hpp"
 #include "query_optimizer/Optimizer.hpp"
@@ -130,8 +131,8 @@ class QueryProcessor {
    *
    * @param catalog_filename The file to read the serialized catalog from.
    **/
-  explicit QueryProcessor(const std::string &catalog_filename)
-      : catalog_filename_(catalog_filename),
+  explicit QueryProcessor(std::string &&catalog_filename)
+      : catalog_filename_(std::move(catalog_filename)),
         catalog_altered_(false),
         query_id_(0) {
     loadCatalog();
@@ -185,7 +186,7 @@ class QueryProcessor {
 
   optimizer::Optimizer optimizer_;
 
-  std::string catalog_filename_;
+  const std::string catalog_filename_;
 
   std::unique_ptr<Catalog> catalog_;
 
