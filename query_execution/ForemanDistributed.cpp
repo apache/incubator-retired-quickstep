@@ -28,6 +28,7 @@
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/AdmitRequestMessage.hpp"
+#include "query_execution/PolicyEnforcerBase.hpp"
 #include "query_execution/PolicyEnforcerDistributed.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
@@ -98,12 +99,12 @@ ForemanDistributed::ForemanDistributed(
     bus_->RegisterClientAsReceiver(foreman_client_id_, message_type);
   }
 
-  policy_enforcer_.reset(new PolicyEnforcerDistributed(
+  policy_enforcer_ = std::make_unique<PolicyEnforcerDistributed>(
       foreman_client_id_,
       catalog_database_,
       &shiftboss_directory_,
       bus_,
-      profile_individual_workorders));
+      profile_individual_workorders);
 }
 
 void ForemanDistributed::run() {
@@ -180,7 +181,8 @@ void ForemanDistributed::run() {
       }
       case kInitiateRebuildResponseMessage: {
         // A unique case in the distributed version.
-        policy_enforcer_->processInitiateRebuildResponseMessage(tagged_message);
+        static_cast<PolicyEnforcerDistributed*>(policy_enforcer_.get())->
+            processInitiateRebuildResponseMessage(tagged_message);
         break;
       }
       case kSaveQueryResultResponseMessage: {
@@ -228,7 +230,8 @@ void ForemanDistributed::run() {
 
     if (canCollectNewMessages(message_type)) {
       vector<unique_ptr<S::WorkOrderMessage>> new_messages;
-      policy_enforcer_->getWorkOrderProtoMessages(&new_messages);
+      static_cast<PolicyEnforcerDistributed*>(policy_enforcer_.get())->
+          getWorkOrderProtoMessages(&new_messages);
       dispatchWorkOrderMessages(new_messages);
     }
   }

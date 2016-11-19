@@ -146,6 +146,15 @@ class PolicyEnforcerBase {
     return workorder_time_recorder_.at(query_id);
   }
 
+  /**
+   * @brief Admit a query to the system.
+   *
+   * @param query_handle The QueryHandle for the new query.
+   *
+   * @return Whether the query was admitted to the system.
+   **/
+  virtual bool admitQuery(QueryHandle *query_handle) = 0;
+
  protected:
   static constexpr std::size_t kMaxConcurrentQueries = 1;
 
@@ -184,15 +193,6 @@ class PolicyEnforcerBase {
   WorkOrderTimeRecorder workorder_time_recorder_;
 
  private:
-  /**
-   * @brief Admit a query to the system.
-   *
-   * @param query_handle The QueryHandle for the new query.
-   *
-   * @return Whether the query was admitted to the system.
-   **/
-  virtual bool admitQuery(QueryHandle *query_handle) = 0;
-
   /**
    * @brief Decrement the number of queued workorders for the given worker by 1.
    *

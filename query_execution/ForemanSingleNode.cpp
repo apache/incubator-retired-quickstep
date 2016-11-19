@@ -26,6 +26,7 @@
 #include <vector>
 
 #include "query_execution/AdmitRequestMessage.hpp"
+#include "query_execution/PolicyEnforcerBase.hpp"
 #include "query_execution/PolicyEnforcerSingleNode.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
@@ -92,14 +93,14 @@ ForemanSingleNode::ForemanSingleNode(
     bus_->RegisterClientAsReceiver(foreman_client_id_, message_type);
   }
 
-  policy_enforcer_.reset(new PolicyEnforcerSingleNode(
+  policy_enforcer_ = std::make_unique<PolicyEnforcerSingleNode>(
       foreman_client_id_,
       num_numa_nodes,
       catalog_database_,
       storage_manager_,
       worker_directory_,
       bus_,
-      profile_individual_workorders));
+      profile_individual_workorders);
 }
 
 void ForemanSingleNode::run() {
@@ -157,7 +158,8 @@ void ForemanSingleNode::run() {
 
     if (canCollectNewMessages(message_type)) {
       vector<unique_ptr<WorkerMessage>> new_messages;
-      policy_enforcer_->getWorkerMessages(&new_messages);
+      static_cast<PolicyEnforcerSingleNode*>(policy_enforcer_.get())->
+          getWorkerMessages(&new_messages);
       dispatchWorkerMessages(new_messages);
     }
 
@@ -233,13 +235,12 @@ void ForemanSingleNode::sendWorkerMessage(const size_t worker_thread_index,
   CHECK(send_status == tmb::MessageBus::SendStatus::kOK);
 }
 
-const std::vector<WorkOrderTimeEntry>& ForemanSingleNode
-    ::getWorkOrderProfilingResults(const std::size_t query_id) const {
-  return policy_enforcer_->getProfilingResults(query_id);
-}
-
 void ForemanSingleNode::printWorkOrderProfilingResults(const std::size_t query_id,
                                                        std::FILE *out) const {
+  // TODO(harshad) - Add the CPU core ID of the operator to the output. This
+  // will require modifying the WorkerDirectory to remember worker affinities.
+  // Until then, the users can refer to the worker_affinities provided to the
+  // cli to infer the CPU core ID where a given worker is pinned.
   const std::vector<WorkOrderTimeEntry> &recorded_times =
       policy_enforcer_->getProfilingResults(query_id);
   fputs("Query ID,Worker ID,NUMA Socket,Operator ID,Time (microseconds)\n", out);

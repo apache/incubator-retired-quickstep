@@ -26,7 +26,6 @@
 #include <vector>
 
 #include "query_execution/ForemanBase.hpp"
-#include "query_execution/PolicyEnforcerSingleNode.hpp"
 #include "utility/Macros.hpp"
 
 #include "tmb/id_typedefs.h"
@@ -78,32 +77,8 @@ class ForemanSingleNode final : public ForemanBase {
 
   ~ForemanSingleNode() override {}
 
-
-  /**
-   * @brief Get the results of profiling individual work orders for a given
-   *        query.
-   *
-   * @param query_id The ID of the query for which the results are to be printed.
-   * @return A vector of records, each being a single profiling entry.
-   **/
-  const std::vector<WorkOrderTimeEntry>& getWorkOrderProfilingResults(
-      const std::size_t query_id) const;
-
-  /**
-   * @brief Print the results of profiling individual work orders for a given
-   *        query.
-   *
-   * TODO(harshad) - Add the name of the operator to the output.
-   * TODO(harshad) - Add the CPU core ID of the operator to the output. This
-   * will require modifying the WorkerDirectory to remember worker affinities.
-   * Until then, the users can refer to the worker_affinities provided to the
-   * cli to infer the CPU core ID where a given worker is pinned.
-   *
-   * @param query_id The ID of the query for which the results are to be printed.
-   * @param out The file stream.
-   **/
   void printWorkOrderProfilingResults(const std::size_t query_id,
-                                      std::FILE *out) const;
+                                      std::FILE *out) const override;
 
  protected:
   void run() override;
@@ -141,8 +116,6 @@ class ForemanSingleNode final : public ForemanBase {
 
   CatalogDatabaseLite *catalog_database_;
   StorageManager *storage_manager_;
-
-  std::unique_ptr<PolicyEnforcerSingleNode> policy_enforcer_;
 
   DISALLOW_COPY_AND_ASSIGN(ForemanSingleNode);
 };

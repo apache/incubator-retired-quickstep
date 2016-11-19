@@ -20,6 +20,11 @@
 #ifndef QUICKSTEP_QUERY_EXECUTION_FOREMAN_BASE_HPP_
 #define QUICKSTEP_QUERY_EXECUTION_FOREMAN_BASE_HPP_
 
+#include <cstdio>
+#include <memory>
+#include <vector>
+
+#include "query_execution/PolicyEnforcerBase.hpp"
 #include "threading/Thread.hpp"
 #include "utility/Macros.hpp"
 
@@ -29,6 +34,8 @@
 #include "tmb/message_bus.h"
 
 namespace quickstep {
+
+struct WorkOrderTimeEntry;
 
 /** \addtogroup QueryExecution
  *  @{
@@ -59,6 +66,30 @@ class ForemanBase : public Thread {
   ~ForemanBase() override {}
 
   /**
+   * @brief Print the results of profiling individual work orders for a given
+   *        query.
+   *
+   * TODO(harshad) - Add the name of the operator to the output.
+   *
+   * @param query_id The ID of the query for which the results are to be printed.
+   * @param out The file stream.
+   **/
+  virtual void printWorkOrderProfilingResults(const std::size_t query_id,
+                                              std::FILE *out) const = 0;
+
+  /**
+   * @brief Get the results of profiling individual work orders for a given
+   *        query.
+   *
+   * @param query_id The ID of the query for which the results are to be printed.
+   * @return A vector of records, each being a single profiling entry.
+   **/
+  const std::vector<WorkOrderTimeEntry>& getWorkOrderProfilingResults(
+      const std::size_t query_id) const {
+    return policy_enforcer_->getProfilingResults(query_id);
+  }
+
+  /**
    * @brief Get the TMB client ID of Foreman thread.
    *
    * @return TMB client ID of foreman thread.
@@ -76,6 +107,8 @@ class ForemanBase : public Thread {
 
   // The ID of the CPU that the Foreman thread can optionally be pinned to.
   const int cpu_id_;
+
+  std::unique_ptr<PolicyEnforcerBase> policy_enforcer_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(ForemanBase);

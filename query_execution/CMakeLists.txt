@@ -86,6 +86,7 @@ if (ENABLE_DISTRIBUTED)
 endif(ENABLE_DISTRIBUTED)
 target_link_libraries(quickstep_queryexecution_ForemanBase
                       glog
+                      quickstep_queryexecution_PolicyEnforcerBase
                       quickstep_threading_Thread
                       quickstep_utility_Macros
                       tmb)
@@ -98,6 +99,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_catalog_Catalog_proto
                         quickstep_queryexecution_AdmitRequestMessage
                         quickstep_queryexecution_ForemanBase
+                        quickstep_queryexecution_PolicyEnforcerBase
                         quickstep_queryexecution_PolicyEnforcerDistributed
                         quickstep_queryexecution_QueryExecutionMessages_proto
                         quickstep_queryexecution_QueryExecutionTypedefs
@@ -113,6 +115,7 @@ target_link_libraries(quickstep_queryexecution_ForemanSingleNode
                       glog
                       quickstep_queryexecution_AdmitRequestMessage
                       quickstep_queryexecution_ForemanBase
+                      quickstep_queryexecution_PolicyEnforcerBase
                       quickstep_queryexecution_PolicyEnforcerSingleNode
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil

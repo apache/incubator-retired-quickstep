@@ -24,7 +24,6 @@
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/ForemanBase.hpp"
-#include "query_execution/PolicyEnforcerDistributed.hpp"
 #include "query_execution/ShiftbossDirectory.hpp"
 #include "utility/Macros.hpp"
 
@@ -68,17 +67,8 @@ class ForemanDistributed final : public ForemanBase {
 
   ~ForemanDistributed() override {}
 
-  /**
-   * @brief Print the results of profiling individual work orders for a given
-   *        query.
-   *
-   * TODO(harshad) - Add the name of the operator to the output.
-   *
-   * @param query_id The ID of the query for which the results are to be printed.
-   * @param out The file stream.
-   **/
   void printWorkOrderProfilingResults(const std::size_t query_id,
-                                      std::FILE *out) const;
+                                      std::FILE *out) const override;
 
  protected:
   void run() override;
@@ -119,8 +109,6 @@ class ForemanDistributed final : public ForemanBase {
   ShiftbossDirectory shiftboss_directory_;
 
   CatalogDatabaseLite *catalog_database_;
-
-  std::unique_ptr<PolicyEnforcerDistributed> policy_enforcer_;
 
   // From a query id to a set of Shiftbosses that save query result.
   std::unordered_map<std::size_t, std::unordered_set<std::size_t>> query_result_saved_shiftbosses_;
