@@ -54,16 +54,13 @@ class ForemanDistributed final : public ForemanBase {
    * @param bus A pointer to the TMB.
    * @param catalog_database The catalog database where this query is executed.
    * @param cpu_id The ID of the CPU to which the Foreman thread can be pinned.
-   * @param profile_individual_workorders Whether every workorder's execution
-   *        be profiled or not.
    *
    * @note If cpu_id is not specified, Foreman thread can be possibly moved
    *       around on different CPUs by the OS.
   **/
   ForemanDistributed(tmb::MessageBus *bus,
                      CatalogDatabaseLite *catalog_database,
-                     const int cpu_id = -1,
-                     const bool profile_individual_workorders = false);
+                     const int cpu_id = -1);
 
   ~ForemanDistributed() override {}
 

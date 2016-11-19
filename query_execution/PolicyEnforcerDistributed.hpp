@@ -59,9 +59,8 @@ class PolicyEnforcerDistributed final : public PolicyEnforcerBase {
   PolicyEnforcerDistributed(const tmb::client_id foreman_client_id,
                             CatalogDatabaseLite *catalog_database,
                             ShiftbossDirectory *shiftboss_directory,
-                            tmb::MessageBus *bus,
-                            const bool profile_individual_workorders = false)
-      : PolicyEnforcerBase(catalog_database, profile_individual_workorders),
+                            tmb::MessageBus *bus)
+      : PolicyEnforcerBase(catalog_database),
         foreman_client_id_(foreman_client_id),
         shiftboss_directory_(shiftboss_directory),
         bus_(bus) {}

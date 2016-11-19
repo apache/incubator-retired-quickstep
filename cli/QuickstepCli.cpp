@@ -133,9 +133,6 @@ using tmb::client_id;
 
 namespace quickstep {
 
-DEFINE_bool(profile_and_report_workorder_perf, false,
-    "If true, Quickstep will record the exceution time of all the individual "
-    "normal work orders and report it at the end of query execution.");
 DEFINE_int32(num_workers, 0, "Number of worker threads. If this value is "
                              "specified and is greater than 0, then this "
                              "user-supplied value is used. Else (i.e. the"
@@ -181,10 +178,9 @@ DEFINE_string(profile_file_name, "",
               // To put things in perspective, the first run is, in my experiments, about 5-10
               // times more expensive than the average run. That means the query needs to be
               // run at least a hundred times to make the impact of the first run small (< 5 %).
-DEFINE_bool(visualize_execution_dag, false,
-            "If true, visualize the execution plan DAG into a graph in DOT "
-            "format (DOT is a plain text graph description language) which is "
-            "then printed via stderr.");
+
+DECLARE_bool(profile_and_report_workorder_perf);
+DECLARE_bool(visualize_execution_dag);
 
 }  // namespace quickstep
 
@@ -361,8 +357,7 @@ int main(int argc, char* argv[]) {
       query_processor->getDefaultDatabase(),
       &storage_manager,
       -1,  // Don't pin the Foreman thread.
-      num_numa_nodes_system,
-      quickstep::FLAGS_profile_and_report_workorder_perf || quickstep::FLAGS_visualize_execution_dag);
+      num_numa_nodes_system);
 
   // Start the worker threads.
   for (Worker &worker : workers) {

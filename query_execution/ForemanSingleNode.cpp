@@ -63,8 +63,7 @@ ForemanSingleNode::ForemanSingleNode(
     CatalogDatabaseLite *catalog_database,
     StorageManager *storage_manager,
     const int cpu_id,
-    const size_t num_numa_nodes,
-    const bool profile_individual_workorders)
+    const size_t num_numa_nodes)
     : ForemanBase(bus, cpu_id),
       main_thread_client_id_(main_thread_client_id),
       worker_directory_(DCHECK_NOTNULL(worker_directory)),
@@ -99,8 +98,7 @@ ForemanSingleNode::ForemanSingleNode(
       catalog_database_,
       storage_manager_,
       worker_directory_,
-      bus_,
-      profile_individual_workorders);
+      bus_);
 }
 
 void ForemanSingleNode::run() {

@@ -64,8 +64,7 @@ class QueryHandle;
 ForemanDistributed::ForemanDistributed(
     MessageBus *bus,
     CatalogDatabaseLite *catalog_database,
-    const int cpu_id,
-    const bool profile_individual_workorders)
+    const int cpu_id)
     : ForemanBase(bus, cpu_id),
       catalog_database_(DCHECK_NOTNULL(catalog_database)) {
   const std::vector<QueryExecutionMessageType> sender_message_types{
@@ -103,8 +102,7 @@ ForemanDistributed::ForemanDistributed(
       foreman_client_id_,
       catalog_database_,
       &shiftboss_directory_,
-      bus_,
-      profile_individual_workorders);
+      bus_);
 }
 
 void ForemanDistributed::run() {

@@ -64,9 +64,8 @@ class PolicyEnforcerSingleNode final : public PolicyEnforcerBase {
                            CatalogDatabaseLite *catalog_database,
                            StorageManager *storage_manager,
                            WorkerDirectory *worker_directory,
-                           tmb::MessageBus *bus,
-                           const bool profile_individual_workorders = false)
-      : PolicyEnforcerBase(catalog_database, profile_individual_workorders),
+                           tmb::MessageBus *bus)
+      : PolicyEnforcerBase(catalog_database),
         foreman_client_id_(foreman_client_id),
         num_numa_nodes_(num_numa_nodes),
         storage_manager_(storage_manager),

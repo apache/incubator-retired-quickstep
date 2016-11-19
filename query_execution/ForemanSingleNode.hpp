@@ -60,8 +60,6 @@ class ForemanSingleNode final : public ForemanBase {
    * @param storage_manager The StorageManager to use.
    * @param cpu_id The ID of the CPU to which the Foreman thread can be pinned.
    * @param num_numa_nodes The number of NUMA nodes in the system.
-   * @param profile_individual_workorders Whether every workorder's execution
-   *        be profiled or not.
    *
    * @note If cpu_id is not specified, Foreman thread can be possibly moved
    *       around on different CPUs by the OS.
@@ -72,8 +70,7 @@ class ForemanSingleNode final : public ForemanBase {
           CatalogDatabaseLite *catalog_database,
           StorageManager *storage_manager,
           const int cpu_id = -1,
-          const std::size_t num_numa_nodes = 1,
-          const bool profile_individual_workorders = false);
+          const std::size_t num_numa_nodes = 1);
 
   ~ForemanSingleNode() override {}
 

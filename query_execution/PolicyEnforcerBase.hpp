@@ -54,12 +54,8 @@ class PolicyEnforcerBase {
    * @brief Constructor.
    *
    * @param catalog_database The CatalogDatabase used.
-   * @param profile_individual_workorders If true, profile each normal work order.
    **/
-  PolicyEnforcerBase(CatalogDatabaseLite *catalog_database,
-                     const bool profile_individual_workorders)
-      : catalog_database_(catalog_database),
-        profile_individual_workorders_(profile_individual_workorders) {}
+  explicit PolicyEnforcerBase(CatalogDatabaseLite *catalog_database);
 
   /**
    * @brief Virtual Destructor.
