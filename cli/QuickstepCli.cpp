@@ -465,7 +465,7 @@ int main(int argc, char* argv[]) {
                                                &foreman.getWorkOrderProfilingResults(query_handle->query_id()),
                                                query_result_relation,
                                                query_processor->getDefaultDatabase(),
-                                               query_processor->getStorageManager());
+                                               &storage_manager);
 
           if (query_result_relation) {
             PrintToScreen::PrintRelation(*query_result_relation,
