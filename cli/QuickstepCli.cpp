@@ -125,6 +125,7 @@ using quickstep::Worker;
 using quickstep::WorkerDirectory;
 using quickstep::WorkerMessage;
 using quickstep::kAdmitRequestMessage;
+using quickstep::kCatalogFilename;
 using quickstep::kPoisonMessage;
 using quickstep::kWorkloadCompletionMessage;
 
@@ -243,7 +244,7 @@ int main(int argc, char* argv[]) {
   quickstep::StorageManager storage_manager(fixed_storage_path);
 
   string catalog_path(fixed_storage_path);
-  catalog_path.append("catalog.pb.bin");
+  catalog_path.append(kCatalogFilename);
   if (quickstep::FLAGS_initialize_db) {  // Initialize the database
     // TODO(jmp): Refactor the code in this file!
     LOG(INFO) << "Initializing the database, creating a new catalog file and storage directory\n";
@@ -267,14 +268,14 @@ int main(int argc, char* argv[]) {
     // Create the default catalog file.
     std::ofstream catalog_file(catalog_path);
     if (!catalog_file.good()) {
-      LOG(FATAL) << "ERROR: Unable to open catalog.pb.bin for writing.\n";
+      LOG(FATAL) << "ERROR: Unable to open " << kCatalogFilename << " for writing.\n";
     }
 
     quickstep::Catalog catalog;
     catalog.addDatabase(new quickstep::CatalogDatabase(nullptr, "default"));
 
     if (!catalog.getProto().SerializeToOstream(&catalog_file)) {
-      LOG(FATAL) << "ERROR: Unable to serialize catalog proto to file catalog.pb.bin\n";
+      LOG(FATAL) << "ERROR: Unable to serialize catalog proto to file " << kCatalogFilename;
       return 1;
     }
 

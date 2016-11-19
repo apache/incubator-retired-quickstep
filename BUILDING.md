@@ -190,15 +190,11 @@ number of jobs).
 Running Quickstep
 -----------------
 
-To use quickstep, just run `quickstep_cli_shell` in the build directory.
+To use quickstep, just run `quickstep_cli_shell` in the build directory. For the
+first time user, run once with `-initialize_db=true` to set up an empty catalog.
 Quickstep has number of command-line flags that control its behavior. Run
 `quickstep_cli_shell --help` to see a listing of the options and how to use
 them.
-
-The provided build directory has a skeleton qsstor directory with a fresh
-catalog.pb.bin file which is needed to run `quickstep_cli_shell`. If you want
-to wipe out your database and start fresh, delete all the files in qsstor and
-copy `catalog.pb.bin.orig` to `qsstor/catalog.pb.bin`.
 
 Running Tests
 -------------

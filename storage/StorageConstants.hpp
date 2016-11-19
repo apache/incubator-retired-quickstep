@@ -39,6 +39,8 @@ constexpr char kPathSeparator = '/';
 constexpr char kDefaultStoragePath[] = "qsstor/";
 #endif
 
+constexpr char kCatalogFilename[] = "catalog.pb.bin";
+
 // Size of a memory slot managed by the StorageManager. This is the smallest
 // quantum of allocation for StorageBlocks and StorageBlobs. 2 MB is the large
 // page size on x86.
