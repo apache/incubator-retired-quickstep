@@ -54,6 +54,7 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #endif
 
 #include "cli/DefaultsConfigurator.hpp"
+#include "cli/Flags.hpp"
 #include "cli/InputParserUtil.hpp"
 #include "cli/PrintToScreen.hpp"
 #include "parser/ParseStatement.hpp"
@@ -76,6 +77,7 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 
 #include "storage/PreloaderThread.hpp"
 #include "storage/StorageConstants.hpp"
+#include "storage/StorageManager.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
 #include "utility/ExecutionDAGVisualizer.hpp"
 #include "utility/Macros.hpp"
@@ -107,6 +109,7 @@ using quickstep::AdmitRequestMessage;
 using quickstep::CatalogRelation;
 using quickstep::DefaultsConfigurator;
 using quickstep::DropRelation;
+using quickstep::FLAGS_storage_path;
 using quickstep::ForemanSingleNode;
 using quickstep::InputParserUtil;
 using quickstep::MessageBusImpl;
@@ -142,8 +145,6 @@ DEFINE_bool(preload_buffer_pool, false,
             "If true, pre-load all known blocks into buffer pool before "
             "accepting queries (should also set --buffer_pool_slots to be "
             "large enough to accomodate the entire database).");
-DEFINE_string(storage_path, kDefaultStoragePath,
-              "Filesystem path to store the Quickstep database.");
 DEFINE_string(worker_affinities, "",
               "A comma-separated list of CPU IDs to pin worker threads to "
               "(leaving this empty will cause all worker threads to inherit "
@@ -231,15 +232,9 @@ int main(int argc, char* argv[]) {
   bus.RegisterClientAsSender(main_thread_client_id, kPoisonMessage);
   bus.RegisterClientAsReceiver(main_thread_client_id, kWorkloadCompletionMessage);
 
-  // Setup the paths used by StorageManager.
-  string fixed_storage_path(quickstep::FLAGS_storage_path);
-  if (!fixed_storage_path.empty()
-      && (fixed_storage_path.back() != quickstep::kPathSeparator)) {
-    fixed_storage_path.push_back(quickstep::kPathSeparator);
-  }
-  quickstep::StorageManager storage_manager(fixed_storage_path);
+  quickstep::StorageManager storage_manager(FLAGS_storage_path);
 
-  string catalog_path(fixed_storage_path);
+  string catalog_path(FLAGS_storage_path);
   catalog_path.append(kCatalogFilename);
   if (quickstep::FLAGS_initialize_db) {  // Initialize the database
     // TODO(jmp): Refactor the code in this file!
@@ -249,14 +244,14 @@ int main(int argc, char* argv[]) {
     // TODO(jmp): At some point, likely in C++-17, we will just have the
     //            filesystem path, and we can clean this up
 #ifdef QUICKSTEP_OS_WINDOWS
-    std::filesystem::create_directories(fixed_storage_path);
-    LOG(FATAL) << "Failed when attempting to create the directory: " << fixed_storage_path << "\n";
+    std::filesystem::create_directories(FLAGS_storage_path);
+    LOG(FATAL) << "Failed when attempting to create the directory: " << FLAGS_storage_path << "\n";
     LOG(FATAL) << "Check if the directory already exists. If so, delete it or move it before initializing \n";
 #else
     {
-      string path_name = "mkdir " + fixed_storage_path;
+      string path_name = "mkdir " + FLAGS_storage_path;
       if (std::system(path_name.c_str())) {
-        LOG(FATAL) << "Failed when attempting to create the directory: " << fixed_storage_path << "\n";
+        LOG(FATAL) << "Failed when attempting to create the directory: " << FLAGS_storage_path << "\n";
       }
     }
 #endif

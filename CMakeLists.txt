@@ -752,6 +752,7 @@ target_link_libraries(quickstep_cli_shell
                       quickstep_cli_CommandExecutor
                       quickstep_cli_DefaultsConfigurator
                       quickstep_cli_DropRelation
+                      quickstep_cli_Flags
                       quickstep_cli_InputParserUtil
                       quickstep_cli_LineReader
                       quickstep_cli_PrintToScreen
@@ -770,6 +771,7 @@ target_link_libraries(quickstep_cli_shell
                       quickstep_queryoptimizer_QueryProcessor
                       quickstep_storage_PreloaderThread
                       quickstep_storage_StorageConstants
+                      quickstep_storage_StorageManager
                       quickstep_threading_ThreadIDBasedMap
                       quickstep_utility_ExecutionDAGVisualizer
                       quickstep_utility_Macros

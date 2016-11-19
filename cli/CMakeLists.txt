@@ -54,6 +54,7 @@ target_link_libraries(quickstep_cli_DropRelation
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageManager
                       quickstep_utility_Macros)
+add_library(quickstep_cli_Flags Flags.cpp Flags.hpp)
 
 if(USE_LINENOISE)
   add_library(quickstep_cli_LineReader
@@ -110,6 +111,9 @@ if(QUICKSTEP_HAVE_LIBNUMA)
   target_link_libraries(quickstep_cli_DefaultsConfigurator
                       ${LIBNUMA_LIBRARY})
 endif()
+target_link_libraries(quickstep_cli_Flags
+                      quickstep_storage_StorageConstants
+                      ${GFLAGS_LIB_NAME})
 target_link_libraries(quickstep_cli_InputParserUtil
                       glog
                       quickstep_utility_Macros
@@ -139,6 +143,7 @@ target_link_libraries(quickstep_cli
                       quickstep_cli_CommandExecutor
                       quickstep_cli_DefaultsConfigurator
                       quickstep_cli_DropRelation
+                      quickstep_cli_Flags
                       quickstep_cli_InputParserUtil
                       quickstep_cli_LineReader
                       quickstep_cli_PrintToScreen)
