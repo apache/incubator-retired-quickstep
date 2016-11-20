@@ -160,36 +160,38 @@ void DistributedExecutionGeneratorTestRunner::runTestCase(
 
     const ParseStatement &parse_statement = *result.parsed_statement;
     std::printf("%s\n", parse_statement.toString().c_str());
+
+    const CatalogRelation *query_result_relation = nullptr;
     try {
       OptimizerContext optimizer_context;
-      QueryHandle query_handle(query_id_++, cli_id_);
+      auto query_handle = std::make_unique<QueryHandle>(query_id_++, cli_id_);
 
       optimizer_.generateQueryHandle(parse_statement,
                                      test_database_loader_->catalog_database(),
                                      &optimizer_context,
-                                     &query_handle);
+                                     query_handle.get());
+      query_result_relation = query_handle->getQueryResultRelation();
 
       QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
           cli_id_,
           foreman_->getBusClientID(),
-          &query_handle,
+          query_handle.release(),
           &bus_);
-
-      const tmb::AnnotatedMessage annotated_message = bus_.Receive(cli_id_, 0, true);
-      DCHECK_EQ(kQueryExecutionSuccessMessage, annotated_message.tagged_message.message_type());
-
-      const CatalogRelation *query_result_relation = query_handle.getQueryResultRelation();
-      if (query_result_relation) {
-          PrintToScreen::PrintRelation(*query_result_relation,
-                                       test_database_loader_->storage_manager(),
-                                       output_stream.file());
-          DropRelation::Drop(*query_result_relation,
-                             test_database_loader_->catalog_database(),
-                             test_database_loader_->storage_manager());
-      }
     } catch (const SqlError &error) {
       *output = error.formatMessage(input);
       break;
+    }
+
+    const tmb::AnnotatedMessage annotated_message = bus_.Receive(cli_id_, 0, true);
+    DCHECK_EQ(kQueryExecutionSuccessMessage, annotated_message.tagged_message.message_type());
+
+    if (query_result_relation) {
+      PrintToScreen::PrintRelation(*query_result_relation,
+                                   test_database_loader_->storage_manager(),
+                                   output_stream.file());
+      DropRelation::Drop(*query_result_relation,
+                         test_database_loader_->catalog_database(),
+                         test_database_loader_->storage_manager());
     }
   }
 

@@ -20,6 +20,7 @@
 #include "cli/tests/CommandExecutorTestRunner.hpp"
 
 #include <cstdio>
+#include <memory>
 #include <set>
 #include <string>
 #include <utility>
@@ -88,28 +89,26 @@ void CommandExecutorTestRunner::runTestCase(
               nullptr,
               output_stream.file());
         } else {
-          QueryHandle query_handle(0 /* query_id */, main_thread_client_id_);
-          O::OptimizerContext optimizer_context;
+          const CatalogRelation *query_result_relation = nullptr;
+          {
+            auto query_handle = std::make_unique<QueryHandle>(0 /* query_id */, main_thread_client_id_);
+            O::OptimizerContext optimizer_context;
 
-          optimizer_.generateQueryHandle(parse_statement,
-                                         test_database_loader_.catalog_database(),
-                                         &optimizer_context,
-                                         &query_handle);
+            optimizer_.generateQueryHandle(parse_statement,
+                                           test_database_loader_.catalog_database(),
+                                           &optimizer_context,
+                                           query_handle.get());
+            query_result_relation = query_handle->getQueryResultRelation();
 
-          AdmitRequestMessage request_message(&query_handle);
-          TaggedMessage admit_tagged_message(
-              &request_message, sizeof(request_message), kAdmitRequestMessage);
-          QueryExecutionUtil::SendTMBMessage(&bus_,
-                                             main_thread_client_id_,
-                                             foreman_->getBusClientID(),
-                                             std::move(admit_tagged_message));
+            QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
+                main_thread_client_id_, foreman_->getBusClientID(), query_handle.release(), &bus_);
+          }
 
           // Receive workload completion message from Foreman.
           const AnnotatedMessage annotated_msg =
               bus_.Receive(main_thread_client_id_, 0, true);
           const TaggedMessage &tagged_message = annotated_msg.tagged_message;
           DCHECK_EQ(kWorkloadCompletionMessage, tagged_message.message_type());
-          const CatalogRelation *query_result_relation = query_handle.getQueryResultRelation();
           if (query_result_relation) {
             PrintToScreen::PrintRelation(*query_result_relation,
                                          test_database_loader_.storage_manager(),

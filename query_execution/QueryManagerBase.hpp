@@ -26,6 +26,7 @@
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryExecutionState.hpp"
+#include "query_optimizer/QueryHandle.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
@@ -33,8 +34,6 @@
 #include "utility/Macros.hpp"
 
 namespace quickstep {
-
-class QueryHandle;
 
 /** \addtogroup QueryExecution
  *  @{
@@ -77,7 +76,7 @@ class QueryManagerBase {
    * @brief Get the query handle.
    **/
   const QueryHandle* query_handle() const {
-    return query_handle_;
+    return query_handle_.get();
   }
 
   /**
@@ -259,7 +258,7 @@ class QueryManagerBase {
     return query_exec_state_->hasRebuildInitiated(index);
   }
 
-  const QueryHandle *query_handle_;
+  std::unique_ptr<QueryHandle> query_handle_;
 
   const std::size_t query_id_;
 

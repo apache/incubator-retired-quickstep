@@ -234,14 +234,14 @@ class QueryManagerTest : public ::testing::Test {
     db_.reset(new CatalogDatabase(nullptr /* catalog */, "database"));
     storage_manager_.reset(new StorageManager("./"));
     bus_.Initialize();
-    query_handle_.reset(new QueryHandle(0 /* dummy query ID */, tmb::kClientIdNone /* cli_id */));
+    query_handle_ = new QueryHandle(0 /* dummy query ID */, tmb::kClientIdNone /* cli_id */);
     query_plan_ = query_handle_->getQueryPlanMutable();
     query_handle_->getQueryContextProtoMutable()->set_query_id(query_handle_->query_id());
   }
 
   inline void constructQueryManager() {
     query_manager_.reset(new QueryManagerSingleNode(
-        0, 1, query_handle_.get(), db_.get(), storage_manager_.get(), &bus_));
+        0, 1, query_handle_, db_.get(), storage_manager_.get(), &bus_));
   }
 
   inline const int getNumWorkOrdersInExecution(const QueryPlan::DAGNodeIndex index) const {
@@ -291,8 +291,8 @@ class QueryManagerTest : public ::testing::Test {
   unique_ptr<CatalogDatabase> db_;
   unique_ptr<StorageManager> storage_manager_;
 
-  QueryPlan *query_plan_;
-  unique_ptr<QueryHandle> query_handle_;
+  QueryPlan *query_plan_;  // Owned by 'query_handle_'.
+  QueryHandle* query_handle_;  // Owned by 'query_manager_'.
   unique_ptr<QueryManagerSingleNode> query_manager_;
 
   MessageBusImpl bus_;

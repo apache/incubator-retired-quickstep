@@ -20,6 +20,7 @@
 #include "query_optimizer/tests/ExecutionGeneratorTestRunner.hpp"
 
 #include <cstdio>
+#include <memory>
 #include <set>
 #include <string>
 
@@ -71,36 +72,38 @@ void ExecutionGeneratorTestRunner::runTestCase(
     } else {
       const ParseStatement &parse_statement = *result.parsed_statement;
       std::printf("%s\n", parse_statement.toString().c_str());
+
+      const CatalogRelation *query_result_relation = nullptr;
       try {
-        QueryHandle query_handle(0 /* query_id */, main_thread_client_id_);
         OptimizerContext optimizer_context;
+        auto query_handle = std::make_unique<QueryHandle>(0 /* query_id */, main_thread_client_id_);
 
         optimizer_.generateQueryHandle(parse_statement,
                                        test_database_loader_.catalog_database(),
                                        &optimizer_context,
-                                       &query_handle);
+                                       query_handle.get());
+        query_result_relation = query_handle->getQueryResultRelation();
 
         QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
             main_thread_client_id_,
             foreman_->getBusClientID(),
-            &query_handle,
+            query_handle.release(),
             &bus_);
-
-        QueryExecutionUtil::ReceiveQueryCompletionMessage(
-            main_thread_client_id_, &bus_);
-
-        const CatalogRelation *query_result_relation = query_handle.getQueryResultRelation();
-        if (query_result_relation) {
-            PrintToScreen::PrintRelation(*query_result_relation,
-                                         test_database_loader_.storage_manager(),
-                                         output_stream.file());
-            DropRelation::Drop(*query_result_relation,
-                               test_database_loader_.catalog_database(),
-                               test_database_loader_.storage_manager());
-        }
       } catch (const SqlError &error) {
         *output = error.formatMessage(input);
         break;
+      }
+
+      QueryExecutionUtil::ReceiveQueryCompletionMessage(
+          main_thread_client_id_, &bus_);
+
+      if (query_result_relation) {
+        PrintToScreen::PrintRelation(*query_result_relation,
+                                     test_database_loader_.storage_manager(),
+                                     output_stream.file());
+        DropRelation::Drop(*query_result_relation,
+                           test_database_loader_.catalog_database(),
+                           test_database_loader_.storage_manager());
       }
     }
   }

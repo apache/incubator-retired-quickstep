@@ -213,25 +213,27 @@ inline std::vector<TypedValue> executeQueryForSingleRow(
   DCHECK(result.condition == ParseResult::kSuccess);
 
   const ParseStatement &statement = *result.parsed_statement;
+  const CatalogRelation *query_result_relation = nullptr;
 
-  // Generate the query plan.
-  std::unique_ptr<QueryHandle> query_handle(
-      std::make_unique<QueryHandle>(query_processor->query_id(),
-                                    main_thread_client_id,
-                                    statement.getPriority()));
-  query_processor->generateQueryHandle(statement, query_handle.get());
-  DCHECK(query_handle->getQueryPlanMutable() != nullptr);
+  {
+    // Generate the query plan.
+    auto query_handle =
+        std::make_unique<QueryHandle>(query_processor->query_id(),
+                                      main_thread_client_id,
+                                      statement.getPriority());
+    query_processor->generateQueryHandle(statement, query_handle.get());
+    DCHECK(query_handle->getQueryPlanMutable() != nullptr);
+    query_result_relation = query_handle->getQueryResultRelation();
+    DCHECK(query_result_relation != nullptr);
 
-  // Use foreman to execute the query plan.
-  QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
-      main_thread_client_id, foreman_client_id, query_handle.get(), bus);
+    // Use foreman to execute the query plan.
+    QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
+        main_thread_client_id, foreman_client_id, query_handle.release(), bus);
+  }
 
   QueryExecutionUtil::ReceiveQueryCompletionMessage(main_thread_client_id, bus);
 
   // Retrieve the scalar result from the result relation.
-  const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
-  DCHECK(query_result_relation != nullptr);
-
   std::vector<TypedValue> values;
   {
     std::vector<block_id> blocks = query_result_relation->getBlocksSnapshot();

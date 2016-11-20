@@ -341,38 +341,41 @@ int main(int argc, char* argv[]) {
           continue;
         }
 
-        std::unique_ptr<QueryHandle> query_handle(
-            std::make_unique<QueryHandle>(query_processor->query_id(),
-                                          main_thread_client_id,
-                                          statement.getPriority()));
+        const std::size_t query_id = query_processor->query_id();
+        const CatalogRelation *query_result_relation = nullptr;
+        std::unique_ptr<quickstep::ExecutionDAGVisualizer> dag_visualizer;
+
         try {
+          auto query_handle = std::make_unique<QueryHandle>(query_id,
+                                                            main_thread_client_id,
+                                                            statement.getPriority());
           query_processor->generateQueryHandle(statement, query_handle.get());
+          DCHECK(query_handle->getQueryPlanMutable() != nullptr);
+
+          if (quickstep::FLAGS_visualize_execution_dag) {
+            dag_visualizer =
+                std::make_unique<quickstep::ExecutionDAGVisualizer>(*query_handle->getQueryPlanMutable());
+          }
+
+          query_result_relation = query_handle->getQueryResultRelation();
+
+          start = std::chrono::steady_clock::now();
+          QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
+              main_thread_client_id,
+              foreman.getBusClientID(),
+              query_handle.release(),
+              &bus);
         } catch (const quickstep::SqlError &sql_error) {
           fprintf(stderr, "%s", sql_error.formatMessage(*command_string).c_str());
           reset_parser = true;
           break;
         }
 
-        DCHECK(query_handle->getQueryPlanMutable() != nullptr);
-        std::unique_ptr<quickstep::ExecutionDAGVisualizer> dag_visualizer;
-        if (quickstep::FLAGS_visualize_execution_dag) {
-          dag_visualizer.reset(
-              new quickstep::ExecutionDAGVisualizer(*query_handle->getQueryPlanMutable()));
-        }
-
-        start = std::chrono::steady_clock::now();
-        QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
-            main_thread_client_id,
-            foreman.getBusClientID(),
-            query_handle.get(),
-            &bus);
-
         try {
           QueryExecutionUtil::ReceiveQueryCompletionMessage(
               main_thread_client_id, &bus);
           end = std::chrono::steady_clock::now();
 
-          const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
           if (query_result_relation) {
             PrintToScreen::PrintRelation(*query_result_relation,
                                          &storage_manager,
@@ -394,12 +397,11 @@ int main(int argc, char* argv[]) {
                      time_ms.count(), 3).c_str());
           if (quickstep::FLAGS_profile_and_report_workorder_perf) {
             // TODO(harshad) - Allow user specified file instead of stdout.
-            foreman.printWorkOrderProfilingResults(query_handle->query_id(),
-                                                   stdout);
+            foreman.printWorkOrderProfilingResults(query_id, stdout);
           }
           if (quickstep::FLAGS_visualize_execution_dag) {
             const auto &profiling_stats =
-                foreman.getWorkOrderProfilingResults(query_handle->query_id());
+                foreman.getWorkOrderProfilingResults(query_id);
             dag_visualizer->bindProfilingStats(profiling_stats);
             std::cerr << "\n" << dag_visualizer->toDOT() << "\n";
           }
