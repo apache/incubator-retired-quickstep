@@ -26,6 +26,7 @@
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "query_execution/BlockLocator.hpp"
+#include "query_execution/BlockLocatorUtil.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
@@ -71,7 +72,6 @@ class BlockLocatorTest : public ::testing::Test {
     bus_.Initialize();
 
     locator_.reset(new BlockLocator(&bus_));
-    locator_client_id_ = locator_->getBusClientID();
     locator_->start();
 
     worker_client_id_ = bus_.Connect();
@@ -84,7 +84,9 @@ class BlockLocatorTest : public ::testing::Test {
 
     bus_.RegisterClientAsSender(worker_client_id_, kPoisonMessage);
 
-    block_domain_ = getBlockDomain(kDomainNetworkAddress);
+    block_domain_ =
+        block_locator::getBlockDomain(kDomainNetworkAddress, worker_client_id_, &locator_client_id_, &bus_);
+    DCHECK_EQ(locator_->getBusClientID(), locator_client_id_);
 
     storage_manager_.reset(
         new StorageManager(kStoragePath, block_domain_, locator_client_id_, &bus_));
@@ -168,42 +170,6 @@ class BlockLocatorTest : public ::testing::Test {
   unique_ptr<StorageManager> storage_manager_;
 
  private:
-  block_id_domain getBlockDomain(const string &network_address) {
-    serialization::BlockDomainRegistrationMessage proto;
-    proto.set_domain_network_address(network_address);
-
-    const int proto_length = proto.ByteSize();
-    char *proto_bytes = static_cast<char*>(malloc(proto_length));
-    CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-    TaggedMessage message(static_cast<const void*>(proto_bytes),
-                          proto_length,
-                          kBlockDomainRegistrationMessage);
-    free(proto_bytes);
-
-    LOG(INFO) << "Worker (id '" << worker_client_id_
-              << "') sent BlockDomainRegistrationMessage (typed '" << kBlockDomainRegistrationMessage
-              << "') to BlockLocator (id '" << locator_client_id_ << "')";
-
-    CHECK(MessageBus::SendStatus::kOK ==
-        QueryExecutionUtil::SendTMBMessage(&bus_,
-                                           worker_client_id_,
-                                           locator_client_id_,
-                                           move(message)));
-
-    const AnnotatedMessage annotated_message(bus_.Receive(worker_client_id_, 0, true));
-    const TaggedMessage &tagged_message = annotated_message.tagged_message;
-    EXPECT_EQ(locator_client_id_, annotated_message.sender);
-    EXPECT_EQ(kBlockDomainRegistrationResponseMessage, tagged_message.message_type());
-    LOG(INFO) << "Worker (id '" << worker_client_id_
-              << "') received BlockDomainRegistrationResponseMessage from BlockLocator";
-
-    serialization::BlockDomainMessage response_proto;
-    CHECK(response_proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
-
-    return static_cast<block_id_domain>(response_proto.block_domain());
-  }
-
   MessageBusImpl bus_;
 
   unique_ptr<BlockLocator> locator_;

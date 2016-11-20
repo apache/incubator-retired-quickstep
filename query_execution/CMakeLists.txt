@@ -31,6 +31,7 @@ endif()
 add_library(quickstep_queryexecution_AdmitRequestMessage ../empty_src.cpp AdmitRequestMessage.hpp)
 if (ENABLE_DISTRIBUTED)
   add_library(quickstep_queryexecution_BlockLocator BlockLocator.cpp BlockLocator.hpp)
+  add_library(quickstep_queryexecution_BlockLocatorUtil BlockLocatorUtil.cpp BlockLocatorUtil.hpp)
 endif(ENABLE_DISTRIBUTED)
 add_library(quickstep_queryexecution_ForemanBase ../empty_src.cpp ForemanBase.hpp)
 if (ENABLE_DISTRIBUTED)
@@ -82,6 +83,12 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_threading_Thread
                         quickstep_threading_ThreadUtil
                         quickstep_utility_Macros
+                        tmb)
+  target_link_libraries(quickstep_queryexecution_BlockLocatorUtil
+                        glog
+                        quickstep_queryexecution_QueryExecutionMessages_proto
+                        quickstep_queryexecution_QueryExecutionTypedefs
+                        quickstep_storage_StorageBlockInfo
                         tmb)
 endif(ENABLE_DISTRIBUTED)
 target_link_libraries(quickstep_queryexecution_ForemanBase
@@ -345,6 +352,7 @@ target_link_libraries(quickstep_queryexecution
 if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_queryexecution
                         quickstep_queryexecution_BlockLocator
+                        quickstep_queryexecution_BlockLocatorUtil
                         quickstep_queryexecution_ForemanDistributed
                         quickstep_queryexecution_PolicyEnforcerDistributed
                         quickstep_queryexecution_QueryManagerDistributed
@@ -363,6 +371,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_catalog_CatalogAttribute
                         quickstep_catalog_CatalogRelation
                         quickstep_queryexecution_BlockLocator
+                        quickstep_queryexecution_BlockLocatorUtil
                         quickstep_queryexecution_QueryExecutionMessages_proto
                         quickstep_queryexecution_QueryExecutionTypedefs
                         quickstep_queryexecution_QueryExecutionUtil

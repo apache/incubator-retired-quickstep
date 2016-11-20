@@ -38,7 +38,7 @@
 #include "query_optimizer/Optimizer.hpp"
 #include "query_optimizer/tests/TestDatabaseLoader.hpp"
 #include "storage/DataExchangerAsync.hpp"
-#include "storage/StorageBlockInfo.hpp"
+#include "storage/StorageManager.hpp"
 #include "utility/Macros.hpp"
 #include "utility/textbased_test/TextBasedTestRunner.hpp"
 
@@ -115,8 +115,6 @@ class DistributedExecutionGeneratorTestRunner : public TextBasedTestRunner {
                    std::string *output) override;
 
  private:
-  block_id_domain getBlockDomain(const std::string &network_address);
-
   std::size_t query_id_;
 
   SqlParserWrapper sql_parser_;

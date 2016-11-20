@@ -862,7 +862,7 @@ target_link_libraries(quickstep_storage_PartitionedHashTablePool
                       quickstep_storage_FastHashTableFactory
                       quickstep_storage_HashTableBase
                       quickstep_utility_Macros
-                      quickstep_utility_StringUtil)                    
+                      quickstep_utility_StringUtil)
 target_link_libraries(quickstep_storage_PreloaderThread
                       glog
                       quickstep_catalog_CatalogDatabase
@@ -1502,7 +1502,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_catalog_CatalogRelation
                         quickstep_catalog_CatalogTypedefs
                         quickstep_queryexecution_BlockLocator
-                        quickstep_queryexecution_QueryExecutionMessages_proto
+                        quickstep_queryexecution_BlockLocatorUtil
                         quickstep_queryexecution_QueryExecutionTypedefs
                         quickstep_queryexecution_QueryExecutionUtil
                         quickstep_storage_CountedReference

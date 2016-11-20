@@ -32,14 +32,14 @@
 #include "cli/PrintToScreen.hpp"
 #include "parser/ParseStatement.hpp"
 #include "query_execution/BlockLocator.hpp"
+#include "query_execution/BlockLocatorUtil.hpp"
 #include "query_execution/ForemanDistributed.hpp"
-#include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "storage/DataExchangerAsync.hpp"
-#include "storage/StorageBlockInfo.hpp"
+#include "storage/StorageManager.hpp"
 #include "utility/MemStream.hpp"
 #include "utility/SqlError.hpp"
 
@@ -81,14 +81,15 @@ DistributedExecutionGeneratorTestRunner::DistributedExecutionGeneratorTestRunner
   bus_.RegisterClientAsReceiver(cli_id_, kBlockDomainRegistrationResponseMessage);
 
   block_locator_ = make_unique<BlockLocator>(&bus_);
-  locator_client_id_ = block_locator_->getBusClientID();
   block_locator_->start();
 
   test_database_loader_ = make_unique<TestDatabaseLoader>(
       storage_path,
-      getBlockDomain(test_database_loader_data_exchanger_.network_address()),
+      block_locator::getBlockDomain(
+          test_database_loader_data_exchanger_.network_address(), cli_id_, &locator_client_id_, &bus_),
       locator_client_id_,
       &bus_);
+  DCHECK_EQ(block_locator_->getBusClientID(), locator_client_id_);
   test_database_loader_data_exchanger_.set_storage_manager(test_database_loader_->storage_manager());
   test_database_loader_data_exchanger_.start();
 
@@ -111,7 +112,11 @@ DistributedExecutionGeneratorTestRunner::DistributedExecutionGeneratorTestRunner
         make_unique<WorkerDirectory>(worker_client_ids.size(), worker_client_ids, numa_nodes));
 
     auto storage_manager = make_unique<StorageManager>(
-        storage_path, getBlockDomain(data_exchangers_[i].network_address()), locator_client_id_, &bus_);
+        storage_path,
+        block_locator::getBlockDomain(
+            data_exchangers_[i].network_address(), cli_id_, &locator_client_id_, &bus_),
+        locator_client_id_, &bus_);
+    DCHECK_EQ(block_locator_->getBusClientID(), locator_client_id_);
 
     data_exchangers_[i].set_storage_manager(storage_manager.get());
     shiftbosses_.push_back(
@@ -191,45 +196,6 @@ void DistributedExecutionGeneratorTestRunner::runTestCase(
   if (output->empty()) {
     *output = output_stream.str();
   }
-}
-
-block_id_domain DistributedExecutionGeneratorTestRunner::getBlockDomain(
-    const string &network_address) {
-  serialization::BlockDomainRegistrationMessage proto;
-  proto.set_domain_network_address(network_address);
-
-  const int proto_length = proto.ByteSize();
-  char *proto_bytes = static_cast<char*>(malloc(proto_length));
-  CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-  TaggedMessage message(static_cast<const void*>(proto_bytes),
-                        proto_length,
-                        kBlockDomainRegistrationMessage);
-  free(proto_bytes);
-
-  DLOG(INFO) << "Client (id '" << cli_id_
-             << "') sent BlockDomainRegistrationMessage (typed '" << kBlockDomainRegistrationMessage
-             << "') to BlockLocator (id '" << locator_client_id_ << "')";
-
-  CHECK(MessageBus::SendStatus::kOK ==
-      QueryExecutionUtil::SendTMBMessage(&bus_,
-                                         cli_id_,
-                                         locator_client_id_,
-                                         move(message)));
-
-  const tmb::AnnotatedMessage annotated_message(bus_.Receive(cli_id_, 0, true));
-  const TaggedMessage &tagged_message = annotated_message.tagged_message;
-  CHECK_EQ(locator_client_id_, annotated_message.sender);
-  CHECK_EQ(kBlockDomainRegistrationResponseMessage, tagged_message.message_type());
-  DLOG(INFO) << "Client (id '" << cli_id_
-             << "') received BlockDomainRegistrationResponseMessage (typed '"
-             << kBlockDomainRegistrationResponseMessage
-             << "') from BlockLocator";
-
-  serialization::BlockDomainMessage response_proto;
-  CHECK(response_proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
-
-  return static_cast<block_id_domain>(response_proto.block_domain());
 }
 
 }  // namespace optimizer
