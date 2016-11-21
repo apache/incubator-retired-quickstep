@@ -109,6 +109,7 @@ using quickstep::AdmitRequestMessage;
 using quickstep::CatalogRelation;
 using quickstep::DefaultsConfigurator;
 using quickstep::DropRelation;
+using quickstep::FLAGS_num_workers;
 using quickstep::FLAGS_storage_path;
 using quickstep::ForemanSingleNode;
 using quickstep::InputParserUtil;
@@ -136,11 +137,6 @@ using tmb::client_id;
 
 namespace quickstep {
 
-DEFINE_int32(num_workers, 0, "Number of worker threads. If this value is "
-                             "specified and is greater than 0, then this "
-                             "user-supplied value is used. Else (i.e. the"
-                             "default case), we examine the reported "
-                             "hardware concurrency level, and use that.");
 DEFINE_bool(preload_buffer_pool, false,
             "If true, pre-load all known blocks into buffer pool before "
             "accepting queries (should also set --buffer_pool_slots to be "
@@ -189,25 +185,8 @@ int main(int argc, char* argv[]) {
   google::InitGoogleLogging(argv[0]);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 
-  // Detect the hardware concurrency level.
-  const std::size_t num_hw_threads =
-      DefaultsConfigurator::GetNumHardwareThreads();
-
-  // Use the command-line value if that was supplied, else use the value
-  // that we computed above, provided it did return a valid value.
-  // TODO(jmp): May need to change this at some point to keep one thread
-  //            available for the OS if the hardware concurrency level is high.
-  if (quickstep::FLAGS_num_workers <= 0) {
-    LOG(INFO) << "Quickstep expects at least one worker thread, switching to "
-                 "the default number of worker threads";
-  }
-  const int real_num_workers = quickstep::FLAGS_num_workers > 0
-                                   ? quickstep::FLAGS_num_workers
-                                   : (num_hw_threads != 0 ? num_hw_threads : 1);
-
-  DCHECK_GT(real_num_workers, 0);
-  printf("Starting Quickstep with %d worker thread(s) and a %.2f GB buffer pool\n",
-         real_num_workers,
+  printf("Starting Quickstep with %d worker thread(s) and a %.2f GB buffer pool.\n",
+         FLAGS_num_workers,
          (static_cast<double>(quickstep::FLAGS_buffer_pool_slots) * quickstep::kSlotSizeBytes)/quickstep::kAGigaByte);
 
 #ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
@@ -290,7 +269,7 @@ int main(int argc, char* argv[]) {
   // Parse the CPU affinities for workers and the preloader thread, if enabled
   // to warm up the buffer pool.
   const vector<int> worker_cpu_affinities =
-      InputParserUtil::ParseWorkerAffinities(real_num_workers,
+      InputParserUtil::ParseWorkerAffinities(FLAGS_num_workers,
                                              quickstep::FLAGS_worker_affinities);
 
   const std::size_t num_numa_nodes_system = DefaultsConfigurator::GetNumNUMANodes();
@@ -323,7 +302,7 @@ int main(int argc, char* argv[]) {
   vector<client_id> worker_client_ids;
 
   // Initialize the worker threads.
-  DCHECK_EQ(static_cast<std::size_t>(real_num_workers),
+  DCHECK_EQ(static_cast<std::size_t>(FLAGS_num_workers),
             worker_cpu_affinities.size());
   for (std::size_t worker_thread_index = 0;
        worker_thread_index < worker_cpu_affinities.size();

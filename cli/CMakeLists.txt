@@ -112,6 +112,7 @@ if(QUICKSTEP_HAVE_LIBNUMA)
                       ${LIBNUMA_LIBRARY})
 endif()
 target_link_libraries(quickstep_cli_Flags
+                      quickstep_cli_DefaultsConfigurator
                       quickstep_storage_StorageConstants
                       ${GFLAGS_LIB_NAME})
 target_link_libraries(quickstep_cli_InputParserUtil

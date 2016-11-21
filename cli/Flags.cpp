@@ -19,13 +19,42 @@
 
 #include "cli/Flags.hpp"
 
+#include <cstddef>
+#include <cstdio>
 #include <string>
 
+#include "cli/DefaultsConfigurator.hpp"
 #include "storage/StorageConstants.hpp"
 
 #include "gflags/gflags.h"
 
+using std::fprintf;
+
 namespace quickstep {
+
+static bool ValidateNumWorkers(const char *flagname, int value) {
+  if (value > 0) {
+    return true;
+  }
+
+  // Detect the hardware concurrency level.
+  const std::size_t num_hw_threads =
+      DefaultsConfigurator::GetNumHardwareThreads();
+
+  // Use the command-line value if that was supplied, else use the value
+  // that we computed above, provided it did return a valid value.
+  // TODO(jmp): May need to change this at some point to keep one thread
+  //            available for the OS if the hardware concurrency level is high.
+  FLAGS_num_workers = num_hw_threads != 0 ? num_hw_threads : 1;
+
+  return FLAGS_num_workers > 0;
+}
+DEFINE_int32(num_workers, 0, "Number of worker threads. If this value is "
+             "specified and is greater than 0, then this user-supplied value is "
+             "used. Else (i.e. the default case), we examine the reported "
+             "hardware concurrency level, and use that.");
+static const volatile bool num_workers_dummy
+    = gflags::RegisterFlagValidator(&FLAGS_num_workers, &ValidateNumWorkers);
 
 static bool ValidateStoragePath(const char *flagname,
                                 const std::string &value) {

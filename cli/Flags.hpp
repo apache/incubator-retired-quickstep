@@ -32,6 +32,8 @@ namespace quickstep {
  * @brief A collection of common flags shared by Quickstep CLIs in both the
  * single-node and the distributed version.
  **/
+DECLARE_int32(num_workers);
+
 DECLARE_string(storage_path);
 
 /** @} */
