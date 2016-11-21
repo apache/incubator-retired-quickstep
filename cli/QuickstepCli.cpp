@@ -27,16 +27,8 @@
 #include <string>
 #include <utility>
 #include <vector>
-#include <fstream>
 
-#include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE, QUICKSTEP_ENABLE_GOOGLE_PROFILER, and QUICKSTEP_OS_WINDOWS.
-
-// TODO(jmp): If filesystem shows up in C++-17, we can switch to just using that.
-#ifdef QUICKSTEP_OS_WINDOWS
-#include <filesystem>
-#else
-#include <stdlib.h>
-#endif
+#include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE, QUICKSTEP_ENABLE_GOOGLE_PROFILER.
 
 #include "cli/CommandExecutor.hpp"
 #include "cli/DropRelation.hpp"
@@ -59,15 +51,12 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #include "cli/PrintToScreen.hpp"
 #include "parser/ParseStatement.hpp"
 #include "parser/SqlParserWrapper.hpp"
-#include "query_execution/AdmitRequestMessage.hpp"
 #include "query_execution/ForemanSingleNode.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/Worker.hpp"
 #include "query_execution/WorkerDirectory.hpp"
-#include "query_execution/WorkerMessage.hpp"
 #include "query_optimizer/QueryHandle.hpp"
-#include "query_optimizer/QueryPlan.hpp"
 #include "query_optimizer/QueryProcessor.hpp"
 #include "storage/StorageConfig.h"  // For QUICKSTEP_HAVE_FILE_MANAGER_HDFS.
 
@@ -89,10 +78,8 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 
 #include "glog/logging.h"
 
-#include "tmb/address.h"
 #include "tmb/id_typedefs.h"
 #include "tmb/message_bus.h"
-#include "tmb/message_style.h"
 
 namespace quickstep {
 class CatalogRelation;
@@ -104,8 +91,6 @@ using std::printf;
 using std::string;
 using std::vector;
 
-using quickstep::Address;
-using quickstep::AdmitRequestMessage;
 using quickstep::CatalogRelation;
 using quickstep::DefaultsConfigurator;
 using quickstep::DropRelation;
@@ -114,20 +99,16 @@ using quickstep::FLAGS_storage_path;
 using quickstep::ForemanSingleNode;
 using quickstep::InputParserUtil;
 using quickstep::MessageBusImpl;
-using quickstep::MessageStyle;
-using quickstep::ParseCommand;
 using quickstep::ParseResult;
 using quickstep::ParseStatement;
 using quickstep::PrintToScreen;
 using quickstep::PtrVector;
 using quickstep::QueryExecutionUtil;
 using quickstep::QueryHandle;
-using quickstep::QueryPlan;
 using quickstep::QueryProcessor;
 using quickstep::SqlParserWrapper;
 using quickstep::Worker;
 using quickstep::WorkerDirectory;
-using quickstep::WorkerMessage;
 using quickstep::kAdmitRequestMessage;
 using quickstep::kCatalogFilename;
 using quickstep::kPoisonMessage;

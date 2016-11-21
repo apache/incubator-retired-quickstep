@@ -758,16 +758,13 @@ target_link_libraries(quickstep_cli_shell
                       quickstep_cli_PrintToScreen
                       quickstep_parser_ParseStatement
                       quickstep_parser_SqlParserWrapper
-                      quickstep_queryexecution_AdmitRequestMessage
                       quickstep_queryexecution_ForemanSingleNode
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryexecution_QueryExecutionUtil
                       quickstep_queryexecution_Worker
                       quickstep_queryexecution_WorkerDirectory
-                      quickstep_queryexecution_WorkerMessage
                       quickstep_queryoptimizer_QueryHandle
-                      quickstep_queryoptimizer_QueryPlan
                       quickstep_queryoptimizer_QueryProcessor
                       quickstep_storage_PreloaderThread
                       quickstep_storage_StorageConstants

@@ -22,6 +22,7 @@
 #include "cli/CliConfig.h"  // For QUICKSTEP_OS_WINDOWS.
 
 #ifdef QUICKSTEP_OS_WINDOWS
+// TODO(jmp): If filesystem shows up in C++-17, we can switch to just using that.
 #include <experimental/filesystem>
 #else
 #include <cstdlib>
