@@ -49,6 +49,7 @@ target_link_libraries(quickstep_viz_rules_TwoDimensionsOneMeasure
                       quickstep_viz_VizAnalyzer
                       quickstep_viz_VizContext
                       quickstep_viz_VizObject
+                      quickstep_viz_configs_StackedAreaTimeSeries
                       quickstep_viz_configs_TimeSeries)
 target_link_libraries(quickstep_viz_rules_VizRule
                       quickstep_utility_Macros

@@ -25,6 +25,7 @@
 #include "viz/VizAnalyzer.hpp"
 #include "viz/VizContext.hpp"
 #include "viz/VizObject.hpp"
+#include "viz/configs/StackedAreaTimeSeries.hpp"
 #include "viz/configs/TimeSeries.hpp"
 
 namespace quickstep {
@@ -71,6 +72,12 @@ class TwoDimensionsOneMeasure : public VizRule {
                              group_attr_id,
                              measures->getAttributeIds().front(),
                              new_context_ptr));
+
+        yield(new StackedAreaTimeSeries(time_attr_id,
+                                        time_format,
+                                        group_attr_id,
+                                        measures->getAttributeIds().front(),
+                                        new_context_ptr));
       }
     }
   }
