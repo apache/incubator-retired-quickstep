@@ -131,7 +131,7 @@ class QueryProcessor {
    *
    * @param catalog_filename The file to read the serialized catalog from.
    **/
-  explicit QueryProcessor(std::string &&catalog_filename)
+  explicit QueryProcessor(std::string &&catalog_filename)  // NOLINT(whitespace/operators)
       : catalog_filename_(std::move(catalog_filename)),
         catalog_altered_(false),
         query_id_(0) {
