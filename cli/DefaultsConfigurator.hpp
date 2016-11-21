@@ -20,16 +20,22 @@
 #ifndef QUICKSTEP_CLI_DEFAULTS_CONFIGURATOR_HPP_
 #define QUICKSTEP_CLI_DEFAULTS_CONFIGURATOR_HPP_
 
-#include <thread>  // NOLINT(build/c++11)
-#include <unordered_map>
-#include <vector>
-
-#include "storage/StorageConfig.h"
-#include "utility/Macros.hpp"
+#include "storage/StorageConfig.h"  // For QUICKSTEP_HAVE_LIBNUMA.
 
 #ifdef QUICKSTEP_HAVE_LIBNUMA
 #include <numa.h>
-#endif
+#endif  // QUICKSTEP_HAVE_LIBNUMA
+
+#include <cstddef>
+#include <thread>  // NOLINT(build/c++11)
+
+#ifdef QUICKSTEP_HAVE_LIBNUMA
+#include <unordered_map>
+#endif  // QUICKSTEP_HAVE_LIBNUMA
+
+#include <vector>
+
+#include "utility/Macros.hpp"
 
 namespace quickstep {
 
@@ -60,12 +66,12 @@ class DefaultsConfigurator {
    *         have libnuma.
    **/
   static std::size_t GetNumNUMANodes() {
-  #ifdef QUICKSTEP_HAVE_LIBNUMA
+#ifdef QUICKSTEP_HAVE_LIBNUMA
     // Id of the maximum node.
     return numa_max_node() + 1;
-  #else
+#else
     return 1;
-  #endif
+#endif  // QUICKSTEP_HAVE_LIBNUMA
   }
 
   /**
@@ -80,7 +86,7 @@ class DefaultsConfigurator {
    **/
   static std::size_t GetNumNUMANodesCoveredByWorkers(const std::vector<int> &worker_cpu_affinities) {
     if (!worker_cpu_affinities.empty()) {
-     #ifdef QUICKSTEP_HAVE_LIBNUMA
+#ifdef QUICKSTEP_HAVE_LIBNUMA
       // Key = NUMA node, value = whether there is at least one worker whose
       // affinity is set to a core on the given NUMA node.
       std::unordered_map<int, bool> any_worker_on_numa_node;
@@ -93,7 +99,7 @@ class DefaultsConfigurator {
         }
       }
       return any_worker_on_numa_node.size();
-     #endif
+#endif  // QUICKSTEP_HAVE_LIBNUMA
     }
     // When libnuma is not available, or worker affinities are not specified,
     // the default return value is 1.
@@ -108,9 +114,9 @@ class DefaultsConfigurator {
 
   DISALLOW_COPY_AND_ASSIGN(DefaultsConfigurator);
 };
+
 /** @} */
 
 }  // namespace quickstep
 
 #endif  // QUICKSTEP_CLI_DEFAULTS_CONFIGURATOR_HPP_
-
