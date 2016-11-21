@@ -44,7 +44,9 @@ target_link_libraries(quickstep_viz_rules_OneDimensionMultiMeasures
                       quickstep_viz_VizAnalyzer
                       quickstep_viz_VizContext
                       quickstep_viz_VizObject
-                      quickstep_viz_configs_BarChart)
+                      quickstep_viz_configs_BarChart
+                      quickstep_viz_configs_LineChart
+                      )
 target_link_libraries(quickstep_viz_rules_OneDimensionOneMeasure
                       quickstep_catalog_CatalogTypedefs
                       quickstep_utility_Macros

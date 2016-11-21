@@ -26,6 +26,7 @@
 #include "viz/VizContext.hpp"
 #include "viz/VizObject.hpp"
 #include "viz/configs/BarChart.hpp"
+#include "viz/configs/LineChart.hpp"
 
 namespace quickstep {
 namespace viz {
@@ -59,21 +60,10 @@ class OneDimensionMultiMeasures : public VizRule {
                        measures->getAttributeIds(),
                        new_context_ptr));
 
-    /*
-    // Try TimeseriesChart
-    const VizAnalyzer *analyzer =
-        context_->get<VizAnalyzer>("VizAnalyzer");
-    const attribute_id dimension_attr_id = dimensions->getAttributeIds().front();
-
-    std::string time_format;
-    if (analyzer->isTime(dimension_attr_id, &time_format)) {
-      yield(new TimeSeries(dimension_attr_id,
-                           time_format,
-                           kInvalidAttributeID,
-                           measures->getAttributeIds().front(),
-                           new_context_ptr));
-    }
-    */
+    // LineChart
+    yield(new LineChart(dimensions->getAttributeIds().front(),
+                       measures->getAttributeIds(),
+                       new_context_ptr));
   }
 
  private:
