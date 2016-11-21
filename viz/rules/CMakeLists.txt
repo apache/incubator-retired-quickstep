@@ -20,6 +20,9 @@ add_library(quickstep_viz_rules_Grouping ../../empty_src.cpp Grouping.hpp)
 add_library(quickstep_viz_rules_OneDimensionOneMeasure
             ../../empty_src.cpp
             OneDimensionOneMeasure.hpp)
+add_library(quickstep_viz_rules_TwoDimensionsOneMeasure
+            ../../empty_src.cpp
+            TwoDimensionsOneMeasure.hpp)
 add_library(quickstep_viz_rules_VizRule ../../empty_src.cpp VizRule.hpp)
 
 # Link dependencies:
@@ -29,7 +32,8 @@ target_link_libraries(quickstep_viz_rules_Grouping
                       quickstep_catalog_CatalogTypedefs
                       quickstep_utility_Macros
                       quickstep_viz_VizAnalyzer
-                      quickstep_viz_rules_OneDimensionOneMeasure)
+                      quickstep_viz_rules_OneDimensionOneMeasure
+                      quickstep_viz_rules_TwoDimensionsOneMeasure)
 target_link_libraries(quickstep_viz_rules_OneDimensionOneMeasure
                       quickstep_catalog_CatalogTypedefs
                       quickstep_utility_Macros
@@ -38,6 +42,13 @@ target_link_libraries(quickstep_viz_rules_OneDimensionOneMeasure
                       quickstep_viz_VizObject
                       quickstep_viz_configs_BarChart
                       quickstep_viz_configs_PieChart
+                      quickstep_viz_configs_TimeSeries)
+target_link_libraries(quickstep_viz_rules_TwoDimensionsOneMeasure
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_utility_Macros
+                      quickstep_viz_VizAnalyzer
+                      quickstep_viz_VizContext
+                      quickstep_viz_VizObject
                       quickstep_viz_configs_TimeSeries)
 target_link_libraries(quickstep_viz_rules_VizRule
                       quickstep_utility_Macros

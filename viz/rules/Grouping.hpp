@@ -30,6 +30,7 @@
 #include "utility/Macros.hpp"
 #include "viz/VizAnalyzer.hpp"
 #include "viz/rules/OneDimensionOneMeasure.hpp"
+#include "viz/rules/TwoDimensionsOneMeasure.hpp"
 
 namespace quickstep {
 namespace viz {
@@ -85,6 +86,10 @@ class Grouping : public VizRule {
     if (num_dimension_attrs == 1) {
       if (num_measure_attrs == 1) {
         derive(new OneDimensionOneMeasure(new_context));
+      }
+    } else if (num_dimension_attrs == 2) {
+      if (num_measure_attrs == 1) {
+        derive(new TwoDimensionsOneMeasure(new_context));
       }
     }
   }
