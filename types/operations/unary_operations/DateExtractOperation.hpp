@@ -143,6 +143,15 @@ class DateExtractOperation : public UnaryOperation {
    **/
   static const DateExtractOperation& Instance(const DateExtractUnit unit);
 
+  /*
+   * @brief Get the extract unit for this date extract operation.
+   *
+   * @return The extract unit for this date extract operation.
+   */
+  const DateExtractUnit unit() const {
+    return unit_;
+  };
+
   serialization::UnaryOperation getProto() const override;
 
   std::string getName() const override;

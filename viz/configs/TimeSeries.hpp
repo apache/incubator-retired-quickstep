@@ -17,8 +17,8 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_VIZ_CONFIGS_BAR_CHART_HPP_
-#define QUICKSTEP_VIZ_CONFIGS_BAR_CHART_HPP_
+#ifndef QUICKSTEP_VIZ_CONFIGS_TIME_SERIES_HPP_
+#define QUICKSTEP_VIZ_CONFIGS_TIME_SERIES_HPP_
 
 #include <string>
 #include <vector>
@@ -41,47 +41,49 @@ namespace viz {
  *  @{
  */
 
-class BarChart : public VizConfig {
+class TimeSeries : public VizConfig {
  public:
-  BarChart(const attribute_id dimension_attr_id,
-           const std::vector<attribute_id> &measure_attr_ids,
-           const VizContextPtr &context)
+  TimeSeries(const attribute_id time_attr_id,
+             const std::string &time_format,
+             const std::vector<attribute_id> &measure_attr_ids,
+             const VizContextPtr &context)
       : VizConfig(context),
-        dimension_attr_id_(dimension_attr_id),
+        time_attr_id_(time_attr_id),
+        time_format_(time_format),
         measure_attr_ids_(measure_attr_ids) {}
 
-  ~BarChart() override {}
+  ~TimeSeries() override {}
 
   nlohmann::json toJSON() override {
     std::vector<attribute_id> all_attr_ids;
-    all_attr_ids.emplace_back(dimension_attr_id_);
+    all_attr_ids.emplace_back(time_attr_id_);
     for (const attribute_id m_id : measure_attr_ids_) {
       all_attr_ids.emplace_back(m_id);
     }
     nlohmann::json schema = copySchema(all_attr_ids);
     nlohmann::json columns = nlohmann::json::array();
-    for (std::size_t i = 1; i < all_attr_ids.size(); ++i) {
+    for (std::size_t i = 0; i < all_attr_ids.size(); ++i) {
       std::string header = schema[i]["name"];
       columns.push_back(copyColumn(all_attr_ids[i], &header));
     }
 
     nlohmann::json data;
-    data["type"] = "bar";
+    data["x"] = schema[0]["name"];
+    data["xFormat"] = time_format_;
     data["columns"] = columns;
 
     nlohmann::json x_axis;
     x_axis["label"]["text"] = schema[0]["name"];
     x_axis["label"]["position"] = "outer-right";
-    x_axis["type"] = "category";
-    x_axis["categories"] = copyColumn(dimension_attr_id_);
+    x_axis["type"] = "timeseries";
+    x_axis["tick"]["format"] = time_format_;
 
     nlohmann::json c3;
     c3["data"] = data;
-    c3["bar"]["width"]["ratio"] = 0.75;
     c3["axis"]["x"] = x_axis;
 
     nlohmann::json ret;
-    ret["type"] = "BarChart";
+    ret["type"] = "TimeSeries";
     ret["trace"] = copyTrace();
     ret["schema"] = schema;
     ret["c3"] = c3;
@@ -90,10 +92,11 @@ class BarChart : public VizConfig {
   }
 
  private:
-  const attribute_id dimension_attr_id_;
+  const attribute_id time_attr_id_;
+  const std::string time_format_;
   const std::vector<attribute_id> measure_attr_ids_;
 
-  DISALLOW_COPY_AND_ASSIGN(BarChart);
+  DISALLOW_COPY_AND_ASSIGN(TimeSeries);
  };
 
 /** @} */
@@ -101,4 +104,4 @@ class BarChart : public VizConfig {
 }  // namespace viz
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_VIZ_CONFIGS_BAR_CHART_HPP_
+#endif  // QUICKSTEP_VIZ_CONFIGS_TIME_SERIES_HPP_

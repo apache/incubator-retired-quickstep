@@ -27,13 +27,26 @@ add_library(quickstep_viz_VizObject VizObject.cpp VizObject.hpp)
 
 # Link dependencies:
 target_link_libraries(quickstep_viz_VizAnalyzer
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExprId
+                      quickstep_queryoptimizer_expressions_Expression
                       quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_expressions_NamedExpression
+                      quickstep_queryoptimizer_expressions_PatternMatcher
+                      quickstep_queryoptimizer_expressions_UnaryExpression
                       quickstep_queryoptimizer_physical_Aggregate
+                      quickstep_queryoptimizer_physical_Join
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
+                      quickstep_queryoptimizer_physical_Selection
+                      quickstep_types_Type
+                      quickstep_types_TypeID
+                      quickstep_types_operations_unaryoperations_DateExtractOperation
+                      quickstep_types_operations_unaryoperations_UnaryOperationID
                       quickstep_utility_Macros
                       quickstep_viz_VizObject)
 target_link_libraries(quickstep_viz_VizContext

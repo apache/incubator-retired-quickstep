@@ -26,6 +26,8 @@
 #include "viz/VizContext.hpp"
 #include "viz/VizObject.hpp"
 #include "viz/configs/BarChart.hpp"
+#include "viz/configs/PieChart.hpp"
+#include "viz/configs/TimeSeries.hpp"
 
 namespace quickstep {
 namespace viz {
@@ -55,10 +57,28 @@ class OneDimensionOneMeasure : public VizRule {
 
     const VizContextPtr new_context_ptr(new_context.release());
 
-    // Barchart or Linechart
+    // Barchart
     yield(new BarChart(dimensions->getAttributeIds().front(),
+                       measures->getAttributeIds(),
+                       new_context_ptr));
+
+    // PieChart
+    yield(new PieChart(dimensions->getAttributeIds().front(),
                        measures->getAttributeIds().front(),
                        new_context_ptr));
+
+    // Try TimeseriesChart
+    const VizAnalyzer *analyzer =
+        context_->get<VizAnalyzer>("VizAnalyzer");
+    const attribute_id dimension_attr_id = dimensions->getAttributeIds().front();
+
+    std::string time_format;
+    if (analyzer->isTime(dimension_attr_id, &time_format)) {
+      yield(new TimeSeries(dimension_attr_id,
+                           time_format,
+                           measures->getAttributeIds(),
+                           new_context_ptr));
+    }
   }
 
  private:

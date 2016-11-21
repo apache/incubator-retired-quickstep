@@ -20,6 +20,9 @@
 #ifndef QUICKSTEP_VIZ_CONFIGS_VIZ_CONFIG_HPP_
 #define QUICKSTEP_VIZ_CONFIGS_VIZ_CONFIG_HPP_
 
+#include <string>
+#include <vector>
+
 #include "catalog/CatalogTypedefs.hpp"
 #include "utility/Macros.hpp"
 #include "viz/VizContext.hpp"
@@ -48,7 +51,8 @@ class VizConfig {
   explicit VizConfig(const VizContextPtr &context);
 
 
-  nlohmann::json copyColumn(const attribute_id column_id);
+  nlohmann::json copyColumn(const attribute_id column_id,
+                            const std::string *header = nullptr);
   nlohmann::json copySchema(const std::vector<attribute_id> &attr_ids);
   nlohmann::json copyTrace();
 

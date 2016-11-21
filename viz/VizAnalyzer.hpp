@@ -23,10 +23,13 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
+#include "query_optimizer/expressions/ExprId.hpp"
+#include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "utility/Macros.hpp"
@@ -36,6 +39,7 @@
 
 namespace quickstep {
 
+class CatalogAttribute;
 class CatalogDatabase;
 class CatalogRelation;
 class QueryPlan;
@@ -54,13 +58,7 @@ class VizAnalyzer : public VizObject {
               const std::vector<WorkOrderTimeEntry> *profiling_stats,
               const CatalogRelation *query_result_relation,
               const CatalogDatabase *catalog_database,
-              StorageManager *storage_manager)
-      : physical_plan_(physical_plan),
-        execution_plan_(execution_plan),
-        profiling_stats_(profiling_stats),
-        query_result_relation_(query_result_relation),
-        catalog_database_(catalog_database),
-        storage_manager_(storage_manager) {}
+              StorageManager *storage_manager);
 
   std::string getName() const override {
     return "VizAnalyzer";
@@ -93,10 +91,21 @@ class VizAnalyzer : public VizObject {
   bool findGroupByAttributes(
       std::vector<attribute_id> *group_by_attribute_ids) const;
 
+  bool isTime(const attribute_id attr_id,
+              std::string *format) const;
+
  private:
   bool findGroupByAttributesInternal(
       const optimizer::physical::PhysicalPtr &physical_plan,
       std::vector<optimizer::expressions::AttributeReferencePtr> *group_by_attributes) const;
+
+  bool findGenExpression(const optimizer::physical::PhysicalPtr &physical_plan,
+                         const optimizer::expressions::ExprId expr_id,
+                         optimizer::expressions::ExpressionPtr *expr) const;
+
+  bool isExtractedTime(const optimizer::physical::PhysicalPtr &physical_plan,
+                       const optimizer::expressions::ExprId expr_id,
+                       std::string *format) const;
 
   const optimizer::physical::PhysicalPtr physical_plan_;
   const QueryPlan *execution_plan_;
@@ -104,6 +113,14 @@ class VizAnalyzer : public VizObject {
   const CatalogRelation *query_result_relation_;
   const CatalogDatabase *catalog_database_;
   StorageManager *storage_manager_;
+
+  std::unordered_map<
+      attribute_id, optimizer::expressions::AttributeReferencePtr>
+          catalog_to_physical_attribute_map;
+
+  std::unordered_map<
+      optimizer::expressions::ExprId, const CatalogAttribute *>
+          physical_to_catalog_attribute_map;
 
   DISALLOW_COPY_AND_ASSIGN(VizAnalyzer);
 };

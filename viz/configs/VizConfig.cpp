@@ -20,6 +20,8 @@
 #include "viz/configs/VizConfig.hpp"
 
 #include <memory>
+#include <string>
+#include <vector>
 
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogRelation.hpp"
@@ -47,8 +49,12 @@ VizConfig::VizConfig(const VizContextPtr &context)
   storage_manager_ = analyzer->getStorageManager();
 }
 
-json VizConfig::copyColumn(const attribute_id column_id) {
+json VizConfig::copyColumn(const attribute_id column_id,
+                           const std::string *header) {
   json values = json::array();
+  if (header != nullptr) {
+    values.push_back(*header);
+  }
   for (const block_id bid : relation_->getBlocksSnapshot()) {
     BlockReference block = storage_manager_->getBlock(bid, *relation_);
     std::unique_ptr<ValueAccessor> accessor(

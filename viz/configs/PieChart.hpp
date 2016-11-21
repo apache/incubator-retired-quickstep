@@ -17,15 +17,12 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_VIZ_CONFIGS_DUMP_RELATION_HPP_
-#define QUICKSTEP_VIZ_CONFIGS_DUMP_RELATION_HPP_
+#ifndef QUICKSTEP_VIZ_CONFIGS_PIE_CHART_HPP_
+#define QUICKSTEP_VIZ_CONFIGS_PIE_CHART_HPP_
 
-#include "catalog/CatalogAttribute.hpp"
-#include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "utility/Macros.hpp"
 #include "viz/configs/VizConfig.hpp"
-#include "viz/VizAnalyzer.hpp"
 #include "viz/VizContext.hpp"
 
 #include "json.hpp"
@@ -41,34 +38,43 @@ namespace viz {
  *  @{
  */
 
-class DumpRelation : public VizConfig {
+class PieChart : public VizConfig {
  public:
-  DumpRelation(const VizContextPtr &context)
-      : VizConfig(context) {}
+  PieChart(const attribute_id dimension_attr_id,
+           const attribute_id measure_attr_id,
+           const VizContextPtr &context)
+      : VizConfig(context),
+        dimension_attr_id_(dimension_attr_id),
+        measure_attr_id_(measure_attr_id) {}
 
-  ~DumpRelation() override {}
+  ~PieChart() override {}
 
   nlohmann::json toJSON() override {
-    const CatalogRelation *relation =
-        context_->get<VizAnalyzer>("VizAnalyzer")->getRelation();
+    nlohmann::json rows = nlohmann::json::array();
+    rows.push_back(copyColumn(dimension_attr_id_));
+    rows.push_back(copyColumn(measure_attr_id_));
 
-    std::vector<attribute_id> attr_ids;
-    nlohmann::json data = nlohmann::json::array();
-    for (const CatalogAttribute &attr : *relation) {
-      data.push_back(copyColumn(attr.getID()));
-      attr_ids.emplace_back(attr.getID());
-    }
+    nlohmann::json data;
+    data["type"] = "pie";
+    data["rows"] = rows;
+
+    nlohmann::json c3;
+    c3["data"] = data;
 
     nlohmann::json ret;
-    ret["type"] = "DumpRelation";
-    ret["schema"] = copySchema(attr_ids);
-    ret["data"] = data;
+    ret["type"] = "PieChart";
+    ret["trace"] = copyTrace();
+    ret["schema"] = copySchema({dimension_attr_id_, measure_attr_id_});
+    ret["c3"] = c3;
 
     return ret;
   }
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(DumpRelation);
+  const attribute_id dimension_attr_id_;
+  const attribute_id measure_attr_id_;
+
+  DISALLOW_COPY_AND_ASSIGN(PieChart);
  };
 
 /** @} */
@@ -76,4 +82,4 @@ class DumpRelation : public VizConfig {
 }  // namespace viz
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_VIZ_CONFIGS_DUMP_RELATION_HPP_
+#endif  // QUICKSTEP_VIZ_CONFIGS_PIE_CHART_HPP_
