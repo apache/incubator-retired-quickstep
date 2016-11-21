@@ -17,6 +17,9 @@
 
 # Declare micro-libs:
 add_library(quickstep_viz_rules_Grouping ../../empty_src.cpp Grouping.hpp)
+add_library(quickstep_viz_rules_OneDimensionMultiMeasures
+            ../../empty_src.cpp
+            OneDimensionMultiMeasures.hpp)
 add_library(quickstep_viz_rules_OneDimensionOneMeasure
             ../../empty_src.cpp
             OneDimensionOneMeasure.hpp)
@@ -32,8 +35,16 @@ target_link_libraries(quickstep_viz_rules_Grouping
                       quickstep_catalog_CatalogTypedefs
                       quickstep_utility_Macros
                       quickstep_viz_VizAnalyzer
+                      quickstep_viz_rules_OneDimensionMultiMeasures
                       quickstep_viz_rules_OneDimensionOneMeasure
                       quickstep_viz_rules_TwoDimensionsOneMeasure)
+target_link_libraries(quickstep_viz_rules_OneDimensionMultiMeasures
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_utility_Macros
+                      quickstep_viz_VizAnalyzer
+                      quickstep_viz_VizContext
+                      quickstep_viz_VizObject
+                      quickstep_viz_configs_BarChart)
 target_link_libraries(quickstep_viz_rules_OneDimensionOneMeasure
                       quickstep_catalog_CatalogTypedefs
                       quickstep_utility_Macros
