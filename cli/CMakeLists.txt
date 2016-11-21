@@ -75,7 +75,7 @@ else()
                         quickstep_utility_Macros)
 endif()
 
-add_library(quickstep_cli_DefaultsConfigurator ../empty_src.cpp DefaultsConfigurator.hpp)
+add_library(quickstep_cli_DefaultsConfigurator DefaultsConfigurator.cpp DefaultsConfigurator.hpp)
 add_library(quickstep_cli_InputParserUtil InputParserUtil.cpp InputParserUtil.hpp)
 add_library(quickstep_cli_PrintToScreen PrintToScreen.cpp PrintToScreen.hpp)
 
@@ -106,10 +106,14 @@ target_link_libraries(quickstep_cli_CommandExecutor
                       quickstep_utility_SqlError)
 
 target_link_libraries(quickstep_cli_DefaultsConfigurator
+                      glog
+                      quickstep_catalog_Catalog
+                      quickstep_catalog_Catalog_proto
+                      quickstep_catalog_CatalogDatabase
                       quickstep_utility_Macros)
 if(QUICKSTEP_HAVE_LIBNUMA)
   target_link_libraries(quickstep_cli_DefaultsConfigurator
-                      ${LIBNUMA_LIBRARY})
+                        ${LIBNUMA_LIBRARY})
 endif()
 target_link_libraries(quickstep_cli_Flags
                       quickstep_cli_DefaultsConfigurator

@@ -216,41 +216,7 @@ int main(int argc, char* argv[]) {
   string catalog_path(FLAGS_storage_path);
   catalog_path.append(kCatalogFilename);
   if (quickstep::FLAGS_initialize_db) {  // Initialize the database
-    // TODO(jmp): Refactor the code in this file!
-    LOG(INFO) << "Initializing the database, creating a new catalog file and storage directory\n";
-
-    // Create the directory
-    // TODO(jmp): At some point, likely in C++-17, we will just have the
-    //            filesystem path, and we can clean this up
-#ifdef QUICKSTEP_OS_WINDOWS
-    std::filesystem::create_directories(FLAGS_storage_path);
-    LOG(FATAL) << "Failed when attempting to create the directory: " << FLAGS_storage_path << "\n";
-    LOG(FATAL) << "Check if the directory already exists. If so, delete it or move it before initializing \n";
-#else
-    {
-      string path_name = "mkdir " + FLAGS_storage_path;
-      if (std::system(path_name.c_str())) {
-        LOG(FATAL) << "Failed when attempting to create the directory: " << FLAGS_storage_path << "\n";
-      }
-    }
-#endif
-
-    // Create the default catalog file.
-    std::ofstream catalog_file(catalog_path);
-    if (!catalog_file.good()) {
-      LOG(FATAL) << "ERROR: Unable to open " << kCatalogFilename << " for writing.\n";
-    }
-
-    quickstep::Catalog catalog;
-    catalog.addDatabase(new quickstep::CatalogDatabase(nullptr, "default"));
-
-    if (!catalog.getProto().SerializeToOstream(&catalog_file)) {
-      LOG(FATAL) << "ERROR: Unable to serialize catalog proto to file " << kCatalogFilename;
-      return 1;
-    }
-
-    // Close the catalog file - it will be reopened below by the QueryProcessor.
-    catalog_file.close();
+    DefaultsConfigurator::InitializeDefaultDatabase(FLAGS_storage_path, catalog_path);
   }
 
   // Setup QueryProcessor, including CatalogDatabase.

@@ -27,6 +27,7 @@
 #endif  // QUICKSTEP_HAVE_LIBNUMA
 
 #include <cstddef>
+#include <string>
 #include <thread>  // NOLINT(build/c++11)
 
 #ifdef QUICKSTEP_HAVE_LIBNUMA
@@ -105,6 +106,15 @@ class DefaultsConfigurator {
     // the default return value is 1.
     return 1;
   }
+
+  /**
+   * @brief Initialize the default database with no relations.
+   *
+   * @param storage_path The filesystem directory to store catalog.
+   * @param catalog_path The full path of the catalog file.
+   **/
+  static void InitializeDefaultDatabase(const std::string &storage_path,
+                                        const std::string &catalog_path);
 
  private:
   /**
