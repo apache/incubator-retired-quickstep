@@ -128,7 +128,6 @@ DEFINE_string(worker_affinities, "",
               "the affinity mask of the Quickstep process, which typically "
               "means that they will all be runable on any CPU according to "
               "the kernel's own scheduling policy).");
-DEFINE_bool(initialize_db, false, "If true, initialize a database.");
 DEFINE_bool(print_query, false,
             "Print each input query statement. This is useful when running a "
             "large number of queries in a batch.");

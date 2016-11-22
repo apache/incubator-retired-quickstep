@@ -55,7 +55,7 @@ void DefaultsConfigurator::InitializeDefaultDatabase(const string &storage_path,
 #else
   {
     const string path_name = "mkdir " + storage_path;
-    CHECK(std::system(path_name.c_str()))
+    CHECK(!std::system(path_name.c_str()))
          << "Failed when attempting to create the directory: " << storage_path;
   }
 #endif  // QUICKSTEP_OS_WINDOWS
