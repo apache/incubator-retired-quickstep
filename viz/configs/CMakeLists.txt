@@ -18,6 +18,7 @@
 # Declare micro-libs:
 add_library(quickstep_viz_configs_BarChart ../../empty_src.cpp BarChart.hpp)
 add_library(quickstep_viz_configs_DumpRelation ../../empty_src.cpp DumpRelation.hpp)
+add_library(quickstep_viz_configs_HeatMap ../../empty_src.cpp HeatMap.hpp)
 add_library(quickstep_viz_configs_LineChart ../../empty_src.cpp LineChart.hpp)
 add_library(quickstep_viz_configs_PieChart ../../empty_src.cpp PieChart.hpp)
 add_library(quickstep_viz_configs_StackedAreaTimeSeries ../../empty_src.cpp StackedAreaTimeSeries.hpp)
@@ -36,6 +37,11 @@ target_link_libraries(quickstep_viz_configs_DumpRelation
                       quickstep_catalog_CatalogTypedefs
                       quickstep_utility_Macros
                       quickstep_viz_VizAnalyzer
+                      quickstep_viz_VizContext
+                      quickstep_viz_configs_VizConfig)
+target_link_libraries(quickstep_viz_configs_HeatMap
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_utility_Macros
                       quickstep_viz_VizContext
                       quickstep_viz_configs_VizConfig)
 target_link_libraries(quickstep_viz_configs_LineChart

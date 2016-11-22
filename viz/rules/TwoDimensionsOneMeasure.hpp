@@ -25,6 +25,7 @@
 #include "viz/VizAnalyzer.hpp"
 #include "viz/VizContext.hpp"
 #include "viz/VizObject.hpp"
+#include "viz/configs/HeatMap.hpp"
 #include "viz/configs/StackedAreaTimeSeries.hpp"
 #include "viz/configs/TimeSeries.hpp"
 
@@ -57,6 +58,8 @@ class TwoDimensionsOneMeasure : public VizRule {
 
     const VizContextPtr new_context_ptr(new_context.release());
 
+    // TODO: check columns statistics.
+
     // Try TimeseriesChart
     const VizAnalyzer *analyzer =
         context_->get<VizAnalyzer>("VizAnalyzer");
@@ -79,6 +82,14 @@ class TwoDimensionsOneMeasure : public VizRule {
                                         measures->getAttributeIds().front(),
                                         new_context_ptr));
       }
+    }
+
+    // HeatMap
+    for (std::size_t i = 0; i < 2uL; ++i) {
+        yield(new HeatMap(dimension_attr_ids.at(i),
+                          dimension_attr_ids.at(1-i),
+                          measures->getAttributeIds().front(),
+                          new_context_ptr));
     }
   }
 

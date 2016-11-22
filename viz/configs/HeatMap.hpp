@@ -17,11 +17,8 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_VIZ_CONFIGS_LINE_CHART_HPP_
-#define QUICKSTEP_VIZ_CONFIGS_LINE_CHART_HPP_
-
-#include <string>
-#include <vector>
+#ifndef QUICKSTEP_VIZ_CONFIGS_HEAT_MAP_HPP_
+#define QUICKSTEP_VIZ_CONFIGS_HEAT_MAP_HPP_
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "utility/Macros.hpp"
@@ -41,55 +38,43 @@ namespace viz {
  *  @{
  */
 
-class LineChart : public VizConfig {
+class HeatMap : public VizConfig {
  public:
-  LineChart(const attribute_id dimension_attr_id,
-            const std::vector<attribute_id> &measure_attr_ids,
-            const VizContextPtr &context)
+  HeatMap(const attribute_id row_attr_id,
+          const attribute_id col_attr_id,
+          const attribute_id measure_attr_id,
+          const VizContextPtr &context)
       : VizConfig(context),
-        dimension_attr_id_(dimension_attr_id),
-        measure_attr_ids_(measure_attr_ids) {}
+        row_attr_id_(row_attr_id),
+        col_attr_id_(col_attr_id),
+        measure_attr_id_(measure_attr_id) {}
 
-  ~LineChart() override {}
+  ~HeatMap() override {}
 
   nlohmann::json toJSON() override {
-    std::vector<attribute_id> all_attr_ids;
-    all_attr_ids.emplace_back(dimension_attr_id_);
-    for (const attribute_id id : measure_attr_ids_) {
-      all_attr_ids.emplace_back(id);
-    }
-    nlohmann::json schema = copySchema(all_attr_ids);
     nlohmann::json columns = nlohmann::json::array();
-    for (std::size_t i = 1; i < all_attr_ids.size(); i++) {
-      std::string header = schema[i]["name"];
-      columns.push_back(copyColumn(all_attr_ids[i], &header));
-    }
+    columns.push_back(copyColumn(row_attr_id_));
+    columns.push_back(copyColumn(col_attr_id_));
+    columns.push_back(copyColumn(measure_attr_id_));
 
     nlohmann::json data;
     data["columns"] = columns;
 
-    nlohmann::json x_axis;
-    x_axis["x"]["type"] = "category";
-    x_axis["x"]["categories"] = copyColumn(all_attr_ids[0], nullptr);
-
-    nlohmann::json c3;
-    c3["data"] = data;
-    c3["axis"] = x_axis;
-
     nlohmann::json ret;
-    ret["type"] = "LineChart";
+    ret["type"] = "HeatMap";
     ret["trace"] = copyTrace();
-    ret["schema"] = schema;
-    ret["c3"] = c3;
+    ret["schema"] = copySchema({row_attr_id_, col_attr_id_, measure_attr_id_});
+    ret["data"] = data;
 
     return ret;
   }
 
  private:
-  const attribute_id dimension_attr_id_;
-  const std::vector<attribute_id> measure_attr_ids_;
+  const attribute_id row_attr_id_;
+  const attribute_id col_attr_id_;
+  const attribute_id measure_attr_id_;
 
-  DISALLOW_COPY_AND_ASSIGN(LineChart);
+  DISALLOW_COPY_AND_ASSIGN(HeatMap);
  };
 
 /** @} */
@@ -97,4 +82,4 @@ class LineChart : public VizConfig {
 }  // namespace viz
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_VIZ_CONFIGS_LINE_CHART_HPP_
+#endif  // QUICKSTEP_VIZ_CONFIGS_HEAT_MAP_HPP_
