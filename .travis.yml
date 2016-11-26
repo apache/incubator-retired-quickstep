@@ -1,4 +1,4 @@
-# NOTE(quickstep-team): In Travis-CI, jobs timeout if they take more than 120
+# NOTE(quickstep-team): In Travis-CI, jobs timeout if they take more than 50
 # mins or if there is no log output for more than 10 mins. Hence, we use -O0 to
 # speed up compilation in release build. Also, jobs can only use upto 20GB of
 # disk space. Hence, we minimize the amount of debug symbol using -g0 (DEBUG
@@ -15,8 +15,17 @@ compiler:
   - clang
 
 env:
+  - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
+  - BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=selection
   - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
   - BUILD_TYPE=Release VECTOR_COPY_ELISION_LEVEL=selection
+
+matrix:
+  exclude:  # Due to time-out.
+  - compiler: gcc
+    env: BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=joinwithbinaryexpressions
+  - compiler: gcc
+    env: BUILD_TYPE=Debug VECTOR_COPY_ELISION_LEVEL=selection
 
 install:
   - export TEST_JOBS=2;
