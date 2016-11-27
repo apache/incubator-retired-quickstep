@@ -107,7 +107,14 @@ void Worker::sendWorkOrderCompleteMessage(const tmb::client_id receiver,
       static_cast<const void *>(proto_bytes), proto_length, message_type);
   std::free(proto_bytes);
 
-  DLOG(INFO) << "Worker sent WorkOrderCompleteMessage (typed '" << message_type
+  DLOG(INFO) << "Worker " << worker_thread_index_
+#ifdef QUICKSTEP_DISTRIBUTED
+             << " in Shiftboss " << shiftboss_index_
+#endif  // QUICKSTEP_DISTRIBUTED
+             << " sent "
+             << (message_type == kWorkOrderCompleteMessage ? "WorkOrderCompleteMessage"
+                                                           : "RebuildWorkOrderCompleteMessage")
+             << " (typed '" << message_type
              << "') to Scheduler with TMB client ID " << receiver;
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(
