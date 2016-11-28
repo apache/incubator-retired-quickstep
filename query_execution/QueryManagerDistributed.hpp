@@ -95,6 +95,26 @@ class QueryManagerDistributed final : public QueryManagerBase {
       const dag_node_index start_operator_index);
 
   /**
+   * @brief Get the index of Shiftboss for an Aggregation related WorkOrder. If
+   * the Shiftboss index is not found, set using <next_shiftboss_index_to_schedule>.
+   *
+   * @param aggr_state_index The Hash Table for the Aggregation.
+   * @param next_shiftboss_index The index of Shiftboss to schedule a next WorkOrder.
+   * @param shiftboss_index The index of Shiftboss to schedule the WorkOrder.
+   **/
+  void getShiftbossIndexForAggregation(const QueryContext::aggregation_state_id aggr_state_index,
+                                       const std::size_t next_shiftboss_index_to_schedule,
+                                       std::size_t *shiftboss_index) {
+    const auto cit = shiftboss_indexes_for_aggrs_.find(aggr_state_index);
+    if (cit != shiftboss_indexes_for_aggrs_.end()) {
+      *shiftboss_index = cit->second;
+    } else {
+      shiftboss_indexes_for_aggrs_.emplace(aggr_state_index, next_shiftboss_index_to_schedule);
+      *shiftboss_index = next_shiftboss_index_to_schedule;
+    }
+  }
+
+  /**
    * @brief Get the index of Shiftboss for a HashJoin related WorkOrder. If the
    * Shiftboss index is not found, set using <next_shiftboss_index_to_schedule>.
    *
@@ -135,6 +155,9 @@ class QueryManagerDistributed final : public QueryManagerBase {
   tmb::MessageBus *bus_;
 
   std::unique_ptr<WorkOrderProtosContainer> normal_workorder_protos_container_;
+
+  // A map from an aggregation id to its scheduled Shiftboss index.
+  std::unordered_map<QueryContext::aggregation_state_id, std::size_t> shiftboss_indexes_for_aggrs_;
 
   // A map from a join hash table to its scheduled Shiftboss index.
   std::unordered_map<QueryContext::join_hash_table_id, std::size_t> shiftboss_indexes_for_hash_joins_;

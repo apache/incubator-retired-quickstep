@@ -158,6 +158,18 @@ void PolicyEnforcerDistributed::processInitiateRebuildResponseMessage(const tmb:
   }
 }
 
+void PolicyEnforcerDistributed::getShiftbossIndexForAggregation(
+    const std::size_t query_id,
+    const QueryContext::aggregation_state_id aggr_state_index,
+    const std::size_t next_shiftboss_index_to_schedule,
+    std::size_t *shiftboss_index) {
+  DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
+  QueryManagerDistributed *query_manager = static_cast<QueryManagerDistributed*>(admitted_queries_[query_id].get());
+  query_manager->getShiftbossIndexForAggregation(aggr_state_index,
+                                                 next_shiftboss_index_to_schedule,
+                                                 shiftboss_index);
+}
+
 void PolicyEnforcerDistributed::getShiftbossIndexForHashJoin(
     const std::size_t query_id,
     const QueryContext::join_hash_table_id join_hash_table_index,
