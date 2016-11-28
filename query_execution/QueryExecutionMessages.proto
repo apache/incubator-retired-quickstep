@@ -78,6 +78,10 @@ message ShiftbossRegistrationResponseMessage {
   required uint64 shiftboss_index = 1;
 }
 
+message SqlQueryMessage {
+  required string sql_query = 1;
+}
+
 message QueryInitiateMessage {
   required uint64 query_id = 1;
   required CatalogDatabase catalog_database_cache = 2;
@@ -129,6 +133,10 @@ message SaveQueryResultResponseMessage {
 
 message QueryExecutionSuccessMessage {
   optional CatalogRelationSchema result_relation = 1;
+}
+
+message QueryExecutionErrorMessage {
+  required string error_message = 1;
 }
 
 // BlockLocator related messages.

@@ -46,7 +46,9 @@ EXCLUDED_TOP_LEVEL_DIRS = ["build", "third_party"]
 # Explicitly ignored dependencies (special headers with no other quickstep
 # dependencies).
 IGNORED_DEPENDENCIES = frozenset(
-    ["quickstep_storage_DataExchange.grpc_proto",
+    ["quickstep_cli_LineReaderDumb",
+     "quickstep_cli_LineReaderLineNoise",
+     "quickstep_storage_DataExchange.grpc_proto",
      "quickstep_threading_WinThreadsAPI",
      "quickstep_utility_textbasedtest_TextBasedTest",
      "quickstep_utility_textbasedtest_TextBasedTestDriver",

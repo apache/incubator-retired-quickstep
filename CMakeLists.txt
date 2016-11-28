@@ -782,3 +782,20 @@ endif()
 
 # Link against other required system and third-party libraries.
 target_link_libraries(quickstep_cli_shell ${LIBS})
+
+if (ENABLE_DISTRIBUTED)
+  # Build the quickstep_distributed_cli_shell executable.
+  add_executable (quickstep_distributed_cli_shell cli/distributed/QuickstepDistributedCli.cpp)
+  # Link against direct deps (will transitively pull in everything needed).
+  # NOTE(zuyu): Link quickstep_cli_LineReader on behalf of quickstep_cli_distributed_Cli,
+  # as a workaround for bypassing conditionally built target checks in validate_cmakelists.py.
+  target_link_libraries(quickstep_distributed_cli_shell
+                        glog
+                        quickstep_cli_LineReader
+                        quickstep_cli_distributed_Cli
+                        quickstep_cli_distributed_Conductor
+                        quickstep_cli_distributed_Executor
+                        quickstep_utility_StringUtil
+                        ${GFLAGS_LIB_NAME}
+                        ${GRPCPLUSPLUS_LIBRARIES})
+endif(ENABLE_DISTRIBUTED)

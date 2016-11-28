@@ -16,6 +16,9 @@
 # under the License.
 
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
+if (ENABLE_DISTRIBUTED)
+  add_subdirectory(distributed)
+endif(ENABLE_DISTRIBUTED)
 add_subdirectory(tests)
 
 if (WIN32)
