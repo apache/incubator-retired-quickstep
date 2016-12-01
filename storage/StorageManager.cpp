@@ -557,9 +557,9 @@ vector<string> StorageManager::getPeerDomainNetworkAddresses(const block_id bloc
                         kGetPeerDomainNetworkAddressesMessage);
   free(proto_bytes);
 
-  LOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
-            << "') sent GetPeerDomainNetworkAddressesMessage (typed '" << kGetPeerDomainNetworkAddressesMessage
-            << "') to BlockLocator";
+  DLOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
+             << "') sent GetPeerDomainNetworkAddressesMessage (typed '" << kGetPeerDomainNetworkAddressesMessage
+             << "') to BlockLocator";
 
   DCHECK_NE(block_locator_client_id_, tmb::kClientIdNone);
   DCHECK(bus_ != nullptr);
@@ -573,8 +573,8 @@ vector<string> StorageManager::getPeerDomainNetworkAddresses(const block_id bloc
   const TaggedMessage &tagged_message = annotated_message.tagged_message;
   CHECK_EQ(block_locator_client_id_, annotated_message.sender);
   CHECK_EQ(kGetPeerDomainNetworkAddressesResponseMessage, tagged_message.message_type());
-  LOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
-            << "') received GetPeerDomainNetworkAddressesResponseMessage from BlockLocator";
+  DLOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
+             << "') received GetPeerDomainNetworkAddressesResponseMessage from BlockLocator";
 
   serialization::GetPeerDomainNetworkAddressesResponseMessage response_proto;
   CHECK(response_proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
@@ -591,10 +591,10 @@ void StorageManager::sendBlockLocationMessage(const block_id block,
                                               const tmb::message_type_id message_type) {
   switch (message_type) {
     case kAddBlockLocationMessage:
-      LOG(INFO) << "Loaded Block " << BlockIdUtil::ToString(block) << " in Domain " << block_domain_;
+      DLOG(INFO) << "Loaded Block " << BlockIdUtil::ToString(block) << " in Domain " << block_domain_;
       break;
     case kDeleteBlockLocationMessage:
-      LOG(INFO) << "Evicted Block " << BlockIdUtil::ToString(block) << " in Domain " << block_domain_;
+      DLOG(INFO) << "Evicted Block " << BlockIdUtil::ToString(block) << " in Domain " << block_domain_;
       break;
     default:
       LOG(FATAL) << "Unknown message type " << message_type;
@@ -613,9 +613,9 @@ void StorageManager::sendBlockLocationMessage(const block_id block,
                         message_type);
   free(proto_bytes);
 
-  LOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
-            << "') sent BlockLocationMessage (typed '" << message_type
-            << "') to BlockLocator";
+  DLOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
+             << "') sent BlockLocationMessage (typed '" << message_type
+             << "') to BlockLocator";
   CHECK(MessageBus::SendStatus::kOK ==
       QueryExecutionUtil::SendTMBMessage(bus_,
                                          storage_manager_client_id_,
@@ -635,7 +635,7 @@ StorageManager::BlockHandle StorageManager::loadBlockOrBlob(
   // TODO(quickstep-team): Use a cost model to determine whether to load from
   // a remote peer or the disk.
   if (BlockIdUtil::Domain(block) != block_domain_) {
-    LOG(INFO) << "Pulling Block " << BlockIdUtil::ToString(block) << " from a remote peer";
+    DLOG(INFO) << "Pulling Block " << BlockIdUtil::ToString(block) << " from a remote peer";
     const vector<string> peer_domain_network_addresses = getPeerDomainNetworkAddresses(block);
     for (const string &peer_domain_network_address : peer_domain_network_addresses) {
       DataExchangerClientAsync client(
@@ -648,8 +648,8 @@ StorageManager::BlockHandle StorageManager::loadBlockOrBlob(
       }
     }
 
-    LOG(INFO) << "Failed to pull Block " << BlockIdUtil::ToString(block)
-              << " from remote peers, so try to load from disk.";
+    DLOG(INFO) << "Failed to pull Block " << BlockIdUtil::ToString(block)
+               << " from remote peers, so try to load from disk.";
   }
 #endif
 
