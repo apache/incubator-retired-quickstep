@@ -85,7 +85,8 @@ class BlockLocatorTest : public ::testing::Test {
     bus_.RegisterClientAsSender(worker_client_id_, kPoisonMessage);
 
     block_domain_ =
-        block_locator::getBlockDomain(kDomainNetworkAddress, worker_client_id_, &locator_client_id_, &bus_);
+        block_locator::getBlockDomain(kDomainNetworkAddress, kInvalidShiftbossIndex, worker_client_id_,
+                                      &locator_client_id_, &bus_);
     DCHECK_EQ(locator_->getBusClientID(), locator_client_id_);
 
     storage_manager_.reset(

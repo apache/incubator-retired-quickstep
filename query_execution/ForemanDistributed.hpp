@@ -23,8 +23,10 @@
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
+#include "query_execution/BlockLocator.hpp"
 #include "query_execution/ForemanBase.hpp"
 #include "query_execution/ShiftbossDirectory.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
 #include "tmb/id_typedefs.h"
@@ -51,6 +53,9 @@ class ForemanDistributed final : public ForemanBase {
   /**
    * @brief Constructor.
    *
+   * @param block_domain_to_shiftboss_index A mapping from a block domain to
+   *        its Shiftboss index in BlockLocator.
+   * @param block_locations Block locality info in BlockLocator.
    * @param bus A pointer to the TMB.
    * @param catalog_database The catalog database where this query is executed.
    * @param cpu_id The ID of the CPU to which the Foreman thread can be pinned.
@@ -58,9 +63,12 @@ class ForemanDistributed final : public ForemanBase {
    * @note If cpu_id is not specified, Foreman thread can be possibly moved
    *       around on different CPUs by the OS.
   **/
-  ForemanDistributed(tmb::MessageBus *bus,
-                     CatalogDatabaseLite *catalog_database,
-                     const int cpu_id = -1);
+  ForemanDistributed(
+      const BlockLocator::BlockDomainToShiftbossIndex &block_domain_to_shiftboss_index,
+      const BlockLocator::BlockLocation &block_locations,
+      tmb::MessageBus *bus,
+      CatalogDatabaseLite *catalog_database,
+      const int cpu_id = -1);
 
   ~ForemanDistributed() override {}
 
@@ -78,6 +86,15 @@ class ForemanDistributed final : public ForemanBase {
   bool isHashJoinRelatedWorkOrder(const serialization::WorkOrderMessage &proto,
                                   const std::size_t next_shiftboss_index_to_schedule,
                                   std::size_t *shiftboss_index_for_hash_join);
+
+  bool isNestedLoopsJoinWorkOrder(const serialization::WorkOrder &work_order_proto,
+                                  std::size_t *shiftboss_index_for_join);
+
+  bool hasBlockLocalityInfo(const serialization::WorkOrder &work_order_proto,
+                            std::size_t *shiftboss_index_for_block);
+
+  bool hasBlockLocalityInfoHelper(const block_id block,
+                                  std::size_t *shiftboss_index_for_block);
 
   /**
    * @brief Dispatch schedulable WorkOrders, wrapped in WorkOrderMessages to the
@@ -110,6 +127,10 @@ class ForemanDistributed final : public ForemanBase {
    * @param message_type The type of the last received message.
    **/
   bool canCollectNewMessages(const tmb::message_type_id message_type);
+
+  // Block locality info for scheduling.
+  const BlockLocator::BlockDomainToShiftbossIndex &block_domain_to_shiftboss_index_;
+  const BlockLocator::BlockLocation &block_locations_;
 
   ShiftbossDirectory shiftboss_directory_;
 

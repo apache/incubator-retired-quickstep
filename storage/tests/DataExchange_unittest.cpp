@@ -88,7 +88,8 @@ class DataExchangeTest : public ::testing::Test {
     storage_manager_expected_.reset(new StorageManager(
         kStoragePath,
         block_locator::getBlockDomain(
-            data_exchanger_expected_.network_address(), worker_client_id_, &locator_client_id_, &bus_),
+            data_exchanger_expected_.network_address(), kInvalidShiftbossIndex, worker_client_id_,
+            &locator_client_id_, &bus_),
         locator_client_id_,
         &bus_));
     DCHECK_EQ(locator_->getBusClientID(), locator_client_id_);
@@ -99,7 +100,7 @@ class DataExchangeTest : public ::testing::Test {
     storage_manager_checked_.reset(new StorageManager(
         kStoragePath,
         block_locator::getBlockDomain(
-            kCheckedDomainNetworkAddress, worker_client_id_, &locator_client_id_, &bus_),
+            kCheckedDomainNetworkAddress, kInvalidShiftbossIndex, worker_client_id_, &locator_client_id_, &bus_),
         locator_client_id_,
         &bus_));
     DCHECK_EQ(locator_->getBusClientID(), locator_client_id_);

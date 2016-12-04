@@ -19,6 +19,7 @@
 
 #include "query_execution/BlockLocator.hpp"
 
+#include <cstddef>
 #include <cstdlib>
 #include <string>
 #include <utility>
@@ -38,6 +39,7 @@
 using std::free;
 using std::malloc;
 using std::move;
+using std::size_t;
 
 using tmb::TaggedMessage;
 using tmb::client_id;
@@ -62,7 +64,7 @@ void BlockLocator::run() {
         serialization::BlockDomainRegistrationMessage proto;
         CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
 
-        processBlockDomainRegistrationMessage(sender, proto.domain_network_address());
+        processBlockDomainRegistrationMessage(sender, proto.domain_network_address(), proto.shiftboss_index());
         break;
       }
       case kAddBlockLocationMessage: {
@@ -139,11 +141,16 @@ void BlockLocator::run() {
 }
 
 void BlockLocator::processBlockDomainRegistrationMessage(const client_id receiver,
-                                                         const std::string &network_address) {
+                                                         const std::string &network_address,
+                                                         const size_t shiftboss_index) {
   DCHECK_LT(block_domain_, kMaxDomain);
 
   domain_network_addresses_.emplace(++block_domain_, network_address);
   domain_blocks_[block_domain_];
+
+  if (shiftboss_index != kInvalidShiftbossIndex) {
+    block_domain_to_shiftboss_index_.emplace(block_domain_, shiftboss_index);
+  }
 
   serialization::BlockDomainMessage proto;
   proto.set_block_domain(block_domain_);

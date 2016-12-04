@@ -45,6 +45,7 @@ namespace block_locator {
 namespace S = ::quickstep::serialization;
 
 block_id_domain getBlockDomain(const std::string &network_address,
+                               const std::size_t shiftboss_index,
                                const client_id cli_id,
                                client_id *locator_client_id,
                                MessageBus *bus) {
@@ -55,6 +56,7 @@ block_id_domain getBlockDomain(const std::string &network_address,
 
   S::BlockDomainRegistrationMessage proto;
   proto.set_domain_network_address(network_address);
+  proto.set_shiftboss_index(shiftboss_index);
 
   const int proto_length = proto.ByteSize();
   char *proto_bytes = static_cast<char*>(std::malloc(proto_length));

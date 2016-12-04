@@ -40,6 +40,7 @@ namespace block_locator {
  * StorageManager with the given network address.
  *
  * @param network_address The network address of the StorageManager.
+ * @param shiftboss_index The index of Shiftboss that manages StorageManager.
  * @param cli_id The client ID of the block domain requester.
  * @param locator_client_id The client ID of BlockLocator to set.
  * @param bus A pointer to the TMB.
@@ -47,6 +48,7 @@ namespace block_locator {
  * @return The requested block domain.
  **/
 block_id_domain getBlockDomain(const std::string &network_address,
+                               const std::size_t shiftboss_index,
                                const tmb::client_id cli_id,
                                tmb::client_id *locator_client_id,
                                tmb::MessageBus *bus);

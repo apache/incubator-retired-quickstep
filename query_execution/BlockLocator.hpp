@@ -21,6 +21,7 @@
 #define QUICKSTEP_QUERY_EXECUTION_BLOCK_LOCATOR_HPP_
 
 #include <atomic>
+#include <cstddef>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -48,6 +49,9 @@ namespace quickstep {
  **/
 class BlockLocator : public Thread {
  public:
+  typedef std::unordered_map<block_id_domain, std::size_t> BlockDomainToShiftbossIndex;
+  typedef std::unordered_map<block_id, std::unordered_set<block_id_domain>> BlockLocation;
+
   /**
    * @brief Constructor.
    *
@@ -91,11 +95,30 @@ class BlockLocator : public Thread {
     return locator_client_id_;
   }
 
+  /**
+   * @brief Get the mapping from a block domain to its Shiftboss index.
+   *
+   * @return The mapping from a block domain to its Shiftboss index.
+   **/
+  const BlockDomainToShiftbossIndex& block_domain_to_shiftboss_index() const {
+    return block_domain_to_shiftboss_index_;
+  }
+
+  /**
+   * @brief Get the mapping from a block id to its loaded block domain.
+   *
+   * @return The mapping from a block id to its loaded block domain.
+   **/
+  const BlockLocation& block_locations() const {
+    return block_locations_;
+  }
+
  protected:
   void run() override;
 
  private:
-  void processBlockDomainRegistrationMessage(const tmb::client_id receiver, const std::string &network_address);
+  void processBlockDomainRegistrationMessage(const tmb::client_id receiver, const std::string &network_address,
+                                             const std::size_t shiftboss_index);
   void processLocateBlockMessage(const tmb::client_id receiver, const block_id block);
   void processGetPeerDomainNetworkAddressesMessage(const tmb::client_id receiver, const block_id block);
 
@@ -110,8 +133,15 @@ class BlockLocator : public Thread {
   // "0.0.0.0:0".
   std::unordered_map<block_id_domain, const std::string> domain_network_addresses_;
 
+  // From a block domain to its Shiftboss index, used by ForemanDistributed
+  // to schedule based on the data-locality info.
+  // Note that not every 'block_id_domain' has a Shiftboss index. For example,
+  // DistributedCli has StorageManager with a 'block_id_domain', which is not
+  // a part of Shiftboss.
+  BlockDomainToShiftbossIndex block_domain_to_shiftboss_index_;
+
   // From a block to its domains.
-  std::unordered_map<block_id, std::unordered_set<block_id_domain>> block_locations_;
+  BlockLocation block_locations_;
 
   // From a block domain to all blocks loaded in its buffer pool.
   std::unordered_map<block_id_domain, std::unordered_set<block_id>> domain_blocks_;

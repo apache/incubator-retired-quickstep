@@ -135,6 +135,7 @@ message QueryExecutionSuccessMessage {
 message BlockDomainRegistrationMessage {
   // Format IP:Port, i.e., "0.0.0.0:0".
   required string domain_network_address = 1;
+  required uint64 shiftboss_index = 2;
 }
 
 // Used for RegistrationResponse, Unregistration, and FailureReport.

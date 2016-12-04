@@ -86,7 +86,8 @@ DistributedExecutionGeneratorTestRunner::DistributedExecutionGeneratorTestRunner
   test_database_loader_ = make_unique<TestDatabaseLoader>(
       storage_path,
       block_locator::getBlockDomain(
-          test_database_loader_data_exchanger_.network_address(), cli_id_, &locator_client_id_, &bus_),
+          test_database_loader_data_exchanger_.network_address(), kInvalidShiftbossIndex, cli_id_,
+          &locator_client_id_, &bus_),
       locator_client_id_,
       &bus_);
   DCHECK_EQ(block_locator_->getBusClientID(), locator_client_id_);
@@ -98,7 +99,9 @@ DistributedExecutionGeneratorTestRunner::DistributedExecutionGeneratorTestRunner
 
   // NOTE(zuyu): Foreman should initialize before Shiftboss so that the former
   // could receive a registration message from the latter.
-  foreman_ = make_unique<ForemanDistributed>(&bus_, test_database_loader_->catalog_database());
+  foreman_ = make_unique<ForemanDistributed>(block_locator_->block_domain_to_shiftboss_index(),
+                                             block_locator_->block_locations(),
+                                             &bus_, test_database_loader_->catalog_database());
 
   // We don't use the NUMA aware version of worker code.
   const vector<numa_node_id> numa_nodes(1 /* Number of worker threads per instance */,
@@ -114,7 +117,7 @@ DistributedExecutionGeneratorTestRunner::DistributedExecutionGeneratorTestRunner
     auto storage_manager = make_unique<StorageManager>(
         storage_path,
         block_locator::getBlockDomain(
-            data_exchangers_[i].network_address(), cli_id_, &locator_client_id_, &bus_),
+            data_exchangers_[i].network_address(), i, cli_id_, &locator_client_id_, &bus_),
         locator_client_id_, &bus_);
     DCHECK_EQ(block_locator_->getBusClientID(), locator_client_id_);
 

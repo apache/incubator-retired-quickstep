@@ -39,6 +39,8 @@ namespace quickstep {
  *  @{
  */
 
+constexpr std::size_t kInvalidShiftbossIndex = static_cast<std::size_t>(-1);
+
 typedef tmb::Address Address;
 typedef tmb::AnnotatedMessage AnnotatedMessage;
 typedef tmb::MessageBus MessageBus;
