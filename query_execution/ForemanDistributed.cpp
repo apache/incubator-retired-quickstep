@@ -295,14 +295,22 @@ bool ForemanDistributed::isHashJoinRelatedWorkOrder(const S::WorkOrderMessage &p
   return true;
 }
 
+namespace {
+constexpr size_t kDefaultShiftbossIndex = 0u;
+}  // namespace
+
 void ForemanDistributed::dispatchWorkOrderMessages(const vector<unique_ptr<S::WorkOrderMessage>> &messages) {
-  const size_t num_shiftbosses = shiftboss_directory_.size();
-  size_t shiftboss_index = 0u;
+  static size_t shiftboss_index = kDefaultShiftbossIndex;
+
+  PolicyEnforcerDistributed* policy_enforcer_dist = static_cast<PolicyEnforcerDistributed*>(policy_enforcer_.get());
   for (const auto &message : messages) {
     DCHECK(message != nullptr);
     const S::WorkOrderMessage &proto = *message;
     size_t shiftboss_index_for_particular_work_order_type;
-    if (isAggregationRelatedWorkOrder(proto, shiftboss_index, &shiftboss_index_for_particular_work_order_type)) {
+    if (policy_enforcer_dist->isSingleNodeQuery(proto.query_id())) {
+      // Always schedule the single-node query to the same Shiftboss.
+      shiftboss_index_for_particular_work_order_type = kDefaultShiftbossIndex;
+    } else if (isAggregationRelatedWorkOrder(proto, shiftboss_index, &shiftboss_index_for_particular_work_order_type)) {
     } else if (isHashJoinRelatedWorkOrder(proto, shiftboss_index, &shiftboss_index_for_particular_work_order_type)) {
     } else {
       // TODO(zuyu): Take data-locality into account for scheduling.
@@ -313,7 +321,7 @@ void ForemanDistributed::dispatchWorkOrderMessages(const vector<unique_ptr<S::Wo
     shiftboss_directory_.incrementNumQueuedWorkOrders(shiftboss_index_for_particular_work_order_type);
 
     if (shiftboss_index == shiftboss_index_for_particular_work_order_type) {
-      shiftboss_index = (shiftboss_index + 1) % num_shiftbosses;
+      shiftboss_index = (shiftboss_index + 1) % shiftboss_directory_.size();
     } else {
       // NOTE(zuyu): This is not the exact round-robin scheduling, as in this case,
       // <shiftboss_index_for_particular_work_order_type> might be scheduled one

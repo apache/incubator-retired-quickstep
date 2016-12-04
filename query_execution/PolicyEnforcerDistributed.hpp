@@ -17,13 +17,19 @@
 
 #include <cstddef>
 #include <memory>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "query_execution/PolicyEnforcerBase.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
+#include "query_execution/QueryManagerBase.hpp"
 #include "query_execution/ShiftbossDirectory.hpp"
+#include "query_optimizer/QueryHandle.hpp"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
 
 #include "tmb/id_typedefs.h"
 
@@ -35,10 +41,6 @@ class TaggedMessage;
 namespace quickstep {
 
 class CatalogDatabaseLite;
-class QueryHandle;
-class QueryManagerBase;
-
-namespace serialization { class WorkOrderMessage; }
 
 /** \addtogroup QueryExecution
  *  @{
@@ -88,6 +90,19 @@ class PolicyEnforcerDistributed final : public PolicyEnforcerBase {
    * @param tagged_message The message.
    **/
   void processInitiateRebuildResponseMessage(const tmb::TaggedMessage &tagged_message);
+
+  /**
+   * @brief Whether the query should be executed on one Shiftboss.
+   *
+   * @param query_id The query id.
+   *
+   * @return Whether the query should be executed on one Shiftboss.
+   **/
+  bool isSingleNodeQuery(const std::size_t query_id) const {
+    const auto cit = admitted_queries_.find(query_id);
+    DCHECK(cit != admitted_queries_.end());
+    return cit->second->query_handle()->is_single_node_query();
+  }
 
   /**
    * @brief Get or set the index of Shiftboss for an Aggregation related

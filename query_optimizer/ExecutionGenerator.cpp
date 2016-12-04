@@ -1096,6 +1096,9 @@ void ExecutionGenerator::convertDropTable(
 void ExecutionGenerator::convertInsertTuple(
     const P::InsertTuplePtr &physical_plan) {
   // InsertTuple is converted to an Insert and a SaveBlocks.
+#ifdef QUICKSTEP_DISTRIBUTED
+  query_handle_->set_is_single_node_query();
+#endif  // QUICKSTEP_DISTRIBUTED
 
   const CatalogRelationInfo *input_relation_info =
       findRelationInfoOutputByPhysical(physical_plan->input());

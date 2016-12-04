@@ -26,6 +26,7 @@
 
 #include "catalog/Catalog.pb.h"
 #include "query_execution/QueryContext.pb.h"
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED.
 #include "query_optimizer/QueryPlan.hpp"
 #include "utility/Macros.hpp"
 
@@ -134,6 +135,22 @@ class QueryHandle {
     query_result_relation_ = relation;
   }
 
+#ifdef QUICKSTEP_DISTRIBUTED
+  /**
+   * @brief Whether the query will be executed in the single node.
+   */
+  bool is_single_node_query() const {
+    return is_single_node_query_;
+  }
+
+  /**
+   * @brief Set the query to be executed in the single node.
+   */
+  void set_is_single_node_query() {
+    is_single_node_query_ = true;
+  }
+#endif  // QUICKSTEP_DISTRIBUTED
+
  private:
   const std::size_t query_id_;
 
@@ -152,6 +169,26 @@ class QueryHandle {
   // NOTE(zuyu): The relation gets created by the optimizer,
   //             and deleted by the Cli shell.
   const CatalogRelation *query_result_relation_;
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  // Indicate whether the query should be executed on the default Shiftboss for
+  // correctness purpose.
+  // An example would be the insert query that might otherwise need block
+  // invalidation among multiple StorageManagers. In this case, an insert query
+  // has scheduled on node 0, and the block is in the buffer pool of node 0.
+  // Another insert query on the same relation might be scheduled on another
+  // node, say node 1, which will pull the block from node 0, and do the
+  // insertion. Thus, two blocks with the same block id in two nodes
+  // have different contents, which is incorrect.
+  // One approach is to evict blocks cached in all other nodes for every
+  // change. It, however, does not scale, and even worse, it will also affect
+  // the performance of each select query.
+  // Alternatively, we choose to mark the query as a single-node query to
+  // modify blocks on the default node only. But if the changed block has also
+  // cached in another node, this approach would still produce inconsistent
+  // query result.
+  bool is_single_node_query_ = false;
+#endif  // QUICKSTEP_DISTRIBUTED
 
   DISALLOW_COPY_AND_ASSIGN(QueryHandle);
 };
