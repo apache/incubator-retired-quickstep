@@ -176,8 +176,8 @@ bool QueryManagerDistributed::initiateRebuild(const dag_node_index index) {
     shiftboss_addresses.AddRecipient(shiftboss_directory_->getClientId(i));
   }
 
-  LOG(INFO) << "ForemanDistributed sent InitiateRebuildMessage (typed '" << kInitiateRebuildMessage
-            << "') to all Shiftbosses";
+  DLOG(INFO) << "ForemanDistributed sent InitiateRebuildMessage (typed '" << kInitiateRebuildMessage
+             << "') to all Shiftbosses";
   QueryExecutionUtil::BroadcastMessage(foreman_client_id_,
                                        shiftboss_addresses,
                                        move(tagged_msg),

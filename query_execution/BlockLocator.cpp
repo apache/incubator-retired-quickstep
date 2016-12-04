@@ -55,8 +55,8 @@ void BlockLocator::run() {
     const tmb::AnnotatedMessage annotated_message = bus_->Receive(locator_client_id_, 0, true);
     const TaggedMessage &tagged_message = annotated_message.tagged_message;
     const client_id sender = annotated_message.sender;
-    LOG(INFO) << "BlockLocator received the typed '" << tagged_message.message_type()
-              << "' message from TMB Client " << sender;
+    DLOG(INFO) << "BlockLocator received the typed '" << tagged_message.message_type()
+               << "' message from TMB Client " << sender;
     switch (tagged_message.message_type()) {
       case kBlockDomainRegistrationMessage: {
         serialization::BlockDomainRegistrationMessage proto;
@@ -77,9 +77,9 @@ void BlockLocator::run() {
         DCHECK_EQ(result_block_locations.second, result_domain_blocks.second);
 
         if (result_domain_blocks.second) {
-          LOG(INFO) << "Block " << BlockIdUtil::ToString(block) << " loaded in Domain " << domain;
+          DLOG(INFO) << "Block " << BlockIdUtil::ToString(block) << " loaded in Domain " << domain;
         } else {
-          LOG(INFO) << "Block " << BlockIdUtil::ToString(block) << " existed in Domain " << domain;
+          DLOG(INFO) << "Block " << BlockIdUtil::ToString(block) << " existed in Domain " << domain;
         }
         break;
       }
@@ -95,9 +95,9 @@ void BlockLocator::run() {
           block_locations_[block].erase(domain);
           domain_blocks_[domain].erase(block);
 
-          LOG(INFO) << "Block " << BlockIdUtil::ToString(block) << " evicted in Domain " << domain;
+          DLOG(INFO) << "Block " << BlockIdUtil::ToString(block) << " evicted in Domain " << domain;
         } else {
-          LOG(INFO) << "Block " << BlockIdUtil::ToString(block) << " not found in Domain " << domain;
+          DLOG(INFO) << "Block " << BlockIdUtil::ToString(block) << " not found in Domain " << domain;
         }
         break;
       }
@@ -128,7 +128,7 @@ void BlockLocator::run() {
         }
         domain_blocks_.erase(domain);
 
-        LOG(INFO) << "Unregistered Domain " << domain;
+        DLOG(INFO) << "Unregistered Domain " << domain;
         break;
       }
       case kPoisonMessage: {
@@ -153,14 +153,14 @@ void BlockLocator::processBlockDomainRegistrationMessage(const client_id receive
   CHECK(proto.SerializeToArray(proto_bytes, proto_length));
 
   TaggedMessage message(static_cast<const void*>(proto_bytes),
-                                 proto_length,
-                                 kBlockDomainRegistrationResponseMessage);
+                        proto_length,
+                        kBlockDomainRegistrationResponseMessage);
   free(proto_bytes);
 
-  LOG(INFO) << "BlockLocator (id '" << locator_client_id_
-            << "') sent BlockDomainRegistrationResponseMessage (typed '"
-            << kBlockDomainRegistrationResponseMessage
-            << "') to Worker (id '" << receiver << "')";
+  DLOG(INFO) << "BlockLocator (id '" << locator_client_id_
+             << "') sent BlockDomainRegistrationResponseMessage (typed '"
+             << kBlockDomainRegistrationResponseMessage
+             << "') to TMB Client (id '" << receiver << "')";
   CHECK(tmb::MessageBus::SendStatus::kOK ==
       QueryExecutionUtil::SendTMBMessage(bus_,
                                          locator_client_id_,
@@ -181,13 +181,13 @@ void BlockLocator::processLocateBlockMessage(const client_id receiver,
   CHECK(proto.SerializeToArray(proto_bytes, proto_length));
 
   TaggedMessage message(static_cast<const void*>(proto_bytes),
-                                 proto_length,
-                                 kLocateBlockResponseMessage);
+                        proto_length,
+                        kLocateBlockResponseMessage);
   free(proto_bytes);
 
-  LOG(INFO) << "BlockLocator (id '" << locator_client_id_
-            << "') sent LocateBlockResponseMessage (typed '" << kLocateBlockResponseMessage
-            << "') to StorageManager (id '" << receiver << "')";
+  DLOG(INFO) << "BlockLocator (id '" << locator_client_id_
+             << "') sent LocateBlockResponseMessage (typed '" << kLocateBlockResponseMessage
+             << "') to StorageManager (id '" << receiver << "')";
   CHECK(tmb::MessageBus::SendStatus::kOK ==
       QueryExecutionUtil::SendTMBMessage(bus_,
                                          locator_client_id_,
@@ -208,14 +208,14 @@ void BlockLocator::processGetPeerDomainNetworkAddressesMessage(const client_id r
   CHECK(proto.SerializeToArray(proto_bytes, proto_length));
 
   TaggedMessage message(static_cast<const void*>(proto_bytes),
-                                 proto_length,
-                                 kGetPeerDomainNetworkAddressesResponseMessage);
+                        proto_length,
+                        kGetPeerDomainNetworkAddressesResponseMessage);
   free(proto_bytes);
 
-  LOG(INFO) << "BlockLocator (id '" << locator_client_id_
-            << "') sent GetPeerDomainNetworkAddressesResponseMessage (typed '"
-            << kGetPeerDomainNetworkAddressesResponseMessage
-            << "') to StorageManager (id '" << receiver << "')";
+  DLOG(INFO) << "BlockLocator (id '" << locator_client_id_
+             << "') sent GetPeerDomainNetworkAddressesResponseMessage (typed '"
+             << kGetPeerDomainNetworkAddressesResponseMessage
+             << "') to StorageManager (id '" << receiver << "')";
   CHECK(tmb::MessageBus::SendStatus::kOK ==
       QueryExecutionUtil::SendTMBMessage(bus_,
                                          locator_client_id_,
