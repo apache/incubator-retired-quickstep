@@ -27,6 +27,7 @@
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "storage/StorageBlockInfo.hpp"
+#include "threading/SpinSharedMutex.hpp"
 #include "threading/ThreadUtil.hpp"
 
 #include "glog/logging.h"
@@ -65,6 +66,18 @@ void BlockLocator::run() {
         processBlockDomainRegistrationMessage(sender, proto.domain_network_address());
         break;
       }
+      case kBlockDomainToShiftbossIndexMessage: {
+        serialization::BlockDomainToShiftbossIndexMessage proto;
+        CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+        {
+          // Lock 'block_domain_to_shiftboss_index_shared_mutex_' as briefly as
+          // possible to insert an entry for the new Shiftboss index.
+          SpinSharedMutexExclusiveLock<false> write_lock(block_domain_to_shiftboss_index_shared_mutex_);
+          block_domain_to_shiftboss_index_.emplace(proto.block_domain(), proto.shiftboss_index());
+        }
+        break;
+      }
       case kAddBlockLocationMessage: {
         serialization::BlockLocationMessage proto;
         CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
@@ -72,9 +85,15 @@ void BlockLocator::run() {
         const block_id block = proto.block_id();
         const block_id_domain domain = proto.block_domain();
 
-        const auto result_block_locations = block_locations_[block].insert(domain);
         const auto result_domain_blocks = domain_blocks_[domain].insert(block);
-        DCHECK_EQ(result_block_locations.second, result_domain_blocks.second);
+
+        {
+          // Lock 'block_locations_shared_mutex_' as briefly as possible to
+          // insert an entry for the new block location.
+          SpinSharedMutexExclusiveLock<false> write_lock(block_locations_shared_mutex_);
+          const auto result_block_locations = block_locations_[block].insert(domain);
+          DCHECK_EQ(result_block_locations.second, result_domain_blocks.second);
+        }
 
         if (result_domain_blocks.second) {
           DLOG(INFO) << "Block " << BlockIdUtil::ToString(block) << " loaded in Domain " << domain;
@@ -90,11 +109,20 @@ void BlockLocator::run() {
         const block_id block = proto.block_id();
         const block_id_domain domain = proto.block_domain();
 
-        const auto cit = block_locations_[block].find(domain);
-        if (cit != block_locations_[block].end()) {
-          block_locations_[block].erase(domain);
-          domain_blocks_[domain].erase(block);
+        bool block_found = false;
+        {
+          // Lock 'block_locations_shared_mutex_' as briefly as possible to
+          // delete an entry for the block location.
+          SpinSharedMutexExclusiveLock<false> write_lock(block_locations_shared_mutex_);
+          const auto cit = block_locations_[block].find(domain);
+          if (cit != block_locations_[block].end()) {
+            block_locations_[block].erase(domain);
+            block_found = true;
+          }
+        }
 
+        if (block_found) {
+          domain_blocks_[domain].erase(block);
           DLOG(INFO) << "Block " << BlockIdUtil::ToString(block) << " evicted in Domain " << domain;
         } else {
           DLOG(INFO) << "Block " << BlockIdUtil::ToString(block) << " not found in Domain " << domain;
@@ -123,8 +151,13 @@ void BlockLocator::run() {
 
         domain_network_addresses_.erase(domain);
 
-        for (const block_id block : domain_blocks_[domain]) {
-          block_locations_[block].erase(domain);
+        {
+          // Lock 'block_locations_shared_mutex_' as briefly as possible to
+          // delete all entry for the block domain.
+          SpinSharedMutexExclusiveLock<false> write_lock(block_locations_shared_mutex_);
+          for (const block_id block : domain_blocks_[domain]) {
+            block_locations_[block].erase(domain);
+          }
         }
         domain_blocks_.erase(domain);
 
@@ -172,6 +205,8 @@ void BlockLocator::processLocateBlockMessage(const client_id receiver,
                                              const block_id block) {
   serialization::LocateBlockResponseMessage proto;
 
+  // NOTE(zuyu): We don't need to protect here, as all the writers are in the
+  // single thread.
   for (const block_id_domain domain : block_locations_[block]) {
     proto.add_block_domains(domain);
   }
@@ -199,6 +234,8 @@ void BlockLocator::processGetPeerDomainNetworkAddressesMessage(const client_id r
                                                                const block_id block) {
   serialization::GetPeerDomainNetworkAddressesResponseMessage proto;
 
+  // NOTE(zuyu): We don't need to protect here, as all the writers are in the
+  // single thread.
   for (const block_id_domain domain : block_locations_[block]) {
     proto.add_domain_network_addresses(domain_network_addresses_[domain]);
   }

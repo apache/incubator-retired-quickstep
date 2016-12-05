@@ -21,6 +21,7 @@
 #define QUICKSTEP_QUERY_EXECUTION_BLOCK_LOCATOR_HPP_
 
 #include <atomic>
+#include <cstddef>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -28,6 +29,7 @@
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageConstants.hpp"
+#include "threading/SpinSharedMutex.hpp"
 #include "threading/Thread.hpp"
 #include "utility/Macros.hpp"
 
@@ -67,6 +69,8 @@ class BlockLocator : public Thread {
     bus_->RegisterClientAsReceiver(locator_client_id_, kBlockDomainRegistrationMessage);
     bus_->RegisterClientAsSender(locator_client_id_, kBlockDomainRegistrationResponseMessage);
 
+    bus_->RegisterClientAsReceiver(locator_client_id_, kBlockDomainToShiftbossIndexMessage);
+
     bus_->RegisterClientAsReceiver(locator_client_id_, kAddBlockLocationMessage);
     bus_->RegisterClientAsReceiver(locator_client_id_, kDeleteBlockLocationMessage);
 
@@ -91,6 +95,46 @@ class BlockLocator : public Thread {
     return locator_client_id_;
   }
 
+  /**
+   * @brief Get the block locality info for scheduling in ForemanDistributed.
+   *
+   * @param block The given block.
+   * @param shiftboss_index_for_block The index of Shiftboss that has loaded the
+   *        block in the buffer pool.
+   *
+   * @return Whether the block locality info has found.
+   **/
+  bool getBlockLocalityInfo(const block_id block, std::size_t *shiftboss_index_for_block) const {
+    std::unordered_set<block_id_domain> block_domains;
+    {
+      // Lock 'block_locations_shared_mutex_' as briefly as possible as a
+      // reader.
+      SpinSharedMutexSharedLock<false> read_lock(block_locations_shared_mutex_);
+      const auto cit = block_locations_.find(block);
+      if (cit != block_locations_.end()) {
+        block_domains = cit->second;
+      } else {
+        return false;
+      }
+    }
+
+    {
+      // NOTE(zuyu): This lock is held for the rest duration of this call, as the
+      // exclusive case is rare.
+      SpinSharedMutexSharedLock<false> read_lock(block_domain_to_shiftboss_index_shared_mutex_);
+      for (const block_id_domain block_domain : block_domains) {
+        // TODO(quickstep-team): choose the best node, instead of the first.
+        const auto cit = block_domain_to_shiftboss_index_.find(block_domain);
+        if (cit != block_domain_to_shiftboss_index_.end()) {
+          *shiftboss_index_for_block = cit->second;
+          return true;
+        }
+      }
+    }
+
+    return false;
+  }
+
  protected:
   void run() override;
 
@@ -110,8 +154,17 @@ class BlockLocator : public Thread {
   // "0.0.0.0:0".
   std::unordered_map<block_id_domain, const std::string> domain_network_addresses_;
 
+  // From a block domain to its Shiftboss index, used by ForemanDistributed
+  // to schedule based on the data-locality info.
+  // Note that not every 'block_id_domain' has a Shiftboss index. For example,
+  // DistributedCli has StorageManager with a 'block_id_domain', which is not
+  // a part of Shiftboss.
+  std::unordered_map<block_id_domain, std::size_t> block_domain_to_shiftboss_index_;
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> block_domain_to_shiftboss_index_shared_mutex_;
+
   // From a block to its domains.
   std::unordered_map<block_id, std::unordered_set<block_id_domain>> block_locations_;
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> block_locations_shared_mutex_;
 
   // From a block domain to all blocks loaded in its buffer pool.
   std::unordered_map<block_id_domain, std::unordered_set<block_id>> domain_blocks_;

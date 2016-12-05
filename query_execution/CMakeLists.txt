@@ -80,6 +80,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_queryexecution_QueryExecutionUtil
                         quickstep_storage_StorageBlockInfo
                         quickstep_storage_StorageConstants
+                        quickstep_threading_SpinSharedMutex
                         quickstep_threading_Thread
                         quickstep_threading_ThreadUtil
                         quickstep_utility_Macros
@@ -105,6 +106,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_catalog_CatalogTypedefs
                         quickstep_catalog_Catalog_proto
                         quickstep_queryexecution_AdmitRequestMessage
+                        quickstep_queryexecution_BlockLocator
                         quickstep_queryexecution_ForemanBase
                         quickstep_queryexecution_PolicyEnforcerBase
                         quickstep_queryexecution_PolicyEnforcerDistributed
@@ -114,6 +116,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_queryexecution_QueryExecutionUtil
                         quickstep_queryexecution_ShiftbossDirectory
                         quickstep_relationaloperators_WorkOrder_proto
+                        quickstep_storage_StorageBlockInfo
                         quickstep_threading_ThreadUtil
                         quickstep_utility_EqualsAnyConstant
                         quickstep_utility_Macros

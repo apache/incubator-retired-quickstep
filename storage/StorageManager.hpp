@@ -382,6 +382,15 @@ class StorageManager {
 
 #ifdef QUICKSTEP_DISTRIBUTED
   /**
+   * @brief Send BlockDomainToShiftbossIndexMessage to BlockLocator so that
+   *        ForemanDistributed could take advantages of block locality info
+   *        for a better scheduling policy.
+   *
+   * @param shiftboss_index The Shiftboss index.
+   **/
+  void sendBlockDomainToShiftbossIndexMessage(const std::size_t shiftboss_index);
+
+  /**
    * @brief Pull a block or a blob. Used by DataExchangerAsync.
    *
    * @param block The id of the block or blob.

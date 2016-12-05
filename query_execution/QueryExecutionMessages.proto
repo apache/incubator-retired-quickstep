@@ -142,6 +142,12 @@ message BlockDomainMessage {
   required uint32 block_domain = 1;
 }
 
+// Used for the block locality based scheduling in ForemanDistributed.
+message BlockDomainToShiftbossIndexMessage {
+  required uint32 block_domain = 1;
+  required uint64 shiftboss_index = 2;
+}
+
 // Used when StorageManager loads or evicts a block or a blob from its buffer
 // pool.
 message BlockLocationMessage {

@@ -230,6 +230,8 @@ StorageManager::StorageManager(
     bus_->RegisterClientAsSender(storage_manager_client_id_, kGetPeerDomainNetworkAddressesMessage);
     bus_->RegisterClientAsReceiver(storage_manager_client_id_, kGetPeerDomainNetworkAddressesResponseMessage);
 
+    bus_->RegisterClientAsSender(storage_manager_client_id_, kBlockDomainToShiftbossIndexMessage);
+
     bus_->RegisterClientAsSender(storage_manager_client_id_, kAddBlockLocationMessage);
     bus_->RegisterClientAsSender(storage_manager_client_id_, kDeleteBlockLocationMessage);
     bus_->RegisterClientAsSender(storage_manager_client_id_, kBlockDomainUnregistrationMessage);
@@ -470,6 +472,33 @@ block_id StorageManager::allocateNewBlockOrBlob(const std::size_t num_slots,
 }
 
 #ifdef QUICKSTEP_DISTRIBUTED
+void StorageManager::sendBlockDomainToShiftbossIndexMessage(const std::size_t shiftboss_index) {
+  serialization::BlockDomainToShiftbossIndexMessage proto;
+  proto.set_block_domain(block_domain_);
+  proto.set_shiftboss_index(shiftboss_index);
+
+  const int proto_length = proto.ByteSize();
+  char *proto_bytes = static_cast<char*>(malloc(proto_length));
+  CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+  TaggedMessage message(static_cast<const void*>(proto_bytes),
+                        proto_length,
+                        kBlockDomainToShiftbossIndexMessage);
+  free(proto_bytes);
+
+  DLOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
+             << "') sent BlockDomainToShiftbossIndexMessage (typed '" << kBlockDomainToShiftbossIndexMessage
+             << "') to BlockLocator";
+
+  DCHECK_NE(block_locator_client_id_, tmb::kClientIdNone);
+  DCHECK(bus_ != nullptr);
+  CHECK(MessageBus::SendStatus::kOK ==
+      QueryExecutionUtil::SendTMBMessage(bus_,
+                                         storage_manager_client_id_,
+                                         block_locator_client_id_,
+                                         move(message)));
+}
+
 void StorageManager::pullBlockOrBlob(const block_id block,
                                      PullResponse *response) const {
   SpinSharedMutexSharedLock<false> read_lock(blocks_shared_mutex_);

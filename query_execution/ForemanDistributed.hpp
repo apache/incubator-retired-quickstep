@@ -33,6 +33,7 @@ namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
+class BlockLocator;
 class CatalogDatabaseLite;
 
 namespace serialization { class WorkOrderMessage; }
@@ -51,6 +52,7 @@ class ForemanDistributed final : public ForemanBase {
   /**
    * @brief Constructor.
    *
+   * @param block_locator The block locator that manages block location info.
    * @param bus A pointer to the TMB.
    * @param catalog_database The catalog database where this query is executed.
    * @param cpu_id The ID of the CPU to which the Foreman thread can be pinned.
@@ -58,9 +60,11 @@ class ForemanDistributed final : public ForemanBase {
    * @note If cpu_id is not specified, Foreman thread can be possibly moved
    *       around on different CPUs by the OS.
   **/
-  ForemanDistributed(tmb::MessageBus *bus,
-                     CatalogDatabaseLite *catalog_database,
-                     const int cpu_id = -1);
+  ForemanDistributed(
+      const BlockLocator &block_locator,
+      tmb::MessageBus *bus,
+      CatalogDatabaseLite *catalog_database,
+      const int cpu_id = -1);
 
   ~ForemanDistributed() override {}
 
@@ -110,6 +114,9 @@ class ForemanDistributed final : public ForemanBase {
    * @param message_type The type of the last received message.
    **/
   bool canCollectNewMessages(const tmb::message_type_id message_type);
+
+  // To get block locality info for scheduling.
+  const BlockLocator &block_locator_;
 
   ShiftbossDirectory shiftboss_directory_;
 

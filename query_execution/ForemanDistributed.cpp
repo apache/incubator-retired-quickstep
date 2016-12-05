@@ -28,6 +28,7 @@
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/AdmitRequestMessage.hpp"
+#include "query_execution/BlockLocator.hpp"
 #include "query_execution/PolicyEnforcerBase.hpp"
 #include "query_execution/PolicyEnforcerDistributed.hpp"
 #include "query_execution/QueryContext.hpp"
@@ -36,6 +37,7 @@
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/ShiftbossDirectory.hpp"
 #include "relational_operators/WorkOrder.pb.h"
+#include "storage/StorageBlockInfo.hpp"
 #include "threading/ThreadUtil.hpp"
 #include "utility/EqualsAnyConstant.hpp"
 
@@ -64,10 +66,12 @@ namespace S = serialization;
 class QueryHandle;
 
 ForemanDistributed::ForemanDistributed(
+    const BlockLocator &block_locator,
     MessageBus *bus,
     CatalogDatabaseLite *catalog_database,
     const int cpu_id)
     : ForemanBase(bus, cpu_id),
+      block_locator_(block_locator),
       catalog_database_(DCHECK_NOTNULL(catalog_database)) {
   const std::vector<QueryExecutionMessageType> sender_message_types{
       kShiftbossRegistrationResponseMessage,
@@ -296,7 +300,50 @@ bool ForemanDistributed::isHashJoinRelatedWorkOrder(const S::WorkOrderMessage &p
 }
 
 namespace {
+
 constexpr size_t kDefaultShiftbossIndex = 0u;
+
+bool isNestedLoopsJoinWorkOrder(const serialization::WorkOrder &work_order_proto,
+                                const BlockLocator &block_locator,
+                                std::size_t *shiftboss_index_for_join) {
+  if (work_order_proto.work_order_type() != S::NESTED_LOOP_JOIN) {
+    return false;
+  }
+
+  const block_id left_block = work_order_proto.GetExtension(S::NestedLoopsJoinWorkOrder::left_block_id);
+  if (block_locator.getBlockLocalityInfo(left_block, shiftboss_index_for_join)) {
+    return true;
+  }
+
+  const block_id right_block = work_order_proto.GetExtension(S::NestedLoopsJoinWorkOrder::right_block_id);
+  return block_locator.getBlockLocalityInfo(right_block, shiftboss_index_for_join);
+}
+
+bool hasBlockLocalityInfo(const serialization::WorkOrder &work_order_proto,
+                          const BlockLocator &block_locator,
+                          std::size_t *shiftboss_index_for_block) {
+  block_id block = kInvalidBlockId;
+  switch (work_order_proto.work_order_type()) {
+    case S::SAVE_BLOCKS: {
+      block = work_order_proto.GetExtension(S::SaveBlocksWorkOrder::block_id);
+      break;
+    }
+    case S::SELECT: {
+      block = work_order_proto.GetExtension(S::SelectWorkOrder::block_id);
+      break;
+    }
+    case S::SORT_RUN_GENERATION: {
+      block = work_order_proto.GetExtension(S::SortRunGenerationWorkOrder::block_id);
+      break;
+    }
+    default:
+      return false;
+  }
+
+  DCHECK_NE(block, kInvalidBlockId);
+  return block_locator.getBlockLocalityInfo(block, shiftboss_index_for_block);
+}
+
 }  // namespace
 
 void ForemanDistributed::dispatchWorkOrderMessages(const vector<unique_ptr<S::WorkOrderMessage>> &messages) {
@@ -306,14 +353,18 @@ void ForemanDistributed::dispatchWorkOrderMessages(const vector<unique_ptr<S::Wo
   for (const auto &message : messages) {
     DCHECK(message != nullptr);
     const S::WorkOrderMessage &proto = *message;
+    const S::WorkOrder &work_order_proto = proto.work_order();
     size_t shiftboss_index_for_particular_work_order_type;
     if (policy_enforcer_dist->isSingleNodeQuery(proto.query_id())) {
       // Always schedule the single-node query to the same Shiftboss.
       shiftboss_index_for_particular_work_order_type = kDefaultShiftbossIndex;
     } else if (isAggregationRelatedWorkOrder(proto, shiftboss_index, &shiftboss_index_for_particular_work_order_type)) {
     } else if (isHashJoinRelatedWorkOrder(proto, shiftboss_index, &shiftboss_index_for_particular_work_order_type)) {
+    } else if (hasBlockLocalityInfo(work_order_proto, block_locator_,
+                                    &shiftboss_index_for_particular_work_order_type)) {
+    } else if (isNestedLoopsJoinWorkOrder(work_order_proto, block_locator_,
+                                          &shiftboss_index_for_particular_work_order_type)) {
     } else {
-      // TODO(zuyu): Take data-locality into account for scheduling.
       shiftboss_index_for_particular_work_order_type = shiftboss_index;
     }
 

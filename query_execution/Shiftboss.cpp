@@ -286,6 +286,7 @@ void Shiftboss::processShiftbossRegistrationResponseMessage() {
   CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
 
   shiftboss_index_ = proto.shiftboss_index();
+  storage_manager_->sendBlockDomainToShiftbossIndexMessage(shiftboss_index_);
 
   // Forward this message to Workers regarding <shiftboss_index_>.
   QueryExecutionUtil::BroadcastMessage(shiftboss_client_id_,
