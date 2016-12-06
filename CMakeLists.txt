@@ -291,6 +291,25 @@ else()
     endif()
   endif()
 
+  # OSX 10.12 has deprecated certain system-level APIs which causes protobuf & glog
+  # builds to fail. As a short-term workaround for now, we turn off deprecated
+  # warnings so that they do not cause build failures anymore.
+  # TODO: Remove this workaround by fixing the protobuf_cmake and glog_cmake.
+  if (${CMAKE_SYSTEM} MATCHES "Darwin-16.1.0")
+    if (${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
+      CHECK_CXX_COMPILER_FLAG("-Wno-error=deprecated-declarations" COMPILER_HAS_WNO_DEPRECATED)
+      if (COMPILER_HAS_WNO_DEPRECATED)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-error=deprecated-declarations")
+      endif()
+    endif()
+    if(CMAKE_COMPILER_IS_GNUCXX)
+      CHECK_CXX_COMPILER_FLAG("-Wno-deprecated-declarations" COMPILER_HAS_WNO_DEPRECATED)
+      if (COMPILER_HAS_WNO_DEPRECATED)
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-deprecated-declarations")
+      endif()
+    endif()
+  endif()
+
   # One of the protobuf headers includes a nested anonymous union within
   # another anonymous type. Ordinarily we work around this by compiling the
   # protobuf libraries themselves with "-Wno-nested-anon-types" and including
