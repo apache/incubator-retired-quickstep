@@ -1,0 +1,20 @@
+.disclaimer {
+  color: $grey-color-dark;
+  font-size: 12px;
+
+  > h1 {
+    text-align: center;
+    color: $grey-color-dark;
+    font-size: 20px;
+    margin: 0 0 0 0;
+  }
+}
+
+.center {
+  text-align: center;
+}
+
+.big-margin {
+  margin-top: 50px;
+  margin-bottom: 50px;
+}

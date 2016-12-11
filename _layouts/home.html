@@ -1,0 +1,49 @@
+---
+layout: default
+---
+
+<div class="home">
+  
+  {{ content }}
+
+  <hr class="big-margin">
+
+  <h1 class="page-heading center">Recent Blog Posts</h1>
+
+  <ul class="post-list">
+    {% for post in site.posts %}
+      {% assign author = site.data.authors[post.author] %}
+      
+      <li>
+        <h2>
+          <a class="post-link" href="{{ post.url | relative_url }}">{{ post.title | escape }}</a>
+        </h2>
+
+        {% if author %}
+
+        <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }} | {{ author.name }}</span>
+
+        {% else %}
+
+        <span class="post-meta">{{ post.date | date: "%b %-d, %Y" }}</span>
+
+        {% endif %}
+
+        <div>
+          {{ post.short }}
+        </div>
+      </li>
+    {% endfor %}
+  </ul>
+
+  <!-- <p class="rss-subscribe">subscribe <a href="{{ "/feed.xml" | relative_url }}">via RSS</a></p> -->
+
+  <hr class="big-margin">
+
+  <div class="disclaimer">
+  <h1>Disclaimer</h1>
+  <small>
+    Apache Quickstep is an effort undergoing incubation at The Apache Software Foundation (ASF), sponsored by the Apache Incubator. Incubation is required of all newly accepted projects until a further review indicates that the infrastructure, communications, and decision making process have stabilized in a manner consistent with other successful ASF projects. While incubation status is not necessarily a reflection of the completeness or stability of the code, it does indicate that the project has yet to be fully endorsed by the ASF.
+  </small>
+  </div>
+</div>
