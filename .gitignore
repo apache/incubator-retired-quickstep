@@ -1,11 +1,4 @@
-/build
-/.tags
-/.tags_sorted_by_file
-/html
-/latex
-/cscope.out
-Makefile.in
-autom4te.cache
-.DS_Store
-.idea
-*~
+_site/
+.sass-cache/
+.jekyll-metadata
+.DS_STORE
