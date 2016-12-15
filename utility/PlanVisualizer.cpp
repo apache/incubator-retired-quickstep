@@ -20,6 +20,7 @@
 #include "utility/PlanVisualizer.hpp"
 
 #include <cstddef>
+#include <exception>
 #include <memory>
 #include <set>
 #include <sstream>
@@ -189,10 +190,19 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
     }
   }
 
-  node_info.labels.emplace_back(
-      "est. # = " + std::to_string(cost_model_->estimateCardinality(input)));
-  node_info.labels.emplace_back(
-      "est. Selectivity = " + std::to_string(cost_model_->estimateSelectivity(input)));
+  try {
+    const std::size_t estimated_cardinality = cost_model_->estimateCardinality(input);
+    const double estimated_selectivity = cost_model_->estimateSelectivity(input);
+
+    node_info.labels.emplace_back(
+        "est. # = " + std::to_string(estimated_cardinality));
+    node_info.labels.emplace_back(
+        "est. Selectivity = " + std::to_string(estimated_selectivity));
+  } catch (const std::exception &e) {
+    // NOTE(jianqiao): CostModel::estimateCardinality() may throw UnsupportedPhysicalPlan
+    // exception for some type of physical nodes such as CreateTable.
+    // In this case, we omit the node's cardinality/selectivity information.
+  }
 }
 
 }  // namespace quickstep

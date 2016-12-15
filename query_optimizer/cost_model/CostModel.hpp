@@ -21,6 +21,8 @@
 #define QUERY_OPTIMIZER_COST_MODEL_COST_MODEL_HPP_
 
 #include <cstddef>
+#include <exception>
+#include <string>
 
 #include "query_optimizer/physical/Aggregate.hpp"
 #include "query_optimizer/physical/Physical.hpp"
@@ -33,6 +35,32 @@ namespace cost {
 /** \addtogroup CostModel
  *  @{
  */
+
+/**
+ * @brief Exception thrown for unsupported physical plan.
+ **/
+class UnsupportedPhysicalPlan : public std::exception {
+ public:
+  /**
+   * @brief Constructor.
+   *
+   * @param physical_plan The physical plan that is not supported by the cost
+   *        model.
+   **/
+  explicit UnsupportedPhysicalPlan(const physical::PhysicalPtr &physical_plan)
+      : message_("UnsupportedPhysicalPlan: \n" + physical_plan->toString()) {
+  }
+
+  ~UnsupportedPhysicalPlan() throw() {
+  }
+
+  virtual const char* what() const throw() {
+    return message_.c_str();
+  }
+
+ private:
+  std::string message_;
+};
 
 /**
  * @brief Interface to a cost model of physical plans.

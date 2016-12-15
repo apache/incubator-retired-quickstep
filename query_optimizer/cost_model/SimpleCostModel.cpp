@@ -24,6 +24,7 @@
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogRelationStatistics.hpp"
+#include "query_optimizer/cost_model/CostModel.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
 #include "query_optimizer/physical/NestedLoopsJoin.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
@@ -82,7 +83,7 @@ std::size_t SimpleCostModel::estimateCardinality(
       return estimateCardinalityForWindowAggregate(
           std::static_pointer_cast<const P::WindowAggregate>(physical_plan));
     default:
-      LOG(FATAL) << "Unsupported physical plan:" << physical_plan->toString();
+      throw UnsupportedPhysicalPlan(physical_plan);
   }
 }
 

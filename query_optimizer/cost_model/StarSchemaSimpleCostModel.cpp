@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
+#include "query_optimizer/cost_model/CostModel.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ComparisonExpression.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
@@ -93,7 +94,7 @@ std::size_t StarSchemaSimpleCostModel::estimateCardinality(
       return estimateCardinalityForWindowAggregate(
           std::static_pointer_cast<const P::WindowAggregate>(physical_plan));
     default:
-      LOG(FATAL) << "Unsupported physical plan:" << physical_plan->toString();
+      throw UnsupportedPhysicalPlan(physical_plan);
   }
 }
 
