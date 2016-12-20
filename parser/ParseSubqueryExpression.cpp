@@ -41,7 +41,7 @@ void ParseSubqueryExpression::getFieldStringItems(
     std::vector<std::string> *container_child_field_names,
     std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
   non_container_child_field_names->push_back("");
-  non_container_child_fields->push_back(query_.get());
+  non_container_child_fields->push_back(set_operation_.get());
 }
 
 }  // namespace quickstep

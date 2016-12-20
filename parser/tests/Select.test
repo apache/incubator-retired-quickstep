@@ -17,11 +17,13 @@
 
 SELECT * FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectStar
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectStar
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 # If the error location is beyond the end of the SQL,
@@ -91,70 +93,72 @@ SELECT 1, 2, 3, 4
 
 SELECT 1, 2, 1+1, 1-1, 1-1.2+1-2.3, attr1, attr2, attr1+1, attr1+1*2+attr2, attr1+1*(2+attr2) FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=2,float_like=false]
-  | +-SelectListItem
-  | | +-Add
-  | |   +-left_operand=Literal
-  | |   | +-NumericLiteral[numeric_string=1,float_like=false]
-  | |   +-right_operand=Literal
-  | |     +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-SelectListItem
-  | | +-Subtract
-  | |   +-left_operand=Literal
-  | |   | +-NumericLiteral[numeric_string=1,float_like=false]
-  | |   +-right_operand=Literal
-  | |     +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-SelectListItem
-  | | +-Subtract
-  | |   +-left_operand=Add
-  | |   | +-left_operand=Subtract
-  | |   | | +-left_operand=Literal
-  | |   | | | +-NumericLiteral[numeric_string=1,float_like=false]
-  | |   | | +-right_operand=Literal
-  | |   | |   +-NumericLiteral[numeric_string=1.2,float_like=true]
-  | |   | +-right_operand=Literal
-  | |   |   +-NumericLiteral[numeric_string=1,float_like=false]
-  | |   +-right_operand=Literal
-  | |     +-NumericLiteral[numeric_string=2.3,float_like=true]
-  | +-SelectListItem
-  | | +-AttributeReference[attribute_name=attr1]
-  | +-SelectListItem
-  | | +-AttributeReference[attribute_name=attr2]
-  | +-SelectListItem
-  | | +-Add
-  | |   +-left_operand=AttributeReference[attribute_name=attr1]
-  | |   +-right_operand=Literal
-  | |     +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-SelectListItem
-  | | +-Add
-  | |   +-left_operand=Add
-  | |   | +-left_operand=AttributeReference[attribute_name=attr1]
-  | |   | +-right_operand=Multiply
-  | |   |   +-left_operand=Literal
-  | |   |   | +-NumericLiteral[numeric_string=1,float_like=false]
-  | |   |   +-right_operand=Literal
-  | |   |     +-NumericLiteral[numeric_string=2,float_like=false]
-  | |   +-right_operand=AttributeReference[attribute_name=attr2]
-  | +-SelectListItem
-  |   +-Add
-  |     +-left_operand=AttributeReference[attribute_name=attr1]
-  |     +-right_operand=Multiply
-  |       +-left_operand=Literal
-  |       | +-NumericLiteral[numeric_string=1,float_like=false]
-  |       +-right_operand=Add
-  |         +-left_operand=Literal
-  |         | +-NumericLiteral[numeric_string=2,float_like=false]
-  |         +-right_operand=AttributeReference[attribute_name=attr2]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=2,float_like=false]
+      | +-SelectListItem
+      | | +-Add
+      | |   +-left_operand=Literal
+      | |   | +-NumericLiteral[numeric_string=1,float_like=false]
+      | |   +-right_operand=Literal
+      | |     +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-SelectListItem
+      | | +-Subtract
+      | |   +-left_operand=Literal
+      | |   | +-NumericLiteral[numeric_string=1,float_like=false]
+      | |   +-right_operand=Literal
+      | |     +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-SelectListItem
+      | | +-Subtract
+      | |   +-left_operand=Add
+      | |   | +-left_operand=Subtract
+      | |   | | +-left_operand=Literal
+      | |   | | | +-NumericLiteral[numeric_string=1,float_like=false]
+      | |   | | +-right_operand=Literal
+      | |   | |   +-NumericLiteral[numeric_string=1.2,float_like=true]
+      | |   | +-right_operand=Literal
+      | |   |   +-NumericLiteral[numeric_string=1,float_like=false]
+      | |   +-right_operand=Literal
+      | |     +-NumericLiteral[numeric_string=2.3,float_like=true]
+      | +-SelectListItem
+      | | +-AttributeReference[attribute_name=attr1]
+      | +-SelectListItem
+      | | +-AttributeReference[attribute_name=attr2]
+      | +-SelectListItem
+      | | +-Add
+      | |   +-left_operand=AttributeReference[attribute_name=attr1]
+      | |   +-right_operand=Literal
+      | |     +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-SelectListItem
+      | | +-Add
+      | |   +-left_operand=Add
+      | |   | +-left_operand=AttributeReference[attribute_name=attr1]
+      | |   | +-right_operand=Multiply
+      | |   |   +-left_operand=Literal
+      | |   |   | +-NumericLiteral[numeric_string=1,float_like=false]
+      | |   |   +-right_operand=Literal
+      | |   |     +-NumericLiteral[numeric_string=2,float_like=false]
+      | |   +-right_operand=AttributeReference[attribute_name=attr2]
+      | +-SelectListItem
+      |   +-Add
+      |     +-left_operand=AttributeReference[attribute_name=attr1]
+      |     +-right_operand=Multiply
+      |       +-left_operand=Literal
+      |       | +-NumericLiteral[numeric_string=1,float_like=false]
+      |       +-right_operand=Add
+      |         +-left_operand=Literal
+      |         | +-NumericLiteral[numeric_string=2,float_like=false]
+      |         +-right_operand=AttributeReference[attribute_name=attr2]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT * FROM 123
@@ -167,52 +171,58 @@ SELECT * FROM 123
 # Alias
 SELECT 1 AS a, 2+1 AS b, 3 a, 4 b FROM test AS a, test a
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem[alias=a]
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-SelectListItem[alias=b]
-  | | +-Add
-  | |   +-left_operand=Literal
-  | |   | +-NumericLiteral[numeric_string=2,float_like=false]
-  | |   +-right_operand=Literal
-  | |     +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-SelectListItem[alias=a]
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=3,float_like=false]
-  | +-SelectListItem[alias=b]
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=4,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
-    | +-table_signature=TableSignature[table_alias=a]
-    +-TableReference[table=test]
-      +-table_signature=TableSignature[table_alias=a]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem[alias=a]
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-SelectListItem[alias=b]
+      | | +-Add
+      | |   +-left_operand=Literal
+      | |   | +-NumericLiteral[numeric_string=2,float_like=false]
+      | |   +-right_operand=Literal
+      | |     +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-SelectListItem[alias=a]
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=3,float_like=false]
+      | +-SelectListItem[alias=b]
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=4,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
+        | +-table_signature=TableSignature[table_alias=a]
+        +-TableReference[table=test]
+          +-table_signature=TableSignature[table_alias=a]
 ==
 
 # Column list aliases in FROM.
 SELECT 1 FROM test test_alias(attr, attr1, attr2, attr3), (SELECT * FROM test) AS subquery(attr1, attr1, attr4)
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=1,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
-    | +-table_signature=TableSignature[table_alias=test_alias,
-    |   columns=(attr, attr1, attr2, attr3)]
-    +-SubqueryTable
-      +-table_signature=TableSignature[table_alias=subquery,
-      | columns=(attr1, attr1, attr4)]
-      +-SubqueryExpression
-        +-Select
-          +-select_clause=SelectStar
-          +-from_clause=
-            +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=1,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
+        | +-table_signature=TableSignature[table_alias=test_alias,
+        |   columns=(attr, attr1, attr2, attr3)]
+        +-SubqueryTable
+          +-table_signature=TableSignature[table_alias=subquery,
+          | columns=(attr1, attr1, attr4)]
+          +-SubqueryExpression
+            +-SetOperation[set_operation_type=Select]
+              +-children=
+                +-Select
+                  +-select_clause=SelectStar
+                  +-from_clause=
+                    +-TableReference[table=test]
 ==
 
 # Table subquery must be named.
@@ -253,147 +263,157 @@ SELECT 1 FROM test AS a+1
 
 SELECT 1 FROM test WHERE 1=1 AND attr1=1 AND attr+1>=1 AND attr-1<=1 AND attr+1>1 AND attr-1<1
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=1,float_like=false]
-  +-where_clause=And
-  | +-Equal
-  | | +-left_operand=Literal
-  | | | +-NumericLiteral[numeric_string=1,float_like=false]
-  | | +-right_operand=Literal
-  | |   +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-Equal
-  | | +-left_operand=AttributeReference[attribute_name=attr1]
-  | | +-right_operand=Literal
-  | |   +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-GreaterOrEqual
-  | | +-left_operand=Add
-  | | | +-left_operand=AttributeReference[attribute_name=attr]
-  | | | +-right_operand=Literal
-  | | |   +-NumericLiteral[numeric_string=1,float_like=false]
-  | | +-right_operand=Literal
-  | |   +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-LessOrEqual
-  | | +-left_operand=Subtract
-  | | | +-left_operand=AttributeReference[attribute_name=attr]
-  | | | +-right_operand=Literal
-  | | |   +-NumericLiteral[numeric_string=1,float_like=false]
-  | | +-right_operand=Literal
-  | |   +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-Greater
-  | | +-left_operand=Add
-  | | | +-left_operand=AttributeReference[attribute_name=attr]
-  | | | +-right_operand=Literal
-  | | |   +-NumericLiteral[numeric_string=1,float_like=false]
-  | | +-right_operand=Literal
-  | |   +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-Less
-  |   +-left_operand=Subtract
-  |   | +-left_operand=AttributeReference[attribute_name=attr]
-  |   | +-right_operand=Literal
-  |   |   +-NumericLiteral[numeric_string=1,float_like=false]
-  |   +-right_operand=Literal
-  |     +-NumericLiteral[numeric_string=1,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=1,float_like=false]
+      +-where_clause=And
+      | +-Equal
+      | | +-left_operand=Literal
+      | | | +-NumericLiteral[numeric_string=1,float_like=false]
+      | | +-right_operand=Literal
+      | |   +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-Equal
+      | | +-left_operand=AttributeReference[attribute_name=attr1]
+      | | +-right_operand=Literal
+      | |   +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-GreaterOrEqual
+      | | +-left_operand=Add
+      | | | +-left_operand=AttributeReference[attribute_name=attr]
+      | | | +-right_operand=Literal
+      | | |   +-NumericLiteral[numeric_string=1,float_like=false]
+      | | +-right_operand=Literal
+      | |   +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-LessOrEqual
+      | | +-left_operand=Subtract
+      | | | +-left_operand=AttributeReference[attribute_name=attr]
+      | | | +-right_operand=Literal
+      | | |   +-NumericLiteral[numeric_string=1,float_like=false]
+      | | +-right_operand=Literal
+      | |   +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-Greater
+      | | +-left_operand=Add
+      | | | +-left_operand=AttributeReference[attribute_name=attr]
+      | | | +-right_operand=Literal
+      | | |   +-NumericLiteral[numeric_string=1,float_like=false]
+      | | +-right_operand=Literal
+      | |   +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-Less
+      |   +-left_operand=Subtract
+      |   | +-left_operand=AttributeReference[attribute_name=attr]
+      |   | +-right_operand=Literal
+      |   |   +-NumericLiteral[numeric_string=1,float_like=false]
+      |   +-right_operand=Literal
+      |     +-NumericLiteral[numeric_string=1,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT 1 FROM test WHERE attr BETWEEN 1 AND 2 AND attr BETWEEN 2 AND 1
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=1,float_like=false]
-  +-where_clause=And
-  | +-Between
-  | | +-check_operand=AttributeReference[attribute_name=attr]
-  | | +-lower_bound_operand=Literal
-  | | | +-NumericLiteral[numeric_string=1,float_like=false]
-  | | +-upper_bound_operand=Literal
-  | |   +-NumericLiteral[numeric_string=2,float_like=false]
-  | +-Between
-  |   +-check_operand=AttributeReference[attribute_name=attr]
-  |   +-lower_bound_operand=Literal
-  |   | +-NumericLiteral[numeric_string=2,float_like=false]
-  |   +-upper_bound_operand=Literal
-  |     +-NumericLiteral[numeric_string=1,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=1,float_like=false]
+      +-where_clause=And
+      | +-Between
+      | | +-check_operand=AttributeReference[attribute_name=attr]
+      | | +-lower_bound_operand=Literal
+      | | | +-NumericLiteral[numeric_string=1,float_like=false]
+      | | +-upper_bound_operand=Literal
+      | |   +-NumericLiteral[numeric_string=2,float_like=false]
+      | +-Between
+      |   +-check_operand=AttributeReference[attribute_name=attr]
+      |   +-lower_bound_operand=Literal
+      |   | +-NumericLiteral[numeric_string=2,float_like=false]
+      |   +-upper_bound_operand=Literal
+      |     +-NumericLiteral[numeric_string=1,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT 1 FROM test WHERE attr NOT BETWEEN 1 AND 2
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=1,float_like=false]
-  +-where_clause=Not
-  | +-Between
-  |   +-check_operand=AttributeReference[attribute_name=attr]
-  |   +-lower_bound_operand=Literal
-  |   | +-NumericLiteral[numeric_string=1,float_like=false]
-  |   +-upper_bound_operand=Literal
-  |     +-NumericLiteral[numeric_string=2,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=1,float_like=false]
+      +-where_clause=Not
+      | +-Between
+      |   +-check_operand=AttributeReference[attribute_name=attr]
+      |   +-lower_bound_operand=Literal
+      |   | +-NumericLiteral[numeric_string=1,float_like=false]
+      |   +-upper_bound_operand=Literal
+      |     +-NumericLiteral[numeric_string=2,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT 1 FROM test ORDER BY attr, 1
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=1,float_like=false]
-  +-order_by=OrderBy
-  | +-OrderByItem[is_asc=true,nulls_first=false]
-  | | +-AttributeReference[attribute_name=attr]
-  | +-OrderByItem[is_asc=true,nulls_first=false]
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=1,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=1,float_like=false]
+      +-order_by=OrderBy
+      | +-OrderByItem[is_asc=true,nulls_first=false]
+      | | +-AttributeReference[attribute_name=attr]
+      | +-OrderByItem[is_asc=true,nulls_first=false]
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=1,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT fun(attr)+1 FROM test GROUP BY fun()+fun(attr), attr1+attr2 HAVING attr1>1 AND fun(*)>1
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Add
-  |     +-left_operand=FunctionCall[name=fun]
-  |     | +-AttributeReference[attribute_name=attr]
-  |     +-right_operand=Literal
-  |       +-NumericLiteral[numeric_string=1,float_like=false]
-  +-group_by=GroupBy
-  | +-Add
-  | | +-left_operand=FunctionCall[name=fun]
-  | | +-right_operand=FunctionCall[name=fun]
-  | |   +-AttributeReference[attribute_name=attr]
-  | +-Add
-  |   +-left_operand=AttributeReference[attribute_name=attr1]
-  |   +-right_operand=AttributeReference[attribute_name=attr2]
-  +-having=HAVING
-  | +-And
-  |   +-Greater
-  |   | +-left_operand=AttributeReference[attribute_name=attr1]
-  |   | +-right_operand=Literal
-  |   |   +-NumericLiteral[numeric_string=1,float_like=false]
-  |   +-Greater
-  |     +-left_operand=FunctionCall[name=fun,is_star=true]
-  |     +-right_operand=Literal
-  |       +-NumericLiteral[numeric_string=1,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Add
+      |     +-left_operand=FunctionCall[name=fun]
+      |     | +-AttributeReference[attribute_name=attr]
+      |     +-right_operand=Literal
+      |       +-NumericLiteral[numeric_string=1,float_like=false]
+      +-group_by=GroupBy
+      | +-Add
+      | | +-left_operand=FunctionCall[name=fun]
+      | | +-right_operand=FunctionCall[name=fun]
+      | |   +-AttributeReference[attribute_name=attr]
+      | +-Add
+      |   +-left_operand=AttributeReference[attribute_name=attr1]
+      |   +-right_operand=AttributeReference[attribute_name=attr2]
+      +-having=HAVING
+      | +-And
+      |   +-Greater
+      |   | +-left_operand=AttributeReference[attribute_name=attr1]
+      |   | +-right_operand=Literal
+      |   |   +-NumericLiteral[numeric_string=1,float_like=false]
+      |   +-Greater
+      |     +-left_operand=FunctionCall[name=fun,is_star=true]
+      |     +-right_operand=Literal
+      |       +-NumericLiteral[numeric_string=1,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 # ORDER BY
@@ -404,52 +424,56 @@ SELECT 1 FROM test ORDER BY 1 ASC,
                             attr1+1 NULLS FIRST,
                             fun(attr)/2
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=1,float_like=false]
-  +-order_by=OrderBy
-  | +-OrderByItem[is_asc=true,nulls_first=false]
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-OrderByItem[is_asc=false,nulls_first=true]
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=2,float_like=false]
-  | +-OrderByItem[is_asc=true,nulls_first=true]
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=3,float_like=false]
-  | +-OrderByItem[is_asc=false,nulls_first=false]
-  | | +-AttributeReference[attribute_name=attr1]
-  | +-OrderByItem[is_asc=true,nulls_first=true]
-  | | +-Add
-  | |   +-left_operand=AttributeReference[attribute_name=attr1]
-  | |   +-right_operand=Literal
-  | |     +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-OrderByItem[is_asc=true,nulls_first=false]
-  |   +-Divide
-  |     +-left_operand=FunctionCall[name=fun]
-  |     | +-AttributeReference[attribute_name=attr]
-  |     +-right_operand=Literal
-  |       +-NumericLiteral[numeric_string=2,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=1,float_like=false]
+      +-order_by=OrderBy
+      | +-OrderByItem[is_asc=true,nulls_first=false]
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-OrderByItem[is_asc=false,nulls_first=true]
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=2,float_like=false]
+      | +-OrderByItem[is_asc=true,nulls_first=true]
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=3,float_like=false]
+      | +-OrderByItem[is_asc=false,nulls_first=false]
+      | | +-AttributeReference[attribute_name=attr1]
+      | +-OrderByItem[is_asc=true,nulls_first=true]
+      | | +-Add
+      | |   +-left_operand=AttributeReference[attribute_name=attr1]
+      | |   +-right_operand=Literal
+      | |     +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-OrderByItem[is_asc=true,nulls_first=false]
+      |   +-Divide
+      |     +-left_operand=FunctionCall[name=fun]
+      |     | +-AttributeReference[attribute_name=attr]
+      |     +-right_operand=Literal
+      |       +-NumericLiteral[numeric_string=2,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 # Limit
 SELECT 1 FROM test LIMIT 1
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=1,float_like=false]
-  +-limit=LIMIT
-  | +-NumericLiteral[numeric_string=1,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=1,float_like=false]
+      +-limit=LIMIT
+      | +-NumericLiteral[numeric_string=1,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT 1 FROM test LIMIT 1.1
@@ -483,14 +507,16 @@ SELECT 1 FROM test LIMIT abc
 # Priority
 SELECT 1 FROM test WITH PRIORITY 1
 --
-SelectStatement
-+-select_query=Select
-| +-select_clause=SelectList
-| | +-SelectListItem
-| |   +-Literal
-| |     +-NumericLiteral[numeric_string=1,float_like=false]
-| +-from_clause=
-|   +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+| +-children=
+|   +-Select
+|     +-select_clause=SelectList
+|     | +-SelectListItem
+|     |   +-Literal
+|     |     +-NumericLiteral[numeric_string=1,float_like=false]
+|     +-from_clause=
+|       +-TableReference[table=test]
 +-priority=PRIORITY
   +-NumericLiteral[numeric_string=1,float_like=false]
 ==
@@ -530,25 +556,31 @@ SELECT 1 FROM test WITH PRIORITY abc
 # Subqueries in the FROM clause.
 SELECT * FROM test, (select * FROM test) AS a, (select * FROM test) a
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectStar
-  +-from_clause=
-    +-TableReference[table=test]
-    +-SubqueryTable
-    | +-table_signature=TableSignature[table_alias=a]
-    | +-SubqueryExpression
-    |   +-Select
-    |     +-select_clause=SelectStar
-    |     +-from_clause=
-    |       +-TableReference[table=test]
-    +-SubqueryTable
-      +-table_signature=TableSignature[table_alias=a]
-      +-SubqueryExpression
-        +-Select
-          +-select_clause=SelectStar
-          +-from_clause=
-            +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectStar
+      +-from_clause=
+        +-TableReference[table=test]
+        +-SubqueryTable
+        | +-table_signature=TableSignature[table_alias=a]
+        | +-SubqueryExpression
+        |   +-SetOperation[set_operation_type=Select]
+        |     +-children=
+        |       +-Select
+        |         +-select_clause=SelectStar
+        |         +-from_clause=
+        |           +-TableReference[table=test]
+        +-SubqueryTable
+          +-table_signature=TableSignature[table_alias=a]
+          +-SubqueryExpression
+            +-SetOperation[set_operation_type=Select]
+              +-children=
+                +-Select
+                  +-select_clause=SelectStar
+                  +-from_clause=
+                    +-TableReference[table=test]
 ==
 
 SELECT * FROM test, SELECT * FROM test
@@ -560,68 +592,84 @@ SELECT * FROM test, SELECT * FROM test
 
 SELECT * FROM (select * FROM (select * FROM (select * FROM test) a ) a ) a
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectStar
-  +-from_clause=
-    +-SubqueryTable
-      +-table_signature=TableSignature[table_alias=a]
-      +-SubqueryExpression
-        +-Select
-          +-select_clause=SelectStar
-          +-from_clause=
-            +-SubqueryTable
-              +-table_signature=TableSignature[table_alias=a]
-              +-SubqueryExpression
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectStar
+      +-from_clause=
+        +-SubqueryTable
+          +-table_signature=TableSignature[table_alias=a]
+          +-SubqueryExpression
+            +-SetOperation[set_operation_type=Select]
+              +-children=
                 +-Select
                   +-select_clause=SelectStar
                   +-from_clause=
                     +-SubqueryTable
                       +-table_signature=TableSignature[table_alias=a]
                       +-SubqueryExpression
-                        +-Select
-                          +-select_clause=SelectStar
-                          +-from_clause=
-                            +-TableReference[table=test]
+                        +-SetOperation[set_operation_type=Select]
+                          +-children=
+                            +-Select
+                              +-select_clause=SelectStar
+                              +-from_clause=
+                                +-SubqueryTable
+                                  +-table_signature=TableSignature[table_alias=a]
+                                  +-SubqueryExpression
+                                    +-SetOperation[set_operation_type=Select]
+                                      +-children=
+                                        +-Select
+                                          +-select_clause=SelectStar
+                                          +-from_clause=
+                                            +-TableReference[table=test]
 ==
 
 # Subqueries are not supported yet in clauses other than the FROM clause.
 SELECT (select * FROM test) FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-SubqueryExpression
-  |     +-Select
-  |       +-select_clause=SelectStar
-  |       +-from_clause=
-  |         +-TableReference[table=test]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-SubqueryExpression
+      |     +-SetOperation[set_operation_type=Select]
+      |       +-children=
+      |         +-Select
+      |           +-select_clause=SelectStar
+      |           +-from_clause=
+      |             +-TableReference[table=test]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT 1 FROM test WHERE 1 > (select 1 FROM test)
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=1,float_like=false]
-  +-where_clause=Greater
-  | +-left_operand=Literal
-  | | +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-right_operand=SubqueryExpression
-  |   +-Select
-  |     +-select_clause=SelectList
-  |     | +-SelectListItem
-  |     |   +-Literal
-  |     |     +-NumericLiteral[numeric_string=1,float_like=false]
-  |     +-from_clause=
-  |       +-TableReference[table=test]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=1,float_like=false]
+      +-where_clause=Greater
+      | +-left_operand=Literal
+      | | +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-right_operand=SubqueryExpression
+      |   +-SetOperation[set_operation_type=Select]
+      |     +-children=
+      |       +-Select
+      |         +-select_clause=SelectList
+      |         | +-SelectListItem
+      |         |   +-Literal
+      |         |     +-NumericLiteral[numeric_string=1,float_like=false]
+      |         +-from_clause=
+      |           +-TableReference[table=test]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 #
@@ -632,82 +680,96 @@ WITH a (col) AS (SELECT 1 FROM test GROUP BY a ORDER BY b LIMIT 1),
      c AS (SELECT 1 FROM test)
 SELECT 1 FROM a, b, c, d
 --
-SelectStatement
-+-select_query=Select
-| +-select_clause=SelectList
-| | +-SelectListItem
-| |   +-Literal
-| |     +-NumericLiteral[numeric_string=1,float_like=false]
-| +-from_clause=
-|   +-TableReference[table=a]
-|   +-TableReference[table=b]
-|   +-TableReference[table=c]
-|   +-TableReference[table=d]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+| +-children=
+|   +-Select
+|     +-select_clause=SelectList
+|     | +-SelectListItem
+|     |   +-Literal
+|     |     +-NumericLiteral[numeric_string=1,float_like=false]
+|     +-from_clause=
+|       +-TableReference[table=a]
+|       +-TableReference[table=b]
+|       +-TableReference[table=c]
+|       +-TableReference[table=d]
 +-with_clause=
   +-SubqueryTable
   | +-table_signature=TableSignature[table_alias=a,columns=(col)]
   | +-SubqueryExpression
-  |   +-Select
-  |     +-select_clause=SelectList
-  |     | +-SelectListItem
-  |     |   +-Literal
-  |     |     +-NumericLiteral[numeric_string=1,float_like=false]
-  |     +-group_by=GroupBy
-  |     | +-AttributeReference[attribute_name=a]
-  |     +-order_by=OrderBy
-  |     | +-OrderByItem[is_asc=true,nulls_first=false]
-  |     |   +-AttributeReference[attribute_name=b]
-  |     +-limit=LIMIT
-  |     | +-NumericLiteral[numeric_string=1,float_like=false]
-  |     +-from_clause=
-  |       +-TableReference[table=test]
+  |   +-SetOperation[set_operation_type=Select]
+  |     +-children=
+  |       +-Select
+  |         +-select_clause=SelectList
+  |         | +-SelectListItem
+  |         |   +-Literal
+  |         |     +-NumericLiteral[numeric_string=1,float_like=false]
+  |         +-group_by=GroupBy
+  |         | +-AttributeReference[attribute_name=a]
+  |         +-order_by=OrderBy
+  |         | +-OrderByItem[is_asc=true,nulls_first=false]
+  |         |   +-AttributeReference[attribute_name=b]
+  |         +-limit=LIMIT
+  |         | +-NumericLiteral[numeric_string=1,float_like=false]
+  |         +-from_clause=
+  |           +-TableReference[table=test]
   +-SubqueryTable
   | +-table_signature=TableSignature[table_alias=b,columns=(col1, col2, col3)]
   | +-SubqueryExpression
-  |   +-Select
-  |     +-select_clause=SelectStar
-  |     +-from_clause=
-  |       +-SubqueryTable
-  |         +-table_signature=TableSignature[table_alias=a]
-  |         +-SubqueryExpression
-  |           +-Select
-  |             +-select_clause=SelectStar
-  |             +-from_clause=
-  |               +-TableReference[table=test]
+  |   +-SetOperation[set_operation_type=Select]
+  |     +-children=
+  |       +-Select
+  |         +-select_clause=SelectStar
+  |         +-from_clause=
+  |           +-SubqueryTable
+  |             +-table_signature=TableSignature[table_alias=a]
+  |             +-SubqueryExpression
+  |               +-SetOperation[set_operation_type=Select]
+  |                 +-children=
+  |                   +-Select
+  |                     +-select_clause=SelectStar
+  |                     +-from_clause=
+  |                       +-TableReference[table=test]
   +-SubqueryTable
     +-table_signature=TableSignature[table_alias=c]
     +-SubqueryExpression
-      +-Select
-        +-select_clause=SelectList
-        | +-SelectListItem
-        |   +-Literal
-        |     +-NumericLiteral[numeric_string=1,float_like=false]
-        +-from_clause=
-          +-TableReference[table=test]
+      +-SetOperation[set_operation_type=Select]
+        +-children=
+          +-Select
+            +-select_clause=SelectList
+            | +-SelectListItem
+            |   +-Literal
+            |     +-NumericLiteral[numeric_string=1,float_like=false]
+            +-from_clause=
+              +-TableReference[table=test]
 ==
 
 WITH a AS (SELECT 1 FROM test)
 SELECT 1 FROM a
 --
-SelectStatement
-+-select_query=Select
-| +-select_clause=SelectList
-| | +-SelectListItem
-| |   +-Literal
-| |     +-NumericLiteral[numeric_string=1,float_like=false]
-| +-from_clause=
-|   +-TableReference[table=a]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+| +-children=
+|   +-Select
+|     +-select_clause=SelectList
+|     | +-SelectListItem
+|     |   +-Literal
+|     |     +-NumericLiteral[numeric_string=1,float_like=false]
+|     +-from_clause=
+|       +-TableReference[table=a]
 +-with_clause=
   +-SubqueryTable
     +-table_signature=TableSignature[table_alias=a]
     +-SubqueryExpression
-      +-Select
-        +-select_clause=SelectList
-        | +-SelectListItem
-        |   +-Literal
-        |     +-NumericLiteral[numeric_string=1,float_like=false]
-        +-from_clause=
-          +-TableReference[table=test]
+      +-SetOperation[set_operation_type=Select]
+        +-children=
+          +-Select
+            +-select_clause=SelectList
+            | +-SelectListItem
+            |   +-Literal
+            |     +-NumericLiteral[numeric_string=1,float_like=false]
+            +-from_clause=
+              +-TableReference[table=test]
 ==
 
 # AS cannot be omitted.
@@ -774,14 +836,16 @@ SELECT 1 FROM test WHERE tb1 = TRUE
 # FIXME(chasseur, qzeng): The result is wrong. Add support for hexadecimal literals.
 SELECT 0xfff FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem[alias=xfff]
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=0,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem[alias=xfff]
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=0,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT x'fff' FROM test
@@ -795,35 +859,37 @@ SELECT 123e23, 123e-123, 123e-2+1, 123e-2*2, 123e-123,
        1e100000000
 FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=123e23,float_like=true]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=123e-123,float_like=true]
-  | +-SelectListItem
-  | | +-Add
-  | |   +-left_operand=Literal
-  | |   | +-NumericLiteral[numeric_string=123e-2,float_like=true]
-  | |   +-right_operand=Literal
-  | |     +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-SelectListItem
-  | | +-Multiply
-  | |   +-left_operand=Literal
-  | |   | +-NumericLiteral[numeric_string=123e-2,float_like=true]
-  | |   +-right_operand=Literal
-  | |     +-NumericLiteral[numeric_string=2,float_like=false]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=123e-123,float_like=true]
-  | +-SelectListItem
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=1e100000000,float_like=true]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=123e23,float_like=true]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=123e-123,float_like=true]
+      | +-SelectListItem
+      | | +-Add
+      | |   +-left_operand=Literal
+      | |   | +-NumericLiteral[numeric_string=123e-2,float_like=true]
+      | |   +-right_operand=Literal
+      | |     +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-SelectListItem
+      | | +-Multiply
+      | |   +-left_operand=Literal
+      | |   | +-NumericLiteral[numeric_string=123e-2,float_like=true]
+      | |   +-right_operand=Literal
+      | |     +-NumericLiteral[numeric_string=2,float_like=false]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=123e-123,float_like=true]
+      | +-SelectListItem
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=1e100000000,float_like=true]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT 9223372036854775805, 9223372036854775807, 9223372036854775809, -9223372036854775805,
@@ -831,77 +897,88 @@ SELECT 9223372036854775805, 9223372036854775807, 9223372036854775809, -922337203
        -9223372036854775800.8, -1.123456789012345678901234567890
 FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=9223372036854775805,float_like=false]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=9223372036854775807,float_like=false]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=9223372036854775809,float_like=false]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=-9223372036854775805,float_like=false]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=-9223372036854775807,float_like=false]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=-9223372036854775809,float_like=false]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=9223372036854775800.8,float_like=true]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=1.123456789012345678901234567890,
-  | |     float_like=true]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=-9223372036854775800.8,float_like=true]
-  | +-SelectListItem
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=-1.123456789012345678901234567890,
-  |       float_like=true]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=9223372036854775805,float_like=false]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=9223372036854775807,float_like=false]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=9223372036854775809,float_like=false]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=-9223372036854775805,
+      | |     float_like=false]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=-9223372036854775807,
+      | |     float_like=false]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=-9223372036854775809,
+      | |     float_like=false]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=9223372036854775800.8,
+      | |     float_like=true]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=1.123456789012345678901234567890,
+      | |     float_like=true]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=-9223372036854775800.8,
+      | |     float_like=true]
+      | +-SelectListItem
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=-1.123456789012345678901234567890,
+      |       float_like=true]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 # Escape characters.
 SELECT 1, e'$asdfg\'\'\"\"\t\r\n' FROM test WHERE char_col = e'\'asdfg\''
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-SelectListItem
-  |   +-Literal
-  |     +-StringLiteral[value=$asdfg''""	
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-SelectListItem
+      |   +-Literal
+      |     +-StringLiteral[value=$asdfg''""	
 ]
-  +-where_clause=Equal
-  | +-left_operand=AttributeReference[attribute_name=char_col]
-  | +-right_operand=Literal
-  |   +-StringLiteral[value='asdfg']
-  +-from_clause=
-    +-TableReference[table=test]
+      +-where_clause=Equal
+      | +-left_operand=AttributeReference[attribute_name=char_col]
+      | +-right_operand=Literal
+      |   +-StringLiteral[value='asdfg']
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 # Double-quoted strings are identifiers, which do not need to be escaped.
 SELECT 1 "abc\n" FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem[alias=abc\n]
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=1,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem[alias=abc\n]
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=1,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT 1 "abc
@@ -909,17 +986,19 @@ SELECT 1 "abc
 def
 " FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem[alias=abc
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem[alias=abc
 
 def
 ]
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=1,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=1,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 # Currently predicate is not treated as a regular scalar expression.
@@ -932,17 +1011,19 @@ SELECT 1 FROM test WHERE (1>1)=(1<1)
 
 SELECT 1 """this IS a double-quoted string""", 2 "this IS NOT a double-quoted string" FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem[alias="this IS a double-quoted string"]
-  | | +-Literal
-  | |   +-NumericLiteral[numeric_string=1,float_like=false]
-  | +-SelectListItem[alias=this IS NOT a double-quoted string]
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=2,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem[alias="this IS a double-quoted string"]
+      | | +-Literal
+      | |   +-NumericLiteral[numeric_string=1,float_like=false]
+      | +-SelectListItem[alias=this IS NOT a double-quoted string]
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=2,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 #
@@ -953,66 +1034,74 @@ SELECT '1998-12-01',
        DATE '1998-12-01'
 FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1998-12-01]
-  | +-SelectListItem
-  |   +-Literal
-  |     +-StringLiteral[value=1998-12-01,explicit_type=Date]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1998-12-01]
+      | +-SelectListItem
+      |   +-Literal
+      |     +-StringLiteral[value=1998-12-01,explicit_type=Date]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 # Year before 1970.
 SELECT DATE '1960-12-12',
        DATE '1901-12-14' FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1960-12-12,explicit_type=Date]
-  | +-SelectListItem
-  |   +-Literal
-  |     +-StringLiteral[value=1901-12-14,explicit_type=Date]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1960-12-12,explicit_type=Date]
+      | +-SelectListItem
+      |   +-Literal
+      |     +-StringLiteral[value=1901-12-14,explicit_type=Date]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT DATE '1998-2-12', DATE '1998-12-2' FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1998-2-12,explicit_type=Date]
-  | +-SelectListItem
-  |   +-Literal
-  |     +-StringLiteral[value=1998-12-2,explicit_type=Date]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1998-2-12,explicit_type=Date]
+      | +-SelectListItem
+      |   +-Literal
+      |     +-StringLiteral[value=1998-12-2,explicit_type=Date]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT DATE '+1921-12-12',
        DATE '+10001-12-12'
 FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=+1921-12-12,explicit_type=Date]
-  | +-SelectListItem
-  |   +-Literal
-  |     +-StringLiteral[value=+10001-12-12,explicit_type=Date]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=+1921-12-12,explicit_type=Date]
+      | +-SelectListItem
+      |   +-Literal
+      |     +-StringLiteral[value=+10001-12-12,explicit_type=Date]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT DATE 'a1998-12-12' FROM test
@@ -1054,20 +1143,22 @@ SELECT DATE '1996-02-29',
        DATE '1997-03-31',
        DATE '1998-04-30' FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1996-02-29,explicit_type=Date]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1997-03-31,explicit_type=Date]
-  | +-SelectListItem
-  |   +-Literal
-  |     +-StringLiteral[value=1998-04-30,explicit_type=Date]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1996-02-29,explicit_type=Date]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1997-03-31,explicit_type=Date]
+      | +-SelectListItem
+      |   +-Literal
+      |     +-StringLiteral[value=1998-04-30,explicit_type=Date]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT DATE '1999-02-29' FROM test
@@ -1082,17 +1173,19 @@ SELECT DATETIME '2007-05-08 12:35:29',
        DATETIME '2007-05-08 12:35:29.010'
 FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=2007-05-08 12:35:29,explicit_type=Datetime]
-  | +-SelectListItem
-  |   +-Literal
-  |     +-StringLiteral[value=2007-05-08 12:35:29.010,explicit_type=Datetime]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=2007-05-08 12:35:29,explicit_type=Datetime]
+      | +-SelectListItem
+      |   +-Literal
+      |     +-StringLiteral[value=2007-05-08 12:35:29.010,explicit_type=Datetime]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT DATE '1999-04-31' FROM test
@@ -1104,21 +1197,23 @@ SELECT DATE '1999-04-31' FROM test
 
 SELECT 1 FROM test WHERE attr_date <= DATE '1998-12-01' - INTERVAL '96 day'
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=1,float_like=false]
-  +-where_clause=LessOrEqual
-  | +-left_operand=AttributeReference[attribute_name=attr_date]
-  | +-right_operand=Subtract
-  |   +-left_operand=Literal
-  |   | +-StringLiteral[value=1998-12-01,explicit_type=Date]
-  |   +-right_operand=Literal
-  |     +-StringLiteral[value=96 day,explicit_type=DatetimeInterval]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=1,float_like=false]
+      +-where_clause=LessOrEqual
+      | +-left_operand=AttributeReference[attribute_name=attr_date]
+      | +-right_operand=Subtract
+      |   +-left_operand=Literal
+      |   | +-StringLiteral[value=1998-12-01,explicit_type=Date]
+      |   +-right_operand=Literal
+      |     +-StringLiteral[value=96 day,explicit_type=DatetimeInterval]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT INTERVAL '1 us', INTERVAL '1 ms', INTERVAL '1 s', INTERVAL '1 minute',
@@ -1133,83 +1228,85 @@ SELECT INTERVAL '1 us', INTERVAL '1 ms', INTERVAL '1 s', INTERVAL '1 minute',
            YEARMONTH INTERVAL '1 century', YEARMONTH INTERVAL '1 millennium'
 FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 us,explicit_type=DatetimeInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 ms,explicit_type=DatetimeInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 s,explicit_type=DatetimeInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 minute,explicit_type=DatetimeInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 h,explicit_type=DatetimeInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 day,explicit_type=DatetimeInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 week,explicit_type=DatetimeInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 month,explicit_type=YearMonthInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 year,explicit_type=YearMonthInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 decade,explicit_type=YearMonthInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 century,explicit_type=YearMonthInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 millennium,explicit_type=YearMonthInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 us,explicit_type=DatetimeInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 ms,explicit_type=DatetimeInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 s,explicit_type=DatetimeInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 minute,explicit_type=DatetimeInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 h,explicit_type=DatetimeInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 day,explicit_type=DatetimeInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 week,explicit_type=DatetimeInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 month,explicit_type=YearMonthInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 year,explicit_type=YearMonthInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 decade,explicit_type=YearMonthInterval]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1 century,explicit_type=YearMonthInterval]
-  | +-SelectListItem
-  |   +-Literal
-  |     +-StringLiteral[value=1 millennium,explicit_type=YearMonthInterval]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 us,explicit_type=DatetimeInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 ms,explicit_type=DatetimeInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 s,explicit_type=DatetimeInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 minute,explicit_type=DatetimeInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 h,explicit_type=DatetimeInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 day,explicit_type=DatetimeInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 week,explicit_type=DatetimeInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 month,explicit_type=YearMonthInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 year,explicit_type=YearMonthInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 decade,explicit_type=YearMonthInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 century,explicit_type=YearMonthInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 millennium,explicit_type=YearMonthInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 us,explicit_type=DatetimeInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 ms,explicit_type=DatetimeInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 s,explicit_type=DatetimeInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 minute,explicit_type=DatetimeInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 h,explicit_type=DatetimeInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 day,explicit_type=DatetimeInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 week,explicit_type=DatetimeInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 month,explicit_type=YearMonthInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 year,explicit_type=YearMonthInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 decade,explicit_type=YearMonthInterval]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1 century,explicit_type=YearMonthInterval]
+      | +-SelectListItem
+      |   +-Literal
+      |     +-StringLiteral[value=1 millennium,explicit_type=YearMonthInterval]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT INTERVAL '4 day' (1)
@@ -1229,14 +1326,16 @@ SELECT INTERVAL '2 moth' FROM test
 
 SELECT INTERVAL '-3 year' FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Literal
-  |     +-StringLiteral[value=-3 year,explicit_type=YearMonthInterval]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Literal
+      |     +-StringLiteral[value=-3 year,explicit_type=YearMonthInterval]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT INTERVAL 'a 3 year' FROM test
@@ -1267,22 +1366,36 @@ SELECT INTERVAL '5-3 day to second' FROM test
 
 SELECT 1-1 FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Subtract
-  |     +-left_operand=Literal
-  |     | +-NumericLiteral[numeric_string=1,float_like=false]
-  |     +-right_operand=Literal
-  |       +-NumericLiteral[numeric_string=1,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Subtract
+      |     +-left_operand=Literal
+      |     | +-NumericLiteral[numeric_string=1,float_like=false]
+      |     +-right_operand=Literal
+      |       +-NumericLiteral[numeric_string=1,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT 1 - 1 FROM test
 --
-[same as above]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Subtract
+      |     +-left_operand=Literal
+      |     | +-NumericLiteral[numeric_string=1,float_like=false]
+      |     +-right_operand=Literal
+      |       +-NumericLiteral[numeric_string=1,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT 1--1 FROM test
@@ -1294,50 +1407,56 @@ SELECT 1--1 FROM test
 
 SELECT 1+-1 FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Add
-  |     +-left_operand=Literal
-  |     | +-NumericLiteral[numeric_string=1,float_like=false]
-  |     +-right_operand=Literal
-  |       +-NumericLiteral[numeric_string=-1,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Add
+      |     +-left_operand=Literal
+      |     | +-NumericLiteral[numeric_string=1,float_like=false]
+      |     +-right_operand=Literal
+      |       +-NumericLiteral[numeric_string=-1,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT 1-1+-1 FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Add
-  |     +-left_operand=Subtract
-  |     | +-left_operand=Literal
-  |     | | +-NumericLiteral[numeric_string=1,float_like=false]
-  |     | +-right_operand=Literal
-  |     |   +-NumericLiteral[numeric_string=1,float_like=false]
-  |     +-right_operand=Literal
-  |       +-NumericLiteral[numeric_string=-1,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Add
+      |     +-left_operand=Subtract
+      |     | +-left_operand=Literal
+      |     | | +-NumericLiteral[numeric_string=1,float_like=false]
+      |     | +-right_operand=Literal
+      |     |   +-NumericLiteral[numeric_string=1,float_like=false]
+      |     +-right_operand=Literal
+      |       +-NumericLiteral[numeric_string=-1,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT 1+(-1) FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Add
-  |     +-left_operand=Literal
-  |     | +-NumericLiteral[numeric_string=1,float_like=false]
-  |     +-right_operand=Literal
-  |       +-NumericLiteral[numeric_string=-1,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Add
+      |     +-left_operand=Literal
+      |     | +-NumericLiteral[numeric_string=1,float_like=false]
+      |     +-right_operand=Literal
+      |       +-NumericLiteral[numeric_string=-1,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 # Quit statement
@@ -1349,29 +1468,31 @@ QuitStatement
 # Literals with various explicit types.
 SELECT INT '1', LONG '1', FLOAT '1', DOUBLE '1', char(42) 'foo', varchar(42) 'bar' FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1,explicit_type=Int]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1,explicit_type=Long]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1,explicit_type=Float]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=1,explicit_type=Double]
-  | +-SelectListItem
-  | | +-Literal
-  | |   +-StringLiteral[value=foo,explicit_type=Char(42)]
-  | +-SelectListItem
-  |   +-Literal
-  |     +-StringLiteral[value=bar,explicit_type=VarChar(42)]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1,explicit_type=Int]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1,explicit_type=Long]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1,explicit_type=Float]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=1,explicit_type=Double]
+      | +-SelectListItem
+      | | +-Literal
+      | |   +-StringLiteral[value=foo,explicit_type=Char(42)]
+      | +-SelectListItem
+      |   +-Literal
+      |     +-StringLiteral[value=bar,explicit_type=VarChar(42)]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 # Value needs to be quoted when giving an explicit type.
@@ -1394,50 +1515,58 @@ SELECT INT 'foo' FROM test
 # acceptable according to the SQL standard.
 SELECT 1. FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=1.,float_like=true]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=1.,float_like=true]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT .1 FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=.1,float_like=true]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=.1,float_like=true]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT 1.e1 FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=1.e1,float_like=true]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=1.e1,float_like=true]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT .1e1 FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=.1e1,float_like=true]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=.1e1,float_like=true]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 # EXISTS subquery
@@ -1455,57 +1584,64 @@ WHERE
     WHERE gs1.i = gs3.i
   );
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-AttributeReference[attribute_name=i]
-  +-where_clause=And
-  | +-Exists
-  | | +-subquery=SubqueryExpression
-  | |   +-Select
-  | |     +-select_clause=SelectStar
-  | |     +-where_clause=Equal
-  | |     | +-left_operand=AttributeReference[attribute_name=i,relation_name=gs1]
-  | |     | +-right_operand=AttributeReference[attribute_name=i,
-  | |     |   relation_name=gs2]
-  | |     +-from_clause=
-  | |       +-TableGenerator
-  | |         +-FunctionCall[name=generate_series]
-  | |           +-Literal
-  | |           | +-NumericLiteral[numeric_string=0,float_like=false]
-  | |           +-Literal
-  | |           | +-NumericLiteral[numeric_string=100,float_like=false]
-  | |           +-Literal
-  | |             +-NumericLiteral[numeric_string=5,float_like=false]
-  | +-Not
-  |   +-Exists
-  |     +-subquery=SubqueryExpression
-  |       +-Select
-  |         +-select_clause=SelectStar
-  |         +-where_clause=Equal
-  |         | +-left_operand=AttributeReference[attribute_name=i,
-  |         | | relation_name=gs1]
-  |         | +-right_operand=AttributeReference[attribute_name=i,
-  |         |   relation_name=gs3]
-  |         +-from_clause=
-  |           +-TableGenerator
-  |             +-FunctionCall[name=generate_series]
-  |               +-Literal
-  |               | +-NumericLiteral[numeric_string=0,float_like=false]
-  |               +-Literal
-  |               | +-NumericLiteral[numeric_string=100,float_like=false]
-  |               +-Literal
-  |                 +-NumericLiteral[numeric_string=10,float_like=false]
-  +-from_clause=
-    +-TableGenerator
-      +-FunctionCall[name=generate_series]
-        +-Literal
-        | +-NumericLiteral[numeric_string=0,float_like=false]
-        +-Literal
-        | +-NumericLiteral[numeric_string=100,float_like=false]
-        +-Literal
-          +-NumericLiteral[numeric_string=3,float_like=false]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-AttributeReference[attribute_name=i]
+      +-where_clause=And
+      | +-Exists
+      | | +-subquery=SubqueryExpression
+      | |   +-SetOperation[set_operation_type=Select]
+      | |     +-children=
+      | |       +-Select
+      | |         +-select_clause=SelectStar
+      | |         +-where_clause=Equal
+      | |         | +-left_operand=AttributeReference[attribute_name=i,
+      | |         | | relation_name=gs1]
+      | |         | +-right_operand=AttributeReference[attribute_name=i,
+      | |         |   relation_name=gs2]
+      | |         +-from_clause=
+      | |           +-TableGenerator
+      | |             +-FunctionCall[name=generate_series]
+      | |               +-Literal
+      | |               | +-NumericLiteral[numeric_string=0,float_like=false]
+      | |               +-Literal
+      | |               | +-NumericLiteral[numeric_string=100,float_like=false]
+      | |               +-Literal
+      | |                 +-NumericLiteral[numeric_string=5,float_like=false]
+      | +-Not
+      |   +-Exists
+      |     +-subquery=SubqueryExpression
+      |       +-SetOperation[set_operation_type=Select]
+      |         +-children=
+      |           +-Select
+      |             +-select_clause=SelectStar
+      |             +-where_clause=Equal
+      |             | +-left_operand=AttributeReference[attribute_name=i,
+      |             | | relation_name=gs1]
+      |             | +-right_operand=AttributeReference[attribute_name=i,
+      |             |   relation_name=gs3]
+      |             +-from_clause=
+      |               +-TableGenerator
+      |                 +-FunctionCall[name=generate_series]
+      |                   +-Literal
+      |                   | +-NumericLiteral[numeric_string=0,float_like=false]
+      |                   +-Literal
+      |                   | +-NumericLiteral[numeric_string=100,float_like=false]
+      |                   +-Literal
+      |                     +-NumericLiteral[numeric_string=10,float_like=false]
+      +-from_clause=
+        +-TableGenerator
+          +-FunctionCall[name=generate_series]
+            +-Literal
+            | +-NumericLiteral[numeric_string=0,float_like=false]
+            +-Literal
+            | +-NumericLiteral[numeric_string=100,float_like=false]
+            +-Literal
+              +-NumericLiteral[numeric_string=3,float_like=false]
 ==
 
 # CASE expressions.
@@ -1515,25 +1651,27 @@ SELECT CASE col1%2
        END
 FROM test;
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-SimpleCaseExpression
-  |     +-case_operand=Modulo
-  |     | +-left_operand=AttributeReference[attribute_name=col1]
-  |     | +-right_operand=Literal
-  |     |   +-NumericLiteral[numeric_string=2,float_like=false]
-  |     +-else_result_expression=Literal
-  |     | +-StringLiteral[value=even]
-  |     +-when_clauses=
-  |       +-SimpleWhenClause
-  |         +-condition_operand=Literal
-  |         | +-NumericLiteral[numeric_string=1,float_like=false]
-  |         +-result_expression=Literal
-  |           +-StringLiteral[value=odd]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-SimpleCaseExpression
+      |     +-case_operand=Modulo
+      |     | +-left_operand=AttributeReference[attribute_name=col1]
+      |     | +-right_operand=Literal
+      |     |   +-NumericLiteral[numeric_string=2,float_like=false]
+      |     +-else_result_expression=Literal
+      |     | +-StringLiteral[value=even]
+      |     +-when_clauses=
+      |       +-SimpleWhenClause
+      |         +-condition_operand=Literal
+      |         | +-NumericLiteral[numeric_string=1,float_like=false]
+      |         +-result_expression=Literal
+      |           +-StringLiteral[value=odd]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT *
@@ -1542,22 +1680,24 @@ WHERE CASE WHEN col1 > col2 THEN col3
            ELSE col4
       END > 0;
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectStar
-  +-where_clause=Greater
-  | +-left_operand=SearchedCaseExpression
-  | | +-else_result_expression=AttributeReference[attribute_name=col4]
-  | | +-when_clauses=
-  | |   +-SearchedWhenClause
-  | |     +-condition_predicate=Greater
-  | |     | +-left_operand=AttributeReference[attribute_name=col1]
-  | |     | +-right_operand=AttributeReference[attribute_name=col2]
-  | |     +-result_expression=AttributeReference[attribute_name=col3]
-  | +-right_operand=Literal
-  |   +-NumericLiteral[numeric_string=0,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectStar
+      +-where_clause=Greater
+      | +-left_operand=SearchedCaseExpression
+      | | +-else_result_expression=AttributeReference[attribute_name=col4]
+      | | +-when_clauses=
+      | |   +-SearchedWhenClause
+      | |     +-condition_predicate=Greater
+      | |     | +-left_operand=AttributeReference[attribute_name=col1]
+      | |     | +-right_operand=AttributeReference[attribute_name=col2]
+      | |     +-result_expression=AttributeReference[attribute_name=col3]
+      | +-right_operand=Literal
+      |   +-NumericLiteral[numeric_string=0,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT
@@ -1575,55 +1715,59 @@ SELECT
       END + col4)
 FROM test;
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-FunctionCall[name=FUN]
-  |     +-Add
-  |       +-left_operand=SimpleCaseExpression
-  |       | +-case_operand=AttributeReference[attribute_name=col1]
-  |       | +-else_result_expression=Literal
-  |       | | +-NumericLiteral[numeric_string=0,float_like=false]
-  |       | +-when_clauses=
-  |       |   +-SimpleWhenClause
-  |       |   | +-condition_operand=Add
-  |       |   | | +-left_operand=AttributeReference[attribute_name=col2]
-  |       |   | | +-right_operand=FunctionCall[name=FUN]
-  |       |   | |   +-Add
-  |       |   | |     +-left_operand=SearchedCaseExpression
-  |       |   | |     | +-else_result_expression=Literal
-  |       |   | |     | | +-NumericLiteral[numeric_string=1,float_like=false]
-  |       |   | |     | +-when_clauses=
-  |       |   | |     |   +-SearchedWhenClause
-  |       |   | |     |     +-condition_predicate=Less
-  |       |   | |     |     | +-left_operand=AttributeReference[
-  |       |   | |     |     | | attribute_name=col1]
-  |       |   | |     |     | +-right_operand=AttributeReference[
-  |       |   | |     |     |   attribute_name=col2]
-  |       |   | |     |     +-result_expression=Literal
-  |       |   | |     |       +-NumericLiteral[numeric_string=0,float_like=false]
-  |       |   | |     +-right_operand=SearchedCaseExpression
-  |       |   | |       +-else_result_expression=Literal
-  |       |   | |       | +-NumericLiteral[numeric_string=1,float_like=false]
-  |       |   | |       +-when_clauses=
-  |       |   | |         +-SearchedWhenClause
-  |       |   | |           +-condition_predicate=Less
-  |       |   | |           | +-left_operand=AttributeReference[
-  |       |   | |           | | attribute_name=col1]
-  |       |   | |           | +-right_operand=AttributeReference[
-  |       |   | |           |   attribute_name=col3]
-  |       |   | |           +-result_expression=Literal
-  |       |   | |             +-NumericLiteral[numeric_string=0,float_like=false]
-  |       |   | +-result_expression=Literal
-  |       |   |   +-NumericLiteral[numeric_string=1,float_like=false]
-  |       |   +-SimpleWhenClause
-  |       |     +-condition_operand=AttributeReference[attribute_name=col3]
-  |       |     +-result_expression=Literal
-  |       |       +-NumericLiteral[numeric_string=2,float_like=false]
-  |       +-right_operand=AttributeReference[attribute_name=col4]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-FunctionCall[name=FUN]
+      |     +-Add
+      |       +-left_operand=SimpleCaseExpression
+      |       | +-case_operand=AttributeReference[attribute_name=col1]
+      |       | +-else_result_expression=Literal
+      |       | | +-NumericLiteral[numeric_string=0,float_like=false]
+      |       | +-when_clauses=
+      |       |   +-SimpleWhenClause
+      |       |   | +-condition_operand=Add
+      |       |   | | +-left_operand=AttributeReference[attribute_name=col2]
+      |       |   | | +-right_operand=FunctionCall[name=FUN]
+      |       |   | |   +-Add
+      |       |   | |     +-left_operand=SearchedCaseExpression
+      |       |   | |     | +-else_result_expression=Literal
+      |       |   | |     | | +-NumericLiteral[numeric_string=1,float_like=false]
+      |       |   | |     | +-when_clauses=
+      |       |   | |     |   +-SearchedWhenClause
+      |       |   | |     |     +-condition_predicate=Less
+      |       |   | |     |     | +-left_operand=AttributeReference[
+      |       |   | |     |     | | attribute_name=col1]
+      |       |   | |     |     | +-right_operand=AttributeReference[
+      |       |   | |     |     |   attribute_name=col2]
+      |       |   | |     |     +-result_expression=Literal
+      |       |   | |     |       +-NumericLiteral[numeric_string=0,
+      |       |   | |     |         float_like=false]
+      |       |   | |     +-right_operand=SearchedCaseExpression
+      |       |   | |       +-else_result_expression=Literal
+      |       |   | |       | +-NumericLiteral[numeric_string=1,float_like=false]
+      |       |   | |       +-when_clauses=
+      |       |   | |         +-SearchedWhenClause
+      |       |   | |           +-condition_predicate=Less
+      |       |   | |           | +-left_operand=AttributeReference[
+      |       |   | |           | | attribute_name=col1]
+      |       |   | |           | +-right_operand=AttributeReference[
+      |       |   | |           |   attribute_name=col3]
+      |       |   | |           +-result_expression=Literal
+      |       |   | |             +-NumericLiteral[numeric_string=0,
+      |       |   | |               float_like=false]
+      |       |   | +-result_expression=Literal
+      |       |   |   +-NumericLiteral[numeric_string=1,float_like=false]
+      |       |   +-SimpleWhenClause
+      |       |     +-condition_operand=AttributeReference[attribute_name=col3]
+      |       |     +-result_expression=Literal
+      |       |       +-NumericLiteral[numeric_string=2,float_like=false]
+      |       +-right_operand=AttributeReference[attribute_name=col4]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 # IN predicate
@@ -1631,20 +1775,22 @@ SELECT *
 FROM test
 WHERE col1 IN (1, 3, 5);
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectStar
-  +-where_clause=InValueList
-  | +-test_expression=AttributeReference[attribute_name=col1]
-  | +-value_list=
-  |   +-Literal
-  |   | +-NumericLiteral[numeric_string=1,float_like=false]
-  |   +-Literal
-  |   | +-NumericLiteral[numeric_string=3,float_like=false]
-  |   +-Literal
-  |     +-NumericLiteral[numeric_string=5,float_like=false]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectStar
+      +-where_clause=InValueList
+      | +-test_expression=AttributeReference[attribute_name=col1]
+      | +-value_list=
+      |   +-Literal
+      |   | +-NumericLiteral[numeric_string=1,float_like=false]
+      |   +-Literal
+      |   | +-NumericLiteral[numeric_string=3,float_like=false]
+      |   +-Literal
+      |     +-NumericLiteral[numeric_string=5,float_like=false]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT *
@@ -1653,48 +1799,52 @@ WHERE col1 IN (FUN(1),
                col2+col3,
                CASE WHEN col4 > 0 THEN col5 ELSE col6 END);
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectStar
-  +-where_clause=InValueList
-  | +-test_expression=AttributeReference[attribute_name=col1]
-  | +-value_list=
-  |   +-FunctionCall[name=FUN]
-  |   | +-Literal
-  |   |   +-NumericLiteral[numeric_string=1,float_like=false]
-  |   +-Add
-  |   | +-left_operand=AttributeReference[attribute_name=col2]
-  |   | +-right_operand=AttributeReference[attribute_name=col3]
-  |   +-SearchedCaseExpression
-  |     +-else_result_expression=AttributeReference[attribute_name=col6]
-  |     +-when_clauses=
-  |       +-SearchedWhenClause
-  |         +-condition_predicate=Greater
-  |         | +-left_operand=AttributeReference[attribute_name=col4]
-  |         | +-right_operand=Literal
-  |         |   +-NumericLiteral[numeric_string=0,float_like=false]
-  |         +-result_expression=AttributeReference[attribute_name=col5]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectStar
+      +-where_clause=InValueList
+      | +-test_expression=AttributeReference[attribute_name=col1]
+      | +-value_list=
+      |   +-FunctionCall[name=FUN]
+      |   | +-Literal
+      |   |   +-NumericLiteral[numeric_string=1,float_like=false]
+      |   +-Add
+      |   | +-left_operand=AttributeReference[attribute_name=col2]
+      |   | +-right_operand=AttributeReference[attribute_name=col3]
+      |   +-SearchedCaseExpression
+      |     +-else_result_expression=AttributeReference[attribute_name=col6]
+      |     +-when_clauses=
+      |       +-SearchedWhenClause
+      |         +-condition_predicate=Greater
+      |         | +-left_operand=AttributeReference[attribute_name=col4]
+      |         | +-right_operand=Literal
+      |         |   +-NumericLiteral[numeric_string=0,float_like=false]
+      |         +-result_expression=AttributeReference[attribute_name=col5]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT *
 FROM test
 WHERE col1 NOT IN (col1, col2 + col3);
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectStar
-  +-where_clause=Not
-  | +-InValueList
-  |   +-test_expression=AttributeReference[attribute_name=col1]
-  |   +-value_list=
-  |     +-AttributeReference[attribute_name=col1]
-  |     +-Add
-  |       +-left_operand=AttributeReference[attribute_name=col2]
-  |       +-right_operand=AttributeReference[attribute_name=col3]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectStar
+      +-where_clause=Not
+      | +-InValueList
+      |   +-test_expression=AttributeReference[attribute_name=col1]
+      |   +-value_list=
+      |     +-AttributeReference[attribute_name=col1]
+      |     +-Add
+      |       +-left_operand=AttributeReference[attribute_name=col2]
+      |       +-right_operand=AttributeReference[attribute_name=col3]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT *
@@ -1705,25 +1855,29 @@ WHERE col1 IN (
   GROUP BY col4
 );
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectStar
-  +-where_clause=InTableQuery
-  | +-test_expression=AttributeReference[attribute_name=col1]
-  | +-table_query=SubqueryExpression
-  |   +-Select
-  |     +-select_clause=SelectList
-  |     | +-SelectListItem
-  |     |   +-FunctionCall[name=SUM]
-  |     |     +-Add
-  |     |       +-left_operand=AttributeReference[attribute_name=col2]
-  |     |       +-right_operand=AttributeReference[attribute_name=col3]
-  |     +-group_by=GroupBy
-  |     | +-AttributeReference[attribute_name=col4]
-  |     +-from_clause=
-  |       +-TableReference[table=bar]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectStar
+      +-where_clause=InTableQuery
+      | +-test_expression=AttributeReference[attribute_name=col1]
+      | +-table_query=SubqueryExpression
+      |   +-SetOperation[set_operation_type=Select]
+      |     +-children=
+      |       +-Select
+      |         +-select_clause=SelectList
+      |         | +-SelectListItem
+      |         |   +-FunctionCall[name=SUM]
+      |         |     +-Add
+      |         |       +-left_operand=AttributeReference[attribute_name=col2]
+      |         |       +-right_operand=AttributeReference[attribute_name=col3]
+      |         +-group_by=GroupBy
+      |         | +-AttributeReference[attribute_name=col4]
+      |         +-from_clause=
+      |           +-TableReference[table=bar]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT *
@@ -1734,26 +1888,30 @@ WHERE col1 NOT IN (
   WHERE col3 IN (col4, col5)
 );
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectStar
-  +-where_clause=Not
-  | +-InTableQuery
-  |   +-test_expression=AttributeReference[attribute_name=col1]
-  |   +-table_query=SubqueryExpression
-  |     +-Select
-  |       +-select_clause=SelectList
-  |       | +-SelectListItem
-  |       |   +-AttributeReference[attribute_name=col2]
-  |       +-where_clause=InValueList
-  |       | +-test_expression=AttributeReference[attribute_name=col3]
-  |       | +-value_list=
-  |       |   +-AttributeReference[attribute_name=col4]
-  |       |   +-AttributeReference[attribute_name=col5]
-  |       +-from_clause=
-  |         +-TableReference[table=bar]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectStar
+      +-where_clause=Not
+      | +-InTableQuery
+      |   +-test_expression=AttributeReference[attribute_name=col1]
+      |   +-table_query=SubqueryExpression
+      |     +-SetOperation[set_operation_type=Select]
+      |       +-children=
+      |         +-Select
+      |           +-select_clause=SelectList
+      |           | +-SelectListItem
+      |           |   +-AttributeReference[attribute_name=col2]
+      |           +-where_clause=InValueList
+      |           | +-test_expression=AttributeReference[attribute_name=col3]
+      |           | +-value_list=
+      |           |   +-AttributeReference[attribute_name=col4]
+      |           |   +-AttributeReference[attribute_name=col5]
+      |           +-from_clause=
+      |             +-TableReference[table=bar]
+      +-from_clause=
+        +-TableReference[table=test]
 ==
 
 SELECT avg(attr1) OVER w FROM test
@@ -1762,23 +1920,25 @@ WINDOW w AS
  ORDER BY attr4
  ROWS BETWEEN 3 PRECEDING AND 3 FOLLOWING)
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-FunctionCall[name=avg,window_name=w]
-  |     +-AttributeReference[attribute_name=attr1]
-  +-from_clause=
-  | +-TableReference[table=test]
-  +-window_list=
-    +-window[window_name=w]
-      +-frame_info=FrameInfo[frame_mode=row,num_preceding=3,num_following=3]
-      +-partition_by=
-      | +-AttributeReference[attribute_name=attr2]
-      | +-AttributeReference[attribute_name=attr3]
-      +-order_by=
-        +-OrderByItem[is_asc=true,nulls_first=false]
-          +-AttributeReference[attribute_name=attr4]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-FunctionCall[name=avg,window_name=w]
+      |     +-AttributeReference[attribute_name=attr1]
+      +-from_clause=
+      | +-TableReference[table=test]
+      +-window_list=
+        +-window[window_name=w]
+          +-frame_info=FrameInfo[frame_mode=row,num_preceding=3,num_following=3]
+          +-partition_by=
+          | +-AttributeReference[attribute_name=attr2]
+          | +-AttributeReference[attribute_name=attr3]
+          +-order_by=
+            +-OrderByItem[is_asc=true,nulls_first=false]
+              +-AttributeReference[attribute_name=attr4]
 ==
 
 SELECT avg(attr1) OVER w FROM test
@@ -1787,25 +1947,28 @@ WINDOW w AS
  ORDER BY attr4 DESC NULLS FIRST, attr5 ASC NULLS LAST
  RANGE BETWEEN 3 PRECEDING AND CURRENT ROW)
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-FunctionCall[name=avg,window_name=w]
-  |     +-AttributeReference[attribute_name=attr1]
-  +-from_clause=
-  | +-TableReference[table=test]
-  +-window_list=
-    +-window[window_name=w]
-      +-frame_info=FrameInfo[frame_mode=range,num_preceding=3,num_following=0]
-      +-partition_by=
-      | +-AttributeReference[attribute_name=attr2]
-      | +-AttributeReference[attribute_name=attr3]
-      +-order_by=
-        +-OrderByItem[is_asc=false,nulls_first=true]
-        | +-AttributeReference[attribute_name=attr4]
-        +-OrderByItem[is_asc=true,nulls_first=false]
-          +-AttributeReference[attribute_name=attr5]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-FunctionCall[name=avg,window_name=w]
+      |     +-AttributeReference[attribute_name=attr1]
+      +-from_clause=
+      | +-TableReference[table=test]
+      +-window_list=
+        +-window[window_name=w]
+          +-frame_info=FrameInfo[frame_mode=range,num_preceding=3,
+          | num_following=0]
+          +-partition_by=
+          | +-AttributeReference[attribute_name=attr2]
+          | +-AttributeReference[attribute_name=attr3]
+          +-order_by=
+            +-OrderByItem[is_asc=false,nulls_first=true]
+            | +-AttributeReference[attribute_name=attr4]
+            +-OrderByItem[is_asc=true,nulls_first=false]
+              +-AttributeReference[attribute_name=attr5]
 ==
 
 SELECT avg(attr1) OVER w1 AS avg1, sum(attr5) OVER w2 AS sum5 FROM test
@@ -1818,33 +1981,36 @@ WINDOW w2 AS
  ORDER BY attr6
  RANGE BETWEEN 2 PRECEDING AND CURRENT ROW)
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem[alias=avg1]
-  | | +-FunctionCall[name=avg,window_name=w1]
-  | |   +-AttributeReference[attribute_name=attr1]
-  | +-SelectListItem[alias=sum5]
-  |   +-FunctionCall[name=sum,window_name=w2]
-  |     +-AttributeReference[attribute_name=attr5]
-  +-from_clause=
-  | +-TableReference[table=test]
-  +-window_list=
-    +-window[window_name=w1]
-    | +-frame_info=FrameInfo[frame_mode=row,num_preceding=3,num_following=3]
-    | +-partition_by=
-    | | +-AttributeReference[attribute_name=attr2]
-    | | +-AttributeReference[attribute_name=attr3]
-    | +-order_by=
-    |   +-OrderByItem[is_asc=true,nulls_first=false]
-    |     +-AttributeReference[attribute_name=attr4]
-    +-window[window_name=w2]
-      +-frame_info=FrameInfo[frame_mode=range,num_preceding=2,num_following=0]
-      +-partition_by=
-      | +-AttributeReference[attribute_name=attr1]
-      +-order_by=
-        +-OrderByItem[is_asc=true,nulls_first=false]
-          +-AttributeReference[attribute_name=attr6]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem[alias=avg1]
+      | | +-FunctionCall[name=avg,window_name=w1]
+      | |   +-AttributeReference[attribute_name=attr1]
+      | +-SelectListItem[alias=sum5]
+      |   +-FunctionCall[name=sum,window_name=w2]
+      |     +-AttributeReference[attribute_name=attr5]
+      +-from_clause=
+      | +-TableReference[table=test]
+      +-window_list=
+        +-window[window_name=w1]
+        | +-frame_info=FrameInfo[frame_mode=row,num_preceding=3,num_following=3]
+        | +-partition_by=
+        | | +-AttributeReference[attribute_name=attr2]
+        | | +-AttributeReference[attribute_name=attr3]
+        | +-order_by=
+        |   +-OrderByItem[is_asc=true,nulls_first=false]
+        |     +-AttributeReference[attribute_name=attr4]
+        +-window[window_name=w2]
+          +-frame_info=FrameInfo[frame_mode=range,num_preceding=2,
+          | num_following=0]
+          +-partition_by=
+          | +-AttributeReference[attribute_name=attr1]
+          +-order_by=
+            +-OrderByItem[is_asc=true,nulls_first=false]
+              +-AttributeReference[attribute_name=attr6]
 ==
 
 SELECT avg(attr1) OVER
@@ -1853,22 +2019,25 @@ SELECT avg(attr1) OVER
  RANGE BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
 FROM test
 --
-SelectStatement
-+-select_query=Select
-  +-select_clause=SelectList
-  | +-SelectListItem
-  |   +-FunctionCall[name=avg]
-  |     +-AttributeReference[attribute_name=attr1]
-  |     +-window=window
-  |       +-frame_info=FrameInfo[frame_mode=range,num_preceding=-1,
-  |       | num_following=0]
-  |       +-partition_by=
-  |       | +-AttributeReference[attribute_name=attr2]
-  |       | +-AttributeReference[attribute_name=attr3]
-  |       +-order_by=
-  |         +-OrderByItem[is_asc=false,nulls_first=true]
-  |         | +-AttributeReference[attribute_name=attr4]
-  |         +-OrderByItem[is_asc=true,nulls_first=false]
-  |           +-AttributeReference[attribute_name=attr5]
-  +-from_clause=
-    +-TableReference[table=test]
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Select]
+  +-children=
+    +-Select
+      +-select_clause=SelectList
+      | +-SelectListItem
+      |   +-FunctionCall[name=avg]
+      |     +-AttributeReference[attribute_name=attr1]
+      |     +-window=window
+      |       +-frame_info=FrameInfo[frame_mode=range,num_preceding=-1,
+      |       | num_following=0]
+      |       +-partition_by=
+      |       | +-AttributeReference[attribute_name=attr2]
+      |       | +-AttributeReference[attribute_name=attr3]
+      |       +-order_by=
+      |         +-OrderByItem[is_asc=false,nulls_first=true]
+      |         | +-AttributeReference[attribute_name=attr4]
+      |         +-OrderByItem[is_asc=true,nulls_first=false]
+      |           +-AttributeReference[attribute_name=attr5]
+      +-from_clause=
+        +-TableReference[table=test]
+==

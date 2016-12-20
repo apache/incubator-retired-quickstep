@@ -46,6 +46,7 @@ enum class LogicalType {
   kNestedLoopsJoin,
   kProject,
   kSample,
+  kSetOperation,
   kSharedSubplanReference,
   kSort,
   kTableGenerator,

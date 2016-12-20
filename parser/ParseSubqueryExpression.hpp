@@ -25,7 +25,7 @@
 #include <vector>
 
 #include "parser/ParseExpression.hpp"
-#include "parser/ParseSelect.hpp"
+#include "parser/ParseSetOperation.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -46,13 +46,13 @@ class ParseSubqueryExpression : public ParseExpression {
    *
    * @param line_number The line number of the beginning of the subquery expression.
    * @param column_number The column number of the beginning of the subquery expression.
-   * @param query The SELECT subquery.
+   * @param set_operation The set operation subquery.
    */
   ParseSubqueryExpression(const int line_number,
                           const int column_number,
-                          ParseSelect *query)
+                          ParseSetOperation *set_operation)
       : ParseExpression(line_number, column_number),
-        query_(query) {
+        set_operation_(set_operation) {
   }
 
   ~ParseSubqueryExpression() override {
@@ -63,9 +63,9 @@ class ParseSubqueryExpression : public ParseExpression {
   }
 
   /**
-   * @return The SELECT subquery.
+   * @return The set operation subquery.
    */
-  const ParseSelect* query() const { return query_.get(); }
+  const ParseSetOperation* set_operation() const { return set_operation_.get(); }
 
   std::string getName() const override { return "SubqueryExpression"; }
 
@@ -81,7 +81,7 @@ class ParseSubqueryExpression : public ParseExpression {
       std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override;
 
  private:
-  std::unique_ptr<ParseSelect> query_;
+  std::unique_ptr<ParseSetOperation> set_operation_;
   DISALLOW_COPY_AND_ASSIGN(ParseSubqueryExpression);
 };
 

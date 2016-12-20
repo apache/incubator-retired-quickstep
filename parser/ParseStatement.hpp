@@ -34,6 +34,7 @@
 #include "parser/ParsePredicate.hpp"
 #include "parser/ParsePriority.hpp"
 #include "parser/ParseSelect.hpp"
+#include "parser/ParseSetOperation.hpp"
 #include "parser/ParseString.hpp"
 #include "parser/ParseSubqueryTableReference.hpp"
 #include "parser/ParseTreeNode.hpp"
@@ -62,7 +63,7 @@ class ParseStatement : public ParseTreeNode {
     kCreateTable,
     kCreateIndex,
     kDropTable,
-    kSelect,
+    kSetOperation,
     kInsert,
     kCopyFrom,
     kUpdate,
@@ -479,9 +480,9 @@ class ParseStatementDropTable : public ParseStatement {
 };
 
 /**
- * @brief The parsed representation of a SELECT statement.
+ * @brief The parsed representation of an UNION/INTERSECT/SELECT statement.
  **/
-class ParseStatementSelect : public ParseStatement {
+class ParseStatementSetOperation : public ParseStatement {
  public:
   /**
    * @brief Constructor.
@@ -489,18 +490,18 @@ class ParseStatementSelect : public ParseStatement {
    *
    * @param line_number Line number of the first token of this node in the SQL statement.
    * @param column_number Column number of the first token of this node in the SQL statement.
-   * @param select_query The top-level SELECT query.
+   * @param set_operation_query The top level set operation query
    * @param with_clause The WITH clause of common table query expressions.
    * @param priority_clause The PRIORITY clause of this query. If not valid or
    *        not present, this is NULL.
    **/
-  ParseStatementSelect(const int line_number,
-                       const int column_number,
-                       ParseSelect *select_query,
-                       PtrVector<ParseSubqueryTableReference> *with_clause,
-                       ParsePriority *priority_clause)
+  ParseStatementSetOperation(const int line_number,
+                             const int column_number,
+                             ParseSetOperation *set_operation_query,
+                             PtrVector<ParseSubqueryTableReference> *with_clause,
+                             ParsePriority *priority_clause)
       : ParseStatement(line_number, column_number),
-        select_query_(select_query),
+        set_operation_query_(set_operation_query),
         with_clause_(with_clause),
         priority_clause_(priority_clause) {
   }
@@ -508,20 +509,20 @@ class ParseStatementSelect : public ParseStatement {
   /**
    * @brief Destructor.
    */
-  ~ParseStatementSelect() override {
+  ~ParseStatementSetOperation() override {
   }
 
   StatementType getStatementType() const override {
-    return kSelect;
+    return kSetOperation;
   }
 
-  std::string getName() const override { return "SelectStatement"; }
+  std::string getName() const override { return "SetOperationStatement"; }
 
   /**
-   * @return Gets the top-level SELECT query.
+   * @return Gets the top-level set operation query.
    */
-  const ParseSelect* select_query() const {
-    return select_query_.get();
+  const ParseSetOperation* set_operation_query() const {
+    return set_operation_query_.get();
   }
 
   /**
@@ -549,8 +550,8 @@ class ParseStatementSelect : public ParseStatement {
       std::vector<const ParseTreeNode*> *non_container_child_fields,
       std::vector<std::string> *container_child_field_names,
       std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override {
-    non_container_child_field_names->push_back("select_query");
-    non_container_child_fields->push_back(select_query_.get());
+    non_container_child_field_names->push_back("set_operation_query");
+    non_container_child_fields->push_back(set_operation_query_.get());
 
     if (with_clause_ != nullptr && !with_clause_->empty()) {
       container_child_field_names->push_back("with_clause");
@@ -567,11 +568,11 @@ class ParseStatementSelect : public ParseStatement {
   }
 
  private:
-  std::unique_ptr<ParseSelect> select_query_;
+  std::unique_ptr<ParseSetOperation> set_operation_query_;
   std::unique_ptr<PtrVector<ParseSubqueryTableReference>> with_clause_;
   std::unique_ptr<ParsePriority> priority_clause_;
 
-  DISALLOW_COPY_AND_ASSIGN(ParseStatementSelect);
+  DISALLOW_COPY_AND_ASSIGN(ParseStatementSetOperation);
 };
 
 /**

@@ -68,6 +68,10 @@ add_test(quickstep_parser_tests_ParserTest_select
          quickstep_parser_tests_ParserTest
          "${CMAKE_CURRENT_SOURCE_DIR}/Select.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Select.test")
+add_test(quickstep_parser_tests_ParserTest_setoperation
+         quickstep_parser_tests_ParserTest
+         "${CMAKE_CURRENT_SOURCE_DIR}/SetOperation.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/SetOperation.test")
 add_test(quickstep_parser_tests_ParserTest_tpch
          quickstep_parser_tests_ParserTest
          "${CMAKE_CURRENT_SOURCE_DIR}/TPCH.test"

@@ -42,6 +42,7 @@ class Join;
 class MultiwayCartesianJoin;
 class NestedLoopsJoin;
 class Project;
+class SetOperation;
 class SharedSubplanReference;
 class Sort;
 class TableReference;
@@ -128,6 +129,7 @@ using SomeJoin = SomeLogicalNode<Join,
 using SomeMultiwayCartesianJoin = SomeLogicalNode<MultiwayCartesianJoin, LogicalType::kMultiwayCartesianJoin>;
 using SomeNestedLoopsJoin = SomeLogicalNode<NestedLoopsJoin, LogicalType::kNestedLoopsJoin>;
 using SomeProject = SomeLogicalNode<Project, LogicalType::kProject>;
+using SomeSetOperation = SomeLogicalNode<SetOperation, LogicalType::kSetOperation>;
 using SomeSharedSubplanReference = SomeLogicalNode<SharedSubplanReference, LogicalType::kSharedSubplanReference>;
 using SomeSort = SomeLogicalNode<Sort, LogicalType::kSort>;
 using SomeTableReference = SomeLogicalNode<TableReference, LogicalType::kTableReference>;

@@ -1,0 +1,235 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+SELECT * FROM a
+UNION ALL
+SELECT * FROM b;
+--
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=UnionAll]
+  +-children=
+    +-SetOperation[set_operation_type=Select]
+    | +-children=
+    |   +-Select
+    |     +-select_clause=SelectStar
+    |     +-from_clause=
+    |       +-TableReference[table=a]
+    +-SetOperation[set_operation_type=Select]
+      +-children=
+        +-Select
+          +-select_clause=SelectStar
+          +-from_clause=
+            +-TableReference[table=b]
+==
+
+# Currently does not support INTERSECT ALL.
+SELECT * FROM a
+INTERSECT ALL
+SELECT * FROM b;
+--
+ERROR: syntax error (2 : 11)
+INTERSECT ALL
+          ^
+==
+
+SELECT * FROM a
+UNION
+SELECT * FROM b
+UNION
+SELECT * FROM c;
+--
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Union]
+  +-children=
+    +-SetOperation[set_operation_type=Union]
+    | +-children=
+    |   +-SetOperation[set_operation_type=Select]
+    |   | +-children=
+    |   |   +-Select
+    |   |     +-select_clause=SelectStar
+    |   |     +-from_clause=
+    |   |       +-TableReference[table=a]
+    |   +-SetOperation[set_operation_type=Select]
+    |     +-children=
+    |       +-Select
+    |         +-select_clause=SelectStar
+    |         +-from_clause=
+    |           +-TableReference[table=b]
+    +-SetOperation[set_operation_type=Select]
+      +-children=
+        +-Select
+          +-select_clause=SelectStar
+          +-from_clause=
+            +-TableReference[table=c]
+==
+
+SELECT * FROM a
+INTERSECT
+SELECT * FROM b
+UNION
+SELECT * FROM c
+INTERSECT
+SELECT * FROM d;
+--
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Union]
+  +-children=
+    +-SetOperation[set_operation_type=Intersect]
+    | +-children=
+    |   +-SetOperation[set_operation_type=Select]
+    |   | +-children=
+    |   |   +-Select
+    |   |     +-select_clause=SelectStar
+    |   |     +-from_clause=
+    |   |       +-TableReference[table=a]
+    |   +-SetOperation[set_operation_type=Select]
+    |     +-children=
+    |       +-Select
+    |         +-select_clause=SelectStar
+    |         +-from_clause=
+    |           +-TableReference[table=b]
+    +-SetOperation[set_operation_type=Intersect]
+      +-children=
+        +-SetOperation[set_operation_type=Select]
+        | +-children=
+        |   +-Select
+        |     +-select_clause=SelectStar
+        |     +-from_clause=
+        |       +-TableReference[table=c]
+        +-SetOperation[set_operation_type=Select]
+          +-children=
+            +-Select
+              +-select_clause=SelectStar
+              +-from_clause=
+                +-TableReference[table=d]
+==
+
+# Currently does not support using bracket to change order,
+# Instead, use a subquery to change order of set operations.
+SELECT * FROM a
+INTERSECT
+(SELECT * FROM a
+UNION
+SELECT * FROM b);
+--
+ERROR: syntax error (3 : 1)
+(SELECT * FROM a
+^
+==
+
+SELECT * FROM a
+INTERSECT
+SELECT * FROM
+    (SELECT * FROM a
+     UNION
+     SELECT * FROM b
+    ) AS temp;
+--
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Intersect]
+  +-children=
+    +-SetOperation[set_operation_type=Select]
+    | +-children=
+    |   +-Select
+    |     +-select_clause=SelectStar
+    |     +-from_clause=
+    |       +-TableReference[table=a]
+    +-SetOperation[set_operation_type=Select]
+      +-children=
+        +-Select
+          +-select_clause=SelectStar
+          +-from_clause=
+            +-SubqueryTable
+              +-table_signature=TableSignature[table_alias=temp]
+              +-SubqueryExpression
+                +-SetOperation[set_operation_type=Union]
+                  +-children=
+                    +-SetOperation[set_operation_type=Select]
+                    | +-children=
+                    |   +-Select
+                    |     +-select_clause=SelectStar
+                    |     +-from_clause=
+                    |       +-TableReference[table=a]
+                    +-SetOperation[set_operation_type=Select]
+                      +-children=
+                        +-Select
+                          +-select_clause=SelectStar
+                          +-from_clause=
+                            +-TableReference[table=b]
+==
+
+SELECT * FROM
+	(SELECT * FROM a
+	UNION ALL
+	SELECT * FROM b
+	) AS temp1
+INTERSECT
+SELECT * FROM
+	(SELECT * FROM a
+	UNION
+	SELECT * FROM b
+	) AS temp2;
+--
+SetOperationStatement
++-set_operation_query=SetOperation[set_operation_type=Intersect]
+  +-children=
+    +-SetOperation[set_operation_type=Select]
+    | +-children=
+    |   +-Select
+    |     +-select_clause=SelectStar
+    |     +-from_clause=
+    |       +-SubqueryTable
+    |         +-table_signature=TableSignature[table_alias=temp1]
+    |         +-SubqueryExpression
+    |           +-SetOperation[set_operation_type=UnionAll]
+    |             +-children=
+    |               +-SetOperation[set_operation_type=Select]
+    |               | +-children=
+    |               |   +-Select
+    |               |     +-select_clause=SelectStar
+    |               |     +-from_clause=
+    |               |       +-TableReference[table=a]
+    |               +-SetOperation[set_operation_type=Select]
+    |                 +-children=
+    |                   +-Select
+    |                     +-select_clause=SelectStar
+    |                     +-from_clause=
+    |                       +-TableReference[table=b]
+    +-SetOperation[set_operation_type=Select]
+      +-children=
+        +-Select
+          +-select_clause=SelectStar
+          +-from_clause=
+            +-SubqueryTable
+              +-table_signature=TableSignature[table_alias=temp2]
+              +-SubqueryExpression
+                +-SetOperation[set_operation_type=Union]
+                  +-children=
+                    +-SetOperation[set_operation_type=Select]
+                    | +-children=
+                    |   +-Select
+                    |     +-select_clause=SelectStar
+                    |     +-from_clause=
+                    |       +-TableReference[table=a]
+                    +-SetOperation[set_operation_type=Select]
+                      +-children=
+                        +-Select
+                          +-select_clause=SelectStar
+                          +-from_clause=
+                            +-TableReference[table=b]
+==
+
