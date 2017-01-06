@@ -61,9 +61,9 @@ class SaveBlocksOperator : public RelationalOperator {
    * @param force If true, force writing of all blocks to disk, otherwise only
    *        write dirty blocks.
    **/
-  explicit SaveBlocksOperator(const std::size_t query_id,
-                              CatalogRelation *relation,
-                              const bool force = false)
+  SaveBlocksOperator(const std::size_t query_id,
+                     CatalogRelation *relation,
+                     const bool force = false)
       : RelationalOperator(query_id),
         force_(force),
         relation_(relation),

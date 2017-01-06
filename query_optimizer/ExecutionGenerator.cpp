@@ -1243,7 +1243,7 @@ void ExecutionGenerator::convertInsertSelection(
   insert_destination_proto->set_relational_op_index(insert_selection_index);
 
   CatalogRelation *mutable_relation =
-      catalog_database_->getRelationByIdMutable(selection_relation->getID());
+      catalog_database_->getRelationByIdMutable(destination_relation.getID());
   const QueryPlan::DAGNodeIndex save_blocks_index =
       execution_plan_->addRelationalOperator(
           new SaveBlocksOperator(query_handle_->query_id(), mutable_relation));
