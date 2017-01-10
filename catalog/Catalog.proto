@@ -49,7 +49,8 @@ message PartitionSchemeHeader {
 message RangePartitionSchemeHeader {
   extend PartitionSchemeHeader {
     // All required.
-    repeated TypedValue partition_range_boundaries = 32;
+    optional Type partition_attr_type = 32;
+    repeated TypedValue partition_range_boundaries = 33;
   }
 }
 

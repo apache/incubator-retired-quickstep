@@ -511,7 +511,7 @@ TEST(PartitionSchemeTest, CheckHashPartitionSchemeSerialization) {
   }
   std::unique_ptr<PartitionScheme> part_scheme_from_proto;
   part_scheme_from_proto.reset(
-      PartitionScheme::ReconstructFromProto(part_scheme->getProto(), TypeFactory::GetType(kInt)));
+      PartitionScheme::ReconstructFromProto(part_scheme->getProto()));
 
   const PartitionSchemeHeader &header = part_scheme->getPartitionSchemeHeader();
   const PartitionSchemeHeader &header_from_proto = part_scheme_from_proto->getPartitionSchemeHeader();
@@ -561,7 +561,7 @@ TEST(PartitionSchemeTest, CheckRangePartitionSchemeSerialization) {
   std::unique_ptr<PartitionScheme> part_scheme_from_proto;
 
   part_scheme_from_proto.reset(
-      PartitionScheme::ReconstructFromProto(part_scheme->getProto(), type));
+      PartitionScheme::ReconstructFromProto(part_scheme->getProto()));
 
   const PartitionSchemeHeader &header = part_scheme->getPartitionSchemeHeader();
   const PartitionSchemeHeader &header_from_proto = part_scheme_from_proto->getPartitionSchemeHeader();

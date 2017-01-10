@@ -65,12 +65,10 @@ class PartitionSchemeHeader {
    *
    * @param proto The Protocol Buffer serialization of a PartitionSchemeHeader,
    *        previously produced by getProto().
-   * @param attr_type The attribute type of the partitioning attribute.
    * @return The reconstructed PartitionSchemeHeader object.
    **/
   static PartitionSchemeHeader* ReconstructFromProto(
-      const serialization::PartitionSchemeHeader &proto,
-      const Type &attr_type);
+      const serialization::PartitionSchemeHeader &proto);
 
   /**
    * @brief Check whether a serialization::PartitionSchemeHeader is fully-formed
@@ -227,6 +225,7 @@ class RangePartitionSchemeHeader : public PartitionSchemeHeader {
                              const attribute_id attribute,
                              std::vector<TypedValue> &&partition_range)
       : PartitionSchemeHeader(PartitionType::kRange, num_partitions, attribute),
+        partition_attr_type_(&partition_attribute_type),
         partition_range_boundaries_(std::move(partition_range)) {
     DCHECK_EQ(num_partitions - 1, partition_range_boundaries_.size());
 
@@ -297,6 +296,8 @@ class RangePartitionSchemeHeader : public PartitionSchemeHeader {
       }
     }
   }
+
+  const Type* partition_attr_type_;
 
   // The boundaries for each range in the RangePartitionSchemeHeader.
   // The upper bound of the range is stored here.

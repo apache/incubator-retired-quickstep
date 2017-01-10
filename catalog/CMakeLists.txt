@@ -168,6 +168,9 @@ target_link_libraries(quickstep_catalog_PartitionSchemeHeader
                       glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_Catalog_proto
+                      quickstep_types_Type
+                      quickstep_types_TypeFactory
+                      quickstep_types_Type_proto
                       quickstep_types_TypedValue
                       quickstep_types_TypedValue_proto
                       quickstep_types_operations_comparisons_Comparison

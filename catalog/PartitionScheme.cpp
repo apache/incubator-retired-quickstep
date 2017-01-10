@@ -55,8 +55,7 @@ bool PartitionScheme::ProtoIsValid(
   return true;
 }
 
-PartitionScheme* PartitionScheme::ReconstructFromProto(const serialization::PartitionScheme &proto,
-                                                       const Type &attr_type) {
+PartitionScheme* PartitionScheme::ReconstructFromProto(const serialization::PartitionScheme &proto) {
   DCHECK(ProtoIsValid(proto))
       << "Attempted to create PartitionScheme from an invalid proto description:\n"
       << proto.DebugString();
@@ -74,7 +73,7 @@ PartitionScheme* PartitionScheme::ReconstructFromProto(const serialization::Part
   }
 
   return new PartitionScheme(
-      PartitionSchemeHeader::ReconstructFromProto(proto.header(), attr_type),
+      PartitionSchemeHeader::ReconstructFromProto(proto.header()),
       move(blocks_in_partition));
 }
 

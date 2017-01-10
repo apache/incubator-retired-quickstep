@@ -39,8 +39,6 @@
 
 namespace quickstep {
 
-class Type;
-
 /** \addtogroup Catalog
  *  @{
  */
@@ -82,11 +80,9 @@ class PartitionScheme {
    *
    * @param proto The Protocol Buffer serialization of a Partition Scheme,
    *        previously produced by getProto().
-   * @param attr_type The attribute type of the partitioning attribute.
    * @return The deserialized partition scheme object.
    **/
-  static PartitionScheme* ReconstructFromProto(const serialization::PartitionScheme &proto,
-                                               const Type &attr_type);
+  static PartitionScheme* ReconstructFromProto(const serialization::PartitionScheme &proto);
 
   /**
    * @brief Check whether a serialization::PartitionScheme is fully-formed and

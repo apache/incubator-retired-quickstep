@@ -43,8 +43,6 @@
 
 namespace quickstep {
 
-class Type;
-
 bool CatalogRelation::ProtoIsValid(const serialization::CatalogRelationSchema &proto) {
   // Check that proto is fully initialized.
   if (!CatalogRelationSchema::ProtoIsValid(proto) ||
@@ -90,11 +88,9 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelationSchema &pro
     const serialization::PartitionScheme &proto_partition_scheme =
         proto.GetExtension(serialization::CatalogRelation::partition_scheme);
 
-    const attribute_id partition_attribute_id = proto_partition_scheme.header().partition_attribute_id();
-    DCHECK(hasAttributeWithId(partition_attribute_id));
-    const Type &attr_type = attr_vec_[partition_attribute_id].getType();
+    DCHECK(hasAttributeWithId(proto_partition_scheme.header().partition_attribute_id()));
 
-    setPartitionScheme(PartitionScheme::ReconstructFromProto(proto_partition_scheme, attr_type));
+    setPartitionScheme(PartitionScheme::ReconstructFromProto(proto_partition_scheme));
 
     // Deserializing the NUMA placement scheme for the relation.
 #ifdef QUICKSTEP_HAVE_LIBNUMA

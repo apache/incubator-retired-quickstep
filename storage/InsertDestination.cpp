@@ -56,8 +56,6 @@ using std::vector;
 
 namespace quickstep {
 
-class Type;
-
 InsertDestination::InsertDestination(const CatalogRelationSchema &relation,
                                      const StorageBlockLayout *layout,
                                      StorageManager *storage_manager,
@@ -132,11 +130,8 @@ InsertDestination* InsertDestination::ReconstructFromProto(
         partitions.push_back(move(partition));
       }
 
-      const serialization::PartitionSchemeHeader &proto_partition_scheme_header = proto_partition_scheme.header();
-      const Type &attr_type =
-          relation.getAttributeById(proto_partition_scheme_header.partition_attribute_id())->getType();
       return new PartitionAwareInsertDestination(
-          PartitionSchemeHeader::ReconstructFromProto(proto_partition_scheme_header, attr_type),
+          PartitionSchemeHeader::ReconstructFromProto(proto_partition_scheme.header()),
           relation,
           layout,
           storage_manager,
