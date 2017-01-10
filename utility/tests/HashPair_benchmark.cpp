@@ -43,7 +43,7 @@ static void BM_HashPairDoubleDouble(benchmark::State &state) {  // NOLINT(runtim
 BENCHMARK(BM_HashPairDoubleDouble);
 
 int main(int argc, char **argv) {
-  benchmark::Initialize(&argc, const_cast<const char **>(argv));
+  benchmark::Initialize(&argc, argv);
   benchmark::RunSpecifiedBenchmarks();
   return 0;
 }

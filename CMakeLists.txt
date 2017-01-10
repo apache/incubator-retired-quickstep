@@ -141,11 +141,11 @@ endif()
 
 option(ENABLE_DISTRIBUTED "Use the distributed version of Quickstep" OFF)
 
-if (BUILD_SHARED_LIBS)
-  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
-else()
-  set(GFLAGS_LIB_NAME gflags_nothreads-static)
-endif()
+macro (set_gflags_lib_name)
+  set(GFLAGS_LIB_NAME gflags)
+endmacro (set_gflags_lib_name)
+
+set_gflags_lib_name ()
 
 # Turn on the QUICKSTEP_DEBUG flag in the source if this is a debug build.
 if (CMAKE_MAJOR_VERSION GREATER 2)
@@ -516,7 +516,7 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR})
 # the system, because they may be linked against a different C++ standard
 # library (e.g. GNU libstdc++) that is not ABI-compatible. This applies only to
 # C++ libraries; pure C libraries should have no such issue.
-set(THIRD_PARTY_SOURCE_DIR "${PROJECT_SOURCE_DIR}/third_party")
+set(THIRD_PARTY_SOURCE_DIR "${PROJECT_SOURCE_DIR}/third_party/src")
 include(ExternalProject)
 
 if(USE_TCMALLOC)
@@ -679,6 +679,10 @@ endif()
 # Add required cmake-controlled third-party libraries (farmhash, gflags, glog, and re2).
 add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/farmhash" "${CMAKE_CURRENT_BINARY_DIR}/third_party/farmhash")
 
+set (GFLAGS_BUILD_TESTING OFF)
+set (GFLAGS_NC_TESTS OFF)
+set (GFLAGS_CONFIG_TESTS OFF)
+set (GFLAGS_BUILD_STATIC_LIBS OFF)
 add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/gflags" "${CMAKE_CURRENT_BINARY_DIR}/third_party/gflags")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}/third_party/gflags/include")
 
@@ -694,8 +698,8 @@ else()
   include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party)
 endif()
 
-add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/re2_cmake" "${CMAKE_CURRENT_BINARY_DIR}/third_party/re2")
 include_directories("${THIRD_PARTY_SOURCE_DIR}/re2")
+add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/re2" "${CMAKE_CURRENT_BINARY_DIR}/third_party/re2")
 
 # Add optional linenoise command-line editing library.
 if (USE_LINENOISE)

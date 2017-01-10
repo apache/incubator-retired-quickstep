@@ -9,3 +9,4 @@ autom4te.cache
 .DS_Store
 .idea
 *~
+third_party/src

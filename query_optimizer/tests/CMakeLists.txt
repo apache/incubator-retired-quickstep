@@ -20,11 +20,7 @@ add_subdirectory(logical_generator)
 add_subdirectory(physical_generator)
 add_subdirectory(resolver)
 
-if (BUILD_SHARED_LIBS)
-  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
-else()
-  set(GFLAGS_LIB_NAME gflags_nothreads-static)
-endif()
+set_gflags_lib_name ()
 
 add_library(quickstep_queryoptimizer_tests_OptimizerTest OptimizerTest.cpp OptimizerTest.hpp)
 add_library(quickstep_queryoptimizer_tests_TestDatabaseLoader TestDatabaseLoader.cpp TestDatabaseLoader.hpp)

@@ -33,11 +33,7 @@ if(LIBNUMA_FOUND)
   set(QUICKSTEP_HAVE_LIBNUMA TRUE)
 endif()
 
-if (BUILD_SHARED_LIBS)
-  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
-else()
-  set(GFLAGS_LIB_NAME gflags_nothreads-static)
-endif()
+set_gflags_lib_name ()
 
 if (ENABLE_GOOGLE_PROFILER)
   set(QUICKSTEP_ENABLE_GOOGLE_PROFILER TRUE)

@@ -159,7 +159,7 @@ BENCHMARK(BM_timegmCustom)->ThreadRange(1, kMaxThreads);
 }  // namespace quickstep
 
 int main(int argc, char **argv) {
-  benchmark::Initialize(&argc, const_cast<const char **>(argv));
+  benchmark::Initialize(&argc, argv);
   benchmark::RunSpecifiedBenchmarks();
   return 0;
 }

@@ -15,11 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-if (BUILD_SHARED_LIBS)
-  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
-else()
-  set(GFLAGS_LIB_NAME gflags_nothreads-static)
-endif()
+set_gflags_lib_name ()
 
 include(CheckCXXSourceCompiles)
 

@@ -45,6 +45,8 @@ before_script:
   - $CC --version
   - $CXX --version
   - $CLINKER --version
+  - cmake --version
+  - (cd third_party && ./download_and_patch_prerequisites.sh && cd ../)
   - (cd build &&
      cmake -D CMAKE_BUILD_TYPE=$BUILD_TYPE
            -D BUILD_SHARED_LIBS=On
@@ -60,7 +62,7 @@ before_script:
            -D VECTOR_COPY_ELISION_LEVEL=$VECTOR_COPY_ELISION_LEVEL ..)
 
 script:
-  - ./third_party/cpplint/lint_everything.py
+  - ./third_party/src/cpplint/lint_everything.py
   - ./validate_cmakelists.py
   - ./cyclic_dependency.py
   - (cd build && make)
@@ -81,6 +83,7 @@ addons:
     sources:
       - ubuntu-toolchain-r-test
       - llvm-toolchain-precise-3.7
+      - george-edison55-precise-backports # For cmake 3.x
     packages:
       - gcc-5
       - g++-5
@@ -91,6 +94,8 @@ addons:
       - libgtest-dev
       - python-networkx
       - libnuma-dev
+      - cmake-data
+      - cmake
 
 cache:
   apt: true

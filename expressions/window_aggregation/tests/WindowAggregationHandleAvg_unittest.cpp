@@ -215,7 +215,8 @@ class WindowAggregationHandleAvgTest : public::testing::Test {
     // Get the cpptype result.
     std::vector<typename OutputType::cpptype*> rows_result_cpp_vector;
     typename GenericType::cpptype rows_sum;
-    int rows_count;
+    SetDataType(0, &rows_sum);
+    int rows_count = 0;
     for (std::size_t i = 0; i < argument_cpp_vector.size(); ++i) {
       // Start of new partition
       if (i % kNumTuplesPerPartition == 0) {
@@ -253,7 +254,8 @@ class WindowAggregationHandleAvgTest : public::testing::Test {
     // Get the cpptype result.
     std::vector<typename OutputType::cpptype*> range_result_cpp_vector;
     typename GenericType::cpptype range_sum;
-    int range_count;
+    SetDataType(0, &range_sum);
+    int range_count = 0;
     std::size_t current_tuple = 0;
     while (current_tuple < kNumTuples) {
       // Start of new partition

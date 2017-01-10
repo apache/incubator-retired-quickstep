@@ -21,11 +21,7 @@ if (REBUILD_INDEX_ON_UPDATE_OVERFLOW)
   set(QUICKSTEP_REBUILD_INDEX_ON_UPDATE_OVERFLOW TRUE)
 endif()
 
-if (BUILD_SHARED_LIBS)
-  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
-else()
-  set(GFLAGS_LIB_NAME gflags_nothreads-static)
-endif()
+set_gflags_lib_name ()
 
 include(CheckIncludeFileCXX)
 check_include_files("fcntl.h;glob.h;unistd.h;sys/stat.h;sys/types.h" QUICKSTEP_HAVE_FILE_MANAGER_POSIX)

@@ -25,7 +25,7 @@
 #include <string>
 #include <utility>
 
-#include "third_party/linenoise/linenoise.h"
+#include "third_party/src/linenoise/linenoise.h"
 
 namespace quickstep {
 

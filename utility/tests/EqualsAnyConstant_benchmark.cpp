@@ -51,7 +51,7 @@ std::vector<int> CreateSamples(const int max_value) {
 
 static void BM_EqualsAnyConstant_1Constant(benchmark::State &state) {  // NOLINT(runtime/references)
   state.PauseTiming();
-  std::vector<int> samples = CreateSamples(state.range_x());
+  std::vector<int> samples = CreateSamples(state.range(0));
   BENCHMARK_UNUSED bool matched;
   state.ResumeTiming();
   while (state.KeepRunning()) {
@@ -65,7 +65,7 @@ BENCHMARK(BM_EqualsAnyConstant_1Constant)->Arg(4)->Arg(8)->Arg(16)->Arg(128)->Ar
 
 static void BM_EqualsAnyConstant_4Constants(benchmark::State &state) {  // NOLINT(runtime/references)
   state.PauseTiming();
-  std::vector<int> samples = CreateSamples(state.range_x());
+  std::vector<int> samples = CreateSamples(state.range(0));
   BENCHMARK_UNUSED bool matched;
   state.ResumeTiming();
   while (state.KeepRunning()) {
@@ -79,7 +79,7 @@ BENCHMARK(BM_EqualsAnyConstant_4Constants)->Arg(8)->Arg(16)->Arg(128)->Arg(1024)
 
 static void BM_EqualsAnyConstant_8Constants(benchmark::State &state) {  // NOLINT(runtime/references)
   state.PauseTiming();
-  std::vector<int> samples = CreateSamples(state.range_x());
+  std::vector<int> samples = CreateSamples(state.range(0));
   BENCHMARK_UNUSED bool matched;
   state.ResumeTiming();
   while (state.KeepRunning()) {
@@ -93,7 +93,7 @@ BENCHMARK(BM_EqualsAnyConstant_8Constants)->Arg(16)->Arg(128)->Arg(1024);
 
 static void BM_EqualsAnyConstant_12Constants(benchmark::State &state) {  // NOLINT(runtime/references)
   state.PauseTiming();
-  std::vector<int> samples = CreateSamples(state.range_x());
+  std::vector<int> samples = CreateSamples(state.range(0));
   BENCHMARK_UNUSED bool matched;
   state.ResumeTiming();
   while (state.KeepRunning()) {
@@ -109,7 +109,7 @@ BENCHMARK(BM_EqualsAnyConstant_12Constants)->Arg(24)->Arg(128)->Arg(1024);
 // Benchmark the naive way of doing things with or-over-equals.
 static void BM_NaiveEqualsAnyConstant_1Constant(benchmark::State &state) {  // NOLINT(runtime/references)
   state.PauseTiming();
-  std::vector<int> samples = CreateSamples(state.range_x());
+  std::vector<int> samples = CreateSamples(state.range(0));
   BENCHMARK_UNUSED bool matched;
   state.ResumeTiming();
   while (state.KeepRunning()) {
@@ -123,7 +123,7 @@ BENCHMARK(BM_NaiveEqualsAnyConstant_1Constant)->Arg(4)->Arg(8)->Arg(16)->Arg(128
 
 static void BM_NaiveEqualsAnyConstant_4Constants(benchmark::State &state) {  // NOLINT(runtime/references)
   state.PauseTiming();
-  std::vector<int> samples = CreateSamples(state.range_x());
+  std::vector<int> samples = CreateSamples(state.range(0));
   BENCHMARK_UNUSED bool matched;
   state.ResumeTiming();
   while (state.KeepRunning()) {
@@ -137,7 +137,7 @@ BENCHMARK(BM_NaiveEqualsAnyConstant_4Constants)->Arg(8)->Arg(16)->Arg(128)->Arg(
 
 static void BM_NaiveEqualsAnyConstant_8Constants(benchmark::State &state) {  // NOLINT(runtime/references)
   state.PauseTiming();
-  std::vector<int> samples = CreateSamples(state.range_x());
+  std::vector<int> samples = CreateSamples(state.range(0));
   BENCHMARK_UNUSED bool matched;
   state.ResumeTiming();
   while (state.KeepRunning()) {
@@ -152,7 +152,7 @@ BENCHMARK(BM_NaiveEqualsAnyConstant_8Constants)->Arg(16)->Arg(128)->Arg(1024);
 
 static void BM_NaiveEqualsAnyConstant_12Constants(benchmark::State &state) {  // NOLINT(runtime/references)
   state.PauseTiming();
-  std::vector<int> samples = CreateSamples(state.range_x());
+  std::vector<int> samples = CreateSamples(state.range(0));
   BENCHMARK_UNUSED bool matched;
   state.ResumeTiming();
   while (state.KeepRunning()) {
@@ -171,7 +171,7 @@ BENCHMARK(BM_NaiveEqualsAnyConstant_12Constants)->Arg(24)->Arg(128)->Arg(1024);
 static void BM_FindAnyConstant_1Constant(benchmark::State &state) {  // NOLINT(runtime/references)
   state.PauseTiming();
   static constexpr std::array<int, 1> constants = {{1}};
-  std::vector<int> samples = CreateSamples(state.range_x());
+  std::vector<int> samples = CreateSamples(state.range(0));
   BENCHMARK_UNUSED bool matched;
   state.ResumeTiming();
   while (state.KeepRunning()) {
@@ -186,7 +186,7 @@ BENCHMARK(BM_FindAnyConstant_1Constant)->Arg(4)->Arg(8)->Arg(16)->Arg(128)->Arg(
 static void BM_FindAnyConstant_4Constants(benchmark::State &state) {  // NOLINT(runtime/references)
   state.PauseTiming();
   static constexpr std::array<int, 4> constants = {{1, 3, 4, 7}};
-  std::vector<int> samples = CreateSamples(state.range_x());
+  std::vector<int> samples = CreateSamples(state.range(0));
   BENCHMARK_UNUSED bool matched;
   state.ResumeTiming();
   while (state.KeepRunning()) {
@@ -201,7 +201,7 @@ BENCHMARK(BM_FindAnyConstant_4Constants)->Arg(8)->Arg(16)->Arg(128)->Arg(1024);
 static void BM_FindAnyConstant_8Constants(benchmark::State &state) {  // NOLINT(runtime/references)
   state.PauseTiming();
   static constexpr std::array<int, 8> constants = {{1, 3, 4, 7, 8, 9, 10, 12}};
-  std::vector<int> samples = CreateSamples(state.range_x());
+  std::vector<int> samples = CreateSamples(state.range(0));
   BENCHMARK_UNUSED bool matched;
   state.ResumeTiming();
   while (state.KeepRunning()) {
@@ -216,7 +216,7 @@ BENCHMARK(BM_FindAnyConstant_8Constants)->Arg(16)->Arg(128)->Arg(1024);
 static void BM_FindAnyConstant_12Constants(benchmark::State &state) {  // NOLINT(runtime/references)
   state.PauseTiming();
   static constexpr std::array<int, 12> constants = {{1, 3, 4, 7, 8, 9, 10, 12, 13, 15, 16, 18}};
-  std::vector<int> samples = CreateSamples(state.range_x());
+  std::vector<int> samples = CreateSamples(state.range(0));
   BENCHMARK_UNUSED bool matched;
   state.ResumeTiming();
   while (state.KeepRunning()) {
@@ -230,7 +230,7 @@ BENCHMARK(BM_FindAnyConstant_12Constants)->Arg(24)->Arg(128)->Arg(1024);
 
 }  // namespace quickstep
 
-int main(int argc, const char **argv) {
+int main(int argc, char **argv) {
   benchmark::Initialize(&argc, argv);
   benchmark::RunSpecifiedBenchmarks();
   return 0;

@@ -24,11 +24,7 @@ configure_file (
   "${CMAKE_CURRENT_BINARY_DIR}/QueryOptimizerConfig.h"
 )
 
-if (BUILD_SHARED_LIBS)
-  set(GFLAGS_LIB_NAME gflags_nothreads-shared)
-else()
-  set(GFLAGS_LIB_NAME gflags_nothreads-static)
-endif()
+set_gflags_lib_name ()
 
 add_subdirectory(cost_model)
 add_subdirectory(expressions)
