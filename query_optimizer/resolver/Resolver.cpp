@@ -29,7 +29,9 @@
 #include <vector>
 #include <utility>
 
+#include "catalog/Catalog.pb.h"
 #include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogTypedefs.hpp"
 #include "expressions/aggregation/AggregateFunction.hpp"
 #include "expressions/aggregation/AggregateFunctionFactory.hpp"
 #include "expressions/table_generator/GeneratorFunction.hpp"
@@ -49,6 +51,7 @@
 #include "parser/ParseLimit.hpp"
 #include "parser/ParseLiteralValue.hpp"
 #include "parser/ParseOrderBy.hpp"
+#include "parser/ParsePartitionClause.hpp"
 #include "parser/ParsePredicate.hpp"
 #include "parser/ParsePredicateExists.hpp"
 #include "parser/ParsePredicateInTableQuery.hpp"
@@ -129,12 +132,15 @@
 
 #include "glog/logging.h"
 
+using std::make_unique;
+
 namespace quickstep {
 namespace optimizer {
 namespace resolver {
 
 namespace E = ::quickstep::optimizer::expressions;
 namespace L = ::quickstep::optimizer::logical;
+namespace S = ::quickstep::serialization;
 
 struct Resolver::ExpressionResolutionInfo {
   /**
@@ -478,8 +484,31 @@ L::LogicalPtr Resolver::resolveCreateTable(
   std::shared_ptr<const StorageBlockLayoutDescription>
       block_properties(resolveBlockProperties(create_table_statement));
 
-  return L::CreateTable::Create(relation_name, attributes, block_properties);
+  std::shared_ptr<const S::PartitionSchemeHeader> partition_scheme_header_proto(
+      resolvePartitionClause(create_table_statement));
+
+  return L::CreateTable::Create(relation_name, attributes, block_properties, partition_scheme_header_proto);
 }
+
+namespace {
+
+attribute_id GetAttributeIdFromName(const PtrList<ParseAttributeDefinition> &attribute_definition_list,
+                                    const std::string &attribute_name) {
+  const std::string lower_attribute_name = ToLower(attribute_name);
+
+  attribute_id attr_id = 0;
+  for (const ParseAttributeDefinition &attribute_definition : attribute_definition_list) {
+    if (lower_attribute_name == ToLower(attribute_definition.name()->value())) {
+      return attr_id;
+    }
+
+    ++attr_id;
+  }
+
+  return kInvalidAttributeID;
+}
+
+}  // namespace
 
 StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
     const ParseStatementCreateTable &create_table_statement) {
@@ -540,25 +569,6 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
     THROW_SQL_ERROR_AT(type_parse_string) << "Unrecognized storage type.";
   }
 
-  // Helper lambda function which will be used in COMPRESS and SORT resolution.
-  // Returns the column id from the name of the given attribute. Returns -1 if
-  // the attribute is not found.
-  auto columnIdFromAttributeName = [&create_table_statement](
-      const std::string& attribute_name) -> int {
-    const std::string search_name = ToLower(attribute_name);
-    int i = 0;
-    for (const ParseAttributeDefinition &attribute_definition :
-     create_table_statement.attribute_definition_list()) {
-      const std::string lower_attribute_name =
-        ToLower(attribute_definition.name()->value());
-      if (lower_attribute_name.compare(search_name) == 0) {
-        return i;
-      }
-      i++;
-    }
-    return -1;
-  };
-
   // Resolve the SORT property.
   const ParseString *sort_parse_string = block_properties->getSort();
   if (block_requires_sort) {
@@ -566,10 +576,10 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
       THROW_SQL_ERROR_AT(type_parse_string)
           << "The SORT property must be specified as an attribute name.";
     } else {
-      const std::string &sort_name = sort_parse_string->value();
       // Lookup the name and map to a column id.
-      int sort_id = columnIdFromAttributeName(sort_name);
-      if (sort_id == -1) {
+      const attribute_id sort_id = GetAttributeIdFromName(create_table_statement.attribute_definition_list(),
+                                                          sort_parse_string->value());
+      if (sort_id == kInvalidAttributeID) {
         THROW_SQL_ERROR_AT(sort_parse_string)
           << "The SORT property did not match any attribute name.";
       } else {
@@ -609,8 +619,9 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
           << "The COMPRESS property must be specified as ALL or a list of attributes.";
       }
       for (const ParseString &compressed_attribute_name : *compress_parse_strings) {
-        int column_id = columnIdFromAttributeName(compressed_attribute_name.value());
-        if (column_id == -1) {
+        const attribute_id column_id = GetAttributeIdFromName(create_table_statement.attribute_definition_list(),
+                                                              compressed_attribute_name.value());
+        if (column_id == kInvalidAttributeID) {
           THROW_SQL_ERROR_AT(&compressed_attribute_name)
               << "The given attribute was not found.";
         } else {
@@ -669,6 +680,51 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
   storage_block_description->set_num_slots(slots);
 
   return storage_block_description.release();
+}
+
+const S::PartitionSchemeHeader* Resolver::resolvePartitionClause(
+    const ParseStatementCreateTable &create_table_statement) {
+  const ParsePartitionClause *partition_clause = create_table_statement.opt_partition_clause();
+  if (partition_clause == nullptr) {
+    return nullptr;
+  }
+
+  const ParseString *partition_type_string = partition_clause->partition_type();
+  if (partition_type_string == nullptr) {
+    THROW_SQL_ERROR_AT(partition_clause)
+        << "Partition type must be specified and be a string.";
+  }
+
+  const PtrList<ParseString> &attribute_name_list = partition_clause->attribute_name_list();
+  if (attribute_name_list.size() != 1) {
+    THROW_SQL_ERROR_AT(partition_clause)
+        << "Partition is supported on only one attribute.";
+  }
+
+  const ParseString &partition_attribute_name = attribute_name_list.front();
+  const attribute_id attr_id = GetAttributeIdFromName(create_table_statement.attribute_definition_list(),
+                                                      partition_attribute_name.value());
+  if (attr_id == kInvalidAttributeID) {
+    THROW_SQL_ERROR_AT(&partition_attribute_name)
+        << "The given attribute was not found.";
+  }
+
+  auto proto = make_unique<S::PartitionSchemeHeader>();
+  proto->set_num_partitions(partition_clause->num_partitions()->long_value());
+  proto->set_partition_attribute_id(attr_id);
+
+  const std::string partition_type = ToLower(partition_type_string->value());
+  if (partition_type == kHashPartitionType) {
+    proto->set_partition_type(S::PartitionSchemeHeader::HASH);
+  } else if (partition_type == kRangePartitionType) {
+    proto->set_partition_type(S::PartitionSchemeHeader::RANGE);
+    THROW_SQL_ERROR_AT(partition_clause)
+        << "Range partition is not supported.";
+  } else {
+    THROW_SQL_ERROR_AT(partition_type_string) << "Unrecognized partition type: " << partition_type;
+  }
+
+  return proto.release();
 }
 
 L::LogicalPtr Resolver::resolveCreateIndex(

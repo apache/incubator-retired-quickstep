@@ -74,9 +74,8 @@ class PtrList;
 class StorageBlockLayoutDescription;
 class Type;
 
-}  // namespace quickstep
+namespace serialization { class PartitionSchemeHeader; }
 
-namespace quickstep {
 namespace optimizer {
 
 class OptimizerContext;
@@ -210,6 +209,16 @@ class Resolver {
    *         that this message may be invalid.
    */
   StorageBlockLayoutDescription* resolveBlockProperties(
+      const ParseStatementCreateTable &create_table_statement);
+
+  /**
+   * @brief Resolves the PARTITION clause of a CREATE TABLE statement to a
+   *        the serialized PartitionSchemeHeader describing the user input.
+   *
+   * @param create_table_statement The create table statement.
+   * @return A pointer to a user-owned serialized PartitionSchemeHeader.
+   */
+  const serialization::PartitionSchemeHeader* resolvePartitionClause(
       const ParseStatementCreateTable &create_table_statement);
 
   /**

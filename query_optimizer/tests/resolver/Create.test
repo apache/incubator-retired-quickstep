@@ -229,3 +229,13 @@ CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
 ERROR: The BLOCKSIZEMB property must be between 2MB and 1024MB. (2 : 23)
 (TYPE split_rowstore, BLOCKSIZEMB 2000);
                       ^
+==
+
+CREATE TABLE foo (attr INT) PARTITION BY HASH(attr) PARTITIONS 4;
+--
+TopLevelPlan
++-plan=CreateTable[relation=foo]
+| +-attributes=
+|   +-AttributeReference[id=0,name=attr,relation=foo,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=attr,relation=foo,type=Int]

@@ -44,6 +44,8 @@
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/PartitionScheme.hpp"
+#include "catalog/PartitionSchemeHeader.hpp"
 #include "expressions/Expressions.pb.h"
 #include "expressions/aggregation/AggregateFunction.hpp"
 #include "expressions/aggregation/AggregateFunction.pb.h"
@@ -1017,6 +1019,11 @@ void ExecutionGenerator::convertCreateTable(
     catalog_relation->setDefaultStorageBlockLayout(layout.release());
   }
 
+  if (physical_plan->partition_scheme_header_proto()) {
+    catalog_relation->setPartitionScheme(new PartitionScheme(
+        PartitionSchemeHeader::ReconstructFromProto(*physical_plan->partition_scheme_header_proto())));
+  }
+
   execution_plan_->addRelationalOperator(
       new CreateTableOperator(query_handle_->query_id(),
                               catalog_relation.release(),
@@ -1139,14 +1146,21 @@ void ExecutionGenerator::convertInsertTuple(
       query_context_proto_->insert_destinations_size();
   S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
 
-  insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(input_relation.getID());
   insert_destination_proto->mutable_layout()->MergeFrom(
       input_relation.getDefaultStorageBlockLayout().getDescription());
 
-  const vector<block_id> blocks(input_relation.getBlocksSnapshot());
-  for (const block_id block : blocks) {
-    insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+  if (input_relation.hasPartitionScheme()) {
+    insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
+    insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
+        ->MergeFrom(input_relation.getPartitionScheme()->getProto());
+  } else {
+    insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
+
+    const vector<block_id> blocks(input_relation.getBlocksSnapshot());
+    for (const block_id block : blocks) {
+      insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+    }
   }
 
   const QueryPlan::DAGNodeIndex insert_operator_index =
@@ -1197,15 +1211,21 @@ void ExecutionGenerator::convertInsertSelection(
   const QueryContext::insert_destination_id insert_destination_index =
       query_context_proto_->insert_destinations_size();
   S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
-
-  insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
   insert_destination_proto->set_relation_id(destination_relation.getID());
   insert_destination_proto->mutable_layout()->MergeFrom(
       destination_relation.getDefaultStorageBlockLayout().getDescription());
 
-  const vector<block_id> blocks(destination_relation.getBlocksSnapshot());
-  for (const block_id block : blocks) {
-    insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+  if (destination_relation.hasPartitionScheme()) {
+    insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
+    insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
+        ->MergeFrom(destination_relation.getPartitionScheme()->getProto());
+  } else {
+    insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
+
+    const vector<block_id> blocks(destination_relation.getBlocksSnapshot());
+    for (const block_id block : blocks) {
+      insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+    }
   }
 
   const CatalogRelationInfo *selection_relation_info =
@@ -1274,7 +1294,13 @@ void ExecutionGenerator::convertUpdateTable(
       query_context_proto_->insert_destinations_size();
   S::InsertDestination *relocation_destination_proto = query_context_proto_->add_insert_destinations();
 
-  relocation_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
+  if (input_relation->hasPartitionScheme()) {
+    relocation_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
+    relocation_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
+        ->MergeFrom(input_relation->getPartitionScheme()->getProto());
+  } else {
+    relocation_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
+  }
   relocation_destination_proto->set_relation_id(input_rel_id);
 
   // Convert the predicate proto.

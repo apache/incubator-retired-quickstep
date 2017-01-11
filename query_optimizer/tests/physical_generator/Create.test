@@ -115,3 +115,21 @@ TopLevelPlan
 |   +-AttributeReference[id=0,name=col1,relation=foo,type=Int]
 +-output_attributes=
   +-AttributeReference[id=0,name=col1,relation=foo,type=Int]
+==
+
+CREATE TABLE foo (attr INT) PARTITION BY HASH(attr) PARTITIONS 4;
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=CreateTable[relation=foo]
+| +-attributes=
+|   +-AttributeReference[id=0,name=attr,relation=foo,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=attr,relation=foo,type=Int]
+[Physical Plan]
+TopLevelPlan
++-plan=CreateTable[relation=foo]
+| +-attributes=
+|   +-AttributeReference[id=0,name=attr,relation=foo,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=attr,relation=foo,type=Int]

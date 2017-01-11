@@ -40,3 +40,12 @@ CREATE TABLE foo2 (col1 INT, col2 VARCHAR(80))
   WITH BLOCKPROPERTIES (TYPE columnstore, SORT col2);
 --
 ERROR: BLOCKPROPERTIES is invalid.
+==
+
+CREATE TABLE foo3 (attr INT) PARTITION BY HASH(attr) PARTITIONS 4;
+SELECT * FROM foo3;
+--
++-----------+
+|attr       |
++-----------+
++-----------+
