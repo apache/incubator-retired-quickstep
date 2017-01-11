@@ -147,7 +147,7 @@ CreateTableStatement[relation_name=test]
 +-attribute_list=
 | +-AttributeDefinition[name=attr,type=Int]
 +-partition_clause=
-  +-PartitionClause[partition_type=0]
+  +-PartitionClause[partition_type=hash]
     +-Number of Partitions=NumericLiteral[numeric_string=4,float_like=false]
     +-attribute_name_list=
       +-String[value=attr]

@@ -1,8 +1,8 @@
-/* A Bison parser, made by GNU Bison 3.0.2.  */
+/* A Bison parser, made by GNU Bison 3.0.4.  */
 
 /* Bison interface for Yacc-like parsers in C
 
-   Copyright (C) 1984, 1989-1990, 2000-2013 Free Software Foundation, Inc.
+   Copyright (C) 1984, 1989-1990, 2000-2015 Free Software Foundation, Inc.
 
    This program is free software: you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -181,10 +181,10 @@ extern int quickstep_yydebug;
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
-typedef union YYSTYPE YYSTYPE;
+
 union YYSTYPE
 {
-#line 120 "../SqlParser.ypp" /* yacc.c:1909  */
+#line 120 "../SqlParser.ypp" /* yacc.c:1915  */
 
   quickstep::ParseString *string_value_;
 
@@ -284,8 +284,10 @@ union YYSTYPE
 
   quickstep::ParsePriority *opt_priority_clause_;
 
-#line 288 "SqlParser_gen.hpp" /* yacc.c:1909  */
+#line 288 "SqlParser_gen.hpp" /* yacc.c:1915  */
 };
+
+typedef union YYSTYPE YYSTYPE;
 # define YYSTYPE_IS_TRIVIAL 1
 # define YYSTYPE_IS_DECLARED 1
 #endif

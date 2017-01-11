@@ -36,6 +36,9 @@ namespace quickstep {
  *  @{
  */
 
+static const char kHashPartitionType[] = "hash";
+static const char kRangePartitionType[] = "range";
+
 /**
  * @brief A parsed representation of partition clause.
  */

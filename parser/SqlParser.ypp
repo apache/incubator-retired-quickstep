@@ -989,12 +989,10 @@ opt_partition_clause:
 
 partition_type:
   TOKEN_HASH {
-    $$ = new quickstep::ParseString(@1.first_line, @1.first_column,
-           std::to_string(quickstep::PartitionSchemeHeader::PartitionType::kHash));
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column, quickstep::kHashPartitionType);
   }
   | TOKEN_RANGE{
-    $$ = new quickstep::ParseString(@1.first_line, @1.first_column,
-           std::to_string(quickstep::PartitionSchemeHeader::PartitionType::kRange));
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column, quickstep::kRangePartitionType);
   };
 
 key_value_list:
