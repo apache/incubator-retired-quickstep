@@ -107,6 +107,11 @@ add_test(quickstep_queryoptimizer_tests_executiongenerator_join
          "${CMAKE_CURRENT_SOURCE_DIR}/Join.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Join.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Join/")
+add_test(quickstep_queryoptimizer_tests_executiongenerator_partition
+         "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/Partition.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Partition.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Partition/")
 add_test(quickstep_queryoptimizer_tests_executiongenerator_select
          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Select.test"
@@ -150,6 +155,7 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Drop)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Index)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Insert)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Join)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Partition)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Select)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/StringPatternMatching)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/TableGenerator)

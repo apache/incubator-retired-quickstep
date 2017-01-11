@@ -1,0 +1,54 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+CREATE TABLE foo (id INT NULL,
+                  name CHAR(20))
+PARTITION BY HASH(id) PARTITIONS 4;
+
+INSERT INTO foo
+SELECT int_col, char_col
+FROM test
+WHERE int_col > 0 OR int_col < 0;
+
+SELECT * FROM foo;
+--
++-----------+--------------------+
+|id         |name                |
++-----------+--------------------+
+|          4|          4 2.000000|
+|          8|          8 2.828427|
+|         12|         12 3.464102|
+|         16|         16 4.000000|
+|         24|         24 4.898979|
+|         -3|         -3 1.732051|
+|         -7|         -7 2.645751|
+|        -11|        -11 3.316625|
+|        -15|        -15 3.872983|
+|        -19|        -19 4.358899|
+|        -23|        -23 4.795832|
+|          2|          2 1.414214|
+|          6|          6 2.449490|
+|         14|         14 3.741657|
+|         18|         18 4.242641|
+|         22|         22 4.690416|
+|         -1|         -1 1.000000|
+|         -5|         -5 2.236068|
+|         -9|         -9 3.000000|
+|        -13|        -13 3.605551|
+|        -17|        -17 4.123106|
+|        -21|        -21 4.582576|
++-----------+--------------------+

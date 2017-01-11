@@ -86,6 +86,7 @@ target_link_libraries(quickstep_queryoptimizer_logical_CreateIndex
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_logical_CreateTable
                       glog
+                      quickstep_catalog_Catalog_proto
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_logical_Logical

@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 
+#include "catalog/Catalog.pb.h"
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/logical/Logical.hpp"
@@ -72,10 +73,17 @@ class CreateTable : public Logical {
     return block_properties_;
   }
 
+  /**
+   * @return Shared pointer to the serialized partition scheme header.
+   */
+  const std::shared_ptr<const serialization::PartitionSchemeHeader> partition_scheme_header_proto() const {
+    return partition_scheme_header_proto_;
+  }
+
   LogicalPtr copyWithNewChildren(
       const std::vector<LogicalPtr> &new_children) const override {
     DCHECK_EQ(getNumChildren(), new_children.size());
-    return Create(relation_name_, attributes_, block_properties_);
+    return Create(relation_name_, attributes_, block_properties_, partition_scheme_header_proto_);
   }
 
   std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {
@@ -95,13 +103,19 @@ class CreateTable : public Logical {
    * @param block_properties The physical layout description of this block.
    *        Note that the pointer's ownership is assumed and shared by
    *        Logical::CreateTable and Physical::CreateTable.
+   * @param partition_scheme_header_proto The serialized partition scheme
+   *        header. It is 'nullptr' if no partitions specified. Note that the
+   *        pointer's ownership is shared by Logical::CreateTable and
+   *        Physical::CreateTable.
+   *
    * @return An immutable CreateTable node.
    */
   static CreateTablePtr Create(
       const std::string &relation_name,
       const std::vector<expressions::AttributeReferencePtr> &attributes,
-      const std::shared_ptr<const StorageBlockLayoutDescription> &block_properties) {
-    return CreateTablePtr(new CreateTable(relation_name, attributes, block_properties));
+      const std::shared_ptr<const StorageBlockLayoutDescription> &block_properties,
+      const std::shared_ptr<const serialization::PartitionSchemeHeader> &partition_scheme_header_proto) {
+    return CreateTablePtr(new CreateTable(relation_name, attributes, block_properties, partition_scheme_header_proto));
   }
 
  protected:
@@ -117,17 +131,20 @@ class CreateTable : public Logical {
   CreateTable(
       const std::string &relation_name,
       const std::vector<expressions::AttributeReferencePtr> &attributes,
-      const std::shared_ptr<const StorageBlockLayoutDescription> &block_properties)
+      const std::shared_ptr<const StorageBlockLayoutDescription> &block_properties,
+      const std::shared_ptr<const serialization::PartitionSchemeHeader> &partition_scheme_header_proto)
       : relation_name_(relation_name),
         attributes_(attributes),
         block_properties_(block_properties),
         block_properties_representation_(
-            getOptimizerRepresentationForProto<OptimizerTreeBaseNodePtr>(block_properties_.get())) {}
+            getOptimizerRepresentationForProto<OptimizerTreeBaseNodePtr>(block_properties_.get())),
+        partition_scheme_header_proto_(partition_scheme_header_proto) {}
 
   std::string relation_name_;
   std::vector<expressions::AttributeReferencePtr> attributes_;
   std::shared_ptr<const StorageBlockLayoutDescription> block_properties_;
   std::shared_ptr<const OptimizerProtoRepresentation<OptimizerTreeBaseNodePtr> > block_properties_representation_;
+  std::shared_ptr<const serialization::PartitionSchemeHeader> partition_scheme_header_proto_;
 
   DISALLOW_COPY_AND_ASSIGN(CreateTable);
 };

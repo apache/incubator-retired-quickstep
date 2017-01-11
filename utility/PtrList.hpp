@@ -218,12 +218,28 @@ class PtrList {
     return PtrListIterator(internal_list_.end());
   }
 
+  T& front() {
+    return *(internal_list_.front());
+  }
+
+  T& back() {
+    return *(internal_list_.back());
+  }
+
   const_iterator begin() const {
     return PtrListConstIterator(internal_list_.begin());
   }
 
   const_iterator end() const {
     return PtrListConstIterator(internal_list_.end());
+  }
+
+  const T& front() const {
+    return *(internal_list_.front());
+  }
+
+  const T& back() const {
+    return *(internal_list_.back());
   }
 
   void splice(iterator position, PtrList<T> &source) {  // NOLINT(runtime/references) - STL-style interface
