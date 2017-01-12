@@ -248,20 +248,6 @@ class SelectOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
-  void addWorkOrders(WorkOrdersContainer *container,
-                     QueryContext *query_context,
-                     StorageManager *storage_manager,
-                     const Predicate *predicate,
-                     const std::vector<std::unique_ptr<const Scalar>> *selection,
-                     InsertDestination *output_destination);
-
-  void addPartitionAwareWorkOrders(WorkOrdersContainer *container,
-                                   QueryContext *query_context,
-                                   StorageManager *storage_manager,
-                                   const Predicate *predicate,
-                                   const std::vector<std::unique_ptr<const Scalar>> *selection,
-                                   InsertDestination *output_destination);
-
  private:
   /**
    * @brief Create Work Order proto.
