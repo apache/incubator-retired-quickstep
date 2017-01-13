@@ -31,6 +31,7 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/predicate/Predicate.hpp"
 #include "expressions/scalar/Scalar.hpp"
+#include "expressions/scalar/ScalarAttribute.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
@@ -64,6 +65,9 @@ namespace quickstep {
 
 namespace {
 
+typedef std::vector<std::pair<tuple_id, tuple_id>> VectorOfTupleIdPair;
+typedef std::pair<std::vector<tuple_id>, std::vector<tuple_id>> PairOfTupleIdVector;
+
 // Functor passed to HashTable::getAllFromValueAccessor() to collect matching
 // tuples from the inner relation. It stores matching tuple ID pairs
 // in an unordered_map keyed by inner block ID and a vector of
@@ -83,8 +87,7 @@ class VectorsOfPairsJoinedTuplesCollector {
   // key is inner block_id, values are vectors of joined tuple ID pairs with
   // tuple ID from the inner block on the left and the outer block on the
   // right.
-  inline std::unordered_map<block_id, std::vector<std::pair<tuple_id, tuple_id>>>*
-      getJoinedTuples() {
+  inline std::unordered_map<block_id, VectorOfTupleIdPair>* getJoinedTuples() {
     return &joined_tuples_;
   }
 
@@ -94,7 +97,7 @@ class VectorsOfPairsJoinedTuplesCollector {
   // cross-product of all tuples from both blocks, but simply using pairs of
   // tuple-IDs is expected to be more space efficient if the result set is less
   // than 1/64 the cardinality of the cross-product.
-  std::unordered_map<block_id, std::vector<std::pair<tuple_id, tuple_id>>> joined_tuples_;
+  std::unordered_map<block_id, VectorOfTupleIdPair> joined_tuples_;
 };
 
 // Another collector using an unordered_map keyed on inner block just like above,
@@ -107,15 +110,15 @@ class PairsOfVectorsJoinedTuplesCollector {
   template <typename ValueAccessorT>
   inline void operator()(const ValueAccessorT &accessor,
                          const TupleReference &tref) {
-    joined_tuples_[tref.block].first.push_back(tref.tuple);
-    joined_tuples_[tref.block].second.push_back(accessor.getCurrentPosition());
+    auto &entry = joined_tuples_[tref.block];
+    entry.first.emplace_back(tref.tuple);
+    entry.second.emplace_back(accessor.getCurrentPosition());
   }
 
   // Get a mutable pointer to the collected map of joined tuple ID pairs. The
   // key is inner block_id, value is a pair consisting of
   // inner block tuple IDs (first) and outer block tuple IDs (second).
-  inline std::unordered_map< block_id, std::pair<std::vector<tuple_id>, std::vector<tuple_id>>>*
-      getJoinedTuples() {
+  inline std::unordered_map<block_id, PairOfTupleIdVector>* getJoinedTuples() {
     return &joined_tuples_;
   }
 
@@ -165,12 +168,6 @@ class OuterJoinTupleCollector {
   // BitVector on the probe relation. 1 if the corresponding tuple has no match.
   TupleIdSequence *filter_;
 };
-
-// For InnerJoin.
-constexpr std::size_t kNumValueAccessors = 3u;
-constexpr std::size_t kBuildValueAccessorIndex = 0,
-                      kProbeValueAccessorIndex = 1u,
-                      kTempResultValueAccessorIndex = 2u;
 
 }  // namespace
 
@@ -473,16 +470,24 @@ void HashInnerJoinWorkOrder::execute() {
         base_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
   }
 
-  PairsOfVectorsJoinedTuplesCollector collector;
+  if (probe_accessor->getImplementationType() == ValueAccessor::Implementation::kSplitRowStore) {
+    executeWithCopyElision(probe_accessor.get());
+  } else {
+    executeWithoutCopyElision(probe_accessor.get());
+  }
+}
+
+void HashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor *probe_accessor) {
+  VectorsOfPairsJoinedTuplesCollector collector;
   if (join_key_attributes_.size() == 1) {
     hash_table_.getAllFromValueAccessor(
-        probe_accessor.get(),
+        probe_accessor,
         join_key_attributes_.front(),
         any_join_key_attributes_nullable_,
         &collector);
   } else {
     hash_table_.getAllFromValueAccessorCompositeKey(
-        probe_accessor.get(),
+        probe_accessor,
         join_key_attributes_,
         any_join_key_attributes_nullable_,
         &collector);
@@ -491,7 +496,106 @@ void HashInnerJoinWorkOrder::execute() {
   const relation_id build_relation_id = build_relation_.getID();
   const relation_id probe_relation_id = probe_relation_.getID();
 
-  for (std::pair<const block_id, std::pair<std::vector<tuple_id>, std::vector<tuple_id>>>
+  for (std::pair<const block_id, VectorOfTupleIdPair>
+           &build_block_entry : *collector.getJoinedTuples()) {
+    BlockReference build_block =
+        storage_manager_->getBlock(build_block_entry.first, build_relation_);
+    const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
+    std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
+
+    // Evaluate '*residual_predicate_', if any.
+    //
+    // TODO(chasseur): We might consider implementing true vectorized
+    // evaluation for join predicates that are not equijoins (although in
+    // general that would require evaluating and materializing some expressions
+    // over the cross-product of all tuples in a pair of blocks in order to
+    // evaluate the predicate). We could use a heuristic where we only do the
+    // vectorized materialization and evaluation if the set of matches from the
+    // hash join is below a reasonable threshold so that we don't blow up
+    // temporary memory requirements to an unreasonable degree.
+    if (residual_predicate_ != nullptr) {
+      VectorOfTupleIdPair filtered_matches;
+
+      for (const std::pair<tuple_id, tuple_id> &hash_match
+           : build_block_entry.second) {
+        if (residual_predicate_->matchesForJoinedTuples(*build_accessor,
+                                                        build_relation_id,
+                                                        hash_match.first,
+                                                        *probe_accessor,
+                                                        probe_relation_id,
+                                                        hash_match.second)) {
+          filtered_matches.emplace_back(hash_match);
+        }
+      }
+
+      build_block_entry.second = std::move(filtered_matches);
+    }
+
+    ColumnVectorsValueAccessor temp_result;
+    for (auto selection_cit = selection_.begin();
+         selection_cit != selection_.end();
+         ++selection_cit) {
+      temp_result.addColumn((*selection_cit)->getAllValuesForJoin(build_relation_id,
+                                                                  build_accessor.get(),
+                                                                  probe_relation_id,
+                                                                  probe_accessor,
+                                                                  build_block_entry.second));
+    }
+
+    output_destination_->bulkInsertTuples(&temp_result);
+  }
+}
+
+void HashInnerJoinWorkOrder::executeWithCopyElision(ValueAccessor *probe_accessor) {
+  PairsOfVectorsJoinedTuplesCollector collector;
+  if (join_key_attributes_.size() == 1) {
+    hash_table_.getAllFromValueAccessor(
+        probe_accessor,
+        join_key_attributes_.front(),
+        any_join_key_attributes_nullable_,
+        &collector);
+  } else {
+    hash_table_.getAllFromValueAccessorCompositeKey(
+        probe_accessor,
+        join_key_attributes_,
+        any_join_key_attributes_nullable_,
+        &collector);
+  }
+
+  const relation_id build_relation_id = build_relation_.getID();
+  const relation_id probe_relation_id = probe_relation_.getID();
+
+  constexpr std::size_t kNumIndexes = 3u;
+  constexpr std::size_t kBuildIndex = 0, kProbeIndex = 1u, kTempIndex = 2u;
+
+  // Create a map of ValueAccessors and what attributes we want to pick from them.
+  std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> accessor_attribute_map(
+      kNumIndexes, std::make_pair(nullptr /* late binding ValueAccessor */,
+                                  vector<attribute_id>(selection_.size(), kInvalidCatalogId)));
+
+  std::vector<const Scalar *> non_trivial_expressions;
+  attribute_id dest_attr = 0;
+
+  for (const auto &scalar : selection_) {
+    // If the Scalar (column) is not an attribute in build/probe blocks, we will
+    // insert it into a ColumnVectorsValueAccessor.
+    if (scalar->getDataSource() != Scalar::ScalarDataSource::kAttribute) {
+      // Current destination attribute maps to the column we'll create now.
+      accessor_attribute_map[kTempIndex].second[dest_attr] = non_trivial_expressions.size();
+      non_trivial_expressions.emplace_back(scalar.get());
+    } else {
+      const CatalogAttribute &attr = static_cast<const ScalarAttribute *>(scalar.get())->getAttribute();
+      const attribute_id attr_id = attr.getID();
+      if (attr.getParent().getID() == build_relation_id) {
+        accessor_attribute_map[kBuildIndex].second[dest_attr] = attr_id;
+      } else {
+        accessor_attribute_map[kProbeIndex].second[dest_attr] = attr_id;
+      }
+    }
+    ++dest_attr;
+  }
+
+  for (std::pair<const block_id, PairOfTupleIdVector>
            &build_block_entry : *collector.getJoinedTuples()) {
     BlockReference build_block =
         storage_manager_->getBlock(build_block_entry.first, build_relation_);
@@ -511,7 +615,8 @@ void HashInnerJoinWorkOrder::execute() {
     // hash join is below a reasonable threshold so that we don't blow up
     // temporary memory requirements to an unreasonable degree.
     if (residual_predicate_ != nullptr) {
-      std::pair<std::vector<tuple_id>, std::vector<tuple_id>> filtered_matches;
+      PairOfTupleIdVector filtered_matches;
+
       for (std::size_t i = 0; i < build_tids.size(); ++i) {
         if (residual_predicate_->matchesForJoinedTuples(*build_accessor,
                                                         build_relation_id,
@@ -519,109 +624,50 @@ void HashInnerJoinWorkOrder::execute() {
                                                         *probe_accessor,
                                                         probe_relation_id,
                                                         probe_tids[i])) {
-          filtered_matches.first.push_back(build_tids[i]);
-          filtered_matches.second.push_back(probe_tids[i]);
+          filtered_matches.first.emplace_back(build_tids[i]);
+          filtered_matches.second.emplace_back(probe_tids[i]);
         }
       }
 
       build_block_entry.second = std::move(filtered_matches);
     }
 
-    // TODO(chasseur): If all the output expressions are ScalarAttributes,
-    // we could implement a similar fast-path to StorageBlock::selectSimple()
-    // that avoids a copy.
-    //
     // TODO(chasseur): See TODO in NestedLoopsJoinOperator.cpp about limiting
     // the size of materialized temporary results. In common usage, this
     // probably won't be an issue for hash-joins, but in the worst case a hash
     // join can still devolve into a cross-product.
-    //
-    // NOTE(chasseur): We could also create one big ColumnVectorsValueAccessor
-    // and accumulate all the results across multiple block pairs into it
-    // before inserting anything into output blocks, but this would require
-    // some significant API extensions to the expressions system for a dubious
-    // benefit (probably only a real performance win when there are very few
-    // matching tuples in each individual inner block but very many inner
-    // blocks with at least one match).
-
-    // We now create ordered value accessors for both build and probe side,
-    // using the joined tuple TIDs. Note that we have to use this Lambda-based
-    // invocation method here because the accessors don't have a virtual
-    // function that creates such an OrderedTupleIdSequenceAdapterValueAccessor.
-    std::unique_ptr<ValueAccessor> ordered_build_accessor, ordered_probe_accessor;
-    InvokeOnValueAccessorNotAdapter(
-        build_accessor.get(),
-        [&](auto *accessor) -> void {  // NOLINT(build/c++11)
-          ordered_build_accessor.reset(
-              accessor->createSharedOrderedTupleIdSequenceAdapter(build_tids));
-        });
-
-    if (probe_accessor->isTupleIdSequenceAdapter()) {
-      InvokeOnTupleIdSequenceAdapterValueAccessor(
-        probe_accessor.get(),
-        [&](auto *accessor) -> void {  // NOLINT(build/c++11)
-          ordered_probe_accessor.reset(
-            accessor->createSharedOrderedTupleIdSequenceAdapter(probe_tids));
-        });
-    } else {
-      InvokeOnValueAccessorNotAdapter(
-        probe_accessor.get(),
-        [&](auto *accessor) -> void {  // NOLINT(build/c++11)
-          ordered_probe_accessor.reset(
-            accessor->createSharedOrderedTupleIdSequenceAdapter(probe_tids));
-        });
-    }
 
     // We also need a temp value accessor to store results of any scalar expressions.
     ColumnVectorsValueAccessor temp_result;
-
-    // Create a map of ValueAccessors and what attributes we want to pick from them
-    std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> accessor_attribute_map(
-        kNumValueAccessors, std::make_pair(nullptr,  // A late binding ValueAccessor.
-                                           vector<attribute_id>(selection_.size(), kInvalidCatalogId)));
-
-    accessor_attribute_map[kBuildValueAccessorIndex].first = ordered_build_accessor.get();
-    accessor_attribute_map[kProbeValueAccessorIndex].first = ordered_probe_accessor.get();
-    accessor_attribute_map[kTempResultValueAccessorIndex].first = &temp_result;
-
-    attribute_id dest_attr = 0;
-    for (auto &selection_cit : selection_) {
-      // If the Scalar (column) is not an attribute in build/probe blocks, then
-      // insert it into a ColumnVectorsValueAccessor.
-      if (selection_cit->getDataSource() != Scalar::ScalarDataSource::kAttribute) {
-        // Current destination attribute maps to the column we'll create now.
-        accessor_attribute_map[kTempResultValueAccessorIndex].second[dest_attr] = temp_result.getNumColumns();
-
-        std::vector<std::pair<tuple_id, tuple_id>> zipped_joined_tuple_ids;
-        if (temp_result.getNumColumns() == 0) {
-          // The getAllValuesForJoin function below needs joined tuple IDs as
-          // a vector of pair of (build-tuple-ID, probe-tuple-ID), and we have
-          // a pair of (build-tuple-IDs-vector, probe-tuple-IDs-vector). So
-          // we'll have to zip our two vectors together. We do this inside
-          // the loop because most queries don't exercise this code since
-          // they don't have scalar expressions with attributes from both
-          // build and probe relations (other expressions would have been
-          // pushed down to before the join).
-          for (std::size_t i = 0; i < build_tids.size(); ++i) {
-            zipped_joined_tuple_ids.emplace_back(build_tids[i], probe_tids[i]);
-          }
-        }
-        temp_result.addColumn(
-            selection_cit
-                ->getAllValuesForJoin(build_relation_id, build_accessor.get(),
-                                      probe_relation_id, probe_accessor.get(),
-                                      zipped_joined_tuple_ids));
-      } else {
-        const CatalogAttribute &attr = static_cast<const ScalarAttribute *>(selection_cit.get())->getAttribute();
-        const attribute_id attr_id = attr.getID();
-        if (attr.getParent().getID() == build_relation_id) {
-          accessor_attribute_map[kBuildValueAccessorIndex].second[dest_attr] = attr_id;
-        } else {
-          accessor_attribute_map[kProbeValueAccessorIndex].second[dest_attr] = attr_id;
-        }
+    if (!non_trivial_expressions.empty()) {
+      // The getAllValuesForJoin function below needs joined tuple IDs as a
+      // vector of pair of (build-tuple-ID, probe-tuple-ID), and we have a pair
+      // of (build-tuple-IDs-vector, probe-tuple-IDs-vector). So we'll have to
+      // zip our two vectors together.
+      VectorOfTupleIdPair zipped_joined_tuple_ids;
+      for (std::size_t i = 0; i < build_tids.size(); ++i) {
+        zipped_joined_tuple_ids.emplace_back(build_tids[i], probe_tids[i]);
       }
-      ++dest_attr;
+
+      for (const Scalar *scalar : non_trivial_expressions) {
+        temp_result.addColumn(scalar->getAllValuesForJoin(build_relation_id,
+                                                          build_accessor.get(),
+                                                          probe_relation_id,
+                                                          probe_accessor,
+                                                          zipped_joined_tuple_ids));
+      }
     }
+
+    // We now create ordered value accessors for both build and probe side,
+    // using the joined tuple IDs.
+    std::unique_ptr<ValueAccessor> ordered_build_accessor(
+        build_accessor->createSharedOrderedTupleIdSequenceAdapterVirtual(build_tids));
+    std::unique_ptr<ValueAccessor> ordered_probe_accessor(
+        probe_accessor->createSharedOrderedTupleIdSequenceAdapterVirtual(probe_tids));
+
+    accessor_attribute_map[kBuildIndex].first = ordered_build_accessor.get();
+    accessor_attribute_map[kProbeIndex].first = ordered_probe_accessor.get();
+    accessor_attribute_map[kTempIndex].first = &temp_result;
 
     // NOTE(chasseur): calling the bulk-insert method of InsertDestination once
     // for each pair of joined blocks incurs some extra overhead that could be

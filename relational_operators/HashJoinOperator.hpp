@@ -423,6 +423,10 @@ class HashInnerJoinWorkOrder : public WorkOrder {
   }
 
  private:
+  void executeWithoutCopyElision(ValueAccessor *probe_accesor);
+
+  void executeWithCopyElision(ValueAccessor *probe_accessor);
+
   const CatalogRelationSchema &build_relation_;
   const CatalogRelationSchema &probe_relation_;
   const std::vector<attribute_id> join_key_attributes_;

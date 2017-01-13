@@ -28,6 +28,7 @@
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/rules/AttachLIPFilters.hpp"
 #include "query_optimizer/rules/PruneColumns.hpp"
+#include "query_optimizer/rules/ReorderColumns.hpp"
 #include "query_optimizer/rules/StarSchemaHashJoinOrderOptimization.hpp"
 #include "query_optimizer/rules/SwapProbeBuild.hpp"
 #include "query_optimizer/strategy/Aggregate.hpp"
@@ -43,6 +44,10 @@
 
 namespace quickstep {
 namespace optimizer {
+
+DEFINE_bool(reorder_columns, true,
+            "Adjust the ordering of intermediate relations' columns to improve "
+            "copy performance.");
 
 DEFINE_bool(reorder_hash_joins, true,
             "If true, apply hash join order optimization to each group of hash "
@@ -108,6 +113,13 @@ P::PhysicalPtr PhysicalGenerator::optimizePlan() {
     rules.emplace_back(new PruneColumns());
   } else {
     rules.emplace_back(new SwapProbeBuild());
+  }
+  if (FLAGS_reorder_columns) {
+    // NOTE(jianqiao): This optimization relies on the fact that the intermediate
+    // relations all have SPLIT_ROW_STORE layouts. If this fact gets changed, the
+    // optimization algorithm may need to be updated and the performance impact
+    // should be re-evaluated.
+    rules.emplace_back(new ReorderColumns());
   }
   if (FLAGS_use_lip_filters) {
     rules.emplace_back(new AttachLIPFilters());

@@ -305,6 +305,21 @@ class ValueAccessor {
       const TupleIdSequence &id_sequence) = 0;
 
   /**
+   * @brief Create a new OrderedTupleIdSequenceAdapterValueAccessor that wraps
+   *        this ValueAccessor.
+   * @warning The newly-created adapter does NOT take ownership of this
+   *          ValueAccessor nor the provided OrderedTupleIdSequence. Both must
+   *          remain valid so long as the adapter will be used.
+   *
+   * @param id_sequence An OrderedTupleIdSequence specifying some subset of the
+   *        tuples for this ValueAccessor that the adapter will iterate over.
+   * @return A new OrderedTupleIdSequenceAdapterValueAccessor that will iterate
+   *         over only the tuples specified in id_sequence.
+   **/
+  virtual ValueAccessor* createSharedOrderedTupleIdSequenceAdapterVirtual(
+      const OrderedTupleIdSequence &id_sequence) = 0;
+
+  /**
    * @brief Get a TupleIdSequence indicating which positions this ValueAccessor
    *        is iterating over.
    *
@@ -512,6 +527,11 @@ class TupleIdSequenceAdapterValueAccessor : public ValueAccessor {
     return createSharedTupleIdSequenceAdapter(id_sequence);
   }
 
+  ValueAccessor* createSharedOrderedTupleIdSequenceAdapterVirtual(
+      const OrderedTupleIdSequence &id_sequence) override {
+    return createSharedOrderedTupleIdSequenceAdapter(id_sequence);
+  }
+
   const TupleIdSequence* getTupleIdSequenceVirtual() const override {
     return getTupleIdSequence();
   }
@@ -716,6 +736,11 @@ class OrderedTupleIdSequenceAdapterValueAccessor : public ValueAccessor {
   ValueAccessor* createSharedTupleIdSequenceAdapterVirtual(
       const TupleIdSequence &id_sequence) override {
     return createSharedTupleIdSequenceAdapter(id_sequence);
+  }
+
+  ValueAccessor* createSharedOrderedTupleIdSequenceAdapterVirtual(
+      const OrderedTupleIdSequence &id_sequence) override {
+    return createSharedOrderedTupleIdSequenceAdapter(id_sequence);
   }
 
   const TupleIdSequence* getTupleIdSequenceVirtual() const override {
@@ -942,6 +967,11 @@ class PackedTupleStorageSubBlockValueAccessor : public ValueAccessor {
   ValueAccessor* createSharedTupleIdSequenceAdapterVirtual(
       const TupleIdSequence &id_sequence) override {
     return createSharedTupleIdSequenceAdapter(id_sequence);
+  }
+
+  ValueAccessor* createSharedOrderedTupleIdSequenceAdapterVirtual(
+      const OrderedTupleIdSequence &id_sequence) override {
+    return createSharedOrderedTupleIdSequenceAdapter(id_sequence);
   }
 
   const TupleIdSequence* getTupleIdSequenceVirtual() const override {
