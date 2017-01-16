@@ -67,10 +67,6 @@ bool SaveBlocksOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *contain
   return done_feeding_input_relation_;
 }
 
-void SaveBlocksOperator::feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) {
-  destination_block_ids_.push_back(input_block_id);
-}
-
 void SaveBlocksOperator::updateCatalogOnCompletion() {
   // Note(jianqiao): We need to reset the exactness flag whenever a stored
   // relation gets changed. Given the pre-condition that all the data manipulation

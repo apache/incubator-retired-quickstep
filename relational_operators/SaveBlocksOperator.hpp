@@ -83,14 +83,8 @@ class SaveBlocksOperator : public RelationalOperator {
 
   bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
-  void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override;
-
-  void feedInputBlocks(const relation_id rel_id, std::vector<block_id> *partially_filled_blocks) override {
-    for (std::vector<block_id>::const_iterator it = partially_filled_blocks->begin();
-         it != partially_filled_blocks->end();
-         ++it) {
-      feedInputBlock(*it, rel_id);
-    }
+  void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override {
+    destination_block_ids_.push_back(input_block_id);
   }
 
   void updateCatalogOnCompletion() override;

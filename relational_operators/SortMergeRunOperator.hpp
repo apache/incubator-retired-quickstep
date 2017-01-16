@@ -152,17 +152,6 @@ class SortMergeRunOperator : public RelationalOperator {
     }
   }
 
-  void feedInputBlocks(
-      const relation_id rel_id,
-      std::vector<block_id> *partially_filled_blocks) override {
-    input_relation_block_ids_.insert(input_relation_block_ids_.end(),
-                                     partially_filled_blocks->begin(),
-                                     partially_filled_blocks->end());
-    if (started_) {
-      initializeInputRuns();
-    }
-  }
-
   void doneFeedingInputBlocks(const relation_id input_relation_id) override;
 
   void receiveFeedbackMessage(const WorkOrder::FeedbackMessage &msg) override;

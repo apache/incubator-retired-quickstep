@@ -141,9 +141,16 @@ class NestedLoopsJoinOperator : public RelationalOperator {
     }
   }
 
-  void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override;
-
-  void feedInputBlocks(const relation_id rel_id, std::vector<block_id> *partially_filled_blocks) override;
+  void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override {
+    if (input_relation_id == left_input_relation_.getID()) {
+      left_relation_block_ids_.push_back(input_block_id);
+    } else if (input_relation_id == right_input_relation_.getID()) {
+      right_relation_block_ids_.push_back(input_block_id);
+    } else {
+      LOG(FATAL) << "The input block sent to the NestedLoopsJoinOperator belongs "
+                 << "to a different relation than the left and right relations";
+    }
+  }
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
     return output_destination_index_;

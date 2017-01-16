@@ -86,7 +86,6 @@ class MockOperator: public RelationalOperator {
  public:
   enum function_name {
     kFeedInputBlock = 0,
-    kFeedInputBlocks,
     kDoneFeedingInputBlocks,
     kGetAllWorkOrders
   };
@@ -103,7 +102,6 @@ class MockOperator: public RelationalOperator {
         num_calls_get_workorders_(0),
         num_workorders_generated_(0),
         num_calls_feedblock_(0),
-        num_calls_feedblocks_(0),
         num_calls_donefeedingblocks_(0) {
   }
 
@@ -123,8 +121,6 @@ class MockOperator: public RelationalOperator {
     switch (fname) {
       case kFeedInputBlock:
         return num_calls_feedblock_;
-      case kFeedInputBlocks:
-        return num_calls_feedblocks_;
       case kDoneFeedingInputBlocks:
         return num_calls_donefeedingblocks_;
       case kGetAllWorkOrders:
@@ -159,7 +155,7 @@ class MockOperator: public RelationalOperator {
     ++num_calls_get_workorders_;
     if (produce_workorders_) {
       if (has_streaming_input_) {
-        if ((num_calls_feedblock_ > 0 || num_calls_feedblocks_ > 0) && (num_workorders_generated_ < max_workorders_)) {
+        if (num_calls_feedblock_ > 0 && (num_workorders_generated_ < max_workorders_)) {
           MOCK_OP_LOG(3) << "[stream] generate WorkOrder";
           container->addNormalWorkOrder(new MockWorkOrder(op_index_), op_index_);
           ++num_workorders_generated_;
@@ -187,12 +183,6 @@ class MockOperator: public RelationalOperator {
     MOCK_OP_LOG(3) << "count(" << num_calls_feedblock_ << ")";
   }
 
-  void feedInputBlocks(const relation_id rel_id,
-                       std::vector<block_id> *partially_filled_blocks) override {
-    ++num_calls_feedblocks_;
-    MOCK_OP_LOG(3) << "count(" << num_calls_feedblocks_ << ")";
-  }
-
   void doneFeedingInputBlocks(const relation_id rel_id) override {
     ++num_calls_donefeedingblocks_;
     MOCK_OP_LOG(3) << "count(" << num_calls_donefeedingblocks_ << ")";
@@ -215,7 +205,6 @@ class MockOperator: public RelationalOperator {
   int num_calls_get_workorders_;
   int num_workorders_generated_;
   int num_calls_feedblock_;
-  int num_calls_feedblocks_;
   int num_calls_donefeedingblocks_;
 
   QueryContext::insert_destination_id insert_destination_index_ = QueryContext::kInvalidInsertDestinationId;
@@ -317,7 +306,6 @@ TEST_F(QueryManagerTest, SingleNodeDAGNoWorkOrdersTest) {
   // We expect one call for op's getAllWorkOrders().
   EXPECT_EQ(1, op.getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(0, op.getNumCalls(MockOperator::kFeedInputBlock));
-  EXPECT_EQ(0, op.getNumCalls(MockOperator::kFeedInputBlocks));
 }
 
 TEST_F(QueryManagerTest, SingleNodeDAGStaticWorkOrdersTest) {
@@ -336,7 +324,6 @@ TEST_F(QueryManagerTest, SingleNodeDAGStaticWorkOrdersTest) {
   // We expect one call for op's getAllWorkOrders().
   EXPECT_EQ(1, op.getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(0, op.getNumCalls(MockOperator::kFeedInputBlock));
-  EXPECT_EQ(0, op.getNumCalls(MockOperator::kFeedInputBlocks));
 
   // One workorder is generated.
   EXPECT_EQ(1, op.getNumWorkOrders());
@@ -422,7 +409,6 @@ TEST_F(QueryManagerTest, SingleNodeDAGDynamicWorkOrdersTest) {
 
   // We place this check in the end, since it's true throughout the test.
   EXPECT_EQ(0, op.getNumCalls(MockOperator::kFeedInputBlock));
-  EXPECT_EQ(0, op.getNumCalls(MockOperator::kFeedInputBlocks));
 }
 
 TEST_F(QueryManagerTest, TwoNodesDAGBlockingLinkTest) {
@@ -453,11 +439,9 @@ TEST_F(QueryManagerTest, TwoNodesDAGBlockingLinkTest) {
   // Only op1 should receive a call to getAllWorkOrders initially.
   EXPECT_EQ(1, op1.getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(0, op1.getNumCalls(MockOperator::kFeedInputBlock));
-  EXPECT_EQ(0, op1.getNumCalls(MockOperator::kFeedInputBlocks));
 
   EXPECT_EQ(0, op2.getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(0, op2.getNumCalls(MockOperator::kFeedInputBlock));
-  EXPECT_EQ(0, op2.getNumCalls(MockOperator::kFeedInputBlocks));
 
   // Only op1 should produce a workorder.
   EXPECT_EQ(1, op1.getNumWorkOrders());
@@ -561,13 +545,11 @@ TEST_F(QueryManagerTest, TwoNodesDAGPipeLinkTest) {
   EXPECT_EQ(1, op1.getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(1, op1.getNumWorkOrders());
   EXPECT_EQ(0, op1.getNumCalls(MockOperator::kFeedInputBlock));
-  EXPECT_EQ(0, op1.getNumCalls(MockOperator::kFeedInputBlocks));
 
   EXPECT_EQ(1, op2.getNumCalls(MockOperator::kGetAllWorkOrders));
   // op2 will generate workorder only after receiving a streaming input.
   EXPECT_EQ(0, op2.getNumWorkOrders());
   EXPECT_EQ(0, op2.getNumCalls(MockOperator::kFeedInputBlock));
-  EXPECT_EQ(0, op2.getNumCalls(MockOperator::kFeedInputBlocks));
 
   unique_ptr<WorkerMessage> worker_message;
   worker_message.reset(query_manager_->getNextWorkerMessage(id1, -1));
@@ -590,11 +572,9 @@ TEST_F(QueryManagerTest, TwoNodesDAGPipeLinkTest) {
   // No additional call to op1's getAllWorkOrders.
   EXPECT_EQ(1, op1.getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(0, op1.getNumCalls(MockOperator::kFeedInputBlock));
-  EXPECT_EQ(0, op1.getNumCalls(MockOperator::kFeedInputBlocks));
 
   // Output from op1 should be fed to op2.
   EXPECT_EQ(1, op2.getNumCalls(MockOperator::kFeedInputBlock));
-  EXPECT_EQ(0, op2.getNumCalls(MockOperator::kFeedInputBlocks));
 
   // A call to op2's getAllWorkOrders because of the streamed input.
   EXPECT_EQ(2, op2.getNumCalls(MockOperator::kGetAllWorkOrders));

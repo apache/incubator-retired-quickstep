@@ -145,20 +145,6 @@ class RelationalOperator {
                               const relation_id input_relation_id) {}
 
   /**
-   * @brief Receive partially filled input blocks for this RelationalOperator.
-   *
-   * @note The blocks in partially_filled_blocks may not be fully filled.
-   *
-   * @param rel_id ID of the relation to which all the partially filled blocks
-   *               belong to.
-   * @param partially_filled_blocks A pointer to the vector of block IDs of the
-   *                                partially filled input blocks.
-   **/
-  virtual void feedInputBlocks(
-      const relation_id rel_id,
-      std::vector<block_id> *partially_filled_blocks) {}
-
-  /**
    * @brief Signal the end of feeding of input blocks for this
    * RelationalOperator.
    *

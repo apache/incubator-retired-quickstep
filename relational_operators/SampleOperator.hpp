@@ -112,12 +112,6 @@ class SampleOperator : public RelationalOperator {
     input_relation_block_ids_.push_back(input_block_id);
   }
 
-  void feedInputBlocks(const relation_id rel_id, std::vector<block_id> *partially_filled_blocks) override {
-    input_relation_block_ids_.insert(input_relation_block_ids_.end(),
-                                     partially_filled_blocks->begin(),
-                                     partially_filled_blocks->end());
-  }
-
   QueryContext::insert_destination_id getInsertDestinationID() const override {
     return output_destination_index_;
   }

@@ -105,13 +105,6 @@ class DeleteOperator : public RelationalOperator {
     relation_block_ids_.push_back(input_block_id);
   }
 
-  void feedInputBlocks(const relation_id rel_id, std::vector<block_id> *partially_filled_blocks) override {
-    DCHECK(!relation_is_stored_);
-    relation_block_ids_.insert(relation_block_ids_.end(),
-                               partially_filled_blocks->begin(),
-                               partially_filled_blocks->end());
-  }
-
  private:
   /**
    * @brief Create Work Order proto.

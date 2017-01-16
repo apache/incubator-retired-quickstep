@@ -48,26 +48,6 @@ using std::vector;
 
 namespace quickstep {
 
-void NestedLoopsJoinOperator::feedInputBlocks(const relation_id rel_id,
-                                              std::vector<block_id> *partially_filled_blocks) {
-  for (std::vector<block_id>::const_iterator it = partially_filled_blocks->begin();
-       it != partially_filled_blocks->end();
-       ++it) {
-    feedInputBlock(*it, rel_id);
-  }
-}
-
-void NestedLoopsJoinOperator::feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) {
-  if (input_relation_id == left_input_relation_.getID()) {
-    left_relation_block_ids_.push_back(input_block_id);
-  } else if (input_relation_id == right_input_relation_.getID()) {
-    right_relation_block_ids_.push_back(input_block_id);
-  } else {
-    FATAL_ERROR("The input block sent to the NestedLoopsJoinOperator belongs "
-                "to a different relation than the left and right relations");
-  }
-}
-
 bool NestedLoopsJoinOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
     QueryContext *query_context,

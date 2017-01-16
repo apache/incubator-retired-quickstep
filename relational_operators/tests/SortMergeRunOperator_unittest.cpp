@@ -1601,7 +1601,9 @@ class SortMergeRunOperatorTest : public ::testing::Test {
 
     // Feed blocks.
     DVLOG(1) << "Feeding " << to_feed.size() << " blocks.";
-    merge_op_->feedInputBlocks(input_table_->getID(), &to_feed);
+    for (const block_id block : to_feed) {
+      merge_op_->feedInputBlock(block, input_table_->getID());
+    }
 
     // Remove fed blocks.
     blocks->erase(blocks->begin() + blocks->size() - count, blocks->end());

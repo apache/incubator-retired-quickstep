@@ -90,12 +90,6 @@ class TableGeneratorOperator : public RelationalOperator {
 
   bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
-  void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override {
-  }
-
-  void feedInputBlocks(const relation_id rel_id, std::vector<block_id> *partially_filled_blocks) override {
-  }
-
   QueryContext::insert_destination_id getInsertDestinationID() const override {
     return output_destination_index_;
   }
