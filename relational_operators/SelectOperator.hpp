@@ -204,10 +204,9 @@ class SelectOperator : public RelationalOperator {
 
   bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
-  void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override {
+  void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id,
+                      const partition_id part_id) override {
     if (input_relation_.hasPartitionScheme()) {
-      const partition_id part_id =
-          input_relation_.getPartitionScheme()->getPartitionForBlock(input_block_id);
       input_relation_block_ids_in_partition_[part_id].push_back(input_block_id);
     } else {
       input_relation_block_ids_.push_back(input_block_id);

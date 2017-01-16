@@ -141,7 +141,8 @@ class NestedLoopsJoinOperator : public RelationalOperator {
     }
   }
 
-  void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override {
+  void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id,
+                      const partition_id part_id) override {
     if (input_relation_id == left_input_relation_.getID()) {
       left_relation_block_ids_.push_back(input_block_id);
     } else if (input_relation_id == right_input_relation_.getID()) {

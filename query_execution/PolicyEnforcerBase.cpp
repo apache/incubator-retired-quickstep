@@ -118,7 +118,7 @@ void PolicyEnforcerBase::processMessage(const TaggedMessage &tagged_message) {
 
       op_index = proto.operator_index();
       admitted_queries_[query_id]->processDataPipelineMessage(
-          op_index, proto.block_id(), proto.relation_id());
+          op_index, proto.block_id(), proto.relation_id(), proto.partition_id());
       break;
     }
     case kWorkOrderFeedbackMessage: {

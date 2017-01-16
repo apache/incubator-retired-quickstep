@@ -138,11 +138,11 @@ class RelationalOperator {
    * @brief Receive input blocks for this RelationalOperator.
    *
    * @param input_block_id The ID of the input block.
-   *
    * @param relation_id The ID of the relation that produced this input_block.
+   * @param part_id The partition ID of 'input_block_id'.
    **/
-  virtual void feedInputBlock(const block_id input_block_id,
-                              const relation_id input_relation_id) {}
+  virtual void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id,
+                              const partition_id part_id) {}
 
   /**
    * @brief Signal the end of feeding of input blocks for this

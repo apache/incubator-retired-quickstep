@@ -789,7 +789,7 @@ void PartitionAwareInsertDestination::returnBlockInPartition(MutableBlockReferen
                                                        << "invalidated one or more IndexSubBlocks.");
   }
   // Note that the block will only be sent if it's full (true).
-  sendBlockFilledMessage(block->getID());
+  sendBlockFilledMessage(block->getID(), part_id);
 }
 
 }  // namespace quickstep

@@ -177,8 +177,8 @@ class MockOperator: public RelationalOperator {
     return true;
   }
 
-  void feedInputBlock(const block_id input_block_id,
-                      const relation_id input_relation_id) override {
+  void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id,
+                      const partition_id part_id) override {
     ++num_calls_feedblock_;
     MOCK_OP_LOG(3) << "count(" << num_calls_feedblock_ << ")";
   }

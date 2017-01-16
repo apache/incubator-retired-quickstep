@@ -192,13 +192,14 @@ void QueryManagerBase::processOperator(const dag_node_index index,
 
 void QueryManagerBase::processDataPipelineMessage(const dag_node_index op_index,
                                                   const block_id block,
-                                                  const relation_id rel_id) {
+                                                  const relation_id rel_id,
+                                                  const partition_id part_id) {
   for (const dag_node_index consumer_index :
        output_consumers_[op_index]) {
     // Feed the streamed block to the consumer. Note that 'output_consumers_'
     // only contain those dependents of operator with index = op_index which are
     // eligible to receive streamed input.
-    query_dag_->getNodePayloadMutable(consumer_index)->feedInputBlock(block, rel_id);
+    query_dag_->getNodePayloadMutable(consumer_index)->feedInputBlock(block, rel_id, part_id);
     // Because of the streamed input just fed, check if there are any new
     // WorkOrders available and if so, fetch them.
     fetchNormalWorkOrders(consumer_index);

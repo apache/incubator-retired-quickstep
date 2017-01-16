@@ -216,13 +216,15 @@ class InsertDestination : public InsertDestinationInterface {
    *        scheduler.
    *
    * @param id The id of the StorageBlock to be pipelined.
+   * @param part_id The partition id of Block <id>, if any.
    **/
-  void sendBlockFilledMessage(const block_id id) const {
+  void sendBlockFilledMessage(const block_id id, const partition_id part_id = 0) const {
     serialization::DataPipelineMessage proto;
     proto.set_operator_index(relational_op_index_);
     proto.set_block_id(id);
     proto.set_relation_id(relation_.getID());
     proto.set_query_id(query_id_);
+    proto.set_partition_id(part_id);
 
     // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
     const std::size_t proto_length = proto.ByteSize();

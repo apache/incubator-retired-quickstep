@@ -65,6 +65,9 @@ message DataPipelineMessage {
   required fixed64 block_id = 2;
   required int32 relation_id = 3;
   required uint64 query_id = 4;
+
+  // Used by PartitionAwareInsertDestination.
+  optional uint64 partition_id = 5 [default = 0];
 }
 
 // Distributed version related messages.

@@ -109,10 +109,13 @@ class QueryManagerBase {
    *        for the pipelining block.
    * @param block The block id.
    * @param rel_id The ID of the relation that produced 'block'.
+   * @param part_id The partition ID of 'block', if any. By default, a block
+   *        blongs to the only partition (aka, no partition).
    **/
   void processDataPipelineMessage(const dag_node_index op_index,
                                   const block_id block,
-                                  const relation_id rel_id);
+                                  const relation_id rel_id,
+                                  const partition_id part_id = 0);
 
   /**
    * @brief Fetch all work orders currently available in relational operator and
