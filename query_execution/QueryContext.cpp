@@ -79,9 +79,15 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
   }
 
   for (int i = 0; i < proto.join_hash_tables_size(); ++i) {
-    join_hash_tables_.emplace_back(
-        JoinHashTableFactory::CreateResizableFromProto(proto.join_hash_tables(i),
-                                                       storage_manager));
+    PartitionedJoinHashTables partitioned_join_hash_tables;
+
+    const serialization::QueryContext::HashTableContext &hash_table_context_proto = proto.join_hash_tables(i);
+    for (std::uint64_t j = 0; j < hash_table_context_proto.num_partitions(); ++j) {
+      partitioned_join_hash_tables.emplace_back(
+          JoinHashTableFactory::CreateResizableFromProto(hash_table_context_proto.join_hash_table(), storage_manager));
+    }
+
+    join_hash_tables_.push_back(move(partitioned_join_hash_tables));
   }
 
   for (int i = 0; i < proto.insert_destinations_size(); ++i) {
@@ -178,7 +184,7 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
   }
 
   for (int i = 0; i < proto.join_hash_tables_size(); ++i) {
-    if (!JoinHashTableFactory::ProtoIsValid(proto.join_hash_tables(i))) {
+    if (!JoinHashTableFactory::ProtoIsValid(proto.join_hash_tables(i).join_hash_table())) {
       return false;
     }
   }

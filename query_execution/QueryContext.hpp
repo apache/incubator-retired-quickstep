@@ -278,33 +278,37 @@ class QueryContext {
    * @brief Whether the given JoinHashTable id is valid.
    *
    * @param id The JoinHashTable id.
+   * @param part_id The partition id.
    *
    * @return True if valid, otherwise false.
    **/
-  bool isValidJoinHashTableId(const join_hash_table_id id) const {
-    return id < join_hash_tables_.size();
+  bool isValidJoinHashTableId(const join_hash_table_id id, const partition_id part_id) const {
+    return id < join_hash_tables_.size() &&
+           part_id < join_hash_tables_[id].size();
   }
 
   /**
    * @brief Get the JoinHashTable.
    *
    * @param id The JoinHashTable id in the query.
+   * @param part_id The partition id.
    *
    * @return The JoinHashTable, already created in the constructor.
    **/
-  inline JoinHashTable* getJoinHashTable(const join_hash_table_id id) {
-    DCHECK_LT(id, join_hash_tables_.size());
-    return join_hash_tables_[id].get();
+  inline JoinHashTable* getJoinHashTable(const join_hash_table_id id, const partition_id part_id) {
+    DCHECK(isValidJoinHashTableId(id, part_id));
+    return join_hash_tables_[id][part_id].get();
   }
 
   /**
    * @brief Destory the given JoinHashTable.
    *
    * @param id The id of the JoinHashTable to destroy.
+   * @param part_id The partition id.
    **/
-  inline void destroyJoinHashTable(const join_hash_table_id id) {
-    DCHECK_LT(id, join_hash_tables_.size());
-    join_hash_tables_[id].reset();
+  inline void destroyJoinHashTable(const join_hash_table_id id, const partition_id part_id) {
+    DCHECK(isValidJoinHashTableId(id, part_id));
+    join_hash_tables_[id][part_id].reset();
   }
 
   /**
@@ -562,10 +566,13 @@ class QueryContext {
   }
 
  private:
+  // Per hash join, the index is the partition id.
+  typedef std::vector<std::unique_ptr<JoinHashTable>> PartitionedJoinHashTables;
+
   std::vector<std::unique_ptr<AggregationOperationState>> aggregation_states_;
   std::vector<std::unique_ptr<const GeneratorFunctionHandle>> generator_functions_;
   std::vector<std::unique_ptr<InsertDestination>> insert_destinations_;
-  std::vector<std::unique_ptr<JoinHashTable>> join_hash_tables_;
+  std::vector<PartitionedJoinHashTables> join_hash_tables_;
   std::vector<std::unique_ptr<LIPFilterDeployment>> lip_deployments_;
   std::vector<std::unique_ptr<LIPFilter>> lip_filters_;
   std::vector<std::unique_ptr<const Predicate>> predicates_;

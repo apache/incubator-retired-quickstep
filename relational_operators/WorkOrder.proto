@@ -63,13 +63,16 @@ message AggregationWorkOrder {
   }
 }
 
+// Next tag: 40.
 message BuildHashWorkOrder {
   extend WorkOrder {
     // All required.
     optional int32 relation_id = 32;
     repeated int32 join_key_attributes = 33;
     optional bool any_join_key_attributes_nullable = 34;
+    optional uint64 num_partitions = 38;
     optional uint32 join_hash_table_index = 35;
+    optional uint64 partition_id = 39;
     optional fixed64 block_id = 36;
     optional int32 lip_deployment_index = 37;
   }
@@ -89,6 +92,7 @@ message DestroyHashWorkOrder {
   extend WorkOrder {
     // All required.
     optional uint32 join_hash_table_index = 112;
+    optional uint64 partition_id = 113;
   }
 }
 
@@ -109,6 +113,7 @@ message FinalizeAggregationWorkOrder {
   }
 }
 
+// Next tag: 174.
 message HashJoinWorkOrder {
   enum HashJoinWorkOrderType {
     HASH_ANTI_JOIN = 0;
@@ -124,8 +129,10 @@ message HashJoinWorkOrder {
     optional int32 probe_relation_id = 162;
     repeated int32 join_key_attributes = 163;
     optional bool any_join_key_attributes_nullable = 164;
+    optional uint64 num_partitions = 172;
     optional int32 insert_destination_index = 165;
     optional uint32 join_hash_table_index = 166;
+    optional uint64 partition_id = 173;
     optional int32 selection_index = 167;
     optional fixed64 block_id = 168;
 

@@ -27,6 +27,7 @@
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/PartitionScheme.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -75,6 +76,8 @@ class BuildHashOperator : public RelationalOperator {
    * @param join_key_attributes The IDs of equijoin attributes in
    *        input_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
+   * @param num_partitions The number of partitions in 'input_relation'. If no
+   *        partitions, it is one.
    * @param hash_table_index The index of the JoinHashTable in QueryContext.
    *        The HashTable's key Type(s) should be the Type(s) of the
    *        join_key_attributes in input_relation.
@@ -84,17 +87,30 @@ class BuildHashOperator : public RelationalOperator {
                     const bool input_relation_is_stored,
                     const std::vector<attribute_id> &join_key_attributes,
                     const bool any_join_key_attributes_nullable,
+                    const std::size_t num_partitions,
                     const QueryContext::join_hash_table_id hash_table_index)
-    : RelationalOperator(query_id),
-      input_relation_(input_relation),
-      input_relation_is_stored_(input_relation_is_stored),
-      join_key_attributes_(join_key_attributes),
-      any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-      hash_table_index_(hash_table_index),
-      input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
-                                                         : std::vector<block_id>()),
-      num_workorders_generated_(0),
-      started_(false) {}
+      : RelationalOperator(query_id),
+        input_relation_(input_relation),
+        input_relation_is_stored_(input_relation_is_stored),
+        join_key_attributes_(join_key_attributes),
+        any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
+        num_partitions_(num_partitions),
+        hash_table_index_(hash_table_index),
+        input_relation_block_ids_(num_partitions),
+        num_workorders_generated_(num_partitions),
+        started_(false) {
+    if (input_relation_is_stored) {
+      if (input_relation.hasPartitionScheme()) {
+        const PartitionScheme &part_scheme = *input_relation.getPartitionScheme();
+        for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+          input_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
+        }
+      } else {
+        // No partition.
+        input_relation_block_ids_[0] = input_relation.getBlocksSnapshot();
+      }
+    }
+  }
 
   ~BuildHashOperator() override {}
 
@@ -116,7 +132,7 @@ class BuildHashOperator : public RelationalOperator {
 
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id,
                       const partition_id part_id) override {
-    input_relation_block_ids_.push_back(input_block_id);
+    input_relation_block_ids_[part_id].push_back(input_block_id);
   }
 
  private:
@@ -124,17 +140,20 @@ class BuildHashOperator : public RelationalOperator {
    * @brief Create Work Order proto.
    *
    * @param block The block id used in the Work Order.
+   * @param part_id The partition id of 'input_relation_'.
    **/
-  serialization::WorkOrder* createWorkOrderProto(const block_id block);
+  serialization::WorkOrder* createWorkOrderProto(const block_id block, const partition_id part_id);
 
   const CatalogRelation &input_relation_;
   const bool input_relation_is_stored_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
+  const std::size_t num_partitions_;
   const QueryContext::join_hash_table_id hash_table_index_;
 
-  std::vector<block_id> input_relation_block_ids_;
-  std::vector<block_id>::size_type num_workorders_generated_;
+  // The index is the partition id.
+  std::vector<BlocksInPartition> input_relation_block_ids_;
+  std::vector<std::size_t> num_workorders_generated_;
 
   bool started_;
 
@@ -154,6 +173,9 @@ class BuildHashWorkOrder : public WorkOrder {
    * @param join_key_attributes The IDs of equijoin attributes in
    *        input_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
+   * @param num_partitions The number of partitions in 'input_relation'. If no
+   *        partitions, it is one.
+   * @param part_id The partition id of 'input_relation'.
    * @param build_block_id The block id.
    * @param hash_table The JoinHashTable to use.
    * @param storage_manager The StorageManager to use.
@@ -163,6 +185,8 @@ class BuildHashWorkOrder : public WorkOrder {
                      const CatalogRelationSchema &input_relation,
                      const std::vector<attribute_id> &join_key_attributes,
                      const bool any_join_key_attributes_nullable,
+                     const std::size_t num_partitions,
+                     const partition_id part_id,
                      const block_id build_block_id,
                      JoinHashTable *hash_table,
                      StorageManager *storage_manager,
@@ -171,6 +195,8 @@ class BuildHashWorkOrder : public WorkOrder {
         input_relation_(input_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
+        num_partitions_(num_partitions),
+        part_id_(part_id),
         build_block_id_(build_block_id),
         hash_table_(DCHECK_NOTNULL(hash_table)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
@@ -184,6 +210,9 @@ class BuildHashWorkOrder : public WorkOrder {
    * @param join_key_attributes The IDs of equijoin attributes in
    *        input_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
+   * @param num_partitions The number of partitions in 'input_relation'. If no
+   *        partitions, it is one.
+   * @param part_id The partition id of 'input_relation'.
    * @param build_block_id The block id.
    * @param hash_table The JoinHashTable to use.
    * @param storage_manager The StorageManager to use.
@@ -193,6 +222,8 @@ class BuildHashWorkOrder : public WorkOrder {
                      const CatalogRelationSchema &input_relation,
                      std::vector<attribute_id> &&join_key_attributes,
                      const bool any_join_key_attributes_nullable,
+                     const std::size_t num_partitions,
+                     const partition_id part_id,
                      const block_id build_block_id,
                      JoinHashTable *hash_table,
                      StorageManager *storage_manager,
@@ -201,6 +232,8 @@ class BuildHashWorkOrder : public WorkOrder {
         input_relation_(input_relation),
         join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
+        num_partitions_(num_partitions),
+        part_id_(part_id),
         build_block_id_(build_block_id),
         hash_table_(DCHECK_NOTNULL(hash_table)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
@@ -214,10 +247,30 @@ class BuildHashWorkOrder : public WorkOrder {
 
   void execute() override;
 
+  /**
+   * @brief Get the number of partitions.
+   *
+   * @return The number of partitions.
+   */
+  std::size_t num_partitions() const {
+    return num_partitions_;
+  }
+
+  /**
+   * @brief Get the partition id.
+   *
+   * @return The partition id.
+   */
+  partition_id getPartitionId() const {
+    return part_id_;
+  }
+
  private:
   const CatalogRelationSchema &input_relation_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
+  const std::size_t num_partitions_;
+  const partition_id part_id_;
   const block_id build_block_id_;
 
   JoinHashTable *hash_table_;

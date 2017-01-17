@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <limits>
 #include <string>
+#include <vector>
 
 #include "utility/Macros.hpp"
 
@@ -48,6 +49,8 @@ static constexpr block_id kInvalidBlockId = 0;
 static constexpr int kBlockIdDomainLengthInDigits = std::numeric_limits<block_id_domain>::digits10;
 static constexpr int kBlockIdCounterLengthInDigits = std::numeric_limits<block_id_counter>::digits10;
 static constexpr block_id_domain kMaxDomain = static_cast<block_id_domain>(0xFFFF);
+
+typedef std::vector<block_id> BlocksInPartition;
 
 /**
  * @brief All-static object that provides access to block_id.

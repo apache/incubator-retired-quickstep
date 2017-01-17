@@ -207,49 +207,43 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
         query_context->getScalarGroup(selection_index_);
     InsertDestination *output_destination =
         query_context->getInsertDestination(output_destination_index_);
-    const JoinHashTable &hash_table =
-        *(query_context->getJoinHashTable(hash_table_index_));
 
     if (probe_relation_is_stored_) {
-      if (!started_) {
-        for (const block_id probe_block_id : probe_relation_block_ids_) {
+      if (started_) {
+        return true;
+      }
+
+      for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+        const JoinHashTable &hash_table =
+            *(query_context->getJoinHashTable(hash_table_index_, part_id));
+
+        for (const block_id probe_block_id : probe_relation_block_ids_[part_id]) {
           container->addNormalWorkOrder(
-              new JoinWorkOrderClass(query_id_,
-                                     build_relation_,
-                                     probe_relation_,
-                                     join_key_attributes_,
-                                     any_join_key_attributes_nullable_,
-                                     probe_block_id,
-                                     residual_predicate,
-                                     selection,
-                                     hash_table,
-                                     output_destination,
-                                     storage_manager,
+              new JoinWorkOrderClass(query_id_, build_relation_, probe_relation_, join_key_attributes_,
+                                     any_join_key_attributes_nullable_, num_partitions_, part_id, probe_block_id,
+                                     residual_predicate, selection, hash_table, output_destination, storage_manager,
                                      CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
               op_index_);
         }
-        started_ = true;
       }
-      return started_;
+      started_ = true;
+      return true;
     } else {
-      while (num_workorders_generated_ < probe_relation_block_ids_.size()) {
-        container->addNormalWorkOrder(
-            new JoinWorkOrderClass(
-                query_id_,
-                build_relation_,
-                probe_relation_,
-                join_key_attributes_,
-                any_join_key_attributes_nullable_,
-                probe_relation_block_ids_[num_workorders_generated_],
-                residual_predicate,
-                selection,
-                hash_table,
-                output_destination,
-                storage_manager,
-                CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
-            op_index_);
-        ++num_workorders_generated_;
-      }  // end while
+      for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+        const JoinHashTable &hash_table =
+            *(query_context->getJoinHashTable(hash_table_index_, part_id));
+
+        while (num_workorders_generated_[part_id] < probe_relation_block_ids_[part_id].size()) {
+          container->addNormalWorkOrder(
+              new JoinWorkOrderClass(query_id_, build_relation_, probe_relation_, join_key_attributes_,
+                                     any_join_key_attributes_nullable_, num_partitions_, part_id,
+                                     probe_relation_block_ids_[part_id][num_workorders_generated_[part_id]],
+                                     residual_predicate, selection, hash_table, output_destination, storage_manager,
+                                     CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
+              op_index_);
+          ++num_workorders_generated_[part_id];
+        }  // end while
+      }  // end for
       return done_feeding_input_relation_;
     }  // end else (probe_relation_is_stored_)
   }  // end if (blocking_dependencies_met_)
@@ -269,49 +263,44 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
 
     InsertDestination *output_destination =
         query_context->getInsertDestination(output_destination_index_);
-    const JoinHashTable &hash_table =
-        *(query_context->getJoinHashTable(hash_table_index_));
 
     if (probe_relation_is_stored_) {
-      if (!started_) {
-        for (const block_id probe_block_id : probe_relation_block_ids_) {
+      if (started_) {
+        return true;
+      }
+
+      for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+        const JoinHashTable &hash_table =
+            *(query_context->getJoinHashTable(hash_table_index_, part_id));
+
+        for (const block_id probe_block_id : probe_relation_block_ids_[part_id]) {
           container->addNormalWorkOrder(
-              new HashOuterJoinWorkOrder(
-                  query_id_,
-                  build_relation_,
-                  probe_relation_,
-                  join_key_attributes_,
-                  any_join_key_attributes_nullable_,
-                  probe_block_id,
-                  selection,
-                  is_selection_on_build_,
-                  hash_table,
-                  output_destination,
-                  storage_manager,
-                  CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
+              new HashOuterJoinWorkOrder(query_id_, build_relation_, probe_relation_, join_key_attributes_,
+                                         any_join_key_attributes_nullable_, num_partitions_, part_id, probe_block_id,
+                                         selection, is_selection_on_build_, hash_table, output_destination,
+                                         storage_manager,
+                                         CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
               op_index_);
         }
-        started_ = true;
       }
-      return started_;
+      started_ = true;
+      return true;
     } else {
-      while (num_workorders_generated_ < probe_relation_block_ids_.size()) {
-        container->addNormalWorkOrder(
-            new HashOuterJoinWorkOrder(
-                query_id_,
-                build_relation_,
-                probe_relation_,
-                join_key_attributes_,
-                any_join_key_attributes_nullable_,
-                probe_relation_block_ids_[num_workorders_generated_],
-                selection,
-                is_selection_on_build_,
-                hash_table,
-                output_destination,
-                storage_manager,
-                CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
-            op_index_);
-        ++num_workorders_generated_;
+      for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+        const JoinHashTable &hash_table =
+            *(query_context->getJoinHashTable(hash_table_index_, part_id));
+
+        while (num_workorders_generated_[part_id] < probe_relation_block_ids_[part_id].size()) {
+          container->addNormalWorkOrder(
+              new HashOuterJoinWorkOrder(query_id_, build_relation_, probe_relation_, join_key_attributes_,
+                                         any_join_key_attributes_nullable_, num_partitions_, part_id,
+                                         probe_relation_block_ids_[part_id][num_workorders_generated_[part_id]],
+                                         selection, is_selection_on_build_, hash_table, output_destination,
+                                         storage_manager,
+                                         CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
+              op_index_);
+          ++num_workorders_generated_[part_id];
+        }
       }
       return done_feeding_input_relation_;
     }  // end else (probe_relation_is_stored_)
@@ -343,22 +332,29 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrderProtos(
   }
 
   if (probe_relation_is_stored_) {
-    if (!started_) {
-      for (const block_id probe_block_id : probe_relation_block_ids_) {
+    if (started_) {
+      return true;
+    }
+
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+      for (const block_id probe_block_id : probe_relation_block_ids_[part_id]) {
         container->addWorkOrderProto(
-            createNonOuterJoinWorkOrderProto(hash_join_type, probe_block_id),
+            createNonOuterJoinWorkOrderProto(hash_join_type, probe_block_id, part_id),
             op_index_);
       }
-      started_ = true;
     }
+    started_ = true;
     return true;
   } else {
-    while (num_workorders_generated_ < probe_relation_block_ids_.size()) {
-      container->addWorkOrderProto(
-          createNonOuterJoinWorkOrderProto(hash_join_type,
-                                           probe_relation_block_ids_[num_workorders_generated_]),
-          op_index_);
-      ++num_workorders_generated_;
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+      while (num_workorders_generated_[part_id] < probe_relation_block_ids_[part_id].size()) {
+        container->addWorkOrderProto(
+            createNonOuterJoinWorkOrderProto(hash_join_type,
+                                             probe_relation_block_ids_[part_id][num_workorders_generated_[part_id]],
+                                             part_id),
+            op_index_);
+        ++num_workorders_generated_[part_id];
+      }
     }
 
     return done_feeding_input_relation_;
@@ -367,7 +363,7 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrderProtos(
 
 serialization::WorkOrder* HashJoinOperator::createNonOuterJoinWorkOrderProto(
     const serialization::HashJoinWorkOrder::HashJoinWorkOrderType hash_join_type,
-    const block_id block) {
+    const block_id block, const partition_id part_id) {
   serialization::WorkOrder *proto = new serialization::WorkOrder;
   proto->set_work_order_type(serialization::HASH_JOIN);
   proto->set_query_id(query_id_);
@@ -380,8 +376,10 @@ serialization::WorkOrder* HashJoinOperator::createNonOuterJoinWorkOrderProto(
   }
   proto->SetExtension(serialization::HashJoinWorkOrder::any_join_key_attributes_nullable,
                       any_join_key_attributes_nullable_);
+  proto->SetExtension(serialization::HashJoinWorkOrder::num_partitions, num_partitions_);
   proto->SetExtension(serialization::HashJoinWorkOrder::insert_destination_index, output_destination_index_);
   proto->SetExtension(serialization::HashJoinWorkOrder::join_hash_table_index, hash_table_index_);
+  proto->SetExtension(serialization::HashJoinWorkOrder::partition_id, part_id);
   proto->SetExtension(serialization::HashJoinWorkOrder::selection_index, selection_index_);
   proto->SetExtension(serialization::HashJoinWorkOrder::block_id, block);
   proto->SetExtension(serialization::HashJoinWorkOrder::residual_predicate_index, residual_predicate_index_);
@@ -397,26 +395,34 @@ bool HashJoinOperator::getAllOuterJoinWorkOrderProtos(WorkOrderProtosContainer *
   }
 
   if (probe_relation_is_stored_) {
-    if (!started_) {
-      for (const block_id probe_block_id : probe_relation_block_ids_) {
-        container->addWorkOrderProto(createOuterJoinWorkOrderProto(probe_block_id), op_index_);
-      }
-      started_ = true;
+    if (started_) {
+      return true;
     }
+
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+      for (const block_id probe_block_id : probe_relation_block_ids_[part_id]) {
+        container->addWorkOrderProto(createOuterJoinWorkOrderProto(probe_block_id, part_id), op_index_);
+      }
+    }
+    started_ = true;
     return true;
   } else {
-    while (num_workorders_generated_ < probe_relation_block_ids_.size()) {
-      container->addWorkOrderProto(
-          createOuterJoinWorkOrderProto(probe_relation_block_ids_[num_workorders_generated_]),
-          op_index_);
-      ++num_workorders_generated_;
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+      while (num_workorders_generated_[part_id] < probe_relation_block_ids_[part_id].size()) {
+        container->addWorkOrderProto(
+            createOuterJoinWorkOrderProto(probe_relation_block_ids_[part_id][num_workorders_generated_[part_id]],
+                                          part_id),
+            op_index_);
+        ++num_workorders_generated_[part_id];
+      }
     }
 
     return done_feeding_input_relation_;
   }
 }
 
-serialization::WorkOrder* HashJoinOperator::createOuterJoinWorkOrderProto(const block_id block) {
+serialization::WorkOrder* HashJoinOperator::createOuterJoinWorkOrderProto(const block_id block,
+                                                                          const partition_id part_id) {
   serialization::WorkOrder *proto = new serialization::WorkOrder;
   proto->set_work_order_type(serialization::HASH_JOIN);
   proto->set_query_id(query_id_);
@@ -430,10 +436,12 @@ serialization::WorkOrder* HashJoinOperator::createOuterJoinWorkOrderProto(const 
   }
   proto->SetExtension(serialization::HashJoinWorkOrder::any_join_key_attributes_nullable,
                       any_join_key_attributes_nullable_);
+  proto->SetExtension(serialization::HashJoinWorkOrder::num_partitions, num_partitions_);
   proto->SetExtension(serialization::HashJoinWorkOrder::insert_destination_index, output_destination_index_);
   proto->SetExtension(serialization::HashJoinWorkOrder::join_hash_table_index, hash_table_index_);
   proto->SetExtension(serialization::HashJoinWorkOrder::selection_index, selection_index_);
   proto->SetExtension(serialization::HashJoinWorkOrder::block_id, block);
+  proto->SetExtension(serialization::HashJoinWorkOrder::partition_id, part_id);
   proto->SetExtension(serialization::HashJoinWorkOrder::lip_deployment_index, lip_deployment_index_);
 
   for (const bool is_attribute_on_build : is_selection_on_build_) {

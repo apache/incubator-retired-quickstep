@@ -97,6 +97,8 @@ constexpr tuple_id kBlockSize = 10;
 constexpr std::size_t kQueryId = 0;
 constexpr int kOpIndex = 0;
 
+constexpr std::size_t kNumPartitions = 1;
+
 }  // namespace
 
 class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> {
@@ -192,6 +194,8 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
       }
       storage_block->rebuild();
     }
+
+    num_partitions_ = kNumPartitions;
   }
 
   virtual void TearDown() {
@@ -291,6 +295,8 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
   unique_ptr<CatalogDatabase> db_;
   // The following CatalogRelations are owned by db_.
   CatalogRelation *dim_table_, *fact_table_;
+
+  std::size_t num_partitions_;
 };
 
 TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
@@ -302,7 +308,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
       query_context_proto.join_hash_tables_size();
 
   serialization::HashTable *hash_table_proto =
-      query_context_proto.add_join_hash_tables();
+      query_context_proto.add_join_hash_tables()->mutable_join_hash_table();
   switch (GetParam()) {
     case HashTableImplType::kLinearOpenAddressing:
       hash_table_proto->set_hash_table_impl_type(
@@ -341,6 +347,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_long.getID()),
                             dim_col_long.getType().isNullable(),
+                            num_partitions_,
                             join_hash_table_index));
 
   // Create the prober operator with one selection attribute.
@@ -370,6 +377,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
       true /* is_stored */,
       std::vector<attribute_id>(1, fact_col_long.getID()),
       fact_col_long.getType().isNullable(),
+      num_partitions_,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -427,7 +435,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, num_partitions_, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -443,7 +451,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
       query_context_proto.join_hash_tables_size();
 
   serialization::HashTable *hash_table_proto =
-      query_context_proto.add_join_hash_tables();
+      query_context_proto.add_join_hash_tables()->mutable_join_hash_table();
   switch (GetParam()) {
     case HashTableImplType::kLinearOpenAddressing:
       hash_table_proto->set_hash_table_impl_type(
@@ -485,6 +493,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_int.getID()),
                             dim_col_int.getType().isNullable(),
+                            num_partitions_,
                             join_hash_table_index));
 
   // Create the prober operator with two selection attributes.
@@ -519,6 +528,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
       true /* is_stored */,
       std::vector<attribute_id>(1, fact_col_int.getID()),
       fact_col_int.getType().isNullable(),
+      num_partitions_,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -598,7 +608,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, num_partitions_, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -614,7 +624,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
       query_context_proto.join_hash_tables_size();
 
   serialization::HashTable *hash_table_proto =
-      query_context_proto.add_join_hash_tables();
+      query_context_proto.add_join_hash_tables()->mutable_join_hash_table();
   switch (GetParam()) {
     case HashTableImplType::kLinearOpenAddressing:
       hash_table_proto->set_hash_table_impl_type(
@@ -648,6 +658,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_char.getID()),
                             dim_col_char.getType().isNullable(),
+                            num_partitions_,
                             join_hash_table_index));
 
   // Create prober operator with one selection attribute.
@@ -677,6 +688,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
       true /* is_stored */,
       std::vector<attribute_id>(1, fact_col_char.getID()),
       fact_col_char.getType().isNullable(),
+      num_partitions_,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -734,7 +746,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, num_partitions_, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -750,7 +762,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
       query_context_proto.join_hash_tables_size();
 
   serialization::HashTable *hash_table_proto =
-      query_context_proto.add_join_hash_tables();
+      query_context_proto.add_join_hash_tables()->mutable_join_hash_table();
   switch (GetParam()) {
     case HashTableImplType::kLinearOpenAddressing:
       hash_table_proto->set_hash_table_impl_type(
@@ -785,6 +797,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_varchar.getID()),
                             dim_col_varchar.getType().isNullable(),
+                            num_partitions_,
                             join_hash_table_index));
 
   // Create prober operator with two selection attributes.
@@ -819,6 +832,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
       true /* is_stored */,
       std::vector<attribute_id>(1, fact_col_varchar.getID()),
       fact_col_varchar.getType().isNullable(),
+      num_partitions_,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -902,7 +916,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
   }
 
   // Create the cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, num_partitions_, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -918,7 +932,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
       query_context_proto.join_hash_tables_size();
 
   serialization::HashTable *hash_table_proto =
-      query_context_proto.add_join_hash_tables();
+      query_context_proto.add_join_hash_tables()->mutable_join_hash_table();
   switch (GetParam()) {
     case HashTableImplType::kLinearOpenAddressing:
       hash_table_proto->set_hash_table_impl_type(
@@ -958,6 +972,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
                             true /* is_stored */,
                             dim_key_attrs,
                             dim_col_long.getType().isNullable() || dim_col_varchar.getType().isNullable(),
+                            num_partitions_,
                             join_hash_table_index));
 
   // Create the prober operator with two selection attributes.
@@ -997,6 +1012,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
       fact_key_attrs,
       fact_col_long.getType().isNullable() ||
           fact_col_varchar.getType().isNullable(),
+      num_partitions_,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -1079,7 +1095,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, num_partitions_, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -1096,7 +1112,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
       query_context_proto.join_hash_tables_size();
 
   serialization::HashTable *hash_table_proto =
-      query_context_proto.add_join_hash_tables();
+      query_context_proto.add_join_hash_tables()->mutable_join_hash_table();
   switch (GetParam()) {
     case HashTableImplType::kLinearOpenAddressing:
       hash_table_proto->set_hash_table_impl_type(
@@ -1136,6 +1152,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
                             true /* is_stored */,
                             dim_key_attrs,
                             dim_col_long.getType().isNullable() || dim_col_varchar.getType().isNullable(),
+                            num_partitions_,
                             join_hash_table_index));
 
   // Create prober operator with two selection attributes.
@@ -1185,6 +1202,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
                            fact_key_attrs,
                            fact_col_long.getType().isNullable() ||
                                fact_col_varchar.getType().isNullable(),
+                           num_partitions_,
                            *result_table,
                            output_destination_index,
                            join_hash_table_index,
@@ -1267,7 +1285,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, num_partitions_, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 

@@ -694,15 +694,32 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
                 build_physical->getOutputAttributes())));
   }
 
+  const CatalogRelation *build_relation = build_relation_info->relation;
+
   // FIXME(quickstep-team): Add support for self-join.
-  if (build_relation_info->relation == probe_operator_info->relation) {
+  if (build_relation == probe_operator_info->relation) {
     THROW_SQL_ERROR() << "Self-join is not supported";
   }
 
   // Create join hash table proto.
   const QueryContext::join_hash_table_id join_hash_table_index =
       query_context_proto_->join_hash_tables_size();
-  S::HashTable *hash_table_proto = query_context_proto_->add_join_hash_tables();
+  S::QueryContext::HashTableContext *hash_table_context_proto =
+      query_context_proto_->add_join_hash_tables();
+
+  // No partition.
+  std::size_t num_partitions = 1;
+  if (build_relation->hasPartitionScheme() &&
+      build_attribute_ids.size() == 1) {
+    const PartitionSchemeHeader &partition_scheme_header =
+        build_relation->getPartitionScheme()->getPartitionSchemeHeader();
+    if (build_attribute_ids[0] == partition_scheme_header.getPartitionAttributeId()) {
+      // TODO(zuyu): add optimizer support for partitioned hash joins.
+      hash_table_context_proto->set_num_partitions(num_partitions);
+    }
+  }
+
+  S::HashTable *hash_table_proto = hash_table_context_proto->mutable_join_hash_table();
 
   // SimplifyHashTableImplTypeProto() switches the hash table implementation
   // from SeparateChaining to SimpleScalarSeparateChaining when there is a
@@ -712,7 +729,6 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
           HashTableImplTypeProtoFromString(FLAGS_join_hashtable_type),
           key_types));
 
-  const CatalogRelationSchema *build_relation = build_relation_info->relation;
   for (const attribute_id build_attribute : build_attribute_ids) {
     hash_table_proto->add_key_types()->CopyFrom(
         build_relation->getAttributeById(build_attribute)->getType().getProto());
@@ -725,10 +741,11 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       execution_plan_->addRelationalOperator(
           new BuildHashOperator(
               query_handle_->query_id(),
-              *build_relation_info->relation,
+              *build_relation,
               build_relation_info->isStoredRelation(),
               build_attribute_ids,
               any_build_attributes_nullable,
+              num_partitions,
               join_hash_table_index));
 
   // Create InsertDestination proto.
@@ -766,11 +783,12 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       execution_plan_->addRelationalOperator(
           new HashJoinOperator(
               query_handle_->query_id(),
-              *build_relation_info->relation,
+              *build_relation,
               *probe_operator_info->relation,
               probe_operator_info->isStoredRelation(),
               probe_attribute_ids,
               any_probe_attributes_nullable,
+              num_partitions,
               *output_relation,
               insert_destination_index,
               join_hash_table_index,
@@ -782,7 +800,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
 
   const QueryPlan::DAGNodeIndex destroy_operator_index =
       execution_plan_->addRelationalOperator(new DestroyHashOperator(
-          query_handle_->query_id(), join_hash_table_index));
+          query_handle_->query_id(), num_partitions, join_hash_table_index));
 
   if (!build_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(build_operator_index,

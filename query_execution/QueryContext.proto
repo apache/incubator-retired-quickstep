@@ -30,6 +30,11 @@ import "utility/SortConfiguration.proto";
 import "utility/lip_filter/LIPFilter.proto";
 
 message QueryContext {
+  message HashTableContext {
+    required HashTable join_hash_table = 1;
+    optional uint64 num_partitions = 2 [default = 1];
+  }
+
   message ScalarGroup {
     repeated Scalar scalars = 1;
   }
@@ -47,7 +52,7 @@ message QueryContext {
 
   repeated AggregationOperationState aggregation_states = 1;
   repeated GeneratorFunctionHandle generator_functions = 2;
-  repeated HashTable join_hash_tables = 3;
+  repeated HashTableContext join_hash_tables = 3;
   repeated InsertDestination insert_destinations = 4;
   repeated LIPFilter lip_filters = 5;
   repeated LIPFilterDeployment lip_filter_deployments = 6;

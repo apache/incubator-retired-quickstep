@@ -70,38 +70,36 @@ bool BuildHashOperator::getAllWorkOrders(
     tmb::MessageBus *bus) {
   DCHECK(query_context != nullptr);
 
-  JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_index_);
   if (input_relation_is_stored_) {
-    if (!started_) {
-      for (const block_id input_block_id : input_relation_block_ids_) {
+    if (started_) {
+      return true;
+    }
+
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+      JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_index_, part_id);
+      for (const block_id block : input_relation_block_ids_[part_id]) {
         container->addNormalWorkOrder(
-            new BuildHashWorkOrder(query_id_,
-                                   input_relation_,
-                                   join_key_attributes_,
-                                   any_join_key_attributes_nullable_,
-                                   input_block_id,
-                                   hash_table,
-                                   storage_manager,
+            new BuildHashWorkOrder(query_id_, input_relation_, join_key_attributes_, any_join_key_attributes_nullable_,
+                                   num_partitions_, part_id, block, hash_table, storage_manager,
                                    CreateLIPFilterBuilderHelper(lip_deployment_index_, query_context)),
             op_index_);
       }
-      started_ = true;
     }
-    return started_;
+    started_ = true;
+    return true;
   } else {
-    while (num_workorders_generated_ < input_relation_block_ids_.size()) {
-      container->addNormalWorkOrder(
-          new BuildHashWorkOrder(
-              query_id_,
-              input_relation_,
-              join_key_attributes_,
-              any_join_key_attributes_nullable_,
-              input_relation_block_ids_[num_workorders_generated_],
-              hash_table,
-              storage_manager,
-              CreateLIPFilterBuilderHelper(lip_deployment_index_, query_context)),
-          op_index_);
-      ++num_workorders_generated_;
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+      JoinHashTable *hash_table = query_context->getJoinHashTable(hash_table_index_, part_id);
+      while (num_workorders_generated_[part_id] <
+             input_relation_block_ids_[part_id].size()) {
+        container->addNormalWorkOrder(
+            new BuildHashWorkOrder(query_id_, input_relation_, join_key_attributes_, any_join_key_attributes_nullable_,
+                                   num_partitions_, part_id,
+                                   input_relation_block_ids_[part_id][num_workorders_generated_[part_id]], hash_table,
+                                   storage_manager, CreateLIPFilterBuilderHelper(lip_deployment_index_, query_context)),
+            op_index_);
+        ++num_workorders_generated_[part_id];
+      }
     }
     return done_feeding_input_relation_;
   }
@@ -109,25 +107,31 @@ bool BuildHashOperator::getAllWorkOrders(
 
 bool BuildHashOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
   if (input_relation_is_stored_) {
-    if (!started_) {
-      for (const block_id input_block_id : input_relation_block_ids_) {
-        container->addWorkOrderProto(createWorkOrderProto(input_block_id), op_index_);
-      }
-      started_ = true;
+    if (started_) {
+      return true;
     }
+
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+      for (const block_id block : input_relation_block_ids_[part_id]) {
+        container->addWorkOrderProto(createWorkOrderProto(block, part_id), op_index_);
+      }
+    }
+    started_ = true;
     return true;
   } else {
-    while (num_workorders_generated_ < input_relation_block_ids_.size()) {
-      container->addWorkOrderProto(
-          createWorkOrderProto(input_relation_block_ids_[num_workorders_generated_]),
-          op_index_);
-      ++num_workorders_generated_;
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+      while (num_workorders_generated_[part_id] < input_relation_block_ids_[part_id].size()) {
+        container->addWorkOrderProto(
+            createWorkOrderProto(input_relation_block_ids_[part_id][num_workorders_generated_[part_id]], part_id),
+            op_index_);
+        ++num_workorders_generated_[part_id];
+      }
     }
     return done_feeding_input_relation_;
   }
 }
 
-serialization::WorkOrder* BuildHashOperator::createWorkOrderProto(const block_id block) {
+serialization::WorkOrder* BuildHashOperator::createWorkOrderProto(const block_id block, const partition_id part_id) {
   serialization::WorkOrder *proto = new serialization::WorkOrder;
   proto->set_work_order_type(serialization::BUILD_HASH);
   proto->set_query_id(query_id_);
@@ -138,7 +142,9 @@ serialization::WorkOrder* BuildHashOperator::createWorkOrderProto(const block_id
   }
   proto->SetExtension(serialization::BuildHashWorkOrder::any_join_key_attributes_nullable,
                       any_join_key_attributes_nullable_);
+  proto->SetExtension(serialization::BuildHashWorkOrder::num_partitions, num_partitions_);
   proto->SetExtension(serialization::BuildHashWorkOrder::join_hash_table_index, hash_table_index_);
+  proto->SetExtension(serialization::BuildHashWorkOrder::partition_id, part_id);
   proto->SetExtension(serialization::BuildHashWorkOrder::block_id, block);
   proto->SetExtension(serialization::BuildHashWorkOrder::lip_deployment_index, lip_deployment_index_);
 

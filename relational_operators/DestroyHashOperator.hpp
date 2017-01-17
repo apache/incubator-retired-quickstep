@@ -22,6 +22,7 @@
 
 #include <string>
 
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -52,11 +53,14 @@ class DestroyHashOperator : public RelationalOperator {
    * @brief Constructor.
    *
    * @param query_id The ID of the query to which this operator belongs.
+   * @param num_partitions The number of partitions.
    * @param hash_table_index The index of the JoinHashTable in QueryContext.
    **/
   DestroyHashOperator(const std::size_t query_id,
+                      const std::size_t num_partitions,
                       const QueryContext::join_hash_table_id hash_table_index)
       : RelationalOperator(query_id),
+        num_partitions_(num_partitions),
         hash_table_index_(hash_table_index),
         work_generated_(false) {}
 
@@ -75,6 +79,7 @@ class DestroyHashOperator : public RelationalOperator {
   bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
  private:
+  const std::size_t num_partitions_;
   const QueryContext::join_hash_table_id hash_table_index_;
   bool work_generated_;
 
@@ -91,13 +96,16 @@ class DestroyHashWorkOrder : public WorkOrder {
    *
    * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param hash_table_index The index of the JoinHashTable in QueryContext.
+   * @param part_id The partition id.
    * @param query_context The QueryContext to use.
    **/
   DestroyHashWorkOrder(const std::size_t query_id,
                        const QueryContext::join_hash_table_id hash_table_index,
+                       const partition_id part_id,
                        QueryContext *query_context)
       : WorkOrder(query_id),
         hash_table_index_(hash_table_index),
+        part_id_(part_id),
         query_context_(DCHECK_NOTNULL(query_context)) {}
 
   ~DestroyHashWorkOrder() override {}
@@ -106,6 +114,7 @@ class DestroyHashWorkOrder : public WorkOrder {
 
  private:
   const QueryContext::join_hash_table_id hash_table_index_;
+  const partition_id part_id_;
   QueryContext *query_context_;
 
   DISALLOW_COPY_AND_ASSIGN(DestroyHashWorkOrder);
