@@ -93,7 +93,7 @@ std::size_t PreloaderThread::preloadNUMAAware(
       relation.getNUMAPlacementSchemePtr();
   DCHECK(placement_scheme != nullptr);
   DCHECK(relation.hasPartitionScheme());
-  const PartitionScheme &part_scheme = relation.getPartitionScheme();
+  const PartitionScheme &part_scheme = *relation.getPartitionScheme();
   const PartitionSchemeHeader &part_scheme_header =
       part_scheme.getPartitionSchemeHeader();
   const std::size_t num_partitions = part_scheme_header.getNumPartitions();

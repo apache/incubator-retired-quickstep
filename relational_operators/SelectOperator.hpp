@@ -111,7 +111,7 @@ class SelectOperator : public RelationalOperator {
     placement_scheme_ = input_relation.getNUMAPlacementSchemePtr();
 #endif
     if (input_relation.hasPartitionScheme()) {
-      const PartitionScheme &part_scheme = input_relation.getPartitionScheme();
+      const PartitionScheme &part_scheme = *input_relation.getPartitionScheme();
       const PartitionSchemeHeader &part_scheme_header = part_scheme.getPartitionSchemeHeader();
       const std::size_t num_partitions = part_scheme_header.getNumPartitions();
       input_relation_block_ids_in_partition_.resize(num_partitions);
@@ -174,7 +174,7 @@ class SelectOperator : public RelationalOperator {
     placement_scheme_ = input_relation.getNUMAPlacementSchemePtr();
 #endif
     if (input_relation.hasPartitionScheme()) {
-      const PartitionScheme &part_scheme = input_relation.getPartitionScheme();
+      const PartitionScheme &part_scheme = *input_relation.getPartitionScheme();
       const PartitionSchemeHeader &part_scheme_header = part_scheme.getPartitionSchemeHeader();
       const std::size_t num_partitions = part_scheme_header.getNumPartitions();
       input_relation_block_ids_in_partition_.resize(num_partitions);
@@ -213,7 +213,7 @@ class SelectOperator : public RelationalOperator {
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id) override {
     if (input_relation_.hasPartitionScheme()) {
       const partition_id part_id =
-          input_relation_.getPartitionScheme().getPartitionForBlock(input_block_id);
+          input_relation_.getPartitionScheme()->getPartitionForBlock(input_block_id);
       input_relation_block_ids_in_partition_[part_id].push_back(input_block_id);
     } else {
       input_relation_block_ids_.push_back(input_block_id);

@@ -111,12 +111,11 @@ class CatalogRelation : public CatalogRelationSchema {
 
   /**
    * @brief Get the partition scheme of the catalog relation.
-   * @warning This is only safe if hasPartitionScheme() is true.
    *
-   * @return A const reference to the partition scheme of the relation.
+   * @return A const pointer to the partition scheme of the relation.
    **/
-  const PartitionScheme& getPartitionScheme() const {
-    return *partition_scheme_;
+  const PartitionScheme* getPartitionScheme() const {
+    return partition_scheme_.get();
   }
 
   /**
