@@ -166,7 +166,7 @@ class BuildHashWorkOrder : public WorkOrder {
                      const block_id build_block_id,
                      JoinHashTable *hash_table,
                      StorageManager *storage_manager,
-                     LIPFilterBuilder *lip_filter_builder = nullptr)
+                     LIPFilterBuilder *lip_filter_builder)
       : WorkOrder(query_id),
         input_relation_(input_relation),
         join_key_attributes_(join_key_attributes),
@@ -196,7 +196,7 @@ class BuildHashWorkOrder : public WorkOrder {
                      const block_id build_block_id,
                      JoinHashTable *hash_table,
                      StorageManager *storage_manager,
-                     LIPFilterBuilder *lip_filter_builder = nullptr)
+                     LIPFilterBuilder *lip_filter_builder)
       : WorkOrder(query_id),
         input_relation_(input_relation),
         join_key_attributes_(std::move(join_key_attributes)),

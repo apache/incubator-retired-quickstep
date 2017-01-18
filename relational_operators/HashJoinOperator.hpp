@@ -302,7 +302,7 @@ class HashInnerJoinWorkOrder : public WorkOrder {
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
       StorageManager *storage_manager,
-      LIPFilterAdaptiveProber *lip_filter_adaptive_prober = nullptr)
+      LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -352,7 +352,7 @@ class HashInnerJoinWorkOrder : public WorkOrder {
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
       StorageManager *storage_manager,
-      LIPFilterAdaptiveProber *lip_filter_adaptive_prober = nullptr)
+      LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -438,7 +438,7 @@ class HashSemiJoinWorkOrder : public WorkOrder {
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
       StorageManager *storage_manager,
-      LIPFilterAdaptiveProber *lip_filter_adaptive_prober = nullptr)
+      LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -488,7 +488,7 @@ class HashSemiJoinWorkOrder : public WorkOrder {
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
       StorageManager *storage_manager,
-      LIPFilterAdaptiveProber *lip_filter_adaptive_prober = nullptr)
+      LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -570,7 +570,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
       StorageManager *storage_manager,
-      LIPFilterAdaptiveProber *lip_filter_adaptive_prober = nullptr)
+      LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
@@ -620,7 +620,7 @@ class HashAntiJoinWorkOrder : public WorkOrder {
       const JoinHashTable &hash_table,
       InsertDestination *output_destination,
       StorageManager *storage_manager,
-      LIPFilterAdaptiveProber *lip_filter_adaptive_prober = nullptr)
+      LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
       : WorkOrder(query_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),

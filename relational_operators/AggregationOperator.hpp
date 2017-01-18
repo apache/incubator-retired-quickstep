@@ -137,7 +137,7 @@ class AggregationWorkOrder : public WorkOrder {
   AggregationWorkOrder(const std::size_t query_id,
                        const block_id input_block_id,
                        AggregationOperationState *state,
-                       LIPFilterAdaptiveProber *lip_filter_adaptive_prober = nullptr)
+                       LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
       : WorkOrder(query_id),
         input_block_id_(input_block_id),
         state_(DCHECK_NOTNULL(state)),
