@@ -100,9 +100,6 @@ class SelectOperator : public RelationalOperator {
         output_destination_index_(output_destination_index),
         predicate_index_(predicate_index),
         selection_index_(selection_index),
-        input_relation_block_ids_(input_relation_is_stored
-                                      ? input_relation.getBlocksSnapshot()
-                                      : std::vector<block_id>()),
         num_workorders_generated_(0),
         simple_projection_(false),
         input_relation_is_stored_(input_relation_is_stored),
@@ -112,20 +109,20 @@ class SelectOperator : public RelationalOperator {
 #endif
     if (input_relation.hasPartitionScheme()) {
       const PartitionScheme &part_scheme = *input_relation.getPartitionScheme();
-      const PartitionSchemeHeader &part_scheme_header = part_scheme.getPartitionSchemeHeader();
-      const std::size_t num_partitions = part_scheme_header.getNumPartitions();
-      input_relation_block_ids_in_partition_.resize(num_partitions);
-      num_workorders_generated_in_partition_.resize(num_partitions);
-      num_workorders_generated_in_partition_.assign(num_partitions, 0);
-      for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
-        if (input_relation_is_stored) {
-          input_relation_block_ids_in_partition_[part_id] =
-              part_scheme.getBlocksInPartition(part_id);
-        } else {
-          input_relation_block_ids_in_partition_[part_id] =
-              std::vector<block_id>();
+      num_partitions_ = part_scheme.getPartitionSchemeHeader().getNumPartitions();
+
+      num_workorders_generated_in_partition_.resize(num_partitions_);
+
+      if (input_relation_is_stored) {
+        for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+          input_relation_block_ids_in_partition_.push_back(
+              part_scheme.getBlocksInPartition(part_id));
         }
+      } else {
+        input_relation_block_ids_in_partition_.resize(num_partitions_);
       }
+    } else if (input_relation_is_stored) {
+      input_relation_block_ids_ = input_relation.getBlocksSnapshot();
     }
   }
 
@@ -163,9 +160,6 @@ class SelectOperator : public RelationalOperator {
         predicate_index_(predicate_index),
         selection_index_(QueryContext::kInvalidScalarGroupId),
         simple_selection_(std::move(selection)),
-        input_relation_block_ids_(input_relation_is_stored
-                                      ? input_relation.getBlocksSnapshot()
-                                      : std::vector<block_id>()),
         num_workorders_generated_(0),
         simple_projection_(true),
         input_relation_is_stored_(input_relation_is_stored),
@@ -175,20 +169,20 @@ class SelectOperator : public RelationalOperator {
 #endif
     if (input_relation.hasPartitionScheme()) {
       const PartitionScheme &part_scheme = *input_relation.getPartitionScheme();
-      const PartitionSchemeHeader &part_scheme_header = part_scheme.getPartitionSchemeHeader();
-      const std::size_t num_partitions = part_scheme_header.getNumPartitions();
-      input_relation_block_ids_in_partition_.resize(num_partitions);
-      num_workorders_generated_in_partition_.resize(num_partitions);
-      num_workorders_generated_in_partition_.assign(num_partitions, 0);
-      for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
-        if (input_relation_is_stored) {
-          input_relation_block_ids_in_partition_[part_id] =
-              part_scheme.getBlocksInPartition(part_id);
-        } else {
-          input_relation_block_ids_in_partition_[part_id] =
-              std::vector<block_id>();
+      num_partitions_ = part_scheme.getPartitionSchemeHeader().getNumPartitions();
+
+      num_workorders_generated_in_partition_.resize(num_partitions_);
+
+      if (input_relation_is_stored) {
+        for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+          input_relation_block_ids_in_partition_.push_back(
+              part_scheme.getBlocksInPartition(part_id));
         }
+      } else {
+        input_relation_block_ids_in_partition_.resize(num_partitions_);
       }
+    } else if (input_relation_is_stored) {
+      input_relation_block_ids_ = input_relation.getBlocksSnapshot();
     }
   }
 
@@ -245,14 +239,16 @@ class SelectOperator : public RelationalOperator {
   const std::vector<attribute_id> simple_selection_;
 
   std::vector<block_id> input_relation_block_ids_;
+  // A single workorder is generated for each block of input relation.
+  std::vector<block_id>::size_type num_workorders_generated_;
+
+  // Used for the partition case only.
   // A vector of vectors V where V[i] indicates the list of block IDs of the
   // input relation that belong to the partition i.
   std::vector<std::vector<block_id>> input_relation_block_ids_in_partition_;
-
-  // A single workorder is generated for each block of input relation.
-  std::vector<block_id>::size_type num_workorders_generated_;
   // A single workorder is generated for each block in each partition of input relation.
   std::vector<std::size_t> num_workorders_generated_in_partition_;
+  std::size_t num_partitions_;
 
   const bool simple_projection_;
   const bool input_relation_is_stored_;

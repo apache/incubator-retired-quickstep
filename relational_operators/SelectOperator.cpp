@@ -67,10 +67,7 @@ bool SelectOperator::getAllWorkOrders(
     }
 
     if (input_relation_.hasPartitionScheme()) {
-      const std::size_t num_partitions =
-          input_relation_.getPartitionScheme()->getPartitionSchemeHeader().getNumPartitions();
-
-      for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
+      for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
         for (const block_id input_block_id : input_relation_block_ids_in_partition_[part_id]) {
           numa_node_id numa_node = 0;
 #ifdef QUICKSTEP_HAVE_LIBNUMA
@@ -98,10 +95,7 @@ bool SelectOperator::getAllWorkOrders(
     return true;
   } else {
     if (input_relation_.hasPartitionScheme()) {
-      const std::size_t num_partitions =
-          input_relation_.getPartitionScheme()->getPartitionSchemeHeader().getNumPartitions();
-
-      for (std::size_t part_id = 0; part_id < num_partitions; ++part_id) {
+      for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
         while (num_workorders_generated_in_partition_[part_id] <
                input_relation_block_ids_in_partition_[part_id].size()) {
           const block_id block_in_partition
