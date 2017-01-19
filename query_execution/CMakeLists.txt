@@ -33,6 +33,7 @@ if (ENABLE_DISTRIBUTED)
   add_library(quickstep_queryexecution_BlockLocator BlockLocator.cpp BlockLocator.hpp)
   add_library(quickstep_queryexecution_BlockLocatorUtil BlockLocatorUtil.cpp BlockLocatorUtil.hpp)
 endif(ENABLE_DISTRIBUTED)
+add_library(quickstep_queryexecution_DAGAnalyzer DAGAnalyzer.cpp DAGAnalyzer.hpp) 
 add_library(quickstep_queryexecution_ForemanBase ../empty_src.cpp ForemanBase.hpp)
 if (ENABLE_DISTRIBUTED)
   add_library(quickstep_queryexecution_ForemanDistributed ForemanDistributed.cpp ForemanDistributed.hpp)
@@ -42,6 +43,7 @@ add_library(quickstep_queryexecution_PolicyEnforcerBase PolicyEnforcerBase.cpp P
 if (ENABLE_DISTRIBUTED)
   add_library(quickstep_queryexecution_PolicyEnforcerDistributed PolicyEnforcerDistributed.cpp PolicyEnforcerDistributed.hpp)
 endif(ENABLE_DISTRIBUTED)
+add_library(quickstep_queryexecution_Pipeline ../empty_src.cpp Pipeline.hpp)
 add_library(quickstep_queryexecution_PolicyEnforcerSingleNode PolicyEnforcerSingleNode.cpp PolicyEnforcerSingleNode.hpp)
 add_library(quickstep_queryexecution_QueryContext QueryContext.cpp QueryContext.hpp)
 add_library(quickstep_queryexecution_QueryContext_proto
@@ -92,6 +94,12 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_storage_StorageBlockInfo
                         tmb)
 endif(ENABLE_DISTRIBUTED)
+target_link_libraries(quickstep_queryexecution_DAGAnalyzer
+                      glog
+                      quickstep_queryexecution_Pipeline
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_utility_DAG
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryexecution_ForemanBase
                       glog
                       quickstep_queryexecution_PolicyEnforcerBase
@@ -138,6 +146,9 @@ target_link_libraries(quickstep_queryexecution_ForemanSingleNode
                       quickstep_utility_Macros
                       tmb
                       ${GFLAGS_LIB_NAME})
+target_link_libraries(quickstep_queryexecution_Pipeline
+                      glog
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryexecution_PolicyEnforcerBase
                       glog
                       quickstep_catalog_CatalogDatabase
@@ -337,8 +348,10 @@ target_link_libraries(quickstep_queryexecution_WorkerSelectionPolicy
 add_library(quickstep_queryexecution ../empty_src.cpp QueryExecutionModule.hpp)
 target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_AdmitRequestMessage
+                      quickstep_queryexecution_DAGAnalyzer
                       quickstep_queryexecution_ForemanBase
                       quickstep_queryexecution_ForemanSingleNode
+                      quickstep_queryexecution_Pipeline
                       quickstep_queryexecution_PolicyEnforcerBase
                       quickstep_queryexecution_PolicyEnforcerSingleNode
                       quickstep_queryexecution_QueryContext
@@ -367,6 +380,16 @@ if (ENABLE_DISTRIBUTED)
 endif(ENABLE_DISTRIBUTED)
 
 # Tests:
+add_library(quickstep_queryexecution_tests_MockOperator ../empty_src.cpp "${CMAKE_CURRENT_SOURCE_DIR}/tests/MockOperator.hpp")
+target_link_libraries(quickstep_queryexecution_tests_MockOperator
+                      glog
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_queryoptimizer_QueryPlan
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_utility_Macros
+                      tmb)
 if (ENABLE_DISTRIBUTED)
   add_executable(BlockLocator_unittest
                  "${CMAKE_CURRENT_SOURCE_DIR}/tests/BlockLocator_unittest.cpp")
@@ -393,6 +416,17 @@ if (ENABLE_DISTRIBUTED)
   add_test(BlockLocator_unittest BlockLocator_unittest)
 endif(ENABLE_DISTRIBUTED)
 
+add_executable(DAGAnalyzer_unittest
+  "${CMAKE_CURRENT_SOURCE_DIR}/tests/DAGAnalyzer_unittest.cpp")
+target_link_libraries(DAGAnalyzer_unittest
+                      glog
+                      gtest
+                      gtest_main
+                      quickstep_queryexecution_DAGAnalyzer
+                      quickstep_queryexecution_tests_MockOperator
+                      quickstep_utility_DAG)
+add_test(DAGAnalyzer_unittest DAGAnalyzer_unittest)
+
 add_executable(QueryManagerSingleNode_unittest
   "${CMAKE_CURRENT_SOURCE_DIR}/tests/QueryManagerSingleNode_unittest.cpp")
 target_link_libraries(QueryManagerSingleNode_unittest
@@ -411,6 +445,7 @@ target_link_libraries(QueryManagerSingleNode_unittest
                       quickstep_queryexecution_WorkOrdersContainer
                       quickstep_queryexecution_WorkerDirectory
                       quickstep_queryexecution_WorkerMessage
+                      quickstep_queryexecution_tests_MockOperator
                       quickstep_queryoptimizer_QueryHandle
                       quickstep_queryoptimizer_QueryPlan
                       quickstep_relationaloperators_RelationalOperator
