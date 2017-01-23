@@ -97,7 +97,7 @@ constexpr tuple_id kBlockSize = 10;
 constexpr std::size_t kQueryId = 0;
 constexpr int kOpIndex = 0;
 
-constexpr std::size_t kNumPartitions = 1;
+constexpr std::size_t kSinglePartition = 1;
 
 }  // namespace
 
@@ -194,8 +194,6 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
       }
       storage_block->rebuild();
     }
-
-    num_partitions_ = kNumPartitions;
   }
 
   virtual void TearDown() {
@@ -295,14 +293,12 @@ class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> 
   unique_ptr<CatalogDatabase> db_;
   // The following CatalogRelations are owned by db_.
   CatalogRelation *dim_table_, *fact_table_;
-
-  std::size_t num_partitions_;
 };
 
 TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
   // Setup the hash table proto in the query context proto.
   serialization::QueryContext query_context_proto;
-  query_context_proto.set_query_id(0);  // dummy query ID.
+  query_context_proto.set_query_id(kQueryId);
 
   const QueryContext::join_hash_table_id join_hash_table_index =
       query_context_proto.join_hash_tables_size();
@@ -334,7 +330,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
 
   const Type &long_type = LongType::InstanceNonNullable();
 
-  hash_table_proto->add_key_types()->CopyFrom(long_type.getProto());
+  hash_table_proto->add_key_types()->MergeFrom(long_type.getProto());
   hash_table_proto->set_estimated_num_entries(kNumDimTuples);
 
   const CatalogAttribute &dim_col_long = *dim_table_->getAttributeByName("long");
@@ -347,13 +343,13 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_long.getID()),
                             dim_col_long.getType().isNullable(),
-                            num_partitions_,
+                            kSinglePartition,
                             join_hash_table_index));
 
   // Create the prober operator with one selection attribute.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
   ScalarAttribute scalar_attr(dim_col_long);
-  query_context_proto.add_scalar_groups()->add_scalars()->CopyFrom(scalar_attr.getProto());
+  query_context_proto.add_scalar_groups()->add_scalars()->MergeFrom(scalar_attr.getProto());
 
   // Create result_table, owned by db_.
   CatalogRelation *result_table = new CatalogRelation(NULL, "result_table", 102);
@@ -377,7 +373,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
       true /* is_stored */,
       std::vector<attribute_id>(1, fact_col_long.getID()),
       fact_col_long.getType().isNullable(),
-      num_partitions_,
+      kSinglePartition,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -435,7 +431,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, num_partitions_, join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, kSinglePartition, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -445,7 +441,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
 TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
   // Setup the hash table proto in the query context proto.
   serialization::QueryContext query_context_proto;
-  query_context_proto.set_query_id(0);  // dummy query ID.
+  query_context_proto.set_query_id(kQueryId);
 
   const QueryContext::join_hash_table_id join_hash_table_index =
       query_context_proto.join_hash_tables_size();
@@ -478,7 +474,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
   const Type &long_type = LongType::InstanceNonNullable();
   const Type &int_type = IntType::InstanceNonNullable();
 
-  hash_table_proto->add_key_types()->CopyFrom(int_type.getProto());
+  hash_table_proto->add_key_types()->MergeFrom(int_type.getProto());
   hash_table_proto->set_estimated_num_entries(kNumDimTuples);
 
   const CatalogAttribute &dim_col_long = *dim_table_->getAttributeByName("long");
@@ -493,7 +489,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_int.getID()),
                             dim_col_int.getType().isNullable(),
-                            num_partitions_,
+                            kSinglePartition,
                             join_hash_table_index));
 
   // Create the prober operator with two selection attributes.
@@ -501,9 +497,9 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
   serialization::QueryContext::ScalarGroup *scalar_group_proto = query_context_proto.add_scalar_groups();
 
   ScalarAttribute scalar_attr_dim(dim_col_long);
-  scalar_group_proto->add_scalars()->CopyFrom(scalar_attr_dim.getProto());
+  scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_dim.getProto());
   ScalarAttribute scalar_attr_fact(fact_col_long);
-  scalar_group_proto->add_scalars()->CopyFrom(scalar_attr_fact.getProto());
+  scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_fact.getProto());
 
   // Create result_table, owned by db_.
   CatalogRelation *result_table = new CatalogRelation(NULL, "result_table", 102);
@@ -528,7 +524,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
       true /* is_stored */,
       std::vector<attribute_id>(1, fact_col_int.getID()),
       fact_col_int.getType().isNullable(),
-      num_partitions_,
+      kSinglePartition,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -608,7 +604,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, num_partitions_, join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, kSinglePartition, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -618,7 +614,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
 TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
   // Setup the hash table proto in the query context proto.
   serialization::QueryContext query_context_proto;
-  query_context_proto.set_query_id(0);  // dummy query ID.
+  query_context_proto.set_query_id(kQueryId);
 
   const QueryContext::join_hash_table_id join_hash_table_index =
       query_context_proto.join_hash_tables_size();
@@ -644,7 +640,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
   const Type &long_type = LongType::InstanceNonNullable();
   const Type &char_type = CharType::InstanceNonNullable(kCharLength);
 
-  hash_table_proto->add_key_types()->CopyFrom(char_type.getProto());
+  hash_table_proto->add_key_types()->MergeFrom(char_type.getProto());
   hash_table_proto->set_estimated_num_entries(kNumDimTuples);
 
   const CatalogAttribute &dim_col_long = *dim_table_->getAttributeByName("long");
@@ -658,13 +654,13 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_char.getID()),
                             dim_col_char.getType().isNullable(),
-                            num_partitions_,
+                            kSinglePartition,
                             join_hash_table_index));
 
   // Create prober operator with one selection attribute.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
   ScalarAttribute scalar_attr(dim_col_long);
-  query_context_proto.add_scalar_groups()->add_scalars()->CopyFrom(scalar_attr.getProto());
+  query_context_proto.add_scalar_groups()->add_scalars()->MergeFrom(scalar_attr.getProto());
 
   // Create result_table, owned by db_.
   CatalogRelation *result_table = new CatalogRelation(NULL, "result_table", 102);
@@ -688,7 +684,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
       true /* is_stored */,
       std::vector<attribute_id>(1, fact_col_char.getID()),
       fact_col_char.getType().isNullable(),
-      num_partitions_,
+      kSinglePartition,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -746,7 +742,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, num_partitions_, join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, kSinglePartition, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -756,7 +752,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
 TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
   // Setup the hash table proto in the query context proto.
   serialization::QueryContext query_context_proto;
-  query_context_proto.set_query_id(0);  // dummy query ID.
+  query_context_proto.set_query_id(kQueryId);
 
   const QueryContext::join_hash_table_id join_hash_table_index =
       query_context_proto.join_hash_tables_size();
@@ -782,7 +778,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
   const Type &long_type = LongType::InstanceNonNullable();
   const Type &varchar_type = VarCharType::InstanceNonNullable(kCharLength);
 
-  hash_table_proto->add_key_types()->CopyFrom(varchar_type.getProto());
+  hash_table_proto->add_key_types()->MergeFrom(varchar_type.getProto());
   hash_table_proto->set_estimated_num_entries(kNumDimTuples);
 
   const CatalogAttribute &dim_col_long = *dim_table_->getAttributeByName("long");
@@ -797,7 +793,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
                             true /* is_stored */,
                             std::vector<attribute_id>(1, dim_col_varchar.getID()),
                             dim_col_varchar.getType().isNullable(),
-                            num_partitions_,
+                            kSinglePartition,
                             join_hash_table_index));
 
   // Create prober operator with two selection attributes.
@@ -805,9 +801,9 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
   serialization::QueryContext::ScalarGroup *scalar_group_proto = query_context_proto.add_scalar_groups();
 
   ScalarAttribute scalar_attr_dim(dim_col_long);
-  scalar_group_proto->add_scalars()->CopyFrom(scalar_attr_dim.getProto());
+  scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_dim.getProto());
   ScalarAttribute scalar_attr_fact(fact_col_long);
-  scalar_group_proto->add_scalars()->CopyFrom(scalar_attr_fact.getProto());
+  scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_fact.getProto());
 
   // Create result_table, owned by db_.
   CatalogRelation *result_table = new CatalogRelation(NULL, "result_table", 102);
@@ -832,7 +828,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
       true /* is_stored */,
       std::vector<attribute_id>(1, fact_col_varchar.getID()),
       fact_col_varchar.getType().isNullable(),
-      num_partitions_,
+      kSinglePartition,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -916,7 +912,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
   }
 
   // Create the cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, num_partitions_, join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, kSinglePartition, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -926,7 +922,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
 TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   // Setup the hash table proto in the query context proto.
   serialization::QueryContext query_context_proto;
-  query_context_proto.set_query_id(0);  // dummy query ID.
+  query_context_proto.set_query_id(kQueryId);
 
   const QueryContext::join_hash_table_id join_hash_table_index =
       query_context_proto.join_hash_tables_size();
@@ -952,8 +948,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   const Type &long_type = LongType::InstanceNonNullable();
   const Type &varchar_type = VarCharType::InstanceNonNullable(kCharLength);
 
-  hash_table_proto->add_key_types()->CopyFrom(long_type.getProto());
-  hash_table_proto->add_key_types()->CopyFrom(varchar_type.getProto());
+  hash_table_proto->add_key_types()->MergeFrom(long_type.getProto());
+  hash_table_proto->add_key_types()->MergeFrom(varchar_type.getProto());
   hash_table_proto->set_estimated_num_entries(kNumDimTuples);
 
   const CatalogAttribute &dim_col_long = *dim_table_->getAttributeByName("long");
@@ -972,7 +968,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
                             true /* is_stored */,
                             dim_key_attrs,
                             dim_col_long.getType().isNullable() || dim_col_varchar.getType().isNullable(),
-                            num_partitions_,
+                            kSinglePartition,
                             join_hash_table_index));
 
   // Create the prober operator with two selection attributes.
@@ -980,9 +976,9 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   serialization::QueryContext::ScalarGroup *scalar_group_proto = query_context_proto.add_scalar_groups();
 
   ScalarAttribute scalar_attr_dim(dim_col_long);
-  scalar_group_proto->add_scalars()->CopyFrom(scalar_attr_dim.getProto());
+  scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_dim.getProto());
   ScalarAttribute scalar_attr_fact(fact_col_long);
-  scalar_group_proto->add_scalars()->CopyFrom(scalar_attr_fact.getProto());
+  scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_fact.getProto());
 
   // Create result_table, owned by db_.
   CatalogRelation *result_table = new CatalogRelation(NULL, "result_table", 102);
@@ -1012,7 +1008,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
       fact_key_attrs,
       fact_col_long.getType().isNullable() ||
           fact_col_varchar.getType().isNullable(),
-      num_partitions_,
+      kSinglePartition,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -1095,7 +1091,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, num_partitions_, join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, kSinglePartition, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
@@ -1106,7 +1102,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
 TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   // Setup the hash table proto in the query context proto.
   serialization::QueryContext query_context_proto;
-  query_context_proto.set_query_id(0);  // dummy query ID.
+  query_context_proto.set_query_id(kQueryId);
 
   const QueryContext::join_hash_table_id join_hash_table_index =
       query_context_proto.join_hash_tables_size();
@@ -1132,8 +1128,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   const Type &long_type = LongType::InstanceNonNullable();
   const Type &varchar_type = VarCharType::InstanceNonNullable(kCharLength);
 
-  hash_table_proto->add_key_types()->CopyFrom(long_type.getProto());
-  hash_table_proto->add_key_types()->CopyFrom(varchar_type.getProto());
+  hash_table_proto->add_key_types()->MergeFrom(long_type.getProto());
+  hash_table_proto->add_key_types()->MergeFrom(varchar_type.getProto());
   hash_table_proto->set_estimated_num_entries(kNumDimTuples);
 
   const CatalogAttribute &dim_col_long = *dim_table_->getAttributeByName("long");
@@ -1152,7 +1148,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
                             true /* is_stored */,
                             dim_key_attrs,
                             dim_col_long.getType().isNullable() || dim_col_varchar.getType().isNullable(),
-                            num_partitions_,
+                            kSinglePartition,
                             join_hash_table_index));
 
   // Create prober operator with two selection attributes.
@@ -1160,9 +1156,9 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   serialization::QueryContext::ScalarGroup *scalar_group_proto = query_context_proto.add_scalar_groups();
 
   ScalarAttribute scalar_attr_dim(dim_col_long);
-  scalar_group_proto->add_scalars()->CopyFrom(scalar_attr_dim.getProto());
+  scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_dim.getProto());
   ScalarAttribute scalar_attr_fact(fact_col_long);
-  scalar_group_proto->add_scalars()->CopyFrom(scalar_attr_fact.getProto());
+  scalar_group_proto->add_scalars()->MergeFrom(scalar_attr_fact.getProto());
 
   // Create result_table, owned by db_.
   CatalogRelation *result_table = new CatalogRelation(NULL, "result_table", 102);
@@ -1192,7 +1188,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   fact_key_attrs.push_back(fact_col_varchar.getID());
 
   const QueryContext::predicate_id residual_pred_index = query_context_proto.predicates_size();
-  query_context_proto.add_predicates()->CopyFrom(residual_pred->getProto());
+  query_context_proto.add_predicates()->MergeFrom(residual_pred->getProto());
 
   unique_ptr<HashJoinOperator> prober(
       new HashJoinOperator(kQueryId,
@@ -1202,7 +1198,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
                            fact_key_attrs,
                            fact_col_long.getType().isNullable() ||
                                fact_col_varchar.getType().isNullable(),
-                           num_partitions_,
+                           kSinglePartition,
                            *result_table,
                            output_destination_index,
                            join_hash_table_index,
@@ -1285,7 +1281,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   }
 
   // Create cleaner operator.
-  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, num_partitions_, join_hash_table_index));
+  unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, kSinglePartition, join_hash_table_index));
   cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
