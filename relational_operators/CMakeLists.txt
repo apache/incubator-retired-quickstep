@@ -606,6 +606,8 @@ target_link_libraries(HashJoinOperator_unittest
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_PartitionScheme
+                      quickstep_catalog_PartitionSchemeHeader
                       quickstep_expressions_Expressions_proto
                       quickstep_expressions_predicate_ComparisonPredicate
                       quickstep_expressions_predicate_Predicate
