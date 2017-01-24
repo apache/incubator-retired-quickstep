@@ -225,6 +225,31 @@ target_link_libraries(Catalog_unittest
                       quickstep_utility_PtrVector)
 add_test(Catalog_unittest Catalog_unittest)
 
+add_executable(CatalogRelationStatistics_unittest
+               "${CMAKE_CURRENT_SOURCE_DIR}/tests/CatalogRelationStatistics_unittest.cpp")
+target_link_libraries(CatalogRelationStatistics_unittest
+                      gtest
+                      gtest_main
+                      quickstep_catalog_Catalog
+                      quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogRelationStatistics
+                      quickstep_cli_CommandExecutor
+                      quickstep_cli_DropRelation
+                      quickstep_parser_ParseStatement
+                      quickstep_parser_SqlParserWrapper
+                      quickstep_queryexecution_ForemanSingleNode
+                      quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_queryexecution_QueryExecutionUtil
+                      quickstep_queryexecution_Worker
+                      quickstep_queryexecution_WorkerDirectory
+                      quickstep_queryoptimizer_QueryHandle
+                      quickstep_queryoptimizer_QueryProcessor
+                      quickstep_storage_StorageConstants
+                      quickstep_storage_StorageManager
+                      tmb)
+add_test(CatalogRelationStatistics_unittest CatalogRelationStatistics_unittest)
+
 if(QUICKSTEP_HAVE_LIBNUMA)
 add_executable(NUMAPlacementScheme_unittest
                "${CMAKE_CURRENT_SOURCE_DIR}/tests/NUMAPlacementScheme_unittest.cpp")
@@ -253,3 +278,5 @@ target_link_libraries(PartitionScheme_unittest
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_types_operations_comparisons_EqualComparison)
 add_test(PartitionScheme_unittest PartitionScheme_unittest)
+
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/catalog_relation_statistics_test_data)
