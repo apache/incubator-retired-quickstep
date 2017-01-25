@@ -253,6 +253,25 @@ class TypedValue {
   }
 
   /**
+   * @brief Equal operator.
+   **/
+  bool operator==(const TypedValue &rhs) const {
+    if (getTypeID() != rhs.getTypeID()) {
+      return false;
+    }
+
+    if (isNull() != rhs.isNull()) {
+      return false;
+    }
+
+    if (isNull()) {
+      return true;
+    }
+
+    return fastEqualCheck(rhs);
+  }
+
+  /**
    * @brief Create a new literal TypedValue with pre-allocated out-of-line
    *        data.
    * @warning The memory at value_ptr must be allocated with malloc() or

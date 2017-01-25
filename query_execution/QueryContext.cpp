@@ -54,6 +54,8 @@ using std::vector;
 
 namespace quickstep {
 
+constexpr QueryContext::insert_destination_id QueryContext::kInvalidInsertDestinationId;
+
 QueryContext::QueryContext(const serialization::QueryContext &proto,
                            const CatalogDatabaseLite &database,
                            StorageManager *storage_manager,
