@@ -22,10 +22,12 @@
 
 #include <cstddef>
 #include <memory>
-#include <unordered_map>
+#include <vector>
 
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionState.hpp"
+#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryManagerBase.hpp"
 #include "query_execution/WorkOrderProtosContainer.hpp"
 #include "utility/Macros.hpp"
@@ -105,13 +107,12 @@ class QueryManagerDistributed final : public QueryManagerBase {
   void getShiftbossIndexForAggregation(const QueryContext::aggregation_state_id aggr_state_index,
                                        const std::size_t next_shiftboss_index_to_schedule,
                                        std::size_t *shiftboss_index) {
-    const auto cit = shiftboss_indexes_for_aggrs_.find(aggr_state_index);
-    if (cit != shiftboss_indexes_for_aggrs_.end()) {
-      *shiftboss_index = cit->second;
-    } else {
-      shiftboss_indexes_for_aggrs_.emplace(aggr_state_index, next_shiftboss_index_to_schedule);
-      *shiftboss_index = next_shiftboss_index_to_schedule;
+    DCHECK_LT(aggr_state_index, shiftboss_indexes_for_aggrs_.size());
+    if (shiftboss_indexes_for_aggrs_[aggr_state_index] == kInvalidShiftbossIndex) {
+      shiftboss_indexes_for_aggrs_[aggr_state_index] = next_shiftboss_index_to_schedule;
     }
+
+    *shiftboss_index = shiftboss_indexes_for_aggrs_[aggr_state_index];
   }
 
   /**
@@ -119,19 +120,22 @@ class QueryManagerDistributed final : public QueryManagerBase {
    * Shiftboss index is not found, set using <next_shiftboss_index_to_schedule>.
    *
    * @param join_hash_table_index The Hash Table for the Join.
+   * @param part_id The partition ID.
    * @param next_shiftboss_index The index of Shiftboss to schedule a next WorkOrder.
    * @param shiftboss_index The index of Shiftboss to schedule the WorkOrder.
    **/
   void getShiftbossIndexForHashJoin(const QueryContext::join_hash_table_id join_hash_table_index,
+                                    const partition_id part_id,
                                     const std::size_t next_shiftboss_index_to_schedule,
                                     std::size_t *shiftboss_index) {
-    const auto cit = shiftboss_indexes_for_hash_joins_.find(join_hash_table_index);
-    if (cit != shiftboss_indexes_for_hash_joins_.end()) {
-      *shiftboss_index = cit->second;
-    } else {
-      shiftboss_indexes_for_hash_joins_.emplace(join_hash_table_index, next_shiftboss_index_to_schedule);
-      *shiftboss_index = next_shiftboss_index_to_schedule;
+    DCHECK_LT(join_hash_table_index, shiftboss_indexes_for_hash_joins_.size());
+    DCHECK_LT(part_id, shiftboss_indexes_for_hash_joins_[join_hash_table_index].size());
+
+    if (shiftboss_indexes_for_hash_joins_[join_hash_table_index][part_id] == kInvalidShiftbossIndex) {
+      shiftboss_indexes_for_hash_joins_[join_hash_table_index][part_id] = next_shiftboss_index_to_schedule;
     }
+
+    *shiftboss_index = shiftboss_indexes_for_hash_joins_[join_hash_table_index][part_id];
   }
 
  private:
@@ -156,11 +160,13 @@ class QueryManagerDistributed final : public QueryManagerBase {
 
   std::unique_ptr<WorkOrderProtosContainer> normal_workorder_protos_container_;
 
-  // A map from an aggregation id to its scheduled Shiftboss index.
-  std::unordered_map<QueryContext::aggregation_state_id, std::size_t> shiftboss_indexes_for_aggrs_;
+  // From an aggregation id (QueryContext::aggregation_state_id) to its
+  // scheduled Shiftboss index.
+  std::vector<std::size_t> shiftboss_indexes_for_aggrs_;
 
-  // A map from a join hash table to its scheduled Shiftboss index.
-  std::unordered_map<QueryContext::join_hash_table_id, std::size_t> shiftboss_indexes_for_hash_joins_;
+  // Get the scheduled Shiftboss index given
+  // [QueryContext::join_hash_table_id][partition_id].
+  std::vector<std::vector<std::size_t>> shiftboss_indexes_for_hash_joins_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryManagerDistributed);
 };

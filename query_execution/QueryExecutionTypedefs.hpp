@@ -62,6 +62,12 @@ using ClientIDMap = ThreadIDBasedMap<client_id,
                                      'a',
                                      'p'>;
 
+#ifdef QUICKSTEP_DISTRIBUTED
+
+constexpr std::size_t kInvalidShiftbossIndex = static_cast<std::size_t>(-1);
+
+#endif  // QUICKSTEP_DISTRIBUTED
+
 // We sort the following message types in the order of a life cycle of a query.
 enum QueryExecutionMessageType : message_type_id {
   kAdmitRequestMessage = 0,  // Requesting a query (or queries) to be admitted, from

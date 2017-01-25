@@ -53,14 +53,14 @@ class DestroyHashOperator : public RelationalOperator {
    * @brief Constructor.
    *
    * @param query_id The ID of the query to which this operator belongs.
-   * @param num_partitions The number of partitions.
+   * @param build_num_partitions The number of partitions in 'build_relation'.
    * @param hash_table_index The index of the JoinHashTable in QueryContext.
    **/
   DestroyHashOperator(const std::size_t query_id,
-                      const std::size_t num_partitions,
+                      const std::size_t build_num_partitions,
                       const QueryContext::join_hash_table_id hash_table_index)
       : RelationalOperator(query_id),
-        num_partitions_(num_partitions),
+        build_num_partitions_(build_num_partitions),
         hash_table_index_(hash_table_index),
         work_generated_(false) {}
 
@@ -79,7 +79,7 @@ class DestroyHashOperator : public RelationalOperator {
   bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
  private:
-  const std::size_t num_partitions_;
+  const std::size_t build_num_partitions_;
   const QueryContext::join_hash_table_id hash_table_index_;
   bool work_generated_;
 

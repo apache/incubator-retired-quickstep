@@ -23,8 +23,10 @@
 #include <cstdlib>
 #include <memory>
 #include <utility>
+#include <vector>
 
 #include "query_execution/QueryContext.hpp"
+#include "query_execution/QueryContext.pb.h"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
@@ -45,6 +47,7 @@ using std::malloc;
 using std::move;
 using std::size_t;
 using std::unique_ptr;
+using std::vector;
 
 namespace quickstep {
 
@@ -64,6 +67,14 @@ QueryManagerDistributed::QueryManagerDistributed(QueryHandle *query_handle,
       query_dag_->getNodePayloadMutable(index)->informAllBlockingDependenciesMet();
       processOperator(index, false);
     }
+  }
+
+  const serialization::QueryContext &query_context_proto = query_handle->getQueryContextProto();
+  shiftboss_indexes_for_aggrs_.resize(query_context_proto.aggregation_states_size(), kInvalidShiftbossIndex);
+
+  for (int i = 0; i < query_context_proto.join_hash_tables_size(); ++i) {
+    shiftboss_indexes_for_hash_joins_.push_back(
+        vector<size_t>(query_context_proto.join_hash_tables(i).num_partitions(), kInvalidShiftbossIndex));
   }
 }
 

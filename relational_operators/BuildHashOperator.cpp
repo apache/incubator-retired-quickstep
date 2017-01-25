@@ -80,7 +80,7 @@ bool BuildHashOperator::getAllWorkOrders(
       for (const block_id block : input_relation_block_ids_[part_id]) {
         container->addNormalWorkOrder(
             new BuildHashWorkOrder(query_id_, input_relation_, join_key_attributes_, any_join_key_attributes_nullable_,
-                                   num_partitions_, part_id, block, hash_table, storage_manager,
+                                   part_id, block, hash_table, storage_manager,
                                    CreateLIPFilterBuilderHelper(lip_deployment_index_, query_context)),
             op_index_);
       }
@@ -94,9 +94,9 @@ bool BuildHashOperator::getAllWorkOrders(
              input_relation_block_ids_[part_id].size()) {
         container->addNormalWorkOrder(
             new BuildHashWorkOrder(query_id_, input_relation_, join_key_attributes_, any_join_key_attributes_nullable_,
-                                   num_partitions_, part_id,
-                                   input_relation_block_ids_[part_id][num_workorders_generated_[part_id]], hash_table,
-                                   storage_manager, CreateLIPFilterBuilderHelper(lip_deployment_index_, query_context)),
+                                   part_id, input_relation_block_ids_[part_id][num_workorders_generated_[part_id]],
+                                   hash_table, storage_manager,
+                                   CreateLIPFilterBuilderHelper(lip_deployment_index_, query_context)),
             op_index_);
         ++num_workorders_generated_[part_id];
       }
@@ -142,7 +142,6 @@ serialization::WorkOrder* BuildHashOperator::createWorkOrderProto(const block_id
   }
   proto->SetExtension(serialization::BuildHashWorkOrder::any_join_key_attributes_nullable,
                       any_join_key_attributes_nullable_);
-  proto->SetExtension(serialization::BuildHashWorkOrder::num_partitions, num_partitions_);
   proto->SetExtension(serialization::BuildHashWorkOrder::join_hash_table_index, hash_table_index_);
   proto->SetExtension(serialization::BuildHashWorkOrder::partition_id, part_id);
   proto->SetExtension(serialization::BuildHashWorkOrder::block_id, block);

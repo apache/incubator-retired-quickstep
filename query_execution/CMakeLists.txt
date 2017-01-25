@@ -156,6 +156,7 @@ if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_queryexecution_PolicyEnforcerDistributed
                         glog
                         quickstep_catalog_CatalogRelation
+                        quickstep_catalog_CatalogTypedefs
                         quickstep_catalog_Catalog_proto
                         quickstep_queryexecution_PolicyEnforcerBase
                         quickstep_queryexecution_QueryContext
@@ -252,7 +253,9 @@ target_link_libraries(quickstep_queryexecution_QueryManagerBase
                       quickstep_utility_Macros)
 if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_queryexecution_QueryManagerDistributed
+                        quickstep_catalog_CatalogTypedefs
                         quickstep_queryexecution_QueryContext
+                        quickstep_queryexecution_QueryContext_proto
                         quickstep_queryexecution_QueryExecutionMessages_proto
                         quickstep_queryexecution_QueryExecutionState
                         quickstep_queryexecution_QueryExecutionTypedefs

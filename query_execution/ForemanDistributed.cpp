@@ -278,23 +278,28 @@ bool ForemanDistributed::isHashJoinRelatedWorkOrder(const S::WorkOrderMessage &p
                                                     size_t *shiftboss_index_for_hash_join) {
   const S::WorkOrder &work_order_proto = proto.work_order();
   QueryContext::join_hash_table_id join_hash_table_index;
+  partition_id part_id;
 
   switch (work_order_proto.work_order_type()) {
     case S::BUILD_HASH:
       join_hash_table_index = work_order_proto.GetExtension(S::BuildHashWorkOrder::join_hash_table_index);
+      part_id = work_order_proto.GetExtension(S::BuildHashWorkOrder::partition_id);
       break;
     case S::HASH_JOIN:
       join_hash_table_index = work_order_proto.GetExtension(S::HashJoinWorkOrder::join_hash_table_index);
+      part_id = work_order_proto.GetExtension(S::HashJoinWorkOrder::partition_id);
       break;
     case S::DESTROY_HASH:
       join_hash_table_index = work_order_proto.GetExtension(S::DestroyHashWorkOrder::join_hash_table_index);
+      part_id = work_order_proto.GetExtension(S::DestroyHashWorkOrder::partition_id);
       break;
     default:
       return false;
   }
 
   static_cast<PolicyEnforcerDistributed*>(policy_enforcer_.get())->getShiftbossIndexForHashJoin(
-      proto.query_id(), join_hash_table_index, next_shiftboss_index_to_schedule, shiftboss_index_for_hash_join);
+      proto.query_id(), join_hash_table_index, part_id, next_shiftboss_index_to_schedule,
+      shiftboss_index_for_hash_join);
 
   return true;
 }

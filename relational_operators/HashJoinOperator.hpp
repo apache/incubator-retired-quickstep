@@ -29,6 +29,7 @@
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "catalog/PartitionScheme.hpp"
+#include "catalog/PartitionSchemeHeader.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -101,8 +102,8 @@ class HashJoinOperator : public RelationalOperator {
    * @param join_key_attributes The IDs of equijoin attributes in
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param num_partitions The number of partitions in 'input_relation'. If no
-   *        partitions, it is one.
+   * @param build_num_partitions The number of partitions in 'build_relation'.
+   *        If no partitions, it is one.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the join results.
@@ -128,7 +129,7 @@ class HashJoinOperator : public RelationalOperator {
       const bool probe_relation_is_stored,
       const std::vector<attribute_id> &join_key_attributes,
       const bool any_join_key_attributes_nullable,
-      const std::size_t num_partitions,
+      const std::size_t build_num_partitions,
       const CatalogRelation &output_relation,
       const QueryContext::insert_destination_id output_destination_index,
       const QueryContext::join_hash_table_id hash_table_index,
@@ -142,7 +143,7 @@ class HashJoinOperator : public RelationalOperator {
         probe_relation_is_stored_(probe_relation_is_stored),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        num_partitions_(num_partitions),
+        build_num_partitions_(build_num_partitions),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         hash_table_index_(hash_table_index),
@@ -152,8 +153,8 @@ class HashJoinOperator : public RelationalOperator {
                                    ? std::vector<bool>()
                                    : *is_selection_on_build),
         join_type_(join_type),
-        probe_relation_block_ids_(num_partitions),
-        num_workorders_generated_(num_partitions),
+        probe_relation_block_ids_(build_num_partitions),
+        num_workorders_generated_(build_num_partitions),
         started_(false) {
     DCHECK(join_type != JoinType::kLeftOuterJoin ||
                (is_selection_on_build != nullptr &&
@@ -162,12 +163,15 @@ class HashJoinOperator : public RelationalOperator {
     if (probe_relation_is_stored) {
       if (probe_relation.hasPartitionScheme()) {
         const PartitionScheme &part_scheme = *probe_relation.getPartitionScheme();
-        for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+        DCHECK_EQ(build_num_partitions_, part_scheme.getPartitionSchemeHeader().getNumPartitions());
+        for (std::size_t part_id = 0; part_id < build_num_partitions_; ++part_id) {
           probe_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
         }
       } else {
-        // No partition.
-        probe_relation_block_ids_[0] = probe_relation.getBlocksSnapshot();
+        // Broadcast hash join if probe has no partitions.
+        for (std::size_t part_id = 0; part_id < build_num_partitions_; ++part_id) {
+          probe_relation_block_ids_[part_id] = probe_relation.getBlocksSnapshot();
+        }
       }
     }
   }
@@ -209,7 +213,14 @@ class HashJoinOperator : public RelationalOperator {
                       const partition_id part_id) override {
     DCHECK_EQ(probe_relation_.getID(), input_relation_id);
 
-    probe_relation_block_ids_[part_id].push_back(input_block_id);
+    if (probe_relation_.hasPartitionScheme()) {
+      probe_relation_block_ids_[part_id].push_back(input_block_id);
+    } else {
+      // Broadcast hash join if probe has no partitions.
+      for (std::size_t build_part_id = 0; build_part_id < build_num_partitions_; ++build_part_id) {
+        probe_relation_block_ids_[build_part_id].push_back(input_block_id);
+      }
+    }
   }
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
@@ -261,7 +272,7 @@ class HashJoinOperator : public RelationalOperator {
   const bool probe_relation_is_stored_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const std::size_t num_partitions_;
+  const std::size_t build_num_partitions_;
   const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
   const QueryContext::join_hash_table_id hash_table_index_;
@@ -295,8 +306,6 @@ class HashInnerJoinWorkOrder : public WorkOrder {
    * @param join_key_attributes The IDs of equijoin attributes in \c
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param num_partitions The number of partitions in 'probe_relation'. If no
-   *        partitions, it is one.
    * @param part_id The partition id of 'probe_relation'.
    * @param lookup_block_id The block id of the probe_relation.
    * @param residual_predicate If non-null, apply as an additional filter to
@@ -317,7 +326,6 @@ class HashInnerJoinWorkOrder : public WorkOrder {
       const CatalogRelationSchema &probe_relation,
       const std::vector<attribute_id> &join_key_attributes,
       const bool any_join_key_attributes_nullable,
-      const std::size_t num_partitions,
       const partition_id part_id,
       const block_id lookup_block_id,
       const Predicate *residual_predicate,
@@ -331,7 +339,6 @@ class HashInnerJoinWorkOrder : public WorkOrder {
         probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        num_partitions_(num_partitions),
         part_id_(part_id),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
@@ -352,8 +359,6 @@ class HashInnerJoinWorkOrder : public WorkOrder {
    * @param join_key_attributes The IDs of equijoin attributes in \c
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param num_partitions The number of partitions in 'probe_relation'. If no
-   *        partitions, it is one.
    * @param part_id The partition id of 'probe_relation'.
    * @param lookup_block_id The block id of the probe_relation.
    * @param residual_predicate If non-null, apply as an additional filter to
@@ -374,7 +379,6 @@ class HashInnerJoinWorkOrder : public WorkOrder {
       const CatalogRelationSchema &probe_relation,
       std::vector<attribute_id> &&join_key_attributes,
       const bool any_join_key_attributes_nullable,
-      const std::size_t num_partitions,
       const partition_id part_id,
       const block_id lookup_block_id,
       const Predicate *residual_predicate,
@@ -388,7 +392,6 @@ class HashInnerJoinWorkOrder : public WorkOrder {
         probe_relation_(probe_relation),
         join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        num_partitions_(num_partitions),
         part_id_(part_id),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
@@ -411,15 +414,6 @@ class HashInnerJoinWorkOrder : public WorkOrder {
   void execute() override;
 
   /**
-   * @brief Get the number of partitions.
-   *
-   * @return The number of partitions.
-   */
-  std::size_t num_partitions() const {
-    return num_partitions_;
-  }
-
-  /**
    * @brief Get the partition id.
    *
    * @return The partition id.
@@ -433,7 +427,6 @@ class HashInnerJoinWorkOrder : public WorkOrder {
   const CatalogRelationSchema &probe_relation_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const std::size_t num_partitions_;
   const partition_id part_id_;
   const block_id block_id_;
   const Predicate *residual_predicate_;
@@ -465,8 +458,6 @@ class HashSemiJoinWorkOrder : public WorkOrder {
    * @param join_key_attributes The IDs of equijoin attributes in \c
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param num_partitions The number of partitions in 'probe_relation'. If no
-   *        partitions, it is one.
    * @param part_id The partition id of 'probe_relation'.
    * @param lookup_block_id The block id of the probe_relation.
    * @param residual_predicate If non-null, apply as an additional filter to
@@ -487,7 +478,6 @@ class HashSemiJoinWorkOrder : public WorkOrder {
       const CatalogRelationSchema &probe_relation,
       const std::vector<attribute_id> &join_key_attributes,
       const bool any_join_key_attributes_nullable,
-      const std::size_t num_partitions,
       const partition_id part_id,
       const block_id lookup_block_id,
       const Predicate *residual_predicate,
@@ -501,7 +491,6 @@ class HashSemiJoinWorkOrder : public WorkOrder {
         probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        num_partitions_(num_partitions),
         part_id_(part_id),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
@@ -522,8 +511,6 @@ class HashSemiJoinWorkOrder : public WorkOrder {
    * @param join_key_attributes The IDs of equijoin attributes in \c
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param num_partitions The number of partitions in 'probe_relation'. If no
-   *        partitions, it is one.
    * @param part_id The partition id of 'probe_relation'.
    * @param lookup_block_id The block id of the probe_relation.
    * @param residual_predicate If non-null, apply as an additional filter to
@@ -544,7 +531,6 @@ class HashSemiJoinWorkOrder : public WorkOrder {
       const CatalogRelationSchema &probe_relation,
       std::vector<attribute_id> &&join_key_attributes,
       const bool any_join_key_attributes_nullable,
-      const std::size_t num_partitions,
       const partition_id part_id,
       const block_id lookup_block_id,
       const Predicate *residual_predicate,
@@ -558,7 +544,6 @@ class HashSemiJoinWorkOrder : public WorkOrder {
         probe_relation_(probe_relation),
         join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        num_partitions_(num_partitions),
         part_id_(part_id),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
@@ -571,15 +556,6 @@ class HashSemiJoinWorkOrder : public WorkOrder {
   ~HashSemiJoinWorkOrder() override {}
 
   void execute() override;
-
-  /**
-   * @brief Get the number of partitions.
-   *
-   * @return The number of partitions.
-   */
-  std::size_t num_partitions() const {
-    return num_partitions_;
-  }
 
   /**
    * @brief Get the partition id.
@@ -599,7 +575,6 @@ class HashSemiJoinWorkOrder : public WorkOrder {
   const CatalogRelationSchema &probe_relation_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const std::size_t num_partitions_;
   const partition_id part_id_;
   const block_id block_id_;
   const Predicate *residual_predicate_;
@@ -631,8 +606,6 @@ class HashAntiJoinWorkOrder : public WorkOrder {
    * @param join_key_attributes The IDs of equijoin attributes in \c
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param num_partitions The number of partitions in 'probe_relation'. If no
-   *        partitions, it is one.
    * @param part_id The partition id of 'probe_relation'.
    * @param lookup_block_id The block id of the probe_relation.
    * @param residual_predicate If non-null, apply as an additional filter to
@@ -653,7 +626,6 @@ class HashAntiJoinWorkOrder : public WorkOrder {
       const CatalogRelationSchema &probe_relation,
       const std::vector<attribute_id> &join_key_attributes,
       const bool any_join_key_attributes_nullable,
-      const std::size_t num_partitions,
       const partition_id part_id,
       const block_id lookup_block_id,
       const Predicate *residual_predicate,
@@ -667,7 +639,6 @@ class HashAntiJoinWorkOrder : public WorkOrder {
         probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        num_partitions_(num_partitions),
         part_id_(part_id),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
@@ -688,8 +659,6 @@ class HashAntiJoinWorkOrder : public WorkOrder {
    * @param join_key_attributes The IDs of equijoin attributes in \c
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param num_partitions The number of partitions in 'probe_relation'. If no
-   *        partitions, it is one.
    * @param part_id The partition id of 'probe_relation'.
    * @param lookup_block_id The block id of the probe_relation.
    * @param residual_predicate If non-null, apply as an additional filter to
@@ -710,7 +679,6 @@ class HashAntiJoinWorkOrder : public WorkOrder {
       const CatalogRelationSchema &probe_relation,
       std::vector<attribute_id> &&join_key_attributes,
       const bool any_join_key_attributes_nullable,
-      const std::size_t num_partitions,
       const partition_id part_id,
       const block_id lookup_block_id,
       const Predicate *residual_predicate,
@@ -724,7 +692,6 @@ class HashAntiJoinWorkOrder : public WorkOrder {
         probe_relation_(probe_relation),
         join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        num_partitions_(num_partitions),
         part_id_(part_id),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
@@ -745,15 +712,6 @@ class HashAntiJoinWorkOrder : public WorkOrder {
   }
 
   /**
-   * @brief Get the number of partitions.
-   *
-   * @return The number of partitions.
-   */
-  std::size_t num_partitions() const {
-    return num_partitions_;
-  }
-
-  /**
    * @brief Get the partition id.
    *
    * @return The partition id.
@@ -771,7 +729,6 @@ class HashAntiJoinWorkOrder : public WorkOrder {
   const CatalogRelationSchema &probe_relation_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const std::size_t num_partitions_;
   const partition_id part_id_;
   const block_id block_id_;
   const Predicate *residual_predicate_;
@@ -802,8 +759,6 @@ class HashOuterJoinWorkOrder : public WorkOrder {
    * @param join_key_attributes The IDs of equijoin attributes in \c
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param num_partitions The number of partitions in 'probe_relation'. If no
-   *        partitions, it is one.
    * @param part_id The partition id of 'probe_relation'.
    * @param lookup_block_id The block id of the probe_relation.
    * @param selection A list of Scalars corresponding to the relation attributes
@@ -823,7 +778,6 @@ class HashOuterJoinWorkOrder : public WorkOrder {
       const CatalogRelationSchema &probe_relation,
       const std::vector<attribute_id> &join_key_attributes,
       const bool any_join_key_attributes_nullable,
-      const std::size_t num_partitions,
       const partition_id part_id,
       const block_id lookup_block_id,
       const std::vector<std::unique_ptr<const Scalar>> &selection,
@@ -837,7 +791,6 @@ class HashOuterJoinWorkOrder : public WorkOrder {
         probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        num_partitions_(num_partitions),
         part_id_(part_id),
         block_id_(lookup_block_id),
         selection_(selection),
@@ -858,8 +811,6 @@ class HashOuterJoinWorkOrder : public WorkOrder {
    * @param join_key_attributes The IDs of equijoin attributes in \c
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param num_partitions The number of partitions in 'probe_relation'. If no
-   *        partitions, it is one.
    * @param part_id The partition id of 'probe_relation'.
    * @param lookup_block_id The block id of the probe_relation.
    * @param selection A list of Scalars corresponding to the relation attributes
@@ -878,7 +829,6 @@ class HashOuterJoinWorkOrder : public WorkOrder {
       const CatalogRelationSchema &probe_relation,
       std::vector<attribute_id> &&join_key_attributes,
       const bool any_join_key_attributes_nullable,
-      const std::size_t num_partitions,
       const partition_id part_id,
       const block_id lookup_block_id,
       const std::vector<std::unique_ptr<const Scalar>> &selection,
@@ -892,7 +842,6 @@ class HashOuterJoinWorkOrder : public WorkOrder {
         probe_relation_(probe_relation),
         join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        num_partitions_(num_partitions),
         part_id_(part_id),
         block_id_(lookup_block_id),
         selection_(selection),
@@ -905,15 +854,6 @@ class HashOuterJoinWorkOrder : public WorkOrder {
   ~HashOuterJoinWorkOrder() override {}
 
   void execute() override;
-
-  /**
-   * @brief Get the number of partitions.
-   *
-   * @return The number of partitions.
-   */
-  std::size_t num_partitions() const {
-    return num_partitions_;
-  }
 
   /**
    * @brief Get the partition id.
@@ -929,7 +869,6 @@ class HashOuterJoinWorkOrder : public WorkOrder {
   const CatalogRelationSchema &probe_relation_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const std::size_t num_partitions_;
   const partition_id part_id_;
   const block_id block_id_;
   const std::vector<std::unique_ptr<const Scalar>> &selection_;

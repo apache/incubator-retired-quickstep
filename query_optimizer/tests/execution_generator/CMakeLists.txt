@@ -51,6 +51,11 @@ if (ENABLE_DISTRIBUTED)
            "${CMAKE_CURRENT_SOURCE_DIR}/Join.test"
            "${CMAKE_CURRENT_BINARY_DIR}/DistributedJoin.test"
            "${CMAKE_CURRENT_BINARY_DIR}/DistributedJoin/")
+  add_test(quickstep_queryoptimizer_tests_distributed_executiongenerator_partition
+           "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
+           "${CMAKE_CURRENT_SOURCE_DIR}/Partition.test"
+           "${CMAKE_CURRENT_BINARY_DIR}/DistributedPartition.test"
+           "${CMAKE_CURRENT_BINARY_DIR}/DistributedPartition/")
   add_test(quickstep_queryoptimizer_tests_distributed_executiongenerator_select
            "../quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest"
            "${CMAKE_CURRENT_SOURCE_DIR}/Select.test"
@@ -146,6 +151,7 @@ if (ENABLE_DISTRIBUTED)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedIndex)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedInsert)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedJoin)
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedPartition)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedSelect)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedStringPatternMatching)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistributedTableGenerator)
