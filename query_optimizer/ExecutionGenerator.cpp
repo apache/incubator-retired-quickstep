@@ -140,7 +140,10 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
+using std::find;
+using std::make_unique;
 using std::move;
+using std::size_t;
 using std::static_pointer_cast;
 using std::unique_ptr;
 using std::unordered_map;
@@ -164,6 +167,8 @@ static const volatile bool aggregate_hashtable_type_dummy
                                     &ValidateHashTableImplTypeString);
 
 DEFINE_bool(parallelize_load, true, "Parallelize loading data files.");
+
+DEFINE_uint64(num_repartitions, 4, "Number of repartitions for a hash join.");
 
 namespace E = ::quickstep::optimizer::expressions;
 namespace P = ::quickstep::optimizer::physical;
@@ -433,7 +438,8 @@ void ExecutionGenerator::convertTableReference(
       std::piecewise_construct,
       std::forward_as_tuple(physical_table_reference),
       std::forward_as_tuple(CatalogRelationInfo::kInvalidOperatorIndex,
-                            catalog_relation));
+                            catalog_relation,
+                            QueryContext::kInvalidInsertDestinationId));
 }
 
 void ExecutionGenerator::convertSample(const P::SamplePtr &physical_sample) {
@@ -473,8 +479,9 @@ void ExecutionGenerator::convertSample(const P::SamplePtr &physical_sample) {
       std::piecewise_construct,
       std::forward_as_tuple(physical_sample),
       std::forward_as_tuple(sample_index,
-                            output_relation));
-  temporary_relation_info_vec_.emplace_back(sample_index, output_relation);
+                            output_relation,
+                            insert_destination_index));
+  temporary_relation_info_vec_.emplace_back(sample_index, output_relation, insert_destination_index);
 }
 
 bool ExecutionGenerator::convertSimpleProjection(
@@ -607,8 +614,9 @@ void ExecutionGenerator::convertSelection(
       std::piecewise_construct,
       std::forward_as_tuple(physical_selection),
       std::forward_as_tuple(select_index,
-                            output_relation));
-  temporary_relation_info_vec_.emplace_back(select_index, output_relation);
+                            output_relation,
+                            insert_destination_index));
+  temporary_relation_info_vec_.emplace_back(select_index, output_relation, insert_destination_index);
 
   if (lip_filter_generator_ != nullptr) {
     lip_filter_generator_->addSelectionInfo(physical_selection, select_index);
@@ -684,7 +692,8 @@ void ExecutionGenerator::convertFilterJoin(const P::FilterJoinPtr &physical_plan
       std::piecewise_construct,
       std::forward_as_tuple(physical_plan),
       std::forward_as_tuple(probe_relation_info->producer_operator_index,
-                            probe_relation_info->relation));
+                            probe_relation_info->relation,
+                            probe_relation_info->output_destination_index));
 
   DCHECK(lip_filter_generator_ != nullptr);
   lip_filter_generator_->addFilterJoinInfo(physical_plan,
@@ -700,9 +709,6 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
 
   std::vector<attribute_id> probe_attribute_ids;
   std::vector<attribute_id> build_attribute_ids;
-
-  std::size_t build_cardinality =
-      cost_model_for_hash_join_->estimateCardinality(build_physical);
 
   bool any_probe_attributes_nullable = false;
   bool any_build_attributes_nullable = false;
@@ -745,6 +751,224 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
     key_types.push_back(&left_attribute_type);
   }
 
+  const CatalogRelationInfo *build_relation_info =
+      findRelationInfoOutputByPhysical(build_physical);
+  const CatalogRelationInfo *probe_operator_info =
+      findRelationInfoOutputByPhysical(probe_physical);
+
+  const CatalogRelation *build_relation = build_relation_info->relation;
+  const CatalogRelation *probe_relation = probe_operator_info->relation;
+
+  // FIXME(quickstep-team): Add support for self-join.
+  if (build_relation == probe_relation) {
+    THROW_SQL_ERROR() << "Self-join is not supported";
+  }
+
+  const PartitionScheme *build_partition_scheme = build_relation->getPartitionScheme();
+  const PartitionScheme *probe_partition_scheme = probe_relation->getPartitionScheme();
+
+  /*
+   * Whether Build or Probe needs to repartition.
+   *
+   * --------------------------------------------------------------------------
+   * | Probe \ Build    | No Partition  | Hash Partition h' | Other Partition |
+   * --------------------------------------------------------------------------
+   * | No Partition     | false \ false |   true \ false    |  true \ true    |
+   * --------------------------------------------------------------------------
+   * | Hash Partition h | false \ true  | false* \ false    | false \ true    |
+   * --------------------------------------------------------------------------
+   * | Other Partition  |  true \ true  |   true \ false    |  true \ true    |
+   * --------------------------------------------------------------------------
+   *
+   * Hash Partition h / h': the paritition attributes are as the same as the join attributes.
+   * *: If h and h' has different number of partitions, the probe relation needs to repartition.
+   */
+
+  bool build_needs_repartition = false;
+  std::size_t num_partitions = 1u;
+  if (build_partition_scheme) {
+    // Need to repartition unless the partition attributes are as the same as
+    // the join attributes.
+    build_needs_repartition = true;
+
+    const PartitionSchemeHeader &build_partition_scheme_header = build_partition_scheme->getPartitionSchemeHeader();
+    if (build_partition_scheme_header.getPartitionType() == PartitionSchemeHeader::PartitionType::kHash) {
+      bool same_attributes = true;
+      for (const attribute_id build_partition_attr : build_partition_scheme_header.getPartitionAttributeIds()) {
+        if (find(build_attribute_ids.begin(), build_attribute_ids.end(), build_partition_attr) ==
+                build_attribute_ids.end()) {
+          same_attributes = false;
+          break;
+        }
+      }
+
+      if (same_attributes) {
+        build_needs_repartition = false;
+        num_partitions = build_partition_scheme_header.getNumPartitions();
+      }
+    }
+  }
+
+  bool probe_needs_repartition = false;
+  if (probe_partition_scheme) {
+    probe_needs_repartition = true;
+
+    if (!build_partition_scheme) {
+      // TODO(quickstep-team): choose the broadcast hash join depending on the
+      // cardinality, instead of always repartition hash join.
+      build_needs_repartition = true;
+    }
+
+    const PartitionSchemeHeader &probe_partition_scheme_header = probe_partition_scheme->getPartitionSchemeHeader();
+    if (probe_partition_scheme_header.getPartitionType() == PartitionSchemeHeader::PartitionType::kHash) {
+      bool same_attributes = true;
+      for (const attribute_id probe_partition_attr : probe_partition_scheme_header.getPartitionAttributeIds()) {
+        if (find(probe_attribute_ids.begin(), probe_attribute_ids.end(), probe_partition_attr) ==
+                probe_attribute_ids.end()) {
+          same_attributes = false;
+          break;
+        }
+      }
+
+      if (same_attributes &&
+          (build_needs_repartition || num_partitions == probe_partition_scheme_header.getNumPartitions())) {
+        probe_needs_repartition = false;
+        num_partitions = probe_partition_scheme_header.getNumPartitions();
+      }
+    }
+  } else if (build_partition_scheme) {
+    probe_needs_repartition = true;
+  }
+
+  // Repartition the build relation.
+  if (build_needs_repartition) {
+    if (probe_needs_repartition) {
+      num_partitions = FLAGS_num_repartitions;
+    }
+
+    auto build_repartition_scheme_header =
+        make_unique<HashPartitionSchemeHeader>(num_partitions,
+                                               PartitionSchemeHeader::PartitionAttributeIds(build_attribute_ids));
+    auto build_repartition_scheme = make_unique<PartitionScheme>(build_repartition_scheme_header.release());
+    build_partition_scheme = build_repartition_scheme.get();
+
+    if (build_relation_info->isStoredRelation()) {
+      // Create InsertDestination proto for repartition.
+      const CatalogRelation *build_repartition_output_relation = nullptr;
+      const QueryContext::insert_destination_id build_repartition_insert_destination_index =
+          query_context_proto_->insert_destinations_size();
+
+      S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
+      createTemporaryCatalogRelation(build_physical,
+                                     &build_repartition_output_relation,
+                                     insert_destination_proto);
+
+      insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
+      insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
+          ->MergeFrom(build_repartition_scheme->getProto());
+
+      CatalogRelation *mutable_build_repartition_output_relation =
+          catalog_database_->getRelationByIdMutable(build_repartition_output_relation->getID());
+      mutable_build_repartition_output_relation->setPartitionScheme(build_repartition_scheme.release());
+
+      std::vector<attribute_id> attributes;
+      for (const CatalogAttribute &attr : *build_repartition_output_relation) {
+        attributes.push_back(attr.getID());
+      }
+
+      const QueryPlan::DAGNodeIndex build_repartition_operator_index =
+          execution_plan_->addRelationalOperator(
+              new SelectOperator(query_handle_->query_id(),
+                                 *build_relation,
+                                 *build_repartition_output_relation,
+                                 build_repartition_insert_destination_index,
+                                 QueryContext::kInvalidPredicateId,
+                                 move(attributes),
+                                 true /* is_stored */,
+                                 num_partitions));
+      insert_destination_proto->set_relational_op_index(build_repartition_operator_index);
+
+      temporary_relation_info_vec_.emplace_back(build_repartition_operator_index,
+                                                build_repartition_output_relation,
+                                                build_repartition_insert_destination_index);
+      build_relation_info = &(temporary_relation_info_vec_.back());
+      build_relation = build_repartition_output_relation;
+    } else {
+      S::InsertDestination *build_insert_destination_proto =
+          query_context_proto_->mutable_insert_destinations(build_relation_info->output_destination_index);
+
+      build_insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
+      build_insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
+          ->MergeFrom(build_repartition_scheme->getProto());
+
+      CatalogRelation *mutable_build_relation =
+          catalog_database_->getRelationByIdMutable(build_relation->getID());
+      mutable_build_relation->setPartitionScheme(build_repartition_scheme.release());
+    }
+  }
+
+  // Repartition the probe relation.
+  if (probe_needs_repartition) {
+    auto probe_repartition_scheme_header =
+        make_unique<HashPartitionSchemeHeader>(num_partitions,
+                                               PartitionSchemeHeader::PartitionAttributeIds(probe_attribute_ids));
+    auto probe_repartition_scheme = make_unique<PartitionScheme>(probe_repartition_scheme_header.release());
+    probe_partition_scheme = probe_repartition_scheme.get();
+
+    if (probe_operator_info->isStoredRelation()) {
+      // Create InsertDestination proto for repartition.
+      const CatalogRelation *probe_repartition_output_relation = nullptr;
+      const QueryContext::insert_destination_id probe_repartition_insert_destination_index =
+          query_context_proto_->insert_destinations_size();
+      S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
+      createTemporaryCatalogRelation(probe_physical,
+                                     &probe_repartition_output_relation,
+                                     insert_destination_proto);
+
+      insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
+      insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
+          ->MergeFrom(probe_repartition_scheme->getProto());
+
+      CatalogRelation *mutable_probe_repartition_output_relation =
+          catalog_database_->getRelationByIdMutable(probe_repartition_output_relation->getID());
+      mutable_probe_repartition_output_relation->setPartitionScheme(probe_repartition_scheme.release());
+
+      std::vector<attribute_id> attributes;
+      for (const CatalogAttribute &attr : *probe_repartition_output_relation) {
+        attributes.push_back(attr.getID());
+      }
+
+      const QueryPlan::DAGNodeIndex probe_repartition_operator_index =
+          execution_plan_->addRelationalOperator(
+              new SelectOperator(query_handle_->query_id(),
+                                 *probe_relation,
+                                 *probe_repartition_output_relation,
+                                 probe_repartition_insert_destination_index,
+                                 QueryContext::kInvalidPredicateId,
+                                 move(attributes),
+                                 true /* is_stored */,
+                                 num_partitions));
+      insert_destination_proto->set_relational_op_index(probe_repartition_operator_index);
+
+      temporary_relation_info_vec_.emplace_back(probe_repartition_operator_index,
+                                                probe_repartition_output_relation,
+                                                probe_repartition_insert_destination_index);
+      probe_operator_info = &(temporary_relation_info_vec_.back());
+      probe_relation = probe_repartition_output_relation;
+    } else {
+      S::InsertDestination *probe_insert_destination_proto =
+          query_context_proto_->mutable_insert_destinations(probe_operator_info->output_destination_index);
+
+      probe_insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
+      probe_insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
+          ->MergeFrom(probe_repartition_scheme->getProto());
+
+      CatalogRelation *mutable_probe_relation =
+          catalog_database_->getRelationByIdMutable(probe_relation->getID());
+      mutable_probe_relation->setPartitionScheme(probe_repartition_scheme.release());
+    }
+  }
+
   // Convert the residual predicate proto.
   QueryContext::predicate_id residual_predicate_index = QueryContext::kInvalidPredicateId;
   if (physical_plan->residual_predicate()) {
@@ -760,11 +984,6 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   convertNamedExpressions(physical_plan->project_expressions(),
                           query_context_proto_->add_scalar_groups());
 
-  const CatalogRelationInfo *build_relation_info =
-      findRelationInfoOutputByPhysical(build_physical);
-  const CatalogRelationInfo *probe_operator_info =
-      findRelationInfoOutputByPhysical(probe_physical);
-
   // Create a vector that indicates whether each project expression is using
   // attributes from the build relation as input. This information is required
   // by the current implementation of hash left outer join
@@ -777,30 +996,13 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
                 build_physical->getOutputAttributes())));
   }
 
-  const CatalogRelation *build_relation = build_relation_info->relation;
-
-  // FIXME(quickstep-team): Add support for self-join.
-  if (build_relation == probe_operator_info->relation) {
-    THROW_SQL_ERROR() << "Self-join is not supported";
-  }
-
   // Create join hash table proto.
   const QueryContext::join_hash_table_id join_hash_table_index =
       query_context_proto_->join_hash_tables_size();
   S::QueryContext::HashTableContext *hash_table_context_proto =
       query_context_proto_->add_join_hash_tables();
 
-  // No partition.
-  std::size_t num_partitions = 1;
-  if (build_relation->hasPartitionScheme() &&
-      build_attribute_ids.size() == 1) {
-    const PartitionSchemeHeader &partition_scheme_header =
-        build_relation->getPartitionScheme()->getPartitionSchemeHeader();
-    if (build_attribute_ids[0] == partition_scheme_header.getPartitionAttributeIds().front()) {
-      // TODO(zuyu): add optimizer support for partitioned hash joins.
-      hash_table_context_proto->set_num_partitions(num_partitions);
-    }
-  }
+  hash_table_context_proto->set_num_partitions(num_partitions);
 
   S::HashTable *hash_table_proto = hash_table_context_proto->mutable_join_hash_table();
 
@@ -813,10 +1015,12 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
           key_types));
 
   for (const attribute_id build_attribute : build_attribute_ids) {
-    hash_table_proto->add_key_types()->CopyFrom(
+    hash_table_proto->add_key_types()->MergeFrom(
         build_relation->getAttributeById(build_attribute)->getType().getProto());
   }
 
+  const std::size_t build_cardinality =
+      cost_model_for_hash_join_->estimateCardinality(build_physical);
   hash_table_proto->set_estimated_num_entries(build_cardinality);
 
   // Create three operators.
@@ -867,7 +1071,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
           new HashJoinOperator(
               query_handle_->query_id(),
               *build_relation,
-              *probe_operator_info->relation,
+              *probe_relation,
               probe_operator_info->isStoredRelation(),
               probe_attribute_ids,
               any_probe_attributes_nullable,
@@ -914,8 +1118,9 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       std::piecewise_construct,
       std::forward_as_tuple(physical_plan),
       std::forward_as_tuple(join_operator_index,
-                            output_relation));
-  temporary_relation_info_vec_.emplace_back(join_operator_index, output_relation);
+                            output_relation,
+                            insert_destination_index));
+  temporary_relation_info_vec_.emplace_back(join_operator_index, output_relation, insert_destination_index);
 
   if (lip_filter_generator_ != nullptr) {
     lip_filter_generator_->addHashJoinInfo(physical_plan,
@@ -991,8 +1196,9 @@ void ExecutionGenerator::convertNestedLoopsJoin(
       std::piecewise_construct,
       std::forward_as_tuple(physical_plan),
       std::forward_as_tuple(join_operator_index,
-                            output_relation));
-  temporary_relation_info_vec_.emplace_back(join_operator_index, output_relation);
+                            output_relation,
+                            insert_destination_index));
+  temporary_relation_info_vec_.emplace_back(join_operator_index, output_relation, insert_destination_index);
 }
 
 void ExecutionGenerator::convertCopyFrom(
@@ -1457,8 +1663,9 @@ void ExecutionGenerator::convertUnionAll(
       std::piecewise_construct,
       std::forward_as_tuple(physical_unionall),
       std::forward_as_tuple(union_all_index,
-                            output_relation));
-  temporary_relation_info_vec_.emplace_back(union_all_index, output_relation);
+                            output_relation,
+                            insert_destination_index));
+  temporary_relation_info_vec_.emplace_back(union_all_index, output_relation, insert_destination_index);
 }
 
 void ExecutionGenerator::convertUpdateTable(
@@ -1695,9 +1902,12 @@ void ExecutionGenerator::convertAggregate(
   physical_to_output_relation_map_.emplace(
       std::piecewise_construct,
       std::forward_as_tuple(physical_plan),
-      std::forward_as_tuple(finalize_aggregation_operator_index, output_relation));
+      std::forward_as_tuple(finalize_aggregation_operator_index,
+                            output_relation,
+                            insert_destination_index));
   temporary_relation_info_vec_.emplace_back(finalize_aggregation_operator_index,
-                                            output_relation);
+                                            output_relation,
+                                            insert_destination_index);
 
   const QueryPlan::DAGNodeIndex destroy_aggregation_state_operator_index =
       execution_plan_->addRelationalOperator(
@@ -1842,9 +2052,12 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
   physical_to_output_relation_map_.emplace(
       std::piecewise_construct,
       std::forward_as_tuple(physical_plan),
-      std::forward_as_tuple(finalize_aggregation_operator_index, output_relation));
+      std::forward_as_tuple(finalize_aggregation_operator_index,
+                            output_relation,
+                            insert_destination_index));
   temporary_relation_info_vec_.emplace_back(finalize_aggregation_operator_index,
-                                            output_relation);
+                                            output_relation,
+                                            insert_destination_index);
 
   const QueryPlan::DAGNodeIndex destroy_aggregation_state_operator_index =
       execution_plan_->addRelationalOperator(
@@ -1900,7 +2113,8 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
                                          false /* is_pipeline_breaker */);
   }
   temporary_relation_info_vec_.emplace_back(run_generator_index,
-                                            initial_runs_relation);
+                                            initial_runs_relation,
+                                            initial_runs_destination_id);
   initial_runs_destination_proto->set_relational_op_index(run_generator_index);
 
   // Create sort configuration for run merging.
@@ -1975,12 +2189,14 @@ void ExecutionGenerator::convertSort(const P::SortPtr &physical_sort) {
       true /* is_pipeline_breaker */);
 
   temporary_relation_info_vec_.emplace_back(merge_run_operator_index,
-                                            sorted_relation);
+                                            sorted_relation,
+                                            sorted_output_destination_id);
   physical_to_output_relation_map_.emplace(
       std::piecewise_construct,
       std::forward_as_tuple(physical_sort),
       std::forward_as_tuple(merge_run_operator_index,
-                            sorted_relation));
+                            sorted_relation,
+                            sorted_output_destination_id));
 }
 
 void ExecutionGenerator::convertTableGenerator(
@@ -2015,8 +2231,9 @@ void ExecutionGenerator::convertTableGenerator(
       std::piecewise_construct,
       std::forward_as_tuple(physical_tablegen),
       std::forward_as_tuple(tablegen_index,
-                            output_relation));
-  temporary_relation_info_vec_.emplace_back(tablegen_index, output_relation);
+                            output_relation,
+                            insert_destination_index));
+  temporary_relation_info_vec_.emplace_back(tablegen_index, output_relation, insert_destination_index);
 }
 
 void ExecutionGenerator::convertWindowAggregate(
@@ -2119,9 +2336,12 @@ void ExecutionGenerator::convertWindowAggregate(
   physical_to_output_relation_map_.emplace(
       std::piecewise_construct,
       std::forward_as_tuple(physical_plan),
-      std::forward_as_tuple(window_aggregation_operator_index, output_relation));
+      std::forward_as_tuple(window_aggregation_operator_index,
+                            output_relation,
+                            insert_destination_index));
   temporary_relation_info_vec_.emplace_back(window_aggregation_operator_index,
-                                            output_relation);
+                                            output_relation,
+                                            insert_destination_index);
 }
 
 }  // namespace optimizer
