@@ -142,7 +142,11 @@ endif()
 option(ENABLE_DISTRIBUTED "Use the distributed version of Quickstep" OFF)
 
 macro (set_gflags_lib_name)
-  set(GFLAGS_LIB_NAME gflags)
+  if (BUILD_SHARED_LIBS)
+    set(GFLAGS_LIB_NAME gflags_nothreads-shared)
+  else()
+    set(GFLAGS_LIB_NAME gflags_nothreads-static)
+  endif()
 endmacro (set_gflags_lib_name)
 
 set_gflags_lib_name ()
@@ -679,10 +683,6 @@ endif()
 # Add required cmake-controlled third-party libraries (farmhash, gflags, glog, and re2).
 add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/farmhash" "${CMAKE_CURRENT_BINARY_DIR}/third_party/farmhash")
 
-set (GFLAGS_BUILD_TESTING OFF)
-set (GFLAGS_NC_TESTS OFF)
-set (GFLAGS_CONFIG_TESTS OFF)
-set (GFLAGS_BUILD_STATIC_LIBS OFF)
 add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/gflags" "${CMAKE_CURRENT_BINARY_DIR}/third_party/gflags")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}/third_party/gflags/include")
 

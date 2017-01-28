@@ -1,0 +1,21 @@
+--- CMakeLists.txt	2017-01-28 12:35:08.000000000 -0800
++++ CMakeLists.txt.new	2017-01-28 15:30:07.000000000 -0800
+@@ -206,6 +206,18 @@
+                        "\nor disable the build of the multi-threaded gflags library (BUILD_gflags_LIB=OFF).")
+ endif ()
+ 
++if(CMAKE_COMPILER_IS_GNUCXX)
++  CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" COMPILER_HAS_WNO_UNUSED_LOCAL_TYPEDEFS)
++  if (COMPILER_HAS_WNO_UNUSED_LOCAL_TYPEDEFS)
++    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedefs")
++  endif (COMPILER_HAS_WNO_UNUSED_LOCAL_TYPEDEFS)
++elseif(${CMAKE_CXX_COMPILER_ID} MATCHES "Clang")
++  CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedef" COMPILER_HAS_WNO_UNUSED_LOCAL_TYPEDEF)
++  if (COMPILER_HAS_WNO_UNUSED_LOCAL_TYPEDEF)
++    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-local-typedef")
++  endif (COMPILER_HAS_WNO_UNUSED_LOCAL_TYPEDEF)
++endif ()
++
+ # ----------------------------------------------------------------------------
+ # source files - excluding root subdirectory and/or .in suffix
+ set (PUBLIC_HDRS
