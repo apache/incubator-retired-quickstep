@@ -77,6 +77,7 @@ this by running the following 2 commands in the root quickstep directory:
 
     git submodule init
     git submodule update
+    cd third_party && ./download_and_patch_prerequisites.sh
 
 ### Advanced Configuration
 

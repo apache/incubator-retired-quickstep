@@ -38,18 +38,20 @@ And, it is **open source!**
 2. Then, go to the code directory: ```cd quickstep```
 3. Initialize the dependencies: ```git submodule init```
 4. Checkout the dependencies: ```git submodule update```
-5. Go into the build directory: ```cd build```
-6. Create the Makefile: ```cmake -D CMAKE_BUILD_TYPE=Release ..```
-7. Build: ```make -j4```. Note you may replace the 4 with the number of cores
+5. Download additional third-party dependencies and apply patches:<br/>
+```cd third_party && ./download_and_patch_prerequisites.sh && cd ../```
+6. Go into the build directory: ```cd build```
+7. Create the Makefile: ```cmake -D CMAKE_BUILD_TYPE=Release ..```
+8. Build: ```make -j4```. Note you may replace the 4 with the number of cores
    on your machine.
-8. Start quickstep: ```./quickstep_cli_shell --initialize_db=true```. You can
+9. Start quickstep: ```./quickstep_cli_shell --initialize_db=true```. You can
    now fire SQL queries. To quit, you can type in ```quit;``` Your data is
    stored in the directory ```qsstor```. Note the next time you start Quickstep,
    you can omit the ``` --initialize_db``` flag (as the database has already
    been initialized), and simply start Quickstep as: ```./quickstep_cli_shell```.
    There are also a number of optional flags that you can specify, and to see
    the full list, you can type in: ```./quickstep_cli_shell --help```
-9. Next let us load some data and fire some queries. A few points to note:
+10. Next let us load some data and fire some queries. A few points to note:
 The SQL surface of Quickstep is small (it will grow over time). The
 traditional SQL CREATE TABLE and SELECT statements work. The data types
 that are supported include INTEGER, FLOAT, DOUBLE, VARCHAR, CHAR, DATE,
