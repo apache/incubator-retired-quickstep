@@ -28,6 +28,7 @@
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/rules/AttachLIPFilters.hpp"
 #include "query_optimizer/rules/PruneColumns.hpp"
+#include "query_optimizer/rules/PushDownLowCostDisjunctivePredicate.hpp"
 #include "query_optimizer/rules/ReorderColumns.hpp"
 #include "query_optimizer/rules/StarSchemaHashJoinOrderOptimization.hpp"
 #include "query_optimizer/rules/SwapProbeBuild.hpp"
@@ -108,12 +109,22 @@ P::PhysicalPtr PhysicalGenerator::generateInitialPlan(
 P::PhysicalPtr PhysicalGenerator::optimizePlan() {
   std::vector<std::unique_ptr<Rule<P::Physical>>> rules;
   rules.emplace_back(new PruneColumns());
+
+  // TODO(jianqiao): It is possible for PushDownLowCostDisjunctivePredicate to
+  // generate two chaining Selection nodes that can actually be fused into one.
+  // Note that currently it is okay to have the two Selections because they are
+  // applied to a small cardinality stored relation, which is very light-weight.
+  // However it is better to have a FuseSelection optimization (or even a more
+  // general FusePhysical optimization) in the future.
+  rules.emplace_back(new PushDownLowCostDisjunctivePredicate());
+
   if (FLAGS_reorder_hash_joins) {
     rules.emplace_back(new StarSchemaHashJoinOrderOptimization());
     rules.emplace_back(new PruneColumns());
   } else {
     rules.emplace_back(new SwapProbeBuild());
   }
+
   if (FLAGS_reorder_columns) {
     // NOTE(jianqiao): This optimization relies on the fact that the intermediate
     // relations all have SPLIT_ROW_STORE layouts. If this fact gets changed, the
@@ -121,6 +132,10 @@ P::PhysicalPtr PhysicalGenerator::optimizePlan() {
     // should be re-evaluated.
     rules.emplace_back(new ReorderColumns());
   }
+
+  // NOTE(jianqiao): Adding rules after AttachLIPFilters requires extra handling
+  // of LIPFilterConfiguration for transformed nodes. So currently it is suggested
+  // that all the new rules be placed before this point.
   if (FLAGS_use_lip_filters) {
     rules.emplace_back(new AttachLIPFilters());
   }
