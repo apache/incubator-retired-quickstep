@@ -551,6 +551,13 @@ void ExecutionGenerator::convertSelection(
   const CatalogRelationInfo *input_relation_info =
       findRelationInfoOutputByPhysical(physical_selection->input());
   DCHECK(input_relation_info != nullptr);
+  const CatalogRelation &input_relation = *input_relation_info->relation;
+  const PartitionScheme *input_partition_scheme = input_relation.getPartitionScheme();
+
+  const std::size_t num_partitions =
+      input_partition_scheme
+          ? input_partition_scheme->getPartitionSchemeHeader().getNumPartitions()
+          : 1u;
 
   // Use the "simple" form of the selection operator (a pure projection that
   // doesn't require any expression evaluation or intermediate copies) if
@@ -559,19 +566,21 @@ void ExecutionGenerator::convertSelection(
   SelectOperator *op =
       convertSimpleProjection(project_expressions_group_index, &attributes)
           ? new SelectOperator(query_handle_->query_id(),
-                               *input_relation_info->relation,
+                               input_relation,
                                *output_relation,
                                insert_destination_index,
                                execution_predicate_index,
                                move(attributes),
-                               input_relation_info->isStoredRelation())
+                               input_relation_info->isStoredRelation(),
+                               num_partitions)
           : new SelectOperator(query_handle_->query_id(),
-                               *input_relation_info->relation,
+                               input_relation,
                                *output_relation,
                                insert_destination_index,
                                execution_predicate_index,
                                project_expressions_group_index,
-                               input_relation_info->isStoredRelation());
+                               input_relation_info->isStoredRelation(),
+                               num_partitions);
 
   const QueryPlan::DAGNodeIndex select_index =
       execution_plan_->addRelationalOperator(op);
@@ -1310,7 +1319,13 @@ void ExecutionGenerator::convertInsertSelection(
 
   const CatalogRelationInfo *selection_relation_info =
       findRelationInfoOutputByPhysical(physical_plan->selection());
-  const CatalogRelation *selection_relation = selection_relation_info->relation;
+  const CatalogRelation &selection_relation = *selection_relation_info->relation;
+  const PartitionScheme *selection_partition_scheme = selection_relation.getPartitionScheme();
+
+  const std::size_t num_partitions =
+      selection_partition_scheme
+          ? selection_partition_scheme->getPartitionSchemeHeader().getNumPartitions()
+          : 1u;
 
   // Prepare the attributes, which are output columns of the selection relation.
   std::vector<attribute_id> attributes;
@@ -1331,12 +1346,13 @@ void ExecutionGenerator::convertInsertSelection(
   // physical plan by modifying class Physical.
   SelectOperator *insert_selection_op =
       new SelectOperator(query_handle_->query_id(),
-                         *selection_relation,
+                         selection_relation,
                          destination_relation,
                          insert_destination_index,
                          QueryContext::kInvalidPredicateId,
                          move(attributes),
-                         selection_relation_info->isStoredRelation());
+                         selection_relation_info->isStoredRelation(),
+                         num_partitions);
 
   const QueryPlan::DAGNodeIndex insert_selection_index =
       execution_plan_->addRelationalOperator(insert_selection_op);

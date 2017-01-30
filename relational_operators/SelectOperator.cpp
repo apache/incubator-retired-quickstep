@@ -66,64 +66,40 @@ bool SelectOperator::getAllWorkOrders(
       return true;
     }
 
-    if (input_relation_.hasPartitionScheme()) {
-      for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
-        for (const block_id input_block_id : input_relation_block_ids_in_partition_[part_id]) {
-          numa_node_id numa_node = 0;
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+      for (const block_id input_block_id : input_relation_block_ids_[part_id]) {
+        numa_node_id numa_node = 0;
 #ifdef QUICKSTEP_HAVE_LIBNUMA
-          if (input_relation_.hasNUMAPlacementScheme()) {
-            numa_node = placement_scheme_->getNUMANodeForBlock(input_block_id);
-          }
-#endif  // QUICKSTEP_HAVE_LIBNUMA
-          container->addNormalWorkOrder(
-              new SelectWorkOrder(query_id_, input_relation_, input_block_id, predicate, simple_projection_,
-                                  simple_selection_, selection, output_destination, storage_manager,
-                                  CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context), numa_node),
-              op_index_);
+        if (input_relation_.hasNUMAPlacementScheme()) {
+          numa_node = placement_scheme_->getNUMANodeForBlock(input_block_id);
         }
-      }
-    } else {
-      for (const block_id input_block_id : input_relation_block_ids_) {
+#endif  // QUICKSTEP_HAVE_LIBNUMA
         container->addNormalWorkOrder(
             new SelectWorkOrder(query_id_, input_relation_, input_block_id, predicate, simple_projection_,
                                 simple_selection_, selection, output_destination, storage_manager,
-                                CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
+                                CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context), numa_node),
             op_index_);
       }
     }
     started_ = true;
     return true;
   } else {
-    if (input_relation_.hasPartitionScheme()) {
-      for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
-        while (num_workorders_generated_in_partition_[part_id] <
-               input_relation_block_ids_in_partition_[part_id].size()) {
-          const block_id block_in_partition
-              = input_relation_block_ids_in_partition_[part_id][num_workorders_generated_in_partition_[part_id]];
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+      while (num_workorders_generated_[part_id] < input_relation_block_ids_[part_id].size()) {
+        const block_id block = input_relation_block_ids_[part_id][num_workorders_generated_[part_id]];
 
-          numa_node_id numa_node = 0;
+        numa_node_id numa_node = 0;
 #ifdef QUICKSTEP_HAVE_LIBNUMA
-          if (input_relation_.hasNUMAPlacementScheme()) {
-            numa_node = placement_scheme_->getNUMANodeForBlock(block_in_partition);
-          }
-#endif  // QUICKSTEP_HAVE_LIBNUMA
-          container->addNormalWorkOrder(
-              new SelectWorkOrder(query_id_, input_relation_, block_in_partition, predicate, simple_projection_,
-                                  simple_selection_, selection, output_destination, storage_manager,
-                                  CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context), numa_node),
-              op_index_);
-          ++num_workorders_generated_in_partition_[part_id];
+        if (input_relation_.hasNUMAPlacementScheme()) {
+          numa_node = placement_scheme_->getNUMANodeForBlock(block);
         }
-      }
-    } else {
-      while (num_workorders_generated_ < input_relation_block_ids_.size()) {
+#endif  // QUICKSTEP_HAVE_LIBNUMA
         container->addNormalWorkOrder(
-            new SelectWorkOrder(query_id_, input_relation_, input_relation_block_ids_[num_workorders_generated_],
-                                predicate, simple_projection_, simple_selection_, selection, output_destination,
-                                storage_manager,
-                                CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
+            new SelectWorkOrder(query_id_, input_relation_, block, predicate, simple_projection_,
+                                simple_selection_, selection, output_destination, storage_manager,
+                                CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context), numa_node),
             op_index_);
-        ++num_workorders_generated_;
+        ++num_workorders_generated_[part_id];
       }
     }
     return done_feeding_input_relation_;
@@ -132,19 +108,25 @@ bool SelectOperator::getAllWorkOrders(
 
 bool SelectOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
   if (input_relation_is_stored_) {
-    if (!started_) {
-      for (const block_id input_block_id : input_relation_block_ids_) {
+    if (started_) {
+      return true;
+    }
+
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+      for (const block_id input_block_id : input_relation_block_ids_[part_id]) {
         container->addWorkOrderProto(createWorkOrderProto(input_block_id), op_index_);
       }
-      started_ = true;
     }
+    started_ = true;
     return true;
   } else {
-    while (num_workorders_generated_ < input_relation_block_ids_.size()) {
-      container->addWorkOrderProto(
-          createWorkOrderProto(input_relation_block_ids_[num_workorders_generated_]),
-          op_index_);
-      ++num_workorders_generated_;
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+      while (num_workorders_generated_[part_id] < input_relation_block_ids_[part_id].size()) {
+        container->addWorkOrderProto(
+            createWorkOrderProto(input_relation_block_ids_[part_id][num_workorders_generated_[part_id]]),
+            op_index_);
+        ++num_workorders_generated_[part_id];
+      }
     }
     return done_feeding_input_relation_;
   }
