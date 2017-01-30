@@ -29,8 +29,9 @@
 #include "expressions/aggregation/AggregationHandleAvg.hpp"
 #include "expressions/aggregation/AggregationID.hpp"
 #include "storage/AggregationOperationState.hpp"
-#include "storage/FastHashTableFactory.hpp"
+#include "storage/PackedPayloadHashTable.hpp"
 #include "storage/StorageManager.hpp"
+#include "storage/ValueAccessorMultiplexer.hpp"
 #include "types/CharType.hpp"
 #include "types/DateOperatorOverloads.hpp"
 #include "types/DatetimeIntervalType.hpp"
@@ -46,10 +47,7 @@
 #include "types/VarCharType.hpp"
 #include "types/YearMonthIntervalType.hpp"
 #include "types/containers/ColumnVector.hpp"
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
-#endif
 
 #include "gtest/gtest.h"
 
@@ -192,39 +190,6 @@ class AggregationHandleAvgTest : public ::testing::Test {
   }
 
   template <typename GenericType, typename OutputType = DoubleType>
-  void checkAggregationAvgGenericColumnVector() {
-    const GenericType &type = GenericType::Instance(true);
-    initializeHandle(type);
-    EXPECT_TRUE(
-        aggregation_handle_avg_->finalize(*aggregation_handle_avg_state_)
-            .isNull());
-
-    typename GenericType::cpptype sum;
-    SetDataType(0, &sum);
-    std::vector<std::unique_ptr<ColumnVector>> column_vectors;
-    column_vectors.emplace_back(
-        createColumnVectorGeneric<GenericType>(type, &sum));
-
-    std::unique_ptr<AggregationState> cv_state(
-        aggregation_handle_avg_->accumulateColumnVectors(column_vectors));
-
-    // Test the state generated directly by accumulateColumnVectors(), and also
-    // test after merging back.
-    CheckAvgValue<typename OutputType::cpptype>(
-        static_cast<typename OutputType::cpptype>(sum) / kNumSamples,
-        *aggregation_handle_avg_,
-        *cv_state);
-
-    aggregation_handle_avg_->mergeStates(*cv_state,
-                                         aggregation_handle_avg_state_.get());
-    CheckAvgValue<typename OutputType::cpptype>(
-        static_cast<typename OutputType::cpptype>(sum) / kNumSamples,
-        *aggregation_handle_avg_,
-        *aggregation_handle_avg_state_);
-  }
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-  template <typename GenericType, typename OutputType = DoubleType>
   void checkAggregationAvgGenericValueAccessor() {
     const GenericType &type = GenericType::Instance(true);
     initializeHandle(type);
@@ -240,7 +205,8 @@ class AggregationHandleAvgTest : public ::testing::Test {
 
     std::unique_ptr<AggregationState> va_state(
         aggregation_handle_avg_->accumulateValueAccessor(
-            accessor.get(), std::vector<attribute_id>(1, 0)));
+            {MultiSourceAttributeId(ValueAccessorSource::kBase, 0)},
+            ValueAccessorMultiplexer(accessor.get())));
 
     // Test the state generated directly by accumulateValueAccessor(), and also
     // test after merging back.
@@ -256,7 +222,6 @@ class AggregationHandleAvgTest : public ::testing::Test {
         *aggregation_handle_avg_,
         *aggregation_handle_avg_state_);
   }
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
   std::unique_ptr<AggregationHandle> aggregation_handle_avg_;
   std::unique_ptr<AggregationState> aggregation_handle_avg_state_;
@@ -311,33 +276,6 @@ TEST_F(AggregationHandleAvgTest, YearMonthIntervalTypeTest) {
   checkAggregationAvgGeneric<YearMonthIntervalType, YearMonthIntervalType>();
 }
 
-TEST_F(AggregationHandleAvgTest, IntTypeColumnVectorTest) {
-  checkAggregationAvgGenericColumnVector<IntType>();
-}
-
-TEST_F(AggregationHandleAvgTest, LongTypeColumnVectorTest) {
-  checkAggregationAvgGenericColumnVector<LongType>();
-}
-
-TEST_F(AggregationHandleAvgTest, FloatTypeColumnVectorTest) {
-  checkAggregationAvgGenericColumnVector<FloatType>();
-}
-
-TEST_F(AggregationHandleAvgTest, DoubleTypeColumnVectorTest) {
-  checkAggregationAvgGenericColumnVector<DoubleType>();
-}
-
-TEST_F(AggregationHandleAvgTest, DatetimeIntervalTypeColumnVectorTest) {
-  checkAggregationAvgGenericColumnVector<DatetimeIntervalType,
-                                         DatetimeIntervalType>();
-}
-
-TEST_F(AggregationHandleAvgTest, YearMonthIntervalTypeColumnVectorTest) {
-  checkAggregationAvgGenericColumnVector<YearMonthIntervalType,
-                                         YearMonthIntervalType>();
-}
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 TEST_F(AggregationHandleAvgTest, IntTypeValueAccessorTest) {
   checkAggregationAvgGenericValueAccessor<IntType>();
 }
@@ -363,7 +301,6 @@ TEST_F(AggregationHandleAvgTest, YearMonthIntervalTypeValueAccessorTest) {
   checkAggregationAvgGenericValueAccessor<YearMonthIntervalType,
                                           YearMonthIntervalType>();
 }
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
 #ifdef QUICKSTEP_DEBUG
 TEST_F(AggregationHandleAvgDeathTest, CharTypeTest) {
@@ -468,28 +405,25 @@ TEST_F(AggregationHandleAvgTest, GroupByTableMergeTestAvg) {
   initializeHandle(long_non_null_type);
   storage_manager_.reset(new StorageManager("./test_avg_data"));
   std::unique_ptr<AggregationStateHashTableBase> source_hash_table(
-      AggregationStateFastHashTableFactory::CreateResizable(
+      AggregationStateHashTableFactory::CreateResizable(
           HashTableImplType::kSeparateChaining,
           std::vector<const Type *>(1, &long_non_null_type),
           10,
-          {aggregation_handle_avg_.get()->getPayloadSize()},
           {aggregation_handle_avg_.get()},
           storage_manager_.get()));
   std::unique_ptr<AggregationStateHashTableBase> destination_hash_table(
-      AggregationStateFastHashTableFactory::CreateResizable(
+      AggregationStateHashTableFactory::CreateResizable(
           HashTableImplType::kSeparateChaining,
           std::vector<const Type *>(1, &long_non_null_type),
           10,
-          {aggregation_handle_avg_.get()->getPayloadSize()},
           {aggregation_handle_avg_.get()},
           storage_manager_.get()));
 
-  AggregationStateFastHashTable *destination_hash_table_derived =
-      static_cast<AggregationStateFastHashTable *>(
-          destination_hash_table.get());
+  PackedPayloadHashTable *destination_hash_table_derived =
+      static_cast<PackedPayloadHashTable *>(destination_hash_table.get());
 
-  AggregationStateFastHashTable *source_hash_table_derived =
-      static_cast<AggregationStateFastHashTable *>(source_hash_table.get());
+  PackedPayloadHashTable *source_hash_table_derived =
+      static_cast<PackedPayloadHashTable *>(source_hash_table.get());
 
   AggregationHandleAvg *aggregation_handle_avg_derived =
       static_cast<AggregationHandleAvg *>(aggregation_handle_avg_.get());
@@ -546,29 +480,29 @@ TEST_F(AggregationHandleAvgTest, GroupByTableMergeTestAvg) {
   memcpy(buffer + 1,
          common_key_source_state.get()->getPayloadAddress(),
          aggregation_handle_avg_.get()->getPayloadSize());
-  source_hash_table_derived->putCompositeKey(common_key, buffer);
+  source_hash_table_derived->upsertCompositeKey(common_key, buffer);
 
   memcpy(buffer + 1,
          common_key_destination_state.get()->getPayloadAddress(),
          aggregation_handle_avg_.get()->getPayloadSize());
-  destination_hash_table_derived->putCompositeKey(common_key, buffer);
+  destination_hash_table_derived->upsertCompositeKey(common_key, buffer);
 
   memcpy(buffer + 1,
          exclusive_key_source_state.get()->getPayloadAddress(),
          aggregation_handle_avg_.get()->getPayloadSize());
-  source_hash_table_derived->putCompositeKey(exclusive_source_key, buffer);
+  source_hash_table_derived->upsertCompositeKey(exclusive_source_key, buffer);
 
   memcpy(buffer + 1,
          exclusive_key_destination_state.get()->getPayloadAddress(),
          aggregation_handle_avg_.get()->getPayloadSize());
-  destination_hash_table_derived->putCompositeKey(exclusive_destination_key,
+  destination_hash_table_derived->upsertCompositeKey(exclusive_destination_key,
                                                       buffer);
 
   EXPECT_EQ(2u, destination_hash_table_derived->numEntries());
   EXPECT_EQ(2u, source_hash_table_derived->numEntries());
 
-  AggregationOperationState::mergeGroupByHashTables(
-      source_hash_table.get(), destination_hash_table.get());
+  HashTableMerger merger(destination_hash_table_derived);
+  source_hash_table_derived->forEachCompositeKey(&merger);
 
   EXPECT_EQ(3u, destination_hash_table_derived->numEntries());
 
@@ -576,21 +510,19 @@ TEST_F(AggregationHandleAvgTest, GroupByTableMergeTestAvg) {
       (common_key_destination_avg_val.getLiteral<std::int64_t>() +
        common_key_source_avg_val.getLiteral<std::int64_t>()) /
           static_cast<double>(2),
-      aggregation_handle_avg_derived->finalizeHashTableEntryFast(
+      aggregation_handle_avg_derived->finalizeHashTableEntry(
           destination_hash_table_derived->getSingleCompositeKey(common_key) +
           1));
   CheckAvgValue<double>(
       exclusive_key_destination_avg_val.getLiteral<std::int64_t>(),
-      aggregation_handle_avg_derived->finalizeHashTableEntryFast(
+      aggregation_handle_avg_derived->finalizeHashTableEntry(
           destination_hash_table_derived->getSingleCompositeKey(
-              exclusive_destination_key) +
-          1));
+              exclusive_destination_key) + 1));
   CheckAvgValue<double>(
       exclusive_key_source_avg_val.getLiteral<std::int64_t>(),
-      aggregation_handle_avg_derived->finalizeHashTableEntryFast(
+      aggregation_handle_avg_derived->finalizeHashTableEntry(
           source_hash_table_derived->getSingleCompositeKey(
-              exclusive_source_key) +
-          1));
+              exclusive_source_key) + 1));
 }
 
 }  // namespace quickstep

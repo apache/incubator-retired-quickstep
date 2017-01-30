@@ -32,9 +32,10 @@
 #include "expressions/aggregation/AggregationHandleMax.hpp"
 #include "expressions/aggregation/AggregationID.hpp"
 #include "storage/AggregationOperationState.hpp"
-#include "storage/FastHashTableFactory.hpp"
 #include "storage/HashTableBase.hpp"
+#include "storage/PackedPayloadHashTable.hpp"
 #include "storage/StorageManager.hpp"
+#include "storage/ValueAccessorMultiplexer.hpp"
 #include "types/CharType.hpp"
 #include "types/DatetimeIntervalType.hpp"
 #include "types/DatetimeLit.hpp"
@@ -51,10 +52,7 @@
 #include "types/VarCharType.hpp"
 #include "types/YearMonthIntervalType.hpp"
 #include "types/containers/ColumnVector.hpp"
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
-#endif
 
 #include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
@@ -223,34 +221,6 @@ class AggregationHandleMaxTest : public ::testing::Test {
   }
 
   template <typename GenericType>
-  void checkAggregationMaxGenericColumnVector() {
-    const GenericType &type = GenericType::Instance(true);
-    initializeHandle(type);
-    EXPECT_TRUE(
-        aggregation_handle_max_->finalize(*aggregation_handle_max_state_)
-            .isNull());
-
-    typename GenericType::cpptype max;
-    std::vector<std::unique_ptr<ColumnVector>> column_vectors;
-    column_vectors.emplace_back(
-        createColumnVectorGeneric<GenericType>(type, &max));
-
-    std::unique_ptr<AggregationState> cv_state(
-        aggregation_handle_max_->accumulateColumnVectors(column_vectors));
-
-    // Test the state generated directly by accumulateColumnVectors(), and also
-    // test after merging back.
-    CheckMaxValue<typename GenericType::cpptype>(
-        max, *aggregation_handle_max_, *cv_state);
-
-    aggregation_handle_max_->mergeStates(*cv_state,
-                                         aggregation_handle_max_state_.get());
-    CheckMaxValue<typename GenericType::cpptype>(
-        max, *aggregation_handle_max_, *aggregation_handle_max_state_);
-  }
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-  template <typename GenericType>
   void checkAggregationMaxGenericValueAccessor() {
     const GenericType &type = GenericType::Instance(true);
     initializeHandle(type);
@@ -266,7 +236,8 @@ class AggregationHandleMaxTest : public ::testing::Test {
 
     std::unique_ptr<AggregationState> va_state(
         aggregation_handle_max_->accumulateValueAccessor(
-            accessor.get(), std::vector<attribute_id>(1, 0)));
+            {MultiSourceAttributeId(ValueAccessorSource::kBase, 0)},
+            ValueAccessorMultiplexer(accessor.get())));
 
     // Test the state generated directly by accumulateValueAccessor(), and also
     // test after merging back.
@@ -278,7 +249,6 @@ class AggregationHandleMaxTest : public ::testing::Test {
     CheckMaxValue<typename GenericType::cpptype>(
         max, *aggregation_handle_max_, *aggregation_handle_max_state_);
   }
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
   template <typename StringType>
   void checkAggregationMaxString() {
@@ -385,33 +355,6 @@ class AggregationHandleMaxTest : public ::testing::Test {
   }
 
   template <typename StringType, typename ColumnVectorType>
-  void checkAggregationMaxStringColumnVector() {
-    const StringType &type = StringType::Instance(10, true);
-    initializeHandle(type);
-    EXPECT_TRUE(
-        aggregation_handle_max_->finalize(*aggregation_handle_max_state_)
-            .isNull());
-
-    std::string max;
-    std::vector<std::unique_ptr<ColumnVector>> column_vectors;
-    column_vectors.emplace_back(
-        createColumnVectorString<ColumnVectorType>(type, &max));
-
-    std::unique_ptr<AggregationState> cv_state(
-        aggregation_handle_max_->accumulateColumnVectors(column_vectors));
-
-    // Test the state generated directly by accumulateColumnVectors(), and also
-    // test after merging back.
-    CheckMaxString(max, *aggregation_handle_max_, *cv_state);
-
-    aggregation_handle_max_->mergeStates(*cv_state,
-                                         aggregation_handle_max_state_.get());
-    CheckMaxString(
-        max, *aggregation_handle_max_, *aggregation_handle_max_state_);
-  }
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-  template <typename StringType, typename ColumnVectorType>
   void checkAggregationMaxStringValueAccessor() {
     const StringType &type = StringType::Instance(10, true);
     initializeHandle(type);
@@ -426,7 +369,8 @@ class AggregationHandleMaxTest : public ::testing::Test {
 
     std::unique_ptr<AggregationState> va_state(
         aggregation_handle_max_->accumulateValueAccessor(
-            accessor.get(), std::vector<attribute_id>(1, 0)));
+            {MultiSourceAttributeId(ValueAccessorSource::kBase, 0)},
+            ValueAccessorMultiplexer(accessor.get())));
 
     // Test the state generated directly by accumulateValueAccessor(), and also
     // test after merging back.
@@ -437,7 +381,6 @@ class AggregationHandleMaxTest : public ::testing::Test {
     CheckMaxString(
         max, *aggregation_handle_max_, *aggregation_handle_max_state_);
   }
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
   std::unique_ptr<AggregationHandle> aggregation_handle_max_;
   std::unique_ptr<AggregationState> aggregation_handle_max_state_;
@@ -514,43 +457,6 @@ TEST_F(AggregationHandleMaxTest, VarCharTypeTest) {
   checkAggregationMaxString<VarCharType>();
 }
 
-TEST_F(AggregationHandleMaxTest, IntTypeColumnVectorTest) {
-  checkAggregationMaxGenericColumnVector<IntType>();
-}
-
-TEST_F(AggregationHandleMaxTest, LongTypeColumnVectorTest) {
-  checkAggregationMaxGenericColumnVector<LongType>();
-}
-
-TEST_F(AggregationHandleMaxTest, FloatTypeColumnVectorTest) {
-  checkAggregationMaxGenericColumnVector<FloatType>();
-}
-
-TEST_F(AggregationHandleMaxTest, DoubleTypeColumnVectorTest) {
-  checkAggregationMaxGenericColumnVector<DoubleType>();
-}
-
-TEST_F(AggregationHandleMaxTest, DatetimeTypeColumnVectorTest) {
-  checkAggregationMaxGenericColumnVector<DatetimeType>();
-}
-
-TEST_F(AggregationHandleMaxTest, DatetimeIntervalTypeColumnVectorTest) {
-  checkAggregationMaxGenericColumnVector<DatetimeIntervalType>();
-}
-
-TEST_F(AggregationHandleMaxTest, YearMonthIntervalTypeColumnVectorTest) {
-  checkAggregationMaxGenericColumnVector<YearMonthIntervalType>();
-}
-
-TEST_F(AggregationHandleMaxTest, CharTypeColumnVectorTest) {
-  checkAggregationMaxStringColumnVector<CharType, NativeColumnVector>();
-}
-
-TEST_F(AggregationHandleMaxTest, VarCharColumnVectorTypeTest) {
-  checkAggregationMaxStringColumnVector<VarCharType, IndirectColumnVector>();
-}
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 TEST_F(AggregationHandleMaxTest, IntTypeValueAccessorTest) {
   checkAggregationMaxGenericValueAccessor<IntType>();
 }
@@ -586,7 +492,6 @@ TEST_F(AggregationHandleMaxTest, CharTypeValueAccessorTest) {
 TEST_F(AggregationHandleMaxTest, VarCharValueAccessorTypeTest) {
   checkAggregationMaxStringValueAccessor<VarCharType, IndirectColumnVector>();
 }
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
 #ifdef QUICKSTEP_DEBUG
 TEST_F(AggregationHandleMaxDeathTest, WrongTypeTest) {
@@ -689,28 +594,25 @@ TEST_F(AggregationHandleMaxTest, GroupByTableMergeTest) {
   initializeHandle(int_non_null_type);
   storage_manager_.reset(new StorageManager("./test_max_data"));
   std::unique_ptr<AggregationStateHashTableBase> source_hash_table(
-      AggregationStateFastHashTableFactory::CreateResizable(
+      AggregationStateHashTableFactory::CreateResizable(
           HashTableImplType::kSeparateChaining,
           std::vector<const Type *>(1, &int_non_null_type),
           10,
-          {aggregation_handle_max_.get()->getPayloadSize()},
           {aggregation_handle_max_.get()},
           storage_manager_.get()));
   std::unique_ptr<AggregationStateHashTableBase> destination_hash_table(
-      AggregationStateFastHashTableFactory::CreateResizable(
+      AggregationStateHashTableFactory::CreateResizable(
           HashTableImplType::kSeparateChaining,
           std::vector<const Type *>(1, &int_non_null_type),
           10,
-          {aggregation_handle_max_.get()->getPayloadSize()},
           {aggregation_handle_max_.get()},
           storage_manager_.get()));
 
-  AggregationStateFastHashTable *destination_hash_table_derived =
-      static_cast<AggregationStateFastHashTable *>(
-          destination_hash_table.get());
+  PackedPayloadHashTable *destination_hash_table_derived =
+      static_cast<PackedPayloadHashTable *>(destination_hash_table.get());
 
-  AggregationStateFastHashTable *source_hash_table_derived =
-      static_cast<AggregationStateFastHashTable *>(source_hash_table.get());
+  PackedPayloadHashTable *source_hash_table_derived =
+      static_cast<PackedPayloadHashTable *>(source_hash_table.get());
 
   AggregationHandleMax *aggregation_handle_max_derived =
       static_cast<AggregationHandleMax *>(aggregation_handle_max_.get());
@@ -780,47 +682,47 @@ TEST_F(AggregationHandleMaxTest, GroupByTableMergeTest) {
   memcpy(buffer + 1,
          common_key_source_state.get()->getPayloadAddress(),
          aggregation_handle_max_.get()->getPayloadSize());
-  source_hash_table_derived->putCompositeKey(common_key, buffer);
+  source_hash_table_derived->upsertCompositeKey(common_key, buffer);
 
   memcpy(buffer + 1,
          common_key_destination_state.get()->getPayloadAddress(),
          aggregation_handle_max_.get()->getPayloadSize());
-  destination_hash_table_derived->putCompositeKey(common_key, buffer);
+  destination_hash_table_derived->upsertCompositeKey(common_key, buffer);
 
   memcpy(buffer + 1,
          exclusive_key_source_state.get()->getPayloadAddress(),
          aggregation_handle_max_.get()->getPayloadSize());
-  source_hash_table_derived->putCompositeKey(exclusive_source_key, buffer);
+  source_hash_table_derived->upsertCompositeKey(exclusive_source_key, buffer);
 
   memcpy(buffer + 1,
          exclusive_key_destination_state.get()->getPayloadAddress(),
          aggregation_handle_max_.get()->getPayloadSize());
-  destination_hash_table_derived->putCompositeKey(exclusive_destination_key,
-                                                      buffer);
+  destination_hash_table_derived->upsertCompositeKey(exclusive_destination_key,
+                                                     buffer);
 
   EXPECT_EQ(2u, destination_hash_table_derived->numEntries());
   EXPECT_EQ(2u, source_hash_table_derived->numEntries());
 
-  AggregationOperationState::mergeGroupByHashTables(
-      source_hash_table.get(), destination_hash_table.get());
+  HashTableMerger merger(destination_hash_table_derived);
+  source_hash_table_derived->forEachCompositeKey(&merger);
 
   EXPECT_EQ(3u, destination_hash_table_derived->numEntries());
 
   CheckMaxValue<int>(
       common_key_destination_max_val.getLiteral<int>(),
-      aggregation_handle_max_derived->finalizeHashTableEntryFast(
+      aggregation_handle_max_derived->finalizeHashTableEntry(
           destination_hash_table_derived->getSingleCompositeKey(common_key) +
           1));
-  CheckMaxValue<int>(exclusive_key_destination_max_val.getLiteral<int>(),
-                     aggregation_handle_max_derived->finalizeHashTableEntryFast(
-                         destination_hash_table_derived->getSingleCompositeKey(
-                             exclusive_destination_key) +
-                         1));
-  CheckMaxValue<int>(exclusive_key_source_max_val.getLiteral<int>(),
-                     aggregation_handle_max_derived->finalizeHashTableEntryFast(
-                         source_hash_table_derived->getSingleCompositeKey(
-                             exclusive_source_key) +
-                         1));
+  CheckMaxValue<int>(
+      exclusive_key_destination_max_val.getLiteral<int>(),
+      aggregation_handle_max_derived->finalizeHashTableEntry(
+          destination_hash_table_derived->getSingleCompositeKey(
+              exclusive_destination_key) + 1));
+  CheckMaxValue<int>(
+      exclusive_key_source_max_val.getLiteral<int>(),
+      aggregation_handle_max_derived->finalizeHashTableEntry(
+          source_hash_table_derived->getSingleCompositeKey(
+              exclusive_source_key) + 1));
 }
 
 }  // namespace quickstep

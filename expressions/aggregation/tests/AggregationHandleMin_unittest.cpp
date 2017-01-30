@@ -32,8 +32,9 @@
 #include "expressions/aggregation/AggregationHandleMin.hpp"
 #include "expressions/aggregation/AggregationID.hpp"
 #include "storage/AggregationOperationState.hpp"
-#include "storage/FastHashTableFactory.hpp"
+#include "storage/PackedPayloadHashTable.hpp"
 #include "storage/StorageManager.hpp"
+#include "storage/ValueAccessorMultiplexer.hpp"
 #include "types/CharType.hpp"
 #include "types/DatetimeIntervalType.hpp"
 #include "types/DatetimeLit.hpp"
@@ -50,10 +51,7 @@
 #include "types/VarCharType.hpp"
 #include "types/YearMonthIntervalType.hpp"
 #include "types/containers/ColumnVector.hpp"
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
-#endif
 
 #include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
@@ -222,34 +220,6 @@ class AggregationHandleMinTest : public ::testing::Test {
   }
 
   template <typename GenericType>
-  void checkAggregationMinGenericColumnVector() {
-    const GenericType &type = GenericType::Instance(true);
-    initializeHandle(type);
-    EXPECT_TRUE(
-        aggregation_handle_min_->finalize(*aggregation_handle_min_state_)
-            .isNull());
-
-    typename GenericType::cpptype min;
-    std::vector<std::unique_ptr<ColumnVector>> column_vectors;
-    column_vectors.emplace_back(
-        createColumnVectorGeneric<GenericType>(type, &min));
-
-    std::unique_ptr<AggregationState> cv_state(
-        aggregation_handle_min_->accumulateColumnVectors(column_vectors));
-
-    // Test the state generated directly by accumulateColumnVectors(), and also
-    // test after merging back.
-    CheckMinValue<typename GenericType::cpptype>(
-        min, *aggregation_handle_min_, *cv_state);
-
-    aggregation_handle_min_->mergeStates(*cv_state,
-                                         aggregation_handle_min_state_.get());
-    CheckMinValue<typename GenericType::cpptype>(
-        min, *aggregation_handle_min_, *aggregation_handle_min_state_);
-  }
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-  template <typename GenericType>
   void checkAggregationMinGenericValueAccessor() {
     const GenericType &type = GenericType::Instance(true);
     initializeHandle(type);
@@ -265,7 +235,8 @@ class AggregationHandleMinTest : public ::testing::Test {
 
     std::unique_ptr<AggregationState> va_state(
         aggregation_handle_min_->accumulateValueAccessor(
-            accessor.get(), std::vector<attribute_id>(1, 0)));
+            {MultiSourceAttributeId(ValueAccessorSource::kBase, 0)},
+            ValueAccessorMultiplexer(accessor.get())));
 
     // Test the state generated directly by accumulateValueAccessor(), and also
     // test after merging back.
@@ -277,7 +248,6 @@ class AggregationHandleMinTest : public ::testing::Test {
     CheckMinValue<typename GenericType::cpptype>(
         min, *aggregation_handle_min_, *aggregation_handle_min_state_);
   }
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
   template <typename StringType>
   void checkAggregationMinString() {
@@ -382,33 +352,6 @@ class AggregationHandleMinTest : public ::testing::Test {
   }
 
   template <typename StringType, typename ColumnVectorType>
-  void checkAggregationMinStringColumnVector() {
-    const StringType &type = StringType::Instance(10, true);
-    initializeHandle(type);
-    EXPECT_TRUE(
-        aggregation_handle_min_->finalize(*aggregation_handle_min_state_)
-            .isNull());
-
-    std::string min;
-    std::vector<std::unique_ptr<ColumnVector>> column_vectors;
-    column_vectors.emplace_back(
-        createColumnVectorString<ColumnVectorType>(type, &min));
-
-    std::unique_ptr<AggregationState> cv_state(
-        aggregation_handle_min_->accumulateColumnVectors(column_vectors));
-
-    // Test the state generated directly by accumulateColumnVectors(), and also
-    // test after merging back.
-    CheckMinString(min, *aggregation_handle_min_, *cv_state);
-
-    aggregation_handle_min_->mergeStates(*cv_state,
-                                         aggregation_handle_min_state_.get());
-    CheckMinString(
-        min, *aggregation_handle_min_, *aggregation_handle_min_state_);
-  }
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-  template <typename StringType, typename ColumnVectorType>
   void checkAggregationMinStringValueAccessor() {
     const StringType &type = StringType::Instance(10, true);
     initializeHandle(type);
@@ -423,7 +366,8 @@ class AggregationHandleMinTest : public ::testing::Test {
 
     std::unique_ptr<AggregationState> va_state(
         aggregation_handle_min_->accumulateValueAccessor(
-            accessor.get(), std::vector<attribute_id>(1, 0)));
+            {MultiSourceAttributeId(ValueAccessorSource::kBase, 0)},
+            ValueAccessorMultiplexer(accessor.get())));
 
     // Test the state generated directly by accumulateValueAccessor(), and also
     // test after merging back.
@@ -434,7 +378,6 @@ class AggregationHandleMinTest : public ::testing::Test {
     CheckMinString(
         min, *aggregation_handle_min_, *aggregation_handle_min_state_);
   }
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
   std::unique_ptr<AggregationHandle> aggregation_handle_min_;
   std::unique_ptr<AggregationState> aggregation_handle_min_state_;
@@ -511,43 +454,6 @@ TEST_F(AggregationHandleMinTest, VarCharTypeTest) {
   checkAggregationMinString<VarCharType>();
 }
 
-TEST_F(AggregationHandleMinTest, IntTypeColumnVectorTest) {
-  checkAggregationMinGenericColumnVector<IntType>();
-}
-
-TEST_F(AggregationHandleMinTest, LongTypeColumnVectorTest) {
-  checkAggregationMinGenericColumnVector<LongType>();
-}
-
-TEST_F(AggregationHandleMinTest, FloatTypeColumnVectorTest) {
-  checkAggregationMinGenericColumnVector<FloatType>();
-}
-
-TEST_F(AggregationHandleMinTest, DoubleTypeColumnVectorTest) {
-  checkAggregationMinGenericColumnVector<DoubleType>();
-}
-
-TEST_F(AggregationHandleMinTest, DatetimeTypeColumnVectorTest) {
-  checkAggregationMinGenericColumnVector<DatetimeType>();
-}
-
-TEST_F(AggregationHandleMinTest, DatetimeIntervalTypeColumnVectorTest) {
-  checkAggregationMinGenericColumnVector<DatetimeIntervalType>();
-}
-
-TEST_F(AggregationHandleMinTest, YearMonthIntervalTypeColumnVectorTest) {
-  checkAggregationMinGenericColumnVector<YearMonthIntervalType>();
-}
-
-TEST_F(AggregationHandleMinTest, CharTypeColumnVectorTest) {
-  checkAggregationMinStringColumnVector<CharType, NativeColumnVector>();
-}
-
-TEST_F(AggregationHandleMinTest, VarCharTypeColumnVectorTest) {
-  checkAggregationMinStringColumnVector<VarCharType, IndirectColumnVector>();
-}
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 TEST_F(AggregationHandleMinTest, IntTypeValueAccessorTest) {
   checkAggregationMinGenericValueAccessor<IntType>();
 }
@@ -583,7 +489,6 @@ TEST_F(AggregationHandleMinTest, CharTypeValueAccessorTest) {
 TEST_F(AggregationHandleMinTest, VarCharTypeValueAccessorTest) {
   checkAggregationMinStringValueAccessor<VarCharType, IndirectColumnVector>();
 }
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
 #ifdef QUICKSTEP_DEBUG
 TEST_F(AggregationHandleMinDeathTest, WrongTypeTest) {
@@ -685,28 +590,25 @@ TEST_F(AggregationHandleMinTest, GroupByTableMergeTest) {
   initializeHandle(int_non_null_type);
   storage_manager_.reset(new StorageManager("./test_min_data"));
   std::unique_ptr<AggregationStateHashTableBase> source_hash_table(
-      AggregationStateFastHashTableFactory::CreateResizable(
+      AggregationStateHashTableFactory::CreateResizable(
           HashTableImplType::kSeparateChaining,
           std::vector<const Type *>(1, &int_non_null_type),
           10,
-          {aggregation_handle_min_.get()->getPayloadSize()},
           {aggregation_handle_min_.get()},
           storage_manager_.get()));
   std::unique_ptr<AggregationStateHashTableBase> destination_hash_table(
-      AggregationStateFastHashTableFactory::CreateResizable(
+      AggregationStateHashTableFactory::CreateResizable(
           HashTableImplType::kSeparateChaining,
           std::vector<const Type *>(1, &int_non_null_type),
           10,
-          {aggregation_handle_min_.get()->getPayloadSize()},
           {aggregation_handle_min_.get()},
           storage_manager_.get()));
 
-  AggregationStateFastHashTable *destination_hash_table_derived =
-      static_cast<AggregationStateFastHashTable *>(
-          destination_hash_table.get());
+  PackedPayloadHashTable *destination_hash_table_derived =
+      static_cast<PackedPayloadHashTable *>(destination_hash_table.get());
 
-  AggregationStateFastHashTable *source_hash_table_derived =
-      static_cast<AggregationStateFastHashTable *>(source_hash_table.get());
+  PackedPayloadHashTable *source_hash_table_derived =
+      static_cast<PackedPayloadHashTable *>(source_hash_table.get());
 
   AggregationHandleMin *aggregation_handle_min_derived =
       static_cast<AggregationHandleMin *>(aggregation_handle_min_.get());
@@ -776,47 +678,47 @@ TEST_F(AggregationHandleMinTest, GroupByTableMergeTest) {
   memcpy(buffer + 1,
          common_key_source_state.get()->getPayloadAddress(),
          aggregation_handle_min_.get()->getPayloadSize());
-  source_hash_table_derived->putCompositeKey(common_key, buffer);
+  source_hash_table_derived->upsertCompositeKey(common_key, buffer);
 
   memcpy(buffer + 1,
          common_key_destination_state.get()->getPayloadAddress(),
          aggregation_handle_min_.get()->getPayloadSize());
-  destination_hash_table_derived->putCompositeKey(common_key, buffer);
+  destination_hash_table_derived->upsertCompositeKey(common_key, buffer);
 
   memcpy(buffer + 1,
          exclusive_key_source_state.get()->getPayloadAddress(),
          aggregation_handle_min_.get()->getPayloadSize());
-  source_hash_table_derived->putCompositeKey(exclusive_source_key, buffer);
+  source_hash_table_derived->upsertCompositeKey(exclusive_source_key, buffer);
 
   memcpy(buffer + 1,
          exclusive_key_destination_state.get()->getPayloadAddress(),
          aggregation_handle_min_.get()->getPayloadSize());
-  destination_hash_table_derived->putCompositeKey(exclusive_destination_key,
-                                                      buffer);
+  destination_hash_table_derived->upsertCompositeKey(exclusive_destination_key,
+                                                     buffer);
 
   EXPECT_EQ(2u, destination_hash_table_derived->numEntries());
   EXPECT_EQ(2u, source_hash_table_derived->numEntries());
 
-  AggregationOperationState::mergeGroupByHashTables(
-      source_hash_table.get(), destination_hash_table.get());
+  HashTableMerger merger(destination_hash_table_derived);
+  source_hash_table_derived->forEachCompositeKey(&merger);
 
   EXPECT_EQ(3u, destination_hash_table_derived->numEntries());
 
   CheckMinValue<int>(
       common_key_source_min_val.getLiteral<int>(),
-      aggregation_handle_min_derived->finalizeHashTableEntryFast(
+      aggregation_handle_min_derived->finalizeHashTableEntry(
           destination_hash_table_derived->getSingleCompositeKey(common_key) +
           1));
-  CheckMinValue<int>(exclusive_key_destination_min_val.getLiteral<int>(),
-                     aggregation_handle_min_derived->finalizeHashTableEntryFast(
-                         destination_hash_table_derived->getSingleCompositeKey(
-                             exclusive_destination_key) +
-                         1));
-  CheckMinValue<int>(exclusive_key_source_min_val.getLiteral<int>(),
-                     aggregation_handle_min_derived->finalizeHashTableEntryFast(
-                         source_hash_table_derived->getSingleCompositeKey(
-                             exclusive_source_key) +
-                         1));
+  CheckMinValue<int>(
+      exclusive_key_destination_min_val.getLiteral<int>(),
+      aggregation_handle_min_derived->finalizeHashTableEntry(
+          destination_hash_table_derived->getSingleCompositeKey(
+              exclusive_destination_key) + 1));
+  CheckMinValue<int>(
+      exclusive_key_source_min_val.getLiteral<int>(),
+      aggregation_handle_min_derived->finalizeHashTableEntry(
+          source_hash_table_derived->getSingleCompositeKey(
+              exclusive_source_key) + 1));
 }
 
 }  // namespace quickstep

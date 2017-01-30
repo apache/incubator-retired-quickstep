@@ -30,8 +30,9 @@
 #include "expressions/aggregation/AggregationHandleCount.hpp"
 #include "expressions/aggregation/AggregationID.hpp"
 #include "storage/AggregationOperationState.hpp"
-#include "storage/FastHashTableFactory.hpp"
+#include "storage/PackedPayloadHashTable.hpp"
 #include "storage/StorageManager.hpp"
+#include "storage/ValueAccessorMultiplexer.hpp"
 #include "types/CharType.hpp"
 #include "types/DoubleType.hpp"
 #include "types/FloatType.hpp"
@@ -43,10 +44,7 @@
 #include "types/TypedValue.hpp"
 #include "types/VarCharType.hpp"
 #include "types/containers/ColumnVector.hpp"
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
-#endif
 
 #include "gtest/gtest.h"
 
@@ -216,32 +214,6 @@ class AggregationHandleCountTest : public ::testing::Test {
   }
 
   template <typename NumericType>
-  void checkAggregationCountNumericColumnVector(int test_count) {
-    const NumericType &type = NumericType::Instance(true);
-    initializeHandle(&type);
-    CheckCountValue(
-        0, *aggregation_handle_count_, *aggregation_handle_count_state_);
-
-    std::vector<std::unique_ptr<ColumnVector>> column_vectors;
-    column_vectors.emplace_back(
-        createColumnVectorNumeric<NumericType>(type, test_count));
-
-    std::unique_ptr<AggregationState> cv_state(
-        aggregation_handle_count_->accumulateColumnVectors(column_vectors));
-
-    // Test the state generated directly by accumulateColumnVectors(), and also
-    // test after merging back.
-    CheckCountValue(test_count, *aggregation_handle_count_, *cv_state);
-
-    aggregation_handle_count_->mergeStates(
-        *cv_state, aggregation_handle_count_state_.get());
-    CheckCountValue(test_count,
-                    *aggregation_handle_count_,
-                    *aggregation_handle_count_state_);
-  }
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-  template <typename NumericType>
   void checkAggregationCountNumericValueAccessor(int test_count) {
     const NumericType &type = NumericType::Instance(true);
     initializeHandle(&type);
@@ -255,7 +227,8 @@ class AggregationHandleCountTest : public ::testing::Test {
 
     std::unique_ptr<AggregationState> va_state(
         aggregation_handle_count_->accumulateValueAccessor(
-            accessor.get(), std::vector<attribute_id>(1, 0)));
+            {MultiSourceAttributeId(ValueAccessorSource::kBase, 0)},
+            ValueAccessorMultiplexer(accessor.get())));
 
     // Test the state generated directly by accumulateValueAccessor(), and also
     // test after merging back.
@@ -267,7 +240,6 @@ class AggregationHandleCountTest : public ::testing::Test {
                     *aggregation_handle_count_,
                     *aggregation_handle_count_state_);
   }
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
   template <typename StringType>
   void checkAggregationCountString(int test_count) {
@@ -326,32 +298,6 @@ class AggregationHandleCountTest : public ::testing::Test {
   }
 
   template <typename StringType, typename ColumnVectorType>
-  void checkAggregationCountStringColumnVector(int test_count) {
-    const StringType &type = StringType::Instance(10, true);
-    initializeHandle(&type);
-    CheckCountValue(
-        0, *aggregation_handle_count_, *aggregation_handle_count_state_);
-
-    std::vector<std::unique_ptr<ColumnVector>> column_vectors;
-    column_vectors.emplace_back(
-        createColumnVectorString<ColumnVectorType>(type, test_count));
-
-    std::unique_ptr<AggregationState> cv_state(
-        aggregation_handle_count_->accumulateColumnVectors(column_vectors));
-
-    // Test the state generated directly by accumulateColumnVectors(), and also
-    // test after merging back.
-    CheckCountValue(test_count, *aggregation_handle_count_, *cv_state);
-
-    aggregation_handle_count_->mergeStates(
-        *cv_state, aggregation_handle_count_state_.get());
-    CheckCountValue(test_count,
-                    *aggregation_handle_count_,
-                    *aggregation_handle_count_state_);
-  }
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-  template <typename StringType, typename ColumnVectorType>
   void checkAggregationCountStringValueAccessor(int test_count) {
     const StringType &type = StringType::Instance(10, true);
     initializeHandle(&type);
@@ -365,7 +311,8 @@ class AggregationHandleCountTest : public ::testing::Test {
 
     std::unique_ptr<AggregationState> va_state(
         aggregation_handle_count_->accumulateValueAccessor(
-            accessor.get(), std::vector<attribute_id>(1, 0)));
+            {MultiSourceAttributeId(ValueAccessorSource::kBase, 0)},
+            ValueAccessorMultiplexer(accessor.get())));
 
     // Test the state generated directly by accumulateValueAccessor(), and also
     // test after merging back.
@@ -377,7 +324,6 @@ class AggregationHandleCountTest : public ::testing::Test {
                     *aggregation_handle_count_,
                     *aggregation_handle_count_state_);
   }
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
   std::unique_ptr<AggregationHandle> aggregation_handle_count_;
   std::unique_ptr<AggregationState> aggregation_handle_count_state_;
@@ -425,38 +371,6 @@ TEST_F(AggregationHandleCountTest, VarCharTypeTest) {
   checkAggregationCountString<VarCharType>(10000);
 }
 
-TEST_F(AggregationHandleCountTest, IntTypeColumnVectorTest) {
-  checkAggregationCountNumericColumnVector<IntType>(0);
-  checkAggregationCountNumericColumnVector<IntType>(10000);
-}
-
-TEST_F(AggregationHandleCountTest, LongTypeColumnVectorTest) {
-  checkAggregationCountNumericColumnVector<LongType>(0);
-  checkAggregationCountNumericColumnVector<LongType>(10000);
-}
-
-TEST_F(AggregationHandleCountTest, FloatTypeColumnVectorTest) {
-  checkAggregationCountNumericColumnVector<FloatType>(0);
-  checkAggregationCountNumericColumnVector<FloatType>(10000);
-}
-
-TEST_F(AggregationHandleCountTest, DoubleTypeColumnVectorTest) {
-  checkAggregationCountNumericColumnVector<DoubleType>(0);
-  checkAggregationCountNumericColumnVector<DoubleType>(10000);
-}
-
-TEST_F(AggregationHandleCountTest, CharTypeColumnVectorTest) {
-  checkAggregationCountStringColumnVector<CharType, NativeColumnVector>(0);
-  checkAggregationCountStringColumnVector<CharType, NativeColumnVector>(10000);
-}
-
-TEST_F(AggregationHandleCountTest, VarCharTypeColumnVectorTest) {
-  checkAggregationCountStringColumnVector<VarCharType, IndirectColumnVector>(0);
-  checkAggregationCountStringColumnVector<VarCharType, IndirectColumnVector>(
-      10000);
-}
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 TEST_F(AggregationHandleCountTest, IntTypeValueAccessorTest) {
   checkAggregationCountNumericValueAccessor<IntType>(0);
   checkAggregationCountNumericValueAccessor<IntType>(10000);
@@ -488,7 +402,6 @@ TEST_F(AggregationHandleCountTest, VarCharTypeValueAccessorTest) {
   checkAggregationCountStringValueAccessor<VarCharType, IndirectColumnVector>(
       10000);
 }
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
 TEST_F(AggregationHandleCountTest, canApplyToTypeTest) {
   EXPECT_TRUE(ApplyToTypesTest(kInt));
@@ -511,28 +424,25 @@ TEST_F(AggregationHandleCountTest, GroupByTableMergeTestCount) {
   initializeHandle(&long_non_null_type);
   storage_manager_.reset(new StorageManager("./test_count_data"));
   std::unique_ptr<AggregationStateHashTableBase> source_hash_table(
-      AggregationStateFastHashTableFactory::CreateResizable(
+      AggregationStateHashTableFactory::CreateResizable(
           HashTableImplType::kSeparateChaining,
           std::vector<const Type *>(1, &long_non_null_type),
           10,
-          {aggregation_handle_count_.get()->getPayloadSize()},
           {aggregation_handle_count_.get()},
           storage_manager_.get()));
   std::unique_ptr<AggregationStateHashTableBase> destination_hash_table(
-      AggregationStateFastHashTableFactory::CreateResizable(
+      AggregationStateHashTableFactory::CreateResizable(
           HashTableImplType::kSeparateChaining,
           std::vector<const Type *>(1, &long_non_null_type),
           10,
-          {aggregation_handle_count_.get()->getPayloadSize()},
           {aggregation_handle_count_.get()},
           storage_manager_.get()));
 
-  AggregationStateFastHashTable *destination_hash_table_derived =
-      static_cast<AggregationStateFastHashTable *>(
-          destination_hash_table.get());
+  PackedPayloadHashTable *destination_hash_table_derived =
+      static_cast<PackedPayloadHashTable *>(destination_hash_table.get());
 
-  AggregationStateFastHashTable *source_hash_table_derived =
-      static_cast<AggregationStateFastHashTable *>(source_hash_table.get());
+  PackedPayloadHashTable *source_hash_table_derived =
+      static_cast<PackedPayloadHashTable *>(source_hash_table.get());
 
   // TODO(harshad) - Use TemplateUtil::CreateBoolInstantiatedInstance to
   // generate all the combinations of the bool template arguments and test them.
@@ -612,49 +522,48 @@ TEST_F(AggregationHandleCountTest, GroupByTableMergeTestCount) {
   memcpy(buffer + 1,
          common_key_source_state.get()->getPayloadAddress(),
          aggregation_handle_count_.get()->getPayloadSize());
-  source_hash_table_derived->putCompositeKey(common_key, buffer);
+  source_hash_table_derived->upsertCompositeKey(common_key, buffer);
 
   memcpy(buffer + 1,
          common_key_destination_state.get()->getPayloadAddress(),
          aggregation_handle_count_.get()->getPayloadSize());
-  destination_hash_table_derived->putCompositeKey(common_key, buffer);
+  destination_hash_table_derived->upsertCompositeKey(common_key, buffer);
 
   memcpy(buffer + 1,
          exclusive_key_source_state.get()->getPayloadAddress(),
          aggregation_handle_count_.get()->getPayloadSize());
-  source_hash_table_derived->putCompositeKey(exclusive_source_key, buffer);
+  source_hash_table_derived->upsertCompositeKey(exclusive_source_key, buffer);
 
   memcpy(buffer + 1,
          exclusive_key_destination_state.get()->getPayloadAddress(),
          aggregation_handle_count_.get()->getPayloadSize());
-  destination_hash_table_derived->putCompositeKey(exclusive_destination_key,
-                                                      buffer);
+  destination_hash_table_derived->upsertCompositeKey(exclusive_destination_key,
+                                                     buffer);
 
   EXPECT_EQ(2u, destination_hash_table_derived->numEntries());
   EXPECT_EQ(2u, source_hash_table_derived->numEntries());
 
-  AggregationOperationState::mergeGroupByHashTables(
-      source_hash_table.get(), destination_hash_table.get());
+  HashTableMerger merger(destination_hash_table_derived);
+  source_hash_table_derived->forEachCompositeKey(&merger);
 
   EXPECT_EQ(3u, destination_hash_table_derived->numEntries());
 
   CheckCountValue(
       common_key_destination_count_val.getLiteral<std::int64_t>() +
           common_key_source_count_val.getLiteral<std::int64_t>(),
-      aggregation_handle_count_derived->finalizeHashTableEntryFast(
+      aggregation_handle_count_derived->finalizeHashTableEntry(
           destination_hash_table_derived->getSingleCompositeKey(common_key) +
           1));
   CheckCountValue(
       exclusive_key_destination_count_val.getLiteral<std::int64_t>(),
-      aggregation_handle_count_derived->finalizeHashTableEntryFast(
+      aggregation_handle_count_derived->finalizeHashTableEntry(
           destination_hash_table_derived->getSingleCompositeKey(
-              exclusive_destination_key) +
-          1));
-  CheckCountValue(exclusive_key_source_count_val.getLiteral<std::int64_t>(),
-                  aggregation_handle_count_derived->finalizeHashTableEntryFast(
-                      source_hash_table_derived->getSingleCompositeKey(
-                          exclusive_source_key) +
-                      1));
+              exclusive_destination_key) + 1));
+  CheckCountValue(
+      exclusive_key_source_count_val.getLiteral<std::int64_t>(),
+      aggregation_handle_count_derived->finalizeHashTableEntry(
+          source_hash_table_derived->getSingleCompositeKey(
+              exclusive_source_key) + 1));
 }
 
 }  // namespace quickstep

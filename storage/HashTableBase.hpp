@@ -23,10 +23,13 @@
 #include <cstddef>
 #include <vector>
 
-#include "ValueAccessor.hpp"
+#include "storage/ValueAccessorMultiplexer.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
+
+class ColumnVectorsValueAccessor;
+class ValueAccessor;
 
 /** \addtogroup Storage
  *  @{
@@ -38,6 +41,7 @@ namespace quickstep {
  *        HashTableFactory to create a HashTable.
  **/
 enum class HashTableImplType {
+  kCollisionFreeVector,
   kLinearOpenAddressing,
   kSeparateChaining,
   kSimpleScalarSeparateChaining
@@ -74,6 +78,17 @@ class HashTableBase {
  public:
   virtual ~HashTableBase() {}
 
+ protected:
+  HashTableBase() {}
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(HashTableBase);
+};
+
+class AggregationStateHashTableBase {
+ public:
+  virtual ~AggregationStateHashTableBase() {}
+
   /**
    * TODO(harshad) We should get rid of this function from here. We are
    * postponing it because of the amount of work to be done is significant.
@@ -90,29 +105,22 @@ class HashTableBase {
    *
    * Optionally, we can also remove the AggregationStateHashTableBase
    * specialization from this file.
+   *
+   * TODO(jianqiao): Refractor the interface design for aggregation hash table.
    **/
-  virtual bool upsertValueAccessorCompositeKeyFast(
-      const std::vector<attribute_id> &argument,
-      ValueAccessor *accessor,
-      const std::vector<attribute_id> &key_attr_ids,
-      const bool check_for_null_keys) {
-    return false;
-  }
+  virtual bool upsertValueAccessorCompositeKey(
+      const std::vector<std::vector<MultiSourceAttributeId>> &argument_ids,
+      const std::vector<MultiSourceAttributeId> &key_attr_ids,
+      const ValueAccessorMultiplexer &accessor_mux) = 0;
 
-  /**
-   * @brief Destroy the payload stored in the hash table.
-   **/
-  virtual void destroyPayload() {
-  }
+  virtual void destroyPayload() = 0;
 
  protected:
-  HashTableBase() {}
+  AggregationStateHashTableBase() {}
 
  private:
-  DISALLOW_COPY_AND_ASSIGN(HashTableBase);
+  DISALLOW_COPY_AND_ASSIGN(AggregationStateHashTableBase);
 };
-
-typedef HashTableBase<true, false, true, false> AggregationStateHashTableBase;
 
 /** @} */
 

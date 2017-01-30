@@ -27,7 +27,6 @@
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "storage/CountedReference.hpp"
-#include "storage/HashTableBase.hpp"
 #include "storage/IndexSubBlock.hpp"
 #include "storage/StorageBlockBase.hpp"
 #include "storage/StorageBlockInfo.hpp"
@@ -39,11 +38,7 @@
 
 namespace quickstep {
 
-class AggregationHandle;
-class AggregationState;
 class CatalogRelationSchema;
-class ColumnVector;
-class ColumnVectorsValueAccessor;
 class InsertDestinationInterface;
 class Predicate;
 class Scalar;
@@ -431,156 +426,6 @@ class StorageBlock : public StorageBlockBase {
                     InsertDestinationInterface *destination) const;
 
   /**
-   * @brief Perform non GROUP BY aggregation on the tuples in the this storage
-   *        block, returning the aggregated result (for this block) in an
-   *        AggregationState.
-   *
-   * @param handle Aggregation handle that will be used to compute aggregate.
-   * @param arguments The arguments of the aggregate function as expressions.
-   * @param arguments_as_attributes If non-NULL, indicates a valid attribute_id
-   *        for each of the elements in arguments, and is used to elide a copy.
-   *        Has no effect if NULL, or if VECTOR_COPY_ELISION_LEVEL is NONE.
-   * @param filter If non-NULL, then only tuple IDs which are set in the
-   *        filter will be checked (all others will be assumed to be false).
-   *
-   * @return Aggregated state for this block in the form of an
-   *         AggregationState. AggregationHandle::mergeStates() can be called
-   *         to merge with states from other blocks, and
-   *         AggregationHandle::finalize() can be used to generate a final
-   *         result.
-   **/
-  AggregationState* aggregate(
-      const AggregationHandle &handle,
-      const std::vector<std::unique_ptr<const Scalar>> &arguments,
-      const std::vector<attribute_id> *arguments_as_attributes,
-      const TupleIdSequence *filter) const;
-
-  /**
-   * @brief Perform GROUP BY aggregation on the tuples in the this storage
-   *        block.
-   *
-   * @param arguments The arguments to the aggregation function as Scalars.
-   * @param group_by The list of GROUP BY attributes/expressions. The tuples in
-   *        this storage block are grouped by these attributes before
-   *        aggregation.
-   * @param filter If non-NULL, then only tuple IDs which are set in the
-   *        filter will be checked (all others will be assumed to be false).
-   * @param hash_table Hash table to store aggregation state mapped based on
-   *        GROUP BY value list (defined by \c group_by).
-   * @param reuse_group_by_vectors This parameter is used to store and reuse
-   *        GROUP BY attribute vectors pre-computed in an earlier invocation of
-   *        aggregateGroupBy(). \c reuse_group_by_vectors is never \c nullptr
-   *        for ease of use. Current invocation of aggregateGroupBy() will reuse
-   *        ColumnVectors if non-empty, otherwise computes ColumnVectors based
-   *        on \c group_by and stores them in \c reuse_group_by_vectors.
-   *
-   * For sample usage of aggregateGroupBy, see this relevant pseudo-C++ code:
-   * \code
-   * std::vector<std::unique_ptr<ColumnVector>> group_by_vectors;
-   * for each aggregate {
-   *   block.aggregateGroupBy(..., &group_by_vectors);
-   * }
-   * \endcode
-   **/
-  /*
-   * TODO(shoban): Currently, we use ColumnVectorsValueAccessor to compute
-   * temporary result for Scalars of aggregation attributes and GROUP BY
-   * attributes.  We will have to support specifying aggregation and GROUP BY
-   * attributes as std::vector<attribute_id> (like in selectSimple()) for fast
-   * path when there are no expressions specified in the query.
-   */
-  void aggregateGroupBy(
-      const std::vector<std::vector<std::unique_ptr<const Scalar>>> &arguments,
-      const std::vector<std::unique_ptr<const Scalar>> &group_by,
-      const TupleIdSequence *filter,
-      AggregationStateHashTableBase *hash_table,
-      std::vector<std::unique_ptr<ColumnVector>> *reuse_group_by_vectors) const;
-
-
-  /**
-   * @brief Perform the GROUP BY aggregation for the case when aggregation is
-   *        partitioned.
-   *
-   * TODO(harshad) - Refactor this class to use only one function
-   *       aggregateGroupBy.
-   * @note The difference between this method and the aggregateGroupBy method
-   *       is that in this method, the tuples are routed to different HashTables
-   *       based on the partition to which they belong to. The partition is
-   *       determined by the GROUP BY attributes. Right now hash based
-   *       partitioning is performed.
-   *
-   * @note This function only creates the ColumnVectorsValueAccessor needed for
-   *       the insertion in the hash table. The actual insertion in respective
-   *       hash tables should be handled by the caller. See
-   *       AggregationOperationState::aggregateHashTable() for one such
-   *       implementation.
-   *
-   * @param arguments The arguments to the aggregation function as Scalars.
-   * @param group_by The list of GROUP BY attributes/expressions. The tuples in
-   *        this storage block are grouped by these attributes before
-   *        aggregation.
-   * @param filter If non-NULL, then only tuple IDs which are set in the
-   *        filter will be checked (all others will be assumed to be false).
-   * @param num_partitions The number of partitions used for the aggregation.
-   * @param temp_result The ColumnVectorsValueAccessor used for collecting
-   *        the attribute values from this StorageBlock.
-   * @param arguments_ids The attribute IDs used for the aggregation, which
-   *        come from the arguments vector. If arguments is empty, this vector
-   *        is filled with invalid attribute IDs.
-   * @param key_ids The attribute IDs of the group by attributes.
-   * @param reuse_group_by_vectors This parameter is used to store and reuse
-   *        GROUP BY attribute vectors pre-computed in an earlier invocation of
-   *        aggregateGroupBy(). \c reuse_group_by_vectors is never \c nullptr
-   *        for ease of use. Current invocation of aggregateGroupBy() will reuse
-   *        ColumnVectors if non-empty, otherwise computes ColumnVectors based
-   *        on \c group_by and stores them in \c reuse_group_by_vectors.
-   **/
-  void aggregateGroupByPartitioned(
-      const std::vector<std::vector<std::unique_ptr<const Scalar>>> &arguments,
-      const std::vector<std::unique_ptr<const Scalar>> &group_by,
-      const TupleIdSequence *filter,
-      const std::size_t num_partitions,
-      ColumnVectorsValueAccessor *temp_result,
-      std::vector<attribute_id> *argument_ids,
-      std::vector<attribute_id> *key_ids,
-      std::vector<std::unique_ptr<ColumnVector>> *reuse_group_by_vectors) const;
-
-  /**
-   * @brief Inserts the GROUP BY expressions and aggregation arguments together
-   *        as keys into the distinctify hash table.
-   *
-   * This is the first step for DISTINCT aggregation. It populates the distinctify
-   * hash table so that arguments are distinctified within each GROUP BY group.
-   * Later, a second-round aggregation on the distinctify hash table will be
-   * performed to actually compute the aggregated result for each GROUP BY group.
-   *
-   * @param handle Aggregation handle to compute aggregates with.
-   * @param arguments The arguments to the aggregation function as Scalars.
-   * @param arguments_as_attributes If non-NULL, indicates a valid attribute_id
-   *        for each of the elements in arguments, and is used to elide a copy.
-   *        Has no effect if NULL, or if VECTOR_COPY_ELISION_LEVEL is NONE.
-   * @param group_by The list of GROUP BY attributes/expressions.
-   * @param filter If non-NULL, then only tuple IDs which are set in the
-   *        filter will be checked (all others will be assumed to be false).
-   * @param distinctify_hash_table Hash table to store the arguments and GROUP
-   *        BY expressions together as hash table key and a bool constant \c true
-   *        as hash table value. (So the hash table actually serves as a hash set.)
-   * @param reuse_group_by_vectors This parameter is used to store and reuse
-   *        GROUP BY attribute vectors pre-computed in an earlier invocation of
-   *        aggregateGroupBy(). \c reuse_group_by_vectors is never \c nullptr
-   *        for ease of use. Current invocation of aggregateGroupBy() will reuse
-   *        ColumnVectors if non-empty, otherwise computes ColumnVectors based
-   *        on \c group_by and stores them in \c reuse_group_by_vectors.
-   */
-  void aggregateDistinct(const AggregationHandle &handle,
-                         const std::vector<std::unique_ptr<const Scalar>> &arguments,
-                         const std::vector<attribute_id> *arguments_as_attributes,
-                         const std::vector<std::unique_ptr<const Scalar>> &group_by,
-                         const TupleIdSequence *filter,
-                         AggregationStateHashTableBase *distinctify_hash_table,
-                         std::vector<std::unique_ptr<ColumnVector>> *reuse_group_by_vectors) const;
-
-  /**
    * @brief Perform an UPDATE query over the tuples in this StorageBlock.
    * @warning In some edge cases, calling this method may cause IndexSubBlocks
    *          in this block to become inconsistent (the TupleStorageSubBlock
@@ -701,18 +546,6 @@ class StorageBlock : public StorageBlockBase {
       const ValueAccessor &accessor,
       const tuple_id tuple,
       const std::unordered_map<attribute_id, std::unique_ptr<const Scalar>> &assignments) const;
-
-  AggregationState* aggregateHelperColumnVector(
-      const AggregationHandle &handle,
-      const std::vector<std::unique_ptr<const Scalar>> &arguments,
-      const TupleIdSequence *matches) const;
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-  AggregationState* aggregateHelperValueAccessor(
-      const AggregationHandle &handle,
-      const std::vector<attribute_id> &argument_ids,
-      const TupleIdSequence *matches) const;
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
   // Sort the tuples in storage block based on `sort_attribute'. If
   // `use_input_sequence' is set, we assume a pre-existing order of tuple-id

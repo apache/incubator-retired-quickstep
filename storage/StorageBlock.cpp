@@ -19,8 +19,8 @@
 
 #include "storage/StorageBlock.hpp"
 
-#include <climits>
 #include <memory>
+#include <random>
 #include <type_traits>
 #include <unordered_map>
 #include <utility>
@@ -28,7 +28,6 @@
 
 #include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"
-#include "expressions/aggregation/AggregationHandle.hpp"
 #include "expressions/predicate/Predicate.hpp"
 #include "expressions/scalar/Scalar.hpp"
 #include "storage/BasicColumnStoreTupleStorageSubBlock.hpp"
@@ -37,7 +36,6 @@
 #include "storage/CompressedColumnStoreTupleStorageSubBlock.hpp"
 #include "storage/CompressedPackedRowStoreTupleStorageSubBlock.hpp"
 #include "storage/CountedReference.hpp"
-#include "storage/HashTableBase.hpp"
 #include "storage/IndexSubBlock.hpp"
 #include "storage/InsertDestinationInterface.hpp"
 #include "storage/SMAIndexSubBlock.hpp"
@@ -394,166 +392,6 @@ void StorageBlock::selectSimple(const std::vector<attribute_id> &selection,
 
   destination->bulkInsertTuplesWithRemappedAttributes(selection,
                                                       accessor.get());
-}
-
-AggregationState* StorageBlock::aggregate(
-    const AggregationHandle &handle,
-    const std::vector<std::unique_ptr<const Scalar>> &arguments,
-    const std::vector<attribute_id> *arguments_as_attributes,
-    const TupleIdSequence *filter) const {
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-  // If all the arguments to this aggregate are plain relation attributes,
-  // aggregate directly on a ValueAccessor from this block to avoid a copy.
-  if ((arguments_as_attributes != nullptr) && (!arguments_as_attributes->empty())) {
-    DCHECK_EQ(arguments.size(), arguments_as_attributes->size())
-        << "Mismatch between number of arguments and number of attribute_ids";
-    return aggregateHelperValueAccessor(handle, *arguments_as_attributes, filter);
-  }
-  // TODO(shoban): We may want to optimize for ScalarLiteral here.
-#endif
-
-  // Call aggregateHelperColumnVector() to materialize each argument as a
-  // ColumnVector, then aggregate over those.
-  return aggregateHelperColumnVector(handle, arguments, filter);
-}
-
-void StorageBlock::aggregateGroupBy(
-    const std::vector<std::vector<std::unique_ptr<const Scalar>>> &arguments,
-    const std::vector<std::unique_ptr<const Scalar>> &group_by,
-    const TupleIdSequence *filter,
-    AggregationStateHashTableBase *hash_table,
-    std::vector<std::unique_ptr<ColumnVector>> *reuse_group_by_vectors) const {
-  DCHECK_GT(group_by.size(), 0u)
-      << "Called aggregateGroupBy() with zero GROUP BY expressions";
-
-  SubBlocksReference sub_blocks_ref(*tuple_store_,
-                                    indices_,
-                                    indices_consistent_);
-
-  // IDs of 'arguments' as attributes in the ValueAccessor we create below.
-  std::vector<attribute_id> argument_ids;
-
-  // IDs of GROUP BY key element(s) in the ValueAccessor we create below.
-  std::vector<attribute_id> key_ids;
-
-  // An intermediate ValueAccessor that stores the materialized 'arguments' for
-  // this aggregate, as well as the GROUP BY expression values.
-  ColumnVectorsValueAccessor temp_result;
-  {
-    std::unique_ptr<ValueAccessor> accessor(tuple_store_->createValueAccessor(filter));
-    attribute_id attr_id = 0;
-
-    // First, put GROUP BY keys into 'temp_result'.
-    if (reuse_group_by_vectors->empty()) {
-      // Compute GROUP BY values from group_by Scalars, and store them in
-      // reuse_group_by_vectors for reuse by other aggregates on this same
-      // block.
-      reuse_group_by_vectors->reserve(group_by.size());
-      for (const std::unique_ptr<const Scalar> &group_by_element : group_by) {
-        reuse_group_by_vectors->emplace_back(
-            group_by_element->getAllValues(accessor.get(), &sub_blocks_ref));
-        temp_result.addColumn(reuse_group_by_vectors->back().get(), false);
-        key_ids.push_back(attr_id++);
-      }
-    } else {
-      // Reuse precomputed GROUP BY values from reuse_group_by_vectors.
-      DCHECK_EQ(group_by.size(), reuse_group_by_vectors->size())
-          << "Wrong number of reuse_group_by_vectors";
-      for (const std::unique_ptr<ColumnVector> &reuse_cv : *reuse_group_by_vectors) {
-        temp_result.addColumn(reuse_cv.get(), false);
-        key_ids.push_back(attr_id++);
-      }
-    }
-
-    // Compute argument vectors and add them to 'temp_result'.
-    for (const std::vector<std::unique_ptr<const Scalar>> &argument : arguments) {
-        for (const std::unique_ptr<const Scalar> &args : argument) {
-          temp_result.addColumn(args->getAllValues(accessor.get(), &sub_blocks_ref));
-          argument_ids.push_back(attr_id++);
-        }
-        if (argument.empty()) {
-          argument_ids.push_back(kInvalidAttributeID);
-        }
-     }
-  }
-
-  hash_table->upsertValueAccessorCompositeKeyFast(argument_ids,
-                                                  &temp_result,
-                                                  key_ids,
-                                                  true);
-}
-
-
-void StorageBlock::aggregateDistinct(
-    const AggregationHandle &handle,
-    const std::vector<std::unique_ptr<const Scalar>> &arguments,
-    const std::vector<attribute_id> *arguments_as_attributes,
-    const std::vector<std::unique_ptr<const Scalar>> &group_by,
-    const TupleIdSequence *filter,
-    AggregationStateHashTableBase *distinctify_hash_table,
-    std::vector<std::unique_ptr<ColumnVector>> *reuse_group_by_vectors) const {
-  DCHECK_GT(arguments.size(), 0u)
-      << "Called aggregateDistinct() with zero argument expressions";
-  DCHECK((group_by.size() == 0 || reuse_group_by_vectors != nullptr));
-
-  std::vector<attribute_id> key_ids;
-
-  // An intermediate ValueAccessor that stores the materialized 'arguments' for
-  // this aggregate, as well as the GROUP BY expression values.
-  ColumnVectorsValueAccessor temp_result;
-  {
-    std::unique_ptr<ValueAccessor> accessor(tuple_store_->createValueAccessor(filter));
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-    // If all the arguments to this aggregate are plain relation attributes,
-    // aggregate directly on a ValueAccessor from this block to avoid a copy.
-    if ((arguments_as_attributes != nullptr) && (!arguments_as_attributes->empty())) {
-      DCHECK_EQ(arguments.size(), arguments_as_attributes->size())
-          << "Mismatch between number of arguments and number of attribute_ids";
-      DCHECK_EQ(group_by.size(), 0u);
-      handle.insertValueAccessorIntoDistinctifyHashTable(
-          accessor.get(), *arguments_as_attributes, distinctify_hash_table);
-      return;
-    }
-#endif
-
-    SubBlocksReference sub_blocks_ref(*tuple_store_,
-                                      indices_,
-                                      indices_consistent_);
-    attribute_id attr_id = 0;
-
-    if (!group_by.empty()) {
-      // Put GROUP BY keys into 'temp_result'.
-      if (reuse_group_by_vectors->empty()) {
-        // Compute GROUP BY values from group_by Scalars, and store them in
-        // reuse_group_by_vectors for reuse by other aggregates on this same
-        // block.
-        reuse_group_by_vectors->reserve(group_by.size());
-        for (const std::unique_ptr<const Scalar> &group_by_element : group_by) {
-          reuse_group_by_vectors->emplace_back(
-              group_by_element->getAllValues(accessor.get(), &sub_blocks_ref));
-          temp_result.addColumn(reuse_group_by_vectors->back().get(), false);
-          key_ids.push_back(attr_id++);
-        }
-      } else {
-        // Reuse precomputed GROUP BY values from reuse_group_by_vectors.
-        DCHECK_EQ(group_by.size(), reuse_group_by_vectors->size())
-            << "Wrong number of reuse_group_by_vectors";
-        for (const std::unique_ptr<ColumnVector> &reuse_cv : *reuse_group_by_vectors) {
-          temp_result.addColumn(reuse_cv.get(), false);
-          key_ids.push_back(attr_id++);
-        }
-      }
-    }
-    // Compute argument vectors and add them to 'temp_result'.
-    for (const std::unique_ptr<const Scalar> &argument : arguments) {
-      temp_result.addColumn(argument->getAllValues(accessor.get(), &sub_blocks_ref));
-      key_ids.push_back(attr_id++);
-    }
-  }
-
-  handle.insertValueAccessorIntoDistinctifyHashTable(
-      &temp_result, key_ids, distinctify_hash_table);
 }
 
 // TODO(chasseur): Vectorization for updates.
@@ -1262,61 +1100,6 @@ std::unordered_map<attribute_id, TypedValue>* StorageBlock::generateUpdatedValue
   return update_map;
 }
 
-AggregationState* StorageBlock::aggregateHelperColumnVector(
-    const AggregationHandle &handle,
-    const std::vector<std::unique_ptr<const Scalar>> &arguments,
-    const TupleIdSequence *matches) const {
-  if (arguments.empty()) {
-    // Special case. This is a nullary aggregate (i.e. COUNT(*)).
-    return handle.accumulateNullary(matches == nullptr ? tuple_store_->numTuples()
-                                                       : matches->size());
-  } else {
-    // Set up a ValueAccessor that will be used when materializing argument
-    // values below (possibly filtered based on the '*matches' to a filter
-    // predicate).
-    std::unique_ptr<ValueAccessor> accessor;
-    if (matches == nullptr) {
-      accessor.reset(tuple_store_->createValueAccessor());
-    } else {
-      accessor.reset(tuple_store_->createValueAccessor(matches));
-    }
-
-    SubBlocksReference sub_blocks_ref(*tuple_store_,
-                                      indices_,
-                                      indices_consistent_);
-
-    // Materialize each argument's values for this block as a ColumnVector.
-    std::vector<std::unique_ptr<ColumnVector>> column_vectors;
-    for (const std::unique_ptr<const Scalar> &argument : arguments) {
-      column_vectors.emplace_back(argument->getAllValues(accessor.get(), &sub_blocks_ref));
-    }
-
-    // Have the AggregationHandle actually do the aggregation.
-    return handle.accumulateColumnVectors(column_vectors);
-  }
-}
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-AggregationState* StorageBlock::aggregateHelperValueAccessor(
-    const AggregationHandle &handle,
-    const std::vector<attribute_id> &argument_ids,
-    const TupleIdSequence *matches) const {
-  // Set up a ValueAccessor to aggregate over (possibly filtered based on the
-  // '*matches' to a filter predicate).
-  std::unique_ptr<ValueAccessor> accessor;
-  if (matches == nullptr) {
-    accessor.reset(tuple_store_->createValueAccessor());
-  } else {
-    accessor.reset(tuple_store_->createValueAccessor(matches));
-  }
-
-  // Have the AggregationHandle actually do the aggregation.
-  return handle.accumulateValueAccessor(
-      accessor.get(),
-      argument_ids);
-}
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-
 void StorageBlock::updateHeader() {
   DEBUG_ASSERT(*static_cast<const int*>(block_memory_) == block_header_.ByteSize());
 
@@ -1344,61 +1127,6 @@ void StorageBlock::invalidateAllIndexes() {
 const std::size_t StorageBlock::getNumTuples() const {
   DCHECK(tuple_store_ != nullptr);
   return tuple_store_->numTuples();
-}
-
-void StorageBlock::aggregateGroupByPartitioned(
-    const std::vector<std::vector<std::unique_ptr<const Scalar>>> &arguments,
-    const std::vector<std::unique_ptr<const Scalar>> &group_by,
-    const TupleIdSequence *filter,
-    const std::size_t num_partitions,
-    ColumnVectorsValueAccessor *temp_result,
-    std::vector<attribute_id> *argument_ids,
-    std::vector<attribute_id> *key_ids,
-    std::vector<std::unique_ptr<ColumnVector>> *reuse_group_by_vectors) const {
-  DCHECK(!group_by.empty())
-      << "Called aggregateGroupByPartitioned() with zero GROUP BY expressions";
-
-  SubBlocksReference sub_blocks_ref(*tuple_store_,
-                                    indices_,
-                                    indices_consistent_);
-
-  std::unique_ptr<ValueAccessor> accessor(
-      tuple_store_->createValueAccessor(filter));
-
-  attribute_id attr_id = 0;
-
-  // First, put GROUP BY keys into 'temp_result'.
-  if (reuse_group_by_vectors->empty()) {
-    // Compute GROUP BY values from group_by Scalars, and store them in
-    // reuse_group_by_vectors for reuse by other aggregates on this same
-    // block.
-    reuse_group_by_vectors->reserve(group_by.size());
-    for (const std::unique_ptr<const Scalar> &group_by_element : group_by) {
-      reuse_group_by_vectors->emplace_back(
-          group_by_element->getAllValues(accessor.get(), &sub_blocks_ref));
-      temp_result->addColumn(reuse_group_by_vectors->back().get(), false);
-      key_ids->push_back(attr_id++);
-    }
-  } else {
-    // Reuse precomputed GROUP BY values from reuse_group_by_vectors.
-    DCHECK_EQ(group_by.size(), reuse_group_by_vectors->size())
-        << "Wrong number of reuse_group_by_vectors";
-    for (const std::unique_ptr<ColumnVector> &reuse_cv : *reuse_group_by_vectors) {
-      temp_result->addColumn(reuse_cv.get(), false);
-      key_ids->push_back(attr_id++);
-    }
-  }
-
-  // Compute argument vectors and add them to 'temp_result'.
-  for (const std::vector<std::unique_ptr<const Scalar>> &argument : arguments) {
-    for (const std::unique_ptr<const Scalar> &args : argument) {
-      temp_result->addColumn(args->getAllValues(accessor.get(), &sub_blocks_ref));
-      argument_ids->push_back(attr_id++);
-    }
-    if (argument.empty()) {
-      argument_ids->push_back(kInvalidAttributeID);
-    }
-  }
 }
 
 }  // namespace quickstep

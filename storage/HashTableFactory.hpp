@@ -24,10 +24,12 @@
 #include <string>
 #include <vector>
 
+#include "storage/CollisionFreeVectorTable.hpp"
 #include "storage/HashTable.hpp"
 #include "storage/HashTableBase.hpp"
 #include "storage/HashTable.pb.h"
 #include "storage/LinearOpenAddressingHashTable.hpp"
+#include "storage/PackedPayloadHashTable.hpp"
 #include "storage/SeparateChainingHashTable.hpp"
 #include "storage/SimpleScalarSeparateChainingHashTable.hpp"
 #include "storage/TupleReference.hpp"
@@ -113,6 +115,8 @@ serialization::HashTableImplType SimplifyHashTableImplTypeProto(
 inline HashTableImplType HashTableImplTypeFromProto(
     const serialization::HashTableImplType proto_type) {
   switch (proto_type) {
+    case serialization::HashTableImplType::COLLISION_FREE_VECTOR:
+      return HashTableImplType::kCollisionFreeVector;
     case serialization::HashTableImplType::LINEAR_OPEN_ADDRESSING:
       return HashTableImplType::kLinearOpenAddressing;
     case serialization::HashTableImplType::SEPARATE_CHAINING:
@@ -324,18 +328,61 @@ class HashTableFactory {
 };
 
 /**
- * @brief Convenient alias that provides a HashTableFactory whose only template
- *        parameter is the aggregate state type.
- **/
-template <typename ValueT>
-using AggregationStateHashTableFactory
-    = HashTableFactory<ValueT, true, false, true, false>;
-
-/**
  * @brief Convenient alias for a HashTableFactory that makes JoinHashTables.
  **/
 typedef HashTableFactory<TupleReference, true, false, false, true>
     JoinHashTableFactory;
+
+/**
+ * @brief Factory class that makes it easier to instantiate aggregation state
+ *        hash tables.
+ **/
+class AggregationStateHashTableFactory {
+ public:
+  /**
+   * @brief Create a new aggregation state hash table, with the type selected by
+   *        hash_table_type. Other parameters are forwarded to the hash table's
+   *        constructor.
+   *
+   * @param hash_table_type The specific hash table implementation that should
+   *        be used.
+   * @param key_types A vector of one or more types (>1 indicates a composite
+   *        key). Forwarded as-is to the hash table's constructor.
+   * @param num_entries The estimated number of entries the hash table will
+   *        hold. Forwarded as-is to the hash table's constructor.
+   * @param storage_manager The StorageManager to use (a StorageBlob will be
+   *        allocated to hold the hash table's contents). Forwarded as-is to the
+   *        hash table constructor.
+   * @return A new aggregation state hash table.
+   **/
+
+  static AggregationStateHashTableBase* CreateResizable(
+      const HashTableImplType hash_table_type,
+      const std::vector<const Type*> &key_types,
+      const std::size_t num_entries,
+      const std::vector<AggregationHandle *> &handles,
+      StorageManager *storage_manager) {
+    switch (hash_table_type) {
+      case HashTableImplType::kSeparateChaining:
+        return new PackedPayloadHashTable(
+            key_types, num_entries, handles, storage_manager);
+      case HashTableImplType::kCollisionFreeVector:
+        DCHECK_EQ(1u, key_types.size());
+        return new CollisionFreeVectorTable(
+            key_types.front(), num_entries, handles, storage_manager);
+      default: {
+        LOG(FATAL) << "Unrecognized HashTableImplType in "
+                   << "AggregationStateHashTableFactory::createResizable()";
+      }
+    }
+  }
+
+ private:
+  // Class is all-static and should not be instantiated.
+  AggregationStateHashTableFactory();
+
+  DISALLOW_COPY_AND_ASSIGN(AggregationStateHashTableFactory);
+};
 
 /** @} */
 

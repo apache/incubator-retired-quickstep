@@ -22,9 +22,10 @@ package quickstep.serialization;
 import "types/Type.proto";
 
 enum HashTableImplType {
-  LINEAR_OPEN_ADDRESSING = 0;
-  SEPARATE_CHAINING = 1;
-  SIMPLE_SCALAR_SEPARATE_CHAINING = 2;
+  COLLISION_FREE_VECTOR = 0;
+  LINEAR_OPEN_ADDRESSING = 1;
+  SEPARATE_CHAINING = 2;
+  SIMPLE_SCALAR_SEPARATE_CHAINING = 3;
 }
 
 // NOTE(chasseur): This proto describes the run-time parameters for a resizable

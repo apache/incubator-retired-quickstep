@@ -22,16 +22,14 @@
 #include <cstddef>
 #include <vector>
 
-#include "catalog/CatalogTypedefs.hpp"
-#include "storage/FastHashTable.hpp"
-#include "storage/HashTable.hpp"
 #include "storage/HashTableFactory.hpp"
+#include "storage/PackedPayloadHashTable.hpp"
+#include "storage/ValueAccessorMultiplexer.hpp"
 
 namespace quickstep {
 
 class StorageManager;
 class Type;
-class ValueAccessor;
 
 AggregationStateHashTableBase* AggregationConcreteHandle::createDistinctifyHashTable(
     const HashTableImplType hash_table_impl,
@@ -39,30 +37,26 @@ AggregationStateHashTableBase* AggregationConcreteHandle::createDistinctifyHashT
     const std::size_t estimated_num_distinct_keys,
     StorageManager *storage_manager) const {
   // Create a hash table with key types as key_types and value type as bool.
-  return AggregationStateHashTableFactory<bool>::CreateResizable(
+  return AggregationStateHashTableFactory::CreateResizable(
       hash_table_impl,
       key_types,
       estimated_num_distinct_keys,
+      {},
       storage_manager);
 }
 
 void AggregationConcreteHandle::insertValueAccessorIntoDistinctifyHashTable(
-    ValueAccessor *accessor,
-    const std::vector<attribute_id> &key_ids,
+    const std::vector<MultiSourceAttributeId> &argument_ids,
+    const std::vector<MultiSourceAttributeId> &key_ids,
+    const ValueAccessorMultiplexer &accessor_mux,
     AggregationStateHashTableBase *distinctify_hash_table) const {
-  // If the key-value pair is already there, we don't need to update the value,
-  // which should always be "true". I.e. the value is just a placeholder.
-
-  AggregationStateFastHashTable *hash_table =
-      static_cast<AggregationStateFastHashTable *>(distinctify_hash_table);
-  if (key_ids.size() == 1) {
-    hash_table->upsertValueAccessorFast(
-        key_ids, accessor, key_ids[0], true /* check_for_null_keys */);
-  } else {
-    std::vector<attribute_id> empty_args {kInvalidAttributeID};
-    hash_table->upsertValueAccessorCompositeKeyFast(
-        empty_args, accessor, key_ids, true /* check_for_null_keys */);
+  std::vector<MultiSourceAttributeId> concatenated_ids(key_ids);
+  for (const MultiSourceAttributeId &arg_id : argument_ids) {
+    concatenated_ids.emplace_back(arg_id);
   }
+
+  static_cast<PackedPayloadHashTable *>(distinctify_hash_table)
+      ->upsertValueAccessorCompositeKey({}, concatenated_ids, accessor_mux);
 }
 
 }  // namespace quickstep

@@ -21,22 +21,19 @@
 #define QUICKSTEP_STORAGE_PARTITIONED_HASH_TABLE_POOL_HPP_
 
 #include <algorithm>
-#include <chrono>
+#include <cstddef>
 #include <memory>
-#include <utility>
 #include <vector>
 
-#include "expressions/aggregation/AggregationHandle.hpp"
 #include "storage/HashTableBase.hpp"
-#include "storage/FastHashTable.hpp"
-#include "storage/FastHashTableFactory.hpp"
+#include "storage/HashTableFactory.hpp"
 #include "utility/Macros.hpp"
-#include "utility/StringUtil.hpp"
 
 #include "glog/logging.h"
 
 namespace quickstep {
 
+class AggregationHandle;
 class StorageManager;
 class Type;
 
@@ -54,33 +51,6 @@ class PartitionedHashTablePool {
   /**
    * @brief Constructor.
    *
-   * @param estimated_num_entries The maximum number of entries in a hash table.
-   * @param num_partitions The number of partitions (i.e. number of HashTables)
-   * @param hash_table_impl_type The type of hash table implementation.
-   * @param group_by_types A vector of pointer of types which form the group by
-   *        key.
-   * @param agg_handle The aggregation handle.
-   * @param storage_manager A pointer to the storage manager.
-   **/
-  PartitionedHashTablePool(const std::size_t estimated_num_entries,
-                           const std::size_t num_partitions,
-                           const HashTableImplType hash_table_impl_type,
-                           const std::vector<const Type *> &group_by_types,
-                           AggregationHandle *agg_handle,
-                           StorageManager *storage_manager)
-      : estimated_num_entries_(
-            setHashTableSize(estimated_num_entries, num_partitions)),
-        num_partitions_(num_partitions),
-        hash_table_impl_type_(hash_table_impl_type),
-        group_by_types_(group_by_types),
-        agg_handle_(DCHECK_NOTNULL(agg_handle)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)) {
-    initializeAllHashTables();
-  }
-
-  /**
-   * @brief Constructor.
-   *
    * @note This constructor is relevant for the HashTable specialized for
    *       aggregation.
    *
@@ -89,8 +59,6 @@ class PartitionedHashTablePool {
    * @param hash_table_impl_type The type of hash table implementation.
    * @param group_by_types A vector of pointer of types which form the group by
    *        key.
-   * @param payload_sizes The sizes of the payload elements (i.e.
-   *        AggregationStates).
    * @param handles The aggregation handles.
    * @param storage_manager A pointer to the storage manager.
    **/
@@ -98,7 +66,6 @@ class PartitionedHashTablePool {
                            const std::size_t num_partitions,
                            const HashTableImplType hash_table_impl_type,
                            const std::vector<const Type *> &group_by_types,
-                           const std::vector<std::size_t> &payload_sizes,
                            const std::vector<AggregationHandle *> &handles,
                            StorageManager *storage_manager)
       : estimated_num_entries_(
@@ -106,7 +73,6 @@ class PartitionedHashTablePool {
         num_partitions_(num_partitions),
         hash_table_impl_type_(hash_table_impl_type),
         group_by_types_(group_by_types),
-        payload_sizes_(payload_sizes),
         handles_(handles),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {
     initializeAllHashTables();
@@ -150,25 +116,17 @@ class PartitionedHashTablePool {
  private:
   void initializeAllHashTables() {
     for (std::size_t part_num = 0; part_num < num_partitions_; ++part_num) {
-      AggregationStateHashTableBase *part_hash_table = createNewHashTableFast();
+      AggregationStateHashTableBase *part_hash_table = createNewHashTable();
       hash_tables_.push_back(
           std::unique_ptr<AggregationStateHashTableBase>(part_hash_table));
     }
   }
 
   AggregationStateHashTableBase* createNewHashTable() {
-    return agg_handle_->createGroupByHashTable(hash_table_impl_type_,
-                                               group_by_types_,
-                                               estimated_num_entries_,
-                                               storage_manager_);
-  }
-
-  AggregationStateHashTableBase* createNewHashTableFast() {
-    return AggregationStateFastHashTableFactory::CreateResizable(
+    return AggregationStateHashTableFactory::CreateResizable(
                 hash_table_impl_type_,
                 group_by_types_,
                 estimated_num_entries_,
-                payload_sizes_,
                 handles_,
                 storage_manager_);
   }
@@ -189,10 +147,6 @@ class PartitionedHashTablePool {
   const HashTableImplType hash_table_impl_type_;
 
   const std::vector<const Type *> group_by_types_;
-
-  std::vector<std::size_t> payload_sizes_;
-
-  AggregationHandle *agg_handle_;
   const std::vector<AggregationHandle *> handles_;
   StorageManager *storage_manager_;
 
