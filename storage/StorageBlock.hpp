@@ -325,7 +325,7 @@ class StorageBlock : public StorageBlockBase {
    *       function with the appropriate attribute_map for each value
    *       accessor (InsertDestination::bulkInsertTuplesFromValueAccessors
    *       handles all the details) to insert tuples without an extra temp copy.
-   * 
+   *
    * @warning Must call bulkInsertPartialTuplesFinalize() to update the header,
    *          until which point, the insertion is not visible to others.
    * @warning The inserted tuples may be placed in sub-optimal locations in this

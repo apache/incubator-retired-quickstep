@@ -539,7 +539,9 @@ class PartitionAwareInsertDestination : public InsertDestination {
                               std::vector<Tuple>::const_iterator end) override;
 
  protected:
-  MutableBlockReference getBlockForInsertion() override;
+  MutableBlockReference getBlockForInsertion() override {
+    LOG(FATAL) << "PartitionAwareInsertDestination::getBlockForInsertion needs a partition id as an argument.";
+  }
 
   /**
    * @brief Get a block to use for insertion from a partition.

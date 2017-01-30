@@ -131,7 +131,7 @@ class InsertDestinationInterface {
    *
    * @param accessor_attribute_map A vector of pairs of ValueAccessor and
    *        corresponding attribute map
-   *        The i-th attribute ID in the attr map for a value accessor is "n" 
+   *        The i-th attribute ID in the attr map for a value accessor is "n"
    *        if the attribute_id "i" in the output relation
    *        is the attribute_id "n" in corresponding input value accessor.
    *        Set the i-th element to kInvalidCatalogId if it doesn't come from
