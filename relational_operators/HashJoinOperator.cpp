@@ -25,6 +25,7 @@
 #include <utility>
 #include <vector>
 
+#include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"
@@ -164,6 +165,12 @@ class OuterJoinTupleCollector {
   // BitVector on the probe relation. 1 if the corresponding tuple has no match.
   TupleIdSequence *filter_;
 };
+
+// For InnerJoin.
+constexpr std::size_t kNumValueAccessors = 3u;
+constexpr std::size_t kBuildValueAccessorIndex = 0,
+                      kProbeValueAccessorIndex = 1u,
+                      kTempResultValueAccessorIndex = 2u;
 
 }  // namespace
 
@@ -565,31 +572,27 @@ void HashInnerJoinWorkOrder::execute() {
         });
     }
 
-
     // We also need a temp value accessor to store results of any scalar expressions.
     ColumnVectorsValueAccessor temp_result;
 
     // Create a map of ValueAccessors and what attributes we want to pick from them
-    std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> accessor_attribute_map;
-    const std::vector<ValueAccessor *> accessors{
-        ordered_build_accessor.get(), ordered_probe_accessor.get(), &temp_result};
-    const unsigned int build_index = 0, probe_index = 1, temp_index = 2;
-    for (auto &accessor : accessors) {
-      accessor_attribute_map.push_back(std::make_pair(
-          accessor,
-          std::vector<attribute_id>(selection_.size(), kInvalidCatalogId)));
-    }
+    std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> accessor_attribute_map(
+        kNumValueAccessors, std::make_pair(nullptr,  // A late binding ValueAccessor.
+                                           vector<attribute_id>(selection_.size(), kInvalidCatalogId)));
+
+    accessor_attribute_map[kBuildValueAccessorIndex].first = ordered_build_accessor.get();
+    accessor_attribute_map[kProbeValueAccessorIndex].first = ordered_probe_accessor.get();
+    accessor_attribute_map[kTempResultValueAccessorIndex].first = &temp_result;
 
     attribute_id dest_attr = 0;
-    std::vector<std::pair<tuple_id, tuple_id>> zipped_joined_tuple_ids;
-
     for (auto &selection_cit : selection_) {
       // If the Scalar (column) is not an attribute in build/probe blocks, then
       // insert it into a ColumnVectorsValueAccessor.
       if (selection_cit->getDataSource() != Scalar::ScalarDataSource::kAttribute) {
         // Current destination attribute maps to the column we'll create now.
-        accessor_attribute_map[temp_index].second[dest_attr] = temp_result.getNumColumns();
+        accessor_attribute_map[kTempResultValueAccessorIndex].second[dest_attr] = temp_result.getNumColumns();
 
+        std::vector<std::pair<tuple_id, tuple_id>> zipped_joined_tuple_ids;
         if (temp_result.getNumColumns() == 0) {
           // The getAllValuesForJoin function below needs joined tuple IDs as
           // a vector of pair of (build-tuple-ID, probe-tuple-ID), and we have
@@ -599,9 +602,8 @@ void HashInnerJoinWorkOrder::execute() {
           // they don't have scalar expressions with attributes from both
           // build and probe relations (other expressions would have been
           // pushed down to before the join).
-          zipped_joined_tuple_ids.reserve(build_tids.size());
           for (std::size_t i = 0; i < build_tids.size(); ++i) {
-            zipped_joined_tuple_ids.push_back(std::make_pair(build_tids[i], probe_tids[i]));
+            zipped_joined_tuple_ids.emplace_back(build_tids[i], probe_tids[i]);
           }
         }
         temp_result.addColumn(
@@ -610,12 +612,12 @@ void HashInnerJoinWorkOrder::execute() {
                                       probe_relation_id, probe_accessor.get(),
                                       zipped_joined_tuple_ids));
       } else {
-        auto scalar_attr = static_cast<const ScalarAttribute *>(selection_cit.get());
-        const attribute_id attr_id = scalar_attr->getAttribute().getID();
-        if (scalar_attr->getAttribute().getParent().getID() == build_relation_id) {
-          accessor_attribute_map[build_index].second[dest_attr] = attr_id;
+        const CatalogAttribute &attr = static_cast<const ScalarAttribute *>(selection_cit.get())->getAttribute();
+        const attribute_id attr_id = attr.getID();
+        if (attr.getParent().getID() == build_relation_id) {
+          accessor_attribute_map[kBuildValueAccessorIndex].second[dest_attr] = attr_id;
         } else {
-          accessor_attribute_map[probe_index].second[dest_attr] = attr_id;
+          accessor_attribute_map[kProbeValueAccessorIndex].second[dest_attr] = attr_id;
         }
       }
       ++dest_attr;

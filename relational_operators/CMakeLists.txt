@@ -199,6 +199,7 @@ target_link_libraries(quickstep_relationaloperators_FinalizeAggregationOperator
 target_link_libraries(quickstep_relationaloperators_HashJoinOperator
                       ${GFLAGS_LIB_NAME}
                       glog
+                      quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
