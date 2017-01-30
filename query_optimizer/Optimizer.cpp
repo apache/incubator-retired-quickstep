@@ -30,10 +30,11 @@ void Optimizer::generateQueryHandle(const ParseStatement &parse_statement,
                                     OptimizerContext *optimizer_context,
                                     QueryHandle *query_handle) {
   LogicalGenerator logical_generator(optimizer_context);
+  PhysicalGenerator physical_generator(optimizer_context);
   ExecutionGenerator execution_generator(catalog_database, query_handle);
 
   execution_generator.generatePlan(
-      physical_generator_.generatePlan(
+      physical_generator.generatePlan(
           logical_generator.generatePlan(*catalog_database, parse_statement)));
 }
 

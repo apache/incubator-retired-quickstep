@@ -73,7 +73,8 @@ class OptimizerTextTestRunner : public TextBasedTestRunner {
                                           OptimizerContext *optimizer_context);
 
   physical::PhysicalPtr generatePhysicalPlan(
-      const logical::LogicalPtr &logical_plan);
+      const logical::LogicalPtr &logical_plan,
+      OptimizerContext *optimizer_context);
 
   SqlParserWrapper sql_parser_;
   TestDatabaseLoader test_database_loader_;

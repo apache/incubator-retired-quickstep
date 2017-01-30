@@ -30,6 +30,7 @@
 #include "query_optimizer/rules/InjectJoinFilters.hpp"
 #include "query_optimizer/rules/PruneColumns.hpp"
 #include "query_optimizer/rules/PushDownLowCostDisjunctivePredicate.hpp"
+#include "query_optimizer/rules/ReduceGroupByAttributes.hpp"
 #include "query_optimizer/rules/ReorderColumns.hpp"
 #include "query_optimizer/rules/StarSchemaHashJoinOrderOptimization.hpp"
 #include "query_optimizer/rules/SwapProbeBuild.hpp"
@@ -126,6 +127,8 @@ P::PhysicalPtr PhysicalGenerator::optimizePlan() {
   // However it is better to have a FuseSelection optimization (or even a more
   // general FusePhysical optimization) in the future.
   rules.emplace_back(new PushDownLowCostDisjunctivePredicate());
+
+  rules.emplace_back(new ReduceGroupByAttributes(optimizer_context_));
 
   if (FLAGS_reorder_hash_joins) {
     rules.emplace_back(new StarSchemaHashJoinOrderOptimization());

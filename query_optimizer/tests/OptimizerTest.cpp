@@ -62,7 +62,7 @@ OptimizerTest::OptimizerTest()
       catalog_database_(
           new CatalogDatabase(catalog_.get(), "TestDatabase" /* name */, 0)),
       optimizer_context_(new OptimizerContext),
-      physical_generator_(new PhysicalGenerator()) {}
+      physical_generator_(new PhysicalGenerator(optimizer_context_.get())) {}
 
 E::AliasPtr OptimizerTest::createAlias(const E::ExpressionPtr &expression,
                                        const std::string &attribute_name,

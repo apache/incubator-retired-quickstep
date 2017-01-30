@@ -80,7 +80,7 @@ void OptimizerTextTestRunner::runTestCase(const std::string &input,
       }
       if (output_physical_plan) {
         physical_plan =
-            generatePhysicalPlan(optimized_logical_plan);
+            generatePhysicalPlan(optimized_logical_plan, &optimizer_context);
         ++num_options;
       }
 
@@ -126,8 +126,9 @@ logical::LogicalPtr OptimizerTextTestRunner::generateLogicalPlan(
 }
 
 physical::PhysicalPtr OptimizerTextTestRunner::generatePhysicalPlan(
-    const logical::LogicalPtr &logical_plan) {
-  PhysicalGenerator physical_generator;
+    const logical::LogicalPtr &logical_plan,
+    OptimizerContext *optimizer_context) {
+  PhysicalGenerator physical_generator(optimizer_context);
   return physical_generator.generatePlan(logical_plan);
 }
 

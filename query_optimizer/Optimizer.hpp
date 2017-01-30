@@ -70,8 +70,6 @@ class Optimizer {
                            QueryHandle *query_handle);
 
  private:
-  PhysicalGenerator physical_generator_;
-
   DISALLOW_COPY_AND_ASSIGN(Optimizer);
 };
 

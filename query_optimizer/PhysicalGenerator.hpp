@@ -33,6 +33,8 @@
 namespace quickstep {
 namespace optimizer {
 
+class OptimizerContext;
+
 /** \addtogroup QueryOptimizer
  *  @{
  */
@@ -43,9 +45,12 @@ namespace optimizer {
 class PhysicalGenerator : public LogicalToPhysicalMapper {
  public:
   /**
-   * @brief Constructor
+   * @brief Constructor.
+   *
+   * @param optimizer_context The optimizer context.
    */
-  PhysicalGenerator() {
+  explicit PhysicalGenerator(OptimizerContext *optimizer_context)
+      : optimizer_context_(optimizer_context) {
     createStrategies();
   }
 
@@ -124,6 +129,8 @@ class PhysicalGenerator : public LogicalToPhysicalMapper {
    *        in multiple physical plans during the plan enumeration.
    */
   std::unordered_map<logical::LogicalPtr, physical::PhysicalPtr> logical_to_physical_map_;
+
+  OptimizerContext *optimizer_context_;
 
   /**
    * @brief The complete physical plan.
