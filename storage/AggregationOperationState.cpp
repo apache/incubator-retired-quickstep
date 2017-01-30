@@ -412,12 +412,18 @@ std::size_t AggregationOperationState::getNumFinalizationPartitions() const {
   }
 }
 
+CollisionFreeVectorTable* AggregationOperationState
+    ::getCollisionFreeVectorTable() const {
+  return static_cast<CollisionFreeVectorTable *>(
+      collision_free_hashtable_.get());
+}
+
 void AggregationOperationState::initialize(const std::size_t partition_id) {
   if (is_aggregate_collision_free_) {
     static_cast<CollisionFreeVectorTable *>(
         collision_free_hashtable_.get())->initialize(partition_id);
   } else {
-    LOG(FATAL) << "AggregationOperationState::initializeState() "
+    LOG(FATAL) << "AggregationOperationState::initialize() "
                << "is not supported by this aggregation";
   }
 }

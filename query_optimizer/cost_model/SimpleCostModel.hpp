@@ -25,6 +25,7 @@
 
 #include "query_optimizer/cost_model/CostModel.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
+#include "query_optimizer/physical/CrossReferenceCoalesceAggregate.hpp"
 #include "query_optimizer/physical/NestedLoopsJoin.hpp"
 #include "query_optimizer/physical/FilterJoin.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
@@ -99,6 +100,10 @@ class SimpleCostModel : public CostModel {
   // cardinality of the input plan divided by 10.
   std::size_t estimateCardinalityForAggregate(
       const physical::AggregatePtr &physical_plan);
+
+  // Returns the cardinality of the left child plan.
+  std::size_t estimateCardinalityForCrossReferenceCoalesceAggregate(
+      const physical::CrossReferenceCoalesceAggregatePtr &physical_plan);
 
   // Return the estimated cardinality of the input plan.
   std::size_t estimateCardinalityForWindowAggregate(

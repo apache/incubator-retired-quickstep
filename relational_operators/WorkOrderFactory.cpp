@@ -29,6 +29,7 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/AggregationOperator.hpp"
+#include "relational_operators/BuildAggregationExistenceMapOperator.hpp"
 #include "relational_operators/BuildHashOperator.hpp"
 #include "relational_operators/BuildLIPFilterOperator.hpp"
 #include "relational_operators/DeleteOperator.hpp"
@@ -90,6 +91,19 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               proto.GetExtension(serialization::AggregationWorkOrder::aggr_state_index)),
           CreateLIPFilterAdaptiveProberHelper(
               proto.GetExtension(serialization::AggregationWorkOrder::lip_deployment_index), query_context));
+    }
+    case serialization::BUILD_AGGREGATION_EXISTENCE_MAP: {
+      LOG(INFO) << "Creating BuildAggregationExistenceMapWorkOrder in Shiftboss " << shiftboss_index;
+
+      return new BuildAggregationExistenceMapWorkOrder(
+          proto.query_id(),
+          catalog_database->getRelationSchemaById(
+              proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::relation_id)),
+          proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::build_block_id),
+          proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::build_attribute),
+          query_context->getAggregationState(
+              proto.GetExtension(serialization::AggregationWorkOrder::aggr_state_index)),
+          storage_manager);
     }
     case serialization::BUILD_LIP_FILTER: {
       LOG(INFO) << "Creating BuildLIPFilterWorkOrder in Shiftboss " << shiftboss_index;
@@ -524,6 +538,29 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
              proto.HasExtension(serialization::AggregationWorkOrder::aggr_state_index) &&
              query_context.isValidAggregationStateId(
                  proto.GetExtension(serialization::AggregationWorkOrder::aggr_state_index));
+    }
+    case serialization::BUILD_AGGREGATION_EXISTENCE_MAP: {
+      if (!proto.HasExtension(serialization::BuildAggregationExistenceMapWorkOrder::relation_id)) {
+        return false;
+      }
+
+      const relation_id rel_id =
+          proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::relation_id);
+      if (!catalog_database.hasRelationWithId(rel_id)) {
+        return false;
+      }
+
+      const CatalogRelationSchema &relation = catalog_database.getRelationSchemaById(rel_id);
+      const attribute_id build_attribute =
+          proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::build_attribute);
+      if (!relation.hasAttributeWithId(build_attribute)) {
+        return false;
+      }
+
+      return proto.HasExtension(serialization::BuildAggregationExistenceMapWorkOrder::build_block_id) &&
+             proto.HasExtension(serialization::BuildAggregationExistenceMapWorkOrder::aggr_state_index) &&
+             query_context.isValidAggregationStateId(
+                 proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::aggr_state_index));
     }
     case serialization::BUILD_HASH: {
       if (!proto.HasExtension(serialization::BuildHashWorkOrder::relation_id)) {

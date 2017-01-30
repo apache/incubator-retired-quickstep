@@ -41,6 +41,7 @@ namespace serialization { class AggregationOperationState; }
 class AggregateFunction;
 class CatalogDatabaseLite;
 class CatalogRelationSchema;
+class CollisionFreeVectorTable;
 class InsertDestination;
 class LIPFilterAdaptiveProber;
 class StorageManager;
@@ -197,6 +198,14 @@ class AggregationOperationState {
    **/
   void finalizeAggregate(const std::size_t partition_id,
                          InsertDestination *output_destination);
+
+  /**
+   * @brief Get the collision-free vector table used by this aggregation.
+   *
+   * @return The collision-free vector table used by this aggregation.
+   *         Returns NULL if collision-free vector table is not used.
+   */
+  CollisionFreeVectorTable* getCollisionFreeVectorTable() const;
 
  private:
   // Check whether partitioned aggregation can be applied.

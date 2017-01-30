@@ -105,6 +105,15 @@ class CollisionFreeVectorTable : public AggregationStateHashTableBase {
   }
 
   /**
+   * @brief Get the existence map for this vector table.
+   *
+   * @return The existence map for this vector table.
+   */
+  inline BarrieredReadWriteConcurrentBitVector* getExistenceMap() const {
+    return existence_map_.get();
+  }
+
+  /**
    * @brief Initialize the specified partition of this aggregation table.
    *
    * @param partition_id ID of the partition to be initialized.

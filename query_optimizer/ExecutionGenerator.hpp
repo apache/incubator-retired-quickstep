@@ -46,6 +46,7 @@
 #include "query_optimizer/physical/CopyFrom.hpp"
 #include "query_optimizer/physical/CreateIndex.hpp"
 #include "query_optimizer/physical/CreateTable.hpp"
+#include "query_optimizer/physical/CrossReferenceCoalesceAggregate.hpp"
 #include "query_optimizer/physical/DeleteTuples.hpp"
 #include "query_optimizer/physical/DropTable.hpp"
 #include "query_optimizer/physical/FilterJoin.hpp"
@@ -206,22 +207,6 @@ class ExecutionGenerator {
   std::string getNewRelationName();
 
   /**
-   * @brief Checks whether an aggregate node can be efficiently evaluated with
-   *        the collision-free aggregation fast path.
-   *
-   * @param aggregate The physical aggregate node to be checked.
-   * @param estimated_num_groups The estimated number of groups for the aggregate.
-   * @param exact_num_groups If collision-free aggregation is applicable, the
-   *        pointed content of this pointer will be set as the maximum possible
-   *        number of groups that the collision-free hash table need to hold.
-   * @return A bool value indicating whether collision-free aggregation can be
-   *         used to evaluate \p aggregate.
-   */
-  bool canUseCollisionFreeAggregation(const physical::AggregatePtr &aggregate,
-                                      const std::size_t estimated_num_groups,
-                                      std::size_t *max_num_groups) const;
-
-  /**
    * @brief Sets up the info of the CatalogRelation represented by TableReference.
    *        TableReference is not converted to any operator.
    *
@@ -355,6 +340,9 @@ class ExecutionGenerator {
    * @param physical_plan The Aggregate to be converted.
    */
   void convertAggregate(const physical::AggregatePtr &physical_plan);
+
+  void convertCrossReferenceCoalesceAggregate(
+      const physical::CrossReferenceCoalesceAggregatePtr &physical_plan);
 
   /**
    * @brief Converts a physical Sort to SortRunGeneration and SortMergeRun.
