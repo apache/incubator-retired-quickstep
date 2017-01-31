@@ -28,6 +28,7 @@ target_link_libraries(quickstep_cli_distributed_Cli
                       glog
                       quickstep_catalog_CatalogRelation
                       quickstep_cli_Flags
+                      quickstep_cli_LineReader
                       quickstep_cli_PrintToScreen
                       quickstep_cli_distributed_Role
                       quickstep_parser_ParseStatement
