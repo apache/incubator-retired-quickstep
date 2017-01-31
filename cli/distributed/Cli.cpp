@@ -95,13 +95,13 @@ void Cli::init() {
   tmb::MessageStyle style;
 
   TaggedMessage cli_reg_message(kDistributedCliRegistrationMessage);
-  DCHECK(tmb::MessageBus::SendStatus::kOK ==
+  CHECK(tmb::MessageBus::SendStatus::kOK ==
       bus_.Send(cli_id_, all_addresses, style, move(cli_reg_message)));
 
   // Wait for Conductor to response.
   const AnnotatedMessage cli_reg_response_message(bus_.Receive(cli_id_, 0, true));
-  DCHECK_EQ(kDistributedCliRegistrationResponseMessage,
-            cli_reg_response_message.tagged_message.message_type());
+  CHECK_EQ(kDistributedCliRegistrationResponseMessage,
+           cli_reg_response_message.tagged_message.message_type());
   conductor_client_id_ = cli_reg_response_message.sender;
 
   DLOG(INFO) << "DistributedCli received typed '" << kDistributedCliRegistrationResponseMessage
