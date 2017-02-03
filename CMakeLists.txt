@@ -808,17 +808,32 @@ target_link_libraries(quickstep_cli_shell ${LIBS})
 
 if (ENABLE_DISTRIBUTED)
   # Build the quickstep_distributed_cli_shell executable.
-  add_executable (quickstep_distributed_cli_shell cli/distributed/QuickstepDistributedCli.cpp)
+  add_executable (quickstep_distributed_cli_shell
+                  cli/distributed/Cli.hpp
+                  cli/distributed/Cli.cpp
+                  cli/distributed/QuickstepDistributedCli.cpp)
   # Link against direct deps (will transitively pull in everything needed).
-  # NOTE(zuyu): Link quickstep_cli_LineReader on behalf of quickstep_cli_distributed_Cli,
-  # as a workaround for bypassing conditionally built target checks in validate_cmakelists.py.
   target_link_libraries(quickstep_distributed_cli_shell
                         glog
+                        quickstep_catalog_CatalogRelation
+                        quickstep_cli_Flags
                         quickstep_cli_LineReader
-                        quickstep_cli_distributed_Cli
+                        quickstep_cli_PrintToScreen
                         quickstep_cli_distributed_Conductor
                         quickstep_cli_distributed_Executor
+                        quickstep_cli_distributed_Role
+                        quickstep_parser_ParseStatement
+                        quickstep_parser_SqlParserWrapper
+                        quickstep_queryexecution_BlockLocatorUtil
+                        quickstep_queryexecution_QueryExecutionMessages_proto
+                        quickstep_queryexecution_QueryExecutionTypedefs
+                        quickstep_queryexecution_QueryExecutionUtil
+                        quickstep_storage_DataExchangerAsync
+                        quickstep_storage_StorageBlockInfo
+                        quickstep_storage_StorageManager
+                        quickstep_utility_Macros
                         quickstep_utility_StringUtil
+                        tmb
                         ${GFLAGS_LIB_NAME}
                         ${GRPCPLUSPLUS_LIBRARIES})
 endif(ENABLE_DISTRIBUTED)

@@ -18,30 +18,11 @@
 set_gflags_lib_name ()
 
 # Declare micro-libs and link dependencies:
-add_library(quickstep_cli_distributed_Cli Cli.cpp Cli.hpp)
 add_library(quickstep_cli_distributed_Conductor Conductor.cpp Conductor.hpp)
 add_library(quickstep_cli_distributed_Executor Executor.cpp Executor.hpp)
 add_library(quickstep_cli_distributed_Role Role.cpp Role.hpp)
 
 # Link dependencies:
-target_link_libraries(quickstep_cli_distributed_Cli
-                      glog
-                      quickstep_catalog_CatalogRelation
-                      quickstep_cli_Flags
-                      quickstep_cli_PrintToScreen
-                      quickstep_cli_distributed_Role
-                      quickstep_parser_ParseStatement
-                      quickstep_parser_SqlParserWrapper
-                      quickstep_queryexecution_BlockLocatorUtil
-                      quickstep_queryexecution_QueryExecutionMessages_proto
-                      quickstep_queryexecution_QueryExecutionTypedefs
-                      quickstep_queryexecution_QueryExecutionUtil
-                      quickstep_storage_DataExchangerAsync
-                      quickstep_storage_StorageBlockInfo
-                      quickstep_storage_StorageManager
-                      quickstep_utility_Macros
-                      quickstep_utility_StringUtil
-                      tmb)
 target_link_libraries(quickstep_cli_distributed_Conductor
                       glog
                       quickstep_cli_DefaultsConfigurator
@@ -83,7 +64,6 @@ target_link_libraries(quickstep_cli_distributed_Role
 add_library(quickstep_cli_distributed ../../empty_src.cpp CliDistributedModule.hpp)
 
 target_link_libraries(quickstep_cli_distributed
-                      quickstep_cli_distributed_Cli
                       quickstep_cli_distributed_Conductor
                       quickstep_cli_distributed_Executor
                       quickstep_cli_distributed_Role)
