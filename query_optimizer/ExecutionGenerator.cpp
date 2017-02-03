@@ -988,6 +988,11 @@ void ExecutionGenerator::convertCopyFrom(
   // CopyFrom is converted to a TextScan and a SaveBlocks.
 
   const CatalogRelation *output_relation = physical_plan->catalog_relation();
+  const relation_id output_rel_id = output_relation->getID();
+
+#ifdef QUICKSTEP_DISTRIBUTED
+  referenced_relation_ids_.insert(output_rel_id);
+#endif
 
   // Create InsertDestination proto.
   const QueryContext::insert_destination_id insert_destination_index =
@@ -995,7 +1000,7 @@ void ExecutionGenerator::convertCopyFrom(
   S::InsertDestination *insert_destination_proto = query_context_proto_->add_insert_destinations();
 
   insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
-  insert_destination_proto->set_relation_id(output_relation->getID());
+  insert_destination_proto->set_relation_id(output_rel_id);
   insert_destination_proto->mutable_layout()->MergeFrom(
       output_relation->getDefaultStorageBlockLayout().getDescription());
 
@@ -1016,7 +1021,7 @@ void ExecutionGenerator::convertCopyFrom(
   insert_destination_proto->set_relational_op_index(scan_operator_index);
 
   CatalogRelation *mutable_output_relation =
-      catalog_database_->getRelationByIdMutable(output_relation->getID());
+      catalog_database_->getRelationByIdMutable(output_rel_id);
   const QueryPlan::DAGNodeIndex save_blocks_operator_index =
       execution_plan_->addRelationalOperator(
           new SaveBlocksOperator(query_handle_->query_id(), mutable_output_relation));
