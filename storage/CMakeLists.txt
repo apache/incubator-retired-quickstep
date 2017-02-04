@@ -207,6 +207,7 @@ if (QUICKSTEP_HAVE_FILE_MANAGER_POSIX)
 elseif (QUICKSTEP_HAVE_FILE_MANAGER_WINDOWS)
   add_library(quickstep_storage_FileManagerWindows FileManagerWindows.cpp FileManagerWindows.hpp)
 endif()
+add_library(quickstep_storage_Flags Flags.cpp Flags.hpp)
 add_library(quickstep_storage_HashTable ../empty_src.cpp HashTable.hpp)
 add_library(quickstep_storage_HashTable_proto ${storage_HashTable_proto_srcs})
 add_library(quickstep_storage_HashTableBase ../empty_src.cpp HashTableBase.hpp)
@@ -679,8 +680,8 @@ target_link_libraries(quickstep_storage_FileManager
 if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
   target_link_libraries(quickstep_storage_FileManagerHdfs
                         glog
-                        ${GFLAGS_LIB_NAME}
                         quickstep_storage_FileManager
+                        quickstep_storage_Flags
                         quickstep_storage_StorageBlockInfo
                         quickstep_storage_StorageConstants
                         quickstep_storage_StorageErrors
@@ -711,6 +712,8 @@ elseif (QUICKSTEP_HAVE_FILE_MANAGER_WINDOWS)
                         quickstep_utility_Macros
                         quickstep_utility_StringUtil)
 endif()
+target_link_libraries(quickstep_storage_Flags
+                      ${GFLAGS_LIB_NAME})
 target_link_libraries(quickstep_storage_HashTable
                       quickstep_catalog_CatalogTypedefs
                       quickstep_storage_HashTableBase
@@ -1000,6 +1003,7 @@ target_link_libraries(quickstep_storage_StorageManager
                       quickstep_storage_EvictionPolicy
                       quickstep_storage_FileManager
                       quickstep_storage_FileManagerLocal
+                      quickstep_storage_Flags
                       quickstep_storage_StorageBlob
                       quickstep_storage_StorageBlock
                       quickstep_storage_StorageBlockBase
@@ -1121,17 +1125,18 @@ target_link_libraries(quickstep_storage
                       quickstep_storage_CompressedTupleStorageSubBlock
                       quickstep_storage_CountedReference
                       quickstep_storage_EvictionPolicy
-                      quickstep_storage_FileManager
-                      quickstep_storage_FileManagerLocal
                       quickstep_storage_FastHashTable
                       quickstep_storage_FastHashTableFactory
                       quickstep_storage_FastSeparateChainingHashTable
+                      quickstep_storage_FileManager
+                      quickstep_storage_FileManagerLocal
+                      quickstep_storage_Flags
                       quickstep_storage_HashTable
-                      quickstep_storage_HashTable_proto
                       quickstep_storage_HashTableBase
                       quickstep_storage_HashTableFactory
                       quickstep_storage_HashTableKeyManager
                       quickstep_storage_HashTablePool
+                      quickstep_storage_HashTable_proto
                       quickstep_storage_IndexSubBlock
                       quickstep_storage_IndexSubBlockDescriptionFactory
                       quickstep_storage_InsertDestination

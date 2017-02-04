@@ -63,10 +63,6 @@ namespace quickstep {
 DECLARE_int32(block_domain);
 DECLARE_uint64(buffer_pool_slots);
 
-#ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
-DECLARE_bool(use_hdfs);
-#endif
-
 class CatalogRelationSchema;
 
 #ifdef QUICKSTEP_DISTRIBUTED

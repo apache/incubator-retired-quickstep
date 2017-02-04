@@ -29,13 +29,7 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
-#include "gflags/gflags.h"
-
 namespace quickstep {
-
-DECLARE_string(hdfs_namenode_host);
-DECLARE_int32(hdfs_namenode_port);
-DECLARE_int32(hdfs_num_replications);
 
 /** \addtogroup Storage
  *  @{

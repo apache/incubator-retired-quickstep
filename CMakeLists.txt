@@ -789,6 +789,7 @@ target_link_libraries(quickstep_cli_shell
                       quickstep_queryexecution_WorkerDirectory
                       quickstep_queryoptimizer_QueryHandle
                       quickstep_queryoptimizer_QueryProcessor
+                      quickstep_storage_Flags
                       quickstep_storage_PreloaderThread
                       quickstep_storage_StorageConstants
                       quickstep_storage_StorageManager

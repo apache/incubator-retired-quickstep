@@ -76,6 +76,7 @@
 
 #include "storage/EvictionPolicy.hpp"
 #include "storage/FileManagerLocal.hpp"
+#include "storage/Flags.hpp"
 #include "storage/StorageBlob.hpp"
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockBase.hpp"
@@ -188,10 +189,6 @@ DEFINE_uint64(buffer_pool_slots, 0,
               "blocks to make room for a new allocation.");
 static const volatile bool buffer_pool_slots_dummy
     = gflags::RegisterFlagValidator(&FLAGS_buffer_pool_slots, &SetOrValidateBufferPoolSlots);
-
-#ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
-DEFINE_bool(use_hdfs, false, "Use HDFS as the persistent storage, instead of the local disk.");
-#endif
 
 StorageManager::StorageManager(
     const std::string &storage_path,

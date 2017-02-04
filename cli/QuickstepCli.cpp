@@ -58,6 +58,7 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #include "query_execution/WorkerDirectory.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryProcessor.hpp"
+#include "storage/Flags.hpp"
 #include "storage/StorageConfig.h"  // For QUICKSTEP_HAVE_FILE_MANAGER_HDFS.
 
 #ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
