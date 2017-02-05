@@ -21,6 +21,7 @@
 
 #include <cstdio>
 #include <cstdlib>
+#include <functional>
 #include <memory>
 #include <set>
 #include <string>
@@ -64,6 +65,12 @@ class CatalogRelation;
 
 namespace optimizer {
 
+namespace {
+
+void nop() {}
+
+}  // namespace
+
 const char *DistributedExecutionGeneratorTestRunner::kResetOption =
     "reset_before_execution";
 
@@ -98,7 +105,8 @@ DistributedExecutionGeneratorTestRunner::DistributedExecutionGeneratorTestRunner
 
   // NOTE(zuyu): Foreman should initialize before Shiftboss so that the former
   // could receive a registration message from the latter.
-  foreman_ = make_unique<ForemanDistributed>(*block_locator_, &bus_, test_database_loader_->catalog_database());
+  foreman_ = make_unique<ForemanDistributed>(*block_locator_, std::bind(&nop), &bus_,
+                                             test_database_loader_->catalog_database());
 
   // We don't use the NUMA aware version of worker code.
   const vector<numa_node_id> numa_nodes(1 /* Number of worker threads per instance */,

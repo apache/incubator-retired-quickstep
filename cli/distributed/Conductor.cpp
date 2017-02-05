@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <cstdlib>
 #include <exception>
+#include <functional>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -95,7 +96,9 @@ void Conductor::init() {
   block_locator_ = make_unique<BlockLocator>(&bus_);
   block_locator_->start();
 
-  foreman_ = make_unique<ForemanDistributed>(*block_locator_, &bus_, query_processor_->getDefaultDatabase());
+  foreman_ = make_unique<ForemanDistributed>(*block_locator_,
+                                             std::bind(&QueryProcessor::saveCatalog, query_processor_.get()), &bus_,
+                                             query_processor_->getDefaultDatabase());
   foreman_->start();
 }
 

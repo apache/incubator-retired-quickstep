@@ -17,6 +17,7 @@
 
 #include <cstddef>
 #include <cstdio>
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -55,6 +56,8 @@ class ForemanDistributed final : public ForemanBase {
    * @param block_locator The block locator that manages block location info.
    * @param bus A pointer to the TMB.
    * @param catalog_database The catalog database where this query is executed.
+   * @param save_catalog_callback The callback used to save catalog upon the query
+   *        completion.
    * @param cpu_id The ID of the CPU to which the Foreman thread can be pinned.
    *
    * @note If cpu_id is not specified, Foreman thread can be possibly moved
@@ -62,6 +65,7 @@ class ForemanDistributed final : public ForemanBase {
   **/
   ForemanDistributed(
       const BlockLocator &block_locator,
+      std::function<void()> &&save_catalog_callback,
       tmb::MessageBus *bus,
       CatalogDatabaseLite *catalog_database,
       const int cpu_id = -1);

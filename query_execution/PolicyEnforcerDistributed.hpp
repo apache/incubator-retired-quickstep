@@ -16,6 +16,7 @@
 #define QUICKSTEP_QUERY_EXECUTION_POLICY_ENFORCER_DISTRIBUTED_HPP_
 
 #include <cstddef>
+#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <utility>
@@ -57,15 +58,19 @@ class PolicyEnforcerDistributed final : public PolicyEnforcerBase {
    * @brief Constructor.
    *
    * @param foreman_client_id The TMB client ID of the Foreman.
+   * @param save_catalog_callback The callback used to save catalog upon the query
+   *        completion.
    * @param catalog_database The CatalogDatabase used.
    * @param bus The TMB.
    **/
   PolicyEnforcerDistributed(const tmb::client_id foreman_client_id,
+                            std::function<void()> &&save_catalog_callback,
                             CatalogDatabaseLite *catalog_database,
                             ShiftbossDirectory *shiftboss_directory,
                             tmb::MessageBus *bus)
       : PolicyEnforcerBase(catalog_database),
         foreman_client_id_(foreman_client_id),
+        save_catalog_callback_(std::move(save_catalog_callback)),
         shiftboss_directory_(shiftboss_directory),
         bus_(bus) {}
 
@@ -153,6 +158,8 @@ class PolicyEnforcerDistributed final : public PolicyEnforcerBase {
   void initiateQueryInShiftboss(QueryHandle *query_handle);
 
   const tmb::client_id foreman_client_id_;
+
+  const std::function<void()> save_catalog_callback_;
 
   ShiftbossDirectory *shiftboss_directory_;
 

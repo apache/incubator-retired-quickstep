@@ -227,6 +227,8 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
   }
 
   if (query_result == nullptr) {
+    save_catalog_callback_();
+
     // Clean up query execution states, i.e., QueryContext, in Shiftbosses.
     serialization::QueryTeardownMessage proto;
     proto.set_query_id(query_id);
