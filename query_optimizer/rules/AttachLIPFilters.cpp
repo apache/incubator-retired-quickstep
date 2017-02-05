@@ -19,6 +19,7 @@
 
 #include "query_optimizer/rules/AttachLIPFilters.hpp"
 
+#include <algorithm>
 #include <map>
 #include <set>
 #include <unordered_set>
@@ -128,7 +129,7 @@ void AttachLIPFilters::attachLIPFilters(
           lip_filter_configuration_->addBuildInfo(
               P::SingleIdentityHashFilterBuildInfo::Create(
                   pair.second->source_attribute,
-                  pair.second->estimated_cardinality * 8),
+                  std::max(64uL, pair.second->estimated_cardinality * 8u)),
               pair.second->source);
           lip_filter_configuration_->addProbeInfo(
               P::LIPFilterProbeInfo::Create(

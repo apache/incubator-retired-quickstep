@@ -66,7 +66,7 @@ class SingleIdentityHashFilter : public LIPFilter {
       : LIPFilter(LIPFilterType::kSingleIdentityHashFilter),
         filter_cardinality_(filter_cardinality),
         bit_array_(GetByteSize(filter_cardinality)) {
-    DCHECK_GE(filter_cardinality, 0u);
+    DCHECK_GE(filter_cardinality, 1u);
     std::memset(bit_array_.data(),
                 0x0,
                 sizeof(std::atomic<std::uint8_t>) * GetByteSize(filter_cardinality));
