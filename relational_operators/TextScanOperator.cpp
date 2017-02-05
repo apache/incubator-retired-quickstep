@@ -78,6 +78,20 @@ static bool ValidateTextScanTextSegmentSize(const char *flagname,
 static const volatile bool text_scan_text_segment_size_dummy = gflags::RegisterFlagValidator(
     &FLAGS_textscan_text_segment_size, &ValidateTextScanTextSegmentSize);
 
+namespace {
+
+size_t getFileSize(const string &file_name) {
+  // Use standard C libary to retrieve the file size.
+  FILE *fp = std::fopen(file_name.c_str(), "rb");
+  std::fseek(fp, 0, SEEK_END);
+  const std::size_t file_size = std::ftell(fp);
+  std::fclose(fp);
+
+  return file_size;
+}
+
+}  // namespace
+
 bool TextScanOperator::getAllWorkOrders(
     WorkOrdersContainer *container,
     QueryContext *query_context,
@@ -105,10 +119,7 @@ bool TextScanOperator::getAllWorkOrders(
           << "File " << file << " is not readable due to permission issues.";
 #endif  // QUICKSTEP_HAVE_UNISTD
 
-      FILE *fp = std::fopen(file.c_str(), "rb");
-      std::fseek(fp, 0, SEEK_END);
-      const std::size_t file_size = std::ftell(fp);
-      std::fclose(fp);
+      const std::size_t file_size = getFileSize(file);
 
       std::size_t text_offset = 0;
       for (size_t num_full_segments = file_size / FLAGS_textscan_text_segment_size;
@@ -148,11 +159,7 @@ bool TextScanOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container
   const std::vector<std::string> files = utility::file::GlobExpand(file_pattern_);
   if (blocking_dependencies_met_ && !work_generated_) {
     for (const string &file : files) {
-      // Use standard C libary to retrieve the file size.
-      FILE *fp = std::fopen(file.c_str(), "rb");
-      std::fseek(fp, 0, SEEK_END);
-      const std::size_t file_size = std::ftell(fp);
-      std::fclose(fp);
+      const std::size_t file_size = getFileSize(file);
 
       size_t text_offset = 0;
       for (size_t num_full_segments = file_size / FLAGS_textscan_text_segment_size;
