@@ -128,7 +128,8 @@ DistributedExecutionGeneratorTestRunner::DistributedExecutionGeneratorTestRunner
 
     data_exchangers_[i].set_storage_manager(storage_manager.get());
     shiftbosses_.push_back(
-        make_unique<Shiftboss>(&bus_, storage_manager.get(), worker_directories_.back().get()));
+        make_unique<Shiftboss>(&bus_, storage_manager.get(), worker_directories_.back().get(),
+                               storage_manager->hdfs()));
 
     storage_managers_.push_back(move(storage_manager));
   }

@@ -104,7 +104,8 @@ void Shiftboss::run() {
                                                                        query_contexts_[query_id].get(),
                                                                        storage_manager_,
                                                                        shiftboss_client_id_,
-                                                                       bus_);
+                                                                       bus_,
+                                                                       hdfs_);
 
         unique_ptr<WorkerMessage> worker_message(
             WorkerMessage::WorkOrderMessage(work_order, proto.operator_index()));

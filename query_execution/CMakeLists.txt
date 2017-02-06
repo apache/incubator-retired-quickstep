@@ -295,6 +295,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_queryexecution_WorkerMessage
                         quickstep_relationaloperators_RebuildWorkOrder
                         quickstep_relationaloperators_WorkOrderFactory
+                        quickstep_storage_Flags
                         quickstep_storage_InsertDestination
                         quickstep_storage_StorageBlock
                         quickstep_storage_StorageManager

@@ -41,7 +41,6 @@
 #include "storage/StorageBlob.hpp"
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
-#include "storage/StorageConfig.h"
 #include "storage/StorageConstants.hpp"
 #include "threading/SpinSharedMutex.hpp"
 #include "utility/Macros.hpp"
@@ -394,6 +393,13 @@ class StorageManager {
    **/
   void pullBlockOrBlob(const block_id block, PullResponse *response) const;
 #endif
+
+  /**
+   * @brief Get the HDFS connector via libhdfs3.
+   *
+   * @return The HDFS connector.
+   **/
+  void* hdfs();
 
  private:
   struct BlockHandle {

@@ -59,6 +59,7 @@ class WorkOrderFactory {
    * @param storage_manager The StorageManager to use.
    * @param shiftboss_client_id The TMB client id of Shiftboss.
    * @param bus A pointer to the TMB.
+   * @param hdfs The HDFS connector via libhdfs3.
    *
    * @return A new WorkOrder reconstructed from the supplied Protocol Buffer.
    **/
@@ -68,7 +69,8 @@ class WorkOrderFactory {
                                          QueryContext *query_context,
                                          StorageManager *storage_manager,
                                          const tmb::client_id shiftboss_client_id,
-                                         tmb::MessageBus *bus);
+                                         tmb::MessageBus *bus,
+                                         void *hdfs);
 
   /**
    * @brief Check whether a serialization::WorkOrder is fully-formed and

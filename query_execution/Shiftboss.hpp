@@ -30,6 +30,8 @@
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/WorkerDirectory.hpp"
+#include "storage/Flags.hpp"
+#include "storage/StorageConfig.h"  // For QUICKSTEP_HAVE_FILE_MANAGER_HDFS.
 #include "threading/Thread.hpp"
 #include "utility/Macros.hpp"
 
@@ -64,6 +66,7 @@ class Shiftboss : public Thread {
    * @param bus A pointer to the TMB.
    * @param storage_manager The StorageManager to use.
    * @param workers A pointer to the WorkerDirectory.
+   * @param hdfs The HDFS connector via libhdfs3.
    * @param cpu_id The ID of the CPU to which the Shiftboss thread can be pinned.
    *
    * @note If cpu_id is not specified, Shiftboss thread can be possibly moved
@@ -72,10 +75,12 @@ class Shiftboss : public Thread {
   Shiftboss(tmb::MessageBus *bus,
             StorageManager *storage_manager,
             WorkerDirectory *workers,
+            void *hdfs,
             const int cpu_id = -1)
       : bus_(DCHECK_NOTNULL(bus)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
         workers_(DCHECK_NOTNULL(workers)),
+        hdfs_(hdfs),
         cpu_id_(cpu_id),
         shiftboss_client_id_(tmb::kClientIdNone),
         foreman_client_id_(tmb::kClientIdNone),
@@ -83,6 +88,12 @@ class Shiftboss : public Thread {
         start_worker_index_(0u) {
     // Check to have at least one Worker.
     DCHECK_GT(workers->getNumWorkers(), 0u);
+
+#ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
+    if (FLAGS_use_hdfs) {
+      CHECK(hdfs_);
+    }
+#endif  // QUICKSTEP_HAVE_FILE_MANAGER_HDFS
 
     shiftboss_client_id_ = bus_->Connect();
     LOG(INFO) << "Shiftboss TMB client ID: " << shiftboss_client_id_;
@@ -227,6 +238,9 @@ class Shiftboss : public Thread {
   CatalogDatabaseCache database_cache_;
   StorageManager *storage_manager_;
   WorkerDirectory *workers_;
+
+  // Not owned.
+  void *hdfs_;
 
   // The ID of the CPU that the Shiftboss thread can optionally be pinned to.
   const int cpu_id_;

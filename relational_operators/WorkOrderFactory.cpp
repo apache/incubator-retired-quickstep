@@ -75,7 +75,8 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
                                                   QueryContext *query_context,
                                                   StorageManager *storage_manager,
                                                   const tmb::client_id shiftboss_client_id,
-                                                  tmb::MessageBus *bus) {
+                                                  tmb::MessageBus *bus,
+                                                  void *hdfs) {
   DCHECK(query_context != nullptr);
   DCHECK(ProtoIsValid(proto, *catalog_database, *query_context))
       << "Attempted to create WorkOrder from an invalid proto description:\n"
@@ -473,7 +474,8 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           proto.GetExtension(serialization::TextScanWorkOrder::field_terminator),
           proto.GetExtension(serialization::TextScanWorkOrder::process_escape_sequences),
           query_context->getInsertDestination(
-              proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index)));
+              proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index)),
+          hdfs);
     }
     case serialization::UPDATE: {
       LOG(INFO) << "Creating UpdateWorkOrder in Shiftboss " << shiftboss_index;

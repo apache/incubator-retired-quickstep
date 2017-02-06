@@ -55,6 +55,15 @@ class FileManagerHdfs : public FileManager {
 
   block_id_counter getMaxUsedBlockCounter(const block_id_domain block_domain) const override;
 
+  /**
+   * @brief Get the HDFS connector via libhdfs3.
+   *
+   * @return The HDFS connector.
+   **/
+  void* hdfs() {
+    return static_cast<void*>(hdfs_);
+  }
+
  private:
   // libhdfs3 has an API to release this pointer.
   hdfsFS hdfs_;

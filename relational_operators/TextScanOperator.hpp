@@ -189,6 +189,7 @@ class TextScanWorkOrder : public WorkOrder {
    * @param process_escape_sequences Whether to decode escape sequences in the
    *        text file.
    * @param output_destination The InsertDestination to insert tuples.
+   * @param hdfs The HDFS connector via libhdfs3.
    **/
   TextScanWorkOrder(
       const std::size_t query_id,
@@ -197,14 +198,16 @@ class TextScanWorkOrder : public WorkOrder {
       const std::size_t text_segment_size,
       const char field_terminator,
       const bool process_escape_sequences,
-      InsertDestination *output_destination)
+      InsertDestination *output_destination,
+      void *hdfs = nullptr)
       : WorkOrder(query_id),
         filename_(filename),
         text_offset_(text_offset),
         text_segment_size_(text_segment_size),
         field_terminator_(field_terminator),
         process_escape_sequences_(process_escape_sequences),
-        output_destination_(DCHECK_NOTNULL(output_destination)) {}
+        output_destination_(DCHECK_NOTNULL(output_destination)),
+        hdfs_(hdfs) {}
 
   ~TextScanWorkOrder() override {}
 
@@ -331,6 +334,9 @@ class TextScanWorkOrder : public WorkOrder {
   const bool process_escape_sequences_;
 
   InsertDestination *output_destination_;
+
+  // Not owned.
+  void *hdfs_;
 
   DISALLOW_COPY_AND_ASSIGN(TextScanWorkOrder);
 };

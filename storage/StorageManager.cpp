@@ -570,6 +570,15 @@ bool StorageManager::DataExchangerClientAsync::Pull(const block_id block,
   return true;
 }
 
+void* StorageManager::hdfs() {
+#ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
+  if (FLAGS_use_hdfs) {
+    return static_cast<FileManagerHdfs*>(file_manager_.get())->hdfs();
+  }
+#endif  // QUICKSTEP_HAVE_FILE_MANAGER_HDFS
+  return nullptr;
+}
+
 vector<string> StorageManager::getPeerDomainNetworkAddresses(const block_id block) {
   serialization::BlockMessage proto;
   proto.set_block_id(block);

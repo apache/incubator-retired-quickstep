@@ -41,7 +41,14 @@
 #include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/WorkOrder.pb.h"
+#include "storage/Flags.hpp"
 #include "storage/InsertDestination.hpp"
+#include "storage/StorageConfig.h"  // For QUICKSTEP_HAVE_FILE_MANAGER_HDFS.
+
+#ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
+#include <hdfs/hdfs.h>
+#endif  // QUICKSTEP_HAVE_FILE_MANAGER_HDFS
+
 #include "types/Type.hpp"
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVector.hpp"
@@ -205,14 +212,56 @@ void TextScanWorkOrder::execute() {
 
   std::vector<TypedValue> vector_tuple_returned;
   constexpr std::size_t kSmallBufferSize = 0x4000;
-  char *buffer = reinterpret_cast<char *>(malloc(std::max(text_segment_size_, kSmallBufferSize)));
+  const size_t buffer_size = std::max(text_segment_size_, kSmallBufferSize);
+  char *buffer = reinterpret_cast<char *>(malloc(buffer_size));
 
-  // Read text segment into buffer.
-  FILE *file = std::fopen(filename_.c_str(), "rb");
-  std::fseek(file, text_offset_, SEEK_SET);
-  std::size_t bytes_read = std::fread(buffer, 1, text_segment_size_, file);
-  if (bytes_read != text_segment_size_) {
-    throw TextScanReadError(filename_);
+  bool use_hdfs = false;
+  std::size_t bytes_read;
+
+#ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
+  hdfsFS hdfs = nullptr;
+  hdfsFile file_handle = nullptr;
+
+  if (FLAGS_use_hdfs) {
+    use_hdfs = true;
+    hdfs = static_cast<hdfsFS>(hdfs_);
+
+    file_handle = hdfsOpenFile(hdfs, filename_.c_str(), O_RDONLY, buffer_size,
+                               0 /* default replication */, 0 /* default block size */);
+    if (file_handle == nullptr) {
+      LOG(ERROR) << "Failed to open file " << filename_ << " with error: " << strerror(errno);
+      return;
+    }
+
+    if (hdfsSeek(hdfs, file_handle, text_offset_)) {
+      LOG(ERROR) << "Failed to seek in file " << filename_ << " with error: " << strerror(errno);
+
+      hdfsCloseFile(hdfs, file_handle);
+      return;
+    }
+
+    bytes_read = hdfsRead(hdfs, file_handle, buffer, text_segment_size_);
+    if (bytes_read != text_segment_size_) {
+      hdfsCloseFile(hdfs, file_handle);
+      throw TextScanReadError(filename_);
+    }
+  }
+#endif  // QUICKSTEP_HAVE_FILE_MANAGER_HDFS
+
+  FILE *file = nullptr;
+  if (!use_hdfs) {
+    // Avoid unused-private-field warning.
+    (void) hdfs_;
+
+    // Read text segment into buffer.
+    file = std::fopen(filename_.c_str(), "rb");
+    std::fseek(file, text_offset_, SEEK_SET);
+    bytes_read = std::fread(buffer, 1, text_segment_size_, file);
+
+    if (bytes_read != text_segment_size_) {
+      std::fclose(file);
+      throw TextScanReadError(filename_);
+    }
   }
 
   // Locate the first newline character.
@@ -266,10 +315,36 @@ void TextScanWorkOrder::execute() {
   // that the last tuple is very small / very large.
   std::size_t dynamic_read_size = 1024;
   std::string row_string;
-  std::fseek(file, text_offset_ + (end_ptr - buffer), SEEK_SET);
+
+  const size_t dynamic_read_offset = text_offset_ + (end_ptr - buffer);
+  if (use_hdfs) {
+#ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
+    if (hdfsSeek(hdfs, file_handle, dynamic_read_offset)) {
+      LOG(ERROR) << "Failed to seek in file " << filename_ << " with error: " << strerror(errno);
+
+      hdfsCloseFile(hdfs, file_handle);
+      return;
+    }
+#endif  // QUICKSTEP_HAVE_FILE_MANAGER_HDFS
+  } else {
+    std::fseek(file, dynamic_read_offset, SEEK_SET);
+  }
+
   bool has_reached_end = false;
   do {
-    bytes_read = std::fread(buffer, 1, dynamic_read_size, file);
+    if (use_hdfs) {
+#ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
+      bytes_read = hdfsRead(hdfs, file_handle, buffer, dynamic_read_size);
+
+      // Read again when acrossing the HDFS block boundary.
+      if (bytes_read != dynamic_read_size) {
+        bytes_read += hdfsRead(hdfs, file_handle, buffer + bytes_read, dynamic_read_size - bytes_read);
+      }
+#endif  // QUICKSTEP_HAVE_FILE_MANAGER_HDFS
+    } else {
+      bytes_read = std::fread(buffer, 1, dynamic_read_size, file);
+    }
+
     std::size_t bytes_to_copy = bytes_read;
 
     for (std::size_t i = 0; i < bytes_read; ++i) {
@@ -303,7 +378,14 @@ void TextScanWorkOrder::execute() {
     }
   }
 
-  std::fclose(file);
+  if (use_hdfs) {
+#ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
+    hdfsCloseFile(hdfs, file_handle);
+#endif  // QUICKSTEP_HAVE_FILE_MANAGER_HDFS
+  } else {
+    std::fclose(file);
+  }
+
   free(buffer);
 
   // Store the tuples in a ColumnVectorsValueAccessor for bulk insert.
@@ -334,7 +416,8 @@ void TextScanWorkOrder::execute() {
 }
 
 std::vector<TypedValue> TextScanWorkOrder::parseRow(const char **row_ptr,
-                                  const CatalogRelationSchema &relation, bool *is_faulty) const {
+                                                    const CatalogRelationSchema &relation,
+                                                    bool *is_faulty) const {
   std::vector<TypedValue> attribute_values;
   // Always assume current row is not faulty initially.
   *is_faulty = false;

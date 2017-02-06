@@ -491,6 +491,7 @@ target_link_libraries(quickstep_relationaloperators_TextScanOperator
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_relationaloperators_WorkOrder
                       quickstep_relationaloperators_WorkOrder_proto
+                      quickstep_storage_Flags
                       quickstep_storage_InsertDestination
                       quickstep_types_Type
                       quickstep_types_TypedValue
@@ -500,6 +501,10 @@ target_link_libraries(quickstep_relationaloperators_TextScanOperator
                       quickstep_utility_Glob
                       quickstep_utility_Macros
                       tmb)
+if (QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
+  target_link_libraries(quickstep_relationaloperators_TextScanOperator
+                        ${LIBHDFS3_LIBRARIES})
+endif(QUICKSTEP_HAVE_FILE_MANAGER_HDFS)
 target_link_libraries(quickstep_relationaloperators_UpdateOperator
                       glog
                       quickstep_catalog_CatalogRelation
