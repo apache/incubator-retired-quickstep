@@ -496,11 +496,6 @@ class MessageBus {
       internal::IteratorAdapter<const AnnotatedMessage> *adapter) = 0;
 
  private:
-  // The number of milliseconds to sleep between calls to
-  // ReceiveIfAvailableImpl() in the default active-polling implementation of
-  // ReceiveImpl().
-  static const unsigned int kReceivePollIntervalMS = 100;
-
   // Disallow copy and assign:
   MessageBus(const MessageBus &orig) = delete;
   MessageBus& operator=(const MessageBus &rhs) = delete;

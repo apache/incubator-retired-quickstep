@@ -24,9 +24,25 @@
 #include <cstdlib>
 #include <thread>  // NOLINT(build/c++11)
 
+#include "gflags/gflags.h"
+
 namespace tmb {
 
-const unsigned int MessageBus::kReceivePollIntervalMS;
+static bool ValidateTmbReceivePollInterval(const char *flagname,
+                                           std::int32_t value) {
+  if (value > 0) {
+    return true;
+  } else {
+    std::fprintf(stderr, "--%s must be at least 1\n", flagname);
+    return false;
+  }
+}
+DEFINE_int32(tmb_receive_poll_interval, 50,
+             "The number of milliseconds to sleep between calls to ReceiveIfAvailableImpl() "
+             "in the default active-polling implementation of ReceiveImpl().");
+static const bool tmb_receive_poll_interval_dummy = gflags::RegisterFlagValidator(
+    &FLAGS_tmb_receive_poll_interval,
+    &ValidateTmbReceivePollInterval);
 
 internal::NetMessageRemovalInterface*
     MessageBus::GetNetMessageRemovalInterface() {
@@ -49,7 +65,7 @@ std::size_t MessageBus::ReceiveImpl(const client_id receiver_id,
                                                 pusher);
   while (received == 0) {
     std::this_thread::sleep_for(
-        std::chrono::milliseconds(kReceivePollIntervalMS));
+        std::chrono::milliseconds(FLAGS_tmb_receive_poll_interval));
     received = ReceiveIfAvailableImpl(receiver_id,
                                       minimum_priority,
                                       max_messages,

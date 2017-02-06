@@ -379,6 +379,26 @@ if (ENABLE_ZOOKEEPER)
   include_directories(${ZOOKEEPER_INCLUDE_DIRS})
 endif()
 
+set_gflags_lib_name ()
+
+# NOTE(chasseur): We only add gflags and gtest to the build if those targets
+# don't already exist, so that TMB can be brought in to a build that already
+# uses one or both of those libraries with add_subdirectory() and not cause
+# name collisions.
+
+# Build GFlags command-line processing library if needed.
+if ((NOT TARGET ${GFLAGS_LIB_NAME}) AND (BUILD_BENCHMARKS OR ENABLE_NATIVENET))
+  add_subdirectory(third_party/gflags)
+  include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party/gflags/include)
+endif()
+
+# Googletest Framework For Unit Testing
+if (NOT TARGET gtest)
+  add_subdirectory(third_party/gtest)
+  include_directories(third_party/gtest/include)
+  enable_testing()
+endif()
+
 # Include path for TMB.
 include_directories(${PROJECT_SOURCE_DIR}/include)
 set(TMB_INCLUDE_DIRS ${TMB_INCLUDE_DIRS} CACHE STRING
@@ -391,7 +411,8 @@ link_directories(${tmb_BINARY_DIR}/src)
 add_library(tmb
             ${TMB_SRCS})
 target_link_libraries(tmb
-                      ${CMAKE_THREAD_LIBS_INIT})
+                      ${CMAKE_THREAD_LIBS_INIT}
+                      ${GFLAGS_LIB_NAME})
 
 if (ENABLE_LEVELDB)
   target_link_libraries(tmb
@@ -416,24 +437,6 @@ endif()
 if (ENABLE_ZOOKEEPER)
   target_link_libraries(tmb
                         ${ZOOKEEPER_LIBRARIES})
-endif()
-
-# NOTE(chasseur): We only add gflags and gtest to the build if those targets
-# don't already exist, so that TMB can be brought in to a build that already
-# uses one or both of those libraries with add_subdirectory() and not cause
-# name collisions.
-
-# Build GFlags command-line processing library if needed.
-if ((NOT TARGET gflags_nothreads-static) AND (BUILD_BENCHMARKS OR ENABLE_NATIVENET))
-  add_subdirectory(third_party/gflags)
-  include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party/gflags/include)
-endif()
-
-# Googletest Framework For Unit Testing
-if (NOT TARGET gtest)
-  add_subdirectory(third_party/gtest)
-  include_directories(third_party/gtest/include)
-  enable_testing()
 endif()
 
 # Build the tmb_net_server executable if enabled.
