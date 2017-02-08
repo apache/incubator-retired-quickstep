@@ -240,6 +240,7 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
     TaggedMessage message(static_cast<const void*>(proto_bytes),
                           proto_length,
                           kQueryTeardownMessage);
+    free(proto_bytes);
 
     DLOG(INFO) << "PolicyEnforcerDistributed sent QueryTeardownMessage (typed '" << kQueryTeardownMessage
                << "') to all Shiftbosses";
