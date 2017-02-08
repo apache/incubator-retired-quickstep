@@ -264,9 +264,9 @@ class TextScanWorkOrder : public WorkOrder {
    * @param is_faulty OUTPUT parameter. Set to true if the row is faulty,
    * @return The tuple parsed from the char stream.
    */
-std::vector<TypedValue> parseRow(const char **row_ptr,
-                 const CatalogRelationSchema &relation,
-                 bool *is_faulty) const;
+  std::vector<TypedValue> parseRow(const char **row_ptr,
+                                   const CatalogRelationSchema &relation,
+                                   bool *is_faulty) const;
 
   /**
    * @brief Parse up to three octal digits (0-7) starting at \p *literal_ptr as

@@ -110,8 +110,6 @@ bool TextScanOperator::getAllWorkOrders(
 
   if (blocking_dependencies_met_ && !work_generated_) {
     for (const std::string &file : files) {
-      // Use standard C libary to retrieve the file size.
-
 #ifdef QUICKSTEP_HAVE_UNISTD
       // Check file permissions before trying to open it.
       const int access_result = access(file.c_str(), R_OK);
@@ -255,11 +253,11 @@ void TextScanWorkOrder::execute() {
     } else {
       vector_tuple_returned = parseRow(&row_ptr, relation, &is_faulty);
       if (is_faulty) {
-          // Skip faulty rows
-          LOG(INFO) << "Faulty row found. Hence switching to next row.";
+        // Skip faulty rows
+        LOG(INFO) << "Faulty row found. Hence switching to next row.";
       } else {
-            // Convert vector returned to tuple only when a valid row is encountered.
-            tuples.emplace_back(Tuple(std::move(vector_tuple_returned)));
+        // Convert vector returned to tuple only when a valid row is encountered.
+        tuples.emplace_back(Tuple(std::move(vector_tuple_returned)));
       }
     }
   }
@@ -297,11 +295,11 @@ void TextScanWorkOrder::execute() {
 
     vector_tuple_returned = parseRow(&row_ptr, relation, &is_faulty);
     if (is_faulty) {
-        // Skip the faulty row.
-        LOG(INFO) << "Faulty row found. Hence switching to next row.";
+      // Skip the faulty row.
+      LOG(INFO) << "Faulty row found. Hence switching to next row.";
     } else {
-        // Convert vector returned to tuple only when a valid row is encountered.
-        tuples.emplace_back(Tuple(std::move(vector_tuple_returned)));
+      // Convert vector returned to tuple only when a valid row is encountered.
+      tuples.emplace_back(Tuple(std::move(vector_tuple_returned)));
     }
   }
 
@@ -346,11 +344,11 @@ std::vector<TypedValue> TextScanWorkOrder::parseRow(const char **row_ptr,
   std::string value_str;
   for (const auto &attr : relation) {
     if (has_reached_end_of_line) {
-        // Do not abort if one of the row is faulty.
-        // Set is_faulty to true and SKIP the current row.
-        *is_faulty = true;
-        LOG(INFO) << "Row has too few fields.";
-        return attribute_values;
+      // Do not abort if one of the row is faulty.
+      // Set is_faulty to true and SKIP the current row.
+      *is_faulty = true;
+      LOG(INFO) << "Row has too few fields.";
+      return attribute_values;
     }
 
     value_str.clear();
@@ -363,46 +361,46 @@ std::vector<TypedValue> TextScanWorkOrder::parseRow(const char **row_ptr,
     if (is_null_literal) {
       // NULL literal.
       if (!attr.getType().isNullable()) {
-          *is_faulty = true;
-          LOG(INFO) << "NULL literal '\\N' was specified for a column with a "
-                     "non-nullable Type.";
-          skipFaultyRow(row_ptr);
-          return attribute_values;
+        *is_faulty = true;
+        LOG(INFO) << "NULL literal '\\N' was specified for a column with a "
+                   "non-nullable Type.";
+        skipFaultyRow(row_ptr);
+        return attribute_values;
       }
       attribute_values.emplace_back(attr.getType().makeNullValue());
     } else {
       attribute_values.emplace_back();
       if (!attr.getType().parseValueFromString(value_str, &(attribute_values.back()))) {
-          // Do not abort if one of the row is faulty.
-          *is_faulty = true;
-          LOG(INFO) << "Failed to parse value.";
-          skipFaultyRow(row_ptr);
-          return attribute_values;
+        // Do not abort if one of the row is faulty.
+        *is_faulty = true;
+        LOG(INFO) << "Failed to parse value.";
+        skipFaultyRow(row_ptr);
+        return attribute_values;
       }
     }
   }
 
   if (!has_reached_end_of_line) {
-      // Do not abort if one of the row is faulty.
-      // Set is_faulty to true and SKIP the current row.
-      *is_faulty = true;
-      LOG(INFO) << "Row has too many fields.";
-      skipFaultyRow(row_ptr);
+    // Do not abort if one of the row is faulty.
+    // Set is_faulty to true and SKIP the current row.
+    *is_faulty = true;
+    LOG(INFO) << "Row has too many fields.";
+    skipFaultyRow(row_ptr);
   }
 
   return attribute_values;
 }
 
 void TextScanWorkOrder::skipFaultyRow(const char **field_ptr) const {
-    const char *cur_ptr = *field_ptr;
-    // Move row pointer to the end of faulty row.
-    for (;; ++cur_ptr) {
-        const char c = *cur_ptr;
-        if (c == '\n') {
-            break;
-        }
+  const char *cur_ptr = *field_ptr;
+  // Move row pointer to the end of faulty row.
+  for (;; ++cur_ptr) {
+    const char c = *cur_ptr;
+    if (c == '\n') {
+        break;
     }
-    *field_ptr = cur_ptr + 1;
+  }
+  *field_ptr = cur_ptr + 1;
 }
 
 void TextScanWorkOrder::extractFieldString(const char **field_ptr,
