@@ -76,6 +76,7 @@ const char *DistributedExecutionGeneratorTestRunner::kResetOption =
 
 DistributedExecutionGeneratorTestRunner::DistributedExecutionGeneratorTestRunner(const string &storage_path)
     : query_id_(0),
+      bus_locals_(kNumInstances),
       data_exchangers_(kNumInstances) {
   bus_.Initialize();
 
@@ -113,7 +114,10 @@ DistributedExecutionGeneratorTestRunner::DistributedExecutionGeneratorTestRunner
                                         kAnyNUMANodeID);
 
   for (int i = 0; i < kNumInstances; ++i) {
-    workers_.push_back(make_unique<Worker>(0 /* worker_thread_index */, &bus_));
+    tmb::MessageBus *bus_local = &bus_locals_[i];
+    bus_local->Initialize();
+
+    workers_.push_back(make_unique<Worker>(0 /* worker_thread_index */, bus_local));
 
     const vector<tmb::client_id> worker_client_ids(1, workers_.back()->getBusClientID());
     worker_directories_.push_back(
@@ -128,7 +132,7 @@ DistributedExecutionGeneratorTestRunner::DistributedExecutionGeneratorTestRunner
 
     data_exchangers_[i].set_storage_manager(storage_manager.get());
     shiftbosses_.push_back(
-        make_unique<Shiftboss>(&bus_, storage_manager.get(), worker_directories_.back().get(),
+        make_unique<Shiftboss>(&bus_, bus_local, storage_manager.get(), worker_directories_.back().get(),
                                storage_manager->hdfs()));
 
     storage_managers_.push_back(move(storage_manager));

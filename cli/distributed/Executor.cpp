@@ -35,6 +35,7 @@
 
 #include "tmb/id_typedefs.h"
 #include "tmb/native_net_client_message_bus.h"
+#include "tmb/pure_memory_message_bus.h"
 
 #include "glog/logging.h"
 
@@ -47,6 +48,8 @@ using tmb::client_id;
 namespace quickstep {
 
 void Executor::init() {
+  bus_local_.Initialize();
+
   executor_client_id_ = bus_.Connect();
   DLOG(INFO) << "Executor TMB Client ID: " << executor_client_id_;
 
@@ -59,7 +62,7 @@ void Executor::init() {
   for (std::size_t worker_thread_index = 0;
        worker_thread_index < FLAGS_num_workers;
        ++worker_thread_index) {
-    workers_.push_back(make_unique<Worker>(worker_thread_index, &bus_));
+    workers_.push_back(make_unique<Worker>(worker_thread_index, &bus_local_));
     worker_client_ids.push_back(workers_.back()->getBusClientID());
   }
 
@@ -76,7 +79,7 @@ void Executor::init() {
   data_exchanger_.start();
 
   shiftboss_ =
-      make_unique<Shiftboss>(&bus_, storage_manager_.get(), worker_directory_.get(), storage_manager_->hdfs());
+      make_unique<Shiftboss>(&bus_, &bus_local_, storage_manager_.get(), worker_directory_.get(), storage_manager_->hdfs());
   shiftboss_->start();
 
   for (const auto &worker : workers_) {

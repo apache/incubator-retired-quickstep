@@ -129,6 +129,7 @@ class DistributedExecutionGeneratorTestRunner : public TextBasedTestRunner {
 
   std::unique_ptr<ForemanDistributed> foreman_;
 
+  std::vector<MessageBusImpl> bus_locals_;
   std::vector<std::unique_ptr<Worker>> workers_;
   std::vector<std::unique_ptr<WorkerDirectory>> worker_directories_;
   std::vector<DataExchangerAsync> data_exchangers_;

@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "cli/distributed/Role.hpp"
+#include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/Shiftboss.hpp"
 #include "query_execution/Worker.hpp"
 #include "query_execution/WorkerDirectory.hpp"
@@ -65,6 +66,9 @@ class Executor final : public Role {
   void run() override {}
 
  private:
+  // Used between Shiftboss and Workers.
+  MessageBusImpl bus_local_;
+
   tmb::client_id executor_client_id_;
 
   std::vector<std::unique_ptr<Worker>> workers_;

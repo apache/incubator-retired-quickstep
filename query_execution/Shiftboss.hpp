@@ -39,7 +39,8 @@
 
 #include "tmb/address.h"
 #include "tmb/id_typedefs.h"
-#include "tmb/message_bus.h"
+
+namespace tmb { class MessageBus; };
 
 namespace quickstep {
 
@@ -63,7 +64,8 @@ class Shiftboss : public Thread {
   /**
    * @brief Constructor.
    *
-   * @param bus A pointer to the TMB.
+   * @param bus_global A pointer to the TMB for Foreman.
+   * @param bus_local A pointer to the TMB for Workers.
    * @param storage_manager The StorageManager to use.
    * @param workers A pointer to the WorkerDirectory.
    * @param hdfs The HDFS connector via libhdfs3.
@@ -72,84 +74,12 @@ class Shiftboss : public Thread {
    * @note If cpu_id is not specified, Shiftboss thread can be possibly moved
    *       around on different CPUs by the OS.
   **/
-  Shiftboss(tmb::MessageBus *bus,
+  Shiftboss(tmb::MessageBus *bus_global,
+            tmb::MessageBus *bus_local,
             StorageManager *storage_manager,
             WorkerDirectory *workers,
             void *hdfs,
-            const int cpu_id = -1)
-      : bus_(DCHECK_NOTNULL(bus)),
-        storage_manager_(DCHECK_NOTNULL(storage_manager)),
-        workers_(DCHECK_NOTNULL(workers)),
-        hdfs_(hdfs),
-        cpu_id_(cpu_id),
-        shiftboss_client_id_(tmb::kClientIdNone),
-        foreman_client_id_(tmb::kClientIdNone),
-        max_msgs_per_worker_(1),
-        start_worker_index_(0u) {
-    // Check to have at least one Worker.
-    DCHECK_GT(workers->getNumWorkers(), 0u);
-
-#ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
-    if (FLAGS_use_hdfs) {
-      CHECK(hdfs_);
-    }
-#endif  // QUICKSTEP_HAVE_FILE_MANAGER_HDFS
-
-    shiftboss_client_id_ = bus_->Connect();
-    LOG(INFO) << "Shiftboss TMB client ID: " << shiftboss_client_id_;
-    DCHECK_NE(shiftboss_client_id_, tmb::kClientIdNone);
-
-    // Messages between Foreman and Shiftboss.
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kShiftbossRegistrationMessage);
-    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kShiftbossRegistrationResponseMessage);
-
-    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kQueryInitiateMessage);
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kQueryInitiateResponseMessage);
-
-    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kInitiateRebuildMessage);
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kInitiateRebuildResponseMessage);
-
-    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kSaveQueryResultMessage);
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kSaveQueryResultResponseMessage);
-
-    // Message sent to Worker.
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kShiftbossRegistrationResponseMessage);
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kRebuildWorkOrderMessage);
-
-    // Forward the following message types from Foreman to Workers.
-    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kWorkOrderMessage);
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kWorkOrderMessage);
-
-    // Forward the following message types from Workers to Foreman.
-    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kCatalogRelationNewBlockMessage);
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kCatalogRelationNewBlockMessage);
-
-    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kDataPipelineMessage);
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kDataPipelineMessage);
-
-    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kWorkOrderFeedbackMessage);
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kWorkOrderFeedbackMessage);
-
-    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kWorkOrderCompleteMessage);
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kWorkOrderCompleteMessage);
-
-    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kRebuildWorkOrderCompleteMessage);
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kRebuildWorkOrderCompleteMessage);
-
-    // Clean up query execution states, i.e., QueryContext.
-    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kQueryTeardownMessage);
-
-    // Stop itself.
-    bus_->RegisterClientAsReceiver(shiftboss_client_id_, kPoisonMessage);
-    // Stop all workers.
-    bus_->RegisterClientAsSender(shiftboss_client_id_, kPoisonMessage);
-
-    for (std::size_t i = 0; i < workers_->getNumWorkers(); ++i) {
-      worker_addresses_.AddRecipient(workers_->getClientID(i));
-    }
-
-    registerWithForeman();
-  }
+            const int cpu_id = -1);
 
   ~Shiftboss() override {
   }
@@ -160,7 +90,7 @@ class Shiftboss : public Thread {
    * @return TMB client ID of shiftboss thread.
    **/
   inline tmb::client_id getBusClientID() const {
-    return shiftboss_client_id_;
+    return shiftboss_client_id_global_;
   }
 
   /**
@@ -231,9 +161,7 @@ class Shiftboss : public Thread {
                                      const QueryContext::insert_destination_id dest_index,
                                      const relation_id rel_id);
 
-  // TODO(zuyu): Use two buses for the message communication between Foreman and Shiftboss,
-  // and Shiftboss and Worker thread pool.
-  tmb::MessageBus *bus_;
+  tmb::MessageBus *bus_global_, *bus_local_;
 
   CatalogDatabaseCache database_cache_;
   StorageManager *storage_manager_;
@@ -245,7 +173,7 @@ class Shiftboss : public Thread {
   // The ID of the CPU that the Shiftboss thread can optionally be pinned to.
   const int cpu_id_;
 
-  tmb::client_id shiftboss_client_id_, foreman_client_id_;
+  tmb::client_id shiftboss_client_id_global_, shiftboss_client_id_local_, foreman_client_id_;
 
   // Unique per Shiftboss instance.
   std::uint64_t shiftboss_index_;
