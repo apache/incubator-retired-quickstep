@@ -28,6 +28,7 @@
 #include <string>
 #include <utility>
 
+#include "catalog/CatalogDatabase.hpp"
 #include "cli/DefaultsConfigurator.hpp"
 #include "cli/Flags.hpp"
 #include "parser/ParseStatement.hpp"
@@ -73,6 +74,7 @@ void Conductor::init() {
     }
 
     query_processor_ = make_unique<QueryProcessor>(move(catalog_path));
+    catalog_database_ = query_processor_->getDefaultDatabase();
   } catch (const std::exception &e) {
     LOG(FATAL) << "FATAL ERROR DURING STARTUP: " << e.what()
                << "\nIf you intended to create a new database, "
@@ -93,12 +95,14 @@ void Conductor::init() {
   bus_.RegisterClientAsSender(conductor_client_id_, kQueryExecutionErrorMessage);
   bus_.RegisterClientAsSender(conductor_client_id_, kAdmitRequestMessage);
 
+  bus_.RegisterClientAsReceiver(conductor_client_id_, kQueryResultTeardownMessage);
+
   block_locator_ = make_unique<BlockLocator>(&bus_);
   block_locator_->start();
 
   foreman_ = make_unique<ForemanDistributed>(*block_locator_,
                                              std::bind(&QueryProcessor::saveCatalog, query_processor_.get()), &bus_,
-                                             query_processor_->getDefaultDatabase());
+                                             catalog_database_);
   foreman_->start();
 }
 
@@ -127,6 +131,13 @@ void Conductor::run() {
         DLOG(INFO) << "Conductor received the following SQL query: " << proto.sql_query();
 
         processSqlQueryMessage(sender, new string(move(proto.sql_query())));
+        break;
+      }
+      case kQueryResultTeardownMessage: {
+        S::QueryResultTeardownMessage proto;
+        CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+        catalog_database_->dropRelationById(proto.relation_id());
         break;
       }
       default:

@@ -105,6 +105,8 @@ enum QueryExecutionMessageType : message_type_id {
   kQueryExecutionSuccessMessage,
   kQueryExecutionErrorMessage,
 
+  kQueryResultTeardownMessage,  // From CLI to Conductor.
+
   // BlockLocator related messages, sorted in a life cycle of StorageManager
   // with a unique block domain.
   kBlockDomainRegistrationMessage,  // From Worker to BlockLocator.

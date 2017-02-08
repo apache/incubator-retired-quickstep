@@ -138,6 +138,10 @@ message QueryExecutionSuccessMessage {
   optional CatalogRelationSchema result_relation = 1;
 }
 
+message QueryResultTeardownMessage {
+  required int32 relation_id = 1;
+}
+
 message QueryExecutionErrorMessage {
   required string error_message = 1;
 }

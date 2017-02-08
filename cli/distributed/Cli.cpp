@@ -122,7 +122,10 @@ void Cli::init() {
 
   // Prepare for submitting a query.
   bus_.RegisterClientAsSender(cli_id_, kSqlQueryMessage);
+
   bus_.RegisterClientAsReceiver(cli_id_, kQueryExecutionSuccessMessage);
+  bus_.RegisterClientAsSender(cli_id_, kQueryResultTeardownMessage);
+
   bus_.RegisterClientAsReceiver(cli_id_, kQueryExecutionErrorMessage);
 }
 
@@ -191,7 +194,7 @@ void Cli::run() {
             CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
 
             if (proto.has_result_relation()) {
-              CatalogRelation result_relation(proto.result_relation());
+              const CatalogRelation result_relation(proto.result_relation());
 
               PrintToScreen::PrintRelation(result_relation, storage_manager_.get(), stdout);
 
@@ -199,6 +202,21 @@ void Cli::run() {
               for (const block_id block : blocks) {
                 storage_manager_->deleteBlockOrBlobFile(block);
               }
+
+              // Notify Conductor to remove the temp query result relation in the Catalog.
+              S::QueryResultTeardownMessage proto_response;
+              proto_response.set_relation_id(result_relation.getID());
+
+              const size_t proto_response_length = proto_response.ByteSize();
+              char *proto_response_bytes = static_cast<char*>(malloc(proto_response_length));
+              CHECK(proto_response.SerializeToArray(proto_response_bytes, proto_response_length));
+
+              TaggedMessage response_message(static_cast<const void*>(proto_response_bytes),
+                                             proto_response_length,
+                                             kQueryResultTeardownMessage);
+              free(proto_response_bytes);
+
+              QueryExecutionUtil::SendTMBMessage(&bus_, cli_id_, conductor_client_id_, move(response_message));
             }
 
             std::chrono::duration<double, std::milli> time_in_ms = end - start;

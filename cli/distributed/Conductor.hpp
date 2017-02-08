@@ -34,6 +34,8 @@
 
 namespace quickstep {
 
+class CatalogDatabase;
+
 /** \addtogroup CliDistributed
  *  @{
  */
@@ -63,6 +65,8 @@ class Conductor final : public Role {
   SqlParserWrapper parser_wrapper_;
 
   std::unique_ptr<QueryProcessor> query_processor_;
+  // Not owned.
+  CatalogDatabase *catalog_database_;
 
   tmb::client_id conductor_client_id_;
 
