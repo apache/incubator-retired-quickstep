@@ -117,12 +117,17 @@ size_t FileManagerHdfs::numSlots(const block_id block) const {
 bool FileManagerHdfs::deleteBlockOrBlob(const block_id block) {
   const string filename(blockFilename(block));
 
-  if ((hdfsDelete(hdfs_, filename.c_str(), 0) == 0) || (errno == ENOENT)) {
-    return true;
-  } else {
-    LOG(ERROR) << "Failed to delete file " << filename << " with error: " << strerror(errno);
-    return false;
+  if (hdfsDelete(hdfs_, filename.c_str(), 0)) {
+    switch (errno) {
+      case EINPROGRESS:
+      case ENOENT:
+        break;
+      default:
+        LOG(ERROR) << "Failed to delete file " << filename << " with error: " << strerror(errno);
+    }
   }
+
+  return true;
 }
 
 bool FileManagerHdfs::readBlockOrBlob(const block_id block,
