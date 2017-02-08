@@ -1,60 +1,73 @@
-Quickstep Build Guide
-=====================
+# Quickstep Build Guide
+
+**Contents**
+* [Basic Instructions](#basic-instructions)
+  * [Prerequisites](#prerequisites)
+  * [Building](#building)
+  * [Running Quickstep](#running-quickstep)
+  * [Running Tests](#running-tests)
+  * [Configuring with CMake](#configuring-with-cmake)
+* [Advanced Configuration](#advanced-configuration)
+* [Appendix](#appendix)
+  * [Building on Windows](#building-on-windows)
+  * [Building in Vagrant](#building-in-vagrant)
 
 
-What You Will Need
-------------------
+**Short Version**
 
-To build quickstep, you will need a C++ compiler that supports the C++14
-standard (GCC 4.9 or Clang 3.4 or higher are known to work), and CMake. If you
-have GNU Bison and Flex as well, they will be used to build the parser and
-lexer sources (otherwise, preprocessed sources made with Bison and Flex will be
-used).
+```sh
+git submodule init
+git submodule update
+cd third_party
+./download_and_patch_prerequisites.sh
+cd ../build
+cmake ..
+make quickstep_cli_shell
+./quickstep_cli_shell -initialize_db=true
+```
 
-### Vagrant
+# Basic Instructions
 
-For your convenience, we have provided Vagrant virtual machine configurations
-that have a complete development environment for Quickstep with all necessary
-tools and dependencies already installed. [See here for instructions on how to
-use them](build/vagrant/README.md).
+## Prerequisites
 
-### Getting CMake
+- C++ compiler that supports the C++14 standard (GCC 4.9+ or Clang 3.4+ are good)
+- [cmake](http://www.cmake.org/download/) 2.8.6+
+- curl
 
-Quickstep uses the CMake build system.
+All these programs should be available on your distro's package manager.
 
-If you're on a Linux machine, most distributions' package managers have a
-package for CMake that you can install. The same goes for all of the major
-flavors of BSD UNIX (Free/Net/Open/Dragonfly), OpenSolaris, and Cygwin.
+**Optional**
 
-If you're using Mac OS X or Windows, you can download CMake binaries from:
-http://www.cmake.org/download/
+- GNU Bison and Flex (They will be used to build the parser and lexer, but pre-processed copies are provided)
 
-On Mac or Windows, be sure to let the installer put links to the CMake command-
-line tools in bin or add them to your PATH.
+## Building
 
-### Special Note: Building on Windows
+Once cmake finishes, you are ready to actually build quickstep by running
+`make` (or `nmake` on Windows) (this will also build bundled third-party
+libraries as necesary). If you want to see the actual commands that make is
+running, you can do `make VERBOSE=1`. It is highly recommended to do a parallel
+make to speed up the build time, which you can do with `make -jX`, where X is
+the number of parallel jobs (the number of CPU cores on your system is a good
+choice, unless you are low on RAM, in which case you may want to reduce the
+number of jobs).
 
-To build on Windows, you will need some variety of Microsoft's C++ compiler and
-the nmake tool (either from Visual Studio, Visual C++ Express, or the Windows
-SDK). Only Visual Studio 2015 or higher is sufficiently modern to build
-Quickstep.
+## Running Quickstep
 
-Once you have the necessary tools installed, run the "Visual Studio Command
-Prompt" (use the 64-bit version if you have it). Change into the build
-directory and run:
+To use quickstep, just run `quickstep_cli_shell` in the build directory. For the
+first time user, run once with `-initialize_db=true` to set up an empty catalog.
+Quickstep has number of command-line flags that control its behavior. Run
+`quickstep_cli_shell --help` to see a listing of the options and how to use
+them.
 
-    cmake -G "NMake Makefiles" ..
+## Running Tests
 
-The `-G "NMake Makefiles"` option tells CMake to generate makefiles for the nmake
-tool instead of project files for Visual Studio. You can also specify the usual
-cmake options described below like `-D CMAKE_BUILD_TYPE=Release`.
+Quickstep comes with an extensive suite of unit tests. After a successful
+build, you can run the whole test suite by doing `make test` or `ctest`. If
+you use `ctest`, you may also run tests in parallel with `ctest -jX`, where
+X is the number of parallel jobs (as with `make`, your number of CPU cores is
+usually a good choice).
 
-Once cmake finishes, run `nmake` to actually build quickstep. Unfortunately,
-nmake does not support parallel jobs like UNIX make, so you're in for a bit of
-a wait.
-
-Configuring with CMake
-----------------------
+## Configuring with CMake
 
 CMake recommends building outside of the source tree (a recommendation which we
 follow). For your convenience, a "build" directory with a skeleton of files
@@ -65,21 +78,25 @@ Like a conventional configure script, you can configure some settings about how
 quickstep is built when you invoke cmake. The most important is the build type.
 You can build an unoptimized build with debugging information by doing:
 
-    cmake -D CMAKE_BUILD_TYPE=Debug ..
+```
+cmake -D CMAKE_BUILD_TYPE=Debug ..
+```
 
 You can build a fast, optimized release build by doing:
 
-    cmake -D CMAKE_BUILD_TYPE=Release ..
+```
+cmake -D CMAKE_BUILD_TYPE=Release ..
+```
 
 The first time you check out the Quickstep source repo, you will also need to
-fetch some third-party dependencies that are packaged as git submodules. Do
-this by running the following 2 commands in the root quickstep directory:
+fetch some third-party dependencies. Do this by running the following commands 
+in the root quickstep directory:
 
-    git submodule init
-    git submodule update
-    cd third_party && ./download_and_patch_prerequisites.sh
+```
+cd third_party && ./download_and_patch_prerequisites.sh
+```
 
-### Advanced Configuration
+# Advanced Configuration
 
 There are a number of advanced options you can pass to CMake to control how
 Quickstep is built. These all have sensible defaults, so you may skip this
@@ -91,7 +108,9 @@ section and go straight to "Building" below if you are not interested.
   `CMAKE_C_COMPILER` and `CMAKE_CXX_COMPILER` options. For example, if you
   wish to use clang instead of gcc, you would do this:
 
-      cmake -D CMAKE_BUILD_TYPE=Release -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ ../
+```
+cmake -D CMAKE_BUILD_TYPE=Release -D CMAKE_C_COMPILER=clang -D CMAKE_CXX_COMPILER=clang++ ../
+```
 
 * **Disabling TCMalloc**: You can configure whether quickstep should use
   tcmalloc (it does by default). tcmalloc stands for thread-cacheing malloc, it
@@ -160,6 +179,7 @@ section and go straight to "Building" below if you are not interested.
   default, the Quickstep storage engine will always try to rebuild an index if
   it runs out of space, but this behavior can be disabled by setting
   `-D REBUILD_INDEX_ON_UPDATE_OVERFLOW=0`.
+
 * **Building With libc++**: The Clang compiler is usually used with the
   system-default C++ standard library (on most Linux systems, this is GNU
   libstdc++, which is packaged with GCC). Clang can also be used with the LLVM
@@ -168,6 +188,7 @@ section and go straight to "Building" below if you are not interested.
   standard library). If you are using Clang on a system that has libc++
   installed but doesn't use it by default, add `-D USE_LIBCXX=1` to make
   Clang use libc++.
+
 * **Link-Time Optimization**: Some compilers support link-time optimization,
   where all the objects linked into an executable are analyzed and optimized
   together as if they were a single translation unit. This potentially enables
@@ -176,32 +197,32 @@ section and go straight to "Building" below if you are not interested.
   release builds with GCC or ICC by doing `-D ENABLE_LTO=1`. Be aware that the
   build may take a very long time.
 
-Building
---------
+# Appendix
 
-Once cmake finishes, you are ready to actually build quickstep by running
-`make` (or `nmake` on Windows) (this will also build bundled third-party
-libraries as necesary). If you want to see the actual commands that make is
-running, you can do `make VERBOSE=1`. It is highly recommended to do a parallel
-make to speed up the build time, which you can do with `make -jX`, where X is
-the number of parallel jobs (the number of CPU cores on your system is a good
-choice, unless you are low on RAM, in which case you may want to reduce the
-number of jobs).
+## Building on Windows
 
-Running Quickstep
------------------
+To build on Windows, you will need some variety of Microsoft's C++ compiler and
+the nmake tool (either from Visual Studio, Visual C++ Express, or the Windows
+SDK). Only Visual Studio 2015 or higher is sufficiently modern to build
+Quickstep.
 
-To use quickstep, just run `quickstep_cli_shell` in the build directory. For the
-first time user, run once with `-initialize_db=true` to set up an empty catalog.
-Quickstep has number of command-line flags that control its behavior. Run
-`quickstep_cli_shell --help` to see a listing of the options and how to use
-them.
+Once you have the necessary tools installed, run the "Visual Studio Command
+Prompt" (use the 64-bit version if you have it). Change into the build
+directory and run:
 
-Running Tests
--------------
+    cmake -G "NMake Makefiles" ..
 
-Quickstep comes with an extensive suite of unit tests. After a successful
-build, you can run the whole test suite by doing `make test` or `ctest`. If
-you use `ctest`, you may also run tests in parallel with `ctest -jX`, where
-X is the number of parallel jobs (as with `make`, your number of CPU cores is
-usually a good choice).
+The `-G "NMake Makefiles"` option tells CMake to generate makefiles for the nmake
+tool instead of project files for Visual Studio. You can also specify the usual
+cmake options described below like `-D CMAKE_BUILD_TYPE=Release`.
+
+Once cmake finishes, run `nmake` to actually build quickstep. Unfortunately,
+nmake does not support parallel jobs like UNIX make, so you're in for a bit of
+a wait.
+
+## Building in Vagrant
+
+For your convenience, we have provided Vagrant virtual machine configurations
+that have a complete development environment for Quickstep with all necessary
+tools and dependencies already installed. [See here for instructions on how to
+use them](build/vagrant/README.md).
