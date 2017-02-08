@@ -201,12 +201,8 @@ void ForemanDistributed::run() {
 
         // TODO(quickstep-team): Dynamically scale-up/down Shiftbosses.
         if (query_result_saved_shiftbosses_[query_id].size() == shiftboss_directory_.size()) {
-          const relation_id result_relation_id = proto.relation_id();
-          processSaveQueryResultResponseMessage(proto.cli_id(), result_relation_id);
+          processSaveQueryResultResponseMessage(proto.cli_id(), proto.relation_id());
           query_result_saved_shiftbosses_.erase(query_id);
-
-          // TODO(zuyu): Refactor to clean-up blocks in Shiftbosses.
-          catalog_database_->dropRelationById(result_relation_id);
         }
         break;
       }
