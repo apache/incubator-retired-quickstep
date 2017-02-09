@@ -30,7 +30,6 @@
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
-#include "query_execution/ShiftbossDirectory.hpp"
 #include "query_execution/WorkOrderProtosContainer.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.pb.h"
@@ -52,12 +51,14 @@ using std::vector;
 namespace quickstep {
 
 QueryManagerDistributed::QueryManagerDistributed(QueryHandle *query_handle,
-                                                 const ShiftbossDirectory *shiftboss_directory,
                                                  const tmb::client_id foreman_client_id,
+                                                 const std::size_t num_shiftbosses,
+                                                 tmb::Address &&shiftboss_addresses,
                                                  tmb::MessageBus *bus)
     : QueryManagerBase(query_handle),
-      shiftboss_directory_(shiftboss_directory),
       foreman_client_id_(foreman_client_id),
+      num_shiftbosses_(num_shiftbosses),
+      shiftboss_addresses_(move(shiftboss_addresses)),
       bus_(bus),
       normal_workorder_protos_container_(
           new WorkOrderProtosContainer(num_operators_in_dag_)) {
@@ -142,7 +143,7 @@ void QueryManagerDistributed::processInitiateRebuildResponseMessage(const dag_no
                                                                     const std::size_t shiftboss_index) {
   query_exec_state_->updateRebuildStatus(op_index, num_rebuild_work_orders, shiftboss_index);
 
-  if (!query_exec_state_->hasRebuildFinished(op_index, shiftboss_directory_->size())) {
+  if (!query_exec_state_->hasRebuildFinished(op_index, num_shiftbosses_)) {
     // Wait for the rebuild work orders to finish.
     return;
   }
@@ -181,16 +182,10 @@ bool QueryManagerDistributed::initiateRebuild(const dag_node_index index) {
                            kInitiateRebuildMessage);
   free(proto_bytes);
 
-  // TODO(quickstep-team): Dynamically scale-up/down Shiftbosses.
-  tmb::Address shiftboss_addresses;
-  for (std::size_t i = 0; i < shiftboss_directory_->size(); ++i) {
-    shiftboss_addresses.AddRecipient(shiftboss_directory_->getClientId(i));
-  }
-
   DLOG(INFO) << "ForemanDistributed sent InitiateRebuildMessage (typed '" << kInitiateRebuildMessage
              << "') to all Shiftbosses";
   QueryExecutionUtil::BroadcastMessage(foreman_client_id_,
-                                       shiftboss_addresses,
+                                       shiftboss_addresses_,
                                        move(tagged_msg),
                                        bus_);
 

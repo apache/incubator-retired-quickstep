@@ -257,7 +257,6 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_queryexecution_QueryExecutionTypedefs
                         quickstep_queryexecution_QueryExecutionUtil
                         quickstep_queryexecution_QueryManagerBase
-                        quickstep_queryexecution_ShiftbossDirectory
                         quickstep_queryexecution_WorkOrderProtosContainer
                         quickstep_relationaloperators_RelationalOperator
                         quickstep_relationaloperators_WorkOrder_proto

@@ -131,9 +131,17 @@ bool PolicyEnforcerDistributed::admitQuery(QueryHandle *query_handle) {
   // initializes.
   initiateQueryInShiftboss(query_handle);
 
+  const std::size_t num_shiftbosses = shiftboss_directory_->size();
+
+  tmb::Address shiftboss_addresses;
+  for (std::size_t i = 0; i < num_shiftbosses; ++i) {
+    shiftboss_addresses.AddRecipient(shiftboss_directory_->getClientId(i));
+  }
+
   // Query with the same ID not present, ok to admit.
-  admitted_queries_[query_id].reset(
-      new QueryManagerDistributed(query_handle, shiftboss_directory_, foreman_client_id_, bus_));
+  admitted_queries_.emplace(query_id,
+                            std::make_unique<QueryManagerDistributed>(
+                                query_handle, foreman_client_id_, num_shiftbosses, move(shiftboss_addresses), bus_));
   return true;
 }
 

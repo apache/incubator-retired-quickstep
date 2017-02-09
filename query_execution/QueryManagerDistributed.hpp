@@ -32,6 +32,7 @@
 #include "query_execution/WorkOrderProtosContainer.hpp"
 #include "utility/Macros.hpp"
 
+#include "tmb/address.h"
 #include "tmb/id_typedefs.h"
 
 namespace tmb { class MessageBus; }
@@ -39,7 +40,6 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class QueryHandle;
-class ShiftbossDirectory;
 
 namespace serialization { class WorkOrderMessage; }
 
@@ -57,13 +57,15 @@ class QueryManagerDistributed final : public QueryManagerBase {
    * @brief Constructor.
    *
    * @param query_handle The QueryHandle object for this query.
-   * @param shiftboss_directory The ShiftbossDirectory to use.
    * @param foreman_client_id The TMB client ID of the foreman thread.
+   * @param num_shiftbosses The number of Shiftbosses for rebuild.
+   * @param shiftboss_addresses The TMB Address of Shiftbosses for rebuild.
    * @param bus The TMB used for communication.
    **/
   QueryManagerDistributed(QueryHandle *query_handle,
-                          const ShiftbossDirectory *shiftboss_directory,
                           const tmb::client_id foreman_client_id,
+                          const std::size_t num_shiftbosses,
+                          tmb::Address &&shiftboss_addresses,
                           tmb::MessageBus *bus);
 
   ~QueryManagerDistributed() override {}
@@ -153,9 +155,12 @@ class QueryManagerDistributed final : public QueryManagerBase {
            (query_exec_state_->getNumRebuildWorkOrders(index) == 0);
   }
 
-  const ShiftbossDirectory *shiftboss_directory_;
-
   const tmb::client_id foreman_client_id_;
+
+  // TODO(quickstep-team): deal with Shiftboss failure.
+  const std::size_t num_shiftbosses_;
+  const tmb::Address shiftboss_addresses_;
+
   tmb::MessageBus *bus_;
 
   std::unique_ptr<WorkOrderProtosContainer> normal_workorder_protos_container_;
