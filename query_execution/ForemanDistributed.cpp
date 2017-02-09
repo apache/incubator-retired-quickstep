@@ -175,7 +175,6 @@ void ForemanDistributed::run() {
       case kQueryInitiateResponseMessage: {
         S::QueryInitiateResponseMessage proto;
         CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
-        CHECK(policy_enforcer_->existQuery(proto.query_id()));
         break;
       }
       case kCatalogRelationNewBlockMessage:  // Fall through

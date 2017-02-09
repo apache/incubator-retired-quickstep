@@ -103,16 +103,6 @@ class PolicyEnforcerBase {
   void processMessage(const TaggedMessage &tagged_message);
 
   /**
-   * @brief Check if the given query id ever exists.
-   *
-   * @return True if the query ever exists, otherwise false.
-   **/
-  inline bool existQuery(const std::size_t query_id) const {
-    return admitted_queries_.find(query_id) != admitted_queries_.end() ||
-           removed_query_ids_.find(query_id) != removed_query_ids_.end();
-  }
-
-  /**
    * @brief Check if there are any queries to be executed.
    *
    * @return True if there is at least one active or waiting query, false if
@@ -178,10 +168,6 @@ class PolicyEnforcerBase {
 
   // Key = query ID, value = QueryManagerBase* for the key query.
   std::unordered_map<std::size_t, std::unique_ptr<QueryManagerBase>> admitted_queries_;
-
-  // TODO(quickstep-team): Delete a 'query_id' after receiving all
-  // 'QueryInitiateResponseMessage's for the 'query_id'.
-  std::unordered_set<std::size_t> removed_query_ids_;
 
   // The queries which haven't been admitted yet.
   std::queue<QueryHandle*> waiting_queries_;

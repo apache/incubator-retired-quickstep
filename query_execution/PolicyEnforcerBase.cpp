@@ -156,8 +156,6 @@ void PolicyEnforcerBase::removeQuery(const std::size_t query_id) {
                  << " that hasn't finished its execution";
   }
   admitted_queries_.erase(query_id);
-
-  removed_query_ids_.insert(query_id);
 }
 
 bool PolicyEnforcerBase::admitQueries(

@@ -68,8 +68,15 @@ void PolicyEnforcerDistributed::getWorkOrderProtoMessages(
   // TODO(harshad) - Make this function generic enough so that it
   // works well when multiple queries are getting executed.
   if (admitted_queries_.empty()) {
-    LOG(WARNING) << "Requesting WorkOrderProtoMessages when no query is running";
-    return;
+    if (waiting_queries_.empty()) {
+      LOG(WARNING) << "Requesting WorkOrderProtoMessages when no query is running";
+      return;
+    } else {
+      // Admit the earliest waiting query.
+      QueryHandle *new_query = waiting_queries_.front();
+      waiting_queries_.pop();
+      admitQuery(new_query);
+    }
   }
 
   const std::size_t per_query_share =
@@ -106,28 +113,28 @@ void PolicyEnforcerDistributed::getWorkOrderProtoMessages(
 }
 
 bool PolicyEnforcerDistributed::admitQuery(QueryHandle *query_handle) {
-  if (admitted_queries_.size() < PolicyEnforcerBase::kMaxConcurrentQueries) {
-    // Ok to admit the query.
-    const std::size_t query_id = query_handle->query_id();
-    if (admitted_queries_.find(query_id) == admitted_queries_.end()) {
-      // NOTE(zuyu): Should call before constructing a 'QueryManager'.
-      // Otherwise, an InitiateRebuildMessage may be sent before 'QueryContext'
-      // initializes.
-      initiateQueryInShiftboss(query_handle);
-
-      // Query with the same ID not present, ok to admit.
-      admitted_queries_[query_id].reset(
-          new QueryManagerDistributed(query_handle, shiftboss_directory_, foreman_client_id_, bus_));
-      return true;
-    } else {
-      LOG(ERROR) << "Query with the same ID " << query_id << " exists";
-      return false;
-    }
-  } else {
+  if (admitted_queries_.size() >= PolicyEnforcerBase::kMaxConcurrentQueries) {
     // This query will have to wait.
     waiting_queries_.push(query_handle);
     return false;
   }
+
+  const std::size_t query_id = query_handle->query_id();
+  if (admitted_queries_.find(query_id) != admitted_queries_.end()) {
+    LOG(ERROR) << "Query with the same ID " << query_id << " exists";
+    return false;
+  }
+
+  // Ok to admit the query.
+  // NOTE(zuyu): Should call before constructing a 'QueryManager'.
+  // Otherwise, an InitiateRebuildMessage may be sent before 'QueryContext'
+  // initializes.
+  initiateQueryInShiftboss(query_handle);
+
+  // Query with the same ID not present, ok to admit.
+  admitted_queries_[query_id].reset(
+      new QueryManagerDistributed(query_handle, shiftboss_directory_, foreman_client_id_, bus_));
+  return true;
 }
 
 void PolicyEnforcerDistributed::processInitiateRebuildResponseMessage(const tmb::TaggedMessage &tagged_message) {
@@ -144,18 +151,6 @@ void PolicyEnforcerDistributed::processInitiateRebuildResponseMessage(const tmb:
   query_manager->processInitiateRebuildResponseMessage(
       proto.operator_index(), num_rebuild_work_orders, shiftboss_index);
   shiftboss_directory_->addNumQueuedWorkOrders(shiftboss_index, num_rebuild_work_orders);
-
-  if (query_manager->getQueryExecutionState().hasQueryExecutionFinished()) {
-    onQueryCompletion(query_manager);
-
-    removeQuery(query_id);
-    if (!waiting_queries_.empty()) {
-      // Admit the earliest waiting query.
-      QueryHandle *new_query = waiting_queries_.front();
-      waiting_queries_.pop();
-      admitQuery(new_query);
-    }
-  }
 }
 
 void PolicyEnforcerDistributed::getShiftbossIndexForAggregation(
