@@ -152,7 +152,7 @@ class QueryManagerDistributed final : public QueryManagerBase {
 
   bool checkRebuildOver(const dag_node_index index) const override {
     return query_exec_state_->hasRebuildInitiated(index) &&
-           (query_exec_state_->getNumRebuildWorkOrders(index) == 0);
+           query_exec_state_->hasRebuildFinished(index, num_shiftbosses_);
   }
 
   const tmb::client_id foreman_client_id_;
