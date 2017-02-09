@@ -94,7 +94,7 @@ class CreateIndexOperator : public RelationalOperator {
 
  private:
   CatalogRelation *relation_;
-  const std::string &index_name_;
+  const std::string index_name_;
   IndexSubBlockDescription index_description_;
 
   DISALLOW_COPY_AND_ASSIGN(CreateIndexOperator);
