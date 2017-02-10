@@ -159,6 +159,11 @@ void PolicyEnforcerDistributed::processInitiateRebuildResponseMessage(const tmb:
   query_manager->processInitiateRebuildResponseMessage(
       proto.operator_index(), num_rebuild_work_orders, shiftboss_index);
   shiftboss_directory_->addNumQueuedWorkOrders(shiftboss_index, num_rebuild_work_orders);
+
+  if (query_manager->getQueryExecutionState().hasQueryExecutionFinished()) {
+    onQueryCompletion(query_manager);
+    removeQuery(query_id);
+  }
 }
 
 void PolicyEnforcerDistributed::getShiftbossIndexForAggregation(
