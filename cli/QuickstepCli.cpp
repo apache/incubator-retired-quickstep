@@ -266,7 +266,6 @@ int main(int argc, char* argv[]) {
     worker_client_ids.push_back(workers.back().getBusClientID());
   }
 
-  // TODO(zuyu): Move WorkerDirectory within Shiftboss once the latter is added.
   WorkerDirectory worker_directory(worker_cpu_affinities.size(),
                                    worker_client_ids,
                                    worker_numa_nodes);
