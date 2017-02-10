@@ -53,7 +53,7 @@ namespace quickstep {
 QueryManagerDistributed::QueryManagerDistributed(QueryHandle *query_handle,
                                                  const tmb::client_id foreman_client_id,
                                                  const std::size_t num_shiftbosses,
-                                                 tmb::Address &&shiftboss_addresses,
+                                                 tmb::Address &&shiftboss_addresses,  // NOLINT(whitespace/operators)
                                                  tmb::MessageBus *bus)
     : QueryManagerBase(query_handle),
       foreman_client_id_(foreman_client_id),

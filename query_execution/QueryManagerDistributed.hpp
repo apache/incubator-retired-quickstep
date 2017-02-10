@@ -65,7 +65,7 @@ class QueryManagerDistributed final : public QueryManagerBase {
   QueryManagerDistributed(QueryHandle *query_handle,
                           const tmb::client_id foreman_client_id,
                           const std::size_t num_shiftbosses,
-                          tmb::Address &&shiftboss_addresses,
+                          tmb::Address &&shiftboss_addresses,  // NOLINT(whitespace/operators)
                           tmb::MessageBus *bus);
 
   ~QueryManagerDistributed() override {}
