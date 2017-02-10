@@ -197,6 +197,7 @@ void Cli::run() {
               const CatalogRelation result_relation(proto.result_relation());
 
               PrintToScreen::PrintRelation(result_relation, storage_manager_.get(), stdout);
+              PrintToScreen::PrintOutputSize(result_relation, storage_manager_.get(), stdout);
 
               const vector<block_id> blocks(result_relation.getBlocksSnapshot());
               for (const block_id block : blocks) {
