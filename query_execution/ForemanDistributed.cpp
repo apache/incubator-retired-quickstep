@@ -378,7 +378,8 @@ void ForemanDistributed::dispatchWorkOrderMessages(const vector<unique_ptr<S::Wo
     sendWorkOrderMessage(shiftboss_index_for_particular_work_order_type, proto);
     shiftboss_directory_.incrementNumQueuedWorkOrders(shiftboss_index_for_particular_work_order_type);
 
-    if (shiftboss_index == shiftboss_index_for_particular_work_order_type) {
+    if (shiftboss_index == shiftboss_index_for_particular_work_order_type &&
+        shiftboss_directory_.hasReachedCapacity(shiftboss_index)) {
       shiftboss_index = (shiftboss_index + 1) % shiftboss_directory_.size();
     } else {
       // NOTE(zuyu): This is not the exact round-robin scheduling, as in this case,
