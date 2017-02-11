@@ -113,6 +113,19 @@ class PolicyEnforcerBase {
   }
 
   /**
+   * @brief Check if the given query has profiling results.
+   *
+   * @note Even enabled profiling, not every query has profiling results.
+   *       For example, CreateTable and CreateIndex do not produce work orders,
+   *       so they do not have profiling results.
+   *
+   * @return True if it has profiling results, otherwise false.
+   **/
+  bool hasProfilingResults(const std::size_t query_id) const {
+    return workorder_time_recorder_.find(query_id) != workorder_time_recorder_.end();
+  }
+
+  /**
    * @brief Get the profiling results for individual work order execution for a
    *        given query.
    *
@@ -127,8 +140,7 @@ class PolicyEnforcerBase {
   inline const std::vector<WorkOrderTimeEntry>& getProfilingResults(
       const std::size_t query_id) const {
     DCHECK(profile_individual_workorders_);
-    DCHECK(workorder_time_recorder_.find(query_id) !=
-           workorder_time_recorder_.end());
+    DCHECK(hasProfilingResults(query_id));
     return workorder_time_recorder_.at(query_id);
   }
 

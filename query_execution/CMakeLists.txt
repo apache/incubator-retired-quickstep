@@ -166,6 +166,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_queryexecution_ShiftbossDirectory
                         quickstep_queryoptimizer_QueryHandle
                         quickstep_storage_StorageBlockInfo
+                        quickstep_utility_ExecutionDAGVisualizer
                         quickstep_utility_Macros
                         tmb
                         ${GFLAGS_LIB_NAME})
@@ -246,7 +247,9 @@ target_link_libraries(quickstep_queryexecution_QueryManagerBase
                       quickstep_relationaloperators_WorkOrder
                       quickstep_storage_StorageBlockInfo
                       quickstep_utility_DAG
-                      quickstep_utility_Macros)
+                      quickstep_utility_ExecutionDAGVisualizer
+                      quickstep_utility_Macros
+                      ${GFLAGS_LIB_NAME})
 if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_queryexecution_QueryManagerDistributed
                         quickstep_catalog_CatalogTypedefs

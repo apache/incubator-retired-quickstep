@@ -40,14 +40,11 @@
 
 namespace quickstep {
 
+DECLARE_bool(visualize_execution_dag);
+
 DEFINE_bool(profile_and_report_workorder_perf, false,
     "If true, Quickstep will record the exceution time of all the individual "
     "normal work orders and report it at the end of query execution.");
-
-DEFINE_bool(visualize_execution_dag, false,
-            "If true, visualize the execution plan DAG into a graph in DOT "
-            "format (DOT is a plain text graph description language) which is "
-            "then printed via stderr.");
 
 PolicyEnforcerBase::PolicyEnforcerBase(CatalogDatabaseLite *catalog_database)
     : catalog_database_(catalog_database),

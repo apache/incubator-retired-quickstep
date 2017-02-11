@@ -31,6 +31,7 @@
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/DAG.hpp"
+#include "utility/ExecutionDAGVisualizer.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -148,6 +149,15 @@ class QueryManagerBase {
    * @return QueryStatusCode as determined after the message is processed.
    **/
   QueryStatusCode queryStatus(const dag_node_index op_index);
+
+  /**
+   * @brief Get the execution DAG visualizer.
+   *
+   * @return the execution DAG visualizer.
+   **/
+  ExecutionDAGVisualizer* dag_visualizer() {
+    return dag_visualizer_.get();
+  }
 
  protected:
   /**
@@ -275,6 +285,8 @@ class QueryManagerBase {
   std::vector<std::vector<dag_node_index>> blocking_dependencies_;
 
   std::unique_ptr<QueryExecutionState> query_exec_state_;
+
+  std::unique_ptr<ExecutionDAGVisualizer> dag_visualizer_;
 
  private:
   /**

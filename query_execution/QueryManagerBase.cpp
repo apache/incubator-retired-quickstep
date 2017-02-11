@@ -30,11 +30,17 @@
 #include "relational_operators/WorkOrder.hpp"
 #include "storage/StorageBlockInfo.hpp"
 
+#include "gflags/gflags.h"
 #include "glog/logging.h"
 
 using std::pair;
 
 namespace quickstep {
+
+DEFINE_bool(visualize_execution_dag, false,
+            "If true, visualize the execution plan DAG into a graph in DOT "
+            "format (DOT is a plain text graph description language) which is "
+            "then printed via stderr.");
 
 QueryManagerBase::QueryManagerBase(QueryHandle *query_handle)
     : query_handle_(DCHECK_NOTNULL(query_handle)),
@@ -45,6 +51,11 @@ QueryManagerBase::QueryManagerBase(QueryHandle *query_handle)
       output_consumers_(num_operators_in_dag_),
       blocking_dependencies_(num_operators_in_dag_),
       query_exec_state_(new QueryExecutionState(num_operators_in_dag_)) {
+  if (FLAGS_visualize_execution_dag) {
+    dag_visualizer_ =
+        std::make_unique<quickstep::ExecutionDAGVisualizer>(query_handle_->getQueryPlan());
+  }
+
   for (dag_node_index node_index = 0;
        node_index < num_operators_in_dag_;
        ++node_index) {

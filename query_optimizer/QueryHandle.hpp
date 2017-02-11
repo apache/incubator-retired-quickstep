@@ -87,6 +87,13 @@ class QueryHandle {
   }
 
   /**
+   * @return The const query plan.
+   */
+  const QueryPlan& getQueryPlan() const {
+    return *query_plan_;
+  }
+
+  /**
    * @return The mutable query plan.
    */
   QueryPlan* getQueryPlanMutable() {

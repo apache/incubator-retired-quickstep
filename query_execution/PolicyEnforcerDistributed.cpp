@@ -15,11 +15,14 @@
 #include "query_execution/PolicyEnforcerDistributed.hpp"
 
 #include <cstddef>
+#include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <queue>
-#include <utility>
+#include <sstream>
+#include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "catalog/Catalog.pb.h"
@@ -33,6 +36,7 @@
 #include "query_execution/QueryManagerDistributed.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "storage/StorageBlockInfo.hpp"
+#include "utility/ExecutionDAGVisualizer.hpp"
 
 #include "gflags/gflags.h"
 #include "glog/logging.h"
@@ -52,6 +56,8 @@ using std::vector;
 using tmb::TaggedMessage;
 
 namespace quickstep {
+
+DECLARE_bool(visualize_execution_dag);
 
 namespace S = serialization;
 
@@ -227,6 +233,24 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
   const CatalogRelation *query_result = query_handle->getQueryResultRelation();
   const tmb::client_id cli_id = query_handle->getClientId();
   const std::size_t query_id = query_handle->query_id();
+
+  if (FLAGS_visualize_execution_dag && hasProfilingResults(query_id)) {
+    ExecutionDAGVisualizer* dag_visualizer = query_manager->dag_visualizer();
+    dag_visualizer->bindProfilingStats(getProfilingResults(query_id));
+
+    std::ostringstream dot_filename;
+    dot_filename << query_id << ".dot";
+
+    FILE *fp = std::fopen(dot_filename.str().c_str(), "w");
+    CHECK_NOTNULL(fp);
+    const std::string dot_file_content(dag_visualizer->toDOT());
+    const std::size_t dot_file_length = dot_file_content.length();
+
+    CHECK_EQ(dot_file_length,
+             std::fwrite(dot_file_content.c_str(), sizeof(char), dot_file_length, fp));
+
+    std::fclose(fp);
+  }
 
   // TODO(quickstep-team): Dynamically scale-up/down Shiftbosses.
   tmb::Address shiftboss_addresses;
