@@ -273,6 +273,9 @@ class AggregationOperationState {
   // arguments.
   std::vector<bool> is_distinct_;
 
+  // A flag indicating whether all aggregate functions are DISTINCT aggregations.
+  const bool all_distinct_;
+
   // Non-trivial group-by/argument expressions that need to be evaluated.
   std::vector<std::unique_ptr<const Scalar>> non_trivial_expressions_;
 

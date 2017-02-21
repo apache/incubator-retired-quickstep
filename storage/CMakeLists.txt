@@ -817,7 +817,8 @@ target_link_libraries(quickstep_storage_PackedPayloadHashTable
                       quickstep_utility_Alignment
                       quickstep_utility_HashPair
                       quickstep_utility_Macros
-                      quickstep_utility_PrimeNumber)
+                      quickstep_utility_PrimeNumber
+                      quickstep_utility_TemplateUtil)
 target_link_libraries(quickstep_storage_PartitionedHashTablePool
                       glog
                       quickstep_storage_HashTableBase
