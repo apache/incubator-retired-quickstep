@@ -1,0 +1,89 @@
+--- linenoise.c.new	2015-04-13 02:38:43.000000000 -0500
++++ linenoise.c	2017-02-21 09:47:42.000000000 -0600
+@@ -1,7 +1,5 @@
+-/* linenoise.c -- VERSION 1.0
+- *
+- * Guerrilla line editing library against the idea that a line editing lib
+- * needs to be 20,000 lines of C code.
++/* linenoise.c -- guerrilla line editing library against the idea that a
++ * line editing lib needs to be 20,000 lines of C code.
+  *
+  * You can find the latest source code at:
+  *
+@@ -120,6 +118,7 @@
+ 
+ #define LINENOISE_DEFAULT_HISTORY_MAX_LEN 100
+ #define LINENOISE_MAX_LINE 4096
++#define LINENOISE_TRIM_NEWLINE 0
+ static char *unsupported_term[] = {"dumb","cons25","emacs",NULL};
+ static linenoiseCompletionCallback *completionCallback = NULL;
+ 
+@@ -774,6 +773,10 @@
+             history_len--;
+             free(history[history_len]);
+             if (mlmode) linenoiseEditMoveEnd(&l);
++#if !LINENOISE_TRIM_NEWLINE
++            l.buf[l.len++] = '\n';
++            l.buf[l.len] = '\0';
++#endif
+             return (int)l.len;
+         case CTRL_C:     /* ctrl-c */
+             errno = EAGAIN;
+@@ -940,10 +943,12 @@
+         /* Not a tty: read from file / pipe. */
+         if (fgets(buf, buflen, stdin) == NULL) return -1;
+         count = strlen(buf);
++#if LINENOISE_TRIM_NEWLINE
+         if (count && buf[count-1] == '\n') {
+             count--;
+             buf[count] = '\0';
+         }
++#endif
+     } else {
+         /* Interactive editing. */
+         if (enableRawMode(STDIN_FILENO) == -1) return -1;
+@@ -970,10 +975,12 @@
+         fflush(stdout);
+         if (fgets(buf,LINENOISE_MAX_LINE,stdin) == NULL) return NULL;
+         len = strlen(buf);
++#if LINENOISE_TRIM_NEWLINE
+         while(len && (buf[len-1] == '\n' || buf[len-1] == '\r')) {
+             len--;
+             buf[len] = '\0';
+         }
++#endif
+         return strdup(buf);
+     } else {
+         count = linenoiseRaw(buf,LINENOISE_MAX_LINE,prompt);
+@@ -1021,12 +1028,29 @@
+         memset(history,0,(sizeof(char*)*history_max_len));
+     }
+ 
++#if LINENOISE_TRIM_NEWLINE
+     /* Don't add duplicated lines. */
+     if (history_len && !strcmp(history[history_len-1], line)) return 0;
+ 
+-    /* Add an heap allocated copy of the line in the history.
+-     * If we reached the max length, remove the older line. */
+     linecopy = strdup(line);
++#else
++    /* Remove trailing newlines so that editing from history doesn't get all wonky. */
++    size_t line_len = strlen(line);
++    while ((line_len > 0) && (line[line_len - 1] == '\n')) {
++      --line_len;
++    }
++    linecopy = (char*) malloc(line_len + 1);
++    memcpy(linecopy, line, line_len);
++    linecopy[line_len] = '\0';
++
++    /* Don't add duplicated lines. */
++    if (history_len && !strcmp(history[history_len-1], linecopy)) {
++        free(linecopy);
++        return 0;
++    }
++#endif
++
++    /* If we reached the max length, remove the older line. */
+     if (!linecopy) return 0;
+     if (history_len == history_max_len) {
+         free(history[0]);
