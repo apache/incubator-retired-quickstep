@@ -40,6 +40,7 @@
 #include "utility/Alignment.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PrimeNumber.hpp"
+#include "utility/TemplateUtil.hpp"
 
 #include "glog/logging.h"
 
@@ -234,23 +235,31 @@ bool PackedPayloadHashTable::upsertValueAccessorCompositeKey(
   ValueAccessor *base_accessor = accessor_mux.getBaseAccessor();
   ValueAccessor *derived_accessor = accessor_mux.getDerivedAccessor();
 
+  const bool has_derived_accessor = (derived_accessor != nullptr);
+
   base_accessor->beginIterationVirtual();
-  if (derived_accessor == nullptr) {
-    return upsertValueAccessorCompositeKeyInternal<false>(
-        argument_ids,
-        key_attr_ids,
-        base_accessor,
-        nullptr);
-  } else {
+  if (has_derived_accessor) {
     DCHECK(derived_accessor->getImplementationType()
                == ValueAccessor::Implementation::kColumnVectors);
     derived_accessor->beginIterationVirtual();
-    return upsertValueAccessorCompositeKeyInternal<true>(
-        argument_ids,
-        key_attr_ids,
-        base_accessor,
-        static_cast<ColumnVectorsValueAccessor *>(derived_accessor));
   }
+
+  return InvokeOnBools(
+      has_derived_accessor,
+      handles_.empty(),
+      !all_keys_inline_,
+      [&](auto use_two_accessors,
+          auto key_only,
+          auto has_variable_size) -> bool {  // NOLINT(build/c++11)
+    return upsertValueAccessorCompositeKeyInternal<
+        decltype(use_two_accessors)::value,
+        decltype(key_only)::value,
+        decltype(has_variable_size)::value>(
+            argument_ids,
+            key_attr_ids,
+            base_accessor,
+            static_cast<ColumnVectorsValueAccessor *>(derived_accessor));
+  });
 }
 
 void PackedPayloadHashTable::resize(const std::size_t extra_buckets,
