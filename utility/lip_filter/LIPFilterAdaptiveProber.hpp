@@ -31,6 +31,7 @@
 #include "storage/TupleIdSequence.hpp"
 #include "storage/ValueAccessor.hpp"
 #include "types/Type.hpp"
+#include "utility/EventProfiler.hpp"
 #include "utility/Macros.hpp"
 #include "utility/lip_filter/LIPFilter.hpp"
 
@@ -87,12 +88,17 @@ class LIPFilterAdaptiveProber {
    * @return A TupleIdSequence for the hit tuples in the ValueAccessor.
    */
   TupleIdSequence* filterValueAccessor(ValueAccessor *accessor) {
+    TupleIdSequence *matches;
     const TupleIdSequence *existence_map = accessor->getTupleIdSequenceVirtual();
+    auto *event_lip = simple_profiler.getContainer()->getEventLine("ProbeLIP");
+    event_lip->emplace_back();
     if (existence_map == nullptr) {
-      return filterValueAccessorNoExistenceMap(accessor);
+      matches = filterValueAccessorNoExistenceMap(accessor);
     } else {
-      return filterValueAccessorWithExistenceMap(accessor, existence_map);
+      matches = filterValueAccessorWithExistenceMap(accessor, existence_map);
     }
+    event_lip->back().endEvent();
+    return matches;
   }
 
  private:

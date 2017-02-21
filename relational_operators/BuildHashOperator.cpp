@@ -34,6 +34,7 @@
 #include "storage/TupleReference.hpp"
 #include "storage/TupleStorageSubBlock.hpp"
 #include "storage/ValueAccessor.hpp"
+#include "utility/EventProfiler.hpp"
 #include "utility/lip_filter/LIPFilterBuilder.hpp"
 #include "utility/lip_filter/LIPFilterUtil.hpp"
 
@@ -157,12 +158,19 @@ void BuildHashWorkOrder::execute() {
   TupleReferenceGenerator generator(build_block_id_);
   std::unique_ptr<ValueAccessor> accessor(block->getTupleStorageSubBlock().createValueAccessor());
 
+  auto *container = simple_profiler.getContainer();
+
   // Build LIPFilters if enabled.
   if (lip_filter_builder_ != nullptr) {
+    auto *event_lip = container->getEventLine("BuildLIP");
+    event_lip->emplace_back();
     lip_filter_builder_->insertValueAccessor(accessor.get());
     accessor->beginIterationVirtual();
+    event_lip->back().endEvent();
   }
 
+  auto *event_hash = container->getEventLine("BuildHash");
+  event_hash->emplace_back();
   HashTablePutResult result;
   if (join_key_attributes_.size() == 1) {
     result = hash_table_->putValueAccessor(accessor.get(),
@@ -175,6 +183,7 @@ void BuildHashWorkOrder::execute() {
                                                        any_join_key_attributes_nullable_,
                                                        &generator);
   }
+  event_hash->back().endEvent();
 
   CHECK(result == HashTablePutResult::kOK)
       << "Failed to add entries to join hash table.";

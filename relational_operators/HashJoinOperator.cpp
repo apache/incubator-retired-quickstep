@@ -50,6 +50,7 @@
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVector.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
+#include "utility/EventProfiler.hpp"
 #include "utility/lip_filter/LIPFilterAdaptiveProber.hpp"
 #include "utility/lip_filter/LIPFilterUtil.hpp"
 
@@ -470,11 +471,17 @@ void HashInnerJoinWorkOrder::execute() {
         base_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
   }
 
+  auto *container = simple_profiler.getContainer();
+  auto *event_hash = container->getEventLine("ProbeHash");
+  event_hash->emplace_back();
+
   if (probe_accessor->getImplementationType() == ValueAccessor::Implementation::kSplitRowStore) {
     executeWithCopyElision(probe_accessor.get());
   } else {
     executeWithoutCopyElision(probe_accessor.get());
   }
+
+  event_hash->back().endEvent();
 }
 
 void HashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor *probe_accessor) {

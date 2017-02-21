@@ -51,6 +51,7 @@ target_link_libraries(quickstep_utility_lipfilter_LIPFilterAdaptiveProber
                       quickstep_storage_TupleIdSequence
                       quickstep_storage_ValueAccessor
                       quickstep_types_Type
+                      quickstep_utility_EventProfiler
                       quickstep_utility_Macros
                       quickstep_utility_lipfilter_LIPFilter)
 target_link_libraries(quickstep_utility_lipfilter_LIPFilterBuilder

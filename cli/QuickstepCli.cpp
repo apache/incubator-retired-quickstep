@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <cstdio>
 #include <exception>
+#include <fstream>
 #include <memory>
 #include <string>
 #include <utility>
@@ -69,6 +70,7 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #include "storage/StorageConstants.hpp"
 #include "storage/StorageManager.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
+#include "utility/EventProfiler.hpp"
 #include "utility/ExecutionDAGVisualizer.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
@@ -143,6 +145,8 @@ DEFINE_string(profile_file_name, "",
               // To put things in perspective, the first run is, in my experiments, about 5-10
               // times more expensive than the average run. That means the query needs to be
               // run at least a hundred times to make the impact of the first run small (< 5 %).
+DEFINE_string(profile_output, "",
+              "Output file name for dumping the profiled events.");
 
 DECLARE_bool(profile_and_report_workorder_perf);
 DECLARE_bool(visualize_execution_dag);
@@ -331,6 +335,8 @@ int main(int argc, char* argv[]) {
         const std::size_t query_id = query_processor->query_id();
         const CatalogRelation *query_result_relation = nullptr;
         std::unique_ptr<quickstep::ExecutionDAGVisualizer> dag_visualizer;
+        quickstep::simple_profiler.clear();
+        auto *event_container = quickstep::simple_profiler.getContainer();
 
         try {
           auto query_handle = std::make_unique<QueryHandle>(query_id,
@@ -347,6 +353,7 @@ int main(int argc, char* argv[]) {
           query_result_relation = query_handle->getQueryResultRelation();
 
           start = std::chrono::steady_clock::now();
+          event_container->startEvent("overall");
           QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
               main_thread_client_id,
               foreman.getBusClientID(),
@@ -361,6 +368,7 @@ int main(int argc, char* argv[]) {
         try {
           QueryExecutionUtil::ReceiveQueryCompletionMessage(
               main_thread_client_id, &bus);
+          event_container->endEvent("overall");
           end = std::chrono::steady_clock::now();
 
           if (query_result_relation) {
@@ -391,6 +399,13 @@ int main(int argc, char* argv[]) {
                 foreman.getWorkOrderProfilingResults(query_id);
             dag_visualizer->bindProfilingStats(profiling_stats);
             std::cerr << "\n" << dag_visualizer->toDOT() << "\n";
+          }
+          if (!quickstep::FLAGS_profile_output.empty()) {
+            std::ofstream ofs(
+                quickstep::FLAGS_profile_output + std::to_string(query_processor->query_id()),
+                std::ios::out);
+            quickstep::simple_profiler.writeToStream(ofs);
+            ofs.close();
           }
         } catch (const std::exception &e) {
           fprintf(stderr, "QUERY EXECUTION ERROR: %s\n", e.what());

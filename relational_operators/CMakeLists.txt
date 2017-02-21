@@ -141,6 +141,7 @@ target_link_libraries(quickstep_relationaloperators_BuildHashOperator
                       quickstep_storage_TupleReference
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_storage_ValueAccessor
+                      quickstep_utility_EventProfiler
                       quickstep_utility_Macros
                       quickstep_utility_lipfilter_LIPFilterBuilder
                       quickstep_utility_lipfilter_LIPFilterUtil
@@ -281,6 +282,7 @@ target_link_libraries(quickstep_relationaloperators_HashJoinOperator
                       quickstep_types_TypedValue
                       quickstep_types_containers_ColumnVector
                       quickstep_types_containers_ColumnVectorsValueAccessor
+                      quickstep_utility_EventProfiler
                       quickstep_utility_Macros
                       quickstep_utility_lipfilter_LIPFilterAdaptiveProber
                       quickstep_utility_lipfilter_LIPFilterUtil
