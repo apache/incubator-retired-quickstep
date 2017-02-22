@@ -20,6 +20,7 @@
 #include "query_optimizer/rules/AttachLIPFilters.hpp"
 
 #include <algorithm>
+#include <cstdint>
 #include <map>
 #include <set>
 #include <unordered_set>
@@ -37,6 +38,7 @@
 #include "query_optimizer/physical/PhysicalType.hpp"
 #include "query_optimizer/physical/Selection.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
 #include "utility/lip_filter/LIPFilter.hpp"
 
@@ -126,11 +128,40 @@ void AttachLIPFilters::attachLIPFilters(
         const E::ExprId source_attr_id = pair.second->source_attribute->id();
         if (already_filtered_attributes->find(source_attr_id)
                 == already_filtered_attributes->end()) {
-          lip_filter_configuration_->addBuildInfo(
-              P::SingleIdentityHashFilterBuildInfo::Create(
-                  pair.second->source_attribute,
-                  std::max(64uL, pair.second->estimated_cardinality * 8u)),
-              pair.second->source);
+          bool use_exact_filter = false;
+          std::int64_t min_cpp_value;
+          std::int64_t max_cpp_value;
+          const bool has_exact_min_max_stats =
+              findExactMinMaxValuesForAttributeHelper(pair.second->source,
+                                                      pair.second->source_attribute,
+                                                      &min_cpp_value,
+                                                      &max_cpp_value);
+          if (has_exact_min_max_stats) {
+            const std::int64_t value_range = max_cpp_value - min_cpp_value;
+            DCHECK_GE(value_range, 0);
+            // TODO(jianqiao): Add this threshold as a gflag (together with
+            // InjectJoinFilters::kMaxFilterSize).
+            if (value_range <= 1000000000L) {
+              use_exact_filter = true;
+            }
+          }
+
+          if (use_exact_filter) {
+            lip_filter_configuration_->addBuildInfo(
+                P::BitVectorExactFilterBuildInfo::Create(
+                    pair.second->source_attribute,
+                    min_cpp_value,
+                    max_cpp_value,
+                    false),
+                pair.second->source);
+          } else {
+            lip_filter_configuration_->addBuildInfo(
+                P::SingleIdentityHashFilterBuildInfo::Create(
+                    pair.second->source_attribute,
+                    std::max(64uL, pair.second->estimated_cardinality * 8u)),
+                pair.second->source);
+          }
+
           lip_filter_configuration_->addProbeInfo(
               P::LIPFilterProbeInfo::Create(
                   pair.first,
@@ -256,6 +287,39 @@ const std::vector<AttachLIPFilters::LIPFilterInfoPtr>& AttachLIPFilters
     probe_side_info_.emplace(node, std::move(lip_filters));
   }
   return probe_side_info_.at(node);
+}
+
+bool AttachLIPFilters::findExactMinMaxValuesForAttributeHelper(
+    const physical::PhysicalPtr &physical_plan,
+    const expressions::AttributeReferencePtr &attribute,
+    std::int64_t *min_cpp_value,
+    std::int64_t *max_cpp_value) const {
+  bool min_value_is_exact;
+  bool max_value_is_exact;
+
+  const TypedValue min_value =
+      cost_model_->findMinValueStat(physical_plan, attribute, &min_value_is_exact);
+  const TypedValue max_value =
+      cost_model_->findMaxValueStat(physical_plan, attribute, &max_value_is_exact);
+  if (min_value.isNull() || max_value.isNull() ||
+      (!min_value_is_exact) || (!max_value_is_exact)) {
+    return false;
+  }
+
+  switch (attribute->getValueType().getTypeID()) {
+    case TypeID::kInt: {
+      *min_cpp_value = min_value.getLiteral<int>();
+      *max_cpp_value = max_value.getLiteral<int>();
+      return true;
+    }
+    case TypeID::kLong: {
+      *min_cpp_value = min_value.getLiteral<std::int64_t>();
+      *max_cpp_value = max_value.getLiteral<std::int64_t>();
+      return true;
+    }
+    default:
+      return false;
+  }
 }
 
 }  // namespace optimizer

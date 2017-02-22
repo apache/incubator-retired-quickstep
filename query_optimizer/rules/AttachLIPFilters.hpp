@@ -21,6 +21,7 @@
 #define QUICKSTEP_QUERY_OPTIMIZER_RULES_ATTACH_LIP_FILTERS_HPP_
 
 #include <cstddef>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <set>
@@ -134,6 +135,14 @@ class AttachLIPFilters : public Rule<physical::Physical> {
   const std::vector<LIPFilterInfoPtr>& getBuildSideInfo(const NodeList &path);
 
   const std::vector<LIPFilterInfoPtr>& getProbeSideInfo(const NodeList &path);
+
+  // TODO(jianqiao): refactor this method as it is a duplication of
+  // InjectJoinFilters::findExactMinMaxValuesForAttributeHelper().
+  bool findExactMinMaxValuesForAttributeHelper(
+      const physical::PhysicalPtr &physical_plan,
+      const expressions::AttributeReferencePtr &attribute,
+      std::int64_t *min_cpp_value,
+      std::int64_t *max_cpp_value) const;
 
   std::unique_ptr<cost::StarSchemaSimpleCostModel> cost_model_;
   std::map<physical::PhysicalPtr, std::vector<LIPFilterInfoPtr>> build_side_info_;
