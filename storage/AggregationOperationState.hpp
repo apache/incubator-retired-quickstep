@@ -296,7 +296,7 @@ class AggregationOperationState {
   // A vector of group by hash table pools.
   std::unique_ptr<HashTablePool> group_by_hashtable_pool_;
 
-  std::unique_ptr<PartitionedHashTablePool> partitioned_group_by_hashtable_pool_;
+  std::unique_ptr<AggregationStateHashTableBase> partitioned_hashtable_;
 
   std::unique_ptr<AggregationStateHashTableBase> collision_free_hashtable_;
 

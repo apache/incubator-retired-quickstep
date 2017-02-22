@@ -168,6 +168,7 @@ add_library(quickstep_utility_BloomFilter ../empty_src.cpp BloomFilter.hpp)
 add_library(quickstep_utility_BloomFilter_proto
             ${quickstep_utility_BloomFilter_proto_srcs}
             ${quickstep_utility_BloomFilter_proto_hdrs})
+add_library(quickstep_utility_BoolVector ../empty_src.cpp BoolVector.hpp)
 add_library(quickstep_utility_CalculateInstalledMemory CalculateInstalledMemory.cpp CalculateInstalledMemory.hpp)
 add_library(quickstep_utility_Cast ../empty_src.cpp Cast.hpp)
 add_library(quickstep_utility_CheckSnprintf ../empty_src.cpp CheckSnprintf.hpp)
@@ -233,6 +234,9 @@ target_link_libraries(quickstep_utility_BloomFilter
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_utility_BloomFilter_proto
                       ${PROTOBUF_LIBRARY})
+target_link_libraries(quickstep_utility_BoolVector
+                      quickstep_threading_SpinMutex
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_utility_CalculateInstalledMemory
                       glog)
 target_link_libraries(quickstep_utility_CheckSnprintf
@@ -341,6 +345,7 @@ target_link_libraries(quickstep_utility
                       quickstep_utility_BitVector
                       quickstep_utility_BloomFilter
                       quickstep_utility_BloomFilter_proto
+                      quickstep_utility_BoolVector
                       quickstep_utility_CalculateInstalledMemory
                       quickstep_utility_Cast
                       quickstep_utility_CheckSnprintf

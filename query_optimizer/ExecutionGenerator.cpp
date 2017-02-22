@@ -163,6 +163,8 @@ static const volatile bool aggregate_hashtable_type_dummy
 
 DEFINE_bool(parallelize_load, true, "Parallelize loading data files.");
 
+DEFINE_bool(use_collision_free_agg, true, "");
+
 namespace E = ::quickstep::optimizer::expressions;
 namespace P = ::quickstep::optimizer::physical;
 namespace S = ::quickstep::serialization;
@@ -1508,7 +1510,8 @@ void ExecutionGenerator::convertAggregate(
         cost_model_for_aggregation_->estimateNumGroupsForAggregate(physical_plan);
 
     std::size_t max_num_groups;
-    if (cost_model_for_aggregation_
+    if (FLAGS_use_collision_free_agg &&
+        cost_model_for_aggregation_
             ->canUseCollisionFreeAggregation(physical_plan,
                                              estimated_num_groups,
                                              &max_num_groups)) {

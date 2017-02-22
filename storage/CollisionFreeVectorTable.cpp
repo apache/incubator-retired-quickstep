@@ -24,6 +24,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <memory>
+#include <type_traits>
 #include <vector>
 
 #include "expressions/aggregation/AggregationHandle.hpp"
@@ -33,12 +34,174 @@
 #include "storage/ValueAccessor.hpp"
 #include "storage/ValueAccessorMultiplexer.hpp"
 #include "storage/ValueAccessorUtil.hpp"
+#include "threading/SpinMutex.hpp"
+#include "types/TypeID.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
-#include "utility/BarrieredReadWriteConcurrentBitVector.hpp"
+#include "utility/BoolVector.hpp"
 
 #include "glog/logging.h"
 
 namespace quickstep {
+
+DEFINE_uint64(vt_threadprivate_threshold, 1000000L, "");
+DEFINE_bool(use_latch, false, "");
+
+namespace {
+
+template <typename T>
+using remove_const_reference_t = std::remove_const_t<std::remove_reference_t<T>>;
+
+template <typename FunctorT>
+inline auto InvokeOnKeyType(const Type &type,
+                            const FunctorT &functor) {
+  switch (type.getTypeID()) {
+    case TypeID::kInt:
+      return functor(static_cast<const IntType&>(type));
+    case TypeID::kLong:
+      return functor(static_cast<const LongType&>(type));
+    default:
+      LOG(FATAL) << "Not supported";
+  }
+}
+
+template <typename FunctorT>
+inline auto InvokeOnType(const Type &type,
+                         const FunctorT &functor) {
+  switch (type.getTypeID()) {
+    case TypeID::kInt:
+      return functor(static_cast<const IntType&>(type));
+    case TypeID::kLong:
+      return functor(static_cast<const LongType&>(type));
+    case TypeID::kFloat:
+      return functor(static_cast<const FloatType&>(type));
+    case TypeID::kDouble:
+      return functor(static_cast<const DoubleType&>(type));
+    default:
+      LOG(FATAL) << "Not supported";
+  }
+}
+
+template <typename FunctorT>
+inline auto InvokeOnBool(const bool &val,
+                         const FunctorT &functor) {
+  if (val) {
+    return functor(std::true_type());
+  } else {
+    return functor(std::false_type());
+  }
+}
+
+template <typename FunctorT>
+inline auto InvokeOnBools(const bool &val1,
+                          const bool &val2,
+                          const FunctorT &functor) {
+  if (val1) {
+    if (val2) {
+      return functor(std::true_type(), std::true_type());
+    } else {
+      return functor(std::true_type(), std::false_type());
+    }
+  } else {
+    if (val2) {
+      return functor(std::false_type(), std::true_type());
+    } else {
+      return functor(std::false_type(), std::false_type());
+    }
+  }
+}
+
+template <typename FunctorT>
+inline auto InvokeOnAggFunc(const AggregationID &agg_id,
+                            const FunctorT &functor) {
+  switch (agg_id) {
+    case AggregationID::kSum: {
+      return functor(Sum());
+    }
+    default:
+      LOG(FATAL) << "Not supported";
+  }
+}
+
+template <typename FunctorT>
+inline auto InvokeIf(const std::true_type &val,
+                     const FunctorT &functor) {
+  return functor();
+}
+
+template <typename FunctorT>
+inline void InvokeIf(const std::false_type &val,
+                     const FunctorT &functor) {
+}
+
+//template <typename FunctorT>
+//inline void InvokeOnAggFuncIfApplicableToArgType(
+//    const AggregationID &agg_id,
+//    const Type &arg_type,
+//    const FunctorT &functor) {
+//  InvokeOnAggFunc(
+//      agg_id,
+//      [&](const auto &agg_func) -> void {
+//    InvokeOnType(
+//        arg_type,
+//        [&](const auto &arg_type) -> void {
+//      using AggFuncT = std::remove_reference_t<decltype(agg_func)>;
+//      using ArgT = remove_const_reference_t<decltype(arg_type)>;
+//
+//      InvokeIf(
+//          typename AggFuncT::template HasAtomicImpl<ArgT>(),
+//          [&]() -> void {
+//        functor(agg_func, arg_type);
+//      });
+//    });
+//  });
+//}
+
+template <typename FunctorT>
+inline void InvokeOnAggFuncWithArgType(
+    const AggregationID &agg_id,
+    const Type &arg_type,
+    const FunctorT &functor) {
+  InvokeOnAggFunc(
+      agg_id,
+      [&](const auto &agg_func) -> void {
+    InvokeOnType(
+        arg_type,
+        [&](const auto &arg_type) -> void {
+      functor(agg_func, arg_type);
+    });
+  });
+}
+
+template <typename FunctorT>
+inline auto InvokeOnTwoAccessors(
+    const ValueAccessorMultiplexer &accessor_mux,
+    const ValueAccessorSource &first_source,
+    const ValueAccessorSource &second_source,
+    const FunctorT &functor) {
+  ValueAccessor *base_accessor = accessor_mux.getBaseAccessor();
+  ColumnVectorsValueAccessor *derived_accessor =
+      static_cast<ColumnVectorsValueAccessor *>(accessor_mux.getDerivedAccessor());
+
+  InvokeOnAnyValueAccessor(
+      base_accessor,
+      [&](auto *accessor) {
+    if (first_source == ValueAccessorSource::kBase) {
+      if (second_source == ValueAccessorSource::kBase) {
+        return functor(std::false_type(), accessor, accessor);
+      } else {
+        return functor(std::true_type(), accessor, derived_accessor);
+      }
+    } else {
+      if (second_source == ValueAccessorSource::kBase) {
+        return functor(std::true_type(), derived_accessor, accessor);
+      } else {
+        return functor(std::false_type(), derived_accessor, derived_accessor);
+      }
+    }
+  });
+}
+
+}  // namespace
 
 CollisionFreeVectorTable::CollisionFreeVectorTable(
     const Type *key_type,
@@ -49,46 +212,45 @@ CollisionFreeVectorTable::CollisionFreeVectorTable(
       num_entries_(num_entries),
       num_handles_(handles.size()),
       handles_(handles),
+      use_thread_private_existence_map_(num_entries_ < FLAGS_vt_threadprivate_threshold),
       num_finalize_partitions_(CalculateNumFinalizationPartitions(num_entries_)),
       storage_manager_(storage_manager) {
   DCHECK_GT(num_entries, 0u);
 
   std::size_t required_memory = 0;
   const std::size_t existence_map_offset = 0;
+  std::size_t mutex_vec_offset = 0;
   std::vector<std::size_t> state_offsets;
 
-  required_memory += CacheLineAlignedBytes(
-      BarrieredReadWriteConcurrentBitVector::BytesNeeded(num_entries));
+  if (!use_thread_private_existence_map_) {
+    required_memory += CacheLineAlignedBytes(
+        BarrieredReadWriteConcurrentBoolVector::BytesNeeded(num_entries));
+  }
+
+  if (FLAGS_use_latch) {
+    mutex_vec_offset = required_memory;
+    required_memory += CacheLineAlignedBytes(num_entries * sizeof(SpinMutex));
+  }
 
   for (std::size_t i = 0; i < num_handles_; ++i) {
     const AggregationHandle *handle = handles_[i];
     const std::vector<const Type *> argument_types = handle->getArgumentTypes();
+    DCHECK_EQ(1u, argument_types.size());
 
     std::size_t state_size = 0;
-    switch (handle->getAggregationID()) {
-      case AggregationID::kCount: {
-        state_size = sizeof(std::atomic<std::size_t>);
-        break;
+    InvokeOnAggFuncWithArgType(
+        handle->getAggregationID(),
+        *argument_types.front(),
+        [&](const auto &agg_func, const auto &arg_type) {
+      using AggFuncT = std::remove_reference_t<decltype(agg_func)>;
+      using ArgT = remove_const_reference_t<decltype(arg_type)>;
+
+      if (FLAGS_use_latch) {
+        state_size = sizeof(typename AggFuncT::template AggState<ArgT>::T);
+      } else {
+        state_size = sizeof(typename AggFuncT::template AggState<ArgT>::AtomicT);
       }
-      case AggregationID::kSum: {
-        DCHECK_EQ(1u, argument_types.size());
-        switch (argument_types.front()->getTypeID()) {
-          case TypeID::kInt:  // Fall through
-          case TypeID::kLong:
-            state_size = sizeof(std::atomic<std::int64_t>);
-            break;
-          case TypeID::kFloat:  // Fall through
-          case TypeID::kDouble:
-            state_size = sizeof(std::atomic<double>);
-            break;
-          default:
-            LOG(FATAL) << "Not implemented";
-        }
-        break;
-      }
-      default:
-        LOG(FATAL) << "Not implemented";
-    }
+    });
 
     state_offsets.emplace_back(required_memory);
     required_memory += CacheLineAlignedBytes(state_size * num_entries);
@@ -101,10 +263,21 @@ CollisionFreeVectorTable::CollisionFreeVectorTable(
   blob_ = storage_manager_->getBlobMutable(blob_id);
 
   void *memory_start = blob_->getMemoryMutable();
-  existence_map_.reset(new BarrieredReadWriteConcurrentBitVector(
-      reinterpret_cast<char *>(memory_start) + existence_map_offset,
-      num_entries,
-      false /* initialize */));
+  if (use_thread_private_existence_map_) {
+    thread_private_existence_map_pool_.reset(new BoolVectorPool(num_entries));
+  } else {
+    concurrent_existence_map_.reset(new BarrieredReadWriteConcurrentBoolVector(
+        reinterpret_cast<char *>(memory_start) + existence_map_offset,
+        num_entries,
+        false /* initialize */));
+  }
+
+  if (FLAGS_use_latch) {
+    mutex_vec_ = reinterpret_cast<SpinMutex *>(
+        reinterpret_cast<char *>(memory_start) + mutex_vec_offset);
+  } else {
+    mutex_vec_ = nullptr;
+  }
 
   for (std::size_t i = 0; i < num_handles_; ++i) {
     // Columnwise layout.
@@ -132,113 +305,103 @@ bool CollisionFreeVectorTable::upsertValueAccessorCompositeKey(
   DCHECK_EQ(1u, key_ids.size());
 
   if (handles_.empty()) {
-    InvokeOnValueAccessorMaybeTupleIdSequenceAdapter(
-        accessor_mux.getValueAccessorBySource(key_ids.front().source),
-        [&key_ids, this](auto *accessor) -> void {  // NOLINT(build/c++11)
-      this->upsertValueAccessorKeyOnlyHelper(key_type_->isNullable(),
-                                             key_type_,
-                                             key_ids.front().attr_id,
-                                             accessor);
-    });
-    return true;
+    LOG(FATAL) << "Not implemented";
   }
 
-  DCHECK(accessor_mux.getDerivedAccessor() == nullptr ||
-         accessor_mux.getDerivedAccessor()->getImplementationType()
-             == ValueAccessor::Implementation::kColumnVectors);
+  const ValueAccessorSource key_source = key_ids.front().source;
+  const attribute_id key_id = key_ids.front().attr_id;
+  const bool is_key_nullable = key_type_->isNullable();
 
-  ValueAccessor *base_accessor = accessor_mux.getBaseAccessor();
-  ColumnVectorsValueAccessor *derived_accesor =
-      static_cast<ColumnVectorsValueAccessor *>(accessor_mux.getDerivedAccessor());
+  for (std::size_t i = 0; i < num_handles_; ++i) {
+    DCHECK_LE(argument_ids[i].size(), 1u);
 
-  // Dispatch to specialized implementations to achieve maximum performance.
-  InvokeOnValueAccessorMaybeTupleIdSequenceAdapter(
-      base_accessor,
-      [&argument_ids, &key_ids, &derived_accesor, this](auto *accessor) -> void {  // NOLINT(build/c++11)
-    const ValueAccessorSource key_source = key_ids.front().source;
-    const attribute_id key_id = key_ids.front().attr_id;
-    const bool is_key_nullable = key_type_->isNullable();
+    const AggregationHandle *handle = handles_[i];
+    const auto &argument_types = handle->getArgumentTypes();
+    const auto &argument_ids_i = argument_ids[i];
 
-    for (std::size_t i = 0; i < num_handles_; ++i) {
-      DCHECK_LE(argument_ids[i].size(), 1u);
+    ValueAccessorSource argument_source;
+    attribute_id argument_id;
+    const Type *argument_type;
+    bool is_argument_nullable;
 
-      const AggregationHandle *handle = handles_[i];
-      const auto &argument_types = handle->getArgumentTypes();
-      const auto &argument_ids_i = argument_ids[i];
+    if (argument_ids_i.empty()) {
+//      argument_source = ValueAccessorSource::kInvalid;
+//      argument_id = kInvalidAttributeID;
+//
+//      DCHECK(argument_types.empty());
+//      argument_type = nullptr;
+//      is_argument_nullable = false;
+      LOG(FATAL) << "Not supported";
+    } else {
+      DCHECK_EQ(1u, argument_ids_i.size());
+      argument_source = argument_ids_i.front().source;
+      argument_id = argument_ids_i.front().attr_id;
 
-      ValueAccessorSource argument_source;
-      attribute_id argument_id;
-      const Type *argument_type;
-      bool is_argument_nullable;
-
-      if (argument_ids_i.empty()) {
-        argument_source = ValueAccessorSource::kInvalid;
-        argument_id = kInvalidAttributeID;
-
-        DCHECK(argument_types.empty());
-        argument_type = nullptr;
-        is_argument_nullable = false;
-      } else {
-        DCHECK_EQ(1u, argument_ids_i.size());
-        argument_source = argument_ids_i.front().source;
-        argument_id = argument_ids_i.front().attr_id;
-
-        DCHECK_EQ(1u, argument_types.size());
-        argument_type = argument_types.front();
-        is_argument_nullable = argument_type->isNullable();
-      }
-
-      if (key_source == ValueAccessorSource::kBase) {
-        if (argument_source == ValueAccessorSource::kBase) {
-          this->upsertValueAccessorDispatchHelper<false>(is_key_nullable,
-                                                         is_argument_nullable,
-                                                         key_type_,
-                                                         argument_type,
-                                                         handle->getAggregationID(),
-                                                         key_id,
-                                                         argument_id,
-                                                         vec_tables_[i],
-                                                         accessor,
-                                                         accessor);
-        } else {
-          this->upsertValueAccessorDispatchHelper<true>(is_key_nullable,
-                                                        is_argument_nullable,
-                                                        key_type_,
-                                                        argument_type,
-                                                        handle->getAggregationID(),
-                                                        key_id,
-                                                        argument_id,
-                                                        vec_tables_[i],
-                                                        accessor,
-                                                        derived_accesor);
-        }
-      } else {
-        if (argument_source == ValueAccessorSource::kBase) {
-          this->upsertValueAccessorDispatchHelper<true>(is_key_nullable,
-                                                        is_argument_nullable,
-                                                        key_type_,
-                                                        argument_type,
-                                                        handle->getAggregationID(),
-                                                        key_id,
-                                                        argument_id,
-                                                        vec_tables_[i],
-                                                        derived_accesor,
-                                                        accessor);
-        } else {
-          this->upsertValueAccessorDispatchHelper<false>(is_key_nullable,
-                                                         is_argument_nullable,
-                                                         key_type_,
-                                                         argument_type,
-                                                         handle->getAggregationID(),
-                                                         key_id,
-                                                         argument_id,
-                                                         vec_tables_[i],
-                                                         derived_accesor,
-                                                         derived_accesor);
-        }
-      }
+      DCHECK_EQ(1u, argument_types.size());
+      argument_type = argument_types.front();
+      is_argument_nullable = argument_type->isNullable();
     }
-  });
+
+    InvokeOnAggFuncWithArgType(
+        handle->getAggregationID(),
+        *argument_types.front(),
+        [&](const auto &agg_func, const auto &arg_type) {
+      using AggFuncT = std::remove_reference_t<decltype(agg_func)>;
+      using ArgT = remove_const_reference_t<decltype(arg_type)>;
+
+      InvokeOnKeyType(
+          *key_type_,
+          [&](const auto &key_type) -> void {
+        using KeyT = remove_const_reference_t<decltype(key_type)>;
+
+        InvokeOnBools(
+            is_key_nullable,
+            is_argument_nullable,
+            [&](const auto &is_key_nullable,
+                const auto &is_argument_nullable) -> void {
+          using KeyNullableT =
+              remove_const_reference_t<decltype(is_key_nullable)>;
+          using ArgNullableT =
+              remove_const_reference_t<decltype(is_argument_nullable)>;
+
+          InvokeOnTwoAccessors(
+              accessor_mux,
+              key_source,
+              argument_source,
+              [&](const auto &use_two_accessors,
+                  auto *key_accessor,
+                  auto *argument_accessor) {
+            using UseTwoAccessorsT =
+                remove_const_reference_t<decltype(use_two_accessors)>;
+
+            invokeOnExistenceMap(
+                [&](auto *existence_map) -> void {
+              if (FLAGS_use_latch) {
+                upsertValueAccessorInternalUnaryLatch<
+                    AggFuncT, KeyT, ArgT,
+                    KeyNullableT::value, ArgNullableT::value, UseTwoAccessorsT::value>(                                                                 key_id,
+                        argument_id,
+                        vec_tables_[i],
+                        existence_map,
+                        key_accessor,
+                        argument_accessor);
+              } else {
+                upsertValueAccessorInternalUnaryAtomic<
+                    AggFuncT, KeyT, ArgT,
+                    KeyNullableT::value, ArgNullableT::value, UseTwoAccessorsT::value>(                                                                 key_id,
+                        argument_id,
+                        vec_tables_[i],
+                        existence_map,
+                        key_accessor,
+                        argument_accessor);
+              }
+            });
+          });
+        });
+      });
+    });
+  }
+
   return true;
 }
 
@@ -249,16 +412,17 @@ void CollisionFreeVectorTable::finalizeKey(const std::size_t partition_id,
   const std::size_t end_position =
       calculatePartitionEndPosition(partition_id);
 
-  switch (key_type_->getTypeID()) {
-    case TypeID::kInt:
-      finalizeKeyInternal<int>(start_position, end_position, output_cv);
-      return;
-    case TypeID::kLong:
-      finalizeKeyInternal<std::int64_t>(start_position, end_position, output_cv);
-      return;
-    default:
-      LOG(FATAL) << "Not supported";
-  }
+  InvokeOnKeyType(
+      *key_type_,
+      [&](const auto &key_type) {
+    using KeyT = remove_const_reference_t<decltype(key_type)>;
+
+    invokeOnExistenceMapFinal(
+        [&](const auto *existence_map) -> void {
+      finalizeKeyInternal<typename KeyT::cpptype>(
+          start_position, end_position, existence_map, output_cv);
+    });
+  });
 }
 
 void CollisionFreeVectorTable::finalizeState(const std::size_t partition_id,
@@ -274,12 +438,32 @@ void CollisionFreeVectorTable::finalizeState(const std::size_t partition_id,
   const Type *argument_type =
       argument_types.empty() ? nullptr : argument_types.front();
 
-  finalizeStateDispatchHelper(handle->getAggregationID(),
-                              argument_type,
-                              vec_tables_[handle_id],
-                              start_position,
-                              end_position,
-                              output_cv);
+  DCHECK(argument_type != nullptr);
+
+  InvokeOnAggFuncWithArgType(
+      handle->getAggregationID(),
+      *argument_type,
+      [&](const auto &agg_func, const auto &arg_type) {
+    using AggFuncT = std::remove_reference_t<decltype(agg_func)>;
+    using ArgT = remove_const_reference_t<decltype(arg_type)>;
+
+    invokeOnExistenceMapFinal(
+        [&](const auto *existence_map) -> void {
+      if (FLAGS_use_latch) {
+        finalizeStateInternalLatch<AggFuncT, ArgT>(start_position,
+                                                   end_position,
+                                                   vec_tables_[handle_id],
+                                                   existence_map,
+                                                   output_cv);
+      } else {
+        finalizeStateInternalAtomic<AggFuncT, ArgT>(start_position,
+                                                    end_position,
+                                                    vec_tables_[handle_id],
+                                                    existence_map,
+                                                    output_cv);
+      }
+    });
+  });
 }
 
 }  // namespace quickstep

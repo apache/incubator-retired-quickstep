@@ -20,6 +20,7 @@ QS_PROTOBUF_GENERATE_CPP(expressions_aggregation_AggregateFunction_proto_srcs
                          AggregateFunction.proto)
 
 # Declare micro-libs:
+add_library(quickstep_expressions_aggregation_AggFunc ../../empty_src.cpp AggFunc.hpp)
 add_library(quickstep_expressions_aggregation_AggregateFunction
             AggregateFunction.cpp
             AggregateFunction.hpp)
@@ -69,6 +70,14 @@ add_library(quickstep_expressions_aggregation_AggregationID
             AggregationID.hpp)
 
 # Link dependencies:
+target_link_libraries(quickstep_expressions_aggregation_AggFunc
+                      glog
+                      quickstep_expressions_aggregation_AggregationID
+                      quickstep_types_DoubleType
+                      quickstep_types_FloatType
+                      quickstep_types_IntType
+                      quickstep_types_LongType
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_aggregation_AggregateFunction
                       glog
                       quickstep_expressions_aggregation_AggregateFunction_proto
@@ -236,6 +245,7 @@ target_link_libraries(quickstep_expressions_aggregation_AggregationHandleSum
 # Submodule all-in-one library:
 add_library(quickstep_expressions_aggregation ../../empty_src.cpp)
 target_link_libraries(quickstep_expressions_aggregation
+                      quickstep_expressions_aggregation_AggFunc
                       quickstep_expressions_aggregation_AggregateFunction
                       quickstep_expressions_aggregation_AggregateFunction_proto
                       quickstep_expressions_aggregation_AggregateFunctionAvg

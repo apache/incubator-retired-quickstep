@@ -436,7 +436,9 @@ if(QUICKSTEP_HAVE_BITWEAVING)
 endif()
 # CMAKE_VALIDATE_IGNORE_END
 target_link_libraries(quickstep_storage_CollisionFreeVectorTable
+                      ${GFLAGS_LIB_NAME}
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_aggregation_AggFunc
                       quickstep_expressions_aggregation_AggregationHandle
                       quickstep_expressions_aggregation_AggregationID
                       quickstep_storage_HashTableBase
@@ -447,11 +449,12 @@ target_link_libraries(quickstep_storage_CollisionFreeVectorTable
                       quickstep_storage_ValueAccessor
                       quickstep_storage_ValueAccessorMultiplexer
                       quickstep_storage_ValueAccessorUtil
+                      quickstep_threading_SpinMutex
                       quickstep_types_Type
                       quickstep_types_TypeID
                       quickstep_types_containers_ColumnVector
                       quickstep_types_containers_ColumnVectorsValueAccessor
-                      quickstep_utility_BarrieredReadWriteConcurrentBitVector
+                      quickstep_utility_BoolVector
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_ColumnStoreUtil
                       quickstep_catalog_CatalogAttribute

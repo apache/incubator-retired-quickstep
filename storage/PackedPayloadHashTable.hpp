@@ -95,6 +95,10 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
 
   void destroyPayload() override;
 
+  inline std::size_t getNumFinalizationPartitions() const {
+    return CalculateNumFinalizationPartitions(numEntries());
+  }
+
   /**
    * @brief Use aggregation handles to update (multiple) aggregation states in
    *        this hash table, with group-by keys and arguments drawn from the
@@ -287,6 +291,11 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
   template <typename FunctorT>
   inline std::size_t forEachCompositeKey(FunctorT *functor) const;
 
+  template <typename FunctorT>
+  inline void forEachCompositeKeyInPartition(
+      const std::size_t partition_id,
+      const FunctorT &functor) const;
+
   /**
    * @brief Apply a functor to each (key, aggregation state) pair in this hash
    *        table, where the aggregation state is retrieved from the value
@@ -326,6 +335,25 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
       }
     }
     return total;
+  }
+
+  inline std::size_t calculatePartitionLength() const {
+    const std::size_t num_finalize_partitions = getNumFinalizationPartitions();
+    const std::size_t partition_length =
+        (numEntries() + num_finalize_partitions - 1) / num_finalize_partitions;
+    DCHECK_GE(partition_length, 0u);
+    return partition_length;
+  }
+
+  inline std::size_t calculatePartitionStartPosition(
+      const std::size_t partition_id) const {
+    return calculatePartitionLength() * partition_id;
+  }
+
+  inline std::size_t calculatePartitionEndPosition(
+      const std::size_t partition_id) const {
+    return std::min(calculatePartitionLength() * (partition_id + 1),
+                    numEntries());
   }
 
   inline bool getNextEntry(TypedValue *key,
@@ -436,6 +464,15 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
              kBucketAlignment) +
             1) *
            kBucketAlignment;
+  }
+
+  inline static std::size_t CalculateNumFinalizationPartitions(
+      const std::size_t num_entries) {
+    // Set finalization segment size as 4096 entries.
+    constexpr std::size_t kFinalizeSegmentSize = 4uL * 1024L;
+
+    // At least 1 partition, at most 80 partitions.
+    return std::max(1uL, std::min(num_entries / kFinalizeSegmentSize, 80uL));
   }
 
   // Attempt to find an empty bucket to insert 'hash_code' into, starting after
@@ -972,6 +1009,29 @@ inline std::size_t PackedPayloadHashTable::forEachCompositeKey(
     key.clear();
   }
   return entries_visited;
+}
+
+template <typename FunctorT>
+inline void PackedPayloadHashTable::forEachCompositeKeyInPartition(
+    const std::size_t partition_id,
+    const FunctorT &functor) const {
+  const std::size_t start_position =
+      calculatePartitionStartPosition(partition_id);
+  const std::size_t end_position =
+      calculatePartitionEndPosition(partition_id);
+
+  std::vector<TypedValue> key;
+  for (std::size_t i = start_position; i < end_position; ++i) {
+    const char *bucket =
+        static_cast<const char *>(buckets_) + i * bucket_size_;
+    for (std::vector<const Type *>::size_type key_idx = 0;
+         key_idx < this->key_types_.size();
+         ++key_idx) {
+      key.emplace_back(key_manager_.getKeyComponentTyped(bucket, key_idx));
+    }
+    functor(key);
+    key.clear();
+  }
 }
 
 template <typename FunctorT>

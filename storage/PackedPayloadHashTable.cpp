@@ -256,6 +256,10 @@ bool PackedPayloadHashTable::upsertValueAccessorCompositeKey(
 void PackedPayloadHashTable::resize(const std::size_t extra_buckets,
                                     const std::size_t extra_variable_storage,
                                     const std::size_t retry_num) {
+  LOG(FATAL) << "Resize " << numEntries() << " + "
+             << extra_buckets << " + " << extra_variable_storage
+             << " -- " << header_->num_buckets;
+
   // A retry should never be necessary with this implementation of HashTable.
   // Separate chaining ensures that any resized hash table with more buckets
   // than the original table will be able to hold more entries than the

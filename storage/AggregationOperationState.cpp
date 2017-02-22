@@ -67,7 +67,7 @@ DEFINE_int32(num_aggregation_partitions,
              41,
              "The number of partitions used for performing the aggregation");
 DEFINE_int32(partition_aggregation_num_groups_threshold,
-             500000,
+             100,
              "The threshold used for deciding whether the aggregation is done "
              "in a partitioned way or not");
 
@@ -208,13 +208,13 @@ AggregationOperationState::AggregationOperationState(
               group_by_handles,
               storage_manager));
     } else if (is_aggregate_partitioned_) {
-      partitioned_group_by_hashtable_pool_.reset(
-          new PartitionedHashTablePool(estimated_num_entries,
-                                       FLAGS_num_aggregation_partitions,
-                                       hash_table_impl_type,
-                                       group_by_types_,
-                                       group_by_handles,
-                                       storage_manager));
+      partitioned_hashtable_.reset(
+          AggregationStateHashTableFactory::CreateResizable(
+              hash_table_impl_type,
+              group_by_types_,
+              estimated_num_entries,
+              group_by_handles,
+              storage_manager_));
     } else {
       group_by_hashtable_pool_.reset(
           new HashTablePool(estimated_num_entries,
@@ -406,7 +406,8 @@ std::size_t AggregationOperationState::getNumFinalizationPartitions() const {
     return static_cast<CollisionFreeVectorTable *>(
         collision_free_hashtable_.get())->getNumFinalizationPartitions();
   } else if (is_aggregate_partitioned_) {
-    return partitioned_group_by_hashtable_pool_->getNumPartitions();
+    return static_cast<PackedPayloadHashTable *>(
+        partitioned_hashtable_.get())->getNumFinalizationPartitions();
   } else  {
     return 1u;
   }
@@ -549,62 +550,11 @@ void AggregationOperationState::aggregateBlockHashTableImplCollisionFree(
 
 void AggregationOperationState::aggregateBlockHashTableImplPartitioned(
     const ValueAccessorMultiplexer &accessor_mux) {
-  DCHECK(partitioned_group_by_hashtable_pool_ != nullptr);
+  DCHECK(partitioned_hashtable_ != nullptr);
 
-  std::vector<attribute_id> group_by_key_ids;
-  for (const MultiSourceAttributeId &key_id : group_by_key_ids_) {
-    DCHECK(key_id.source == ValueAccessorSource::kBase);
-    group_by_key_ids.emplace_back(key_id.attr_id);
-  }
-
-  InvokeOnValueAccessorMaybeTupleIdSequenceAdapter(
-      accessor_mux.getBaseAccessor(),
-      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
-    // TODO(jianqiao): handle the situation when keys in non_trivial_results
-    const std::size_t num_partitions = partitioned_group_by_hashtable_pool_->getNumPartitions();
-
-    // Compute the partitions for the tuple formed by group by values.
-    std::vector<std::unique_ptr<TupleIdSequence>> partition_membership;
-    partition_membership.resize(num_partitions);
-
-    // Create a tuple-id sequence for each partition.
-    for (std::size_t partition = 0; partition < num_partitions; ++partition) {
-      partition_membership[partition].reset(
-          new TupleIdSequence(accessor->getEndPosition()));
-    }
-
-    // Iterate over ValueAccessor for each tuple,
-    // set a bit in the appropriate TupleIdSequence.
-    while (accessor->next()) {
-      // We need a unique_ptr because getTupleWithAttributes() uses "new".
-      std::unique_ptr<Tuple> curr_tuple(
-          accessor->getTupleWithAttributes(group_by_key_ids));
-      const std::size_t curr_tuple_partition_id =
-          curr_tuple->getTupleHash() % num_partitions;
-      partition_membership[curr_tuple_partition_id]->set(
-          accessor->getCurrentPosition(), true);
-    }
-
-    // Aggregate each partition.
-    for (std::size_t partition = 0; partition < num_partitions; ++partition) {
-      std::unique_ptr<ValueAccessor> base_adapter(
-          accessor->createSharedTupleIdSequenceAdapter(
-              *partition_membership[partition]));
-
-      std::unique_ptr<ValueAccessor> derived_adapter;
-      if (accessor_mux.getDerivedAccessor() != nullptr) {
-        derived_adapter.reset(
-            accessor_mux.getDerivedAccessor()->createSharedTupleIdSequenceAdapterVirtual(
-                *partition_membership[partition]));
-      }
-
-      ValueAccessorMultiplexer local_mux(base_adapter.get(), derived_adapter.get());
-      partitioned_group_by_hashtable_pool_->getHashTable(partition)
-          ->upsertValueAccessorCompositeKey(argument_ids_,
-                                            group_by_key_ids_,
-                                            local_mux);
-    }
-  });
+  partitioned_hashtable_->upsertValueAccessorCompositeKey(argument_ids_,
+                                                           group_by_key_ids_,
+                                                           accessor_mux);
 }
 
 void AggregationOperationState::aggregateBlockHashTableImplThreadPrivate(
@@ -712,20 +662,18 @@ void AggregationOperationState::finalizeHashTableImplPartitioned(
     const std::size_t partition_id,
     InsertDestination *output_destination) {
   PackedPayloadHashTable *hash_table =
-      static_cast<PackedPayloadHashTable *>(
-          partitioned_group_by_hashtable_pool_->getHashTable(partition_id));
+      static_cast<PackedPayloadHashTable *>(partitioned_hashtable_.get());
 
   // Each element of 'group_by_keys' is a vector of values for a particular
   // group (which is also the prefix of the finalized Tuple for that group).
   std::vector<std::vector<TypedValue>> group_by_keys;
 
   if (handles_.empty()) {
-    const auto keys_retriever = [&group_by_keys](std::vector<TypedValue> &group_by_key,
-                                                 const std::uint8_t *dumb_placeholder) -> void {
+    hash_table->forEachCompositeKeyInPartition(
+        partition_id,
+        [&](std::vector<TypedValue> &group_by_key) -> void {
       group_by_keys.emplace_back(std::move(group_by_key));
-    };
-
-    hash_table->forEachCompositeKey(&keys_retriever);
+    });
   }
 
   // Collect per-aggregate finalized values.
@@ -737,15 +685,8 @@ void AggregationOperationState::finalizeHashTableImplPartitioned(
       final_values.emplace_back(agg_result_col);
     }
   }
-  hash_table->destroyPayload();
+//  hash_table->destroyPayload();
 
-  // Reorganize 'group_by_keys' in column-major order so that we can make a
-  // ColumnVectorsValueAccessor to bulk-insert results.
-  //
-  // TODO(chasseur): Shuffling around the GROUP BY keys like this is suboptimal
-  // if there is only one aggregate. The need to do this should hopefully go
-  // away when we work out storing composite structures for multiple aggregates
-  // in a single HashTable.
   std::vector<std::unique_ptr<ColumnVector>> group_by_cvs;
   std::size_t group_by_element_idx = 0;
   for (const Type *group_by_type : group_by_types_) {
