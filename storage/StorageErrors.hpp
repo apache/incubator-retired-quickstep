@@ -141,9 +141,19 @@ class MalformedBlock : public std::exception {
  **/
 class OutOfMemory : public std::exception {
  public:
+  /**
+   * @brief Constructor.
+   *
+   * @param num_slots The number of slots to allocate.
+   **/
+  explicit OutOfMemory(const std::size_t num_slots);
+
   virtual const char* what() const throw() {
-    return "OutOfMemory: The system has run out of memory";
+    return message_.c_str();
   }
+
+ private:
+  std::string message_;
 };
 
 /**

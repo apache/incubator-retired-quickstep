@@ -41,6 +41,12 @@ FileWriteError::FileWriteError(const std::string &filename)
   message_.append(filename);
 }
 
+OutOfMemory::OutOfMemory(const std::size_t num_slots)
+    : message_("OutOfMemory: The system has run out of memory when allocating ") {
+  message_.append(std::to_string(num_slots));
+  message_.append(" slots");
+}
+
 TupleTooLargeForBlock::TupleTooLargeForBlock(const std::size_t tuple_size)
     : tuple_size_(tuple_size),
       message_("TupleTooLargeForBlock: ") {

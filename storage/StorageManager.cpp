@@ -757,7 +757,7 @@ void* StorageManager::allocateSlots(const std::size_t num_slots,
 #endif
 
   if (slots == nullptr) {
-    throw OutOfMemory();
+    throw OutOfMemory(num_slots);
   }
 
 #if defined(QUICKSTEP_HAVE_LIBNUMA)
