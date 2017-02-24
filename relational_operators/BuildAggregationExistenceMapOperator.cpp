@@ -144,7 +144,7 @@ bool BuildAggregationExistenceMapOperator
 serialization::WorkOrder* BuildAggregationExistenceMapOperator
     ::createWorkOrderProto(const block_id block) {
   serialization::WorkOrder *proto = new serialization::WorkOrder;
-  proto->set_work_order_type(serialization::BUILD_LIP_FILTER);
+  proto->set_work_order_type(serialization::BUILD_AGGREGATION_EXISTENCE_MAP);
   proto->set_query_id(query_id_);
 
   proto->SetExtension(serialization::BuildAggregationExistenceMapWorkOrder::relation_id,

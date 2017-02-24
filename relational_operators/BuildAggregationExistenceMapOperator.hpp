@@ -80,9 +80,9 @@ class BuildAggregationExistenceMapOperator : public RelationalOperator {
         input_relation_(input_relation),
         build_attribute_(build_attribute),
         input_relation_is_stored_(input_relation_is_stored),
+        aggr_state_index_(aggr_state_index),
         input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
                                                            : std::vector<block_id>()),
-        aggr_state_index_(aggr_state_index),
         num_workorders_generated_(0),
         started_(false) {}
 
@@ -118,9 +118,9 @@ class BuildAggregationExistenceMapOperator : public RelationalOperator {
   const CatalogRelation &input_relation_;
   const attribute_id build_attribute_;
   const bool input_relation_is_stored_;
-  std::vector<block_id> input_relation_block_ids_;
   const QueryContext::aggregation_state_id aggr_state_index_;
 
+  std::vector<block_id> input_relation_block_ids_;
   std::vector<block_id>::size_type num_workorders_generated_;
   bool started_;
 
@@ -163,8 +163,8 @@ class BuildAggregationExistenceMapWorkOrder : public WorkOrder {
   const CatalogRelationSchema &input_relation_;
   const block_id build_block_id_;
   const attribute_id build_attribute_;
-  AggregationOperationState *state_;
 
+  AggregationOperationState *state_;
   StorageManager *storage_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(BuildAggregationExistenceMapWorkOrder);

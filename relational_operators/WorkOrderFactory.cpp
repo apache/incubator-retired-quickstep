@@ -103,7 +103,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::build_block_id),
           proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::build_attribute),
           query_context->getAggregationState(
-              proto.GetExtension(serialization::AggregationWorkOrder::aggr_state_index)),
+              proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::aggr_state_index)),
           storage_manager);
     }
     case serialization::BUILD_LIP_FILTER: {
