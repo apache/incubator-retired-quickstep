@@ -19,8 +19,10 @@
 
 #include "storage/AggregationOperationState.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 #include <utility>
@@ -87,6 +89,8 @@ AggregationOperationState::AggregationOperationState(
       is_aggregate_partitioned_(false),
       predicate_(predicate),
       is_distinct_(std::move(is_distinct)),
+      all_distinct_(std::accumulate(is_distinct_.begin(), is_distinct_.end(),
+                                    true, std::logical_and<bool>())),
       storage_manager_(storage_manager) {
   if (!group_by.empty()) {
     if (hash_table_impl_type == HashTableImplType::kCollisionFreeVector) {
@@ -163,11 +167,6 @@ AggregationOperationState::AggregationOperationState(
     handles_.emplace_back((*agg_func_it)->createHandle(argument_types));
 
     if (!group_by_key_ids_.empty()) {
-      // Aggregation with GROUP BY: combined payload is partially updated in
-      // the presence of DISTINCT.
-      if (*is_distinct_it) {
-        handles_.back()->blockUpdate();
-      }
       group_by_handles.emplace_back(handles_.back().get());
     } else {
       // Aggregation without GROUP BY: create a single global state.
@@ -180,17 +179,32 @@ AggregationOperationState::AggregationOperationState(
       std::vector<const Type *> key_types(group_by_types_);
       key_types.insert(
           key_types.end(), argument_types.begin(), argument_types.end());
+
       // TODO(jianqiao): estimated_num_entries is quite inaccurate for
       // estimating the number of entries in the distinctify hash table.
       // We need to estimate for each distinct aggregation an
       // estimated_num_distinct_keys value during query optimization.
-      distinctify_hashtables_.emplace_back(
-          AggregationStateHashTableFactory::CreateResizable(
-              *distinctify_hash_table_impl_types_it,
-              key_types,
-              estimated_num_entries,
-              {} /* handles */,
-              storage_manager));
+      if (is_aggregate_partitioned_) {
+        DCHECK(partitioned_group_by_hashtable_pool_ == nullptr);
+        partitioned_group_by_hashtable_pool_.reset(
+            new PartitionedHashTablePool(estimated_num_entries,
+                                         FLAGS_num_aggregation_partitions,
+                                         *distinctify_hash_table_impl_types_it,
+                                         key_types,
+                                         {},
+                                         storage_manager));
+      } else {
+        distinctify_hashtables_.emplace_back(
+            AggregationStateHashTableFactory::CreateResizable(
+                *distinctify_hash_table_impl_types_it,
+                key_types,
+                estimated_num_entries,
+                {} /* handles */,
+                storage_manager));
+
+        // Combined payload is partially updated in the presence of DISTINCT.
+        handles_.back()->blockUpdate();
+      }
       ++distinctify_hash_table_impl_types_it;
     } else {
       distinctify_hashtables_.emplace_back(nullptr);
@@ -208,13 +222,24 @@ AggregationOperationState::AggregationOperationState(
               group_by_handles,
               storage_manager));
     } else if (is_aggregate_partitioned_) {
-      partitioned_group_by_hashtable_pool_.reset(
-          new PartitionedHashTablePool(estimated_num_entries,
-                                       FLAGS_num_aggregation_partitions,
-                                       hash_table_impl_type,
-                                       group_by_types_,
-                                       group_by_handles,
-                                       storage_manager));
+      if (all_distinct_) {
+        DCHECK_EQ(1u, group_by_handles.size());
+        DCHECK(partitioned_group_by_hashtable_pool_ != nullptr);
+        group_by_hashtable_pool_.reset(
+            new HashTablePool(estimated_num_entries,
+                              hash_table_impl_type,
+                              group_by_types_,
+                              group_by_handles,
+                              storage_manager));
+      } else {
+        partitioned_group_by_hashtable_pool_.reset(
+            new PartitionedHashTablePool(estimated_num_entries,
+                                         FLAGS_num_aggregation_partitions,
+                                         hash_table_impl_type,
+                                         group_by_types_,
+                                         group_by_handles,
+                                         storage_manager));
+      }
     } else {
       group_by_hashtable_pool_.reset(
           new HashTablePool(estimated_num_entries,
@@ -362,11 +387,13 @@ bool AggregationOperationState::checkAggregatePartitioned(
   if (aggregate_functions.empty()) {
     return false;
   }
-  // Check if there's a distinct operation involved in any aggregate, if so
-  // the aggregate can't be partitioned.
-  for (auto distinct : is_distinct) {
-    if (distinct) {
-      return false;
+  // If there is only only aggregate function, we allow distinct aggregation.
+  // Otherwise it can't be partitioned with distinct aggregation.
+  if (aggregate_functions.size() > 1) {
+    for (auto distinct : is_distinct) {
+      if (distinct) {
+        return false;
+      }
     }
   }
   // There's no distinct aggregation involved, Check if there's at least one
@@ -384,12 +411,17 @@ bool AggregationOperationState::checkAggregatePartitioned(
     }
   }
 
+  // Currently we always use partitioned aggregation to parallelize distinct
+  // aggregation.
+  if (all_distinct_) {
+    return true;
+  }
+
   // There are GROUP BYs without DISTINCT. Check if the estimated number of
   // groups is large enough to warrant a partitioned aggregation.
   return estimated_num_groups >
          static_cast<std::size_t>(
              FLAGS_partition_aggregation_num_groups_threshold);
-  return false;
 }
 
 std::size_t AggregationOperationState::getNumInitializationPartitions() const {
@@ -599,10 +631,19 @@ void AggregationOperationState::aggregateBlockHashTableImplPartitioned(
       }
 
       ValueAccessorMultiplexer local_mux(base_adapter.get(), derived_adapter.get());
-      partitioned_group_by_hashtable_pool_->getHashTable(partition)
-          ->upsertValueAccessorCompositeKey(argument_ids_,
-                                            group_by_key_ids_,
-                                            local_mux);
+      if (all_distinct_) {
+        DCHECK_EQ(1u, handles_.size());
+        handles_.front()->insertValueAccessorIntoDistinctifyHashTable(
+            argument_ids_.front(),
+            group_by_key_ids_,
+            local_mux,
+            partitioned_group_by_hashtable_pool_->getHashTable(partition));
+      } else {
+        partitioned_group_by_hashtable_pool_->getHashTable(partition)
+            ->upsertValueAccessorCompositeKey(argument_ids_,
+                                              group_by_key_ids_,
+                                              local_mux);
+      }
     }
   });
 }
@@ -621,13 +662,15 @@ void AggregationOperationState::aggregateBlockHashTableImplThreadPrivate(
     }
   }
 
-  AggregationStateHashTableBase *agg_hash_table =
-      group_by_hashtable_pool_->getHashTable();
+  if (!all_distinct_) {
+    AggregationStateHashTableBase *agg_hash_table =
+        group_by_hashtable_pool_->getHashTable();
 
-  agg_hash_table->upsertValueAccessorCompositeKey(argument_ids_,
-                                                  group_by_key_ids_,
-                                                  accessor_mux);
-  group_by_hashtable_pool_->returnHashTable(agg_hash_table);
+    agg_hash_table->upsertValueAccessorCompositeKey(argument_ids_,
+                                                    group_by_key_ids_,
+                                                    accessor_mux);
+    group_by_hashtable_pool_->returnHashTable(agg_hash_table);
+  }
 }
 
 void AggregationOperationState::finalizeAggregate(
@@ -711,9 +754,23 @@ void AggregationOperationState::finalizeHashTableImplCollisionFree(
 void AggregationOperationState::finalizeHashTableImplPartitioned(
     const std::size_t partition_id,
     InsertDestination *output_destination) {
-  PackedPayloadHashTable *hash_table =
+  PackedPayloadHashTable *partitioned_hash_table =
       static_cast<PackedPayloadHashTable *>(
           partitioned_group_by_hashtable_pool_->getHashTable(partition_id));
+
+  PackedPayloadHashTable *hash_table;
+  if (all_distinct_) {
+    DCHECK_EQ(1u, handles_.size());
+    DCHECK(group_by_hashtable_pool_ != nullptr);
+
+    hash_table = static_cast<PackedPayloadHashTable *>(
+        group_by_hashtable_pool_->getHashTable());
+    handles_.front()->aggregateOnDistinctifyHashTableForGroupBy(
+        *partitioned_hash_table, 0, hash_table);
+    partitioned_hash_table->destroyPayload();
+  } else {
+    hash_table = partitioned_hash_table;
+  }
 
   // Each element of 'group_by_keys' is a vector of values for a particular
   // group (which is also the prefix of the finalized Tuple for that group).
@@ -790,19 +847,24 @@ void AggregationOperationState::finalizeHashTableImplThreadPrivate(
   // TODO(harshad) - Find heuristics for faster merge, even in a single thread.
   // e.g. Keep merging entries from smaller hash tables to larger.
 
-  auto *hash_tables = group_by_hashtable_pool_->getAllHashTables();
-  DCHECK(hash_tables != nullptr);
-  if (hash_tables->empty()) {
-    return;
-  }
+  std::unique_ptr<AggregationStateHashTableBase> final_hash_table_ptr;
 
-  std::unique_ptr<AggregationStateHashTableBase> final_hash_table_ptr(
-      hash_tables->back().release());
-  for (std::size_t i = 0; i < hash_tables->size() - 1; ++i) {
-    std::unique_ptr<AggregationStateHashTableBase> hash_table(
-        hash_tables->at(i).release());
-    mergeGroupByHashTables(hash_table.get(), final_hash_table_ptr.get());
-    hash_table->destroyPayload();
+  if (all_distinct_) {
+    final_hash_table_ptr.reset(group_by_hashtable_pool_->getHashTable());
+  } else {
+    auto *hash_tables = group_by_hashtable_pool_->getAllHashTables();
+    DCHECK(hash_tables != nullptr);
+    if (hash_tables->empty()) {
+      return;
+    }
+
+    final_hash_table_ptr.reset(hash_tables->back().release());
+    for (std::size_t i = 0; i < hash_tables->size() - 1; ++i) {
+      std::unique_ptr<AggregationStateHashTableBase> hash_table(
+          hash_tables->at(i).release());
+      mergeGroupByHashTables(hash_table.get(), final_hash_table_ptr.get());
+      hash_table->destroyPayload();
+    }
   }
 
   PackedPayloadHashTable *final_hash_table =

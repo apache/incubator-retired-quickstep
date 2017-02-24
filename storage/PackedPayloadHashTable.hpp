@@ -20,10 +20,12 @@
 #ifndef QUICKSTEP_STORAGE_PACKED_PAYLOAD_HASH_TABLE_HPP_
 #define QUICKSTEP_STORAGE_PACKED_PAYLOAD_HASH_TABLE_HPP_
 
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <limits>
 #include <vector>
 
@@ -336,11 +338,12 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
                                        const std::uint8_t **value,
                                        std::size_t *entry_num) const;
 
+  template <bool key_only = false>
   inline std::uint8_t* upsertCompositeKeyInternal(
       const std::vector<TypedValue> &key,
       const std::size_t variable_key_size);
 
-  template <bool use_two_accessors>
+  template <bool use_two_accessors, bool key_only, bool has_variable_size>
   inline bool upsertValueAccessorCompositeKeyInternal(
       const std::vector<std::vector<MultiSourceAttributeId>> &argument_ids,
       const std::vector<MultiSourceAttributeId> &key_ids,
@@ -355,8 +358,9 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
   // comes from a HashTableKeyManager, and is set by the constructor of a
   // subclass of HashTable.
   inline void setKeyInline(const std::vector<bool> *key_inline) {
-    scalar_key_inline_ = key_inline->front();
     key_inline_ = key_inline;
+    all_keys_inline_ = std::accumulate(key_inline_->begin(), key_inline_->end(),
+                                       true, std::logical_and<bool>());
   }
 
   inline static std::size_t ComputeTotalPayloadSize(
@@ -407,7 +411,7 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
   // Information about whether key components are stored inline or in a
   // separate variable-length storage region. This is usually determined by a
   // HashTableKeyManager and set by calling setKeyInline().
-  bool scalar_key_inline_;
+  bool all_keys_inline_;
   const std::vector<bool> *key_inline_;
 
   const std::size_t num_handles_;
@@ -763,7 +767,7 @@ inline bool PackedPayloadHashTable::upsertCompositeKey(
   }
 }
 
-
+template <bool key_only>
 inline std::uint8_t* PackedPayloadHashTable::upsertCompositeKeyInternal(
     const std::vector<TypedValue> &key,
     const std::size_t variable_key_size) {
@@ -809,7 +813,9 @@ inline std::uint8_t* PackedPayloadHashTable::upsertCompositeKeyInternal(
   writeCompositeKeyToBucket(key, hash_code, bucket);
 
   std::uint8_t *value = static_cast<unsigned char *>(bucket) + kValueOffset;
-  std::memcpy(value, init_payload_, this->total_payload_size_);
+  if (!key_only) {
+    std::memcpy(value, init_payload_, this->total_payload_size_);
+  }
 
   // Update the previous chaing pointer to point to the new bucket.
   pending_chain_ptr->store(pending_chain_ptr_finish_value,
@@ -819,13 +825,13 @@ inline std::uint8_t* PackedPayloadHashTable::upsertCompositeKeyInternal(
   return value;
 }
 
-template <bool use_two_accessors>
+template <bool use_two_accessors, bool key_only, bool has_variable_size>
 inline bool PackedPayloadHashTable::upsertValueAccessorCompositeKeyInternal(
     const std::vector<std::vector<MultiSourceAttributeId>> &argument_ids,
     const std::vector<MultiSourceAttributeId> &key_ids,
     ValueAccessor *base_accessor,
     ColumnVectorsValueAccessor *derived_accessor) {
-  std::size_t variable_size;
+  std::size_t variable_size = 0;
   std::vector<TypedValue> key_vector;
   key_vector.resize(key_ids.size());
 
@@ -848,13 +854,17 @@ inline bool PackedPayloadHashTable::upsertValueAccessorCompositeKeyInternal(
                   &key_vector)) {
             continue;
           }
-          variable_size = this->calculateVariableLengthCompositeKeyCopySize(key_vector);
-          std::uint8_t *value = this->upsertCompositeKeyInternal(
-              key_vector, variable_size);
+          if (has_variable_size) {
+            variable_size =
+                this->calculateVariableLengthCompositeKeyCopySize(key_vector);
+          }
+          std::uint8_t *value =
+              this->template upsertCompositeKeyInternal<key_only>(
+                  key_vector, variable_size);
           if (value == nullptr) {
             continuing = true;
             break;
-          } else {
+          } else if (!key_only) {
             SpinMutexLock lock(*(reinterpret_cast<SpinMutex *>(value)));
             for (unsigned int k = 0; k < num_handles_; ++k) {
               const auto &ids = argument_ids[k];

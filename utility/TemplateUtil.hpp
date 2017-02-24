@@ -30,6 +30,8 @@ namespace quickstep {
  *  @{
  */
 
+namespace template_util_inner {
+
 /**
  * @brief Represents a compile-time sequence of integers.
  *
@@ -58,7 +60,6 @@ struct MakeSequence<0, S...> {
   typedef Sequence<S...> type;
 };
 
-
 /**
  * @brief Final step of CreateBoolInstantiatedInstance. Now all bool_values are
  *        ready. Instantiate the template and create (i.e. new) an instance.
@@ -70,6 +71,42 @@ inline ReturnT* CreateBoolInstantiatedInstanceInner(Tuple &&args,
                                                     Sequence<i...> &&indices) {
   return new T<bool_values...>(std::get<i>(std::forward<Tuple>(args))...);
 }
+
+/**
+ * @brief Invoke the functor with the compile-time bool values wrapped as
+ *        integral_constant types.
+ */
+template <typename FunctorT, bool ...bool_values>
+inline auto InvokeOnBoolsInner(const FunctorT &functor) {
+  return functor(std::integral_constant<bool, bool_values>()...);
+}
+
+/**
+ * @brief Recursive dispatching.
+ */
+template <typename FunctorT, bool ...bool_values, typename ...Bools>
+inline auto InvokeOnBoolsInner(const FunctorT &functor,
+                               const bool tparam,
+                               const Bools ...rest_params) {
+  if (tparam) {
+    return InvokeOnBoolsInner<FunctorT, bool_values..., true>(
+        functor, rest_params...);
+  } else {
+    return InvokeOnBoolsInner<FunctorT, bool_values..., false>(
+        functor, rest_params...);
+  }
+}
+
+/**
+ * @brief Move the functor to the first position in argument list.
+ */
+template <std::size_t last, std::size_t ...i, typename TupleT>
+inline auto InvokeOnBoolsInner(TupleT &&args, Sequence<i...> &&indices) {
+  return InvokeOnBoolsInner(std::get<last>(std::forward<TupleT>(args)),
+                            std::get<i>(std::forward<TupleT>(args))...);
+}
+
+}  // namespace template_util_inner
 
 /**
  * @brief Edge case of the recursive CreateBoolInstantiatedInstance function
@@ -85,8 +122,10 @@ inline ReturnT* CreateBoolInstantiatedInstance(Tuple &&args) {
   // for the tuple, so that the tuple can be unpacked as a sequence of constructor
   // parameters in CreateBoolInstantiatedInstanceInner.
   constexpr std::size_t n_args = std::tuple_size<Tuple>::value;
-  return CreateBoolInstantiatedInstanceInner<T, ReturnT, bool_values...>(
-      std::forward<Tuple>(args), typename MakeSequence<n_args>::type());
+  return template_util_inner::CreateBoolInstantiatedInstanceInner<
+      T, ReturnT, bool_values...>(
+          std::forward<Tuple>(args),
+          typename template_util_inner::MakeSequence<n_args>::type());
 }
 
 /**
@@ -158,6 +197,35 @@ inline ReturnT* CreateBoolInstantiatedInstance(Tuple &&args,
     return CreateBoolInstantiatedInstance<T, ReturnT, bool_values..., false>(
         std::forward<Tuple>(args), rest_tparams...);
   }
+}
+
+/**
+ * @brief A helper function for bool branched template specialization.
+ *
+ * Usage example:
+ * --
+ * bool c1 = true, c2 = false;
+ *
+ * InvokeOnBools(
+ *     c1, c2,
+ *     [&](auto c1, auto c2) -> SomeBaseClass* {
+ *   using T1 = decltype(c1);  // T1 == std::true_type
+ *   using T2 = decltype(c2);  // T2 == std::false_type
+ *
+ *   constexpr bool cv1 = T1::value;  // cv1 == true
+ *   constexpr bool cv2 = T2::value;  // cv2 == false
+ *
+ *   SomeFunction<cv1, cv2>(...);
+ *   return new SomeClass<cv1, cv2>(...);
+ * });
+ * --
+ */
+template <typename ...ArgTypes>
+inline auto InvokeOnBools(ArgTypes ...args) {
+  constexpr std::size_t last = sizeof...(args) - 1;
+  return template_util_inner::InvokeOnBoolsInner<last>(
+      std::forward_as_tuple(args...),
+      typename template_util_inner::MakeSequence<last>::type());
 }
 
 /** @} */
