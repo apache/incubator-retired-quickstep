@@ -251,7 +251,7 @@ bool PackedPayloadHashTable::upsertValueAccessorCompositeKey(
       [&](auto use_two_accessors,  // NOLINT(build/c++11)
           auto key_only,
           auto has_variable_size) -> bool {
-    return upsertValueAccessorCompositeKeyInternal<
+    return this->upsertValueAccessorCompositeKeyInternal<
         decltype(use_two_accessors)::value,
         decltype(key_only)::value,
         decltype(has_variable_size)::value>(
