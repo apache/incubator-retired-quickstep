@@ -20,6 +20,7 @@
 #ifndef QUICKSTEP_STORAGE_PACKED_PAYLOAD_HASH_TABLE_HPP_
 #define QUICKSTEP_STORAGE_PACKED_PAYLOAD_HASH_TABLE_HPP_
 
+#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -29,6 +30,8 @@
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/aggregation/AggregationHandle.hpp"
+#include "expressions/aggregation/AggFunc.hpp"
+#include "storage/AggregationUtil.hpp"
 #include "storage/HashTableBase.hpp"
 #include "storage/HashTableKeyManager.hpp"
 #include "storage/StorageBlob.hpp"
@@ -38,13 +41,19 @@
 #include "threading/SpinMutex.hpp"
 #include "threading/SpinSharedMutex.hpp"
 #include "types/TypedValue.hpp"
+#include "types/containers/ColumnVector.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
 #include "utility/HashPair.hpp"
 #include "utility/Macros.hpp"
 
+#include "gflags/gflags.h"
+
 #include "glog/logging.h"
 
 namespace quickstep {
+
+DECLARE_int32(num_workers);
+DECLARE_bool(use_latch);
 
 class StorageManager;
 class Type;
@@ -125,6 +134,9 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
       const std::vector<std::vector<MultiSourceAttributeId>> &argument_ids,
       const std::vector<MultiSourceAttributeId> &key_ids,
       const ValueAccessorMultiplexer &accessor_mux) override;
+
+  void finalize(const std::size_t partition_id,
+                ColumnVectorsValueAccessor *results);
 
   /**
    * @return The ID of the StorageBlob used to store this hash table.
@@ -364,16 +376,55 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
                                        const std::uint8_t **value,
                                        std::size_t *entry_num) const;
 
-  inline std::uint8_t* upsertCompositeKeyInternal(
-      const std::vector<TypedValue> &key,
-      const std::size_t variable_key_size);
+  inline std::uint8_t* upsertInternal(const TypedValue &key);
 
-  template <bool use_two_accessors>
-  inline bool upsertValueAccessorCompositeKeyInternal(
-      const std::vector<std::vector<MultiSourceAttributeId>> &argument_ids,
-      const std::vector<MultiSourceAttributeId> &key_ids,
-      ValueAccessor *base_accessor,
-      ColumnVectorsValueAccessor *derived_accessor);
+  inline std::uint8_t* upsertCompositeKeyInternal(
+      const std::vector<TypedValue> &key);
+
+  template <typename AggFuncT, typename ArgT, typename ValueAccessorT>
+  inline bool upsertValueAccessorInternalUnaryAtomic(
+      const attribute_id argument_ids,
+      const attribute_id key_id,
+      const std::size_t state_offset,
+      ValueAccessorT *accessor);
+
+  template <typename AggFuncT, typename ArgT, typename ValueAccessorT>
+  inline bool upsertValueAccessorInternalUnaryLatch(
+      const attribute_id argument_ids,
+      const attribute_id key_id,
+      const std::size_t state_offset,
+      ValueAccessorT *accessor);
+
+  template <typename AggFuncT, typename ArgT, typename ValueAccessorT>
+  inline bool upsertValueAccessorCompositeKeyInternalUnaryAtomic(
+      const attribute_id argument_id,
+      const std::vector<attribute_id> key_ids,
+      const std::size_t state_offset,
+      ValueAccessorT *accessor);
+
+  template <typename AggFuncT, typename ArgT, typename ValueAccessorT>
+  inline bool upsertValueAccessorCompositeKeyInternalUnaryLatch(
+      const attribute_id argument_id,
+      const std::vector<attribute_id> key_ids,
+      const std::size_t state_offset,
+      ValueAccessorT *accessor);
+
+  inline void finalizeKey(const std::size_t start_position,
+                          const std::size_t end_position,
+                          const std::size_t key_idx,
+                          NativeColumnVector *output_cv);
+
+  template <typename AggFuncT, typename ArgT>
+  inline void finalizeStateAtomic(const std::size_t start_position,
+                                  const std::size_t end_position,
+                                  const std::size_t state_offset,
+                                  NativeColumnVector *results);
+
+  template <typename AggFuncT, typename ArgT>
+  inline void finalizeStateLatch(const std::size_t start_position,
+                                 const std::size_t end_position,
+                                 const std::size_t state_offset,
+                                 NativeColumnVector *results);
 
   // Generate a hash for a composite key by hashing each component of 'key' and
   // mixing their bits with CombineHashes().
@@ -387,33 +438,62 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
     key_inline_ = key_inline;
   }
 
-  inline static std::size_t ComputeTotalPayloadSize(
+  inline static std::vector<std::size_t> ComputeStateSizes(
       const std::vector<AggregationHandle *> &handles) {
-    std::size_t total_payload_size = sizeof(SpinMutex);
-    for (const auto *handle : handles) {
-      total_payload_size += handle->getPayloadSize();
+    std::vector<std::size_t> state_sizes;
+    for (std::size_t i = 0; i < handles.size(); ++i) {
+      const AggregationHandle *handle = handles[i];
+      InvokeOnAggFuncWithArgType(
+          handle->getAggregationID(),
+          *handle->getArgumentTypes().front(),
+          [&](const auto &agg_func, const auto &arg_type) {
+        using AggFuncT = std::remove_reference_t<decltype(agg_func)>;
+        using ArgT = remove_const_reference_t<decltype(arg_type)>;
+
+        if (FLAGS_use_latch) {
+          state_sizes.emplace_back(
+              sizeof(typename AggFuncT::template AggState<ArgT>::T));
+        } else {
+          state_sizes.emplace_back(
+              sizeof(typename AggFuncT::template AggState<ArgT>::AtomicT));
+        }
+      });
     }
-    return total_payload_size;
+    return state_sizes;
+  }
+
+  inline static std::size_t ComputeTotalPayloadSize(
+      const std::vector<std::size_t> &state_sizes) {
+    const std::size_t mutex_size =
+        FLAGS_use_latch ? sizeof(SpinMutex) : 0;
+    const std::size_t total_state_size =
+        std::accumulate(state_sizes.begin(), state_sizes.end(), 0);
+    return mutex_size + total_state_size;
+  }
+
+  inline static std::vector<std::size_t> ComputeStateOffsets(
+      const std::vector<std::size_t> &state_sizes) {
+    std::vector<std::size_t> state_offsets;
+    std::size_t state_offset =
+        FLAGS_use_latch ? sizeof(SpinMutex) : 0;
+    for (const std::size_t state_size : state_sizes) {
+      state_offsets.emplace_back(state_offset);
+      state_offset += state_size;
+    }
+    return state_offsets;
   }
 
   // Assign '*key_vector' with the attribute values specified by 'key_ids' at
   // the current position of 'accessor'. If 'check_for_null_keys' is true, stops
   // and returns true if any of the values is null, otherwise returns false.
-  template <bool use_two_accessors,
-            bool check_for_null_keys,
+  template <bool check_for_null_keys,
             typename ValueAccessorT>
   inline static bool GetCompositeKeyFromValueAccessor(
-      const std::vector<MultiSourceAttributeId> &key_ids,
+      const std::vector<attribute_id> &key_ids,
       const ValueAccessorT *accessor,
-      const ColumnVectorsValueAccessor *derived_accessor,
       std::vector<TypedValue> *key_vector) {
     for (std::size_t key_idx = 0; key_idx < key_ids.size(); ++key_idx) {
-      const MultiSourceAttributeId &key_id = key_ids[key_idx];
-      if (use_two_accessors && key_id.source == ValueAccessorSource::kDerived) {
-        (*key_vector)[key_idx] = derived_accessor->getTypedValue(key_id.attr_id);
-      } else {
-        (*key_vector)[key_idx] = accessor->getTypedValue(key_id.attr_id);
-      }
+      (*key_vector)[key_idx] = accessor->getTypedValue(key_ids[key_idx]);
       if (check_for_null_keys && (*key_vector)[key_idx].isNull()) {
         return true;
       }
@@ -441,9 +521,9 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
   const std::size_t num_handles_;
   const std::vector<AggregationHandle *> handles_;
 
-  std::size_t total_payload_size_;
-  std::vector<std::size_t> payload_offsets_;
-  std::uint8_t *init_payload_;
+  const std::vector<std::size_t> state_sizes_;
+  const std::size_t total_payload_size_;
+  const std::vector<std::size_t> state_offsets_;
 
   StorageManager *storage_manager_;
   MutableBlobReference blob_;
@@ -471,8 +551,8 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
     // Set finalization segment size as 4096 entries.
     constexpr std::size_t kFinalizeSegmentSize = 4uL * 1024L;
 
-    // At least 1 partition, at most 80 partitions.
-    return std::max(1uL, std::min(num_entries / kFinalizeSegmentSize, 80uL));
+    return std::max(static_cast<std::size_t>(FLAGS_num_workers),
+                    std::min(num_entries / kFinalizeSegmentSize, 80uL));
   }
 
   // Attempt to find an empty bucket to insert 'hash_code' into, starting after
@@ -488,7 +568,6 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
   // deallocated after being allocated.
   inline bool locateBucketForInsertion(
       const std::size_t hash_code,
-      const std::size_t variable_key_allocation_required,
       void **bucket,
       std::atomic<std::size_t> **pending_chain_ptr,
       std::size_t *pending_chain_ptr_finish_value);
@@ -636,7 +715,6 @@ inline bool PackedPayloadHashTable::getNextEntryCompositeKey(
 
 inline bool PackedPayloadHashTable::locateBucketForInsertion(
     const std::size_t hash_code,
-    const std::size_t variable_key_allocation_required,
     void **bucket,
     std::atomic<std::size_t> **pending_chain_ptr,
     std::size_t *pending_chain_ptr_finish_value) {
@@ -652,17 +730,6 @@ inline bool PackedPayloadHashTable::locateBucketForInsertion(
                                       std::numeric_limits<std::size_t>::max(),
                                       std::memory_order_acq_rel)) {
       // Got to the end of the chain. Allocate a new bucket.
-
-      // First, allocate variable-length key storage, if needed (i.e. if this
-      // is an upsert and we didn't allocate up-front).
-      if (!key_manager_.allocateVariableLengthKeyStorage(
-              variable_key_allocation_required)) {
-        // Ran out of variable-length storage.
-        (*pending_chain_ptr)->store(0, std::memory_order_release);
-        *bucket = nullptr;
-        return false;
-      }
-
       const std::size_t allocated_bucket_num =
           header_->buckets_allocated.fetch_add(1, std::memory_order_relaxed);
       if (allocated_bucket_num >= header_->num_buckets) {
@@ -730,27 +797,7 @@ inline const std::uint8_t* PackedPayloadHashTable::getSingleCompositeKey(
 inline const std::uint8_t* PackedPayloadHashTable::getSingleCompositeKey(
     const std::vector<TypedValue> &key,
     const std::size_t index) const {
-  DEBUG_ASSERT(this->key_types_.size() == key.size());
-
-  const std::size_t hash_code = this->hashCompositeKey(key);
-  std::size_t bucket_ref =
-      slots_[hash_code % header_->num_slots].load(std::memory_order_relaxed);
-  while (bucket_ref != 0) {
-    DEBUG_ASSERT(bucket_ref != std::numeric_limits<std::size_t>::max());
-    const char *bucket =
-        static_cast<const char *>(buckets_) + (bucket_ref - 1) * bucket_size_;
-    const std::size_t bucket_hash = *reinterpret_cast<const std::size_t *>(
-        bucket + sizeof(std::atomic<std::size_t>));
-    if ((bucket_hash == hash_code) &&
-        key_manager_.compositeKeyCollisionCheck(key, bucket)) {
-      // Match located.
-      return reinterpret_cast<const std::uint8_t *>(bucket + kValueOffset) +
-             this->payload_offsets_[index];
-    }
-    bucket_ref =
-        reinterpret_cast<const std::atomic<std::size_t> *>(bucket)->load(
-            std::memory_order_relaxed);
-  }
+  LOG(FATAL) << "Not implemented";
 
   // Reached the end of the chain and didn't find a match.
   return nullptr;
@@ -759,24 +806,9 @@ inline const std::uint8_t* PackedPayloadHashTable::getSingleCompositeKey(
 inline bool PackedPayloadHashTable::upsertCompositeKey(
     const std::vector<TypedValue> &key,
     const std::uint8_t *source_state) {
-  const std::size_t variable_size =
-      calculateVariableLengthCompositeKeyCopySize(key);
-  for (;;) {
-    {
-      SpinSharedMutexSharedLock<true> resize_lock(resize_shared_mutex_);
-      std::uint8_t *value =
-          upsertCompositeKeyInternal(key, variable_size);
-      if (value != nullptr) {
-        SpinMutexLock lock(*(reinterpret_cast<SpinMutex *>(value)));
-        for (unsigned int k = 0; k < num_handles_; ++k) {
-          handles_[k]->mergeStates(source_state + payload_offsets_[k],
-                                   value + payload_offsets_[k]);
-        }
-        return true;
-      }
-    }
-    resize(0, variable_size);
-  }
+  LOG(FATAL) << "Not implemented";
+
+  return true;
 }
 
 template <typename FunctorT>
@@ -784,48 +816,56 @@ inline bool PackedPayloadHashTable::upsertCompositeKey(
     const std::vector<TypedValue> &key,
     FunctorT *functor,
     const std::size_t index) {
-  const std::size_t variable_size =
-      calculateVariableLengthCompositeKeyCopySize(key);
-  for (;;) {
-    {
-      SpinSharedMutexSharedLock<true> resize_lock(resize_shared_mutex_);
-      std::uint8_t *value =
-          upsertCompositeKeyInternal(key, variable_size);
-      if (value != nullptr) {
-        (*functor)(value + payload_offsets_[index]);
-        return true;
-      }
-    }
-    resize(0, variable_size);
-  }
+  LOG(FATAL) << "Not implemented";
+
+  return true;
 }
 
-
-inline std::uint8_t* PackedPayloadHashTable::upsertCompositeKeyInternal(
-    const std::vector<TypedValue> &key,
-    const std::size_t variable_key_size) {
-  if (variable_key_size > 0) {
-    // Don't allocate yet, since the key may already be present. However, we
-    // do check if either the allocated variable storage space OR the free
-    // space is big enough to hold the key (at least one must be true: either
-    // the key is already present and allocated, or we need to be able to
-    // allocate enough space for it).
-    std::size_t allocated_bytes = header_->variable_length_bytes_allocated.load(
-        std::memory_order_relaxed);
-    if ((allocated_bytes < variable_key_size) &&
-        (allocated_bytes + variable_key_size >
-         key_manager_.getVariableLengthKeyStorageSize())) {
+inline std::uint8_t* PackedPayloadHashTable::upsertInternal(
+    const TypedValue &key) {
+  const std::size_t hash_code = key.getHash();
+  void *bucket = nullptr;
+  std::atomic<std::size_t> *pending_chain_ptr;
+  std::size_t pending_chain_ptr_finish_value;
+  for (;;) {
+    if (locateBucketForInsertion(hash_code,
+                                 &bucket,
+                                 &pending_chain_ptr,
+                                 &pending_chain_ptr_finish_value)) {
+      // Found an empty bucket.
+      break;
+    } else if (bucket == nullptr) {
+      // Ran out of buckets or variable-key space.
       return nullptr;
+    } else if (key_manager_.scalarKeyCollisionCheck(key, bucket)) {
+      // Found an already-existing entry for this key.
+      return reinterpret_cast<std::uint8_t *>(static_cast<char *>(bucket) +
+                                              kValueOffset);
     }
   }
 
+  // We are now writing to an empty bucket.
+  // Write the key and hash.
+  writeScalarKeyToBucket(key, hash_code, bucket);
+
+  std::uint8_t *value = static_cast<unsigned char *>(bucket) + kValueOffset;
+//  std::memcpy(value, init_payload_, this->total_payload_size_);
+
+  // Update the previous chain pointer to point to the new bucket.
+  pending_chain_ptr->store(pending_chain_ptr_finish_value, std::memory_order_release);
+
+  // Return the value.
+  return value;
+}
+
+inline std::uint8_t* PackedPayloadHashTable::upsertCompositeKeyInternal(
+    const std::vector<TypedValue> &key) {
   const std::size_t hash_code = this->hashCompositeKey(key);
   void *bucket = nullptr;
   std::atomic<std::size_t> *pending_chain_ptr;
   std::size_t pending_chain_ptr_finish_value;
   for (;;) {
     if (locateBucketForInsertion(hash_code,
-                                 variable_key_size,
                                  &bucket,
                                  &pending_chain_ptr,
                                  &pending_chain_ptr_finish_value)) {
@@ -846,7 +886,8 @@ inline std::uint8_t* PackedPayloadHashTable::upsertCompositeKeyInternal(
   writeCompositeKeyToBucket(key, hash_code, bucket);
 
   std::uint8_t *value = static_cast<unsigned char *>(bucket) + kValueOffset;
-  std::memcpy(value, init_payload_, this->total_payload_size_);
+//  std::memcpy(value, init_payload_, this->total_payload_size_);
+  std::memset(value, 0, this->total_payload_size_);
 
   // Update the previous chaing pointer to point to the new bucket.
   pending_chain_ptr->store(pending_chain_ptr_finish_value,
@@ -856,72 +897,165 @@ inline std::uint8_t* PackedPayloadHashTable::upsertCompositeKeyInternal(
   return value;
 }
 
-template <bool use_two_accessors>
-inline bool PackedPayloadHashTable::upsertValueAccessorCompositeKeyInternal(
-    const std::vector<std::vector<MultiSourceAttributeId>> &argument_ids,
-    const std::vector<MultiSourceAttributeId> &key_ids,
-    ValueAccessor *base_accessor,
-    ColumnVectorsValueAccessor *derived_accessor) {
-  std::size_t variable_size;
+template <typename AggFuncT, typename ArgT, typename ValueAccessorT>
+inline bool PackedPayloadHashTable
+    ::upsertValueAccessorInternalUnaryAtomic(
+         const attribute_id argument_id,
+         const attribute_id key_id,
+         const std::size_t state_offset,
+         ValueAccessorT *accessor) {
+  using StateT = typename AggFuncT::template AggState<ArgT>;
+
+  accessor->beginIteration();
+  while (accessor->next()) {
+    TypedValue key = accessor->getTypedValue(key_id);
+    std::uint8_t *payload = this->upsertInternal(key);
+    const auto *argument = static_cast<const typename ArgT::cpptype *>(
+        accessor->template getUntypedValue<false>(argument_id));
+    auto *state =
+        reinterpret_cast<typename StateT::AtomicT *>(payload + state_offset);
+
+    AggFuncT::template MergeArgAtomic<ArgT>(*argument, state);
+  }
+  return true;
+}
+
+template <typename AggFuncT, typename ArgT, typename ValueAccessorT>
+inline bool PackedPayloadHashTable
+    ::upsertValueAccessorInternalUnaryLatch(
+         const attribute_id argument_id,
+         const attribute_id key_id,
+         const std::size_t state_offset,
+         ValueAccessorT *accessor) {
+  using StateT = typename AggFuncT::template AggState<ArgT>;
+
+  accessor->beginIteration();
+  while (accessor->next()) {
+    TypedValue key = accessor->getTypedValue(key_id);
+    std::uint8_t *payload = this->upsertInternal(key);
+    const auto *argument = static_cast<const typename ArgT::cpptype *>(
+        accessor->template getUntypedValue<false>(argument_id));
+    auto *state =
+        reinterpret_cast<typename StateT::T *>(payload + state_offset);
+
+    SpinMutexLock lock(*(reinterpret_cast<SpinMutex *>(payload)));
+    AggFuncT::template MergeArgUnsafe<ArgT>(*argument, state);
+  }
+  return true;
+}
+
+template <typename AggFuncT, typename ArgT, typename ValueAccessorT>
+inline bool PackedPayloadHashTable::
+    upsertValueAccessorCompositeKeyInternalUnaryAtomic(
+        const attribute_id argument_id,
+        const std::vector<attribute_id> key_ids,
+        const std::size_t state_offset,
+        ValueAccessorT *accessor) {
+  using StateT = typename AggFuncT::template AggState<ArgT>;
+
   std::vector<TypedValue> key_vector;
   key_vector.resize(key_ids.size());
 
-  return InvokeOnAnyValueAccessor(
-      base_accessor,
-      [&](auto *accessor) -> bool {  // NOLINT(build/c++11)
-    bool continuing = true;
-    while (continuing) {
-      {
-        continuing = false;
-        SpinSharedMutexSharedLock<true> lock(resize_shared_mutex_);
-        while (accessor->next()) {
-          if (use_two_accessors) {
-            derived_accessor->next();
-          }
-          if (this->GetCompositeKeyFromValueAccessor<use_two_accessors, true>(
-                  key_ids,
-                  accessor,
-                  derived_accessor,
-                  &key_vector)) {
-            continue;
-          }
-          variable_size = this->calculateVariableLengthCompositeKeyCopySize(key_vector);
-          std::uint8_t *value = this->upsertCompositeKeyInternal(
-              key_vector, variable_size);
-          if (value == nullptr) {
-            continuing = true;
-            break;
-          } else {
-            SpinMutexLock lock(*(reinterpret_cast<SpinMutex *>(value)));
-            for (unsigned int k = 0; k < num_handles_; ++k) {
-              const auto &ids = argument_ids[k];
-              if (ids.empty()) {
-                handles_[k]->updateStateNullary(value + payload_offsets_[k]);
-              } else {
-                const MultiSourceAttributeId &arg_id = ids.front();
-                if (use_two_accessors && arg_id.source == ValueAccessorSource::kDerived) {
-                  DCHECK_NE(arg_id.attr_id, kInvalidAttributeID);
-                  handles_[k]->updateStateUnary(derived_accessor->getTypedValue(arg_id.attr_id),
-                                                value + payload_offsets_[k]);
-                } else {
-                  handles_[k]->updateStateUnary(accessor->getTypedValue(arg_id.attr_id),
-                                                value + payload_offsets_[k]);
-                }
-              }
-            }
-          }
-        }
-      }
-      if (continuing) {
-        this->resize(0, variable_size);
-        accessor->previous();
-        if (use_two_accessors) {
-          derived_accessor->previous();
-        }
-      }
-    }
-    return true;
-  });
+  accessor->beginIteration();
+  while (accessor->next()) {
+    this->GetCompositeKeyFromValueAccessor<false>(key_ids,
+                                                  accessor,
+                                                  &key_vector);
+    std::uint8_t *payload = this->upsertCompositeKeyInternal(key_vector);
+    const auto *argument = static_cast<const typename ArgT::cpptype *>(
+        accessor->template getUntypedValue<false>(argument_id));
+    auto *state =
+        reinterpret_cast<typename StateT::AtomicT *>(payload + state_offset);
+
+    AggFuncT::template MergeArgAtomic<ArgT>(*argument, state);
+  }
+  return true;
+}
+
+template <typename AggFuncT, typename ArgT, typename ValueAccessorT>
+inline bool PackedPayloadHashTable::
+    upsertValueAccessorCompositeKeyInternalUnaryLatch(
+        const attribute_id argument_id,
+        const std::vector<attribute_id> key_ids,
+        const std::size_t state_offset,
+        ValueAccessorT *accessor) {
+  using StateT = typename AggFuncT::template AggState<ArgT>;
+
+  std::vector<TypedValue> key_vector;
+  key_vector.resize(key_ids.size());
+
+  accessor->beginIteration();
+  while (accessor->next()) {
+    this->GetCompositeKeyFromValueAccessor<false>(key_ids,
+                                                  accessor,
+                                                  &key_vector);
+    std::uint8_t *payload = this->upsertCompositeKeyInternal(key_vector);
+    const auto *argument = static_cast<const typename ArgT::cpptype *>(
+        accessor->template getUntypedValue<false>(argument_id));
+    auto *state =
+        reinterpret_cast<typename StateT::T *>(payload + state_offset);
+
+    SpinMutexLock lock(*(reinterpret_cast<SpinMutex *>(payload)));
+    AggFuncT::template MergeArgUnsafe<ArgT>(*argument, state);
+  }
+  return true;
+}
+
+inline void PackedPayloadHashTable
+    ::finalizeKey(const std::size_t start_position,
+                  const std::size_t end_position,
+                  const std::size_t key_idx,
+                  NativeColumnVector *output_cv) {
+  for (std::size_t i = start_position; i < end_position; ++i) {
+    const char *bucket =
+        static_cast<const char *>(buckets_) + i * bucket_size_;
+    output_cv->appendTypedValue(
+        key_manager_.getKeyComponentTyped(bucket, key_idx));
+  }
+}
+
+template <typename AggFuncT, typename ArgT>
+inline void PackedPayloadHashTable
+    ::finalizeStateAtomic(const std::size_t start_position,
+                          const std::size_t end_position,
+                          const std::size_t state_offset,
+                          NativeColumnVector *output_cv) {
+  using StateT = typename AggFuncT::template AggState<ArgT>;
+  using ResultT = typename StateT::ResultT;
+
+  const std::size_t offset = kValueOffset + state_offset;
+  for (std::size_t i = start_position; i < end_position; ++i) {
+    const char *bucket =
+        static_cast<const char *>(buckets_) + i * bucket_size_;
+    const auto *state =
+        reinterpret_cast<const typename StateT::AtomicT *>(bucket + offset);
+
+    AggFuncT::template FinalizeAtomic<ArgT>(
+        *state,
+        static_cast<ResultT *>(output_cv->getPtrForDirectWrite()));
+  }
+}
+
+template <typename AggFuncT, typename ArgT>
+inline void PackedPayloadHashTable
+    ::finalizeStateLatch(const std::size_t start_position,
+                         const std::size_t end_position,
+                         const std::size_t state_offset,
+                         NativeColumnVector *output_cv) {
+  using StateT = typename AggFuncT::template AggState<ArgT>;
+  using ResultT = typename StateT::ResultT;
+
+  const std::size_t offset = kValueOffset + state_offset;
+  for (std::size_t i = start_position; i < end_position; ++i) {
+    const char *bucket =
+        static_cast<const char *>(buckets_) + i * bucket_size_;
+    const auto *state =
+        reinterpret_cast<const typename StateT::T *>(bucket + offset);
+
+    AggFuncT::template FinalizeUnsafe<ArgT>(
+        *state,
+        static_cast<ResultT *>(output_cv->getPtrForDirectWrite()));
+  }
 }
 
 inline void PackedPayloadHashTable::writeScalarKeyToBucket(
@@ -990,7 +1124,7 @@ inline std::size_t PackedPayloadHashTable::forEach(
   const std::uint8_t *value_ptr;
   while (getNextEntry(&key, &value_ptr, &entry_num)) {
     ++entries_visited;
-    (*functor)(key, value_ptr + payload_offsets_[index]);
+    (*functor)(key, value_ptr + state_offsets_[index]);
     key.clear();
   }
   return entries_visited;
@@ -1044,7 +1178,7 @@ inline std::size_t PackedPayloadHashTable::forEachCompositeKey(
   const std::uint8_t *value_ptr;
   while (getNextEntryCompositeKey(&key, &value_ptr, &entry_num)) {
     ++entries_visited;
-    (*functor)(key, value_ptr + payload_offsets_[index]);
+    (*functor)(key, value_ptr + state_offsets_[index]);
     key.clear();
   }
   return entries_visited;

@@ -26,6 +26,8 @@
 #include <vector>
 
 #include "expressions/aggregation/AggregationHandle.hpp"
+#include "expressions/aggregation/AggFunc.hpp"
+#include "storage/AggregationUtil.hpp"
 #include "storage/HashTableKeyManager.hpp"
 #include "storage/StorageBlob.hpp"
 #include "storage/StorageBlockInfo.hpp"
@@ -53,28 +55,14 @@ PackedPayloadHashTable::PackedPayloadHashTable(
     : key_types_(key_types),
       num_handles_(handles.size()),
       handles_(handles),
-      total_payload_size_(ComputeTotalPayloadSize(handles)),
+      state_sizes_(ComputeStateSizes(handles)),
+      total_payload_size_(ComputeTotalPayloadSize(state_sizes_)),
+      state_offsets_(ComputeStateOffsets(state_sizes_)),
       storage_manager_(storage_manager),
       kBucketAlignment(alignof(std::atomic<std::size_t>)),
       kValueOffset(sizeof(std::atomic<std::size_t>) + sizeof(std::size_t)),
       key_manager_(key_types_, kValueOffset + total_payload_size_),
       bucket_size_(ComputeBucketSize(key_manager_.getFixedKeySize())) {
-  std::size_t payload_offset_running_sum = sizeof(SpinMutex);
-  for (const auto *handle : handles) {
-    payload_offsets_.emplace_back(payload_offset_running_sum);
-    payload_offset_running_sum += handle->getPayloadSize();
-  }
-
-  // NOTE(jianqiao): Potential memory leak / double freeing by copying from
-  // init_payload to buckets if payload contains out of line data.
-  init_payload_ =
-      static_cast<std::uint8_t *>(calloc(this->total_payload_size_, 1));
-  DCHECK(init_payload_ != nullptr);
-
-  for (std::size_t i = 0; i < num_handles_; ++i) {
-    handles_[i]->initPayload(init_payload_ + payload_offsets_[i]);
-  }
-
   // Bucket size always rounds up to the alignment requirement of the atomic
   // size_t "next" pointer at the front or a ValueT, whichever is larger.
   //
@@ -192,7 +180,6 @@ PackedPayloadHashTable::~PackedPayloadHashTable() {
     blob_.release();
     storage_manager_->deleteBlockOrBlobFile(blob_id);
   }
-  std::free(init_payload_);
 }
 
 void PackedPayloadHashTable::clear() {
@@ -214,17 +201,6 @@ void PackedPayloadHashTable::clear() {
 }
 
 void PackedPayloadHashTable::destroyPayload() {
-  const std::size_t num_buckets =
-      header_->buckets_allocated.load(std::memory_order_relaxed);
-  void *bucket_ptr = static_cast<char *>(buckets_) + kValueOffset;
-  for (std::size_t bucket_num = 0; bucket_num < num_buckets; ++bucket_num) {
-    for (std::size_t handle_id = 0; handle_id < num_handles_; ++handle_id) {
-      void *value_internal_ptr =
-          static_cast<char *>(bucket_ptr) + this->payload_offsets_[handle_id];
-      handles_[handle_id]->destroyPayload(static_cast<std::uint8_t *>(value_internal_ptr));
-    }
-    bucket_ptr = static_cast<char *>(bucket_ptr) + bucket_size_;
-  }
 }
 
 bool PackedPayloadHashTable::upsertValueAccessorCompositeKey(
@@ -232,24 +208,131 @@ bool PackedPayloadHashTable::upsertValueAccessorCompositeKey(
     const std::vector<MultiSourceAttributeId> &key_attr_ids,
     const ValueAccessorMultiplexer &accessor_mux) {
   ValueAccessor *base_accessor = accessor_mux.getBaseAccessor();
-  ValueAccessor *derived_accessor = accessor_mux.getDerivedAccessor();
+  CHECK(accessor_mux.getDerivedAccessor() == nullptr);
 
-  base_accessor->beginIterationVirtual();
-  if (derived_accessor == nullptr) {
-    return upsertValueAccessorCompositeKeyInternal<false>(
-        argument_ids,
-        key_attr_ids,
-        base_accessor,
-        nullptr);
-  } else {
-    DCHECK(derived_accessor->getImplementationType()
-               == ValueAccessor::Implementation::kColumnVectors);
-    derived_accessor->beginIterationVirtual();
-    return upsertValueAccessorCompositeKeyInternal<true>(
-        argument_ids,
-        key_attr_ids,
-        base_accessor,
-        static_cast<ColumnVectorsValueAccessor *>(derived_accessor));
+  std::vector<attribute_id> key_ids;
+  for (const auto &key_attr_id : key_attr_ids) {
+    key_ids.emplace_back(key_attr_id.attr_id);
+  }
+
+  for (std::size_t i = 0; i < num_handles_; ++i) {
+    DCHECK_LE(argument_ids[i].size(), 1u);
+
+    const AggregationHandle *handle = handles_[i];
+    const auto &argument_types = handle->getArgumentTypes();
+    const auto &argument_ids_i = argument_ids[i];
+
+    attribute_id argument_id = kInvalidAttributeID;
+    const Type *argument_type = nullptr;
+
+    if (argument_ids_i.empty()) {
+      LOG(FATAL) << "Not supported";
+    } else {
+      DCHECK_EQ(1u, argument_ids_i.size());
+      argument_id = argument_ids_i.front().attr_id;
+
+      DCHECK_EQ(1u, argument_types.size());
+      argument_type = argument_types.front();
+    }
+
+    InvokeOnAggFuncWithArgType(
+        handle->getAggregationID(),
+        *argument_type,
+        [&](const auto &agg_func, const auto &arg_type) {
+      using AggFuncT = std::remove_reference_t<decltype(agg_func)>;
+      using ArgT = remove_const_reference_t<decltype(arg_type)>;
+
+      InvokeOnAnyValueAccessor(
+          base_accessor,
+          [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+
+        if (key_ids.size() == 1) {
+          if (FLAGS_use_latch) {
+            this->upsertValueAccessorInternalUnaryLatch<AggFuncT, ArgT>(
+                argument_id,
+                key_ids.front(),
+                state_offsets_[i],
+                accessor);
+          } else {
+            this->upsertValueAccessorInternalUnaryAtomic<AggFuncT, ArgT>(
+                argument_id,
+                key_ids.front(),
+                state_offsets_[i],
+                accessor);
+          }
+        } else {
+          if (FLAGS_use_latch) {
+            this->upsertValueAccessorCompositeKeyInternalUnaryLatch<AggFuncT, ArgT>(
+                argument_id,
+                key_ids,
+                state_offsets_[i],
+                accessor);
+          } else {
+            this->upsertValueAccessorCompositeKeyInternalUnaryAtomic<AggFuncT, ArgT>(
+                argument_id,
+                key_ids,
+                state_offsets_[i],
+                accessor);
+          }
+        }
+      });
+    });
+  }
+  return true;
+}
+
+void PackedPayloadHashTable::finalize(const std::size_t partition_id,
+                                      ColumnVectorsValueAccessor *results) {
+  const std::size_t start_position =
+      calculatePartitionStartPosition(partition_id);
+  const std::size_t end_position =
+      calculatePartitionEndPosition(partition_id);
+
+  const std::size_t num_entries = end_position - start_position;
+
+  for (std::size_t key_idx = 0; key_idx < key_types_.size(); ++key_idx) {
+    NativeColumnVector *key_cv =
+        new NativeColumnVector(*key_types_[key_idx], num_entries);
+    finalizeKey(start_position, end_position, key_idx, key_cv);
+    results->addColumn(key_cv);
+  }
+
+  for (std::size_t i = 0; i < num_handles_; ++i) {
+    const AggregationHandle *handle = handles_[i];
+    const auto &argument_types = handle->getArgumentTypes();
+
+    const Type *argument_type = nullptr;
+    if (argument_types.empty()) {
+      LOG(FATAL) << "Not supported";
+    } else {
+      DCHECK_EQ(1u, argument_types.size());
+      argument_type = argument_types.front();
+    }
+
+    NativeColumnVector *result_cv =
+        new NativeColumnVector(*handle->getResultType(), num_entries);
+
+    InvokeOnAggFuncWithArgType(
+        handle->getAggregationID(),
+        *argument_type,
+        [&](const auto &agg_func, const auto &arg_type) {
+      using AggFuncT = std::remove_reference_t<decltype(agg_func)>;
+      using ArgT = remove_const_reference_t<decltype(arg_type)>;
+
+      if (FLAGS_use_latch) {
+        this->finalizeStateLatch<AggFuncT, ArgT>(start_position,
+                                                 end_position,
+                                                 state_offsets_[i],
+                                                 result_cv);
+      } else {
+        this->finalizeStateAtomic<AggFuncT, ArgT>(start_position,
+                                                  end_position,
+                                                  state_offsets_[i],
+                                                  result_cv);
+      }
+    });
+
+    results->addColumn(result_cv);
   }
 }
 

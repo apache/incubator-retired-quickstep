@@ -145,6 +145,7 @@ add_library(quickstep_storage_AggregationOperationState
             AggregationOperationState.cpp
             AggregationOperationState.hpp)
 add_library(quickstep_storage_AggregationOperationState_proto ${storage_AggregationOperationState_proto_srcs})
+add_library(quickstep_storage_AggregationUtil ../empty_src.cpp AggregationUtil.hpp)
 add_library(quickstep_storage_BasicColumnStoreTupleStorageSubBlock
             BasicColumnStoreTupleStorageSubBlock.cpp
             BasicColumnStoreTupleStorageSubBlock.hpp)
@@ -304,6 +305,15 @@ target_link_libraries(quickstep_storage_AggregationOperationState_proto
                       quickstep_expressions_aggregation_AggregateFunction_proto
                       quickstep_storage_HashTable_proto
                       ${PROTOBUF_LIBRARY})
+target_link_libraries(quickstep_storage_AggregationUtil
+                      quickstep_expressions_aggregation_AggFunc
+                      quickstep_expressions_aggregation_AggregationID
+                      quickstep_storage_ValueAccessor
+                      quickstep_storage_ValueAccessorMultiplexer
+                      quickstep_storage_ValueAccessorUtil
+                      quickstep_types_Type
+                      quickstep_types_TypeID
+                      quickstep_types_containers_ColumnVectorsValueAccessor)
 target_link_libraries(quickstep_storage_BasicColumnStoreTupleStorageSubBlock
                       quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogRelationSchema
@@ -441,6 +451,7 @@ target_link_libraries(quickstep_storage_CollisionFreeVectorTable
                       quickstep_expressions_aggregation_AggFunc
                       quickstep_expressions_aggregation_AggregationHandle
                       quickstep_expressions_aggregation_AggregationID
+                      quickstep_storage_AggregationUtil
                       quickstep_storage_HashTableBase
                       quickstep_storage_StorageBlob
                       quickstep_storage_StorageBlockInfo
@@ -453,7 +464,6 @@ target_link_libraries(quickstep_storage_CollisionFreeVectorTable
                       quickstep_types_Type
                       quickstep_types_TypeID
                       quickstep_types_containers_ColumnVector
-                      quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_utility_BoolVector
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_ColumnStoreUtil
@@ -801,8 +811,11 @@ target_link_libraries(quickstep_storage_LinearOpenAddressingHashTable
                       quickstep_utility_Macros
                       quickstep_utility_PrimeNumber)
 target_link_libraries(quickstep_storage_PackedPayloadHashTable
+                      ${GFLAGS_LIB_NAME}
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_aggregation_AggregationHandle
+                      quickstep_expressions_aggregation_AggFunc
+                      quickstep_storage_AggregationUtil
                       quickstep_storage_HashTableBase
                       quickstep_storage_HashTableKeyManager
                       quickstep_storage_StorageBlob
@@ -1111,6 +1124,7 @@ add_library(quickstep_storage ../empty_src.cpp StorageModule.hpp)
 target_link_libraries(quickstep_storage
                       quickstep_storage_AggregationOperationState
                       quickstep_storage_AggregationOperationState_proto
+                      quickstep_storage_AggregationUtil
                       quickstep_storage_BasicColumnStoreTupleStorageSubBlock
                       quickstep_storage_BasicColumnStoreValueAccessor
                       quickstep_storage_BloomFilterIndexSubBlock

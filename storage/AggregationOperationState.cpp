@@ -212,7 +212,7 @@ AggregationOperationState::AggregationOperationState(
           AggregationStateHashTableFactory::CreateResizable(
               hash_table_impl_type,
               group_by_types_,
-              estimated_num_entries,
+              estimated_num_entries * 2,
               group_by_handles,
               storage_manager_));
     } else {
@@ -384,12 +384,12 @@ bool AggregationOperationState::checkAggregatePartitioned(
     }
   }
 
-  // There are GROUP BYs without DISTINCT. Check if the estimated number of
-  // groups is large enough to warrant a partitioned aggregation.
-  return estimated_num_groups >
-         static_cast<std::size_t>(
-             FLAGS_partition_aggregation_num_groups_threshold);
-  return false;
+//  // There are GROUP BYs without DISTINCT. Check if the estimated number of
+//  // groups is large enough to warrant a partitioned aggregation.
+//  return estimated_num_groups >
+//         static_cast<std::size_t>(
+//             FLAGS_partition_aggregation_num_groups_threshold);
+  return true;
 }
 
 std::size_t AggregationOperationState::getNumInitializationPartitions() const {
@@ -663,60 +663,10 @@ void AggregationOperationState::finalizeHashTableImplPartitioned(
     InsertDestination *output_destination) {
   PackedPayloadHashTable *hash_table =
       static_cast<PackedPayloadHashTable *>(partitioned_hashtable_.get());
+//  std::cout << hash_table->numEntries() << "\n";
 
-  // Each element of 'group_by_keys' is a vector of values for a particular
-  // group (which is also the prefix of the finalized Tuple for that group).
-  std::vector<std::vector<TypedValue>> group_by_keys;
-
-  if (handles_.empty()) {
-    hash_table->forEachCompositeKeyInPartition(
-        partition_id,
-        [&](std::vector<TypedValue> &group_by_key) -> void {
-      group_by_keys.emplace_back(std::move(group_by_key));
-    });
-  }
-
-  // Collect per-aggregate finalized values.
-  std::vector<std::unique_ptr<ColumnVector>> final_values;
-  for (std::size_t agg_idx = 0; agg_idx < handles_.size(); ++agg_idx) {
-    ColumnVector *agg_result_col = handles_[agg_idx]->finalizeHashTable(
-        *hash_table, agg_idx, &group_by_keys);
-    if (agg_result_col != nullptr) {
-      final_values.emplace_back(agg_result_col);
-    }
-  }
-//  hash_table->destroyPayload();
-
-  std::vector<std::unique_ptr<ColumnVector>> group_by_cvs;
-  std::size_t group_by_element_idx = 0;
-  for (const Type *group_by_type : group_by_types_) {
-    if (NativeColumnVector::UsableForType(*group_by_type)) {
-      NativeColumnVector *element_cv =
-          new NativeColumnVector(*group_by_type, group_by_keys.size());
-      group_by_cvs.emplace_back(element_cv);
-      for (std::vector<TypedValue> &group_key : group_by_keys) {
-        element_cv->appendTypedValue(std::move(group_key[group_by_element_idx]));
-      }
-    } else {
-      IndirectColumnVector *element_cv =
-          new IndirectColumnVector(*group_by_type, group_by_keys.size());
-      group_by_cvs.emplace_back(element_cv);
-      for (std::vector<TypedValue> &group_key : group_by_keys) {
-        element_cv->appendTypedValue(std::move(group_key[group_by_element_idx]));
-      }
-    }
-    ++group_by_element_idx;
-  }
-
-  // Stitch together a ColumnVectorsValueAccessor combining the GROUP BY keys
-  // and the finalized aggregates.
   ColumnVectorsValueAccessor complete_result;
-  for (std::unique_ptr<ColumnVector> &group_by_cv : group_by_cvs) {
-    complete_result.addColumn(group_by_cv.release());
-  }
-  for (std::unique_ptr<ColumnVector> &final_value_cv : final_values) {
-    complete_result.addColumn(final_value_cv.release());
-  }
+  hash_table->finalize(partition_id, &complete_result);
 
   // Bulk-insert the complete result.
   output_destination->bulkInsertTuples(&complete_result);

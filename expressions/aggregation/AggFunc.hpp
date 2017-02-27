@@ -69,6 +69,11 @@ class Sum {
                    typename AggState<ArgType>::AtomicT> {};
 
   template <typename ArgType>
+  inline static void InitAtomic(typename AggState<ArgType>::AtomicT *state) {
+    state->store(0, std::memory_order_relaxed);
+  }
+
+  template <typename ArgType>
   inline static void MergeArgAtomic(const typename ArgType::cpptype &value,
                                     typename AggState<ArgType>::AtomicT *state) {
     LOG(FATAL) << "Not implemented";
@@ -78,6 +83,11 @@ class Sum {
   inline static void FinalizeAtomic(const typename AggState<ArgType>::AtomicT &state,
                                     typename AggState<ArgType>::ResultT *result) {
     LOG(FATAL) << "Not implemented";
+  }
+
+  template <typename ArgType>
+  inline static void InitUnsafe(typename AggState<ArgType>::T *state) {
+    *state = 0;
   }
 
   template <typename ArgType>
