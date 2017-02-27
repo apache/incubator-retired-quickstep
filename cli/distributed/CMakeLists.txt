@@ -26,6 +26,8 @@ add_library(quickstep_cli_distributed_Role Role.cpp Role.hpp)
 target_link_libraries(quickstep_cli_distributed_Conductor
                       glog
                       quickstep_catalog_CatalogDatabase
+                      quickstep_cli_CommandExecutorUtil
+                      quickstep_cli_Constants
                       quickstep_cli_DefaultsConfigurator
                       quickstep_cli_Flags
                       quickstep_cli_distributed_Role
@@ -41,6 +43,7 @@ target_link_libraries(quickstep_cli_distributed_Conductor
                       quickstep_storage_StorageConstants
                       quickstep_utility_Macros
                       quickstep_utility_SqlError
+                      quickstep_utility_StringUtil
                       tmb)
 target_link_libraries(quickstep_cli_distributed_Executor
                       glog

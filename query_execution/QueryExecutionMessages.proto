@@ -81,6 +81,10 @@ message ShiftbossRegistrationResponseMessage {
   required uint64 shiftboss_index = 1;
 }
 
+message CommandMessage {
+  required string command = 1;
+}
+
 message SqlQueryMessage {
   required string sql_query = 1;
 }
@@ -132,6 +136,10 @@ message SaveQueryResultResponseMessage {
   required int32 relation_id = 2;
   required uint32 cli_id = 3;  // tmb::client_id.
   required uint64 shiftboss_index = 4;
+}
+
+message CommandResponseMessage {
+  required string command_response = 1;
 }
 
 message QueryExecutionSuccessMessage {

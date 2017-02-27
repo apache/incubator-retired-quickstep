@@ -89,7 +89,11 @@ enum QueryExecutionMessageType : message_type_id {
                                           // Shiftboss to Worker.
   kDistributedCliRegistrationMessage,  // From CLI to Conductor.
   kDistributedCliRegistrationResponseMessage,  // From Conductor to CLI.
-  kSqlQueryMessage,  // From CLI to Conductor.
+
+  // From CLI to Conductor.
+  kCommandMessage,
+  kSqlQueryMessage,
+
   kQueryInitiateMessage,  // From Foreman to Shiftboss.
   kQueryInitiateResponseMessage,  // From Shiftboss to Foreman.
 
@@ -101,8 +105,10 @@ enum QueryExecutionMessageType : message_type_id {
   kSaveQueryResultMessage,  // From Foreman to Shiftboss.
   kSaveQueryResultResponseMessage,  // From Shiftboss to Foreman.
 
+  kQueryExecutionSuccessMessage,  // From Foreman to CLI.
+
   // From Foreman / Conductor to CLI.
-  kQueryExecutionSuccessMessage,
+  kCommandResponseMessage,
   kQueryExecutionErrorMessage,
 
   kQueryResultTeardownMessage,  // From CLI to Conductor.

@@ -29,6 +29,8 @@
 #include <utility>
 
 #include "catalog/CatalogDatabase.hpp"
+#include "cli/CommandExecutorUtil.hpp"
+#include "cli/Constants.hpp"
 #include "cli/DefaultsConfigurator.hpp"
 #include "cli/Flags.hpp"
 #include "parser/ParseStatement.hpp"
@@ -42,6 +44,7 @@
 #include "query_optimizer/QueryProcessor.hpp"
 #include "storage/StorageConstants.hpp"
 #include "utility/SqlError.hpp"
+#include "utility/StringUtil.hpp"
 
 #include "tmb/id_typedefs.h"
 #include "tmb/native_net_client_message_bus.h"
@@ -63,6 +66,7 @@ using tmb::client_id;
 
 namespace quickstep {
 
+namespace C = cli;
 namespace S = serialization;
 
 void Conductor::init() {
@@ -90,6 +94,9 @@ void Conductor::init() {
 
   bus_.RegisterClientAsReceiver(conductor_client_id_, kDistributedCliRegistrationMessage);
   bus_.RegisterClientAsSender(conductor_client_id_, kDistributedCliRegistrationResponseMessage);
+
+  bus_.RegisterClientAsReceiver(conductor_client_id_, kCommandMessage);
+  bus_.RegisterClientAsSender(conductor_client_id_, kCommandResponseMessage);
 
   bus_.RegisterClientAsReceiver(conductor_client_id_, kSqlQueryMessage);
   bus_.RegisterClientAsSender(conductor_client_id_, kQueryExecutionErrorMessage);
@@ -125,6 +132,14 @@ void Conductor::run() {
             QueryExecutionUtil::SendTMBMessage(&bus_, conductor_client_id_, sender, move(message)));
         break;
       }
+      case kCommandMessage: {
+        S::CommandMessage proto;
+        CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+        DLOG(INFO) << "Conductor received the following command: " << proto.command();
+
+        processCommandMessage(sender, new string(move(proto.command())));
+        break;
+      }
       case kSqlQueryMessage: {
         S::SqlQueryMessage proto;
         CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
@@ -146,6 +161,69 @@ void Conductor::run() {
   }
 }
 
+void Conductor::processCommandMessage(const tmb::client_id sender, string *command_string) {
+  parser_wrapper_.feedNextBuffer(command_string);
+  ParseResult parse_result = parser_wrapper_.getNextStatement();
+
+  CHECK(parse_result.condition == ParseResult::kSuccess)
+      << "Any syntax error should be addressed in the DistributedCli.";
+
+  const ParseStatement &statement = *parse_result.parsed_statement;
+  DCHECK_EQ(ParseStatement::kCommand, statement.getStatementType());
+
+  const ParseCommand &command = static_cast<const ParseCommand &>(statement);
+  const PtrVector<ParseString> &arguments = *(command.arguments());
+  const string &command_str = command.command()->value();
+
+  string command_response;
+
+  try {
+    if (command_str == C::kDescribeDatabaseCommand) {
+      command_response = C::ExecuteDescribeDatabase(arguments, *catalog_database_);
+    } else if (command_str == C::kDescribeTableCommand) {
+      if (arguments.empty()) {
+        command_response = C::ExecuteDescribeDatabase(arguments, *catalog_database_);
+      } else {
+        command_response = C::ExecuteDescribeTable(arguments, *catalog_database_);
+      }
+    }
+  } catch (const SqlError &command_error) {
+    // Set the query execution status along with the error message.
+    S::QueryExecutionErrorMessage proto;
+    proto.set_error_message(command_error.formatMessage(*command_string));
+
+    const size_t proto_length = proto.ByteSize();
+    char *proto_bytes = static_cast<char*>(malloc(proto_length));
+    CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+    TaggedMessage message(static_cast<const void*>(proto_bytes),
+                          proto_length,
+                          kQueryExecutionErrorMessage);
+    free(proto_bytes);
+
+    DLOG(INFO) << "Conductor sent QueryExecutionErrorMessage (typed '"
+               << kQueryExecutionErrorMessage
+               << "') to Distributed CLI " << sender;
+    CHECK(MessageBus::SendStatus::kOK ==
+        QueryExecutionUtil::SendTMBMessage(&bus_, conductor_client_id_, sender, move(message)));
+  }
+
+  S::CommandResponseMessage proto;
+  proto.set_command_response(command_response);
+
+  const size_t proto_length = proto.ByteSize();
+  char *proto_bytes = static_cast<char*>(malloc(proto_length));
+  CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+  TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, kCommandResponseMessage);
+  free(proto_bytes);
+
+  DLOG(INFO) << "Conductor sent CommandResponseMessage (typed '" << kCommandResponseMessage
+             << "') to Distributed CLI " << sender;
+  CHECK(MessageBus::SendStatus::kOK ==
+      QueryExecutionUtil::SendTMBMessage(&bus_, conductor_client_id_, sender, move(message)));
+}
+
 void Conductor::processSqlQueryMessage(const tmb::client_id sender, string *command_string) {
   parser_wrapper_.feedNextBuffer(command_string);
   ParseResult parse_result = parser_wrapper_.getNextStatement();
@@ -154,8 +232,7 @@ void Conductor::processSqlQueryMessage(const tmb::client_id sender, string *comm
       << "Any SQL syntax error should be addressed in the DistributedCli.";
 
   const ParseStatement &statement = *parse_result.parsed_statement;
-  CHECK(statement.getStatementType() != ParseStatement::kCommand)
-     << "TODO(quickstep-team)";
+  DCHECK_NE(ParseStatement::kCommand, statement.getStatementType());
 
   try {
     auto query_handle = make_unique<QueryHandle>(query_processor_->query_id(),

@@ -30,6 +30,7 @@
 
 #include "catalog/CatalogRelation.hpp"
 #include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE.
+#include "cli/Constants.hpp"
 #include "cli/Flags.hpp"
 
 #ifdef QUICKSTEP_USE_LINENOISE
@@ -49,6 +50,7 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "storage/DataExchangerAsync.hpp"
 #include "storage/StorageBlockInfo.hpp"
+#include "utility/SqlError.hpp"
 #include "utility/StringUtil.hpp"
 
 #include "tmb/address.h"
@@ -76,6 +78,7 @@ using tmb::client_id;
 
 namespace quickstep {
 
+namespace C = cli;
 namespace S = serialization;
 
 void Cli::init() {
@@ -127,6 +130,10 @@ void Cli::init() {
   bus_.RegisterClientAsSender(cli_id_, kQueryResultTeardownMessage);
 
   bus_.RegisterClientAsReceiver(cli_id_, kQueryExecutionErrorMessage);
+
+  // Prepare for submitting a command.
+  bus_.RegisterClientAsSender(cli_id_, kCommandMessage);
+  bus_.RegisterClientAsReceiver(cli_id_, kCommandResponseMessage);
 }
 
 void Cli::run() {
@@ -158,27 +165,51 @@ void Cli::run() {
           break;
         }
 
-        CHECK_NE(statement.getStatementType(), ParseStatement::kCommand)
-            << "TODO(quickstep-team)";
+        if (statement.getStatementType() == ParseStatement::kCommand) {
+          const ParseCommand &command = static_cast<const ParseCommand &>(statement);
+          const std::string &command_str = command.command()->value();
+          try {
+            if (command_str == C::kAnalyzeCommand) {
+              // TODO(zuyu): support '\analyze'.
+              THROW_SQL_ERROR_AT(command.command()) << "Unsupported Command";
+            } else if (command_str != C::kDescribeDatabaseCommand &&
+                       command_str != C::kDescribeTableCommand) {
+              THROW_SQL_ERROR_AT(command.command()) << "Invalid Command";
+            }
+          } catch (const SqlError &error) {
+            fprintf(stderr, "%s", error.formatMessage(*command_string).c_str());
+            reset_parser = true;
+            break;
+          }
 
-        DLOG(INFO) << "DistributedCli sent SqlQueryMessage (typed '" << kSqlQueryMessage
-                   << "') to Conductor";
-        S::SqlQueryMessage proto;
-        proto.set_sql_query(*command_string);
+          DLOG(INFO) << "DistributedCli sent CommandMessage (typed '" << kCommandMessage
+                     << "') to Conductor";
+          S::CommandMessage proto;
+          proto.set_command(*command_string);
 
-        const size_t proto_length = proto.ByteSize();
-        char *proto_bytes = static_cast<char*>(malloc(proto_length));
-        CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+          const size_t proto_length = proto.ByteSize();
+          char *proto_bytes = static_cast<char*>(malloc(proto_length));
+          CHECK(proto.SerializeToArray(proto_bytes, proto_length));
 
-        TaggedMessage sql_query_message(static_cast<const void*>(proto_bytes),
-                                        proto_length,
-                                        kSqlQueryMessage);
-        free(proto_bytes);
+          TaggedMessage command_message(static_cast<const void*>(proto_bytes), proto_length, kCommandMessage);
+          free(proto_bytes);
 
-        QueryExecutionUtil::SendTMBMessage(&bus_,
-                                           cli_id_,
-                                           conductor_client_id_,
-                                           move(sql_query_message));
+          QueryExecutionUtil::SendTMBMessage(&bus_, cli_id_, conductor_client_id_, move(command_message));
+        } else {
+          DLOG(INFO) << "DistributedCli sent SqlQueryMessage (typed '" << kSqlQueryMessage
+                     << "') to Conductor";
+          S::SqlQueryMessage proto;
+          proto.set_sql_query(*command_string);
+
+          const size_t proto_length = proto.ByteSize();
+          char *proto_bytes = static_cast<char*>(malloc(proto_length));
+          CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+          TaggedMessage sql_query_message(static_cast<const void*>(proto_bytes), proto_length, kSqlQueryMessage);
+          free(proto_bytes);
+
+          QueryExecutionUtil::SendTMBMessage(&bus_, cli_id_, conductor_client_id_, move(sql_query_message));
+        }
 
         start = std::chrono::steady_clock::now();
 
@@ -187,6 +218,13 @@ void Cli::run() {
         DLOG(INFO) << "DistributedCli received typed '" << tagged_message.message_type()
                    << "' message from client " << annotated_message.sender;
         switch (tagged_message.message_type()) {
+          case kCommandResponseMessage: {
+            S::CommandResponseMessage proto;
+            CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+            printf("%s", proto.command_response().c_str());
+            break;
+          }
           case kQueryExecutionSuccessMessage: {
             end = std::chrono::steady_clock::now();
 

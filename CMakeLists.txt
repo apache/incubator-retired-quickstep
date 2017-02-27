@@ -817,6 +817,7 @@ if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_distributed_cli_shell
                         glog
                         quickstep_catalog_CatalogRelation
+                        quickstep_cli_Constants
                         quickstep_cli_Flags
                         quickstep_cli_LineReader
                         quickstep_cli_PrintToScreen
@@ -833,6 +834,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_storage_StorageBlockInfo
                         quickstep_storage_StorageManager
                         quickstep_utility_Macros
+                        quickstep_utility_SqlError
                         quickstep_utility_StringUtil
                         tmb
                         ${GFLAGS_LIB_NAME}

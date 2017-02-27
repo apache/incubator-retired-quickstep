@@ -26,7 +26,25 @@ add_test(quickstep_cli_tests_commandexecutor_dt
          "${CMAKE_CURRENT_BINARY_DIR}/Dt.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Dt/")
 
+if (ENABLE_DISTRIBUTED)
+  add_test(quickstep_cli_tests_commandexecutor_d_distributed
+           "../quickstep_cli_tests_DistributedCommandExecutorTest"
+           "${CMAKE_CURRENT_SOURCE_DIR}/D.test"
+           "${CMAKE_CURRENT_BINARY_DIR}/DDistributed.test"
+           "${CMAKE_CURRENT_BINARY_DIR}/DDistributed/")
+  add_test(quickstep_cli_tests_commandexecutor_dt_distributed
+           "../quickstep_cli_tests_DistributedCommandExecutorTest"
+           "${CMAKE_CURRENT_SOURCE_DIR}/Dt.test"
+           "${CMAKE_CURRENT_BINARY_DIR}/DtDistributed.test"
+           "${CMAKE_CURRENT_BINARY_DIR}/DtDistributed/")
+endif(ENABLE_DISTRIBUTED)
+
 # Create the folders where the unit tests will store their data blocks for the
 # duration of their test.
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/D)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Dt)
+
+if (ENABLE_DISTRIBUTED)
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DDistributed)
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DtDistributed)
+endif(ENABLE_DISTRIBUTED)

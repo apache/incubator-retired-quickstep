@@ -23,6 +23,14 @@ add_executable(quickstep_cli_tests_CommandExecutorTest
                CommandExecutorTestRunner.hpp
                "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.cpp"
                "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.hpp")
+if (ENABLE_DISTRIBUTED)
+  add_executable(quickstep_cli_tests_DistributedCommandExecutorTest
+                 DistributedCommandExecutorTest.cpp
+                 DistributedCommandExecutorTestRunner.cpp
+                 DistributedCommandExecutorTestRunner.hpp
+                 "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.cpp"
+                 "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.hpp")
+endif(ENABLE_DISTRIBUTED)
 
 target_link_libraries(quickstep_cli_tests_CommandExecutorTest
                       glog
@@ -49,3 +57,36 @@ target_link_libraries(quickstep_cli_tests_CommandExecutorTest
                       quickstep_utility_TextBasedTestDriver
                       tmb
                       ${LIBS})
+if (ENABLE_DISTRIBUTED)
+  target_link_libraries(quickstep_cli_tests_DistributedCommandExecutorTest
+                        glog
+                        gtest
+                        quickstep_catalog_CatalogTypedefs
+                        quickstep_cli_CommandExecutorUtil
+                        quickstep_cli_Constants
+                        quickstep_cli_DropRelation
+                        quickstep_cli_PrintToScreen
+                        quickstep_parser_ParseStatement
+                        quickstep_parser_SqlParserWrapper
+                        quickstep_queryexecution_BlockLocator
+                        quickstep_queryexecution_BlockLocatorUtil
+                        quickstep_queryexecution_ForemanDistributed
+                        quickstep_queryexecution_QueryExecutionTypedefs
+                        quickstep_queryexecution_QueryExecutionUtil
+                        quickstep_queryexecution_Shiftboss
+                        quickstep_queryexecution_Worker
+                        quickstep_queryexecution_WorkerDirectory
+                        quickstep_queryoptimizer_Optimizer
+                        quickstep_queryoptimizer_OptimizerContext
+                        quickstep_queryoptimizer_QueryHandle
+                        quickstep_queryoptimizer_tests_TestDatabaseLoader
+                        quickstep_storage_DataExchangerAsync
+                        quickstep_storage_StorageManager
+                        quickstep_utility_Macros
+                        quickstep_utility_MemStream
+                        quickstep_utility_SqlError
+                        quickstep_utility_TextBasedTestDriver
+                        tmb
+                        ${GFLAGS_LIB_NAME}
+                        ${LIBS})
+endif(ENABLE_DISTRIBUTED)

@@ -35,6 +35,7 @@
 namespace quickstep {
 
 class CatalogDatabase;
+class ParseCommand;
 
 /** \addtogroup CliDistributed
  *  @{
@@ -60,6 +61,8 @@ class Conductor final : public Role {
   void run() override;
 
  private:
+  void processCommandMessage(const tmb::client_id sender, std::string *command_string);
+
   void processSqlQueryMessage(const tmb::client_id sender, std::string *command_string);
 
   SqlParserWrapper parser_wrapper_;
