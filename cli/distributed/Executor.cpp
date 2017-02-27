@@ -79,7 +79,8 @@ void Executor::init() {
   data_exchanger_.start();
 
   shiftboss_ =
-      make_unique<Shiftboss>(&bus_, &bus_local_, storage_manager_.get(), worker_directory_.get(), storage_manager_->hdfs());
+      make_unique<Shiftboss>(&bus_, &bus_local_, storage_manager_.get(), worker_directory_.get(),
+                             storage_manager_->hdfs());
   shiftboss_->start();
 
   for (const auto &worker : workers_) {
