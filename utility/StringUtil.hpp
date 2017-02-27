@@ -48,6 +48,12 @@ extern std::string ToLower(const std::string &str);
 extern std::string EscapeSpecialChars(const std::string &text);
 
 /**
+ * @brief Escape quotes (i.e. ' or ") in 'str'.
+ * @return Escaped string.
+ */
+extern std::string EscapeQuotes(const std::string &str, const char quote);
+
+/**
  * @brief Join all objects in a iterable container into a single string. The object
  *        must have implemented the operator<< overloading with std::stringstream.
  *

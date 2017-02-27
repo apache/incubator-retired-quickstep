@@ -32,6 +32,7 @@
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogRelationStatistics.hpp"
+#include "cli/Constants.hpp"
 #include "cli/DropRelation.hpp"
 #include "cli/PrintToScreen.hpp"
 #include "expressions/aggregation/AggregateFunctionMax.hpp"
@@ -52,6 +53,7 @@
 #include "types/TypedValue.hpp"
 #include "utility/PtrVector.hpp"
 #include "utility/SqlError.hpp"
+#include "utility/StringUtil.hpp"
 
 #include "glog/logging.h"
 
@@ -70,63 +72,60 @@ namespace quickstep {
 namespace cli {
 namespace {
 
-namespace C = ::quickstep::cli;
-
 void ExecuteDescribeDatabase(
-    const PtrVector<ParseString> *arguments,
+    const PtrVector<ParseString> &arguments,
     const CatalogDatabase &catalog_database,
-    StorageManager *storage_manager,
     FILE *out) {
   // Column width initialized to 6 to take into account the header name
   // and the column value table
-  int max_column_width = C::kInitMaxColumnWidth;
+  int max_column_width = kInitMaxColumnWidth;
   vector<std::size_t> num_blocks;
   const CatalogRelation *relation = nullptr;
-  if (arguments->size() == 0) {
+  if (arguments.empty()) {
     for (const CatalogRelation &rel : catalog_database) {
       max_column_width =
           std::max(static_cast<int>(rel.getName().length()), max_column_width);
       num_blocks.push_back(rel.size_blocks());
     }
   } else {
-    const ParseString &table_name = arguments->front();
+    const ParseString &table_name = arguments.front();
     const std::string &table_name_val = table_name.value();
     relation = catalog_database.getRelationByName(table_name_val);
 
     if (relation == nullptr) {
-      THROW_SQL_ERROR_AT(&(arguments->front())) << " Unrecognized relation " << table_name_val;
+      THROW_SQL_ERROR_AT(&(arguments.front())) << " Unrecognized relation " << table_name_val;
     }
     max_column_width = std::max(static_cast<int>(relation->getName().length()),
                                     max_column_width);
     num_blocks.push_back(relation->size_blocks());
   }
   // Only if we have relations work on the printing logic.
-  if (catalog_database.size() > 0) {
+  if (!catalog_database.empty()) {
     const std::size_t max_num_blocks = *std::max_element(num_blocks.begin(), num_blocks.end());
     const int max_num_blocks_digits = std::max(PrintToScreen::GetNumberOfDigits(max_num_blocks),
-                                      C::kInitMaxColumnWidth+2);
+                                      kInitMaxColumnWidth + 2);
     vector<int> column_widths;
-    column_widths.push_back(max_column_width +1);
-    column_widths.push_back(C::kInitMaxColumnWidth + 1);
+    column_widths.push_back(max_column_width + 1);
+    column_widths.push_back(kInitMaxColumnWidth + 1);
     column_widths.push_back(max_num_blocks_digits + 1);
     fputs("       List of relations\n\n", out);
-    fprintf(out, "%-*s |", max_column_width+1, " Name");
-    fprintf(out, "%-*s |", C::kInitMaxColumnWidth, " Type");
+    fprintf(out, "%-*s |", max_column_width + 1, " Name");
+    fprintf(out, "%-*s |", kInitMaxColumnWidth, " Type");
     fprintf(out, "%-*s\n", max_num_blocks_digits, " Blocks");
     PrintToScreen::printHBar(column_widths, out);
     //  If there are no argument print the entire list of tables
     //  else print the particular table only.
     vector<std::size_t>::const_iterator num_blocks_it = num_blocks.begin();
-    if (arguments->size() == 0) {
+    if (arguments.empty()) {
       for (const CatalogRelation &rel : catalog_database) {
         fprintf(out, " %-*s |", max_column_width, rel.getName().c_str());
-        fprintf(out, " %-*s |", C::kInitMaxColumnWidth - 1, "table");
+        fprintf(out, " %-*s |", kInitMaxColumnWidth - 1, "table");
         fprintf(out, " %-*lu\n", max_num_blocks_digits - 1, *num_blocks_it);
         ++num_blocks_it;
       }
     } else {
       fprintf(out, " %-*s |", max_column_width, relation->getName().c_str());
-      fprintf(out, " %-*s |", C::kInitMaxColumnWidth -1, "table");
+      fprintf(out, " %-*s |", kInitMaxColumnWidth - 1, "table");
       fprintf(out, " %-*lu\n", max_num_blocks_digits - 1, *num_blocks_it);
       ++num_blocks_it;
     }
@@ -135,18 +134,18 @@ void ExecuteDescribeDatabase(
 }
 
 void ExecuteDescribeTable(
-    const PtrVector<ParseString> *arguments,
+    const PtrVector<ParseString> &arguments,
     const CatalogDatabase &catalog_database, FILE *out) {
-  const ParseString &table_name = arguments->front();
+  const ParseString &table_name = arguments.front();
   const std::string &table_name_val = table_name.value();
   const CatalogRelation *relation =
       catalog_database.getRelationByName(table_name_val);
   if (relation == nullptr) {
-    THROW_SQL_ERROR_AT(&(arguments->front())) << " Unrecognized relation "  << table_name_val;
+    THROW_SQL_ERROR_AT(&(arguments.front())) << " Unrecognized relation "  << table_name_val;
   }
   vector<int> column_widths;
-  int max_attr_column_width = C::kInitMaxColumnWidth;
-  int max_type_column_width = C::kInitMaxColumnWidth;
+  int max_attr_column_width = kInitMaxColumnWidth;
+  int max_type_column_width = kInitMaxColumnWidth;
 
   for (const CatalogAttribute &attr : *relation) {
     // Printed column needs to be wide enough to print:
@@ -160,12 +159,12 @@ void ExecuteDescribeTable(
             static_cast<int>(attr.getType().getName().length()));
   }
   // Add room for one extra character to allow spacing between the column ending and the vertical bar
-  column_widths.push_back(max_attr_column_width+1);
-  column_widths.push_back(max_type_column_width+1);
+  column_widths.push_back(max_attr_column_width + 1);
+  column_widths.push_back(max_type_column_width + 1);
 
-  fprintf(out, "%*s \"%s\"\n", C::kInitMaxColumnWidth, "Table", table_name_val.c_str());
-  fprintf(out, "%-*s |", max_attr_column_width+1, " Column");
-  fprintf(out, "%-*s\n", max_type_column_width+1, " Type");
+  fprintf(out, "%*s \"%s\"\n", kInitMaxColumnWidth, "Table", table_name_val.c_str());
+  fprintf(out, "%-*s |", max_attr_column_width + 1, " Column");
+  fprintf(out, "%-*s\n", max_type_column_width + 1, " Type");
   PrintToScreen::printHBar(column_widths, out);
   for (const CatalogAttribute &attr : *relation) {
     fprintf(out, " %-*s |", max_attr_column_width,
@@ -175,7 +174,7 @@ void ExecuteDescribeTable(
   }
   // TODO(rogers): Add handlers for partitioning information.
   if (relation->hasIndexScheme()) {
-    fprintf(out, "%*s\n", C::kInitMaxColumnWidth+2, " Indexes");
+    fprintf(out, "%*s\n", kInitMaxColumnWidth + 2, " Indexes");
     const quickstep::IndexScheme &index_scheme = relation->getIndexScheme();
     for (auto index_it = index_scheme.begin(); index_it != index_scheme.end();
          ++index_it) {
@@ -213,7 +212,7 @@ inline std::vector<TypedValue> ExecuteQueryForSingleRow(
   parser_wrapper->feedNextBuffer(new std::string(query_string));
 
   ParseResult result = parser_wrapper->getNextStatement();
-  DCHECK(result.condition == ParseResult::kSuccess);
+  DCHECK_EQ(ParseResult::kSuccess, result.condition);
 
   const ParseStatement &statement = *result.parsed_statement;
   const CatalogRelation *query_result_relation = nullptr;
@@ -293,21 +292,7 @@ inline TypedValue ExecuteQueryForSingleResult(
   return results[0];
 }
 
-/**
- * @brief A helper function for escaping quotes (i.e. ' or ").
- */
-std::string EscapeQuotes(const std::string &str, const char quote) {
-  std::string ret;
-  for (const char c : str) {
-    ret.push_back(c);
-    if (c == quote) {
-      ret.push_back(c);
-    }
-  }
-  return ret;
-}
-
-void ExecuteAnalyze(const PtrVector<ParseString> *arguments,
+void ExecuteAnalyze(const PtrVector<ParseString> &arguments,
                     const tmb::client_id main_thread_client_id,
                     const tmb::client_id foreman_client_id,
                     MessageBus *bus,
@@ -318,10 +303,10 @@ void ExecuteAnalyze(const PtrVector<ParseString> *arguments,
 
   std::unique_ptr<SqlParserWrapper> parser_wrapper(new SqlParserWrapper());
   std::vector<std::reference_wrapper<const CatalogRelation>> relations;
-  if (arguments->size() == 0) {
+  if (arguments.empty()) {
     relations.insert(relations.begin(), database.begin(), database.end());
   } else {
-    for (const auto &rel_name : *arguments) {
+    for (const auto &rel_name : arguments) {
       const CatalogRelation *rel = database.getRelationByName(rel_name.value());
       if (rel == nullptr) {
         THROW_SQL_ERROR_AT(&rel_name) << "Table does not exist";
@@ -382,7 +367,7 @@ void ExecuteAnalyze(const PtrVector<ParseString> *arguments,
                                    parser_wrapper.get());
 
       auto results_it = results.begin();
-      DCHECK(results_it->getTypeID() == TypeID::kLong);
+      DCHECK_EQ(TypeID::kLong, results_it->getTypeID());
 
       const attribute_id attr_id = attribute.getID();
       mutable_stat->setNumDistinctValues(attr_id,
@@ -411,7 +396,7 @@ void ExecuteAnalyze(const PtrVector<ParseString> *arguments,
                                     query_processor,
                                     parser_wrapper.get());
 
-    DCHECK(num_tuples.getTypeID() == TypeID::kLong);
+    DCHECK_EQ(TypeID::kLong, num_tuples.getTypeID());
     mutable_stat->setNumTuples(num_tuples.getLiteral<std::int64_t>());
 
     mutable_stat->setExactness(true);
@@ -434,17 +419,17 @@ void executeCommand(const ParseStatement &statement,
                     QueryProcessor *query_processor,
                     FILE *out) {
   const ParseCommand &command = static_cast<const ParseCommand &>(statement);
-  const PtrVector<ParseString> *arguments = command.arguments();
+  const PtrVector<ParseString> &arguments = *(command.arguments());
   const std::string &command_str = command.command()->value();
-  if (command_str == C::kDescribeDatabaseCommand) {
-    ExecuteDescribeDatabase(arguments, catalog_database, storage_manager, out);
-  } else if (command_str == C::kDescribeTableCommand) {
-    if (arguments->size() == 0) {
-      ExecuteDescribeDatabase(arguments, catalog_database, storage_manager, out);
+  if (command_str == kDescribeDatabaseCommand) {
+    ExecuteDescribeDatabase(arguments, catalog_database, out);
+  } else if (command_str == kDescribeTableCommand) {
+    if (arguments.empty()) {
+      ExecuteDescribeDatabase(arguments, catalog_database, out);
     } else {
       ExecuteDescribeTable(arguments, catalog_database, out);
     }
-  } else if (command_str == C::kAnalyzeCommand) {
+  } else if (command_str == kAnalyzeCommand) {
     ExecuteAnalyze(arguments,
                    main_thread_client_id,
                    foreman_client_id,
@@ -455,5 +440,6 @@ void executeCommand(const ParseStatement &statement,
     THROW_SQL_ERROR_AT(command.command()) << "Invalid Command";
   }
 }
+
 }  // namespace cli
 }  // namespace quickstep

@@ -343,6 +343,16 @@ class CatalogDatabase : public CatalogDatabaseLite {
   serialization::CatalogDatabase getProto() const;
 
   /**
+   * @brief Check whether this CatalogDatabase is empty.
+   *
+   * @return true if empty, false otherwise.
+   **/
+  bool empty() const {
+    SpinSharedMutexSharedLock<false> lock(relations_mutex_);
+    return rel_map_.empty();
+  }
+
+  /**
    * @brief Get the number of child relations.
    *
    * @return The number of child relations.

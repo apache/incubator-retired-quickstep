@@ -44,6 +44,7 @@ configure_file (
   "${CMAKE_CURRENT_BINARY_DIR}/CliConfig.h"
 )
 add_library(quickstep_cli_CommandExecutor CommandExecutor.cpp CommandExecutor.hpp)
+add_library(quickstep_cli_Constants ../empty_src.cpp Constants.hpp)
 
 # Declare micro-libs and link dependencies:
 add_library(quickstep_cli_DropRelation DropRelation.cpp DropRelation.hpp)
@@ -86,6 +87,7 @@ target_link_libraries(quickstep_cli_CommandExecutor
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogRelationStatistics
+                      quickstep_cli_Constants
                       quickstep_cli_DropRelation
                       quickstep_cli_PrintToScreen
                       quickstep_expressions_aggregation_AggregateFunctionMax
@@ -105,7 +107,8 @@ target_link_libraries(quickstep_cli_CommandExecutor
                       quickstep_types_TypeID
                       quickstep_types_TypedValue
                       quickstep_utility_PtrVector
-                      quickstep_utility_SqlError)
+                      quickstep_utility_SqlError
+                      quickstep_utility_StringUtil)
 
 target_link_libraries(quickstep_cli_DefaultsConfigurator
                       glog
@@ -148,6 +151,7 @@ add_library(quickstep_cli ../empty_src.cpp CliModule.hpp)
 
 target_link_libraries(quickstep_cli
                       quickstep_cli_CommandExecutor
+                      quickstep_cli_Constants
                       quickstep_cli_DefaultsConfigurator
                       quickstep_cli_DropRelation
                       quickstep_cli_Flags

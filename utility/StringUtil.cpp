@@ -93,6 +93,17 @@ std::string EscapeSpecialChars(const std::string& text) {
   return new_text;
 }
 
+std::string EscapeQuotes(const std::string &str, const char quote) {
+  std::string ret;
+  for (const char c : str) {
+    ret.push_back(c);
+    if (c == quote) {
+      ret.push_back(c);
+    }
+  }
+  return ret;
+}
+
 bool ParseIntString(const std::string &int_string,
                     const char delimiter,
                     std::vector<int> *parsed_output) {
