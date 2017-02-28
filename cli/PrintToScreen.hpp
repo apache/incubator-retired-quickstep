@@ -21,6 +21,7 @@
 #define QUICKSTEP_CLI_PRINT_TO_SCREEN_HPP_
 
 #include <cstdio>
+#include <string>
 #include <vector>
 
 #include "storage/StorageBlockInfo.hpp"
@@ -46,8 +47,7 @@ class PrintToScreen {
                             StorageManager *storage_manager,
                             FILE *out);
 
-  static void printHBar(const std::vector<int> &column_widths,
-                        FILE *out);
+  static std::string GenerateHBar(const std::vector<int> &column_widths);
 
   /**
    * @brief Get the total number of tuples in the given relation.

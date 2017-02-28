@@ -19,10 +19,13 @@
 
 #include "cli/PrintToScreen.hpp"
 
+#include <cmath>
 #include <cstddef>
 #include <cstdio>
-#include <cmath>
+#include <iomanip>
 #include <memory>
+#include <sstream>
+#include <string>
 #include <vector>
 
 #include "catalog/CatalogAttribute.hpp"
@@ -42,6 +45,7 @@
 using std::fprintf;
 using std::fputc;
 using std::size_t;
+using std::string;
 using std::vector;
 
 namespace quickstep {
@@ -88,7 +92,8 @@ void PrintToScreen::PrintRelation(const CatalogRelation &relation,
     column_widths.push_back(column_width);
   }
 
-  printHBar(column_widths, out);
+  const string hbar = GenerateHBar(column_widths);
+  fprintf(out, "%s", hbar.c_str());
 
   fputc('|', out);
   vector<int>::const_iterator width_it = column_widths.begin();
@@ -101,7 +106,7 @@ void PrintToScreen::PrintRelation(const CatalogRelation &relation,
   }
   fputc('\n', out);
 
-  printHBar(column_widths, out);
+  fprintf(out, "%s", hbar.c_str());
 
   std::vector<block_id> blocks = relation.getBlocksSnapshot();
   for (const block_id current_block_id : blocks) {
@@ -120,19 +125,19 @@ void PrintToScreen::PrintRelation(const CatalogRelation &relation,
     }
   }
 
-  printHBar(column_widths, out);
+  fprintf(out, "%s", hbar.c_str());
 }
 
-void PrintToScreen::printHBar(const vector<int> &column_widths,
-                              FILE *out) {
-  fputc('+', out);
+string PrintToScreen::GenerateHBar(const vector<int> &column_widths) {
+  string hbar("+");
+
   for (const int width : column_widths) {
-    for (int i = 0; i < width; ++i) {
-      fputc('-', out);
-    }
-    fputc('+', out);
+    hbar.append(width, '-');
+    hbar.push_back('+');
   }
-  fputc('\n', out);
+  hbar.push_back('\n');
+
+  return hbar;
 }
 
 void PrintToScreen::printTuple(const TupleStorageSubBlock &tuple_store,

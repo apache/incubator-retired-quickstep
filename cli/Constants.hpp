@@ -27,11 +27,6 @@ namespace cli {
  *  @{
  */
 
-// Adding the max column width as 6 as the default initializer
-// as the length of the word Column is 6 characters.
-// This is used while describing the table.
-constexpr int kInitMaxColumnWidth = 6;
-
 constexpr char kDescribeDatabaseCommand[] = "\\dt";
 constexpr char kDescribeTableCommand[] = "\\d";
 constexpr char kAnalyzeCommand[] = "\\analyze";
