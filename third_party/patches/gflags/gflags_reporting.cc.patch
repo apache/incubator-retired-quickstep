@@ -1,0 +1,4 @@
+129c129
+<     assert(chars_left == strlen(c_string));  // Unless there's a \0 in there?
+---
+>     assert(static_cast<size_t>(chars_left) == strlen(c_string));  // Unless there's a \0 in there?

@@ -99,6 +99,7 @@ patch ${THIRD_PARTY_SRC_DIR}/linenoise/linenoise.c ${PATCH_DIR}/linenoise/lineno
 echo "Patching for gflags:"
 cd ${THIRD_PARTY_SRC_DIR}/gflags
 patch -p0 < ${PATCH_DIR}/gflags/CMakeLists.patch
+patch src/gflags_reporting.cc ${PATCH_DIR}/gflags/gflags_reporting.cc.patch
 cd ${THIRD_PARTY_SRC_DIR}
 
 # Apply re2 patch.
