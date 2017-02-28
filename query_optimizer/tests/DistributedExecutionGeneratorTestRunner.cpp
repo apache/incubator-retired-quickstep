@@ -37,8 +37,10 @@
 #include "query_execution/ForemanDistributed.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
+#include "query_optimizer/Optimizer.hpp"
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/QueryHandle.hpp"
+#include "query_optimizer/tests/TestDatabaseLoader.hpp"
 #include "storage/DataExchangerAsync.hpp"
 #include "storage/StorageManager.hpp"
 #include "utility/MemStream.hpp"
@@ -66,6 +68,8 @@ class CatalogRelation;
 namespace optimizer {
 
 namespace {
+
+constexpr int kNumInstances = 3;
 
 void nop() {}
 
@@ -147,6 +151,35 @@ DistributedExecutionGeneratorTestRunner::DistributedExecutionGeneratorTestRunner
   }
 }
 
+DistributedExecutionGeneratorTestRunner::~DistributedExecutionGeneratorTestRunner() {
+  const tmb::MessageBus::SendStatus send_status =
+      QueryExecutionUtil::SendTMBMessage(&bus_, cli_id_, foreman_->getBusClientID(), TaggedMessage(kPoisonMessage));
+  CHECK(send_status == tmb::MessageBus::SendStatus::kOK);
+
+  for (int i = 0; i < kNumInstances; ++i) {
+    workers_[i]->join();
+    shiftbosses_[i]->join();
+  }
+
+  foreman_->join();
+
+  test_database_loader_data_exchanger_.shutdown();
+  test_database_loader_.reset();
+  for (int i = 0; i < kNumInstances; ++i) {
+    data_exchangers_[i].shutdown();
+    storage_managers_[i].reset();
+  }
+
+  CHECK(MessageBus::SendStatus::kOK ==
+      QueryExecutionUtil::SendTMBMessage(&bus_, cli_id_, locator_client_id_, TaggedMessage(kPoisonMessage)));
+
+  test_database_loader_data_exchanger_.join();
+  for (int i = 0; i < kNumInstances; ++i) {
+    data_exchangers_[i].join();
+  }
+  block_locator_->join();
+}
+
 void DistributedExecutionGeneratorTestRunner::runTestCase(
     const string &input, const std::set<string> &options, string *output) {
   // TODO(qzeng): Test multi-threaded query execution when we have a Sort operator.
@@ -174,26 +207,22 @@ void DistributedExecutionGeneratorTestRunner::runTestCase(
     const ParseStatement &parse_statement = *result.parsed_statement;
     std::printf("%s\n", parse_statement.toString().c_str());
 
-    const CatalogRelation *query_result_relation = nullptr;
+    auto query_handle = std::make_unique<QueryHandle>(query_id_++, cli_id_);
     try {
       OptimizerContext optimizer_context;
-      auto query_handle = std::make_unique<QueryHandle>(query_id_++, cli_id_);
-
       optimizer_.generateQueryHandle(parse_statement,
                                      test_database_loader_->catalog_database(),
                                      &optimizer_context,
                                      query_handle.get());
-      query_result_relation = query_handle->getQueryResultRelation();
-
-      QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
-          cli_id_,
-          foreman_->getBusClientID(),
-          query_handle.release(),
-          &bus_);
     } catch (const SqlError &error) {
       *output = error.formatMessage(input);
       break;
     }
+
+    const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
+
+    QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
+        cli_id_, foreman_->getBusClientID(), query_handle.release(), &bus_);
 
     const tmb::AnnotatedMessage annotated_message = bus_.Receive(cli_id_, 0, true);
     DCHECK_EQ(kQueryExecutionSuccessMessage, annotated_message.tagged_message.message_type());

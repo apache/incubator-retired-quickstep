@@ -31,7 +31,6 @@
 #include "query_execution/BlockLocator.hpp"
 #include "query_execution/ForemanDistributed.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
-#include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/Shiftboss.hpp"
 #include "query_execution/Worker.hpp"
 #include "query_execution/WorkerDirectory.hpp"
@@ -45,15 +44,9 @@
 #include "glog/logging.h"
 
 #include "tmb/id_typedefs.h"
-#include "tmb/message_bus.h"
-#include "tmb/tagged_message.h"
 
 namespace quickstep {
 namespace optimizer {
-
-namespace {
-constexpr int kNumInstances = 3;
-}  // namespace
 
 /**
  * @brief TextBasedTestRunner for testing the ExecutionGenerator in the
@@ -72,43 +65,7 @@ class DistributedExecutionGeneratorTestRunner : public TextBasedTestRunner {
    */
   explicit DistributedExecutionGeneratorTestRunner(const std::string &storage_path);
 
-  ~DistributedExecutionGeneratorTestRunner() {
-    tmb::TaggedMessage poison_tagged_message(quickstep::kPoisonMessage);
-
-    const tmb::MessageBus::SendStatus send_status =
-        QueryExecutionUtil::SendTMBMessage(
-            &bus_,
-            cli_id_,
-            foreman_->getBusClientID(),
-            std::move(poison_tagged_message));
-    CHECK(send_status == tmb::MessageBus::SendStatus::kOK);
-
-    for (int i = 0; i < kNumInstances; ++i) {
-      workers_[i]->join();
-      shiftbosses_[i]->join();
-    }
-
-    foreman_->join();
-
-    test_database_loader_data_exchanger_.shutdown();
-    test_database_loader_.reset();
-    for (int i = 0; i < kNumInstances; ++i) {
-      data_exchangers_[i].shutdown();
-      storage_managers_[i].reset();
-    }
-
-    CHECK(MessageBus::SendStatus::kOK ==
-        QueryExecutionUtil::SendTMBMessage(&bus_,
-                                           cli_id_,
-                                           locator_client_id_,
-                                           tmb::TaggedMessage(quickstep::kPoisonMessage)));
-
-    test_database_loader_data_exchanger_.join();
-    for (int i = 0; i < kNumInstances; ++i) {
-      data_exchangers_[i].join();
-    }
-    block_locator_->join();
-  }
+  ~DistributedExecutionGeneratorTestRunner();
 
   void runTestCase(const std::string &input,
                    const std::set<std::string> &options,

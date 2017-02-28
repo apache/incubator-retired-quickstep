@@ -63,13 +63,13 @@ using tmb::client_id;
 
 namespace quickstep {
 
-namespace S = ::quickstep::serialization;
+namespace S = serialization;
 
 void Conductor::init() {
   try {
     string catalog_path = FLAGS_storage_path + kCatalogFilename;
 
-    if (quickstep::FLAGS_initialize_db) {  // Initialize the database
+    if (FLAGS_initialize_db) {  // Initialize the database
       DefaultsConfigurator::InitializeDefaultDatabase(FLAGS_storage_path, catalog_path);
     }
 

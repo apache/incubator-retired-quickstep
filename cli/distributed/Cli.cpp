@@ -48,8 +48,8 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "storage/DataExchangerAsync.hpp"
-#include "utility/StringUtil.hpp"
 #include "storage/StorageBlockInfo.hpp"
+#include "utility/StringUtil.hpp"
 
 #include "tmb/address.h"
 #include "tmb/id_typedefs.h"
@@ -76,7 +76,7 @@ using tmb::client_id;
 
 namespace quickstep {
 
-namespace S = ::quickstep::serialization;
+namespace S = serialization;
 
 void Cli::init() {
   cli_id_ = bus_.Connect();

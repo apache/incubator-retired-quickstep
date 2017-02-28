@@ -39,6 +39,8 @@ DECLARE_bool(use_filter_joins);
 
 using quickstep::TextBasedTest;
 
+using std::make_unique;
+
 QUICKSTEP_GENERATE_TEXT_TEST(DISTRIBUTED_EXECUTION_GENERATOR_TEST);
 
 int main(int argc, char** argv) {
@@ -59,11 +61,9 @@ int main(int argc, char** argv) {
 
   std::ifstream input_file(argv[1]);
   CHECK(input_file.is_open()) << argv[1];
-  std::unique_ptr<quickstep::optimizer::DistributedExecutionGeneratorTestRunner>
-      test_runner(
-          new quickstep::optimizer::DistributedExecutionGeneratorTestRunner(argv[3]));
-  test_driver.reset(
-      new quickstep::TextBasedTestDriver(&input_file, test_runner.get()));
+
+  auto test_runner = make_unique<quickstep::optimizer::DistributedExecutionGeneratorTestRunner>(argv[3]);
+  test_driver = make_unique<quickstep::TextBasedTestDriver>(&input_file, test_runner.get());
   test_driver->registerOption(
       quickstep::optimizer::DistributedExecutionGeneratorTestRunner::kResetOption);
 
