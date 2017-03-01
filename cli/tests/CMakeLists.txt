@@ -27,7 +27,6 @@ add_executable(quickstep_cli_tests_CommandExecutorTest
 target_link_libraries(quickstep_cli_tests_CommandExecutorTest
                       glog
                       gtest
-                      gtest_main
                       quickstep_catalog_CatalogDatabase
                       quickstep_cli_CommandExecutor
                       quickstep_cli_DropRelation

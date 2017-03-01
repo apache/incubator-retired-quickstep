@@ -18,7 +18,7 @@
 add_test(quickstep_cli_tests_commandexecutor_d
          "../quickstep_cli_tests_CommandExecutorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/D.test"
-         "${CMAKE_CURRENT_BINARY_DIR}/Dt.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/D.test"
          "${CMAKE_CURRENT_BINARY_DIR}/D/")
 add_test(quickstep_cli_tests_commandexecutor_dt
          "../quickstep_cli_tests_CommandExecutorTest"
