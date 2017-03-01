@@ -622,7 +622,7 @@ TEST_F(SortRunGenerationOperatorTest, 3Column_NullLast_Asc) {
 
   // Comparator for null-col-1 ASC NULLS LAST, null-col-2 ASC NULLS LAST,
   // null-col-3 ASC NULLS LAST.
-  auto comparator = [this](const Tuple &left, const Tuple &right) -> bool {
+  auto comparator = [](const Tuple &left, const Tuple &right) -> bool {
     TestTupleAttrs l = TupleToTupleAttr(left);
     TestTupleAttrs r = TupleToTupleAttr(right);
     l.c1 = l.null_c4 ? std::numeric_limits<int>::max() : l.c1;

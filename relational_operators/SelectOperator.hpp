@@ -202,9 +202,12 @@ class SelectOperator : public RelationalOperator {
 
   bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
-  void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id,
+  void feedInputBlock(const block_id input_block_id,
+                      const relation_id input_relation_id,
                       const partition_id part_id) override {
-    input_relation_block_ids_[part_id].push_back(input_block_id);
+    if (input_relation_id == input_relation_.getID()) {
+      input_relation_block_ids_[part_id].push_back(input_block_id);
+    }
   }
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
