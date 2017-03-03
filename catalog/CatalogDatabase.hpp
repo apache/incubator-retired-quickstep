@@ -138,7 +138,7 @@ class RelationIdNotFound : public std::exception {
 /**
  * @brief A single database in the catalog.
  **/
-class CatalogDatabase : public CatalogDatabaseLite {
+class CatalogDatabase final : public CatalogDatabaseLite {
  public:
   typedef std::unordered_map<std::string, CatalogRelation*>::size_type size_type;
   typedef PtrVector<CatalogRelation, true>::const_skip_iterator const_iterator;

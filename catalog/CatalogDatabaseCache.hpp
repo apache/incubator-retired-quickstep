@@ -54,7 +54,7 @@ namespace serialization { class CatalogDatabase; }
  * @note A CatalogRelationSchema should be kept unless all associated blocks
  *       have been deleted.
  **/
-class CatalogDatabaseCache : public CatalogDatabaseLite {
+class CatalogDatabaseCache final : public CatalogDatabaseLite {
  public:
   /**
    * @brief Constructor.

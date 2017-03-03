@@ -67,7 +67,6 @@ ForemanSingleNode::ForemanSingleNode(
     : ForemanBase(bus, cpu_id),
       main_thread_client_id_(main_thread_client_id),
       worker_directory_(DCHECK_NOTNULL(worker_directory)),
-      catalog_database_(DCHECK_NOTNULL(catalog_database)),
       storage_manager_(DCHECK_NOTNULL(storage_manager)) {
   const std::vector<QueryExecutionMessageType> sender_message_types{
       kPoisonMessage,
@@ -95,7 +94,7 @@ ForemanSingleNode::ForemanSingleNode(
   policy_enforcer_ = std::make_unique<PolicyEnforcerSingleNode>(
       foreman_client_id_,
       num_numa_nodes,
-      catalog_database_,
+      catalog_database,
       storage_manager_,
       worker_directory_,
       bus_);

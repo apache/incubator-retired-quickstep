@@ -111,7 +111,6 @@ class ForemanSingleNode final : public ForemanBase {
 
   WorkerDirectory *worker_directory_;
 
-  CatalogDatabaseLite *catalog_database_;
   StorageManager *storage_manager_;
 
   DISALLOW_COPY_AND_ASSIGN(ForemanSingleNode);
