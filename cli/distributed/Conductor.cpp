@@ -27,13 +27,20 @@
 #include <sstream>
 #include <string>
 #include <utility>
+#include <vector>
 
+#include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogRelation.hpp"
+#include "catalog/CatalogTypedefs.hpp"
 #include "cli/CommandExecutorUtil.hpp"
 #include "cli/Constants.hpp"
 #include "cli/DefaultsConfigurator.hpp"
 #include "cli/Flags.hpp"
+#include "expressions/aggregation/AggregateFunctionMax.hpp"
+#include "expressions/aggregation/AggregateFunctionMin.hpp"
 #include "parser/ParseStatement.hpp"
+#include "parser/ParseString.hpp"
 #include "parser/SqlParserWrapper.hpp"
 #include "query_execution/BlockLocator.hpp"
 #include "query_execution/ForemanDistributed.hpp"
@@ -43,6 +50,7 @@
 #include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryProcessor.hpp"
 #include "storage/StorageConstants.hpp"
+#include "utility/PtrVector.hpp"
 #include "utility/SqlError.hpp"
 #include "utility/StringUtil.hpp"
 
@@ -68,6 +76,8 @@ namespace quickstep {
 
 namespace C = cli;
 namespace S = serialization;
+
+class Type;
 
 void Conductor::init() {
   try {
@@ -154,7 +164,7 @@ void Conductor::processSqlQueryMessage(const tmb::client_id sender, string *comm
   SqlParserWrapper parser_wrapper;
   parser_wrapper.feedNextBuffer(command_string);
   ParseResult parse_result = parser_wrapper.getNextStatement();
-  CHECK(parse_result.condition == ParseResult::kSuccess)
+  CHECK_EQ(ParseResult::kSuccess, parse_result.condition)
       << "Any syntax error should be addressed in the DistributedCli.";
 
   const ParseStatement &statement = *parse_result.parsed_statement;
@@ -164,6 +174,11 @@ void Conductor::processSqlQueryMessage(const tmb::client_id sender, string *comm
       const ParseCommand &parse_command = static_cast<const ParseCommand &>(statement);
       const PtrVector<ParseString> &arguments = *(parse_command.arguments());
       const string &command = parse_command.command()->value();
+
+      if (command == C::kAnalyzeCommand) {
+        executeAnalyze(sender, arguments);
+        return;
+      }
 
       string command_response;
       if (command == C::kDescribeDatabaseCommand) {
@@ -223,6 +238,88 @@ void Conductor::processSqlQueryMessage(const tmb::client_id sender, string *comm
     CHECK(MessageBus::SendStatus::kOK ==
         QueryExecutionUtil::SendTMBMessage(&bus_, conductor_client_id_, sender, move(message)));
   }
+}
+
+void Conductor::executeAnalyze(const tmb::client_id sender, const PtrVector<ParseString> &arguments) {
+  std::vector<std::reference_wrapper<const CatalogRelation>> relations;
+  if (arguments.empty()) {
+    relations.insert(relations.end(), catalog_database_->begin(), catalog_database_->end());
+  } else {
+    for (const auto &argument : arguments) {
+      const CatalogRelation *relation = catalog_database_->getRelationByName(argument.value());
+      if (relation == nullptr) {
+        THROW_SQL_ERROR_AT(&argument) << "Table does not exist";
+      }
+
+      relations.emplace_back(*relation);
+    }
+  }
+
+  // Analyze each relation in the database.
+  for (const CatalogRelation &relation : relations) {
+    const relation_id rel_id = relation.getID();
+    const string rel_name = EscapeQuotes(relation.getName(), '"');
+
+    // Get the number of distinct values for each column.
+    for (const CatalogAttribute &attribute : relation) {
+      const string attr_name = EscapeQuotes(attribute.getName(), '"');
+      const Type &attr_type = attribute.getType();
+      const bool is_min_applicable =
+          AggregateFunctionMin::Instance().canApplyToTypes({&attr_type});
+      const bool is_max_applicable =
+          AggregateFunctionMax::Instance().canApplyToTypes({&attr_type});
+
+      // NOTE(jianqiao): Note that the relation name and the attribute names may
+      // contain non-letter characters, e.g. CREATE TABLE "with space"("1" int).
+      // So here we need to format the names with double quotes (").
+      string *query_string = new string("SELECT COUNT(DISTINCT \"");
+      query_string->append(attr_name);
+      query_string->append("\")");
+      if (is_min_applicable) {
+        query_string->append(", MIN(\"");
+        query_string->append(attr_name);
+        query_string->append("\")");
+      }
+      if (is_max_applicable) {
+        query_string->append(", MAX(\"");
+        query_string->append(attr_name);
+        query_string->append("\")");
+      }
+      query_string->append(" FROM \"");
+      query_string->append(rel_name);
+      query_string->append("\";");
+
+      submitQuery(sender, query_string,
+                  new QueryHandle::AnalyzeQueryInfo(true /* is_analyze_attribute_query */, rel_id, relations.size(),
+                                                    attribute.getID(), is_min_applicable, is_max_applicable));
+    }
+
+    // Get the number of tuples for the relation.
+    string *query_string = new string("SELECT COUNT(*) FROM \"");
+    query_string->append(rel_name);
+    query_string->append("\";");
+
+    submitQuery(sender, query_string,
+                new QueryHandle::AnalyzeQueryInfo(false /* is_analyze_attribute_query */, rel_id, relations.size()));
+  }
+}
+
+void Conductor::submitQuery(const tmb::client_id sender, string *query, QueryHandle::AnalyzeQueryInfo *query_info) {
+  SqlParserWrapper parser_wrapper;
+  parser_wrapper.feedNextBuffer(query);
+  ParseResult parse_result = parser_wrapper.getNextStatement();
+  DCHECK_EQ(ParseResult::kSuccess, parse_result.condition);
+
+  const ParseStatement &statement = *parse_result.parsed_statement;
+
+  // Generate the query plan.
+  auto query_handle =
+      make_unique<QueryHandle>(query_processor_->query_id(), sender, statement.getPriority(), query_info);
+  query_processor_->generateQueryHandle(statement, query_handle.get());
+  DCHECK(query_handle->getQueryPlanMutable() != nullptr);
+
+  QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
+      conductor_client_id_, foreman_->getBusClientID(), query_handle.release(), &bus_);
 }
 
 }  // namespace quickstep

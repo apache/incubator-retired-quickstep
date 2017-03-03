@@ -27,8 +27,10 @@
 #include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "cli/Flags.hpp"
 #include "query_execution/AdmitRequestMessage.hpp"
 #include "query_execution/BlockLocator.hpp"
+#include "query_execution/BlockLocatorUtil.hpp"
 #include "query_execution/PolicyEnforcerBase.hpp"
 #include "query_execution/PolicyEnforcerDistributed.hpp"
 #include "query_execution/QueryContext.hpp"
@@ -37,7 +39,9 @@
 #include "query_execution/QueryExecutionUtil.hpp"
 #include "query_execution/ShiftbossDirectory.hpp"
 #include "relational_operators/WorkOrder.pb.h"
+#include "storage/DataExchangerAsync.hpp"
 #include "storage/StorageBlockInfo.hpp"
+#include "storage/StorageManager.hpp"
 #include "threading/ThreadUtil.hpp"
 #include "utility/EqualsAnyConstant.hpp"
 
@@ -49,6 +53,7 @@
 #include "tmb/message_style.h"
 #include "tmb/tagged_message.h"
 
+using std::make_unique;
 using std::move;
 using std::size_t;
 using std::unique_ptr;
@@ -75,6 +80,7 @@ ForemanDistributed::ForemanDistributed(
       block_locator_(block_locator),
       catalog_database_(DCHECK_NOTNULL(catalog_database)) {
   const std::vector<QueryExecutionMessageType> sender_message_types{
+      kBlockDomainRegistrationMessage,
       kShiftbossRegistrationResponseMessage,
       kQueryInitiateMessage,
       kWorkOrderMessage,
@@ -82,6 +88,7 @@ ForemanDistributed::ForemanDistributed(
       kQueryTeardownMessage,
       kSaveQueryResultMessage,
       kQueryExecutionSuccessMessage,
+      kCommandResponseMessage,
       kPoisonMessage};
 
   for (const auto message_type : sender_message_types) {
@@ -89,6 +96,7 @@ ForemanDistributed::ForemanDistributed(
   }
 
   const std::vector<QueryExecutionMessageType> receiver_message_types{
+      kBlockDomainRegistrationResponseMessage,
       kShiftbossRegistrationMessage,
       kAdmitRequestMessage,
       kQueryInitiateResponseMessage,
@@ -105,12 +113,17 @@ ForemanDistributed::ForemanDistributed(
     bus_->RegisterClientAsReceiver(foreman_client_id_, message_type);
   }
 
-  policy_enforcer_ = std::make_unique<PolicyEnforcerDistributed>(
-      foreman_client_id_,
-      catalog_database_,
-      query_processor,
-      &shiftboss_directory_,
-      bus_);
+  client_id locator_client_id;
+  storage_manager_ = make_unique<StorageManager>(
+      FLAGS_storage_path,
+      block_locator::getBlockDomain(data_exchanger_.network_address(), foreman_client_id_, &locator_client_id, bus_),
+      locator_client_id, bus_);
+
+  data_exchanger_.set_storage_manager(storage_manager_.get());
+  data_exchanger_.start();
+
+  policy_enforcer_ = make_unique<PolicyEnforcerDistributed>(
+      foreman_client_id_, catalog_database_, query_processor, storage_manager_.get(), &shiftboss_directory_, bus_);
 }
 
 void ForemanDistributed::run() {

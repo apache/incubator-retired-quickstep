@@ -26,7 +26,10 @@
 #include <vector>
 
 #include "catalog/Catalog.pb.h"
+#include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogRelation.hpp"
+#include "catalog/CatalogRelationSchema.hpp"
+#include "catalog/CatalogRelationStatistics.hpp"
 #include "query_execution/QueryContext.pb.h"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionState.hpp"
@@ -36,7 +39,12 @@
 #include "query_execution/QueryManagerDistributed.hpp"
 #include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryProcessor.hpp"
+#include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
+#include "storage/StorageManager.hpp"
+#include "storage/TupleIdSequence.hpp"
+#include "storage/TupleStorageSubBlock.hpp"
+#include "types/TypedValue.hpp"
 #include "utility/ExecutionDAGVisualizer.hpp"
 
 #include "gflags/gflags.h"
@@ -50,7 +58,9 @@
 using std::free;
 using std::malloc;
 using std::move;
+using std::ostringstream;
 using std::size_t;
+using std::string;
 using std::unique_ptr;
 using std::vector;
 
@@ -231,7 +241,7 @@ void PolicyEnforcerDistributed::initiateQueryInShiftboss(QueryHandle *query_hand
 void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manager) {
   const QueryHandle *query_handle = query_manager->query_handle();
 
-  const CatalogRelation *query_result = query_handle->getQueryResultRelation();
+  const CatalogRelation *query_result_relation = query_handle->getQueryResultRelation();
   const tmb::client_id cli_id = query_handle->getClientId();
   const std::size_t query_id = query_handle->query_id();
 
@@ -259,7 +269,7 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
     shiftboss_addresses.AddRecipient(shiftboss_directory_->getClientId(i));
   }
 
-  if (query_result == nullptr) {
+  if (query_result_relation == nullptr) {
     if (query_processor_) {
       query_processor_->saveCatalog();
     }
@@ -272,17 +282,12 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
     char *proto_bytes = static_cast<char*>(malloc(proto_length));
     CHECK(proto.SerializeToArray(proto_bytes, proto_length));
 
-    TaggedMessage message(static_cast<const void*>(proto_bytes),
-                          proto_length,
-                          kQueryTeardownMessage);
+    TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, kQueryTeardownMessage);
     free(proto_bytes);
 
     DLOG(INFO) << "PolicyEnforcerDistributed sent QueryTeardownMessage (typed '" << kQueryTeardownMessage
                << "') to all Shiftbosses";
-    QueryExecutionUtil::BroadcastMessage(foreman_client_id_,
-                                         shiftboss_addresses,
-                                         move(message),
-                                         bus_);
+    QueryExecutionUtil::BroadcastMessage(foreman_client_id_, shiftboss_addresses, move(message), bus_);
 
     TaggedMessage cli_message(kQueryExecutionSuccessMessage);
 
@@ -299,12 +304,33 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
     return;
   }
 
+  const QueryHandle::AnalyzeQueryInfo *analyze_query_info = query_handle->analyze_query_info();
+  if (analyze_query_info) {
+    processAnalyzeQueryResult(cli_id, query_result_relation, analyze_query_info);
+
+    // Clean up query execution states, i.e., QueryContext, in Shiftbosses.
+    S::QueryTeardownMessage proto;
+    proto.set_query_id(query_id);
+
+    const size_t proto_length = proto.ByteSize();
+    char *proto_bytes = static_cast<char*>(malloc(proto_length));
+    CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+    TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, kQueryTeardownMessage);
+    free(proto_bytes);
+
+    DLOG(INFO) << "PolicyEnforcerDistributed sent QueryTeardownMessage (typed '" << kQueryTeardownMessage
+               << "') to all Shiftbosses";
+    QueryExecutionUtil::BroadcastMessage(foreman_client_id_, shiftboss_addresses, move(message), bus_);
+    return;
+  }
+
   // NOTE(zuyu): SaveQueryResultMessage implicitly triggers QueryTeardown in Shiftboss.
   S::SaveQueryResultMessage proto;
   proto.set_query_id(query_id);
-  proto.set_relation_id(query_result->getID());
+  proto.set_relation_id(query_result_relation->getID());
 
-  const vector<block_id> blocks(query_result->getBlocksSnapshot());
+  const vector<block_id> blocks(query_result_relation->getBlocksSnapshot());
   for (const block_id block : blocks) {
     proto.add_blocks(block);
   }
@@ -315,18 +341,111 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
   char *proto_bytes = static_cast<char*>(malloc(proto_length));
   CHECK(proto.SerializeToArray(proto_bytes, proto_length));
 
-  TaggedMessage message(static_cast<const void*>(proto_bytes),
-                        proto_length,
-                        kSaveQueryResultMessage);
+  TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, kSaveQueryResultMessage);
   free(proto_bytes);
 
   // TODO(quickstep-team): Dynamically scale-up/down Shiftbosses.
   DLOG(INFO) << "PolicyEnforcerDistributed sent SaveQueryResultMessage (typed '" << kSaveQueryResultMessage
              << "') to all Shiftbosses";
-  QueryExecutionUtil::BroadcastMessage(foreman_client_id_,
-                                       shiftboss_addresses,
-                                       move(message),
-                                       bus_);
+  QueryExecutionUtil::BroadcastMessage(foreman_client_id_, shiftboss_addresses, move(message), bus_);
+}
+
+void PolicyEnforcerDistributed::processAnalyzeQueryResult(const tmb::client_id cli_id,
+                                                          const CatalogRelation *query_result_relation,
+                                                          const QueryHandle::AnalyzeQueryInfo *analyze_query_info) {
+  const relation_id rel_id = analyze_query_info->rel_id;
+  CatalogRelation *mutable_relation =
+      static_cast<CatalogDatabase*>(catalog_database_)->getRelationByIdMutable(rel_id);
+  CatalogRelationStatistics *mutable_stat = mutable_relation->getStatisticsMutable();
+
+  const auto analyze_query_result = [this, &query_result_relation]() {
+    const vector<block_id> blocks = query_result_relation->getBlocksSnapshot();
+    DCHECK_EQ(1u, blocks.size());
+
+    vector<TypedValue> query_result;
+    {
+      BlockReference block = storage_manager_->getBlock(blocks.front(), *query_result_relation);
+      const TupleStorageSubBlock &tuple_store = block->getTupleStorageSubBlock();
+      DCHECK_EQ(1, tuple_store.numTuples());
+
+      const std::size_t num_columns = tuple_store.getRelation().size();
+      if (tuple_store.isPacked()) {
+        for (std::size_t i = 0; i < num_columns; ++i) {
+          query_result.emplace_back(tuple_store.getAttributeValueTyped(0, i));
+        }
+      } else {
+        std::unique_ptr<TupleIdSequence> existence_map(tuple_store.getExistenceMap());
+        for (std::size_t i = 0; i < num_columns; ++i) {
+          query_result.emplace_back(
+              tuple_store.getAttributeValueTyped(*existence_map->begin(), i));
+        }
+      }
+    }
+
+    // Clean up the query result relation.
+    for (const block_id block : blocks) {
+      storage_manager_->deleteBlockOrBlobFile(block);
+    }
+    catalog_database_->dropRelationById(query_result_relation->getID());
+
+    return query_result;
+  }();
+
+  if (analyze_query_info->is_analyze_attribute_query) {
+    const attribute_id attr_id = analyze_query_info->attr_id;
+
+    auto cit = analyze_query_result.begin();
+    DCHECK_EQ(TypeID::kLong, cit->getTypeID());
+    mutable_stat->setNumDistinctValues(attr_id, cit->getLiteral<std::int64_t>());
+
+    if (analyze_query_info->is_min_applicable) {
+      ++cit;
+      mutable_stat->setMinValue(attr_id, *cit);
+    }
+
+    if (analyze_query_info->is_max_applicable) {
+      ++cit;
+      mutable_stat->setMaxValue(attr_id, *cit);
+    }
+  } else {
+    completed_analyze_relations_[cli_id].push_back(rel_id);
+
+    DCHECK_EQ(1u, analyze_query_result.size());
+    const TypedValue &num_tuples = analyze_query_result.front();
+    DCHECK_EQ(TypeID::kLong, num_tuples.getTypeID());
+    mutable_stat->setNumTuples(num_tuples.getLiteral<std::int64_t>());
+
+    mutable_stat->setExactness(true);
+
+    if (completed_analyze_relations_[cli_id].size() == analyze_query_info->num_relations) {
+      query_processor_->markCatalogAltered();
+      query_processor_->saveCatalog();
+
+      ostringstream analyze_command_response;
+      for (const relation_id rel_id : completed_analyze_relations_[cli_id]) {
+        analyze_command_response << "Analyzing " << catalog_database_->getRelationSchemaById(rel_id).getName()
+                                 << " ... done\n";
+      }
+
+      S::CommandResponseMessage proto;
+      proto.set_command_response(analyze_command_response.str());
+
+      const size_t proto_length = proto.ByteSize();
+      char *proto_bytes = static_cast<char*>(malloc(proto_length));
+      CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+      TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, kCommandResponseMessage);
+      free(proto_bytes);
+
+      DLOG(INFO) << "PolicyEnforcerDistributed sent CommandResponseMessage (typed '" << kCommandResponseMessage
+                 << "') to CLI with TMB client id " << cli_id;
+      const tmb::MessageBus::SendStatus send_status =
+          QueryExecutionUtil::SendTMBMessage(bus_, foreman_client_id_, cli_id, move(message));
+      CHECK(send_status == tmb::MessageBus::SendStatus::kOK);
+
+      completed_analyze_relations_.erase(cli_id);
+    }
+  }
 }
 
 }  // namespace quickstep

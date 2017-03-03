@@ -26,15 +26,17 @@
 #include "cli/distributed/Role.hpp"
 #include "query_execution/BlockLocator.hpp"
 #include "query_execution/ForemanDistributed.hpp"
+#include "query_optimizer/QueryHandle.hpp"
 #include "query_optimizer/QueryProcessor.hpp"
 #include "utility/Macros.hpp"
+#include "utility/PtrVector.hpp"
 
 #include "tmb/id_typedefs.h"
 
 namespace quickstep {
 
 class CatalogDatabase;
-class ParseCommand;
+class ParseString;
 
 /** \addtogroup CliDistributed
  *  @{
@@ -61,6 +63,10 @@ class Conductor final : public Role {
 
  private:
   void processSqlQueryMessage(const tmb::client_id sender, std::string *command_string);
+
+  void executeAnalyze(const tmb::client_id sender, const PtrVector<ParseString> &arguments);
+
+  void submitQuery(const tmb::client_id sender, std::string *query, QueryHandle::AnalyzeQueryInfo *query_info);
 
   std::unique_ptr<QueryProcessor> query_processor_;
   // Not owned.

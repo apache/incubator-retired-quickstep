@@ -101,8 +101,10 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_catalog_CatalogRelation
                         quickstep_catalog_CatalogTypedefs
                         quickstep_catalog_Catalog_proto
+                        quickstep_cli_Flags
                         quickstep_queryexecution_AdmitRequestMessage
                         quickstep_queryexecution_BlockLocator
+                        quickstep_queryexecution_BlockLocatorUtil
                         quickstep_queryexecution_ForemanBase
                         quickstep_queryexecution_PolicyEnforcerBase
                         quickstep_queryexecution_PolicyEnforcerDistributed
@@ -112,7 +114,9 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_queryexecution_QueryExecutionUtil
                         quickstep_queryexecution_ShiftbossDirectory
                         quickstep_relationaloperators_WorkOrder_proto
+                        quickstep_storage_DataExchangerAsync
                         quickstep_storage_StorageBlockInfo
+                        quickstep_storage_StorageManager
                         quickstep_threading_ThreadUtil
                         quickstep_utility_EqualsAnyConstant
                         quickstep_utility_Macros
@@ -151,7 +155,10 @@ target_link_libraries(quickstep_queryexecution_PolicyEnforcerBase
 if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_queryexecution_PolicyEnforcerDistributed
                         glog
+                        quickstep_catalog_CatalogDatabase
                         quickstep_catalog_CatalogRelation
+                        quickstep_catalog_CatalogRelationSchema
+                        quickstep_catalog_CatalogRelationStatistics
                         quickstep_catalog_CatalogTypedefs
                         quickstep_catalog_Catalog_proto
                         quickstep_queryexecution_PolicyEnforcerBase
@@ -166,7 +173,12 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_queryexecution_ShiftbossDirectory
                         quickstep_queryoptimizer_QueryHandle
                         quickstep_queryoptimizer_QueryProcessor
+                        quickstep_storage_StorageBlock
                         quickstep_storage_StorageBlockInfo
+                        quickstep_storage_StorageManager
+                        quickstep_storage_TupleIdSequence
+                        quickstep_storage_TupleStorageSubBlock
+                        quickstep_types_TypedValue
                         quickstep_utility_ExecutionDAGVisualizer
                         quickstep_utility_Macros
                         tmb

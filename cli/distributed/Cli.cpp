@@ -167,11 +167,9 @@ void Cli::run() {
           const ParseCommand &parse_command = static_cast<const ParseCommand &>(statement);
           const std::string &command = parse_command.command()->value();
           try {
-            if (command == C::kAnalyzeCommand) {
-              // TODO(zuyu): support '\analyze'.
-              THROW_SQL_ERROR_AT(parse_command.command()) << "Unsupported Command";
-            } else if (command != C::kDescribeDatabaseCommand &&
-                       command != C::kDescribeTableCommand) {
+            if (command != C::kAnalyzeCommand &&
+                command != C::kDescribeDatabaseCommand &&
+                command != C::kDescribeTableCommand) {
               THROW_SQL_ERROR_AT(parse_command.command()) << "Invalid Command";
             }
           } catch (const SqlError &error) {

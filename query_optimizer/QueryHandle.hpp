@@ -25,6 +25,7 @@
 #include <memory>
 
 #include "catalog/Catalog.pb.h"
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.pb.h"
 #include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED.
 #include "query_optimizer/QueryPlan.hpp"
@@ -45,19 +46,47 @@ class CatalogRelation;
  **/
 class QueryHandle {
  public:
+  // The info for generated queries during executing '\analyze'.
+  struct AnalyzeQueryInfo {
+    AnalyzeQueryInfo(const bool is_analyze_attribute_query_in,
+                     const relation_id rel_id_in,
+                     const std::size_t num_relations_in,
+                     const attribute_id attr_id_in = kInvalidCatalogId,
+                     const bool is_min_applicable_in = false,
+                     const bool is_max_applicable_in = false)
+      : is_analyze_attribute_query(is_analyze_attribute_query_in),
+        rel_id(rel_id_in),
+        num_relations(num_relations_in),
+        attr_id(attr_id_in),
+        is_min_applicable(is_min_applicable_in),
+        is_max_applicable(is_max_applicable_in) {}
+
+    const bool is_analyze_attribute_query;
+    const relation_id rel_id;
+    const std::size_t num_relations;
+
+    // Only valid if 'is_analyze_attribute_query' is true.
+    const attribute_id attr_id;
+    const bool is_min_applicable;
+    const bool is_max_applicable;
+  };
+
   /**
    * @brief Constructor.
    *
    * @param query_id The given query id.
    * @param cli_id The client id of the CLI which submits the query.
    * @param query_priority The priority of this query.
+   * @param analyze_query_info The info of this analyze query.
    */
-  explicit QueryHandle(const std::size_t query_id,
-                       const tmb::client_id cli_id,
-                       const std::uint64_t query_priority = 1)
+  QueryHandle(const std::size_t query_id,
+              const tmb::client_id cli_id,
+              const std::uint64_t query_priority = 1,
+              AnalyzeQueryInfo *analyze_query_info = nullptr)
       : query_id_(query_id),
         cli_id_(cli_id),
         query_priority_(query_priority),
+        analyze_query_info_(analyze_query_info),
         query_plan_(new QueryPlan()),
         query_result_relation_(nullptr) {}
 
@@ -84,6 +113,13 @@ class QueryHandle {
    **/
   const std::uint64_t query_priority() const {
     return query_priority_;
+  }
+
+  /**
+   * @brief Get the query info for the command '\analyze'.
+   **/
+  const AnalyzeQueryInfo* analyze_query_info() const {
+    return analyze_query_info_.get();
   }
 
   /**
@@ -165,6 +201,7 @@ class QueryHandle {
   const tmb::client_id cli_id_;
 
   const std::uint64_t query_priority_;
+  std::unique_ptr<AnalyzeQueryInfo> analyze_query_info_;
 
   std::unique_ptr<QueryPlan> query_plan_;
 

@@ -25,13 +25,19 @@ add_library(quickstep_cli_distributed_Role Role.cpp Role.hpp)
 # Link dependencies:
 target_link_libraries(quickstep_cli_distributed_Conductor
                       glog
+                      quickstep_catalog_CatalogAttribute
                       quickstep_catalog_CatalogDatabase
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
                       quickstep_cli_CommandExecutorUtil
                       quickstep_cli_Constants
                       quickstep_cli_DefaultsConfigurator
                       quickstep_cli_Flags
                       quickstep_cli_distributed_Role
+                      quickstep_expressions_aggregation_AggregateFunctionMax
+                      quickstep_expressions_aggregation_AggregateFunctionMin
                       quickstep_parser_ParseStatement
+                      quickstep_parser_ParseString
                       quickstep_parser_SqlParserWrapper
                       quickstep_queryexecution_BlockLocator
                       quickstep_queryexecution_ForemanDistributed
@@ -42,6 +48,7 @@ target_link_libraries(quickstep_cli_distributed_Conductor
                       quickstep_queryoptimizer_QueryProcessor
                       quickstep_storage_StorageConstants
                       quickstep_utility_Macros
+                      quickstep_utility_PtrVector
                       quickstep_utility_SqlError
                       quickstep_utility_StringUtil
                       tmb)

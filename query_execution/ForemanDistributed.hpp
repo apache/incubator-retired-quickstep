@@ -25,6 +25,8 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/ForemanBase.hpp"
 #include "query_execution/ShiftbossDirectory.hpp"
+#include "storage/DataExchangerAsync.hpp"
+#include "storage/StorageManager.hpp"
 #include "utility/Macros.hpp"
 
 #include "tmb/id_typedefs.h"
@@ -70,7 +72,11 @@ class ForemanDistributed final : public ForemanBase {
       QueryProcessor *query_processor,
       const int cpu_id = -1);
 
-  ~ForemanDistributed() override {}
+  ~ForemanDistributed() override {
+    data_exchanger_.shutdown();
+    storage_manager_.reset();
+    data_exchanger_.join();
+  }
 
   void printWorkOrderProfilingResults(const std::size_t query_id,
                                       std::FILE *out) const override;
@@ -125,6 +131,10 @@ class ForemanDistributed final : public ForemanBase {
   ShiftbossDirectory shiftboss_directory_;
 
   CatalogDatabaseLite *catalog_database_;
+
+  // Used for '\analyze'.
+  DataExchangerAsync data_exchanger_;
+  std::unique_ptr<StorageManager> storage_manager_;
 
   // From a query id to a set of Shiftbosses that save query result.
   std::unordered_map<std::size_t, std::unordered_set<std::size_t>> query_result_saved_shiftbosses_;

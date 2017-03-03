@@ -84,6 +84,7 @@ target_link_libraries(quickstep_cli_CommandExecutor
                       quickstep_expressions_aggregation_AggregateFunctionMax
                       quickstep_expressions_aggregation_AggregateFunctionMin
                       quickstep_parser_ParseStatement
+                      quickstep_parser_ParseString
                       quickstep_parser_SqlParserWrapper
                       quickstep_queryoptimizer_QueryHandle
                       quickstep_queryoptimizer_QueryPlan
@@ -93,7 +94,6 @@ target_link_libraries(quickstep_cli_CommandExecutor
                       quickstep_storage_StorageManager
                       quickstep_storage_TupleIdSequence
                       quickstep_storage_TupleStorageSubBlock
-                      quickstep_parser_ParseString
                       quickstep_types_Type
                       quickstep_types_TypeID
                       quickstep_types_TypedValue

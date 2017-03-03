@@ -28,6 +28,7 @@
 #include "query_execution/QueryManagerBase.hpp"
 #include "query_execution/ShiftbossDirectory.hpp"
 #include "query_optimizer/QueryHandle.hpp"
+#include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -42,7 +43,9 @@ class TaggedMessage;
 namespace quickstep {
 
 class CatalogDatabaseLite;
+class CatalogRelation;
 class QueryProcessor;
+class StorageManager;
 
 /** \addtogroup QueryExecution
  *  @{
@@ -61,16 +64,20 @@ class PolicyEnforcerDistributed final : public PolicyEnforcerBase {
    * @param catalog_database The CatalogDatabase used.
    * @param query_processor The QueryProcessor to save catalog upon the query
    *        completion.
+   * @param storage_manager The StorageManager to use.
+   * @param shiftboss_directory The ShiftbossDirectory to manage Shiftbosses.
    * @param bus The TMB.
    **/
   PolicyEnforcerDistributed(const tmb::client_id foreman_client_id,
                             CatalogDatabaseLite *catalog_database,
                             QueryProcessor *query_processor,
+                            StorageManager *storage_manager,
                             ShiftbossDirectory *shiftboss_directory,
                             tmb::MessageBus *bus)
       : PolicyEnforcerBase(catalog_database),
         foreman_client_id_(foreman_client_id),
         query_processor_(query_processor),
+        storage_manager_(storage_manager),
         shiftboss_directory_(shiftboss_directory),
         bus_(bus) {}
 
@@ -157,12 +164,19 @@ class PolicyEnforcerDistributed final : public PolicyEnforcerBase {
 
   void initiateQueryInShiftboss(QueryHandle *query_handle);
 
+  void processAnalyzeQueryResult(const tmb::client_id cli_id,
+                                 const CatalogRelation *query_result_relation,
+                                 const QueryHandle::AnalyzeQueryInfo *analyze_query_info);
+
   const tmb::client_id foreman_client_id_;
 
   QueryProcessor *query_processor_;
+  StorageManager *storage_manager_;
   ShiftbossDirectory *shiftboss_directory_;
 
   tmb::MessageBus *bus_;
+
+  std::unordered_map<tmb::client_id, std::vector<relation_id>> completed_analyze_relations_;
 
   DISALLOW_COPY_AND_ASSIGN(PolicyEnforcerDistributed);
 };
