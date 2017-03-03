@@ -25,6 +25,7 @@ create_artifacts() {
 
   export RELEASE_DIR=`pwd`
   cd ..
+  export BASE_DIR=`pwd`
 
   # need the submodules to be included for the compile to work.
   # likely, this will be a no-op
@@ -35,8 +36,8 @@ create_artifacts() {
   # the tag is necesary for the archiving to work correctly
   git tag -a rc-$VERSION -m 'release candidate $VERSION'
   git archive --format "tar" --prefix=$PROJECT_NAME-$VERSION/ -o $PROJECT_NAME-$VERSION.tar rc-$VERSION
-  git submodule foreach --recursive 'git archive --verbose --prefix=$PROJECT_NAME-$VERSION/$path/ --format tar master --output $RELEASE_DIR/submodule-$sha1.tar'
-  if [[ $(ls submodule-*.tar | wc -l) != 0  ]]; then
+  git submodule foreach --recursive 'git archive --verbose --prefix=$PROJECT_NAME-$VERSION/$path/ --format tar master --output $BASE_DIR/submodule-$sha1.tar'
+  if [[ $(ls | grep submodule-*.tar | wc -l) != 0  ]]; then
     # combine all archives into one tar
     tar --concatenate --file $PROJECT_NAME-$VERSION.tar submodule-*.tar
     # remove sub tars
@@ -91,7 +92,7 @@ publish_candidate() {
   mkdir $RCFOLDER
   cd $RCFOLDER
   cp $BASE_DIR/$PROJECT_NAME-$VERSION.tar.gz* ./
-  cd ..
+  cd ../..
 
   svn add $VERSION/$RCFOLDER
   svn commit --username=$APACHE_USERNAME -m "Quickstep-$VERSION RC$CANDIDATE"
