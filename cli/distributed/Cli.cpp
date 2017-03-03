@@ -123,7 +123,7 @@ void Cli::init() {
   data_exchanger_.set_storage_manager(storage_manager_.get());
   data_exchanger_.start();
 
-  // Prepare for submitting a query.
+  // Prepare for submitting a query or a command.
   bus_.RegisterClientAsSender(cli_id_, kSqlQueryMessage);
 
   bus_.RegisterClientAsReceiver(cli_id_, kQueryExecutionSuccessMessage);
@@ -131,8 +131,6 @@ void Cli::init() {
 
   bus_.RegisterClientAsReceiver(cli_id_, kQueryExecutionErrorMessage);
 
-  // Prepare for submitting a command.
-  bus_.RegisterClientAsSender(cli_id_, kCommandMessage);
   bus_.RegisterClientAsReceiver(cli_id_, kCommandResponseMessage);
 }
 
@@ -166,50 +164,36 @@ void Cli::run() {
         }
 
         if (statement.getStatementType() == ParseStatement::kCommand) {
-          const ParseCommand &command = static_cast<const ParseCommand &>(statement);
-          const std::string &command_str = command.command()->value();
+          const ParseCommand &parse_command = static_cast<const ParseCommand &>(statement);
+          const std::string &command = parse_command.command()->value();
           try {
-            if (command_str == C::kAnalyzeCommand) {
+            if (command == C::kAnalyzeCommand) {
               // TODO(zuyu): support '\analyze'.
-              THROW_SQL_ERROR_AT(command.command()) << "Unsupported Command";
-            } else if (command_str != C::kDescribeDatabaseCommand &&
-                       command_str != C::kDescribeTableCommand) {
-              THROW_SQL_ERROR_AT(command.command()) << "Invalid Command";
+              THROW_SQL_ERROR_AT(parse_command.command()) << "Unsupported Command";
+            } else if (command != C::kDescribeDatabaseCommand &&
+                       command != C::kDescribeTableCommand) {
+              THROW_SQL_ERROR_AT(parse_command.command()) << "Invalid Command";
             }
           } catch (const SqlError &error) {
             fprintf(stderr, "%s", error.formatMessage(*command_string).c_str());
             reset_parser = true;
             break;
           }
-
-          DLOG(INFO) << "DistributedCli sent CommandMessage (typed '" << kCommandMessage
-                     << "') to Conductor";
-          S::CommandMessage proto;
-          proto.set_command(*command_string);
-
-          const size_t proto_length = proto.ByteSize();
-          char *proto_bytes = static_cast<char*>(malloc(proto_length));
-          CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-          TaggedMessage command_message(static_cast<const void*>(proto_bytes), proto_length, kCommandMessage);
-          free(proto_bytes);
-
-          QueryExecutionUtil::SendTMBMessage(&bus_, cli_id_, conductor_client_id_, move(command_message));
-        } else {
-          DLOG(INFO) << "DistributedCli sent SqlQueryMessage (typed '" << kSqlQueryMessage
-                     << "') to Conductor";
-          S::SqlQueryMessage proto;
-          proto.set_sql_query(*command_string);
-
-          const size_t proto_length = proto.ByteSize();
-          char *proto_bytes = static_cast<char*>(malloc(proto_length));
-          CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-          TaggedMessage sql_query_message(static_cast<const void*>(proto_bytes), proto_length, kSqlQueryMessage);
-          free(proto_bytes);
-
-          QueryExecutionUtil::SendTMBMessage(&bus_, cli_id_, conductor_client_id_, move(sql_query_message));
         }
+
+        DLOG(INFO) << "DistributedCli sent SqlQueryMessage (typed '" << kSqlQueryMessage
+                   << "') to Conductor";
+        S::SqlQueryMessage proto;
+        proto.set_sql_query(*command_string);
+
+        const size_t proto_length = proto.ByteSize();
+        char *proto_bytes = static_cast<char*>(malloc(proto_length));
+        CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+        TaggedMessage sql_query_message(static_cast<const void*>(proto_bytes), proto_length, kSqlQueryMessage);
+        free(proto_bytes);
+
+        QueryExecutionUtil::SendTMBMessage(&bus_, cli_id_, conductor_client_id_, move(sql_query_message));
 
         start = std::chrono::steady_clock::now();
 

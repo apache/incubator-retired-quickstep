@@ -24,7 +24,6 @@
 #include <string>
 
 #include "cli/distributed/Role.hpp"
-#include "parser/SqlParserWrapper.hpp"
 #include "query_execution/BlockLocator.hpp"
 #include "query_execution/ForemanDistributed.hpp"
 #include "query_optimizer/QueryProcessor.hpp"
@@ -61,11 +60,7 @@ class Conductor final : public Role {
   void run() override;
 
  private:
-  void processCommandMessage(const tmb::client_id sender, std::string *command_string);
-
   void processSqlQueryMessage(const tmb::client_id sender, std::string *command_string);
-
-  SqlParserWrapper parser_wrapper_;
 
   std::unique_ptr<QueryProcessor> query_processor_;
   // Not owned.

@@ -90,9 +90,7 @@ enum QueryExecutionMessageType : message_type_id {
   kDistributedCliRegistrationMessage,  // From CLI to Conductor.
   kDistributedCliRegistrationResponseMessage,  // From Conductor to CLI.
 
-  // From CLI to Conductor.
-  kCommandMessage,
-  kSqlQueryMessage,
+  kSqlQueryMessage, // From CLI to Conductor.
 
   kQueryInitiateMessage,  // From Foreman to Shiftboss.
   kQueryInitiateResponseMessage,  // From Shiftboss to Foreman.

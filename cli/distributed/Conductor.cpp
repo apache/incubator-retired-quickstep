@@ -95,21 +95,18 @@ void Conductor::init() {
   bus_.RegisterClientAsReceiver(conductor_client_id_, kDistributedCliRegistrationMessage);
   bus_.RegisterClientAsSender(conductor_client_id_, kDistributedCliRegistrationResponseMessage);
 
-  bus_.RegisterClientAsReceiver(conductor_client_id_, kCommandMessage);
-  bus_.RegisterClientAsSender(conductor_client_id_, kCommandResponseMessage);
-
   bus_.RegisterClientAsReceiver(conductor_client_id_, kSqlQueryMessage);
+  bus_.RegisterClientAsSender(conductor_client_id_, kCommandResponseMessage);
   bus_.RegisterClientAsSender(conductor_client_id_, kQueryExecutionErrorMessage);
   bus_.RegisterClientAsSender(conductor_client_id_, kAdmitRequestMessage);
+
 
   bus_.RegisterClientAsReceiver(conductor_client_id_, kQueryResultTeardownMessage);
 
   block_locator_ = make_unique<BlockLocator>(&bus_);
   block_locator_->start();
 
-  foreman_ = make_unique<ForemanDistributed>(*block_locator_,
-                                             std::bind(&QueryProcessor::saveCatalog, query_processor_.get()), &bus_,
-                                             catalog_database_);
+  foreman_ = make_unique<ForemanDistributed>(*block_locator_, &bus_, catalog_database_, query_processor_.get());
   foreman_->start();
 }
 
@@ -130,14 +127,6 @@ void Conductor::run() {
                    << "') to Distributed CLI " << sender;
         CHECK(MessageBus::SendStatus::kOK ==
             QueryExecutionUtil::SendTMBMessage(&bus_, conductor_client_id_, sender, move(message)));
-        break;
-      }
-      case kCommandMessage: {
-        S::CommandMessage proto;
-        CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
-        DLOG(INFO) << "Conductor received the following command: " << proto.command();
-
-        processCommandMessage(sender, new string(move(proto.command())));
         break;
       }
       case kSqlQueryMessage: {
@@ -161,91 +150,59 @@ void Conductor::run() {
   }
 }
 
-void Conductor::processCommandMessage(const tmb::client_id sender, string *command_string) {
-  parser_wrapper_.feedNextBuffer(command_string);
-  ParseResult parse_result = parser_wrapper_.getNextStatement();
-
+void Conductor::processSqlQueryMessage(const tmb::client_id sender, string *command_string) {
+  SqlParserWrapper parser_wrapper;
+  parser_wrapper.feedNextBuffer(command_string);
+  ParseResult parse_result = parser_wrapper.getNextStatement();
   CHECK(parse_result.condition == ParseResult::kSuccess)
       << "Any syntax error should be addressed in the DistributedCli.";
 
   const ParseStatement &statement = *parse_result.parsed_statement;
-  DCHECK_EQ(ParseStatement::kCommand, statement.getStatementType());
-
-  const ParseCommand &command = static_cast<const ParseCommand &>(statement);
-  const PtrVector<ParseString> &arguments = *(command.arguments());
-  const string &command_str = command.command()->value();
-
-  string command_response;
 
   try {
-    if (command_str == C::kDescribeDatabaseCommand) {
-      command_response = C::ExecuteDescribeDatabase(arguments, *catalog_database_);
-    } else if (command_str == C::kDescribeTableCommand) {
-      if (arguments.empty()) {
+    if (statement.getStatementType() == ParseStatement::kCommand) {
+      const ParseCommand &parse_command = static_cast<const ParseCommand &>(statement);
+      const PtrVector<ParseString> &arguments = *(parse_command.arguments());
+      const string &command = parse_command.command()->value();
+
+      string command_response;
+      if (command == C::kDescribeDatabaseCommand) {
         command_response = C::ExecuteDescribeDatabase(arguments, *catalog_database_);
-      } else {
-        command_response = C::ExecuteDescribeTable(arguments, *catalog_database_);
+      } else if (command == C::kDescribeTableCommand) {
+        if (arguments.empty()) {
+          command_response = C::ExecuteDescribeDatabase(arguments, *catalog_database_);
+        } else {
+          command_response = C::ExecuteDescribeTable(arguments, *catalog_database_);
+        }
       }
+
+      S::CommandResponseMessage proto;
+      proto.set_command_response(command_response);
+
+      const size_t proto_length = proto.ByteSize();
+      char *proto_bytes = static_cast<char*>(malloc(proto_length));
+      CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+      TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, kCommandResponseMessage);
+      free(proto_bytes);
+
+      DLOG(INFO) << "Conductor sent CommandResponseMessage (typed '" << kCommandResponseMessage
+                 << "') to Distributed CLI " << sender;
+      CHECK(MessageBus::SendStatus::kOK ==
+          QueryExecutionUtil::SendTMBMessage(&bus_, conductor_client_id_, sender, move(message)));
+    } else {
+      auto query_handle = make_unique<QueryHandle>(query_processor_->query_id(),
+                                                   sender,
+                                                   statement.getPriority());
+      query_processor_->generateQueryHandle(statement, query_handle.get());
+      DCHECK(query_handle->getQueryPlanMutable() != nullptr);
+
+      QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
+          conductor_client_id_,
+          foreman_->getBusClientID(),
+          query_handle.release(),
+          &bus_);
     }
-  } catch (const SqlError &command_error) {
-    // Set the query execution status along with the error message.
-    S::QueryExecutionErrorMessage proto;
-    proto.set_error_message(command_error.formatMessage(*command_string));
-
-    const size_t proto_length = proto.ByteSize();
-    char *proto_bytes = static_cast<char*>(malloc(proto_length));
-    CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-    TaggedMessage message(static_cast<const void*>(proto_bytes),
-                          proto_length,
-                          kQueryExecutionErrorMessage);
-    free(proto_bytes);
-
-    DLOG(INFO) << "Conductor sent QueryExecutionErrorMessage (typed '"
-               << kQueryExecutionErrorMessage
-               << "') to Distributed CLI " << sender;
-    CHECK(MessageBus::SendStatus::kOK ==
-        QueryExecutionUtil::SendTMBMessage(&bus_, conductor_client_id_, sender, move(message)));
-  }
-
-  S::CommandResponseMessage proto;
-  proto.set_command_response(command_response);
-
-  const size_t proto_length = proto.ByteSize();
-  char *proto_bytes = static_cast<char*>(malloc(proto_length));
-  CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-  TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, kCommandResponseMessage);
-  free(proto_bytes);
-
-  DLOG(INFO) << "Conductor sent CommandResponseMessage (typed '" << kCommandResponseMessage
-             << "') to Distributed CLI " << sender;
-  CHECK(MessageBus::SendStatus::kOK ==
-      QueryExecutionUtil::SendTMBMessage(&bus_, conductor_client_id_, sender, move(message)));
-}
-
-void Conductor::processSqlQueryMessage(const tmb::client_id sender, string *command_string) {
-  parser_wrapper_.feedNextBuffer(command_string);
-  ParseResult parse_result = parser_wrapper_.getNextStatement();
-
-  CHECK(parse_result.condition == ParseResult::kSuccess)
-      << "Any SQL syntax error should be addressed in the DistributedCli.";
-
-  const ParseStatement &statement = *parse_result.parsed_statement;
-  DCHECK_NE(ParseStatement::kCommand, statement.getStatementType());
-
-  try {
-    auto query_handle = make_unique<QueryHandle>(query_processor_->query_id(),
-                                                 sender,
-                                                 statement.getPriority());
-    query_processor_->generateQueryHandle(statement, query_handle.get());
-    DCHECK(query_handle->getQueryPlanMutable() != nullptr);
-
-    QueryExecutionUtil::ConstructAndSendAdmitRequestMessage(
-        conductor_client_id_,
-        foreman_->getBusClientID(),
-        query_handle.release(),
-        &bus_);
   } catch (const SqlError &sql_error) {
     // Set the query execution status along with the error message.
     S::QueryExecutionErrorMessage proto;

@@ -81,10 +81,6 @@ message ShiftbossRegistrationResponseMessage {
   required uint64 shiftboss_index = 1;
 }
 
-message CommandMessage {
-  required string command = 1;
-}
-
 message SqlQueryMessage {
   required string sql_query = 1;
 }
