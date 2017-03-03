@@ -17,7 +17,6 @@
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
-#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <unordered_set>
@@ -68,9 +67,9 @@ class QueryHandle;
 
 ForemanDistributed::ForemanDistributed(
     const BlockLocator &block_locator,
-    std::function<void()> &&save_catalog_callback,
     MessageBus *bus,
     CatalogDatabaseLite *catalog_database,
+    QueryProcessor *query_processor,
     const int cpu_id)
     : ForemanBase(bus, cpu_id),
       block_locator_(block_locator),
@@ -108,8 +107,8 @@ ForemanDistributed::ForemanDistributed(
 
   policy_enforcer_ = std::make_unique<PolicyEnforcerDistributed>(
       foreman_client_id_,
-      move(save_catalog_callback),
       catalog_database_,
+      query_processor,
       &shiftboss_directory_,
       bus_);
 }

@@ -165,6 +165,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_queryexecution_QueryManagerDistributed
                         quickstep_queryexecution_ShiftbossDirectory
                         quickstep_queryoptimizer_QueryHandle
+                        quickstep_queryoptimizer_QueryProcessor
                         quickstep_storage_StorageBlockInfo
                         quickstep_utility_ExecutionDAGVisualizer
                         quickstep_utility_Macros

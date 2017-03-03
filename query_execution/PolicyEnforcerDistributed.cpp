@@ -35,6 +35,7 @@
 #include "query_execution/QueryManagerBase.hpp"
 #include "query_execution/QueryManagerDistributed.hpp"
 #include "query_optimizer/QueryHandle.hpp"
+#include "query_optimizer/QueryProcessor.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/ExecutionDAGVisualizer.hpp"
 
@@ -259,7 +260,9 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
   }
 
   if (query_result == nullptr) {
-    save_catalog_callback_();
+    if (query_processor_) {
+      query_processor_->saveCatalog();
+    }
 
     // Clean up query execution states, i.e., QueryContext, in Shiftbosses.
     serialization::QueryTeardownMessage proto;

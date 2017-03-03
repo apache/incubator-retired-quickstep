@@ -16,7 +16,6 @@
 #define QUICKSTEP_QUERY_EXECUTION_POLICY_ENFORCER_DISTRIBUTED_HPP_
 
 #include <cstddef>
-#include <functional>
 #include <memory>
 #include <unordered_map>
 #include <utility>
@@ -43,6 +42,7 @@ class TaggedMessage;
 namespace quickstep {
 
 class CatalogDatabaseLite;
+class QueryProcessor;
 
 /** \addtogroup QueryExecution
  *  @{
@@ -58,19 +58,19 @@ class PolicyEnforcerDistributed final : public PolicyEnforcerBase {
    * @brief Constructor.
    *
    * @param foreman_client_id The TMB client ID of the Foreman.
-   * @param save_catalog_callback The callback used to save catalog upon the query
-   *        completion.
    * @param catalog_database The CatalogDatabase used.
+   * @param query_processor The QueryProcessor to save catalog upon the query
+   *        completion.
    * @param bus The TMB.
    **/
   PolicyEnforcerDistributed(const tmb::client_id foreman_client_id,
-                            std::function<void()> &&save_catalog_callback,
                             CatalogDatabaseLite *catalog_database,
+                            QueryProcessor *query_processor,
                             ShiftbossDirectory *shiftboss_directory,
                             tmb::MessageBus *bus)
       : PolicyEnforcerBase(catalog_database),
         foreman_client_id_(foreman_client_id),
-        save_catalog_callback_(std::move(save_catalog_callback)),
+        query_processor_(query_processor),
         shiftboss_directory_(shiftboss_directory),
         bus_(bus) {}
 
@@ -159,8 +159,7 @@ class PolicyEnforcerDistributed final : public PolicyEnforcerBase {
 
   const tmb::client_id foreman_client_id_;
 
-  const std::function<void()> save_catalog_callback_;
-
+  QueryProcessor *query_processor_;
   ShiftbossDirectory *shiftboss_directory_;
 
   tmb::MessageBus *bus_;
