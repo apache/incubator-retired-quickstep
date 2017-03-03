@@ -24,6 +24,11 @@ include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 include(CheckCXXSourceCompiles)
 
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING
+      "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel." FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
+
 if (WIN32)
   # Make Windows compilers shut up about using standard libc functions.
   set_property(
@@ -49,7 +54,7 @@ else()
   option(ENABLE_HDFS "Enable HDFS FileManager" OFF)
 endif()
 
-if (UNIX AND NOT CYGWIN)
+if (UNIX AND NOT CYGWIN AND NOT APPLE)
   option(USE_TCMALLOC "Use tcmalloc (Google's thread-cacheing malloc) instead of system-provided malloc" ON)
 else()
   option(USE_TCMALLOC "Use tcmalloc (Google's thread-cacheing malloc) instead of system-provided malloc" OFF)
