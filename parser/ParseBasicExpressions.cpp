@@ -68,54 +68,6 @@ void ParseAttribute::getFieldStringItems(
   }
 }
 
-std::string ParseUnaryExpression::getName() const {
-  return op_.getName();
-}
-
-string ParseUnaryExpression::generateName() const {
-  string name(op_.getShortName());
-  name.append(operand_->generateName());
-  return name;
-}
-
-void ParseUnaryExpression::getFieldStringItems(
-    std::vector<std::string> *inline_field_names,
-    std::vector<std::string> *inline_field_values,
-    std::vector<std::string> *non_container_child_field_names,
-    std::vector<const ParseTreeNode*> *non_container_child_fields,
-    std::vector<std::string> *container_child_field_names,
-    std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
-  non_container_child_field_names->push_back("");
-  non_container_child_fields->push_back(operand_.get());
-}
-
-std::string ParseBinaryExpression::getName() const {
-  return op_.getName();
-}
-
-string ParseBinaryExpression::generateName() const {
-  string name("(");
-  name.append(left_operand_->generateName());
-  name.append(op_.getShortName());
-  name.append(right_operand_->generateName());
-  name.push_back(')');
-  return name;
-}
-
-void ParseBinaryExpression::getFieldStringItems(
-    std::vector<std::string> *inline_field_names,
-    std::vector<std::string> *inline_field_values,
-    std::vector<std::string> *non_container_child_field_names,
-    std::vector<const ParseTreeNode*> *non_container_child_fields,
-    std::vector<std::string> *container_child_field_names,
-    std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const  {
-  non_container_child_field_names->push_back("left_operand");
-  non_container_child_fields->push_back(left_operand_.get());
-
-  non_container_child_field_names->push_back("right_operand");
-  non_container_child_fields->push_back(right_operand_.get());
-}
-
 std::string ParseFunctionCall::generateName() const {
   string name(name_->value());
   name.push_back('(');
@@ -173,61 +125,6 @@ void ParseFunctionCall::getFieldStringItems(
       non_container_child_fields->push_back(window_.get());
     }
   }
-}
-
-std::string ParseExtractFunction::generateName() const {
-  std::string name;
-  name.append("EXTRACT(");
-  name.append(extract_field_->value());
-  name.append(" FROM ");
-  name.append(date_expression_->generateName());
-  name.push_back(')');
-  return name;
-}
-
-void ParseExtractFunction::getFieldStringItems(
-    std::vector<std::string> *inline_field_names,
-    std::vector<std::string> *inline_field_values,
-    std::vector<std::string> *non_container_child_field_names,
-    std::vector<const ParseTreeNode*> *non_container_child_fields,
-    std::vector<std::string> *container_child_field_names,
-    std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
-  inline_field_names->push_back("unit");
-  inline_field_values->push_back(extract_field_->value());
-
-  non_container_child_field_names->push_back("date_expression");
-  non_container_child_fields->push_back(date_expression_.get());
-}
-
-std::string ParseSubstringFunction::generateName() const {
-  std::string name;
-  name.append("SUBSTRING(");
-  name.append(operand_->generateName());
-  name.append(" FROM ");
-  name.append(std::to_string(start_position_));
-  if (length_ != kDefaultLength) {
-    name.append(" FOR ");
-    name.append(std::to_string(length_));
-  }
-  name.push_back(')');
-  return name;
-}
-
-void ParseSubstringFunction::getFieldStringItems(
-    std::vector<std::string> *inline_field_names,
-    std::vector<std::string> *inline_field_values,
-    std::vector<std::string> *non_container_child_field_names,
-    std::vector<const ParseTreeNode*> *non_container_child_fields,
-    std::vector<std::string> *container_child_field_names,
-    std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
-  inline_field_names->push_back("start_position");
-  inline_field_values->push_back(std::to_string(start_position_));
-
-  inline_field_names->push_back("length");
-  inline_field_values->push_back(std::to_string(length_));
-
-  non_container_child_field_names->push_back("operand");
-  non_container_child_fields->push_back(operand_.get());
 }
 
 }  // namespace quickstep

@@ -28,43 +28,35 @@
 
 namespace quickstep {
 
-serialization::Type Type::getProto() const {
-  serialization::Type proto;
-  switch (type_id_) {
-    case kInt:
-      proto.set_type_id(serialization::Type::INT);
-      break;
-    case kLong:
-      proto.set_type_id(serialization::Type::LONG);
-      break;
-    case kFloat:
-      proto.set_type_id(serialization::Type::FLOAT);
-      break;
-    case kDouble:
-      proto.set_type_id(serialization::Type::DOUBLE);
-      break;
-    case kDate:
-      proto.set_type_id(serialization::Type::DATE);
-      break;
-    case kDatetime:
-      proto.set_type_id(serialization::Type::DATETIME);
-      break;
-    case kDatetimeInterval:
-      proto.set_type_id(serialization::Type::DATETIME_INTERVAL);
-      break;
-    case kYearMonthInterval:
-      proto.set_type_id(serialization::Type::YEAR_MONTH_INTERVAL);
-      break;
-    case kNullType:
-      proto.set_type_id(serialization::Type::NULL_TYPE);
-      break;
-    default:
-      FATAL_ERROR("Unrecognized TypeID in Type::getProto");
+bool Type::isCoercibleFrom(const Type &original_type) const {
+  return isSafelyCoercibleFrom(original_type);
+}
+
+bool Type::isSafelyCoercibleFrom(const Type &original_type) const {
+  if (original_type.isNullable() && !this->nullable_) {
+    return false;
   }
+  if (original_type.getTypeID() == kNullType) {
+    return true;
+  }
+  return (original_type.getTypeID() == type_id_);
+}
 
-  proto.set_nullable(nullable_);
+std::size_t Type::estimateAverageByteLength() const {
+  if (minimum_byte_length_ == maximum_byte_length_) {
+    return maximum_byte_length_;
+  }
+  if (maximum_byte_length_ > 160) {
+    return 80;
+  } else {
+    return (maximum_byte_length_ >> 1) + 1;
+  }
+}
 
-  return proto;
+void Type::printValueToFile(const TypedValue &value,
+                            FILE *file,
+                            const int padding) const {
+  std::fprintf(file, "%*s", padding, printValueToString(value).c_str());
 }
 
 TypedValue Type::coerceValue(const TypedValue &original_value,
@@ -83,14 +75,6 @@ TypedValue Type::coerceValue(const TypedValue &original_value,
       << " to Type " << getName();
 
   return original_value;
-}
-
-bool AsciiStringSuperType::isCoercibleFrom(const Type &original_type) const {
-  if (original_type.isNullable() && !nullable_) {
-    return false;
-  }
-  return (original_type.getSuperTypeID() == kAsciiString)
-         || (original_type.getTypeID() == kNullType);
 }
 
 }  // namespace quickstep

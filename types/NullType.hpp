@@ -26,6 +26,7 @@
 
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
+#include "types/TypeSynthesizer.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -48,40 +49,20 @@ class TypedValue;
  *       a particular operation may accept. It is also assumed that applying
  *       any operation to an argument of NullType always yields NULL values.
  **/
-class NullType : public Type {
+class NullType : public TypeSynthesizer<kNullType> {
  public:
-  static const TypeID kStaticTypeID = kNullType;
-
-  /**
-   * @brief Get a reference to the nullable singleton instance of this Type.
-   * @note Unlike other Types, there is no corresponding method to get a
-   *       non-nullable version of NullType. NullType is ALWAYS nullable.
-   *
-   * @return A reference to the nullable singleton instance of this Type.
-   **/
-  static const NullType& InstanceNullable() {
-    static NullType instance;
-    return instance;
+  static const NullType& InstanceNonNullable() {
+    LOG(FATAL) << "Called NullType::InstanceNonNullable(), "
+               << "which is not allowed.";
   }
 
-  const Type& getNullableVersion() const override {
-    return InstanceNullable();
-  }
-
-  const Type& getNonNullableVersion() const override {
-    LOG(FATAL) << "Called NullType::getNonNullableVersion(), which is not allowed.";
-  }
-
-  std::size_t estimateAverageByteLength() const override {
-    return 0;
-  }
-
-  bool isCoercibleFrom(const Type &original_type) const override {
-    return original_type.getTypeID() == kNullType;
-  }
-
-  bool isSafelyCoercibleFrom(const Type &original_type) const override {
-    return original_type.getTypeID() == kNullType;
+  static const NullType& Instance(const bool nullable) {
+    if (nullable) {
+      return InstanceNullable();
+    } else {
+      LOG(FATAL) << "Called NullType::Instance(nullable = true), "
+                 << "which is not allowed.";
+    }
   }
 
   int getPrintWidth() const override {
@@ -106,8 +87,12 @@ class NullType : public Type {
  private:
   // NOTE(chasseur): NullType requires 0 bytes of inherent storage. It does,
   // however, require a bit in NULL bitmaps.
-  NullType() : Type(Type::kOther, kNullType, true, 0, 0) {
+  NullType(const bool nullable)
+      : TypeSynthesizer<kNullType>(nullable, 0, 0) {
+    DCHECK(nullable);
   }
+
+  template <typename, bool> friend class TypeInstance;
 
   DISALLOW_COPY_AND_ASSIGN(NullType);
 };

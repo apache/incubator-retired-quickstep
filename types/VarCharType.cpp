@@ -42,38 +42,6 @@ using std::string;
 
 namespace quickstep {
 
-template <bool nullable_internal>
-const VarCharType& VarCharType::InstanceInternal(const std::size_t length) {
-  static PtrMap<size_t, VarCharType> instance_map;
-  PtrMap<size_t, VarCharType>::iterator imit = instance_map.find(length);
-  if (imit == instance_map.end()) {
-    imit = instance_map.insert(length, new VarCharType(length, nullable_internal)).first;
-  }
-  return *(imit->second);
-}
-
-const VarCharType& VarCharType::InstanceNonNullable(const std::size_t length) {
-  return InstanceInternal<false>(length);
-}
-
-const VarCharType& VarCharType::InstanceNullable(const std::size_t length) {
-  return InstanceInternal<true>(length);
-}
-
-const VarCharType& VarCharType::InstanceFromProto(const serialization::Type &proto) {
-  return Instance(proto.GetExtension(serialization::VarCharType::length), proto.nullable());
-}
-
-serialization::Type VarCharType::getProto() const {
-  serialization::Type proto;
-  proto.set_type_id(serialization::Type::VAR_CHAR);
-
-  proto.set_nullable(nullable_);
-
-  proto.SetExtension(serialization::VarCharType::length, length_);
-  return proto;
-}
-
 size_t VarCharType::estimateAverageByteLength() const {
   if (length_ > 160) {
     return 80;

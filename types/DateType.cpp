@@ -30,7 +30,6 @@
 #include <string>
 
 #include "types/DatetimeLit.hpp"
-#include "types/NullCoercibilityCheckMacro.hpp"
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
@@ -45,16 +44,6 @@ using std::snprintf;
 #endif
 
 namespace quickstep {
-
-bool DateType::isCoercibleFrom(const Type &original_type) const {
-  QUICKSTEP_NULL_COERCIBILITY_CHECK();
-  return (original_type.getTypeID() == kDate);
-}
-
-bool DateType::isSafelyCoercibleFrom(const Type &original_type) const {
-  QUICKSTEP_NULL_COERCIBILITY_CHECK();
-  return (original_type.getTypeID() == kDate);
-}
 
 std::string DateType::printValueToString(const TypedValue &value) const {
   DCHECK(!value.isNull());
@@ -84,14 +73,6 @@ std::string DateType::printValueToString(const TypedValue &value) const {
   CheckSnprintf(snprintf_result, sizeof(datebuf), &chars_written);
 
   return std::string(datebuf);
-}
-
-void DateType::printValueToFile(const TypedValue &value,
-                                FILE *file,
-                                const int padding) const {
-  // We simply re-use the logic from printValueToString(), as trying to do
-  // padding on-the fly with so many different fields is too much of a hassle.
-  std::fprintf(file, "%*s", padding, printValueToString(value).c_str());
 }
 
 bool DateType::parseValueFromString(const std::string &value_string,

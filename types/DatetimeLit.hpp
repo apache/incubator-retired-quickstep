@@ -99,6 +99,10 @@ struct DateLit {
   inline std::int32_t monthField() const {
     return static_cast<std::int32_t>(month);
   }
+
+  inline std::int32_t dayField() const {
+    return static_cast<std::int32_t>(day);
+  }
 };
 
 /**

@@ -30,6 +30,8 @@
 #include "expressions/scalar/Scalar.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "types/TypedValue.hpp"
+#include "types/containers/ColumnVector.hpp"
+#include "types/operations/OperationSignature.hpp"
 #include "types/operations/unary_operations/UnaryOperation.hpp"
 #include "utility/Macros.hpp"
 
@@ -51,14 +53,10 @@ struct SubBlocksReference;
  **/
 class ScalarUnaryExpression : public Scalar {
  public:
-  /**
-   * @brief Constructor.
-   *
-   * @param operation The unary operation to be performed.
-   * @param operand The argument of the operation, which this
-   *        ScalarUnaryExpression takes ownership of.
-   **/
-  ScalarUnaryExpression(const UnaryOperation &operation, Scalar *operand);
+  ScalarUnaryExpression(const OperationSignaturePtr &op_signature,
+                        const UnaryOperationPtr &operation,
+                        Scalar *operand,
+                        const std::shared_ptr<const std::vector<TypedValue>> &static_arguments);
 
   /**
    * @brief Destructor.
@@ -86,12 +84,12 @@ class ScalarUnaryExpression : public Scalar {
       const tuple_id right_tuple_id) const override;
 
   bool hasStaticValue() const override {
-    return fast_operator_.get() == nullptr;
+    return static_value_ != nullptr;
   }
 
   const TypedValue& getStaticValue() const override {
     DCHECK(hasStaticValue());
-    return static_value_;
+    return *static_value_;
   }
 
   ColumnVectorPtr getAllValues(ValueAccessor *accessor,
@@ -116,12 +114,13 @@ class ScalarUnaryExpression : public Scalar {
       std::vector<std::vector<const Expression*>> *container_child_fields) const override;
 
  private:
-  void initHelper(bool own_children);
+  const OperationSignaturePtr op_signature_;
+  const UnaryOperationPtr operation_;
 
-  const UnaryOperation &operation_;
+  const std::unique_ptr<Scalar> operand_;
+  const std::shared_ptr<const std::vector<TypedValue>> static_arguments_;
 
-  std::unique_ptr<Scalar> operand_;
-  TypedValue static_value_;
+  std::unique_ptr<TypedValue> static_value_;
   std::unique_ptr<UncheckedUnaryOperator> fast_operator_;
 
   friend class PredicateTest;

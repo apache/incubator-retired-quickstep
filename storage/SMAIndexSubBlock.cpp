@@ -44,9 +44,8 @@
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
+#include "types/operations/OperationFactory.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
-#include "types/operations/binary_operations/BinaryOperationFactory.hpp"
-#include "types/operations/binary_operations/BinaryOperationID.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
@@ -359,9 +358,10 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
       TypeID attr_sum_typeid = sma_internal::getTypeForSum(attr_typeid);
       if (add_operations_.elementIsNullAt(attr_typeid)) {
         add_operations_.replaceElement(attr_typeid,
-          BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
-              .makeUncheckedBinaryOperatorForTypes(TypeFactory::GetType(attr_typeid),
-                                                   TypeFactory::GetType(attr_sum_typeid)));
+            OperationFactory::Instance().getBinaryOperation(
+                "+", {attr_typeid, attr_sum_typeid})
+                    ->makeUncheckedBinaryOperator(TypeFactory::GetType(attr_typeid),
+                                                  TypeFactory::GetType(attr_sum_typeid)));
       }
     }
 

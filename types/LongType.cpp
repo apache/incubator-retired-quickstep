@@ -28,48 +28,12 @@
 #include <cstdio>
 #include <string>
 
-#include "types/NullCoercibilityCheckMacro.hpp"
-#include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
-#include "utility/EqualsAnyConstant.hpp"
 
 #include "glog/logging.h"
 
 namespace quickstep {
-
-const TypeID LongType::kStaticTypeID = kLong;
-
-bool LongType::isSafelyCoercibleFrom(const Type &original_type) const {
-  QUICKSTEP_NULL_COERCIBILITY_CHECK();
-  return QUICKSTEP_EQUALS_ANY_CONSTANT(original_type.getTypeID(),
-                                       kInt, kLong);
-}
-
-TypedValue LongType::coerceValue(const TypedValue &original_value,
-                                 const Type &original_type) const {
-  DCHECK(isCoercibleFrom(original_type))
-      << "Can't coerce value of Type " << original_type.getName()
-      << " to Type " << getName();
-
-  if (original_value.isNull()) {
-    return makeNullValue();
-  }
-
-  switch (original_type.getTypeID()) {
-    case kInt:
-      return TypedValue(static_cast<std::int64_t>(original_value.getLiteral<int>()));
-    case kLong:
-      return original_value;
-    case kFloat:
-      return TypedValue(static_cast<std::int64_t>(original_value.getLiteral<float>()));
-    case kDouble:
-      return TypedValue(static_cast<std::int64_t>(original_value.getLiteral<double>()));
-    default:
-      LOG(FATAL) << "Attempted to coerce Type " << original_type.getName()
-                 << " (not recognized as a numeric Type) to " << getName();
-  }
-}
 
 std::string LongType::printValueToString(const TypedValue &value) const {
   DCHECK(!value.isNull());

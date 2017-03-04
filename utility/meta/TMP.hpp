@@ -17,24 +17,12 @@
  * under the License.
  **/
 
-#include "types/operations/binary_operations/BinaryOperationID.hpp"
+#ifndef QUICKSTEP_UTILITY_META_TMP_HPP_
+#define QUICKSTEP_UTILITY_META_TMP_HPP_
 
-namespace quickstep {
+#include "utility/meta/Common.hpp"
+#include "utility/meta/Dispatchers.hpp"
+#include "utility/meta/TransitiveClosure.hpp"
+#include "utility/meta/TypeList.hpp"
 
-const char *kBinaryOperationNames[] = {
-  "Add",
-  "Subtract",
-  "Multiply",
-  "Divide",
-  "Modulo"
-};
-
-const char *kBinaryOperationShortNames[] = {
-  "+",
-  "-",
-  "*",
-  "/",
-  "%"
-};
-
-}  // namespace quickstep
+#endif  // QUICKSTEP_UTILITY_META_TMP_HPP_

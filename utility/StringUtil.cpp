@@ -52,6 +52,12 @@ std::string ToLower(const std::string& str) {
   return lower_str;
 }
 
+std::string ToUpper(const std::string& str) {
+  std::string upper_str(str.size(), ' ');
+  std::transform(str.begin(), str.end(), upper_str.begin(), toupper);
+  return upper_str;
+}
+
 std::string EscapeSpecialChars(const std::string& text) {
   std::string new_text;
   for (const char& c : text) {

@@ -31,6 +31,8 @@
 #include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/ExpressionType.hpp"
 #include "query_optimizer/expressions/Scalar.hpp"
+#include "types/operations/OperationSignature.hpp"
+#include "types/operations/binary_operations/BinaryOperation.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -61,7 +63,9 @@ class BinaryExpression : public Scalar {
 
   std::string getName() const override;
 
-  const Type& getValueType() const override;
+  const Type& getValueType() const override {
+    return result_type_;
+  }
 
   bool isConstant() const override {
     return left_->isConstant() && right_->isConstant();
@@ -70,7 +74,7 @@ class BinaryExpression : public Scalar {
   /**
    * @return The binary operation.
    */
-  const BinaryOperation& operation() const { return operation_; }
+  const BinaryOperationPtr& operation() const { return operation_; }
 
   /**
    * @return The left operand.
@@ -92,10 +96,34 @@ class BinaryExpression : public Scalar {
 
   bool equals(const ScalarPtr &other) const override;
 
-  static BinaryExpressionPtr Create(const BinaryOperation &operation,
-                                    const ScalarPtr &left,
-                                    const ScalarPtr &right) {
-    return BinaryExpressionPtr(new BinaryExpression(operation, left, right));
+  static BinaryExpressionPtr Create(
+      const OperationSignaturePtr &op_signature,
+      const BinaryOperationPtr &operation,
+      const ScalarPtr &left,
+      const ScalarPtr &right,
+      const std::shared_ptr<const std::vector<TypedValue>> &static_arguments,
+      const std::shared_ptr<const std::vector<const Type*>> &static_argument_types) {
+    return BinaryExpressionPtr(
+        new BinaryExpression(op_signature,
+                             operation,
+                             left,
+                             right,
+                             static_arguments,
+                             static_argument_types));
+  }
+
+  static BinaryExpressionPtr Create(
+      const OperationSignaturePtr &op_signature,
+      const BinaryOperationPtr &operation,
+      const ScalarPtr &left,
+      const ScalarPtr &right) {
+    return BinaryExpressionPtr(
+        new BinaryExpression(op_signature,
+                             operation,
+                             left,
+                             right,
+                             std::make_shared<const std::vector<TypedValue>>(),
+                             std::make_shared<const std::vector<const Type*>>()));
   }
 
  protected:
@@ -110,14 +138,32 @@ class BinaryExpression : public Scalar {
       std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const override;
 
  private:
-  BinaryExpression(const BinaryOperation &operation,
+  BinaryExpression(const OperationSignaturePtr &op_signature,
+                   const BinaryOperationPtr &operation,
                    const ScalarPtr &left,
-                   const ScalarPtr &right);
+                   const ScalarPtr &right,
+                   const std::shared_ptr<const std::vector<TypedValue>> &static_arguments,
+                   const std::shared_ptr<const std::vector<const Type*>> &static_argument_types)
+      : op_signature_(op_signature),
+        operation_(operation),
+        left_(left),
+        right_(right),
+        static_arguments_(static_arguments),
+        static_argument_types_(static_argument_types),
+        result_type_(*(operation_->getResultType(left_->getValueType(),
+                                                 right_->getValueType(),
+                                                 *static_arguments))) {
+    addChild(left);
+    addChild(right);
+  }
 
-  const BinaryOperation &operation_;
-
-  ScalarPtr left_;
-  ScalarPtr right_;
+  const OperationSignaturePtr op_signature_;
+  const BinaryOperationPtr operation_;
+  const ScalarPtr left_;
+  const ScalarPtr right_;
+  const std::shared_ptr<const std::vector<TypedValue>> static_arguments_;
+  const std::shared_ptr<const std::vector<const Type*>> static_argument_types_;
+  const Type &result_type_;
 
   DISALLOW_COPY_AND_ASSIGN(BinaryExpression);
 };

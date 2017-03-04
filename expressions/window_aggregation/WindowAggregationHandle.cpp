@@ -30,9 +30,8 @@
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
+#include "types/operations/OperationFactory.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
-#include "types/operations/binary_operations/BinaryOperationFactory.hpp"
-#include "types/operations/binary_operations/BinaryOperationID.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
 
 #include "glog/logging.h"
@@ -83,8 +82,9 @@ WindowAggregationHandle::WindowAggregationHandle(
         TypeFactory::GetUnifyingType(*first_order_key_type, long_type);
 
     range_add_operator_.reset(
-        BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
-            .makeUncheckedBinaryOperatorForTypes(*first_order_key_type, long_type));
+        OperationFactory::Instance().getBinaryOperation(
+            "+", {first_order_key_type->getTypeID(), kLong}, 0)
+                ->makeUncheckedBinaryOperator(*first_order_key_type, long_type));
     range_comparator_.reset(
         ComparisonFactory::GetComparison(ComparisonID::kLessOrEqual)
             .makeUncheckedComparatorForTypes(*range_compare_type_, *range_compare_type_));

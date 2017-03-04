@@ -24,8 +24,8 @@
 #include <cstdio>
 #include <string>
 
+#include "types/AsciiStringSuperType.hpp"
 #include "types/Type.hpp"
-#include "types/Type.pb.h"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
@@ -43,71 +43,8 @@ namespace quickstep {
  *       character. This means that the VARCHAR(X) type requires from 1 to X+1
  *       bytes of storage, depending on string length.
  **/
-class VarCharType : public AsciiStringSuperType {
+class VarCharType : public AsciiStringSuperType<kVarChar> {
  public:
-  /**
-   * @brief Get a reference to the non-nullable singleton instance of this Type
-   *        for the specified length.
-   *
-   * @param length The length parameter of the VarCharType.
-   * @return A reference to the non-nullable singleton instance of this Type
-   *         for the specified length.
-   **/
-  static const VarCharType& InstanceNonNullable(const std::size_t length);
-
-  /**
-   * @brief Get a reference to the nullable singleton instance of this Type for
-   *        the specified length.
-   *
-   * @param length The length parameter of the VarCharType.
-   * @return A reference to the nullable singleton instance of this Type for
-   *         the specified length.
-   **/
-  static const VarCharType& InstanceNullable(const std::size_t length);
-
-  /**
-   * @brief Get a reference to the singleton instance of this Type for the
-   *        specified length and nullability.
-   *
-   * @param length The length parameter of the VarCharType.
-   * @param nullable Whether to get the nullable version of this Type.
-   * @return A reference to the singleton instance of this Type for the
-   *         specified length and nullability.
-   **/
-  static const VarCharType& Instance(const std::size_t length, const bool nullable) {
-    if (nullable) {
-      return InstanceNullable(length);
-    } else {
-      return InstanceNonNullable(length);
-    }
-  }
-
-  /**
-   * @brief Get a reference to the singleton instance of this Type described
-   *        by the given Protocol Buffer serialization.
-   *
-   * @param type The serialized Protocol Buffer representation of the desired
-   *        VarCharType.
-   * @return A reference to the singleton instance of this Type for the given
-   *         Protocol Buffer.
-   **/
-  static const VarCharType& InstanceFromProto(const serialization::Type &type);
-
-  /**
-   * @brief Generate a serialized Protocol Buffer representation of this Type.
-   *
-   * @return The serialized Protocol Buffer representation of this Type.
-   **/
-  serialization::Type getProto() const override;
-
-  const Type& getNullableVersion() const override {
-    return InstanceNullable(length_);
-  }
-
-  const Type& getNonNullableVersion() const override {
-    return InstanceNonNullable(length_);
-  }
-
   /**
    * @note Includes an extra byte for a terminating null character.
    **/
@@ -137,11 +74,9 @@ class VarCharType : public AsciiStringSuperType {
 
  private:
   VarCharType(const std::size_t length, const bool nullable)
-      : AsciiStringSuperType(kVarChar, nullable, 1, length + 1, length) {
-  }
+      : AsciiStringSuperType<kVarChar>(nullable, 1, length + 1, length) {}
 
-  template <bool nullable_internal>
-  static const VarCharType& InstanceInternal(const std::size_t length);
+  template <typename, bool> friend class TypeInstance;
 
   DISALLOW_COPY_AND_ASSIGN(VarCharType);
 };

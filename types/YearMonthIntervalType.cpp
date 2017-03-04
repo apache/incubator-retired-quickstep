@@ -30,7 +30,6 @@
 
 #include "types/IntervalLit.hpp"
 #include "types/IntervalParser.hpp"
-#include "types/NullCoercibilityCheckMacro.hpp"
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
@@ -45,16 +44,6 @@ using std::snprintf;
 #endif
 
 namespace quickstep {
-
-bool YearMonthIntervalType::isCoercibleFrom(const Type &original_type) const {
-  QUICKSTEP_NULL_COERCIBILITY_CHECK();
-  return (original_type.getTypeID() == kYearMonthInterval);
-}
-
-bool YearMonthIntervalType::isSafelyCoercibleFrom(const Type &original_type) const {
-  QUICKSTEP_NULL_COERCIBILITY_CHECK();
-  return (original_type.getTypeID() == kYearMonthInterval);
-}
 
 std::string YearMonthIntervalType::printValueToString(const TypedValue &value) const {
   DCHECK(!value.isNull());
@@ -125,14 +114,6 @@ std::string YearMonthIntervalType::printValueToString(const TypedValue &value) c
   }
 
   return std::string(interval_buf);
-}
-
-void YearMonthIntervalType::printValueToFile(const TypedValue &value,
-                                             FILE *file,
-                                             const int padding) const {
-  // We simply re-use the logic from printValueToString(), as trying to do
-  // padding on-the fly with so many different fields is too much of a hassle.
-  std::fprintf(file, "%*s", static_cast<int>(padding), printValueToString(value).c_str());
 }
 
 bool YearMonthIntervalType::parseValueFromString(const std::string &value_string,

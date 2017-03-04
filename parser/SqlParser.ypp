@@ -102,15 +102,9 @@ typedef struct YYLTYPE {
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
-#include "types/operations/binary_operations/BinaryOperation.hpp"
-#include "types/operations/binary_operations/BinaryOperationFactory.hpp"
-#include "types/operations/binary_operations/BinaryOperationID.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
-#include "types/operations/unary_operations/UnaryOperation.hpp"
-#include "types/operations/unary_operations/UnaryOperationFactory.hpp"
-#include "types/operations/unary_operations/UnaryOperationID.hpp"
 #include "utility/PtrList.hpp"
 #include "utility/PtrVector.hpp"
 
@@ -189,8 +183,8 @@ typedef void* yyscan_t;
   quickstep::ParseStatementQuit *quit_statement_;
 
   const quickstep::Comparison *comparison_;
-  const quickstep::UnaryOperation *unary_operation_;
-  const quickstep::BinaryOperation *binary_operation_;
+  quickstep::ParseString *unary_operation_;
+  quickstep::ParseString *binary_operation_;
 
   quickstep::ParseFunctionCall *function_call_;
   quickstep::PtrList<quickstep::ParseExpression> *expression_list_;
@@ -261,6 +255,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_CSB_TREE;
 %token TOKEN_BY;
 %token TOKEN_CASE;
+%token TOKEN_CAST;
 %token TOKEN_CHARACTER;
 %token TOKEN_CHECK;
 %token TOKEN_COLUMN;
@@ -394,6 +389,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
   add_expression
   case_expression
   opt_else_clause
+  cast_function
   extract_function
   substr_function
 
@@ -624,8 +620,6 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %destructor { } <boolean_value_>
 %destructor { } <comparison_>
-%destructor { } <unary_operation_>
-%destructor { } <binary_operation_>
 %destructor { } <join_type_>
 
 %destructor {
@@ -1676,7 +1670,10 @@ predicate_expression_base:
 /* Scalars */
 add_expression:
   add_expression add_operation multiply_expression {
-    $$ = new quickstep::ParseBinaryExpression(@2.first_line, @2.first_column, *$2, $1, $3);
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($1);
+    arguments->push_back($3);
+    $$ = new quickstep::ParseFunctionCall(@1.first_line, @1.first_column, false, $2, arguments);
   }
   | multiply_expression {
     $$ = $1;
@@ -1684,7 +1681,10 @@ add_expression:
 
 multiply_expression:
   multiply_expression multiply_operation unary_expression {
-    $$ = new quickstep::ParseBinaryExpression(@2.first_line, @2.first_column, *$2, $1, $3);
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($1);
+    arguments->push_back($3);
+    $$ = new quickstep::ParseFunctionCall(@1.first_line, @1.first_column, false, $2, arguments);
   }
   | unary_expression {
     $$ = $1;
@@ -1692,7 +1692,9 @@ multiply_expression:
 
 unary_expression:
   unary_operation expression_base {
-    $$ = new quickstep::ParseUnaryExpression(@1.first_line, @1.first_column, *$1, $2);
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($2);
+    $$ = new quickstep::ParseFunctionCall(@1.first_line, @1.first_column, false, $1, arguments);
   }
   | expression_base {
     $$ = $1;
@@ -1714,6 +1716,9 @@ expression_base:
   }
   | function_call TOKEN_OVER '(' window_definition ')' {
     $1->setWindow($4);
+    $$ = $1;
+  }
+  | cast_function {
     $$ = $1;
   }
   | extract_function {
@@ -1748,19 +1753,59 @@ function_call:
     $$ = new quickstep::ParseFunctionCall(@1.first_line, @1.first_column, true, $1, $4);
   };
 
+cast_function:
+  TOKEN_CAST '(' add_expression TOKEN_AS data_type ')' {
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($3);
+    arguments->push_back(new quickstep::ParseScalarLiteral(
+        new quickstep::StringParseLiteralValue(
+            new quickstep::ParseString(@5.first_line,
+                                       @5.first_column,
+                                       $5->getType().getName()),
+            nullptr)));
+    delete $5;
+    auto *name = new quickstep::ParseString(@1.first_line, @1.first_column, "cast");
+    $$ = new quickstep::ParseFunctionCall(
+        @1.first_line, @1.first_column, false, name, arguments);
+  }
+  | TOKEN_CAST '(' add_expression TOKEN_AS any_name ')' {
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($3);
+    arguments->push_back(new quickstep::ParseScalarLiteral(
+        new quickstep::StringParseLiteralValue($5, nullptr)));
+    auto *name = new quickstep::ParseString(@1.first_line, @1.first_column, "cast");
+    $$ = new quickstep::ParseFunctionCall(
+        @1.first_line, @1.first_column, false, name, arguments);
+  };
+
 extract_function:
   TOKEN_EXTRACT '(' datetime_unit TOKEN_FROM add_expression ')' {
-    $$ = new quickstep::ParseExtractFunction(@1.first_line, @1.first_column, $3, $5);
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($5);
+    arguments->push_back(new quickstep::ParseScalarLiteral(
+        new quickstep::StringParseLiteralValue($3, nullptr)));
+    auto *name = new quickstep::ParseString(@1.first_line, @1.first_column, "extract");
+    $$ = new quickstep::ParseFunctionCall(
+        @1.first_line, @1.first_column, false, name, arguments);
   };
 
 substr_function:
   TOKEN_SUBSTRING '(' add_expression TOKEN_FROM TOKEN_UNSIGNED_NUMVAL ')' {
-    $$ = new quickstep::ParseSubstringFunction(
-        @1.first_line, @1.first_column, $3, $5->long_value());
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($3);
+    arguments->push_back(new quickstep::ParseScalarLiteral($5));
+    auto *name = new quickstep::ParseString(@1.first_line, @1.first_column, "substring");
+    $$ = new quickstep::ParseFunctionCall(
+        @1.first_line, @1.first_column, false, name, arguments);
   }
   | TOKEN_SUBSTRING '(' add_expression TOKEN_FROM TOKEN_UNSIGNED_NUMVAL TOKEN_FOR TOKEN_UNSIGNED_NUMVAL ')' {
-    $$ = new quickstep::ParseSubstringFunction(
-        @1.first_line, @1.first_column, $3, $5->long_value(), $7->long_value());
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($3);
+    arguments->push_back(new quickstep::ParseScalarLiteral($5));
+    arguments->push_back(new quickstep::ParseScalarLiteral($7));
+    auto *name = new quickstep::ParseString(@1.first_line, @1.first_column, "substring");
+    $$ = new quickstep::ParseFunctionCall(
+        @1.first_line, @1.first_column, false, name, arguments);
   };
 
 case_expression:
@@ -1980,26 +2025,26 @@ unary_operation:
      * to shift rather than reduce, the case in 'literal_value' has precedence
      * over this one.
      **/
-    $$ = &quickstep::UnaryOperationFactory::GetUnaryOperation(quickstep::UnaryOperationID::kNegate);
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("-"));
   };
 
 add_operation:
   '+' {
-    $$ = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kAdd);
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("+"));
   }
   | '-' {
-    $$ = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kSubtract);
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("-"));
   };
 
 multiply_operation:
   '%' {
-    $$ = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kModulo);
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("%"));
   }
   | '*' {
-    $$ = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kMultiply);
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("*"));
   }
   | '/' {
-    $$ = &quickstep::BinaryOperationFactory::GetBinaryOperation(quickstep::BinaryOperationID::kDivide);
+    $$ = new quickstep::ParseString(@1.first_line, @1.first_column, std::string("/"));
   };
 
 /* General Utility Stuff */

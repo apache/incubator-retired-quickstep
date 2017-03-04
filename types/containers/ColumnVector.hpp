@@ -129,6 +129,8 @@ class ColumnVector {
  **/
 class NativeColumnVector : public ColumnVector {
  public:
+  static constexpr bool kNative = true;
+
   /**
    * @brief Constructor for a NativeColumnVector which owns its own array of
    *        values.
@@ -140,8 +142,8 @@ class NativeColumnVector : public ColumnVector {
   NativeColumnVector(const Type &type, const std::size_t reserved_length)
       : ColumnVector(type),
         type_length_(type.maximumByteLength()),
-        values_(std::malloc(type.maximumByteLength() * reserved_length)),
         reserved_length_(reserved_length),
+        values_(std::malloc(type.maximumByteLength() * reserved_length)),
         actual_length_(0u),
         null_bitmap_(type.isNullable() ? new BitVector<false>(reserved_length) : nullptr) {
     DCHECK(UsableForType(type_));
@@ -395,8 +397,9 @@ class NativeColumnVector : public ColumnVector {
 
  private:
   const std::size_t type_length_;
-  void *values_;
   const std::size_t reserved_length_;
+
+  void *values_;
   std::size_t actual_length_;
   std::unique_ptr<BitVector<false>> null_bitmap_;
 
@@ -409,6 +412,8 @@ class NativeColumnVector : public ColumnVector {
  **/
 class IndirectColumnVector : public ColumnVector {
  public:
+  static constexpr bool kNative = false;
+
   /**
    * @brief Constructor.
    *
@@ -503,9 +508,19 @@ class IndirectColumnVector : public ColumnVector {
    * @param value A value to append to this NativeColumnVector.
    **/
   inline void appendTypedValue(TypedValue &&value) {
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    DCHECK(value.isPlausibleInstanceOf(type_.getSignature())) << type_.getName();
     DCHECK_LT(values_.size(), reserved_length_);
     values_.emplace_back(std::move(value));
+  }
+
+  inline void appendNullValue() {
+    DCHECK(type_.isNullable());
+    DCHECK_LT(values_.size(), reserved_length_);
+    values_.emplace_back(type_.makeNullValue());
+  }
+
+  inline void fillWithNulls() {
+    fillWithValue(type_.makeNullValue());
   }
 
   /**
@@ -569,6 +584,7 @@ class IndirectColumnVector : public ColumnVector {
  private:
   const bool type_is_nullable_;
   const std::size_t reserved_length_;
+
   std::vector<TypedValue> values_;
 
   DISALLOW_COPY_AND_ASSIGN(IndirectColumnVector);

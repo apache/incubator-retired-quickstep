@@ -27,12 +27,12 @@
 
 #include "types/NumericSuperType.hpp"
 #include "types/TypeID.hpp"
-#include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
 
 class Type;
+class TypedValue;
 
 /** \addtogroup Types
  *  @{
@@ -41,55 +41,8 @@ class Type;
 /**
  * @brief A type representing a 64-bit integer.
  **/
-class LongType : public NumericSuperType<std::int64_t> {
+class LongType : public NumericSuperType<kLong> {
  public:
-  static const TypeID kStaticTypeID;
-
-  /**
-   * @brief Get a reference to the non-nullable singleton instance of this
-   *        Type.
-   *
-   * @return A reference to the non-nullable singleton instance of this Type.
-   **/
-  static const LongType& InstanceNonNullable() {
-    static LongType instance(false);
-    return instance;
-  }
-
-  /**
-   * @brief Get a reference to the nullable singleton instance of this Type.
-   *
-   * @return A reference to the nullable singleton instance of this Type.
-   **/
-  static const LongType& InstanceNullable() {
-    static LongType instance(true);
-    return instance;
-  }
-
-  /**
-   * @brief Get a reference to a singleton instance of this Type.
-   *
-   * @param nullable Whether to get the nullable version of this Type.
-   * @return A reference to the desired singleton instance of this Type.
-   **/
-  static const LongType& Instance(const bool nullable) {
-    if (nullable) {
-      return InstanceNullable();
-    } else {
-      return InstanceNonNullable();
-    }
-  }
-
-  const Type& getNullableVersion() const override {
-    return InstanceNullable();
-  }
-
-  const Type& getNonNullableVersion() const override {
-    return InstanceNonNullable();
-  }
-
-  bool isSafelyCoercibleFrom(const Type &original_type) const override;
-
   // Fully represented digits, single leading digit, and possible '-'
   // character.
   int getPrintWidth() const override {
@@ -105,13 +58,11 @@ class LongType : public NumericSuperType<std::int64_t> {
   bool parseValueFromString(const std::string &value_string,
                             TypedValue *value) const override;
 
-  TypedValue coerceValue(const TypedValue &original_value,
-                         const Type &original_type) const override;
-
  private:
   explicit LongType(const bool nullable)
-      : NumericSuperType<std::int64_t>(kLong, nullable) {
-  }
+      : NumericSuperType<kLong>(nullable) {}
+
+  template <typename, bool> friend class TypeInstance;
 
   DISALLOW_COPY_AND_ASSIGN(LongType);
 };

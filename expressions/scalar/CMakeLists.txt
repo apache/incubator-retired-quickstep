@@ -68,9 +68,9 @@ target_link_libraries(quickstep_expressions_scalar_ScalarBinaryExpression
                       quickstep_types_TypeErrors
                       quickstep_types_TypedValue
                       quickstep_types_containers_ColumnVector
+                      quickstep_types_operations_OperationSignature
                       quickstep_types_operations_Operation_proto
                       quickstep_types_operations_binaryoperations_BinaryOperation
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_scalar_ScalarCaseExpression
                       quickstep_catalog_CatalogTypedefs
@@ -118,9 +118,9 @@ target_link_libraries(quickstep_expressions_scalar_ScalarUnaryExpression
                       quickstep_types_TypeErrors
                       quickstep_types_TypedValue
                       quickstep_types_containers_ColumnVector
+                      quickstep_types_operations_OperationSignature
                       quickstep_types_operations_Operation_proto
                       quickstep_types_operations_unaryoperations_UnaryOperation
-                      quickstep_types_operations_unaryoperations_UnaryOperationID
                       quickstep_utility_Macros)
 
 # Submodule all-in-one library:
@@ -161,12 +161,8 @@ target_link_libraries(ScalarCaseExpression_unittest
                       quickstep_types_TypedValue
                       quickstep_types_containers_ColumnVector
                       quickstep_types_containers_ColumnVectorsValueAccessor
-                      quickstep_types_operations_binaryoperations_BinaryOperationFactory
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_types_operations_comparisons_ComparisonFactory
-                      quickstep_types_operations_comparisons_ComparisonID
-                      quickstep_types_operations_unaryoperations_UnaryOperationFactory
-                      quickstep_types_operations_unaryoperations_UnaryOperationID)
+                      quickstep_types_operations_comparisons_ComparisonID)
 add_test(ScalarCaseExpression_unittest ScalarCaseExpression_unittest)
 
 add_executable(Scalar_unittest "${CMAKE_CURRENT_SOURCE_DIR}/tests/Scalar_unittest.cpp")
@@ -189,11 +185,7 @@ target_link_libraries(Scalar_unittest
                       quickstep_types_TypeID
                       quickstep_types_TypedValue
                       quickstep_types_operations_binaryoperations_BinaryOperation
-                      quickstep_types_operations_binaryoperations_BinaryOperationFactory
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
-                      quickstep_types_operations_unaryoperations_NumericCastOperation
+                      quickstep_types_operations_unaryoperations_CastOperation
                       quickstep_types_operations_unaryoperations_UnaryOperation
-                      quickstep_types_operations_unaryoperations_UnaryOperationFactory
-                      quickstep_types_operations_unaryoperations_UnaryOperationID
                       quickstep_utility_Macros)
 add_test(Scalar_unittest Scalar_unittest)

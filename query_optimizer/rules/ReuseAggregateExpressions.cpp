@@ -44,9 +44,9 @@
 #include "query_optimizer/physical/PhysicalType.hpp"
 #include "query_optimizer/physical/Selection.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "types/operations/OperationFactory.hpp"
+#include "types/operations/OperationSignature.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
-#include "types/operations/binary_operations/BinaryOperationFactory.hpp"
-#include "types/operations/binary_operations/BinaryOperationID.hpp"
 #include "utility/HashError.hpp"
 
 #include "gflags/gflags.h"
@@ -317,12 +317,19 @@ P::PhysicalPtr ReuseAggregateExpressions::applyToNode(
           }
 
           // Obtain AVG by evaluating SUM/COUNT in Selection.
-          const BinaryOperation &divide_op =
-              BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kDivide);
+          const E::AttributeReferencePtr &count_attr = agg_attrs[agg_ref->second_ref];
+          const std::vector<TypeID> operand_tids =
+              { sum_attr->getValueType().getTypeID(), count_attr->getValueType().getTypeID() };
+          const OperationSignaturePtr op_sig =
+              OperationSignature::Create("/", operand_tids, 0);
+
+          const BinaryOperationPtr &divide_op =
+              OperationFactory::Instance().getBinaryOperation(op_sig);
           const E::BinaryExpressionPtr avg_expr =
-              E::BinaryExpression::Create(divide_op,
+              E::BinaryExpression::Create(op_sig,
+                                          divide_op,
                                           sum_attr,
-                                          agg_attrs[agg_ref->second_ref]);
+                                          count_attr);
           new_select_exprs.emplace_back(
               E::Alias::Create(agg_expr->id(),
                                avg_expr,

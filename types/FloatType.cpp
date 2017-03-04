@@ -25,11 +25,8 @@
 #include <limits>
 #include <string>
 
-#include "types/NullCoercibilityCheckMacro.hpp"
-#include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
-#include "utility/EqualsAnyConstant.hpp"
 
 #include "glog/logging.h"
 
@@ -40,39 +37,6 @@ using std::snprintf;
 #endif
 
 namespace quickstep {
-
-const TypeID FloatType::kStaticTypeID = kFloat;
-
-bool FloatType::isSafelyCoercibleFrom(const Type &original_type) const {
-  QUICKSTEP_NULL_COERCIBILITY_CHECK();
-  return QUICKSTEP_EQUALS_ANY_CONSTANT(original_type.getTypeID(),
-                                       kInt, kFloat);
-}
-
-TypedValue FloatType::coerceValue(const TypedValue &original_value,
-                                  const Type &original_type) const {
-  DCHECK(isCoercibleFrom(original_type))
-      << "Can't coerce value of Type " << original_type.getName()
-      << " to Type " << getName();
-
-  if (original_value.isNull()) {
-    return makeNullValue();
-  }
-
-  switch (original_type.getTypeID()) {
-    case kInt:
-      return TypedValue(static_cast<float>(original_value.getLiteral<int>()));
-    case kLong:
-      return TypedValue(static_cast<float>(original_value.getLiteral<std::int64_t>()));
-    case kFloat:
-      return original_value;
-    case kDouble:
-      return TypedValue(static_cast<float>(original_value.getLiteral<double>()));
-    default:
-      LOG(FATAL) << "Attempted to coerce Type " << original_type.getName()
-                 << " (not recognized as a numeric Type) to " << getName();
-  }
-}
 
 std::string FloatType::printValueToString(const TypedValue &value) const {
   DCHECK(!value.isNull());

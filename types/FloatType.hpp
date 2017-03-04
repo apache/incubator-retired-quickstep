@@ -26,12 +26,12 @@
 
 #include "types/NumericSuperType.hpp"
 #include "types/TypeID.hpp"
-#include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
 
 class Type;
+class TypedValue;
 
 /** \addtogroup Types
  *  @{
@@ -40,55 +40,8 @@ class Type;
 /**
  * @brief A type representing a single-precision floating-point number.
  **/
-class FloatType : public NumericSuperType<float> {
+class FloatType : public NumericSuperType<kFloat> {
  public:
-  static const TypeID kStaticTypeID;
-
-  /**
-   * @brief Get a reference to the non-nullable singleton instance of this
-   *        Type.
-   *
-   * @return A reference to the non-nullable singleton instance of this Type
-   **/
-  static const FloatType& InstanceNonNullable() {
-    static FloatType instance(false);
-    return instance;
-  }
-
-  /**
-   * @brief Get a reference to the nullable singleton instance of this Type
-   *
-   * @return A reference to the nullable singleton instance of this Type
-   **/
-  static const FloatType& InstanceNullable() {
-    static FloatType instance(true);
-    return instance;
-  }
-
-  /**
-   * @brief Get a reference to a singleton instance of this Type
-   *
-   * @param nullable Whether to get the nullable version of this Type
-   * @return A reference to the desired singleton instance of this Type
-   **/
-  static const FloatType& Instance(const bool nullable) {
-    if (nullable) {
-      return InstanceNullable();
-    } else {
-      return InstanceNonNullable();
-    }
-  }
-
-  const Type& getNullableVersion() const override {
-    return InstanceNullable();
-  }
-
-  const Type& getNonNullableVersion() const override {
-    return InstanceNonNullable();
-  }
-
-  bool isSafelyCoercibleFrom(const Type &original_type) const override;
-
   int getPrintWidth() const override {
     return kPrintWidth;
   }
@@ -101,9 +54,6 @@ class FloatType : public NumericSuperType<float> {
 
   bool parseValueFromString(const std::string &value_string,
                             TypedValue *value) const override;
-
-  TypedValue coerceValue(const TypedValue &original_value,
-                         const Type &original_type) const override;
 
  private:
   static_assert((std::numeric_limits<float>::max_exponent10 < 100)
@@ -122,8 +72,9 @@ class FloatType : public NumericSuperType<float> {
               // never takes more than 2 base-10 digits to represent.
 
   explicit FloatType(const bool nullable)
-      : NumericSuperType<float>(kFloat, nullable) {
-  }
+      : NumericSuperType<kFloat>(nullable) {}
+
+  template <typename, bool> friend class TypeInstance;
 
   DISALLOW_COPY_AND_ASSIGN(FloatType);
 };

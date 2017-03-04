@@ -35,9 +35,19 @@ namespace quickstep {
  * @brief Convert a string \p str to lower case.
  *
  * @param str The string to be converted.
- * @return The converted string with all lower case characters bing converted to upper case characters.
+ * @return The converted string with all lower case characters being converted
+ *         to upper case characters.
  */
 extern std::string ToLower(const std::string &str);
+
+/**
+ * @brief Convert a string \p str to upper case.
+ *
+ * @param str The string to be converted.
+ * @return The converted string with all upper case characters being converted
+ *         to lower case characters.
+ */
+extern std::string ToUpper(const std::string &str);
 
 /**
  * @brief Converts special characters to escape characters.

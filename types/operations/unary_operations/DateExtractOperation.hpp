@@ -23,33 +23,16 @@
 #include <cstdint>
 #include <string>
 
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
-#include <utility>
-#include <vector>
-
-#include "storage/StorageBlockInfo.hpp"
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
-
-#include "catalog/CatalogTypedefs.hpp"
+#include "types/IntType.hpp"
 #include "types/LongType.hpp"
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
-#include "types/operations/Operation.pb.h"
 #include "types/operations/unary_operations/UnaryOperation.hpp"
-#include "types/operations/unary_operations/UnaryOperationID.hpp"
 #include "utility/Macros.hpp"
+#include "utility/StringUtil.hpp"
 
 namespace quickstep {
-
-class ColumnVector;
-class ValueAccessor;
-
-struct DatetimeLit;
-
-/** \addtogroup Types
- *  @{
- */
 
 enum class DateExtractUnit {
   kYear = 0,
@@ -57,75 +40,8 @@ enum class DateExtractUnit {
   kDay,
   kHour,
   kMinute,
-  kSecond
-};
-
-/**
- * @brief UncheckedUnaryOperator for Datetime Extract.
- */
-template <DateExtractUnit unit, bool argument_nullable>
-class DatetimeExtractUncheckedOperator : public UncheckedUnaryOperator {
- public:
-  DatetimeExtractUncheckedOperator()
-      : UncheckedUnaryOperator() {}
-
-  TypedValue applyToTypedValue(const TypedValue &argument) const override;
-
-  TypedValue applyToDataPtr(const void *argument) const override;
-
-  ColumnVector* applyToColumnVector(const ColumnVector &argument) const override;
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-  ColumnVector* applyToValueAccessor(ValueAccessor *accessor,
-                                     const attribute_id argument_attr_id) const override;
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
-  ColumnVector* applyToValueAccessorForJoin(
-      ValueAccessor *accessor,
-      const bool use_left_relation,
-      const attribute_id argument_attr_id,
-      const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const override;
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
-
- private:
-  inline std::int64_t dateExtract(const DatetimeLit &argument) const;
-
-  DISALLOW_COPY_AND_ASSIGN(DatetimeExtractUncheckedOperator);
-};
-
-/**
- * @brief UncheckedUnaryOperator for Date Extract.
- */
-template <DateExtractUnit unit, bool argument_nullable>
-class DateExtractUncheckedOperator : public UncheckedUnaryOperator {
- public:
-  DateExtractUncheckedOperator()
-      : UncheckedUnaryOperator() {}
-
-  TypedValue applyToTypedValue(const TypedValue &argument) const override;
-
-  TypedValue applyToDataPtr(const void *argument) const override;
-
-  ColumnVector* applyToColumnVector(const ColumnVector &argument) const override;
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-  ColumnVector* applyToValueAccessor(ValueAccessor *accessor,
-                                     const attribute_id argument_attr_id) const override;
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
-
-#ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
-  ColumnVector* applyToValueAccessorForJoin(
-      ValueAccessor *accessor,
-      const bool use_left_relation,
-      const attribute_id argument_attr_id,
-      const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const override;
-#endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
-
- private:
-  inline std::int32_t dateExtract(const DateLit &argument) const;
-
-  DISALLOW_COPY_AND_ASSIGN(DateExtractUncheckedOperator);
+  kSecond,
+  kInvalid
 };
 
 /**
@@ -133,55 +49,82 @@ class DateExtractUncheckedOperator : public UncheckedUnaryOperator {
  */
 class DateExtractOperation : public UnaryOperation {
  public:
-  /**
-   * @brief Get a reference to the singleton instance of this Operation for a
-   *        particular DateExtractUnit.
-   *
-   * @param unit The date unit to extract.
-   * @return A reference to the singleton instance of this Operation for the
-   *         specified DateExtractUnit.
-   **/
-  static const DateExtractOperation& Instance(const DateExtractUnit unit);
+  DateExtractOperation() {}
 
-  serialization::UnaryOperation getProto() const override;
-
-  std::string getName() const override;
-
-  bool canApplyToType(const Type &type) const override {
-    return type.getTypeID() == TypeID::kDatetime || type.getTypeID() == kDate;
+  std::string getName() const override {
+    return "DateExtract";
   }
 
-  const Type* resultTypeForArgumentType(const Type &type) const override;
-
-  const Type* fixedNullableResultType() const override {
-    return nullptr;
+  std::string getShortName() const override {
+    return "DateExtract";
   }
 
-  bool resultTypeIsPlausible(const Type &result_type) const override {
-    return result_type.getTypeID() == kLong || result_type.getTypeID() == kInt;
+  std::vector<OperationSignaturePtr> getSignatures() const override {
+    const std::vector<TypeID> unit_carrier = { kVarChar };
+    return {
+        OperationSignature::Create(getName(), {kDate}, unit_carrier),
+        OperationSignature::Create(getName(), {kDatetime}, unit_carrier)
+    };
   }
 
-  const Type* pushDownTypeHint(const Type *type_hint) const override;
+  bool canApplyTo(const Type &type,
+                  const std::vector<TypedValue> &static_arguments,
+                  std::string *message) const override {
+    DCHECK(type.getTypeID() == kDate || type.getTypeID() == kDatetime);
+    DCHECK_EQ(1u, static_arguments.size());
 
-  TypedValue applyToChecked(const TypedValue &argument,
-                            const Type &argument_type) const override;
-
-  UncheckedUnaryOperator* makeUncheckedUnaryOperatorForType(const Type &type) const override {
-    DCHECK(canApplyToType(type));
-
-    return makeUncheckedUnaryOperatorForTypeHelper(type);
+    const DateExtractUnit unit = parseUnit(static_arguments.front());
+    switch (unit) {
+      case DateExtractUnit::kYear:  // Fall through
+      case DateExtractUnit::kMonth:
+      case DateExtractUnit::kDay:
+        return true;
+      case DateExtractUnit::kHour:  // Fall through
+      case DateExtractUnit::kMinute:
+      case DateExtractUnit::kSecond:
+        if (type.getTypeID() == kDate) {
+          *message = "Invalid extraction unit for argument of DATE type";
+        } else {
+          return true;
+        }
+      default:
+        *message = "Invalid extraction unit for DateExtract";
+        return false;
+    }
   }
+
+  const Type* getResultType(
+      const Type &type,
+      const std::vector<TypedValue> &static_arguments) const override {
+    DCHECK(UnaryOperation::canApplyTo(type, static_arguments));
+    if (type.getTypeID() == kDatetime) {
+      return &LongType::Instance(type.isNullable());
+    } else {
+      DCHECK_EQ(kDate, type.getTypeID());
+      return &IntType::Instance(type.isNullable());
+    }
+  }
+
+  UncheckedUnaryOperator* makeUncheckedUnaryOperator(
+      const Type &type,
+      const std::vector<TypedValue> &static_arguments) const override;
 
  private:
-  explicit DateExtractOperation(const DateExtractUnit unit)
-      : UnaryOperation(UnaryOperationID::kDateExtract),
-        unit_(unit) {}
+  static DateExtractUnit parseUnit(const TypedValue &unit_arg) {
+    DCHECK(unit_arg.getTypeID() == kVarChar);
+    const std::string unit_str =
+        ToLower(std::string(static_cast<const char*>(unit_arg.getOutOfLineData())));
 
-  UncheckedUnaryOperator* makeUncheckedUnaryOperatorForTypeHelper(const Type &type) const;
+    auto it = kNameToUnitMap.find(unit_str);
+    if (it != kNameToUnitMap.end()) {
+      return it->second;
+    } else {
+      return DateExtractUnit::kInvalid;
+    }
+  }
 
-  const DateExtractUnit unit_;
+  static const std::map<std::string, DateExtractUnit> kNameToUnitMap;
 
- private:
   DISALLOW_COPY_AND_ASSIGN(DateExtractOperation);
 };
 

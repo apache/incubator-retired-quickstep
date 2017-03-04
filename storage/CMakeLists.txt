@@ -826,7 +826,7 @@ target_link_libraries(quickstep_storage_PackedPayloadHashTable
                       quickstep_utility_HashPair
                       quickstep_utility_Macros
                       quickstep_utility_PrimeNumber
-                      quickstep_utility_TemplateUtil)
+                      quickstep_utility_meta_Dispatchers)
 target_link_libraries(quickstep_storage_PartitionedHashTablePool
                       glog
                       quickstep_storage_HashTableBase
@@ -870,9 +870,8 @@ target_link_libraries(quickstep_storage_SMAIndexSubBlock
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID
                       quickstep_types_TypedValue
+                      quickstep_types_operations_OperationFactory
                       quickstep_types_operations_binaryoperations_BinaryOperation
-                      quickstep_types_operations_binaryoperations_BinaryOperationFactory
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID

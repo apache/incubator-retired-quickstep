@@ -41,4 +41,8 @@ ColumnVector* ColumnVector::MakeVectorOfValue(
   }
 }
 
+constexpr bool NativeColumnVector::kNative;
+
+constexpr bool IndirectColumnVector::kNative;
+
 }  // namespace quickstep

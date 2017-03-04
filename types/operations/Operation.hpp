@@ -20,6 +20,10 @@
 #ifndef QUICKSTEP_TYPES_OPERATIONS_OPERATION_HPP_
 #define QUICKSTEP_TYPES_OPERATIONS_OPERATION_HPP_
 
+#include <string>
+#include <vector>
+
+#include "types/operations/OperationSignature.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -27,6 +31,9 @@ namespace quickstep {
 /** \addtogroup Types
  *  @{
  */
+
+class Operation;
+typedef std::shared_ptr<const Operation> OperationPtr;
 
 /**
  * @brief An operation which can be applied to typed values. Each exact
@@ -72,7 +79,7 @@ class Operation {
    * @return The human-readable name of this Operation.
    **/
   inline const char* getName() const {
-    return name_;
+    return "NoName";
   }
 
   /**
@@ -81,7 +88,11 @@ class Operation {
    * @return The short name of this Operation.
    **/
   inline const char* getShortName() const {
-    return short_name_;
+    return "NoShortName";
+  }
+
+  virtual std::vector<OperationSignaturePtr> getSignatures() const {
+    return {};
   }
 
   /**
@@ -98,19 +109,12 @@ class Operation {
   }
 
  protected:
-  Operation(const OperationSuperTypeID super_type_id,
-            const char *name,
-            const char *short_name)
-      : super_type_id_(super_type_id),
-        name_(name),
-        short_name_(short_name) {
+  explicit Operation(const OperationSuperTypeID super_type_id)
+      : super_type_id_(super_type_id) {
   }
 
  private:
   const OperationSuperTypeID super_type_id_;
-  const char *name_;
-  const char *short_name_;
-
 
   DISALLOW_COPY_AND_ASSIGN(Operation);
 };

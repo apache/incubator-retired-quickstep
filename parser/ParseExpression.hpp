@@ -39,14 +39,11 @@ class ParseExpression : public ParseTreeNode {
   enum ExpressionType {
     kAttribute,
     kBinaryExpression,
-    kExtract,
     kFunctionCall,
     kScalarLiteral,
     kSearchedCaseExpression,
     kSimpleCaseExpression,
     kSubqueryExpression,
-    kSubstring,
-    kUnaryExpression,
   };
 
   /**

@@ -480,9 +480,6 @@ class Resolver {
    * @brief Resolves a function call. For a non-scalar function, the returned
    *        expression is an AttributeReference to the actual resolved expression.
    *
-   * @note This currently only handles resolving aggregate functions and window
-   *       aggregate functions.
-   *
    * @param parse_function_call The function call to be resolved.
    * @param expression_resolution_info Resolution info that contains the name
    *                                   resolver and info to be updated after
@@ -491,6 +488,12 @@ class Resolver {
    */
   expressions::ScalarPtr resolveFunctionCall(
       const ParseFunctionCall &parse_function_call,
+      ExpressionResolutionInfo *expression_resolution_info);
+
+  expressions::ScalarPtr resolveScalarFunction(
+      const ParseFunctionCall &parse_function_call,
+      const std::string &function_name,
+      const std::vector<expressions::ScalarPtr> &resolved_arguments,
       ExpressionResolutionInfo *expression_resolution_info);
 
   /**

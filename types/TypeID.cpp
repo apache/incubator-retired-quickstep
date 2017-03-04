@@ -22,6 +22,7 @@
 namespace quickstep {
 
 const char *kTypeNames[] = {
+  "Bool",
   "Int",
   "Long",
   "Float",

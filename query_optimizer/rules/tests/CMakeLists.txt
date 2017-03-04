@@ -87,8 +87,6 @@ target_link_libraries(quickstep_queryoptimizer_rules_tests
                       quickstep_queryoptimizer_rules_tests_PhysicalRuleTest
                       quickstep_queryoptimizer_rules_tests_RuleTest
                       quickstep_types_operations_binaryoperations_BinaryOperation
-                      quickstep_types_operations_binaryoperations_BinaryOperationFactory
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID

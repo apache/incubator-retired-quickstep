@@ -27,6 +27,7 @@
 #include "types/DatetimeLit.hpp"
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
+#include "types/TypeSynthesizer.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -40,72 +41,13 @@ class TypedValue;
 /**
  * @brief A type representing the date.
  **/
-class DateType : public Type {
+class DateType : public TypeSynthesizer<kDate> {
  public:
-  typedef DateLit cpptype;
-
-  static const TypeID kStaticTypeID = kDate;
-
-  /**
-   * @brief Get a reference to the non-nullable singleton instance of this
-   *        Type.
-   *
-   * @return A reference to the non-nullable singleton instance of this Type.
-   **/
-  static const DateType& InstanceNonNullable() {
-    static DateType instance(false);
-    return instance;
-  }
-
-  /**
-   * @brief Get a reference to the nullable singleton instance of this Type.
-   *
-   * @return A reference to the nullable singleton instance of this Type.
-   **/
-  static const DateType& InstanceNullable() {
-    static DateType instance(true);
-    return instance;
-  }
-
-  /**
-   * @brief Get a reference to a singleton instance of this Type.
-   *
-   * @param nullable Whether to get the nullable version of this Type.
-   * @return A reference to the desired singleton instance of this Type.
-   **/
-  static const DateType& Instance(const bool nullable) {
-    if (nullable) {
-      return InstanceNullable();
-    } else {
-      return InstanceNonNullable();
-    }
-  }
-
-  const Type& getNullableVersion() const override {
-    return InstanceNullable();
-  }
-
-  const Type& getNonNullableVersion() const override {
-    return InstanceNonNullable();
-  }
-
-  std::size_t estimateAverageByteLength() const override {
-    return sizeof(DateLit);
-  }
-
-  bool isCoercibleFrom(const Type &original_type) const override;
-
-  bool isSafelyCoercibleFrom(const Type &original_type) const override;
-
   int getPrintWidth() const override {
     return DateLit::kIsoChars;
   }
 
   std::string printValueToString(const TypedValue &value) const override;
-
-  void printValueToFile(const TypedValue &value,
-                        FILE *file,
-                        const int padding = 0) const override;
 
   /**
    * @note value_string is expected to be in (possibly extended) ISO-8601
@@ -124,8 +66,9 @@ class DateType : public Type {
 
  private:
   explicit DateType(const bool nullable)
-      : Type(Type::kOther, kDate, nullable, sizeof(DateLit), sizeof(DateLit)) {
-  }
+      : TypeSynthesizer<kDate>(nullable) {}
+
+  template <typename, bool> friend class TypeInstance;
 
   DISALLOW_COPY_AND_ASSIGN(DateType);
 };

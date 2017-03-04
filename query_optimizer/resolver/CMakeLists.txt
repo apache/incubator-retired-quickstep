@@ -74,7 +74,6 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_expressions_Alias
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_BinaryExpression
-                      quickstep_queryoptimizer_expressions_Cast
                       quickstep_queryoptimizer_expressions_ComparisonExpression
                       quickstep_queryoptimizer_expressions_Exists
                       quickstep_queryoptimizer_expressions_ExprId
@@ -123,14 +122,15 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_storage_StorageConstants
                       quickstep_types_IntType
                       quickstep_types_Type
+                      quickstep_types_TypeUtil
                       quickstep_types_TypedValue
                       quickstep_types_TypeFactory
+                      quickstep_types_operations_OperationFactory
+                      quickstep_types_operations_OperationSignature
                       quickstep_types_operations_binaryoperations_BinaryOperation
                       quickstep_types_operations_comparisons_Comparison
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
-                      quickstep_types_operations_unaryoperations_DateExtractOperation
-                      quickstep_types_operations_unaryoperations_SubstringOperation
                       quickstep_types_operations_unaryoperations_UnaryOperation
                       quickstep_utility_BulkIoConfiguration
                       quickstep_utility_Macros

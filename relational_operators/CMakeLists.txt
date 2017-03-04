@@ -714,8 +714,6 @@ target_link_libraries(AggregationOperator_unittest
                       quickstep_types_LongType
                       quickstep_types_TypedValue
                       quickstep_types_containers_Tuple
-                      quickstep_types_operations_binaryoperations_BinaryOperationFactory
-                      quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_types_operations_comparisons_ComparisonFactory
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_utility_Macros

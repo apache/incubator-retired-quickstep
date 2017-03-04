@@ -184,6 +184,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "blocksample"      return TOKEN_BLOCKSAMPLE;
   "bloomfilter"      return TOKEN_BLOOM_FILTER;
   "case"             return TOKEN_CASE;
+  "cast"             return TOKEN_CAST;
   "csbtree"          return TOKEN_CSB_TREE;
   "by"               return TOKEN_BY;
   "char"             return TOKEN_CHARACTER;

@@ -25,9 +25,8 @@
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
+#include "types/operations/OperationFactory.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
-#include "types/operations/binary_operations/BinaryOperationFactory.hpp"
-#include "types/operations/binary_operations/BinaryOperationID.hpp"
 
 #include "glog/logging.h"
 
@@ -41,10 +40,15 @@ bool AggregateFunctionAvg::canApplyToTypes(
   }
 
   // Argument must be addable and divisible.
-  return BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
-             .canApplyToTypes(*argument_types.front(), *argument_types.front())
-         && BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kDivide)
-             .canApplyToTypes(*argument_types.front(), TypeFactory::GetType(kDouble));
+  const Type &type = *argument_types.front();
+  if (!OperationFactory::Instance()
+          .getBinaryOperation("+", {type.getTypeID(), type.getTypeID()})
+              ->canApplyTo(type, type)) {
+    return false;
+  }
+  return OperationFactory::Instance()
+      .getBinaryOperation("/", {type.getTypeID(), kDouble})
+          ->canApplyTo(type, TypeFactory::GetType(kDouble));
 }
 
 const Type* AggregateFunctionAvg::resultTypeForArgumentTypes(
@@ -67,8 +71,9 @@ const Type* AggregateFunctionAvg::resultTypeForArgumentTypes(
       break;
   }
 
-  return BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kDivide)
-             .resultTypeForArgumentTypes(*sum_type, TypeFactory::GetType(kDouble));
+  return OperationFactory::Instance()
+      .getBinaryOperation("/", {sum_type->getTypeID(), kDouble})
+          ->getResultType(*sum_type, TypeFactory::GetType(kDouble));
 }
 
 AggregationHandle* AggregateFunctionAvg::createHandle(

@@ -112,7 +112,7 @@ class Type {
    *
    * @return The serialized Protocol Buffer representation of this Type.
    **/
-  virtual serialization::Type getProto() const;
+  virtual serialization::Type getProto() const = 0;
 
   /**
    * @brief Determine what supertype this type belongs to.
@@ -154,16 +154,7 @@ class Type {
     TypeSignature sig;
     sig.id = type_id_;
     sig.nullable = nullable_;
-    switch (type_id_) {
-      case kChar:
-        sig.length = maximum_byte_length_;
-        break;
-      case kVarChar:
-        sig.length = maximum_byte_length_ - 1;
-        break;
-      default:
-        sig.length = 0;
-    }
+    sig.length = parameter_;
     return sig;
   }
 
@@ -227,7 +218,7 @@ class Type {
    * @return An estimate of the average number of bytes used by data items of
    *         this type.
    **/
-  virtual std::size_t estimateAverageByteLength() const = 0;
+  virtual std::size_t estimateAverageByteLength() const;
 
   /**
    * @brief Determine whether this Type is exactly the same as another.
@@ -255,7 +246,7 @@ class Type {
    * @param original_type The original Type for coercion to this Type.
    * @return true if coercion is supported, false otherwise.
    **/
-  virtual bool isCoercibleFrom(const Type &original_type) const = 0;
+  virtual bool isCoercibleFrom(const Type &original_type) const;
 
   /**
    * @brief Determine whether data items of another type can be coerced (used
@@ -264,7 +255,7 @@ class Type {
    * @note It is NOT possible to coerce a nullable type to a non-nullable type,
    *       even if coercion would otherwise be possible.
    * @note Integer types are safely coercible to other integer or
-   *       floating-poin types of equal or greater length.
+   *       floating-point types of equal or greater length.
    * @note Floating-point types are safely coercible to other floating-point
    *       types of equal or greater precision.
    * @note ASCII string types are safely coercible to other ASCII string types
@@ -277,7 +268,7 @@ class Type {
    * @param original_type The original Type for coercion to this Type.
    * @return true if coercion is supported, false otherwise.
    **/
-  virtual bool isSafelyCoercibleFrom(const Type &original_type) const = 0;
+  virtual bool isSafelyCoercibleFrom(const Type &original_type) const;
 
   /**
    * @brief Determine whether data items of this type are always guaranteed to
@@ -348,7 +339,7 @@ class Type {
    **/
   virtual void printValueToFile(const TypedValue &value,
                                 FILE *file,
-                                const int padding = 0) const = 0;
+                                const int padding = 0) const;
 
   /**
    * @brief Make a TypedValue of this Type.
@@ -453,10 +444,12 @@ class Type {
        const TypeID type_id,
        const bool nullable,
        const std::size_t minimum_byte_length,
-       const std::size_t maximum_byte_length)
+       const std::size_t maximum_byte_length,
+       const std::size_t parameter = 0)
       : super_type_id_(super_type_id),
         type_id_(type_id),
         nullable_(nullable),
+        parameter_(parameter),
         minimum_byte_length_(minimum_byte_length),
         maximum_byte_length_(maximum_byte_length) {
   }
@@ -464,43 +457,12 @@ class Type {
   const SuperTypeID super_type_id_;
   const TypeID type_id_;
   const bool nullable_;
+  const std::size_t parameter_;
   const std::size_t minimum_byte_length_;
   const std::size_t maximum_byte_length_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(Type);
-};
-
-/**
- * @brief A superclass for ASCII string types.
- **/
-class AsciiStringSuperType : public Type {
- public:
-  bool isCoercibleFrom(const Type &original_type) const override;
-
-  /**
-   * @brief Get the character-length of this string type.
-   *
-   * @return The maximum length of a string of this type.
-   **/
-  inline std::size_t getStringLength() const {
-    return length_;
-  }
-
- protected:
-  AsciiStringSuperType(const TypeID type_id,
-                       const bool nullable,
-                       const std::size_t minimum_byte_length,
-                       const std::size_t maximum_byte_length,
-                       const std::size_t string_length)
-      : Type(Type::kAsciiString, type_id, nullable, minimum_byte_length, maximum_byte_length),
-        length_(string_length) {
-  }
-
-  const std::size_t length_;
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(AsciiStringSuperType);
 };
 
 /** @} */

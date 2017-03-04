@@ -26,12 +26,12 @@
 
 #include "types/NumericSuperType.hpp"
 #include "types/TypeID.hpp"
-#include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
 
 class Type;
+class TypedValue;
 
 /** \addtogroup Types
  *  @{
@@ -40,55 +40,8 @@ class Type;
 /**
  * @brief A type representing a double-precision floating-point number.
  **/
-class DoubleType : public NumericSuperType<double> {
+class DoubleType : public NumericSuperType<kDouble> {
  public:
-  static const TypeID kStaticTypeID;
-
-  /**
-   * @brief Get a reference to the non-nullable singleton instance of this
-   *        Type.
-   *
-   * @return A reference to the non-nullable singleton instance of this Type.
-   **/
-  static const DoubleType& InstanceNonNullable() {
-    static DoubleType instance(false);
-    return instance;
-  }
-
-  /**
-   * @brief Get a reference to the nullable singleton instance of this Type.
-   *
-   * @return A reference to the nullable singleton instance of this Type.
-   **/
-  static const DoubleType& InstanceNullable() {
-    static DoubleType instance(true);
-    return instance;
-  }
-
-  /**
-   * @brief Get a reference to a singleton instance of this Type.
-   *
-   * @param nullable Whether to get the nullable version of this Type.
-   * @return A reference to the desired singleton instance of this Type.
-   **/
-  static const DoubleType& Instance(const bool nullable) {
-    if (nullable) {
-      return InstanceNullable();
-    } else {
-      return InstanceNonNullable();
-    }
-  }
-
-  const Type& getNullableVersion() const override {
-    return InstanceNullable();
-  }
-
-  const Type& getNonNullableVersion() const override {
-    return InstanceNonNullable();
-  }
-
-  bool isSafelyCoercibleFrom(const Type &original_type) const override;
-
   int getPrintWidth() const override {
     return kPrintWidth;
   }
@@ -101,9 +54,6 @@ class DoubleType : public NumericSuperType<double> {
 
   bool parseValueFromString(const std::string &value_string,
                             TypedValue *value) const override;
-
-  TypedValue coerceValue(const TypedValue &original_value,
-                         const Type &original_type) const override;
 
  private:
   static_assert((std::numeric_limits<double>::max_exponent10 < 1000)
@@ -122,8 +72,9 @@ class DoubleType : public NumericSuperType<double> {
               // exponent never takes more than 3 base-10 digits to represent.
 
   explicit DoubleType(const bool nullable)
-      : NumericSuperType<double>(kDouble, nullable) {
-  }
+      : NumericSuperType<kDouble>(nullable) {}
+
+  template <typename, bool> friend class TypeInstance;
 
   DISALLOW_COPY_AND_ASSIGN(DoubleType);
 };

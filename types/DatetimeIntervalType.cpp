@@ -31,7 +31,6 @@
 
 #include "types/IntervalLit.hpp"
 #include "types/IntervalParser.hpp"
-#include "types/NullCoercibilityCheckMacro.hpp"
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
@@ -46,16 +45,6 @@ using std::snprintf;
 #endif
 
 namespace quickstep {
-
-bool DatetimeIntervalType::isCoercibleFrom(const Type &original_type) const {
-  QUICKSTEP_NULL_COERCIBILITY_CHECK();
-  return (original_type.getTypeID() == kDatetimeInterval);
-}
-
-bool DatetimeIntervalType::isSafelyCoercibleFrom(const Type &original_type) const {
-  QUICKSTEP_NULL_COERCIBILITY_CHECK();
-  return (original_type.getTypeID() == kDatetimeInterval);
-}
 
 std::string DatetimeIntervalType::printValueToString(const TypedValue &value) const {
   DCHECK(!value.isNull());
@@ -119,14 +108,6 @@ std::string DatetimeIntervalType::printValueToString(const TypedValue &value) co
   }
 
   return std::string(interval_buf);
-}
-
-void DatetimeIntervalType::printValueToFile(const TypedValue &value,
-                                            FILE *file,
-                                            const int padding) const {
-  // We simply re-use the logic from printValueToString(), as trying to do
-  // padding on-the fly with so many different fields is too much of a hassle.
-  std::fprintf(file, "%*s", padding, printValueToString(value).c_str());
 }
 
 bool DatetimeIntervalType::parseValueFromString(const std::string &value_string,

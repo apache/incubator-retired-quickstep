@@ -48,25 +48,7 @@ class TypeFactory {
    * @param id The id of the desired Type.
    * @return Whether a length must be specified for Types of the given id.
    **/
-  static bool TypeRequiresLengthParameter(const TypeID id) {
-    switch (id) {
-      case kInt:
-      case kLong:
-      case kFloat:
-      case kDouble:
-      case kDate:
-      case kDatetime:
-      case kDatetimeInterval:
-      case kYearMonthInterval:
-      case kNullType:
-        return false;
-      case kChar:
-      case kVarChar:
-        return true;
-      default:
-        FATAL_ERROR("Unrecognized TypeID in TypeFactory::TypeRequiresLengthParameter");
-    }
-  }
+  static bool TypeRequiresLengthParameter(const TypeID id);
 
   /**
    * @brief Factory method to get a Type by its TypeID.

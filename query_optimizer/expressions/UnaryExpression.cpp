@@ -30,8 +30,8 @@
 #include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/PatternMatcher.hpp"
 #include "query_optimizer/expressions/Scalar.hpp"
+#include "query_optimizer/expressions/ScalarLiteral.hpp"
 #include "types/operations/unary_operations/UnaryOperation.hpp"
-#include "types/operations/unary_operations/UnaryOperationID.hpp"
 #include "utility/HashPair.hpp"
 
 #include "glog/logging.h"
@@ -41,7 +41,7 @@ namespace optimizer {
 namespace expressions {
 
 std::string UnaryExpression::getName() const {
-  return operation_.getName();
+  return op_signature_->getName();
 }
 
 ExpressionPtr UnaryExpression::copyWithNewChildren(
@@ -49,26 +49,39 @@ ExpressionPtr UnaryExpression::copyWithNewChildren(
   DCHECK_EQ(new_children.size(), children().size());
   DCHECK(SomeScalar::Matches(new_children[0]));
   return UnaryExpression::Create(
-      operation_, std::static_pointer_cast<const Scalar>(new_children[0]));
+      op_signature_,
+      operation_,
+      std::static_pointer_cast<const Scalar>(new_children[0]),
+      static_arguments_,
+      static_argument_types_);
 }
 
 ::quickstep::Scalar* UnaryExpression::concretize(
     const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
   return new ::quickstep::ScalarUnaryExpression(
-      operation_, operand_->concretize(substitution_map));
+      op_signature_,
+      operation_,
+      operand_->concretize(substitution_map),
+      static_arguments_);
 }
 
 std::size_t UnaryExpression::computeHash() const {
-  return CombineHashes(
-      CombineHashes(static_cast<std::size_t>(ExpressionType::kUnaryExpression),
-                    static_cast<std::size_t>(operation_.getUnaryOperationID())),
-      operand_->hash());
+  std::size_t hash_code = CombineHashes(op_signature_->hash(),
+                                        operand_->hash());
+  for (const TypedValue &st_arg : *static_arguments_) {
+    if (!st_arg.isNull()) {
+      hash_code = CombineHashes(hash_code, st_arg.getHash());
+    }
+  }
+  return hash_code;
 }
 
 bool UnaryExpression::equals(const ScalarPtr &other) const {
   UnaryExpressionPtr expr;
   if (SomeUnaryExpression::MatchesWithConditionalCast(other, &expr)) {
-    return &operation_ == &expr->operation_ && operand_->equals(expr->operand_);
+    return *op_signature_ == *expr->op_signature_
+        && operand_->equals(expr->operand_)
+        && *static_arguments_ == *expr->static_arguments_;
   }
   return false;
 }
@@ -80,8 +93,24 @@ void UnaryExpression::getFieldStringItems(
     std::vector<OptimizerTreeBaseNodePtr> *non_container_child_fields,
     std::vector<std::string> *container_child_field_names,
     std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const {
-  non_container_child_field_names->push_back("Operand");
-  non_container_child_fields->push_back(operand_);
+  inline_field_names->emplace_back("op_signature");
+  inline_field_values->emplace_back(op_signature_->toString());
+
+  inline_field_names->emplace_back("result_type");
+  inline_field_values->emplace_back(result_type_.getName());
+
+  non_container_child_field_names->emplace_back("operand");
+  non_container_child_fields->emplace_back(operand_);
+
+  if (!static_arguments_->empty()) {
+    container_child_field_names->emplace_back("static_arguments");
+    container_child_fields->emplace_back();
+    for (std::size_t i = 0; i < static_arguments_->size(); ++i) {
+      container_child_fields->back().emplace_back(
+          ScalarLiteral::Create(static_arguments_->at(i),
+                                *static_argument_types_->at(i)));
+    }
+  }
 }
 
 }  // namespace expressions

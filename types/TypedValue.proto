@@ -22,17 +22,18 @@ package quickstep.serialization;
 import "types/Type.proto";
 
 message TypedValue {
-  required Type.TypeID type_id = 1;
+  required TypeID type_id = 1;
 
   // NOTE(zuyu): For a NULL value, none of the optional fields are filled in.
-  optional int32 int_value = 2;
-  optional int64 long_value = 3;
-  optional float float_value = 4;
-  optional double double_value = 5;
-  optional bytes out_of_line_data = 6;
-  optional int64 datetime_value = 7;
-  optional int64 datetime_interval_value = 8;
-  optional int64 year_month_interval_value = 9;
+  optional bool bool_value = 2;
+  optional int32 int_value = 3;
+  optional int64 long_value = 4;
+  optional float float_value = 5;
+  optional double double_value = 6;
+  optional bytes out_of_line_data = 7;
+  optional int64 datetime_value = 8;
+  optional int64 datetime_interval_value = 9;
+  optional int64 year_month_interval_value = 10;
 
   message DateLit {
     required int32 year = 1;
@@ -40,5 +41,5 @@ message TypedValue {
     required uint32 day = 3;
   }
 
-  optional DateLit date_value = 10;
+  optional DateLit date_value = 11;
 }
