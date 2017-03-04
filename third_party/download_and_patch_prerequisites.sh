@@ -88,6 +88,9 @@ do
   fi
 done
 
+# Back to the third_party directory.
+cd ${THIRD_PARTY_DIR}
+
 # Apply patches now.
 
 # Apply linenoise patch
@@ -96,22 +99,12 @@ patch ${THIRD_PARTY_SRC_DIR}/linenoise/linenoise.h ${PATCH_DIR}/linenoise/lineno
 patch ${THIRD_PARTY_SRC_DIR}/linenoise/linenoise.c ${PATCH_DIR}/linenoise/linenoise.c.patch
 
 # Apply gflags patch.
-echo "Patching for gflags:"
-cd ${THIRD_PARTY_SRC_DIR}/gflags
-patch -p0 < ${PATCH_DIR}/gflags/CMakeLists.patch
-patch src/gflags_reporting.cc ${PATCH_DIR}/gflags/gflags_reporting.cc.patch
-cd ${THIRD_PARTY_SRC_DIR}
+patch ${THIRD_PARTY_SRC_DIR}/gflags/CMakeLists.txt ${PATCH_DIR}/gflags/CMakeLists.patch
+patch ${THIRD_PARTY_SRC_DIR}/gflags/src/gflags_reporting.cc ${PATCH_DIR}/gflags/gflags_reporting.cc.patch
 
 # Apply re2 patch.
-cd ${THIRD_PARTY_SRC_DIR}/re2
-patch -p0 < ${PATCH_DIR}/re2/re2CMake.patch
-cd ${THIRD_PARTY_SRC_DIR}
+patch ${THIRD_PARTY_SRC_DIR}/re2/CMakeLists.txt ${PATCH_DIR}/re2/re2CMake.patch
 
 # Apply benchmark patches.
-cd ${THIRD_PARTY_SRC_DIR}/benchmark
-patch -p0 < ${PATCH_DIR}/benchmark/benchmarkCMake.patch
-cd ${THIRD_PARTY_SRC_DIR}/benchmark/src
-patch -p0 < ${PATCH_DIR}/benchmark/benchmarkSrcCMakeLists.patch
-
-# Back to the third_party directory.
-cd ${THIRD_PARTY_DIR}
+patch ${THIRD_PARTY_SRC_DIR}/benchmark/CMakeLists.txt ${PATCH_DIR}/benchmark/benchmarkCMake.patch
+patch ${THIRD_PARTY_SRC_DIR}/benchmark/src/CMakeLists.txt ${PATCH_DIR}/benchmark/benchmarkSrcCMakeLists.patch
