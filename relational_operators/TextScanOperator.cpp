@@ -241,9 +241,8 @@ void TextScanWorkOrder::execute() {
     }
 
     bytes_read = hdfsRead(hdfs, file_handle, buffer, text_segment_size_);
-    if (bytes_read != text_segment_size_) {
-      hdfsCloseFile(hdfs, file_handle);
-      throw TextScanReadError(filename_);
+    while (bytes_read != text_segment_size_) {
+      bytes_read += hdfsRead(hdfs, file_handle, buffer + bytes_read, text_segment_size_ - bytes_read);
     }
   }
 #endif  // QUICKSTEP_HAVE_FILE_MANAGER_HDFS
