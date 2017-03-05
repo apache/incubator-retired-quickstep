@@ -256,7 +256,7 @@ static bool ValidateTmbImplementation(const char *flagname,
                "Invalid value for --%s: %s\n", flagname, value.c_str());
   return false;
 }
-DEFINE_string(tmb_implementation, "nativelog",
+DEFINE_string(tmb_implementation, "purememory",
               "Which underlying TMB implementation to use. Valid choices are "
               "leveldb, nativelog, purememory, sqlite, voltdb, and zookeeper. "
               "Depending on how the TMB library was built, some of these may "
