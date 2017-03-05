@@ -100,9 +100,6 @@ enum QueryExecutionMessageType : message_type_id {
 
   kQueryTeardownMessage,  // From Foreman to Shiftboss.
 
-  kSaveQueryResultMessage,  // From Foreman to Shiftboss.
-  kSaveQueryResultResponseMessage,  // From Shiftboss to Foreman.
-
   kQueryExecutionSuccessMessage,  // From Foreman to CLI.
 
   // From Foreman / Conductor to CLI.

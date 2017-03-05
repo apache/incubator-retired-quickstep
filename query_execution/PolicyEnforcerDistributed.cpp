@@ -64,6 +64,7 @@ using std::string;
 using std::unique_ptr;
 using std::vector;
 
+using tmb::MessageBus;
 using tmb::TaggedMessage;
 
 namespace quickstep {
@@ -269,83 +270,57 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
     shiftboss_addresses.AddRecipient(shiftboss_directory_->getClientId(i));
   }
 
-  if (query_result_relation == nullptr) {
+
+  if (query_result_relation) {
+    const QueryHandle::AnalyzeQueryInfo *analyze_query_info = query_handle->analyze_query_info();
+    if (analyze_query_info) {
+      processAnalyzeQueryResult(cli_id, query_result_relation, analyze_query_info);
+    } else {
+      S::QueryExecutionSuccessMessage proto;
+      proto.mutable_result_relation()->MergeFrom(query_result_relation->getProto());
+
+      const size_t proto_length = proto.ByteSize();
+      char *proto_bytes = static_cast<char*>(malloc(proto_length));
+      CHECK(proto.SerializeToArray(proto_bytes, proto_length));
+
+      TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, kQueryExecutionSuccessMessage);
+      free(proto_bytes);
+
+      // Notify the CLI regarding the query result.
+      DLOG(INFO) << "PolicyEnforcerDistributed sent QueryExecutionSuccessMessage (typed '"
+                 << kQueryExecutionSuccessMessage
+                 << "') to CLI with TMB client id " << cli_id;
+      const MessageBus::SendStatus send_status =
+          QueryExecutionUtil::SendTMBMessage(bus_, foreman_client_id_, cli_id, move(message));
+      CHECK(send_status == MessageBus::SendStatus::kOK);
+    }
+  } else {
     if (query_processor_) {
       query_processor_->saveCatalog();
     }
-
-    // Clean up query execution states, i.e., QueryContext, in Shiftbosses.
-    serialization::QueryTeardownMessage proto;
-    proto.set_query_id(query_id);
-
-    const size_t proto_length = proto.ByteSize();
-    char *proto_bytes = static_cast<char*>(malloc(proto_length));
-    CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-    TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, kQueryTeardownMessage);
-    free(proto_bytes);
-
-    DLOG(INFO) << "PolicyEnforcerDistributed sent QueryTeardownMessage (typed '" << kQueryTeardownMessage
-               << "') to all Shiftbosses";
-    QueryExecutionUtil::BroadcastMessage(foreman_client_id_, shiftboss_addresses, move(message), bus_);
-
-    TaggedMessage cli_message(kQueryExecutionSuccessMessage);
 
     // Notify the CLI query execution successfully.
     DLOG(INFO) << "PolicyEnforcerDistributed sent QueryExecutionSuccessMessage (typed '"
                << kQueryExecutionSuccessMessage
                << "') to CLI with TMB client id " << cli_id;
-    const tmb::MessageBus::SendStatus send_status =
-        QueryExecutionUtil::SendTMBMessage(bus_,
-                                           foreman_client_id_,
-                                           cli_id,
-                                           move(cli_message));
-    CHECK(send_status == tmb::MessageBus::SendStatus::kOK);
-    return;
+    const MessageBus::SendStatus send_status =
+        QueryExecutionUtil::SendTMBMessage(bus_, foreman_client_id_, cli_id,
+                                           TaggedMessage(kQueryExecutionSuccessMessage));
+    CHECK(send_status == MessageBus::SendStatus::kOK);
   }
 
-  const QueryHandle::AnalyzeQueryInfo *analyze_query_info = query_handle->analyze_query_info();
-  if (analyze_query_info) {
-    processAnalyzeQueryResult(cli_id, query_result_relation, analyze_query_info);
-
-    // Clean up query execution states, i.e., QueryContext, in Shiftbosses.
-    S::QueryTeardownMessage proto;
-    proto.set_query_id(query_id);
-
-    const size_t proto_length = proto.ByteSize();
-    char *proto_bytes = static_cast<char*>(malloc(proto_length));
-    CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-    TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, kQueryTeardownMessage);
-    free(proto_bytes);
-
-    DLOG(INFO) << "PolicyEnforcerDistributed sent QueryTeardownMessage (typed '" << kQueryTeardownMessage
-               << "') to all Shiftbosses";
-    QueryExecutionUtil::BroadcastMessage(foreman_client_id_, shiftboss_addresses, move(message), bus_);
-    return;
-  }
-
-  // NOTE(zuyu): SaveQueryResultMessage implicitly triggers QueryTeardown in Shiftboss.
-  S::SaveQueryResultMessage proto;
+  // Clean up query execution states, i.e., QueryContext, in Shiftbosses.
+  S::QueryTeardownMessage proto;
   proto.set_query_id(query_id);
-  proto.set_relation_id(query_result_relation->getID());
-
-  const vector<block_id> blocks(query_result_relation->getBlocksSnapshot());
-  for (const block_id block : blocks) {
-    proto.add_blocks(block);
-  }
-
-  proto.set_cli_id(cli_id);
 
   const size_t proto_length = proto.ByteSize();
   char *proto_bytes = static_cast<char*>(malloc(proto_length));
   CHECK(proto.SerializeToArray(proto_bytes, proto_length));
 
-  TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, kSaveQueryResultMessage);
+  TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, kQueryTeardownMessage);
   free(proto_bytes);
 
-  // TODO(quickstep-team): Dynamically scale-up/down Shiftbosses.
-  DLOG(INFO) << "PolicyEnforcerDistributed sent SaveQueryResultMessage (typed '" << kSaveQueryResultMessage
+  DLOG(INFO) << "PolicyEnforcerDistributed sent QueryTeardownMessage (typed '" << kQueryTeardownMessage
              << "') to all Shiftbosses";
   QueryExecutionUtil::BroadcastMessage(foreman_client_id_, shiftboss_addresses, move(message), bus_);
 }
@@ -439,9 +414,9 @@ void PolicyEnforcerDistributed::processAnalyzeQueryResult(const tmb::client_id c
 
       DLOG(INFO) << "PolicyEnforcerDistributed sent CommandResponseMessage (typed '" << kCommandResponseMessage
                  << "') to CLI with TMB client id " << cli_id;
-      const tmb::MessageBus::SendStatus send_status =
+      const MessageBus::SendStatus send_status =
           QueryExecutionUtil::SendTMBMessage(bus_, foreman_client_id_, cli_id, move(message));
-      CHECK(send_status == tmb::MessageBus::SendStatus::kOK);
+      CHECK(send_status == MessageBus::SendStatus::kOK);
 
       completed_analyze_relations_.erase(cli_id);
     }

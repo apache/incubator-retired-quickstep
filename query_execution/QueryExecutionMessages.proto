@@ -119,21 +119,6 @@ message QueryTeardownMessage {
   required uint64 query_id = 1;
 }
 
-message SaveQueryResultMessage {
-  required uint64 query_id = 1;
-  required int32 relation_id = 2;
-  repeated fixed64 blocks = 3 [packed=true];
-
-  required uint32 cli_id = 4;  // tmb::client_id.
-}
-
-message SaveQueryResultResponseMessage {
-  required uint64 query_id = 1;
-  required int32 relation_id = 2;
-  required uint32 cli_id = 3;  // tmb::client_id.
-  required uint64 shiftboss_index = 4;
-}
-
 message CommandResponseMessage {
   required string command_response = 1;
 }

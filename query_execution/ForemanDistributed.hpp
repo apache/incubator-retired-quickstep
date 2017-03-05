@@ -115,9 +115,6 @@ class ForemanDistributed final : public ForemanBase {
   void processShiftbossRegistrationMessage(const tmb::client_id shiftboss_client_id,
                                            const std::size_t work_order_capacity);
 
-  void processSaveQueryResultResponseMessage(const tmb::client_id cli_id,
-                                             const relation_id result_relation_id);
-
   /**
    * @brief Check if we can collect new messages from the PolicyEnforcer.
    *
@@ -135,9 +132,6 @@ class ForemanDistributed final : public ForemanBase {
   // Used for '\analyze'.
   DataExchangerAsync data_exchanger_;
   std::unique_ptr<StorageManager> storage_manager_;
-
-  // From a query id to a set of Shiftbosses that save query result.
-  std::unordered_map<std::size_t, std::unordered_set<std::size_t>> query_result_saved_shiftbosses_;
 
   DISALLOW_COPY_AND_ASSIGN(ForemanDistributed);
 };

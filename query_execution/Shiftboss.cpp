@@ -107,9 +107,6 @@ Shiftboss::Shiftboss(tmb::MessageBus *bus_global,
   bus_global_->RegisterClientAsReceiver(shiftboss_client_id_global_, kInitiateRebuildMessage);
   bus_global_->RegisterClientAsSender(shiftboss_client_id_global_, kInitiateRebuildResponseMessage);
 
-  bus_global_->RegisterClientAsReceiver(shiftboss_client_id_global_, kSaveQueryResultMessage);
-  bus_global_->RegisterClientAsSender(shiftboss_client_id_global_, kSaveQueryResultResponseMessage);
-
   // Message sent to Worker.
   bus_local_->RegisterClientAsSender(shiftboss_client_id_local_, kShiftbossRegistrationResponseMessage);
   bus_local_->RegisterClientAsSender(shiftboss_client_id_local_, kRebuildWorkOrderMessage);
@@ -228,45 +225,6 @@ void Shiftboss::run() {
           CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
 
           query_contexts_.erase(proto.query_id());
-          break;
-        }
-        case kSaveQueryResultMessage: {
-          const TaggedMessage &tagged_message = annotated_message.tagged_message;
-
-          serialization::SaveQueryResultMessage proto;
-          CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
-
-          for (int i = 0; i < proto.blocks_size(); ++i) {
-            storage_manager_->saveBlockOrBlob(proto.blocks(i));
-          }
-
-          // Clean up query execution states, i.e., QueryContext.
-          query_contexts_.erase(proto.query_id());
-
-          serialization::SaveQueryResultResponseMessage proto_response;
-          proto_response.set_query_id(proto.query_id());
-          proto_response.set_relation_id(proto.relation_id());
-          proto_response.set_cli_id(proto.cli_id());
-          proto_response.set_shiftboss_index(shiftboss_index_);
-
-          const size_t proto_response_length = proto_response.ByteSize();
-          char *proto_response_bytes = static_cast<char*>(malloc(proto_response_length));
-          CHECK(proto_response.SerializeToArray(proto_response_bytes, proto_response_length));
-
-          TaggedMessage message_response(static_cast<const void*>(proto_response_bytes),
-                                         proto_response_length,
-                                         kSaveQueryResultResponseMessage);
-          free(proto_response_bytes);
-
-          DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " (id '" << shiftboss_client_id_global_
-                     << "') sent SaveQueryResultResponseMessage (typed '" << kSaveQueryResultResponseMessage
-                     << "') to Foreman with TMB client ID " << foreman_client_id_;
-          const MessageBus::SendStatus send_status =
-              QueryExecutionUtil::SendTMBMessage(bus_global_,
-                                                 shiftboss_client_id_global_,
-                                                 foreman_client_id_,
-                                                 move(message_response));
-          CHECK(send_status == MessageBus::SendStatus::kOK);
           break;
         }
         case kPoisonMessage: {

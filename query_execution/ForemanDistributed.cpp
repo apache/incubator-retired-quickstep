@@ -86,7 +86,6 @@ ForemanDistributed::ForemanDistributed(
       kWorkOrderMessage,
       kInitiateRebuildMessage,
       kQueryTeardownMessage,
-      kSaveQueryResultMessage,
       kQueryExecutionSuccessMessage,
       kCommandResponseMessage,
       kPoisonMessage};
@@ -106,7 +105,6 @@ ForemanDistributed::ForemanDistributed(
       kWorkOrderCompleteMessage,
       kRebuildWorkOrderCompleteMessage,
       kWorkOrderFeedbackMessage,
-      kSaveQueryResultResponseMessage,
       kPoisonMessage};
 
   for (const auto message_type : receiver_message_types) {
@@ -201,20 +199,6 @@ void ForemanDistributed::run() {
         // A unique case in the distributed version.
         static_cast<PolicyEnforcerDistributed*>(policy_enforcer_.get())->
             processInitiateRebuildResponseMessage(tagged_message);
-        break;
-      }
-      case kSaveQueryResultResponseMessage: {
-        S::SaveQueryResultResponseMessage proto;
-        CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
-
-        const std::size_t query_id = proto.query_id();
-        query_result_saved_shiftbosses_[query_id].insert(proto.shiftboss_index());
-
-        // TODO(quickstep-team): Dynamically scale-up/down Shiftbosses.
-        if (query_result_saved_shiftbosses_[query_id].size() == shiftboss_directory_.size()) {
-          processSaveQueryResultResponseMessage(proto.cli_id(), proto.relation_id());
-          query_result_saved_shiftbosses_.erase(query_id);
-        }
         break;
       }
       case kPoisonMessage: {
@@ -462,33 +446,6 @@ void ForemanDistributed::processShiftbossRegistrationMessage(const client_id shi
       QueryExecutionUtil::SendTMBMessage(bus_,
                                          foreman_client_id_,
                                          shiftboss_client_id,
-                                         move(message));
-  CHECK(send_status == MessageBus::SendStatus::kOK);
-}
-
-void ForemanDistributed::processSaveQueryResultResponseMessage(const client_id cli_id,
-                                                               const relation_id result_relation_id) {
-  S::QueryExecutionSuccessMessage proto;
-  proto.mutable_result_relation()->MergeFrom(
-      static_cast<CatalogDatabase*>(catalog_database_)->getRelationById(result_relation_id)->getProto());
-
-  const size_t proto_length = proto.ByteSize();
-  char *proto_bytes = static_cast<char*>(malloc(proto_length));
-  CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-  TaggedMessage message(static_cast<const void*>(proto_bytes),
-                        proto_length,
-                        kQueryExecutionSuccessMessage);
-  free(proto_bytes);
-
-  // Notify the CLI regarding the query result.
-  DLOG(INFO) << "ForemanDistributed sent QueryExecutionSuccessMessage (typed '"
-             << kQueryExecutionSuccessMessage
-             << "') to CLI with TMB client id " << cli_id;
-  const MessageBus::SendStatus send_status =
-      QueryExecutionUtil::SendTMBMessage(bus_,
-                                         foreman_client_id_,
-                                         cli_id,
                                          move(message));
   CHECK(send_status == MessageBus::SendStatus::kOK);
 }
