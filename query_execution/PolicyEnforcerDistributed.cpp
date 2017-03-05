@@ -286,7 +286,9 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
       free(proto_bytes);
 
       // Notify the CLI regarding the query result.
-      DLOG(INFO) << "PolicyEnforcerDistributed sent QueryExecutionSuccessMessage to DistributedCLI with Client " << cli_id;
+      DLOG(INFO)
+        << "PolicyEnforcerDistributed sent QueryExecutionSuccessMessage to DistributedCLI with Client "
+        << cli_id;
       const MessageBus::SendStatus send_status =
           QueryExecutionUtil::SendTMBMessage(bus_, foreman_client_id_, cli_id, move(message));
       CHECK(send_status == MessageBus::SendStatus::kOK);
@@ -297,7 +299,9 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
     }
 
     // Notify the CLI query execution successfully.
-    DLOG(INFO) << "PolicyEnforcerDistributed sent QueryExecutionSuccessMessage to DistributedCLI with Client " << cli_id;
+    DLOG(INFO)
+      << "PolicyEnforcerDistributed sent QueryExecutionSuccessMessage to DistributedCLI with Client "
+      << cli_id;
     const MessageBus::SendStatus send_status =
         QueryExecutionUtil::SendTMBMessage(bus_, foreman_client_id_, cli_id,
                                            TaggedMessage(kQueryExecutionSuccessMessage));
