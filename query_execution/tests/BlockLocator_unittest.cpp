@@ -129,8 +129,8 @@ class BlockLocatorTest : public ::testing::Test {
     const AnnotatedMessage annotated_message(bus_.Receive(worker_client_id_, 0, true));
     const TaggedMessage &tagged_message = annotated_message.tagged_message;
     CHECK_EQ(kLocateBlockResponseMessage, tagged_message.message_type());
-    LOG(INFO) << "Worker (id '" << worker_client_id_
-              << "') received LocateBlockResponseMessage from BlockLocator";
+    LOG(INFO) << "Worker with Client " << worker_client_id_
+              << " received LocateBlockResponseMessage from BlockLocator";
 
     serialization::LocateBlockResponseMessage response_proto;
     CHECK(response_proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));

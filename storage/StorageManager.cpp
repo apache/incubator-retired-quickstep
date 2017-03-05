@@ -233,8 +233,8 @@ StorageManager::StorageManager(
     bus_->RegisterClientAsSender(storage_manager_client_id_, kDeleteBlockLocationMessage);
     bus_->RegisterClientAsSender(storage_manager_client_id_, kBlockDomainUnregistrationMessage);
 
-    LOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
-              << "') starts with Domain " << block_domain;
+    LOG(INFO) << "StorageManager with Client " << storage_manager_client_id_
+              << " starts with Domain " << block_domain;
   }
 #endif
 
@@ -605,8 +605,8 @@ vector<string> StorageManager::getPeerDomainNetworkAddresses(const block_id bloc
   const TaggedMessage &tagged_message = annotated_message.tagged_message;
   CHECK_EQ(block_locator_client_id_, annotated_message.sender);
   CHECK_EQ(kGetPeerDomainNetworkAddressesResponseMessage, tagged_message.message_type());
-  DLOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
-             << "') received GetPeerDomainNetworkAddressesResponseMessage from BlockLocator";
+  DLOG(INFO) << "StorageManager with Client " << storage_manager_client_id_
+             << " received GetPeerDomainNetworkAddressesResponseMessage from BlockLocator";
 
   serialization::GetPeerDomainNetworkAddressesResponseMessage response_proto;
   CHECK(response_proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));

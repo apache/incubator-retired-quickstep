@@ -159,8 +159,8 @@ void Shiftboss::run() {
   for (;;) {
     if (bus_global_->ReceiveIfAvailable(shiftboss_client_id_global_, &annotated_message, 0, true)) {
       message_type = annotated_message.tagged_message.message_type();
-      DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " (id '" << shiftboss_client_id_global_
-                 << "') received " << QueryExecutionUtil::MessageTypeToString(message_type)
+      DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " with Client " << shiftboss_client_id_global_
+                 << " received " << QueryExecutionUtil::MessageTypeToString(message_type)
                  << " from Foreman with Client " << annotated_message.sender;
       switch (message_type) {
         case kQueryInitiateMessage: {
