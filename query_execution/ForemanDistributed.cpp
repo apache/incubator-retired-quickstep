@@ -135,8 +135,7 @@ void ForemanDistributed::run() {
     const AnnotatedMessage annotated_message = bus_->Receive(foreman_client_id_, 0, true);
     const TaggedMessage &tagged_message = annotated_message.tagged_message;
     DCHECK_EQ(kShiftbossRegistrationMessage, tagged_message.message_type());
-    DLOG(INFO) << "ForemanDistributed received typed '" << tagged_message.message_type()
-               << "' message from client " << annotated_message.sender;
+    DLOG(INFO) << "ForemanDistributed received ShiftbossRegistrationMessage from Client " << annotated_message.sender;
 
     S::ShiftbossRegistrationMessage proto;
     CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
@@ -152,8 +151,8 @@ void ForemanDistributed::run() {
         bus_->Receive(foreman_client_id_, 0, true);
     const TaggedMessage &tagged_message = annotated_message.tagged_message;
     const tmb::message_type_id message_type = tagged_message.message_type();
-    DLOG(INFO) << "ForemanDistributed received typed '" << message_type
-               << "' message from client " << annotated_message.sender;
+    DLOG(INFO) << "ForemanDistributed received " << QueryExecutionUtil::MessageTypeToString(message_type)
+               << " from Client " << annotated_message.sender;
     switch (message_type) {
       case kShiftbossRegistrationMessage: {
         S::ShiftbossRegistrationMessage proto;
@@ -397,8 +396,7 @@ void ForemanDistributed::sendWorkOrderMessage(const size_t shiftboss_index,
   free(proto_bytes);
 
   const client_id shiftboss_client_id = shiftboss_directory_.getClientId(shiftboss_index);
-  DLOG(INFO) << "ForemanDistributed sent WorkOrderMessage (typed '" << kWorkOrderMessage
-             << "') to Shiftboss with TMB client ID " << shiftboss_client_id;
+  DLOG(INFO) << "ForemanDistributed sent WorkOrderMessage to Shiftboss with Client " << shiftboss_client_id;
   const MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(bus_,
                                          foreman_client_id_,
@@ -439,9 +437,8 @@ void ForemanDistributed::processShiftbossRegistrationMessage(const client_id shi
 
   shiftboss_directory_.addShiftboss(shiftboss_client_id, work_order_capacity);
 
-  DLOG(INFO) << "ForemanDistributed sent ShiftbossRegistrationResponseMessage (typed '"
-             << kShiftbossRegistrationResponseMessage
-             << "') to Shiftboss with TMB client id " << shiftboss_client_id;
+  DLOG(INFO) << "ForemanDistributed sent ShiftbossRegistrationResponseMessage to Shiftboss with Client "
+             << shiftboss_client_id;
   const MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(bus_,
                                          foreman_client_id_,

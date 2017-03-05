@@ -124,17 +124,16 @@ void Conductor::run() {
   for (;;) {
     AnnotatedMessage annotated_message(bus_.Receive(conductor_client_id_, 0, true));
     const TaggedMessage &tagged_message = annotated_message.tagged_message;
+    const tmb::message_type_id message_type = tagged_message.message_type();
     const client_id sender = annotated_message.sender;
-
-    DLOG(INFO) << "Conductor received typed '" << tagged_message.message_type()
-               << "' message from client " << sender;
-    switch (tagged_message.message_type()) {
+    DLOG(INFO) << "Conductor received " << QueryExecutionUtil::MessageTypeToString(message_type)
+               << " from Client " << sender;
+    switch (message_type) {
       case kDistributedCliRegistrationMessage: {
         TaggedMessage message(kDistributedCliRegistrationResponseMessage);
 
-        DLOG(INFO) << "Conductor sent DistributedCliRegistrationResponseMessage (typed '"
-                   << kDistributedCliRegistrationResponseMessage
-                   << "') to Distributed CLI " << sender;
+        DLOG(INFO) << "Conductor sent DistributedCliRegistrationResponseMessage to DistributedCLI with Client "
+                   << sender;
         CHECK(MessageBus::SendStatus::kOK ==
             QueryExecutionUtil::SendTMBMessage(&bus_, conductor_client_id_, sender, move(message)));
         break;
@@ -201,8 +200,7 @@ void Conductor::processSqlQueryMessage(const tmb::client_id sender, string *comm
       TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, kCommandResponseMessage);
       free(proto_bytes);
 
-      DLOG(INFO) << "Conductor sent CommandResponseMessage (typed '" << kCommandResponseMessage
-                 << "') to Distributed CLI " << sender;
+      DLOG(INFO) << "Conductor sent CommandResponseMessage to DistributedCLI with Client " << sender;
       CHECK(MessageBus::SendStatus::kOK ==
           QueryExecutionUtil::SendTMBMessage(&bus_, conductor_client_id_, sender, move(message)));
     } else {
@@ -232,9 +230,8 @@ void Conductor::processSqlQueryMessage(const tmb::client_id sender, string *comm
                           kQueryExecutionErrorMessage);
     free(proto_bytes);
 
-    DLOG(INFO) << "Conductor (on behalf of Optimizer) sent QueryExecutionErrorMessage (typed '"
-               << kQueryExecutionErrorMessage
-               << "') to Distributed CLI " << sender;
+    DLOG(INFO) << "Conductor (on behalf of Optimizer) sent QueryExecutionErrorMessage to DistributedCLI with Client "
+               << sender;
     CHECK(MessageBus::SendStatus::kOK ==
         QueryExecutionUtil::SendTMBMessage(&bus_, conductor_client_id_, sender, move(message)));
   }

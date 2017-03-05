@@ -20,7 +20,6 @@
 #include "cli/tests/DistributedCommandExecutorTestRunner.hpp"
 
 #include <cstdio>
-#include <functional>
 #include <memory>
 #include <set>
 #include <string>
@@ -63,12 +62,6 @@ namespace quickstep {
 
 class CatalogRelation;
 
-namespace {
-
-void nop() {}
-
-}  // namespace
-
 namespace C = cli;
 
 const char *DistributedCommandExecutorTestRunner::kResetOption =
@@ -104,8 +97,8 @@ DistributedCommandExecutorTestRunner::DistributedCommandExecutorTestRunner(const
 
   // NOTE(zuyu): Foreman should initialize before Shiftboss so that the former
   // could receive a registration message from the latter.
-  foreman_ = make_unique<ForemanDistributed>(*block_locator_, std::bind(&nop), &bus_,
-                                             test_database_loader_->catalog_database());
+  foreman_ = make_unique<ForemanDistributed>(*block_locator_, &bus_, test_database_loader_->catalog_database(),
+                                             nullptr /* query_processor */);
 
   // We don't use the NUMA aware version of worker code.
   const vector<numa_node_id> numa_nodes(1 /* Number of worker threads per instance */,

@@ -113,9 +113,8 @@ class DataExchangeTest : public ::testing::Test {
 
     TaggedMessage message(kPoisonMessage);
 
-    LOG(INFO) << "Worker (id '" << worker_client_id_
-              << "') sent PoisonMessage (typed '" << kPoisonMessage
-              << "') to BlockLocator (id '" << locator_client_id_ << "')";
+    LOG(INFO) << "Worker with Client " << worker_client_id_
+              << " sent PoisonMessage to BlockLocator with Client " << locator_client_id_;
     CHECK(MessageBus::SendStatus::kOK ==
         QueryExecutionUtil::SendTMBMessage(&bus_,
                                            worker_client_id_,

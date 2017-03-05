@@ -22,10 +22,12 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "query_execution/AdmitRequestMessage.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
+#include "query_optimizer/QueryOptimizerConfig.h"  // For QUICKSTEP_DISTRIBUTED.
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -49,6 +51,49 @@ class QueryHandle;
  **/
 class QueryExecutionUtil {
  public:
+  static std::string MessageTypeToString(const tmb::message_type_id message_type) {
+    switch (message_type) {
+      case kAdmitRequestMessage:                          return "AdmitRequestMessage";
+      case kWorkOrderMessage:                             return "WorkOrderMessage";
+      case kWorkOrderCompleteMessage:                     return "WorkOrderCompleteMessage";
+      case kCatalogRelationNewBlockMessage:               return "CatalogRelationNewBlockMessage";
+      case kDataPipelineMessage:                          return "DataPipelineMessage";
+      case kWorkOrderFeedbackMessage:                     return "WorkOrderFeedbackMessage";
+      case kRebuildWorkOrderMessage:                      return "RebuildWorkOrderMessage";
+      case kRebuildWorkOrderCompleteMessage:              return "RebuildWorkOrderCompleteMessage";
+      case kWorkloadCompletionMessage:                    return "WorkloadCompletionMessage";
+      case kPoisonMessage:                                return "PoisonMessage";
+#ifdef QUICKSTEP_DISTRIBUTED
+      case kShiftbossRegistrationMessage:                 return "ShiftbossRegistrationMessage";
+      case kShiftbossRegistrationResponseMessage:         return "ShiftbossRegistrationResponseMessage";
+      case kDistributedCliRegistrationMessage:            return "DistributedCliRegistrationMessage";
+      case kDistributedCliRegistrationResponseMessage:    return "DistributedCliRegistrationResponseMessage";
+      case kSqlQueryMessage:                              return "SqlQueryMessage";
+      case kQueryInitiateMessage:                         return "QueryInitiateMessage";
+      case kQueryInitiateResponseMessage:                 return "QueryInitiateResponseMessage";
+      case kInitiateRebuildMessage:                       return "InitiateRebuildMessage";
+      case kInitiateRebuildResponseMessage:               return "InitiateRebuildResponseMessage";
+      case kQueryTeardownMessage:                         return "QueryTeardownMessage";
+      case kQueryExecutionSuccessMessage:                 return "QueryExecutionSuccessMessage";
+      case kCommandResponseMessage:                       return "CommandResponseMessage";
+      case kQueryExecutionErrorMessage:                   return "QueryExecutionErrorMessage";
+      case kQueryResultTeardownMessage:                   return "QueryResultTeardownMessage";
+      case kBlockDomainRegistrationMessage:               return "BlockDomainRegistrationMessage";
+      case kBlockDomainRegistrationResponseMessage:       return "BlockDomainRegistrationResponseMessage";
+      case kBlockDomainToShiftbossIndexMessage:           return "BlockDomainToShiftbossIndexMessage";
+      case kAddBlockLocationMessage:                      return "AddBlockLocationMessage";
+      case kDeleteBlockLocationMessage:                   return "DeleteBlockLocationMessage";
+      case kLocateBlockMessage:                           return "LocateBlockMessage";
+      case kLocateBlockResponseMessage:                   return "LocateBlockResponseMessage";
+      case kGetPeerDomainNetworkAddressesMessage:         return "GetPeerDomainNetworkAddressesMessage";
+      case kGetPeerDomainNetworkAddressesResponseMessage: return "GetPeerDomainNetworkAddressesResponseMessage";
+      case kBlockDomainUnregistrationMessage:             return "BlockDomainUnregistrationMessage";
+#endif  // QUICKSTEP_DISTRIBUTED
+      default:
+        LOG(FATAL) << "Unknown message type";
+    }
+  }
+
   /**
    * @brief Send a TMB message to a single receiver.
    *
@@ -145,8 +190,7 @@ class QueryExecutionUtil {
     address.All(true);
     tmb::TaggedMessage poison_tagged_message(kPoisonMessage);
 
-    DLOG(INFO) << "TMB client ID " << sender_id
-               << " broadcast PoisonMessage (typed '" << kPoisonMessage << "') to all";
+    DLOG(INFO) << "Client " << sender_id << " broadcasts PoisonMessage to all";
     const tmb::MessageBus::SendStatus send_status = bus->Send(
         sender_id, address, style, std::move(poison_tagged_message));
     CHECK(send_status == tmb::MessageBus::SendStatus::kOK);

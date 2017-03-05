@@ -88,9 +88,7 @@ void Cli::init() {
   bus_.RegisterClientAsSender(cli_id_, kDistributedCliRegistrationMessage);
   bus_.RegisterClientAsReceiver(cli_id_, kDistributedCliRegistrationResponseMessage);
 
-  DLOG(INFO) << "DistributedCli sent DistributedCliRegistrationMessage (typed '"
-             << kDistributedCliRegistrationMessage
-             << "') to all";
+  DLOG(INFO) << "DistributedCli sent DistributedCliRegistrationMessage to all";
 
   tmb::Address all_addresses;
   all_addresses.All(true);
@@ -103,12 +101,12 @@ void Cli::init() {
 
   // Wait for Conductor to response.
   const AnnotatedMessage cli_reg_response_message(bus_.Receive(cli_id_, 0, true));
-  CHECK_EQ(kDistributedCliRegistrationResponseMessage,
-           cli_reg_response_message.tagged_message.message_type());
+  DCHECK_EQ(kDistributedCliRegistrationResponseMessage,
+            cli_reg_response_message.tagged_message.message_type());
   conductor_client_id_ = cli_reg_response_message.sender;
 
-  DLOG(INFO) << "DistributedCli received typed '" << kDistributedCliRegistrationResponseMessage
-             << "' message from Conductor (id'" << conductor_client_id_ << "').";
+  DLOG(INFO) << "DistributedCli received DistributedCliRegistrationResponseMessage from Conductor with Client "
+             << conductor_client_id_;
 
   // Setup StorageManager.
   bus_.RegisterClientAsSender(cli_id_, kBlockDomainRegistrationMessage);
@@ -179,8 +177,7 @@ void Cli::run() {
           }
         }
 
-        DLOG(INFO) << "DistributedCli sent SqlQueryMessage (typed '" << kSqlQueryMessage
-                   << "') to Conductor";
+        DLOG(INFO) << "DistributedCli sent SqlQueryMessage to Conductor";
         S::SqlQueryMessage proto;
         proto.set_sql_query(*command_string);
 
@@ -197,9 +194,10 @@ void Cli::run() {
 
         const AnnotatedMessage annotated_message(bus_.Receive(cli_id_, 0, true));
         const TaggedMessage &tagged_message = annotated_message.tagged_message;
-        DLOG(INFO) << "DistributedCli received typed '" << tagged_message.message_type()
-                   << "' message from client " << annotated_message.sender;
-        switch (tagged_message.message_type()) {
+        const tmb::message_type_id message_type = tagged_message.message_type();
+        DLOG(INFO) << "DistributedCli received " << QueryExecutionUtil::MessageTypeToString(message_type)
+                   << " from Client " << annotated_message.sender;
+        switch (message_type) {
           case kCommandResponseMessage: {
             S::CommandResponseMessage proto;
             CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));

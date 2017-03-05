@@ -154,13 +154,15 @@ void Shiftboss::run() {
 
   processShiftbossRegistrationResponseMessage();
 
+  AnnotatedMessage annotated_message;
+  tmb::message_type_id message_type;
   for (;;) {
-    AnnotatedMessage annotated_message;
     if (bus_global_->ReceiveIfAvailable(shiftboss_client_id_global_, &annotated_message, 0, true)) {
+      message_type = annotated_message.tagged_message.message_type();
       DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " (id '" << shiftboss_client_id_global_
-                 << "') received the typed '" << annotated_message.tagged_message.message_type()
-                 << "' message from Foreman " << annotated_message.sender;
-      switch (annotated_message.tagged_message.message_type()) {
+                 << "') received " << QueryExecutionUtil::MessageTypeToString(message_type)
+                 << " from Foreman with Client " << annotated_message.sender;
+      switch (message_type) {
         case kQueryInitiateMessage: {
           const TaggedMessage &tagged_message = annotated_message.tagged_message;
 
@@ -192,9 +194,8 @@ void Shiftboss::run() {
                                               kWorkOrderMessage);
 
           const size_t worker_index = getSchedulableWorker();
-          DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " (id '" << shiftboss_client_id_local_
-                     << "') forwarded WorkOrderMessage (typed '" << kWorkOrderMessage
-                     << "') from Foreman to worker " << worker_index;
+          DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " with Client " << shiftboss_client_id_local_
+                     << " forwarded WorkOrderMessage from Foreman to Worker " << worker_index;
 
           const MessageBus::SendStatus send_status =
               QueryExecutionUtil::SendTMBMessage(bus_local_,
@@ -228,9 +229,8 @@ void Shiftboss::run() {
           break;
         }
         case kPoisonMessage: {
-          DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " (id '" << shiftboss_client_id_global_
-                     << "') forwarded PoisonMessage (typed '" << kPoisonMessage
-                     << "') from Foreman to all workers";
+          DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " with Client " << shiftboss_client_id_global_
+                     << " forwarded PoisonMessage from Foreman to all Workers";
 
           tmb::MessageStyle broadcast_style;
           broadcast_style.Broadcast(true);
@@ -248,16 +248,17 @@ void Shiftboss::run() {
     }
 
     while (bus_local_->ReceiveIfAvailable(shiftboss_client_id_local_, &annotated_message, 0, true)) {
-      switch (annotated_message.tagged_message.message_type()) {
+      message_type = annotated_message.tagged_message.message_type();
+      switch (message_type) {
         case kCatalogRelationNewBlockMessage:
         case kDataPipelineMessage:
         case kWorkOrderFeedbackMessage:
         case kWorkOrderCompleteMessage:
         case kRebuildWorkOrderCompleteMessage: {
-          DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " (id '" << shiftboss_client_id_global_
-                     << "') forwarded typed '" << annotated_message.tagged_message.message_type()
-                     << "' message from Worker with TMB client ID '" << annotated_message.sender
-                     << "' to Foreman with TMB client ID " << foreman_client_id_;
+          DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " with Client " << shiftboss_client_id_global_
+                     << " forwarded " << QueryExecutionUtil::MessageTypeToString(message_type)
+                     << " from Worker with Client " << annotated_message.sender
+                     << " to Foreman with Client " << foreman_client_id_;
 
           DCHECK_NE(foreman_client_id_, tmb::kClientIdNone);
           const MessageBus::SendStatus send_status =
@@ -310,9 +311,8 @@ void Shiftboss::registerWithForeman() {
                         kShiftbossRegistrationMessage);
   free(proto_bytes);
 
-  DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " (id '" << shiftboss_client_id_global_
-             << "') sent ShiftbossRegistrationMessage (typed '" << kShiftbossRegistrationMessage
-             << "') to all";
+  DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " with Client " << shiftboss_client_id_global_
+             << " sent ShiftbossRegistrationMessage to all";
   tmb::MessageBus::SendStatus send_status =
       bus_global_->Send(shiftboss_client_id_global_, all_addresses, style, move(message));
   DCHECK(send_status == tmb::MessageBus::SendStatus::kOK);
@@ -324,9 +324,8 @@ void Shiftboss::processShiftbossRegistrationResponseMessage() {
   DCHECK_EQ(kShiftbossRegistrationResponseMessage, tagged_message.message_type());
 
   foreman_client_id_ = annotated_message.sender;
-  DLOG(INFO) << "Shiftboss (id '" << shiftboss_client_id_local_
-             << "') received the typed '" << kShiftbossRegistrationResponseMessage
-             << "' message from ForemanDistributed with client " << foreman_client_id_;
+  DLOG(INFO) << "Shiftboss with Client " << shiftboss_client_id_local_
+             << " received ShiftbossRegistrationResponseMessage from Foreman with Client " << foreman_client_id_;
 
   serialization::ShiftbossRegistrationResponseMessage proto;
   CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
@@ -363,9 +362,8 @@ void Shiftboss::processQueryInitiateMessage(
                                  kQueryInitiateResponseMessage);
   free(proto_bytes);
 
-  DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " (id '" << shiftboss_client_id_global_
-             << "') sent QueryInitiateResponseMessage (typed '" << kQueryInitiateResponseMessage
-             << "') to Foreman with TMB client ID " << foreman_client_id_;
+  DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " with Client " << shiftboss_client_id_global_
+             << " sent QueryInitiateResponseMessage to Foreman with Client " << foreman_client_id_;
   const MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(bus_global_,
                                          shiftboss_client_id_global_,
@@ -402,9 +400,8 @@ void Shiftboss::processInitiateRebuildMessage(const std::size_t query_id,
                                  kInitiateRebuildResponseMessage);
   free(proto_bytes);
 
-  DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " (id '" << shiftboss_client_id_global_
-             << "') sent InitiateRebuildResponseMessage (typed '" << kInitiateRebuildResponseMessage
-             << "') to Foreman with TMB client ID " << foreman_client_id_;
+  DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " with Client " << shiftboss_client_id_global_
+             << " sent InitiateRebuildResponseMessage to Foreman with Client " << foreman_client_id_;
   const MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(bus_global_,
                                          shiftboss_client_id_global_,
@@ -431,9 +428,8 @@ void Shiftboss::processInitiateRebuildMessage(const std::size_t query_id,
                                         kRebuildWorkOrderMessage);
 
     const size_t worker_index = getSchedulableWorker();
-    DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " (id '" << shiftboss_client_id_local_
-               << "') sent RebuildWorkOrderMessage (typed '" << kRebuildWorkOrderMessage
-               << "') to worker " << worker_index;
+    DLOG(INFO) << "Shiftboss " << shiftboss_index_ << " with Client " << shiftboss_client_id_local_
+               << " sent RebuildWorkOrderMessage to Worker " << worker_index;
 
     const MessageBus::SendStatus send_status =
         QueryExecutionUtil::SendTMBMessage(bus_local_,

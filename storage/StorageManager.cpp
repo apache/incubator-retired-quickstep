@@ -256,9 +256,8 @@ StorageManager::~StorageManager() {
                           kBlockDomainUnregistrationMessage);
     free(proto_bytes);
 
-    LOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
-              << "') sent BlockDomainUnregistrationMessage (typed '" << kBlockDomainUnregistrationMessage
-              << "') to BlockLocator";
+    LOG(INFO) << "StorageManager with Client " << storage_manager_client_id_
+              << " sent BlockDomainUnregistrationMessage to BlockLocator";
     CHECK(MessageBus::SendStatus::kOK ==
         QueryExecutionUtil::SendTMBMessage(bus_,
                                            storage_manager_client_id_,
@@ -483,9 +482,8 @@ void StorageManager::sendBlockDomainToShiftbossIndexMessage(const std::size_t sh
                         kBlockDomainToShiftbossIndexMessage);
   free(proto_bytes);
 
-  DLOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
-             << "') sent BlockDomainToShiftbossIndexMessage (typed '" << kBlockDomainToShiftbossIndexMessage
-             << "') to BlockLocator";
+  DLOG(INFO) << "StorageManager with Client " << storage_manager_client_id_
+             << " sent BlockDomainToShiftbossIndexMessage to BlockLocator";
 
   DCHECK_NE(block_locator_client_id_, tmb::kClientIdNone);
   DCHECK(bus_ != nullptr);
@@ -592,9 +590,8 @@ vector<string> StorageManager::getPeerDomainNetworkAddresses(const block_id bloc
                         kGetPeerDomainNetworkAddressesMessage);
   free(proto_bytes);
 
-  DLOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
-             << "') sent GetPeerDomainNetworkAddressesMessage (typed '" << kGetPeerDomainNetworkAddressesMessage
-             << "') to BlockLocator";
+  DLOG(INFO) << "StorageManager with Client " << storage_manager_client_id_
+             << " sent GetPeerDomainNetworkAddressesMessage to BlockLocator";
 
   DCHECK_NE(block_locator_client_id_, tmb::kClientIdNone);
   DCHECK(bus_ != nullptr);
@@ -648,9 +645,9 @@ void StorageManager::sendBlockLocationMessage(const block_id block,
                         message_type);
   free(proto_bytes);
 
-  DLOG(INFO) << "StorageManager (id '" << storage_manager_client_id_
-             << "') sent BlockLocationMessage (typed '" << message_type
-             << "') to BlockLocator";
+  DLOG(INFO) << "StorageManager with Client " << storage_manager_client_id_
+             << " sent " << QueryExecutionUtil::MessageTypeToString(message_type)
+             << " to BlockLocator";
   CHECK(MessageBus::SendStatus::kOK ==
       QueryExecutionUtil::SendTMBMessage(bus_,
                                          storage_manager_client_id_,

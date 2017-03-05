@@ -146,8 +146,7 @@ void DeleteWorkOrder::execute() {
                                     kDataPipelineMessage);
   std::free(proto_bytes);
 
-  DLOG(INFO) << "DeleteWorkOrder sent DataPipelineMessage (typed '" << kDataPipelineMessage
-             << "') to Scheduler with TMB client ID " << scheduler_client_id_;
+  DLOG(INFO) << "DeleteWorkOrder sent DataPipelineMessage to Scheduler with Client " << scheduler_client_id_;
   const tmb::MessageBus::SendStatus send_status =
       QueryExecutionUtil::SendTMBMessage(
           bus_,

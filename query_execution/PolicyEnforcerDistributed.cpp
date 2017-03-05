@@ -231,8 +231,7 @@ void PolicyEnforcerDistributed::initiateQueryInShiftboss(QueryHandle *query_hand
     shiftboss_addresses.AddRecipient(shiftboss_directory_->getClientId(i));
   }
 
-  DLOG(INFO) << "PolicyEnforcerDistributed sent QueryInitiateMessage (typed '" << kQueryInitiateMessage
-             << "') to all Shiftbosses";
+  DLOG(INFO) << "PolicyEnforcerDistributed sent QueryInitiateMessage to all Shiftbosses";
   QueryExecutionUtil::BroadcastMessage(foreman_client_id_,
                                        shiftboss_addresses,
                                        move(message),
@@ -287,9 +286,7 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
       free(proto_bytes);
 
       // Notify the CLI regarding the query result.
-      DLOG(INFO) << "PolicyEnforcerDistributed sent QueryExecutionSuccessMessage (typed '"
-                 << kQueryExecutionSuccessMessage
-                 << "') to CLI with TMB client id " << cli_id;
+      DLOG(INFO) << "PolicyEnforcerDistributed sent QueryExecutionSuccessMessage to DistributedCLI with Client " << cli_id;
       const MessageBus::SendStatus send_status =
           QueryExecutionUtil::SendTMBMessage(bus_, foreman_client_id_, cli_id, move(message));
       CHECK(send_status == MessageBus::SendStatus::kOK);
@@ -300,9 +297,7 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
     }
 
     // Notify the CLI query execution successfully.
-    DLOG(INFO) << "PolicyEnforcerDistributed sent QueryExecutionSuccessMessage (typed '"
-               << kQueryExecutionSuccessMessage
-               << "') to CLI with TMB client id " << cli_id;
+    DLOG(INFO) << "PolicyEnforcerDistributed sent QueryExecutionSuccessMessage to DistributedCLI with Client " << cli_id;
     const MessageBus::SendStatus send_status =
         QueryExecutionUtil::SendTMBMessage(bus_, foreman_client_id_, cli_id,
                                            TaggedMessage(kQueryExecutionSuccessMessage));
@@ -320,8 +315,7 @@ void PolicyEnforcerDistributed::onQueryCompletion(QueryManagerBase *query_manage
   TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, kQueryTeardownMessage);
   free(proto_bytes);
 
-  DLOG(INFO) << "PolicyEnforcerDistributed sent QueryTeardownMessage (typed '" << kQueryTeardownMessage
-             << "') to all Shiftbosses";
+  DLOG(INFO) << "PolicyEnforcerDistributed sent QueryTeardownMessage to all Shiftbosses";
   QueryExecutionUtil::BroadcastMessage(foreman_client_id_, shiftboss_addresses, move(message), bus_);
 }
 
@@ -412,8 +406,7 @@ void PolicyEnforcerDistributed::processAnalyzeQueryResult(const tmb::client_id c
       TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length, kCommandResponseMessage);
       free(proto_bytes);
 
-      DLOG(INFO) << "PolicyEnforcerDistributed sent CommandResponseMessage (typed '" << kCommandResponseMessage
-                 << "') to CLI with TMB client id " << cli_id;
+      DLOG(INFO) << "PolicyEnforcerDistributed sent CommandResponseMessage to DistributedCLI with Client " << cli_id;
       const MessageBus::SendStatus send_status =
           QueryExecutionUtil::SendTMBMessage(bus_, foreman_client_id_, cli_id, move(message));
       CHECK(send_status == MessageBus::SendStatus::kOK);

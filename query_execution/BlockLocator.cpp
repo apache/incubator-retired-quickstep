@@ -55,10 +55,11 @@ void BlockLocator::run() {
     // message is received.
     const tmb::AnnotatedMessage annotated_message = bus_->Receive(locator_client_id_, 0, true);
     const TaggedMessage &tagged_message = annotated_message.tagged_message;
+    const tmb::message_type_id message_type = tagged_message.message_type();
     const client_id sender = annotated_message.sender;
-    DLOG(INFO) << "BlockLocator received the typed '" << tagged_message.message_type()
-               << "' message from TMB Client " << sender;
-    switch (tagged_message.message_type()) {
+    DLOG(INFO) << "BlockLocator received " << QueryExecutionUtil::MessageTypeToString(message_type)
+               << " from Client " << sender;
+    switch (message_type) {
       case kBlockDomainRegistrationMessage: {
         serialization::BlockDomainRegistrationMessage proto;
         CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
@@ -190,10 +191,8 @@ void BlockLocator::processBlockDomainRegistrationMessage(const client_id receive
                         kBlockDomainRegistrationResponseMessage);
   free(proto_bytes);
 
-  DLOG(INFO) << "BlockLocator (id '" << locator_client_id_
-             << "') sent BlockDomainRegistrationResponseMessage (typed '"
-             << kBlockDomainRegistrationResponseMessage
-             << "') to TMB Client (id '" << receiver << "')";
+  DLOG(INFO) << "BlockLocator with Client " << locator_client_id_
+             << " sent BlockDomainRegistrationResponseMessage to Client " << receiver;
   CHECK(tmb::MessageBus::SendStatus::kOK ==
       QueryExecutionUtil::SendTMBMessage(bus_,
                                          locator_client_id_,
@@ -220,9 +219,8 @@ void BlockLocator::processLocateBlockMessage(const client_id receiver,
                         kLocateBlockResponseMessage);
   free(proto_bytes);
 
-  DLOG(INFO) << "BlockLocator (id '" << locator_client_id_
-             << "') sent LocateBlockResponseMessage (typed '" << kLocateBlockResponseMessage
-             << "') to StorageManager (id '" << receiver << "')";
+  DLOG(INFO) << "BlockLocator with Client " << locator_client_id_
+             << " sent LocateBlockResponseMessage to StorageManager with Client " << receiver;
   CHECK(tmb::MessageBus::SendStatus::kOK ==
       QueryExecutionUtil::SendTMBMessage(bus_,
                                          locator_client_id_,
@@ -249,10 +247,8 @@ void BlockLocator::processGetPeerDomainNetworkAddressesMessage(const client_id r
                         kGetPeerDomainNetworkAddressesResponseMessage);
   free(proto_bytes);
 
-  DLOG(INFO) << "BlockLocator (id '" << locator_client_id_
-             << "') sent GetPeerDomainNetworkAddressesResponseMessage (typed '"
-             << kGetPeerDomainNetworkAddressesResponseMessage
-             << "') to StorageManager (id '" << receiver << "')";
+  DLOG(INFO) << "BlockLocator with Client " << locator_client_id_
+             << " sent GetPeerDomainNetworkAddressesResponseMessage to StorageManager with Client " << receiver;
   CHECK(tmb::MessageBus::SendStatus::kOK ==
       QueryExecutionUtil::SendTMBMessage(bus_,
                                          locator_client_id_,

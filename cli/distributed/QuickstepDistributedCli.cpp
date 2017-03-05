@@ -75,6 +75,8 @@ int main(int argc, char *argv[]) {
   }
 
   role->init();
+  LOG(INFO) << FLAGS_role << " is ready";
+
   role->run();
 
   return 0;

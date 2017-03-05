@@ -101,8 +101,7 @@ class RebuildWorkOrder : public WorkOrder {
 
     // Refer to InsertDestination::sendBlockFilledMessage for the rationale
     // behind using the ClientIDMap map.
-    DLOG(INFO) << "RebuildWorkOrder sent DataPipelineMessage (typed '" << kDataPipelineMessage
-               << "') to Scheduler with TMB client ID " << scheduler_client_id_;
+    DLOG(INFO) << "RebuildWorkOrder sent DataPipelineMessage to Scheduler with Client " << scheduler_client_id_;
     const tmb::MessageBus::SendStatus send_status =
         QueryExecutionUtil::SendTMBMessage(bus_,
                                            ClientIDMap::Instance()->getValue(),

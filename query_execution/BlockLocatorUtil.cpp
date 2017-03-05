@@ -65,9 +65,7 @@ block_id_domain getBlockDomain(const std::string &network_address,
                         kBlockDomainRegistrationMessage);
   std::free(proto_bytes);
 
-  DLOG(INFO) << "Client (id '" << cli_id
-             << "') broadcasts BlockDomainRegistrationMessage (typed '" << kBlockDomainRegistrationMessage
-             << "') to BlockLocator.";
+  DLOG(INFO) << "Client " << cli_id << " broadcasts BlockDomainRegistrationMessage to BlockLocator";
 
   CHECK(MessageBus::SendStatus::kOK ==
       bus->Send(cli_id, address, style, std::move(message)));
@@ -78,10 +76,9 @@ block_id_domain getBlockDomain(const std::string &network_address,
 
   *locator_client_id = annotated_message.sender;
 
-  DLOG(INFO) << "Client (id '" << cli_id
-             << "') received BlockDomainRegistrationResponseMessage (typed '"
-             << kBlockDomainRegistrationResponseMessage
-             << "') from BlockLocator (id '" << *locator_client_id << "').";
+  DLOG(INFO) << "Client " << cli_id
+             << " received BlockDomainRegistrationResponseMessage from BlockLocator with Client "
+             << *locator_client_id;
 
   S::BlockDomainMessage response_proto;
   CHECK(response_proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
