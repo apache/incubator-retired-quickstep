@@ -356,9 +356,6 @@ void PolicyEnforcerDistributed::processAnalyzeQueryResult(const tmb::client_id c
     }
 
     // Clean up the query result relation.
-    for (const block_id block : blocks) {
-      storage_manager_->deleteBlockOrBlobFile(block);
-    }
     catalog_database_->dropRelationById(query_result_relation->getID());
 
     return query_result;
