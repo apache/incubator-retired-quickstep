@@ -125,7 +125,7 @@ CREATE TABLE City (cid Integer, name VARCHAR(80), state CHAR(2));
 
 ## Licensing
 
-Quickstep is licensed under the Apache License, Version 2.0. See [LICENSE](https://github.com/pivotalsoftware/quickstep/blob/master/LICENSE) for the full license text.
+Quickstep is licensed under the Apache License, Version 2.0. See [LICENSE](https://github.com/apache/incubator-quickstep/blob/master/LICENSE) for the full license text.
 
 ## Disclaimer
 Apache Quickstep is an effort undergoing incubation at the Apache Software

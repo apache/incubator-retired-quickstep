@@ -1,5 +1,5 @@
 Apache Quickstep (incubating)
-Copyright 2016 The Apache Software Foundation.
+Copyright 2017 The Apache Software Foundation.
 
 This product includes software developed at
 The Apache Software Foundation (http://www.apache.org/).
@@ -7,7 +7,7 @@ The Apache Software Foundation (http://www.apache.org/).
 Portions Copyright (c) 2011-2015, Quickstep Technologies, LLC.
 Portions Copyright (c) 2015-2016, Pivotal Software, Inc.
 
-[Copyright for third_party/benchmark]
+[Copyright for third_party/src/tmb/benchmark]
 Portions Copyright (c) Arne Beer <arne@twobeer.de>
 Portions Copyright (c) Christopher Seymour <chris.j.seymour@hotmail.com>
 Portions Copyright (c) David Coeurjolly <david.coeurjolly@liris.cnrs.fr>
@@ -24,21 +24,14 @@ Portions Copyright (c) Paul Redmond <paul.redmond@gmail.com>
 Portions Copyright (c) Shuo Chen <chenshuo@chenshuo.com>
 Portions Copyright (c) Yusuke Suzuki <utatane.tea@gmail.com>
 
-[Copyright for third_party/cpplint]
+[Copyright for third_party/src/cpplint]
 Portions Copyright (c) 2009 Google Inc
 
-[Copyright for third_party/farmhash]
+[Copyright for third_party/src/farmhash]
 Copyright (c) 2014 Google, Inc.
 
-[Copyright for third_party/gflags]
+[Copyright for third_party/src/gflags]
 Copyright (c) 2006, Google Inc.
 
-[Copyright for third_party/glog]
+[Copyright for third_party/src/glog]
 Copyright (c) 2008, Google Inc.
-
-[Copyright for third_party/gpertools]
-Copyright (c) 2005, Google Inc.
-
-[Copyright for third_party/linenoise]
-Copyright (c) 2010-2014, Salvatore Sanfilippo <antirez at gmail dot com>
-Copyright (c) 2010-2013, Pieter Noordhuis <pcnoordhuis at gmail dot com>

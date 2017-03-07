@@ -92,7 +92,7 @@ concerns of a database system. The main modules are:
 
 ## Licensing
 
-Quickstep is licensed under the Apache License, Version 2.0. See [LICENSE](https://github.com/pivotalsoftware/quickstep/blob/master/LICENSE) for the full license text.
+Quickstep is licensed under the Apache License, Version 2.0. See [LICENSE](https://github.com/apache/incubator-quickstep/blob/master/LICENSE) for the full license text.
 
 ## Disclaimer
 Apache Quickstep is an effort undergoing incubation at the Apache Software
