@@ -40,7 +40,7 @@ static bool ValidateTmbReceivePollInterval(const char *flagname,
 DEFINE_int32(tmb_receive_poll_interval, 50,
              "The number of milliseconds to sleep between calls to ReceiveIfAvailableImpl() "
              "in the default active-polling implementation of ReceiveImpl().");
-static const bool tmb_receive_poll_interval_dummy = gflags::RegisterFlagValidator(
+static volatile const bool tmb_receive_poll_interval_dummy = gflags::RegisterFlagValidator(
     &FLAGS_tmb_receive_poll_interval,
     &ValidateTmbReceivePollInterval);
 
