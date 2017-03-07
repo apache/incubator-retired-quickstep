@@ -381,24 +381,6 @@ endif()
 
 set_gflags_lib_name ()
 
-# NOTE(chasseur): We only add gflags and gtest to the build if those targets
-# don't already exist, so that TMB can be brought in to a build that already
-# uses one or both of those libraries with add_subdirectory() and not cause
-# name collisions.
-
-# Build GFlags command-line processing library if needed.
-if ((NOT TARGET ${GFLAGS_LIB_NAME}) AND (BUILD_BENCHMARKS OR ENABLE_NATIVENET))
-  add_subdirectory(third_party/gflags)
-  include_directories(${CMAKE_CURRENT_BINARY_DIR}/third_party/gflags/include)
-endif()
-
-# Googletest Framework For Unit Testing
-if (NOT TARGET gtest)
-  add_subdirectory(third_party/gtest)
-  include_directories(third_party/gtest/include)
-  enable_testing()
-endif()
-
 # Include path for TMB.
 include_directories(${PROJECT_SOURCE_DIR}/include)
 set(TMB_INCLUDE_DIRS ${TMB_INCLUDE_DIRS} CACHE STRING
@@ -443,8 +425,8 @@ endif()
 if (ENABLE_NATIVENET)
   add_executable(tmb_net_server src/tmb_net_server.cc)
   target_link_libraries(tmb_net_server
-                        gflags_nothreads-static
-                        tmb)
+                        tmb
+                        ${GFLAGS_LIB_NAME})
 endif()
 
 if (BUILD_BENCHMARKS)
