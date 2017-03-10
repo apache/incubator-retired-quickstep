@@ -27,6 +27,7 @@
 #endif
 
 #include "catalog/CatalogDatabase.hpp"
+#include "catalog/CatalogDatabaseLite.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "storage/StorageBlock.hpp"
@@ -60,8 +61,12 @@ void PreloaderThread::run() {
       std::vector<block_id> blocks = relation.getBlocksSnapshot();
       for (block_id current_block_id : blocks) {
         try {
-          BlockReference current_block =
-              storage_manager_->getBlock(current_block_id, relation);
+          const CatalogRelationSchema &relation_schema =
+              database_for_schemas_ ? database_for_schemas_->getRelationSchemaById(relation.getID())
+                                    : relation;
+
+          const BlockReference current_block =
+              storage_manager_->getBlock(current_block_id, relation_schema);
         } catch (...) {
           LOG(ERROR) << "Error after loading " << blocks_loaded << "blocks";
           throw;
@@ -104,8 +109,12 @@ std::size_t PreloaderThread::preloadNUMAAware(
         placement_scheme->getNUMANodeForPartition(part_id);
     for (block_id curr_block_id : part_scheme.getBlocksInPartition(part_id)) {
       try {
-        BlockReference current_block = storage_manager_->getBlock(
-            curr_block_id, relation, partition_numa_node_id);
+        const CatalogRelationSchema &relation_schema =
+            database_for_schemas_ ? database_for_schemas_->getRelationSchemaById(relation.getID())
+                                  : relation;
+
+        const BlockReference current_block = storage_manager_->getBlock(
+            curr_block_id, relation_schema, partition_numa_node_id);
       } catch (...) {
         LOG(ERROR) << "Error while preloading: After loading total "
                    << blocks_loaded + num_previously_loaded_blocks

@@ -571,7 +571,10 @@ TEST_F(CatalogTest, CatalogIndexTest) {
 }
 
 TEST_F(CatalogTest, CatalogDatabaseCacheTest) {
-  CatalogRelationSchema* const rel = createCatalogRelation("rel");
+  CatalogRelation * const rel = createCatalogRelation("rel");
+
+  rel->addBlock(BlockIdUtil::GetBlockId(0 /* domain */, 7));
+  rel->addBlock(BlockIdUtil::GetBlockId(0 /* domain */, 14));
 
   rel->addAttribute(new CatalogAttribute(nullptr, "attr_int", TypeFactory::GetType(kInt), -1 /* id */, "int"));
   rel->addAttribute(new CatalogAttribute(nullptr, "attr_long", TypeFactory::GetType(kLong)));

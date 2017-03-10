@@ -340,9 +340,11 @@ void Shiftboss::processShiftbossRegistrationResponseMessage() {
   storage_manager_->sendBlockDomainToShiftbossIndexMessage(shiftboss_index_);
 
   if (FLAGS_preload_buffer_pool) {
+    database_cache_.update(proto.catalog_database());
+
     const CatalogDatabase catalog_database(proto.catalog_database());
 
-    PreloaderThread preloader(catalog_database, storage_manager_, cpu_id_);
+    PreloaderThread preloader(catalog_database, storage_manager_, cpu_id_, &database_cache_);
 
     printf("Preloading the buffer pool ... \n");
     const std::chrono::time_point<std::chrono::steady_clock> preload_start = std::chrono::steady_clock::now();

@@ -29,6 +29,7 @@
 namespace quickstep {
 
 class CatalogDatabase;
+class CatalogDatabaseLite;
 class CatalogRelation;
 class StorageManager;
 
@@ -55,13 +56,18 @@ class PreloaderThread : public Thread {
    *        evicted and the database will not be fully preloaded.
    * @param cpu_id The ID of the CPU to affinitize this thread to, or -1 to
    *        indicate no affinity.
+   * @param database_for_schemas All non-temporary relations in this database
+   *        will be used for referencing the schema in a block for the
+   *        distributed version.
    **/
   PreloaderThread(const CatalogDatabase &database,
                   StorageManager *storage_manager,
-                  const int cpu_id = -1)
+                  const int cpu_id = -1,
+                  const CatalogDatabaseLite *database_for_schemas = nullptr)
       : database_(database),
         storage_manager_(storage_manager),
-        cpu_id_(cpu_id) {
+        cpu_id_(cpu_id),
+        database_for_schemas_(database_for_schemas) {
   }
 
   ~PreloaderThread() override {
@@ -101,6 +107,8 @@ class PreloaderThread : public Thread {
   StorageManager *storage_manager_;
 
   const int cpu_id_;
+
+  const CatalogDatabaseLite *database_for_schemas_;
 
   DISALLOW_COPY_AND_ASSIGN(PreloaderThread);
 };
