@@ -79,6 +79,7 @@ message ShiftbossRegistrationMessage {
 
 message ShiftbossRegistrationResponseMessage {
   required uint64 shiftboss_index = 1;
+  required CatalogDatabase catalog_database = 2;
 }
 
 message SqlQueryMessage {

@@ -425,6 +425,7 @@ void ForemanDistributed::processShiftbossRegistrationMessage(const client_id shi
                                                              const std::size_t work_order_capacity) {
   S::ShiftbossRegistrationResponseMessage proto;
   proto.set_shiftboss_index(shiftboss_directory_.size());
+  proto.mutable_catalog_database()->MergeFrom(static_cast<CatalogDatabase*>(catalog_database_)->getProto());
 
   const size_t proto_length = proto.ByteSize();
   char *proto_bytes = static_cast<char*>(malloc(proto_length));

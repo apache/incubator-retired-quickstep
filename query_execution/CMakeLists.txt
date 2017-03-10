@@ -298,8 +298,10 @@ target_link_libraries(quickstep_queryexecution_QueryManagerSingleNode
 if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_queryexecution_Shiftboss
                         glog
+                        quickstep_catalog_CatalogDatabase
                         quickstep_catalog_CatalogDatabaseCache
                         quickstep_catalog_CatalogTypedefs
+                        quickstep_cli_Flags
                         quickstep_queryexecution_QueryContext
                         quickstep_queryexecution_QueryExecutionMessages_proto
                         quickstep_queryexecution_QueryExecutionTypedefs
@@ -310,6 +312,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_relationaloperators_WorkOrderFactory
                         quickstep_storage_Flags
                         quickstep_storage_InsertDestination
+                        quickstep_storage_PreloaderThread
                         quickstep_storage_StorageBlock
                         quickstep_storage_StorageManager
                         quickstep_threading_Thread

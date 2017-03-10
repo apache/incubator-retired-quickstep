@@ -145,7 +145,7 @@ serialization::CatalogDatabase CatalogDatabase::getProto() const {
     if (it.isNull()) {
       proto.add_null_relations(i);
     } else {
-      proto.add_relations()->CopyFrom(it->getProto());
+      proto.add_relations()->MergeFrom(it->getProto());
     }
   }
   return proto;

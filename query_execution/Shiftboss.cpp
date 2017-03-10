@@ -19,7 +19,9 @@
 
 #include "query_execution/Shiftboss.hpp"
 
+#include <chrono>
 #include <cstddef>
+#include <cstdio>
 #include <cstdlib>
 #include <memory>
 #include <string>
@@ -27,7 +29,9 @@
 #include <utility>
 #include <vector>
 
+#include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "cli/Flags.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
@@ -36,6 +40,7 @@
 #include "relational_operators/RebuildWorkOrder.hpp"
 #include "relational_operators/WorkOrderFactory.hpp"
 #include "storage/InsertDestination.hpp"
+#include "storage/PreloaderThread.hpp"
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageManager.hpp"
 #include "threading/ThreadUtil.hpp"
@@ -51,6 +56,7 @@
 using std::free;
 using std::malloc;
 using std::move;
+using std::printf;
 using std::size_t;
 using std::string;
 using std::unique_ptr;
@@ -332,6 +338,20 @@ void Shiftboss::processShiftbossRegistrationResponseMessage() {
 
   shiftboss_index_ = proto.shiftboss_index();
   storage_manager_->sendBlockDomainToShiftbossIndexMessage(shiftboss_index_);
+
+  if (FLAGS_preload_buffer_pool) {
+    const CatalogDatabase catalog_database(proto.catalog_database());
+
+    PreloaderThread preloader(catalog_database, storage_manager_, cpu_id_);
+
+    printf("Preloading the buffer pool ... \n");
+    const std::chrono::time_point<std::chrono::steady_clock> preload_start = std::chrono::steady_clock::now();
+    preloader.start();
+    preloader.join();
+    const std::chrono::time_point<std::chrono::steady_clock> preload_end = std::chrono::steady_clock::now();
+    printf("in %g seconds\n",
+           std::chrono::duration<double>(preload_end - preload_start).count());
+  }
 
   // Forward this message to Workers regarding <shiftboss_index_>.
   QueryExecutionUtil::BroadcastMessage(shiftboss_client_id_local_,
