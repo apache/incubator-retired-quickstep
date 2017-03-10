@@ -158,8 +158,6 @@ void Shiftboss::run() {
     ThreadUtil::BindToCPU(cpu_id_);
   }
 
-  processShiftbossRegistrationResponseMessage();
-
   AnnotatedMessage annotated_message;
   tmb::message_type_id message_type;
   for (;;) {
@@ -322,6 +320,8 @@ void Shiftboss::registerWithForeman() {
   tmb::MessageBus::SendStatus send_status =
       bus_global_->Send(shiftboss_client_id_global_, all_addresses, style, move(message));
   DCHECK(send_status == tmb::MessageBus::SendStatus::kOK);
+
+  processShiftbossRegistrationResponseMessage();
 }
 
 void Shiftboss::processShiftbossRegistrationResponseMessage() {

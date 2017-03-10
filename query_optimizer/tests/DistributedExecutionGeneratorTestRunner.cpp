@@ -110,6 +110,7 @@ DistributedExecutionGeneratorTestRunner::DistributedExecutionGeneratorTestRunner
   // could receive a registration message from the latter.
   foreman_ = make_unique<ForemanDistributed>(*block_locator_, &bus_, test_database_loader_->catalog_database(),
                                              nullptr /* query_processor */);
+  foreman_->start();
 
   // We don't use the NUMA aware version of worker code.
   const vector<numa_node_id> numa_nodes(1 /* Number of worker threads per instance */,
@@ -139,8 +140,6 @@ DistributedExecutionGeneratorTestRunner::DistributedExecutionGeneratorTestRunner
 
     storage_managers_.push_back(move(storage_manager));
   }
-
-  foreman_->start();
 
   for (int i = 0; i < kNumInstances; ++i) {
     data_exchangers_[i].start();
