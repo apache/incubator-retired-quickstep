@@ -87,14 +87,12 @@ void PolicyEnforcerDistributed::getWorkOrderProtoMessages(
   // works well when multiple queries are getting executed.
   if (admitted_queries_.empty()) {
     if (waiting_queries_.empty()) {
-      LOG(WARNING) << "Requesting WorkOrderProtoMessages when no query is running";
       return;
-    } else {
-      // Admit the earliest waiting query.
-      QueryHandle *new_query = waiting_queries_.front();
-      waiting_queries_.pop();
-      admitQuery(new_query);
-    }
+
+    // Admit the earliest waiting query.
+    QueryHandle *new_query = waiting_queries_.front();
+    waiting_queries_.pop();
+    admitQuery(new_query);
   }
 
   const std::size_t per_query_share =
