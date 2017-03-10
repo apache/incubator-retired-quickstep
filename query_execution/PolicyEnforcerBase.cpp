@@ -157,12 +157,15 @@ void PolicyEnforcerBase::removeQuery(const std::size_t query_id) {
 
 bool PolicyEnforcerBase::admitQueries(
     const std::vector<QueryHandle*> &query_handles) {
+  bool all_queries_admitted = true;
   for (QueryHandle *curr_query : query_handles) {
-    if (!admitQuery(curr_query)) {
-      return false;
+    if (all_queries_admitted) {
+      all_queries_admitted = admitQuery(curr_query);
+    } else {
+      waiting_queries_.push(curr_query);
     }
   }
-  return true;
+  return all_queries_admitted;
 }
 
 void PolicyEnforcerBase::recordTimeForWorkOrder(
