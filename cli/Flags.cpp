@@ -58,6 +58,13 @@ DEFINE_int32(num_workers, 0, "Number of worker threads. If this value is "
 static const volatile bool num_workers_dummy
     = gflags::RegisterFlagValidator(&FLAGS_num_workers, &ValidateNumWorkers);
 
+DEFINE_string(worker_affinities, "",
+              "A comma-separated list of CPU IDs to pin worker threads to "
+              "(leaving this empty will cause all worker threads to inherit "
+              "the affinity mask of the Quickstep process, which typically "
+              "means that they will all be runable on any CPU according to "
+              "the kernel's own scheduling policy).");
+
 static bool ValidateStoragePath(const char *flagname,
                                 const std::string &value) {
   if (!value.empty() && value.back() != kPathSeparator) {
@@ -70,5 +77,10 @@ DEFINE_string(storage_path, kDefaultStoragePath,
               "Filesystem path to store the Quickstep database.");
 static const volatile bool storage_path_dummy
     = gflags::RegisterFlagValidator(&FLAGS_storage_path, &ValidateStoragePath);
+
+DEFINE_bool(preload_buffer_pool, false,
+            "If true, pre-load all known blocks into buffer pool before "
+            "accepting queries (should also set --buffer_pool_slots to be "
+            "large enough to accomodate the entire database).");
 
 }  // namespace quickstep

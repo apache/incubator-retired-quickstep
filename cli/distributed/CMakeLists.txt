@@ -56,6 +56,7 @@ target_link_libraries(quickstep_cli_distributed_Executor
                       glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_cli_Flags
+                      quickstep_cli_InputParserUtil
                       quickstep_cli_distributed_Role
                       quickstep_queryexecution_BlockLocatorUtil
                       quickstep_queryexecution_QueryExecutionTypedefs

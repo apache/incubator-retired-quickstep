@@ -88,6 +88,7 @@ void PolicyEnforcerDistributed::getWorkOrderProtoMessages(
   if (admitted_queries_.empty()) {
     if (waiting_queries_.empty()) {
       return;
+    }
 
     // Admit the earliest waiting query.
     QueryHandle *new_query = waiting_queries_.front();

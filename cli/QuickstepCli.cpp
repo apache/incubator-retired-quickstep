@@ -119,16 +119,6 @@ using tmb::client_id;
 
 namespace quickstep {
 
-DEFINE_bool(preload_buffer_pool, false,
-            "If true, pre-load all known blocks into buffer pool before "
-            "accepting queries (should also set --buffer_pool_slots to be "
-            "large enough to accomodate the entire database).");
-DEFINE_string(worker_affinities, "",
-              "A comma-separated list of CPU IDs to pin worker threads to "
-              "(leaving this empty will cause all worker threads to inherit "
-              "the affinity mask of the Quickstep process, which typically "
-              "means that they will all be runable on any CPU according to "
-              "the kernel's own scheduling policy).");
 DEFINE_bool(print_query, false,
             "Print each input query statement. This is useful when running a "
             "large number of queries in a batch.");

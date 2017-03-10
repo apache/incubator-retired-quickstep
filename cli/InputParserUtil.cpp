@@ -51,9 +51,9 @@ std::vector<int> InputParserUtil::ParseWorkerAffinities(
     LOG(INFO) << "Empty worker affinities provided, switching to default "
                  "worker affinities";
   } else if (!ParseIntString(affinity_string, ',', &affinities)) {
-      switch_to_default_affinities = true;
-      LOG(INFO) << "Invalid worker affinities provided, switching to default "
-                   "affinities";
+    switch_to_default_affinities = true;
+    LOG(INFO) << "Invalid worker affinities provided, switching to default "
+                 "affinities";
   }
 
   for (const int affinity : affinities) {

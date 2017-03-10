@@ -37,7 +37,11 @@ DECLARE_bool(initialize_db);
 
 DECLARE_int32(num_workers);
 
+DECLARE_string(worker_affinities);
+
 DECLARE_string(storage_path);
+
+DECLARE_bool(preload_buffer_pool);
 
 /** @} */
 

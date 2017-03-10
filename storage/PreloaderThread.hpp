@@ -58,7 +58,7 @@ class PreloaderThread : public Thread {
    **/
   PreloaderThread(const CatalogDatabase &database,
                   StorageManager *storage_manager,
-                  const int cpu_id)
+                  const int cpu_id = -1)
       : database_(database),
         storage_manager_(storage_manager),
         cpu_id_(cpu_id) {

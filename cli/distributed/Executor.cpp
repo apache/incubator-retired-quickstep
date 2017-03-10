@@ -25,6 +25,7 @@
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "cli/Flags.hpp"
+#include "cli/InputParserUtil.hpp"
 #include "query_execution/BlockLocatorUtil.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/Shiftboss.hpp"
@@ -56,13 +57,19 @@ void Executor::init() {
   bus_.RegisterClientAsSender(executor_client_id_, kBlockDomainRegistrationMessage);
   bus_.RegisterClientAsReceiver(executor_client_id_, kBlockDomainRegistrationResponseMessage);
 
+  // Parse the CPU affinities for workers and the preloader thread, if enabled
+  // to warm up the buffer pool.
+  const vector<int> worker_cpu_affinities =
+      InputParserUtil::ParseWorkerAffinities(FLAGS_num_workers, FLAGS_worker_affinities);
+
+  const vector<numa_node_id> worker_numa_nodes(FLAGS_num_workers, kAnyNUMANodeID);
   vector<client_id> worker_client_ids;
-  vector<numa_node_id> worker_numa_nodes(FLAGS_num_workers, kAnyNUMANodeID);
 
   for (std::size_t worker_thread_index = 0;
        worker_thread_index < FLAGS_num_workers;
        ++worker_thread_index) {
-    workers_.push_back(make_unique<Worker>(worker_thread_index, &bus_local_));
+    workers_.push_back(make_unique<Worker>(worker_thread_index, &bus_local_,
+                                           worker_cpu_affinities[worker_thread_index]));
     worker_client_ids.push_back(workers_.back()->getBusClientID());
   }
 
