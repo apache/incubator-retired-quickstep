@@ -130,7 +130,10 @@ void PolicyEnforcerDistributed::getWorkOrderProtoMessages(
 }
 
 bool PolicyEnforcerDistributed::admitQuery(QueryHandle *query_handle) {
-  if (admitted_queries_.size() >= PolicyEnforcerBase::kMaxConcurrentQueries) {
+  const std::size_t num_shiftbosses = shiftboss_directory_->size();
+  // We only allow the number of concurrent queries that equals to
+  // that of Shiftbosses.
+  if (admitted_queries_.size() > num_shiftbosses) {
     // This query will have to wait.
     waiting_queries_.push(query_handle);
     return false;
@@ -147,8 +150,6 @@ bool PolicyEnforcerDistributed::admitQuery(QueryHandle *query_handle) {
   // Otherwise, an InitiateRebuildMessage may be sent before 'QueryContext'
   // initializes.
   initiateQueryInShiftboss(query_handle);
-
-  const std::size_t num_shiftbosses = shiftboss_directory_->size();
 
   tmb::Address shiftboss_addresses;
   for (std::size_t i = 0; i < num_shiftbosses; ++i) {
