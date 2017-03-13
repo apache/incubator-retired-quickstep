@@ -89,6 +89,16 @@ void Conductor::init() {
 
     query_processor_ = make_unique<QueryProcessor>(move(catalog_path));
     catalog_database_ = query_processor_->getDefaultDatabase();
+
+    // Clean up the temp relations, if any, caused by crashes in the distributed query execution.
+    for (const CatalogRelation &relation : *catalog_database_) {
+      if (relation.isTemporary()) {
+        catalog_database_->dropRelationById(relation.getID());
+        query_processor_->markCatalogAltered();
+      }
+    }
+
+    query_processor_->saveCatalog();
   } catch (const std::exception &e) {
     LOG(FATAL) << "FATAL ERROR DURING STARTUP: " << e.what()
                << "\nIf you intended to create a new database, "
