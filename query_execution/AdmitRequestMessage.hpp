@@ -51,9 +51,8 @@ class AdmitRequestMessage {
    *
    * @param query_handle The handle of the query requesting to be admitted.
    **/
-  explicit AdmitRequestMessage(QueryHandle *query_handle) {
-    query_handles_.push_back(query_handle);
-  }
+  explicit AdmitRequestMessage(QueryHandle *query_handle)
+      : query_handles_({ query_handle }) {}
 
   /**
    * @brief Get the query handles from this message.
@@ -63,7 +62,7 @@ class AdmitRequestMessage {
   }
 
  private:
-  std::vector<QueryHandle*> query_handles_;
+  const std::vector<QueryHandle*> query_handles_;
 
   DISALLOW_COPY_AND_ASSIGN(AdmitRequestMessage);
 };
