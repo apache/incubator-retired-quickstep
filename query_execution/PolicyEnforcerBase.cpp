@@ -157,6 +157,8 @@ void PolicyEnforcerBase::removeQuery(const std::size_t query_id) {
 
 bool PolicyEnforcerBase::admitQueries(
     const std::vector<QueryHandle*> &query_handles) {
+  DCHECK(!query_handles.empty());
+
   bool all_queries_admitted = true;
   for (QueryHandle *curr_query : query_handles) {
     if (all_queries_admitted) {

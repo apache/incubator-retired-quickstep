@@ -165,19 +165,8 @@ void ForemanDistributed::run() {
         const AdmitRequestMessage *request_message =
             static_cast<const AdmitRequestMessage*>(tagged_message.message());
 
-        const vector<QueryHandle *> &query_handles = request_message->getQueryHandles();
-        DCHECK(!query_handles.empty());
-
-        bool all_queries_admitted = true;
-        if (query_handles.size() == 1u) {
-          all_queries_admitted =
-              policy_enforcer_->admitQuery(query_handles.front());
-        } else {
-          all_queries_admitted = policy_enforcer_->admitQueries(query_handles);
-        }
-        if (!all_queries_admitted) {
+        if (!policy_enforcer_->admitQueries(request_message->getQueryHandles())) {
           LOG(WARNING) << "The scheduler could not admit all the queries";
-          // TODO(harshad) - Inform the main thread about the failure.
         }
         break;
       }
