@@ -32,6 +32,10 @@ using std::fprintf;
 
 namespace quickstep {
 
+DEFINE_bool(print_query, false,
+            "Print each input query statement. This is useful when running a "
+            "large number of queries in a batch.");
+
 DEFINE_bool(initialize_db, false, "If true, initialize a database.");
 
 static bool ValidateNumWorkers(const char *flagname, int value) {

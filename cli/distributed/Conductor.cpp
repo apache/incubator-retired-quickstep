@@ -214,9 +214,11 @@ void Conductor::processSqlQueryMessage(const tmb::client_id sender, string *comm
       CHECK(MessageBus::SendStatus::kOK ==
           QueryExecutionUtil::SendTMBMessage(&bus_, conductor_client_id_, sender, move(message)));
     } else {
-      auto query_handle = make_unique<QueryHandle>(query_processor_->query_id(),
-                                                   sender,
-                                                   statement.getPriority());
+      if (FLAGS_print_query) {
+        printf("\nQuery %zu: %s\n", query_processor_->query_id(), command_string->c_str());
+      }
+
+      auto query_handle = make_unique<QueryHandle>(query_processor_->query_id(), sender, statement.getPriority());
       query_processor_->generateQueryHandle(statement, query_handle.get());
       DCHECK(query_handle->getQueryPlanMutable() != nullptr);
 
@@ -299,6 +301,10 @@ void Conductor::executeAnalyze(const tmb::client_id sender, const PtrVector<Pars
       query_string->append(rel_name);
       query_string->append("\";");
 
+      if (FLAGS_print_query) {
+        printf("\nQuery %zu: %s\n", query_processor_->query_id(), query_string->c_str());
+      }
+
       parser_wrapper.feedNextBuffer(query_string);
       const ParseResult parse_result = parser_wrapper.getNextStatement();
       DCHECK_EQ(ParseResult::kSuccess, parse_result.condition);
@@ -321,6 +327,10 @@ void Conductor::executeAnalyze(const tmb::client_id sender, const PtrVector<Pars
     query_string = new string("SELECT COUNT(*) FROM \"");
     query_string->append(rel_name);
     query_string->append("\";");
+
+    if (FLAGS_print_query) {
+      printf("\nQuery %zu: %s\n", query_processor_->query_id(), query_string->c_str());
+    }
 
     parser_wrapper.feedNextBuffer(query_string);
     const ParseResult parse_result = parser_wrapper.getNextStatement();

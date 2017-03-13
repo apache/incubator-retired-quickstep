@@ -119,9 +119,6 @@ using tmb::client_id;
 
 namespace quickstep {
 
-DEFINE_bool(print_query, false,
-            "Print each input query statement. This is useful when running a "
-            "large number of queries in a batch.");
 DEFINE_string(profile_file_name, "",
               "If nonempty, enable profiling using GOOGLE CPU Profiler, and write "
               "its output to the given file name. This flag has no effect if "

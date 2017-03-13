@@ -33,6 +33,8 @@ namespace quickstep {
  * single-node and the distributed version.
  **/
 
+DECLARE_bool(print_query);
+
 DECLARE_bool(initialize_db);
 
 DECLARE_int32(num_workers);
