@@ -45,7 +45,7 @@ bool CatalogDatabaseCache::ProtoIsValid(const serialization::CatalogDatabase &pr
     }
   }
 
-  return proto.null_relations_size() == 0;
+  return true;
 }
 
 CatalogDatabaseCache::CatalogDatabaseCache(const serialization::CatalogDatabase &proto) {
