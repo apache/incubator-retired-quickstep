@@ -130,11 +130,8 @@ void BlockLocator::run() {
         }
         break;
       }
-      case kGetPeerDomainNetworkAddressesMessage: {
-        serialization::BlockMessage proto;
-        CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
-
-        processGetPeerDomainNetworkAddressesMessage(sender, proto.block_id());
+      case kGetAllDomainNetworkAddressesMessage: {
+        processGetAllDomainNetworkAddressesMessage(sender);
         break;
       }
       case kBlockDomainUnregistrationMessage: {
@@ -193,32 +190,28 @@ void BlockLocator::processBlockDomainRegistrationMessage(const client_id receive
                                          move(message)));
 }
 
-void BlockLocator::processGetPeerDomainNetworkAddressesMessage(const client_id receiver,
-                                                               const block_id block) {
-  serialization::GetPeerDomainNetworkAddressesResponseMessage proto;
+void BlockLocator::processGetAllDomainNetworkAddressesMessage(const client_id receiver) {
+  serialization::GetAllDomainNetworkAddressesResponseMessage proto;
 
   // NOTE(zuyu): We don't need to protect here, as all the writers are in the
   // single thread.
-  for (const block_id_domain domain : block_locations_[block]) {
-    proto.add_domain_network_addresses(domain_network_addresses_[domain]);
+  for (const auto &domain_network_address_pair : domain_network_addresses_) {
+    (*proto.mutable_domain_network_addresses())[domain_network_address_pair.first] =
+        domain_network_address_pair.second;
   }
 
   const int proto_length = proto.ByteSize();
   char *proto_bytes = static_cast<char*>(malloc(proto_length));
   CHECK(proto.SerializeToArray(proto_bytes, proto_length));
 
-  TaggedMessage message(static_cast<const void*>(proto_bytes),
-                        proto_length,
-                        kGetPeerDomainNetworkAddressesResponseMessage);
+  TaggedMessage message(static_cast<const void*>(proto_bytes), proto_length,
+                        kGetAllDomainNetworkAddressesResponseMessage);
   free(proto_bytes);
 
   DLOG(INFO) << "BlockLocator with Client " << locator_client_id_
-             << " sent GetPeerDomainNetworkAddressesResponseMessage to StorageManager with Client " << receiver;
+             << " sent GetAllDomainNetworkAddressesResponseMessage to StorageManager with Client " << receiver;
   CHECK(tmb::MessageBus::SendStatus::kOK ==
-      QueryExecutionUtil::SendTMBMessage(bus_,
-                                         locator_client_id_,
-                                         receiver,
-                                         move(message)));
+      QueryExecutionUtil::SendTMBMessage(bus_, locator_client_id_, receiver, move(message)));
 }
 
 }  // namespace quickstep

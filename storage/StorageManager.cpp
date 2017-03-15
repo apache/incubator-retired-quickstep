@@ -224,13 +224,14 @@ StorageManager::StorageManager(
   if (bus_) {
     storage_manager_client_id_ = bus_->Connect();
 
-    bus_->RegisterClientAsSender(storage_manager_client_id_, kGetPeerDomainNetworkAddressesMessage);
-    bus_->RegisterClientAsReceiver(storage_manager_client_id_, kGetPeerDomainNetworkAddressesResponseMessage);
-
     bus_->RegisterClientAsSender(storage_manager_client_id_, kBlockDomainToShiftbossIndexMessage);
 
     bus_->RegisterClientAsSender(storage_manager_client_id_, kAddBlockLocationMessage);
     bus_->RegisterClientAsSender(storage_manager_client_id_, kDeleteBlockLocationMessage);
+
+    bus_->RegisterClientAsSender(storage_manager_client_id_, kGetAllDomainNetworkAddressesMessage);
+    bus_->RegisterClientAsReceiver(storage_manager_client_id_, kGetAllDomainNetworkAddressesResponseMessage);
+
     bus_->RegisterClientAsSender(storage_manager_client_id_, kBlockDomainUnregistrationMessage);
 
     LOG(INFO) << "StorageManager with Client " << storage_manager_client_id_
@@ -548,10 +549,8 @@ bool StorageManager::DataExchangerClientAsync::Pull(const block_id block,
     return false;
   }
 
-  if (!response.is_valid()) {
-    LOG(INFO) << "The pulling block not found in all the peers";
-    return false;
-  }
+  CHECK(response.is_valid())
+      << "The pulling block not found in all the peers";
 
   const size_t num_slots = response.num_slots();
   DCHECK_NE(num_slots, 0u);
@@ -577,46 +576,54 @@ void* StorageManager::hdfs() {
   return nullptr;
 }
 
-vector<string> StorageManager::getPeerDomainNetworkAddresses(const block_id block) {
-  serialization::BlockMessage proto;
-  proto.set_block_id(block);
-
-  const int proto_length = proto.ByteSize();
-  char *proto_bytes = static_cast<char*>(malloc(proto_length));
-  CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-  TaggedMessage message(static_cast<const void*>(proto_bytes),
-                        proto_length,
-                        kGetPeerDomainNetworkAddressesMessage);
-  free(proto_bytes);
-
-  DLOG(INFO) << "StorageManager with Client " << storage_manager_client_id_
-             << " sent GetPeerDomainNetworkAddressesMessage to BlockLocator";
-
-  DCHECK_NE(block_locator_client_id_, tmb::kClientIdNone);
-  DCHECK(bus_ != nullptr);
-  CHECK(MessageBus::SendStatus::kOK ==
-      QueryExecutionUtil::SendTMBMessage(bus_,
-                                         storage_manager_client_id_,
-                                         block_locator_client_id_,
-                                         move(message)));
-
-  const tmb::AnnotatedMessage annotated_message(bus_->Receive(storage_manager_client_id_, 0, true));
-  const TaggedMessage &tagged_message = annotated_message.tagged_message;
-  CHECK_EQ(block_locator_client_id_, annotated_message.sender);
-  CHECK_EQ(kGetPeerDomainNetworkAddressesResponseMessage, tagged_message.message_type());
-  DLOG(INFO) << "StorageManager with Client " << storage_manager_client_id_
-             << " received GetPeerDomainNetworkAddressesResponseMessage from BlockLocator";
-
-  serialization::GetPeerDomainNetworkAddressesResponseMessage response_proto;
-  CHECK(response_proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
-
-  vector<string> domain_network_addresses;
-  for (int i = 0; i < response_proto.domain_network_addresses_size(); ++i) {
-    domain_network_addresses.push_back(response_proto.domain_network_addresses(i));
+string StorageManager::getPeerDomainNetworkAddress(const block_id_domain block_domain) {
+  {
+    SpinSharedMutexSharedLock<false> read_lock(block_domain_network_addresses_shared_mutex_);
+    const auto cit = block_domain_network_addresses_.find(block_domain);
+    if (cit != block_domain_network_addresses_.end()) {
+      return cit->second;
+    }
   }
 
-  return domain_network_addresses;
+  {
+    SpinSharedMutexExclusiveLock<false> write_lock(block_domain_network_addresses_shared_mutex_);
+
+    // Check one more time if the block domain network info got set up by someone else.
+    auto cit = block_domain_network_addresses_.find(block_domain);
+    if (cit != block_domain_network_addresses_.end()) {
+      return cit->second;
+    }
+
+    DLOG(INFO) << "StorageManager with Client " << storage_manager_client_id_
+               << " sent GetAllDomainNetworkAddressesMessage to BlockLocator";
+
+    DCHECK_NE(block_locator_client_id_, tmb::kClientIdNone);
+    DCHECK(bus_ != nullptr);
+    CHECK(MessageBus::SendStatus::kOK ==
+        QueryExecutionUtil::SendTMBMessage(bus_, storage_manager_client_id_, block_locator_client_id_,
+                                           TaggedMessage(kGetAllDomainNetworkAddressesMessage)));
+
+    const tmb::AnnotatedMessage annotated_message(bus_->Receive(storage_manager_client_id_, 0, true));
+    const TaggedMessage &tagged_message = annotated_message.tagged_message;
+    CHECK_EQ(block_locator_client_id_, annotated_message.sender);
+    CHECK_EQ(kGetAllDomainNetworkAddressesResponseMessage, tagged_message.message_type());
+    DLOG(INFO) << "StorageManager with Client " << storage_manager_client_id_
+               << " received GetAllDomainNetworkAddressesResponseMessage from BlockLocator";
+
+    serialization::GetAllDomainNetworkAddressesResponseMessage proto;
+    CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
+
+    for (const auto &domain_network_address_pair : proto.domain_network_addresses()) {
+      const block_id_domain block_domain = domain_network_address_pair.first;
+      if (block_domain_network_addresses_.find(block_domain) == block_domain_network_addresses_.end()) {
+        block_domain_network_addresses_.emplace(block_domain, domain_network_address_pair.second);
+      }
+    }
+
+    cit = block_domain_network_addresses_.find(block_domain);
+    DCHECK(cit != block_domain_network_addresses_.end());
+    return cit->second;
+  }
 }
 
 void StorageManager::sendBlockLocationMessage(const block_id block,
@@ -663,37 +670,34 @@ StorageManager::BlockHandle StorageManager::loadBlockOrBlob(
   // already loaded before this function gets called.
   BlockHandle loaded_handle;
 
-#ifdef QUICKSTEP_DISTRIBUTED
   // TODO(quickstep-team): Use a cost model to determine whether to load from
   // a remote peer or the disk.
-  if (BlockIdUtil::Domain(block) != block_domain_) {
-    DLOG(INFO) << "Pulling Block " << BlockIdUtil::ToString(block) << " from a remote peer";
-    const vector<string> peer_domain_network_addresses = getPeerDomainNetworkAddresses(block);
-    for (const string &peer_domain_network_address : peer_domain_network_addresses) {
-      DataExchangerClientAsync client(
-          grpc::CreateChannel(peer_domain_network_address, grpc::InsecureChannelCredentials()),
-          this);
+  const size_t num_slots = file_manager_->numSlots(block);
+  if (num_slots != 0) {
+    void *block_buffer = allocateSlots(num_slots, numa_node);
 
-      if (client.Pull(block, numa_node, &loaded_handle)) {
-        sendBlockLocationMessage(block, kAddBlockLocationMessage);
-        return loaded_handle;
-      }
+    const bool status = file_manager_->readBlockOrBlob(block, block_buffer, kSlotSizeBytes * num_slots);
+    CHECK(status) << "Failed to read block from persistent storage: " << block;
+
+    loaded_handle.block_memory = block_buffer;
+    loaded_handle.block_memory_size = num_slots;
+  } else {
+    bool pull_succeeded = false;
+
+#ifdef QUICKSTEP_DISTRIBUTED
+    const string domain_network_address = getPeerDomainNetworkAddress(BlockIdUtil::Domain(block));
+    DLOG(INFO) << "Pulling Block " << BlockIdUtil::ToString(block) << " from " << domain_network_address;
+    DataExchangerClientAsync client(
+        grpc::CreateChannel(domain_network_address, grpc::InsecureChannelCredentials()), this);
+    while (!client.Pull(block, numa_node, &loaded_handle)) {
+      LOG(INFO) << "Retry pulling Block " << BlockIdUtil::ToString(block) << " from " << domain_network_address;
     }
 
-    DLOG(INFO) << "Failed to pull Block " << BlockIdUtil::ToString(block)
-               << " from remote peers, so try to load from disk.";
-  }
+    pull_succeeded = true;
 #endif
 
-  const size_t num_slots = file_manager_->numSlots(block);
-  DEBUG_ASSERT(num_slots != 0);
-  void *block_buffer = allocateSlots(num_slots, numa_node);
-
-  const bool status = file_manager_->readBlockOrBlob(block, block_buffer, kSlotSizeBytes * num_slots);
-  CHECK(status) << "Failed to read block from persistent storage: " << block;
-
-  loaded_handle.block_memory = block_buffer;
-  loaded_handle.block_memory_size = num_slots;
+    CHECK(pull_succeeded) << "Failed to pull Block " << BlockIdUtil::ToString(block) << " from remote peers.";
+  }
 
 #ifdef QUICKSTEP_DISTRIBUTED
   if (bus_) {

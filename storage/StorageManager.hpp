@@ -446,14 +446,13 @@ class StorageManager {
   };
 
   /**
-   * @brief Get the network info of all the remote StorageManagers which may
-   *        load the given block in the buffer pool.
+   * @brief Get the network info of the given block domain.
    *
-   * @param block The block or blob to pull.
+   * @param block_domain The domain of block or blob to pull.
    *
-   * @return The network info of all the possible peers to pull.
+   * @return The network info of the given block domain.
    **/
-  std::vector<std::string> getPeerDomainNetworkAddresses(const block_id block);
+  std::string getPeerDomainNetworkAddress(const block_id_domain block_domain);
 
   /**
    * @brief Update the block location info in BlockLocator.
@@ -614,6 +613,10 @@ class StorageManager {
   // finer-grained locking.
   std::unordered_map<block_id, BlockHandle> blocks_;
   alignas(kCacheLineBytes) mutable SpinSharedMutex<false> blocks_shared_mutex_;
+
+  // Used to pull a remote block.
+  std::unordered_map<block_id_domain, std::string> block_domain_network_addresses_;
+  alignas(kCacheLineBytes) mutable SpinSharedMutex<false> block_domain_network_addresses_shared_mutex_;
 
   // This lock manager is used with the following contract:
   //   (1) A block cannot be evicted unless an exclusive lock is held on its

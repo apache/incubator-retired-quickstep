@@ -106,21 +106,20 @@ class BlockLocatorTest : public ::testing::Test {
   }
 
   void checkLoaded(const block_id block) {
-    const vector<string> peer_domain_network_addresses = storage_manager_->getPeerDomainNetworkAddresses(block);
-    EXPECT_EQ(1u, peer_domain_network_addresses.size());
-    EXPECT_STREQ(kDomainNetworkAddress, peer_domain_network_addresses[0].data());
+    unordered_set<block_id_domain> domains;
+    do {
+      domains = locator_->getBlockDomains(block);
+    } while (domains.empty());
 
-    const unordered_set<block_id_domain> domains = locator_->getBlockDomains(block);
     EXPECT_EQ(1u, domains.size());
     EXPECT_EQ(1u, domains.count(block_domain_));
   }
 
   void checkEvicted(const block_id block) {
-    const vector<string> peer_domain_network_addresses = storage_manager_->getPeerDomainNetworkAddresses(block);
-    EXPECT_TRUE(peer_domain_network_addresses.empty());
-
-    const unordered_set<block_id_domain> domains = locator_->getBlockDomains(block);
-    EXPECT_TRUE(domains.empty());
+    unordered_set<block_id_domain> domains;
+    do {
+      domains = locator_->getBlockDomains(block);
+    } while (!domains.empty());
   }
 
   tmb::client_id worker_client_id_;
@@ -146,6 +145,10 @@ TEST_F(BlockLocatorTest, BlockTest) {
       storage_manager_->createBlock(relation, relation.getDefaultStorageBlockLayout());
   checkLoaded(block);
 
+  const string peer_domain_network_address =
+      storage_manager_->getPeerDomainNetworkAddress(BlockIdUtil::Domain(block));
+  EXPECT_STREQ(kDomainNetworkAddress, peer_domain_network_address.data());
+
   ASSERT_TRUE(storage_manager_->saveBlockOrBlob(block));
   storage_manager_->evictBlockOrBlob(block);
   checkEvicted(block);
@@ -162,6 +165,10 @@ TEST_F(BlockLocatorTest, BlockTest) {
 TEST_F(BlockLocatorTest, BlobTest) {
   const block_id blob = storage_manager_->createBlob(kDefaultBlockSizeInSlots);
   checkLoaded(blob);
+
+  const string peer_domain_network_address =
+      storage_manager_->getPeerDomainNetworkAddress(BlockIdUtil::Domain(blob));
+  EXPECT_STREQ(kDomainNetworkAddress, peer_domain_network_address.data());
 
   ASSERT_TRUE(storage_manager_->saveBlockOrBlob(blob));
   storage_manager_->evictBlockOrBlob(blob);

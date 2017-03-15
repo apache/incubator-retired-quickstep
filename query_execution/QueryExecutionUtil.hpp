@@ -83,8 +83,8 @@ class QueryExecutionUtil {
       case kBlockDomainToShiftbossIndexMessage:           return "BlockDomainToShiftbossIndexMessage";
       case kAddBlockLocationMessage:                      return "AddBlockLocationMessage";
       case kDeleteBlockLocationMessage:                   return "DeleteBlockLocationMessage";
-      case kGetPeerDomainNetworkAddressesMessage:         return "GetPeerDomainNetworkAddressesMessage";
-      case kGetPeerDomainNetworkAddressesResponseMessage: return "GetPeerDomainNetworkAddressesResponseMessage";
+      case kGetAllDomainNetworkAddressesMessage:          return "GetAllDomainNetworkAddressesMessage";
+      case kGetAllDomainNetworkAddressesResponseMessage:  return "GetAllDomainNetworkAddressesResponseMessage";
       case kBlockDomainUnregistrationMessage:             return "BlockDomainUnregistrationMessage";
 #endif  // QUICKSTEP_DISTRIBUTED
       default:

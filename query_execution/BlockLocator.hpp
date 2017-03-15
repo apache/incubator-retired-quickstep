@@ -74,8 +74,8 @@ class BlockLocator : public Thread {
     bus_->RegisterClientAsReceiver(locator_client_id_, kAddBlockLocationMessage);
     bus_->RegisterClientAsReceiver(locator_client_id_, kDeleteBlockLocationMessage);
 
-    bus_->RegisterClientAsReceiver(locator_client_id_, kGetPeerDomainNetworkAddressesMessage);
-    bus_->RegisterClientAsSender(locator_client_id_, kGetPeerDomainNetworkAddressesResponseMessage);
+    bus_->RegisterClientAsReceiver(locator_client_id_, kGetAllDomainNetworkAddressesMessage);
+    bus_->RegisterClientAsSender(locator_client_id_, kGetAllDomainNetworkAddressesResponseMessage);
 
     bus_->RegisterClientAsReceiver(locator_client_id_, kBlockDomainUnregistrationMessage);
     bus_->RegisterClientAsReceiver(locator_client_id_, kPoisonMessage);
@@ -146,7 +146,7 @@ class BlockLocator : public Thread {
 
  private:
   void processBlockDomainRegistrationMessage(const tmb::client_id receiver, const std::string &network_address);
-  void processGetPeerDomainNetworkAddressesMessage(const tmb::client_id receiver, const block_id block);
+  void processGetAllDomainNetworkAddressesMessage(const tmb::client_id receiver);
 
   tmb::MessageBus *bus_;
 
