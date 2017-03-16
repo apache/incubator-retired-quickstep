@@ -216,6 +216,33 @@ void InsertDestination::bulkInsertTuples(ValueAccessor *accessor, bool always_ma
   });
 }
 
+void InsertDestination::bulkInsertTuples(ValueAccessor *accessor,
+                                         MutableBlockReference *output_block) {
+  InvokeOnAnyValueAccessor(
+      accessor,
+      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
+    accessor->beginIteration();
+    while (!accessor->iterationFinished()) {
+      // FIXME(chasseur): Deal with TupleTooLargeForBlock exception.
+      if (!output_block->valid()) {
+        *output_block = this->getBlockForInsertion();
+      }
+      if ((*output_block)->bulkInsertTuples(accessor) == 0 ||
+          !accessor->iterationFinished()) {
+        // output_block is full.
+        this->returnBlock(std::move(*output_block), true);
+        *output_block = this->getBlockForInsertion();
+      }
+    }
+  });
+}
+
+void InsertDestination::returnBlock(MutableBlockReference *output_block) {
+  if (output_block->valid()) {
+    this->returnBlock(std::move(*output_block), false);
+  }
+}
+
 void InsertDestination::bulkInsertTuplesWithRemappedAttributes(
     const std::vector<attribute_id> &attribute_map,
     ValueAccessor *accessor,

@@ -471,20 +471,19 @@ void HashInnerJoinWorkOrder::execute() {
         base_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
   }
 
-  auto *container = simple_profiler.getContainer();
-  auto *event_hash = container->getEventLine("ProbeHash");
-  event_hash->emplace_back();
 
-  if (probe_accessor->getImplementationType() == ValueAccessor::Implementation::kSplitRowStore) {
-    executeWithCopyElision(probe_accessor.get());
-  } else {
+//  if (probe_accessor->getImplementationType() == ValueAccessor::Implementation::kSplitRowStore) {
+//    executeWithCopyElision(probe_accessor.get());
+//  } else {
     executeWithoutCopyElision(probe_accessor.get());
-  }
+//  }
 
-  event_hash->back().endEvent();
 }
 
 void HashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor *probe_accessor) {
+  auto *container = simple_profiler.getContainer();
+  auto *event_hash = container->getEventLine("ProbeHash");
+  event_hash->emplace_back();
   VectorsOfPairsJoinedTuplesCollector collector;
   if (join_key_attributes_.size() == 1) {
     hash_table_.getAllFromValueAccessor(
@@ -499,10 +498,14 @@ void HashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor *probe_acce
         any_join_key_attributes_nullable_,
         &collector);
   }
+  event_hash->back().endEvent();
 
   const relation_id build_relation_id = build_relation_.getID();
   const relation_id probe_relation_id = probe_relation_.getID();
 
+  auto *materialize_line = container->getEventLine("materialize");
+  materialize_line->emplace_back();
+  MutableBlockReference output_block;
   for (std::pair<const block_id, VectorOfTupleIdPair>
            &build_block_entry : *collector.getJoinedTuples()) {
     BlockReference build_block =
@@ -549,8 +552,12 @@ void HashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor *probe_acce
                                                                   build_block_entry.second));
     }
 
-    output_destination_->bulkInsertTuples(&temp_result);
+//    output_destination_->bulkInsertTuples(&temp_result);
+    output_destination_->bulkInsertTuples(&temp_result, &output_block);
   }
+
+  output_destination_->returnBlock(&output_block);
+  materialize_line->back().endEvent();
 }
 
 void HashInnerJoinWorkOrder::executeWithCopyElision(ValueAccessor *probe_accessor) {
