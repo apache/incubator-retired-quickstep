@@ -34,8 +34,9 @@ create_artifacts() {
 
   # you'll need to push this if you want the tag to be visible to committers
   # the tag is necesary for the archiving to work correctly
-  git tag -a rc-$VERSION -m 'release candidate $VERSION'
-  git archive --format "tar" --prefix=$PROJECT_NAME-$VERSION/ -o $PROJECT_NAME-$VERSION.tar rc-$VERSION
+  GIT_TAG=$VERSION-$CANDIDATE
+  git tag -a $GIT_TAG -m 'release candidate $VERSION'
+  git archive --format "tar" --prefix=$PROJECT_NAME-$VERSION/ -o $PROJECT_NAME-$VERSION.tar $GIT_TAG
   git submodule foreach --recursive 'git archive --verbose --prefix=$PROJECT_NAME-$VERSION/$path/ --format tar master --output $BASE_DIR/submodule-$sha1.tar'
   if [[ $(ls | grep submodule-*.tar | wc -l) != 0  ]]; then
     # combine all archives into one tar
@@ -50,14 +51,14 @@ create_artifacts() {
   # Make the signature. This requires human input
   gpg -u $APACHE_USERNAME@apache.org --armor --output $PROJECT_NAME-$VERSION.tar.gz.asc --detach-sign $PROJECT_NAME-$VERSION.tar.gz
   # Make hashes
+  for algo in 256 512; do
+    shasum -a $algo $PROJECT_NAME-$VERSION.tar.gz > $PROJECT_NAME-$VERSION.tar.gz.sha$algo
+  done
   md5sum $PROJECT_NAME-$VERSION.tar.gz > $PROJECT_NAME-$VERSION.tar.gz.md5
-  sha1sum $PROJECT_NAME-$VERSION.tar.gz > $PROJECT_NAME-$VERSION.tar.gz.sha
-
 
   # Make sure these three artifacts are good
   gpg --verify $PROJECT_NAME-$VERSION.tar.gz.asc
   md5sum --check $PROJECT_NAME-$VERSION.tar.gz.md5
-  sha1sum --check $PROJECT_NAME-$VERSION.tar.gz.sha
 
   mv $PROJECT_NAME-$VERSION.tar.gz* $RELEASE_DIR
 
@@ -100,6 +101,23 @@ publish_candidate() {
   cd $BASE_DIR
 }
 
+release_audit() {
+  # Downloads/runs the apache Release Audit Tool on the base folder, excluding this
+  # release directory
+  #
+  if [ ! -d apache-rat-0.12 ] ; then
+    curl http://apache.spinellicreations.com//creadur/apache-rat-0.12/apache-rat-0.12-bin.tar.bz2 > rat.tar.bz2
+    tar -xzf rat.tar.bz2
+    rm rat.tar.bz2
+  fi
+  java -jar apache-rat-0.12/apache-rat-0.12.jar -e release -e build -e cmake* -d .. > rat-report.txt
+  if [ $? == 0 ] ; then
+     echo "created rat-report.txt"
+  else
+     echo "error running rat"
+  fi
+}
+
 test_candidate() {
   # This is best run in /tmp
   # tries checking out a release candidate and building
@@ -135,7 +153,7 @@ test_candidate() {
 }
 
 usage() {
-  echo "usage: $0 [create|publish|test]"
+  echo "usage: $0 [create|publish|audit|test]"
   exit $1
 }
 
@@ -164,7 +182,10 @@ if [ "create" == "$1" ] ; then
   create_artifacts
 elif [ "publish" == "$1" ] ; then
   echo "publishing candidate artifacts ..."
-  publish_candidate 
+  publish_candidate
+elif [ "audit" == "$1" ] ; then
+  echo "running release audit..."
+  release_audit
 elif [ "test" == "$1" ] ; then
   echo "testing candidate artifacts ..."
   test_candidate
