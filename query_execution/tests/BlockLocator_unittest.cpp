@@ -21,6 +21,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <unordered_set>
 #include <vector>
 
 #include "catalog/CatalogAttribute.hpp"
@@ -51,6 +52,7 @@ using std::malloc;
 using std::move;
 using std::string;
 using std::unique_ptr;
+using std::unordered_set;
 using std::vector;
 
 using tmb::AnnotatedMessage;
@@ -79,9 +81,6 @@ class BlockLocatorTest : public ::testing::Test {
     bus_.RegisterClientAsSender(worker_client_id_, kBlockDomainRegistrationMessage);
     bus_.RegisterClientAsReceiver(worker_client_id_, kBlockDomainRegistrationResponseMessage);
 
-    bus_.RegisterClientAsSender(worker_client_id_, kLocateBlockMessage);
-    bus_.RegisterClientAsReceiver(worker_client_id_, kLocateBlockResponseMessage);
-
     bus_.RegisterClientAsSender(worker_client_id_, kPoisonMessage);
 
     block_domain_ =
@@ -106,58 +105,21 @@ class BlockLocatorTest : public ::testing::Test {
                                            move(message)));
   }
 
-  vector<block_id_domain> getPeerDomains(const block_id block) {
-    serialization::BlockMessage proto;
-    proto.set_block_id(block);
-
-    const int proto_length = proto.ByteSize();
-    char *proto_bytes = static_cast<char*>(malloc(proto_length));
-    CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-    TaggedMessage message(static_cast<const void*>(proto_bytes),
-                          proto_length,
-                          kLocateBlockMessage);
-    free(proto_bytes);
-
-    LOG(INFO) << "Worker wth Client " << worker_client_id_ << " sent LocateBlockMessage to BlockLocator";
-    CHECK(MessageBus::SendStatus::kOK ==
-        QueryExecutionUtil::SendTMBMessage(&bus_,
-                                           worker_client_id_,
-                                           locator_client_id_,
-                                           move(message)));
-
-    const AnnotatedMessage annotated_message(bus_.Receive(worker_client_id_, 0, true));
-    const TaggedMessage &tagged_message = annotated_message.tagged_message;
-    CHECK_EQ(kLocateBlockResponseMessage, tagged_message.message_type());
-    LOG(INFO) << "Worker with Client " << worker_client_id_
-              << " received LocateBlockResponseMessage from BlockLocator";
-
-    serialization::LocateBlockResponseMessage response_proto;
-    CHECK(response_proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
-
-    vector<block_id_domain> domains;
-    for (int i = 0; i < response_proto.block_domains_size(); ++i) {
-      domains.push_back(response_proto.block_domains(i));
-    }
-
-    return domains;
-  }
-
   void checkLoaded(const block_id block) {
     const vector<string> peer_domain_network_addresses = storage_manager_->getPeerDomainNetworkAddresses(block);
     EXPECT_EQ(1u, peer_domain_network_addresses.size());
     EXPECT_STREQ(kDomainNetworkAddress, peer_domain_network_addresses[0].data());
 
-    const vector<block_id_domain> domains = getPeerDomains(block);
+    const unordered_set<block_id_domain> domains = locator_->getBlockDomains(block);
     EXPECT_EQ(1u, domains.size());
-    EXPECT_EQ(block_domain_, domains[0]);
+    EXPECT_EQ(1u, domains.count(block_domain_));
   }
 
   void checkEvicted(const block_id block) {
     const vector<string> peer_domain_network_addresses = storage_manager_->getPeerDomainNetworkAddresses(block);
     EXPECT_TRUE(peer_domain_network_addresses.empty());
 
-    const vector<block_id_domain> domains = getPeerDomains(block);
+    const unordered_set<block_id_domain> domains = locator_->getBlockDomains(block);
     EXPECT_TRUE(domains.empty());
   }
 

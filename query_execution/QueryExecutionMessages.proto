@@ -164,10 +164,6 @@ message BlockMessage {
   required fixed64 block_id = 1;
 }
 
-message LocateBlockResponseMessage {
-  repeated uint32 block_domains = 1;
-}
-
 message GetPeerDomainNetworkAddressesResponseMessage {
   repeated string domain_network_addresses = 1;
 }

@@ -83,8 +83,6 @@ class QueryExecutionUtil {
       case kBlockDomainToShiftbossIndexMessage:           return "BlockDomainToShiftbossIndexMessage";
       case kAddBlockLocationMessage:                      return "AddBlockLocationMessage";
       case kDeleteBlockLocationMessage:                   return "DeleteBlockLocationMessage";
-      case kLocateBlockMessage:                           return "LocateBlockMessage";
-      case kLocateBlockResponseMessage:                   return "LocateBlockResponseMessage";
       case kGetPeerDomainNetworkAddressesMessage:         return "GetPeerDomainNetworkAddressesMessage";
       case kGetPeerDomainNetworkAddressesResponseMessage: return "GetPeerDomainNetworkAddressesResponseMessage";
       case kBlockDomainUnregistrationMessage:             return "BlockDomainUnregistrationMessage";

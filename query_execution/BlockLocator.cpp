@@ -130,13 +130,6 @@ void BlockLocator::run() {
         }
         break;
       }
-      case kLocateBlockMessage: {
-        serialization::BlockMessage proto;
-        CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
-
-        processLocateBlockMessage(sender, proto.block_id());
-        break;
-      }
       case kGetPeerDomainNetworkAddressesMessage: {
         serialization::BlockMessage proto;
         CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
@@ -193,34 +186,6 @@ void BlockLocator::processBlockDomainRegistrationMessage(const client_id receive
 
   DLOG(INFO) << "BlockLocator with Client " << locator_client_id_
              << " sent BlockDomainRegistrationResponseMessage to Client " << receiver;
-  CHECK(tmb::MessageBus::SendStatus::kOK ==
-      QueryExecutionUtil::SendTMBMessage(bus_,
-                                         locator_client_id_,
-                                         receiver,
-                                         move(message)));
-}
-
-void BlockLocator::processLocateBlockMessage(const client_id receiver,
-                                             const block_id block) {
-  serialization::LocateBlockResponseMessage proto;
-
-  // NOTE(zuyu): We don't need to protect here, as all the writers are in the
-  // single thread.
-  for (const block_id_domain domain : block_locations_[block]) {
-    proto.add_block_domains(domain);
-  }
-
-  const int proto_length = proto.ByteSize();
-  char *proto_bytes = static_cast<char*>(malloc(proto_length));
-  CHECK(proto.SerializeToArray(proto_bytes, proto_length));
-
-  TaggedMessage message(static_cast<const void*>(proto_bytes),
-                        proto_length,
-                        kLocateBlockResponseMessage);
-  free(proto_bytes);
-
-  DLOG(INFO) << "BlockLocator with Client " << locator_client_id_
-             << " sent LocateBlockResponseMessage to StorageManager with Client " << receiver;
   CHECK(tmb::MessageBus::SendStatus::kOK ==
       QueryExecutionUtil::SendTMBMessage(bus_,
                                          locator_client_id_,

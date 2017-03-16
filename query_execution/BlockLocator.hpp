@@ -74,9 +74,6 @@ class BlockLocator : public Thread {
     bus_->RegisterClientAsReceiver(locator_client_id_, kAddBlockLocationMessage);
     bus_->RegisterClientAsReceiver(locator_client_id_, kDeleteBlockLocationMessage);
 
-    bus_->RegisterClientAsReceiver(locator_client_id_, kLocateBlockMessage);
-    bus_->RegisterClientAsSender(locator_client_id_, kLocateBlockResponseMessage);
-
     bus_->RegisterClientAsReceiver(locator_client_id_, kGetPeerDomainNetworkAddressesMessage);
     bus_->RegisterClientAsSender(locator_client_id_, kGetPeerDomainNetworkAddressesResponseMessage);
 
@@ -96,6 +93,27 @@ class BlockLocator : public Thread {
   }
 
   /**
+   * @brief Get the block domain info for a given block.
+   *
+   * @param block The given block.
+   *
+   * @return The block domain info for a given block.
+   **/
+  std::unordered_set<block_id_domain> getBlockDomains(const block_id block) const {
+    {
+      // Lock 'block_locations_shared_mutex_' as briefly as possible as a
+      // reader.
+      SpinSharedMutexSharedLock<false> read_lock(block_locations_shared_mutex_);
+      const auto cit = block_locations_.find(block);
+      if (cit != block_locations_.end()) {
+        return cit->second;
+      }
+    }
+
+    return std::unordered_set<block_id_domain>();
+  }
+
+  /**
    * @brief Get the block locality info for scheduling in ForemanDistributed.
    *
    * @param block The given block.
@@ -105,20 +123,8 @@ class BlockLocator : public Thread {
    * @return Whether the block locality info has found.
    **/
   bool getBlockLocalityInfo(const block_id block, std::size_t *shiftboss_index_for_block) const {
-    std::unordered_set<block_id_domain> block_domains;
-    {
-      // Lock 'block_locations_shared_mutex_' as briefly as possible as a
-      // reader.
-      SpinSharedMutexSharedLock<false> read_lock(block_locations_shared_mutex_);
-      const auto cit = block_locations_.find(block);
-      if (cit != block_locations_.end()) {
-        block_domains = cit->second;
-      } else {
-        return false;
-      }
-    }
-
-    {
+    const std::unordered_set<block_id_domain> block_domains = getBlockDomains(block);
+    if (!block_domains.empty()) {
       // NOTE(zuyu): This lock is held for the rest duration of this call, as the
       // exclusive case is rare.
       SpinSharedMutexSharedLock<false> read_lock(block_domain_to_shiftboss_index_shared_mutex_);
@@ -140,7 +146,6 @@ class BlockLocator : public Thread {
 
  private:
   void processBlockDomainRegistrationMessage(const tmb::client_id receiver, const std::string &network_address);
-  void processLocateBlockMessage(const tmb::client_id receiver, const block_id block);
   void processGetPeerDomainNetworkAddressesMessage(const tmb::client_id receiver, const block_id block);
 
   tmb::MessageBus *bus_;
