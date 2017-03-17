@@ -196,8 +196,10 @@ void BlockLocator::processGetAllDomainNetworkAddressesMessage(const client_id re
   // NOTE(zuyu): We don't need to protect here, as all the writers are in the
   // single thread.
   for (const auto &domain_network_address_pair : domain_network_addresses_) {
-    (*proto.mutable_domain_network_addresses())[domain_network_address_pair.first] =
-        domain_network_address_pair.second;
+    serialization::GetAllDomainNetworkAddressesResponseMessage::DomainNetworkAddress *proto_domain_network_address =
+        proto.add_domain_network_addresses();
+    proto_domain_network_address->set_block_domain(domain_network_address_pair.first);
+    proto_domain_network_address->set_network_address(domain_network_address_pair.second);
   }
 
   const int proto_length = proto.ByteSize();

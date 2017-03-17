@@ -613,10 +613,11 @@ string StorageManager::getPeerDomainNetworkAddress(const block_id_domain block_d
     serialization::GetAllDomainNetworkAddressesResponseMessage proto;
     CHECK(proto.ParseFromArray(tagged_message.message(), tagged_message.message_bytes()));
 
-    for (const auto &domain_network_address_pair : proto.domain_network_addresses()) {
-      const block_id_domain block_domain = domain_network_address_pair.first;
+    for (int i = 0; i < proto.domain_network_addresses_size(); ++i) {
+      const auto &proto_domain_network_address = proto.domain_network_addresses(i);
+      const block_id_domain block_domain = proto_domain_network_address.block_domain();
       if (block_domain_network_addresses_.find(block_domain) == block_domain_network_addresses_.end()) {
-        block_domain_network_addresses_.emplace(block_domain, domain_network_address_pair.second);
+        block_domain_network_addresses_.emplace(block_domain, proto_domain_network_address.network_address());
       }
     }
 

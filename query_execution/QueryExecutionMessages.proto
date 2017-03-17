@@ -165,5 +165,10 @@ message BlockMessage {
 }
 
 message GetAllDomainNetworkAddressesResponseMessage {
-  map<uint32, string> domain_network_addresses = 1;
+  message DomainNetworkAddress {
+    required uint32 block_domain = 1;
+    required string network_address = 2;
+  }
+
+  repeated DomainNetworkAddress domain_network_addresses = 1;
 }
