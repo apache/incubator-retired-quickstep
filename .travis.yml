@@ -106,8 +106,6 @@ addons:
       - g++-5
       - clang-3.7
       - binutils-gold
-      - libprotobuf-dev
-      - protobuf-compiler
       - libgtest-dev
       - python-networkx
       - libnuma-dev
