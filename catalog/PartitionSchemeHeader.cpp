@@ -113,7 +113,8 @@ serialization::PartitionSchemeHeader PartitionSchemeHeader::getProto() const {
       proto.set_partition_type(serialization::PartitionSchemeHeader::HASH);
       break;
     case PartitionType::kRange:
-      LOG(FATAL) << "RangePartitionSchemeHeader should call the overridden method.";
+      proto.set_partition_type(serialization::PartitionSchemeHeader::RANGE);
+      break;
     default:
       LOG(FATAL) << "Invalid Partition Type.";
   }
@@ -125,11 +126,7 @@ serialization::PartitionSchemeHeader PartitionSchemeHeader::getProto() const {
 }
 
 serialization::PartitionSchemeHeader RangePartitionSchemeHeader::getProto() const {
-  serialization::PartitionSchemeHeader proto;
-
-  proto.set_partition_type(serialization::PartitionSchemeHeader::RANGE);
-  proto.set_num_partitions(num_partitions_);
-  proto.set_partition_attribute_id(partition_attribute_id_);
+  serialization::PartitionSchemeHeader proto = PartitionSchemeHeader::getProto();
 
   proto.MutableExtension(serialization::RangePartitionSchemeHeader::partition_attr_type)
       ->MergeFrom(partition_attr_type_->getProto());
