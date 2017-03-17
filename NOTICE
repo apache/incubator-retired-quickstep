@@ -6,32 +6,3 @@ The Apache Software Foundation (http://www.apache.org/).
 
 Portions Copyright (c) 2011-2015, Quickstep Technologies, LLC.
 Portions Copyright (c) 2015-2016, Pivotal Software, Inc.
-
-[Copyright for third_party/src/tmb/benchmark]
-Portions Copyright (c) Arne Beer <arne@twobeer.de>
-Portions Copyright (c) Christopher Seymour <chris.j.seymour@hotmail.com>
-Portions Copyright (c) David Coeurjolly <david.coeurjolly@liris.cnrs.fr>
-Portions Copyright (c) Dominic Hamon <dma@stripysock.com>
-Portions Copyright (c) Eugene Zhuk <eugene.zhuk@gmail.com>
-Portions Copyright (c) Evgeny Safronov <division494@gmail.com>
-Portions Copyright (c) Felix Homann <linuxaudio@showlabor.de>
-Portions Copyright (c) Google Inc.
-Portions Copyright (c) JianXiong Zhou <zhoujianxiong2@gmail.com>
-Portions Copyright (c) Lei Xu <eddyxu@gmail.com>
-Portions Copyright (c) Matt Clarkson <mattyclarkson@gmail.com>
-Portions Copyright (c) Oleksandr Sochka <sasha.sochka@gmail.com>
-Portions Copyright (c) Paul Redmond <paul.redmond@gmail.com>
-Portions Copyright (c) Shuo Chen <chenshuo@chenshuo.com>
-Portions Copyright (c) Yusuke Suzuki <utatane.tea@gmail.com>
-
-[Copyright for third_party/src/cpplint]
-Portions Copyright (c) 2009 Google Inc
-
-[Copyright for third_party/src/farmhash]
-Copyright (c) 2014 Google, Inc.
-
-[Copyright for third_party/src/gflags]
-Copyright (c) 2006, Google Inc.
-
-[Copyright for third_party/src/glog]
-Copyright (c) 2008, Google Inc.
