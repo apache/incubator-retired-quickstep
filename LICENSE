@@ -200,3 +200,94 @@
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
+
+--------------------------------------------------------------------------------
+
+The following libraries are under the Apache-2.0 license
+
+third_party/src/benchmark
+  Portions Copyright (c) Arne Beer <arne@twobeer.de>
+  Portions Copyright (c) Christopher Seymour <chris.j.seymour@hotmail.com>
+  Portions Copyright (c) David Coeurjolly <david.coeurjolly@liris.cnrs.fr>
+  Portions Copyright (c) Dominic Hamon <dma@stripysock.com>
+  Portions Copyright (c) Eugene Zhuk <eugene.zhuk@gmail.com>
+  Portions Copyright (c) Evgeny Safronov <division494@gmail.com>
+  Portions Copyright (c) Felix Homann <linuxaudio@showlabor.de>
+  Portions Copyright (c) Google Inc.
+  Portions Copyright (c) JianXiong Zhou <zhoujianxiong2@gmail.com>
+  Portions Copyright (c) Lei Xu <eddyxu@gmail.com>
+  Portions Copyright (c) Matt Clarkson <mattyclarkson@gmail.com>
+  Portions Copyright (c) Oleksandr Sochka <sasha.sochka@gmail.com>
+  Portions Copyright (c) Paul Redmond <paul.redmond@gmail.com>
+  Portions Copyright (c) Shuo Chen <chenshuo@chenshuo.com>
+  Portions Copyright (c) Yusuke Suzuki <utatane.tea@gmail.com>
+
+--------------------------------------------------------------------------------
+
+The following libraries are under the 3-clause BSD license
+
+third_party/src/cpplint
+third_party/src/gflags
+third_party/src/glog
+third_party/src/googletest/[googletest|googlemock]
+third_party/src/gperftools
+third_party/src/protobuf
+  Copyright (c) 2009 Google Inc. All rights reserved.
+
+third_party/src/linenoise
+  Copyright (c) 2010-2014, Salvatore Sanfilippo <antirez at gmail dot com>
+  Copyright (c) 2010-2013, Pieter Noordhuis <pcnoordhuis at gmail dot com>
+
+third_party/src/re2
+  Copyright (c) 2009 The RE2 Authors.
+
+  Redistribution and use in source and binary forms, with or without
+  modification, are permitted provided that the following conditions are
+  met:
+
+     * Redistributions of source code must retain the above copyright
+  notice, this list of conditions and the following disclaimer.
+     * Redistributions in binary form must reproduce the above
+  copyright notice, this list of conditions and the following disclaimer
+  in the documentation and/or other materials provided with the
+  distribution.
+     * Neither the name of Google Inc. nor the names of its
+  contributors may be used to endorse or promote products derived from
+  this software without specific prior written permission.
+
+  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+  "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+  LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+  A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+  OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+  SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+  LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+  DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+  THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+  (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+  OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE
+
+--------------------------------------------------------------------------------
+
+The following libraries are under the MIT license
+
+third_party/src/farmhash
+  Copyright (c) 2014 Google, Inc.
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in
+  all copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+  THE SOFTWARE.
