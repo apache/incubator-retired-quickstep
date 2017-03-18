@@ -209,6 +209,44 @@ CREATE TABLE test (attr INT) PARTITIONS 4
                              ^
 ==
 
+# Duplicate partition attributes.
+CREATE TABLE test (attr INT) PARTITION BY HASH(attr, attr) PARTITIONS 4
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+| +-AttributeDefinition[name=attr,type=Int]
++-partition_clause=
+  +-PartitionClause[partition_type=hash]
+    +-Number of Partitions=NumericLiteral[numeric_string=4,float_like=false]
+    +-attribute_name_list=
+      +-String[value=attr]
+      +-String[value=attr]
+==
+
+# Multiple partition attributes.
+CREATE TABLE test (attr1 INT, attr2 LONG, attr3 FLOAT, attr4 DOUBLE, attr5 CHAR(5), attr6 VARCHAR(4))
+PARTITION BY HASH(attr1, attr2, attr3, attr4, attr5, attr6) PARTITIONS 4
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+| +-AttributeDefinition[name=attr1,type=Int]
+| +-AttributeDefinition[name=attr2,type=Long]
+| +-AttributeDefinition[name=attr3,type=Float]
+| +-AttributeDefinition[name=attr4,type=Double]
+| +-AttributeDefinition[name=attr5,type=Char(5)]
+| +-AttributeDefinition[name=attr6,type=VarChar(4)]
++-partition_clause=
+  +-PartitionClause[partition_type=hash]
+    +-Number of Partitions=NumericLiteral[numeric_string=4,float_like=false]
+    +-attribute_name_list=
+      +-String[value=attr1]
+      +-String[value=attr2]
+      +-String[value=attr3]
+      +-String[value=attr4]
+      +-String[value=attr5]
+      +-String[value=attr6]
+==
+
 CREATE TABLE test (attr INT) WITH BLOCKPROPERTIES
 (TYPE rowstore)
 --

@@ -29,7 +29,9 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "types/TypedValue.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
+#include "types/operations/comparisons/EqualComparison.hpp"
 #include "types/operations/comparisons/LessComparison.hpp"
+#include "utility/CompositeHash.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -48,6 +50,13 @@ class Type;
  **/
 class PartitionSchemeHeader {
  public:
+  // A vector for partitioning catalog attributes.
+  typedef std::vector<attribute_id> PartitionAttributeIds;
+
+  // The values for partition attributes.
+  // PartitionValues.size() should be equal to PartitionAttributeIds.size().
+  typedef std::vector<TypedValue> PartitionValues;
+
   enum PartitionType {
     kHash = 0,
     kRange
@@ -84,8 +93,8 @@ class PartitionSchemeHeader {
    * @brief Calculate the partition id into which the attribute value should
    *        be inserted.
    *
-   * @param value_of_attribute The attribute value for which the
-   *                           partition id is to be determined.
+   * @param value_of_attributes A vector of attribute values for which the
+   *        partition id is to be determined.
    * @return The partition id of the partition for the attribute value.
    **/
   // TODO(gerald): Make this method more efficient since currently this is
@@ -93,7 +102,7 @@ class PartitionSchemeHeader {
   // once using a value accessor and create bitmaps for each partition with
   // tuples that correspond to those partitions.
   virtual partition_id getPartitionId(
-      const TypedValue &value_of_attribute) const = 0;
+      const PartitionValues &value_of_attributes) const = 0;
 
   /**
    * @brief Serialize the Partition Scheme as Protocol Buffer.
@@ -121,13 +130,13 @@ class PartitionSchemeHeader {
   }
 
   /**
-   * @brief Get the partitioning attribute for the relation.
+   * @brief Get the partitioning attributes for the relation.
    *
-   * @return The partitioning attribute with which the relation
+   * @return The partitioning attributes with which the relation
    *         is partitioned into.
    **/
-  inline attribute_id getPartitionAttributeId() const {
-    return partition_attribute_id_;
+  inline const PartitionAttributeIds& getPartitionAttributeIds() const {
+    return partition_attribute_ids_;
   }
 
  protected:
@@ -137,18 +146,18 @@ class PartitionSchemeHeader {
    * @param type The type of partitioning to be used to partition the
    *             relation.
    * @param num_partitions The number of partitions to be created.
-   * @param attr_id The attribute on which the partitioning happens.
+   * @param attr_ids The attributes on which the partitioning happens.
    **/
   PartitionSchemeHeader(const PartitionType type,
                         const std::size_t num_partitions,
-                        const attribute_id attr_id);
+                        PartitionAttributeIds &&attr_ids);  // NOLINT(whitespace/operators)
 
   // The type of partitioning: Hash or Range.
   const PartitionType partition_type_;
   // The number of partitions.
   const std::size_t num_partitions_;
   // The attribute of partioning.
-  const attribute_id partition_attribute_id_;
+  const PartitionAttributeIds partition_attribute_ids_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(PartitionSchemeHeader);
@@ -158,16 +167,17 @@ class PartitionSchemeHeader {
  * @brief Implementation of PartitionSchemeHeader that partitions the tuples in
  *        a relation based on a hash function on the partitioning attribute.
 **/
-class HashPartitionSchemeHeader : public PartitionSchemeHeader {
+class HashPartitionSchemeHeader final : public PartitionSchemeHeader {
  public:
   /**
    * @brief Constructor.
    *
    * @param num_partitions The number of partitions to be created.
-   * @param attribute The attribute on which the partitioning happens.
+   * @param attributes A vector of attributes on which the partitioning happens.
    **/
-  HashPartitionSchemeHeader(const std::size_t num_partitions, const attribute_id attribute)
-      : PartitionSchemeHeader(PartitionType::kHash, num_partitions, attribute) {
+  HashPartitionSchemeHeader(const std::size_t num_partitions,
+                            PartitionAttributeIds &&attributes)  // NOLINT(whitespace/operators)
+      : PartitionSchemeHeader(PartitionType::kHash, num_partitions, std::move(attributes)) {
   }
 
   /**
@@ -176,20 +186,13 @@ class HashPartitionSchemeHeader : public PartitionSchemeHeader {
   ~HashPartitionSchemeHeader() override {
   }
 
-  /**
-   * @brief Calulate the partition id into which the attribute value
-   *        should be inserted.
-   *
-   * @param value_of_attribute The attribute value for which the
-   *                           partition id is to be determined.
-   * @return The partition id of the partition for the attribute value.
-   **/
   partition_id getPartitionId(
-      const TypedValue &value_of_attribute) const override {
+      const PartitionValues &value_of_attributes) const override {
+    DCHECK_EQ(partition_attribute_ids_.size(), value_of_attributes.size());
     // TODO(gerald): Optimize for the case where the number of partitions is a
     // power of 2. We can just mask out the lower-order hash bits rather than
     // doing a division operation.
-    return value_of_attribute.getHash() % num_partitions_;
+    return HashCompositeKey(value_of_attributes) % num_partitions_;
   }
 
  private:
@@ -200,39 +203,48 @@ class HashPartitionSchemeHeader : public PartitionSchemeHeader {
  * @brief Implementation of PartitionSchemeHeader that partitions the tuples in
  *        a relation based on a given value range on the partitioning attribute.
 **/
-class RangePartitionSchemeHeader : public PartitionSchemeHeader {
+class RangePartitionSchemeHeader final : public PartitionSchemeHeader {
  public:
   /**
    * @brief Constructor.
    *
-   * @param partition_attribute_type The type of CatalogAttribute that is used
-   *                                 for partitioning.
    * @param num_partitions The number of partitions to be created.
-   * @param attribute The attribute_id on which the partitioning happens.
-   * @param partition_range The mapping between the partition ids and the upper
-   *                        bound of the range boundaries. If two ranges R1 and
-   *                        R2 are separated by a boundary value V, then V
-   *                        would fall into range R2. For creating a range
-   *                        partition scheme with n partitions, you need to
-   *                        specify n-1 boundary values. The first partition
-   *                        will have all the values less than the first
-   *                        boundary and the last partition would have all
-   *                        values greater than or equal to the last boundary
-   *                        value.
+   * @param attributes A vector of attribute_ids on which the partitioning
+   *        happens.
+   * @param partition_attribute_types The types of CatalogAttributes used for
+   *        partitioning.
+   * @param partition_ranges The mapping between the partition ids and the upper
+   *        bound of the range boundaries. If two ranges R1 and R2 are separated
+   *        by a vector of boundary values V, then V would fall into range R2.
+   *        For creating a range partition scheme with n partitions, you need to
+   *        specify n-1 range boundaries. The first partition will have all the
+   *        values less than the first item of range boundaries and the last
+   *        partition would have all values greater than or equal to the last
+   *        item of range boundaries.
    **/
-  RangePartitionSchemeHeader(const Type &partition_attribute_type,
-                             const std::size_t num_partitions,
-                             const attribute_id attribute,
-                             std::vector<TypedValue> &&partition_range)
-      : PartitionSchemeHeader(PartitionType::kRange, num_partitions, attribute),
-        partition_attr_type_(&partition_attribute_type),
-        partition_range_boundaries_(std::move(partition_range)) {
+  RangePartitionSchemeHeader(const std::size_t num_partitions,
+                             PartitionAttributeIds &&attributes,  // NOLINT(whitespace/operators)
+                             std::vector<const Type*> &&partition_attribute_types,
+                             std::vector<PartitionValues> &&partition_ranges)
+      : PartitionSchemeHeader(PartitionType::kRange, num_partitions, std::move(attributes)),
+        partition_attr_types_(std::move(partition_attribute_types)),
+        partition_range_boundaries_(std::move(partition_ranges)) {
+    DCHECK_EQ(partition_attribute_ids_.size(), partition_attr_types_.size());
     DCHECK_EQ(num_partitions - 1, partition_range_boundaries_.size());
 
     const Comparison &less_comparison_op(LessComparison::Instance());
-    less_unchecked_comparator_.reset(
-        less_comparison_op.makeUncheckedComparatorForTypes(
-            partition_attribute_type, partition_attribute_type));
+    for (const Type *type : partition_attr_types_) {
+      std::unique_ptr<UncheckedComparator> less_unchecked_comparator(
+          less_comparison_op.makeUncheckedComparatorForTypes(*type, *type));
+      less_unchecked_comparators_.emplace_back(std::move(less_unchecked_comparator));
+    }
+
+    const Comparison &equal_comparison_op = EqualComparison::Instance();
+    for (const Type *type : partition_attr_types_) {
+      std::unique_ptr<UncheckedComparator> equal_unchecked_comparator(
+          equal_comparison_op.makeUncheckedComparatorForTypes(*type, *type));
+      equal_unchecked_comparators_.emplace_back(std::move(equal_unchecked_comparator));
+    }
 
 #ifdef QUICKSTEP_DEBUG
     checkPartitionRangeBoundaries();
@@ -245,24 +257,18 @@ class RangePartitionSchemeHeader : public PartitionSchemeHeader {
   ~RangePartitionSchemeHeader() override {
   }
 
-  /**
-   * @brief Calulate the partition id into which the attribute value
-   *        should be inserted.
-   *
-   * @param value_of_attribute The attribute value for which the
-   *                           partition id is to be determined.
-   * @return The partition id of the partition for the attribute value.
-   **/
   partition_id getPartitionId(
-      const TypedValue &value_of_attribute) const override {
+      const PartitionValues &value_of_attributes) const override {
+    DCHECK_EQ(partition_attribute_ids_.size(), value_of_attributes.size());
+
     partition_id start = 0, end = partition_range_boundaries_.size() - 1;
-    if (!less_unchecked_comparator_->compareTypedValues(value_of_attribute, partition_range_boundaries_[end])) {
+    if (!lessThan(value_of_attributes, partition_range_boundaries_[end])) {
       return num_partitions_ - 1;
     }
 
     while (start < end) {
       const partition_id mid = start + ((end - start) >> 1);
-      if (less_unchecked_comparator_->compareTypedValues(value_of_attribute, partition_range_boundaries_[mid])) {
+      if (lessThan(value_of_attributes, partition_range_boundaries_[mid])) {
         end = mid;
       } else {
         start = mid + 1;
@@ -279,7 +285,7 @@ class RangePartitionSchemeHeader : public PartitionSchemeHeader {
    *
    * @return The vector of range boundaries for partitions.
    **/
-  inline const std::vector<TypedValue>& getPartitionRangeBoundaries() const {
+  inline const std::vector<PartitionValues>& getPartitionRangeBoundaries() const {
     return partition_range_boundaries_;
   }
 
@@ -288,22 +294,52 @@ class RangePartitionSchemeHeader : public PartitionSchemeHeader {
    * @brief Check if the partition range boundaries are in ascending order.
    **/
   void checkPartitionRangeBoundaries() {
+    for (const PartitionValues &partition_range_boundary : partition_range_boundaries_) {
+      CHECK_EQ(partition_attribute_ids_.size(), partition_range_boundary.size())
+          << "A partition boundary has different size than that of partition attributes.";
+    }
+
     for (partition_id part_id = 1; part_id < partition_range_boundaries_.size(); ++part_id) {
-      if (less_unchecked_comparator_->compareTypedValues(
-              partition_range_boundaries_[part_id],
-              partition_range_boundaries_[part_id - 1])) {
-        LOG(FATAL) << "Partition boundaries are not in ascending order.";
-      }
+      CHECK(lessThan(partition_range_boundaries_[part_id - 1], partition_range_boundaries_[part_id]))
+          << "Partition boundaries are not in ascending order.";
     }
   }
 
-  const Type* partition_attr_type_;
+  /**
+   * @brief Check if the partition values are in the lexicographical order.
+   *
+   * @note (l_0, l_1, ..., l_n) < (r_0, r_1, ..., r_n) iff l_0 < r_0, or
+   *       (l_0 == r_0) && (l_1, ..., l_n) < (r_1, ..., r_n).
+   **/
+  bool lessThan(const PartitionValues &lhs, const PartitionValues &rhs) const {
+    DCHECK_EQ(partition_attribute_ids_.size(), lhs.size());
+    DCHECK_EQ(partition_attribute_ids_.size(), rhs.size());
+
+    for (std::size_t attr_index = 0; attr_index < partition_attribute_ids_.size(); ++attr_index) {
+      if (less_unchecked_comparators_[attr_index]->compareTypedValues(lhs[attr_index], rhs[attr_index])) {
+        break;
+      } else if (equal_unchecked_comparators_[attr_index]->compareTypedValues(lhs[attr_index], rhs[attr_index])) {
+        if (attr_index == partition_attribute_ids_.size() - 1) {
+          return false;
+        }
+      } else {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  // The size is equal to 'partition_attribute_ids_.size()'.
+  const std::vector<const Type*> partition_attr_types_;
 
   // The boundaries for each range in the RangePartitionSchemeHeader.
   // The upper bound of the range is stored here.
-  const std::vector<TypedValue> partition_range_boundaries_;
+  const std::vector<PartitionValues> partition_range_boundaries_;
 
-  std::unique_ptr<UncheckedComparator> less_unchecked_comparator_;
+  // Both size are equal to 'partition_attr_types_.size()'.
+  std::vector<std::unique_ptr<UncheckedComparator>> less_unchecked_comparators_;
+  std::vector<std::unique_ptr<UncheckedComparator>> equal_unchecked_comparators_;
 
   DISALLOW_COPY_AND_ASSIGN(RangePartitionSchemeHeader);
 };

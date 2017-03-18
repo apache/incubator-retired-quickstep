@@ -35,22 +35,22 @@
 #include "types/TypedValue.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/EqualComparison.hpp"
+#include "utility/CompositeHash.hpp"
 
 #include "gtest/gtest.h"
 
 using std::move;
 using std::size_t;
+using std::vector;
 
 namespace quickstep {
-
-class Type;
 
 TEST(PartitionSchemeHeaderTest, IntegerHashPartitionSchemeHeaderTest) {
   const std::size_t num_partitions = 4;
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new HashPartitionSchemeHeader(num_partitions, 0));
+      new HashPartitionSchemeHeader(num_partitions, { 0 }));
   EXPECT_EQ(num_partitions, partition_scheme_header->getNumPartitions());
-  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeId());
+  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   const int kSampleInts[] = {
       0, 1, 2, 3, 400, 501, 64783970, 78437883, -2784627};
   const size_t num_ints = sizeof(kSampleInts) / sizeof(kSampleInts[0]);
@@ -59,16 +59,16 @@ TEST(PartitionSchemeHeaderTest, IntegerHashPartitionSchemeHeaderTest) {
     // an integer is the same as the hash of the integer modulus the number
     // of partitions.
     EXPECT_EQ(TypedValue(kSampleInts[i]).getHash() % num_partitions,
-              partition_scheme_header->getPartitionId(TypedValue(kSampleInts[i])));
+              partition_scheme_header->getPartitionId({ TypedValue(kSampleInts[i]) }));
   }
 }
 
 TEST(PartitionSchemeHeaderTest, LongHashPartitionSchemeHeaderTest) {
   const std::size_t num_partitions = 8;
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new HashPartitionSchemeHeader(num_partitions, 0));
+      new HashPartitionSchemeHeader(num_partitions, { 0 }));
   EXPECT_EQ(num_partitions, partition_scheme_header->getNumPartitions());
-  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeId());
+  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   const std::int64_t kSampleLongs[] = {INT64_C(10),
                                   INT64_C(100),
                                   INT64_C(1025),
@@ -80,16 +80,16 @@ TEST(PartitionSchemeHeaderTest, LongHashPartitionSchemeHeaderTest) {
   // of partitions.
   for (size_t i = 0; i < num_longs; ++i) {
     EXPECT_EQ(TypedValue(kSampleLongs[i]).getHash() % num_partitions,
-              partition_scheme_header->getPartitionId(TypedValue(kSampleLongs[i])));
+              partition_scheme_header->getPartitionId({ TypedValue(kSampleLongs[i]) }));
   }
 }
 
 TEST(PartitionSchemeHeaderTest, FloatHashPartitionSchemeHeaderTest) {
   const std::size_t num_partitions = 5;
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new HashPartitionSchemeHeader(num_partitions, 0));
+      new HashPartitionSchemeHeader(num_partitions, { 0 }));
   EXPECT_EQ(num_partitions, partition_scheme_header->getNumPartitions());
-  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeId());
+  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   const float kSampleFloats[] = {
       285728.895680f, 924005.4989f, -8973494.37438f};
   const size_t num_floats = sizeof(kSampleFloats) / sizeof(kSampleFloats[0]);
@@ -98,16 +98,16 @@ TEST(PartitionSchemeHeaderTest, FloatHashPartitionSchemeHeaderTest) {
   // the number of partitions.
   for (size_t i = 0; i < num_floats; ++i) {
     EXPECT_EQ(TypedValue(kSampleFloats[i]).getHash() % num_partitions,
-              partition_scheme_header->getPartitionId(TypedValue(kSampleFloats[i])));
+              partition_scheme_header->getPartitionId({ TypedValue(kSampleFloats[i]) }));
   }
 }
 
 TEST(PartitionSchemeHeaderTest, DoubleHashPartitionSchemeHeaderTest) {
   const std::size_t num_partitions = 6;
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new HashPartitionSchemeHeader(num_partitions, 0));
+      new HashPartitionSchemeHeader(num_partitions, { 0 }));
   EXPECT_EQ(num_partitions, partition_scheme_header->getNumPartitions());
-  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeId());
+  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   const double kSampleDoubles[] = {
       1.0378, 763624.46343453, -87238497384.3187431894713};
   const size_t num_doubles = sizeof(kSampleDoubles) / sizeof(kSampleDoubles[0]);
@@ -117,16 +117,16 @@ TEST(PartitionSchemeHeaderTest, DoubleHashPartitionSchemeHeaderTest) {
   for (size_t i = 0; i < num_doubles; ++i) {
     EXPECT_EQ(
         TypedValue(kSampleDoubles[i]).getHash() % num_partitions,
-        partition_scheme_header->getPartitionId(TypedValue(kSampleDoubles[i])));
+        partition_scheme_header->getPartitionId({ TypedValue(kSampleDoubles[i]) }));
   }
 }
 
 TEST(PartitionSchemeHeaderTest, CharacterHashPartitionSchemeHeaderTest) {
   const std::size_t num_partitions = 7;
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new HashPartitionSchemeHeader(num_partitions, 0));
+      new HashPartitionSchemeHeader(num_partitions, { 0 }));
   EXPECT_EQ(num_partitions, partition_scheme_header->getNumPartitions());
-  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeId());
+  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   const char *kSampleStrings[] = {
       "a", "gerald", "ram", "3081289", "=42?", "+-/*&^%", "hello_world"};
   const size_t num_strings = sizeof(kSampleStrings) / sizeof(kSampleStrings[0]);
@@ -139,17 +139,17 @@ TEST(PartitionSchemeHeaderTest, CharacterHashPartitionSchemeHeaderTest) {
             kChar, kSampleStrings[i], std::strlen(kSampleStrings[i]) + 1)
                 .getHash() %
             num_partitions,
-        partition_scheme_header->getPartitionId(TypedValue(
-            kChar, kSampleStrings[i], std::strlen(kSampleStrings[i]) + 1)));
+        partition_scheme_header->getPartitionId({ TypedValue(
+            kChar, kSampleStrings[i], std::strlen(kSampleStrings[i]) + 1) }));
   }
 }
 
 TEST(PartitionSchemeHeaderTest, VarCharHashPartitionSchemeHeaderTest) {
   const std::size_t num_partitions = 7;
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new HashPartitionSchemeHeader(num_partitions, 0));
+      new HashPartitionSchemeHeader(num_partitions, { 0 }));
   EXPECT_EQ(num_partitions, partition_scheme_header->getNumPartitions());
-  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeId());
+  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   const char *kSampleStrings[] = {
       "hello", "world", "1234567", "!@#$^&*", "pa345+="};
   const size_t num_strings = sizeof(kSampleStrings) / sizeof(kSampleStrings[0]);
@@ -163,131 +163,153 @@ TEST(PartitionSchemeHeaderTest, VarCharHashPartitionSchemeHeaderTest) {
                 .getHash() %
             num_partitions,
         partition_scheme_header->getPartitionId(
-            TypedValue(kVarChar,
-                       kSampleStrings[i],
-                       std::strlen(kSampleStrings[i]) + 1)));
+            { TypedValue(kVarChar, kSampleStrings[i], std::strlen(kSampleStrings[i]) + 1) }));
+  }
+}
+
+TEST(PartitionSchemeHeaderTest, MultiAttributeHashPartitionSchemeHeaderTest) {
+  const std::size_t num_partitions = 4;
+  constexpr attribute_id kPartitioningFirstAttribute = 0;
+  constexpr attribute_id kPartitioningLastAttribute = 2;
+  std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
+      new HashPartitionSchemeHeader(num_partitions, { kPartitioningFirstAttribute, kPartitioningLastAttribute }));
+  EXPECT_EQ(num_partitions, partition_scheme_header->getNumPartitions());
+  EXPECT_EQ(kPartitioningFirstAttribute, partition_scheme_header->getPartitionAttributeIds().front());
+  EXPECT_EQ(kPartitioningLastAttribute, partition_scheme_header->getPartitionAttributeIds().back());
+  const int kSampleInts[] = {
+      0, 78437883, -2784627};
+  const double kSampleDoubles[] = {
+      1.0378, 763624.46343453, -87238497384.3187431894713};
+  const size_t num_ints = sizeof(kSampleInts) / sizeof(kSampleInts[0]);
+  for (size_t i = 0; i < num_ints; ++i) {
+    const PartitionSchemeHeader::PartitionValues values =
+        { TypedValue(kSampleInts[i]), TypedValue(kSampleDoubles[i]) };
+    // Check if the partition id returned by the partition scheme for
+    // an integer is the same as the hash of the integer modulus the number
+    // of partitions.
+    EXPECT_EQ(HashCompositeKey(values) % num_partitions,
+              partition_scheme_header->getPartitionId(values));
   }
 }
 
 TEST(PartitionSchemeHeaderTest, IntegerRangePartitionSchemeHeaderTest) {
-  std::vector<TypedValue> partition_range;
+  vector<PartitionSchemeHeader::PartitionValues> partition_ranges;
   // Partition boundaries are 0, 10, 20.
   // Last partition can hold upto infinity.
   // First partition can hold from -infinity to -1.
   for (int i = 0; i < 3; ++i) {
-    partition_range.push_back(TypedValue(i * 10));
+    partition_ranges.push_back({ TypedValue(i * 10) });
   }
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new RangePartitionSchemeHeader(TypeFactory::GetType(kInt), 4, 0, move(partition_range)));
+      new RangePartitionSchemeHeader(4, { 0 }, { &TypeFactory::GetType(kInt) }, move(partition_ranges)));
   EXPECT_EQ(4u, partition_scheme_header->getNumPartitions());
   // Check if the partition id returned by the Range Partition Scheme for
   // integers is the same as the partition id into which it is supposed to
   // be based on the partition boundaries that we have defined.
-  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeId());
-  EXPECT_EQ(1u, partition_scheme_header->getPartitionId(TypedValue(0)));
-  EXPECT_EQ(2u, partition_scheme_header->getPartitionId(TypedValue(10)));
-  EXPECT_EQ(3u, partition_scheme_header->getPartitionId(TypedValue(20)));
-  EXPECT_EQ(3u, partition_scheme_header->getPartitionId(TypedValue(30)));
-  EXPECT_EQ(0u, partition_scheme_header->getPartitionId(TypedValue(-4)));
-  EXPECT_EQ(2u, partition_scheme_header->getPartitionId(TypedValue(15)));
-  EXPECT_EQ(1u, partition_scheme_header->getPartitionId(TypedValue(6)));
-  EXPECT_EQ(0u, partition_scheme_header->getPartitionId(TypedValue(-70)));
-  EXPECT_EQ(3u, partition_scheme_header->getPartitionId(TypedValue(1000)));
-  EXPECT_EQ(3u, partition_scheme_header->getPartitionId(TypedValue(20000)));
+  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
+
+  EXPECT_EQ(1u, partition_scheme_header->getPartitionId({ TypedValue(0) }));
+  EXPECT_EQ(2u, partition_scheme_header->getPartitionId({ TypedValue(10) }));
+  EXPECT_EQ(3u, partition_scheme_header->getPartitionId({ TypedValue(20) }));
+  EXPECT_EQ(3u, partition_scheme_header->getPartitionId({ TypedValue(30) }));
+  EXPECT_EQ(0u, partition_scheme_header->getPartitionId({ TypedValue(-4) }));
+  EXPECT_EQ(2u, partition_scheme_header->getPartitionId({ TypedValue(15) }));
+  EXPECT_EQ(1u, partition_scheme_header->getPartitionId({ TypedValue(6) }));
+  EXPECT_EQ(0u, partition_scheme_header->getPartitionId({ TypedValue(-70) }));
+  EXPECT_EQ(3u, partition_scheme_header->getPartitionId({ TypedValue(1000) }));
+  EXPECT_EQ(3u, partition_scheme_header->getPartitionId({ TypedValue(20000) }));
 }
 
 TEST(PartitionSchemeHeaderTest, LongRangePartitionSchemeHeaderTest) {
-  std::vector<TypedValue> partition_range;
+  vector<PartitionSchemeHeader::PartitionValues> partition_ranges;
   // Partition boundaries are 0, 10000, 20000, 30000
   for (int i = 0; i < 3; ++i) {
-    partition_range.push_back(TypedValue(i * INT64_C(10000)));
+    partition_ranges.push_back({ TypedValue(i * INT64_C(10000)) });
   }
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new RangePartitionSchemeHeader(TypeFactory::GetType(kLong), 4, 0, move(partition_range)));
+      new RangePartitionSchemeHeader(4, { 0 }, { &TypeFactory::GetType(kLong) }, move(partition_ranges)));
 
   EXPECT_EQ(4u, partition_scheme_header->getNumPartitions());
-  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeId());
+  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   // Check if the partition id returned by the Range Partition Scheme for
   // long numbers is the same as the partition id into which it is supposed to
   // be based on the partition boundaries that we have defined.
-  EXPECT_EQ(1u, partition_scheme_header->getPartitionId(TypedValue(INT64_C(0))));
-  EXPECT_EQ(2u, partition_scheme_header->getPartitionId(TypedValue(INT64_C(13456))));
-  EXPECT_EQ(3u, partition_scheme_header->getPartitionId(TypedValue(INT64_C(20000))));
-  EXPECT_EQ(3u, partition_scheme_header->getPartitionId(TypedValue(INT64_C(300123))));
+  EXPECT_EQ(1u, partition_scheme_header->getPartitionId({ TypedValue(INT64_C(0)) }));
+  EXPECT_EQ(2u, partition_scheme_header->getPartitionId({ TypedValue(INT64_C(13456)) }));
+  EXPECT_EQ(3u, partition_scheme_header->getPartitionId({ TypedValue(INT64_C(20000)) }));
+  EXPECT_EQ(3u, partition_scheme_header->getPartitionId({ TypedValue(INT64_C(300123)) }));
   EXPECT_EQ(0u,
-            partition_scheme_header->getPartitionId(TypedValue(INT64_C(-400000))));
-  EXPECT_EQ(2u, partition_scheme_header->getPartitionId(TypedValue(INT64_C(15123))));
-  EXPECT_EQ(1u, partition_scheme_header->getPartitionId(TypedValue(INT64_C(6012))));
+            partition_scheme_header->getPartitionId({ TypedValue(INT64_C(-400000)) }));
+  EXPECT_EQ(2u, partition_scheme_header->getPartitionId({ TypedValue(INT64_C(15123)) }));
+  EXPECT_EQ(1u, partition_scheme_header->getPartitionId({ TypedValue(INT64_C(6012)) }));
   EXPECT_EQ(0u,
-            partition_scheme_header->getPartitionId(TypedValue(INT64_C(-7000000))));
+            partition_scheme_header->getPartitionId({ TypedValue(INT64_C(-7000000)) }));
 }
 
 TEST(PartitionSchemeHeaderTest, FloatRangePartitionSchemeHeaderTest) {
-  std::vector<TypedValue> partition_range;
+  vector<PartitionSchemeHeader::PartitionValues> partition_ranges;
   // Partition boundaries are 0.0, 10.0, 20.0
   for (int i = 0; i < 3; ++i) {
-    partition_range.push_back(TypedValue(i * 10.0f));
+    partition_ranges.push_back({ TypedValue(i * 10.0f) });
   }
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new RangePartitionSchemeHeader(TypeFactory::GetType(kFloat), 4, 0, move(partition_range)));
+      new RangePartitionSchemeHeader(4, { 0 }, { &TypeFactory::GetType(kFloat) }, move(partition_ranges)));
   EXPECT_EQ(4u, partition_scheme_header->getNumPartitions());
-  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeId());
+  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   // Check if the partition id returned by the Range Partition Scheme for
   // floats is the same as the partition id into which it is supposed to
   // be based on the partition boundaries that we have defined.
-  EXPECT_EQ(1u, partition_scheme_header->getPartitionId(TypedValue(0.1f)));
-  EXPECT_EQ(2u, partition_scheme_header->getPartitionId(TypedValue(10.00000000f)));
-  EXPECT_EQ(3u, partition_scheme_header->getPartitionId(TypedValue(20.23f)));
-  EXPECT_EQ(3u, partition_scheme_header->getPartitionId(TypedValue(30.56f)));
-  EXPECT_EQ(0u, partition_scheme_header->getPartitionId(TypedValue(-4.5f)));
-  EXPECT_EQ(2u, partition_scheme_header->getPartitionId(TypedValue(15.034f)));
-  EXPECT_EQ(1u, partition_scheme_header->getPartitionId(TypedValue(6.987f)));
-  EXPECT_EQ(0u, partition_scheme_header->getPartitionId(TypedValue(-70.384f)));
+  EXPECT_EQ(1u, partition_scheme_header->getPartitionId({ TypedValue(0.1f) }));
+  EXPECT_EQ(2u, partition_scheme_header->getPartitionId({ TypedValue(10.00000000f) }));
+  EXPECT_EQ(3u, partition_scheme_header->getPartitionId({ TypedValue(20.23f) }));
+  EXPECT_EQ(3u, partition_scheme_header->getPartitionId({ TypedValue(30.56f) }));
+  EXPECT_EQ(0u, partition_scheme_header->getPartitionId({ TypedValue(-4.5f) }));
+  EXPECT_EQ(2u, partition_scheme_header->getPartitionId({ TypedValue(15.034f) }));
+  EXPECT_EQ(1u, partition_scheme_header->getPartitionId({ TypedValue(6.987f) }));
+  EXPECT_EQ(0u, partition_scheme_header->getPartitionId({ TypedValue(-70.384f) }));
 }
 
 TEST(PartitionSchemeHeaderTest, DoubleRangePartitionSchemeHeaderTest) {
-  std::vector<TypedValue> partition_range;
+  vector<PartitionSchemeHeader::PartitionValues> partition_ranges;
   // Partition boundaries are 0.00000, 10.00000, 20.00000
   for (int i = 0; i < 3; ++i) {
-    partition_range.push_back(TypedValue(i * 10.00000));
+    partition_ranges.push_back({ TypedValue(i * 10.00000) });
   }
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new RangePartitionSchemeHeader(TypeFactory::GetType(kDouble), 4, 0, move(partition_range)));
+      new RangePartitionSchemeHeader(4, { 0 }, { &TypeFactory::GetType(kDouble) }, move(partition_ranges)));
   EXPECT_EQ(4u, partition_scheme_header->getNumPartitions());
-  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeId());
+  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   // Check if the partition id returned by the Range Partition Scheme for
   // doubles is the same as the partition id into which it is supposed to
   // be based on the partition boundaries that we have defined.
-  EXPECT_EQ(1u, partition_scheme_header->getPartitionId(TypedValue(0.1897438974)));
+  EXPECT_EQ(1u, partition_scheme_header->getPartitionId({ TypedValue(0.1897438974) }));
   EXPECT_EQ(2u,
-            partition_scheme_header->getPartitionId(TypedValue(10.00000000287489)));
+            partition_scheme_header->getPartitionId({ TypedValue(10.00000000287489) }));
   EXPECT_EQ(3u,
-            partition_scheme_header->getPartitionId(TypedValue(20.23249859403750)));
-  EXPECT_EQ(3u, partition_scheme_header->getPartitionId(TypedValue(30.567866347563)));
+            partition_scheme_header->getPartitionId({ TypedValue(20.23249859403750) }));
+  EXPECT_EQ(3u, partition_scheme_header->getPartitionId({ TypedValue(30.567866347563) }));
   EXPECT_EQ(0u,
-            partition_scheme_header->getPartitionId(TypedValue(-4.57583978935689)));
+            partition_scheme_header->getPartitionId({ TypedValue(-4.57583978935689) }));
   EXPECT_EQ(2u,
-            partition_scheme_header->getPartitionId(TypedValue(15.034248758978936)));
-  EXPECT_EQ(1u, partition_scheme_header->getPartitionId(TypedValue(6.98792489)));
+            partition_scheme_header->getPartitionId({ TypedValue(15.034248758978936) }));
+  EXPECT_EQ(1u, partition_scheme_header->getPartitionId({ TypedValue(6.98792489) }));
   EXPECT_EQ(
-      0u, partition_scheme_header->getPartitionId(TypedValue(-70.38454985893768738)));
+      0u, partition_scheme_header->getPartitionId({ TypedValue(-70.38454985893768738) }));
 }
 
 TEST(PartitionSchemeHeaderTest, CharacterRangePartitionSchemeHeaderTest) {
-  std::vector<TypedValue> partition_range;
+  vector<PartitionSchemeHeader::PartitionValues> partition_ranges;
   // Partition boundaries are the following 3 characters.
   const char *kRangeBoundaryStrings[] = {"don", "hippo", "pattasu"};
   const size_t num_boundaries = sizeof(kRangeBoundaryStrings) / sizeof(kRangeBoundaryStrings[0]);
   for (size_t i = 0; i < num_boundaries; ++i) {
-    partition_range.push_back(
-        TypedValue(kChar,
-                   kRangeBoundaryStrings[i],
-                   std::strlen(kRangeBoundaryStrings[i]) + 1));
+    partition_ranges.push_back(
+        { TypedValue(kChar, kRangeBoundaryStrings[i], std::strlen(kRangeBoundaryStrings[i]) + 1) });
   }
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new RangePartitionSchemeHeader(TypeFactory::GetType(kChar, 20, false), 4, 0, move(partition_range)));
+      new RangePartitionSchemeHeader(4, { 0 }, { &TypeFactory::GetType(kChar, 20, false) }, move(partition_ranges)));
   EXPECT_EQ(4u, partition_scheme_header->getNumPartitions());
-  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeId());
+  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   const char *kSampleStrings[] = {"amma",
                                   "ganesh",
                                   "e",
@@ -306,27 +328,25 @@ TEST(PartitionSchemeHeaderTest, CharacterRangePartitionSchemeHeaderTest) {
   for (size_t i = 0; i < num_strings; ++i) {
     EXPECT_EQ(
         kExpectedPartitions[i],
-        partition_scheme_header->getPartitionId(TypedValue(
-            kChar, kSampleStrings[i], std::strlen(kSampleStrings[i]) + 1)));
+        partition_scheme_header->getPartitionId({ TypedValue(
+            kChar, kSampleStrings[i], std::strlen(kSampleStrings[i]) + 1) }));
   }
 }
 
 TEST(PartitionSchemeHeaderTest, VarCharRangePartitionSchemeHeaderTest) {
-  std::vector<TypedValue> partition_range;
+  vector<PartitionSchemeHeader::PartitionValues> partition_ranges;
   // Partition boundaries are the following 3 strings.
   const char *kRangeBoundaryStrings[] = { "elephant", "jamaica", "zorgonz"};
   const size_t num_boundaries = sizeof(kRangeBoundaryStrings) / sizeof(kRangeBoundaryStrings[0]);
   for (size_t i = 0; i < num_boundaries; ++i) {
-    partition_range.push_back(
-        TypedValue(kVarChar,
-                   kRangeBoundaryStrings[i],
-                   std::strlen(kRangeBoundaryStrings[i]) + 1));
+    partition_ranges.push_back(
+        { TypedValue(kVarChar, kRangeBoundaryStrings[i], std::strlen(kRangeBoundaryStrings[i]) + 1) });
   }
 
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new RangePartitionSchemeHeader(TypeFactory::GetType(kVarChar, 20, false), 4, 0, move(partition_range)));
+      new RangePartitionSchemeHeader(4, { 0 }, { &TypeFactory::GetType(kVarChar, 20, false) }, move(partition_ranges)));
   EXPECT_EQ(4u, partition_scheme_header->getNumPartitions());
-  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeId());
+  EXPECT_EQ(0, partition_scheme_header->getPartitionAttributeIds().front());
   const char *kSampleStrings[] = {"apple",
                                   "halloween",
                                   "mango",
@@ -343,15 +363,43 @@ TEST(PartitionSchemeHeaderTest, VarCharRangePartitionSchemeHeaderTest) {
   for (size_t i = 0; i < num_strings; ++i) {
     EXPECT_EQ(kExpectedPartitions[i],
               partition_scheme_header->getPartitionId(
-                  TypedValue(kVarChar,
-                             kSampleStrings[i],
-                             std::strlen(kSampleStrings[i]) + 1)));
+                  { TypedValue(kVarChar, kSampleStrings[i], std::strlen(kSampleStrings[i]) + 1) }));
   }
+}
+
+TEST(PartitionSchemeHeaderTest, MultiAttributeRangePartitionSchemeHeaderTest) {
+  vector<PartitionSchemeHeader::PartitionValues> partition_ranges;
+  // Partition boundaries are { 0, 0.00000 }, { 10, 10.0000 }, { 20, 20.00000 }
+  // Last partition can hold upto infinity.
+  // First partition can hold from { -infinity, -infinity } to { 0, -2^(-1074) }.
+  for (int i = 0; i < 3; ++i) {
+    partition_ranges.push_back({ TypedValue(i * 10), TypedValue(i * 10.00000) });
+  }
+
+  constexpr attribute_id kPartitioningFirstAttribute = 0;
+  constexpr attribute_id kPartitioningLastAttribute = 2;
+  std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
+      new RangePartitionSchemeHeader(4, { kPartitioningFirstAttribute, kPartitioningLastAttribute },
+                                     { &TypeFactory::GetType(kInt), &TypeFactory::GetType(kDouble) },
+                                     move(partition_ranges)));
+  EXPECT_EQ(4u, partition_scheme_header->getNumPartitions());
+  EXPECT_EQ(kPartitioningFirstAttribute, partition_scheme_header->getPartitionAttributeIds().front());
+  EXPECT_EQ(kPartitioningLastAttribute, partition_scheme_header->getPartitionAttributeIds().back());
+
+  // Check if the partition id returned by the Range Partition Scheme for
+  // { int, double } is the same as the partition id into which it is supposed
+  // to be based on the partition boundaries that we have defined.
+  EXPECT_EQ(0u, partition_scheme_header->getPartitionId({ TypedValue(-70), TypedValue(30.567866347563) }));
+  EXPECT_EQ(0u, partition_scheme_header->getPartitionId({ TypedValue(0),   TypedValue(-4.57583978935689) }));
+  EXPECT_EQ(1u, partition_scheme_header->getPartitionId({ TypedValue(6),   TypedValue(15.034248758978936) }));
+  EXPECT_EQ(2u, partition_scheme_header->getPartitionId({ TypedValue(10),  TypedValue(10.00000000287489) }));
+  EXPECT_EQ(3u, partition_scheme_header->getPartitionId({ TypedValue(20),  TypedValue(20.23249859403750) }));
+  EXPECT_EQ(3u, partition_scheme_header->getPartitionId({ TypedValue(300), TypedValue(-70.38454985893768738) }));
 }
 
 TEST(PartitionSchemeTest, AddBlocksToPartitionTest) {
   std::unique_ptr<PartitionScheme> partition_scheme(
-      new PartitionScheme(new HashPartitionSchemeHeader(4, 0)));
+      new PartitionScheme(new HashPartitionSchemeHeader(4, { 0 })));
   for (int i = 0; i < 10; ++i) {
     partition_scheme->addBlockToPartition(i, i % 4);
   }
@@ -367,7 +415,7 @@ TEST(PartitionSchemeTest, AddBlocksToPartitionTest) {
       partition_scheme->getBlocksInPartition(3);
 
   EXPECT_EQ(4u, partition_scheme->getPartitionSchemeHeader().getNumPartitions());
-  EXPECT_EQ(0, partition_scheme->getPartitionSchemeHeader().getPartitionAttributeId());
+  EXPECT_EQ(0, partition_scheme->getPartitionSchemeHeader().getPartitionAttributeIds().front());
 
   // Check if the blocks are present in the partitions that we
   // expect them to be based on where we inserted them.
@@ -420,13 +468,13 @@ TEST(PartitionSchemeTest, AddBlocksToPartitionTest) {
 
 TEST(PartitionSchemeTest, RemoveBlocksFromPartitionTest) {
   std::unique_ptr<PartitionScheme> partition_scheme(
-      new PartitionScheme(new HashPartitionSchemeHeader(4, 0)));
+      new PartitionScheme(new HashPartitionSchemeHeader(4, { 0 })));
   for (int i = 0; i < 10; ++i) {
     partition_scheme->addBlockToPartition(i, i % 4);
   }
 
   EXPECT_EQ(4u, partition_scheme->getPartitionSchemeHeader().getNumPartitions());
-  EXPECT_EQ(0, partition_scheme->getPartitionSchemeHeader().getPartitionAttributeId());
+  EXPECT_EQ(0, partition_scheme->getPartitionSchemeHeader().getPartitionAttributeIds().front());
   // remove block 0 from partition 0
   partition_scheme->removeBlockFromPartition(0, 0);
   const std::vector<block_id> blocks_in_partition_zero =
@@ -504,7 +552,7 @@ TEST(PartitionSchemeTest, RemoveBlocksFromPartitionTest) {
 TEST(PartitionSchemeTest, CheckHashPartitionSchemeSerialization) {
   const std::size_t num_partitions = 4;
   std::unique_ptr<PartitionScheme> part_scheme(
-      new PartitionScheme(new HashPartitionSchemeHeader(num_partitions, 0)));
+      new PartitionScheme(new HashPartitionSchemeHeader(num_partitions, { 0 })));
   // Add some blocks to each partition.
   for (int i = 0; i < 10; ++i) {
     part_scheme->addBlockToPartition(i, i % num_partitions);
@@ -523,8 +571,8 @@ TEST(PartitionSchemeTest, CheckHashPartitionSchemeSerialization) {
   EXPECT_EQ(header.getNumPartitions(),
             header_from_proto.getNumPartitions());
   // Check the partition attribute id
-  EXPECT_EQ(header.getPartitionAttributeId(),
-            header_from_proto.getPartitionAttributeId());
+  EXPECT_EQ(header.getPartitionAttributeIds(),
+            header_from_proto.getPartitionAttributeIds());
   // Check the block in each partition
   for (partition_id part_id = 0; part_id < num_partitions; ++part_id) {
     // Collect the blocks from C++ Partition Scheme object.
@@ -542,75 +590,8 @@ TEST(PartitionSchemeTest, CheckHashPartitionSchemeSerialization) {
   }
 }
 
-TEST(PartitionSchemeTest, CheckRangePartitionSchemeSerialization) {
-  const Type &type = TypeFactory::GetType(kInt);
-  const std::size_t num_partitions = 4;
-  std::vector<TypedValue> partition_range;
-  // Partition boundaries are 0, 10, 20.
-  // Last partition can hold upto infinity.
-  // First partition can hold from -infinity to -1.
-  for (std::size_t i = 0; i < num_partitions - 1; ++i) {
-    partition_range.push_back(TypedValue(static_cast<int>(i * 10)));
-  }
-  std::unique_ptr<PartitionScheme> part_scheme(
-      new PartitionScheme(
-          new RangePartitionSchemeHeader(type, num_partitions, 0, move(partition_range))));
-  for (int i = 0; i < 10; ++i) {
-    part_scheme->addBlockToPartition(i * 5, i % num_partitions);
-  }
-  std::unique_ptr<PartitionScheme> part_scheme_from_proto;
-
-  part_scheme_from_proto.reset(
-      PartitionScheme::ReconstructFromProto(part_scheme->getProto()));
-
-  const PartitionSchemeHeader &header = part_scheme->getPartitionSchemeHeader();
-  const PartitionSchemeHeader &header_from_proto = part_scheme_from_proto->getPartitionSchemeHeader();
-
-  // Check the partition type
-  EXPECT_EQ(header.getPartitionType(),
-            header_from_proto.getPartitionType());
-
-  // Check number of partitions
-  EXPECT_EQ(header.getNumPartitions(),
-            header_from_proto.getNumPartitions());
-
-  // Check the partition attribute id
-  EXPECT_EQ(header.getPartitionAttributeId(),
-            header_from_proto.getPartitionAttributeId());
-
-  // Check the partition range boundaries' size.
-  const std::vector<TypedValue> &range_boundaries_part_scheme =
-      static_cast<const RangePartitionSchemeHeader&>(header).getPartitionRangeBoundaries();
-  const std::vector<TypedValue> &range_boundaries_part_scheme_from_proto =
-      static_cast<const RangePartitionSchemeHeader&>(header_from_proto).getPartitionRangeBoundaries();
-  EXPECT_EQ(range_boundaries_part_scheme.size(),
-            range_boundaries_part_scheme_from_proto.size());
-
-  // Check the partition range boundaries' values.
-  const Comparison &equal_comparison_op(EqualComparison::Instance());
-  std::unique_ptr<UncheckedComparator> equal_unchecked_comparator;
-  equal_unchecked_comparator.reset(
-      equal_comparison_op.makeUncheckedComparatorForTypes(
-          TypeFactory::GetType(kInt), TypeFactory::GetType(kInt)));
-  for (std::size_t i = 0; i < range_boundaries_part_scheme.size(); ++i) {
-    EXPECT_TRUE(equal_unchecked_comparator->compareTypedValues(
-        range_boundaries_part_scheme[i],
-        range_boundaries_part_scheme_from_proto[i]));
-  }
-
-  // Check the blocks in each partition from both the Partition Scheme's
-  // C++ object and protocol buffer.
-  for (partition_id part_id = 0; part_id < num_partitions; ++part_id) {
-    std::vector<block_id> blocks_in_part_scheme =
-        part_scheme->getBlocksInPartition(part_id);
-    std::vector<block_id> blocks_in_part_scheme_from_proto =
-        part_scheme_from_proto->getBlocksInPartition(part_id);
-    std::sort(blocks_in_part_scheme.begin(), blocks_in_part_scheme.end());
-    std::sort(blocks_in_part_scheme_from_proto.begin(),
-              blocks_in_part_scheme_from_proto.end());
-    EXPECT_EQ(blocks_in_part_scheme, blocks_in_part_scheme_from_proto);
-  }
-}
+// TODO(quickstep-team): Add back CheckRangePartitionSchemeSerialization test
+// due to QUICKSTEP-86.
 
 TEST(PartitionSchemeTest, CheckBlocksInPartitionTest) {
   std::unique_ptr<PartitionScheme> partition_scheme;
@@ -619,7 +600,7 @@ TEST(PartitionSchemeTest, CheckBlocksInPartitionTest) {
   constexpr attribute_id kPartitioningAttribute = 0;
   // Create a partition scheme object.
   partition_scheme.reset(
-      new PartitionScheme(new HashPartitionSchemeHeader(kNumPartitions, kPartitioningAttribute)));
+      new PartitionScheme(new HashPartitionSchemeHeader(kNumPartitions, { kPartitioningAttribute })));
   // Add blocks to different partitions.
   for (std::size_t block_id = 0; block_id < kNumBlocks; ++block_id) {
     partition_scheme->addBlockToPartition(block_id,
@@ -630,7 +611,7 @@ TEST(PartitionSchemeTest, CheckBlocksInPartitionTest) {
 
   // Check the number of partitions and the partitioning attribute.
   EXPECT_EQ(kNumPartitions, header.getNumPartitions());
-  EXPECT_EQ(kPartitioningAttribute, header.getPartitionAttributeId());
+  EXPECT_EQ(kPartitioningAttribute, header.getPartitionAttributeIds().front());
 
   // Check if the blocks are correctly assigned to its partitions.
   EXPECT_EQ(0u, partition_scheme->getPartitionForBlock(0));

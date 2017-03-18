@@ -24,6 +24,7 @@
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/PartitionSchemeHeader.hpp"
 #include "types/containers/Tuple.hpp"
 
 namespace quickstep {
@@ -58,15 +59,15 @@ class InsertDestinationInterface {
   virtual const CatalogRelationSchema& getRelation() const = 0;
 
   /**
-   * @brief Get the attribute ID used for partitioning, if any.
+   * @brief Get the attribute IDs used for partitioning, if any.
    * @note This is intended only for use by StorageBlock::update(), to
    *       determine whether it is safe to do in-place updates or whether all
    *       updated Tuples must be relocated to land in the correct partition.
    *
-   * @return The ID of the attribute used for partitioning, or -1 if there is
-   *         no partitioning.
+   * @return The IDs of the attribute used for partitioning, or empty if there
+   *         is no partitioning.
    **/
-  virtual attribute_id getPartitioningAttribute() const = 0;
+  virtual PartitionSchemeHeader::PartitionAttributeIds getPartitioningAttributes() const = 0;
 
   /**
    * @brief Insert a single tuple into a block managed by this

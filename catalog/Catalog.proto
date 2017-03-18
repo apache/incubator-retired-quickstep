@@ -39,18 +39,22 @@ message PartitionSchemeHeader {
   required PartitionType partition_type = 1;
 
   required uint64 num_partitions = 2;
-  required uint32 partition_attribute_id = 3;
+  repeated uint32 partition_attribute_ids = 3;
 
   // The convention for extension numbering is that extensions for a particular
   // PartitionType should begin from (partition_type + 1) * 16.
   extensions 16 to max;
 }
 
+message PartitionValues {
+  repeated TypedValue partition_values = 1;
+}
+
 message RangePartitionSchemeHeader {
   extend PartitionSchemeHeader {
     // All required.
-    optional Type partition_attr_type = 32;
-    repeated TypedValue partition_range_boundaries = 33;
+    repeated Type partition_attr_types = 32;
+    repeated PartitionValues partition_range_boundaries = 33;
   }
 }
 

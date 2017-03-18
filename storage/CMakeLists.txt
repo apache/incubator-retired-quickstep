@@ -779,6 +779,7 @@ target_link_libraries(quickstep_storage_InsertDestination
                       tmb)
 target_link_libraries(quickstep_storage_InsertDestinationInterface
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_catalog_PartitionSchemeHeader
                       quickstep_types_containers_Tuple)
 target_link_libraries(quickstep_storage_InsertDestination_proto
                       quickstep_catalog_Catalog_proto

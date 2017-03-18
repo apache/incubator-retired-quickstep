@@ -174,7 +174,9 @@ target_link_libraries(quickstep_catalog_PartitionSchemeHeader
                       quickstep_types_TypedValue
                       quickstep_types_TypedValue_proto
                       quickstep_types_operations_comparisons_Comparison
+                      quickstep_types_operations_comparisons_EqualComparison
                       quickstep_types_operations_comparisons_LessComparison
+                      quickstep_utility_CompositeHash
                       quickstep_utility_Macros)
 
 # Module all-in-one library:
@@ -276,7 +278,8 @@ target_link_libraries(PartitionScheme_unittest
                       quickstep_types_TypeID
                       quickstep_types_TypedValue
                       quickstep_types_operations_comparisons_Comparison
-                      quickstep_types_operations_comparisons_EqualComparison)
+                      quickstep_types_operations_comparisons_EqualComparison
+                      quickstep_utility_CompositeHash)
 add_test(PartitionScheme_unittest PartitionScheme_unittest)
 
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/catalog_relation_statistics_test_data)

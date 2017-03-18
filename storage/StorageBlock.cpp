@@ -429,8 +429,7 @@ StorageBlock::UpdateResult StorageBlock::update(
 
   // To be safe, relocate ALL tuples if the relation is partitioned and we are
   // updating the partitioning attribute.
-  const bool relocate_all =
-      assignments.find(relocation_destination->getPartitioningAttribute()) != assignments.end();
+  const bool relocate_all = !relocation_destination->getPartitioningAttributes().empty();
 
   // IDs of tuples which should be re-added to indices.
   TupleIdSequence in_place_ids(tuple_store_->getMaxTupleID() + 1);

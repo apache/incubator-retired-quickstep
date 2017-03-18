@@ -88,7 +88,11 @@ CatalogRelation::CatalogRelation(const serialization::CatalogRelationSchema &pro
     const serialization::PartitionScheme &proto_partition_scheme =
         proto.GetExtension(serialization::CatalogRelation::partition_scheme);
 
-    DCHECK(hasAttributeWithId(proto_partition_scheme.header().partition_attribute_id()));
+#ifdef QUICKSTEP_DEBUG
+    for (int i = 0; i < proto_partition_scheme.header().partition_attribute_ids_size(); ++i) {
+      DCHECK(hasAttributeWithId(proto_partition_scheme.header().partition_attribute_ids(i)));
+    }
+#endif
 
     setPartitionScheme(PartitionScheme::ReconstructFromProto(proto_partition_scheme));
 

@@ -82,7 +82,7 @@ TEST(NUMAPlacementSchemeTest, NUMAPlacementSchemeSerializationTest) {
   // Create a HashPartitionSchemeHeader object with 64 partitions and attribute
   //  0 as the partitioning attribute.
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header(
-      new HashPartitionSchemeHeader(num_partitions, 0));
+      new HashPartitionSchemeHeader(num_partitions, { 0 }));
 
   // Create a NUMAPlacementScheme object with the num_partitions.
   std::unique_ptr<NUMAPlacementScheme> placement_scheme(

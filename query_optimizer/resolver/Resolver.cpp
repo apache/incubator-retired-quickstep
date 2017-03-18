@@ -695,23 +695,7 @@ const S::PartitionSchemeHeader* Resolver::resolvePartitionClause(
         << "Partition type must be specified and be a string.";
   }
 
-  const PtrList<ParseString> &attribute_name_list = partition_clause->attribute_name_list();
-  if (attribute_name_list.size() != 1) {
-    THROW_SQL_ERROR_AT(partition_clause)
-        << "Partition is supported on only one attribute.";
-  }
-
-  const ParseString &partition_attribute_name = attribute_name_list.front();
-  const attribute_id attr_id = GetAttributeIdFromName(create_table_statement.attribute_definition_list(),
-                                                      partition_attribute_name.value());
-  if (attr_id == kInvalidAttributeID) {
-    THROW_SQL_ERROR_AT(&partition_attribute_name)
-        << "The given attribute was not found.";
-  }
-
   auto proto = make_unique<S::PartitionSchemeHeader>();
-  proto->set_num_partitions(partition_clause->num_partitions()->long_value());
-  proto->set_partition_attribute_id(attr_id);
 
   const std::string partition_type = ToLower(partition_type_string->value());
   if (partition_type == kHashPartitionType) {
@@ -722,6 +706,25 @@ const S::PartitionSchemeHeader* Resolver::resolvePartitionClause(
         << "Range partition is not supported.";
   } else {
     THROW_SQL_ERROR_AT(partition_type_string) << "Unrecognized partition type: " << partition_type;
+  }
+
+  proto->set_num_partitions(partition_clause->num_partitions()->long_value());
+
+  std::unordered_set<attribute_id> unique_partition_attrs;
+  for (const ParseString &partition_attribute_name : partition_clause->attribute_name_list()) {
+    const attribute_id attr_id = GetAttributeIdFromName(create_table_statement.attribute_definition_list(),
+                                                        partition_attribute_name.value());
+    if (attr_id == kInvalidAttributeID) {
+      THROW_SQL_ERROR_AT(&partition_attribute_name)
+          << "The given attribute was not found.";
+    } else if (unique_partition_attrs.find(attr_id) != unique_partition_attrs.end()) {
+      THROW_SQL_ERROR_AT(&partition_attribute_name)
+          << "A duplicate partition attribute was found.";
+    }
+
+    unique_partition_attrs.insert(attr_id);
+
+    proto->add_partition_attribute_ids(attr_id);
   }
 
   return proto.release();

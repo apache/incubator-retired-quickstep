@@ -20,10 +20,12 @@
 #include "catalog/PartitionSchemeHeader.hpp"
 
 #include <cstddef>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include "catalog/Catalog.pb.h"
+#include "catalog/CatalogTypedefs.hpp"
 #include "types/Type.hpp"
 #include "types/Type.pb.h"
 #include "types/TypeFactory.hpp"
@@ -32,16 +34,30 @@
 
 #include "glog/logging.h"
 
+using std::move;
+using std::size_t;
+using std::vector;
+
 namespace quickstep {
 
 PartitionSchemeHeader::PartitionSchemeHeader(const PartitionType type,
                                              const std::size_t num_partitions,
-                                             const attribute_id attr_id)
+                                             PartitionAttributeIds &&attr_ids)  // NOLINT(whitespace/operators)
     : partition_type_(type),
       num_partitions_(num_partitions),
-      partition_attribute_id_(attr_id) {
+      partition_attribute_ids_(move(attr_ids)) {
   DCHECK_GT(num_partitions, 0u);
-  DCHECK_GE(attr_id, 0);
+
+#ifdef QUICKSTEP_DEBUG
+  // Ensure that no duplicated partition attributes exist.
+  std::unordered_set<attribute_id> partition_attribute_ids;
+  for (const attribute_id attr_id : partition_attribute_ids_) {
+    DCHECK_NE(attr_id, kInvalidCatalogId);
+
+    CHECK_EQ(0u, partition_attribute_ids.count(attr_id));
+    partition_attribute_ids.insert(attr_id);
+  }
+#endif
 }
 
 bool PartitionSchemeHeader::ProtoIsValid(
@@ -60,10 +76,12 @@ bool PartitionSchemeHeader::ProtoIsValid(
     case serialization::PartitionSchemeHeader::HASH:
       return true;
     case serialization::PartitionSchemeHeader::RANGE: {
-      const std::size_t num_ranges =
-          proto.ExtensionSize(serialization::RangePartitionSchemeHeader::partition_range_boundaries);
-      return num_ranges == proto.num_partitions() - 1 &&
-             proto.HasExtension(serialization::RangePartitionSchemeHeader::partition_attr_type);
+      return proto.HasExtension(serialization::RangePartitionSchemeHeader::partition_range_boundaries) &&
+             proto.ExtensionSize(serialization::RangePartitionSchemeHeader::partition_range_boundaries) ==
+                 static_cast<int>(proto.num_partitions() - 1) &&
+             proto.HasExtension(serialization::RangePartitionSchemeHeader::partition_attr_types) &&
+             proto.ExtensionSize(serialization::RangePartitionSchemeHeader::partition_attr_types) ==
+                 proto.partition_attribute_ids_size();
     }
     default:
       // Partition type is unknown.
@@ -77,31 +95,43 @@ PartitionSchemeHeader* PartitionSchemeHeader::ReconstructFromProto(
       << "Attempted to create PartitionSchemeHeader from an invalid proto description:\n"
       << proto.DebugString();
 
+  PartitionAttributeIds partition_attribute_ids;
+  for (int i = 0; i < proto.partition_attribute_ids_size(); ++i) {
+    partition_attribute_ids.push_back(proto.partition_attribute_ids(i));
+  }
+
   switch (proto.partition_type()) {
     case serialization::PartitionSchemeHeader::HASH: {
-      return new HashPartitionSchemeHeader(proto.num_partitions(), proto.partition_attribute_id());
+      return new HashPartitionSchemeHeader(proto.num_partitions(), move(partition_attribute_ids));
     }
     case serialization::PartitionSchemeHeader::RANGE: {
-      const Type &attr_type =
-          TypeFactory::ReconstructFromProto(proto.GetExtension(
-              serialization::RangePartitionSchemeHeader::partition_attr_type));
-
-      std::vector<TypedValue> partition_ranges;
-      for (int i = 0;
-           i < proto.ExtensionSize(serialization::RangePartitionSchemeHeader::partition_range_boundaries);
-           ++i) {
-        partition_ranges.emplace_back(
-            TypedValue::ReconstructFromProto(
-                proto.GetExtension(serialization::RangePartitionSchemeHeader::partition_range_boundaries, i)));
+      std::vector<const Type*> attr_types;
+      for (int i = 0; i < proto.ExtensionSize(serialization::RangePartitionSchemeHeader::partition_attr_types); ++i) {
+        attr_types.push_back(&TypeFactory::ReconstructFromProto(
+            proto.GetExtension(serialization::RangePartitionSchemeHeader::partition_attr_types, i)));
       }
 
-      return new RangePartitionSchemeHeader(attr_type,
-                                            proto.num_partitions(),
-                                            proto.partition_attribute_id(),
-                                            std::move(partition_ranges));
+      const int partition_ranges_size =
+          proto.ExtensionSize(serialization::RangePartitionSchemeHeader::partition_range_boundaries);
+      std::vector<PartitionValues> partition_ranges(partition_ranges_size);
+      for (int i = 0; i < partition_ranges_size; ++i) {
+        const auto &proto_partition_values =
+            proto.GetExtension(serialization::RangePartitionSchemeHeader::partition_range_boundaries, i);
+        for (int j = 0; j < proto_partition_values.partition_values_size(); ++j) {
+          partition_ranges[i].emplace_back(TypedValue::ReconstructFromProto(
+              proto_partition_values.partition_values(j)));
+        }
+      }
+
+      return new RangePartitionSchemeHeader(proto.num_partitions(),
+                                            move(partition_attribute_ids),
+                                            move(attr_types),
+                                            move(partition_ranges));
     }
     default:
       LOG(FATAL) << "Invalid partition scheme header.";
+      // Avoid '-Werror=return-type' using GCC.
+      return nullptr;
   }
 }
 
@@ -120,7 +150,10 @@ serialization::PartitionSchemeHeader PartitionSchemeHeader::getProto() const {
   }
 
   proto.set_num_partitions(num_partitions_);
-  proto.set_partition_attribute_id(partition_attribute_id_);
+
+  for (const attribute_id attr_id : partition_attribute_ids_) {
+    proto.add_partition_attribute_ids(attr_id);
+  }
 
   return proto;
 }
@@ -128,12 +161,18 @@ serialization::PartitionSchemeHeader PartitionSchemeHeader::getProto() const {
 serialization::PartitionSchemeHeader RangePartitionSchemeHeader::getProto() const {
   serialization::PartitionSchemeHeader proto = PartitionSchemeHeader::getProto();
 
-  proto.MutableExtension(serialization::RangePartitionSchemeHeader::partition_attr_type)
-      ->MergeFrom(partition_attr_type_->getProto());
+  for (const Type *type : partition_attr_types_) {
+    proto.AddExtension(serialization::RangePartitionSchemeHeader::partition_attr_types)
+        ->MergeFrom(type->getProto());
+  }
 
-  for (std::size_t i = 0; i < partition_range_boundaries_.size(); ++i) {
-    proto.AddExtension(serialization::RangePartitionSchemeHeader::partition_range_boundaries)
-        ->MergeFrom(partition_range_boundaries_[i].getProto());
+  for (const PartitionValues &partition_range_boundary : partition_range_boundaries_) {
+    serialization::PartitionValues *proto_range_boundary =
+        proto.AddExtension(serialization::RangePartitionSchemeHeader::partition_range_boundaries);
+
+    for (const TypedValue &value : partition_range_boundary) {
+      proto_range_boundary->add_partition_values()->MergeFrom(value.getProto());
+    }
   }
 
   return proto;

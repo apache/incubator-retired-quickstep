@@ -137,8 +137,8 @@ class InsertDestination : public InsertDestinationInterface {
     return relation_;
   }
 
-  attribute_id getPartitioningAttribute() const override {
-    return -1;
+  PartitionSchemeHeader::PartitionAttributeIds getPartitioningAttributes() const override {
+    return {};
   }
 
   void insertTuple(const Tuple &tuple) override;
@@ -515,7 +515,7 @@ class PartitionAwareInsertDestination : public InsertDestination {
     available_block_refs_[part_id].clear();
   }
 
-  attribute_id getPartitioningAttribute() const override;
+  PartitionSchemeHeader::PartitionAttributeIds getPartitioningAttributes() const override;
 
   void insertTuple(const Tuple &tuple) override;
 

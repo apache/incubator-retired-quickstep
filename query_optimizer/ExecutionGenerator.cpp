@@ -791,7 +791,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       build_attribute_ids.size() == 1) {
     const PartitionSchemeHeader &partition_scheme_header =
         build_relation->getPartitionScheme()->getPartitionSchemeHeader();
-    if (build_attribute_ids[0] == partition_scheme_header.getPartitionAttributeId()) {
+    if (build_attribute_ids[0] == partition_scheme_header.getPartitionAttributeIds().front()) {
       // TODO(zuyu): add optimizer support for partitioned hash joins.
       hash_table_context_proto->set_num_partitions(num_partitions);
     }

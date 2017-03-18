@@ -560,14 +560,16 @@ const std::vector<block_id>& PartitionAwareInsertDestination::getTouchedBlocksIn
   return done_block_ids_[part_id];
 }
 
-attribute_id PartitionAwareInsertDestination::getPartitioningAttribute() const {
-  return partition_scheme_header_->getPartitionAttributeId();
+PartitionSchemeHeader::PartitionAttributeIds PartitionAwareInsertDestination::getPartitioningAttributes() const {
+  return partition_scheme_header_->getPartitionAttributeIds();
 }
 
 void PartitionAwareInsertDestination::insertTuple(const Tuple &tuple) {
-  const partition_id part_id =
-      partition_scheme_header_->getPartitionId(
-          tuple.getAttributeValue(partition_scheme_header_->getPartitionAttributeId()));
+  PartitionSchemeHeader::PartitionValues values;
+  for (const attribute_id attr_id : partition_scheme_header_->getPartitionAttributeIds()) {
+    values.push_back(tuple.getAttributeValue(attr_id));
+  }
+  const partition_id part_id = partition_scheme_header_->getPartitionId(values);
 
   MutableBlockReference output_block = getBlockForInsertionInPartition(part_id);
 
@@ -586,9 +588,11 @@ void PartitionAwareInsertDestination::insertTuple(const Tuple &tuple) {
 }
 
 void PartitionAwareInsertDestination::insertTupleInBatch(const Tuple &tuple) {
-  const partition_id part_id =
-      partition_scheme_header_->getPartitionId(
-          tuple.getAttributeValue(partition_scheme_header_->getPartitionAttributeId()));
+  PartitionSchemeHeader::PartitionValues values;
+  for (const attribute_id attr_id : partition_scheme_header_->getPartitionAttributeIds()) {
+    values.push_back(tuple.getAttributeValue(attr_id));
+  }
+  const partition_id part_id = partition_scheme_header_->getPartitionId(values);
 
   MutableBlockReference output_block = getBlockForInsertionInPartition(part_id);
 
@@ -608,12 +612,10 @@ void PartitionAwareInsertDestination::insertTupleInBatch(const Tuple &tuple) {
 
 void PartitionAwareInsertDestination::bulkInsertTuples(ValueAccessor *accessor, bool always_mark_full) {
   const std::size_t num_partitions = partition_scheme_header_->getNumPartitions();
-  const attribute_id partition_attribute_id = partition_scheme_header_->getPartitionAttributeId();
 
   InvokeOnAnyValueAccessor(
       accessor,
       [this,
-       &partition_attribute_id,
        &always_mark_full,
        &num_partitions](auto *accessor) -> void {  // NOLINT(build/c++11)
     std::vector<std::unique_ptr<TupleIdSequence>> partition_membership;
@@ -627,8 +629,11 @@ void PartitionAwareInsertDestination::bulkInsertTuples(ValueAccessor *accessor, 
     // set a bit in the appropriate TupleIdSequence.
     accessor->beginIteration();
     while (accessor->next()) {
-      TypedValue attr_val = accessor->getTypedValue(partition_attribute_id);
-      partition_membership[partition_scheme_header_->getPartitionId(attr_val)]
+      PartitionSchemeHeader::PartitionValues values;
+      for (const attribute_id attr_id : partition_scheme_header_->getPartitionAttributeIds()) {
+        values.push_back(accessor->getTypedValue(attr_id));
+      }
+      partition_membership[partition_scheme_header_->getPartitionId(values)]
           ->set(accessor->getCurrentPosition(), true);
     }
 
@@ -662,12 +667,10 @@ void PartitionAwareInsertDestination::bulkInsertTuples(ValueAccessor *accessor, 
 void PartitionAwareInsertDestination::bulkInsertTuplesWithRemappedAttributes(
     const std::vector<attribute_id> &attribute_map, ValueAccessor *accessor, bool always_mark_full) {
   const std::size_t num_partitions = partition_scheme_header_->getNumPartitions();
-  const attribute_id partition_attribute_id = partition_scheme_header_->getPartitionAttributeId();
 
   InvokeOnAnyValueAccessor(
       accessor,
       [this,
-       &partition_attribute_id,
        &attribute_map,
        &always_mark_full,
        &num_partitions](auto *accessor) -> void {  // NOLINT(build/c++11)
@@ -682,8 +685,11 @@ void PartitionAwareInsertDestination::bulkInsertTuplesWithRemappedAttributes(
     // set a bit in the appropriate TupleIdSequence.
     accessor->beginIteration();
     while (accessor->next()) {
-      TypedValue attr_val = accessor->getTypedValue(attribute_map[partition_attribute_id]);
-      partition_membership[partition_scheme_header_->getPartitionId(attr_val)]
+      PartitionSchemeHeader::PartitionValues values;
+      for (const attribute_id attr_id : partition_scheme_header_->getPartitionAttributeIds()) {
+        values.push_back(accessor->getTypedValue(attr_id));
+      }
+      partition_membership[partition_scheme_header_->getPartitionId(values)]
           ->set(accessor->getCurrentPosition(), true);
     }
 
@@ -720,10 +726,14 @@ void PartitionAwareInsertDestination::insertTuplesFromVector(std::vector<Tuple>:
     return;
   }
 
-  const attribute_id partition_attribute_id = partition_scheme_header_->getPartitionAttributeId();
   for (; begin != end; ++begin) {
-    const partition_id part_id =
-        partition_scheme_header_->getPartitionId(begin->getAttributeValue(partition_attribute_id));
+    PartitionSchemeHeader::PartitionValues values;
+    for (const attribute_id attr_id : partition_scheme_header_->getPartitionAttributeIds()) {
+      values.push_back(begin->getAttributeValue(attr_id));
+    }
+
+    const partition_id part_id = partition_scheme_header_->getPartitionId(values);
+
     MutableBlockReference dest_block = getBlockForInsertionInPartition(part_id);
     // FIXME(chasseur): Deal with TupleTooLargeForBlock exception.
     while (!dest_block->insertTupleInBatch(*begin)) {
