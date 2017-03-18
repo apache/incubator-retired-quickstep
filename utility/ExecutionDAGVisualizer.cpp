@@ -26,6 +26,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -114,6 +115,8 @@ void ExecutionDAGVisualizer::bindProfilingStats(
   std::vector<std::size_t> time_elapsed(num_nodes_, 0);
   std::size_t overall_start_time = std::numeric_limits<std::size_t>::max();
   std::size_t overall_end_time = 0;
+  std::unordered_map<std::size_t, std::size_t> workorders_count;
+  std::unordered_map<std::size_t, float> mean_time_per_workorder;
   for (const auto &entry : execution_time_records) {
     const std::size_t relop_index = entry.operator_id;
     DCHECK_LT(relop_index, num_nodes_);
@@ -128,6 +131,16 @@ void ExecutionDAGVisualizer::bindProfilingStats(
     time_end[relop_index] =
         std::max(time_end[relop_index], workorder_end_time);
     time_elapsed[relop_index] += (workorder_end_time - workorder_start_time);
+
+    if (workorders_count.find(relop_index) == workorders_count.end()) {
+      workorders_count[relop_index] = 0;
+    }
+    ++workorders_count[relop_index];
+    if (mean_time_per_workorder.find(relop_index) ==
+        mean_time_per_workorder.end()) {
+      mean_time_per_workorder[relop_index] = 0;
+    }
+    mean_time_per_workorder[relop_index] += workorder_end_time - workorder_start_time;
   }
 
   double total_time_elapsed = 0;
@@ -176,6 +189,20 @@ void ExecutionDAGVisualizer::bindProfilingStats(
           static_cast<double>(relop_elapsed_time) / (relop_end_time - relop_start_time);
       node_info.labels.emplace_back(
           "effective concurrency: " + FormatDigits(concurrency, 2));
+
+      DCHECK(workorders_count.find(node_index) != workorders_count.end());
+      const std::size_t workorders_count_for_node = workorders_count.at(node_index);
+      if (workorders_count_for_node > 0) {
+        mean_time_per_workorder[node_index] =
+            mean_time_per_workorder[node_index] /
+            (1000 * static_cast<float>(workorders_count_for_node));
+      } else {
+        mean_time_per_workorder[node_index] = 0;
+      }
+      node_info.labels.emplace_back(std::to_string(workorders_count_for_node) + " work orders");
+      node_info.labels.emplace_back(
+          "Mean work order execution time: " +
+          FormatDigits(mean_time_per_workorder[node_index], 2) + " ms");
     }
   }
 }
