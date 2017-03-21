@@ -24,6 +24,7 @@
 #include <utility>
 #include <vector>
 
+#include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/WorkerMessage.hpp"
 #include "query_optimizer/QueryHandle.hpp"
@@ -58,7 +59,8 @@ QueryManagerSingleNode::QueryManagerSingleNode(
                                       foreman_client_id_,
                                       bus_)),
       workorders_container_(
-          new WorkOrdersContainer(num_operators_in_dag_, num_numa_nodes)) {
+          new WorkOrdersContainer(num_operators_in_dag_, num_numa_nodes)),
+      database_(static_cast<const CatalogDatabase&>(*catalog_database)) {
   // Collect all the workorders from all the relational operators in the DAG.
   for (dag_node_index index = 0; index < num_operators_in_dag_; ++index) {
     if (checkAllBlockingDependenciesMet(index)) {
@@ -191,6 +193,26 @@ void QueryManagerSingleNode::getRebuildWorkOrders(const dag_node_index index,
                              bus_),
         index);
   }
+}
+
+std::size_t QueryManagerSingleNode::getQueryMemoryConsumptionBytes() const {
+  const std::size_t temp_relations_memory =
+      getTotalTempRelationMemoryInBytes();
+  const std::size_t temp_data_structures_memory =
+      query_context_->getTempStructuresMemoryBytes();
+  return temp_relations_memory + temp_data_structures_memory;
+}
+
+std::size_t QueryManagerSingleNode::getTotalTempRelationMemoryInBytes() const {
+  std::vector<relation_id> temp_relation_ids;
+  query_context_->getTempRelationIDs(&temp_relation_ids);
+  std::size_t memory = 0;
+  for (std::size_t rel_id : temp_relation_ids) {
+    if (database_.hasRelationWithId(rel_id)) {
+      memory += database_.getRelationById(rel_id)->getRelationSizeBytes();
+    }
+  }
+  return memory;
 }
 
 }  // namespace quickstep

@@ -271,6 +271,15 @@ class QueryManagerBase {
     return query_exec_state_->hasRebuildInitiated(index);
   }
 
+  /**
+   * @brief Get the query's current memory consumption in bytes.
+   *
+   * @note This method returns a best guess consumption, at the time of the call.
+   **/
+  virtual std::size_t getQueryMemoryConsumptionBytes() const {
+    return 0;
+  }
+
   std::unique_ptr<QueryHandle> query_handle_;
 
   const std::size_t query_id_;

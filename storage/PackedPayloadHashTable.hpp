@@ -314,6 +314,10 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
   inline std::size_t forEachCompositeKey(FunctorT *functor,
                                          const std::size_t index) const;
 
+  std::size_t getMemoryConsumptionBytes() const override {
+    return sizeof(Header) + numEntries() * bucket_size_;
+  }
+
  private:
   void resize(const std::size_t extra_buckets,
               const std::size_t extra_variable_storage,

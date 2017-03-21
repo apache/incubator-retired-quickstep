@@ -207,6 +207,11 @@ class AggregationOperationState {
    */
   CollisionFreeVectorTable* getCollisionFreeVectorTable() const;
 
+  /**
+   * @brief Get the memory footprint of the AggregationOperationState.
+   **/
+  std::size_t getMemoryConsumptionBytes() const;
+
  private:
   // Check whether partitioned aggregation can be applied.
   bool checkAggregatePartitioned(
@@ -252,6 +257,10 @@ class AggregationOperationState {
                                         InsertDestination *output_destination);
 
   void finalizeHashTableImplThreadPrivate(InsertDestination *output_destination);
+
+  std::size_t getMemoryConsumptionBytesHelper(
+      const std::vector<std::unique_ptr<AggregationStateHashTableBase>>
+          &hashtables) const;
 
   // Common state for all aggregates in this operation: the input relation, the
   // filter predicate (if any), and the list of GROUP BY expressions (if any).

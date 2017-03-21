@@ -169,6 +169,10 @@ class CollisionFreeVectorTable : public AggregationStateHashTableBase {
                      const std::size_t handle_id,
                      NativeColumnVector *output_cv) const;
 
+  std::size_t getMemoryConsumptionBytes() const override {
+    return memory_size_;
+  }
+
  private:
   inline static std::size_t CacheLineAlignedBytes(const std::size_t actual_bytes) {
     return (actual_bytes + kCacheLineBytes - 1) / kCacheLineBytes * kCacheLineBytes;

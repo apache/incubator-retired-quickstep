@@ -113,6 +113,19 @@ class PartitionedHashTablePool {
     return num_partitions_;
   }
 
+  /**
+   * @brief Get the total memory consumed by the hash tables in this pool.
+   **/
+  std::size_t getMemoryConsumptionPoolBytes() const {
+    std::size_t memory = 0;
+    for (std::size_t ht_id = 0; ht_id <  hash_tables_.size(); ++ht_id) {
+      if (hash_tables_[ht_id] != nullptr) {
+        memory += hash_tables_[ht_id]->getMemoryConsumptionBytes();
+      }
+    }
+    return memory;
+  }
+
  private:
   void initializeAllHashTables() {
     for (std::size_t part_num = 0; part_num < num_partitions_; ++part_num) {

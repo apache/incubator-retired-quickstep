@@ -120,6 +120,10 @@ class LinearOpenAddressingHashTable : public HashTable<ValueT,
   void getAllCompositeKey(const std::vector<TypedValue> &key,
                           std::vector<const ValueT*> *values) const override;
 
+  std::size_t getHashTableMemorySizeBytes() const override {
+     return sizeof(Header) + numEntries() * bucket_size_;
+  }
+
  protected:
   HashTablePutResult putInternal(const TypedValue &key,
                                  const std::size_t variable_key_size,

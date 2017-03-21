@@ -216,6 +216,7 @@ target_link_libraries(quickstep_queryexecution_QueryContext
                       quickstep_storage_InsertDestination
                       quickstep_storage_InsertDestination_proto
                       quickstep_storage_WindowAggregationOperationState
+                      quickstep_threading_SpinSharedMutex
                       quickstep_types_TypedValue
                       quickstep_types_containers_Tuple
                       quickstep_utility_Macros
@@ -281,6 +282,7 @@ if (ENABLE_DISTRIBUTED)
                         tmb)
 endif(ENABLE_DISTRIBUTED)
 target_link_libraries(quickstep_queryexecution_QueryManagerSingleNode
+                      quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_QueryContext
                       quickstep_queryexecution_QueryExecutionState

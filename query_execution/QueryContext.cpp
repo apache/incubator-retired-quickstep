@@ -269,4 +269,46 @@ bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
   return proto.IsInitialized();
 }
 
+std::size_t QueryContext::getJoinHashTablesMemoryBytes() const {
+  SpinSharedMutexSharedLock<false> lock(hash_tables_mutex_);
+  std::size_t memory = 0;
+  for (std::size_t hashtable_id = 0;
+       hashtable_id < join_hash_tables_.size();
+       ++hashtable_id) {
+    for (std::size_t partition_num = 0;
+         partition_num < join_hash_tables_[hashtable_id].size();
+         ++partition_num) {
+      if (join_hash_tables_[hashtable_id][partition_num] != nullptr) {
+        memory += join_hash_tables_[hashtable_id][partition_num]
+                      ->getHashTableMemorySizeBytes();
+      }
+    }
+  }
+  return memory;
+}
+
+std::size_t QueryContext::getAggregationStatesMemoryBytes() const {
+  SpinSharedMutexSharedLock<false> lock(aggregation_states_mutex_);
+  std::size_t memory = 0;
+  for (std::size_t agg_state_id = 0;
+       agg_state_id < aggregation_states_.size();
+       ++agg_state_id) {
+    if (aggregation_states_[agg_state_id] != nullptr) {
+      memory += aggregation_states_[agg_state_id]->getMemoryConsumptionBytes();
+    }
+  }
+  return memory;
+}
+
+void QueryContext::getTempRelationIDs(
+    std::vector<relation_id> *temp_relation_ids) const {
+  SpinSharedMutexSharedLock<false> lock(insert_destinations_mutex_);
+  DCHECK(temp_relation_ids != nullptr);
+  for (std::size_t id = 0; id < insert_destinations_.size(); ++id) {
+    InsertDestination *curr_insert_dest = insert_destinations_[id].get();
+    DCHECK(curr_insert_dest != nullptr);
+    temp_relation_ids->emplace_back(curr_insert_dest->getRelation().getID());
+  }
+}
+
 }  // namespace quickstep

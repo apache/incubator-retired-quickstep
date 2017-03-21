@@ -396,6 +396,20 @@ class CatalogRelation : public CatalogRelationSchema {
     return statistics_.get();
   }
 
+  /**
+   * @brief Get the size of this relation in bytes.
+   *
+   * @note The output signifies the amount of memory allocated for this
+   *       relation. The true memory footprint of this relation could be lower
+   *       than the output of this method.
+   **/
+  inline std::size_t getRelationSizeBytes() const {
+    SpinSharedMutexSharedLock<false> lock(blocks_mutex_);
+    return blocks_.size() *
+           getDefaultStorageBlockLayout().getDescription().num_slots() *
+           kSlotSizeBytes;
+  }
+
  private:
   // A list of blocks belonged to the relation.
   std::vector<block_id> blocks_;

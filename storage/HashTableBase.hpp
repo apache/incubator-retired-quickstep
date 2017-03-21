@@ -115,6 +115,8 @@ class AggregationStateHashTableBase {
 
   virtual void destroyPayload() = 0;
 
+  virtual std::size_t getMemoryConsumptionBytes() const = 0;
+
  protected:
   AggregationStateHashTableBase() {}
 

@@ -34,6 +34,7 @@
 #include "storage/HashTable.hpp"
 #include "storage/InsertDestination.hpp"
 #include "storage/WindowAggregationOperationState.hpp"
+#include "threading/SpinSharedMutex.hpp"
 #include "types/containers/Tuple.hpp"
 #include "utility/Macros.hpp"
 #include "utility/SortConfiguration.hpp"
@@ -172,6 +173,7 @@ class QueryContext {
    * @return True if valid, otherwise false.
    **/
   bool isValidAggregationStateId(const aggregation_state_id id) const {
+    SpinSharedMutexSharedLock<false> lock(aggregation_states_mutex_);
     return id < aggregation_states_.size();
   }
 
@@ -183,6 +185,7 @@ class QueryContext {
    * @return The AggregationOperationState, alreadly created in the constructor.
    **/
   inline AggregationOperationState* getAggregationState(const aggregation_state_id id) {
+    SpinSharedMutexSharedLock<false> lock(aggregation_states_mutex_);
     DCHECK_LT(id, aggregation_states_.size());
     DCHECK(aggregation_states_[id]);
     return aggregation_states_[id].get();
@@ -194,6 +197,7 @@ class QueryContext {
    * @param id The ID of the AggregationOperationState to destroy.
    **/
   inline void destroyAggregationState(const aggregation_state_id id) {
+    SpinSharedMutexExclusiveLock<false> lock(aggregation_states_mutex_);
     DCHECK_LT(id, aggregation_states_.size());
     DCHECK(aggregation_states_[id]);
     aggregation_states_[id].reset(nullptr);
@@ -231,6 +235,7 @@ class QueryContext {
    * @return True if valid, otherwise false.
    **/
   bool isValidInsertDestinationId(const insert_destination_id id) const {
+    SpinSharedMutexSharedLock<false> lock(insert_destinations_mutex_);
     return id != kInvalidInsertDestinationId
         && id >= 0
         && static_cast<std::size_t>(id) < insert_destinations_.size();
@@ -244,6 +249,7 @@ class QueryContext {
    * @return The InsertDestination, alreadly created in the constructor.
    **/
   inline InsertDestination* getInsertDestination(const insert_destination_id id) {
+    SpinSharedMutexSharedLock<false> lock(insert_destinations_mutex_);
     DCHECK_GE(id, 0);
     DCHECK_LT(static_cast<std::size_t>(id), insert_destinations_.size());
     return insert_destinations_[id].get();
@@ -255,6 +261,7 @@ class QueryContext {
    * @param id The id of the InsertDestination to destroy.
    **/
   inline void destroyInsertDestination(const insert_destination_id id) {
+    SpinSharedMutexExclusiveLock<false> lock(insert_destinations_mutex_);
     DCHECK_GE(id, 0);
     DCHECK_LT(static_cast<std::size_t>(id), insert_destinations_.size());
     insert_destinations_[id].reset();
@@ -263,12 +270,16 @@ class QueryContext {
   /**
    * @brief Whether the given JoinHashTable id is valid.
    *
+   * @note This is a thread-safe function. Check isValidJoinHashTableIdUnsafe
+   *       for the the unsafe version.
+   *
    * @param id The JoinHashTable id.
    * @param part_id The partition id.
    *
    * @return True if valid, otherwise false.
    **/
   bool isValidJoinHashTableId(const join_hash_table_id id, const partition_id part_id) const {
+    SpinSharedMutexSharedLock<false> lock(hash_tables_mutex_);
     return id < join_hash_tables_.size() &&
            part_id < join_hash_tables_[id].size();
   }
@@ -282,7 +293,8 @@ class QueryContext {
    * @return The JoinHashTable, already created in the constructor.
    **/
   inline JoinHashTable* getJoinHashTable(const join_hash_table_id id, const partition_id part_id) {
-    DCHECK(isValidJoinHashTableId(id, part_id));
+    SpinSharedMutexSharedLock<false> lock(hash_tables_mutex_);
+    DCHECK(isValidJoinHashTableIdUnsafe(id, part_id));
     return join_hash_tables_[id][part_id].get();
   }
 
@@ -293,7 +305,8 @@ class QueryContext {
    * @param part_id The partition id.
    **/
   inline void destroyJoinHashTable(const join_hash_table_id id, const partition_id part_id) {
-    DCHECK(isValidJoinHashTableId(id, part_id));
+    SpinSharedMutexExclusiveLock<false> lock(hash_tables_mutex_);
+    DCHECK(isValidJoinHashTableIdUnsafe(id, part_id));
     join_hash_tables_[id][part_id].reset();
   }
 
@@ -551,7 +564,53 @@ class QueryContext {
     return window_aggregation_states_[id].release();
   }
 
+  /**
+   * @brief Get the total memory footprint of the temporary data structures
+   *        used for query execution (e.g. join hash tables, aggregation hash
+   *        tables) in bytes.
+   **/
+  std::size_t getTempStructuresMemoryBytes() const {
+    return getJoinHashTablesMemoryBytes() + getAggregationStatesMemoryBytes();
+  }
+
+  /**
+   * @brief Get the total memory footprint in bytes of the join hash tables
+   *        used for query execution.
+   **/
+  std::size_t getJoinHashTablesMemoryBytes() const;
+
+  /**
+   * @brief Get the total memory footprint in bytes of the aggregation hash
+   *        tables used for query execution.
+   **/
+  std::size_t getAggregationStatesMemoryBytes() const;
+
+  /**
+   * @brief Get the list of IDs of temporary relations in this query.
+   *
+   * @param temp_relation_ids A pointer to the vector that will store the
+   *        relation IDs.
+   **/
+  void getTempRelationIDs(std::vector<relation_id> *temp_relation_ids) const;
+
  private:
+  /**
+   * @brief Whether the given JoinHashTable id is valid.
+   *
+   * @note This is a thread-unsafe function. Check isValidJoinHashTableId
+   *       for the the thread-safe version.
+   *
+   * @param id The JoinHashTable id.
+   * @param part_id The partition id.
+   *
+   * @return True if valid, otherwise false.
+   **/
+  bool isValidJoinHashTableIdUnsafe(const join_hash_table_id id,
+                                    const partition_id part_id) const {
+    return id < join_hash_tables_.size() &&
+           part_id < join_hash_tables_[id].size();
+  }
+
   // Per hash join, the index is the partition id.
   typedef std::vector<std::unique_ptr<JoinHashTable>> PartitionedJoinHashTables;
 
@@ -567,6 +626,10 @@ class QueryContext {
   std::vector<std::unique_ptr<Tuple>> tuples_;
   std::vector<std::unordered_map<attribute_id, std::unique_ptr<const Scalar>>> update_groups_;
   std::vector<std::unique_ptr<WindowAggregationOperationState>> window_aggregation_states_;
+
+  mutable SpinSharedMutex<false> hash_tables_mutex_;
+  mutable SpinSharedMutex<false> aggregation_states_mutex_;
+  mutable SpinSharedMutex<false> insert_destinations_mutex_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryContext);
 };

@@ -36,6 +36,7 @@ namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
+class CatalogDatabase;
 class CatalogDatabaseLite;
 class QueryHandle;
 class StorageManager;
@@ -94,6 +95,8 @@ class QueryManagerSingleNode final : public QueryManagerBase {
     return query_context_.get();
   }
 
+  std::size_t getQueryMemoryConsumptionBytes() const override;
+
  private:
   bool checkNormalExecutionOver(const dag_node_index index) const override {
     return (checkAllDependenciesMet(index) &&
@@ -123,6 +126,12 @@ class QueryManagerSingleNode final : public QueryManagerBase {
   void getRebuildWorkOrders(const dag_node_index index,
                             WorkOrdersContainer *container);
 
+  /**
+   * @brief Get the total memory (in bytes) occupied by temporary relations
+   *        created during the query execution.
+   **/
+  std::size_t getTotalTempRelationMemoryInBytes() const;
+
   const tmb::client_id foreman_client_id_;
 
   StorageManager *storage_manager_;
@@ -131,6 +140,8 @@ class QueryManagerSingleNode final : public QueryManagerBase {
   std::unique_ptr<QueryContext> query_context_;
 
   std::unique_ptr<WorkOrdersContainer> workorders_container_;
+
+  const CatalogDatabase &database_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryManagerSingleNode);
 };

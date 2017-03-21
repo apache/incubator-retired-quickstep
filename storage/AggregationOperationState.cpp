@@ -946,4 +946,25 @@ void AggregationOperationState::finalizeHashTableImplThreadPrivate(
   output_destination->bulkInsertTuples(&complete_result);
 }
 
+std::size_t AggregationOperationState::getMemoryConsumptionBytes() const {
+  std::size_t memory = getMemoryConsumptionBytesHelper(distinctify_hashtables_);
+  memory += getMemoryConsumptionBytesHelper(group_by_hashtables_);
+  memory += collision_free_hashtable_->getMemoryConsumptionBytes();
+  memory += group_by_hashtable_pool_->getMemoryConsumptionPoolBytes();
+  memory += partitioned_group_by_hashtable_pool_->getMemoryConsumptionPoolBytes();
+  return memory;
+}
+
+std::size_t AggregationOperationState::getMemoryConsumptionBytesHelper(
+    const std::vector<std::unique_ptr<AggregationStateHashTableBase>>
+        &hashtables) const {
+  std::size_t memory = 0;
+  for (std::size_t ht_id = 0; ht_id < hashtables.size(); ++ht_id) {
+    if (hashtables[ht_id] != nullptr) {
+      memory += hashtables[ht_id]->getMemoryConsumptionBytes();
+    }
+  }
+  return memory;
+}
+
 }  // namespace quickstep
