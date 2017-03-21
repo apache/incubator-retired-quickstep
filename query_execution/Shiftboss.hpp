@@ -40,7 +40,7 @@
 #include "tmb/address.h"
 #include "tmb/id_typedefs.h"
 
-namespace tmb { class MessageBus; };
+namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
