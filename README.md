@@ -56,8 +56,8 @@ The SQL surface of Quickstep is small (it will grow over time). The
 traditional SQL CREATE TABLE and SELECT statements work. The data types
 that are supported include INTEGER, FLOAT, DOUBLE, VARCHAR, CHAR, DATE,
 and DATETIME. Quickstep also does not have support for NULLS or keys (yet).
-Let create two tables by typing into the Quickstep shell (which you opened
-in the step above.
+Let us create two tables by typing into the Quickstep shell (which you opened
+in the step above), the following SQL command:
 
 ```
 CREATE TABLE Weather (cid INTEGER, recordDate DATE, highTemperature FLOAT, lowTemperature FLOAT);
@@ -78,7 +78,7 @@ CREATE TABLE City (cid Integer, name VARCHAR(80), state CHAR(2));
     INSERT INTO Weather VALUES (2, '2015-11-1', 60, 50);
     ```
 
-11. Now we can issue SQL queries such as:
+11. We can now can issue SQL queries such as:
   a. Find all weather records for California:
   ```
   SELECT * FROM WEATHER W, City C WHERE C.cid = W.cid AND C.state = 'CA';
