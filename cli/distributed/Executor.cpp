@@ -65,7 +65,7 @@ void Executor::init() {
   const vector<numa_node_id> worker_numa_nodes(FLAGS_num_workers, kAnyNUMANodeID);
   vector<client_id> worker_client_ids;
 
-  for (std::size_t worker_thread_index = 0;
+  for (int worker_thread_index = 0;
        worker_thread_index < FLAGS_num_workers;
        ++worker_thread_index) {
     workers_.push_back(make_unique<Worker>(worker_thread_index, &bus_local_,
