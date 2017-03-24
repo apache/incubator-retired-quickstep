@@ -38,3 +38,6 @@ for ((lib_index=0; lib_index < ${#third_party_dir_names[*]}; lib_index++))
 do
   rm -rf ${third_party_dir_names[lib_index]}/
 done
+
+cd protobuf
+git checkout -- src/google/protobuf/compiler/main.cc
