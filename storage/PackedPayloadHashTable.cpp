@@ -235,30 +235,54 @@ bool PackedPayloadHashTable::upsertValueAccessorCompositeKey(
   ValueAccessor *base_accessor = accessor_mux.getBaseAccessor();
   ValueAccessor *derived_accessor = accessor_mux.getDerivedAccessor();
 
-  const bool has_derived_accessor = (derived_accessor != nullptr);
-
   base_accessor->beginIterationVirtual();
-  if (has_derived_accessor) {
+  if (derived_accessor != nullptr) {
+    // NOTE(jianqiao): Currently we expect derived_accessor to be either
+    // ColumnVectorsValueAccesor or
+    // TupleIdSequenceAdapterValueAccessor<ColumnVectorsValueAccesor>
     DCHECK(derived_accessor->getImplementationType()
                == ValueAccessor::Implementation::kColumnVectors);
+    DCHECK(!derived_accessor->isOrderedTupleIdSequenceAdapter());
     derived_accessor->beginIterationVirtual();
   }
 
   return InvokeOnBools(
-      has_derived_accessor,
       handles_.empty(),
       !all_keys_inline_,
-      [&](auto use_two_accessors,  // NOLINT(build/c++11)
-          auto key_only,
+      [&](auto key_only,  // NOLINT(build/c++11)
           auto has_variable_size) -> bool {
-    return this->upsertValueAccessorCompositeKeyInternal<
-        decltype(use_two_accessors)::value,
-        decltype(key_only)::value,
-        decltype(has_variable_size)::value>(
-            argument_ids,
-            key_attr_ids,
-            base_accessor,
-            static_cast<ColumnVectorsValueAccessor *>(derived_accessor));
+    constexpr bool key_only_v = decltype(key_only)::value;
+    constexpr bool has_variable_size_v = decltype(has_variable_size)::value;
+
+    if (derived_accessor == nullptr) {
+      return this->upsertValueAccessorCompositeKeyInternal<
+          false /* use_two_accessors */,
+          key_only_v, has_variable_size_v>(
+              argument_ids,
+              key_attr_ids,
+              base_accessor,
+              static_cast<ColumnVectorsValueAccessor*>(nullptr));
+    }
+
+    if (derived_accessor->isTupleIdSequenceAdapter()) {
+      return this->upsertValueAccessorCompositeKeyInternal<
+          true /* use_two_accessors */,
+          key_only_v, has_variable_size_v>(
+              argument_ids,
+              key_attr_ids,
+              base_accessor,
+              static_cast<
+                  TupleIdSequenceAdapterValueAccessor<
+                      ColumnVectorsValueAccessor>*>(derived_accessor));
+    } else {
+      return this->upsertValueAccessorCompositeKeyInternal<
+          true /* use_two_accessors */,
+          key_only_v, has_variable_size_v>(
+              argument_ids,
+              key_attr_ids,
+              base_accessor,
+              static_cast<ColumnVectorsValueAccessor*>(derived_accessor));
+    }
   });
 }
 

@@ -343,12 +343,13 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
       const std::vector<TypedValue> &key,
       const std::size_t variable_key_size);
 
-  template <bool use_two_accessors, bool key_only, bool has_variable_size>
+  template <bool use_two_accessors, bool key_only, bool has_variable_size,
+            typename ValueAccessorT>
   inline bool upsertValueAccessorCompositeKeyInternal(
       const std::vector<std::vector<MultiSourceAttributeId>> &argument_ids,
       const std::vector<MultiSourceAttributeId> &key_ids,
       ValueAccessor *base_accessor,
-      ColumnVectorsValueAccessor *derived_accessor);
+      ValueAccessorT *derived_accessor);
 
   // Generate a hash for a composite key by hashing each component of 'key' and
   // mixing their bits with CombineHashes().
@@ -377,11 +378,12 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
   // and returns true if any of the values is null, otherwise returns false.
   template <bool use_two_accessors,
             bool check_for_null_keys,
-            typename ValueAccessorT>
+            typename BaseAccessorT,
+            typename DerivedAccessorT>
   inline static bool GetCompositeKeyFromValueAccessor(
       const std::vector<MultiSourceAttributeId> &key_ids,
-      const ValueAccessorT *accessor,
-      const ColumnVectorsValueAccessor *derived_accessor,
+      const BaseAccessorT *accessor,
+      const DerivedAccessorT *derived_accessor,
       std::vector<TypedValue> *key_vector) {
     for (std::size_t key_idx = 0; key_idx < key_ids.size(); ++key_idx) {
       const MultiSourceAttributeId &key_id = key_ids[key_idx];
@@ -825,12 +827,13 @@ inline std::uint8_t* PackedPayloadHashTable::upsertCompositeKeyInternal(
   return value;
 }
 
-template <bool use_two_accessors, bool key_only, bool has_variable_size>
+template <bool use_two_accessors, bool key_only, bool has_variable_size,
+          typename ValueAccessorT>
 inline bool PackedPayloadHashTable::upsertValueAccessorCompositeKeyInternal(
     const std::vector<std::vector<MultiSourceAttributeId>> &argument_ids,
     const std::vector<MultiSourceAttributeId> &key_ids,
     ValueAccessor *base_accessor,
-    ColumnVectorsValueAccessor *derived_accessor) {
+    ValueAccessorT *derived_accessor) {
   std::size_t variable_size = 0;
   std::vector<TypedValue> key_vector;
   key_vector.resize(key_ids.size());

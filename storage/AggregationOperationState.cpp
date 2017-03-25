@@ -419,7 +419,7 @@ bool AggregationOperationState::checkAggregatePartitioned(
 
   // There are GROUP BYs without DISTINCT. Check if the estimated number of
   // groups is large enough to warrant a partitioned aggregation.
-  return estimated_num_groups >
+  return estimated_num_groups >=
          static_cast<std::size_t>(
              FLAGS_partition_aggregation_num_groups_threshold);
 }
