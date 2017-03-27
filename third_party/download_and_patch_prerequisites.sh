@@ -109,10 +109,6 @@ done
 cd ${THIRD_PARTY_DIR}
 
 # Apply patches now.
-# Apply protobuf patch
-git submodule update --init
-patch ${THIRD_PARTY_SRC_DIR}/protobuf/src/google/protobuf/compiler/main.cc ${PATCH_DIR}/protobuf/main.cc.patch
-
 # Apply linenoise patch
 cp ${PATCH_DIR}/linenoise/CMakeLists.txt ${THIRD_PARTY_SRC_DIR}/linenoise
 patch ${THIRD_PARTY_SRC_DIR}/linenoise/linenoise.h ${PATCH_DIR}/linenoise/linenoise.h.patch
