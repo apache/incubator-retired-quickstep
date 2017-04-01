@@ -53,6 +53,8 @@ install:
       export CC="clang-3.7";
       export CXX="clang++-3.7";
     fi
+  - export CC="ccache $CC -Qunused-arguments"
+  - export CXX="ccache $CXX -Qunused-arguments"
   - export CLINKER=`which gold`
   - export DEBUG_FLAGS="-g0";
   - export RELEASE_FLAGS="-O0 -DNDEBUG";
@@ -111,6 +113,7 @@ addons:
       - libgtest-dev
       - python-networkx
       - libnuma-dev
+      - ccache
       - cmake-data
       - cmake
 
