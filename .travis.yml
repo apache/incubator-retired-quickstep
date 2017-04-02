@@ -59,6 +59,10 @@ install:
   - export DEBUG_FLAGS="-g0";
   - export RELEASE_FLAGS="-O0 -DNDEBUG";
   - export LINKER_FLAGS="-s"
+  # cmake 3.4+ is required for ccache.
+  - wget --no-check-certificate https://cmake.org/files/v3.7/cmake-3.7.2-Linux-x86_64.tar.gz
+  - tar -xzf cmake-3.7.2-Linux-x86_64.tar.gz
+  - export PATH=$PWD/cmake-3.7.2-Linux-x86_64/bin:$PATH
 
 before_script:
   - $CC --version
@@ -114,8 +118,6 @@ addons:
       - python-networkx
       - libnuma-dev
       - ccache
-      - cmake-data
-      - cmake
 
 cache:
   apt: true
