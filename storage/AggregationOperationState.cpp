@@ -949,9 +949,15 @@ void AggregationOperationState::finalizeHashTableImplThreadPrivate(
 std::size_t AggregationOperationState::getMemoryConsumptionBytes() const {
   std::size_t memory = getMemoryConsumptionBytesHelper(distinctify_hashtables_);
   memory += getMemoryConsumptionBytesHelper(group_by_hashtables_);
-  memory += collision_free_hashtable_->getMemoryConsumptionBytes();
-  memory += group_by_hashtable_pool_->getMemoryConsumptionPoolBytes();
-  memory += partitioned_group_by_hashtable_pool_->getMemoryConsumptionPoolBytes();
+  if (collision_free_hashtable_ != nullptr) {
+    memory += collision_free_hashtable_->getMemoryConsumptionBytes();
+  }
+  if (group_by_hashtable_pool_ != nullptr) {
+    memory += group_by_hashtable_pool_->getMemoryConsumptionPoolBytes();
+  }
+  if (partitioned_group_by_hashtable_pool_ != nullptr) {
+    memory += partitioned_group_by_hashtable_pool_->getMemoryConsumptionPoolBytes();
+  }
   return memory;
 }
 

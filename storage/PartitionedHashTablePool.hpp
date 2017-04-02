@@ -118,7 +118,7 @@ class PartitionedHashTablePool {
    **/
   std::size_t getMemoryConsumptionPoolBytes() const {
     std::size_t memory = 0;
-    for (std::size_t ht_id = 0; ht_id <  hash_tables_.size(); ++ht_id) {
+    for (std::size_t ht_id = 0; ht_id < hash_tables_.size(); ++ht_id) {
       if (hash_tables_[ht_id] != nullptr) {
         memory += hash_tables_[ht_id]->getMemoryConsumptionBytes();
       }
