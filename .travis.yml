@@ -55,6 +55,8 @@ install:
     fi
   - export CC="ccache $CC -Qunused-arguments"
   - export CXX="ccache $CXX -Qunused-arguments"
+  - echo $CC
+  - echo $CXX
   - export CLINKER=`which gold`
   - export DEBUG_FLAGS="-g0";
   - export RELEASE_FLAGS="-O0 -DNDEBUG";
@@ -65,8 +67,6 @@ install:
   - export PATH=$PWD/cmake-3.7.2-Linux-x86_64/bin:$PATH
 
 before_script:
-  - $CC --version
-  - $CXX --version
   - $CLINKER --version
   - cmake --version
   - (cd third_party && ./download_and_patch_prerequisites.sh && cd ../)
@@ -78,8 +78,6 @@ before_script:
            -D CMAKE_C_FLAGS_RELEASE="$RELEASE_FLAGS"
            -D CMAKE_CXX_FLAGS_RELEASE="$RELEASE_FLAGS"
            -D CMAKE_EXE_LINKER_FLAGS="$LINKER_FLAGS"
-           -D CMAKE_C_COMPILER=$CC
-           -D CMAKE_CXX_COMPILER=$CXX
            -D CMAKE_LINKER=$CLINKER
            -D USE_TCMALLOC=0
            -D VECTOR_COPY_ELISION_LEVEL=$VECTOR_COPY_ELISION_LEVEL ..)
