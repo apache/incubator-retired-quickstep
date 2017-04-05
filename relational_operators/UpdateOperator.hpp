@@ -97,6 +97,10 @@ class UpdateOperator : public RelationalOperator {
 
   ~UpdateOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kUpdate;
+  }
+
   std::string getName() const override {
     return "UpdateOperator";
   }

@@ -66,6 +66,10 @@ class DestroyHashOperator : public RelationalOperator {
 
   ~DestroyHashOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kDestroyHash;
+  }
+
   std::string getName() const override {
     return "DestroyHashOperator";
   }

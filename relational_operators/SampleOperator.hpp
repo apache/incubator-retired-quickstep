@@ -96,6 +96,10 @@ class SampleOperator : public RelationalOperator {
 
   ~SampleOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kSample;
+  }
+
   std::string getName() const override {
     return "SampleOperator";
   }

@@ -76,6 +76,10 @@ class FinalizeAggregationOperator : public RelationalOperator {
 
   ~FinalizeAggregationOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kFinalizeAggregation;
+  }
+
   std::string getName() const override {
     return "FinalizeAggregationOperator";
   }

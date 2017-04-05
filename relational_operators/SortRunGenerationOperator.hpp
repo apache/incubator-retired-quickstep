@@ -112,6 +112,10 @@ class SortRunGenerationOperator : public RelationalOperator {
 
   ~SortRunGenerationOperator() {}
 
+  OperatorType getOperatorType() const override {
+    return kSortRunGeneration;
+  }
+
   std::string getName() const override {
     return "SortRunGenerationOperator";
   }

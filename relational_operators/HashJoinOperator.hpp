@@ -178,6 +178,21 @@ class HashJoinOperator : public RelationalOperator {
 
   ~HashJoinOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    switch (join_type_) {
+      case JoinType::kInnerJoin:
+        return kInnerJoin;
+      case JoinType::kLeftSemiJoin:
+        return kLeftSemiJoin;
+      case JoinType::kLeftAntiJoin:
+        return kLeftAntiJoin;
+      case JoinType::kLeftOuterJoin:
+        return kLeftOuterJoin;
+      default:
+        LOG(FATAL) << "Unknown join type in HashJoinOperator::getOperatorType()";
+    }
+  }
+
   std::string getName() const override {
     switch (join_type_) {
       case JoinType::kInnerJoin:

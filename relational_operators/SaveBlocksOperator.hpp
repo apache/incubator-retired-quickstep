@@ -71,6 +71,10 @@ class SaveBlocksOperator : public RelationalOperator {
 
   ~SaveBlocksOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kSaveBlocks;
+  }
+
   std::string getName() const override {
     return "SaveBlocksOperator";
   }

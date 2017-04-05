@@ -186,6 +186,10 @@ class SelectOperator : public RelationalOperator {
 
   ~SelectOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kSelect;
+  }
+
   std::string getName() const override {
     return "SelectOperator";
   }

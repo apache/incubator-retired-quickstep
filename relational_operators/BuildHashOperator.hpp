@@ -118,6 +118,10 @@ class BuildHashOperator : public RelationalOperator {
     return input_relation_;
   }
 
+  OperatorType getOperatorType() const override {
+    return kBuildHash;
+  }
+
   std::string getName() const override {
     return "BuildHashOperator";
   }

@@ -63,6 +63,10 @@ class DestroyAggregationStateOperator : public RelationalOperator {
 
   ~DestroyAggregationStateOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kDestroyAggregationState;
+  }
+
   std::string getName() const override {
     return "DestroyAggregationStateOperator";
   }

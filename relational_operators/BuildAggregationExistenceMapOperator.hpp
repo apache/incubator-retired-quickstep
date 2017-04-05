@@ -88,6 +88,10 @@ class BuildAggregationExistenceMapOperator : public RelationalOperator {
 
   ~BuildAggregationExistenceMapOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kBuildAggregationExistenceMap;
+  }
+
   std::string getName() const override {
     return "BuildAggregationExistenceMapOperator";
   }

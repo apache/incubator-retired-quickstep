@@ -78,6 +78,10 @@ class TableGeneratorOperator : public RelationalOperator {
 
   ~TableGeneratorOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kTableGenerator;
+  }
+
   std::string getName() const override {
     return "TableGeneratorOperator";
   }

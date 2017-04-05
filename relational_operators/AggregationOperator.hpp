@@ -82,6 +82,10 @@ class AggregationOperator : public RelationalOperator {
 
   ~AggregationOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kAggregation;
+  }
+
   std::string getName() const override {
     return "AggregationOperator";
   }

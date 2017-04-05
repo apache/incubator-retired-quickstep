@@ -77,6 +77,10 @@ class DropTableOperator : public RelationalOperator {
 
   ~DropTableOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kDropTable;
+  }
+
   std::string getName() const override {
     return "DropTableOperator";
   }

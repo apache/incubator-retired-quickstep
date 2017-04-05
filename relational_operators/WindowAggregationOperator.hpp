@@ -79,6 +79,10 @@ class WindowAggregationOperator : public RelationalOperator {
 
   ~WindowAggregationOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kWindowAggregation;
+  }
+
   std::string getName() const override {
     return "WindowAggregationOperator";
   }

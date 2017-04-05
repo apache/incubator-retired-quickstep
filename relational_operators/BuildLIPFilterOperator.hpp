@@ -98,6 +98,10 @@ class BuildLIPFilterOperator : public RelationalOperator {
     return input_relation_;
   }
 
+  OperatorType getOperatorType() const override {
+    return kBuildLIPFilter;
+  }
+
   std::string getName() const override {
     return "BuildLIPFilterOperator";
   }

@@ -58,6 +58,45 @@ class RelationalOperator {
   virtual ~RelationalOperator() {}
 
   /**
+   * @brief Enumeration of the operator types.
+   **/
+  enum OperatorType {
+    kAggregation = 0,
+    kBuildAggregationExistenceMap,
+    kBuildHash,
+    kBuildLIPFilter,
+    kCreateIndex,
+    kCreateTable,
+    kDelete,
+    kDestroyAggregationState,
+    kDestroyHash,
+    kDropTable,
+    kFinalizeAggregation,
+    kInitializeAggregation,
+    kInnerJoin,
+    kInsert,
+    kLeftAntiJoin,
+    kLeftOuterJoin,
+    kLeftSemiJoin,
+    kNestedLoopsJoin,
+    kSample,
+    kSaveBlocks,
+    kSelect,
+    kSortMergeRun,
+    kSortRunGeneration,
+    kTableGenerator,
+    kTextScan,
+    kUpdate,
+    kWindowAggregation,
+    kMockOperator
+  };
+
+  /**
+   * @brief Get the type of the operator.
+   **/
+  virtual OperatorType getOperatorType() const = 0;
+
+  /**
    * @brief Get the name of this relational operator.
    *
    * @return The name of this relational operator.

@@ -84,6 +84,10 @@ class DeleteOperator : public RelationalOperator {
 
   ~DeleteOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kDelete;
+  }
+
   std::string getName() const override {
     return "DeleteOperator";
   }

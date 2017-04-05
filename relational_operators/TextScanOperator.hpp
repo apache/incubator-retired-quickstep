@@ -135,6 +135,10 @@ class TextScanOperator : public RelationalOperator {
 
   ~TextScanOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kTextScan;
+  }
+
   std::string getName() const override {
     return "TextScanOperator";
   }

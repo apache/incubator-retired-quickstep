@@ -65,6 +65,10 @@ class InitializeAggregationOperator : public RelationalOperator {
 
   ~InitializeAggregationOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kInitializeAggregation;
+  }
+
   std::string getName() const override {
     return "InitializeAggregationOperator";
   }

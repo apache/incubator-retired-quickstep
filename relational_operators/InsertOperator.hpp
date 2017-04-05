@@ -76,6 +76,10 @@ class InsertOperator : public RelationalOperator {
 
   ~InsertOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kInsert;
+  }
+
   std::string getName() const override {
     return "InsertOperator";
   }

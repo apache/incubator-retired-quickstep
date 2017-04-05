@@ -132,6 +132,10 @@ class SortMergeRunOperator : public RelationalOperator {
    **/
   ~SortMergeRunOperator() {}
 
+  OperatorType getOperatorType() const override {
+    return kSortMergeRun;
+  }
+
   std::string getName() const override {
     return "SortMergeRunOperator";
   }

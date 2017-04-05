@@ -70,6 +70,10 @@ class CreateIndexOperator : public RelationalOperator {
 
   ~CreateIndexOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kCreateIndex;
+  }
+
   std::string getName() const override {
     return "CreateIndexOperator";
   }

@@ -119,6 +119,10 @@ class NestedLoopsJoinOperator : public RelationalOperator {
 
   ~NestedLoopsJoinOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kNestedLoopsJoin;
+  }
+
   std::string getName() const override {
     return "NestedLoopsJoinOperator";
   }

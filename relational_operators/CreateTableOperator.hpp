@@ -69,6 +69,10 @@ class CreateTableOperator : public RelationalOperator {
 
   ~CreateTableOperator() override {}
 
+  OperatorType getOperatorType() const override {
+    return kCreateTable;
+  }
+
   std::string getName() const override {
     return "CreateTableOperator";
   }

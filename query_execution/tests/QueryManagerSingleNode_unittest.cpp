@@ -105,6 +105,10 @@ class MockOperator: public RelationalOperator {
         num_calls_donefeedingblocks_(0) {
   }
 
+  OperatorType getOperatorType() const override {
+    return kMockOperator;
+  }
+
   std::string getName() const override {
     return "MockOperator";
   }
