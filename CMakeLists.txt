@@ -145,6 +145,7 @@ if (ENABLE_VECTOR_PREDICATE_SHORT_CIRCUIT)
   )
 endif()
 
+option(ENABLE_SINGLE_NODE_SERVER "Enables server mode in single node setting" ON)
 option(ENABLE_DISTRIBUTED "Use the distributed version of Quickstep" OFF)
 
 macro (set_gflags_lib_name)
@@ -792,3 +793,13 @@ if (ENABLE_DISTRIBUTED)
                         ${GFLAGS_LIB_NAME}
                         ${GRPCPLUSPLUS_LIBRARIES})
 endif(ENABLE_DISTRIBUTED)
+
+if(ENABLE_SINGLE_NODE_SERVER)
+  add_executable (quickstep_client cli/QuickstepClient.cpp)
+  target_link_libraries(quickstep_client
+            ${GFLAGS_LIB_NAME}
+            ${GRPCPLUSPLUS_LIBRARIES}
+            ${PROTOBUF3_LIBRARIES}
+            glog
+            quickstep_cli_SingleNodeServer_proto)
+endif()

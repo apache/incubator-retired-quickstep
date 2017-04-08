@@ -44,6 +44,22 @@ configure_file (
   "${CMAKE_CURRENT_BINARY_DIR}/CliConfig.h"
 )
 
+# Compile the protos for Single Node Server mode.
+if(ENABLE_SINGLE_NODE_SERVER)
+  # We will need some of the TMBs libraries
+  set(CMAKE_MODULE_PATH
+      ${CMAKE_MODULE_PATH}
+      "${PROJECT_SOURCE_DIR}/third_party/src/tmb/cmake")
+
+  find_package(Grpc++ REQUIRED)
+  include_directories(${GRPCPLUSPLUS_INCLUDE_DIRS})
+
+  GRPC_GENERATE_CPP(cli_SingleNodeServer_proto_srcs
+                    cli_SingleNodeServer_proto_hdrs
+                    .
+                    SingleNodeServer.proto)
+endif()
+
 # Declare micro-libs and link dependencies:
 add_library(quickstep_cli_CommandExecutor CommandExecutor.cpp CommandExecutor.hpp)
 add_library(quickstep_cli_CommandExecutorUtil CommandExecutorUtil.cpp CommandExecutorUtil.hpp)
@@ -65,6 +81,12 @@ else()
               LineReaderDumb.cpp
               LineReader.hpp
               LineReaderDumb.hpp)
+endif()
+
+if (ENABLE_SINGLE_NODE_SERVER)
+  add_library(quickstep_cli_SingleNodeServer_proto
+              ${cli_SingleNodeServer_proto_srcs}
+              ${cli_SingleNodeServer_proto_hdrs})
 endif()
 
 add_library(quickstep_cli_PrintToScreen PrintToScreen.cpp PrintToScreen.hpp)
@@ -150,7 +172,15 @@ if(USE_LINENOISE)
 else()
   target_link_libraries(quickstep_cli_LineReader
                         quickstep_utility_Macros)
+
 endif()
+
+if(ENABLE_SINGLE_NODE_SERVER)
+  target_link_libraries(quickstep_cli_SingleNodeServer_proto
+                        ${GRPCPLUSPLUS_LIBRARIES}
+                        ${PROTOBUF3_LIBRARY})
+endif()
+
 target_link_libraries(quickstep_cli_PrintToScreen
                       ${GFLAGS_LIB_NAME}
                       quickstep_catalog_CatalogAttribute
