@@ -86,6 +86,7 @@ class RelationalOperator {
     kSortRunGeneration,
     kTableGenerator,
     kTextScan,
+    kUnionAll,
     kUpdate,
     kWindowAggregation,
     kMockOperator

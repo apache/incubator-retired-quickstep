@@ -94,6 +94,7 @@
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "query_optimizer/physical/UnionAll.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
 #include "query_optimizer/physical/WindowAggregate.hpp"
 #include "relational_operators/AggregationOperator.hpp"
@@ -119,6 +120,7 @@
 #include "relational_operators/SortRunGenerationOperator.hpp"
 #include "relational_operators/TableGeneratorOperator.hpp"
 #include "relational_operators/TextScanOperator.hpp"
+#include "relational_operators/UnionAllOperator.hpp"
 #include "relational_operators/UpdateOperator.hpp"
 #include "relational_operators/WindowAggregationOperator.hpp"
 #include "storage/AggregationOperationState.pb.h"
@@ -315,6 +317,9 @@ void ExecutionGenerator::generatePlanInternal(
     case P::PhysicalType::kTableReference:
       return convertTableReference(
           std::static_pointer_cast<const P::TableReference>(physical_plan));
+    case P::PhysicalType::kUnionAll:
+      return convertUnionAll(
+          std::static_pointer_cast<const P::UnionAll>(physical_plan));
     case P::PhysicalType::kUpdateTable:
       return convertUpdateTable(
           std::static_pointer_cast<const P::UpdateTable>(physical_plan));
@@ -1386,6 +1391,69 @@ void ExecutionGenerator::convertInsertSelection(
   execution_plan_->addDirectDependency(save_blocks_index,
                                        insert_selection_index,
                                        false /* is_pipeline_breaker */);
+}
+
+void ExecutionGenerator::convertUnionAll(
+    const P::UnionAllPtr &physical_unionall) {
+  const CatalogRelation *output_relation = nullptr;
+  const QueryContext::insert_destination_id insert_destination_index =
+      query_context_proto_->insert_destinations_size();
+  S::InsertDestination *insert_destination_proto =
+      query_context_proto_->add_insert_destinations();
+  createTemporaryCatalogRelation(physical_unionall,
+                                 &output_relation,
+                                 insert_destination_proto);
+
+  const std::vector<P::PhysicalPtr> &operands = physical_unionall->operands();
+  std::vector<const CatalogRelation*> input_relations;
+  std::vector<bool> is_stored_relation;
+  std::vector<std::vector<attribute_id>> select_attribute_ids;
+  std::vector<QueryPlan::DAGNodeIndex> dependency_operator_index;
+
+  for (const auto &operand : operands) {
+    const CatalogRelationInfo *input_relation_info =
+        findRelationInfoOutputByPhysical(operand);
+    DCHECK(input_relation_info != nullptr);
+    input_relations.push_back(input_relation_info->relation);
+    is_stored_relation.push_back(input_relation_info->isStoredRelation());
+    dependency_operator_index.push_back(input_relation_info->producer_operator_index);
+
+    const QueryContext::scalar_group_id project_expressions_group_index =
+        query_context_proto_->scalar_groups_size();
+    convertNamedExpressions(
+        E::ToNamedExpressions(operand->getOutputAttributes()),
+        query_context_proto_->add_scalar_groups());
+    std::vector<attribute_id> select_attribute_id;
+    convertSimpleProjection(project_expressions_group_index, &select_attribute_id);
+    select_attribute_ids.push_back(std::move(select_attribute_id));
+  }
+
+  UnionAllOperator *union_all =
+      new UnionAllOperator(query_handle_->query_id(),
+                           input_relations,
+                           *output_relation,
+                           insert_destination_index,
+                           is_stored_relation,
+                           select_attribute_ids);
+
+  const QueryPlan::DAGNodeIndex union_all_index =
+      execution_plan_->addRelationalOperator(union_all);
+  insert_destination_proto->set_relational_op_index(union_all_index);
+
+  for (std::size_t relation_id = 0; relation_id < is_stored_relation.size(); ++relation_id) {
+    if (!is_stored_relation[relation_id]) {
+      execution_plan_->addDirectDependency(union_all_index,
+                                           dependency_operator_index[relation_id],
+                                           false /* is_pipeline_breaker */);
+    }
+  }
+
+  physical_to_output_relation_map_.emplace(
+      std::piecewise_construct,
+      std::forward_as_tuple(physical_unionall),
+      std::forward_as_tuple(union_all_index,
+                            output_relation));
+  temporary_relation_info_vec_.emplace_back(union_all_index, output_relation);
 }
 
 void ExecutionGenerator::convertUpdateTable(
