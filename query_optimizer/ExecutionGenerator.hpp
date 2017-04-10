@@ -62,6 +62,7 @@
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "query_optimizer/physical/UnionAll.hpp"
 #include "query_optimizer/physical/UpdateTable.hpp"
 #include "query_optimizer/physical/WindowAggregate.hpp"
 #include "utility/Macros.hpp"
@@ -326,6 +327,13 @@ class ExecutionGenerator {
    * @param physical_plan The InsertTuple to be converted.
    */
   void convertInsertTuple(const physical::InsertTuplePtr &physical_plan);
+
+  /**
+   * @brief Converts a physical UnionAll to an UnionAll operator.
+   *
+   * @param physical_plan The UnionAll to be converted.
+   */
+  void convertUnionAll(const physical::UnionAllPtr &physical_plan);
 
   /**
    * @brief Converts an UpdateTable to an Update and a SaveBlocks.

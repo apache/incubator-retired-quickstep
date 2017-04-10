@@ -55,6 +55,7 @@
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "query_optimizer/physical/UnionAll.hpp"
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
@@ -118,6 +119,9 @@ std::size_t StarSchemaSimpleCostModel::estimateCardinality(
     case P::PhysicalType::kWindowAggregate:
       return estimateCardinalityForWindowAggregate(
           std::static_pointer_cast<const P::WindowAggregate>(physical_plan));
+    case P::PhysicalType::kUnionAll:
+      return estimateCardinalityForUnionAll(
+          std::static_pointer_cast<const P::UnionAll>(physical_plan));
     default:
       throw UnsupportedPhysicalPlan(physical_plan);
   }
@@ -203,6 +207,14 @@ std::size_t StarSchemaSimpleCostModel::estimateCardinalityForWindowAggregate(
   return estimateCardinality(physical_plan->input());
 }
 
+std::size_t StarSchemaSimpleCostModel::estimateCardinalityForUnionAll(
+    const P::UnionAllPtr &physical_plan) {
+  std::size_t cardinality = 0;
+  for (const P::PhysicalPtr &operand : physical_plan->operands()) {
+    cardinality += estimateCardinality(operand);
+  }
+  return cardinality;
+}
 
 std::size_t StarSchemaSimpleCostModel::estimateNumGroupsForAggregate(
     const physical::AggregatePtr &aggregate) {

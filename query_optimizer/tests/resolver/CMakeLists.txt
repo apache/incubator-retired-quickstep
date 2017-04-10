@@ -51,6 +51,10 @@ add_test(quickstep_queryoptimizer_tests_resolver_select
          "../quickstep_queryoptimizer_tests_OptimizerTextTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Select.test"
          "${CMAKE_CURRENT_BINARY_DIR}/Select.test")
+add_test(quickstep_queryoptimizer_tests_resolver_setoperation
+         "../quickstep_queryoptimizer_tests_OptimizerTextTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/SetOperation.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/SetOperation.test")
 add_test(quickstep_queryoptimizer_tests_resolver_update
          "../quickstep_queryoptimizer_tests_OptimizerTextTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Update.test"

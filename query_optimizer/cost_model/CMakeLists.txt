@@ -45,6 +45,7 @@ target_link_libraries(quickstep_queryoptimizer_costmodel_SimpleCostModel
                       quickstep_queryoptimizer_physical_TableGenerator
                       quickstep_queryoptimizer_physical_TableReference
                       quickstep_queryoptimizer_physical_TopLevelPlan
+                      quickstep_queryoptimizer_physical_UnionAll
                       quickstep_queryoptimizer_physical_WindowAggregate
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_costmodel_StarSchemaSimpleCostModel
@@ -79,6 +80,7 @@ target_link_libraries(quickstep_queryoptimizer_costmodel_StarSchemaSimpleCostMod
                       quickstep_queryoptimizer_physical_TableGenerator
                       quickstep_queryoptimizer_physical_TableReference
                       quickstep_queryoptimizer_physical_TopLevelPlan
+                      quickstep_queryoptimizer_physical_UnionAll
                       quickstep_queryoptimizer_physical_WindowAggregate
                       quickstep_types_NullType
                       quickstep_types_Type

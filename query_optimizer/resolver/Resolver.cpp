@@ -1416,13 +1416,13 @@ L::LogicalPtr Resolver::resolveSetOperations(
             THROW_SQL_ERROR_AT(&parse_set_operations)
                 << "There is not a safely coerce between "
                 << current_type.getName()
-                << "and " << possible_type.getName();
+                << " and " << possible_type.getName();
           }
         } else {
           THROW_SQL_ERROR_AT(&parse_set_operations)
-              << "Does not support cast operation between non-numeric types"
+              << "Does not support cast operation with non-numeric types "
               << current_type.getName()
-              << "and " << possible_type.getName();
+              << " and " << possible_type.getName();
         }
       }
     }

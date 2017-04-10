@@ -38,6 +38,7 @@
 #include "query_optimizer/physical/TableGenerator.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "query_optimizer/physical/UnionAll.hpp"
 #include "query_optimizer/physical/WindowAggregate.hpp"
 
 #include "glog/logging.h"
@@ -90,6 +91,9 @@ std::size_t SimpleCostModel::estimateCardinality(
     case P::PhysicalType::kWindowAggregate:
       return estimateCardinalityForWindowAggregate(
           std::static_pointer_cast<const P::WindowAggregate>(physical_plan));
+    case P::PhysicalType::kUnionAll:
+      return estimateCardinalityForUnionAll(
+          std::static_pointer_cast<const P::UnionAll>(physical_plan));
     default:
       throw UnsupportedPhysicalPlan(physical_plan);
   }
@@ -161,6 +165,15 @@ std::size_t SimpleCostModel::estimateCardinalityForCrossReferenceCoalesceAggrega
 std::size_t SimpleCostModel::estimateCardinalityForWindowAggregate(
     const physical::WindowAggregatePtr &physical_plan) {
   return estimateCardinality(physical_plan->input());
+}
+
+std::size_t SimpleCostModel::estimateCardinalityForUnionAll(
+    const physical::UnionAllPtr &physical_plan) {
+  std::size_t cardinality = 0;
+  for (const P::PhysicalPtr &operand : physical_plan->operands()) {
+    cardinality += estimateCardinality(operand);
+  }
+  return cardinality;
 }
 
 }  // namespace cost

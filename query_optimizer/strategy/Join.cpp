@@ -37,6 +37,8 @@
 #include "query_optimizer/logical/NestedLoopsJoin.hpp"
 #include "query_optimizer/logical/PatternMatcher.hpp"
 #include "query_optimizer/logical/Project.hpp"
+#include "query_optimizer/logical/SetOperation.hpp"
+#include "query_optimizer/physical/Aggregate.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
 #include "query_optimizer/physical/NestedLoopsJoin.hpp"
 #include "query_optimizer/physical/PatternMatcher.hpp"
@@ -61,6 +63,7 @@ bool Join::generatePlan(const L::LogicalPtr &logical_input,
   L::FilterPtr logical_filter;
   L::HashJoinPtr logical_hash_join;
   L::NestedLoopsJoinPtr logical_nested_loops_join;
+  L::SetOperationPtr logical_set_operation;
 
   // Collapse project-join.
   if (L::SomeProject::MatchesWithConditionalCast(logical_input, &logical_project)) {
@@ -135,6 +138,45 @@ bool Join::generatePlan(const L::LogicalPtr &logical_input,
           physical_output);
       return true;
     }
+  }
+
+  // Convert set operations.
+  if (L::SomeSetOperation::MatchesWithConditionalCast(logical_input, &logical_set_operation)) {
+    if (logical_set_operation->getSetOperationType() !=  L::SetOperation::kIntersect) {
+      // Union and UnionAll operations are in OneToOne.cpp.
+      return false;
+    }
+
+    // For Intersect operation, convert it into a physical hash semi join.
+    const std::vector<L::LogicalPtr> &operands = logical_set_operation->getOperands();
+
+    DCHECK_GE(operands.size(), 2u);
+    L::LogicalPtr intermediate = operands[0];
+    for (std::size_t i = 1; i < operands.size(); ++i) {
+      intermediate = L::HashJoin::Create(intermediate,
+                                         operands[i],
+                                         intermediate->getOutputAttributes(),
+                                         operands[i]->getOutputAttributes(),
+                                         nullptr /* residual_predicate */,
+                                         L::HashJoin::JoinType::kLeftSemiJoin);
+    }
+
+    const std::vector<E::NamedExpressionPtr> project_expressions =
+        E::ToNamedExpressions(operands[0]->getOutputAttributes());
+    logical_project = L::Project::Create(intermediate,
+                                         project_expressions);
+
+    P::PhysicalPtr physical_hash_join;
+    addHashJoin(logical_project,
+                nullptr /* logical_filter */,
+                std::static_pointer_cast<const L::HashJoin>(intermediate),
+                &physical_hash_join);
+
+    *physical_output = P::Aggregate::Create(physical_hash_join,
+                                            project_expressions,
+                                            {} /* aggregate_expressions */,
+                                            nullptr /* filter_predicate */);
+    return true;
   }
 
   // Convert a single binary join.
