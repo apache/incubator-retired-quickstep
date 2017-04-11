@@ -19,7 +19,7 @@ syntax = "proto3";
 
 package quickstep;
 
-service SingleNodeServerRequest {
+service SingleNodeServer {
   rpc SendQuery (QueryRequest) returns (QueryResponse) {}
 }
 

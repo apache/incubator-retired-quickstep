@@ -795,11 +795,10 @@ if (ENABLE_DISTRIBUTED)
 endif(ENABLE_DISTRIBUTED)
 
 if(ENABLE_SINGLE_NODE_SERVER)
-  add_executable (quickstep_client cli/QuickstepClient.cpp)
+  add_executable (quickstep_client cli/SingleNodeClientExecutable.cpp)
   target_link_libraries(quickstep_client
             ${GFLAGS_LIB_NAME}
             ${GRPCPLUSPLUS_LIBRARIES}
-            ${PROTOBUF3_LIBRARIES}
             glog
-            quickstep_cli_SingleNodeServer_proto)
+            quickstep_cli_SingleNodeClient)
 endif()

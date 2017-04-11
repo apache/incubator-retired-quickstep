@@ -84,6 +84,12 @@ else()
 endif()
 
 if (ENABLE_SINGLE_NODE_SERVER)
+  add_library(quickstep_cli_SingleNodeClient
+              SingleNodeClient.cpp
+              SingleNodeClient.hpp)
+  add_library(quickstep_cli_SingleNodeServerWrapper
+              SingleNodeServerWrapper.cpp
+              SingleNodeServerWrapper.hpp)
   add_library(quickstep_cli_SingleNodeServer_proto
               ${cli_SingleNodeServer_proto_srcs}
               ${cli_SingleNodeServer_proto_hdrs})
@@ -92,6 +98,14 @@ endif()
 add_library(quickstep_cli_PrintToScreen PrintToScreen.cpp PrintToScreen.hpp)
 
 # Link dependencies:
+if (ENABLE_SINGLE_NODE_SERVER)
+  target_link_libraries(quickstep_cli_SingleNodeClient
+                        ${GFLAGS_LIB_NAME}
+                        ${GRPCPLUSPLUS_LIBRARIES}
+                        ${PROTOBUF3_LIBRARIES}
+                        glog
+                        quickstep_cli_SingleNodeServer_proto)
+endif()
 target_link_libraries(quickstep_cli_CommandExecutor
                       glog
                       quickstep_catalog_CatalogAttribute
@@ -176,6 +190,12 @@ else()
 endif()
 
 if(ENABLE_SINGLE_NODE_SERVER)
+  target_link_libraries(quickstep_cli_SingleNodeServerWrapper
+                        ${GFLAGS_LIB_NAME}
+                        ${GRPCPLUSPLUS_LIBRARIES}
+                        ${PROTOBUF3_LIBRARIES}
+                        glog
+                        quickstep_cli_SingleNodeServer_proto)
   target_link_libraries(quickstep_cli_SingleNodeServer_proto
                         ${GRPCPLUSPLUS_LIBRARIES}
                         ${PROTOBUF3_LIBRARY})
