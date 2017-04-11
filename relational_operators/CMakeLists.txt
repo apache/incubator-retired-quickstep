@@ -28,6 +28,9 @@ QS_PROTOBUF_GENERATE_CPP(relationaloperators_SortMergeRunOperator_proto_srcs
 QS_PROTOBUF_GENERATE_CPP(relationaloperators_WorkOrder_proto_srcs
                          relationaloperators_WorkOrder_proto_hdrs
                          WorkOrder.proto)
+QS_PROTOBUF_GENERATE_CPP(relationaloperators_Operator_proto_srcs
+                         relationaloperators_Operator_proto_hdrs
+                         Operator.proto)
 
 set_gflags_lib_name ()
 
@@ -57,6 +60,9 @@ add_library(quickstep_relationaloperators_InsertOperator InsertOperator.cpp Inse
 add_library(quickstep_relationaloperators_NestedLoopsJoinOperator
             NestedLoopsJoinOperator.cpp
             NestedLoopsJoinOperator.hpp)
+add_library(quickstep_relationaloperators_Operator_proto
+            ${relationaloperators_Operator_proto_srcs}
+            ${relationaloperators_Operator_proto_hdrs})
 add_library(quickstep_relationaloperators_RebuildWorkOrder ../empty_src.cpp RebuildWorkOrder.hpp)
 add_library(quickstep_relationaloperators_RelationalOperator ../empty_src.cpp RelationalOperator.hpp)
 add_library(quickstep_relationaloperators_SampleOperator SampleOperator.cpp SampleOperator.hpp)

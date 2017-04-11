@@ -1,0 +1,198 @@
+syntax = "proto2";
+
+package quickstep.serialization;
+
+enum OperatorType {
+    AGGREGATION = 1;
+    BUILD_AGGREGATION_EXISTENCE_MAP = 2;
+    BUILD_HASH = 3;
+    BUILD_LIP_FILTER = 4;
+    CREATE_INDEX = 5;  // Placeholder.
+    CREATE_TABLE = 6;  // Placeholder.
+    DELETE = 7;
+    DESTROY_AGGREGATION_STATE = 8;
+    DESTROY_HASH = 9;
+    DROP_TABLE = 10;
+    FINALIZE_AGGREGATION = 11;
+    HASH_JOIN = 12;
+    INITIALIZE_AGGREGATION = 13;
+    INSERT = 14;
+    NESTED_LOOP_JOIN = 15;
+    SAMPLE = 16;
+    SAVE_BLOCKS = 17;
+    SELECT = 18;
+    SORT_MERGE_RUN = 19;
+    SORT_RUN_GENERATION = 20;
+    TABLE_GENERATOR = 21;
+    TEXT_SCAN = 22;
+    UPDATE = 23;
+    WINDOW_AGGREGATION = 24;
+}
+
+message Operator {
+    required uint64 query_id = 1;
+    required OperatorType operator_type = 2;
+    extensions 16 to max;
+}
+
+message AggregationOperator {
+    extend Operator {
+        // We need relation_id to retrieve CatalogRelation object. (?)
+        required int32 relation_id = 16;
+        // Learn whether we can check this one from relation id. (?)
+        required bool relation_is_stored = 17;
+        // Aggregate state index in QueryContext
+        required uint32 aggr_state_index = 18;
+    }
+}
+
+message BuildHashOperator {
+    extend Operator {
+        required int32 relation_id = 16;
+        required bool relation_is_stored = 17;
+        repeated int32 join_key_attributes = 18;
+        required bool any_join_key_nullable = 19;
+        required uint64 num_partitions = 20;
+        required uint32 hash_table_index = 21;
+    }
+}
+
+message CreateTableOperator {
+    extend Operator {
+
+    }
+}
+
+message DeleteOperator {
+    extend Operator {
+
+    }
+}
+
+message DestroyHashOperator {
+    extend Operator {
+        required uint64 build_num_partitions = 16;
+        required uint32 hash_table_index = 17;
+    }
+}
+
+message DropTableOperator {
+    extend Operator {
+        required int32 relation_id = 16;
+        required int32 database_id = 17;
+        required bool only_drop_blocks = 18;
+    }
+}
+
+message FinalizeAggregationOperator {
+    extend Operator {
+        required uint32 aggr_state_index = 16;
+        required int32 output_relation_id = 17;
+        required uint32 output_destination_index = 18;
+    }
+}
+
+
+message HashJoinOperator {
+    enum JoinType {
+        LEFT_INNER = 1;
+        LEFT_SEMI = 2;
+        LEFT_ANTI = 3;
+        LEFT_OUTER = 4;
+    }
+
+    extend Operator {
+        required int32 build_relation_id = 16;
+        required int32 probe_relation_id = 17;
+        repeated int32 join_key_attributes = 18;
+        required bool any_join_key_attributes_nullable = 19;
+        required uint64 build_num_partitions = 20;
+        required int32 output_relation_id = 21;
+        required int32 output_destionation_index = 22;
+        required int32 hash_table_index = 23;
+        required int32 residiual_predicate_index = 24;
+        repeated bool is_selection_on_build = 25;
+        required JoinType join_type = 26;
+    }
+}
+
+message InitializeAggregationOperator {
+    extend Operator {
+        required uint32 aggr_state_index = 16;
+    }
+}
+
+message InsertOperator {
+    extend Operator {
+        required int32 output_relation_id = 16;
+        required uint32 output_destination_index = 17;
+        required uint32 tuple_index = 18;
+    }
+}
+
+message SampleOperator {
+    extend Operator {
+        required int32 input_relation_id = 16;
+        required int32 output_relation_id = 17;
+        required int32 output_destination_index = 18;
+        required bool input_relation_is_stored = 19;
+        required bool is_block_sample = 20;
+        required int32 percentage = 21;
+    }
+}
+
+message SaveBlocksOperator {
+    extend Operator {
+        required int32 relation_id = 16;
+        required bool force = 17;
+    }
+}
+
+message SelectOperator {
+    extend Operator {
+        required int32 input_relation_id = 16;
+        required int32 output_relation_id = 17;
+        required int32 output_destination_index = 18;
+        required int32 predicate_index = 19;
+        required int32 selection_index = 20;
+        required bool input_relation_is_stored = 21;
+        required uint64 num_partitions = 22;
+    }
+}
+
+message TableGeneratorOperator {
+    extend Operator {
+        required int32 output_relation_id = 16;
+        required int32 output_destination_index = 17;
+        required uint32 generator_function_index = 18;
+    }
+}
+
+message TextScanOperator {
+    extend Operator {
+        required string file_pattern = 16;
+        required int32 field_terminator = 17;
+        required bool process_escap_sequences = 18;
+        required int32 output_relation_id = 19;
+        required int32 output_destination_index = 20;
+    }
+}
+
+message UpdateOperator {
+    extend Operator {
+        required int32 relation_id = 16;
+        required int32 relocation_destionation_index = 17;
+        required int32 predicate_index = 18;
+        required uint32 update_group_index = 19;
+    }
+}
+
+message WindowAggregationOperator {
+    extend Operator {
+        required int32 input_relation_id = 16;
+        required int32 output_relation_id = 17;
+        required uint32 window_aggregation_state_index = 18;
+        required int32 output_destination_index = 19;
+    }
+}
+

@@ -24,6 +24,10 @@ configure_file (
   "${CMAKE_CURRENT_BINARY_DIR}/QueryOptimizerConfig.h"
 )
 
+QS_PROTOBUF_GENERATE_CPP(queryoptimizer_QueryPlan_proto_srcs
+                         queryoptimizer_QueryPlan_proto_hdrs
+                         QueryPlan.proto)
+
 set_gflags_lib_name ()
 
 add_subdirectory(cost_model)
@@ -48,6 +52,9 @@ add_library(quickstep_queryoptimizer_OptimizerTree ../empty_src.cpp OptimizerTre
 add_library(quickstep_queryoptimizer_PhysicalGenerator PhysicalGenerator.cpp PhysicalGenerator.hpp)
 add_library(quickstep_queryoptimizer_QueryHandle ../empty_src.cpp QueryHandle.hpp)
 add_library(quickstep_queryoptimizer_QueryPlan ../empty_src.cpp QueryPlan.hpp)
+add_library(quickstep_queryoptimizer_QueryPlan_proto
+            ${queryoptimizer_QueryPlan_proto_srcs}
+            ${queryoptimizer_QueryPlan_proto_hdrs})
 add_library(quickstep_queryoptimizer_QueryProcessor QueryProcessor.cpp QueryProcessor.hpp)
 add_library(quickstep_queryoptimizer_Validator ../empty_src.cpp Validator.hpp)
 
@@ -239,6 +246,9 @@ target_link_libraries(quickstep_queryoptimizer_QueryPlan
                       quickstep_relationaloperators_RelationalOperator
                       quickstep_utility_DAG
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_QueryPlan_proto
+                      quickstep_relationaloperators_Operator_proto
+                      ${PROTOBUF_LIBRARY})
 target_link_libraries(quickstep_queryoptimizer_QueryProcessor
                       quickstep_catalog_Catalog
                       quickstep_catalog_Catalog_proto

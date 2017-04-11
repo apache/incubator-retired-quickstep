@@ -1,0 +1,44 @@
+syntax = "proto2";
+
+package quickstep.serialization;
+
+import "relational_operators/Operator.proto";
+
+message Vertex {
+    required OperatorType = 1;
+    oneof operator {
+        AggregationOperator aggregate_operator = 2;
+        BuildHashOperator build_hash_operator = 3;
+        BuildLIPFilterOperator build_lip_filter_operator = 4;
+        CreateIndexOperator create_index_operator = 5;
+        CreateTableOperator create_table_operator = 6;
+        DeleteOperator delete_operator = 7;
+        DestroyAggregationStateOperator destroy_aggregation_state_operator = 8;
+        DestroyHashOperator destroy_hash_operator = 9;
+        DropTableOperator drop_table_operator = 10;
+        FinalizeAggregationOperator finalize_aggregation_operator = 11;
+        HashJoinOperator hash_join_operator = 12;
+        InitializeAggregationOperator initialize_aggregation_operator = 13;
+        InsertOperator insert_operator = 14;
+        NestedLoopsJoinOperator nested_loops_join_operator = 15;
+        SampleOperator sample_operator = 16;
+        SaveBlocksOperator save_blocks_operator = 17;
+        SelectOperator select_operator = 18;
+        SortMergeRunOperator sort_merge_run_operator = 19;
+        SortRunGenerationOperator sort_run_generation_operator = 20;
+        TableGeneratorOperator table_generator_operator = 21;
+        TextScanOperator text_scan_operator = 22;
+        UpdateOperator update_operator = 23;
+        WindowAggregationOperator window_aggregation_operator = 24;
+    }
+}
+
+message Edges {
+    repeated uint64 outgoing_id = 1;
+    repeated bool payload = 2;
+}
+
+message DAG {
+    repeated Node = 1;
+    repeated Edges = 2;
+}
