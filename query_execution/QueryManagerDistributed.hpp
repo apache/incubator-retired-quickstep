@@ -25,11 +25,13 @@
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
+#include "query_execution/BlockLocator.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionState.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_execution/QueryManagerBase.hpp"
 #include "query_execution/WorkOrderProtosContainer.hpp"
+#include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 
 #include "tmb/address.h"
@@ -100,17 +102,23 @@ class QueryManagerDistributed final : public QueryManagerBase {
 
   /**
    * @brief Get the index of Shiftboss for an Aggregation related WorkOrder. If
-   * the Shiftboss index is not found, set using <next_shiftboss_index_to_schedule>.
+   * the Shiftboss index is not found, set using the block locality if found,
+   * otherwise <next_shiftboss_index_to_schedule>.
    *
    * @param aggr_state_index The Hash Table for the Aggregation.
+   * @param block_locator The BlockLocator to use.
+   * @param block The block id to feed BlockLocator for the locality info.
    * @param next_shiftboss_index The index of Shiftboss to schedule a next WorkOrder.
    * @param shiftboss_index The index of Shiftboss to schedule the WorkOrder.
    **/
   void getShiftbossIndexForAggregation(const QueryContext::aggregation_state_id aggr_state_index,
+                                       const BlockLocator &block_locator,
+                                       const block_id block,
                                        const std::size_t next_shiftboss_index_to_schedule,
                                        std::size_t *shiftboss_index) {
     DCHECK_LT(aggr_state_index, shiftboss_indexes_for_aggrs_.size());
-    if (shiftboss_indexes_for_aggrs_[aggr_state_index] == kInvalidShiftbossIndex) {
+    if (shiftboss_indexes_for_aggrs_[aggr_state_index] == kInvalidShiftbossIndex &&
+        !block_locator.getBlockLocalityInfo(block, &shiftboss_indexes_for_aggrs_[aggr_state_index])) {
       shiftboss_indexes_for_aggrs_[aggr_state_index] = next_shiftboss_index_to_schedule;
     }
 
@@ -119,21 +127,28 @@ class QueryManagerDistributed final : public QueryManagerBase {
 
   /**
    * @brief Get the index of Shiftboss for a HashJoin related WorkOrder. If the
-   * Shiftboss index is not found, set using <next_shiftboss_index_to_schedule>.
+   * Shiftboss index is not found, set using the block locality if found,
+   * otherwise <next_shiftboss_index_to_schedule>.
    *
    * @param join_hash_table_index The Hash Table for the Join.
    * @param part_id The partition ID.
+   * @param block_locator The BlockLocator to use.
+   * @param block The block id to feed BlockLocator for the locality info.
    * @param next_shiftboss_index The index of Shiftboss to schedule a next WorkOrder.
    * @param shiftboss_index The index of Shiftboss to schedule the WorkOrder.
    **/
   void getShiftbossIndexForHashJoin(const QueryContext::join_hash_table_id join_hash_table_index,
                                     const partition_id part_id,
+                                    const BlockLocator &block_locator,
+                                    const block_id block,
                                     const std::size_t next_shiftboss_index_to_schedule,
                                     std::size_t *shiftboss_index) {
     DCHECK_LT(join_hash_table_index, shiftboss_indexes_for_hash_joins_.size());
     DCHECK_LT(part_id, shiftboss_indexes_for_hash_joins_[join_hash_table_index].size());
 
-    if (shiftboss_indexes_for_hash_joins_[join_hash_table_index][part_id] == kInvalidShiftbossIndex) {
+    if (shiftboss_indexes_for_hash_joins_[join_hash_table_index][part_id] == kInvalidShiftbossIndex &&
+        !block_locator.getBlockLocalityInfo(block,
+                                            &shiftboss_indexes_for_hash_joins_[join_hash_table_index][part_id])) {
       shiftboss_indexes_for_hash_joins_[join_hash_table_index][part_id] = next_shiftboss_index_to_schedule;
     }
 

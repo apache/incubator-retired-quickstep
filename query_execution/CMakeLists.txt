@@ -267,6 +267,7 @@ target_link_libraries(quickstep_queryexecution_QueryManagerBase
 if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_queryexecution_QueryManagerDistributed
                         quickstep_catalog_CatalogTypedefs
+                        quickstep_queryexecution_BlockLocator
                         quickstep_queryexecution_QueryContext
                         quickstep_queryexecution_QueryContext_proto
                         quickstep_queryexecution_QueryExecutionMessages_proto
@@ -277,6 +278,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_queryexecution_WorkOrderProtosContainer
                         quickstep_relationaloperators_RelationalOperator
                         quickstep_relationaloperators_WorkOrder_proto
+                        quickstep_storage_StorageBlockInfo
                         quickstep_utility_DAG
                         quickstep_utility_Macros
                         tmb)

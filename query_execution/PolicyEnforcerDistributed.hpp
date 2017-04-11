@@ -47,6 +47,7 @@ class TaggedMessage;
 
 namespace quickstep {
 
+class BlockLocator;
 class CatalogDatabaseLite;
 class CatalogRelation;
 class QueryProcessor;
@@ -125,31 +126,39 @@ class PolicyEnforcerDistributed final : public PolicyEnforcerBase {
   /**
    * @brief Get or set the index of Shiftboss for an Aggregation related
    * WorkOrder. If it is the first Aggregation on <aggr_state_index>,
-   * <shiftboss_index> will be set to <next_shiftboss_index_to_schedule>.
+   * <shiftboss_index> will be set based on block locality if found,
+   * otherwise <next_shiftboss_index_to_schedule>.
    * Otherwise, <shiftboss_index> will be set to the index of the Shiftboss that
    * has executed the first Aggregation.
    *
    * @param query_id The query id.
    * @param aggr_state_index The Hash Table for the Aggregation.
+   * @param block_locator The BlockLocator to use.
+   * @param block The block id to feed BlockLocator for the locality info.
    * @param next_shiftboss_index The index of Shiftboss to schedule a next WorkOrder.
    * @param shiftboss_index The index of Shiftboss to schedule the WorkOrder.
    **/
   void getShiftbossIndexForAggregation(
       const std::size_t query_id,
       const QueryContext::aggregation_state_id aggr_state_index,
+      const BlockLocator &block_locator,
+      const block_id block,
       const std::size_t next_shiftboss_index_to_schedule,
       std::size_t *shiftboss_index);
 
   /**
    * @brief Get or set the index of Shiftboss for a HashJoin related WorkOrder.
    * If it is the first BuildHash on <join_hash_table_index, part_id>,
-   * <shiftboss_index> will be set to <next_shiftboss_index_to_schedule>.
+   * <shiftboss_index> will be set to block locality if found,
+   * otherwise <next_shiftboss_index_to_schedule>.
    * Otherwise, <shiftboss_index> will be set to the index of the Shiftboss that
    * has executed the first BuildHash.
    *
    * @param query_id The query id.
    * @param join_hash_table_index The Hash Table for the Join.
    * @param part_id The partition ID.
+   * @param block_locator The BlockLocator to use.
+   * @param block The block id to feed BlockLocator for the locality info.
    * @param next_shiftboss_index The index of Shiftboss to schedule a next WorkOrder.
    * @param shiftboss_index The index of Shiftboss to schedule the WorkOrder.
    **/
@@ -157,6 +166,8 @@ class PolicyEnforcerDistributed final : public PolicyEnforcerBase {
       const std::size_t query_id,
       const QueryContext::join_hash_table_id join_hash_table_index,
       const partition_id part_id,
+      const BlockLocator &block_locator,
+      const block_id block,
       const std::size_t next_shiftboss_index_to_schedule,
       std::size_t *shiftboss_index);
 
