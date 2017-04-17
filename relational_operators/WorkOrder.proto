@@ -45,6 +45,7 @@ enum WorkOrderType {
   WINDOW_AGGREGATION = 21;
   DESTROY_AGGREGATION_STATE = 22;
   BUILD_AGGREGATION_EXISTENCE_MAP = 23;
+  UNION_ALL = 24;
 }
 
 message WorkOrder {
@@ -289,5 +290,14 @@ message BuildAggregationExistenceMapWorkOrder {
     optional fixed64 build_block_id = 369;
     optional int32 build_attribute = 370;
     optional uint32 aggr_state_index = 371;
+  }
+}
+
+message UnionAllWorkOrder {
+  extend WorkOrder {
+    optional int32 relation_id = 384;
+    optional int32 insert_destination_index = 385;
+    optional fixed64 block_id = 386;
+    repeated int32 select_attribute_id = 387;
   }
 }
