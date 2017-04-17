@@ -120,6 +120,10 @@ class BuildLIPFilterOperator : public RelationalOperator {
     input_relation_block_ids_.push_back(input_block_id);
   }
 
+  QueryContext::predicate_id getPredicateIndex() const {
+    return build_side_predicate_index_;
+  }
+
  private:
   /**
    * @brief Create Work Order proto.

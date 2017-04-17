@@ -25,6 +25,7 @@
 #include <utility>
 #include <vector>
 
+#include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -41,7 +42,6 @@ namespace quickstep {
 
 class CatalogDatabase;
 class CatalogDatabaseLite;
-class CatalogRelation;
 class QueryContext;
 class StorageManager;
 class WorkOrderProtosContainer;
@@ -94,6 +94,14 @@ class DropTableOperator : public RelationalOperator {
   bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
   void updateCatalogOnCompletion() override;
+
+  relation_id getRelationID() const {
+    return relation_.getID();
+  }
+
+  bool onlyDropBlocks() const {
+    return only_drop_blocks_;
+  }
 
  private:
   const CatalogRelation &relation_;

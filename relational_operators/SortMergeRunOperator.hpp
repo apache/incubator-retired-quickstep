@@ -168,6 +168,30 @@ class SortMergeRunOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  const CatalogRelation& getInputRelation() const {
+    return input_relation_;
+  }
+
+  const CatalogRelation& getRunRelation() const {
+    return run_relation_;
+  }
+
+  QueryContext::insert_destination_id getRunBlockDestinationIndex() const {
+    return run_block_destination_index_;
+  }
+
+  QueryContext::sort_config_id getSortConfigIndex() const {
+    return sort_config_index_;
+  }
+
+  std::size_t getTopK() const {
+    return top_k_;
+  }
+
+  std::size_t getMergeFactor() const {
+    return merge_factor_;
+  }
+
  private:
   // Initialize runs for the first pass. This needs to be called every time new
   // blocks are input to the operator in the case of pipelined input.

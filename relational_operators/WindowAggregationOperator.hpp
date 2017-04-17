@@ -103,6 +103,14 @@ class WindowAggregationOperator : public RelationalOperator {
     return output_destination_index_;
   }
 
+  QueryContext::window_aggregation_state_id getWindowAggregationStateIndex() const {
+    return window_aggregation_state_index_;
+  }
+
+  const CatalogRelation& getInputRelation() const {
+    return input_relation_;
+  }
+
  private:
   /**
    * @brief Create Work Order proto.

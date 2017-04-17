@@ -246,6 +246,34 @@ class HashJoinOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  const std::vector<attribute_id>& getJoinKeyAttributes() const {
+    return join_key_attributes_;
+  }
+
+  bool anyJoinKeyNullable() const {
+    return any_join_key_attributes_nullable_;
+  }
+
+  std::size_t getBuildNumPartitions() const {
+    return build_num_partitions_;
+  }
+
+  QueryContext::join_hash_table_id getJoinHashTableIndex() const {
+    return hash_table_index_;
+  }
+
+  QueryContext::predicate_id getResidualPredicateIndex() const {
+    return residual_predicate_index_;
+  }
+
+  QueryContext::scalar_group_id getSelectionIndex() const {
+    return selection_index_;
+  }
+
+  const std::vector<bool>& getSelectionsOnBuild() const {
+    return is_selection_on_build_;
+  }
+
   void doneFeedingInputBlocks(const relation_id rel_id) override {
     // The HashJoinOperator depends on BuildHashOperator too, but it
     // should ignore a doneFeedingInputBlocks() message that comes

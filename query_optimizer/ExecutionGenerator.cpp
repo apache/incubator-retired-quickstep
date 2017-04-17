@@ -169,7 +169,7 @@ namespace S = ::quickstep::serialization;
 
 constexpr QueryPlan::DAGNodeIndex ExecutionGenerator::CatalogRelationInfo::kInvalidOperatorIndex;
 
-void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
+const QueryPlan& ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
   CHECK(P::SomeTopLevelPlan::MatchesWithConditionalCast(physical_plan, &top_level_physical_plan_))
       << "The physical plan must be rooted by a TopLevelPlan";
 
@@ -244,6 +244,8 @@ void ExecutionGenerator::generatePlan(const P::PhysicalPtr &physical_plan) {
     catalog_database_cache_proto_->add_relations()->MergeFrom(relation.getProto());
   }
 #endif
+
+  return query_handle_->getQueryPlan();
 }
 
 void ExecutionGenerator::generatePlanInternal(

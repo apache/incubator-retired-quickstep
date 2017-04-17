@@ -139,6 +139,22 @@ class BuildHashOperator : public RelationalOperator {
     input_relation_block_ids_[part_id].push_back(input_block_id);
   }
 
+  std::vector<attribute_id> getJoinKeyAttributes() const {
+    return join_key_attributes_;
+  }
+
+  QueryContext::join_hash_table_id  getHashTableIndex() const {
+    return hash_table_index_;
+  }
+
+  std::size_t getNumberOfPartitions() const {
+    return num_partitions_;
+  }
+
+  bool anyJoinKeyNullable() const {
+    return any_join_key_attributes_nullable_;
+  }
+
  private:
   /**
    * @brief Create Work Order proto.

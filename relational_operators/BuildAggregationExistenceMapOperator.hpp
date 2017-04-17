@@ -116,6 +116,14 @@ class BuildAggregationExistenceMapOperator : public RelationalOperator {
     input_relation_block_ids_.push_back(input_block_id);
   }
 
+  QueryContext::aggregation_state_id getAggregationStateIndex() const {
+    return aggr_state_index_;
+  }
+
+  attribute_id getBuildAttributeID() const {
+    return build_attribute_;
+  }
+
  private:
   serialization::WorkOrder* createWorkOrderProto(const block_id block);
 

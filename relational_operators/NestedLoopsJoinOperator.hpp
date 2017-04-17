@@ -165,6 +165,22 @@ class NestedLoopsJoinOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  const CatalogRelation& getLeftInputRelation() const {
+    return left_input_relation_;
+  };
+
+  const CatalogRelation& getRightInputRelation() const {
+    return right_input_relation_;
+  }
+
+  QueryContext::predicate_id getJoinPredicateIndex() const {
+    return join_predicate_index_;
+  }
+
+  QueryContext::scalar_group_id getSelectionIndex() const {
+    return selection_index_;
+  }
+
  private:
   /**
    * @brief Pairs block IDs from left and right relation block IDs and generates

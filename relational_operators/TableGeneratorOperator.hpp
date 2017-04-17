@@ -102,6 +102,10 @@ class TableGeneratorOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  QueryContext::generator_function_id getGeneratorFunctionIndex() const {
+    return generator_function_index_;
+  }
+
  private:
   const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;

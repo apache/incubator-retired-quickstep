@@ -125,7 +125,7 @@ class ExecutionGenerator {
    * @param physical_plan The physical plan from which
    *        the execution plan is created.
    */
-  void generatePlan(const physical::PhysicalPtr &physical_plan);
+  const QueryPlan& generatePlan(const physical::PhysicalPtr &physical_plan);
 
  private:
   /**

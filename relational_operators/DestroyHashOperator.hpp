@@ -82,6 +82,14 @@ class DestroyHashOperator : public RelationalOperator {
 
   bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
+  std::size_t getNumPartitions() const {
+    return build_num_partitions_;
+  }
+
+  QueryContext::join_hash_table_id getHashTableIndex() const {
+    return hash_table_index_;
+  }
+
  private:
   const std::size_t build_num_partitions_;
   const QueryContext::join_hash_table_id hash_table_index_;

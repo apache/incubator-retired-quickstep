@@ -41,6 +41,7 @@ add_subdirectory(tests)
 
 # Declare micro-libs:
 add_library(quickstep_queryoptimizer_ExecutionGenerator ExecutionGenerator.cpp ExecutionGenerator.hpp)
+add_library(quickstep_queryoptimizer_ExecutionSerializer ExecutionSerializer.cpp ExecutionSerializer.hpp)
 add_library(quickstep_queryoptimizer_LIPFilterGenerator LIPFilterGenerator.cpp LIPFilterGenerator.hpp)
 add_library(quickstep_queryoptimizer_LogicalGenerator LogicalGenerator.cpp LogicalGenerator.hpp)
 add_library(quickstep_queryoptimizer_LogicalToPhysicalMapper
@@ -165,6 +166,10 @@ if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_queryoptimizer_ExecutionGenerator
                         quickstep_catalog_Catalog_proto)
 endif()
+target_link_libraries(quickstep_queryoptimizer_ExecutionSerializer
+                      quickstep_queryoptimizer_QueryPlan_proto
+                      quickstep_relationaloperators_AggregationOperator
+                      quickstep_relationaloperators_Operator_proto)
 target_link_libraries(quickstep_queryoptimizer_LIPFilterGenerator
                       glog
                       quickstep_catalog_CatalogAttribute
@@ -203,6 +208,7 @@ target_link_libraries(quickstep_queryoptimizer_LogicalToPhysicalMapper
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_Optimizer
                       quickstep_queryoptimizer_ExecutionGenerator
+                      quickstep_queryoptimizer_ExecutionSerializer
                       quickstep_queryoptimizer_LogicalGenerator
                       quickstep_queryoptimizer_PhysicalGenerator
                       quickstep_utility_Macros)

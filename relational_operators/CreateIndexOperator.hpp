@@ -96,6 +96,18 @@ class CreateIndexOperator : public RelationalOperator {
 
   void updateCatalogOnCompletion() override;
 
+  IndexSubBlockDescription getIndexDescription() const {
+    return index_description_;
+  }
+
+  const CatalogRelation& getRelation() const {
+    return *relation_;
+  }
+
+  const std::string& getIndexName() const {
+    return index_name_;
+  }
+
  private:
   CatalogRelation *relation_;
   const std::string index_name_;

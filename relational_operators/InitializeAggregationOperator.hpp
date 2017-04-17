@@ -81,6 +81,10 @@ class InitializeAggregationOperator : public RelationalOperator {
 
   bool getAllWorkOrderProtos(WorkOrderProtosContainer *container) override;
 
+  QueryContext::aggregation_state_id getAggregationStateIndex() const {
+    return aggr_state_index_;
+  }
+
  private:
   const QueryContext::aggregation_state_id aggr_state_index_;
   bool started_;

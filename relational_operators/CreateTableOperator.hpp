@@ -95,6 +95,10 @@ class CreateTableOperator : public RelationalOperator {
 
   void updateCatalogOnCompletion() override;
 
+  const CatalogRelation& getRelation() const {
+    return *relation_;
+  }
+
  private:
   std::unique_ptr<CatalogRelation> relation_;
   CatalogDatabase *database_;

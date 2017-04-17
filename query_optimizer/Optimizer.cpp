@@ -37,10 +37,11 @@ void Optimizer::generateQueryHandle(const ParseStatement &parse_statement,
       physical_generator.generatePlan(
           logical_generator.generatePlan(*catalog_database, parse_statement)));
 
-  // TODO(Hakan): Break at this point.
+  // TODO(hakan): Break at this point.
   // execution_serializer.serializePlan(
+  //   execution_generator.generatePlan(
   //     physical_generator.generatePlan(
-  //         logical_generator.generatePlan(*catalog_database, parse_statement)));
+  //         logical_generator.generatePlan(*catalog_database, parse_statement))));
 }
 
 }  // namespace optimizer

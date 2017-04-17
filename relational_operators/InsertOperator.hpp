@@ -100,6 +100,10 @@ class InsertOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  QueryContext::tuple_id getTupleIndex() const {
+    return tuple_index_;
+  }
+
  private:
   const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;

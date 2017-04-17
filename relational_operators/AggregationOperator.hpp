@@ -107,6 +107,10 @@ class AggregationOperator : public RelationalOperator {
     input_relation_block_ids_.push_back(input_block_id);
   }
 
+  QueryContext::aggregation_state_id getAggregationStateIndex() const {
+    return aggr_state_index_;
+  }
+
  private:
   /**
    * @brief Create Work Order proto.
@@ -119,7 +123,6 @@ class AggregationOperator : public RelationalOperator {
   const bool input_relation_is_stored_;
   std::vector<block_id> input_relation_block_ids_;
   const QueryContext::aggregation_state_id aggr_state_index_;
-
   std::vector<block_id>::size_type num_workorders_generated_;
   bool started_;
 

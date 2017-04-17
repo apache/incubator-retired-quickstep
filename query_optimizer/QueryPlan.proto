@@ -1,3 +1,20 @@
+// Licensed to the Apache Software Foundation (ASF) under one
+// or more contributor license agreements.  See the NOTICE file
+// distributed with this work for additional information
+// regarding copyright ownership.  The ASF licenses this file
+// to you under the Apache License, Version 2.0 (the
+// "License"); you may not use this file except in compliance
+// with the License.  You may obtain a copy of the License at
+//
+//   http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing,
+// software distributed under the License is distributed on an
+// "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+// KIND, either express or implied.  See the License for the
+// specific language governing permissions and limitations
+// under the License.
+
 syntax = "proto2";
 
 package quickstep.serialization;
@@ -5,40 +22,45 @@ package quickstep.serialization;
 import "relational_operators/Operator.proto";
 
 message Vertex {
-    required OperatorType = 1;
+    required OperatorType operator_type = 1;
     oneof operator {
-        AggregationOperator aggregate_operator = 2;
-        BuildHashOperator build_hash_operator = 3;
-        BuildLIPFilterOperator build_lip_filter_operator = 4;
-        CreateIndexOperator create_index_operator = 5;
-        CreateTableOperator create_table_operator = 6;
-        DeleteOperator delete_operator = 7;
-        DestroyAggregationStateOperator destroy_aggregation_state_operator = 8;
-        DestroyHashOperator destroy_hash_operator = 9;
-        DropTableOperator drop_table_operator = 10;
-        FinalizeAggregationOperator finalize_aggregation_operator = 11;
-        HashJoinOperator hash_join_operator = 12;
-        InitializeAggregationOperator initialize_aggregation_operator = 13;
-        InsertOperator insert_operator = 14;
-        NestedLoopsJoinOperator nested_loops_join_operator = 15;
-        SampleOperator sample_operator = 16;
-        SaveBlocksOperator save_blocks_operator = 17;
-        SelectOperator select_operator = 18;
-        SortMergeRunOperator sort_merge_run_operator = 19;
-        SortRunGenerationOperator sort_run_generation_operator = 20;
-        TableGeneratorOperator table_generator_operator = 21;
-        TextScanOperator text_scan_operator = 22;
-        UpdateOperator update_operator = 23;
-        WindowAggregationOperator window_aggregation_operator = 24;
+        AggregationOperator aggregation_operator = 2;
+        BuildAggregationExistenceMapOperator build_aggregation_existence_map_operator = 3;
+        BuildHashOperator build_hash_operator = 4;
+        BuildLIPFilterOperator build_lip_filter_operator = 5;
+        CreateIndexOperator create_index_operator = 6;
+        CreateTableOperator create_table_operator = 7;
+        DeleteOperator delete_operator = 8;
+        DestroyAggregationStateOperator destroy_aggregation_state_operator = 9;
+        DestroyHashOperator destroy_hash_operator = 10;
+        DropTableOperator drop_table_operator = 11;
+        FinalizeAggregationOperator finalize_aggregation_operator = 12;
+        HashJoinOperator hash_join_operator = 13;
+        InitializeAggregationOperator initialize_aggregation_operator = 14;
+        InsertOperator insert_operator = 15;
+        NestedLoopsJoinOperator nested_loops_join_operator = 16;
+        SampleOperator sample_operator = 17;
+        SaveBlocksOperator save_blocks_operator = 18;
+        SelectOperator select_operator = 19;
+        SortMergeRunOperator sort_merge_run_operator = 20;
+        SortRunGenerationOperator sort_run_generation_operator = 21;
+        TableGeneratorOperator table_generator_operator = 22;
+        TextScanOperator text_scan_operator = 23;
+        UpdateOperator update_operator = 24;
+        WindowAggregationOperator window_aggregation_operator = 25;
     }
 }
 
-message Edges {
-    repeated uint64 outgoing_id = 1;
-    repeated bool payload = 2;
+message Edge {
+    required uint64 outgoing_id = 1;
+    required bool payload = 2;
 }
 
-message DAG {
-    repeated Node = 1;
-    repeated Edges = 2;
+message OutgoingEdges {
+    repeated Edge edges = 1;
+}
+
+message QueryPlan {
+    repeated Vertex vertex = 1;
+    repeated OutgoingEdges outgoing = 2;
 }

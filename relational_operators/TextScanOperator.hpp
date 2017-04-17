@@ -159,6 +159,18 @@ class TextScanOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  const std::string& getFilePattern() const {
+    return file_pattern_;
+  }
+
+  char getFieldTerminator() const {
+    return field_terminator_;
+  }
+
+  bool getProcessEscapeSequences() const {
+    return process_escape_sequences_;
+  }
+
  private:
   serialization::WorkOrder* createWorkOrderProto(const std::string &filename,
                                                  const std::size_t text_offset,

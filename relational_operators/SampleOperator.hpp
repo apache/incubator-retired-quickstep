@@ -125,6 +125,18 @@ class SampleOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  const CatalogRelation& getIntputRelation() const {
+    return input_relation_;
+  }
+
+  bool isBlockSample() const {
+    return is_block_sample_;
+  }
+
+  int getPercentage() const {
+    return percentage_;
+  }
+
  private:
   /**
    * @brief Create Work Order proto.

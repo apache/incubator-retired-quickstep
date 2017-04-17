@@ -100,6 +100,10 @@ class FinalizeAggregationOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  QueryContext::aggregation_state_id getAggregationStateIndex() const {
+    return aggr_state_index_;
+  }
+
  private:
   const QueryContext::aggregation_state_id aggr_state_index_;
   const CatalogRelation &output_relation_;

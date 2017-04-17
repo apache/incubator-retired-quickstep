@@ -94,6 +94,14 @@ class SaveBlocksOperator : public RelationalOperator {
 
   void updateCatalogOnCompletion() override;
 
+  const CatalogRelation& getRelation() const {
+    return *relation_;
+  }
+
+  bool isForced() const {
+    return force_;
+  }
+
  private:
   const bool force_;
 

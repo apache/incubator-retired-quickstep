@@ -222,6 +222,18 @@ class SelectOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  QueryContext::predicate_id getPredicateIndex() const {
+    return predicate_index_;
+  }
+
+  std::size_t getNumPartitions() const {
+    return num_partitions_;
+  }
+
+  const std::vector<attribute_id>& getSelectionAttributes() const {
+    return simple_selection_;
+  }
+
  private:
   /**
    * @brief Create Work Order proto.
