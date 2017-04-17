@@ -49,6 +49,7 @@
 #include "relational_operators/SortRunGenerationOperator.hpp"
 #include "relational_operators/TableGeneratorOperator.hpp"
 #include "relational_operators/TextScanOperator.hpp"
+#include "relational_operators/UnionAllOperator.hpp"
 #include "relational_operators/UpdateOperator.hpp"
 #include "relational_operators/WindowAggregationOperator.hpp"
 #include "relational_operators/WorkOrder.pb.h"
@@ -492,6 +493,23 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index)),
           hdfs);
     }
+    case serialization::UNION_ALL: {
+      LOG(INFO) << "Creating UnionAllWorkOrder for Query " << proto.query_id() << " in Shiftboss " << shiftboss_index;
+      vector<attribute_id> select_attribute_id;
+      for (int i = 0; i < proto.ExtensionSize(serialization::UnionAllWorkOrder::select_attribute_id); ++i) {
+        select_attribute_id.push_back(
+            proto.GetExtension(serialization::UnionAllWorkOrder::select_attribute_id, i));
+      }
+      return new UnionAllWorkOrder(
+          proto.query_id(),
+          catalog_database->getRelationSchemaById(
+              proto.GetExtension(serialization::UnionAllWorkOrder::relation_id)),
+          proto.GetExtension(serialization::UnionAllWorkOrder::block_id),
+          select_attribute_id,
+          query_context->getInsertDestination(
+              proto.GetExtension(serialization::UnionAllWorkOrder::insert_destination_index)),
+          storage_manager);
+    }
     case serialization::UPDATE: {
       LOG(INFO) << "Creating UpdateWorkOrder for Query " << proto.query_id() << " in Shiftboss " << shiftboss_index;
       return new UpdateWorkOrder(
@@ -891,6 +909,28 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
              proto.HasExtension(serialization::TextScanWorkOrder::insert_destination_index) &&
              query_context.isValidInsertDestinationId(
                  proto.GetExtension(serialization::TextScanWorkOrder::insert_destination_index));
+    }
+    case serialization::UNION_ALL: {
+      if (!proto.HasExtension(serialization::UnionAllWorkOrder::relation_id) ||
+          !proto.HasExtension(serialization::UnionAllWorkOrder::block_id) ||
+          !proto.HasExtension(serialization::UnionAllWorkOrder::insert_destination_index) ||
+          !query_context.isValidInsertDestinationId(
+              proto.GetExtension(serialization::UnionAllWorkOrder::insert_destination_index))) {
+        return false;
+      }
+
+      const relation_id rel_id = proto.GetExtension(serialization::UnionAllWorkOrder::relation_id);
+      if (!catalog_database.hasRelationWithId(rel_id)) {
+        return false;
+      }
+      const CatalogRelationSchema &relation = catalog_database.getRelationSchemaById(rel_id);
+      for (int i = 0; i < proto.ExtensionSize(serialization::UnionAllWorkOrder::select_attribute_id); ++i) {
+        if (!relation.hasAttributeWithId(
+                 proto.GetExtension(serialization::UnionAllWorkOrder::select_attribute_id, i))) {
+          return false;
+        }
+      }
+      return true;
     }
     case serialization::UPDATE: {
       return proto.HasExtension(serialization::UpdateWorkOrder::relation_id) &&

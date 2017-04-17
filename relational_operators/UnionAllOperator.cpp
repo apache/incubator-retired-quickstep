@@ -65,7 +65,7 @@ void UnionAllOperator::addWorkOrdersSingleRelation(
       container->addNormalWorkOrder(
           new UnionAllWorkOrder(
               query_id_,
-              input_relations_[relation_index],
+              *input_relations_[relation_index],
               input_block_id,
               select_attribute_ids_[relation_index],
               output_destination,
@@ -75,11 +75,11 @@ void UnionAllOperator::addWorkOrdersSingleRelation(
   } else {
     std::size_t num_generated = num_workorders_generated_[relation_index];
     const std::vector<block_id> &all_blocks = input_relations_block_ids_[relation_index];
-    while (num_generated < all_blocks .size()) {
+    while (num_generated < all_blocks.size()) {
       container->addNormalWorkOrder(
           new UnionAllWorkOrder(
               query_id_,
-              input_relations_[relation_index],
+              *input_relations_[relation_index],
               all_blocks[num_generated],
               select_attribute_ids_[relation_index],
               output_destination,
@@ -124,18 +124,60 @@ bool UnionAllOperator::getAllWorkOrders(
                                    relation_index);
     }
   }
-  return stored_generated_ && done_feeding_input_relation_;
+  return done_feeding_input_relation_;
 }
 
 bool UnionAllOperator::getAllWorkOrderProtos(WorkOrderProtosContainer* container) {
-  // TODO(tianrun): Add protobuf for UnionAllWorkOrder to support distributed mode.
-  LOG(FATAL) << "UnionAllOperator is not supported in distributed mode yet.";
-  return true;
+  if (!stored_generated_) {
+    for (std::size_t relation_index = 0; relation_index < input_relations_.size(); ++relation_index) {
+      if (input_relations_are_stored_[relation_index]) {
+        const std::vector<block_id> &all_blocks = input_relations_block_ids_[relation_index];
+        const relation_id relation = input_relations_[relation_index]->getID();
+        const std::vector<attribute_id> &attributes = select_attribute_ids_[relation_index];
+        for (const block_id block : all_blocks) {
+          container->addWorkOrderProto(createWorkOrderProto(block, relation, attributes), op_index_);
+        }
+      }
+    }
+    stored_generated_ = true;
+  }
+
+  for (std::size_t relation_index = 0; relation_index < input_relations_.size(); ++relation_index) {
+    if (!input_relations_are_stored_[relation_index]) {
+      const std::vector<block_id> &all_blocks = input_relations_block_ids_[relation_index];
+      std::size_t num_generated = num_workorders_generated_[relation_index];
+      const relation_id relation = input_relations_[relation_index]->getID();
+      const std::vector<attribute_id> &attributes = select_attribute_ids_[relation_index];
+      while (num_generated < all_blocks.size()) {
+        container->addWorkOrderProto(createWorkOrderProto(all_blocks[num_generated], relation, attributes), op_index_);
+        ++num_generated;
+      }
+      num_workorders_generated_[relation_index] = num_generated;
+    }
+  }
+  return done_feeding_input_relation_;
+}
+
+serialization::WorkOrder* UnionAllOperator::createWorkOrderProto(
+    const block_id block,
+    const relation_id relation,
+    const std::vector<attribute_id> &attributes) {
+  serialization::WorkOrder *proto = new serialization::WorkOrder;
+  proto->set_work_order_type(serialization::UNION_ALL);
+  proto->set_query_id(query_id_);
+
+  proto->SetExtension(serialization::UnionAllWorkOrder::relation_id, relation);
+  proto->SetExtension(serialization::UnionAllWorkOrder::insert_destination_index, output_destination_index_);
+  proto->SetExtension(serialization::UnionAllWorkOrder::block_id, block);
+  for (const attribute_id attr : attributes) {
+    proto->AddExtension(serialization::UnionAllWorkOrder::select_attribute_id, attr);
+  }
+  return proto;
 }
 
 void UnionAllWorkOrder::execute() {
   BlockReference block(
-      storage_manager_->getBlock(input_block_id_, *input_relation_));
+      storage_manager_->getBlock(input_block_id_, input_relation_));
   block->selectSimple(select_attribute_id_,
                       nullptr,
                       output_destination_);

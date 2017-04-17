@@ -45,6 +45,8 @@ class StorageManager;
 class WorkOrderProtosContainer;
 class WorkOrdersContainer;
 
+namespace serialization { class WorkOrder; }
+
 /** \addtogroup RelationalOperators
  *  @{
  */
@@ -149,6 +151,11 @@ class UnionAllOperator : public RelationalOperator {
                                    InsertDestination *output_destination,
                                    const std::size_t relation_index);
 
+  // Create work order proto
+  serialization::WorkOrder* createWorkOrderProto(const block_id block,
+                                                 const relation_id relation,
+                                                 const std::vector<attribute_id> &attributes);
+
   const std::vector<const CatalogRelation*> input_relations_;
   const std::vector<bool> input_relations_are_stored_;
 
@@ -194,7 +201,7 @@ class UnionAllWorkOrder : public WorkOrder {
    * @param storage_manager The StorageManager to use.
    */
   UnionAllWorkOrder(const std::size_t query_id,
-                    const CatalogRelationSchema *input_relation,
+                    const CatalogRelationSchema &input_relation,
                     const block_id input_block_id,
                     const std::vector<attribute_id> &select_attribute_id,
                     InsertDestination *output_destination,
@@ -211,7 +218,7 @@ class UnionAllWorkOrder : public WorkOrder {
   void execute() override;
 
  private:
-  const CatalogRelationSchema *input_relation_;
+  const CatalogRelationSchema &input_relation_;
   const block_id input_block_id_;
   const std::vector<attribute_id> select_attribute_id_;
 
