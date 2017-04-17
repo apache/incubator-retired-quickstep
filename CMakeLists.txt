@@ -145,6 +145,7 @@ if (ENABLE_VECTOR_PREDICATE_SHORT_CIRCUIT)
   )
 endif()
 
+option(ENABLE_NETWORK_CLI "Allows use of the network cli" OFF)
 option(ENABLE_DISTRIBUTED "Use the distributed version of Quickstep" OFF)
 
 macro (set_gflags_lib_name)
@@ -730,6 +731,7 @@ target_link_libraries(quickstep_cli_shell
                       quickstep_cli_Flags
                       quickstep_cli_InputParserUtil
                       quickstep_cli_LineReader
+                      quickstep_cli_LocalIO
                       quickstep_cli_PrintToScreen
                       quickstep_parser_ParseStatement
                       quickstep_parser_SqlParserWrapper
@@ -755,7 +757,10 @@ if (ENABLE_HDFS)
   target_link_libraries(quickstep_cli_shell
                         quickstep_storage_FileManagerHdfs)
 endif()
-
+if (ENABLE_NETWORK_CLI)
+  target_link_libraries(quickstep_cli_shell
+                        quickstep_cli_NetworkIO)
+endif()
 # Link against other required system and third-party libraries.
 target_link_libraries(quickstep_cli_shell ${LIBS})
 
@@ -792,3 +797,14 @@ if (ENABLE_DISTRIBUTED)
                         ${GFLAGS_LIB_NAME}
                         ${GRPCPLUSPLUS_LIBRARIES})
 endif(ENABLE_DISTRIBUTED)
+
+if (ENABLE_NETWORK_CLI)
+  add_executable (quickstep_client cli/NetworkCliClientMain.cpp)
+  target_link_libraries(quickstep_client
+                        ${GFLAGS_LIB_NAME}
+                        ${GRPCPLUSPLUS_LIBRARIES}
+                        glog
+                        quickstep_cli_LineReaderBuffered
+                        quickstep_cli_NetworkCliClient
+                        quickstep_cli_NetworkIO)
+endif()

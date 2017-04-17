@@ -31,6 +31,18 @@ if (ENABLE_DISTRIBUTED)
                  "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.cpp"
                  "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.hpp")
 endif(ENABLE_DISTRIBUTED)
+add_executable(LineReaderBuffered_unittest
+               LineReaderBuffered_unittest.cpp)
+if (ENABLE_NETWORK_CLI)
+  set(CMAKE_MODULE_PATH
+      ${CMAKE_MODULE_PATH}
+      "${PROJECT_SOURCE_DIR}/third_party/src/tmb/cmake")
+
+  find_package(Grpc++ REQUIRED)
+
+  add_executable(NetworkIO_unittest
+                 NetworkIO_unittest.cpp)
+endif()
 
 target_link_libraries(quickstep_cli_tests_CommandExecutorTest
                       glog
@@ -90,3 +102,26 @@ if (ENABLE_DISTRIBUTED)
                         ${GFLAGS_LIB_NAME}
                         ${LIBS})
 endif(ENABLE_DISTRIBUTED)
+
+target_link_libraries(LineReaderBuffered_unittest
+                      ${GFLAGS_LIB_NAME}
+                      glog
+                      gtest
+                      quickstep_cli_LineReaderBuffered)
+add_test(LineReaderBuffered_unittest LineReaderBuffered_unittest)
+
+if (ENABLE_NETWORK_CLI)
+  target_link_libraries(NetworkIO_unittest
+                        ${GFLAGS_LIB_NAME}
+                        ${GRPCPLUSPLUS_LIBRARIES}
+                        glog
+                        gtest
+                        quickstep_cli_Flags
+                        quickstep_cli_IOInterface
+                        quickstep_cli_LineReaderBuffered
+                        quickstep_cli_NetworkCliClient
+                        quickstep_cli_NetworkIO
+                        quickstep_threading_Thread
+                        quickstep_utility_Macros)
+  add_test(NetworkIO_unittest NetworkIO_unittest)
+endif()

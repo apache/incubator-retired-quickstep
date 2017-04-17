@@ -17,7 +17,23 @@
  * under the License.
  **/
 
-#cmakedefine QUICKSTEP_USE_LINENOISE
-#cmakedefine QUICKSTEP_OS_WINDOWS
-#cmakedefine QUICKSTEP_ENABLE_GOOGLE_PROFILER
-#cmakedefine QUICKSTEP_ENABLE_NETWORK_CLI
+#include "cli/LineReaderBuffered.hpp"
+
+#include <string>
+
+namespace quickstep {
+
+LineReaderBuffered::LineReaderBuffered(const std::string &default_prompt,
+                                       const std::string &continue_prompt)
+    : LineReader(default_prompt, continue_prompt),
+      buffer_empty_(true) {}
+
+LineReaderBuffered::LineReaderBuffered() : LineReader("", ""), buffer_empty_(true) {}
+
+std::string LineReaderBuffered::getLineInternal(const bool continuing) {
+  // This method is called when the leftover_ string is depleted.
+  buffer_empty_ = true;
+  return "";
+}
+
+}  // namespace quickstep

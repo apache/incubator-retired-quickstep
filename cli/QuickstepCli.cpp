@@ -28,18 +28,10 @@
 #include <utility>
 #include <vector>
 
-#include "cli/CliConfig.h"  // For QUICKSTEP_USE_LINENOISE, QUICKSTEP_ENABLE_GOOGLE_PROFILER.
+#include "cli/CliConfig.h"  // For QUICKSTEP_ENABLE_NETWORK_CLI, QUICKSTEP_ENABLE_GOOGLE_PROFILER.
 
 #include "cli/CommandExecutor.hpp"
 #include "cli/DropRelation.hpp"
-
-#ifdef QUICKSTEP_USE_LINENOISE
-#include "cli/LineReaderLineNoise.hpp"
-typedef quickstep::LineReaderLineNoise LineReaderImpl;
-#else
-#include "cli/LineReaderDumb.hpp"
-typedef quickstep::LineReaderDumb LineReaderImpl;
-#endif
 
 #ifdef QUICKSTEP_ENABLE_GOOGLE_PROFILER
 #include <gperftools/profiler.h>
@@ -48,6 +40,11 @@ typedef quickstep::LineReaderDumb LineReaderImpl;
 #include "cli/DefaultsConfigurator.hpp"
 #include "cli/Flags.hpp"
 #include "cli/InputParserUtil.hpp"
+#include "cli/IOInterface.hpp"
+#include "cli/LocalIO.hpp"
+#ifdef QUICKSTEP_ENABLE_NETWORK_CLI
+#include "cli/NetworkIO.hpp"
+#endif
 #include "cli/PrintToScreen.hpp"
 #include "parser/ParseStatement.hpp"
 #include "parser/SqlParserWrapper.hpp"
@@ -99,6 +96,7 @@ using quickstep::FLAGS_num_workers;
 using quickstep::FLAGS_storage_path;
 using quickstep::ForemanSingleNode;
 using quickstep::InputParserUtil;
+using quickstep::IOInterface;
 using quickstep::MessageBusImpl;
 using quickstep::ParseResult;
 using quickstep::ParseStatement;
@@ -144,6 +142,13 @@ DEFINE_string(profile_file_name, "",
               // times more expensive than the average run. That means the query needs to be
               // run at least a hundred times to make the impact of the first run small (< 5 %).
 
+DEFINE_string(mode, "local",
+              "Defines which interaction mode to use. Options are either 'local' which "
+              "uses a simple SQL command line interface via stdin (default). The other "
+              "option is to use 'network' which will open a port and accept connections "
+              "via an rpc interface. SQL queries will be accepted and processed in the "
+              "same manner as with the local cli.");
+
 DECLARE_bool(profile_and_report_workorder_perf);
 DECLARE_bool(visualize_execution_dag);
 
@@ -152,6 +157,9 @@ DECLARE_bool(visualize_execution_dag);
 int main(int argc, char* argv[]) {
   google::InitGoogleLogging(argv[0]);
   gflags::ParseCommandLineFlags(&argc, &argv, true);
+#ifdef QUICKSTEP_CLI_NETWORK_IO_HPP_
+  grpc_init();
+#endif
 
   printf("Starting Quickstep with %d worker thread(s) and a %.2f GB buffer pool.\n",
          FLAGS_num_workers,
@@ -273,8 +281,19 @@ int main(int argc, char* argv[]) {
 
   foreman.start();
 
-  LineReaderImpl line_reader("quickstep> ",
-                             "      ...> ");
+  std::unique_ptr<IOInterface> io;
+  if (quickstep::FLAGS_mode == "network") {
+#ifdef QUICKSTEP_ENABLE_NETWORK_CLI
+    io.reset(new quickstep::NetworkIO);
+#else
+    LOG(FATAL) << "Quickstep must be compiled with '-D ENABLE_NETWORK_CLI=true' to use this feature.";
+#endif
+  } else if (quickstep::FLAGS_mode == "local") {
+    io.reset(new quickstep::LocalIO);
+  } else {
+    LOG(FATAL) << "unknown flag --mode value: " << quickstep::FLAGS_mode;
+  }
+
   std::unique_ptr<SqlParserWrapper> parser_wrapper(new SqlParserWrapper());
   std::chrono::time_point<std::chrono::steady_clock> start, end;
 
@@ -283,14 +302,16 @@ int main(int argc, char* argv[]) {
 #endif
   for (;;) {
     string *command_string = new string();
-    *command_string = line_reader.getNextCommand();
+    std::unique_ptr<quickstep::IOHandle> io_handle(io->getNextIOHandle());
+    *command_string = io_handle->getCommand();
+    LOG(INFO) << "Command received: " << *command_string;
     if (command_string->size() == 0) {
       delete command_string;
       break;
     }
 
     if (quickstep::FLAGS_print_query) {
-      printf("\n%s\n", command_string->c_str());
+      fprintf(io_handle->out(), "\n%s\n", command_string->c_str());
     }
 
     parser_wrapper->feedNextBuffer(command_string);
@@ -306,9 +327,7 @@ int main(int argc, char* argv[]) {
         if (statement.getStatementType() == ParseStatement::kQuit) {
           quitting = true;
           break;
-        }
-
-        if (statement.getStatementType() == ParseStatement::kCommand) {
+        } else if (statement.getStatementType() == ParseStatement::kCommand) {
           try {
             quickstep::cli::executeCommand(
                 statement,
@@ -318,16 +337,16 @@ int main(int argc, char* argv[]) {
                 &bus,
                 &storage_manager,
                 query_processor.get(),
-                stdout);
+                io_handle->out());
           } catch (const quickstep::SqlError &sql_error) {
-            fprintf(stderr, "%s",
+            fprintf(io_handle->err(), "%s",
                     sql_error.formatMessage(*command_string).c_str());
             reset_parser = true;
             break;
           }
           continue;
         }
-
+        // Here the statement is presumed to be a query.
         const std::size_t query_id = query_processor->query_id();
         const CatalogRelation *query_result_relation = nullptr;
         std::unique_ptr<quickstep::ExecutionDAGVisualizer> dag_visualizer;
@@ -353,7 +372,7 @@ int main(int argc, char* argv[]) {
               query_handle.release(),
               &bus);
         } catch (const quickstep::SqlError &sql_error) {
-          fprintf(stderr, "%s", sql_error.formatMessage(*command_string).c_str());
+          fprintf(io_handle->err(), "%s", sql_error.formatMessage(*command_string).c_str());
           reset_parser = true;
           break;
         }
@@ -366,11 +385,11 @@ int main(int argc, char* argv[]) {
           if (query_result_relation) {
             PrintToScreen::PrintRelation(*query_result_relation,
                                          &storage_manager,
-                                         stdout);
+                                         io_handle->out());
             PrintToScreen::PrintOutputSize(
                 *query_result_relation,
                 &storage_manager,
-                stdout);
+                io_handle->err());
 
             DropRelation::Drop(*query_result_relation,
                                query_processor->getDefaultDatabase(),
@@ -379,7 +398,7 @@ int main(int argc, char* argv[]) {
 
           query_processor->saveCatalog();
           std::chrono::duration<double, std::milli> time_ms = end - start;
-          printf("Time: %s ms\n",
+          fprintf(io_handle->out(), "Time: %s ms\n",
                  quickstep::DoubleToStringWithSignificantDigits(
                      time_ms.count(), 3).c_str());
           if (quickstep::FLAGS_profile_and_report_workorder_perf) {
@@ -393,12 +412,12 @@ int main(int argc, char* argv[]) {
             std::cerr << "\n" << dag_visualizer->toDOT() << "\n";
           }
         } catch (const std::exception &e) {
-          fprintf(stderr, "QUERY EXECUTION ERROR: %s\n", e.what());
+          fprintf(io_handle->err(), "QUERY EXECUTION ERROR: %s\n", e.what());
           break;
         }
       } else {
         if (result.condition == ParseResult::kError) {
-          fprintf(stderr, "%s", result.error_message.c_str());
+          fprintf(io_handle->err(), "%s", result.error_message.c_str());
         }
         reset_parser = true;
         break;

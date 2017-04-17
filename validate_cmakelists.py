@@ -48,6 +48,7 @@ EXCLUDED_TOP_LEVEL_DIRS = ["build", "third_party"]
 IGNORED_DEPENDENCIES = frozenset(
     ["quickstep_cli_LineReaderDumb",
      "quickstep_cli_LineReaderLineNoise",
+     "quickstep_cli_NetworkCli.grpc_proto",
      "quickstep_storage_DataExchange.grpc_proto",
      "quickstep_threading_WinThreadsAPI",
      "quickstep_utility_textbasedtest_TextBasedTest",
