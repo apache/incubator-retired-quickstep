@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <queue>
 #include <unordered_map>
 #include <unordered_set>
 #include <utility>
@@ -245,6 +246,11 @@ class DAG {
   inline const_iterator_dependents end_dependents(size_type_nodes node_index) const {
     return nodes_[node_index].getDependents().end();
   }
+
+  /**
+   * @brief Get a topologically sorted list of node IDs.
+   **/
+  std::vector<size_type_nodes> getTopologicalSorting() const;
 
  private:
   /**
@@ -487,6 +493,51 @@ bool DAG<T, LinkMetadataT>::hasCycleHelper(const typename DAG<T, LinkMetadataT>:
   }
   (*on_stack)[node_index] = false;
   return false;
+}
+
+template <class T, class LinkMetadataT>
+std::vector<typename DAG<T, LinkMetadataT>::size_type_nodes>
+DAG<T, LinkMetadataT>::getTopologicalSorting() const {
+  // As a clarification, if A->B then A is the dependency for B and B is dependent on A.
+  // We implement "Kahn's algorithm" for the sorting.
+  DCHECK(!hasCycle());
+  // This list is going to be the topologically sorted output.
+  std::unique_ptr<std::vector<typename DAG<T, LinkMetadataT>::size_type_nodes>>
+      sorted_list(new std::vector<size_type_nodes>());
+  sorted_list->reserve(this->size());
+  // Key = node ID, value = # incoming edges for this node.
+  // NOTE(harshad) - We modify the "values" in this map as we go along.
+  std::unordered_map<typename DAG<T, LinkMetadataT>::size_type_nodes,
+                     std::size_t> num_dependencies;
+  std::queue<typename DAG<T, LinkMetadataT>::size_type_nodes> nodes_with_no_dependencies;
+  // First store the nodes without any dependencies in a list.
+  // Also remember the number of dependencies for each node in a map.
+  for (auto node_id = 0u; node_id < this->size(); ++node_id) {
+    if (nodes_[node_id].getDependencies().empty()) {
+      nodes_with_no_dependencies.emplace(node_id);
+    }
+    num_dependencies[node_id] = nodes_[node_id].getDependencies().size();
+  }
+  // The algorithm begins now.
+  while (!nodes_with_no_dependencies.empty()) {
+    // For a node with no dependencies ...
+    auto curr_node = nodes_with_no_dependencies.front();
+    nodes_with_no_dependencies.pop();
+    // Add the node to the sorted list.
+    sorted_list->emplace_back(curr_node);
+    auto dependents_of_curr_node = getDependents(curr_node);
+    for (auto dependent_iterator : dependents_of_curr_node) {
+      // For each dependent of the current node ...
+      auto dependent_node_id = dependent_iterator.first;
+      // Remove the incoming edge from curr_node.
+      DCHECK_GE(num_dependencies[dependent_node_id], 1u);
+      if (--num_dependencies[dependent_node_id] == 0) {
+        // Now this node has no children.
+        nodes_with_no_dependencies.emplace(dependent_node_id);
+      }
+    }
+  }
+  return *(sorted_list.release());
 }
 
 /** @} */

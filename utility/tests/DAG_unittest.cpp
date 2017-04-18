@@ -490,6 +490,88 @@ TEST(DAGTest, LinkMetadataBoolTest) {
   EXPECT_FALSE(dag_.getLinkMetadata(1, 0));
 }
 
+TEST(DAGTest, TopoSortTest) {
+  const int kNodeSize = 5;
+  DAG<DummyPayload, int> dag_;
+
+  for (int node_index = 0; node_index < kNodeSize; ++node_index) {
+    ASSERT_EQ(static_cast<std::size_t>(node_index),
+              dag_.createNode(new DummyPayload(node_index)));
+  }
+
+  /*
+   *    0
+   *   / \
+   *  v   v
+   *  1   2
+   *   \ /
+   *    v
+   *    3
+   *    |
+   *    v
+   *    4
+   *
+   */
+
+  dag_.createLink(0, 1, 2);
+  dag_.createLink(0, 2, 1);
+  dag_.createLink(1, 3, 1);
+  dag_.createLink(2, 3, 1);
+  dag_.createLink(3, 4, 1);
+
+  vector<DAG<DummyPayload, int>::size_type_nodes> sorted_list =
+      dag_.getTopologicalSorting();
+  std::unordered_map<DAG<DummyPayload, int>::size_type_nodes, bool> node_exists;
+  // First check if the ordering is a legal sequence of nodes, i.e. every node
+  // appears exactly once.
+  for (auto node_id = 0u; node_id < dag_.size(); ++node_id) {
+    node_exists[node_id] = false;
+  }
+  for (auto i : sorted_list) {
+    node_exists[i] = true;
+  }
+  for (auto node_id = 0u; node_id < dag_.size(); ++node_id) {
+    ASSERT_TRUE(node_exists[node_id]);
+  }
+  // We apply the following condition for verifying if we have obtained a valid
+  // topological sorting.
+  // If there is an edge i->j between two nodes i and j, then i comes before j
+  // in the topologically sorted order.
+  // We use a map to store the position of a given node in the sorted order.
+  // Key = node ID, value = position of the node in the sorted order.
+  std::unordered_map<std::size_t, std::size_t> position_in_sorted_order;
+  for (std::size_t i = 0; i < sorted_list.size(); ++i) {
+    position_in_sorted_order[sorted_list[i]] = i;
+  }
+  std::vector<std::tuple<std::size_t, std::size_t>> edges;
+  // Populate the list of edges.
+  edges.emplace_back(0, 1);
+  edges.emplace_back(0, 2);
+  edges.emplace_back(1, 3);
+  edges.emplace_back(2, 3);
+  edges.emplace_back(3, 4);
+  for (auto curr_edge : edges) {
+    // (i, j) : i is "from node", j is "to node".
+    std::size_t from_node_position = position_in_sorted_order[std::get<0>(curr_edge)];
+    std::size_t to_node_position = position_in_sorted_order[std::get<1>(curr_edge)];
+    ASSERT_LT(from_node_position, to_node_position);
+  }
+  // Now extend the same logic that we applied for edges for paths in the DAG.
+  // We have already verified paths with length = 1 (edges), so we will only
+  // consider paths with length more than one.
+  std::vector<std::tuple<std::size_t, std::size_t>> paths;
+  paths.emplace_back(0, 3);
+  paths.emplace_back(0, 4);
+  paths.emplace_back(1, 4);
+  paths.emplace_back(2, 4);
+  for (auto curr_path : paths) {
+    // (i, j) : i is "from node", j is "to node".
+    std::size_t from_node_position = position_in_sorted_order[std::get<0>(curr_path)];
+    std::size_t to_node_position = position_in_sorted_order[std::get<1>(curr_path)];
+    ASSERT_LT(from_node_position, to_node_position);
+  }
+}
+
 #ifdef QUICKSTEP_DEBUG
 TEST(DAGDeathTest, SixNodeStagesCycleTest) {
   const int kNodeSize = 6;
