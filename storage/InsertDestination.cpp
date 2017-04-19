@@ -430,21 +430,20 @@ void BlockPoolInsertDestination::getPartiallyFilledBlocks(std::vector<MutableBlo
 }
 
 MutableBlockReference BlockPoolInsertDestination::getBlockForInsertion() {
-  SpinMutexLock lock(mutex_);
-  if (available_block_refs_.empty()) {
-    if (available_block_ids_.empty()) {
-      return createNewBlock();
-    } else {
+  {
+    SpinMutexLock lock(mutex_);
+    if (!available_block_refs_.empty()) {
+      MutableBlockReference retval = std::move(available_block_refs_.back());
+      available_block_refs_.pop_back();
+      return retval;
+    } else if (!available_block_ids_.empty()) {
       const block_id id = available_block_ids_.back();
       available_block_ids_.pop_back();
       MutableBlockReference retval = storage_manager_->getBlockMutable(id, relation_);
       return retval;
     }
-  } else {
-    MutableBlockReference retval = std::move(available_block_refs_.back());
-    available_block_refs_.pop_back();
-    return retval;
   }
+  return createNewBlock();
 }
 
 void BlockPoolInsertDestination::returnBlock(MutableBlockReference &&block, const bool full) {
