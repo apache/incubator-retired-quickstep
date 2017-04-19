@@ -122,8 +122,8 @@ inline DatetimeLit operator+(const YearMonthIntervalLit &lhs, const DatetimeLit 
 }
 
 inline DateLit operator+(const DateLit &lhs, const YearMonthIntervalLit &rhs) {
-  std::int32_t result_year = lhs.year + (rhs.months / 12);
-  std::uint8_t result_month = lhs.month + (rhs.months % 12);
+  std::int32_t result_year = lhs.yearField() + (rhs.months / 12);
+  std::uint8_t result_month = static_cast<std::uint8_t>(lhs.monthField()) + (rhs.months % 12);
 
   if (result_month > 11) {
     result_month -= 12;
@@ -131,7 +131,7 @@ inline DateLit operator+(const DateLit &lhs, const YearMonthIntervalLit &rhs) {
   }
 
   const std::uint8_t result_day = static_cast<std::uint8_t>(
-      ClampDayOfMonth(result_year, result_month, lhs.day));
+      ClampDayOfMonth(result_year, result_month, lhs.dayField()));
 
   return DateLit::Create(result_year, result_month, result_day);
 }
@@ -187,8 +187,8 @@ inline DatetimeLit operator-(const DatetimeLit &lhs, const YearMonthIntervalLit 
 }
 
 inline DateLit operator-(const DateLit &lhs, const YearMonthIntervalLit &rhs) {
-  std::int32_t result_year = lhs.year - (rhs.months / 12);
-  std::int8_t result_month = lhs.month - (rhs.months % 12);
+  std::int32_t result_year = lhs.yearField() - (rhs.months / 12);
+  std::int8_t result_month = static_cast<std::int8_t>(lhs.monthField()) - (rhs.months % 12);
 
   if (result_month < 0) {
     --result_year;
@@ -196,7 +196,7 @@ inline DateLit operator-(const DateLit &lhs, const YearMonthIntervalLit &rhs) {
   }
 
   const std::uint8_t result_day = static_cast<std::uint8_t>(
-      ClampDayOfMonth(result_year, result_month, lhs.day));
+      ClampDayOfMonth(result_year, result_month, lhs.dayField()));
 
   return DateLit::Create(result_year, result_month, result_day);
 }

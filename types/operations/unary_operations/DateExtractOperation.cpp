@@ -444,7 +444,7 @@ TypedValue DateExtractOperation::applyToChecked(const TypedValue &argument,
       } else {
         // argument type is kDate.
         DCHECK_EQ(TypeID::kDate, argument.getTypeID());
-        return TypedValue(argument.getLiteral<DateLit>().monthField());
+        return TypedValue(static_cast<std::int32_t>(argument.getLiteral<DateLit>().monthField()));
       }
     }
     case DateExtractUnit::kDay:

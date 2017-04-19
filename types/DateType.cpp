@@ -60,7 +60,7 @@ std::string DateType::printValueToString(const TypedValue &value) const {
   DCHECK(!value.isNull());
 
   const DateLit literal = value.getLiteral<DateLit>();
-  const std::int32_t year = literal.year;
+  const std::int32_t year = literal.yearField();
 
   char datebuf[DateLit::kIsoChars + 1];
   std::size_t chars_written = 0;
@@ -78,9 +78,9 @@ std::string DateType::printValueToString(const TypedValue &value) const {
   // All the rest of the ISO 8601 date/time parts.
   snprintf_result = snprintf(datebuf + chars_written,
                              sizeof(datebuf) - chars_written,
-                             "%02d-%02d",
-                             literal.month,
-                             literal.day);
+                             "%02u-%02u",
+                             literal.monthField(),
+                             literal.dayField());
   CheckSnprintf(snprintf_result, sizeof(datebuf), &chars_written);
 
   return std::string(datebuf);

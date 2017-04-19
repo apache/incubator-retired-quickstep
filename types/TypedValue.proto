@@ -34,11 +34,5 @@ message TypedValue {
   optional int64 datetime_interval_value = 8;
   optional int64 year_month_interval_value = 9;
 
-  message DateLit {
-    required int32 year = 1;
-    required uint32 month = 2;
-    required uint32 day = 3;
-  }
-
-  optional DateLit date_value = 10;
+  optional uint32 date_value = 10;
 }
