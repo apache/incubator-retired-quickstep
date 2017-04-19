@@ -311,6 +311,19 @@ class WorkOrdersContainer {
     return rebuild_workorders_[operator_index].getNumWorkOrders();
   }
 
+  /**
+   * @brief Get the total number of work orders for the given operator.
+   *
+   * @param operator_index The index of the operator.
+   *
+   * @return The total number of WorkOrders (normal + rebuild).
+   **/
+  inline std::size_t getNumTotalWorkOrders(
+      const std::size_t operator_index) const {
+    return getNumNormalWorkOrders(operator_index) +
+           getNumRebuildWorkOrders(operator_index);
+  }
+
  private:
   /**
    * @brief An internal queue-based container structure to hold the WorkOrders.
