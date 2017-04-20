@@ -1,0 +1,772 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+[default optimized_logical_plan physical_plan]
+
+SELECT int_col+1, 1+int_col
+FROM test;
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=(int_col+1),relation=,type=Int NULL]
+|   | +-Add
+|   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |   +-Literal[value=1,type=Int]
+|   +-Alias[id=7,name=,alias=(1+int_col),relation=,type=Int NULL]
+|     +-Add
+|       +-Literal[value=1,type=Int]
+|       +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=(int_col+1),relation=,type=Int NULL]
+  +-AttributeReference[id=7,name=,alias=(1+int_col),relation=,type=Int NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=Selection
+| +-input=TableReference[relation=Test,alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-project_expressions=
+|   +-Alias[id=6,name=,alias=(int_col+1),relation=,type=Int NULL]
+|   | +-CommonSubexpression[common_subexpression_id=8]
+|   |   +-Operand=Add
+|   |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |     +-Literal[value=1,type=Int]
+|   +-Alias[id=7,name=,alias=(1+int_col),relation=,type=Int NULL]
+|     +-CommonSubexpression[common_subexpression_id=8]
+|       +-Operand=Add
+|         +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|         +-Literal[value=1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=(int_col+1),relation=,type=Int NULL]
+  +-AttributeReference[id=7,name=,alias=(1+int_col),relation=,type=Int NULL]
+==
+
+# Aggregate
+SELECT SUM(int_col+float_col), MIN((float_col+int_col)*2)
+FROM test;
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=Aggregate
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Double NULL]
+| |   | +-AggregateFunction[function=SUM]
+| |   |   +-Add
+| |   |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   |     +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |   +-Alias[id=7,name=,alias=$aggregate1,relation=$aggregate,type=Float NULL]
+| |     +-AggregateFunction[function=MIN]
+| |       +-Multiply
+| |         +-Add
+| |         | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |         | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |         +-Literal[value=2,type=Int]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=SUM((int_col+float_col)),relation=,type=Double NULL]
+|   | +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|   |   type=Double NULL]
+|   +-Alias[id=7,name=,alias=MIN(((float_col+int_col)*2)),relation=,
+|     type=Float NULL]
+|     +-AttributeReference[id=7,name=,alias=$aggregate1,relation=$aggregate,
+|       type=Float NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=SUM((int_col+float_col)),relation=,
+  | type=Double NULL]
+  +-AttributeReference[id=7,name=,alias=MIN(((float_col+int_col)*2)),relation=,
+    type=Float NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=Selection
+| +-input=Aggregate
+| | +-input=TableReference[relation=Test,alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Double NULL]
+| |   | +-AggregateFunction[function=SUM]
+| |   |   +-CommonSubexpression[common_subexpression_id=8]
+| |   |     +-Operand=Add
+| |   |       +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   |       +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |   +-Alias[id=7,name=,alias=$aggregate1,relation=$aggregate,type=Float NULL]
+| |     +-AggregateFunction[function=MIN]
+| |       +-Multiply
+| |         +-CommonSubexpression[common_subexpression_id=8]
+| |         | +-Operand=Add
+| |         |   +-AttributeReference[id=0,name=int_col,relation=test,
+| |         |   | type=Int NULL]
+| |         |   +-AttributeReference[id=2,name=float_col,relation=test,
+| |         |     type=Float]
+| |         +-Literal[value=2,type=Int]
+| +-project_expressions=
+|   +-Alias[id=6,name=,alias=SUM((int_col+float_col)),relation=,type=Double NULL]
+|   | +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|   |   type=Double NULL]
+|   +-Alias[id=7,name=,alias=MIN(((float_col+int_col)*2)),relation=,
+|     type=Float NULL]
+|     +-AttributeReference[id=7,name=,alias=$aggregate1,relation=$aggregate,
+|       type=Float NULL]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=SUM((int_col+float_col)),relation=,
+  | type=Double NULL]
+  +-AttributeReference[id=7,name=,alias=MIN(((float_col+int_col)*2)),relation=,
+    type=Float NULL]
+==
+
+# HashJoin
+SELECT int_col + j, (int_col + j) * float_col
+FROM test, (SELECT i, i * i AS j FROM generate_series(1, 10) AS g(i)) t
+WHERE int_col = i AND (int_col + i) < float_col;
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=Filter
+| | +-input=HashJoin
+| | | +-left=TableReference[relation_name=Test,relation_alias=test]
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | | |   type=VarChar(20) NULL]
+| | | +-right=Project
+| | | | +-input=TableGenerator[function_name=generate_series,table_alias=g]
+| | | | | +-AttributeReference[id=6,name=generate_series,alias=g,
+| | | | |   relation=generate_series,type=Int]
+| | | | +-project_list=
+| | | |   +-Alias[id=7,name=i,relation=,type=Int]
+| | | |   | +-AttributeReference[id=6,name=generate_series,alias=g,
+| | | |   |   relation=generate_series,type=Int]
+| | | |   +-Alias[id=8,name=j,relation=t,type=Int]
+| | | |     +-Multiply
+| | | |       +-AttributeReference[id=6,name=generate_series,alias=g,
+| | | |       | relation=generate_series,type=Int]
+| | | |       +-AttributeReference[id=6,name=generate_series,alias=g,
+| | | |         relation=generate_series,type=Int]
+| | | +-left_join_attributes=
+| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-right_join_attributes=
+| | |   +-AttributeReference[id=7,name=i,relation=,type=Int]
+| | +-filter_predicate=Less
+| |   +-Add
+| |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   | +-AttributeReference[id=7,name=i,relation=,type=Int]
+| |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| +-project_list=
+|   +-Alias[id=9,name=,alias=(int_col+j),relation=,type=Int NULL]
+|   | +-Add
+|   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |   +-AttributeReference[id=8,name=j,relation=t,type=Int]
+|   +-Alias[id=10,name=,alias=((int_col+j)*float_col),relation=,type=Float NULL]
+|     +-Multiply
+|       +-Add
+|       | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|       | +-AttributeReference[id=8,name=j,relation=t,type=Int]
+|       +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
++-output_attributes=
+  +-AttributeReference[id=9,name=,alias=(int_col+j),relation=,type=Int NULL]
+  +-AttributeReference[id=10,name=,alias=((int_col+j)*float_col),relation=,
+    type=Float NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=HashJoin
+| +-left=TableGenerator[function_name=generate_series,table_alias=g]
+| | +-AttributeReference[id=6,name=generate_series,alias=g,
+| |   relation=generate_series,type=Int]
+| +-right=TableReference[relation=Test,alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-residual_predicate=Less
+| | +-Add
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=6,name=generate_series,alias=g,
+| | |   relation=generate_series,type=Int]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| +-project_expressions=
+| | +-Alias[id=9,name=,alias=(int_col+j),relation=,type=Int NULL]
+| | | +-CommonSubexpression[common_subexpression_id=11]
+| | |   +-Operand=Add
+| | |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | |     +-Multiply
+| | |       +-AttributeReference[id=6,name=generate_series,alias=g,
+| | |       | relation=generate_series,type=Int]
+| | |       +-AttributeReference[id=6,name=generate_series,alias=g,
+| | |         relation=generate_series,type=Int]
+| | +-Alias[id=10,name=,alias=((int_col+j)*float_col),relation=,type=Float NULL]
+| |   +-Multiply
+| |     +-CommonSubexpression[common_subexpression_id=11]
+| |     | +-Operand=Add
+| |     |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |     |   +-Multiply
+| |     |     +-AttributeReference[id=6,name=generate_series,alias=g,
+| |     |     | relation=generate_series,type=Int]
+| |     |     +-AttributeReference[id=6,name=generate_series,alias=g,
+| |     |       relation=generate_series,type=Int]
+| |     +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| +-left_join_attributes=
+| | +-AttributeReference[id=6,name=generate_series,alias=g,
+| |   relation=generate_series,type=Int]
+| +-right_join_attributes=
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
++-output_attributes=
+  +-AttributeReference[id=9,name=,alias=(int_col+j),relation=,type=Int NULL]
+  +-AttributeReference[id=10,name=,alias=((int_col+j)*float_col),relation=,
+    type=Float NULL]
+==
+
+# NestedLoopsJoin
+SELECT int_col + j, (int_col + j) * float_col
+FROM test, (SELECT i, i * i AS j FROM generate_series(1, 10) AS g(i)) t
+WHERE (int_col + i) < float_col;
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=NestedLoopsJoin
+| | +-left=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-right=Project
+| | | +-input=TableGenerator[function_name=generate_series,table_alias=g]
+| | | | +-AttributeReference[id=6,name=generate_series,alias=g,
+| | | |   relation=generate_series,type=Int]
+| | | +-project_list=
+| | |   +-Alias[id=7,name=i,relation=,type=Int]
+| | |   | +-AttributeReference[id=6,name=generate_series,alias=g,
+| | |   |   relation=generate_series,type=Int]
+| | |   +-Alias[id=8,name=j,relation=t,type=Int]
+| | |     +-Multiply
+| | |       +-AttributeReference[id=6,name=generate_series,alias=g,
+| | |       | relation=generate_series,type=Int]
+| | |       +-AttributeReference[id=6,name=generate_series,alias=g,
+| | |         relation=generate_series,type=Int]
+| | +-join_predicate=Less
+| |   +-Add
+| |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   | +-AttributeReference[id=7,name=i,relation=,type=Int]
+| |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| +-project_list=
+|   +-Alias[id=9,name=,alias=(int_col+j),relation=,type=Int NULL]
+|   | +-Add
+|   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |   +-AttributeReference[id=8,name=j,relation=t,type=Int]
+|   +-Alias[id=10,name=,alias=((int_col+j)*float_col),relation=,type=Float NULL]
+|     +-Multiply
+|       +-Add
+|       | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|       | +-AttributeReference[id=8,name=j,relation=t,type=Int]
+|       +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
++-output_attributes=
+  +-AttributeReference[id=9,name=,alias=(int_col+j),relation=,type=Int NULL]
+  +-AttributeReference[id=10,name=,alias=((int_col+j)*float_col),relation=,
+    type=Float NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=NestedLoopsJoin
+| +-left=TableReference[relation=Test,alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-right=TableGenerator[function_name=generate_series,table_alias=g]
+| | +-AttributeReference[id=6,name=generate_series,alias=g,
+| |   relation=generate_series,type=Int]
+| +-join_predicate=Less
+| | +-Add
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=6,name=generate_series,alias=g,
+| | |   relation=generate_series,type=Int]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| +-project_expressions=
+|   +-Alias[id=9,name=,alias=(int_col+j),relation=,type=Int NULL]
+|   | +-CommonSubexpression[common_subexpression_id=11]
+|   |   +-Operand=Add
+|   |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |     +-Multiply
+|   |       +-AttributeReference[id=6,name=generate_series,alias=g,
+|   |       | relation=generate_series,type=Int]
+|   |       +-AttributeReference[id=6,name=generate_series,alias=g,
+|   |         relation=generate_series,type=Int]
+|   +-Alias[id=10,name=,alias=((int_col+j)*float_col),relation=,type=Float NULL]
+|     +-Multiply
+|       +-CommonSubexpression[common_subexpression_id=11]
+|       | +-Operand=Add
+|       |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|       |   +-Multiply
+|       |     +-AttributeReference[id=6,name=generate_series,alias=g,
+|       |     | relation=generate_series,type=Int]
+|       |     +-AttributeReference[id=6,name=generate_series,alias=g,
+|       |       relation=generate_series,type=Int]
+|       +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
++-output_attributes=
+  +-AttributeReference[id=9,name=,alias=(int_col+j),relation=,type=Int NULL]
+  +-AttributeReference[id=10,name=,alias=((int_col+j)*float_col),relation=,
+    type=Float NULL]
+==
+
+# Case expression
+SELECT long_col+1,
+       CASE WHEN int_col = 1 THEN (long_col+1)*(long_col+1)
+            WHEN int_col = 2 THEN (long_col+1)*(long_col+1)
+            ELSE long_col+1 END AS result
+FROM test;
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=(long_col+1),relation=,type=Long]
+|   | +-Add
+|   |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   |   +-Literal[value=1,type=Int]
+|   +-Alias[id=7,name=result,relation=,type=Long]
+|     +-SearchedCase
+|       +-else_result_expression=Add
+|       | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|       | +-Literal[value=1,type=Long]
+|       +-condition_perdicates=
+|       | +-Equal
+|       | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|       | | +-Literal[value=1,type=Int]
+|       | +-Equal
+|       |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|       |   +-Literal[value=2,type=Int]
+|       +-conditional_result_expressions=
+|         +-Multiply
+|         | +-Add
+|         | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|         | | +-Literal[value=1,type=Int]
+|         | +-Add
+|         |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|         |   +-Literal[value=1,type=Int]
+|         +-Multiply
+|           +-Add
+|           | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|           | +-Literal[value=1,type=Int]
+|           +-Add
+|             +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|             +-Literal[value=1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=(long_col+1),relation=,type=Long]
+  +-AttributeReference[id=7,name=result,relation=,type=Long]
+[Physical Plan]
+TopLevelPlan
++-plan=Selection
+| +-input=TableReference[relation=Test,alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-project_expressions=
+|   +-Alias[id=6,name=,alias=(long_col+1),relation=,type=Long]
+|   | +-Add
+|   |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   |   +-Literal[value=1,type=Int]
+|   +-Alias[id=7,name=result,relation=,type=Long]
+|     +-SearchedCase
+|       +-else_result_expression=Add
+|       | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|       | +-Literal[value=1,type=Long]
+|       +-condition_perdicates=
+|       | +-Equal
+|       | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|       | | +-Literal[value=1,type=Int]
+|       | +-Equal
+|       |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|       |   +-Literal[value=2,type=Int]
+|       +-conditional_result_expressions=
+|         +-Multiply
+|         | +-CommonSubexpression[common_subexpression_id=8]
+|         | | +-Operand=Add
+|         | |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|         | |   +-Literal[value=1,type=Int]
+|         | +-CommonSubexpression[common_subexpression_id=8]
+|         |   +-Operand=Add
+|         |     +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|         |     +-Literal[value=1,type=Int]
+|         +-Multiply
+|           +-CommonSubexpression[common_subexpression_id=9]
+|           | +-Operand=Add
+|           |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|           |   +-Literal[value=1,type=Int]
+|           +-CommonSubexpression[common_subexpression_id=9]
+|             +-Operand=Add
+|               +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|               +-Literal[value=1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=(long_col+1),relation=,type=Long]
+  +-AttributeReference[id=7,name=result,relation=,type=Long]
+==
+
+SELECT (int_col+1)*(int_col+2)*(int_col+3), (int_col+1)*(int_col+2), int_col+1
+FROM test;
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=(((int_col+1)*(int_col+2))*(int_col+3)),relation=,
+|   | type=Int NULL]
+|   | +-Multiply
+|   |   +-Multiply
+|   |   | +-Add
+|   |   | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |   | | +-Literal[value=1,type=Int]
+|   |   | +-Add
+|   |   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |   |   +-Literal[value=2,type=Int]
+|   |   +-Add
+|   |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |     +-Literal[value=3,type=Int]
+|   +-Alias[id=7,name=,alias=((int_col+1)*(int_col+2)),relation=,type=Int NULL]
+|   | +-Multiply
+|   |   +-Add
+|   |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |   | +-Literal[value=1,type=Int]
+|   |   +-Add
+|   |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |     +-Literal[value=2,type=Int]
+|   +-Alias[id=8,name=,alias=(int_col+1),relation=,type=Int NULL]
+|     +-Add
+|       +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|       +-Literal[value=1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=(((int_col+1)*(int_col+2))*(int_col+3)),
+  | relation=,type=Int NULL]
+  +-AttributeReference[id=7,name=,alias=((int_col+1)*(int_col+2)),relation=,
+  | type=Int NULL]
+  +-AttributeReference[id=8,name=,alias=(int_col+1),relation=,type=Int NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=Selection
+| +-input=TableReference[relation=Test,alias=test]
+| | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
+| +-project_expressions=
+|   +-Alias[id=6,name=,alias=(((int_col+1)*(int_col+2))*(int_col+3)),relation=,
+|   | type=Int NULL]
+|   | +-Multiply
+|   |   +-CommonSubexpression[common_subexpression_id=10]
+|   |   | +-Operand=Multiply
+|   |   |   +-CommonSubexpression[common_subexpression_id=9]
+|   |   |   | +-Operand=Add
+|   |   |   |   +-AttributeReference[id=0,name=int_col,relation=test,
+|   |   |   |   | type=Int NULL]
+|   |   |   |   +-Literal[value=1,type=Int]
+|   |   |   +-Add
+|   |   |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |   |     +-Literal[value=2,type=Int]
+|   |   +-Add
+|   |     +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |     +-Literal[value=3,type=Int]
+|   +-Alias[id=7,name=,alias=((int_col+1)*(int_col+2)),relation=,type=Int NULL]
+|   | +-CommonSubexpression[common_subexpression_id=10]
+|   |   +-Operand=Multiply
+|   |     +-CommonSubexpression[common_subexpression_id=9]
+|   |     | +-Operand=Add
+|   |     |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |     |   +-Literal[value=1,type=Int]
+|   |     +-Add
+|   |       +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   |       +-Literal[value=2,type=Int]
+|   +-Alias[id=8,name=,alias=(int_col+1),relation=,type=Int NULL]
+|     +-CommonSubexpression[common_subexpression_id=9]
+|       +-Operand=Add
+|         +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|         +-Literal[value=1,type=Int]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=(((int_col+1)*(int_col+2))*(int_col+3)),
+  | relation=,type=Int NULL]
+  +-AttributeReference[id=7,name=,alias=((int_col+1)*(int_col+2)),relation=,
+  | type=Int NULL]
+  +-AttributeReference[id=8,name=,alias=(int_col+1),relation=,type=Int NULL]
+==
+
+# Reuse aggregate expressions
+SELECT SUM(long_col+1), AVG(1+long_col), MIN(float_col), MIN(float_col)*2, COUNT(*)
+FROM test;
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=Aggregate
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
+| |   | +-AggregateFunction[function=SUM]
+| |   |   +-Add
+| |   |     +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |   |     +-Literal[value=1,type=Int]
+| |   +-Alias[id=7,name=,alias=$aggregate1,relation=$aggregate,type=Double NULL]
+| |   | +-AggregateFunction[function=AVG]
+| |   |   +-Add
+| |   |     +-Literal[value=1,type=Int]
+| |   |     +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |   +-Alias[id=8,name=,alias=$aggregate2,relation=$aggregate,type=Float NULL]
+| |   | +-AggregateFunction[function=MIN]
+| |   |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |   +-Alias[id=9,name=,alias=$aggregate3,relation=$aggregate,type=Float NULL]
+| |   | +-AggregateFunction[function=MIN]
+| |   |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |   +-Alias[id=11,name=,alias=$aggregate4,relation=$aggregate,type=Long]
+| |     +-AggregateFunction[function=COUNT]
+| |       +-[]
+| +-project_list=
+|   +-Alias[id=6,name=,alias=SUM((long_col+1)),relation=,type=Long NULL]
+|   | +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|   |   type=Long NULL]
+|   +-Alias[id=7,name=,alias=AVG((1+long_col)),relation=,type=Double NULL]
+|   | +-AttributeReference[id=7,name=,alias=$aggregate1,relation=$aggregate,
+|   |   type=Double NULL]
+|   +-Alias[id=8,name=,alias=MIN(float_col),relation=,type=Float NULL]
+|   | +-AttributeReference[id=8,name=,alias=$aggregate2,relation=$aggregate,
+|   |   type=Float NULL]
+|   +-Alias[id=10,name=,alias=(MIN(float_col)*2),relation=,type=Float NULL]
+|   | +-Multiply
+|   |   +-AttributeReference[id=9,name=,alias=$aggregate3,relation=$aggregate,
+|   |   | type=Float NULL]
+|   |   +-Literal[value=2,type=Int]
+|   +-Alias[id=11,name=,alias=COUNT(*),relation=,type=Long]
+|     +-AttributeReference[id=11,name=,alias=$aggregate4,relation=$aggregate,
+|       type=Long]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=SUM((long_col+1)),relation=,
+  | type=Long NULL]
+  +-AttributeReference[id=7,name=,alias=AVG((1+long_col)),relation=,
+  | type=Double NULL]
+  +-AttributeReference[id=8,name=,alias=MIN(float_col),relation=,type=Float NULL]
+  +-AttributeReference[id=10,name=,alias=(MIN(float_col)*2),relation=,
+  | type=Float NULL]
+  +-AttributeReference[id=11,name=,alias=COUNT(*),relation=,type=Long]
+[Physical Plan]
+TopLevelPlan
++-plan=Selection
+| +-input=Aggregate
+| | +-input=TableReference[relation=Test,alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
+| |   | +-AggregateFunction[function=SUM]
+| |   |   +-Add
+| |   |     +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |   |     +-Literal[value=1,type=Int]
+| |   +-Alias[id=8,name=,alias=$aggregate2,relation=$aggregate,type=Float NULL]
+| |   | +-AggregateFunction[function=MIN]
+| |   |   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| |   +-Alias[id=11,name=,alias=$aggregate4,relation=$aggregate,type=Long]
+| |     +-AggregateFunction[function=COUNT]
+| |       +-[]
+| +-project_expressions=
+|   +-Alias[id=6,name=,alias=SUM((long_col+1)),relation=,type=Long NULL]
+|   | +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|   |   type=Long NULL]
+|   +-Alias[id=7,name=,alias=AVG((1+long_col)),relation=,type=Long NULL]
+|   | +-Divide
+|   |   +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|   |   | type=Long NULL]
+|   |   +-AttributeReference[id=11,name=,alias=$aggregate4,relation=$aggregate,
+|   |     type=Long]
+|   +-Alias[id=8,name=,alias=MIN(float_col),relation=,type=Float NULL]
+|   | +-AttributeReference[id=8,name=,alias=$aggregate2,relation=$aggregate,
+|   |   type=Float NULL]
+|   +-Alias[id=10,name=,alias=(MIN(float_col)*2),relation=,type=Float NULL]
+|   | +-Multiply
+|   |   +-AttributeReference[id=8,name=,alias=$aggregate2,relation=$aggregate,
+|   |   | type=Float NULL]
+|   |   +-Literal[value=2,type=Int]
+|   +-Alias[id=11,name=,alias=COUNT(*),relation=,type=Long]
+|     +-AttributeReference[id=11,name=,alias=$aggregate4,relation=$aggregate,
+|       type=Long]
++-output_attributes=
+  +-AttributeReference[id=6,name=,alias=SUM((long_col+1)),relation=,
+  | type=Long NULL]
+  +-AttributeReference[id=7,name=,alias=AVG((1+long_col)),relation=,
+  | type=Long NULL]
+  +-AttributeReference[id=8,name=,alias=MIN(float_col),relation=,type=Float NULL]
+  +-AttributeReference[id=10,name=,alias=(MIN(float_col)*2),relation=,
+  | type=Float NULL]
+  +-AttributeReference[id=11,name=,alias=COUNT(*),relation=,type=Long]
+==
+
+SELECT SUM(long_col+1)+2, (SUM(long_col+1)+2)*3
+FROM test;
+--
+[Optimized Logical Plan]
+TopLevelPlan
++-plan=Project
+| +-input=Aggregate
+| | +-input=TableReference[relation_name=Test,relation_alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
+| |   | +-AggregateFunction[function=SUM]
+| |   |   +-Add
+| |   |     +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |   |     +-Literal[value=1,type=Int]
+| |   +-Alias[id=8,name=,alias=$aggregate1,relation=$aggregate,type=Long NULL]
+| |     +-AggregateFunction[function=SUM]
+| |       +-Add
+| |         +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |         +-Literal[value=1,type=Int]
+| +-project_list=
+|   +-Alias[id=7,name=,alias=(SUM((long_col+1))+2),relation=,type=Long NULL]
+|   | +-Add
+|   |   +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|   |   | type=Long NULL]
+|   |   +-Literal[value=2,type=Int]
+|   +-Alias[id=9,name=,alias=((SUM((long_col+1))+2)*3),relation=,type=Long NULL]
+|     +-Multiply
+|       +-Add
+|       | +-AttributeReference[id=8,name=,alias=$aggregate1,relation=$aggregate,
+|       | | type=Long NULL]
+|       | +-Literal[value=2,type=Int]
+|       +-Literal[value=3,type=Int]
++-output_attributes=
+  +-AttributeReference[id=7,name=,alias=(SUM((long_col+1))+2),relation=,
+  | type=Long NULL]
+  +-AttributeReference[id=9,name=,alias=((SUM((long_col+1))+2)*3),relation=,
+    type=Long NULL]
+[Physical Plan]
+TopLevelPlan
++-plan=Selection
+| +-input=Aggregate
+| | +-input=TableReference[relation=Test,alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
+| |     +-AggregateFunction[function=SUM]
+| |       +-Add
+| |         +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |         +-Literal[value=1,type=Int]
+| +-project_expressions=
+|   +-Alias[id=7,name=,alias=(SUM((long_col+1))+2),relation=,type=Long NULL]
+|   | +-CommonSubexpression[common_subexpression_id=10]
+|   |   +-Operand=Add
+|   |     +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|   |     | type=Long NULL]
+|   |     +-Literal[value=2,type=Int]
+|   +-Alias[id=9,name=,alias=((SUM((long_col+1))+2)*3),relation=,type=Long NULL]
+|     +-Multiply
+|       +-CommonSubexpression[common_subexpression_id=10]
+|       | +-Operand=Add
+|       |   +-AttributeReference[id=6,name=,alias=$aggregate0,
+|       |   | relation=$aggregate,type=Long NULL]
+|       |   +-Literal[value=2,type=Int]
+|       +-Literal[value=3,type=Int]
++-output_attributes=
+  +-AttributeReference[id=7,name=,alias=(SUM((long_col+1))+2),relation=,
+  | type=Long NULL]
+  +-AttributeReference[id=9,name=,alias=((SUM((long_col+1))+2)*3),relation=,
+    type=Long NULL]
+==

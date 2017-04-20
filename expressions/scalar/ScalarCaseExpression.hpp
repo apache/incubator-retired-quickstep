@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -31,15 +32,14 @@
 #include "expressions/scalar/Scalar.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "types/TypedValue.hpp"
+#include "types/containers/ColumnVector.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
 
 namespace quickstep {
 
-class ColumnVector;
-class IndirectColumnVector;
-class NativeColumnVector;
+class ColumnVectorCache;
 class TupleIdSequence;
 class Type;
 class ValueAccessor;
@@ -132,15 +132,26 @@ class ScalarCaseExpression : public Scalar {
     }
   }
 
-  ColumnVector* getAllValues(ValueAccessor *accessor,
-                             const SubBlocksReference *sub_blocks_ref) const override;
+  ColumnVectorPtr getAllValues(ValueAccessor *accessor,
+                               const SubBlocksReference *sub_blocks_ref,
+                               ColumnVectorCache *cv_cache) const override;
 
-  ColumnVector* getAllValuesForJoin(
+  ColumnVectorPtr getAllValuesForJoin(
       const relation_id left_relation_id,
       ValueAccessor *left_accessor,
       const relation_id right_relation_id,
       ValueAccessor *right_accessor,
-      const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const override;
+      const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
+      ColumnVectorCache *cv_cache) const override;
+
+ protected:
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<const Expression*> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<const Expression*>> *container_child_fields) const override;
 
  private:
   // Merge the values in the NativeColumnVector 'case_result' into '*output' at
@@ -158,7 +169,7 @@ class ScalarCaseExpression : public Scalar {
   static void MultiplexIndirectColumnVector(
       const TupleIdSequence *source_sequence,
       const TupleIdSequence &case_matches,
-      IndirectColumnVector *case_result,
+      const IndirectColumnVector &case_result,
       IndirectColumnVector *output);
 
   // Create and return a new ColumnVector by multiplexing the ColumnVectors
@@ -171,13 +182,13 @@ class ScalarCaseExpression : public Scalar {
   // the explicit WHEN clauses. Similarly, '*case_results' are the values
   // generated for the tuples matching each WHEN clause, and '*else_results'
   // are the values generated for the ELSE tuples.
-  ColumnVector* multiplexColumnVectors(
+  ColumnVectorPtr multiplexColumnVectors(
       const std::size_t output_size,
       const TupleIdSequence *source_sequence,
       const std::vector<std::unique_ptr<TupleIdSequence>> &case_matches,
       const TupleIdSequence &else_matches,
-      std::vector<std::unique_ptr<ColumnVector>> *case_results,
-      ColumnVector *else_result) const;
+      const std::vector<ColumnVectorPtr> &case_results,
+      const ColumnVectorPtr &else_result) const;
 
   std::vector<std::unique_ptr<Predicate>> when_predicates_;
   std::vector<std::unique_ptr<Scalar>> result_expressions_;

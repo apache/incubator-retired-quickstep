@@ -42,8 +42,7 @@ target_link_libraries(quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_types_TypedValue
                       quickstep_types_containers_ColumnVector
                       quickstep_types_containers_Tuple
-                      quickstep_utility_Macros
-                      quickstep_utility_ScopedDeleter)
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_types_containers_Tuple
                       glog
                       quickstep_catalog_CatalogTypedefs

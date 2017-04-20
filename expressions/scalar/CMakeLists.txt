@@ -29,6 +29,9 @@ add_library(quickstep_expressions_scalar_ScalarCaseExpression
 add_library(quickstep_expressions_scalar_ScalarLiteral
             ScalarLiteral.cpp
             ScalarLiteral.hpp)
+add_library(quickstep_expressions_scalar_ScalarSharedExpression
+            ScalarSharedExpression.cpp
+            ScalarSharedExpression.hpp)
 add_library(quickstep_expressions_scalar_ScalarUnaryExpression
             ScalarUnaryExpression.cpp
             ScalarUnaryExpression.hpp)
@@ -36,9 +39,11 @@ add_library(quickstep_expressions_scalar_ScalarUnaryExpression
 # Link dependencies:
 target_link_libraries(quickstep_expressions_scalar_Scalar
                       quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_Expression
                       quickstep_expressions_Expressions_proto
                       quickstep_storage_StorageBlockInfo
                       quickstep_types_TypedValue
+                      quickstep_types_containers_ColumnVector
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_scalar_ScalarAttribute
                       quickstep_catalog_CatalogAttribute
@@ -65,6 +70,7 @@ target_link_libraries(quickstep_expressions_scalar_ScalarBinaryExpression
                       quickstep_types_containers_ColumnVector
                       quickstep_types_operations_Operation_proto
                       quickstep_types_operations_binaryoperations_BinaryOperation
+                      quickstep_types_operations_binaryoperations_BinaryOperationID
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_scalar_ScalarCaseExpression
                       quickstep_catalog_CatalogTypedefs
@@ -92,6 +98,16 @@ target_link_libraries(quickstep_expressions_scalar_ScalarLiteral
                       quickstep_types_TypedValue_proto
                       quickstep_types_containers_ColumnVector
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_expressions_scalar_ScalarSharedExpression
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_expressions_Expressions_proto
+                      quickstep_expressions_scalar_Scalar
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_ValueAccessor
+                      quickstep_types_TypedValue
+                      quickstep_types_containers_ColumnVector
+                      quickstep_utility_ColumnVectorCache
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_expressions_scalar_ScalarUnaryExpression
                       quickstep_catalog_CatalogTypedefs
                       quickstep_expressions_Expressions_proto
@@ -104,6 +120,7 @@ target_link_libraries(quickstep_expressions_scalar_ScalarUnaryExpression
                       quickstep_types_containers_ColumnVector
                       quickstep_types_operations_Operation_proto
                       quickstep_types_operations_unaryoperations_UnaryOperation
+                      quickstep_types_operations_unaryoperations_UnaryOperationID
                       quickstep_utility_Macros)
 
 # Submodule all-in-one library:
@@ -114,6 +131,7 @@ target_link_libraries(quickstep_expressions_scalar
                       quickstep_expressions_scalar_ScalarBinaryExpression
                       quickstep_expressions_scalar_ScalarCaseExpression
                       quickstep_expressions_scalar_ScalarLiteral
+                      quickstep_expressions_scalar_ScalarSharedExpression
                       quickstep_expressions_scalar_ScalarUnaryExpression)
 
 # Tests:

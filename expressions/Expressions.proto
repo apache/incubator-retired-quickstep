@@ -50,6 +50,7 @@ message Scalar {
     UNARY_EXPRESSION = 2;
     BINARY_EXPRESSION = 3;
     CASE_EXPRESSION = 4;
+    SHARED_EXPRESSION = 5;
   }
 
   required ScalarDataSource data_source = 1;
@@ -121,5 +122,12 @@ message ScalarCaseExpression {
     repeated Predicate when_predicate = 161;
     repeated Scalar result_expression = 162;
     optional Scalar else_result_expression = 163;
+  }
+}
+
+message ScalarSharedExpression {
+  extend Scalar {
+    optional int32 share_id = 196;
+    optional Scalar operand = 197;
   }
 }

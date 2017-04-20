@@ -19,6 +19,7 @@
 
 #include "expressions/scalar/ScalarLiteral.hpp"
 
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -47,24 +48,49 @@ Scalar* ScalarLiteral::clone() const {
   return new ScalarLiteral(internal_literal_, type_);
 }
 
-ColumnVector* ScalarLiteral::getAllValues(
+ColumnVectorPtr ScalarLiteral::getAllValues(
     ValueAccessor *accessor,
-    const SubBlocksReference *sub_blocks_ref) const {
-  return ColumnVector::MakeVectorOfValue(
-      type_,
-      internal_literal_,
-      accessor->getNumTuplesVirtual());
+    const SubBlocksReference *sub_blocks_ref,
+    ColumnVectorCache *cv_cache) const {
+  return ColumnVectorPtr(
+      ColumnVector::MakeVectorOfValue(type_,
+                                      internal_literal_,
+                                      accessor->getNumTuplesVirtual()));
 }
 
-ColumnVector* ScalarLiteral::getAllValuesForJoin(
+ColumnVectorPtr ScalarLiteral::getAllValuesForJoin(
     const relation_id left_relation_id,
     ValueAccessor *left_accessor,
     const relation_id right_relation_id,
     ValueAccessor *right_accessor,
-    const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const {
-  return ColumnVector::MakeVectorOfValue(type_,
-                                         internal_literal_,
-                                         joined_tuple_ids.size());
+    const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
+    ColumnVectorCache *cv_cache) const {
+  return ColumnVectorPtr(
+      ColumnVector::MakeVectorOfValue(type_,
+                                      internal_literal_,
+                                      joined_tuple_ids.size()));
+}
+
+void ScalarLiteral::getFieldStringItems(
+    std::vector<std::string> *inline_field_names,
+    std::vector<std::string> *inline_field_values,
+    std::vector<std::string> *non_container_child_field_names,
+    std::vector<const Expression*> *non_container_child_fields,
+    std::vector<std::string> *container_child_field_names,
+    std::vector<std::vector<const Expression*>> *container_child_fields) const {
+  Scalar::getFieldStringItems(inline_field_names,
+                              inline_field_values,
+                              non_container_child_field_names,
+                              non_container_child_fields,
+                              container_child_field_names,
+                              container_child_fields);
+
+  inline_field_names->emplace_back("internal_literal");
+  if (internal_literal_.isNull()) {
+    inline_field_values->emplace_back("NULL");
+  } else {
+    inline_field_values->emplace_back(type_.printValueToString(internal_literal_));
+  }
 }
 
 }  // namespace quickstep

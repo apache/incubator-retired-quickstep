@@ -20,6 +20,9 @@
 #ifndef QUICKSTEP_EXPRESSIONS_PREDICATE_PREDICATE_WITH_LIST_HPP_
 #define QUICKSTEP_EXPRESSIONS_PREDICATE_PREDICATE_WITH_LIST_HPP_
 
+#include <string>
+#include <vector>
+
 #include "expressions/predicate/Predicate.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrList.hpp"
@@ -58,6 +61,14 @@ class PredicateWithList : public Predicate {
   }
 
  protected:
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<const Expression*> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<const Expression*>> *container_child_fields) const override;
+
   PtrList<Predicate> static_operand_list_;
   PtrList<Predicate> dynamic_operand_list_;
 

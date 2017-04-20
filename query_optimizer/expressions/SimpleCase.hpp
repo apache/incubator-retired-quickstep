@@ -20,6 +20,7 @@
 #ifndef QUICKSTEP_QUERY_OPTIMIZER_EXPRESSIONS_SIMPLE_CASE_HPP_
 #define QUICKSTEP_QUERY_OPTIMIZER_EXPRESSIONS_SIMPLE_CASE_HPP_
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -110,6 +111,8 @@ class SimpleCase : public Scalar {
   ::quickstep::Scalar* concretize(
       const std::unordered_map<ExprId, const CatalogAttribute*>& substitution_map) const override;
 
+  bool equals(const ScalarPtr &other) const override;
+
   /**
    * @brief Creates an immutable SimpleCase.
    *
@@ -136,6 +139,8 @@ class SimpleCase : public Scalar {
   }
 
  protected:
+  std::size_t computeHash() const override;
+
   void getFieldStringItems(std::vector<std::string> *inline_field_names,
                            std::vector<std::string> *inline_field_values,
                            std::vector<std::string> *non_container_child_field_names,

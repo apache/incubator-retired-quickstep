@@ -27,12 +27,15 @@
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/rules/AttachLIPFilters.hpp"
+#include "query_optimizer/rules/CollapseSelection.hpp"
+#include "query_optimizer/rules/ExtractCommonSubexpression.hpp"
 #include "query_optimizer/rules/FuseAggregateJoin.hpp"
 #include "query_optimizer/rules/InjectJoinFilters.hpp"
 #include "query_optimizer/rules/PruneColumns.hpp"
 #include "query_optimizer/rules/PushDownLowCostDisjunctivePredicate.hpp"
 #include "query_optimizer/rules/ReduceGroupByAttributes.hpp"
 #include "query_optimizer/rules/ReorderColumns.hpp"
+#include "query_optimizer/rules/ReuseAggregateExpressions.hpp"
 #include "query_optimizer/rules/StarSchemaHashJoinOrderOptimization.hpp"
 #include "query_optimizer/rules/SwapProbeBuild.hpp"
 #include "query_optimizer/strategy/Aggregate.hpp"
@@ -121,12 +124,6 @@ P::PhysicalPtr PhysicalGenerator::optimizePlan() {
   std::vector<std::unique_ptr<Rule<P::Physical>>> rules;
   rules.emplace_back(new PruneColumns());
 
-  // TODO(jianqiao): It is possible for PushDownLowCostDisjunctivePredicate to
-  // generate two chaining Selection nodes that can actually be fused into one.
-  // Note that currently it is okay to have the two Selections because they are
-  // applied to a small cardinality stored relation, which is very light-weight.
-  // However it is better to have a FuseSelection optimization (or even a more
-  // general FusePhysical optimization) in the future.
   rules.emplace_back(new PushDownLowCostDisjunctivePredicate());
 
   rules.emplace_back(new ReduceGroupByAttributes(optimizer_context_));
@@ -146,11 +143,31 @@ P::PhysicalPtr PhysicalGenerator::optimizePlan() {
     rules.emplace_back(new ReorderColumns());
   }
 
+  // This optimization pass eliminates duplicate aggregates and converts AVG to
+  // SUM/COUNT if appropriate. Note that this optimization needs to be done before
+  // ExtractCommonSubexpression.
+  rules.emplace_back(new ReuseAggregateExpressions(optimizer_context_));
+
   rules.emplace_back(new FuseAggregateJoin());
 
-  // NOTE(jianqiao): Adding rules after InjectJoinFilters (or AttachLIPFilters) requires
-  // extra handling of LIPFilterConfiguration for transformed nodes. So currently it is
-  // suggested that all the new rules be placed before this point.
+  // Some of the optimization passes (e.g. PushDownLowCostDisjunctivePredicate
+  // and ReuseAggregateExpressions) might add extra Selection nodes and extra
+  // projection columns for their convenience. So we collapse Selection nodes
+  // and prune unnecessary columns here.
+  rules.emplace_back(new CollapseSelection());
+  rules.emplace_back(new PruneColumns());
+
+  // This optimization pass identifies common subexpressions and wraps them with
+  // CommonSubexpression nodes, where identical CommonSubexpression nodes share
+  // a same unique integer ID. Later in the backend we use memoization tables to
+  // memorize the result column vectors for each ID so that each group has its
+  // common subexpression evaluated only once.
+  rules.emplace_back(new ExtractCommonSubexpression(optimizer_context_));
+
+  // NOTE(jianqiao): Adding rules after InjectJoinFilters (or AttachLIPFilters)
+  // requires extra handling of LIPFilterConfiguration for transformed nodes.
+  // So currently it is suggested that all the new rules be placed before this
+  // point.
   if (FLAGS_use_filter_joins) {
     rules.emplace_back(new InjectJoinFilters());
   }

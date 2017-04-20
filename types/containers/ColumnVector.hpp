@@ -43,6 +43,9 @@ namespace quickstep {
 // TODO(chasseur): Look into ways to allocate ColumnVector memory from the
 // StorageManager.
 
+class ColumnVector;
+typedef std::shared_ptr<const ColumnVector> ColumnVectorPtr;
+
 /**
  * @brief A vector of values of the same type. Two implementations exist:
  *        NativeColumnVector (an array of fixed-size data elements) and
@@ -106,6 +109,13 @@ class ColumnVector {
    *         IndirectColumnVector.
    **/
   virtual bool isNative() const = 0;
+
+  /**
+   * @brief Get the number of values in this ColumnVector.
+   *
+   * @return The number of values in this ColumnVector.
+   **/
+  virtual std::size_t size() const = 0;
 
  protected:
   const Type &type_;
@@ -176,7 +186,7 @@ class NativeColumnVector : public ColumnVector {
    *
    * @return The number of values in this NativeColumnVector.
    **/
-  inline std::size_t size() const {
+  inline std::size_t size() const override {
     return actual_length_;
   }
 
@@ -436,7 +446,7 @@ class IndirectColumnVector : public ColumnVector {
    *
    * @return The number of values in this IndirectColumnVector.
    **/
-  inline std::size_t size() const {
+  inline std::size_t size() const override {
     return values_.size();
   }
 

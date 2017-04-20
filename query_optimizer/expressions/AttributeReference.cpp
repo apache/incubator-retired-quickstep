@@ -19,6 +19,8 @@
 
 #include "query_optimizer/expressions/AttributeReference.hpp"
 
+#include <cstddef>
+#include <functional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -26,6 +28,7 @@
 #include "expressions/scalar/ScalarAttribute.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/Expression.hpp"
+#include "query_optimizer/expressions/PatternMatcher.hpp"
 
 #include "glog/logging.h"
 
@@ -55,6 +58,22 @@ std::vector<AttributeReferencePtr> AttributeReference::getReferencedAttributes()
       substitution_map.find(id());
   DCHECK(found_it != substitution_map.end()) << toString();
   return new ::quickstep::ScalarAttribute(*found_it->second);
+}
+
+std::size_t AttributeReference::computeHash() const {
+  return std::hash<std::size_t>()(static_cast<std::size_t>(id()));
+}
+
+bool AttributeReference::equals(const ScalarPtr &other) const {
+  AttributeReferencePtr attr;
+  if (SomeAttributeReference::MatchesWithConditionalCast(other, &attr)) {
+    if (id() != attr->id()) {
+      return false;
+    }
+    DCHECK(type_.equals(attr->type_));
+    return true;
+  }
+  return false;
 }
 
 void AttributeReference::getFieldStringItems(

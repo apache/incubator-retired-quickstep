@@ -35,6 +35,7 @@ class Avg;
 class AttributeReference;
 class BinaryExpression;
 class Cast;
+class CommonSubexpression;
 class ComparisonExpression;
 class Count;
 class Exists;
@@ -50,6 +51,7 @@ class Predicate;
 class PredicateLiteral;
 class Scalar;
 class ScalarLiteral;
+class SimpleCase;
 class Sum;
 class UnaryExpression;
 class WindowAggregateFunction;
@@ -145,16 +147,13 @@ using SomeScalar = SomeExpressionNode<Scalar,
                                       ExpressionType::kAttributeReference,
                                       ExpressionType::kBinaryExpression,
                                       ExpressionType::kCast,
-                                      ExpressionType::kComparisonExpression,
-                                      ExpressionType::kLogicalAnd,
-                                      ExpressionType::kLogicalNot,
-                                      ExpressionType::kLogicalOr,
-                                      ExpressionType::kPredicateLiteral,
+                                      ExpressionType::kCommonSubexpression,
                                       ExpressionType::kScalarLiteral,
                                       ExpressionType::kSearchedCase,
                                       ExpressionType::kSimpleCase,
                                       ExpressionType::kUnaryExpression>;
 using SomeScalarLiteral = SomeExpressionNode<ScalarLiteral, ExpressionType::kScalarLiteral>;
+using SomeSimpleCase = SomeExpressionNode<SimpleCase, ExpressionType::kSimpleCase>;
 using SomeUnaryExpression = SomeExpressionNode<UnaryExpression, ExpressionType::kUnaryExpression>;
 using SomeWindowAggregateFunction = SomeExpressionNode<WindowAggregateFunction,
                                                        ExpressionType::kWindowAggregateFunction>;

@@ -297,6 +297,7 @@ target_link_libraries(quickstep_storage_AggregationOperationState
                       quickstep_types_containers_ColumnVector
                       quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_types_containers_Tuple
+                      quickstep_utility_ColumnVectorCache
                       quickstep_utility_Macros
                       quickstep_utility_lipfilter_LIPFilterAdaptiveProber)
 target_link_libraries(quickstep_storage_AggregationOperationState_proto
@@ -961,6 +962,7 @@ target_link_libraries(quickstep_storage_StorageBlock
                       quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_types_containers_Tuple
                       quickstep_types_operations_comparisons_ComparisonUtil
+                      quickstep_utility_ColumnVectorCache
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector)
 # CMAKE_VALIDATE_IGNORE_BEGIN
@@ -1100,6 +1102,7 @@ target_link_libraries(quickstep_storage_WindowAggregationOperationState
                       quickstep_types_containers_ColumnVector
                       quickstep_types_containers_ColumnVectorUtil
                       quickstep_types_containers_ColumnVectorsValueAccessor
+                      quickstep_utility_ColumnVectorCache
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_storage_WindowAggregationOperationState_proto
                       quickstep_expressions_Expressions_proto

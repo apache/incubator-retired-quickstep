@@ -19,6 +19,7 @@
 
 #include "query_optimizer/expressions/UnaryExpression.hpp"
 
+#include <cstddef>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -31,6 +32,7 @@
 #include "query_optimizer/expressions/Scalar.hpp"
 #include "types/operations/unary_operations/UnaryOperation.hpp"
 #include "types/operations/unary_operations/UnaryOperationID.hpp"
+#include "utility/HashPair.hpp"
 
 #include "glog/logging.h"
 
@@ -54,6 +56,21 @@ ExpressionPtr UnaryExpression::copyWithNewChildren(
     const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
   return new ::quickstep::ScalarUnaryExpression(
       operation_, operand_->concretize(substitution_map));
+}
+
+std::size_t UnaryExpression::computeHash() const {
+  return CombineHashes(
+      CombineHashes(static_cast<std::size_t>(ExpressionType::kUnaryExpression),
+                    static_cast<std::size_t>(operation_.getUnaryOperationID())),
+      operand_->hash());
+}
+
+bool UnaryExpression::equals(const ScalarPtr &other) const {
+  UnaryExpressionPtr expr;
+  if (SomeUnaryExpression::MatchesWithConditionalCast(other, &expr)) {
+    return &operation_ == &expr->operation_ && operand_->equals(expr->operand_);
+  }
+  return false;
 }
 
 void UnaryExpression::getFieldStringItems(

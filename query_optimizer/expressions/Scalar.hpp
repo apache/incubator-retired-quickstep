@@ -20,11 +20,13 @@
 #ifndef QUICKSTEP_QUERY_OPTIMIZER_EXPRESSIONS_SCALAR_HPP_
 #define QUICKSTEP_QUERY_OPTIMIZER_EXPRESSIONS_SCALAR_HPP_
 
+#include <cstddef>
 #include <memory>
 #include <unordered_map>
 
 #include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
+#include "utility/HashError.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -65,10 +67,49 @@ class Scalar : public Expression {
       const std::unordered_map<ExprId, const CatalogAttribute*>& substitution_map)
       const = 0;
 
+  /**
+   * @brief Check whether this scalar is semantically equivalent to \p other.
+   *
+   * @note The fact that two scalars are semantically equal brings more
+   *       optimization opportunities, e.g. common subexpression elimination.
+   *       Meanwhile, it is always safe to assume that two scalars are not equal.
+   *
+   * @return True if this scalar equals \p other; false otherwise.
+   */
+  virtual bool equals(const ScalarPtr &other) const {
+    return false;
+  }
+
+  /**
+   * @brief Get a hash of this scalar.
+   *
+   * @return A hash of this scalar.
+   */
+  std::size_t hash() const {
+    if (hash_cache_ == nullptr) {
+      hash_cache_ = std::make_unique<std::size_t>(computeHash());
+    }
+    return *hash_cache_;
+  }
+
  protected:
   Scalar() {}
 
+  /**
+   * @brief Compute a hash of this scalar.
+   *
+   * @note Override this method to actually compute the hash. Note that the
+   *       public method hash() is a caching wrapper for this method.
+   *
+   * @return A hash of this scalar.
+   */
+  virtual std::size_t computeHash() const {
+    throw HashNotSupported("Unsupported computeHash() in " + getName());
+  }
+
  private:
+  mutable std::unique_ptr<std::size_t> hash_cache_;
+
   DISALLOW_COPY_AND_ASSIGN(Scalar);
 };
 

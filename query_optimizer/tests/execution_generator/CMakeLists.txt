@@ -15,6 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+add_test(quickstep_queryoptimizer_tests_executiongenerator_commonsubexpression
+         "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/CommonSubexpression.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/CommonSubexpression.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/CommonSubexpression/")
 add_test(quickstep_queryoptimizer_tests_executiongenerator_create
          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Create.test"
@@ -77,6 +82,11 @@ add_test(quickstep_queryoptimizer_tests_executiongenerator_update
          "${CMAKE_CURRENT_BINARY_DIR}/Update/")
 
 if (ENABLE_DISTRIBUTED)
+  add_test(quickstep_queryoptimizer_tests_executiongenerator_commonsubexpression_distributed
+           "../quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest"
+           "${CMAKE_CURRENT_SOURCE_DIR}/CommonSubexpression.test"
+           "${CMAKE_CURRENT_BINARY_DIR}/CommonSubexpressionDistributed.test"
+           "${CMAKE_CURRENT_BINARY_DIR}/CommonSubexpressionDistributed/")
   add_test(quickstep_queryoptimizer_tests_executiongenerator_create_distributed
            "../quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest"
            "${CMAKE_CURRENT_SOURCE_DIR}/Create.test"
@@ -141,6 +151,7 @@ endif(ENABLE_DISTRIBUTED)
 
 # Create the folders where the unit tests will store their data blocks for the
 # duration of their test.
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/CommonSubexpression)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Create)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Delete)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Distinct)
@@ -155,6 +166,7 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/TableGenerator)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Update)
 
 if (ENABLE_DISTRIBUTED)
+  file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/CommonSubexpressionDistributed)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/CreateDistributed)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DeleteDistributed)
   file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/DistinctDistributed)

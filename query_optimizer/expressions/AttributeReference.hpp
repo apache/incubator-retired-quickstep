@@ -20,6 +20,7 @@
 #ifndef QUICKSTEP_QUERY_OPTIMIZER_EXPRESSIONS_ATTRIBUTE_REFERENCE_HPP_
 #define QUICKSTEP_QUERY_OPTIMIZER_EXPRESSIONS_ATTRIBUTE_REFERENCE_HPP_
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -30,6 +31,7 @@
 #include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/ExpressionType.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
+#include "query_optimizer/expressions/Scalar.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -88,6 +90,8 @@ class AttributeReference : public NamedExpression {
   ::quickstep::Scalar* concretize(
       const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const override;
 
+  bool equals(const ScalarPtr &other) const override;
+
   /**
    * @brief Creates an immutable AttributReference.
    *
@@ -114,6 +118,8 @@ class AttributeReference : public NamedExpression {
   }
 
  protected:
+  std::size_t computeHash() const override;
+
   void getFieldStringItems(
      std::vector<std::string> *inline_field_names,
      std::vector<std::string> *inline_field_values,

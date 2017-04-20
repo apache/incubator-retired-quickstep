@@ -90,6 +90,8 @@ class BinaryExpression : public Scalar {
   ::quickstep::Scalar* concretize(
       const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const override;
 
+  bool equals(const ScalarPtr &other) const override;
+
   static BinaryExpressionPtr Create(const BinaryOperation &operation,
                                     const ScalarPtr &left,
                                     const ScalarPtr &right) {
@@ -97,6 +99,8 @@ class BinaryExpression : public Scalar {
   }
 
  protected:
+  std::size_t computeHash() const override;
+
   void getFieldStringItems(
       std::vector<std::string> *inline_field_names,
       std::vector<std::string> *inline_field_values,

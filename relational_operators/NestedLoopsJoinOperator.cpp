@@ -38,6 +38,7 @@
 #include "storage/TupleStorageSubBlock.hpp"
 #include "storage/ValueAccessor.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
+#include "utility/ColumnVectorCache.hpp"
 
 #include "glog/logging.h"
 
@@ -417,6 +418,7 @@ void NestedLoopsJoinWorkOrder::executeHelper(const TupleStorageSubBlock &left_st
     // evaluation and data movement, but low enough that temporary memory
     // requirements don't get out of hand).
     ColumnVectorsValueAccessor temp_result;
+    std::unique_ptr<ColumnVectorCache> cv_cache = std::make_unique<ColumnVectorCache>();
     for (vector<unique_ptr<const Scalar>>::const_iterator selection_cit = selection_.begin();
          selection_cit != selection_.end();
          ++selection_cit) {
@@ -424,8 +426,10 @@ void NestedLoopsJoinWorkOrder::executeHelper(const TupleStorageSubBlock &left_st
                                                                   left_accessor.get(),
                                                                   right_input_relation_id,
                                                                   right_accessor.get(),
-                                                                  joined_tuple_ids));
+                                                                  joined_tuple_ids,
+                                                                  cv_cache.get()));
     }
+    cv_cache.reset();
 
     output_destination_->bulkInsertTuples(&temp_result);
   }

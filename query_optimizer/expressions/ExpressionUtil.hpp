@@ -85,9 +85,9 @@ template <class NamedExpressionType1, class NamedExpressionType2>
 bool ContainsExpression(
     const std::vector<std::shared_ptr<const NamedExpressionType1>> &expressions,
     const std::shared_ptr<const NamedExpressionType2> &expression_to_check) {
-  for (const std::shared_ptr<const NamedExpressionType1> &expression :
-       expressions) {
-    if (expression->equals(expression_to_check)) {
+  for (const auto &expression : expressions) {
+    if (expression->id() == expression_to_check->id()) {
+      DCHECK(expression->getExpressionType() == expression_to_check->getExpressionType());
       return true;
     }
   }
