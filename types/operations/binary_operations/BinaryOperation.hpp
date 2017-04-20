@@ -335,6 +335,19 @@ class BinaryOperation : public Operation {
   }
 
   /**
+   * @brief Whether this binary operation is commutative.
+   *
+   * @note The commutative property provides more optimization opportunities,
+   *       e.g. common subexpression elimination. Meanwhile it is always safe
+   *       to assume that a binary operation is not commutative.
+   *
+   * @return True if this binary operation is commutative; false otherwise.
+   */
+  virtual bool isCommutative() const {
+    return false;
+  }
+
+  /**
    * @brief Determine whether this BinaryOperation can apply to the specified
    *        Types.
    * @note When the Types that an operator can apply to are changed,

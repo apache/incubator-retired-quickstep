@@ -19,6 +19,9 @@
 
 #include "expressions/scalar/Scalar.hpp"
 
+#include <string>
+#include <vector>
+
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -28,11 +31,23 @@ const char *Scalar::kScalarDataSourceNames[] = {
   "Attribute",
   "UnaryExpression",
   "BinaryExpression",
+  "SharedExpression",
   "SimpleCase"
 };
 
 const TypedValue& Scalar::getStaticValue() const {
   FATAL_ERROR("Called getStaticValue() on a Scalar which does not have a static value");
+}
+
+void Scalar::getFieldStringItems(
+    std::vector<std::string> *inline_field_names,
+    std::vector<std::string> *inline_field_values,
+    std::vector<std::string> *non_container_child_field_names,
+    std::vector<const Expression*> *non_container_child_fields,
+    std::vector<std::string> *container_child_field_names,
+    std::vector<std::vector<const Expression*>> *container_child_fields) const {
+  inline_field_names->emplace_back("result_type");
+  inline_field_values->emplace_back(type_.getName());
 }
 
 }  // namespace quickstep

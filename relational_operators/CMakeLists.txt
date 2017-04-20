@@ -288,6 +288,7 @@ target_link_libraries(quickstep_relationaloperators_HashJoinOperator
                       quickstep_types_TypedValue
                       quickstep_types_containers_ColumnVector
                       quickstep_types_containers_ColumnVectorsValueAccessor
+                      quickstep_utility_ColumnVectorCache
                       quickstep_utility_Macros
                       quickstep_utility_lipfilter_LIPFilterAdaptiveProber
                       quickstep_utility_lipfilter_LIPFilterUtil
@@ -337,6 +338,7 @@ target_link_libraries(quickstep_relationaloperators_NestedLoopsJoinOperator
                       quickstep_storage_TupleStorageSubBlock
                       quickstep_storage_ValueAccessor
                       quickstep_types_containers_ColumnVectorsValueAccessor
+                      quickstep_utility_ColumnVectorCache
                       quickstep_utility_Macros
                       tmb)
 target_link_libraries(quickstep_relationaloperators_RebuildWorkOrder

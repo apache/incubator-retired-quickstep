@@ -20,18 +20,22 @@
 #ifndef QUICKSTEP_EXPRESSIONS_SCALAR_SCALAR_HPP_
 #define QUICKSTEP_EXPRESSIONS_SCALAR_SCALAR_HPP_
 
+#include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
+#include "expressions/Expression.hpp"
 #include "expressions/Expressions.pb.h"
 #include "storage/StorageBlockInfo.hpp"
 #include "types/TypedValue.hpp"
+#include "types/containers/ColumnVector.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
 
-class ColumnVector;
+class ColumnVectorCache;
 class Type;
 class ValueAccessor;
 
@@ -44,7 +48,7 @@ struct SubBlocksReference;
 /**
  * @brief Base class for anything which evaluates to a Scalar value.
  **/
-class Scalar {
+class Scalar : public Expression {
  public:
   /**
    * @brief The possible provenance of Scalar values.
@@ -55,6 +59,7 @@ class Scalar {
     kUnaryExpression,
     kBinaryExpression,
     kCaseExpression,
+    kSharedExpression,
     kNumScalarDataSources  // Not a real ScalarDataSource, exists for counting purposes.
   };
 
@@ -68,6 +73,11 @@ class Scalar {
    * @brief Virtual destructor.
    **/
   virtual ~Scalar() {
+  }
+
+  std::string getName() const override {
+    return kScalarDataSourceNames[
+        static_cast<std::underlying_type<ScalarDataSource>::type>(getDataSource())];
   }
 
   /**
@@ -197,11 +207,14 @@ class Scalar {
    *        fast-path (non-scan) evaluation of Predicates embedded in this
    *        scalar (e.g. WHEN predicates in ScalarCaseExpression). May be NULL,
    *        in which case scan-based evaluation is always used.
+   * @param cv_cache If non-NULL, used as memoization table that is updated and
+   *        looked up during evaluation, for results of common subexpressions.
    * @return A ColumnVector of this Scalar's values for each tuple accesible
    *         via accessor.
    **/
-  virtual ColumnVector* getAllValues(ValueAccessor *accessor,
-                                     const SubBlocksReference *sub_blocks_ref) const = 0;
+  virtual ColumnVectorPtr getAllValues(ValueAccessor *accessor,
+                                       const SubBlocksReference *sub_blocks_ref,
+                                       ColumnVectorCache *cv_cache) const = 0;
 
   /**
    * @brief Get this Scalar's value for all specified joined tuples from two
@@ -215,19 +228,30 @@ class Scalar {
    *        from the right relation.
    * @param joined_tuple_ids A series of pairs of tuple ids from the left and
    *        right relations that will be joined.
+   * @param cv_cache If non-NULL, used as memoization table that is updated and
+   *        looked up during evaluation, for results of common subexpressions.
    * @return A ColumnVector of this Scalar's values for all the joined tuples
    *         specified by joined_tuple_ids.
    **/
-  virtual ColumnVector* getAllValuesForJoin(
+  virtual ColumnVectorPtr getAllValuesForJoin(
       const relation_id left_relation_id,
       ValueAccessor *left_accessor,
       const relation_id right_relation_id,
       ValueAccessor *right_accessor,
-      const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const = 0;
+      const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
+      ColumnVectorCache *cv_cache) const = 0;
 
  protected:
-  explicit Scalar(const Type &type) : type_(type) {
-  }
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<const Expression*> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<const Expression*>> *container_child_fields) const override;
+
+  explicit Scalar(const Type &type)
+      : Expression(), type_(type) {}
 
   const Type &type_;
 

@@ -51,6 +51,10 @@ class AddBinaryOperation : public ArithmeticBinaryOperation {
     return instance;
   }
 
+  bool isCommutative() const override {
+    return true;
+  }
+
   bool canApplyToTypes(const Type &left,
                        const Type &right) const override;
 

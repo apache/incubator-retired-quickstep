@@ -21,7 +21,9 @@
 #define QUICKSTEP_EXPRESSIONS_PREDICATE_COMPARISON_PREDICATE_HPP_
 
 #include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
 #include "expressions/Expressions.pb.h"
@@ -35,6 +37,7 @@
 
 namespace quickstep {
 
+class Expression;
 class TupleIdSequence;
 class ValueAccessor;
 
@@ -136,6 +139,15 @@ class ComparisonPredicate : public Predicate {
    *         right. second is the ID of the attribute.
    **/
   std::pair<bool, attribute_id> getAttributeFromAttributeLiteralComparison() const;
+
+ protected:
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<const Expression*> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<const Expression*>> *container_child_fields) const override;
 
  private:
   const Comparison &comparison_;

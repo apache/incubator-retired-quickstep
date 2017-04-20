@@ -21,6 +21,7 @@
 
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -33,6 +34,7 @@
 #include "types/containers/ColumnVector.hpp"
 #include "types/operations/Operation.pb.h"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
+#include "types/operations/binary_operations/BinaryOperationID.hpp"
 
 #include "glog/logging.h"
 
@@ -101,13 +103,15 @@ TypedValue ScalarBinaryExpression::getValueForJoinedTuples(
   }
 }
 
-ColumnVector* ScalarBinaryExpression::getAllValues(
+ColumnVectorPtr ScalarBinaryExpression::getAllValues(
     ValueAccessor *accessor,
-    const SubBlocksReference *sub_blocks_ref) const {
+    const SubBlocksReference *sub_blocks_ref,
+    ColumnVectorCache *cv_cache) const {
   if (fast_operator_.get() == nullptr) {
-    return ColumnVector::MakeVectorOfValue(getType(),
-                                           static_value_,
-                                           accessor->getNumTuplesVirtual());
+    return ColumnVectorPtr(
+        ColumnVector::MakeVectorOfValue(getType(),
+                                        static_value_,
+                                        accessor->getNumTuplesVirtual()));
   } else {
     // NOTE(chasseur): We don't check if BOTH operands have a static value,
     // because if they did then this expression would also have a static value
@@ -117,35 +121,39 @@ ColumnVector* ScalarBinaryExpression::getAllValues(
       const attribute_id right_operand_attr_id
           = right_operand_->getAttributeIdForValueAccessor();
       if (right_operand_attr_id != -1) {
-        return fast_operator_->applyToStaticValueAndValueAccessor(
-            left_operand_->getStaticValue(),
-            accessor,
-            right_operand_attr_id);
+        return ColumnVectorPtr(
+            fast_operator_->applyToStaticValueAndValueAccessor(
+                left_operand_->getStaticValue(),
+                accessor,
+                right_operand_attr_id));
       }
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
-      std::unique_ptr<ColumnVector> right_result(
-          right_operand_->getAllValues(accessor, sub_blocks_ref));
-      return fast_operator_->applyToStaticValueAndColumnVector(
-          left_operand_->getStaticValue(),
-          *right_result);
+      ColumnVectorPtr right_result(
+          right_operand_->getAllValues(accessor, sub_blocks_ref, cv_cache));
+      return ColumnVectorPtr(
+          fast_operator_->applyToStaticValueAndColumnVector(
+              left_operand_->getStaticValue(),
+              *right_result));
     } else if (right_operand_->hasStaticValue()) {
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
       const attribute_id left_operand_attr_id
           = left_operand_->getAttributeIdForValueAccessor();
       if (left_operand_attr_id != -1) {
-        return fast_operator_->applyToValueAccessorAndStaticValue(
-            accessor,
-            left_operand_attr_id,
-            right_operand_->getStaticValue());
+        return ColumnVectorPtr(
+            fast_operator_->applyToValueAccessorAndStaticValue(
+                accessor,
+                left_operand_attr_id,
+                right_operand_->getStaticValue()));
       }
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
-      std::unique_ptr<ColumnVector> left_result(
-          left_operand_->getAllValues(accessor, sub_blocks_ref));
-      return fast_operator_->applyToColumnVectorAndStaticValue(
-          *left_result,
-          right_operand_->getStaticValue());
+      ColumnVectorPtr left_result(
+          left_operand_->getAllValues(accessor, sub_blocks_ref, cv_cache));
+      return ColumnVectorPtr(
+          fast_operator_->applyToColumnVectorAndStaticValue(
+              *left_result,
+              right_operand_->getStaticValue()));
     } else {
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
       const attribute_id left_operand_attr_id
@@ -155,44 +163,53 @@ ColumnVector* ScalarBinaryExpression::getAllValues(
 
       if (left_operand_attr_id != -1) {
         if (right_operand_attr_id != -1) {
-          return fast_operator_->applyToSingleValueAccessor(accessor,
-                                                            left_operand_attr_id,
-                                                            right_operand_attr_id);
+          return ColumnVectorPtr(
+              fast_operator_->applyToSingleValueAccessor(
+                  accessor,
+                  left_operand_attr_id,
+                  right_operand_attr_id));
         } else {
-          std::unique_ptr<ColumnVector> right_result(
-              right_operand_->getAllValues(accessor, sub_blocks_ref));
-          return fast_operator_->applyToValueAccessorAndColumnVector(accessor,
-                                                                     left_operand_attr_id,
-                                                                     *right_result);
+          ColumnVectorPtr right_result(
+              right_operand_->getAllValues(accessor, sub_blocks_ref, cv_cache));
+          return ColumnVectorPtr(
+              fast_operator_->applyToValueAccessorAndColumnVector(
+                  accessor,
+                  left_operand_attr_id,
+                  *right_result));
         }
       } else if (right_operand_attr_id != -1) {
-        std::unique_ptr<ColumnVector> left_result(
-            left_operand_->getAllValues(accessor, sub_blocks_ref));
-        return fast_operator_->applyToColumnVectorAndValueAccessor(*left_result,
-                                                                   accessor,
-                                                                   right_operand_attr_id);
+        ColumnVectorPtr left_result(
+            left_operand_->getAllValues(accessor, sub_blocks_ref, cv_cache));
+        return ColumnVectorPtr(
+            fast_operator_->applyToColumnVectorAndValueAccessor(
+                *left_result,
+                accessor,
+                right_operand_attr_id));
       }
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
-      std::unique_ptr<ColumnVector> left_result(
-          left_operand_->getAllValues(accessor, sub_blocks_ref));
-      std::unique_ptr<ColumnVector> right_result(
-          right_operand_->getAllValues(accessor, sub_blocks_ref));
-      return fast_operator_->applyToColumnVectors(*left_result, *right_result);
+      ColumnVectorPtr left_result(
+          left_operand_->getAllValues(accessor, sub_blocks_ref, cv_cache));
+      ColumnVectorPtr right_result(
+          right_operand_->getAllValues(accessor, sub_blocks_ref, cv_cache));
+      return ColumnVectorPtr(
+          fast_operator_->applyToColumnVectors(*left_result, *right_result));
     }
   }
 }
 
-ColumnVector* ScalarBinaryExpression::getAllValuesForJoin(
+ColumnVectorPtr ScalarBinaryExpression::getAllValuesForJoin(
     const relation_id left_relation_id,
     ValueAccessor *left_accessor,
     const relation_id right_relation_id,
     ValueAccessor *right_accessor,
-    const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const {
+    const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
+    ColumnVectorCache *cv_cache) const {
   if (fast_operator_.get() == nullptr) {
-    return ColumnVector::MakeVectorOfValue(getType(),
-                                           static_value_,
-                                           joined_tuple_ids.size());
+    return ColumnVectorPtr(
+        ColumnVector::MakeVectorOfValue(getType(),
+                                        static_value_,
+                                        joined_tuple_ids.size()));
   } else {
     if (left_operand_->hasStaticValue()) {
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
@@ -207,24 +224,27 @@ ColumnVector* ScalarBinaryExpression::getAllValuesForJoin(
         const bool using_left_relation = (right_operand_relation_id == left_relation_id);
         ValueAccessor *right_operand_accessor = using_left_relation ? left_accessor
                                                                     : right_accessor;
-        return fast_operator_->applyToStaticValueAndValueAccessorForJoin(
-            left_operand_->getStaticValue(),
-            right_operand_accessor,
-            using_left_relation,
-            right_operand_attr_id,
-            joined_tuple_ids);
+        return ColumnVectorPtr(
+            fast_operator_->applyToStaticValueAndValueAccessorForJoin(
+                left_operand_->getStaticValue(),
+                right_operand_accessor,
+                using_left_relation,
+                right_operand_attr_id,
+                joined_tuple_ids));
       }
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 
-      std::unique_ptr<ColumnVector> right_result(
+      ColumnVectorPtr right_result(
           right_operand_->getAllValuesForJoin(left_relation_id,
                                               left_accessor,
                                               right_relation_id,
                                               right_accessor,
-                                              joined_tuple_ids));
-      return fast_operator_->applyToStaticValueAndColumnVector(
-          left_operand_->getStaticValue(),
-          *right_result);
+                                              joined_tuple_ids,
+                                              cv_cache));
+      return ColumnVectorPtr(
+          fast_operator_->applyToStaticValueAndColumnVector(
+              left_operand_->getStaticValue(),
+              *right_result));
     } else if (right_operand_->hasStaticValue()) {
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
       const attribute_id left_operand_attr_id
@@ -238,24 +258,27 @@ ColumnVector* ScalarBinaryExpression::getAllValuesForJoin(
         const bool using_left_relation = (left_operand_relation_id == left_relation_id);
         ValueAccessor *left_operand_accessor = using_left_relation ? left_accessor
                                                                    : right_accessor;
-        return fast_operator_->applyToValueAccessorAndStaticValueForJoin(
-            left_operand_accessor,
-            using_left_relation,
-            left_operand_attr_id,
-            right_operand_->getStaticValue(),
-            joined_tuple_ids);
+        return ColumnVectorPtr(
+            fast_operator_->applyToValueAccessorAndStaticValueForJoin(
+                left_operand_accessor,
+                using_left_relation,
+                left_operand_attr_id,
+                right_operand_->getStaticValue(),
+                joined_tuple_ids));
       }
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 
-      std::unique_ptr<ColumnVector> left_result(
+      ColumnVectorPtr left_result(
           left_operand_->getAllValuesForJoin(left_relation_id,
                                              left_accessor,
                                              right_relation_id,
                                              right_accessor,
-                                             joined_tuple_ids));
-      return fast_operator_->applyToColumnVectorAndStaticValue(
-          *left_result,
-          right_operand_->getStaticValue());
+                                             joined_tuple_ids,
+                                             cv_cache));
+      return ColumnVectorPtr(
+          fast_operator_->applyToColumnVectorAndStaticValue(
+              *left_result,
+              right_operand_->getStaticValue()));
     } else {
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
       const attribute_id left_operand_attr_id
@@ -284,28 +307,31 @@ ColumnVector* ScalarBinaryExpression::getAllValuesForJoin(
               = (right_operand_relation_id == left_relation_id);
           ValueAccessor *right_operand_accessor = using_left_relation_for_right_operand ? left_accessor
                                                                                         : right_accessor;
-          return fast_operator_->applyToValueAccessorsForJoin(left_operand_accessor,
-                                                              using_left_relation_for_left_operand,
-                                                              left_operand_attr_id,
-                                                              right_operand_accessor,
-                                                              using_left_relation_for_right_operand,
-                                                              right_operand_attr_id,
-                                                              joined_tuple_ids);
+          return ColumnVectorPtr(
+              fast_operator_->applyToValueAccessorsForJoin(left_operand_accessor,
+                                                           using_left_relation_for_left_operand,
+                                                           left_operand_attr_id,
+                                                           right_operand_accessor,
+                                                           using_left_relation_for_right_operand,
+                                                           right_operand_attr_id,
+                                                           joined_tuple_ids));
         }
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN_WITH_BINARY_EXPRESSIONS
-        std::unique_ptr<ColumnVector> right_result(
+        ColumnVectorPtr right_result(
             right_operand_->getAllValuesForJoin(left_relation_id,
                                                 left_accessor,
                                                 right_relation_id,
                                                 right_accessor,
-                                                joined_tuple_ids));
+                                                joined_tuple_ids,
+                                                cv_cache));
 
-        return fast_operator_->applyToValueAccessorAndColumnVectorForJoin(
-            left_operand_accessor,
-            using_left_relation_for_left_operand,
-            left_operand_attr_id,
-            *right_result,
-            joined_tuple_ids);
+        return ColumnVectorPtr(
+            fast_operator_->applyToValueAccessorAndColumnVectorForJoin(
+                left_operand_accessor,
+                using_left_relation_for_left_operand,
+                left_operand_attr_id,
+                *right_result,
+                joined_tuple_ids));
       } else if (right_operand_attr_id != -1) {
         const relation_id right_operand_relation_id
             = right_operand_->getRelationIdForValueAccessor();
@@ -317,34 +343,39 @@ ColumnVector* ScalarBinaryExpression::getAllValuesForJoin(
         ValueAccessor *right_operand_accessor = using_left_relation_for_right_operand ? left_accessor
                                                                                       : right_accessor;
 
-        std::unique_ptr<ColumnVector> left_result(
+        ColumnVectorPtr left_result(
             left_operand_->getAllValuesForJoin(left_relation_id,
                                                left_accessor,
                                                right_relation_id,
                                                right_accessor,
-                                               joined_tuple_ids));
-        return fast_operator_->applyToColumnVectorAndValueAccessorForJoin(
-            *left_result,
-            right_operand_accessor,
-            using_left_relation_for_right_operand,
-            right_operand_attr_id,
-            joined_tuple_ids);
+                                               joined_tuple_ids,
+                                               cv_cache));
+        return ColumnVectorPtr(
+            fast_operator_->applyToColumnVectorAndValueAccessorForJoin(
+                *left_result,
+                right_operand_accessor,
+                using_left_relation_for_right_operand,
+                right_operand_attr_id,
+                joined_tuple_ids));
       }
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 
-      std::unique_ptr<ColumnVector> left_result(
+      ColumnVectorPtr left_result(
           left_operand_->getAllValuesForJoin(left_relation_id,
                                              left_accessor,
                                              right_relation_id,
                                              right_accessor,
-                                             joined_tuple_ids));
-      std::unique_ptr<ColumnVector> right_result(
+                                             joined_tuple_ids,
+                                             cv_cache));
+      ColumnVectorPtr right_result(
           right_operand_->getAllValuesForJoin(left_relation_id,
                                               left_accessor,
                                               right_relation_id,
                                               right_accessor,
-                                              joined_tuple_ids));
-      return fast_operator_->applyToColumnVectors(*left_result, *right_result);
+                                              joined_tuple_ids,
+                                              cv_cache));
+      return ColumnVectorPtr(
+          fast_operator_->applyToColumnVectors(*left_result, *right_result));
     }
   }
 }
@@ -372,6 +403,40 @@ void ScalarBinaryExpression::initHelper(bool own_children) {
                                       left_operand_type.getName().c_str(),
                                       right_operand_type.getName().c_str());
   }
+}
+
+void ScalarBinaryExpression::getFieldStringItems(
+    std::vector<std::string> *inline_field_names,
+    std::vector<std::string> *inline_field_values,
+    std::vector<std::string> *non_container_child_field_names,
+    std::vector<const Expression*> *non_container_child_fields,
+    std::vector<std::string> *container_child_field_names,
+    std::vector<std::vector<const Expression*>> *container_child_fields) const {
+  Scalar::getFieldStringItems(inline_field_names,
+                              inline_field_values,
+                              non_container_child_field_names,
+                              non_container_child_fields,
+                              container_child_field_names,
+                              container_child_fields);
+
+  if (fast_operator_ == nullptr) {
+    inline_field_names->emplace_back("static_value");
+    if (static_value_.isNull()) {
+      inline_field_values->emplace_back("NULL");
+    } else {
+      inline_field_values->emplace_back(type_.printValueToString(static_value_));
+    }
+  }
+
+  inline_field_names->emplace_back("operation");
+  inline_field_values->emplace_back(
+      kBinaryOperationNames[static_cast<std::underlying_type<BinaryOperationID>::type>(
+          operation_.getBinaryOperationID())]);
+
+  non_container_child_field_names->emplace_back("left_operand");
+  non_container_child_fields->emplace_back(left_operand_.get());
+  non_container_child_field_names->emplace_back("right_operand");
+  non_container_child_fields->emplace_back(right_operand_.get());
 }
 
 }  // namespace quickstep

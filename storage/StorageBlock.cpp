@@ -56,6 +56,7 @@
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
 #include "types/containers/Tuple.hpp"
 #include "types/operations/comparisons/ComparisonUtil.hpp"
+#include "utility/ColumnVectorCache.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -369,15 +370,18 @@ void StorageBlock::select(const vector<unique_ptr<const Scalar>> &selection,
                                       indices_,
                                       indices_consistent_);
 
-    std::unique_ptr<ValueAccessor> accessor(
-        tuple_store_->createValueAccessor(filter));
+    std::unique_ptr<ValueAccessor> accessor(tuple_store_->createValueAccessor(filter));
+    ColumnVectorCache cv_cache;
 
     for (vector<unique_ptr<const Scalar>>::const_iterator selection_cit = selection.begin();
          selection_cit != selection.end();
          ++selection_cit) {
       // TODO(chasseur): Can probably elide some copies for parts of the
       // selection that are ScalarAttribute or ScalarLiteral.
-      temp_result.addColumn((*selection_cit)->getAllValues(accessor.get(), &sub_blocks_ref));
+      temp_result.addColumn(
+          (*selection_cit)->getAllValues(accessor.get(),
+                                         &sub_blocks_ref,
+                                         &cv_cache));
     }
   }
 

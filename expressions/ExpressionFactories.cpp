@@ -39,6 +39,7 @@
 #include "expressions/scalar/ScalarBinaryExpression.hpp"
 #include "expressions/scalar/ScalarCaseExpression.hpp"
 #include "expressions/scalar/ScalarLiteral.hpp"
+#include "expressions/scalar/ScalarSharedExpression.hpp"
 #include "expressions/scalar/ScalarUnaryExpression.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypedValue.hpp"
@@ -210,6 +211,11 @@ Scalar* ScalarFactory::ReconstructFromProto(const serialization::Scalar &proto,
                                       std::move(result_expressions),
                                       else_result_expression.release());
     }
+    case serialization::Scalar::SHARED_EXPRESSION: {
+      return new ScalarSharedExpression(
+          proto.GetExtension(serialization::ScalarSharedExpression::share_id),
+          ReconstructFromProto(proto.GetExtension(serialization::ScalarSharedExpression::operand), database));
+    }
     default:
       FATAL_ERROR("Unknown Scalar data source in ScalarFactory::ReconstructFromProto");
   }
@@ -301,6 +307,10 @@ bool ScalarFactory::ProtoIsValid(const serialization::Scalar &proto,
 
       // Everything checks out.
       return true;
+    }
+    case serialization::Scalar::SHARED_EXPRESSION: {
+      return proto.HasExtension(serialization::ScalarSharedExpression::share_id)
+             && proto.HasExtension(serialization::ScalarSharedExpression::operand);
     }
     default: {
       break;

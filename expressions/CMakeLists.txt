@@ -25,12 +25,16 @@ QS_PROTOBUF_GENERATE_CPP(expressions_Expressions_proto_srcs
                          expressions_Expressions_proto_hdrs
                          Expressions.proto)
 
+add_library(quickstep_expressions_Expression ../empty_src.cpp Expression.hpp)
 add_library(quickstep_expressions_ExpressionFactories
             ExpressionFactories.cpp
             ExpressionFactories.hpp)
 add_library(quickstep_expressions_Expressions_proto
             ${expressions_Expressions_proto_srcs})
 
+target_link_libraries(quickstep_expressions_Expression
+                      quickstep_utility_Macros
+                      quickstep_utility_TreeStringSerializable)
 target_link_libraries(quickstep_expressions_ExpressionFactories
                       glog
                       quickstep_catalog_CatalogDatabaseLite
@@ -48,6 +52,7 @@ target_link_libraries(quickstep_expressions_ExpressionFactories
                       quickstep_expressions_scalar_ScalarBinaryExpression
                       quickstep_expressions_scalar_ScalarCaseExpression
                       quickstep_expressions_scalar_ScalarLiteral
+                      quickstep_expressions_scalar_ScalarSharedExpression
                       quickstep_expressions_scalar_ScalarUnaryExpression
                       quickstep_types_TypeFactory
                       quickstep_types_TypedValue
@@ -64,6 +69,7 @@ target_link_libraries(quickstep_expressions_Expressions_proto
 # Module all-in-one library:
 add_library(quickstep_expressions ../empty_src.cpp ExpressionsModule.hpp)
 target_link_libraries(quickstep_expressions
+                      quickstep_expressions_Expression
                       quickstep_expressions_ExpressionFactories
                       quickstep_expressions_Expressions_proto
                       quickstep_expressions_aggregation

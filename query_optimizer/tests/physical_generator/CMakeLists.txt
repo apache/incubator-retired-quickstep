@@ -15,6 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
+add_test(quickstep_queryoptimizer_tests_physicalgenerator_commonsubexpression
+         "../quickstep_queryoptimizer_tests_OptimizerTextTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/CommonSubexpression.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/CommonSubexpression.test")
 add_test(quickstep_queryoptimizer_tests_physicalgenerator_copy
          "../quickstep_queryoptimizer_tests_OptimizerTextTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Copy.test"

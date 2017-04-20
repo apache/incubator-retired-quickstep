@@ -50,6 +50,7 @@
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVector.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
+#include "utility/ColumnVectorCache.hpp"
 #include "utility/lip_filter/LIPFilterAdaptiveProber.hpp"
 #include "utility/lip_filter/LIPFilterUtil.hpp"
 
@@ -532,6 +533,7 @@ void HashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor *probe_acce
     }
 
     ColumnVectorsValueAccessor temp_result;
+    std::unique_ptr<ColumnVectorCache> cv_cache = std::make_unique<ColumnVectorCache>();
     for (auto selection_cit = selection_.begin();
          selection_cit != selection_.end();
          ++selection_cit) {
@@ -539,8 +541,10 @@ void HashInnerJoinWorkOrder::executeWithoutCopyElision(ValueAccessor *probe_acce
                                                                   build_accessor.get(),
                                                                   probe_relation_id,
                                                                   probe_accessor,
-                                                                  build_block_entry.second));
+                                                                  build_block_entry.second,
+                                                                  cv_cache.get()));
     }
+    cv_cache.reset();
 
     output_destination_->bulkInsertTuples(&temp_result);
   }
@@ -649,12 +653,14 @@ void HashInnerJoinWorkOrder::executeWithCopyElision(ValueAccessor *probe_accesso
         zipped_joined_tuple_ids.emplace_back(build_tids[i], probe_tids[i]);
       }
 
+      ColumnVectorCache cv_cache;
       for (const Scalar *scalar : non_trivial_expressions) {
         temp_result.addColumn(scalar->getAllValuesForJoin(build_relation_id,
                                                           build_accessor.get(),
                                                           probe_relation_id,
                                                           probe_accessor,
-                                                          zipped_joined_tuple_ids));
+                                                          zipped_joined_tuple_ids,
+                                                          &cv_cache));
       }
     }
 
@@ -765,13 +771,16 @@ void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
 
   std::unique_ptr<ValueAccessor> probe_accessor_with_filter(
       probe_store.createValueAccessor(&filter));
+
   ColumnVectorsValueAccessor temp_result;
+  std::unique_ptr<ColumnVectorCache> cv_cache = std::make_unique<ColumnVectorCache>();
   for (vector<unique_ptr<const Scalar>>::const_iterator selection_it = selection_.begin();
        selection_it != selection_.end();
        ++selection_it) {
     temp_result.addColumn((*selection_it)->getAllValues(
-        probe_accessor_with_filter.get(), &sub_blocks_ref));
+        probe_accessor_with_filter.get(), &sub_blocks_ref, cv_cache.get()));
   }
+  cv_cache.reset();
 
   output_destination_->bulkInsertTuples(&temp_result);
 }
@@ -828,12 +837,15 @@ void HashSemiJoinWorkOrder::executeWithoutResidualPredicate() {
 
   std::unique_ptr<ValueAccessor> probe_accessor_with_filter(
       probe_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
+
   ColumnVectorsValueAccessor temp_result;
+  std::unique_ptr<ColumnVectorCache> cv_cache = std::make_unique<ColumnVectorCache>();
   for (vector<unique_ptr<const Scalar>>::const_iterator selection_it = selection_.begin();
        selection_it != selection_.end(); ++selection_it) {
     temp_result.addColumn((*selection_it)->getAllValues(
-        probe_accessor_with_filter.get(), &sub_blocks_ref));
+        probe_accessor_with_filter.get(), &sub_blocks_ref, cv_cache.get()));
   }
+  cv_cache.reset();
 
   output_destination_->bulkInsertTuples(&temp_result);
 }
@@ -886,12 +898,15 @@ void HashAntiJoinWorkOrder::executeWithoutResidualPredicate() {
 
   std::unique_ptr<ValueAccessor> probe_accessor_with_filter(
       probe_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
+
   ColumnVectorsValueAccessor temp_result;
+  std::unique_ptr<ColumnVectorCache> cv_cache = std::make_unique<ColumnVectorCache>();
   for (vector<unique_ptr<const Scalar>>::const_iterator selection_it = selection_.begin();
        selection_it != selection_.end(); ++selection_it) {
     temp_result.addColumn((*selection_it)->getAllValues(
-        probe_accessor_with_filter.get(), &sub_blocks_ref));
+        probe_accessor_with_filter.get(), &sub_blocks_ref, cv_cache.get()));
   }
+  cv_cache.reset();
 
   output_destination_->bulkInsertTuples(&temp_result);
 }
@@ -976,14 +991,18 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
 
   std::unique_ptr<ValueAccessor> probe_accessor_with_filter(
       probe_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
+
   ColumnVectorsValueAccessor temp_result;
+  std::unique_ptr<ColumnVectorCache> cv_cache = std::make_unique<ColumnVectorCache>();
   for (vector<unique_ptr<const Scalar>>::const_iterator selection_it = selection_.begin();
        selection_it != selection_.end();
        ++selection_it) {
     temp_result.addColumn(
         (*selection_it)->getAllValues(probe_accessor_with_filter.get(),
-                                      &sub_blocks_ref));
+                                      &sub_blocks_ref,
+                                      cv_cache.get()));
   }
+  cv_cache.reset();
 
   output_destination_->bulkInsertTuples(&temp_result);
 }
@@ -1032,12 +1051,11 @@ void HashOuterJoinWorkOrder::execute() {
            &build_block_entry : *collector.getJoinedTupleMap()) {
     const BlockReference build_block =
         storage_manager_->getBlock(build_block_entry.first, build_relation_);
-    const TupleStorageSubBlock &build_store =
-        build_block->getTupleStorageSubBlock();
+    const TupleStorageSubBlock &build_store = build_block->getTupleStorageSubBlock();
+    std::unique_ptr<ValueAccessor> build_accessor(build_store.createValueAccessor());
 
-    std::unique_ptr<ValueAccessor> build_accessor(
-        build_store.createValueAccessor());
     ColumnVectorsValueAccessor temp_result;
+    std::unique_ptr<ColumnVectorCache> cv_cache = std::make_unique<ColumnVectorCache>();
     for (auto selection_it = selection_.begin();
          selection_it != selection_.end();
          ++selection_it) {
@@ -1047,8 +1065,11 @@ void HashOuterJoinWorkOrder::execute() {
               build_accessor.get(),
               probe_relation_id,
               probe_accessor.get(),
-              build_block_entry.second));
+              build_block_entry.second,
+              cv_cache.get()));
     }
+    cv_cache.reset();
+
     output_destination_->bulkInsertTuples(&temp_result);
   }
 
@@ -1061,8 +1082,9 @@ void HashOuterJoinWorkOrder::execute() {
   if (num_tuples_without_matches > 0) {
     std::unique_ptr<ValueAccessor> probe_accessor_with_filter(
         probe_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
-    ColumnVectorsValueAccessor temp_result;
 
+    ColumnVectorsValueAccessor temp_result;
+    std::unique_ptr<ColumnVectorCache> cv_cache = std::make_unique<ColumnVectorCache>();
     for (std::size_t i = 0; i < selection_.size(); ++i) {
       if (is_selection_on_build_[i]) {
         // NOTE(harshad, jianqiao): The assumption here is that any operation
@@ -1090,9 +1112,12 @@ void HashOuterJoinWorkOrder::execute() {
       } else {
         temp_result.addColumn(
             selection_[i]->getAllValues(probe_accessor_with_filter.get(),
-                                        &sub_blocks_ref));
+                                        &sub_blocks_ref,
+                                        cv_cache.get()));
       }
     }
+    cv_cache.reset();
+
     output_destination_->bulkInsertTuples(&temp_result);
   }
 }

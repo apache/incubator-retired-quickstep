@@ -32,11 +32,12 @@ namespace expressions {
  * @brief Optimizer expression types.
  **/
 enum class ExpressionType {
-  kAggregateFunction,
+  kAggregateFunction = 0,
   kAlias,
   kAttributeReference,
   kBinaryExpression,
   kCast,
+  kCommonSubexpression,
   kComparisonExpression,
   kExists,
   kInTableQuery,

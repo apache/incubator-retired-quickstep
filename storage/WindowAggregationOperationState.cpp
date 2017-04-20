@@ -46,6 +46,7 @@
 #include "types/containers/ColumnVector.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
 #include "types/containers/ColumnVectorUtil.hpp"
+#include "utility/ColumnVectorCache.hpp"
 
 #include "glog/logging.h"
 
@@ -236,10 +237,15 @@ void WindowAggregationOperationState::windowAggregateBlocks(
       argument_accessor = new ColumnVectorsValueAccessor();
     }
 
+    std::unique_ptr<ColumnVectorCache> cv_cache = std::make_unique<ColumnVectorCache>();
     for (const std::unique_ptr<const Scalar> &argument : arguments_) {
       argument_accessor->addColumn(argument->getAllValues(tuple_accessor,
-                                                          &sub_block_ref));
+                                                          &sub_block_ref,
+                                                          cv_cache.get()));
     }
+
+    // Release common subexpression cache as early as possible.
+    cv_cache.reset();
 
     InvokeOnAnyValueAccessor(tuple_accessor,
                              [&] (auto *tuple_accessor) -> void {  // NOLINT(build/c++11)

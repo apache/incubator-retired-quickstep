@@ -31,12 +31,14 @@
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ComparisonExpression.hpp"
 #include "query_optimizer/expressions/Expression.hpp"
+#include "query_optimizer/expressions/PatternMatcher.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/expressions/Scalar.hpp"
 #include "types/Type.hpp"
 #include "types/operations/comparisons/ComparisonID.hpp"
 #include "types/operations/comparisons/ComparisonFactory.hpp"
 #include "utility/Cast.hpp"
+#include "utility/HashPair.hpp"
 
 #include "glog/logging.h"
 
@@ -159,6 +161,50 @@ ExpressionPtr SimpleCase::copyWithNewChildren(const std::vector<ExpressionPtr> &
       std::move(when_predicates),
       std::move(result_expressions),
       else_result_expression.release());
+}
+
+std::size_t SimpleCase::computeHash() const {
+  std::size_t hash_code =
+      CombineHashes(static_cast<std::size_t>(ExpressionType::kSimpleCase),
+                    case_operand_->hash());
+  for (std::size_t i = 0; i < condition_operands_.size(); ++i) {
+    hash_code = CombineHashes(hash_code, condition_operands_[i]->hash());
+    hash_code = CombineHashes(hash_code, conditional_result_expressions_[i]->hash());
+  }
+  if (else_result_expression_ != nullptr) {
+    hash_code = CombineHashes(hash_code, else_result_expression_->hash());
+  }
+  return hash_code;
+}
+
+bool SimpleCase::equals(const ScalarPtr &other) const {
+  SimpleCasePtr expr;
+  if (!SomeSimpleCase::MatchesWithConditionalCast(other, &expr)) {
+    return false;
+  }
+  if (!case_operand_->equals(expr->case_operand_)) {
+    return false;
+  }
+  if (condition_operands_.size() != expr->condition_operands_.size()) {
+    return false;
+  }
+  for (std::size_t i = 0; i < condition_operands_.size(); ++i) {
+    if (!condition_operands_[i]->equals(expr->condition_operands_[i])
+        || !conditional_result_expressions_[i]->equals(
+                expr->conditional_result_expressions_[i])) {
+      return false;
+    }
+  }
+  if ((else_result_expression_ == nullptr
+       || expr->else_result_expression_ == nullptr)
+      && else_result_expression_ != expr->else_result_expression_) {
+    return false;
+  }
+  if (!else_result_expression_->equals(expr->else_result_expression_)) {
+    return false;
+  }
+  DCHECK(value_type_.equals(expr->value_type_));
+  return true;
 }
 
 void SimpleCase::getFieldStringItems(

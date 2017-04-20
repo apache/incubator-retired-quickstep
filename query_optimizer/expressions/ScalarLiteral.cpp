@@ -19,6 +19,7 @@
 
 #include "query_optimizer/expressions/ScalarLiteral.hpp"
 
+#include <cstddef>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -28,7 +29,9 @@
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/Expression.hpp"
+#include "query_optimizer/expressions/PatternMatcher.hpp"
 #include "types/Type.hpp"
+#include "utility/HashPair.hpp"
 
 #include "glog/logging.h"
 
@@ -49,6 +52,26 @@ ExpressionPtr ScalarLiteral::copyWithNewChildren(
 ::quickstep::Scalar *ScalarLiteral::concretize(
     const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
   return new ::quickstep::ScalarLiteral(value_, value_type_);
+}
+
+std::size_t ScalarLiteral::computeHash() const {
+  std::size_t hash_code = static_cast<std::size_t>(ExpressionType::kScalarLiteral);
+  if (!value_.isNull()) {
+    hash_code = CombineHashes(hash_code, value_.getHash());
+  }
+  return hash_code;
+}
+
+bool ScalarLiteral::equals(const ScalarPtr &other) const {
+  ScalarLiteralPtr lit;
+  if (SomeScalarLiteral::MatchesWithConditionalCast(other, &lit) &&
+      value_type_.equals(lit->value_type_)) {
+    if (value_.isNull() || lit->value_.isNull()) {
+      return value_.isNull() && lit->value_.isNull();
+    }
+    return value_.fastEqualCheck(lit->value_);
+  }
+  return false;
 }
 
 void ScalarLiteral::getFieldStringItems(

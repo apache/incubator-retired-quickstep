@@ -21,6 +21,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -193,18 +194,21 @@ TypedValue ScalarCaseExpression::getValueForJoinedTuples(
   }
 }
 
-ColumnVector* ScalarCaseExpression::getAllValues(
+ColumnVectorPtr ScalarCaseExpression::getAllValues(
     ValueAccessor *accessor,
-    const SubBlocksReference *sub_blocks_ref) const {
+    const SubBlocksReference *sub_blocks_ref,
+    ColumnVectorCache *cv_cache) const {
   return InvokeOnValueAccessorMaybeTupleIdSequenceAdapter(
       accessor,
-      [&](auto *accessor) -> ColumnVector* {  // NOLINT(build/c++11)
+      [&](auto *accessor) -> ColumnVectorPtr {  // NOLINT(build/c++11)
     if (has_static_value_) {
-      return ColumnVector::MakeVectorOfValue(type_,
-                                             static_value_,
-                                             accessor->getNumTuples());
+      return ColumnVectorPtr(
+          ColumnVector::MakeVectorOfValue(type_,
+                                          static_value_,
+                                          accessor->getNumTuples()));
     } else if (fixed_result_expression_ != nullptr) {
-      return fixed_result_expression_->getAllValues(accessor, sub_blocks_ref);
+      return fixed_result_expression_->getAllValues(
+          accessor, sub_blocks_ref, cv_cache);
     }
 
     const TupleIdSequence *accessor_sequence = accessor->getTupleIdSequence();
@@ -238,21 +242,23 @@ ColumnVector* ScalarCaseExpression::getAllValues(
     }
 
     // Generate a ColumnVector of all the values for each case.
-    std::vector<std::unique_ptr<ColumnVector>> case_results;
+    std::vector<ColumnVectorPtr> case_results;
     for (std::vector<std::unique_ptr<TupleIdSequence>>::size_type case_idx = 0;
          case_idx < case_matches.size();
          ++case_idx) {
       std::unique_ptr<ValueAccessor> case_accessor(
           accessor->createSharedTupleIdSequenceAdapter(*case_matches[case_idx]));
       case_results.emplace_back(
-          result_expressions_[case_idx]->getAllValues(case_accessor.get(), sub_blocks_ref));
+          result_expressions_[case_idx]->getAllValues(
+              case_accessor.get(), sub_blocks_ref, cv_cache));
     }
 
-    std::unique_ptr<ColumnVector> else_results;
+    ColumnVectorPtr else_results;
     if (!else_matches->empty()) {
       std::unique_ptr<ValueAccessor> else_accessor(
           accessor->createSharedTupleIdSequenceAdapter(*else_matches));
-      else_results.reset(else_result_expression_->getAllValues(else_accessor.get(), sub_blocks_ref));
+      else_results = else_result_expression_->getAllValues(
+          else_accessor.get(), sub_blocks_ref, cv_cache);
     }
 
     // Multiplex per-case results into a single ColumnVector with values in the
@@ -262,17 +268,18 @@ ColumnVector* ScalarCaseExpression::getAllValues(
         accessor_sequence,
         case_matches,
         *else_matches,
-        &case_results,
-        else_results.get());
+        case_results,
+        else_results);
   });
 }
 
-ColumnVector* ScalarCaseExpression::getAllValuesForJoin(
+ColumnVectorPtr ScalarCaseExpression::getAllValuesForJoin(
     const relation_id left_relation_id,
     ValueAccessor *left_accessor,
     const relation_id right_relation_id,
     ValueAccessor *right_accessor,
-    const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const {
+    const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
+    ColumnVectorCache *cv_cache) const {
   // Slice 'joined_tuple_ids' apart by case.
   //
   // NOTE(chasseur): We use TupleIdSequence to keep track of the positions in
@@ -321,7 +328,7 @@ ColumnVector* ScalarCaseExpression::getAllValuesForJoin(
   }
 
   // Generate a ColumnVector of all the values for each case.
-  std::vector<std::unique_ptr<ColumnVector>> case_results;
+  std::vector<ColumnVectorPtr> case_results;
   for (std::vector<std::vector<std::pair<tuple_id, tuple_id>>>::size_type case_idx = 0;
        case_idx < case_matches.size();
        ++case_idx) {
@@ -330,22 +337,24 @@ ColumnVector* ScalarCaseExpression::getAllValuesForJoin(
         left_accessor,
         right_relation_id,
         right_accessor,
-        case_matches[case_idx]));
+        case_matches[case_idx],
+        cv_cache));
   }
 
-  std::unique_ptr<ColumnVector> else_results;
+  ColumnVectorPtr else_results;
   if (!else_positions.empty()) {
     std::vector<std::pair<tuple_id, tuple_id>> else_matches;
     for (tuple_id pos : else_positions) {
       else_matches.emplace_back(joined_tuple_ids[pos]);
     }
 
-    else_results.reset(else_result_expression_->getAllValuesForJoin(
+    else_results = else_result_expression_->getAllValuesForJoin(
         left_relation_id,
         left_accessor,
         right_relation_id,
         right_accessor,
-        else_matches));
+        else_matches,
+        cv_cache);
   }
 
   // Multiplex per-case results into a single ColumnVector with values in the
@@ -355,8 +364,8 @@ ColumnVector* ScalarCaseExpression::getAllValuesForJoin(
       nullptr,
       case_positions,
       else_positions,
-      &case_results,
-      else_results.get());
+      case_results,
+      else_results);
 }
 
 void ScalarCaseExpression::MultiplexNativeColumnVector(
@@ -420,15 +429,15 @@ void ScalarCaseExpression::MultiplexNativeColumnVector(
 void ScalarCaseExpression::MultiplexIndirectColumnVector(
     const TupleIdSequence *source_sequence,
     const TupleIdSequence &case_matches,
-    IndirectColumnVector *case_result,
+    const IndirectColumnVector &case_result,
     IndirectColumnVector *output) {
   if (source_sequence == nullptr) {
     TupleIdSequence::const_iterator output_pos_it = case_matches.begin();
     for (std::size_t input_pos = 0;
-         input_pos < case_result->size();
+         input_pos < case_result.size();
          ++input_pos, ++output_pos_it) {
       output->positionalWriteTypedValue(*output_pos_it,
-                                        case_result->moveTypedValue(input_pos));
+                                        case_result.getTypedValue(input_pos));
     }
   } else {
     std::size_t input_pos = 0;
@@ -438,20 +447,20 @@ void ScalarCaseExpression::MultiplexIndirectColumnVector(
          ++output_pos, ++source_sequence_it) {
       if (case_matches.get(*source_sequence_it)) {
         output->positionalWriteTypedValue(output_pos,
-                                          case_result->moveTypedValue(input_pos++));
+                                          case_result.getTypedValue(input_pos++));
       }
     }
   }
 }
 
-ColumnVector* ScalarCaseExpression::multiplexColumnVectors(
+ColumnVectorPtr ScalarCaseExpression::multiplexColumnVectors(
     const std::size_t output_size,
     const TupleIdSequence *source_sequence,
     const std::vector<std::unique_ptr<TupleIdSequence>> &case_matches,
     const TupleIdSequence &else_matches,
-    std::vector<std::unique_ptr<ColumnVector>> *case_results,
-    ColumnVector *else_result) const {
-  DCHECK_EQ(case_matches.size(), case_results->size());
+    const std::vector<ColumnVectorPtr> &case_results,
+    const ColumnVectorPtr &else_result) const {
+  DCHECK_EQ(case_matches.size(), case_results.size());
 
   if (NativeColumnVector::UsableForType(type_)) {
     std::unique_ptr<NativeColumnVector> native_result(
@@ -461,12 +470,12 @@ ColumnVector* ScalarCaseExpression::multiplexColumnVectors(
     for (std::vector<std::unique_ptr<TupleIdSequence>>::size_type case_idx = 0;
          case_idx < case_matches.size();
          ++case_idx) {
-      DCHECK((*case_results)[case_idx]->isNative());
+      DCHECK(case_results[case_idx]->isNative());
       if (!case_matches[case_idx]->empty()) {
         MultiplexNativeColumnVector(
             source_sequence,
             *case_matches[case_idx],
-            static_cast<const NativeColumnVector&>(*(*case_results)[case_idx]),
+            static_cast<const NativeColumnVector&>(*case_results[case_idx]),
             native_result.get());
       }
     }
@@ -480,7 +489,7 @@ ColumnVector* ScalarCaseExpression::multiplexColumnVectors(
                                   native_result.get());
     }
 
-    return native_result.release();
+    return ColumnVectorPtr(native_result.release());
   } else {
     std::unique_ptr<IndirectColumnVector> indirect_result(
         new IndirectColumnVector(type_, output_size));
@@ -489,12 +498,12 @@ ColumnVector* ScalarCaseExpression::multiplexColumnVectors(
     for (std::vector<std::unique_ptr<TupleIdSequence>>::size_type case_idx = 0;
          case_idx < case_matches.size();
          ++case_idx) {
-      DCHECK(!(*case_results)[case_idx]->isNative());
+      DCHECK(!case_results[case_idx]->isNative());
       if (!case_matches[case_idx]->empty()) {
         MultiplexIndirectColumnVector(
             source_sequence,
             *case_matches[case_idx],
-            static_cast<IndirectColumnVector*>((*case_results)[case_idx].get()),
+            static_cast<const IndirectColumnVector&>(*case_results[case_idx]),
             indirect_result.get());
       }
     }
@@ -504,11 +513,52 @@ ColumnVector* ScalarCaseExpression::multiplexColumnVectors(
       DCHECK(!else_matches.empty());
       MultiplexIndirectColumnVector(source_sequence,
                                     else_matches,
-                                    static_cast<IndirectColumnVector*>(else_result),
+                                    static_cast<const IndirectColumnVector&>(*else_result),
                                     indirect_result.get());
     }
 
-    return indirect_result.release();
+    return ColumnVectorPtr(indirect_result.release());
+  }
+}
+
+void ScalarCaseExpression::getFieldStringItems(
+    std::vector<std::string> *inline_field_names,
+    std::vector<std::string> *inline_field_values,
+    std::vector<std::string> *non_container_child_field_names,
+    std::vector<const Expression*> *non_container_child_fields,
+    std::vector<std::string> *container_child_field_names,
+    std::vector<std::vector<const Expression*>> *container_child_fields) const {
+  Scalar::getFieldStringItems(inline_field_names,
+                              inline_field_values,
+                              non_container_child_field_names,
+                              non_container_child_fields,
+                              container_child_field_names,
+                              container_child_fields);
+
+  if (has_static_value_) {
+    inline_field_names->emplace_back("static_value");
+    if (static_value_.isNull()) {
+      inline_field_values->emplace_back("NULL");
+    } else {
+      inline_field_values->emplace_back(type_.printValueToString(static_value_));
+    }
+  }
+
+  container_child_field_names->emplace_back("when_predicates");
+  container_child_fields->emplace_back();
+  for (const auto &predicate : when_predicates_) {
+    container_child_fields->back().emplace_back(predicate.get());
+  }
+
+  container_child_field_names->emplace_back("result_expressions");
+  container_child_fields->emplace_back();
+  for (const auto &expression : result_expressions_) {
+    container_child_fields->back().emplace_back(expression.get());
+  }
+
+  if (else_result_expression_ != nullptr) {
+    non_container_child_field_names->emplace_back("else_result_expression");
+    non_container_child_fields->emplace_back(else_result_expression_.get());
   }
 }
 

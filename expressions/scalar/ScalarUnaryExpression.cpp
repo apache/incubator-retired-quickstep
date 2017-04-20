@@ -21,6 +21,7 @@
 
 #include <memory>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <vector>
 
@@ -33,6 +34,7 @@
 #include "types/containers/ColumnVector.hpp"
 #include "types/operations/Operation.pb.h"
 #include "types/operations/unary_operations/UnaryOperation.hpp"
+#include "types/operations/unary_operations/UnaryOperationID.hpp"
 
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 #include "glog/logging.h"
@@ -91,36 +93,43 @@ TypedValue ScalarUnaryExpression::getValueForJoinedTuples(
   }
 }
 
-ColumnVector* ScalarUnaryExpression::getAllValues(
+ColumnVectorPtr ScalarUnaryExpression::getAllValues(
     ValueAccessor *accessor,
-    const SubBlocksReference *sub_blocks_ref) const {
+    const SubBlocksReference *sub_blocks_ref,
+    ColumnVectorCache *cv_cache) const {
   if (fast_operator_.get() == nullptr) {
-    return ColumnVector::MakeVectorOfValue(getType(),
-                                           static_value_,
-                                           accessor->getNumTuplesVirtual());
+    return ColumnVectorPtr(
+        ColumnVector::MakeVectorOfValue(getType(),
+                                        static_value_,
+                                        accessor->getNumTuplesVirtual()));
   } else {
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
     const attribute_id operand_attr_id = operand_->getAttributeIdForValueAccessor();
     if (operand_attr_id != -1) {
-      return fast_operator_->applyToValueAccessor(accessor, operand_attr_id);
+      return ColumnVectorPtr(
+          fast_operator_->applyToValueAccessor(accessor, operand_attr_id));
     }
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION
 
-    std::unique_ptr<ColumnVector> operand_result(operand_->getAllValues(accessor, sub_blocks_ref));
-    return fast_operator_->applyToColumnVector(*operand_result);
+    ColumnVectorPtr operand_result(
+        operand_->getAllValues(accessor, sub_blocks_ref, cv_cache));
+    return ColumnVectorPtr(
+        fast_operator_->applyToColumnVector(*operand_result));
   }
 }
 
-ColumnVector* ScalarUnaryExpression::getAllValuesForJoin(
+ColumnVectorPtr ScalarUnaryExpression::getAllValuesForJoin(
     const relation_id left_relation_id,
     ValueAccessor *left_accessor,
     const relation_id right_relation_id,
     ValueAccessor *right_accessor,
-    const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const {
+    const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
+    ColumnVectorCache *cv_cache) const {
   if (fast_operator_.get() == nullptr) {
-    return ColumnVector::MakeVectorOfValue(getType(),
-                                           static_value_,
-                                           joined_tuple_ids.size());
+    return ColumnVectorPtr(
+        ColumnVector::MakeVectorOfValue(getType(),
+                                        static_value_,
+                                        joined_tuple_ids.size()));
   } else {
 #ifdef QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
     const attribute_id operand_attr_id = operand_->getAttributeIdForValueAccessor();
@@ -132,20 +141,23 @@ ColumnVector* ScalarUnaryExpression::getAllValuesForJoin(
       const bool using_left_relation = (operand_relation_id == left_relation_id);
       ValueAccessor *operand_accessor = using_left_relation ? left_accessor
                                                             : right_accessor;
-      return fast_operator_->applyToValueAccessorForJoin(operand_accessor,
-                                                         using_left_relation,
-                                                         operand_attr_id,
-                                                         joined_tuple_ids);
+      return ColumnVectorPtr(
+          fast_operator_->applyToValueAccessorForJoin(operand_accessor,
+                                                      using_left_relation,
+                                                      operand_attr_id,
+                                                      joined_tuple_ids));
     }
 #endif  // QUICKSTEP_ENABLE_VECTOR_COPY_ELISION_JOIN
 
-    std::unique_ptr<ColumnVector> operand_result(
+    ColumnVectorPtr operand_result(
         operand_->getAllValuesForJoin(left_relation_id,
                                       left_accessor,
                                       right_relation_id,
                                       right_accessor,
-                                      joined_tuple_ids));
-    return fast_operator_->applyToColumnVector(*operand_result);
+                                      joined_tuple_ids,
+                                      cv_cache));
+    return ColumnVectorPtr(
+        fast_operator_->applyToColumnVector(*operand_result));
   }
 }
 
@@ -164,6 +176,38 @@ void ScalarUnaryExpression::initHelper(bool own_children) {
     }
     throw OperationInapplicableToType(operation_.getName(), 1, operand_type.getName().c_str());
   }
+}
+
+void ScalarUnaryExpression::getFieldStringItems(
+    std::vector<std::string> *inline_field_names,
+    std::vector<std::string> *inline_field_values,
+    std::vector<std::string> *non_container_child_field_names,
+    std::vector<const Expression*> *non_container_child_fields,
+    std::vector<std::string> *container_child_field_names,
+    std::vector<std::vector<const Expression*>> *container_child_fields) const {
+  Scalar::getFieldStringItems(inline_field_names,
+                              inline_field_values,
+                              non_container_child_field_names,
+                              non_container_child_fields,
+                              container_child_field_names,
+                              container_child_fields);
+
+  if (fast_operator_ == nullptr) {
+    inline_field_names->emplace_back("static_value");
+    if (static_value_.isNull()) {
+      inline_field_values->emplace_back("NULL");
+    } else {
+      inline_field_values->emplace_back(type_.printValueToString(static_value_));
+    }
+  }
+
+  inline_field_names->emplace_back("operation");
+  inline_field_values->emplace_back(
+      kUnaryOperationNames[static_cast<std::underlying_type<UnaryOperationID>::type>(
+          operation_.getUnaryOperationID())]);
+
+  non_container_child_field_names->emplace_back("operand");
+  non_container_child_fields->emplace_back(operand_.get());
 }
 
 }  // namespace quickstep

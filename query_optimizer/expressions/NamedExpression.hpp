@@ -69,19 +69,6 @@ class NamedExpression : public Scalar {
    */
   inline const std::string& relation_name() const { return relation_name_; }
 
-  /**
-   * @brief Compares this named expression with \p other. Two named expressions
-   *        are equal if they have the same ExprId and are both Alias or
-   *        AttributeReference.
-   *
-   * @param other Another named expression to compare with.
-   * @return True if the named expression is equal to \p other.
-   */
-  inline bool equals(const NamedExpressionPtr &other) const {
-    return getExpressionType() == other->getExpressionType() &&
-           id_ == other->id();
-  }
-
  protected:
   /**
    * @brief Constructor.

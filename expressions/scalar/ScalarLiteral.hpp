@@ -20,6 +20,7 @@
 #ifndef QUICKSTEP_EXPRESSIONS_SCALAR_SCALAR_LITERAL_HPP_
 #define QUICKSTEP_EXPRESSIONS_SCALAR_SCALAR_LITERAL_HPP_
 
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -28,11 +29,12 @@
 #include "expressions/scalar/Scalar.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "types/TypedValue.hpp"
+#include "types/containers/ColumnVector.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
 
-class ColumnVector;
+class ColumnVectorCache;
 class Type;
 class ValueAccessor;
 
@@ -101,15 +103,26 @@ class ScalarLiteral : public Scalar {
     return internal_literal_;
   }
 
-  ColumnVector* getAllValues(ValueAccessor *accessor,
-                             const SubBlocksReference *sub_blocks_ref) const override;
+  ColumnVectorPtr getAllValues(ValueAccessor *accessor,
+                               const SubBlocksReference *sub_blocks_ref,
+                               ColumnVectorCache *cv_cache) const override;
 
-  ColumnVector* getAllValuesForJoin(
+  ColumnVectorPtr getAllValuesForJoin(
       const relation_id left_relation_id,
       ValueAccessor *left_accessor,
       const relation_id right_relation_id,
       ValueAccessor *right_accessor,
-      const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const override;
+      const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
+      ColumnVectorCache *cv_cache) const override;
+
+ protected:
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<const Expression*> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<const Expression*>> *container_child_fields) const override;
 
  private:
   TypedValue internal_literal_;

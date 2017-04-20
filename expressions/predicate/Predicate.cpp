@@ -19,6 +19,9 @@
 
 #include "expressions/predicate/Predicate.hpp"
 
+#include <string>
+#include <vector>
+
 #include "storage/TupleIdSequence.hpp"
 #include "storage/ValueAccessor.hpp"
 #include "utility/Macros.hpp"
@@ -55,6 +58,19 @@ TupleIdSequence* Predicate::GenerateSequenceForStaticResult(
     }
   }
   return result;
+}
+
+void Predicate::getFieldStringItems(
+    std::vector<std::string> *inline_field_names,
+    std::vector<std::string> *inline_field_values,
+    std::vector<std::string> *non_container_child_field_names,
+    std::vector<const Expression*> *non_container_child_fields,
+    std::vector<std::string> *container_child_field_names,
+    std::vector<std::vector<const Expression*>> *container_child_fields) const {
+  if (hasStaticResult()) {
+    inline_field_names->emplace_back("static_result");
+    inline_field_values->emplace_back(getStaticResult() ? "true" : "false");
+  }
 }
 
 }  // namespace quickstep

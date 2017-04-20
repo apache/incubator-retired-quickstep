@@ -19,6 +19,7 @@
 
 #include "expressions/scalar/ScalarAttribute.hpp"
 
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -88,13 +89,15 @@ relation_id ScalarAttribute::getRelationIdForValueAccessor() const {
   return attribute_.getParent().getID();
 }
 
-ColumnVector* ScalarAttribute::getAllValues(ValueAccessor *accessor,
-                                            const SubBlocksReference *sub_blocks_ref) const {
+ColumnVectorPtr ScalarAttribute::getAllValues(
+    ValueAccessor *accessor,
+    const SubBlocksReference *sub_blocks_ref,
+    ColumnVectorCache *cv_cache) const {
   const attribute_id attr_id = attribute_.getID();
   const Type &result_type = attribute_.getType();
   return InvokeOnValueAccessorMaybeTupleIdSequenceAdapter(
       accessor,
-      [&attr_id, &result_type](auto *accessor) -> ColumnVector* {  // NOLINT(build/c++11)
+      [&attr_id, &result_type](auto *accessor) -> ColumnVectorPtr {  // NOLINT(build/c++11)
     if (NativeColumnVector::UsableForType(result_type)) {
       NativeColumnVector *result = new NativeColumnVector(result_type,
                                                           accessor->getNumTuples());
@@ -139,7 +142,7 @@ ColumnVector* ScalarAttribute::getAllValues(ValueAccessor *accessor,
           }
         }
       }
-      return result;
+      return ColumnVectorPtr(result);
     } else {
       IndirectColumnVector *result = new IndirectColumnVector(result_type,
                                                               accessor->getNumTuples());
@@ -147,17 +150,18 @@ ColumnVector* ScalarAttribute::getAllValues(ValueAccessor *accessor,
       while (accessor->next()) {
         result->appendTypedValue(accessor->getTypedValue(attr_id));
       }
-      return result;
+      return ColumnVectorPtr(result);
     }
   });
 }
 
-ColumnVector* ScalarAttribute::getAllValuesForJoin(
+ColumnVectorPtr ScalarAttribute::getAllValuesForJoin(
     const relation_id left_relation_id,
     ValueAccessor *left_accessor,
     const relation_id right_relation_id,
     ValueAccessor *right_accessor,
-    const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids) const {
+    const std::vector<std::pair<tuple_id, tuple_id>> &joined_tuple_ids,
+    ColumnVectorCache *cv_cache) const {
   DCHECK((attribute_.getParent().getID() == left_relation_id)
          || (attribute_.getParent().getID() == right_relation_id));
 
@@ -173,7 +177,7 @@ ColumnVector* ScalarAttribute::getAllValuesForJoin(
       [&joined_tuple_ids,
        &attr_id,
        &result_type,
-       &using_left_relation](auto *accessor) -> ColumnVector* {  // NOLINT(build/c++11)
+       &using_left_relation](auto *accessor) -> ColumnVectorPtr {  // NOLINT(build/c++11)
     if (NativeColumnVector::UsableForType(result_type)) {
       NativeColumnVector *result = new NativeColumnVector(result_type,
                                                           joined_tuple_ids.size());
@@ -196,7 +200,7 @@ ColumnVector* ScalarAttribute::getAllValuesForJoin(
                   using_left_relation ? joined_pair.first : joined_pair.second));
         }
       }
-      return result;
+      return ColumnVectorPtr(result);
     } else {
       IndirectColumnVector *result = new IndirectColumnVector(result_type,
                                                               joined_tuple_ids.size());
@@ -206,9 +210,27 @@ ColumnVector* ScalarAttribute::getAllValuesForJoin(
                   attr_id,
                   using_left_relation ? joined_pair.first : joined_pair.second));
       }
-      return result;
+      return ColumnVectorPtr(result);
     }
   });
+}
+
+void ScalarAttribute::getFieldStringItems(
+    std::vector<std::string> *inline_field_names,
+    std::vector<std::string> *inline_field_values,
+    std::vector<std::string> *non_container_child_field_names,
+    std::vector<const Expression*> *non_container_child_fields,
+    std::vector<std::string> *container_child_field_names,
+    std::vector<std::vector<const Expression*>> *container_child_fields) const {
+  Scalar::getFieldStringItems(inline_field_names,
+                              inline_field_values,
+                              non_container_child_field_names,
+                              non_container_child_fields,
+                              container_child_field_names,
+                              container_child_fields);
+
+  inline_field_names->emplace_back("attribute");
+  inline_field_values->emplace_back(std::to_string(attribute_.getID()));
 }
 
 }  // namespace quickstep

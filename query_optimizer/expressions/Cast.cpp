@@ -19,6 +19,7 @@
 
 #include "query_optimizer/expressions/Cast.hpp"
 
+#include <cstddef>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -33,6 +34,7 @@
 #include "query_optimizer/expressions/Scalar.hpp"
 #include "types/Type.hpp"
 #include "types/operations/unary_operations/NumericCastOperation.hpp"
+#include "utility/HashPair.hpp"
 
 #include "glog/logging.h"
 
@@ -53,6 +55,21 @@ ExpressionPtr Cast::copyWithNewChildren(
     const std::unordered_map<ExprId, const CatalogAttribute*> &substitution_map) const {
   return new ::quickstep::ScalarUnaryExpression(::quickstep::NumericCastOperation::Instance(target_type_),
                                                 operand_->concretize(substitution_map));
+}
+
+std::size_t Cast::computeHash() const {
+  return CombineHashes(
+      CombineHashes(static_cast<std::size_t>(ExpressionType::kCast),
+                    operand_->hash()),
+      static_cast<std::size_t>(target_type_.getTypeID()));
+}
+
+bool Cast::equals(const ScalarPtr &other) const {
+  CastPtr expr;
+  if (SomeCast::MatchesWithConditionalCast(other, &expr)) {
+    return operand_->equals(expr->operand_) && target_type_.equals(expr->target_type_);
+  }
+  return false;
 }
 
 void Cast::getFieldStringItems(
