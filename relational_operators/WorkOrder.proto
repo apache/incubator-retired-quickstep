@@ -21,13 +21,16 @@ package quickstep.serialization;
 
 import "relational_operators/SortMergeRunOperator.proto";
 
+// Next tag: 25.
 enum WorkOrderType {
   AGGREGATION = 1;
+  BUILD_AGGREGATION_EXISTENCE_MAP = 23;
   BUILD_HASH = 2;
   BUILD_LIP_FILTER = 3;
   CREATE_INDEX = 4;  // Placeholder.
   CREATE_TABLE = 5;  // Placeholder.
   DELETE = 6;
+  DESTROY_AGGREGATION_STATE = 22;
   DESTROY_HASH = 7;
   DROP_TABLE = 8;
   FINALIZE_AGGREGATION = 9;
@@ -41,11 +44,9 @@ enum WorkOrderType {
   SORT_RUN_GENERATION = 17;
   TABLE_GENERATOR = 18;
   TEXT_SCAN = 19;
+  UNION_ALL = 24;
   UPDATE = 20;
   WINDOW_AGGREGATION = 21;
-  DESTROY_AGGREGATION_STATE = 22;
-  BUILD_AGGREGATION_EXISTENCE_MAP = 23;
-  UNION_ALL = 24;
 }
 
 message WorkOrder {
@@ -53,7 +54,7 @@ message WorkOrder {
   required uint64 query_id = 2;
 
   // The convention for extension numbering is that extensions for a particular
-  // WorkOrderID should begin from (operator_type + 1) * 16.
+  // WorkOrderID should begin from (operator_type * 16).
   extensions 16 to max;
 }
 
@@ -63,6 +64,15 @@ message AggregationWorkOrder {
     optional uint32 aggr_state_index = 16;
     optional fixed64 block_id = 17;
     optional int32 lip_deployment_index = 18;
+  }
+}
+
+message BuildAggregationExistenceMapWorkOrder {
+  extend WorkOrder {
+    optional int32 relation_id = 368;
+    optional fixed64 build_block_id = 369;
+    optional int32 build_attribute = 370;
+    optional uint32 aggr_state_index = 371;
   }
 }
 
@@ -97,6 +107,12 @@ message DeleteWorkOrder {
     optional int32 relation_id = 97;
     optional int32 predicate_index = 98;
     optional fixed64 block_id = 99;
+  }
+}
+
+message DestroyAggregationStateWorkOrder {
+  extend WorkOrder {
+    optional uint32 aggr_state_index = 352;
   }
 }
 
@@ -248,12 +264,21 @@ message TableGeneratorWorkOrder {
 message TextScanWorkOrder {
   extend WorkOrder {
     // All required.
-    optional string filename = 301;
-    optional uint64 text_offset = 302;
-    optional uint64 text_segment_size = 303;
-    optional uint32 field_terminator = 304;  // For one-byte char.
-    optional bool process_escape_sequences = 305;
-    optional int32 insert_destination_index = 306;
+    optional string filename = 304;
+    optional uint64 text_offset = 305;
+    optional uint64 text_segment_size = 306;
+    optional uint32 field_terminator = 307;  // For one-byte char.
+    optional bool process_escape_sequences = 308;
+    optional int32 insert_destination_index = 309;
+  }
+}
+
+message UnionAllWorkOrder {
+  extend WorkOrder {
+    optional int32 relation_id = 384;
+    optional int32 insert_destination_index = 385;
+    optional fixed64 block_id = 386;
+    repeated int32 select_attribute_id = 387;
   }
 }
 
@@ -275,29 +300,5 @@ message WindowAggregationWorkOrder {
     optional uint32 window_aggr_state_index = 336;
     repeated fixed64 block_ids = 337;
     optional int32 insert_destination_index = 338;
-  }
-}
-
-message DestroyAggregationStateWorkOrder {
-  extend WorkOrder {
-    optional uint32 aggr_state_index = 352;
-  }
-}
-
-message BuildAggregationExistenceMapWorkOrder {
-  extend WorkOrder {
-    optional int32 relation_id = 368;
-    optional fixed64 build_block_id = 369;
-    optional int32 build_attribute = 370;
-    optional uint32 aggr_state_index = 371;
-  }
-}
-
-message UnionAllWorkOrder {
-  extend WorkOrder {
-    optional int32 relation_id = 384;
-    optional int32 insert_destination_index = 385;
-    optional fixed64 block_id = 386;
-    repeated int32 select_attribute_id = 387;
   }
 }
