@@ -32,6 +32,7 @@
 #include "storage/PackedPayloadHashTable.hpp"
 #include "storage/SeparateChainingHashTable.hpp"
 #include "storage/SimpleScalarSeparateChainingHashTable.hpp"
+#include "storage/ThreadPrivateCompactKeyHashTable.hpp"
 #include "storage/TupleReference.hpp"
 #include "types/TypeFactory.hpp"
 #include "utility/BloomFilter.hpp"
@@ -123,6 +124,8 @@ inline HashTableImplType HashTableImplTypeFromProto(
       return HashTableImplType::kSeparateChaining;
     case serialization::HashTableImplType::SIMPLE_SCALAR_SEPARATE_CHAINING:
       return HashTableImplType::kSimpleScalarSeparateChaining;
+    case serialization::HashTableImplType::THREAD_PRIVATE_COMPACT_KEY:
+      return HashTableImplType::kThreadPrivateCompactKey;
     default: {
       LOG(FATAL) << "Unrecognized serialization::HashTableImplType\n";
     }
@@ -355,7 +358,6 @@ class AggregationStateHashTableFactory {
    *        hash table constructor.
    * @return A new aggregation state hash table.
    **/
-
   static AggregationStateHashTableBase* CreateResizable(
       const HashTableImplType hash_table_type,
       const std::vector<const Type*> &key_types,
@@ -363,13 +365,16 @@ class AggregationStateHashTableFactory {
       const std::vector<AggregationHandle *> &handles,
       StorageManager *storage_manager) {
     switch (hash_table_type) {
-      case HashTableImplType::kSeparateChaining:
-        return new PackedPayloadHashTable(
-            key_types, num_entries, handles, storage_manager);
       case HashTableImplType::kCollisionFreeVector:
         DCHECK_EQ(1u, key_types.size());
         return new CollisionFreeVectorTable(
             key_types.front(), num_entries, handles, storage_manager);
+      case HashTableImplType::kSeparateChaining:
+        return new PackedPayloadHashTable(
+            key_types, num_entries, handles, storage_manager);
+      case HashTableImplType::kThreadPrivateCompactKey:
+        return new ThreadPrivateCompactKeyHashTable(
+            key_types, num_entries, handles, storage_manager);
       default: {
         LOG(FATAL) << "Unrecognized HashTableImplType in "
                    << "AggregationStateHashTableFactory::createResizable()";

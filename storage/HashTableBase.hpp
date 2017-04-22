@@ -44,7 +44,8 @@ enum class HashTableImplType {
   kCollisionFreeVector,
   kLinearOpenAddressing,
   kSeparateChaining,
-  kSimpleScalarSeparateChaining
+  kSimpleScalarSeparateChaining,
+  kThreadPrivateCompactKey
 };
 
 /**
@@ -113,8 +114,23 @@ class AggregationStateHashTableBase {
       const std::vector<MultiSourceAttributeId> &key_attr_ids,
       const ValueAccessorMultiplexer &accessor_mux) = 0;
 
+  /**
+   * @brief Destroy hash table payloads.
+   */
   virtual void destroyPayload() = 0;
 
+  /**
+   * @brief Get the implementation type of this aggregation hash table.
+   *
+   * @return The implementation type of this aggregation hash table.
+   */
+  virtual HashTableImplType getImplType() const = 0;
+
+  /**
+   * @brief Get the estimated memory consumption of this hash table in bytes.
+   *
+   * @return The estimated memory consumption of this hash table in bytes.
+   */
   virtual std::size_t getMemoryConsumptionBytes() const = 0;
 
  protected:

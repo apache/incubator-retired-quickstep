@@ -184,6 +184,18 @@ class StarSchemaSimpleCostModel : public CostModel {
                                       const std::size_t estimated_num_groups,
                                       std::size_t *max_num_groups);
 
+  /**
+   * @brief Checks whether an aggregate node can be efficiently evaluated with
+   *        the two-phase compact key aggregation fast path.
+   *
+   * @param aggregate The physical aggregate node to be checked.
+   * @param estimated_num_groups The estimated number of groups for the aggregate.
+   * @return A bool value indicating whether two-phase compact key aggregation
+   *         can be used to evaluate \p aggregate.
+   */
+  bool canUseTwoPhaseCompactKeyAggregation(const physical::AggregatePtr &aggregate,
+                                           const std::size_t estimated_num_groups);
+
  private:
   std::size_t estimateCardinalityForAggregate(
       const physical::AggregatePtr &physical_plan);

@@ -70,6 +70,10 @@ class CollisionFreeVectorTable : public AggregationStateHashTableBase {
 
   ~CollisionFreeVectorTable() override;
 
+  HashTableImplType getImplType() const override {
+    return HashTableImplType::kCollisionFreeVector;
+  }
+
   void destroyPayload() override;
 
   /**

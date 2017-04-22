@@ -71,8 +71,8 @@ namespace optimizer {
 namespace cost {
 
 DEFINE_int64(collision_free_vector_table_max_size, 1000000000,
-              "The maximum allowed key range (number of entries) for using a "
-              "CollisionFreeVectorTable.");
+             "The maximum allowed key range (number of entries) for using a "
+             "CollisionFreeVectorTable.");
 
 namespace E = ::quickstep::optimizer::expressions;
 namespace P = ::quickstep::optimizer::physical;
@@ -697,6 +697,73 @@ bool StarSchemaSimpleCostModel::canUseCollisionFreeAggregation(
   }
 
   *max_num_groups = static_cast<std::size_t>(max_cpp_value) + 1;
+  return true;
+}
+
+bool StarSchemaSimpleCostModel::canUseTwoPhaseCompactKeyAggregation(
+    const physical::AggregatePtr &aggregate,
+    const std::size_t estimated_num_groups) {
+  // Require estimated number of groups to be below the specified threshold.
+  //
+  // TODO(jianqiao): It is good to have the threshold to be the same as
+  // FLAGS_partition_aggregation_num_groups_threshold which is defined in
+  // AggregationOperationState.cpp. However, there seems to be no sound place
+  // to put that flag so that it can be shared by the two cpp files (optimizer
+  // vs backend). So here we hardcode the threshold and leave it to be solved
+  // later.
+  if (estimated_num_groups >= 10000u) {
+    return false;
+  }
+
+  // Require fix-length non-nullable keys that can be packed into a 64-bit QWORD.
+  std::size_t total_key_size = 0;
+  for (const auto &key_expr : aggregate->grouping_expressions()) {
+    const Type &type = key_expr->getValueType();
+    if (type.isVariableLength() || type.isNullable()) {
+      return false;
+    }
+    total_key_size += type.maximumByteLength();
+  }
+
+  if (total_key_size > sizeof(std::uint64_t)) {
+    return false;
+  }
+
+  // Check aggregate arguments.
+  for (const auto &agg_alias : aggregate->aggregate_expressions()) {
+    const E::AggregateFunctionPtr agg_expr =
+        std::static_pointer_cast<const E::AggregateFunction>(agg_alias->expression());
+
+    // Not supporting DISTINCT aggregation.
+    if (agg_expr->is_distinct()) {
+      return false;
+    }
+
+    // Currently we do not handle NULL values.
+    const auto &arguments = agg_expr->getArguments();
+    for (const auto &arg : arguments) {
+      if (arg->getValueType().isNullable()) {
+        return false;
+      }
+    }
+
+    // Restricted to COUNT/SUM with INT/LONG/FLOAT/DOUBLE arguments.
+    switch (agg_expr->getAggregate().getAggregationID()) {
+      case AggregationID::kCount:
+        break;
+      case AggregationID::kSum: {
+        DCHECK_EQ(1u, arguments.size());
+        if (!QUICKSTEP_EQUALS_ANY_CONSTANT(arguments.front()->getValueType().getTypeID(),
+                                           kInt, kLong, kFloat, kDouble)) {
+          return false;
+        }
+        break;
+      }
+      default:
+        return false;
+    }
+  }
+
   return true;
 }
 

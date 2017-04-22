@@ -26,6 +26,7 @@ enum HashTableImplType {
   LINEAR_OPEN_ADDRESSING = 1;
   SEPARATE_CHAINING = 2;
   SIMPLE_SCALAR_SEPARATE_CHAINING = 3;
+  THREAD_PRIVATE_COMPACT_KEY = 4;
 }
 
 // NOTE(chasseur): This proto describes the run-time parameters for a resizable

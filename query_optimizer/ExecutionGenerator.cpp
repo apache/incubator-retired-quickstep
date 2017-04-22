@@ -1580,14 +1580,22 @@ void ExecutionGenerator::convertAggregate(
             ->canUseCollisionFreeAggregation(physical_plan,
                                              estimated_num_groups,
                                              &max_num_groups)) {
+      // First option: use array-based aggregation if applicable.
       aggr_state_proto->set_hash_table_impl_type(
           serialization::HashTableImplType::COLLISION_FREE_VECTOR);
       aggr_state_proto->set_estimated_num_entries(max_num_groups);
       use_parallel_initialization = true;
     } else {
-      // Otherwise, use SeparateChaining.
-      aggr_state_proto->set_hash_table_impl_type(
-          serialization::HashTableImplType::SEPARATE_CHAINING);
+      if (cost_model_for_aggregation_->canUseTwoPhaseCompactKeyAggregation(
+              physical_plan, estimated_num_groups)) {
+        // Second option: use thread-private compact-key aggregation if applicable.
+        aggr_state_proto->set_hash_table_impl_type(
+            serialization::HashTableImplType::THREAD_PRIVATE_COMPACT_KEY);
+      } else {
+        // Otherwise, use SeparateChaining.
+        aggr_state_proto->set_hash_table_impl_type(
+            serialization::HashTableImplType::SEPARATE_CHAINING);
+      }
       aggr_state_proto->set_estimated_num_entries(std::max(16uL, estimated_num_groups));
     }
   } else {

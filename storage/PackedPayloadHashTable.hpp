@@ -88,6 +88,10 @@ class PackedPayloadHashTable : public AggregationStateHashTableBase {
 
   ~PackedPayloadHashTable() override;
 
+  HashTableImplType getImplType() const override {
+    return HashTableImplType::kSeparateChaining;
+  }
+
   /**
    * @brief Erase all entries in this hash table.
    *

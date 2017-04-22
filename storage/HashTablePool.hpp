@@ -76,6 +76,15 @@ class HashTablePool {
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
 
   /**
+   * @brief Get the type of hash table implementation for this pool.
+   *
+   * @return The type of hash table implementation for this pool.
+   */
+  HashTableImplType getHashTableImplType() const {
+    return hash_table_impl_type_;
+  }
+
+  /**
    * @brief Check out a hash table for insertion.
    *
    * @note This method is relevant for specialized (for aggregation)

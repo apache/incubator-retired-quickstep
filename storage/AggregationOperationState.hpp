@@ -256,7 +256,11 @@ class AggregationOperationState {
   void finalizeHashTableImplPartitioned(const std::size_t partition_id,
                                         InsertDestination *output_destination);
 
-  void finalizeHashTableImplThreadPrivate(InsertDestination *output_destination);
+  void finalizeHashTableImplThreadPrivatePackedPayload(
+      InsertDestination *output_destination);
+
+  void finalizeHashTableImplThreadPrivateCompactKey(
+      InsertDestination *output_destination);
 
   std::size_t getMemoryConsumptionBytesHelper(
       const std::vector<std::unique_ptr<AggregationStateHashTableBase>>
