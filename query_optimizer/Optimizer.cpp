@@ -20,7 +20,9 @@
 #include "query_optimizer/Optimizer.hpp"
 
 #include "query_optimizer/ExecutionGenerator.hpp"
+#include "query_optimizer/ExecutionSerializer.hpp"
 #include "query_optimizer/LogicalGenerator.hpp"
+
 
 namespace quickstep {
 namespace optimizer {
@@ -32,16 +34,13 @@ void Optimizer::generateQueryHandle(const ParseStatement &parse_statement,
   LogicalGenerator logical_generator(optimizer_context);
   PhysicalGenerator physical_generator(optimizer_context);
   ExecutionGenerator execution_generator(catalog_database, query_handle);
+  ExecutionSerializer execution_serializer;
 
   execution_generator.generatePlan(
       physical_generator.generatePlan(
           logical_generator.generatePlan(*catalog_database, parse_statement)));
 
-  // TODO(hakan): Break at this point.
-  // execution_serializer.serializePlan(
-  //   execution_generator.generatePlan(
-  //     physical_generator.generatePlan(
-  //         logical_generator.generatePlan(*catalog_database, parse_statement))));
+  execution_serializer.serializePlan(execution_generator);
 }
 
 }  // namespace optimizer

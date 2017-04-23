@@ -29,6 +29,7 @@ if (ENABLE_DISTRIBUTED)
   add_library(quickstep_queryexecution_BlockLocator BlockLocator.cpp BlockLocator.hpp)
   add_library(quickstep_queryexecution_BlockLocatorUtil BlockLocatorUtil.cpp BlockLocatorUtil.hpp)
 endif(ENABLE_DISTRIBUTED)
+add_library(quickstep_queryexecution_ExecutionDeserializer ExecutionDeserializer.cpp ExecutionDeserializer.hpp)
 add_library(quickstep_queryexecution_ForemanBase ../empty_src.cpp ForemanBase.hpp)
 if (ENABLE_DISTRIBUTED)
   add_library(quickstep_queryexecution_ForemanDistributed ForemanDistributed.cpp ForemanDistributed.hpp)
@@ -357,6 +358,7 @@ target_link_libraries(quickstep_queryexecution_WorkerSelectionPolicy
 add_library(quickstep_queryexecution ../empty_src.cpp QueryExecutionModule.hpp)
 target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_AdmitRequestMessage
+                      quickstep_queryexecution_ExecutionDeserializer
                       quickstep_queryexecution_ForemanBase
                       quickstep_queryexecution_ForemanSingleNode
                       quickstep_queryexecution_PolicyEnforcerBase

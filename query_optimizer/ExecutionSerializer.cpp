@@ -22,11 +22,31 @@
 #include <cstddef>
 
 #include "query_optimizer/QueryPlan.hpp"
-#include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/AggregationOperator.hpp"
 #include "relational_operators/BuildAggregationExistenceMapOperator.hpp"
 #include "relational_operators/BuildHashOperator.hpp"
-
+#include "relational_operators/BuildLIPFilterOperator.hpp"
+#include "relational_operators/CreateIndexOperator.hpp"
+#include "relational_operators/CreateTableOperator.hpp"
+#include "relational_operators/DeleteOperator.hpp"
+#include "relational_operators/DestroyAggregationStateOperator.hpp"
+#include "relational_operators/DestroyHashOperator.hpp"
+#include "relational_operators/DropTableOperator.hpp"
+#include "relational_operators/FinalizeAggregationOperator.hpp"
+#include "relational_operators/HashJoinOperator.hpp"
+#include "relational_operators/InitializeAggregationOperator.hpp"
+#include "relational_operators/InsertOperator.hpp"
+#include "relational_operators/NestedLoopsJoinOperator.hpp"
+#include "relational_operators/RelationalOperator.hpp"
+#include "relational_operators/SampleOperator.hpp"
+#include "relational_operators/SaveBlocksOperator.hpp"
+#include "relational_operators/SelectOperator.hpp"
+#include "relational_operators/SortMergeRunOperator.hpp"
+#include "relational_operators/SortRunGenerationOperator.hpp"
+#include "relational_operators/TableGeneratorOperator.hpp"
+#include "relational_operators/TextScanOperator.hpp"
+#include "relational_operators/UpdateOperator.hpp"
+#include "relational_operators/WindowAggregationOperator.hpp"
 #include "query_optimizer/QueryPlan.pb.h"
 #include "relational_operators/Operator.pb.h"
 
@@ -38,6 +58,13 @@ namespace S = ::quickstep::serialization;
 void ExecutionSerializer::serializePlan(const QueryPlan &query_plan) {
   const auto &dag = query_plan.getQueryPlanDAG();
   for (std::size_t i = 0; i < dag.size(); ++i) {
+    const auto &edges = dag.getDependencies(i);
+    S::OutgoingEdges *outgoing_edges = query_plan_proto_.add_outgoing();
+    for (const auto &edge : edges) {
+      S::Edge *edge_proto = outgoing_edges->add_edges();
+      edge_proto->set_outgoing_id(edge);
+      edge_proto->set_payload(dag.getLinkMetadata(i, edge));
+    }
     const auto &relational_operator = dag.getNodePayload(i);
     serializeInternal(relational_operator);
   }
@@ -47,79 +74,79 @@ void ExecutionSerializer::serializeInternal(const RelationalOperator &relational
   switch (relational_operator.getOperatorType()) {
   case RelationalOperator::OperatorType::kAggregation:
     return serializeAggregation(
-        dynamic_cast<const AggregationOperator&>(relational_operator));
+        static_cast<const AggregationOperator&>(relational_operator));
   case RelationalOperator::kBuildAggregationExistenceMap:
     return serializeBuildAggregationExistenceMap(
-        dynamic_cast<const BuildAggregationExistenceMapOperator&>(relational_operator));
+        static_cast<const BuildAggregationExistenceMapOperator&>(relational_operator));
   case RelationalOperator::kBuildHash:
     return serializeBuildHash(
-        dynamic_cast<const BuildHashOperator&>(relational_operator));
+        static_cast<const BuildHashOperator&>(relational_operator));
   case RelationalOperator::kBuildLIPFilter:
     return serializeBuildLIPFilter(
-        dynamic_cast<const BuildLIPFilterOperator&>(relational_operator));
+        static_cast<const BuildLIPFilterOperator&>(relational_operator));
   case RelationalOperator::kCreateIndex:
     return serializeCreateIndex(
-        dynamic_cast<const CreateIndexOperator&>(relational_operator));
+        static_cast<const CreateIndexOperator&>(relational_operator));
   case RelationalOperator::kCreateTable:
     return serializeCreateTable(
-        dynamic_cast<const CreateTableOperator&>(relational_operator));
+        static_cast<const CreateTableOperator&>(relational_operator));
   case RelationalOperator::kDelete:
     return serializeDelete(
-        dynamic_cast<const DeleteOperator&>(relational_operator));
+        static_cast<const DeleteOperator&>(relational_operator));
   case RelationalOperator::kDestroyAggregationState:
     return serializeDestroyAggregationState(
-        dynamic_cast<const DestroyAggregationStateOperator&>(relational_operator));
+        static_cast<const DestroyAggregationStateOperator&>(relational_operator));
   case RelationalOperator::kDestroyHash:
     return serializeDestroyHash(
-        dynamic_cast<const DestroyHashOperator&>(relational_operator));
+        static_cast<const DestroyHashOperator&>(relational_operator));
   case RelationalOperator::kDropTable:
     return serializeDropTable(
-        dynamic_cast<const DropTableOperator&>(relational_operator));
+        static_cast<const DropTableOperator&>(relational_operator));
   case RelationalOperator::kFinalizeAggregation:
     return serializeFinalizeAggregation(
-        dynamic_cast<const FinalizeAggregationOperator&>(relational_operator));
+        static_cast<const FinalizeAggregationOperator&>(relational_operator));
   case RelationalOperator::kInitializeAggregation:
     return serializeInitializeAggregation(
-        dynamic_cast<const InitializeAggregationOperator&>(relational_operator));
+        static_cast<const InitializeAggregationOperator&>(relational_operator));
   case RelationalOperator::kInsert:
     return serializeInsert(
-        dynamic_cast<const InsertOperator&>(relational_operator));
+        static_cast<const InsertOperator&>(relational_operator));
   case RelationalOperator::kInnerJoin:
   case RelationalOperator::kLeftAntiJoin:
   case RelationalOperator::kLeftOuterJoin:
   case RelationalOperator::kLeftSemiJoin:
     return serializeHashJoin(
-        dynamic_cast<const HashJoinOperator&>(relational_operator));
+        static_cast<const HashJoinOperator&>(relational_operator));
   case RelationalOperator::kNestedLoopsJoin:
     return serializeNestedLoopsJoin(
-        dynamic_cast<const NestedLoopsJoinOperator&>(relational_operator));
+        static_cast<const NestedLoopsJoinOperator&>(relational_operator));
   case RelationalOperator::kSample:
     return serializeSample(
-        dynamic_cast<const SampleOperator&>(relational_operator));
+        static_cast<const SampleOperator&>(relational_operator));
   case RelationalOperator::kSaveBlocks:
     return serializeSaveBlocks(
-        dynamic_cast<const SaveBlocksOperator&>(relational_operator));
+        static_cast<const SaveBlocksOperator&>(relational_operator));
   case RelationalOperator::kSelect:
     return serializeSelect(
-        dynamic_cast<const SelectOperator&>(relational_operator));
+        static_cast<const SelectOperator&>(relational_operator));
   case RelationalOperator::kSortMergeRun:
     return serializeSortMergeRun(
-        dynamic_cast<const SortMergeRunOperator&>(relational_operator));
+        static_cast<const SortMergeRunOperator&>(relational_operator));
   case RelationalOperator::kSortRunGeneration:
     return serializeSortRunGeneration(
-        dynamic_cast<const SortRunGenerationOperator&>(relational_operator));
+        static_cast<const SortRunGenerationOperator&>(relational_operator));
   case RelationalOperator::kTableGenerator:
     return serializeTableGenerator(
-        dynamic_cast<const TableGeneratorOperator&>(relational_operator));
+        static_cast<const TableGeneratorOperator&>(relational_operator));
   case RelationalOperator::kTextScan:
     return serializeTextScan(
-        dynamic_cast<const TextScanOperator&>(relational_operator));
+        static_cast<const TextScanOperator&>(relational_operator));
   case RelationalOperator::kUpdate:
     return serializeUpdate(
-        dynamic_cast<const UpdateOperator&>(relational_operator));
+        static_cast<const UpdateOperator&>(relational_operator));
   case RelationalOperator::kWindowAggregation:
     return serializeWindowAggregation(
-        dynamic_cast<const WindowAggregationOperator&>(relational_operator));
+        static_cast<const WindowAggregationOperator&>(relational_operator));
   case RelationalOperator::kMockOperator:
     break;
   }
@@ -436,7 +463,6 @@ void ExecutionSerializer::serializeWindowAggregation(const WindowAggregationOper
   window_aggregation->set_window_aggregation_state_index(
       window_aggregation_operator.getWindowAggregationStateIndex());
 }
-
 
 }
 }

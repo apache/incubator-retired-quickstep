@@ -165,7 +165,7 @@ class DAG {
    * @param dependent_index Index of the dependent node in the DAG.
    **/
   const LinkMetadataT& getLinkMetadata(const size_type_nodes dependency_index,
-                                       const size_type_nodes dependent_index) {
+                                       const size_type_nodes dependent_index) const {
     return nodes_[dependency_index].getLinkMetadata(dependent_index);
   }
 
@@ -317,7 +317,7 @@ class DAG {
      *
      * @return The metadata of the link.
      **/
-    inline const LinkMetadataT& getLinkMetadata(const size_type_nodes node_index) {
+    inline const LinkMetadataT& getLinkMetadata(const size_type_nodes node_index) const {
       DCHECK(dependents_with_metadata_.find(node_index) != dependents_with_metadata_.end());
       return dependents_with_metadata_[node_index];
     }
