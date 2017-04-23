@@ -405,7 +405,8 @@ void Shiftboss::processInitiateRebuildMessage(const std::size_t query_id,
   DCHECK(insert_destination != nullptr);
 
   vector<MutableBlockReference> partially_filled_block_refs;
-  insert_destination->getPartiallyFilledBlocks(&partially_filled_block_refs);
+  vector<partition_id> part_ids;
+  insert_destination->getPartiallyFilledBlocks(&partially_filled_block_refs, &part_ids);
 
   serialization::InitiateRebuildResponseMessage proto;
   proto.set_query_id(query_id);
@@ -439,6 +440,7 @@ void Shiftboss::processInitiateRebuildMessage(const std::size_t query_id,
                              move(partially_filled_block_refs[i]),
                              op_index,
                              rel_id,
+                             part_ids[i],
                              shiftboss_client_id_local_,
                              bus_local_);
 

@@ -57,6 +57,7 @@ class RebuildWorkOrder : public WorkOrder {
    *        query plan DAG that produced the output block.
    * @param input_relation_id The ID of the CatalogRelation to which the given
    *        storage block belongs to.
+   * @param part_id The partition_id of the block, if any.
    * @param scheduler_client_id The TMB client ID of the scheduler thread.
    * @param bus A pointer to the TMB.
    **/
@@ -65,12 +66,14 @@ class RebuildWorkOrder : public WorkOrder {
       MutableBlockReference &&block_ref,  // NOLINT(whitespace/operators)
       const std::size_t input_operator_index,
       const relation_id input_relation_id,
+      const partition_id part_id,
       const client_id scheduler_client_id,
       MessageBus *bus)
       : WorkOrder(query_id),
         block_ref_(std::move(block_ref)),
         input_operator_index_(input_operator_index),
         input_relation_id_(input_relation_id),
+        part_id_(part_id),
         scheduler_client_id_(scheduler_client_id),
         bus_(bus) {}
 
@@ -88,6 +91,7 @@ class RebuildWorkOrder : public WorkOrder {
     proto.set_block_id(block_ref_->getID());
     proto.set_relation_id(input_relation_id_);
     proto.set_query_id(query_id_);
+    proto.set_partition_id(part_id_);
 
     // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
     const std::size_t proto_length = proto.ByteSize();
@@ -114,6 +118,7 @@ class RebuildWorkOrder : public WorkOrder {
   MutableBlockReference block_ref_;
   const std::size_t input_operator_index_;
   const relation_id input_relation_id_;
+  const partition_id part_id_;
   const client_id scheduler_client_id_;
 
   MessageBus *bus_;

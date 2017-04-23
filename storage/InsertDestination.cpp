@@ -29,6 +29,7 @@
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogAttribute.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
+#include "catalog/CatalogTypedefs.hpp"
 #include "catalog/PartitionSchemeHeader.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionTypedefs.hpp"
@@ -421,11 +422,15 @@ MutableBlockReference BlockPoolInsertDestination::createNewBlock() {
   return storage_manager_->getBlockMutable(new_id, relation_);
 }
 
-void BlockPoolInsertDestination::getPartiallyFilledBlocks(std::vector<MutableBlockReference> *partial_blocks) {
+void BlockPoolInsertDestination::getPartiallyFilledBlocks(std::vector<MutableBlockReference> *partial_blocks,
+                                                          vector<partition_id> *part_ids) {
   SpinMutexLock lock(mutex_);
   for (std::vector<MutableBlockReference>::size_type i = 0; i < available_block_refs_.size(); ++i) {
     partial_blocks->push_back((std::move(available_block_refs_[i])));
+    // No partition.
+    part_ids->push_back(0u);
   }
+
   available_block_refs_.clear();
 }
 

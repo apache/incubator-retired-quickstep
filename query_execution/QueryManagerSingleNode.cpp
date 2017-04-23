@@ -174,12 +174,13 @@ void QueryManagerSingleNode::getRebuildWorkOrders(const dag_node_index index,
   }
 
   std::vector<MutableBlockReference> partially_filled_block_refs;
+  std::vector<partition_id> part_ids;
 
   DCHECK(query_context_ != nullptr);
   InsertDestination *insert_destination = query_context_->getInsertDestination(insert_destination_index);
   DCHECK(insert_destination != nullptr);
 
-  insert_destination->getPartiallyFilledBlocks(&partially_filled_block_refs);
+  insert_destination->getPartiallyFilledBlocks(&partially_filled_block_refs, &part_ids);
 
   for (std::vector<MutableBlockReference>::size_type i = 0;
        i < partially_filled_block_refs.size();
@@ -189,6 +190,7 @@ void QueryManagerSingleNode::getRebuildWorkOrders(const dag_node_index index,
                              std::move(partially_filled_block_refs[i]),
                              index,
                              op.getOutputRelationID(),
+                             part_ids[i],
                              foreman_client_id_,
                              bus_),
         index);
