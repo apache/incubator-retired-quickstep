@@ -36,11 +36,11 @@ void Optimizer::generateQueryHandle(const ParseStatement &parse_statement,
   ExecutionGenerator execution_generator(catalog_database, query_handle);
   ExecutionSerializer execution_serializer;
 
-  execution_generator.generatePlan(
+  const auto &query_plan = execution_generator.generatePlan(
       physical_generator.generatePlan(
           logical_generator.generatePlan(*catalog_database, parse_statement)));
 
-  execution_serializer.serializePlan(execution_generator);
+  execution_serializer.serializePlan(query_plan);
 }
 
 }  // namespace optimizer

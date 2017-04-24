@@ -20,6 +20,7 @@
 #ifndef QUICKSTEP_QUERY_EXECUTION_EXECUTION_DESERIALIZER_HPP
 #define QUICKSTEP_QUERY_EXECUTION_EXECUTION_DESERIALIZER_HPP
 
+#include "query_optimizer/QueryPlan.hpp"
 #include "relational_operators/AggregationOperator.hpp"
 #include "relational_operators/BuildAggregationExistenceMapOperator.hpp"
 #include "relational_operators/BuildHashOperator.hpp"
@@ -90,6 +91,8 @@ class ExecutionDeserializer {
   void deserializeWindowAggregation(const S::WindowAggregationOperator &window_aggregation_operator);
 
   const S::QueryPlan &query_plan_proto_;
+  
+  QueryPlan query_plan;
 };
 
 }

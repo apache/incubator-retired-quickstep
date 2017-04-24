@@ -83,7 +83,13 @@ void ExecutionDeserializer::deserializeInternal(const S::Vertex &vertex) {
 }
 
 void ExecutionDeserializer::deserializeAggregation(const S::AggregationOperator &aggregation_operator) {
+  const std::size_t query_id = 1;
+  const relation_id relation = aggregation_operator.relation_id();
+  const bool is_relation_stored = aggregation_operator.relation_is_stored();
+  QueryContext::aggregation_state_id aggregation_state_index = aggregation_operator.aggr_state_index();
 
+  std::unique_ptr<AggregationOperator> aggregation = std::make_unique(new AggregationOperator())
+  query_plan.addRelationalOperator();
 }
 
 void ExecutionDeserializer::deserializeBuildAggregationExistenceMap(const S::BuildAggregationExistenceMapOperator &op) {
