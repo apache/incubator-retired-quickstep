@@ -98,6 +98,8 @@ class ReuseAggregateExpressions : public BottomUpRule<physical::Physical> {
   explicit ReuseAggregateExpressions(OptimizerContext *optimizer_context)
       : optimizer_context_(optimizer_context) {}
 
+  ~ReuseAggregateExpressions() override {}
+
   std::string getName() const override {
     return "ReuseAggregateExpressions";
   }

@@ -31,8 +31,8 @@ const char *Scalar::kScalarDataSourceNames[] = {
   "Attribute",
   "UnaryExpression",
   "BinaryExpression",
-  "SharedExpression",
   "SimpleCase"
+  "SharedExpression",
 };
 
 const TypedValue& Scalar::getStaticValue() const {

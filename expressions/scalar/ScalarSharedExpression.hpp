@@ -53,11 +53,16 @@ class ScalarSharedExpression : public Scalar {
   /**
    * @brief Constructor.
    *
-   * @param share_id The unique integer identifier for each equivalence class of
-   *        common subexpressions.
-   * @param operand The underlying scalar subexpression.
+   * @param share_id The unique integer identifier for each equivalence class
+   *        of common subexpressions.
+   * @param operand The underlying scalar subexpression, which this
+   *        ScalarSharedExpression takes ownership of.
    **/
-  ScalarSharedExpression(const int share_id, Scalar *operand);
+  ScalarSharedExpression(const int share_id, Scalar *operand)
+      : Scalar(operand->getType()),
+        share_id_(share_id),
+        operand_(operand) {
+  }
 
   /**
    * @brief Destructor.

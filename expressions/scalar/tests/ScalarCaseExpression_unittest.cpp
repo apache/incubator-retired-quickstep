@@ -309,7 +309,9 @@ TEST_F(ScalarCaseExpressionTest, BasicComparisonAndLiteralWithFilteredInputTest)
                         varchar_type));
 
   ColumnVectorPtr result_cv(
-      case_expr.getAllValues(filtered_accessor.get(), nullptr, nullptr));
+      case_expr.getAllValues(filtered_accessor.get(),
+                             nullptr /* sub_blocks_ref */,
+                             nullptr /* cv_cache */));
   ASSERT_FALSE(result_cv->isNative());
   const IndirectColumnVector &indirect_result_cv
       = static_cast<const IndirectColumnVector&>(*result_cv);
@@ -381,7 +383,9 @@ TEST_F(ScalarCaseExpressionTest, WhenClauseOrderTest) {
                         varchar_type));
 
   ColumnVectorPtr result_cv(
-      case_expr.getAllValues(&sample_data_value_accessor_, nullptr, nullptr));
+      case_expr.getAllValues(&sample_data_value_accessor_,
+                             nullptr /* sub_blocks_ref */,
+                             nullptr /* cv_cache */));
   ASSERT_FALSE(result_cv->isNative());
   const IndirectColumnVector &indirect_result_cv
       = static_cast<const IndirectColumnVector&>(*result_cv);
@@ -475,7 +479,9 @@ TEST_F(ScalarCaseExpressionTest, ComplexConjunctionAndCalculatedExpressionTest) 
           new ScalarAttribute(*sample_relation_->getAttributeById(0))));
 
   ColumnVectorPtr result_cv(
-      case_expr.getAllValues(&sample_data_value_accessor_, nullptr, nullptr));
+      case_expr.getAllValues(&sample_data_value_accessor_,
+                             nullptr /* sub_blocks_ref */,
+                             nullptr /* cv_cache */));
   ASSERT_TRUE(result_cv->isNative());
   const NativeColumnVector &native_result_cv
       = static_cast<const NativeColumnVector&>(*result_cv);
@@ -598,7 +604,9 @@ TEST_F(ScalarCaseExpressionTest,
           new ScalarAttribute(*sample_relation_->getAttributeById(0))));
 
   ColumnVectorPtr result_cv(
-      case_expr.getAllValues(filtered_accessor.get(), nullptr, nullptr));
+      case_expr.getAllValues(filtered_accessor.get(),
+                             nullptr /* sub_blocks_ref */,
+                             nullptr /* cv_cache */));
   ASSERT_TRUE(result_cv->isNative());
   const NativeColumnVector &native_result_cv
       = static_cast<const NativeColumnVector&>(*result_cv);
@@ -708,7 +716,9 @@ TEST_F(ScalarCaseExpressionTest, ComplexDisjunctionAndCalculatedExpressionTest) 
           new ScalarAttribute(*sample_relation_->getAttributeById(0))));
 
   ColumnVectorPtr result_cv(
-      case_expr.getAllValues(&sample_data_value_accessor_, nullptr, nullptr));
+      case_expr.getAllValues(&sample_data_value_accessor_,
+                             nullptr /* sub_blocks_ref */,
+                             nullptr /* cv_cache */));
   ASSERT_TRUE(result_cv->isNative());
   const NativeColumnVector &native_result_cv
       = static_cast<const NativeColumnVector&>(*result_cv);
@@ -828,7 +838,9 @@ TEST_F(ScalarCaseExpressionTest,
           new ScalarAttribute(*sample_relation_->getAttributeById(0))));
 
   ColumnVectorPtr result_cv(
-      case_expr.getAllValues(filtered_accessor.get(), nullptr, nullptr));
+      case_expr.getAllValues(filtered_accessor.get(),
+                             nullptr /* sub_blocks_ref */,
+                             nullptr /* cv_cache */));
   ASSERT_TRUE(result_cv->isNative());
   const NativeColumnVector &native_result_cv
       = static_cast<const NativeColumnVector&>(*result_cv);
@@ -935,7 +947,7 @@ TEST_F(ScalarCaseExpressionTest, JoinTest) {
       1,
       &other_accessor,
       joined_tuple_ids,
-      nullptr));
+      nullptr /* cv_cache */));
   ASSERT_TRUE(result_cv->isNative());
   const NativeColumnVector &native_result_cv
       = static_cast<const NativeColumnVector&>(*result_cv);

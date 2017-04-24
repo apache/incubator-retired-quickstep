@@ -111,7 +111,7 @@ class ExtractCommonSubexpression : public Rule<physical::Physical> {
   bool visitAndCount(
       const expressions::ExpressionPtr &expression,
       ScalarCounter *counter,
-      ScalarHashable *hashable);
+      ScalarHashable *hashable) const;
 
   // Traverse the expression tree and transform subexpressions (to common
   // subexpressions) if applicable.

@@ -126,8 +126,8 @@ class CommonSubexpression : public Scalar {
     addChild(operand);
   }
 
-  ExprId common_subexpression_id_;
-  ScalarPtr operand_;
+  const ExprId common_subexpression_id_;
+  const ScalarPtr operand_;
 
   DISALLOW_COPY_AND_ASSIGN(CommonSubexpression);
 };

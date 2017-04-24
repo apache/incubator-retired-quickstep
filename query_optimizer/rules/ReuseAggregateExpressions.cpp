@@ -157,7 +157,7 @@ P::PhysicalPtr ReuseAggregateExpressions::applyToNode(
     count_star_ref = *it;
 
     for (++it; it != count_star_info.end(); ++it) {
-      agg_refs[*it].reset(new AggregateReference(count_star_ref));
+      agg_refs[*it] = std::make_unique<AggregateReference>(count_star_ref);
     }
   }
 
@@ -194,7 +194,7 @@ P::PhysicalPtr ReuseAggregateExpressions::applyToNode(
             sum_it == ref_map.end() ? kInvalidRef : sum_it->second.front();
 
         for (const std::size_t idx : avg_it->second) {
-          agg_refs[idx].reset(new AggregateReference(sum_ref, count_ref));
+          agg_refs[idx] = std::make_unique<AggregateReference>(sum_ref, count_ref);
         }
         is_avg_processed = true;
       }
@@ -209,7 +209,7 @@ P::PhysicalPtr ReuseAggregateExpressions::applyToNode(
       DCHECK(!indices.empty());
       const std::size_t ref = indices.front();
       for (std::size_t i = 1; i < indices.size(); ++i) {
-        agg_refs[indices[i]].reset(new AggregateReference(ref));
+        agg_refs[indices[i]] = std::make_unique<AggregateReference>(ref);
       }
     }
   }
@@ -329,6 +329,7 @@ P::PhysicalPtr ReuseAggregateExpressions::applyToNode(
                                agg_expr->attribute_name(),
                                agg_expr->attribute_alias(),
                                agg_expr->relation_name()));
+          break;
         }
       }
     }

@@ -65,11 +65,7 @@ class Predicate : public Expression {
    **/
   static const char *kPredicateTypeNames[kNumPredicateTypes];
 
-  /**
-   * @brief Virtual destructor.
-   *
-   **/
-  virtual ~Predicate() {
+  ~Predicate() override {
   }
 
   std::string getName() const override {

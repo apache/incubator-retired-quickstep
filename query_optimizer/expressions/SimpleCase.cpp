@@ -195,10 +195,8 @@ bool SimpleCase::equals(const ScalarPtr &other) const {
       return false;
     }
   }
-  if ((else_result_expression_ == nullptr
-       || expr->else_result_expression_ == nullptr)
-      && else_result_expression_ != expr->else_result_expression_) {
-    return false;
+  if (else_result_expression_ == nullptr || expr->else_result_expression_ == nullptr) {
+    return else_result_expression_ == expr->else_result_expression_;
   }
   if (!else_result_expression_->equals(expr->else_result_expression_)) {
     return false;

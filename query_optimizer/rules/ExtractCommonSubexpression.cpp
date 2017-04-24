@@ -258,7 +258,7 @@ E::ExpressionPtr ExtractCommonSubexpression::transformExpression(
 bool ExtractCommonSubexpression::visitAndCount(
     const E::ExpressionPtr &expression,
     ScalarCounter *counter,
-    ScalarHashable *hashable) {
+    ScalarHashable *hashable) const {
   // This bool flag is for avoiding some unnecessary hash() computation.
   bool children_hashable = true;
 

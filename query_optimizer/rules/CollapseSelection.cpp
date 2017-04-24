@@ -46,7 +46,7 @@ P::PhysicalPtr CollapseSelection::applyToNode(const P::PhysicalPtr &input) {
         selection->project_expressions();
     PullUpProjectExpressions(child_selection->project_expressions(),
                              {} /* non_project_expression_lists */,
-                             {&project_expressions} /* project_expression_lists */);
+                             { &project_expressions } /* project_expression_lists */);
     return P::Selection::Create(child_selection->input(),
                                 project_expressions,
                                 selection->filter_predicate());

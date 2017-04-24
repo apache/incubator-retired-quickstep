@@ -69,10 +69,7 @@ class Scalar : public Expression {
    **/
   static const char *kScalarDataSourceNames[kNumScalarDataSources];
 
-  /**
-   * @brief Virtual destructor.
-   **/
-  virtual ~Scalar() {
+  ~Scalar() override {
   }
 
   std::string getName() const override {

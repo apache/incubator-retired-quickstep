@@ -34,19 +34,12 @@ namespace quickstep {
 
 struct SubBlocksReference;
 
-ScalarSharedExpression::ScalarSharedExpression(const int share_id,
-                                               Scalar *operand)
-    : Scalar(operand->getType()),
-      share_id_(share_id),
-      operand_(operand) {
-}
-
 serialization::Scalar ScalarSharedExpression::getProto() const {
   serialization::Scalar proto;
   proto.set_data_source(serialization::Scalar::SHARED_EXPRESSION);
   proto.SetExtension(serialization::ScalarSharedExpression::share_id, share_id_);
   proto.MutableExtension(serialization::ScalarSharedExpression::operand)
-      ->CopyFrom(operand_->getProto());
+      ->MergeFrom(operand_->getProto());
 
   return proto;
 }
@@ -81,16 +74,16 @@ ColumnVectorPtr ScalarSharedExpression::getAllValues(
     ColumnVectorCache *cv_cache) const {
   if (cv_cache == nullptr) {
     return operand_->getAllValues(accessor, sub_blocks_ref, cv_cache);
-  } else {
-    ColumnVectorPtr result;
-    if (cv_cache->contains(share_id_)) {
-      result = cv_cache->get(share_id_);
-    } else {
-      result = operand_->getAllValues(accessor, sub_blocks_ref, cv_cache);
-      cv_cache->set(share_id_, result);
-    }
-    return result;
   }
+
+  ColumnVectorPtr result;
+  if (cv_cache->contains(share_id_)) {
+    result = cv_cache->get(share_id_);
+  } else {
+    result = operand_->getAllValues(accessor, sub_blocks_ref, cv_cache);
+    cv_cache->set(share_id_, result);
+  }
+  return result;
 }
 
 ColumnVectorPtr ScalarSharedExpression::getAllValuesForJoin(
@@ -107,21 +100,21 @@ ColumnVectorPtr ScalarSharedExpression::getAllValuesForJoin(
                                          right_accessor,
                                          joined_tuple_ids,
                                          cv_cache);
-  } else {
-    ColumnVectorPtr result;
-    if (cv_cache->contains(share_id_)) {
-      result = cv_cache->get(share_id_);
-    } else {
-      result = operand_->getAllValuesForJoin(left_relation_id,
-                                             left_accessor,
-                                             right_relation_id,
-                                             right_accessor,
-                                             joined_tuple_ids,
-                                             cv_cache);
-      cv_cache->set(share_id_, result);
-    }
-    return result;
   }
+
+  ColumnVectorPtr result;
+  if (cv_cache->contains(share_id_)) {
+    result = cv_cache->get(share_id_);
+  } else {
+    result = operand_->getAllValuesForJoin(left_relation_id,
+                                           left_accessor,
+                                           right_relation_id,
+                                           right_accessor,
+                                           joined_tuple_ids,
+                                           cv_cache);
+    cv_cache->set(share_id_, result);
+  }
+  return result;
 }
 
 void ScalarSharedExpression::getFieldStringItems(

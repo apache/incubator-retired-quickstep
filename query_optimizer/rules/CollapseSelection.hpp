@@ -43,6 +43,8 @@ class CollapseSelection : public BottomUpRule<physical::Physical> {
    */
   CollapseSelection() {}
 
+  ~CollapseSelection() override {}
+
   std::string getName() const override {
     return "CollapseSelection";
   }
