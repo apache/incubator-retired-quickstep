@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-include_directories(${CMAKE_CURRENT_BINARY_DIR})
 if (ENABLE_DISTRIBUTED)
   add_subdirectory(distributed)
 endif(ENABLE_DISTRIBUTED)
@@ -44,6 +43,22 @@ configure_file (
   "${CMAKE_CURRENT_BINARY_DIR}/CliConfig.h"
 )
 
+# Compile the protos for Single Node Server mode.
+if(ENABLE_SINGLE_NODE_SERVER)
+  # We will need some of the TMBs libraries
+  set(CMAKE_MODULE_PATH
+      ${CMAKE_MODULE_PATH}
+      "${PROJECT_SOURCE_DIR}/third_party/src/tmb/cmake")
+
+  find_package(Grpc++ REQUIRED)
+  include_directories(${GRPCPLUSPLUS_INCLUDE_DIRS})
+
+  GRPC_GENERATE_CPP(cli_SingleNodeServer_proto_srcs
+                    cli_SingleNodeServer_proto_hdrs
+                    .
+                    SingleNodeServer.proto)
+endif()
+
 # Declare micro-libs and link dependencies:
 add_library(quickstep_cli_CommandExecutor CommandExecutor.cpp CommandExecutor.hpp)
 add_library(quickstep_cli_CommandExecutorUtil CommandExecutorUtil.cpp CommandExecutorUtil.hpp)
@@ -67,9 +82,29 @@ else()
               LineReaderDumb.hpp)
 endif()
 
+if (ENABLE_SINGLE_NODE_SERVER)
+  add_library(quickstep_cli_SingleNodeClient
+              SingleNodeClient.cpp
+              SingleNodeClient.hpp)
+  add_library(quickstep_cli_SingleNodeServerWrapper
+              SingleNodeServerWrapper.cpp
+              SingleNodeServerWrapper.hpp)
+  add_library(quickstep_cli_SingleNodeServer_proto
+              ${cli_SingleNodeServer_proto_srcs}
+              ${cli_SingleNodeServer_proto_hdrs})
+endif()
+
 add_library(quickstep_cli_PrintToScreen PrintToScreen.cpp PrintToScreen.hpp)
 
 # Link dependencies:
+if (ENABLE_SINGLE_NODE_SERVER)
+  target_link_libraries(quickstep_cli_SingleNodeClient
+                        ${GFLAGS_LIB_NAME}
+                        ${GRPCPLUSPLUS_LIBRARIES}
+                        ${PROTOBUF3_LIBRARIES}
+                        glog
+                        quickstep_cli_SingleNodeServer_proto)
+endif()
 target_link_libraries(quickstep_cli_CommandExecutor
                       glog
                       quickstep_catalog_CatalogAttribute
@@ -150,7 +185,21 @@ if(USE_LINENOISE)
 else()
   target_link_libraries(quickstep_cli_LineReader
                         quickstep_utility_Macros)
+
 endif()
+
+if(ENABLE_SINGLE_NODE_SERVER)
+  target_link_libraries(quickstep_cli_SingleNodeServerWrapper
+                        ${GFLAGS_LIB_NAME}
+                        ${GRPCPLUSPLUS_LIBRARIES}
+                        ${PROTOBUF3_LIBRARIES}
+                        glog
+                        quickstep_cli_SingleNodeServer_proto)
+  target_link_libraries(quickstep_cli_SingleNodeServer_proto
+                        ${GRPCPLUSPLUS_LIBRARIES}
+                        ${PROTOBUF3_LIBRARY})
+endif()
+
 target_link_libraries(quickstep_cli_PrintToScreen
                       ${GFLAGS_LIB_NAME}
                       quickstep_catalog_CatalogAttribute

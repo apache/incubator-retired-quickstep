@@ -15,6 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+if(ENABLE_SINGLE_NODE_SERVER)
+  set(CMAKE_MODULE_PATH
+      ${CMAKE_MODULE_PATH}
+      "${PROJECT_SOURCE_DIR}/third_party/src/tmb/cmake")
+
+  find_package(Grpc++ REQUIRED)
+endif()
+
 add_subdirectory(command_executor)
 
 add_executable(quickstep_cli_tests_CommandExecutorTest
@@ -31,6 +39,10 @@ if (ENABLE_DISTRIBUTED)
                  "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.cpp"
                  "${PROJECT_SOURCE_DIR}/utility/textbased_test/TextBasedTest.hpp")
 endif(ENABLE_DISTRIBUTED)
+if (ENABLE_SINGLE_NODE_SERVER)
+  add_executable(quickstep_cli_tests_SingleNodeServerTest
+                 SingleNodeServerTest.cpp)
+endif()
 
 target_link_libraries(quickstep_cli_tests_CommandExecutorTest
                       glog
@@ -90,3 +102,12 @@ if (ENABLE_DISTRIBUTED)
                         ${GFLAGS_LIB_NAME}
                         ${LIBS})
 endif(ENABLE_DISTRIBUTED)
+if (ENABLE_SINGLE_NODE_SERVER)
+  target_link_libraries(quickstep_cli_tests_SingleNodeServerTest
+                        ${GFLAGS_LIB_NAME}
+                        ${GRPCPLUSPLUS_LIBRARIES}
+                        quickstep_cli_SingleNodeClient
+                        quickstep_cli_SingleNodeServerWrapper
+                        glog
+                        gtest)
+endif()
