@@ -149,7 +149,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
 }
 
 <CONDITION_COMMAND>{
-  [a-zA-Z0-9\-\.:]+ {
+  [a-zA-Z0-9_\-\.:]+ {
     /* This is a command argument. */
     yylval->string_value_ = new quickstep::ParseString(
         yylloc->first_line, yylloc->first_column, std::string(yytext, yyleng));
