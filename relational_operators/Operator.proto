@@ -88,12 +88,13 @@ message CreateIndexOperator {
 
 message CreateTableOperator {
     required int32 database_id = 1;
-    required CatalogRelation relation_catalog = 2;
+    required CatalogRelationSchema relation_catalog = 2;
 }
 
 message DeleteOperator {
     required int32 relation_id = 1;
     required int32 predicate_index = 2;
+    required bool relation_is_stored = 3;
 }
 
 message DestroyAggregationStateOperator {
@@ -133,7 +134,7 @@ message HashJoinOperator {
     required uint64 build_num_partitions = 6;
     required int32 output_relation_id = 7;
     required int32 output_destionation_index = 8;
-    required int32 hash_table_index = 9;
+    required uint32 hash_table_index = 9;
     required int32 residiual_predicate_index = 10;
     required int32 selection_index = 11;
     repeated bool is_selection_on_build = 12;
@@ -201,7 +202,7 @@ message SortRunGenerationOperator {
     required int32 input_relation_id = 1;
     required int32 output_relation_id = 2;
     required int32 output_destination_index = 3;
-    required int32 sort_config_index = 4;
+    required uint32 sort_config_index = 4;
     required bool is_input_stored = 5;
 }
 

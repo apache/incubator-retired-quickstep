@@ -20,6 +20,7 @@
 #ifndef QUICKSTEP_QUERY_EXECUTION_EXECUTION_DESERIALIZER_HPP
 #define QUICKSTEP_QUERY_EXECUTION_EXECUTION_DESERIALIZER_HPP
 
+#include "catalog/CatalogDatabase.hpp"
 #include "query_optimizer/QueryPlan.hpp"
 #include "relational_operators/AggregationOperator.hpp"
 #include "relational_operators/BuildAggregationExistenceMapOperator.hpp"
@@ -56,8 +57,9 @@ namespace S = ::quickstep::serialization;
 
 class ExecutionDeserializer {
  public:
-  ExecutionDeserializer(const S::QueryPlan &query_plan)
-    : query_plan_proto_(query_plan) {
+  ExecutionDeserializer(const S::QueryPlan &query_plan, CatalogDatabase *database)
+    : query_plan_proto_(query_plan),
+      database_(*database) {
   }
 
   void deserializePlan();
@@ -76,7 +78,7 @@ class ExecutionDeserializer {
   void deserializeDestroyHash(const S::DestroyHashOperator &destroy_hash_operator);
   void deserializeDropTable(const S::DropTableOperator &drop_table_operator);
   void deserializeFinalizeAggregation(const S::FinalizeAggregationOperator &finalize_aggregation_operator);
-  void deserializeHashJoin(const S::HashJoinOperator &finalize_hash_join);
+  void deserializeHashJoin(const S::HashJoinOperator &hash_join_operator);
   void deserializeInitializeAggregation(const S::InitializeAggregationOperator &initialize_aggregation_operator);
   void deserializeInsert(const S::InsertOperator &insert_operator);
   void deserializeNestedLoopsJoin(const S::NestedLoopsJoinOperator &nested_loops_join_operator);
@@ -91,6 +93,7 @@ class ExecutionDeserializer {
   void deserializeWindowAggregation(const S::WindowAggregationOperator &window_aggregation_operator);
 
   const S::QueryPlan &query_plan_proto_;
+  CatalogDatabase &database_;
   
   QueryPlan query_plan;
 };

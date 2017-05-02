@@ -325,7 +325,7 @@ class DAG {
      **/
     inline const LinkMetadataT& getLinkMetadata(const size_type_nodes node_index) const {
       DCHECK(dependents_with_metadata_.find(node_index) != dependents_with_metadata_.end());
-      return dependents_with_metadata_[node_index];
+      return dependents_with_metadata_.at(node_index);
     }
 
     /**

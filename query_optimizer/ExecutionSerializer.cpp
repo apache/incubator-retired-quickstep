@@ -56,6 +56,7 @@ namespace optimizer {
 namespace S = ::quickstep::serialization;
 
 void ExecutionSerializer::serializePlan(const QueryPlan &query_plan) {
+  // TODO(hakan): Fix the problem with const DAG.
   const auto &dag = query_plan.getQueryPlanDAG();
   for (std::size_t i = 0; i < dag.size(); ++i) {
     const auto &edges = dag.getDependencies(i);
@@ -149,6 +150,7 @@ void ExecutionSerializer::serializeInternal(const RelationalOperator &relational
         static_cast<const WindowAggregationOperator&>(relational_operator));
   case RelationalOperator::kMockOperator:
     break;
+  case RelationalOperator::kUnionAll:break;
   }
 }
 
@@ -217,7 +219,7 @@ void ExecutionSerializer::serializeCreateTable(const CreateTableOperator &create
 
   serialization::CreateTableOperator *create_table = vertex->mutable_create_table_operator();
   // TODO(hakan): Add database id serialization.
-  serialization::CatalogRelation *catalog_relation = create_table->mutable_relation_catalog();
+  serialization::CatalogRelationSchema *catalog_relation = create_table->mutable_relation_catalog();
   catalog_relation->CopyFrom(create_table_operator.getRelation().getProto());
 }
 
@@ -228,6 +230,7 @@ void ExecutionSerializer::serializeDelete(const DeleteOperator &delete_operator)
   serialization::DeleteOperator *delete_op = vertex->mutable_delete_operator();
   delete_op->set_relation_id(delete_operator.getOutputRelationID());
   delete_op->set_predicate_index(delete_operator.getPredicateIndex());
+  delete_op->set_relation_is_stored(!delete_operator.getRelation().isTemporary());
 
 }
 void ExecutionSerializer::serializeDestroyAggregationState(

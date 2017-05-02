@@ -114,6 +114,10 @@ class DeleteOperator : public RelationalOperator {
     return predicate_index_;
   }
 
+  const CatalogRelation& getRelation() const {
+    return relation_;
+  }
+
  private:
   /**
    * @brief Create Work Order proto.
