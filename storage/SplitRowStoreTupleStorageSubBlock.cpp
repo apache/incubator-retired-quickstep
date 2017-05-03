@@ -244,14 +244,12 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertDispatcher(
 
   CopyGroupList copy_groups;
   getCopyGroupsForAttributeMap(attribute_map, &copy_groups);
-  auto impl = accessor->getImplementationType();
-  const bool is_rowstore_source = impl == ValueAccessor::Implementation::kSplitRowStore;
-  if (is_rowstore_source) {
-    copy_groups.merge_contiguous();
+  if (accessor->getImplementationType() == ValueAccessor::Implementation::kSplitRowStore) {
+    copy_groups.mergeContiguous();
   }
 
-  const bool copy_nulls = copy_groups.nullable_attrs_.size() > 0;
-  const bool copy_varlen = copy_groups.varlen_attrs_.size() > 0;
+  const bool copy_nulls = copy_groups.nullable_attrs.size() > 0;
+  const bool copy_varlen = copy_groups.varlen_attrs.size() > 0;
 
   if (fill_to_capacity) {
     if (relation_.hasNullableAttributes()) {
@@ -311,96 +309,101 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertPartialTuplesImpl(
   std::size_t num_tuples_inserted = 0;
 
   // We only append to the end of the block to cut down on complexity.
-  char *tuple_slot = static_cast<char *>(tuple_storage_) +  header_->num_tuples * tuple_slot_bytes_;
+  char *tuple_slot = static_cast<char *>(tuple_storage_) + header_->num_tuples * tuple_slot_bytes_;
 
   std::uint32_t varlen_heap_offset = tuple_storage_bytes_ - header_->variable_length_bytes_allocated;
   std::uint32_t varlen_heap_offset_orig = varlen_heap_offset;
-
-  BitVector<true> tuple_null_bitmap(tuple_slot, num_null_attrs_);
-  char *fixed_len_cursor = tuple_slot + BitVector<true>::BytesNeeded(num_null_attrs_);
-
-
 
   std::size_t storage_available = tuple_storage_bytes_ -
                                     (header_->variable_length_bytes_allocated +
                                      header_->num_tuples * tuple_slot_bytes_);
 
+  const std::vector<ContiguousAttrs> &contiguous_attrs = copy_groups.contiguous_attrs;
+  const std::vector<VarLenAttr> &varlen_attrs = copy_groups.varlen_attrs;
+  const std::vector<NullableAttr> &nullable_attrs = copy_groups.nullable_attrs;
+
   // The number of bytes that must be reserved per tuple inserted due to gaps.
   std::size_t varlen_reserve = relation_.getMaximumVariableByteLength();
   if (fill_to_capacity) {
-    for (std::size_t vattr_idx = 0; vattr_idx < copy_groups.varlen_attrs_.size(); vattr_idx++) {
+    for (std::size_t vattr_idx = 0; vattr_idx < varlen_attrs.size(); vattr_idx++) {
       varlen_reserve -= relation_.getAttributeById(
-        copy_groups.varlen_attrs_[vattr_idx].dst_attr_id_)->getType().maximumByteLength();
+          varlen_attrs[vattr_idx].dst_attr_id)->getType().maximumByteLength();
     }
     DCHECK_GE(relation_.getMaximumVariableByteLength(), varlen_reserve);
   }
 
   InvokeOnAnyValueAccessor(
-    accessor,
-    [&](auto *accessor) -> void {  // NOLINT(build/c++11
-      do {
-        const std::size_t num_c_attr = copy_groups.contiguous_attrs_.size();
-        const std::size_t num_n_attr = copy_groups.nullable_attrs_.size();
-        const std::size_t num_v_attr = copy_groups.varlen_attrs_.size();
+      accessor,
+      [&](auto *accessor) -> void {  // NOLINT(build/c++11
+    BitVector<true> tuple_null_bitmap(tuple_slot, num_null_attrs_);
+    const std::size_t nullmap_size = BitVector<true>::BytesNeeded(num_null_attrs_);
 
-        const std::size_t nullmap_size = BitVector<true>::BytesNeeded(num_null_attrs_);
+    const std::size_t num_c_attr = contiguous_attrs.size();
+    const std::size_t num_n_attr = nullable_attrs.size();
+    const std::size_t num_v_attr = varlen_attrs.size();
 
-        while (num_tuples_inserted < max_num_tuples_to_insert && accessor->next()) {
-          for (std::size_t cattr_idx = 0; cattr_idx < num_c_attr; cattr_idx++) {
-            const ContiguousAttrs &cattr = copy_groups.contiguous_attrs_[cattr_idx];
-            fixed_len_cursor += cattr.bytes_to_advance_;
-            const void *attr_value = accessor->template getUntypedValue<false>(cattr.src_attr_id_);
-            std::memcpy(fixed_len_cursor, attr_value, cattr.bytes_to_copy_);
-          }
+    do {
+      while (num_tuples_inserted < max_num_tuples_to_insert && accessor->next()) {
+        char *attr_cursor = tuple_slot + nullmap_size;
+        for (std::size_t cattr_idx = 0; cattr_idx < num_c_attr; cattr_idx++) {
+          const ContiguousAttrs &cattr = contiguous_attrs[cattr_idx];
+          attr_cursor += cattr.bytes_to_advance;
+          const void *attr_value =
+              accessor->template getUntypedValue<false>(cattr.src_attr_id);
+          std::memcpy(attr_cursor, attr_value, cattr.bytes_to_copy);
+        }
 
-          if (copy_nulls) {
-            tuple_null_bitmap.setMemory(tuple_slot);
-            for (std::size_t nattr_idx = 0; nattr_idx < num_n_attr; nattr_idx++) {
-              const NullableAttr &nattr = copy_groups.nullable_attrs_[nattr_idx];
-              const void *attr_value = accessor->template getUntypedValue<true>(nattr.src_attr_id_);
-              if (attr_value == nullptr) {
-                tuple_null_bitmap.setBit(nattr.nullable_attr_idx_, true);
-              }
+        if (copy_nulls) {
+          tuple_null_bitmap.setMemory(tuple_slot);
+          for (std::size_t nattr_idx = 0; nattr_idx < num_n_attr; nattr_idx++) {
+            const NullableAttr &nattr = nullable_attrs[nattr_idx];
+            const void *attr_value =
+                accessor->template getUntypedValue<true>(nattr.src_attr_id);
+            if (attr_value == nullptr) {
+              tuple_null_bitmap.setBit(nattr.nullable_attr_idx, true);
             }
           }
+        }
 
-          if (copy_varlen) {
-            for (std::size_t vattr_idx = 0; vattr_idx < num_v_attr; vattr_idx++) {
-              const VarLenAttr &vattr = copy_groups.varlen_attrs_[vattr_idx];
-              fixed_len_cursor += vattr.bytes_to_advance_;
-              // Typed value is necessary as we need the length.
-              const TypedValue &attr_value = accessor->template getTypedValue(vattr.src_attr_id_);
-              if (attr_value.isNull()) {
-                continue;
-              }
-              const std::size_t attr_size = attr_value.getDataSize();
-              varlen_heap_offset -= attr_size;
-              std::memcpy(static_cast<char *>(tuple_storage_) + varlen_heap_offset, attr_value.getDataPtr(),
-                          attr_size);
-              reinterpret_cast<std::uint32_t *>(fixed_len_cursor)[0] = varlen_heap_offset;
-              reinterpret_cast<std::uint32_t *>(fixed_len_cursor)[1] = static_cast<std::uint32_t>(attr_size);
+        if (copy_varlen) {
+          for (std::size_t vattr_idx = 0; vattr_idx < num_v_attr; vattr_idx++) {
+            const VarLenAttr &vattr = varlen_attrs[vattr_idx];
+            attr_cursor += vattr.bytes_to_advance;
+            // Typed value is necessary as we need the length.
+            const TypedValue &attr_value =
+                accessor->template getTypedValue(vattr.src_attr_id);
+            if (attr_value.isNull()) {
+              continue;
             }
-          }
-          tuple_slot += tuple_slot_bytes_;
-          fixed_len_cursor = tuple_slot + nullmap_size;
-          num_tuples_inserted++;
-        }
-        if (fill_to_capacity) {
-          std::int64_t remaining_storage_after_inserts = storage_available -
-                                                         (num_tuples_inserted * (tuple_slot_bytes_ + varlen_reserve) +
-                                                          (varlen_heap_offset_orig - varlen_heap_offset));
-          DCHECK_LE(0, remaining_storage_after_inserts);
-          std::size_t additional_tuples_insert =
-            remaining_storage_after_inserts / (tuple_slot_bytes_ + this->relation_.getMaximumByteLength());
-          // We want to avoid a situation where we have several short insert iterations
-          // near the end of an insertion cycle.
-          if (additional_tuples_insert > this->getInsertLowerBoundThreshold()) {
-            max_num_tuples_to_insert += additional_tuples_insert;
+            const std::size_t attr_size = attr_value.getDataSize();
+            varlen_heap_offset -= attr_size;
+            std::memcpy(static_cast<char *>(tuple_storage_) + varlen_heap_offset,
+                        attr_value.getDataPtr(),
+                        attr_size);
+            reinterpret_cast<std::uint32_t *>(attr_cursor)[0] = varlen_heap_offset;
+            reinterpret_cast<std::uint32_t *>(attr_cursor)[1] = static_cast<std::uint32_t>(attr_size);
           }
         }
-      } while (fill_to_capacity && !accessor->iterationFinishedVirtual() &&
-               num_tuples_inserted < max_num_tuples_to_insert);
-    });
+        tuple_slot += tuple_slot_bytes_;
+        num_tuples_inserted++;
+      }
+      if (fill_to_capacity) {
+        const std::int64_t remaining_storage_after_inserts =
+            storage_available -
+                (num_tuples_inserted * (tuple_slot_bytes_ + varlen_reserve) +
+                    (varlen_heap_offset_orig - varlen_heap_offset));
+        DCHECK_LE(0, remaining_storage_after_inserts);
+        const std::size_t additional_tuples_insert =
+          remaining_storage_after_inserts / (tuple_slot_bytes_ + this->relation_.getMaximumByteLength());
+        // We want to avoid a situation where we have several short insert iterations
+        // near the end of an insertion cycle.
+        if (additional_tuples_insert > this->getInsertLowerBoundThreshold()) {
+          max_num_tuples_to_insert += additional_tuples_insert;
+        }
+      }
+    } while (fill_to_capacity && !accessor->iterationFinishedVirtual() &&
+             num_tuples_inserted < max_num_tuples_to_insert);
+  });
 
   if (copy_varlen) {
     header_->variable_length_bytes_allocated += (varlen_heap_offset_orig - varlen_heap_offset);
@@ -879,16 +882,14 @@ TupleStorageSubBlock::InsertResult SplitRowStoreTupleStorageSubBlock::insertTupl
 // the SplitRow for actual data and the tuple contains pairs of (heap offset, length). Having to
 // copy varlen into the heap is the main difference from copying fixed length.
 void SplitRowStoreTupleStorageSubBlock::getCopyGroupsForAttributeMap(
-  const std::vector<attribute_id> &attribute_map,
-  CopyGroupList *copy_groups) {
+    const std::vector<attribute_id> &attribute_map,
+    CopyGroupList *copy_groups) {
   DCHECK_EQ(attribute_map.size(), relation_.size());
-
-  attribute_id num_attrs = attribute_map.size();
 
   std::size_t contig_adv = 0;
   std::size_t varlen_adv = 0;
-  for (attribute_id attr_id = 0; attr_id < num_attrs; ++attr_id) {
-    attribute_id src_attr = attribute_map[attr_id];
+  for (std::size_t attr_id = 0; attr_id < attribute_map.size(); ++attr_id) {
+    const attribute_id src_attr = attribute_map[attr_id];
 
     // Attribute doesn't exist in src.
     if (src_attr == kInvalidCatalogId) {
@@ -906,23 +907,23 @@ void SplitRowStoreTupleStorageSubBlock::getCopyGroupsForAttributeMap(
     // Attribute exists in src.
     if (relation_.getVariableLengthAttributeIndex(attr_id) == -1) {
       // fixed len
-      copy_groups->contiguous_attrs_.push_back(
-        ContiguousAttrs(src_attr, fixed_len_attr_sizes_[attr_id], contig_adv));
+      copy_groups->contiguous_attrs.emplace_back(
+          src_attr, fixed_len_attr_sizes_[attr_id], contig_adv);
       contig_adv = fixed_len_attr_sizes_[attr_id];
     } else {
       // var len
-      copy_groups->varlen_attrs_.push_back(VarLenAttr(src_attr, attr_id, varlen_adv));
+      copy_groups->varlen_attrs.emplace_back(src_attr, attr_id, varlen_adv);
       varlen_adv = SplitRowStoreTupleStorageSubBlock::kVarLenSlotSize;
     }
 
     if (relation_.getNullableAttributeIndex(attr_id) != -1) {
-      copy_groups->nullable_attrs_.push_back(
-        NullableAttr(src_attr, relation_.getNullableAttributeIndex(attr_id)));
+      copy_groups->nullable_attrs.emplace_back(
+          src_attr, relation_.getNullableAttributeIndex(attr_id));
     }
   }
   // This will point us to the beginning of the varlen zone.
-  if (copy_groups->varlen_attrs_.size() > 0) {
-    copy_groups->varlen_attrs_[0].bytes_to_advance_ += contig_adv;
+  if (copy_groups->varlen_attrs.size() > 0) {
+    copy_groups->varlen_attrs[0].bytes_to_advance += contig_adv;
   }
 }
 

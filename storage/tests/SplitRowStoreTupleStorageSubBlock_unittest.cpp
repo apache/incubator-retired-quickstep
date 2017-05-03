@@ -761,40 +761,41 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, GetCopyGroupsForAttributeMapTest) 
   CopyGroupList copy_groups;
   dst_store->getCopyGroupsForAttributeMap(attr_map, &copy_groups);
 
-  std::vector<ContiguousAttrs>& contiguous_attrs = copy_groups.contiguous_attrs_;
-  std::vector<VarLenAttr>& varlen_attrs = copy_groups.varlen_attrs_;
+  const std::vector<ContiguousAttrs> &contiguous_attrs = copy_groups.contiguous_attrs;
+  const std::vector<VarLenAttr> &varlen_attrs = copy_groups.varlen_attrs;
 
   const std::size_t size_of_string = dst_store->getRelation().getAttributeById(3)->getType().maximumByteLength();
 
   // Fixed length attributes.
-  EXPECT_EQ(0, contiguous_attrs[0].src_attr_id_);
-  EXPECT_EQ(4, contiguous_attrs[0].bytes_to_advance_);
-  EXPECT_EQ(4, contiguous_attrs[0].bytes_to_copy_);
+  EXPECT_EQ(0, contiguous_attrs[0].src_attr_id);
+  EXPECT_EQ(4, contiguous_attrs[0].bytes_to_advance);
+  EXPECT_EQ(4, contiguous_attrs[0].bytes_to_copy);
 
-  EXPECT_EQ(1, contiguous_attrs[1].src_attr_id_);
-  EXPECT_EQ(4, contiguous_attrs[1].bytes_to_advance_);
-  EXPECT_EQ(4, contiguous_attrs[1].bytes_to_copy_);
+  EXPECT_EQ(1, contiguous_attrs[1].src_attr_id);
+  EXPECT_EQ(4, contiguous_attrs[1].bytes_to_advance);
+  EXPECT_EQ(4, contiguous_attrs[1].bytes_to_copy);
 
   if (testVariableLength()) {
     ASSERT_EQ(2, contiguous_attrs.size());
     ASSERT_EQ(2, varlen_attrs.size());
 
-    EXPECT_EQ(2, varlen_attrs[0].src_attr_id_);
-    EXPECT_EQ(sizeof(int) + SplitRowStoreTupleStorageSubBlock::kVarLenSlotSize, varlen_attrs[0].bytes_to_advance_);
+    EXPECT_EQ(2, varlen_attrs[0].src_attr_id);
+    EXPECT_EQ(sizeof(int) + SplitRowStoreTupleStorageSubBlock::kVarLenSlotSize,
+              varlen_attrs[0].bytes_to_advance);
 
-    EXPECT_EQ(1, varlen_attrs[1].src_attr_id_);
-    EXPECT_EQ(SplitRowStoreTupleStorageSubBlock::kVarLenSlotSize, varlen_attrs[1].bytes_to_advance_);
+    EXPECT_EQ(1, varlen_attrs[1].src_attr_id);
+    EXPECT_EQ(SplitRowStoreTupleStorageSubBlock::kVarLenSlotSize, varlen_attrs[1].bytes_to_advance);
 
   } else {
-    ASSERT_EQ(4, copy_groups.contiguous_attrs_.size());
-    ASSERT_EQ(0, copy_groups.varlen_attrs_.size());
+    ASSERT_EQ(4, copy_groups.contiguous_attrs.size());
+    ASSERT_EQ(0, copy_groups.varlen_attrs.size());
 
-    EXPECT_EQ(2, contiguous_attrs[2].src_attr_id_);
-    EXPECT_EQ(4 + size_of_string, contiguous_attrs[2].bytes_to_advance_);
-    EXPECT_EQ(size_of_string, contiguous_attrs[2].bytes_to_copy_);
+    EXPECT_EQ(2, contiguous_attrs[2].src_attr_id);
+    EXPECT_EQ(4 + size_of_string, contiguous_attrs[2].bytes_to_advance);
+    EXPECT_EQ(size_of_string, contiguous_attrs[2].bytes_to_copy);
   }
 
-  int null_count =  copy_groups.nullable_attrs_.size();
+  int null_count =  copy_groups.nullable_attrs.size();
   if (testNullable()) {
     // The relation contains 6 nullable attributes, but only 3 are inserted.
     EXPECT_EQ(4, null_count);
@@ -802,20 +803,49 @@ TEST_P(SplitRowStoreTupleStorageSubBlockTest, GetCopyGroupsForAttributeMapTest) 
     EXPECT_EQ(0, null_count);
   }
 
-  // test that merging works.
-  copy_groups.merge_contiguous();
-  EXPECT_EQ(0, contiguous_attrs[0].src_attr_id_);
-  EXPECT_EQ(4, contiguous_attrs[0].bytes_to_advance_);
+  // Test that merging works.
+  copy_groups.mergeContiguous();
+  EXPECT_EQ(0, contiguous_attrs[0].src_attr_id);
+  EXPECT_EQ(4, contiguous_attrs[0].bytes_to_advance);
 
   if (testVariableLength()) {
     EXPECT_EQ(1, contiguous_attrs.size());
     EXPECT_EQ(sizeof(int) * 2 + SplitRowStoreTupleStorageSubBlock::kVarLenSlotSize,
-              varlen_attrs[0].bytes_to_advance_);
+              varlen_attrs[0].bytes_to_advance);
   } else {
     EXPECT_EQ(3, contiguous_attrs.size());
-    EXPECT_EQ(8, contiguous_attrs[0].bytes_to_copy_);
-    EXPECT_EQ(8 + size_of_string, contiguous_attrs[1].bytes_to_advance_);
+    EXPECT_EQ(8, contiguous_attrs[0].bytes_to_copy);
+    EXPECT_EQ(8 + size_of_string, contiguous_attrs[1].bytes_to_advance);
   }
+
+  // Extra test 1 for merging: three consecutive integer attributes merged into
+  // one copy group.
+  CopyGroupList cg1;
+  dst_store->getCopyGroupsForAttributeMap(
+      { 0, 1, 2, kInvalidCatalogId, kInvalidCatalogId, kInvalidCatalogId },
+      &cg1);
+  cg1.mergeContiguous();
+
+  EXPECT_EQ(1u, cg1.contiguous_attrs.size());
+  EXPECT_EQ(0, cg1.contiguous_attrs[0].src_attr_id);
+  EXPECT_EQ(0u, cg1.contiguous_attrs[0].bytes_to_advance);
+  EXPECT_EQ(12u, cg1.contiguous_attrs[0].bytes_to_copy);
+
+  // Extra test 2 for merging: two consecutive integer attributes a0, a1 followed
+  // by an extra a1 attribute, merged into two copy groups.
+  CopyGroupList cg2;
+  dst_store->getCopyGroupsForAttributeMap(
+      { 0, 1, 1, kInvalidCatalogId, kInvalidCatalogId, kInvalidCatalogId },
+      &cg2);
+  cg2.mergeContiguous();
+
+  EXPECT_EQ(2u, cg2.contiguous_attrs.size());
+  EXPECT_EQ(0, cg2.contiguous_attrs[0].src_attr_id);
+  EXPECT_EQ(0u, cg2.contiguous_attrs[0].bytes_to_advance);
+  EXPECT_EQ(8u, cg2.contiguous_attrs[0].bytes_to_copy);
+  EXPECT_EQ(1, cg2.contiguous_attrs[1].src_attr_id);
+  EXPECT_EQ(8u, cg2.contiguous_attrs[1].bytes_to_advance);
+  EXPECT_EQ(4u, cg2.contiguous_attrs[1].bytes_to_copy);
 }
 
 TEST_P(SplitRowStoreTupleStorageSubBlockTest, BulkInsertWithRemappedAttributesTest) {

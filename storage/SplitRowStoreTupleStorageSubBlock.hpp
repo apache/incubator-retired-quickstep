@@ -46,7 +46,7 @@ class ValueAccessor;
 QUICKSTEP_DECLARE_SUB_BLOCK_TYPE_REGISTERED(SplitRowStoreTupleStorageSubBlock);
 
 namespace splitrow_internal {
-// A CopyGroup contains information about ane run of attributes in the source
+// A CopyGroup contains information about one run of attributes in the source
 // ValueAccessor that can be copied into the output block. The
 // getCopyGroupsForAttributeMap function below takes an attribute map for a source
 // and converts it into a sequence of runs. The goal is to minimize the number
@@ -69,7 +69,7 @@ namespace splitrow_internal {
 // particular source. This occurs during bulkInsertPartialTuples. They must be
 // skipped during the insert (not copied over). They are indicated by a
 // kInvalidCatalogId in the attribute map. For efficiency, the gap size
-// is merged into the bytes_to_advance_ of previous ContiguousAttrs copy group.
+// is merged into the bytes_to_advance of previous ContiguousAttrs copy group.
 // For gaps at the start of the attribute map, we just create a ContiguousAttrs
 // copy group with 0 bytes to copy and dummy (0) source attribute id.
 //
@@ -79,7 +79,7 @@ namespace splitrow_internal {
 // we will create the following ContiguousAttrs copy groups
 //
 //  ----------------------------------------------------
-//  |src_id_      |bytes_to_advance_| bytes_to_copy_   |
+//  |src_id       |bytes_to_advance |bytes_to_copy     |
 //  |-------------|-----------------|------------------|
 //  |            0|                4|                 4|
 //  |            5|                4|                12|
@@ -87,7 +87,7 @@ namespace splitrow_internal {
 //  |            4|                4|                 4|
 //  |            9|                4|                 8|
 //  ----------------------------------------------------
-// and two NullableAttrs with src_attr_id_ set to 4 and 7.
+// and two NullableAttrs with src_attr_id set to 4 and 7.
 //
 // In this example, we do 6 memcpy calls and 6 address calculations
 // as well as 2 bitvector lookups for each tuple. A naive copy algorithm
@@ -98,93 +98,98 @@ namespace splitrow_internal {
 // If the source was a column store, then we can't merge contiguous
 // attributes (or gaps). So we would have 11 ContigousAttrs copy groups with
 // three of them having bytes_to_copy = 0 (corresponding to the gaps) and
-// the rest having bytes_to_copy_ = 4.
+// the rest having bytes_to_copy = 4.
 //
 // SplitRowStore supports variable length attributes. Since the layout of the
 // tuple is like: [null bitmap][fixed length attributes][variable length offsets]
 // we do all the variable length copies after the fixed length copies.
 //
 struct CopyGroup {
-  attribute_id src_attr_id_;  // The attr_id of starting input attribute for run.
-
   explicit CopyGroup(const attribute_id source_attr_id)
-    : src_attr_id_(source_attr_id) {}
+      : src_attr_id(source_attr_id) {}
+
+  // The id of starting input attribute for run.
+  const attribute_id src_attr_id;
 };
 
 struct ContiguousAttrs : public CopyGroup {
-  std::size_t bytes_to_advance_;  // Number of bytes to advance destination ptr
-                                  // to get to the location where we copy THIS attribute.
-  std::size_t bytes_to_copy_;     // Number of bytes to copy from source.
+  ContiguousAttrs(const attribute_id source_attr_id,
+                  const std::size_t bytes_to_copy_in,
+                  const std::size_t bytes_to_advance_in)
+      : CopyGroup(source_attr_id),
+        bytes_to_advance(bytes_to_advance_in),
+        bytes_to_copy(bytes_to_copy_in) {}
 
-  ContiguousAttrs(
-    const attribute_id source_attr_id,
-    const std::size_t bytes_to_copy,
-    const std::size_t bytes_to_advance)
-    : CopyGroup(source_attr_id),
-      bytes_to_advance_(bytes_to_advance),
-      bytes_to_copy_(bytes_to_copy) { }
+  // Number of bytes to advance destination ptr to get to the location where we
+  // copy THIS attribute.
+  std::size_t bytes_to_advance;
+
+  // Number of bytes to copy from source.
+  std::size_t bytes_to_copy;
 };
 
 struct VarLenAttr : public CopyGroup {
-  std::size_t bytes_to_advance_;
-  attribute_id dst_attr_id_;
   VarLenAttr(const attribute_id source_attr_id,
-             const attribute_id dst_attr_id,
-             const std::size_t bytes_to_advance)
-    : CopyGroup(source_attr_id),
-      bytes_to_advance_(bytes_to_advance),
-      dst_attr_id_(dst_attr_id) {}
+             const attribute_id destination_attr_id,
+             const std::size_t bytes_to_advance_in)
+      : CopyGroup(source_attr_id),
+        dst_attr_id(destination_attr_id),
+        bytes_to_advance(bytes_to_advance_in) {}
+
+  const attribute_id dst_attr_id;
+  std::size_t bytes_to_advance;
 };
 
 struct NullableAttr : public CopyGroup {
-  int nullable_attr_idx_;  // index into null bitmap
+  NullableAttr(const attribute_id source_attr_id,
+               const std::size_t nullable_attr_idx_in)
+      : CopyGroup(source_attr_id),
+        nullable_attr_idx(nullable_attr_idx_in) {}
 
-  NullableAttr(attribute_id source_attr_id_,
-               int nullable_attr_idx)
-    : CopyGroup(source_attr_id_),
-      nullable_attr_idx_(nullable_attr_idx) {}
+  // Index into null bitmap.
+  const std::size_t nullable_attr_idx;
 };
 
 struct CopyGroupList {
-  CopyGroupList()
-    : contiguous_attrs_(),
-      nullable_attrs_(),
-      varlen_attrs_() {}
+  CopyGroupList() {}
 
   /**
    * @brief Attributes which are exactly sequential are merged to a single copy.
    */
-  void merge_contiguous() {
-    if (contiguous_attrs_.size() < 2) {
+  void mergeContiguous() {
+    if (contiguous_attrs.size() < 2) {
       return;
     }
 
     int add_to_advance = 0;
-    for (std::size_t idx = 1; idx < contiguous_attrs_.size(); ++idx) {
-      ContiguousAttrs *current_attr = &contiguous_attrs_[idx];
-      ContiguousAttrs *previous_attr = &contiguous_attrs_[idx - 1];
-      if (add_to_advance > 0) {
-        current_attr->bytes_to_advance_ += add_to_advance;
+
+    std::vector<ContiguousAttrs> merged_attrs;
+    merged_attrs.emplace_back(contiguous_attrs.front());
+    for (std::size_t idx = 1; idx < contiguous_attrs.size(); ++idx) {
+      const ContiguousAttrs &current_attr = contiguous_attrs[idx];
+      const ContiguousAttrs &previous_attr = contiguous_attrs[idx - 1];
+
+      if (previous_attr.src_attr_id + 1 == current_attr.src_attr_id &&
+          previous_attr.bytes_to_copy == current_attr.bytes_to_advance) {
+        merged_attrs.back().bytes_to_copy += current_attr.bytes_to_copy;
+        add_to_advance += current_attr.bytes_to_advance;
+      } else {
+        merged_attrs.emplace_back(current_attr.src_attr_id,
+                                  current_attr.bytes_to_copy,
+                                  current_attr.bytes_to_advance + add_to_advance);
         add_to_advance = 0;
       }
-      // The merge step:
-      if (previous_attr->src_attr_id_ + 1 == current_attr->src_attr_id_ &&
-            previous_attr->bytes_to_copy_ == current_attr->bytes_to_advance_) {
-        previous_attr->bytes_to_copy_ += current_attr->bytes_to_copy_;
-        add_to_advance += current_attr->bytes_to_advance_;
-        contiguous_attrs_.erase(contiguous_attrs_.begin() + idx);
-        idx--;
-      }
     }
+    contiguous_attrs = std::move(merged_attrs);
 
-    if (varlen_attrs_.size() > 0) {
-      varlen_attrs_[0].bytes_to_advance_ += add_to_advance;
+    if (varlen_attrs.size() > 0) {
+      varlen_attrs[0].bytes_to_advance += add_to_advance;
     }
   }
 
-  std::vector<ContiguousAttrs> contiguous_attrs_;
-  std::vector<NullableAttr> nullable_attrs_;
-  std::vector<VarLenAttr> varlen_attrs_;
+  std::vector<ContiguousAttrs> contiguous_attrs;
+  std::vector<NullableAttr> nullable_attrs;
+  std::vector<VarLenAttr> varlen_attrs;
 };
 
 }  // namespace splitrow_internal
@@ -368,19 +373,19 @@ class SplitRowStoreTupleStorageSubBlock: public TupleStorageSubBlock {
 
   template<bool copy_nulls, bool copy_varlen, bool fill_to_capacity>
   tuple_id bulkInsertPartialTuplesImpl(
-    const splitrow_internal::CopyGroupList &copy_groups,
-    ValueAccessor *accessor,
-    std::size_t max_num_tuples_to_insert);
+      const splitrow_internal::CopyGroupList &copy_groups,
+      ValueAccessor *accessor,
+      std::size_t max_num_tuples_to_insert);
 
   tuple_id bulkInsertDispatcher(
-    const std::vector<attribute_id> &attribute_map,
-    ValueAccessor *accessor,
-    tuple_id max_num_tuples_to_insert,
-    bool finalize);
+      const std::vector<attribute_id> &attribute_map,
+      ValueAccessor *accessor,
+      tuple_id max_num_tuples_to_insert,
+      bool finalize);
 
   void getCopyGroupsForAttributeMap(
-    const std::vector<attribute_id> &attribute_map,
-    splitrow_internal::CopyGroupList *copy_groups);
+      const std::vector<attribute_id> &attribute_map,
+      splitrow_internal::CopyGroupList *copy_groups);
 
   std::size_t getInsertLowerBound() const;
 
