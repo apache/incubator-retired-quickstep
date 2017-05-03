@@ -51,6 +51,11 @@ DEFINE_uint64(push_down_disjunctive_predicate_cardinality_threshold, 100u,
               "PushDownLowCostDisjunctivePredicate optimization rule to push "
               "down a disjunctive predicate to pre-filter that relation.");
 
+DEFINE_double(push_down_disjunctive_predicate_selectivity_threshold, 0.2,
+              "The estimated selectivity threshold below which the "
+              "PushDownLowCostDisjunctivePredicate optimization rule will push "
+              "down a disjunctive predicate to pre-filter a stored relation.");
+
 namespace E = ::quickstep::optimizer::expressions;
 namespace P = ::quickstep::optimizer::physical;
 
@@ -77,11 +82,7 @@ void PushDownLowCostDisjunctivePredicate::collectApplicablePredicates(
     const physical::PhysicalPtr &input) {
   P::TableReferencePtr table_reference;
   if (P::SomeTableReference::MatchesWithConditionalCast(input, &table_reference)) {
-    // Consider only stored relations with small cardinality as targets.
-    if (cost_model_->estimateCardinality(input) <=
-            FLAGS_push_down_disjunctive_predicate_cardinality_threshold) {
-      applicable_nodes_.emplace_back(input, &table_reference->attribute_list());
-    }
+    applicable_nodes_.emplace_back(input, &table_reference->attribute_list());
     return;
   }
 
@@ -191,11 +192,24 @@ P::PhysicalPtr PushDownLowCostDisjunctivePredicate::attachPredicates(
 
   const auto &node_it = applicable_predicates_.find(input);
   if (node_it != applicable_predicates_.end()) {
-    const E::PredicatePtr filter_predicate =
-        CreateConjunctive(node_it->second.predicates);
-    return P::Selection::Create(output,
-                                E::ToNamedExpressions(output->getOutputAttributes()),
-                                filter_predicate);
+    const P::PhysicalPtr selection =
+        P::Selection::Create(output,
+                             E::ToNamedExpressions(output->getOutputAttributes()),
+                             CreateConjunctive(node_it->second.predicates));
+
+    // Applicable case 1: The stored relation has small cardinality.
+    const bool is_small_cardinality_relation =
+        cost_model_->estimateCardinality(input) <=
+            FLAGS_push_down_disjunctive_predicate_cardinality_threshold;
+
+    // Applicable case 2: The filter predicate has low selectivity.
+    const bool is_selective_predicate =
+        cost_model_->estimateSelectivityForFilterPredicate(selection) <=
+            FLAGS_push_down_disjunctive_predicate_selectivity_threshold;
+
+    if (is_small_cardinality_relation || is_selective_predicate) {
+      return selection;
+    }
   }
 
   return output;
