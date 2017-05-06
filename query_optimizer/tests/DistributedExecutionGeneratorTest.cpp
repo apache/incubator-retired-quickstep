@@ -46,11 +46,6 @@ QUICKSTEP_GENERATE_TEXT_TEST(DISTRIBUTED_EXECUTION_GENERATOR_TEST);
 int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
 
-  // TODO(quickstep-team): Fix JIRA QUICKSTEP-76 for adding LIP filter support
-  // in the distributed version.
-  quickstep::optimizer::FLAGS_use_lip_filters = false;
-  quickstep::optimizer::FLAGS_use_filter_joins = false;
-
   // Honor FLAGS_buffer_pool_slots in StorageManager.
   gflags::ParseCommandLineFlags(&argc, &argv, true);
 

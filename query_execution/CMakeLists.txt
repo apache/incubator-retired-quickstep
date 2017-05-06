@@ -281,6 +281,7 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_storage_StorageBlockInfo
                         quickstep_utility_DAG
                         quickstep_utility_Macros
+                        quickstep_utility_lipfilter_LIPFilter_proto
                         tmb)
 endif(ENABLE_DISTRIBUTED)
 target_link_libraries(quickstep_queryexecution_QueryManagerSingleNode

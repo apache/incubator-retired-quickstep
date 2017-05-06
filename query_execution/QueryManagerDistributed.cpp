@@ -19,9 +19,12 @@
 
 #include "query_execution/QueryManagerDistributed.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdlib>
 #include <memory>
+#include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -34,6 +37,7 @@
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.pb.h"
 #include "utility/DAG.hpp"
+#include "utility/lip_filter/LIPFilter.pb.h"
 
 #include "glog/logging.h"
 
@@ -46,6 +50,7 @@ using std::malloc;
 using std::move;
 using std::size_t;
 using std::unique_ptr;
+using std::unordered_set;
 using std::vector;
 
 namespace quickstep {
@@ -76,6 +81,62 @@ QueryManagerDistributed::QueryManagerDistributed(QueryHandle *query_handle,
   for (int i = 0; i < query_context_proto.join_hash_tables_size(); ++i) {
     shiftboss_indexes_for_hash_joins_.push_back(
         vector<size_t>(query_context_proto.join_hash_tables(i).num_partitions(), kInvalidShiftbossIndex));
+  }
+
+  computeLipFilterEquivalenceClasses(query_context_proto);
+}
+
+void QueryManagerDistributed::computeLipFilterEquivalenceClasses(
+    const serialization::QueryContext &query_context_proto) {
+  static constexpr LipFilterGroupIndex kInvalidLipFilterGroupIndex = static_cast<LipFilterGroupIndex>(-1);
+  lip_filter_groups_indexes_.resize(query_context_proto.lip_filters_size(), kInvalidLipFilterGroupIndex);
+
+  std::unordered_map<LipFilterGroupIndex, std::unordered_set<QueryContext::lip_filter_id>> lip_filter_groups;
+  for (int i = 0; i < query_context_proto.lip_filter_deployments_size(); ++i) {
+    const serialization::LIPFilterDeployment &lip_filter_deployment = query_context_proto.lip_filter_deployments(i);
+
+    unordered_set<QueryContext::lip_filter_id> lip_filter_ids;
+    for (int j = 0; j < lip_filter_deployment.build_entries_size(); ++j) {
+      lip_filter_ids.insert(lip_filter_deployment.build_entries(j).lip_filter_id());
+    }
+
+    for (int j = 0; j < lip_filter_deployment.probe_entries_size(); ++j) {
+      lip_filter_ids.insert(lip_filter_deployment.probe_entries(j).lip_filter_id());
+    }
+
+    LipFilterGroupIndex min_lip_filter_groups_index = kInvalidLipFilterGroupIndex;
+    unordered_set<LipFilterGroupIndex> lip_filter_groups_index_candidates;
+
+    for (const QueryContext::lip_filter_id lip_filter_index : lip_filter_ids) {
+      const LipFilterGroupIndex lip_filter_groups_index = lip_filter_groups_indexes_[lip_filter_index];
+      if (lip_filter_groups_index != kInvalidLipFilterGroupIndex) {
+        if (min_lip_filter_groups_index == kInvalidLipFilterGroupIndex) {
+          min_lip_filter_groups_index = lip_filter_groups_index;
+        } else if (min_lip_filter_groups_index != lip_filter_groups_index) {
+          lip_filter_groups_index_candidates.insert(std::max(lip_filter_groups_index, min_lip_filter_groups_index));
+          min_lip_filter_groups_index = std::min(lip_filter_groups_index, min_lip_filter_groups_index);
+        }
+      }
+    }
+
+    if (min_lip_filter_groups_index == kInvalidLipFilterGroupIndex) {
+      const LipFilterGroupIndex lip_filter_groups_index = lip_filter_groups.size();
+      for (const QueryContext::lip_filter_id lip_filter_index : lip_filter_ids) {
+        lip_filter_groups_indexes_[lip_filter_index] = lip_filter_groups_index;
+      }
+
+      lip_filter_groups.emplace(lip_filter_groups_index, move(lip_filter_ids));
+    } else {
+      for (const QueryContext::lip_filter_id lip_filter_index : lip_filter_ids) {
+        lip_filter_groups_indexes_[lip_filter_index] = min_lip_filter_groups_index;
+      }
+
+      lip_filter_groups[min_lip_filter_groups_index].insert(lip_filter_ids.begin(), lip_filter_ids.end());
+
+      for (const LipFilterGroupIndex lip_filter_groups_index : lip_filter_groups_index_candidates) {
+        lip_filter_groups.erase(lip_filter_groups_index);
+      }
+    }
   }
 }
 

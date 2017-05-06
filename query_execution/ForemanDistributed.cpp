@@ -243,11 +243,17 @@ bool ForemanDistributed::isAggregationRelatedWorkOrder(const S::WorkOrderMessage
                                                        size_t *shiftboss_index_for_aggregation) {
   const S::WorkOrder &work_order_proto = proto.work_order();
   QueryContext::aggregation_state_id aggr_state_index;
+  vector<QueryContext::lip_filter_id> lip_filter_indexes;
   block_id block = kInvalidBlockId;
 
   switch (work_order_proto.work_order_type()) {
     case S::AGGREGATION:
       aggr_state_index = work_order_proto.GetExtension(S::AggregationWorkOrder::aggr_state_index);
+
+      for (int i = 0; i < work_order_proto.ExtensionSize(S::AggregationWorkOrder::lip_filter_indexes); ++i) {
+        lip_filter_indexes.push_back(work_order_proto.GetExtension(S::AggregationWorkOrder::lip_filter_indexes, i));
+      }
+
       block = work_order_proto.GetExtension(S::AggregationWorkOrder::block_id);
       break;
     case S::FINALIZE_AGGREGATION:
@@ -261,8 +267,8 @@ bool ForemanDistributed::isAggregationRelatedWorkOrder(const S::WorkOrderMessage
   }
 
   static_cast<PolicyEnforcerDistributed*>(policy_enforcer_.get())->getShiftbossIndexForAggregation(
-      proto.query_id(), aggr_state_index, block_locator_, block, next_shiftboss_index_to_schedule,
-      shiftboss_index_for_aggregation);
+      proto.query_id(), aggr_state_index, lip_filter_indexes, block_locator_, block,
+      next_shiftboss_index_to_schedule, shiftboss_index_for_aggregation);
 
   return true;
 }
@@ -273,12 +279,18 @@ bool ForemanDistributed::isHashJoinRelatedWorkOrder(const S::WorkOrderMessage &p
   const S::WorkOrder &work_order_proto = proto.work_order();
   QueryContext::join_hash_table_id join_hash_table_index;
   partition_id part_id;
+  vector<QueryContext::lip_filter_id> lip_filter_indexes;
   block_id block = kInvalidBlockId;
 
   switch (work_order_proto.work_order_type()) {
     case S::BUILD_HASH:
       join_hash_table_index = work_order_proto.GetExtension(S::BuildHashWorkOrder::join_hash_table_index);
       part_id = work_order_proto.GetExtension(S::BuildHashWorkOrder::partition_id);
+
+      for (int i = 0; i < work_order_proto.ExtensionSize(S::BuildHashWorkOrder::lip_filter_indexes); ++i) {
+        lip_filter_indexes.push_back(work_order_proto.GetExtension(S::BuildHashWorkOrder::lip_filter_indexes, i));
+      }
+
       block = work_order_proto.GetExtension(S::BuildHashWorkOrder::block_id);
       break;
     case S::HASH_JOIN:
@@ -294,8 +306,39 @@ bool ForemanDistributed::isHashJoinRelatedWorkOrder(const S::WorkOrderMessage &p
   }
 
   static_cast<PolicyEnforcerDistributed*>(policy_enforcer_.get())->getShiftbossIndexForHashJoin(
-      proto.query_id(), join_hash_table_index, part_id, block_locator_, block, next_shiftboss_index_to_schedule,
-      shiftboss_index_for_hash_join);
+      proto.query_id(), join_hash_table_index, part_id, lip_filter_indexes, block_locator_, block,
+      next_shiftboss_index_to_schedule, shiftboss_index_for_hash_join);
+
+  return true;
+}
+
+bool ForemanDistributed::isLipRelatedWorkOrder(const S::WorkOrderMessage &proto,
+                                               const size_t next_shiftboss_index_to_schedule,
+                                               size_t *shiftboss_index_for_lip) {
+  const S::WorkOrder &work_order_proto = proto.work_order();
+  vector<QueryContext::lip_filter_id> lip_filter_indexes;
+  block_id block = kInvalidBlockId;
+
+  switch (work_order_proto.work_order_type()) {
+    case S::BUILD_LIP_FILTER:
+      for (int i = 0; i < work_order_proto.ExtensionSize(S::BuildLIPFilterWorkOrder::lip_filter_indexes); ++i) {
+        lip_filter_indexes.push_back(work_order_proto.GetExtension(S::BuildLIPFilterWorkOrder::lip_filter_indexes, i));
+      }
+      block = work_order_proto.GetExtension(S::BuildLIPFilterWorkOrder::build_block_id);
+      break;
+    case S::SELECT:
+      for (int i = 0; i < work_order_proto.ExtensionSize(S::SelectWorkOrder::lip_filter_indexes); ++i) {
+        lip_filter_indexes.push_back(work_order_proto.GetExtension(S::SelectWorkOrder::lip_filter_indexes, i));
+      }
+      block = work_order_proto.GetExtension(S::SelectWorkOrder::block_id);
+      break;
+    default:
+      return false;
+  }
+
+  static_cast<PolicyEnforcerDistributed*>(policy_enforcer_.get())->getShiftbossIndexForLip(
+      proto.query_id(), lip_filter_indexes, block_locator_, block, next_shiftboss_index_to_schedule,
+      shiftboss_index_for_lip);
 
   return true;
 }
@@ -329,10 +372,6 @@ bool hasBlockLocalityInfo(const serialization::WorkOrder &work_order_proto,
       block = work_order_proto.GetExtension(S::SaveBlocksWorkOrder::block_id);
       break;
     }
-    case S::SELECT: {
-      block = work_order_proto.GetExtension(S::SelectWorkOrder::block_id);
-      break;
-    }
     case S::SORT_RUN_GENERATION: {
       block = work_order_proto.GetExtension(S::SortRunGenerationWorkOrder::block_id);
       break;
@@ -359,6 +398,7 @@ void ForemanDistributed::dispatchWorkOrderMessages(const vector<unique_ptr<S::Wo
     if (policy_enforcer_dist->isSingleNodeQuery(proto.query_id())) {
       // Always schedule the single-node query to the same Shiftboss.
       shiftboss_index_for_particular_work_order_type = kDefaultShiftbossIndex;
+    } else if (isLipRelatedWorkOrder(proto, shiftboss_index, &shiftboss_index_for_particular_work_order_type)) {
     } else if (isAggregationRelatedWorkOrder(proto, shiftboss_index, &shiftboss_index_for_particular_work_order_type)) {
     } else if (isHashJoinRelatedWorkOrder(proto, shiftboss_index, &shiftboss_index_for_particular_work_order_type)) {
     } else if (hasBlockLocalityInfo(work_order_proto, block_locator_,

@@ -388,6 +388,10 @@ serialization::WorkOrder* HashJoinOperator::createNonOuterJoinWorkOrderProto(
   proto->SetExtension(serialization::HashJoinWorkOrder::residual_predicate_index, residual_predicate_index_);
   proto->SetExtension(serialization::HashJoinWorkOrder::lip_deployment_index, lip_deployment_index_);
 
+  for (const QueryContext::lip_filter_id lip_filter_index : lip_filter_indexes_) {
+    proto->AddExtension(serialization::HashJoinWorkOrder::lip_filter_indexes, lip_filter_index);
+  }
+
   return proto;
 }
 
@@ -445,6 +449,10 @@ serialization::WorkOrder* HashJoinOperator::createOuterJoinWorkOrderProto(const 
   proto->SetExtension(serialization::HashJoinWorkOrder::block_id, block);
   proto->SetExtension(serialization::HashJoinWorkOrder::partition_id, part_id);
   proto->SetExtension(serialization::HashJoinWorkOrder::lip_deployment_index, lip_deployment_index_);
+
+  for (const QueryContext::lip_filter_id lip_filter_index : lip_filter_indexes_) {
+    proto->AddExtension(serialization::HashJoinWorkOrder::lip_filter_indexes, lip_filter_index);
+  }
 
   for (const bool is_attribute_on_build : is_selection_on_build_) {
     proto->AddExtension(serialization::HashJoinWorkOrder::is_selection_on_build, is_attribute_on_build);

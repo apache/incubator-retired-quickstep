@@ -98,6 +98,10 @@ serialization::WorkOrder* AggregationOperator::createWorkOrderProto(const block_
   proto->SetExtension(serialization::AggregationWorkOrder::aggr_state_index, aggr_state_index_);
   proto->SetExtension(serialization::AggregationWorkOrder::lip_deployment_index, lip_deployment_index_);
 
+  for (const QueryContext::lip_filter_id lip_filter_index : lip_filter_indexes_) {
+    proto->AddExtension(serialization::AggregationWorkOrder::lip_filter_indexes, lip_filter_index);
+  }
+
   return proto;
 }
 

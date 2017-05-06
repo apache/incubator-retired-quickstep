@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -274,8 +275,10 @@ class RelationalOperator {
   /**
    * @brief Deploy a group of LIPFilters to this operator.
    */
-  void deployLIPFilters(const QueryContext::lip_deployment_id lip_deployment_index) {
+  void deployLIPFilters(const QueryContext::lip_deployment_id lip_deployment_index,
+                        const std::unordered_set<QueryContext::lip_filter_id> &lip_filter_indexes) {
     lip_deployment_index_ = lip_deployment_index;
+    lip_filter_indexes_ = lip_filter_indexes;
   }
 
  protected:
@@ -300,6 +303,7 @@ class RelationalOperator {
   std::size_t op_index_;
 
   QueryContext::lip_deployment_id lip_deployment_index_;
+  std::unordered_set<QueryContext::lip_filter_id> lip_filter_indexes_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(RelationalOperator);

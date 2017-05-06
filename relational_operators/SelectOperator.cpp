@@ -150,6 +150,10 @@ serialization::WorkOrder* SelectOperator::createWorkOrderProto(const block_id bl
   proto->SetExtension(serialization::SelectWorkOrder::selection_index, selection_index_);
   proto->SetExtension(serialization::SelectWorkOrder::lip_deployment_index, lip_deployment_index_);
 
+  for (const QueryContext::lip_filter_id lip_filter_index : lip_filter_indexes_) {
+    proto->AddExtension(serialization::SelectWorkOrder::lip_filter_indexes, lip_filter_index);
+  }
+
   return proto;
 }
 

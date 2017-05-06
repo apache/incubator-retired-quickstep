@@ -192,6 +192,7 @@ void PolicyEnforcerDistributed::processInitiateRebuildResponseMessage(const tmb:
 void PolicyEnforcerDistributed::getShiftbossIndexForAggregation(
     const std::size_t query_id,
     const QueryContext::aggregation_state_id aggr_state_index,
+    const vector<QueryContext::lip_filter_id> &lip_filter_indexes,
     const BlockLocator &block_locator,
     const block_id block,
     const std::size_t next_shiftboss_index_to_schedule,
@@ -199,6 +200,7 @@ void PolicyEnforcerDistributed::getShiftbossIndexForAggregation(
   DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
   QueryManagerDistributed *query_manager = static_cast<QueryManagerDistributed*>(admitted_queries_[query_id].get());
   query_manager->getShiftbossIndexForAggregation(aggr_state_index,
+                                                 lip_filter_indexes,
                                                  block_locator,
                                                  block,
                                                  next_shiftboss_index_to_schedule,
@@ -209,6 +211,7 @@ void PolicyEnforcerDistributed::getShiftbossIndexForHashJoin(
     const std::size_t query_id,
     const QueryContext::join_hash_table_id join_hash_table_index,
     const partition_id part_id,
+    const vector<QueryContext::lip_filter_id> &lip_filter_indexes,
     const BlockLocator &block_locator,
     const block_id block,
     const std::size_t next_shiftboss_index_to_schedule,
@@ -217,10 +220,27 @@ void PolicyEnforcerDistributed::getShiftbossIndexForHashJoin(
   QueryManagerDistributed *query_manager = static_cast<QueryManagerDistributed*>(admitted_queries_[query_id].get());
   query_manager->getShiftbossIndexForHashJoin(join_hash_table_index,
                                               part_id,
+                                              lip_filter_indexes,
                                               block_locator,
                                               block,
                                               next_shiftboss_index_to_schedule,
                                               shiftboss_index);
+}
+
+void PolicyEnforcerDistributed::getShiftbossIndexForLip(
+    const std::size_t query_id,
+    const vector<QueryContext::lip_filter_id> &lip_filter_indexes,
+    const BlockLocator &block_locator,
+    const block_id block,
+    const std::size_t next_shiftboss_index_to_schedule,
+    std::size_t *shiftboss_index) {
+  DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
+  QueryManagerDistributed *query_manager = static_cast<QueryManagerDistributed*>(admitted_queries_[query_id].get());
+  query_manager->getShiftbossIndexForLip(lip_filter_indexes,
+                                         block_locator,
+                                         block,
+                                         next_shiftboss_index_to_schedule,
+                                         shiftboss_index);
 }
 
 void PolicyEnforcerDistributed::initiateQueryInShiftboss(QueryHandle *query_handle) {

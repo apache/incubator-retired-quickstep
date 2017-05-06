@@ -120,6 +120,10 @@ serialization::WorkOrder* BuildLIPFilterOperator::createWorkOrderProto(const blo
                       build_side_predicate_index_);
   proto->SetExtension(serialization::BuildLIPFilterWorkOrder::lip_deployment_index, lip_deployment_index_);
 
+  for (const QueryContext::lip_filter_id lip_filter_index : lip_filter_indexes_) {
+    proto->AddExtension(serialization::BuildLIPFilterWorkOrder::lip_filter_indexes, lip_filter_index);
+  }
+
   return proto;
 }
 

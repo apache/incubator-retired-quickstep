@@ -147,6 +147,10 @@ serialization::WorkOrder* BuildHashOperator::createWorkOrderProto(const block_id
   proto->SetExtension(serialization::BuildHashWorkOrder::block_id, block);
   proto->SetExtension(serialization::BuildHashWorkOrder::lip_deployment_index, lip_deployment_index_);
 
+  for (const QueryContext::lip_filter_id lip_filter_index : lip_filter_indexes_) {
+    proto->AddExtension(serialization::BuildHashWorkOrder::lip_filter_indexes, lip_filter_index);
+  }
+
   return proto;
 }
 

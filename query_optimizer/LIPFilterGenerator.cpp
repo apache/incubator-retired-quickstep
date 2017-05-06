@@ -21,6 +21,7 @@
 
 #include <map>
 #include <memory>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -33,6 +34,8 @@
 #include "utility/lip_filter/LIPFilter.pb.h"
 
 #include "glog/logging.h"
+
+using std::unordered_set;
 
 namespace quickstep {
 namespace optimizer {
@@ -100,7 +103,19 @@ void LIPFilterGenerator::deployLIPFilters(QueryPlan *execution_plan,
   for (const auto &entry : lip_filter_deployment_protos_) {
     RelationalOperator *relop =
         execution_plan->getQueryPlanDAGMutable()->getNodePayloadMutable(entry.first);
-    relop->deployLIPFilters(entry.second.first);
+
+    const auto &lip_filter_deployment_proto_pair = entry.second;
+    unordered_set<QueryContext::lip_filter_id> lip_filter_indexes;
+    const serialization::LIPFilterDeployment &lip_filter_deployment_proto =
+        *(lip_filter_deployment_proto_pair.second);
+    for (int i = 0; i < lip_filter_deployment_proto.build_entries_size(); ++i) {
+      lip_filter_indexes.insert(lip_filter_deployment_proto.build_entries(i).lip_filter_id());
+    }
+    for (int i = 0; i < lip_filter_deployment_proto.probe_entries_size(); ++i) {
+      lip_filter_indexes.insert(lip_filter_deployment_proto.probe_entries(i).lip_filter_id());
+    }
+
+    relop->deployLIPFilters(lip_filter_deployment_proto_pair.first, lip_filter_indexes);
   }
 }
 

@@ -21,7 +21,9 @@
 #define QUICKSTEP_QUERY_EXECUTION_QUERY_MANAGER_DISTRIBUTED_HPP_
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <unordered_map>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -98,36 +100,43 @@ class QueryManagerDistributed final : public QueryManagerBase {
 
   /**
    * @brief Get the index of Shiftboss for an Aggregation related WorkOrder. If
-   * the Shiftboss index is not found, set using the block locality if found,
-   * otherwise <next_shiftboss_index_to_schedule>.
+   * the Shiftboss index is not found, set using <lip_filter_indexes> locality
+   * or the block locality if found, otherwise
+   * <next_shiftboss_index_to_schedule>.
    *
    * @param aggr_state_index The Hash Table for the Aggregation.
+   * @param lip_filter_indexes The LIP filter indexes.
    * @param block_locator The BlockLocator to use.
    * @param block The block id to feed BlockLocator for the locality info.
    * @param next_shiftboss_index The index of Shiftboss to schedule a next WorkOrder.
    * @param shiftboss_index The index of Shiftboss to schedule the WorkOrder.
    **/
   void getShiftbossIndexForAggregation(const QueryContext::aggregation_state_id aggr_state_index,
+                                       const std::vector<QueryContext::lip_filter_id> &lip_filter_indexes,
                                        const BlockLocator &block_locator,
                                        const block_id block,
                                        const std::size_t next_shiftboss_index_to_schedule,
                                        std::size_t *shiftboss_index) {
     DCHECK_LT(aggr_state_index, shiftboss_indexes_for_aggrs_.size());
-    if (shiftboss_indexes_for_aggrs_[aggr_state_index] == kInvalidShiftbossIndex &&
-        !block_locator.getBlockLocalityInfo(block, &shiftboss_indexes_for_aggrs_[aggr_state_index])) {
-      shiftboss_indexes_for_aggrs_[aggr_state_index] = next_shiftboss_index_to_schedule;
+    if (shiftboss_indexes_for_aggrs_[aggr_state_index] != kInvalidShiftbossIndex) {
+      *shiftboss_index = shiftboss_indexes_for_aggrs_[aggr_state_index];
+      return;
     }
 
-    *shiftboss_index = shiftboss_indexes_for_aggrs_[aggr_state_index];
+    getShiftbossIndexForLip(lip_filter_indexes, block_locator, block, next_shiftboss_index_to_schedule,
+                            shiftboss_index);
+
+    shiftboss_indexes_for_aggrs_[aggr_state_index] = *shiftboss_index;
   }
 
   /**
    * @brief Get the index of Shiftboss for a HashJoin related WorkOrder. If the
-   * Shiftboss index is not found, set using the block locality if found,
-   * otherwise <next_shiftboss_index_to_schedule>.
+   * Shiftboss index is not found, set using <lip_filter_indexes> locality or
+   * the block locality if found, otherwise <next_shiftboss_index_to_schedule>.
    *
    * @param join_hash_table_index The Hash Table for the Join.
    * @param part_id The partition ID.
+   * @param lip_filter_indexes The LIP filter indexes.
    * @param block_locator The BlockLocator to use.
    * @param block The block id to feed BlockLocator for the locality info.
    * @param next_shiftboss_index The index of Shiftboss to schedule a next WorkOrder.
@@ -135,6 +144,7 @@ class QueryManagerDistributed final : public QueryManagerBase {
    **/
   void getShiftbossIndexForHashJoin(const QueryContext::join_hash_table_id join_hash_table_index,
                                     const partition_id part_id,
+                                    const std::vector<QueryContext::lip_filter_id> &lip_filter_indexes,
                                     const BlockLocator &block_locator,
                                     const block_id block,
                                     const std::size_t next_shiftboss_index_to_schedule,
@@ -142,13 +152,47 @@ class QueryManagerDistributed final : public QueryManagerBase {
     DCHECK_LT(join_hash_table_index, shiftboss_indexes_for_hash_joins_.size());
     DCHECK_LT(part_id, shiftboss_indexes_for_hash_joins_[join_hash_table_index].size());
 
-    if (shiftboss_indexes_for_hash_joins_[join_hash_table_index][part_id] == kInvalidShiftbossIndex &&
-        !block_locator.getBlockLocalityInfo(block,
-                                            &shiftboss_indexes_for_hash_joins_[join_hash_table_index][part_id])) {
-      shiftboss_indexes_for_hash_joins_[join_hash_table_index][part_id] = next_shiftboss_index_to_schedule;
+    if (shiftboss_indexes_for_hash_joins_[join_hash_table_index][part_id] != kInvalidShiftbossIndex) {
+      *shiftboss_index = shiftboss_indexes_for_hash_joins_[join_hash_table_index][part_id];
+      return;
     }
 
-    *shiftboss_index = shiftboss_indexes_for_hash_joins_[join_hash_table_index][part_id];
+    getShiftbossIndexForLip(lip_filter_indexes, block_locator, block, next_shiftboss_index_to_schedule,
+                            shiftboss_index);
+
+    shiftboss_indexes_for_hash_joins_[join_hash_table_index][part_id] = *shiftboss_index;
+  }
+
+  /**
+   * @brief Get the index of Shiftboss for a LIP related WorkOrder. If the
+   * Shiftboss index is not found, set using the block locality if found,
+   * otherwise <next_shiftboss_index_to_schedule>.
+   *
+   * @param lip_filter_indexes The LIP filter indexes.
+   * @param block_locator The BlockLocator to use.
+   * @param block The block id to feed BlockLocator for the locality info.
+   * @param next_shiftboss_index The index of Shiftboss to schedule a next WorkOrder.
+   * @param shiftboss_index The index of Shiftboss to schedule the WorkOrder.
+   **/
+  void getShiftbossIndexForLip(const std::vector<QueryContext::lip_filter_id> &lip_filter_indexes,
+                               const BlockLocator &block_locator,
+                               const block_id block,
+                               const std::size_t next_shiftboss_index_to_schedule,
+                               std::size_t *shiftboss_index) {
+    if (!lip_filter_indexes.empty() &&
+        shiftboss_indexes_for_lip_filter_groups_[lip_filter_groups_indexes_[lip_filter_indexes.front()]]
+            != kInvalidShiftbossIndex) {
+      *shiftboss_index =
+          shiftboss_indexes_for_lip_filter_groups_[lip_filter_groups_indexes_[lip_filter_indexes.front()]];
+      return;
+    } else if (!block_locator.getBlockLocalityInfo(block, shiftboss_index)) {
+      *shiftboss_index = next_shiftboss_index_to_schedule;
+    }
+
+    if (!lip_filter_indexes.empty()) {
+      shiftboss_indexes_for_lip_filter_groups_[lip_filter_groups_indexes_[lip_filter_indexes.front()]] =
+          *shiftboss_index;
+    }
   }
 
  private:
@@ -165,6 +209,8 @@ class QueryManagerDistributed final : public QueryManagerBase {
     return query_exec_state_->hasRebuildInitiated(index) &&
            query_exec_state_->hasRebuildFinished(index, num_shiftbosses_);
   }
+
+  void computeLipFilterEquivalenceClasses(const serialization::QueryContext &query_context_proto);
 
   const tmb::client_id foreman_client_id_;
 
@@ -183,6 +229,15 @@ class QueryManagerDistributed final : public QueryManagerBase {
   // Get the scheduled Shiftboss index given
   // [QueryContext::join_hash_table_id][partition_id].
   std::vector<std::vector<std::size_t>> shiftboss_indexes_for_hash_joins_;
+
+  typedef std::int64_t LipFilterGroupIndex;
+
+  // From an LIP id (QueryContext::lip_filter_id) to its index of the group that
+  // is used in the same LIPFilterDeployment.
+  std::vector<LipFilterGroupIndex> lip_filter_groups_indexes_;
+
+  // From a LipFilterGroupIndex to its scheduled Shiftboss index.
+  std::unordered_map<LipFilterGroupIndex, std::size_t> shiftboss_indexes_for_lip_filter_groups_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryManagerDistributed);
 };
