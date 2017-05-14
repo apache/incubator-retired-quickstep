@@ -128,15 +128,16 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           CreateLIPFilterBuilderHelper(lip_deployment_index, query_context));
     }
     case serialization::BUILD_HASH: {
-      LOG(INFO) << "Creating BuildHashWorkOrder for Query " << proto.query_id() << " in Shiftboss " << shiftboss_index;
+      const partition_id part_id =
+          proto.GetExtension(serialization::BuildHashWorkOrder::partition_id);
+
+      LOG(INFO) << "Creating BuildHashWorkOrder (Partition " << part_id << ") for Query " << proto.query_id()
+                << " in Shiftboss " << shiftboss_index;
       vector<attribute_id> join_key_attributes;
       for (int i = 0; i < proto.ExtensionSize(serialization::BuildHashWorkOrder::join_key_attributes); ++i) {
         join_key_attributes.push_back(
             proto.GetExtension(serialization::BuildHashWorkOrder::join_key_attributes, i));
       }
-
-      const partition_id part_id =
-          proto.GetExtension(serialization::BuildHashWorkOrder::partition_id);
 
       return new BuildHashWorkOrder(
           proto.query_id(),
@@ -176,14 +177,16 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           query_context);
     }
     case serialization::DESTROY_HASH: {
-      LOG(INFO) << "Creating DestroyHashWorkOrder for Query " << proto.query_id()
+      const partition_id part_id =
+          proto.GetExtension(serialization::DestroyHashWorkOrder::partition_id);
+
+      LOG(INFO) << "Creating DestroyHashWorkOrder (Partition " << part_id << ") for Query " << proto.query_id()
                 << " in Shiftboss " << shiftboss_index;
       return new DestroyHashWorkOrder(
           proto.query_id(),
           proto.GetExtension(
               serialization::DestroyHashWorkOrder::join_hash_table_index),
-          proto.GetExtension(
-              serialization::DestroyHashWorkOrder::partition_id),
+          part_id,
           query_context);
     }
     case serialization::DROP_TABLE: {
@@ -265,7 +268,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
 
       switch (hash_join_work_order_type) {
         case serialization::HashJoinWorkOrder::HASH_ANTI_JOIN: {
-          LOG(INFO) << "Creating HashAntiJoinWorkOrder for Query " << proto.query_id()
+          LOG(INFO) << "Creating HashAntiJoinWorkOrder (Partition " << part_id << ") for Query " << proto.query_id()
                     << " in Shiftboss " << shiftboss_index;
           return new HashAntiJoinWorkOrder(
               proto.query_id(),
@@ -283,7 +286,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               lip_filter_adaptive_prober);
         }
         case serialization::HashJoinWorkOrder::HASH_INNER_JOIN: {
-          LOG(INFO) << "Creating HashInnerJoinWorkOrder for Query " << proto.query_id()
+          LOG(INFO) << "Creating HashInnerJoinWorkOrder (Partition " << part_id << ") for Query " << proto.query_id()
                     << " in Shiftboss " << shiftboss_index;
           return new HashInnerJoinWorkOrder(
               proto.query_id(),
@@ -309,7 +312,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
                 proto.GetExtension(serialization::HashJoinWorkOrder::is_selection_on_build, i));
           }
 
-          LOG(INFO) << "Creating HashOuterJoinWorkOrder for Query " << proto.query_id()
+          LOG(INFO) << "Creating HashOuterJoinWorkOrder (Partition " << part_id << ") for Query " << proto.query_id()
                     << " in Shiftboss " << shiftboss_index;
           return new HashOuterJoinWorkOrder(
               proto.query_id(),
@@ -327,7 +330,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               lip_filter_adaptive_prober);
         }
         case serialization::HashJoinWorkOrder::HASH_SEMI_JOIN: {
-          LOG(INFO) << "Creating HashSemiJoinWorkOrder for Query " << proto.query_id()
+          LOG(INFO) << "Creating HashSemiJoinWorkOrder (Partition " << part_id << ") for Query " << proto.query_id()
                     << " in Shiftboss " << shiftboss_index;
           return new HashSemiJoinWorkOrder(
               proto.query_id(),
