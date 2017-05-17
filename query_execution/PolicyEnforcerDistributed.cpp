@@ -112,11 +112,11 @@ void PolicyEnforcerDistributed::getWorkOrderProtoMessages(
     DCHECK(curr_query_manager != nullptr);
     std::size_t messages_collected_curr_query = 0;
     while (messages_collected_curr_query < per_query_share) {
-      S::WorkOrderMessage *next_work_order_message =
-          static_cast<QueryManagerDistributed*>(curr_query_manager)->getNextWorkOrderMessage(0);
-      if (next_work_order_message != nullptr) {
+      unique_ptr<S::WorkOrderMessage> next_work_order_message(
+          static_cast<QueryManagerDistributed*>(curr_query_manager)->getNextWorkOrderMessage());
+      if (next_work_order_message) {
         ++messages_collected_curr_query;
-        work_order_proto_messages->push_back(unique_ptr<S::WorkOrderMessage>(next_work_order_message));
+        work_order_proto_messages->push_back(move(next_work_order_message));
       } else {
         // No more work ordes from the current query at this time.
         // Check if the query's execution is over.

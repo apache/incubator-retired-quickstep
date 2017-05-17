@@ -79,19 +79,15 @@ QueryManagerDistributed::QueryManagerDistributed(QueryHandle *query_handle,
   }
 }
 
-serialization::WorkOrderMessage* QueryManagerDistributed::getNextWorkOrderMessage(
-    const dag_node_index start_operator_index) {
+serialization::WorkOrderMessage* QueryManagerDistributed::getNextWorkOrderMessage() {
   // Default policy: Operator with lowest index first.
-  size_t num_operators_checked = 0;
-  for (dag_node_index index = start_operator_index;
-       num_operators_checked < num_operators_in_dag_;
-       index = (index + 1) % num_operators_in_dag_, ++num_operators_checked) {
+  for (dag_node_index index = 0u; index < num_operators_in_dag_; ++index) {
     if (query_exec_state_->hasExecutionFinished(index)) {
       continue;
     }
     unique_ptr<serialization::WorkOrder> work_order_proto(
         normal_workorder_protos_container_->getWorkOrderProto(index));
-    if (work_order_proto != nullptr) {
+    if (work_order_proto) {
       query_exec_state_->incrementNumQueuedWorkOrders(index);
 
       unique_ptr<serialization::WorkOrderMessage> message_proto(new serialization::WorkOrderMessage);

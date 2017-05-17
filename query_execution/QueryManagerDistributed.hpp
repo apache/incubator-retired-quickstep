@@ -91,14 +91,10 @@ class QueryManagerDistributed final : public QueryManagerBase {
    * @brief Get the next normal workorder to be excuted, wrapped in a
    *        WorkOrderMessage proto.
    *
-   * @param start_operator_index Begin the search for the schedulable WorkOrder
-   *        with the operator at this index.
-   *
    * @return A pointer to the WorkOrderMessage proto. If there is no WorkOrder
    *         to be executed, return NULL.
    **/
-  serialization::WorkOrderMessage* getNextWorkOrderMessage(
-      const dag_node_index start_operator_index);
+  serialization::WorkOrderMessage* getNextWorkOrderMessage();
 
   /**
    * @brief Get the index of Shiftboss for an Aggregation related WorkOrder. If
