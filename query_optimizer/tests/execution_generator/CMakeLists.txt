@@ -75,6 +75,11 @@ add_test(quickstep_queryoptimizer_tests_executiongenerator_tablegenerator
          "${CMAKE_CURRENT_SOURCE_DIR}/TableGenerator.test"
          "${CMAKE_CURRENT_BINARY_DIR}/TableGenerator.test"
          "${CMAKE_CURRENT_BINARY_DIR}/TableGenerator/")
+add_test(quickstep_queryoptimizer_tests_executiongenerator_union
+         "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/Union.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Union.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Union/")
 add_test(quickstep_queryoptimizer_tests_executiongenerator_update
          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Update.test"
@@ -142,6 +147,7 @@ if (ENABLE_DISTRIBUTED)
            "${CMAKE_CURRENT_SOURCE_DIR}/TableGenerator.test"
            "${CMAKE_CURRENT_BINARY_DIR}/TableGeneratorDistributed.test"
            "${CMAKE_CURRENT_BINARY_DIR}/TableGeneratorDistributed/")
+  # No union test for the distributed version due to its nondeterminism.
   add_test(quickstep_queryoptimizer_tests_executiongenerator_update_distributed
            "../quickstep_queryoptimizer_tests_DistributedExecutionGeneratorTest"
            "${CMAKE_CURRENT_SOURCE_DIR}/Update.test"
@@ -163,6 +169,7 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Partition)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Select)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/StringPatternMatching)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/TableGenerator)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Union)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Update)
 
 if (ENABLE_DISTRIBUTED)
