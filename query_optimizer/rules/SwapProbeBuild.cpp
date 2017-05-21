@@ -34,6 +34,10 @@
 namespace quickstep {
 namespace optimizer {
 
+namespace C = cost;
+namespace E = expressions;
+namespace P = physical;
+
 P::PhysicalPtr SwapProbeBuild::applyToNode(const P::PhysicalPtr &input) {
   P::HashJoinPtr hash_join;
 

@@ -36,15 +36,11 @@ namespace optimizer {
  *  @{
  */
 
-namespace P = ::quickstep::optimizer::physical;
-namespace E = ::quickstep::optimizer::expressions;
-namespace C = ::quickstep::optimizer::cost;
-
 /**
  * @brief Rule that applies to a physical plan to arrange probe and
  *        build side based on the cardinalities.
  */
-class SwapProbeBuild : public BottomUpRule<P::Physical> {
+class SwapProbeBuild : public BottomUpRule<physical::Physical> {
  public:
   SwapProbeBuild() {
   }
@@ -52,11 +48,11 @@ class SwapProbeBuild : public BottomUpRule<P::Physical> {
   std::string getName() const override { return "SwapProbeBuild"; }
 
  protected:
-  P::PhysicalPtr applyToNode(const P::PhysicalPtr &input) override;
-  void init(const P::PhysicalPtr &input) override;
+  physical::PhysicalPtr applyToNode(const physical::PhysicalPtr &input) override;
+  void init(const physical::PhysicalPtr &input) override;
 
  private:
-  std::unique_ptr<C::SimpleCostModel> cost_model_;
+  std::unique_ptr<cost::SimpleCostModel> cost_model_;
 
   DISALLOW_COPY_AND_ASSIGN(SwapProbeBuild);
 };
