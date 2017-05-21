@@ -109,7 +109,7 @@ target_link_libraries(quickstep_queryoptimizer_rules_ExtractCommonSubexpression
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
                       quickstep_queryoptimizer_physical_Selection
-                      quickstep_queryoptimizer_rules_Rule
+                      quickstep_queryoptimizer_rules_BottomUpRule
                       quickstep_utility_HashError
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_rules_FuseAggregateJoin

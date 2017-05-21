@@ -34,7 +34,7 @@
 #include "query_optimizer/expressions/ExpressionType.hpp"
 #include "query_optimizer/expressions/Scalar.hpp"
 #include "query_optimizer/physical/Physical.hpp"
-#include "query_optimizer/rules/Rule.hpp"
+#include "query_optimizer/rules/BottomUpRule.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -54,7 +54,7 @@ class OptimizerContext;
  *       of the physical passes (e.g. ReuseAggregateExpressions) to be finalized
  *       before this one to maximize optimization opportunities.
  */
-class ExtractCommonSubexpression : public Rule<physical::Physical> {
+class ExtractCommonSubexpression : public BottomUpRule<physical::Physical> {
  public:
   /**
    * @brief Constructor.
@@ -69,11 +69,10 @@ class ExtractCommonSubexpression : public Rule<physical::Physical> {
     return "ExtractCommonSubexpression";
   }
 
-  physical::PhysicalPtr apply(const physical::PhysicalPtr &input) override;
+ protected:
+  physical::PhysicalPtr applyToNode(const physical::PhysicalPtr &input) override;
 
  private:
-  physical::PhysicalPtr applyInternal(const physical::PhysicalPtr &input);
-
   struct ScalarHash {
     inline std::size_t operator()(const expressions::ScalarPtr &scalar) const {
       return scalar->hash();

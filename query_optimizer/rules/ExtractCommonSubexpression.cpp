@@ -66,30 +66,12 @@ ExtractCommonSubexpression::ExtractCommonSubexpression(
   }
 }
 
-P::PhysicalPtr ExtractCommonSubexpression::apply(const P::PhysicalPtr &input) {
-  DCHECK(input->getPhysicalType() == P::PhysicalType::kTopLevelPlan);
-
-  return applyInternal(input);
-}
-
-P::PhysicalPtr ExtractCommonSubexpression::applyInternal(
+P::PhysicalPtr ExtractCommonSubexpression::applyToNode(
     const P::PhysicalPtr &input) {
-  // First process all child nodes.
-  std::vector<P::PhysicalPtr> new_children;
-  for (const auto &child : input->children()) {
-    new_children.emplace_back(applyInternal(child));
-  }
-
-  const P::PhysicalPtr node =
-      new_children == input->children()
-          ? input
-          : input->copyWithNewChildren(new_children);
-
-  // Process expressions of the current node.
-  switch (node->getPhysicalType()) {
+  switch (input->getPhysicalType()) {
     case P::PhysicalType::kAggregate: {
       const P::AggregatePtr aggregate =
-          std::static_pointer_cast<const P::Aggregate>(node);
+          std::static_pointer_cast<const P::Aggregate>(input);
 
       std::vector<E::ExpressionPtr> expressions;
       // Gather grouping expressions and aggregate functions' argument expressions.
@@ -159,7 +141,7 @@ P::PhysicalPtr ExtractCommonSubexpression::applyInternal(
     }
     case P::PhysicalType::kSelection: {
       const P::SelectionPtr selection =
-          std::static_pointer_cast<const P::Selection>(node);
+          std::static_pointer_cast<const P::Selection>(input);
 
       // Transform Selection's project expressions.
       const std::vector<E::NamedExpressionPtr> new_expressions =
@@ -175,7 +157,7 @@ P::PhysicalPtr ExtractCommonSubexpression::applyInternal(
     }
     case P::PhysicalType::kHashJoin: {
       const P::HashJoinPtr hash_join =
-          std::static_pointer_cast<const P::HashJoin>(node);
+          std::static_pointer_cast<const P::HashJoin>(input);
 
       // Transform HashJoin's project expressions.
       const std::vector<E::NamedExpressionPtr> new_expressions =
@@ -195,7 +177,7 @@ P::PhysicalPtr ExtractCommonSubexpression::applyInternal(
     }
     case P::PhysicalType::kNestedLoopsJoin: {
       const P::NestedLoopsJoinPtr nested_loops_join =
-          std::static_pointer_cast<const P::NestedLoopsJoin>(node);
+          std::static_pointer_cast<const P::NestedLoopsJoin>(input);
 
       // Transform NestedLoopsJoin's project expressions.
       const std::vector<E::NamedExpressionPtr> new_expressions =
@@ -214,7 +196,7 @@ P::PhysicalPtr ExtractCommonSubexpression::applyInternal(
       break;
   }
 
-  return node;
+  return input;
 }
 
 std::vector<E::ExpressionPtr> ExtractCommonSubexpression::transformExpressions(
