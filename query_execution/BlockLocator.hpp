@@ -123,6 +123,8 @@ class BlockLocator : public Thread {
    * @return Whether the block locality info has found.
    **/
   bool getBlockLocalityInfo(const block_id block, std::size_t *shiftboss_index_for_block) const {
+    if (block == kInvalidBlockId) { return false; }
+
     const std::unordered_set<block_id_domain> block_domains = getBlockDomains(block);
     if (!block_domains.empty()) {
       // NOTE(zuyu): This lock is held for the rest duration of this call, as the

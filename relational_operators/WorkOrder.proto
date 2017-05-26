@@ -21,7 +21,7 @@ package quickstep.serialization;
 
 import "relational_operators/SortMergeRunOperator.proto";
 
-// Next tag: 25.
+// Next tag: 26.
 enum WorkOrderType {
   AGGREGATION = 1;
   BUILD_AGGREGATION_EXISTENCE_MAP = 23;
@@ -35,6 +35,7 @@ enum WorkOrderType {
   DROP_TABLE = 8;
   FINALIZE_AGGREGATION = 9;
   HASH_JOIN = 10;
+  INITIALIZE_AGGREGATION = 25;
   INSERT = 11;
   NESTED_LOOP_JOIN = 12;
   SAMPLE = 13;
@@ -58,10 +59,12 @@ message WorkOrder {
   extensions 16 to max;
 }
 
+// Next tag: 21.
 message AggregationWorkOrder {
   extend WorkOrder {
     // All required.
     optional uint32 aggr_state_index = 16;
+    optional uint64 partition_id = 20;
     optional fixed64 block_id = 17;
     optional int32 lip_deployment_index = 18;
     repeated uint32 lip_filter_indexes = 19;
@@ -74,6 +77,7 @@ message BuildAggregationExistenceMapWorkOrder {
     optional fixed64 build_block_id = 369;
     optional int32 build_attribute = 370;
     optional uint32 aggr_state_index = 371;
+    optional uint64 partition_id = 372;
   }
 }
 
@@ -118,6 +122,7 @@ message DeleteWorkOrder {
 message DestroyAggregationStateWorkOrder {
   extend WorkOrder {
     optional uint32 aggr_state_index = 352;
+    optional uint64 partition_id = 353;
   }
 }
 
@@ -138,10 +143,13 @@ message DropTableWorkOrder {
   }
 }
 
+// Next tag: 148.
 message FinalizeAggregationWorkOrder {
   extend WorkOrder {
     // All required.
     optional uint32 aggr_state_index = 144;
+    optional uint64 partition_id = 146;
+    optional uint64 state_partition_id = 147;
     optional int32 insert_destination_index = 145;
   }
 }
@@ -175,6 +183,15 @@ message HashJoinWorkOrder {
 
     optional int32 lip_deployment_index = 171;
     repeated uint32 lip_filter_indexes = 173;
+  }
+}
+
+message InitializeAggregationWorkOrder {
+  extend WorkOrder {
+    // All required.
+    optional uint32 aggr_state_index = 400;
+    optional uint64 partition_id = 401;
+    optional uint64 state_partition_id = 402;
   }
 }
 

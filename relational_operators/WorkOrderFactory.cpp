@@ -38,6 +38,7 @@
 #include "relational_operators/DropTableOperator.hpp"
 #include "relational_operators/FinalizeAggregationOperator.hpp"
 #include "relational_operators/HashJoinOperator.hpp"
+#include "relational_operators/InitializeAggregationOperator.hpp"
 #include "relational_operators/InsertOperator.hpp"
 #include "relational_operators/NestedLoopsJoinOperator.hpp"
 #include "relational_operators/SampleOperator.hpp"
@@ -88,18 +89,24 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
 
   switch (proto.work_order_type()) {
     case serialization::AGGREGATION: {
-      LOG(INFO) << "Creating AggregationWorkOrder for Query " << query_id
+      const partition_id part_id =
+          proto.GetExtension(serialization::AggregationWorkOrder::partition_id);
+
+      LOG(INFO) << "Creating AggregationWorkOrder (Partition " << part_id << ") for Query " << query_id
                 << " in Shiftboss " << shiftboss_index;
       return new AggregationWorkOrder(
           query_id,
           proto.GetExtension(serialization::AggregationWorkOrder::block_id),
           query_context->getAggregationState(
-              proto.GetExtension(serialization::AggregationWorkOrder::aggr_state_index)),
+              proto.GetExtension(serialization::AggregationWorkOrder::aggr_state_index), part_id),
           CreateLIPFilterAdaptiveProberHelper(
               proto.GetExtension(serialization::AggregationWorkOrder::lip_deployment_index), query_context));
     }
     case serialization::BUILD_AGGREGATION_EXISTENCE_MAP: {
-      LOG(INFO) << "Creating BuildAggregationExistenceMapWorkOrder for Query " << query_id
+      const partition_id part_id =
+          proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::partition_id);
+
+      LOG(INFO) << "Creating BuildAggregationExistenceMapWorkOrder (Partition " << part_id << ") for Query " << query_id
                 << " in Shiftboss " << shiftboss_index;
 
       return new BuildAggregationExistenceMapWorkOrder(
@@ -109,7 +116,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::build_block_id),
           proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::build_attribute),
           query_context->getAggregationState(
-              proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::aggr_state_index)),
+              proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::aggr_state_index), part_id),
           storage_manager);
     }
     case serialization::BUILD_LIP_FILTER: {
@@ -171,12 +178,16 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           bus);
     }
     case serialization::DESTROY_AGGREGATION_STATE: {
-      LOG(INFO) << "Creating DestroyAggregationStateWorkOrder for Query " << query_id
+      const partition_id part_id =
+          proto.GetExtension(serialization::DestroyAggregationStateWorkOrder::partition_id);
+
+      LOG(INFO) << "Creating DestroyAggregationStateWorkOrder (Partition " << part_id << ") for Query " << query_id
                 << " in Shiftboss " << shiftboss_index;
       return new DestroyAggregationStateWorkOrder(
           query_id,
           proto.GetExtension(
               serialization::DestroyAggregationStateWorkOrder::aggr_state_index),
+          part_id,
           query_context);
     }
     case serialization::DESTROY_HASH: {
@@ -210,15 +221,19 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           catalog_database);
     }
     case serialization::FINALIZE_AGGREGATION: {
-      LOG(INFO) << "Creating FinalizeAggregationWorkOrder for Query " << query_id
+      const partition_id part_id =
+          proto.GetExtension(serialization::FinalizeAggregationWorkOrder::partition_id);
+
+      LOG(INFO) << "Creating FinalizeAggregationWorkOrder (Partition " << part_id << ") for Query " << query_id
                 << " in Shiftboss " << shiftboss_index;
       // TODO(quickstep-team): Handle inner-table partitioning in the distributed
       // setting.
       return new FinalizeAggregationWorkOrder(
           query_id,
-          0uL /* partition_id */,
+          part_id,
+          proto.GetExtension(serialization::FinalizeAggregationWorkOrder::state_partition_id),
           query_context->getAggregationState(proto.GetExtension(
-              serialization::FinalizeAggregationWorkOrder::aggr_state_index)),
+              serialization::FinalizeAggregationWorkOrder::aggr_state_index), part_id),
           query_context->getInsertDestination(
               proto.GetExtension(serialization::FinalizeAggregationWorkOrder::
                                      insert_destination_index)));
@@ -353,6 +368,20 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
         default:
           LOG(FATAL) << "Unknown HashJoinWorkOrder Type in WorkOrderFactory::ReconstructFromProto";
       }
+    }
+    case serialization::INITIALIZE_AGGREGATION: {
+      const partition_id part_id =
+          proto.GetExtension(serialization::InitializeAggregationWorkOrder::partition_id);
+
+      LOG(INFO) << "Creating InitializeAggregationWorkOrder (Partition " << part_id << ") for Query " << query_id
+                << " in Shiftboss " << shiftboss_index;
+      AggregationOperationState *aggr_state =
+          query_context->getAggregationState(
+              proto.GetExtension(serialization::InitializeAggregationWorkOrder::aggr_state_index), part_id);
+      return new InitializeAggregationWorkOrder(query_id,
+                                                proto.GetExtension(
+                                                    serialization::InitializeAggregationWorkOrder::state_partition_id),
+                                                aggr_state);
     }
     case serialization::INSERT: {
       LOG(INFO) << "Creating InsertWorkOrder for Query " << query_id << " in Shiftboss " << shiftboss_index;
@@ -578,8 +607,10 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
 
       return proto.HasExtension(serialization::AggregationWorkOrder::block_id) &&
              proto.HasExtension(serialization::AggregationWorkOrder::aggr_state_index) &&
+             proto.HasExtension(serialization::AggregationWorkOrder::partition_id) &&
              query_context.isValidAggregationStateId(
-                 proto.GetExtension(serialization::AggregationWorkOrder::aggr_state_index));
+                 proto.GetExtension(serialization::AggregationWorkOrder::aggr_state_index),
+                 proto.GetExtension(serialization::AggregationWorkOrder::partition_id));
     }
     case serialization::BUILD_AGGREGATION_EXISTENCE_MAP: {
       if (!proto.HasExtension(serialization::BuildAggregationExistenceMapWorkOrder::relation_id)) {
@@ -601,8 +632,10 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
 
       return proto.HasExtension(serialization::BuildAggregationExistenceMapWorkOrder::build_block_id) &&
              proto.HasExtension(serialization::BuildAggregationExistenceMapWorkOrder::aggr_state_index) &&
+             proto.HasExtension(serialization::BuildAggregationExistenceMapWorkOrder::partition_id) &&
              query_context.isValidAggregationStateId(
-                 proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::aggr_state_index));
+                 proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::aggr_state_index),
+                 proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::partition_id));
     }
     case serialization::BUILD_HASH: {
       if (!proto.HasExtension(serialization::BuildHashWorkOrder::relation_id)) {
@@ -680,8 +713,10 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
     }
     case serialization::DESTROY_AGGREGATION_STATE: {
       return proto.HasExtension(serialization::DestroyAggregationStateWorkOrder::aggr_state_index) &&
+             proto.HasExtension(serialization::DestroyAggregationStateWorkOrder::partition_id) &&
              query_context.isValidAggregationStateId(
-                 proto.GetExtension(serialization::DestroyAggregationStateWorkOrder::aggr_state_index));
+                 proto.GetExtension(serialization::DestroyAggregationStateWorkOrder::aggr_state_index),
+                 proto.GetExtension(serialization::DestroyAggregationStateWorkOrder::partition_id));
     }
     case serialization::DESTROY_HASH: {
       return proto.HasExtension(serialization::DestroyHashWorkOrder::join_hash_table_index) &&
@@ -695,8 +730,11 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
     }
     case serialization::FINALIZE_AGGREGATION: {
       return proto.HasExtension(serialization::FinalizeAggregationWorkOrder::aggr_state_index) &&
+             proto.HasExtension(serialization::FinalizeAggregationWorkOrder::partition_id) &&
              query_context.isValidAggregationStateId(
-                 proto.GetExtension(serialization::FinalizeAggregationWorkOrder::aggr_state_index)) &&
+                 proto.GetExtension(serialization::FinalizeAggregationWorkOrder::aggr_state_index),
+                 proto.GetExtension(serialization::FinalizeAggregationWorkOrder::partition_id)) &&
+             proto.HasExtension(serialization::FinalizeAggregationWorkOrder::state_partition_id) &&
              proto.HasExtension(serialization::FinalizeAggregationWorkOrder::insert_destination_index) &&
              query_context.isValidInsertDestinationId(
                  proto.GetExtension(serialization::FinalizeAggregationWorkOrder::insert_destination_index));
@@ -774,6 +812,14 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
              query_context.isValidScalarGroupId(
                  proto.GetExtension(serialization::HashJoinWorkOrder::selection_index)) &&
              proto.HasExtension(serialization::HashJoinWorkOrder::block_id);
+    }
+    case serialization::INITIALIZE_AGGREGATION: {
+      return proto.HasExtension(serialization::InitializeAggregationWorkOrder::aggr_state_index) &&
+             proto.HasExtension(serialization::InitializeAggregationWorkOrder::partition_id) &&
+             query_context.isValidAggregationStateId(
+                 proto.GetExtension(serialization::InitializeAggregationWorkOrder::aggr_state_index),
+                 proto.GetExtension(serialization::InitializeAggregationWorkOrder::partition_id)) &&
+             proto.HasExtension(serialization::InitializeAggregationWorkOrder::state_partition_id);
     }
     case serialization::INSERT: {
       return proto.HasExtension(serialization::InsertWorkOrder::insert_destination_index) &&

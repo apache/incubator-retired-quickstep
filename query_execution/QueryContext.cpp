@@ -64,10 +64,16 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
       << proto.DebugString();
 
   for (int i = 0; i < proto.aggregation_states_size(); ++i) {
-    aggregation_states_.emplace_back(
-        AggregationOperationState::ReconstructFromProto(proto.aggregation_states(i),
-                                                        database,
-                                                        storage_manager));
+    PartitionedAggregationOperationStates partitioned_aggregation_states;
+    const serialization::QueryContext::AggregationOperationStateContext &aggr_state_context_proto =
+        proto.aggregation_states(i);
+    for (std::uint64_t j = 0; j < aggr_state_context_proto.num_partitions(); ++j) {
+      partitioned_aggregation_states.emplace_back(
+          AggregationOperationState::ReconstructFromProto(aggr_state_context_proto.aggregation_state(),
+                                                          database,
+                                                          storage_manager));
+    }
+    aggregation_states_.push_back(move(partitioned_aggregation_states));
   }
 
   for (int i = 0; i < proto.generator_functions_size(); ++i) {
@@ -167,7 +173,7 @@ QueryContext::QueryContext(const serialization::QueryContext &proto,
 bool QueryContext::ProtoIsValid(const serialization::QueryContext &proto,
                                 const CatalogDatabaseLite &database) {
   for (int i = 0; i < proto.aggregation_states_size(); ++i) {
-    if (!AggregationOperationState::ProtoIsValid(proto.aggregation_states(i), database)) {
+    if (!AggregationOperationState::ProtoIsValid(proto.aggregation_states(i).aggregation_state(), database)) {
       return false;
     }
   }
@@ -293,8 +299,12 @@ std::size_t QueryContext::getAggregationStatesMemoryBytes() const {
   for (std::size_t agg_state_id = 0;
        agg_state_id < aggregation_states_.size();
        ++agg_state_id) {
-    if (aggregation_states_[agg_state_id] != nullptr) {
-      memory += aggregation_states_[agg_state_id]->getMemoryConsumptionBytes();
+    for (std::size_t part_id = 0;
+         part_id < aggregation_states_[agg_state_id].size();
+         ++part_id) {
+      if (aggregation_states_[agg_state_id][part_id] != nullptr) {
+        memory += aggregation_states_[agg_state_id][part_id]->getMemoryConsumptionBytes();
+      }
     }
   }
   return memory;

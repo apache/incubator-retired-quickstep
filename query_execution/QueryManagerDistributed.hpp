@@ -105,6 +105,7 @@ class QueryManagerDistributed final : public QueryManagerBase {
    * <next_shiftboss_index_to_schedule>.
    *
    * @param aggr_state_index The Hash Table for the Aggregation.
+   * @param part_id The partition ID.
    * @param lip_filter_indexes The LIP filter indexes.
    * @param block_locator The BlockLocator to use.
    * @param block The block id to feed BlockLocator for the locality info.
@@ -112,21 +113,24 @@ class QueryManagerDistributed final : public QueryManagerBase {
    * @param shiftboss_index The index of Shiftboss to schedule the WorkOrder.
    **/
   void getShiftbossIndexForAggregation(const QueryContext::aggregation_state_id aggr_state_index,
+                                       const partition_id part_id,
                                        const std::vector<QueryContext::lip_filter_id> &lip_filter_indexes,
                                        const BlockLocator &block_locator,
                                        const block_id block,
                                        const std::size_t next_shiftboss_index_to_schedule,
                                        std::size_t *shiftboss_index) {
     DCHECK_LT(aggr_state_index, shiftboss_indexes_for_aggrs_.size());
-    if (shiftboss_indexes_for_aggrs_[aggr_state_index] != kInvalidShiftbossIndex) {
-      *shiftboss_index = shiftboss_indexes_for_aggrs_[aggr_state_index];
+    DCHECK_LT(part_id, shiftboss_indexes_for_aggrs_[aggr_state_index].size());
+
+    if (shiftboss_indexes_for_aggrs_[aggr_state_index][part_id] != kInvalidShiftbossIndex) {
+      *shiftboss_index = shiftboss_indexes_for_aggrs_[aggr_state_index][part_id];
       return;
     }
 
     getShiftbossIndexForLip(lip_filter_indexes, block_locator, block, next_shiftboss_index_to_schedule,
                             shiftboss_index);
 
-    shiftboss_indexes_for_aggrs_[aggr_state_index] = *shiftboss_index;
+    shiftboss_indexes_for_aggrs_[aggr_state_index][part_id] = *shiftboss_index;
   }
 
   /**
@@ -259,9 +263,9 @@ class QueryManagerDistributed final : public QueryManagerBase {
 
   std::unique_ptr<WorkOrderProtosContainer> normal_workorder_protos_container_;
 
-  // From an aggregation id (QueryContext::aggregation_state_id) to its
-  // scheduled Shiftboss index.
-  std::vector<std::size_t> shiftboss_indexes_for_aggrs_;
+  // Get the scheduled Shiftboss index given
+  // [QueryContext::aggregation_state_id][partition_id].
+  std::vector<std::vector<std::size_t>> shiftboss_indexes_for_aggrs_;
 
   // Get the scheduled Shiftboss index given
   // [QueryContext::join_hash_table_id][partition_id].

@@ -20,11 +20,13 @@
 #ifndef QUICKSTEP_RELATIONAL_OPERATORS_AGGREGATION_OPERATOR_HPP_
 #define QUICKSTEP_RELATIONAL_OPERATORS_AGGREGATION_OPERATOR_HPP_
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/PartitionScheme.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -66,19 +68,34 @@ class AggregationOperator : public RelationalOperator {
    *        is fully available to the operator before it can start generating
    *        workorders.
    * @param aggr_state_index The index of the AggregationState in QueryContext.
+   * @param num_partitions The number of partitions in 'input_relation'. If no
+   *        partitions, it is one.
    **/
   AggregationOperator(const std::size_t query_id,
                       const CatalogRelation &input_relation,
                       bool input_relation_is_stored,
-                      const QueryContext::aggregation_state_id aggr_state_index)
+                      const QueryContext::aggregation_state_id aggr_state_index,
+                      const std::size_t num_partitions)
       : RelationalOperator(query_id),
         input_relation_(input_relation),
         input_relation_is_stored_(input_relation_is_stored),
-        input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
-                                                           : std::vector<block_id>()),
         aggr_state_index_(aggr_state_index),
-        num_workorders_generated_(0),
-        started_(false) {}
+        num_partitions_(num_partitions),
+        input_relation_block_ids_(num_partitions),
+        num_workorders_generated_(num_partitions),
+        started_(false) {
+    if (input_relation_is_stored) {
+      if (input_relation.hasPartitionScheme()) {
+        const PartitionScheme &part_scheme = *input_relation.getPartitionScheme();
+        for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+          input_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
+        }
+      } else {
+        // No partition.
+        input_relation_block_ids_[0] = input_relation.getBlocksSnapshot();
+      }
+    }
+  }
 
   ~AggregationOperator() override {}
 
@@ -104,7 +121,7 @@ class AggregationOperator : public RelationalOperator {
 
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id,
                       const partition_id part_id) override {
-    input_relation_block_ids_.push_back(input_block_id);
+    input_relation_block_ids_[part_id].push_back(input_block_id);
   }
 
  private:
@@ -112,15 +129,18 @@ class AggregationOperator : public RelationalOperator {
    * @brief Create Work Order proto.
    *
    * @param block The block id used in the Work Order.
+   * @param part_id The partition id of 'block'.
    **/
-  serialization::WorkOrder* createWorkOrderProto(const block_id block);
+  serialization::WorkOrder* createWorkOrderProto(const block_id block, const partition_id part_id);
 
   const CatalogRelation &input_relation_;
   const bool input_relation_is_stored_;
-  std::vector<block_id> input_relation_block_ids_;
   const QueryContext::aggregation_state_id aggr_state_index_;
+  const std::size_t num_partitions_;
 
-  std::vector<block_id>::size_type num_workorders_generated_;
+  // The index is the partition id.
+  std::vector<BlocksInPartition> input_relation_block_ids_;
+  std::vector<std::size_t> num_workorders_generated_;
   bool started_;
 
   DISALLOW_COPY_AND_ASSIGN(AggregationOperator);

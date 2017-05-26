@@ -56,11 +56,15 @@ class InitializeAggregationOperator : public RelationalOperator {
    *
    * @param query_id The ID of this query.
    * @param aggr_state_index The index of the AggregationOperationState in QueryContext.
+   * @param num_partitions The number of partitions in 'input_relation'. If no
+   *        partitions, it is one.
    **/
   InitializeAggregationOperator(const std::size_t query_id,
-                                const QueryContext::aggregation_state_id aggr_state_index)
+                                const QueryContext::aggregation_state_id aggr_state_index,
+                                const std::size_t num_partitions)
       : RelationalOperator(query_id),
         aggr_state_index_(aggr_state_index),
+        num_partitions_(num_partitions),
         started_(false) {}
 
   ~InitializeAggregationOperator() override {}
@@ -83,6 +87,7 @@ class InitializeAggregationOperator : public RelationalOperator {
 
  private:
   const QueryContext::aggregation_state_id aggr_state_index_;
+  const std::size_t num_partitions_;
   bool started_;
 
   DISALLOW_COPY_AND_ASSIGN(InitializeAggregationOperator);
@@ -97,14 +102,14 @@ class InitializeAggregationWorkOrder : public WorkOrder {
    * @brief Constructor.
    *
    * @param query_id The ID of the query to which this operator belongs.
-   * @param partition_id The partition ID for which the work order is issued.
+   * @param state_partition_id The partition ID for which the work order is issued.
    * @param state The AggregationOperationState to be initialized.
    */
   InitializeAggregationWorkOrder(const std::size_t query_id,
-                                 const std::size_t partition_id,
+                                 const std::size_t state_partition_id,
                                  AggregationOperationState *state)
       : WorkOrder(query_id),
-        partition_id_(partition_id),
+        state_partition_id_(state_partition_id),
         state_(DCHECK_NOTNULL(state)) {}
 
   ~InitializeAggregationWorkOrder() override {}
@@ -112,7 +117,7 @@ class InitializeAggregationWorkOrder : public WorkOrder {
   void execute() override;
 
  private:
-  const std::size_t partition_id_;
+  const std::size_t state_partition_id_;
 
   AggregationOperationState *state_;
 

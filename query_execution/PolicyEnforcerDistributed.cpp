@@ -192,6 +192,7 @@ void PolicyEnforcerDistributed::processInitiateRebuildResponseMessage(const tmb:
 void PolicyEnforcerDistributed::getShiftbossIndexForAggregation(
     const std::size_t query_id,
     const QueryContext::aggregation_state_id aggr_state_index,
+    const partition_id part_id,
     const vector<QueryContext::lip_filter_id> &lip_filter_indexes,
     const BlockLocator &block_locator,
     const block_id block,
@@ -200,6 +201,7 @@ void PolicyEnforcerDistributed::getShiftbossIndexForAggregation(
   DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
   QueryManagerDistributed *query_manager = static_cast<QueryManagerDistributed*>(admitted_queries_[query_id].get());
   query_manager->getShiftbossIndexForAggregation(aggr_state_index,
+                                                 part_id,
                                                  lip_filter_indexes,
                                                  block_locator,
                                                  block,

@@ -82,6 +82,7 @@ namespace quickstep {
 namespace {
 constexpr std::size_t kQueryId = 0;
 constexpr int kOpIndex = 0;
+constexpr std::size_t kNumPartitions = 1u;
 }  // namespace
 
 class Type;
@@ -234,7 +235,8 @@ class AggregationOperatorTest : public ::testing::Test {
     query_context_proto.set_query_id(0);  // dummy query ID.
 
     const QueryContext::aggregation_state_id aggr_state_index = query_context_proto.aggregation_states_size();
-    serialization::AggregationOperationState *aggr_state_proto = query_context_proto.add_aggregation_states();
+    serialization::AggregationOperationState *aggr_state_proto =
+        query_context_proto.add_aggregation_states()->mutable_aggregation_state();
     aggr_state_proto->set_relation_id(table_->getID());
 
     // Add an aggregate.
@@ -276,7 +278,7 @@ class AggregationOperatorTest : public ::testing::Test {
     aggr_state_proto->set_estimated_num_entries(estimated_entries);
 
     // Create Operators.
-    op_.reset(new AggregationOperator(0, *table_, true, aggr_state_index));
+    op_.reset(new AggregationOperator(0, *table_, true, aggr_state_index, kNumPartitions));
 
     // Setup the InsertDestination proto in the query context proto.
     const QueryContext::insert_destination_id insert_destination_index =
@@ -290,11 +292,12 @@ class AggregationOperatorTest : public ::testing::Test {
     finalize_op_.reset(
         new FinalizeAggregationOperator(kQueryId,
                                         aggr_state_index,
+                                        kNumPartitions,
                                         *result_table_,
                                         insert_destination_index));
 
     destroy_aggr_state_op_.reset(
-        new DestroyAggregationStateOperator(kQueryId, aggr_state_index));
+        new DestroyAggregationStateOperator(kQueryId, aggr_state_index, kNumPartitions));
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto,
@@ -331,7 +334,8 @@ class AggregationOperatorTest : public ::testing::Test {
     query_context_proto.set_query_id(0);  // dummy query ID.
 
     const QueryContext::aggregation_state_id aggr_state_index = query_context_proto.aggregation_states_size();
-    serialization::AggregationOperationState *aggr_state_proto = query_context_proto.add_aggregation_states();
+    serialization::AggregationOperationState *aggr_state_proto =
+        query_context_proto.add_aggregation_states()->mutable_aggregation_state();
     aggr_state_proto->set_relation_id(table_->getID());
 
     // Add an aggregate.
@@ -368,7 +372,7 @@ class AggregationOperatorTest : public ::testing::Test {
         serialization::HashTableImplType::SEPARATE_CHAINING);
 
     // Create Operators.
-    op_.reset(new AggregationOperator(0, *table_, true, aggr_state_index));
+    op_.reset(new AggregationOperator(0, *table_, true, aggr_state_index, kNumPartitions));
 
     // Setup the InsertDestination proto in the query context proto.
     const QueryContext::insert_destination_id insert_destination_index =
@@ -382,11 +386,12 @@ class AggregationOperatorTest : public ::testing::Test {
     finalize_op_.reset(
         new FinalizeAggregationOperator(kQueryId,
                                         aggr_state_index,
+                                        kNumPartitions,
                                         *result_table_,
                                         insert_destination_index));
 
     destroy_aggr_state_op_.reset(
-        new DestroyAggregationStateOperator(kQueryId, aggr_state_index));
+        new DestroyAggregationStateOperator(kQueryId, aggr_state_index, kNumPartitions));
 
     // Set up the QueryContext.
     query_context_.reset(new QueryContext(query_context_proto,

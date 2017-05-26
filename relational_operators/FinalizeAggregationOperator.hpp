@@ -59,6 +59,8 @@ class FinalizeAggregationOperator : public RelationalOperator {
    *
    * @param query_id The ID of the query to which this operator belongs.
    * @param aggr_state_index The index of the AggregationState in QueryContext.
+   * @param num_partitions The number of partitions of 'input_relation' in a
+   *        partitioned aggregation. If no partitions, it is one.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert aggregation results.
@@ -66,10 +68,12 @@ class FinalizeAggregationOperator : public RelationalOperator {
   FinalizeAggregationOperator(
       const std::size_t query_id,
       const QueryContext::aggregation_state_id aggr_state_index,
+      const std::size_t num_partitions,
       const CatalogRelation &output_relation,
       const QueryContext::insert_destination_id output_destination_index)
       : RelationalOperator(query_id),
         aggr_state_index_(aggr_state_index),
+        num_partitions_(num_partitions),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         started_(false) {}
@@ -102,6 +106,7 @@ class FinalizeAggregationOperator : public RelationalOperator {
 
  private:
   const QueryContext::aggregation_state_id aggr_state_index_;
+  const std::size_t num_partitions_;
   const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
   bool started_;
@@ -120,18 +125,21 @@ class FinalizeAggregationWorkOrder : public WorkOrder {
    * @note InsertWorkOrder takes ownership of \c state.
    *
    * @param query_id The ID of the query to which this operator belongs.
-   * @param partition_id The partition ID for which the Finalize aggregation
-   *        work order is issued.
+   * @param part_id The partition ID used by 'output_destination'.
+   * @param state_partition_id The partition ID for which the Finalize
+   *        aggregation work order is issued.
    * @param state The AggregationState to use.
    * @param output_destination The InsertDestination to insert aggregation
    *        results.
    */
   FinalizeAggregationWorkOrder(const std::size_t query_id,
-                               const std::size_t partition_id,
+                               const std::size_t part_id,
+                               const std::size_t state_partition_id,
                                AggregationOperationState *state,
                                InsertDestination *output_destination)
       : WorkOrder(query_id),
-        partition_id_(partition_id),
+        part_id_(part_id),
+        state_partition_id_(state_partition_id),
         state_(DCHECK_NOTNULL(state)),
         output_destination_(DCHECK_NOTNULL(output_destination)) {}
 
@@ -140,7 +148,7 @@ class FinalizeAggregationWorkOrder : public WorkOrder {
   void execute() override;
 
  private:
-  const std::size_t partition_id_;
+  const std::size_t part_id_, state_partition_id_;
   AggregationOperationState *state_;
   InsertDestination *output_destination_;
 

@@ -19,6 +19,9 @@
 
 #include "relational_operators/FinalizeAggregationOperator.hpp"
 
+#include <cstddef>
+
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
@@ -41,19 +44,23 @@ bool FinalizeAggregationOperator::getAllWorkOrders(
 
   if (blocking_dependencies_met_ && !started_) {
     started_ = true;
-    AggregationOperationState *agg_state =
-        query_context->getAggregationState(aggr_state_index_);
-    DCHECK(agg_state != nullptr);
-    for (std::size_t part_id = 0;
-         part_id < agg_state->getNumFinalizationPartitions();
-         ++part_id) {
-      container->addNormalWorkOrder(
-          new FinalizeAggregationWorkOrder(
-              query_id_,
-              part_id,
-              agg_state,
-              query_context->getInsertDestination(output_destination_index_)),
-          op_index_);
+
+    for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+      AggregationOperationState *agg_state =
+          query_context->getAggregationState(aggr_state_index_, part_id);
+      DCHECK(agg_state != nullptr);
+      for (std::size_t state_part_id = 0;
+           state_part_id < agg_state->getNumFinalizationPartitions();
+           ++state_part_id) {
+        container->addNormalWorkOrder(
+            new FinalizeAggregationWorkOrder(
+                query_id_,
+                part_id,
+                state_part_id,
+                agg_state,
+                query_context->getInsertDestination(output_destination_index_)),
+            op_index_);
+      }
     }
   }
   return started_;
@@ -66,21 +73,28 @@ bool FinalizeAggregationOperator::getAllWorkOrderProtos(WorkOrderProtosContainer
   if (blocking_dependencies_met_ && !started_) {
     started_ = true;
 
-    serialization::WorkOrder *proto = new serialization::WorkOrder;
-    proto->set_work_order_type(serialization::FINALIZE_AGGREGATION);
-    proto->set_query_id(query_id_);
-    proto->SetExtension(serialization::FinalizeAggregationWorkOrder::aggr_state_index,
-                        aggr_state_index_);
-    proto->SetExtension(serialization::FinalizeAggregationWorkOrder::insert_destination_index,
-                        output_destination_index_);
+    for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+      serialization::WorkOrder *proto = new serialization::WorkOrder;
+      proto->set_work_order_type(serialization::FINALIZE_AGGREGATION);
+      proto->set_query_id(query_id_);
+      proto->SetExtension(serialization::FinalizeAggregationWorkOrder::aggr_state_index,
+                          aggr_state_index_);
+      proto->SetExtension(serialization::FinalizeAggregationWorkOrder::partition_id,
+                          part_id);
+      proto->SetExtension(serialization::FinalizeAggregationWorkOrder::state_partition_id,
+                          0u);
+      proto->SetExtension(serialization::FinalizeAggregationWorkOrder::insert_destination_index,
+                          output_destination_index_);
 
-    container->addWorkOrderProto(proto, op_index_);
+      container->addWorkOrderProto(proto, op_index_);
+    }
   }
   return started_;
 }
 
 void FinalizeAggregationWorkOrder::execute() {
-  state_->finalizeAggregate(partition_id_, output_destination_);
+  (void) part_id_;
+  state_->finalizeAggregate(state_partition_id_, output_destination_);
 }
 
 }  // namespace quickstep

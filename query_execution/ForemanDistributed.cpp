@@ -243,12 +243,14 @@ bool ForemanDistributed::isAggregationRelatedWorkOrder(const S::WorkOrderMessage
                                                        size_t *shiftboss_index_for_aggregation) {
   const S::WorkOrder &work_order_proto = proto.work_order();
   QueryContext::aggregation_state_id aggr_state_index;
+  partition_id part_id;
   vector<QueryContext::lip_filter_id> lip_filter_indexes;
   block_id block = kInvalidBlockId;
 
   switch (work_order_proto.work_order_type()) {
     case S::AGGREGATION:
       aggr_state_index = work_order_proto.GetExtension(S::AggregationWorkOrder::aggr_state_index);
+      part_id = work_order_proto.GetExtension(S::AggregationWorkOrder::partition_id);
 
       for (int i = 0; i < work_order_proto.ExtensionSize(S::AggregationWorkOrder::lip_filter_indexes); ++i) {
         lip_filter_indexes.push_back(work_order_proto.GetExtension(S::AggregationWorkOrder::lip_filter_indexes, i));
@@ -256,18 +258,28 @@ bool ForemanDistributed::isAggregationRelatedWorkOrder(const S::WorkOrderMessage
 
       block = work_order_proto.GetExtension(S::AggregationWorkOrder::block_id);
       break;
+    case S::BUILD_AGGREGATION_EXISTENCE_MAP:
+      aggr_state_index = work_order_proto.GetExtension(S::BuildAggregationExistenceMapWorkOrder::aggr_state_index);
+      part_id = work_order_proto.GetExtension(S::BuildAggregationExistenceMapWorkOrder::partition_id);
+      break;
+    case S::INITIALIZE_AGGREGATION:
+      aggr_state_index = work_order_proto.GetExtension(S::InitializeAggregationWorkOrder::aggr_state_index);
+      part_id = work_order_proto.GetExtension(S::InitializeAggregationWorkOrder::partition_id);
+      break;
     case S::FINALIZE_AGGREGATION:
       aggr_state_index = work_order_proto.GetExtension(S::FinalizeAggregationWorkOrder::aggr_state_index);
+      part_id = work_order_proto.GetExtension(S::FinalizeAggregationWorkOrder::partition_id);
       break;
     case S::DESTROY_AGGREGATION_STATE:
       aggr_state_index = work_order_proto.GetExtension(S::DestroyAggregationStateWorkOrder::aggr_state_index);
+      part_id = work_order_proto.GetExtension(S::DestroyAggregationStateWorkOrder::partition_id);
       break;
     default:
       return false;
   }
 
   static_cast<PolicyEnforcerDistributed*>(policy_enforcer_.get())->getShiftbossIndexForAggregation(
-      proto.query_id(), aggr_state_index, lip_filter_indexes, block_locator_, block,
+      proto.query_id(), aggr_state_index, part_id, lip_filter_indexes, block_locator_, block,
       next_shiftboss_index_to_schedule, shiftboss_index_for_aggregation);
 
   return true;

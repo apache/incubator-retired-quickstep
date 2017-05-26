@@ -76,7 +76,10 @@ QueryManagerDistributed::QueryManagerDistributed(QueryHandle *query_handle,
   }
 
   const serialization::QueryContext &query_context_proto = query_handle->getQueryContextProto();
-  shiftboss_indexes_for_aggrs_.resize(query_context_proto.aggregation_states_size(), kInvalidShiftbossIndex);
+  for (int i = 0; i < query_context_proto.aggregation_states_size(); ++i) {
+    shiftboss_indexes_for_aggrs_.push_back(
+        vector<size_t>(query_context_proto.aggregation_states(i).num_partitions(), kInvalidShiftbossIndex));
+  }
 
   for (int i = 0; i < query_context_proto.join_hash_tables_size(); ++i) {
     shiftboss_indexes_for_hash_joins_.push_back(

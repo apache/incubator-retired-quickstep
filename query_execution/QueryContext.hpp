@@ -169,38 +169,44 @@ class QueryContext {
    * @brief Whether the given AggregationOperationState id is valid.
    *
    * @param id The AggregationOperationState id.
+   * @param part_id The partition id.
    *
    * @return True if valid, otherwise false.
    **/
-  bool isValidAggregationStateId(const aggregation_state_id id) const {
+  bool isValidAggregationStateId(const aggregation_state_id id, const partition_id part_id) const {
     SpinSharedMutexSharedLock<false> lock(aggregation_states_mutex_);
-    return id < aggregation_states_.size();
+    return id < aggregation_states_.size() &&
+           part_id < aggregation_states_[id].size();
   }
 
   /**
    * @brief Get the AggregationOperationState.
    *
    * @param id The AggregationOperationState id in the query.
+   * @param part_id The partition id.
    *
    * @return The AggregationOperationState, alreadly created in the constructor.
    **/
-  inline AggregationOperationState* getAggregationState(const aggregation_state_id id) {
+  inline AggregationOperationState* getAggregationState(const aggregation_state_id id, const partition_id part_id) {
     SpinSharedMutexSharedLock<false> lock(aggregation_states_mutex_);
     DCHECK_LT(id, aggregation_states_.size());
-    DCHECK(aggregation_states_[id]);
-    return aggregation_states_[id].get();
+    DCHECK_LT(part_id, aggregation_states_[id].size());
+    DCHECK(aggregation_states_[id][part_id]);
+    return aggregation_states_[id][part_id].get();
   }
 
   /**
    * @brief Destroy the given aggregation state.
    *
    * @param id The ID of the AggregationOperationState to destroy.
+   * @param part_id The partition id.
    **/
-  inline void destroyAggregationState(const aggregation_state_id id) {
+  inline void destroyAggregationState(const aggregation_state_id id, const partition_id part_id) {
     SpinSharedMutexExclusiveLock<false> lock(aggregation_states_mutex_);
     DCHECK_LT(id, aggregation_states_.size());
-    DCHECK(aggregation_states_[id]);
-    aggregation_states_[id].reset(nullptr);
+    DCHECK_LT(part_id, aggregation_states_[id].size());
+    DCHECK(aggregation_states_[id][part_id]);
+    aggregation_states_[id][part_id].reset(nullptr);
   }
 
   /**
@@ -611,10 +617,12 @@ class QueryContext {
            part_id < join_hash_tables_[id].size();
   }
 
+  // Per AggregationOperationState, the index is the partition id.
+  typedef std::vector<std::unique_ptr<AggregationOperationState>> PartitionedAggregationOperationStates;
   // Per hash join, the index is the partition id.
   typedef std::vector<std::unique_ptr<JoinHashTable>> PartitionedJoinHashTables;
 
-  std::vector<std::unique_ptr<AggregationOperationState>> aggregation_states_;
+  std::vector<PartitionedAggregationOperationStates> aggregation_states_;
   std::vector<std::unique_ptr<const GeneratorFunctionHandle>> generator_functions_;
   std::vector<std::unique_ptr<InsertDestination>> insert_destinations_;
   std::vector<PartitionedJoinHashTables> join_hash_tables_;

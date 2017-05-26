@@ -21,6 +21,7 @@
 
 #include <vector>
 
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
@@ -41,29 +42,35 @@ bool AggregationOperator::getAllWorkOrders(
     const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
   if (input_relation_is_stored_) {
-    if (!started_) {
-      for (const block_id input_block_id : input_relation_block_ids_) {
+    if (started_) {
+      return true;
+    }
+
+    for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+      for (const block_id input_block_id : input_relation_block_ids_[part_id]) {
         container->addNormalWorkOrder(
             new AggregationWorkOrder(
                 query_id_,
                 input_block_id,
-                query_context->getAggregationState(aggr_state_index_),
+                query_context->getAggregationState(aggr_state_index_, part_id),
                 CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
             op_index_);
       }
-      started_ = true;
     }
-    return started_;
+    started_ = true;
+    return true;
   } else {
-    while (num_workorders_generated_ < input_relation_block_ids_.size()) {
-      container->addNormalWorkOrder(
-          new AggregationWorkOrder(
-              query_id_,
-              input_relation_block_ids_[num_workorders_generated_],
-              query_context->getAggregationState(aggr_state_index_),
-              CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
-          op_index_);
-      ++num_workorders_generated_;
+    for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+      while (num_workorders_generated_[part_id] < input_relation_block_ids_[part_id].size()) {
+        container->addNormalWorkOrder(
+            new AggregationWorkOrder(
+                query_id_,
+                input_relation_block_ids_[part_id][num_workorders_generated_[part_id]],
+                query_context->getAggregationState(aggr_state_index_, part_id),
+                CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
+            op_index_);
+        ++num_workorders_generated_[part_id];
+      }
     }
     return done_feeding_input_relation_;
   }
@@ -71,31 +78,38 @@ bool AggregationOperator::getAllWorkOrders(
 
 bool AggregationOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
   if (input_relation_is_stored_) {
-    if (!started_) {
-      for (const block_id input_block_id : input_relation_block_ids_) {
-        container->addWorkOrderProto(createWorkOrderProto(input_block_id), op_index_);
-      }
-      started_ = true;
+    if (started_) {
+      return true;
     }
+
+    for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+      for (const block_id input_block_id : input_relation_block_ids_[part_id]) {
+        container->addWorkOrderProto(createWorkOrderProto(input_block_id, part_id), op_index_);
+      }
+    }
+    started_ = true;
     return true;
   } else {
-    while (num_workorders_generated_ < input_relation_block_ids_.size()) {
-      container->addWorkOrderProto(
-          createWorkOrderProto(input_relation_block_ids_[num_workorders_generated_]),
-          op_index_);
-      ++num_workorders_generated_;
+    for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+      while (num_workorders_generated_[part_id] < input_relation_block_ids_[part_id].size()) {
+        container->addWorkOrderProto(
+            createWorkOrderProto(input_relation_block_ids_[part_id][num_workorders_generated_[part_id]], part_id),
+            op_index_);
+        ++num_workorders_generated_[part_id];
+      }
     }
     return done_feeding_input_relation_;
   }
 }
 
-serialization::WorkOrder* AggregationOperator::createWorkOrderProto(const block_id block) {
+serialization::WorkOrder* AggregationOperator::createWorkOrderProto(const block_id block, const partition_id part_id) {
   serialization::WorkOrder *proto = new serialization::WorkOrder;
   proto->set_work_order_type(serialization::AGGREGATION);
   proto->set_query_id(query_id_);
 
   proto->SetExtension(serialization::AggregationWorkOrder::block_id, block);
   proto->SetExtension(serialization::AggregationWorkOrder::aggr_state_index, aggr_state_index_);
+  proto->SetExtension(serialization::AggregationWorkOrder::partition_id, part_id);
   proto->SetExtension(serialization::AggregationWorkOrder::lip_deployment_index, lip_deployment_index_);
 
   for (const QueryContext::lip_filter_id lip_filter_index : lip_filter_indexes_) {

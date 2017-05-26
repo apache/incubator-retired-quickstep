@@ -88,33 +88,39 @@ bool BuildAggregationExistenceMapOperator::getAllWorkOrders(
     const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
   if (input_relation_is_stored_) {
-    if (!started_) {
-      for (const block_id input_block_id : input_relation_block_ids_) {
+    if (started_) {
+      return true;
+    }
+
+    for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+      for (const block_id input_block_id : input_relation_block_ids_[part_id]) {
         container->addNormalWorkOrder(
             new BuildAggregationExistenceMapWorkOrder(
                 query_id_,
                 input_relation_,
                 input_block_id,
                 build_attribute_,
-                query_context->getAggregationState(aggr_state_index_),
+                query_context->getAggregationState(aggr_state_index_, part_id),
                 storage_manager),
             op_index_);
       }
-      started_ = true;
     }
+    started_ = true;
     return true;
   } else {
-    while (num_workorders_generated_ < input_relation_block_ids_.size()) {
-      container->addNormalWorkOrder(
-          new BuildAggregationExistenceMapWorkOrder(
-                query_id_,
-                input_relation_,
-                input_relation_block_ids_[num_workorders_generated_],
-                build_attribute_,
-                query_context->getAggregationState(aggr_state_index_),
-                storage_manager),
-          op_index_);
-      ++num_workorders_generated_;
+    for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+      while (num_workorders_generated_[part_id] < input_relation_block_ids_[part_id].size()) {
+        container->addNormalWorkOrder(
+            new BuildAggregationExistenceMapWorkOrder(
+                  query_id_,
+                  input_relation_,
+                  input_relation_block_ids_[part_id][num_workorders_generated_[part_id]],
+                  build_attribute_,
+                  query_context->getAggregationState(aggr_state_index_, part_id),
+                  storage_manager),
+            op_index_);
+        ++num_workorders_generated_[part_id];
+      }
     }
     return done_feeding_input_relation_;
   }
@@ -123,26 +129,32 @@ bool BuildAggregationExistenceMapOperator::getAllWorkOrders(
 bool BuildAggregationExistenceMapOperator
     ::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
   if (input_relation_is_stored_) {
-    if (!started_) {
-      for (const block_id block : input_relation_block_ids_) {
-        container->addWorkOrderProto(createWorkOrderProto(block), op_index_);
-      }
-      started_ = true;
+    if (started_) {
+      return true;
     }
+
+    for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+      for (const block_id block : input_relation_block_ids_[part_id]) {
+        container->addWorkOrderProto(createWorkOrderProto(block, part_id), op_index_);
+      }
+    }
+    started_ = true;
     return true;
   } else {
-    while (num_workorders_generated_ < input_relation_block_ids_.size()) {
-      container->addWorkOrderProto(
-          createWorkOrderProto(input_relation_block_ids_[num_workorders_generated_]),
-          op_index_);
-      ++num_workorders_generated_;
+    for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+      while (num_workorders_generated_[part_id] < input_relation_block_ids_[part_id].size()) {
+        container->addWorkOrderProto(
+            createWorkOrderProto(input_relation_block_ids_[part_id][num_workorders_generated_[part_id]], part_id),
+            op_index_);
+        ++num_workorders_generated_[part_id];
+      }
     }
     return done_feeding_input_relation_;
   }
 }
 
 serialization::WorkOrder* BuildAggregationExistenceMapOperator
-    ::createWorkOrderProto(const block_id block) {
+    ::createWorkOrderProto(const block_id block, const partition_id part_id) {
   serialization::WorkOrder *proto = new serialization::WorkOrder;
   proto->set_work_order_type(serialization::BUILD_AGGREGATION_EXISTENCE_MAP);
   proto->set_query_id(query_id_);
@@ -155,6 +167,8 @@ serialization::WorkOrder* BuildAggregationExistenceMapOperator
                       build_attribute_);
   proto->SetExtension(serialization::BuildAggregationExistenceMapWorkOrder::aggr_state_index,
                       aggr_state_index_);
+  proto->SetExtension(serialization::BuildAggregationExistenceMapWorkOrder::partition_id,
+                      part_id);
   return proto;
 }
 

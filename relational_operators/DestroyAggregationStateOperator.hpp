@@ -22,6 +22,7 @@
 
 #include <string>
 
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -53,12 +54,16 @@ class DestroyAggregationStateOperator : public RelationalOperator {
    *
    * @param query_id The ID of the query to which this operator belongs.
    * @param aggr_state_index The index of the AggregationState in QueryContext.
+   * @param num_partitions The number of partitions of 'input_relation' in a
+   *        partitioned aggregation. If no partitions, it is one.
    **/
   DestroyAggregationStateOperator(
       const std::size_t query_id,
-      const QueryContext::aggregation_state_id aggr_state_index)
+      const QueryContext::aggregation_state_id aggr_state_index,
+      const std::size_t num_partitions)
       : RelationalOperator(query_id),
         aggr_state_index_(aggr_state_index),
+        num_partitions_(num_partitions),
         work_generated_(false) {}
 
   ~DestroyAggregationStateOperator() override {}
@@ -81,6 +86,7 @@ class DestroyAggregationStateOperator : public RelationalOperator {
 
  private:
   const QueryContext::aggregation_state_id aggr_state_index_;
+  const std::size_t num_partitions_;
   bool work_generated_;
 
   DISALLOW_COPY_AND_ASSIGN(DestroyAggregationStateOperator);
@@ -96,14 +102,17 @@ class DestroyAggregationStateWorkOrder : public WorkOrder {
    *
    * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param aggr_state_index The index of the AggregationState in QueryContext.
+   * @param part_id The partition id.
    * @param query_context The QueryContext to use.
    **/
   DestroyAggregationStateWorkOrder(
       const std::size_t query_id,
       const QueryContext::aggregation_state_id aggr_state_index,
+      const partition_id part_id,
       QueryContext *query_context)
       : WorkOrder(query_id),
         aggr_state_index_(aggr_state_index),
+        part_id_(part_id),
         query_context_(DCHECK_NOTNULL(query_context)) {}
 
   ~DestroyAggregationStateWorkOrder() override {}
@@ -112,6 +121,7 @@ class DestroyAggregationStateWorkOrder : public WorkOrder {
 
  private:
   const QueryContext::aggregation_state_id aggr_state_index_;
+  const partition_id part_id_;
   QueryContext *query_context_;
 
   DISALLOW_COPY_AND_ASSIGN(DestroyAggregationStateWorkOrder);

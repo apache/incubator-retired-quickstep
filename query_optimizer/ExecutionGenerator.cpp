@@ -1580,14 +1580,25 @@ void ExecutionGenerator::convertUpdateTable(
 
 void ExecutionGenerator::convertAggregate(
     const P::AggregatePtr &physical_plan) {
+  const CatalogRelationInfo *input_relation_info =
+      findRelationInfoOutputByPhysical(physical_plan->input());
+  const CatalogRelation *input_relation = input_relation_info->relation;
+  const PartitionScheme *input_partition_scheme = input_relation->getPartitionScheme();
+  const size_t num_partitions =
+      input_partition_scheme
+          ? input_partition_scheme->getPartitionSchemeHeader().getNumPartitions()
+          : 1u;
+
   // Create aggr state proto.
   const QueryContext::aggregation_state_id aggr_state_index =
       query_context_proto_->aggregation_states_size();
-  S::AggregationOperationState *aggr_state_proto = query_context_proto_->add_aggregation_states();
+  S::QueryContext::AggregationOperationStateContext *aggr_state_context_proto =
+      query_context_proto_->add_aggregation_states();
+  aggr_state_context_proto->set_num_partitions(num_partitions);
 
-  const CatalogRelationInfo *input_relation_info =
-      findRelationInfoOutputByPhysical(physical_plan->input());
-  aggr_state_proto->set_relation_id(input_relation_info->relation->getID());
+  S::AggregationOperationState *aggr_state_proto =
+      aggr_state_context_proto->mutable_aggregation_state();
+  aggr_state_proto->set_relation_id(input_relation->getID());
 
   bool use_parallel_initialization = false;
 
@@ -1682,7 +1693,8 @@ void ExecutionGenerator::convertAggregate(
               query_handle_->query_id(),
               *input_relation_info->relation,
               input_relation_info->isStoredRelation(),
-              aggr_state_index));
+              aggr_state_index,
+              num_partitions));
 
   if (!input_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(aggregation_operator_index,
@@ -1695,7 +1707,8 @@ void ExecutionGenerator::convertAggregate(
         execution_plan_->addRelationalOperator(
             new InitializeAggregationOperator(
                 query_handle_->query_id(),
-                aggr_state_index));
+                aggr_state_index,
+                num_partitions));
 
     execution_plan_->addDirectDependency(aggregation_operator_index,
                                          initialize_aggregation_operator_index,
@@ -1715,6 +1728,7 @@ void ExecutionGenerator::convertAggregate(
       execution_plan_->addRelationalOperator(
           new FinalizeAggregationOperator(query_handle_->query_id(),
                                           aggr_state_index,
+                                          num_partitions,
                                           *output_relation,
                                           insert_destination_index));
 
@@ -1734,7 +1748,8 @@ void ExecutionGenerator::convertAggregate(
   const QueryPlan::DAGNodeIndex destroy_aggregation_state_operator_index =
       execution_plan_->addRelationalOperator(
           new DestroyAggregationStateOperator(query_handle_->query_id(),
-                                              aggr_state_index));
+                                              aggr_state_index,
+                                              num_partitions));
 
   execution_plan_->addDirectDependency(destroy_aggregation_state_operator_index,
                                        finalize_aggregation_operator_index,
@@ -1755,13 +1770,22 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
       findRelationInfoOutputByPhysical(physical_plan->left_child());
   const CatalogRelationInfo *right_relation_info =
       findRelationInfoOutputByPhysical(physical_plan->right_child());
+  const CatalogRelation &right_relation = *right_relation_info->relation;
+
+  // TODO(quickstep-team): Support partitioned aggregation.
+  CHECK(!right_relation.hasPartitionScheme());
+  const std::size_t num_partitions = 1u;
 
   // Create aggr state proto.
   const QueryContext::aggregation_state_id aggr_state_index =
       query_context_proto_->aggregation_states_size();
-  S::AggregationOperationState *aggr_state_proto = query_context_proto_->add_aggregation_states();
+  S::QueryContext::AggregationOperationStateContext *aggr_state_context_proto =
+      query_context_proto_->add_aggregation_states();
+  aggr_state_context_proto->set_num_partitions(num_partitions);
 
-  aggr_state_proto->set_relation_id(right_relation_info->relation->getID());
+  S::AggregationOperationState *aggr_state_proto =
+      aggr_state_context_proto->mutable_aggregation_state();
+  aggr_state_proto->set_relation_id(right_relation.getID());
 
   // Group by the right join attribute.
   std::unique_ptr<const Scalar> execution_group_by_expression(
@@ -1807,7 +1831,8 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
       execution_plan_->addRelationalOperator(
           new InitializeAggregationOperator(
               query_handle_->query_id(),
-              aggr_state_index));
+              aggr_state_index,
+              num_partitions));
 
   const QueryPlan::DAGNodeIndex build_aggregation_existence_map_operator_index =
       execution_plan_->addRelationalOperator(
@@ -1816,7 +1841,8 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
               *left_relation_info->relation,
               physical_plan->left_join_attributes().front()->id(),
               left_relation_info->isStoredRelation(),
-              aggr_state_index));
+              aggr_state_index,
+              num_partitions));
 
   if (!left_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(build_aggregation_existence_map_operator_index,
@@ -1828,9 +1854,10 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
       execution_plan_->addRelationalOperator(
           new AggregationOperator(
               query_handle_->query_id(),
-              *right_relation_info->relation,
+              right_relation,
               right_relation_info->isStoredRelation(),
-              aggr_state_index));
+              aggr_state_index,
+              num_partitions));
 
   if (!right_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(aggregation_operator_index,
@@ -1862,6 +1889,7 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
       execution_plan_->addRelationalOperator(
           new FinalizeAggregationOperator(query_handle_->query_id(),
                                           aggr_state_index,
+                                          num_partitions,
                                           *output_relation,
                                           insert_destination_index));
 
@@ -1881,7 +1909,8 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
   const QueryPlan::DAGNodeIndex destroy_aggregation_state_operator_index =
       execution_plan_->addRelationalOperator(
           new DestroyAggregationStateOperator(query_handle_->query_id(),
-                                              aggr_state_index));
+                                              aggr_state_index,
+                                              num_partitions));
 
   execution_plan_->addDirectDependency(destroy_aggregation_state_operator_index,
                                        finalize_aggregation_operator_index,
