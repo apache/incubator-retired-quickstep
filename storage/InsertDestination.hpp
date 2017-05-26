@@ -71,9 +71,16 @@ namespace serialization { class InsertDestination; }
  **/
 class InsertDestination : public InsertDestinationInterface {
  public:
+  enum class InsertDestinationType {
+    kAlwaysCreateBlockInsertDestination = 0,
+    kBlockPoolInsertDestination,
+    kPartitionAwareInsertDestination,
+  };
+
   /**
    * @brief Constructor.
    *
+   * @param insert_dest_type The implementation type.
    * @param relation The relation to insert tuples into.
    * @param layout The layout to use for any newly-created blocks. If NULL,
    *        defaults to relation's default layout.
@@ -84,7 +91,8 @@ class InsertDestination : public InsertDestinationInterface {
    * @param scheduler_client_id The TMB client ID of the scheduler thread.
    * @param bus A pointer to the TMB.
    **/
-  InsertDestination(const CatalogRelationSchema &relation,
+  InsertDestination(const InsertDestinationType insert_dest_type,
+                    const CatalogRelationSchema &relation,
                     const StorageBlockLayout *layout,
                     StorageManager *storage_manager,
                     const std::size_t relational_op_index,
@@ -158,6 +166,10 @@ class InsertDestination : public InsertDestinationInterface {
 
   void insertTuplesFromVector(std::vector<Tuple>::const_iterator begin,
                               std::vector<Tuple>::const_iterator end) override;
+
+  InsertDestinationType getInsertDestinationType() const {
+    return insert_dest_type_;
+  }
 
   /**
    * @brief Get the set of blocks that were used by clients of this
@@ -271,6 +283,8 @@ class InsertDestination : public InsertDestinationInterface {
     return query_id_;
   }
 
+  const InsertDestinationType insert_dest_type_;
+
   const ClientIDMap &thread_id_map_;
 
   StorageManager *storage_manager_;
@@ -310,7 +324,8 @@ class AlwaysCreateBlockInsertDestination : public InsertDestination {
                                      const std::size_t query_id,
                                      const tmb::client_id scheduler_client_id,
                                      tmb::MessageBus *bus)
-      : InsertDestination(relation,
+      : InsertDestination(InsertDestinationType::kAlwaysCreateBlockInsertDestination,
+                          relation,
                           layout,
                           storage_manager,
                           relational_op_index,
@@ -323,7 +338,7 @@ class AlwaysCreateBlockInsertDestination : public InsertDestination {
 
   void bulkInsertTuplesFromValueAccessors(
       const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map,
-      bool always_mark_full = false) override  {
+      bool always_mark_full = false) override {
     LOG(FATAL) << "bulkInsertTuplesFromValueAccessors is not implemented for AlwaysCreateBlockInsertDestination";
   }
 
@@ -376,7 +391,8 @@ class BlockPoolInsertDestination : public InsertDestination {
                              const std::size_t query_id,
                              const tmb::client_id scheduler_client_id,
                              tmb::MessageBus *bus)
-      : InsertDestination(relation,
+      : InsertDestination(InsertDestinationType::kBlockPoolInsertDestination,
+                          relation,
                           layout,
                           storage_manager,
                           relational_op_index,
@@ -405,7 +421,8 @@ class BlockPoolInsertDestination : public InsertDestination {
                              const std::size_t query_id,
                              const tmb::client_id scheduler_client_id,
                              tmb::MessageBus *bus)
-      : InsertDestination(relation,
+      : InsertDestination(InsertDestinationType::kBlockPoolInsertDestination,
+                          relation,
                           layout,
                           storage_manager,
                           relational_op_index,
@@ -517,7 +534,7 @@ class PartitionAwareInsertDestination : public InsertDestination {
 
   void bulkInsertTuplesFromValueAccessors(
       const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map,
-      bool always_mark_full = false) override  {
+      bool always_mark_full = false) override {
     LOG(FATAL) << "bulkInsertTuplesFromValueAccessors is not implemented for PartitionAwareInsertDestination";
   }
 

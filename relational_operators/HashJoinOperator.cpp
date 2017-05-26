@@ -471,7 +471,9 @@ void HashInnerJoinWorkOrder::execute() {
         base_accessor->createSharedTupleIdSequenceAdapterVirtual(*existence_map));
   }
 
-  if (probe_accessor->getImplementationType() == ValueAccessor::Implementation::kSplitRowStore) {
+  if (probe_accessor->getImplementationType() == ValueAccessor::Implementation::kSplitRowStore &&
+      output_destination_->getInsertDestinationType() ==
+          InsertDestination::InsertDestinationType::kBlockPoolInsertDestination) {
     executeWithCopyElision(probe_accessor.get());
   } else {
     executeWithoutCopyElision(probe_accessor.get());

@@ -57,14 +57,16 @@ using std::vector;
 
 namespace quickstep {
 
-InsertDestination::InsertDestination(const CatalogRelationSchema &relation,
+InsertDestination::InsertDestination(const InsertDestinationType insert_dest_type,
+                                     const CatalogRelationSchema &relation,
                                      const StorageBlockLayout *layout,
                                      StorageManager *storage_manager,
                                      const std::size_t relational_op_index,
                                      const std::size_t query_id,
                                      const tmb::client_id scheduler_client_id,
                                      tmb::MessageBus *bus)
-    : thread_id_map_(*ClientIDMap::Instance()),
+    : insert_dest_type_(insert_dest_type),
+      thread_id_map_(*ClientIDMap::Instance()),
       storage_manager_(storage_manager),
       relation_(relation),
       layout_(layout),
@@ -289,7 +291,7 @@ void InsertDestination::bulkInsertTuplesFromValueAccessors(
     // same tuples from the other ValueAccessors.
     for (auto &p : reduced_accessor_attribute_map) {
       ValueAccessor *accessor = p.first;
-      std::vector<attribute_id> attribute_map = p.second;
+      const std::vector<attribute_id> &attribute_map = p.second;
 
       InvokeOnAnyValueAccessor(
           accessor,
@@ -308,7 +310,7 @@ void InsertDestination::bulkInsertTuplesFromValueAccessors(
         // Since the bulk insertion of the first ValueAccessor should already
         // have reserved the space for all the other ValueAccessors' columns,
         // we must have been able to insert all the tuples we asked to insert.
-        DCHECK(num_tuples_inserted == num_tuples_to_insert);
+        DCHECK_EQ(num_tuples_inserted, num_tuples_to_insert);
       }
     }
 
@@ -491,7 +493,8 @@ PartitionAwareInsertDestination::PartitionAwareInsertDestination(
     const std::size_t query_id,
     const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus)
-    : InsertDestination(relation,
+    : InsertDestination(InsertDestinationType::kPartitionAwareInsertDestination,
+                        relation,
                         layout,
                         storage_manager,
                         relational_op_index,
