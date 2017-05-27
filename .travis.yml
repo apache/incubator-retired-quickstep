@@ -57,11 +57,23 @@ install:
   - export DEBUG_FLAGS="-g0";
   - export RELEASE_FLAGS="-O0 -DNDEBUG";
   - export LINKER_FLAGS="-s"
+  # Protobuf 3.
+  - wget https://github.com/google/protobuf/releases/download/v3.2.0/protobuf-cpp-3.2.0.tar.gz
+  - tar -xzf protobuf-cpp-3.2.0.tar.gz
+  - pushd protobuf-3.2.0 && ./configure --prefix=/usr --enable-languages=c++ && make -j2 && sudo make install && popd
+  - rm -rf protobuf-*
+  - export PROTOC=`which protoc`
+
+  # gRPC.
+  - git clone -b v1.2.0 https://github.com/grpc/grpc.git
+  - pushd grpc && git submodule update --init && make -j2 && sudo make install && popd
+  - rm -rf grpc
 
 before_script:
   - $CC --version
   - $CXX --version
   - $CLINKER --version
+  - $PROTOC --version
   - cmake --version
   - (cd third_party && ./download_and_patch_prerequisites.sh && cd ../)
   - (cd build &&
@@ -76,14 +88,15 @@ before_script:
            -D CMAKE_CXX_COMPILER=$CXX
            -D CMAKE_LINKER=$CLINKER
            -D USE_TCMALLOC=0
-           -D VECTOR_COPY_ELISION_LEVEL=$VECTOR_COPY_ELISION_LEVEL ..)
+           -D VECTOR_COPY_ELISION_LEVEL=$VECTOR_COPY_ELISION_LEVEL
+           -D ENABLE_DISTRIBUTED=ON ..)
 
 script:
   - ./third_party/src/cpplint/lint_everything.py
   - ./validate_cmakelists.py
   - ./cyclic_dependency.py
   - (cd build && make)
-  - (cd build && ctest --output-on-failure -j$TEST_JOBS)
+  - (cd build && ctest -R distributed --output-on-failure -j4)
 
 after_failure:
   - df -h
@@ -106,8 +119,6 @@ addons:
       - g++-5
       - clang-3.7
       - binutils-gold
-      - libprotobuf-dev
-      - protobuf-compiler
       - libgtest-dev
       - python-networkx
       - libnuma-dev
