@@ -15,19 +15,35 @@
 # specific language governing permissions and limitations
 # under the License.
 
-CREATE TABLE foo (id INT NULL,
-                  name CHAR(20))
+CREATE TABLE dim_4_hash_partitions (id INT NULL,
+                                    char_col CHAR(20))
+PARTITION BY HASH(id) PARTITIONS 4;
+CREATE TABLE dim_2_hash_partitions (id INT NULL,
+                                    char_col CHAR(20))
+PARTITION BY HASH(id) PARTITIONS 2;
+CREATE TABLE fact (id INT NULL,
+                   score DOUBLE NULL)
 PARTITION BY HASH(id) PARTITIONS 4;
 
-INSERT INTO foo
+INSERT INTO dim_4_hash_partitions
 SELECT int_col, char_col
 FROM test
 WHERE int_col > 0 OR int_col < 0;
 
-SELECT * FROM foo;
+INSERT INTO dim_2_hash_partitions
+SELECT int_col, char_col
+FROM test
+WHERE int_col > 0 OR int_col < 0;
+
+INSERT INTO fact
+SELECT int_col, double_col
+FROM test
+WHERE int_col % 2 = 0;
+
+SELECT * FROM dim_4_hash_partitions;
 --
 +-----------+--------------------+
-|id         |name                |
+|id         |char_col            |
 +-----------+--------------------+
 |          4|          4 2.000000|
 |          8|          8 2.828427|
@@ -52,3 +68,49 @@ SELECT * FROM foo;
 |        -17|        -17 4.123106|
 |        -21|        -21 4.582576|
 +-----------+--------------------+
+==
+
+# Partitioned Hash Join.
+SELECT fact.id, dim_4_hash_partitions.char_col
+FROM dim_4_hash_partitions JOIN fact ON dim_4_hash_partitions.id = fact.id;
+--
++-----------+--------------------+
+|id         |char_col            |
++-----------+--------------------+
+|          4|          4 2.000000|
+|          8|          8 2.828427|
+|         12|         12 3.464102|
+|         16|         16 4.000000|
+|         24|         24 4.898979|
+|          2|          2 1.414214|
+|          6|          6 2.449490|
+|         14|         14 3.741657|
+|         18|         18 4.242641|
+|         22|         22 4.690416|
++-----------+--------------------+
+==
+
+# Hash Join with two stored relations, one of which is partitioned.
+SELECT fact.id, test.char_col
+FROM test JOIN fact ON test.int_col = fact.id
+WHERE test.int_col > 0 OR test.int_col < 0;
+--
+[same as above]
+==
+
+# Hash Join with one stored, partitioned relation,
+# and a non-stored, non-partitioned one.
+SELECT fact.id, test.char_col
+FROM fact JOIN test ON fact.id = test.int_col
+WHERE test.int_col % 2 = 0;
+--
+[same as above]
+==
+
+# Repartitioned Hash Join.
+SELECT fact.id, dim_2_hash_partitions.char_col
+FROM dim_2_hash_partitions, fact
+WHERE dim_2_hash_partitions.id = fact.id
+  AND dim_2_hash_partitions.id % 2 = 0;
+--
+[same as above]

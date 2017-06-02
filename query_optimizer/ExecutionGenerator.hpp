@@ -136,9 +136,11 @@ class ExecutionGenerator {
    */
   struct CatalogRelationInfo {
     CatalogRelationInfo(const QueryPlan::DAGNodeIndex producer_operator_index_in,
-                        const CatalogRelation *relation_in)
+                        const CatalogRelation *relation_in,
+                        const QueryContext::insert_destination_id output_destination_index_in)
         : producer_operator_index(producer_operator_index_in),
-          relation(relation_in) {}
+          relation(relation_in),
+          output_destination_index(output_destination_index_in) {}
 
     /**
      * @return True if the relation is a stored relation (i.e. not a temporary relation
@@ -150,6 +152,7 @@ class ExecutionGenerator {
 
     const QueryPlan::DAGNodeIndex producer_operator_index;
     const CatalogRelation *relation;
+    const QueryContext::insert_destination_id output_destination_index;
 
     /**
      * @brief Represents an invalid node index.
