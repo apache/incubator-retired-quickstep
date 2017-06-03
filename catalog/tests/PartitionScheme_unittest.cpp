@@ -590,6 +590,47 @@ TEST(PartitionSchemeTest, CheckHashPartitionSchemeSerialization) {
   }
 }
 
+TEST(PartitionSchemeTest, CheckRandomPartitionSchemeSerialization) {
+  const std::size_t num_partitions = 4;
+  std::unique_ptr<PartitionScheme> part_scheme(
+      new PartitionScheme(new RandomPartitionSchemeHeader(num_partitions)));
+  // Add some blocks to each partition.
+  for (int i = 0; i < 10; ++i) {
+    part_scheme->addBlockToPartition(i, i % num_partitions);
+  }
+  std::unique_ptr<PartitionScheme> part_scheme_from_proto;
+  part_scheme_from_proto.reset(
+      PartitionScheme::ReconstructFromProto(part_scheme->getProto()));
+
+  const PartitionSchemeHeader &header = part_scheme->getPartitionSchemeHeader();
+  const PartitionSchemeHeader &header_from_proto = part_scheme_from_proto->getPartitionSchemeHeader();
+
+  // Check the partition type
+  EXPECT_EQ(header.getPartitionType(),
+            header_from_proto.getPartitionType());
+  // Check number of partitions
+  EXPECT_EQ(header.getNumPartitions(),
+            header_from_proto.getNumPartitions());
+  // Check the partition attribute id
+  EXPECT_EQ(header.getPartitionAttributeIds(),
+            header_from_proto.getPartitionAttributeIds());
+  // Check the block in each partition
+  for (partition_id part_id = 0; part_id < num_partitions; ++part_id) {
+    // Collect the blocks from C++ Partition Scheme object.
+    std::vector<block_id> blocks_in_part_scheme =
+        part_scheme->getBlocksInPartition(part_id);
+    // Collect the blocks from Partition Scheme's protocol buffer.
+    std::vector<block_id> blocks_in_part_scheme_from_proto =
+        part_scheme_from_proto->getBlocksInPartition(part_id);
+    // Sort both these vector of block ids so that we can compare them.
+    std::sort(blocks_in_part_scheme.begin(), blocks_in_part_scheme.end());
+    std::sort(blocks_in_part_scheme_from_proto.begin(),
+              blocks_in_part_scheme_from_proto.end());
+    // Compare the two sorted lists to check if they are equal.
+    EXPECT_EQ(blocks_in_part_scheme, blocks_in_part_scheme_from_proto);
+  }
+}
+
 // TODO(quickstep-team): Add back CheckRangePartitionSchemeSerialization test
 // due to QUICKSTEP-86.
 

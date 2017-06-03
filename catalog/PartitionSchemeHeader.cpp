@@ -74,6 +74,7 @@ bool PartitionSchemeHeader::ProtoIsValid(
   // Check that the proto has a valid partition type.
   switch (proto.partition_type()) {
     case serialization::PartitionSchemeHeader::HASH:
+    case serialization::PartitionSchemeHeader::RANDOM:
       return true;
     case serialization::PartitionSchemeHeader::RANGE: {
       return proto.HasExtension(serialization::RangePartitionSchemeHeader::partition_range_boundaries) &&
@@ -103,6 +104,9 @@ PartitionSchemeHeader* PartitionSchemeHeader::ReconstructFromProto(
   switch (proto.partition_type()) {
     case serialization::PartitionSchemeHeader::HASH: {
       return new HashPartitionSchemeHeader(proto.num_partitions(), move(partition_attribute_ids));
+    }
+    case serialization::PartitionSchemeHeader::RANDOM: {
+      return new RandomPartitionSchemeHeader(proto.num_partitions());
     }
     case serialization::PartitionSchemeHeader::RANGE: {
       std::vector<const Type*> attr_types;
@@ -141,6 +145,9 @@ serialization::PartitionSchemeHeader PartitionSchemeHeader::getProto() const {
   switch (partition_type_) {
     case PartitionType::kHash:
       proto.set_partition_type(serialization::PartitionSchemeHeader::HASH);
+      break;
+    case PartitionType::kRandom:
+      proto.set_partition_type(serialization::PartitionSchemeHeader::RANDOM);
       break;
     case PartitionType::kRange:
       proto.set_partition_type(serialization::PartitionSchemeHeader::RANGE);

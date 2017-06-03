@@ -31,8 +31,10 @@ message CatalogAttribute {
 
 // TODO(zuyu): Move PartitionScheme to a dedicate proto file.
 message PartitionSchemeHeader {
+  // Next tag: 3.
   enum PartitionType {
     HASH = 0;
+    RANDOM = 2;
     RANGE = 1;
   }
 

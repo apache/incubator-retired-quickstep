@@ -22,11 +22,14 @@
 
 #include <cstddef>
 #include <memory>
+#include <random>
 #include <utility>
 #include <vector>
 
 #include "catalog/Catalog.pb.h"
 #include "catalog/CatalogTypedefs.hpp"
+#include "storage/StorageConstants.hpp"
+#include "threading/SpinMutex.hpp"
 #include "types/TypedValue.hpp"
 #include "types/operations/comparisons/Comparison.hpp"
 #include "types/operations/comparisons/EqualComparison.hpp"
@@ -57,8 +60,9 @@ class PartitionSchemeHeader {
   // PartitionValues.size() should be equal to PartitionAttributeIds.size().
   typedef std::vector<TypedValue> PartitionValues;
 
-  enum PartitionType {
+  enum class PartitionType {
     kHash = 0,
+    kRandom,
     kRange
   };
 
@@ -197,6 +201,43 @@ class HashPartitionSchemeHeader final : public PartitionSchemeHeader {
 
  private:
   DISALLOW_COPY_AND_ASSIGN(HashPartitionSchemeHeader);
+};
+
+/**
+ * @brief Implementation of PartitionSchemeHeader that partitions the tuples in
+ *        a relation randomly.
+**/
+class RandomPartitionSchemeHeader final : public PartitionSchemeHeader {
+ public:
+  /**
+   * @brief Constructor.
+   *
+   * @param num_partitions The number of partitions to be created.
+   **/
+  explicit RandomPartitionSchemeHeader(const std::size_t num_partitions)
+      : PartitionSchemeHeader(PartitionType::kRandom, num_partitions, {}),
+        mt_(1729),
+        dist_(0, num_partitions - 1) {
+  }
+
+  /**
+   * @brief Destructor.
+   **/
+  ~RandomPartitionSchemeHeader() override {}
+
+  partition_id getPartitionId(
+      const PartitionValues &value_of_attributes) const override {
+    SpinMutexLock lock(mutex_);
+    return dist_(mt_);
+  }
+
+ private:
+  mutable std::mt19937_64 mt_;
+  mutable std::uniform_int_distribution<partition_id> dist_;
+
+  alignas(kCacheLineBytes) mutable SpinMutex mutex_;
+
+  DISALLOW_COPY_AND_ASSIGN(RandomPartitionSchemeHeader);
 };
 
 /**

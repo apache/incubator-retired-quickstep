@@ -168,6 +168,8 @@ target_link_libraries(quickstep_catalog_PartitionSchemeHeader
                       glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_Catalog_proto
+                      quickstep_storage_StorageConstants
+                      quickstep_threading_SpinMutex
                       quickstep_types_Type
                       quickstep_types_TypeFactory
                       quickstep_types_Type_proto
