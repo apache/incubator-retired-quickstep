@@ -954,13 +954,34 @@ void ExecutionGenerator::convertNestedLoopsJoin(
 
   const CatalogRelationInfo *left_relation_info =
       findRelationInfoOutputByPhysical(physical_plan->left());
+  const CatalogRelation &left_relation = *left_relation_info->relation;
   const CatalogRelationInfo *right_relation_info =
       findRelationInfoOutputByPhysical(physical_plan->right());
+  const CatalogRelation &right_relation = *right_relation_info->relation;
 
   // FIXME(quickstep-team): Add support for self-join.
-  if (left_relation_info->relation == right_relation_info->relation) {
+  if (left_relation.getID() == right_relation.getID()) {
     THROW_SQL_ERROR() << "NestedLoopsJoin does not support self-join yet";
   }
+
+  const PartitionScheme *left_partition_scheme = left_relation.getPartitionScheme();
+  const PartitionScheme *right_partition_scheme = right_relation.getPartitionScheme();
+  if (left_partition_scheme && right_partition_scheme) {
+    DCHECK_EQ(left_partition_scheme->getPartitionSchemeHeader().getNumPartitions(),
+              right_partition_scheme->getPartitionSchemeHeader().getNumPartitions());
+  } else if (left_partition_scheme) {
+    LOG(FATAL) << "Left side has partitions, but right does not";
+  } else if (right_partition_scheme) {
+    LOG(FATAL) << "Right side has partitions, but left does not";
+  }
+
+  const std::size_t num_partitions =
+      left_partition_scheme ? left_partition_scheme->getPartitionSchemeHeader().getNumPartitions()
+                            : 1u;
+
+  const std::size_t nested_loops_join_index =
+      query_context_proto_->num_partitions_for_nested_loops_joins_size();
+  query_context_proto_->add_num_partitions_for_nested_loops_joins(num_partitions);
 
   // Create InsertDestination proto.
   const CatalogRelation *output_relation = nullptr;
@@ -975,8 +996,10 @@ void ExecutionGenerator::convertNestedLoopsJoin(
   const QueryPlan::DAGNodeIndex join_operator_index =
       execution_plan_->addRelationalOperator(
           new NestedLoopsJoinOperator(query_handle_->query_id(),
-                                      *left_relation_info->relation,
-                                      *right_relation_info->relation,
+                                      nested_loops_join_index,
+                                      left_relation,
+                                      right_relation,
+                                      num_partitions,
                                       *output_relation,
                                       insert_destination_index,
                                       execution_join_predicate_index,

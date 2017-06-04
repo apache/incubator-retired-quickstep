@@ -347,22 +347,6 @@ namespace {
 
 constexpr size_t kDefaultShiftbossIndex = 0u;
 
-bool isNestedLoopsJoinWorkOrder(const serialization::WorkOrder &work_order_proto,
-                                const BlockLocator &block_locator,
-                                std::size_t *shiftboss_index_for_join) {
-  if (work_order_proto.work_order_type() != S::NESTED_LOOP_JOIN) {
-    return false;
-  }
-
-  const block_id left_block = work_order_proto.GetExtension(S::NestedLoopsJoinWorkOrder::left_block_id);
-  if (block_locator.getBlockLocalityInfo(left_block, shiftboss_index_for_join)) {
-    return true;
-  }
-
-  const block_id right_block = work_order_proto.GetExtension(S::NestedLoopsJoinWorkOrder::right_block_id);
-  return block_locator.getBlockLocalityInfo(right_block, shiftboss_index_for_join);
-}
-
 bool hasBlockLocalityInfo(const serialization::WorkOrder &work_order_proto,
                           const BlockLocator &block_locator,
                           std::size_t *shiftboss_index_for_block) {
@@ -401,10 +385,15 @@ void ForemanDistributed::dispatchWorkOrderMessages(const vector<unique_ptr<S::Wo
     } else if (isLipRelatedWorkOrder(proto, shiftboss_index, &shiftboss_index_for_particular_work_order_type)) {
     } else if (isAggregationRelatedWorkOrder(proto, shiftboss_index, &shiftboss_index_for_particular_work_order_type)) {
     } else if (isHashJoinRelatedWorkOrder(proto, shiftboss_index, &shiftboss_index_for_particular_work_order_type)) {
+    } else if (work_order_proto.work_order_type() == S::NESTED_LOOP_JOIN) {
+      static_cast<PolicyEnforcerDistributed*>(policy_enforcer_.get())->getShiftbossIndexForNestedLoopsJoin(
+          proto.query_id(), work_order_proto.GetExtension(S::NestedLoopsJoinWorkOrder::nested_loops_join_index),
+          work_order_proto.GetExtension(S::NestedLoopsJoinWorkOrder::partition_id), block_locator_,
+          work_order_proto.GetExtension(S::NestedLoopsJoinWorkOrder::left_block_id),
+          work_order_proto.GetExtension(S::NestedLoopsJoinWorkOrder::right_block_id),
+          shiftboss_index, &shiftboss_index_for_particular_work_order_type);
     } else if (hasBlockLocalityInfo(work_order_proto, block_locator_,
                                     &shiftboss_index_for_particular_work_order_type)) {
-    } else if (isNestedLoopsJoinWorkOrder(work_order_proto, block_locator_,
-                                          &shiftboss_index_for_particular_work_order_type)) {
     } else {
       shiftboss_index_for_particular_work_order_type = shiftboss_index;
     }

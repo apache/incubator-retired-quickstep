@@ -186,11 +186,14 @@ message InsertWorkOrder {
   }
 }
 
+// Next tag: 201.
 message NestedLoopsJoinWorkOrder {
   extend WorkOrder {
     // All required.
+    optional uint64 nested_loops_join_index = 200;
     optional int32 left_relation_id = 192;
     optional int32 right_relation_id = 193;
+    optional uint64 partition_id = 199;
     optional fixed64 left_block_id = 194;
     optional fixed64 right_block_id = 195;
     optional int32 insert_destination_index = 196;

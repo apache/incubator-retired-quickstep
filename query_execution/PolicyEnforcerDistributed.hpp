@@ -198,6 +198,33 @@ class PolicyEnforcerDistributed final : public PolicyEnforcerBase {
       const std::size_t next_shiftboss_index_to_schedule,
       std::size_t *shiftboss_index);
 
+  /**
+   * @brief Get or set the index of Shiftboss for a NestedLoopsJoin related WorkOrder.
+   * If it is the first join on <nested_loops_join_index, part_id>,
+   * <shiftboss_index> will be set to block locality if found,
+   * otherwise <next_shiftboss_index_to_schedule>.
+   * Otherwise, <shiftboss_index> will be set to the index of the Shiftboss that
+   * has executed the first join.
+   *
+   * @param query_id The query id.
+   * @param nested_loops_join_index The Hash Table for the Join.
+   * @param part_id The partition ID.
+   * @param block_locator The BlockLocator to use.
+   * @param left_block The block id of the left side to feed BlockLocator for the locality info.
+   * @param right_block The block id of the right side to feed BlockLocator for the locality info.
+   * @param next_shiftboss_index_to_schedule The index of Shiftboss to schedule a next WorkOrder.
+   * @param shiftboss_index_for_nested_loops_join The index of Shiftboss to schedule the WorkOrder.
+   **/
+  void getShiftbossIndexForNestedLoopsJoin(
+      const std::size_t query_id,
+      const std::size_t nested_loops_join_index,
+      const partition_id part_id,
+      const BlockLocator &block_locator,
+      const block_id left_block,
+      const block_id right_block,
+      const std::size_t next_shiftboss_index_to_schedule,
+      std::size_t *shiftboss_index_for_nested_loops_join);
+
  private:
   void decrementNumQueuedWorkOrders(const serialization::WorkOrderCompletionMessage &proto) override {
     shiftboss_directory_->decrementNumQueuedWorkOrders(proto.shiftboss_index());

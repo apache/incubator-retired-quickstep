@@ -67,4 +67,6 @@ message QueryContext {
   repeated WindowAggregationOperationState window_aggregation_states = 12;
 
   required uint64 query_id = 13;
+
+  repeated uint64 num_partitions_for_nested_loops_joins = 14;
 }

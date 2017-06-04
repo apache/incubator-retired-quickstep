@@ -195,6 +195,43 @@ class QueryManagerDistributed final : public QueryManagerBase {
     }
   }
 
+  /**
+   * @brief Get or set the index of Shiftboss for a NestedLoopsJoin related WorkOrder.
+   * If it is the first join on <nested_loops_join_index, part_id>,
+   * <shiftboss_index> will be set to block locality if found,
+   * otherwise <next_shiftboss_index_to_schedule>.
+   * Otherwise, <shiftboss_index> will be set to the index of the Shiftboss that
+   * has executed the first join.
+   *
+   * @param nested_loops_join_index The Hash Table for the Join.
+   * @param part_id The partition ID.
+   * @param block_locator The BlockLocator to use.
+   * @param left_block The block id of the left side to feed BlockLocator for the locality info.
+   * @param right_block The block id of the right side to feed BlockLocator for the locality info.
+   * @param next_shiftboss_index_to_schedule The index of Shiftboss to schedule a next WorkOrder.
+   * @param shiftboss_index The index of Shiftboss to schedule the WorkOrder.
+   **/
+  void getShiftbossIndexForNestedLoopsJoin(const std::size_t nested_loops_join_index,
+                                           const partition_id part_id,
+                                           const BlockLocator &block_locator,
+                                           const block_id left_block,
+                                           const block_id right_block,
+                                           const std::size_t next_shiftboss_index_to_schedule,
+                                           std::size_t *shiftboss_index) {
+    DCHECK_LT(nested_loops_join_index, shiftboss_indexes_for_nested_loops_joins_.size());
+    DCHECK_LT(part_id, shiftboss_indexes_for_nested_loops_joins_[nested_loops_join_index].size());
+
+    std::size_t *shiftboss_index_for_nested_loops_join =
+        &shiftboss_indexes_for_nested_loops_joins_[nested_loops_join_index][part_id];
+    if (*shiftboss_index_for_nested_loops_join == kInvalidShiftbossIndex &&
+        !block_locator.getBlockLocalityInfo(left_block, shiftboss_index_for_nested_loops_join) &&
+        !block_locator.getBlockLocalityInfo(right_block, shiftboss_index_for_nested_loops_join)) {
+       *shiftboss_index_for_nested_loops_join = next_shiftboss_index_to_schedule;
+    }
+
+    *shiftboss_index = *shiftboss_index_for_nested_loops_join;
+  }
+
  private:
   bool checkNormalExecutionOver(const dag_node_index index) const override {
     return (checkAllDependenciesMet(index) &&
@@ -229,6 +266,10 @@ class QueryManagerDistributed final : public QueryManagerBase {
   // Get the scheduled Shiftboss index given
   // [QueryContext::join_hash_table_id][partition_id].
   std::vector<std::vector<std::size_t>> shiftboss_indexes_for_hash_joins_;
+
+  // Get the scheduled Shiftboss index given
+  // [nested_loops_join_index][partition_id].
+  std::vector<std::vector<std::size_t>> shiftboss_indexes_for_nested_loops_joins_;
 
   typedef std::int64_t LipFilterGroupIndex;
 

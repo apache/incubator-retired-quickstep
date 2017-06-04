@@ -83,6 +83,11 @@ QueryManagerDistributed::QueryManagerDistributed(QueryHandle *query_handle,
         vector<size_t>(query_context_proto.join_hash_tables(i).num_partitions(), kInvalidShiftbossIndex));
   }
 
+  for (int i = 0; i < query_context_proto.num_partitions_for_nested_loops_joins_size(); ++i) {
+    shiftboss_indexes_for_nested_loops_joins_.push_back(
+        vector<size_t>(query_context_proto.num_partitions_for_nested_loops_joins(i), kInvalidShiftbossIndex));
+  }
+
   computeLipFilterEquivalenceClasses(query_context_proto);
 }
 

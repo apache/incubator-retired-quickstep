@@ -243,6 +243,26 @@ void PolicyEnforcerDistributed::getShiftbossIndexForLip(
                                          shiftboss_index);
 }
 
+void PolicyEnforcerDistributed::getShiftbossIndexForNestedLoopsJoin(
+    const std::size_t query_id,
+    const std::size_t nested_loops_join_index,
+    const partition_id part_id,
+    const BlockLocator &block_locator,
+    const block_id left_block,
+    const block_id right_block,
+    const std::size_t next_shiftboss_index_to_schedule,
+    std::size_t *shiftboss_index_for_nested_loops_join) {
+  DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
+  QueryManagerDistributed *query_manager = static_cast<QueryManagerDistributed*>(admitted_queries_[query_id].get());
+  query_manager->getShiftbossIndexForNestedLoopsJoin(nested_loops_join_index,
+                                                     part_id,
+                                                     block_locator,
+                                                     left_block,
+                                                     right_block,
+                                                     next_shiftboss_index_to_schedule,
+                                                     shiftboss_index_for_nested_loops_join);
+}
+
 void PolicyEnforcerDistributed::initiateQueryInShiftboss(QueryHandle *query_handle) {
   S::QueryInitiateMessage proto;
   proto.set_query_id(query_handle->query_id());

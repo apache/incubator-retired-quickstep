@@ -27,6 +27,8 @@
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/PartitionScheme.hpp"
+#include "catalog/PartitionSchemeHeader.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -66,10 +68,12 @@ class NestedLoopsJoinOperator : public RelationalOperator {
    * @brief Constructor.
    *
    * @param query_id The ID of the query to which this operator belongs.
+   * @param nested_loops_join_index The ID of this operator.
    * @param left_input_relation The first relation in the join (order is not
    *        actually important).
    * @param right_input_relation The second relation in the join (order is not
    *        actually important).
+   * @param num_partitions The number of partitions.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the join results.
@@ -86,35 +90,61 @@ class NestedLoopsJoinOperator : public RelationalOperator {
    **/
   NestedLoopsJoinOperator(
       const std::size_t query_id,
+      const std::size_t nested_loops_join_index,
       const CatalogRelation &left_input_relation,
       const CatalogRelation &right_input_relation,
+      const std::size_t num_partitions,
       const CatalogRelation &output_relation,
       const QueryContext::insert_destination_id output_destination_index,
       const QueryContext::predicate_id join_predicate_index,
       const QueryContext::scalar_group_id selection_index,
-      bool left_relation_is_stored,
-      bool right_relation_is_stored)
+      const bool left_relation_is_stored,
+      const bool right_relation_is_stored)
       : RelationalOperator(query_id),
+        nested_loops_join_index_(nested_loops_join_index),
         left_input_relation_(left_input_relation),
         right_input_relation_(right_input_relation),
+        num_partitions_(num_partitions),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         join_predicate_index_(join_predicate_index),
         selection_index_(selection_index),
         left_relation_is_stored_(left_relation_is_stored),
         right_relation_is_stored_(right_relation_is_stored),
-        left_relation_block_ids_(left_relation_is_stored
-                                     ? left_input_relation.getBlocksSnapshot()
-                                     : std::vector<block_id>()),
-        right_relation_block_ids_(right_relation_is_stored
-                                      ? right_input_relation.getBlocksSnapshot()
-                                      : std::vector<block_id>()),
-        num_left_workorders_generated_(0),
-        num_right_workorders_generated_(0),
+        left_relation_block_ids_(num_partitions),
+        right_relation_block_ids_(num_partitions),
+        num_left_workorders_generated_(num_partitions),
+        num_right_workorders_generated_(num_partitions),
         done_feeding_left_relation_(false),
         done_feeding_right_relation_(false),
         all_workorders_generated_(false) {
     DCHECK_NE(join_predicate_index_, QueryContext::kInvalidPredicateId);
+
+    if (left_relation_is_stored) {
+      if (left_input_relation_.hasPartitionScheme()) {
+        const PartitionScheme &part_scheme = *left_input_relation_.getPartitionScheme();
+        DCHECK_EQ(num_partitions_, part_scheme.getPartitionSchemeHeader().getNumPartitions());
+        for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+          left_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
+        }
+      } else {
+        DCHECK_EQ(1u, num_partitions_);
+        left_relation_block_ids_[0] = left_input_relation_.getBlocksSnapshot();
+      }
+    }
+
+    if (right_relation_is_stored) {
+      if (right_input_relation_.hasPartitionScheme()) {
+        const PartitionScheme &part_scheme = *right_input_relation_.getPartitionScheme();
+        DCHECK_EQ(num_partitions_, part_scheme.getPartitionSchemeHeader().getNumPartitions());
+        for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+          right_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
+        }
+      } else {
+        DCHECK_EQ(1u, num_partitions_);
+        right_relation_block_ids_[0] = right_input_relation_.getBlocksSnapshot();
+      }
+    }
   }
 
   ~NestedLoopsJoinOperator() override {}
@@ -148,9 +178,9 @@ class NestedLoopsJoinOperator : public RelationalOperator {
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id,
                       const partition_id part_id) override {
     if (input_relation_id == left_input_relation_.getID()) {
-      left_relation_block_ids_.push_back(input_block_id);
+      left_relation_block_ids_[part_id].push_back(input_block_id);
     } else if (input_relation_id == right_input_relation_.getID()) {
-      right_relation_block_ids_.push_back(input_block_id);
+      right_relation_block_ids_[part_id].push_back(input_block_id);
     } else {
       LOG(FATAL) << "The input block sent to the NestedLoopsJoinOperator belongs "
                  << "to a different relation than the left and right relations";
@@ -175,6 +205,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
    *                  resulting WorkOrders.
    * @param query_context The QueryContext that stores query execution states.
    * @param storage_manager The StorageManager to use.
+   * @param part_id The partition ID.
    * @param left_min The starting index in left_relation_block_ids_ from where
    *                 we begin generating NestedLoopsJoinWorkOrders.
    * @param left_max The index in left_relation_block_ids_ until which we
@@ -190,6 +221,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
   std::size_t getAllWorkOrdersHelperBothNotStored(WorkOrdersContainer *container,
                                                   QueryContext *query_context,
                                                   StorageManager *storage_manager,
+                                                  const partition_id part_id,
                                                   std::vector<block_id>::size_type left_min,
                                                   std::vector<block_id>::size_type left_max,
                                                   std::vector<block_id>::size_type right_min,
@@ -232,6 +264,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
    *         function.
    **/
   std::size_t getAllWorkOrderProtosHelperBothNotStored(WorkOrderProtosContainer *container,
+                                                       const partition_id part_id,
                                                        const std::vector<block_id>::size_type left_min,
                                                        const std::vector<block_id>::size_type left_max,
                                                        const std::vector<block_id>::size_type right_min,
@@ -249,16 +282,16 @@ class NestedLoopsJoinOperator : public RelationalOperator {
    **/
   bool getAllWorkOrderProtosHelperOneStored(WorkOrderProtosContainer *container);
 
-  /**
-   * @brief Create Work Order proto.
-   *
-   * @param block The block id used in the Work Order.
-   **/
-  serialization::WorkOrder* createWorkOrderProto(const block_id left_block,
+  serialization::WorkOrder* createWorkOrderProto(const partition_id part_id,
+                                                 const block_id left_block,
                                                  const block_id right_block);
+
+  const std::size_t nested_loops_join_index_;
 
   const CatalogRelation &left_input_relation_;
   const CatalogRelation &right_input_relation_;
+
+  const std::size_t num_partitions_;
 
   const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
@@ -269,14 +302,14 @@ class NestedLoopsJoinOperator : public RelationalOperator {
   const bool left_relation_is_stored_;
   const bool right_relation_is_stored_;
 
-  std::vector<block_id> left_relation_block_ids_;
-  std::vector<block_id> right_relation_block_ids_;
+  std::vector<BlocksInPartition> left_relation_block_ids_;
+  std::vector<BlocksInPartition> right_relation_block_ids_;
 
-  // At a given point of time, we have paired num_left_workorders_generated
-  // number of blocks from the left relation with num_right_workorders_generated
-  // number of blocks from the right relation.
-  std::vector<block_id>::size_type num_left_workorders_generated_;
-  std::vector<block_id>::size_type num_right_workorders_generated_;
+  // At a given point of time, we have paired num_left_workorders_generated[part_id]
+  // number of blocks from the left relation with num_right_workorders_generated[part_id]
+  // number of blocks from the right relation for a given 'part_id'.
+  std::vector<std::size_t> num_left_workorders_generated_;
+  std::vector<std::size_t> num_right_workorders_generated_;
 
   bool done_feeding_left_relation_;
   bool done_feeding_right_relation_;
