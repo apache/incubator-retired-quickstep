@@ -218,7 +218,7 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
         return true;
       }
 
-      for (std::size_t part_id = 0; part_id < build_num_partitions_; ++part_id) {
+      for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
         const JoinHashTable &hash_table =
             *(query_context->getJoinHashTable(hash_table_index_, part_id));
 
@@ -234,7 +234,7 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrders(
       started_ = true;
       return true;
     } else {
-      for (std::size_t part_id = 0; part_id < build_num_partitions_; ++part_id) {
+      for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
         const JoinHashTable &hash_table =
             *(query_context->getJoinHashTable(hash_table_index_, part_id));
 
@@ -274,7 +274,7 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
         return true;
       }
 
-      for (std::size_t part_id = 0; part_id < build_num_partitions_; ++part_id) {
+      for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
         const JoinHashTable &hash_table =
             *(query_context->getJoinHashTable(hash_table_index_, part_id));
 
@@ -290,7 +290,7 @@ bool HashJoinOperator::getAllOuterJoinWorkOrders(
       started_ = true;
       return true;
     } else {
-      for (std::size_t part_id = 0; part_id < build_num_partitions_; ++part_id) {
+      for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
         const JoinHashTable &hash_table =
             *(query_context->getJoinHashTable(hash_table_index_, part_id));
 
@@ -340,7 +340,7 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrderProtos(
       return true;
     }
 
-    for (std::size_t part_id = 0; part_id < build_num_partitions_; ++part_id) {
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
       for (const block_id probe_block_id : probe_relation_block_ids_[part_id]) {
         container->addWorkOrderProto(
             createNonOuterJoinWorkOrderProto(hash_join_type, probe_block_id, part_id),
@@ -350,7 +350,7 @@ bool HashJoinOperator::getAllNonOuterJoinWorkOrderProtos(
     started_ = true;
     return true;
   } else {
-    for (std::size_t part_id = 0; part_id < build_num_partitions_; ++part_id) {
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
       while (num_workorders_generated_[part_id] < probe_relation_block_ids_[part_id].size()) {
         container->addWorkOrderProto(
             createNonOuterJoinWorkOrderProto(hash_join_type,
@@ -402,7 +402,7 @@ bool HashJoinOperator::getAllOuterJoinWorkOrderProtos(WorkOrderProtosContainer *
       return true;
     }
 
-    for (std::size_t part_id = 0; part_id < build_num_partitions_; ++part_id) {
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
       for (const block_id probe_block_id : probe_relation_block_ids_[part_id]) {
         container->addWorkOrderProto(createOuterJoinWorkOrderProto(probe_block_id, part_id), op_index_);
       }
@@ -410,7 +410,7 @@ bool HashJoinOperator::getAllOuterJoinWorkOrderProtos(WorkOrderProtosContainer *
     started_ = true;
     return true;
   } else {
-    for (std::size_t part_id = 0; part_id < build_num_partitions_; ++part_id) {
+    for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
       while (num_workorders_generated_[part_id] < probe_relation_block_ids_[part_id].size()) {
         container->addWorkOrderProto(
             createOuterJoinWorkOrderProto(probe_relation_block_ids_[part_id][num_workorders_generated_[part_id]],

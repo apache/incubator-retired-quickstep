@@ -76,7 +76,7 @@ class BuildHashOperator : public RelationalOperator {
    * @param join_key_attributes The IDs of equijoin attributes in
    *        input_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param num_partitions The number of partitions in 'input_relation'. If no
+   * @param num_partitions The number of partitions in 'probe_relation'. If no
    *        partitions, it is one.
    * @param hash_table_index The index of the JoinHashTable in QueryContext.
    *        The HashTable's key Type(s) should be the Type(s) of the
@@ -95,6 +95,7 @@ class BuildHashOperator : public RelationalOperator {
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         num_partitions_(num_partitions),
+        is_broadcast_join_(num_partitions > 1u && !input_relation.hasPartitionScheme()),
         hash_table_index_(hash_table_index),
         input_relation_block_ids_(num_partitions),
         num_workorders_generated_(num_partitions),
@@ -102,12 +103,15 @@ class BuildHashOperator : public RelationalOperator {
     if (input_relation_is_stored) {
       if (input_relation.hasPartitionScheme()) {
         const PartitionScheme &part_scheme = *input_relation.getPartitionScheme();
-        for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+        DCHECK_EQ(part_scheme.getPartitionSchemeHeader().getNumPartitions(), num_partitions_);
+        for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
           input_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
         }
       } else {
-        // No partition.
-        input_relation_block_ids_[0] = input_relation.getBlocksSnapshot();
+        // Broadcast hash join if build has no partitions.
+        for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+          input_relation_block_ids_[part_id] = input_relation.getBlocksSnapshot();
+        }
       }
     }
   }
@@ -136,7 +140,13 @@ class BuildHashOperator : public RelationalOperator {
 
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id,
                       const partition_id part_id) override {
-    input_relation_block_ids_[part_id].push_back(input_block_id);
+    if (is_broadcast_join_) {
+      for (partition_id probe_part_id = 0; probe_part_id < num_partitions_; ++probe_part_id) {
+        input_relation_block_ids_[probe_part_id].push_back(input_block_id);
+      }
+    } else {
+      input_relation_block_ids_[part_id].push_back(input_block_id);
+    }
   }
 
  private:
@@ -153,6 +163,7 @@ class BuildHashOperator : public RelationalOperator {
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
   const std::size_t num_partitions_;
+  const bool is_broadcast_join_;
   const QueryContext::join_hash_table_id hash_table_index_;
 
   // The index is the partition id.

@@ -102,7 +102,7 @@ class HashJoinOperator : public RelationalOperator {
    * @param join_key_attributes The IDs of equijoin attributes in
    *        probe_relation.
    * @param any_join_key_attributes_nullable If any attribute is nullable.
-   * @param build_num_partitions The number of partitions in 'build_relation'.
+   * @param num_partitions The number of partitions in 'probe_relation'.
    *        If no partitions, it is one.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
@@ -129,7 +129,7 @@ class HashJoinOperator : public RelationalOperator {
       const bool probe_relation_is_stored,
       const std::vector<attribute_id> &join_key_attributes,
       const bool any_join_key_attributes_nullable,
-      const std::size_t build_num_partitions,
+      const std::size_t num_partitions,
       const CatalogRelation &output_relation,
       const QueryContext::insert_destination_id output_destination_index,
       const QueryContext::join_hash_table_id hash_table_index,
@@ -143,7 +143,7 @@ class HashJoinOperator : public RelationalOperator {
         probe_relation_is_stored_(probe_relation_is_stored),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        build_num_partitions_(build_num_partitions),
+        num_partitions_(num_partitions),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         hash_table_index_(hash_table_index),
@@ -153,8 +153,8 @@ class HashJoinOperator : public RelationalOperator {
                                    ? std::vector<bool>()
                                    : *is_selection_on_build),
         join_type_(join_type),
-        probe_relation_block_ids_(build_num_partitions),
-        num_workorders_generated_(build_num_partitions),
+        probe_relation_block_ids_(num_partitions),
+        num_workorders_generated_(num_partitions),
         started_(false) {
     DCHECK(join_type != JoinType::kLeftOuterJoin ||
                (is_selection_on_build != nullptr &&
@@ -163,15 +163,12 @@ class HashJoinOperator : public RelationalOperator {
     if (probe_relation_is_stored) {
       if (probe_relation.hasPartitionScheme()) {
         const PartitionScheme &part_scheme = *probe_relation.getPartitionScheme();
-        DCHECK_EQ(build_num_partitions_, part_scheme.getPartitionSchemeHeader().getNumPartitions());
-        for (std::size_t part_id = 0; part_id < build_num_partitions_; ++part_id) {
+        for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
           probe_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
         }
       } else {
-        // Broadcast hash join if probe has no partitions.
-        for (std::size_t part_id = 0; part_id < build_num_partitions_; ++part_id) {
-          probe_relation_block_ids_[part_id] = probe_relation.getBlocksSnapshot();
-        }
+        // No partitions.
+        probe_relation_block_ids_[0] = probe_relation.getBlocksSnapshot();
       }
     }
   }
@@ -227,15 +224,7 @@ class HashJoinOperator : public RelationalOperator {
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id,
                       const partition_id part_id) override {
     DCHECK_EQ(probe_relation_.getID(), input_relation_id);
-
-    if (probe_relation_.hasPartitionScheme()) {
-      probe_relation_block_ids_[part_id].push_back(input_block_id);
-    } else {
-      // Broadcast hash join if probe has no partitions.
-      for (std::size_t build_part_id = 0; build_part_id < build_num_partitions_; ++build_part_id) {
-        probe_relation_block_ids_[build_part_id].push_back(input_block_id);
-      }
-    }
+    probe_relation_block_ids_[part_id].push_back(input_block_id);
   }
 
   QueryContext::insert_destination_id getInsertDestinationID() const override {
@@ -287,7 +276,7 @@ class HashJoinOperator : public RelationalOperator {
   const bool probe_relation_is_stored_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const std::size_t build_num_partitions_;
+  const std::size_t num_partitions_;
   const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;
   const QueryContext::join_hash_table_id hash_table_index_;
