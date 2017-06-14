@@ -40,6 +40,8 @@ namespace physical {
 class Join;
 typedef std::shared_ptr<const Join> JoinPtr;
 
+struct PartitionSchemeHeader;
+
 /**
  * @brief Base class for physical join nodes.
  */
@@ -68,10 +70,13 @@ class Join : public Physical {
    * @brief Constructor.
    *
    * @param project_expressions The project expressions.
+   * @param partition_scheme_header The optional output partition scheme header.
    */
   explicit Join(
-      const std::vector<expressions::NamedExpressionPtr>& project_expressions)
-      : project_expressions_(project_expressions) {}
+      const std::vector<expressions::NamedExpressionPtr>& project_expressions,
+      PartitionSchemeHeader *partition_scheme_header = nullptr)
+      : Physical(partition_scheme_header),
+        project_expressions_(project_expressions) {}
 
  private:
   std::vector<expressions::NamedExpressionPtr> project_expressions_;

@@ -463,6 +463,8 @@ serialization::WorkOrder* HashJoinOperator::createOuterJoinWorkOrderProto(const 
 
 
 void HashInnerJoinWorkOrder::execute() {
+  output_destination_->setInputPartitionId(part_id_);
+
   BlockReference probe_block(
       storage_manager_->getBlock(block_id_, probe_relation_));
   const TupleStorageSubBlock &probe_store = probe_block->getTupleStorageSubBlock();
@@ -694,6 +696,8 @@ void HashInnerJoinWorkOrder::executeWithCopyElision(ValueAccessor *probe_accesso
 }
 
 void HashSemiJoinWorkOrder::execute() {
+  output_destination_->setInputPartitionId(part_id_);
+
   if (residual_predicate_ == nullptr) {
     executeWithoutResidualPredicate();
   } else {
@@ -1018,6 +1022,8 @@ void HashAntiJoinWorkOrder::executeWithResidualPredicate() {
 }
 
 void HashOuterJoinWorkOrder::execute() {
+  output_destination_->setInputPartitionId(part_id_);
+
   const relation_id build_relation_id = build_relation_.getID();
   const relation_id probe_relation_id = probe_relation_.getID();
 

@@ -67,6 +67,7 @@ target_link_libraries(quickstep_queryoptimizer_physical_BinaryJoin
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_NamedExpression
                       quickstep_queryoptimizer_physical_Join
+                      quickstep_queryoptimizer_physical_PartitionSchemeHeader
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_utility_Cast
                       quickstep_utility_Macros)
@@ -202,9 +203,11 @@ target_link_libraries(quickstep_queryoptimizer_physical_PartitionSchemeHeader
 target_link_libraries(quickstep_queryoptimizer_physical_PatternMatcher
                       quickstep_queryoptimizer_physical_PhysicalType)
 target_link_libraries(quickstep_queryoptimizer_physical_Physical
+                      glog
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_physical_PartitionSchemeHeader
                       quickstep_queryoptimizer_physical_PhysicalType
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_physical_Sample
@@ -225,6 +228,7 @@ target_link_libraries(quickstep_queryoptimizer_physical_Selection
                       quickstep_queryoptimizer_expressions_LogicalAnd
                       quickstep_queryoptimizer_expressions_NamedExpression
                       quickstep_queryoptimizer_expressions_Predicate
+                      quickstep_queryoptimizer_physical_PartitionSchemeHeader
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
                       quickstep_utility_Cast
@@ -254,6 +258,7 @@ target_link_libraries(quickstep_queryoptimizer_physical_TableGenerator
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_ExpressionUtil
+                      quickstep_queryoptimizer_physical_PartitionSchemeHeader
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
                       quickstep_utility_Cast
@@ -261,10 +266,13 @@ target_link_libraries(quickstep_queryoptimizer_physical_TableGenerator
 target_link_libraries(quickstep_queryoptimizer_physical_TableReference
                       glog
                       quickstep_catalog_CatalogRelation
+                      quickstep_catalog_PartitionScheme
+                      quickstep_catalog_PartitionSchemeHeader
                       quickstep_queryoptimizer_OptimizerTree
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_ExpressionUtil
                       quickstep_queryoptimizer_expressions_NamedExpression
+                      quickstep_queryoptimizer_physical_PartitionSchemeHeader
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
                       quickstep_utility_Cast

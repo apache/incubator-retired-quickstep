@@ -36,6 +36,7 @@
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageBlockLayout.hpp"
+#include "storage/ValueAccessor.hpp"
 #include "threading/SpinMutex.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
 #include "types/containers/Tuple.hpp"
@@ -53,7 +54,6 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class StorageManager;
-class ValueAccessor;
 
 namespace merge_run_operator {
 class RunCreator;
@@ -200,6 +200,14 @@ class InsertDestination : public InsertDestinationInterface {
    **/
   virtual void getPartiallyFilledBlocks(std::vector<MutableBlockReference> *partial_blocks,
                                         std::vector<partition_id> *part_ids) = 0;
+
+  /**
+   * @brief Set the input partition id. Used when the partition attributes are
+   *        empty.
+   *
+   * @param input_partition_id The input partition id.
+   **/
+  virtual void setInputPartitionId(const partition_id input_partition_id) {}
 
  protected:
   /**
@@ -541,6 +549,10 @@ class PartitionAwareInsertDestination : public InsertDestination {
   void insertTuplesFromVector(std::vector<Tuple>::const_iterator begin,
                               std::vector<Tuple>::const_iterator end) override;
 
+  void setInputPartitionId(const partition_id input_partition_id) override {
+    input_partition_id_ = input_partition_id;
+  }
+
  protected:
   MutableBlockReference getBlockForInsertion() override {
     LOG(FATAL) << "PartitionAwareInsertDestination::getBlockForInsertion needs a partition id as an argument.";
@@ -599,6 +611,24 @@ class PartitionAwareInsertDestination : public InsertDestination {
     available_block_refs_[part_id].clear();
   }
 
+  partition_id getPartitionId(const Tuple &tuple) const {
+    PartitionSchemeHeader::PartitionValues values;
+    for (const attribute_id attr_id : partition_scheme_header_->getPartitionAttributeIds()) {
+      values.push_back(tuple.getAttributeValue(attr_id));
+    }
+
+    return values.empty() ? input_partition_id_ : partition_scheme_header_->getPartitionId(values);
+  }
+
+  partition_id getPartitionId(ValueAccessor *accessor) const {
+    PartitionSchemeHeader::PartitionValues values;
+    for (const attribute_id attr_id : partition_scheme_header_->getPartitionAttributeIds()) {
+      values.push_back(accessor->getTypedValueVirtual(attr_id));
+    }
+
+    return values.empty() ? input_partition_id_ : partition_scheme_header_->getPartitionId(values);
+  }
+
   std::unique_ptr<const PartitionSchemeHeader> partition_scheme_header_;
 
   // A vector of available block references for each partition.
@@ -611,6 +641,8 @@ class PartitionAwareInsertDestination : public InsertDestination {
   std::vector<block_id> all_partitions_done_block_ids_;
   // Mutex for locking each partition separately.
   SpinMutex *mutexes_for_partition_;
+
+  partition_id input_partition_id_ = 0u;
 
   DISALLOW_COPY_AND_ASSIGN(PartitionAwareInsertDestination);
 };

@@ -434,7 +434,12 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           storage_manager);
     }
     case serialization::SELECT: {
-      LOG(INFO) << "Creating SelectWorkOrder for Query " << query_id << " in Shiftboss " << shiftboss_index;
+      const partition_id part_id =
+          proto.GetExtension(serialization::SelectWorkOrder::partition_id);
+
+      LOG(INFO) << "Creating SelectWorkOrder (Partition " << part_id << ") for Query " << query_id
+                << " in Shiftboss " << shiftboss_index;
+
       const bool simple_projection =
           proto.GetExtension(serialization::SelectWorkOrder::simple_projection);
       vector<attribute_id> simple_selection;
@@ -447,6 +452,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           query_id,
           catalog_database->getRelationSchemaById(
               proto.GetExtension(serialization::SelectWorkOrder::relation_id)),
+          part_id,
           proto.GetExtension(serialization::SelectWorkOrder::block_id),
           query_context->getPredicate(
               proto.GetExtension(serialization::SelectWorkOrder::predicate_index)),
@@ -913,6 +919,7 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
              proto.HasExtension(serialization::SelectWorkOrder::predicate_index) &&
              query_context.isValidPredicate(
                  proto.GetExtension(serialization::SelectWorkOrder::predicate_index)) &&
+             proto.HasExtension(serialization::SelectWorkOrder::partition_id) &&
              proto.HasExtension(serialization::SelectWorkOrder::block_id);
     }
     case serialization::SORT_MERGE_RUN: {

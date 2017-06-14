@@ -75,7 +75,7 @@ bool SelectOperator::getAllWorkOrders(
         }
 #endif  // QUICKSTEP_HAVE_LIBNUMA
         container->addNormalWorkOrder(
-            new SelectWorkOrder(query_id_, input_relation_, input_block_id, predicate, simple_projection_,
+            new SelectWorkOrder(query_id_, input_relation_, part_id, input_block_id, predicate, simple_projection_,
                                 simple_selection_, selection, output_destination, storage_manager,
                                 CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context), numa_node),
             op_index_);
@@ -95,7 +95,7 @@ bool SelectOperator::getAllWorkOrders(
         }
 #endif  // QUICKSTEP_HAVE_LIBNUMA
         container->addNormalWorkOrder(
-            new SelectWorkOrder(query_id_, input_relation_, block, predicate, simple_projection_,
+            new SelectWorkOrder(query_id_, input_relation_, part_id, block, predicate, simple_projection_,
                                 simple_selection_, selection, output_destination, storage_manager,
                                 CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context), numa_node),
             op_index_);
@@ -114,7 +114,7 @@ bool SelectOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) 
 
     for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
       for (const block_id input_block_id : input_relation_block_ids_[part_id]) {
-        container->addWorkOrderProto(createWorkOrderProto(input_block_id), op_index_);
+        container->addWorkOrderProto(createWorkOrderProto(part_id, input_block_id), op_index_);
       }
     }
     started_ = true;
@@ -123,7 +123,7 @@ bool SelectOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) 
     for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
       while (num_workorders_generated_[part_id] < input_relation_block_ids_[part_id].size()) {
         container->addWorkOrderProto(
-            createWorkOrderProto(input_relation_block_ids_[part_id][num_workorders_generated_[part_id]]),
+            createWorkOrderProto(part_id, input_relation_block_ids_[part_id][num_workorders_generated_[part_id]]),
             op_index_);
         ++num_workorders_generated_[part_id];
       }
@@ -132,7 +132,7 @@ bool SelectOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) 
   }
 }
 
-serialization::WorkOrder* SelectOperator::createWorkOrderProto(const block_id block) {
+serialization::WorkOrder* SelectOperator::createWorkOrderProto(const partition_id part_id, const block_id block) {
   serialization::WorkOrder *proto = new serialization::WorkOrder;
   proto->set_work_order_type(serialization::SELECT);
   proto->set_query_id(query_id_);
@@ -140,6 +140,7 @@ serialization::WorkOrder* SelectOperator::createWorkOrderProto(const block_id bl
   proto->SetExtension(serialization::SelectWorkOrder::relation_id, input_relation_.getID());
   proto->SetExtension(serialization::SelectWorkOrder::insert_destination_index, output_destination_index_);
   proto->SetExtension(serialization::SelectWorkOrder::predicate_index, predicate_index_);
+  proto->SetExtension(serialization::SelectWorkOrder::partition_id, part_id);
   proto->SetExtension(serialization::SelectWorkOrder::block_id, block);
   proto->SetExtension(serialization::SelectWorkOrder::simple_projection, simple_projection_);
   if (simple_projection_) {
@@ -158,6 +159,8 @@ serialization::WorkOrder* SelectOperator::createWorkOrderProto(const block_id bl
 }
 
 void SelectWorkOrder::execute() {
+  output_destination_->setInputPartitionId(part_id_);
+
   BlockReference block(
       storage_manager_->getBlock(input_block_id_, input_relation_, getPreferredNUMANodes()[0]));
 

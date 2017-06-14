@@ -40,6 +40,7 @@
 #include "storage/StorageBlockLayout.hpp"
 #include "storage/StorageManager.hpp"
 #include "storage/TupleIdSequence.hpp"
+#include "storage/ValueAccessor.hpp"
 #include "storage/ValueAccessorUtil.hpp"
 #include "threading/SpinMutex.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
@@ -573,11 +574,7 @@ PartitionSchemeHeader::PartitionAttributeIds PartitionAwareInsertDestination::ge
 }
 
 void PartitionAwareInsertDestination::insertTuple(const Tuple &tuple) {
-  PartitionSchemeHeader::PartitionValues values;
-  for (const attribute_id attr_id : partition_scheme_header_->getPartitionAttributeIds()) {
-    values.push_back(tuple.getAttributeValue(attr_id));
-  }
-  const partition_id part_id = partition_scheme_header_->getPartitionId(values);
+  const partition_id part_id = getPartitionId(tuple);
 
   MutableBlockReference output_block = getBlockForInsertionInPartition(part_id);
 
@@ -596,11 +593,7 @@ void PartitionAwareInsertDestination::insertTuple(const Tuple &tuple) {
 }
 
 void PartitionAwareInsertDestination::insertTupleInBatch(const Tuple &tuple) {
-  PartitionSchemeHeader::PartitionValues values;
-  for (const attribute_id attr_id : partition_scheme_header_->getPartitionAttributeIds()) {
-    values.push_back(tuple.getAttributeValue(attr_id));
-  }
-  const partition_id part_id = partition_scheme_header_->getPartitionId(values);
+  const partition_id part_id = getPartitionId(tuple);
 
   MutableBlockReference output_block = getBlockForInsertionInPartition(part_id);
 
@@ -637,12 +630,7 @@ void PartitionAwareInsertDestination::bulkInsertTuples(ValueAccessor *accessor, 
     // set a bit in the appropriate TupleIdSequence.
     accessor->beginIteration();
     while (accessor->next()) {
-      PartitionSchemeHeader::PartitionValues values;
-      for (const attribute_id attr_id : partition_scheme_header_->getPartitionAttributeIds()) {
-        values.push_back(accessor->getTypedValue(attr_id));
-      }
-      partition_membership[partition_scheme_header_->getPartitionId(values)]
-          ->set(accessor->getCurrentPosition(), true);
+      partition_membership[this->getPartitionId(accessor)]->set(accessor->getCurrentPosition(), true);
     }
 
     // For each partition, create an adapter around Value Accessor and
@@ -693,12 +681,7 @@ void PartitionAwareInsertDestination::bulkInsertTuplesWithRemappedAttributes(
     // set a bit in the appropriate TupleIdSequence.
     accessor->beginIteration();
     while (accessor->next()) {
-      PartitionSchemeHeader::PartitionValues values;
-      for (const attribute_id attr_id : partition_scheme_header_->getPartitionAttributeIds()) {
-        values.push_back(accessor->getTypedValue(attr_id));
-      }
-      partition_membership[partition_scheme_header_->getPartitionId(values)]
-          ->set(accessor->getCurrentPosition(), true);
+      partition_membership[this->getPartitionId(accessor)]->set(accessor->getCurrentPosition(), true);
     }
 
     // For each partition, create an adapter around Value Accessor and
@@ -735,12 +718,7 @@ void PartitionAwareInsertDestination::insertTuplesFromVector(std::vector<Tuple>:
   }
 
   for (; begin != end; ++begin) {
-    PartitionSchemeHeader::PartitionValues values;
-    for (const attribute_id attr_id : partition_scheme_header_->getPartitionAttributeIds()) {
-      values.push_back(begin->getAttributeValue(attr_id));
-    }
-
-    const partition_id part_id = partition_scheme_header_->getPartitionId(values);
+    const partition_id part_id = getPartitionId(*begin);
 
     MutableBlockReference dest_block = getBlockForInsertionInPartition(part_id);
     // FIXME(chasseur): Deal with TupleTooLargeForBlock exception.

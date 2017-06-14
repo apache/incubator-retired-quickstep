@@ -84,6 +84,7 @@
 #include "query_optimizer/physical/InsertTuple.hpp"
 #include "query_optimizer/physical/LIPFilterConfiguration.hpp"
 #include "query_optimizer/physical/NestedLoopsJoin.hpp"
+#include "query_optimizer/physical/PartitionSchemeHeader.hpp"
 #include "query_optimizer/physical/PatternMatcher.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
@@ -140,6 +141,7 @@
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
+using std::make_unique;
 using std::move;
 using std::static_pointer_cast;
 using std::unique_ptr;
@@ -363,16 +365,52 @@ void ExecutionGenerator::createTemporaryCatalogRelation(
     ++aid;
   }
 
+  const P::PartitionSchemeHeader *partition_scheme_header = physical->getOutputPartitionSchemeHeader();
+  if (partition_scheme_header) {
+    PartitionSchemeHeader::PartitionAttributeIds output_partition_attr_ids;
+    for (const auto &partition_equivalent_expr_ids : partition_scheme_header->partition_expr_ids) {
+      DCHECK(!partition_equivalent_expr_ids.empty());
+      const E::ExprId partition_expr_id = *partition_equivalent_expr_ids.begin();
+      DCHECK(attribute_substitution_map_.find(partition_expr_id) != attribute_substitution_map_.end());
+      output_partition_attr_ids.push_back(attribute_substitution_map_[partition_expr_id]->getID());
+    }
+
+    const size_t num_partition = partition_scheme_header->num_partitions;
+    unique_ptr<PartitionSchemeHeader> output_partition_scheme_header;
+    switch (partition_scheme_header->partition_type) {
+      case P::PartitionSchemeHeader::PartitionType::kHash:
+        output_partition_scheme_header =
+            make_unique<HashPartitionSchemeHeader>(num_partition, move(output_partition_attr_ids));
+        break;
+      case P::PartitionSchemeHeader::PartitionType::kRandom:
+        output_partition_scheme_header =
+            make_unique<RandomPartitionSchemeHeader>(num_partition);
+        break;
+      case P::PartitionSchemeHeader::PartitionType::kRange:
+        LOG(FATAL) << "Unimplemented";
+      default:
+        LOG(FATAL) << "Unknown partition type";
+    }
+    auto output_partition_scheme = make_unique<PartitionScheme>(output_partition_scheme_header.release());
+
+    insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::PARTITION_AWARE);
+    insert_destination_proto->MutableExtension(S::PartitionAwareInsertDestination::partition_scheme)
+        ->MergeFrom(output_partition_scheme->getProto());
+
+    catalog_relation->setPartitionScheme(output_partition_scheme.release());
+  } else {
+    insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
+  }
+
   *catalog_relation_output = catalog_relation.get();
   const relation_id output_rel_id = catalog_database_->addRelation(
       catalog_relation.release());
 
+  insert_destination_proto->set_relation_id(output_rel_id);
+
 #ifdef QUICKSTEP_DISTRIBUTED
   referenced_relation_ids_.insert(output_rel_id);
 #endif
-
-  insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
-  insert_destination_proto->set_relation_id(output_rel_id);
 }
 
 void ExecutionGenerator::dropAllTemporaryRelations() {
@@ -499,13 +537,28 @@ bool ExecutionGenerator::convertSimpleProjection(
 
 void ExecutionGenerator::convertSelection(
     const P::SelectionPtr &physical_selection) {
+  const P::PhysicalPtr input = physical_selection->input();
+  const CatalogRelationInfo *input_relation_info =
+      findRelationInfoOutputByPhysical(input);
+  DCHECK(input_relation_info != nullptr);
+  const CatalogRelation &input_relation = *input_relation_info->relation;
+
   // Check if the Selection is only for renaming columns.
   if (physical_selection->filter_predicate() == nullptr) {
-    const std::vector<E::AttributeReferencePtr> input_attributes =
-        physical_selection->input()->getOutputAttributes();
+    const P::PartitionSchemeHeader *physical_select_partition_scheme_header =
+        physical_selection->getOutputPartitionSchemeHeader();
+    const P::PartitionSchemeHeader *physical_input_partition_scheme_header = input->getOutputPartitionSchemeHeader();
+
+    const bool are_same_physical_partition_scheme_headers =
+        (!physical_select_partition_scheme_header && !physical_input_partition_scheme_header) ||
+        (physical_select_partition_scheme_header && physical_input_partition_scheme_header &&
+         physical_select_partition_scheme_header->equal(*physical_input_partition_scheme_header));
+
+    const std::vector<E::AttributeReferencePtr> input_attributes = input->getOutputAttributes();
+
     const std::vector<E::NamedExpressionPtr> &project_expressions =
         physical_selection->project_expressions();
-    if (project_expressions.size() == input_attributes.size()) {
+    if (project_expressions.size() == input_attributes.size() && are_same_physical_partition_scheme_headers) {
       bool has_different_attrs = false;
       for (std::size_t attr_idx = 0; attr_idx < input_attributes.size(); ++attr_idx) {
         if (project_expressions[attr_idx]->id() != input_attributes[attr_idx]->id()) {
@@ -514,12 +567,9 @@ void ExecutionGenerator::convertSelection(
         }
       }
       if (!has_different_attrs) {
-        const std::unordered_map<P::PhysicalPtr, CatalogRelationInfo>::const_iterator input_catalog_rel_it =
-            physical_to_output_relation_map_.find(physical_selection->input());
-        DCHECK(input_catalog_rel_it != physical_to_output_relation_map_.end());
-        if (!input_catalog_rel_it->second.isStoredRelation()) {
+        if (!input_relation_info->isStoredRelation()) {
           CatalogRelation *catalog_relation =
-              const_cast<CatalogRelation*>(input_catalog_rel_it->second.relation);
+              const_cast<CatalogRelation*>(input_relation_info->relation);
           for (std::size_t attr_idx = 0; attr_idx < project_expressions.size(); ++attr_idx) {
             CatalogAttribute *catalog_attribute =
                 catalog_relation->getAttributeByIdMutable(attr_idx);
@@ -528,7 +578,7 @@ void ExecutionGenerator::convertSelection(
                 project_expressions[attr_idx]->attribute_alias());
           }
           physical_to_output_relation_map_.emplace(physical_selection,
-                                                   input_catalog_rel_it->second);
+                                                   *input_relation_info);
           return;
         }
       }
@@ -560,10 +610,6 @@ void ExecutionGenerator::convertSelection(
                                  insert_destination_proto);
 
   // Create and add a Select operator.
-  const CatalogRelationInfo *input_relation_info =
-      findRelationInfoOutputByPhysical(physical_selection->input());
-  DCHECK(input_relation_info != nullptr);
-  const CatalogRelation &input_relation = *input_relation_info->relation;
   const PartitionScheme *input_partition_scheme = input_relation.getPartitionScheme();
 
   const std::size_t num_partitions =
@@ -799,17 +845,11 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   S::QueryContext::HashTableContext *hash_table_context_proto =
       query_context_proto_->add_join_hash_tables();
 
-  // No partition.
-  std::size_t num_partitions = 1;
-  if (build_relation->hasPartitionScheme() &&
-      build_attribute_ids.size() == 1) {
-    const PartitionSchemeHeader &partition_scheme_header =
-        build_relation->getPartitionScheme()->getPartitionSchemeHeader();
-    if (build_attribute_ids[0] == partition_scheme_header.getPartitionAttributeIds().front()) {
-      // TODO(zuyu): add optimizer support for partitioned hash joins.
-      hash_table_context_proto->set_num_partitions(num_partitions);
-    }
-  }
+  const P::PartitionSchemeHeader *probe_partition_scheme_header = probe_physical->getOutputPartitionSchemeHeader();
+  const std::size_t probe_num_partitions =
+      probe_partition_scheme_header ? probe_partition_scheme_header->num_partitions : 1u;
+  hash_table_context_proto->set_num_partitions(probe_num_partitions);
+
 
   S::HashTable *hash_table_proto = hash_table_context_proto->mutable_join_hash_table();
 
@@ -837,7 +877,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               build_relation_info->isStoredRelation(),
               build_attribute_ids,
               any_build_attributes_nullable,
-              num_partitions,
+              probe_num_partitions,
               join_hash_table_index));
 
   // Create InsertDestination proto.
@@ -880,7 +920,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               probe_operator_info->isStoredRelation(),
               probe_attribute_ids,
               any_probe_attributes_nullable,
-              num_partitions,
+              probe_num_partitions,
               *output_relation,
               insert_destination_index,
               join_hash_table_index,
@@ -892,7 +932,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
 
   const QueryPlan::DAGNodeIndex destroy_operator_index =
       execution_plan_->addRelationalOperator(new DestroyHashOperator(
-          query_handle_->query_id(), num_partitions, join_hash_table_index));
+          query_handle_->query_id(), probe_num_partitions, join_hash_table_index));
 
   if (!build_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(build_operator_index,

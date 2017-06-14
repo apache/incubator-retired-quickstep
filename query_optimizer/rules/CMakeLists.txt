@@ -391,5 +391,5 @@ target_link_libraries(quickstep_queryoptimizer_rules
                       quickstep_queryoptimizer_rules_StarSchemaHashJoinOrderOptimization
                       quickstep_queryoptimizer_rules_SwapProbeBuild
                       quickstep_queryoptimizer_rules_TopDownRule
-                      quickstep_queryoptimizer_rules_UpdateExpression
-                      quickstep_queryoptimizer_rules_UnnestSubqueries)
+                      quickstep_queryoptimizer_rules_UnnestSubqueries
+                      quickstep_queryoptimizer_rules_UpdateExpression)

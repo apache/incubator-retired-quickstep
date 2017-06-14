@@ -27,6 +27,7 @@
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
+#include "query_optimizer/physical/Physical.hpp"
 #include "utility/Cast.hpp"
 
 namespace quickstep {
@@ -79,7 +80,8 @@ bool HashJoin::maybeCopyWithPrunedExpressions(
                      right_join_attributes_,
                      residual_predicate_,
                      new_project_expressions,
-                     join_type_);
+                     join_type_,
+                     cloneOutputPartitionSchemeHeader());
     return true;
   }
   return false;

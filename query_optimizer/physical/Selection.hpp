@@ -42,6 +42,8 @@ namespace physical {
  *  @{
  */
 
+struct PartitionSchemeHeader;
+
 class Selection;
 typedef std::shared_ptr<const Selection> SelectionPtr;
 
@@ -82,6 +84,11 @@ class Selection : public Physical {
 
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override;
 
+  PhysicalPtr copyWithNewOutputPartitionSchemeHeader(
+      PartitionSchemeHeader *partition_scheme_header) const override {
+    return Create(input(), project_expressions_, filter_predicate_, partition_scheme_header);
+  }
+
   bool maybeCopyWithPrunedExpressions(
       const expressions::UnorderedNamedExpressionSet &referenced_attributes,
       PhysicalPtr *output) const override;
@@ -92,15 +99,17 @@ class Selection : public Physical {
    * @param input The input node.
    * @param project_expressions The project expressions.
    * @param filter_predicate The filter predicate. Can be NULL.
+   * @param output_partition_scheme_header The partition scheme header that
+   *        overwrites that from input, if not NULL. It takes ownership of
+   *        'output_partition_scheme_header'.
+   *
    * @return An immutable Selection.
    */
   static SelectionPtr Create(
       const PhysicalPtr &input,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
-      const expressions::PredicatePtr &filter_predicate) {
-    return SelectionPtr(
-        new Selection(input, project_expressions, filter_predicate));
-  }
+      const expressions::PredicatePtr &filter_predicate,
+      PartitionSchemeHeader *output_partition_scheme_header = nullptr);
 
   /**
    * @brief Creates a conjunctive predicate with \p filter_predicates
@@ -140,15 +149,17 @@ class Selection : public Physical {
   Selection(
       const PhysicalPtr &input,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
-      const expressions::PredicatePtr &filter_predicate)
-      : project_expressions_(project_expressions),
+      const expressions::PredicatePtr &filter_predicate,
+      PartitionSchemeHeader *partition_scheme_header)
+      : Physical(partition_scheme_header),
+        project_expressions_(project_expressions),
         filter_predicate_(filter_predicate) {
     addChild(input);
   }
 
-  std::vector<expressions::NamedExpressionPtr> project_expressions_;
+  const std::vector<expressions::NamedExpressionPtr> project_expressions_;
   // Can be NULL. If NULL, the filter predicate is treated as the literal true.
-  expressions::PredicatePtr filter_predicate_;
+  const expressions::PredicatePtr filter_predicate_;
 
   DISALLOW_COPY_AND_ASSIGN(Selection);
 };

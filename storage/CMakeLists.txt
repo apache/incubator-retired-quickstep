@@ -776,6 +776,7 @@ target_link_libraries(quickstep_storage_InsertDestination
                       quickstep_storage_StorageBlockLayout
                       quickstep_storage_StorageManager
                       quickstep_storage_TupleIdSequence
+                      quickstep_storage_ValueAccessor
                       quickstep_storage_ValueAccessorUtil
                       quickstep_threading_SpinMutex
                       quickstep_threading_ThreadIDBasedMap

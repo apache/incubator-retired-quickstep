@@ -41,6 +41,8 @@ namespace physical {
 class BinaryJoin;
 typedef std::shared_ptr<const BinaryJoin> BinaryJoinPtr;
 
+struct PartitionSchemeHeader;
+
 /**
  * @brief Base class for binary join nodes.
  */
@@ -68,11 +70,13 @@ class BinaryJoin : public Join {
    * @param left The left operand.
    * @param right The right operand.
    * @param project_expressions The project expressions.
+   * @param partition_scheme_header The optional output partition scheme header.
    */
   BinaryJoin(const PhysicalPtr &left,
              const PhysicalPtr &right,
-             const std::vector<expressions::NamedExpressionPtr> &project_expressions)
-      : Join(project_expressions),
+             const std::vector<expressions::NamedExpressionPtr> &project_expressions,
+             PartitionSchemeHeader *partition_scheme_header = nullptr)
+      : Join(project_expressions, partition_scheme_header),
         left_(left),
         right_(right) {
     addChild(left_);

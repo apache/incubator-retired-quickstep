@@ -20,7 +20,6 @@
 #ifndef QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_TABLE_REFERENCE_HPP_
 #define QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_TABLE_REFERENCE_HPP_
 
-#include <memory>
 #include <string>
 #include <vector>
 
@@ -45,6 +44,7 @@ namespace physical {
  *  @{
  */
 
+struct PartitionSchemeHeader;
 class TableReference;
 typedef std::shared_ptr<const TableReference> TableReferencePtr;
 
@@ -70,10 +70,7 @@ class TableReference : public Physical {
   }
 
   PhysicalPtr copyWithNewChildren(
-      const std::vector<PhysicalPtr> &new_children) const override {
-    DCHECK_EQ(new_children.size(), children().size());
-    return TableReferencePtr(new TableReference(relation_, alias_, attribute_list_));
-  }
+      const std::vector<PhysicalPtr> &new_children) const override;
 
   std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {
     return attribute_list_;
@@ -101,9 +98,7 @@ class TableReference : public Physical {
   static TableReferencePtr Create(
       const CatalogRelation *relation,
       const std::string &alias,
-      const std::vector<expressions::AttributeReferencePtr> &attribute_list) {
-    return TableReferencePtr(new TableReference(relation, alias, attribute_list));
-  }
+      const std::vector<expressions::AttributeReferencePtr> &attribute_list);
 
  protected:
   void getFieldStringItems(
@@ -117,14 +112,16 @@ class TableReference : public Physical {
  private:
   TableReference(
       const CatalogRelation *relation, const std::string &alias,
-      const std::vector<expressions::AttributeReferencePtr> &attribute_list)
-      : relation_(relation),
+      const std::vector<expressions::AttributeReferencePtr> &attribute_list,
+      PartitionSchemeHeader *partition_scheme_header)
+      : Physical(partition_scheme_header),
+        relation_(relation),
         alias_(alias),
         attribute_list_(attribute_list) {}
 
   const CatalogRelation *relation_;
-  std::string alias_;
-  std::vector<expressions::AttributeReferencePtr> attribute_list_;
+  const std::string alias_;
+  const std::vector<expressions::AttributeReferencePtr> attribute_list_;
 
   DISALLOW_COPY_AND_ASSIGN(TableReference);
 };

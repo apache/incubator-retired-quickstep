@@ -34,6 +34,7 @@
 #include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/physical/FilterJoin.hpp"
 #include "query_optimizer/physical/HashJoin.hpp"
+#include "query_optimizer/physical/PartitionSchemeHeader.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
@@ -187,6 +188,11 @@ void PlanVisualizer::visit(const P::PhysicalPtr &input) {
       node_info.labels.emplace_back(input->getName());
       break;
     }
+  }
+
+  const P::PartitionSchemeHeader *partition_scheme_header = input->getOutputPartitionSchemeHeader();
+  if (partition_scheme_header) {
+    node_info.labels.emplace_back(partition_scheme_header->toString());
   }
 
   if (lip_filter_conf_ != nullptr) {

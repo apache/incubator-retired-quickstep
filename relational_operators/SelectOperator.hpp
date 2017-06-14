@@ -226,9 +226,10 @@ class SelectOperator : public RelationalOperator {
   /**
    * @brief Create Work Order proto.
    *
+   * @param part_id The partition id.
    * @param block The block id used in the Work Order.
    **/
-  serialization::WorkOrder* createWorkOrderProto(const block_id block);
+  serialization::WorkOrder* createWorkOrderProto(const partition_id part_id, const block_id block);
 
   const CatalogRelation &input_relation_;
   const CatalogRelation &output_relation_;
@@ -268,6 +269,7 @@ class SelectWorkOrder : public WorkOrder {
    *
    * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param input_relation The relation to perform selection over.
+   * @param part_id The partition id.
    * @param input_block_id The block id.
    * @param predicate All tuples matching \c predicate will be selected (or NULL
    *        to select all tuples).
@@ -283,6 +285,7 @@ class SelectWorkOrder : public WorkOrder {
    **/
   SelectWorkOrder(const std::size_t query_id,
                   const CatalogRelationSchema &input_relation,
+                  const partition_id part_id,
                   const block_id input_block_id,
                   const Predicate *predicate,
                   const bool simple_projection,
@@ -294,6 +297,7 @@ class SelectWorkOrder : public WorkOrder {
                   const numa_node_id numa_node = 0)
       : WorkOrder(query_id),
         input_relation_(input_relation),
+        part_id_(part_id),
         input_block_id_(input_block_id),
         predicate_(predicate),
         simple_projection_(simple_projection),
@@ -313,6 +317,7 @@ class SelectWorkOrder : public WorkOrder {
    *
    * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param input_relation The relation to perform selection over.
+   * @param part_id The partition id.
    * @param input_block_id The block id.
    * @param predicate All tuples matching \c predicate will be selected (or NULL
    *        to select all tuples).
@@ -328,6 +333,7 @@ class SelectWorkOrder : public WorkOrder {
    **/
   SelectWorkOrder(const std::size_t query_id,
                   const CatalogRelationSchema &input_relation,
+                  const partition_id part_id,
                   const block_id input_block_id,
                   const Predicate *predicate,
                   const bool simple_projection,
@@ -339,6 +345,7 @@ class SelectWorkOrder : public WorkOrder {
                   const numa_node_id numa_node = 0)
       : WorkOrder(query_id),
         input_relation_(input_relation),
+        part_id_(part_id),
         input_block_id_(input_block_id),
         predicate_(predicate),
         simple_projection_(simple_projection),
@@ -364,6 +371,7 @@ class SelectWorkOrder : public WorkOrder {
 
  private:
   const CatalogRelationSchema &input_relation_;
+  const partition_id part_id_;
   const block_id input_block_id_;
   const Predicate *predicate_;
 

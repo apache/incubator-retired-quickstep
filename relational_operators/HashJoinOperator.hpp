@@ -35,6 +35,7 @@
 #include "relational_operators/WorkOrder.hpp"
 #include "relational_operators/WorkOrder.pb.h"
 #include "storage/HashTable.hpp"
+#include "storage/InsertDestination.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "utility/Macros.hpp"
 #include "utility/lip_filter/LIPFilterAdaptiveProber.hpp"
@@ -48,7 +49,6 @@ namespace tmb { class MessageBus; }
 namespace quickstep {
 
 class CatalogRelationSchema;
-class InsertDestination;
 class Predicate;
 class Scalar;
 class StorageManager;
@@ -712,6 +712,8 @@ class HashAntiJoinWorkOrder : public WorkOrder {
   ~HashAntiJoinWorkOrder() override {}
 
   void execute() override {
+    output_destination_->setInputPartitionId(part_id_);
+
     if (residual_predicate_ == nullptr) {
       executeWithoutResidualPredicate();
     } else {

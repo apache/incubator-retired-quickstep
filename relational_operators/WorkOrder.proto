@@ -238,12 +238,14 @@ message SaveBlocksWorkOrder {
   }
 }
 
+// Next tag: 250.
 message SelectWorkOrder {
   extend WorkOrder {
     // All required.
     optional int32 relation_id = 240;
     optional int32 insert_destination_index = 241;
     optional int32 predicate_index = 242;
+    optional uint64 partition_id = 249;
     optional fixed64 block_id = 243;
     optional bool simple_projection = 244;
 
