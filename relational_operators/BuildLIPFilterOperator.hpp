@@ -27,6 +27,8 @@
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/PartitionScheme.hpp"
+#include "catalog/PartitionSchemeHeader.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -68,6 +70,8 @@ class BuildLIPFilterOperator : public RelationalOperator {
    *
    * @param query_id The ID of the query to which this operator belongs.
    * @param input_relation The relation to build LIP filters on.
+   * @param num_partitions The number of partitions in 'input_relation'.
+   *        If no partitions, it is one.
    * @param build_side_predicate_index The index of the predicate in QueryContext
    *        where the predicate is to be applied to the input relation before
    *        building the LIP filters (or kInvalidPredicateId if no predicate is
@@ -78,16 +82,30 @@ class BuildLIPFilterOperator : public RelationalOperator {
    **/
   BuildLIPFilterOperator(const std::size_t query_id,
                          const CatalogRelation &input_relation,
+                         const std::size_t num_partitions,
                          const QueryContext::predicate_id build_side_predicate_index,
                          const bool input_relation_is_stored)
     : RelationalOperator(query_id),
       input_relation_(input_relation),
+      num_partitions_(num_partitions),
       build_side_predicate_index_(build_side_predicate_index),
       input_relation_is_stored_(input_relation_is_stored),
-      input_relation_block_ids_(input_relation_is_stored ? input_relation.getBlocksSnapshot()
-                                                         : std::vector<block_id>()),
-      num_workorders_generated_(0),
-      started_(false) {}
+      input_relation_block_ids_(num_partitions),
+      num_workorders_generated_(num_partitions),
+      started_(false) {
+    if (input_relation_is_stored) {
+      if (input_relation.hasPartitionScheme()) {
+        const PartitionScheme &part_scheme = *input_relation.getPartitionScheme();
+        DCHECK_EQ(part_scheme.getPartitionSchemeHeader().getNumPartitions(), num_partitions_);
+        for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+          input_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
+        }
+      } else {
+        // No partitions.
+        input_relation_block_ids_[0] = input_relation.getBlocksSnapshot();
+      }
+    }
+  }
 
   ~BuildLIPFilterOperator() override {}
 
@@ -117,23 +135,26 @@ class BuildLIPFilterOperator : public RelationalOperator {
   void feedInputBlock(const block_id input_block_id,
                       const relation_id input_relation_id,
                       const partition_id part_id) override {
-    input_relation_block_ids_.push_back(input_block_id);
+    input_relation_block_ids_[part_id].push_back(input_block_id);
   }
 
  private:
   /**
    * @brief Create Work Order proto.
    *
+   * @param part_id The partition id of 'input_relation_'.
    * @param block The block id used in the Work Order.
    **/
-  serialization::WorkOrder* createWorkOrderProto(const block_id block);
+  serialization::WorkOrder* createWorkOrderProto(const partition_id part_id, const block_id block);
 
   const CatalogRelation &input_relation_;
+  const std::size_t num_partitions_;
   const QueryContext::predicate_id build_side_predicate_index_;
   const bool input_relation_is_stored_;
 
-  std::vector<block_id> input_relation_block_ids_;
-  std::vector<block_id>::size_type num_workorders_generated_;
+  // The index is the partition id.
+  std::vector<BlocksInPartition> input_relation_block_ids_;
+  std::vector<std::size_t> num_workorders_generated_;
 
   bool started_;
 

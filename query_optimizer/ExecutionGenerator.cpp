@@ -663,6 +663,14 @@ void ExecutionGenerator::convertFilterJoin(const P::FilterJoinPtr &physical_plan
   const CatalogRelationInfo *build_relation_info =
       findRelationInfoOutputByPhysical(build_physical);
 
+  const CatalogRelation &build_relation = *build_relation_info->relation;
+  const PartitionScheme *build_partition_scheme = build_relation.getPartitionScheme();
+
+  const std::size_t build_num_partitions =
+      build_partition_scheme
+          ? build_partition_scheme->getPartitionSchemeHeader().getNumPartitions()
+          : 1u;
+
   // Create a BuildLIPFilterOperator for the FilterJoin. This operator builds
   // LIP filters that are applied properly in downstream operators to achieve
   // the filter-join semantics.
@@ -670,7 +678,8 @@ void ExecutionGenerator::convertFilterJoin(const P::FilterJoinPtr &physical_plan
       execution_plan_->addRelationalOperator(
           new BuildLIPFilterOperator(
               query_handle_->query_id(),
-              *build_relation_info->relation,
+              build_relation,
+              build_num_partitions,
               build_side_predicate_index,
               build_relation_info->isStoredRelation()));
 

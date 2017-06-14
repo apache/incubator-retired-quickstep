@@ -92,10 +92,12 @@ message BuildHashWorkOrder {
   }
 }
 
+// Next tag: 54.
 message BuildLIPFilterWorkOrder {
   extend WorkOrder {
     // All required.
     optional int32 relation_id = 48;
+    optional uint64 partition_id = 53;
     optional fixed64 build_block_id = 49;
     optional int32 build_side_predicate_index = 50;
     optional int32 lip_deployment_index = 51;
