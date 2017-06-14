@@ -40,6 +40,7 @@ target_link_libraries(quickstep_queryoptimizer_rules_tests_PhysicalRuleTest
 add_executable(quickstep_queryoptimizer_rules_tests
                "${CMAKE_CURRENT_SOURCE_DIR}/CollapseProject_unittest.cpp"
                "${CMAKE_CURRENT_SOURCE_DIR}/GenerateJoins_unittest.cpp"
+               "${CMAKE_CURRENT_SOURCE_DIR}/Partition_unittest.cpp"
                "${CMAKE_CURRENT_SOURCE_DIR}/PruneColumns_unittest.cpp"
                "${CMAKE_CURRENT_SOURCE_DIR}/PushDownFilter_unittest.cpp"
                "${CMAKE_CURRENT_SOURCE_DIR}/UpdateExpression_unittest.cpp")
@@ -70,11 +71,13 @@ target_link_libraries(quickstep_queryoptimizer_rules_tests
                       quickstep_queryoptimizer_logical_TableReference
                       quickstep_queryoptimizer_physical_HashJoin
                       quickstep_queryoptimizer_physical_NestedLoopsJoin
+                      quickstep_queryoptimizer_physical_PartitionSchemeHeader
                       quickstep_queryoptimizer_physical_Selection
                       quickstep_queryoptimizer_physical_TableReference
                       quickstep_queryoptimizer_physical_TopLevelPlan
                       quickstep_queryoptimizer_rules_CollapseProject
                       quickstep_queryoptimizer_rules_GenerateJoins
+                      quickstep_queryoptimizer_rules_Partition
                       quickstep_queryoptimizer_rules_PruneColumns
                       quickstep_queryoptimizer_rules_PushDownFilter
                       quickstep_queryoptimizer_rules_Rule
@@ -91,5 +94,6 @@ target_link_libraries(quickstep_queryoptimizer_rules_tests
                       quickstep_types_operations_comparisons_ComparisonID
                       quickstep_utility_Cast
                       quickstep_utility_Macros
+                      ${GFLAGS_LIB_NAME}
                       ${LIBS})
 add_test(quickstep_queryoptimizer_rules_tests quickstep_queryoptimizer_rules_tests)

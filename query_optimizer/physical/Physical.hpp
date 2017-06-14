@@ -114,16 +114,6 @@ class Physical : public OptimizerTree<Physical> {
     return partition_scheme_header_.get();
   }
 
- protected:
-  /**
-   * @brief Constructor.
-   *
-   * @param partition_scheme_header The partition scheme header of the relation.
-   *        The constructor takes ownership of 'partition_scheme_header'.
-   */
-  explicit Physical(PartitionSchemeHeader *partition_scheme_header = nullptr)
-      : partition_scheme_header_(partition_scheme_header) {}
-
   /**
    * @brief Clone a copy of the partition scheme header.
    *
@@ -137,6 +127,16 @@ class Physical : public OptimizerTree<Physical> {
 
     return nullptr;
   }
+
+ protected:
+  /**
+   * @brief Constructor.
+   *
+   * @param partition_scheme_header The partition scheme header of the relation.
+   *        The constructor takes ownership of 'partition_scheme_header'.
+   */
+  explicit Physical(PartitionSchemeHeader *partition_scheme_header = nullptr)
+      : partition_scheme_header_(partition_scheme_header) {}
 
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header_;
 

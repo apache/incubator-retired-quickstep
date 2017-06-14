@@ -850,7 +850,6 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
       probe_partition_scheme_header ? probe_partition_scheme_header->num_partitions : 1u;
   hash_table_context_proto->set_num_partitions(probe_num_partitions);
 
-
   S::HashTable *hash_table_proto = hash_table_context_proto->mutable_join_hash_table();
 
   // SimplifyHashTableImplTypeProto() switches the hash table implementation

@@ -26,6 +26,7 @@
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
+#include "query_optimizer/physical/Physical.hpp"
 #include "utility/Cast.hpp"
 
 namespace quickstep {
@@ -76,7 +77,8 @@ bool FilterJoin::maybeCopyWithPrunedExpressions(
                      build_attributes_,
                      new_project_expressions,
                      build_side_filter_predicate_,
-                     is_anti_join_);
+                     is_anti_join_,
+                     cloneOutputPartitionSchemeHeader());
     return true;
   }
   return false;

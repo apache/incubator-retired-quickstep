@@ -47,6 +47,8 @@ namespace physical {
 class FilterJoin;
 typedef std::shared_ptr<const FilterJoin> FilterJoinPtr;
 
+struct PartitionSchemeHeader;
+
 /**
  * @brief Physical filter join node. Semantically, FilterJoin is similar to
  *        HashJoin where the difference is that FilterJoin builds a bit vector
@@ -106,7 +108,8 @@ class FilterJoin : public BinaryJoin {
                   build_attributes_,
                   project_expressions(),
                   build_side_filter_predicate_,
-                  is_anti_join_);
+                  is_anti_join_,
+                  cloneOutputPartitionSchemeHeader());
   }
 
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override;
@@ -125,6 +128,8 @@ class FilterJoin : public BinaryJoin {
    * @param build_side_filter_predicate Optional filtering predicate to be
    *        applied to the build side child BEFORE join.
    * @param is_anti_join Whether this is an anti-join.
+   * @param partition_scheme_header The optional output partition scheme header.
+   *
    * @return An immutable physical FilterJoin.
    */
   static FilterJoinPtr Create(
@@ -134,7 +139,8 @@ class FilterJoin : public BinaryJoin {
       const std::vector<expressions::AttributeReferencePtr> &build_attributes,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
       const expressions::PredicatePtr &build_side_filter_predicate,
-      const bool is_anti_join) {
+      const bool is_anti_join,
+      PartitionSchemeHeader *partition_scheme_header = nullptr) {
     return FilterJoinPtr(
         new FilterJoin(probe_child,
                        build_child,
@@ -142,7 +148,8 @@ class FilterJoin : public BinaryJoin {
                        build_attributes,
                        project_expressions,
                        build_side_filter_predicate,
-                       is_anti_join));
+                       is_anti_join,
+                       partition_scheme_header));
   }
 
  protected:
@@ -162,18 +169,19 @@ class FilterJoin : public BinaryJoin {
       const std::vector<expressions::AttributeReferencePtr> &build_attributes,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
       const expressions::PredicatePtr &build_side_filter_predicate,
-      const bool is_anti_join)
-      : BinaryJoin(probe_child, build_child, project_expressions),
+      const bool is_anti_join,
+      PartitionSchemeHeader *partition_scheme_header)
+      : BinaryJoin(probe_child, build_child, project_expressions, partition_scheme_header),
         probe_attributes_(probe_attributes),
         build_attributes_(build_attributes),
         build_side_filter_predicate_(build_side_filter_predicate),
         is_anti_join_(is_anti_join) {
   }
 
-  std::vector<expressions::AttributeReferencePtr> probe_attributes_;
-  std::vector<expressions::AttributeReferencePtr> build_attributes_;
-  expressions::PredicatePtr build_side_filter_predicate_;
-  bool is_anti_join_;
+  const std::vector<expressions::AttributeReferencePtr> probe_attributes_;
+  const std::vector<expressions::AttributeReferencePtr> build_attributes_;
+  const expressions::PredicatePtr build_side_filter_predicate_;
+  const bool is_anti_join_;
 
   DISALLOW_COPY_AND_ASSIGN(FilterJoin);
 };

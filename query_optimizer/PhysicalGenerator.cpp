@@ -31,6 +31,7 @@
 #include "query_optimizer/rules/ExtractCommonSubexpression.hpp"
 #include "query_optimizer/rules/FuseAggregateJoin.hpp"
 #include "query_optimizer/rules/InjectJoinFilters.hpp"
+#include "query_optimizer/rules/Partition.hpp"
 #include "query_optimizer/rules/PruneColumns.hpp"
 #include "query_optimizer/rules/PushDownLowCostDisjunctivePredicate.hpp"
 #include "query_optimizer/rules/ReduceGroupByAttributes.hpp"
@@ -61,6 +62,10 @@ DEFINE_bool(reorder_hash_joins, true,
             "joins. The optimization applies a greedy algorithm to favor smaller "
             "cardinality and selective tables to be joined first, which is suitable "
             "for queries on star-schema tables.");
+
+DEFINE_bool(use_partition_rule, true,
+            "If true, apply an optimization to support partitioned inputs. The "
+            "optimization may add additional Selection for repartitioning.");
 
 DEFINE_bool(use_filter_joins, true,
             "If true, apply an optimization that strength-reduces HashJoins to "
@@ -163,6 +168,12 @@ P::PhysicalPtr PhysicalGenerator::optimizePlan() {
   // memorize the result column vectors for each ID so that each group has its
   // common subexpression evaluated only once.
   rules.emplace_back(new ExtractCommonSubexpression(optimizer_context_));
+
+  // This optimization pass may add additional Selection for repartitions, and
+  // set output PartitionSchemeHeader in a Physical Plan node, when needed.
+  if (FLAGS_use_partition_rule) {
+    rules.push_back(std::make_unique<Partition>(optimizer_context_));
+  }
 
   // NOTE(jianqiao): Adding rules after InjectJoinFilters (or AttachLIPFilters)
   // requires extra handling of LIPFilterConfiguration for transformed nodes.
