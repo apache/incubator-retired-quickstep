@@ -33,6 +33,7 @@ add_library(quickstep_queryoptimizer_physical_InsertTuple InsertTuple.cpp Insert
 add_library(quickstep_queryoptimizer_physical_Join ../../empty_src.cpp Join.hpp)
 add_library(quickstep_queryoptimizer_physical_LIPFilterConfiguration ../../empty_src.cpp LIPFilterConfiguration.hpp)
 add_library(quickstep_queryoptimizer_physical_NestedLoopsJoin NestedLoopsJoin.cpp NestedLoopsJoin.hpp)
+add_library(quickstep_queryoptimizer_physical_PartitionSchemeHeader PartitionSchemeHeader.cpp PartitionSchemeHeader.hpp)
 add_library(quickstep_queryoptimizer_physical_PatternMatcher ../../empty_src.cpp PatternMatcher.hpp)
 add_library(quickstep_queryoptimizer_physical_Physical ../../empty_src.cpp Physical.hpp)
 add_library(quickstep_queryoptimizer_physical_PhysicalType ../../empty_src.cpp PhysicalType.hpp)
@@ -194,6 +195,10 @@ target_link_libraries(quickstep_queryoptimizer_physical_NestedLoopsJoin
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
                       quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_physical_PartitionSchemeHeader
+                      glog
+                      quickstep_queryoptimizer_expressions_ExprId
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_physical_PatternMatcher
                       quickstep_queryoptimizer_physical_PhysicalType)
 target_link_libraries(quickstep_queryoptimizer_physical_Physical
@@ -325,6 +330,7 @@ target_link_libraries(quickstep_queryoptimizer_physical
                       quickstep_queryoptimizer_physical_Join
                       quickstep_queryoptimizer_physical_LIPFilterConfiguration
                       quickstep_queryoptimizer_physical_NestedLoopsJoin
+                      quickstep_queryoptimizer_physical_PartitionSchemeHeader
                       quickstep_queryoptimizer_physical_PatternMatcher
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
