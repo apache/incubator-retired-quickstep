@@ -232,6 +232,7 @@ void PolicyEnforcerDistributed::getShiftbossIndexForHashJoin(
 void PolicyEnforcerDistributed::getShiftbossIndexForLip(
     const std::size_t query_id,
     const vector<QueryContext::lip_filter_id> &lip_filter_indexes,
+    const partition_id part_id,
     const BlockLocator &block_locator,
     const block_id block,
     const std::size_t next_shiftboss_index_to_schedule,
@@ -239,6 +240,7 @@ void PolicyEnforcerDistributed::getShiftbossIndexForLip(
   DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
   QueryManagerDistributed *query_manager = static_cast<QueryManagerDistributed*>(admitted_queries_[query_id].get());
   query_manager->getShiftbossIndexForLip(lip_filter_indexes,
+                                         part_id,
                                          block_locator,
                                          block,
                                          next_shiftboss_index_to_schedule,

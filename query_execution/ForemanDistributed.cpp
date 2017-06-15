@@ -329,6 +329,7 @@ bool ForemanDistributed::isLipRelatedWorkOrder(const S::WorkOrderMessage &proto,
                                                size_t *shiftboss_index_for_lip) {
   const S::WorkOrder &work_order_proto = proto.work_order();
   vector<QueryContext::lip_filter_id> lip_filter_indexes;
+  partition_id part_id;
   block_id block = kInvalidBlockId;
 
   switch (work_order_proto.work_order_type()) {
@@ -336,12 +337,14 @@ bool ForemanDistributed::isLipRelatedWorkOrder(const S::WorkOrderMessage &proto,
       for (int i = 0; i < work_order_proto.ExtensionSize(S::BuildLIPFilterWorkOrder::lip_filter_indexes); ++i) {
         lip_filter_indexes.push_back(work_order_proto.GetExtension(S::BuildLIPFilterWorkOrder::lip_filter_indexes, i));
       }
+      part_id = work_order_proto.GetExtension(S::BuildLIPFilterWorkOrder::partition_id);
       block = work_order_proto.GetExtension(S::BuildLIPFilterWorkOrder::build_block_id);
       break;
     case S::SELECT:
       for (int i = 0; i < work_order_proto.ExtensionSize(S::SelectWorkOrder::lip_filter_indexes); ++i) {
         lip_filter_indexes.push_back(work_order_proto.GetExtension(S::SelectWorkOrder::lip_filter_indexes, i));
       }
+      part_id = work_order_proto.GetExtension(S::SelectWorkOrder::partition_id);
       block = work_order_proto.GetExtension(S::SelectWorkOrder::block_id);
       break;
     default:
@@ -349,7 +352,7 @@ bool ForemanDistributed::isLipRelatedWorkOrder(const S::WorkOrderMessage &proto,
   }
 
   static_cast<PolicyEnforcerDistributed*>(policy_enforcer_.get())->getShiftbossIndexForLip(
-      proto.query_id(), lip_filter_indexes, block_locator_, block, next_shiftboss_index_to_schedule,
+      proto.query_id(), lip_filter_indexes, part_id, block_locator_, block, next_shiftboss_index_to_schedule,
       shiftboss_index_for_lip);
 
   return true;

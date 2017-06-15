@@ -127,7 +127,7 @@ class QueryManagerDistributed final : public QueryManagerBase {
       return;
     }
 
-    getShiftbossIndexForLip(lip_filter_indexes, block_locator, block, next_shiftboss_index_to_schedule,
+    getShiftbossIndexForLip(lip_filter_indexes, part_id, block_locator, block, next_shiftboss_index_to_schedule,
                             shiftboss_index);
 
     shiftboss_indexes_for_aggrs_[aggr_state_index][part_id] = *shiftboss_index;
@@ -161,7 +161,7 @@ class QueryManagerDistributed final : public QueryManagerBase {
       return;
     }
 
-    getShiftbossIndexForLip(lip_filter_indexes, block_locator, block, next_shiftboss_index_to_schedule,
+    getShiftbossIndexForLip(lip_filter_indexes, part_id, block_locator, block, next_shiftboss_index_to_schedule,
                             shiftboss_index);
 
     shiftboss_indexes_for_hash_joins_[join_hash_table_index][part_id] = *shiftboss_index;
@@ -173,28 +173,40 @@ class QueryManagerDistributed final : public QueryManagerBase {
    * otherwise <next_shiftboss_index_to_schedule>.
    *
    * @param lip_filter_indexes The LIP filter indexes.
+   * @param part_id The partition ID.
    * @param block_locator The BlockLocator to use.
    * @param block The block id to feed BlockLocator for the locality info.
    * @param next_shiftboss_index The index of Shiftboss to schedule a next WorkOrder.
    * @param shiftboss_index The index of Shiftboss to schedule the WorkOrder.
    **/
   void getShiftbossIndexForLip(const std::vector<QueryContext::lip_filter_id> &lip_filter_indexes,
+                               const partition_id part_id,
                                const BlockLocator &block_locator,
                                const block_id block,
                                const std::size_t next_shiftboss_index_to_schedule,
                                std::size_t *shiftboss_index) {
+#ifdef QUICKSTEP_DEBUG
+    if (!lip_filter_indexes.empty()) {
+      DCHECK_LT(lip_filter_indexes.front(), lip_filter_groups_indexes_.size());
+      const auto cit =
+          shiftboss_indexes_for_lip_filter_groups_.find(lip_filter_groups_indexes_[lip_filter_indexes.front()]);
+      DCHECK(cit != shiftboss_indexes_for_lip_filter_groups_.end());
+      DCHECK_LT(part_id, cit->second.size());
+    }
+#endif
+
     if (!lip_filter_indexes.empty() &&
-        shiftboss_indexes_for_lip_filter_groups_[lip_filter_groups_indexes_[lip_filter_indexes.front()]]
+        shiftboss_indexes_for_lip_filter_groups_[lip_filter_groups_indexes_[lip_filter_indexes.front()]][part_id]
             != kInvalidShiftbossIndex) {
       *shiftboss_index =
-          shiftboss_indexes_for_lip_filter_groups_[lip_filter_groups_indexes_[lip_filter_indexes.front()]];
+          shiftboss_indexes_for_lip_filter_groups_[lip_filter_groups_indexes_[lip_filter_indexes.front()]][part_id];
       return;
     } else if (!block_locator.getBlockLocalityInfo(block, shiftboss_index)) {
       *shiftboss_index = next_shiftboss_index_to_schedule;
     }
 
     if (!lip_filter_indexes.empty()) {
-      shiftboss_indexes_for_lip_filter_groups_[lip_filter_groups_indexes_[lip_filter_indexes.front()]] =
+      shiftboss_indexes_for_lip_filter_groups_[lip_filter_groups_indexes_[lip_filter_indexes.front()]][part_id] =
           *shiftboss_index;
     }
   }
@@ -282,7 +294,7 @@ class QueryManagerDistributed final : public QueryManagerBase {
   std::vector<LipFilterGroupIndex> lip_filter_groups_indexes_;
 
   // From a LipFilterGroupIndex to its scheduled Shiftboss index.
-  std::unordered_map<LipFilterGroupIndex, std::size_t> shiftboss_indexes_for_lip_filter_groups_;
+  std::unordered_map<LipFilterGroupIndex, std::vector<std::size_t>> shiftboss_indexes_for_lip_filter_groups_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryManagerDistributed);
 };

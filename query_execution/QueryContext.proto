@@ -74,4 +74,6 @@ message QueryContext {
   required uint64 query_id = 13;
 
   repeated uint64 num_partitions_for_nested_loops_joins = 14;
+
+  optional uint64 num_partitions_for_lips = 15 [default = 1];
 }

@@ -92,6 +92,12 @@ QueryManagerDistributed::QueryManagerDistributed(QueryHandle *query_handle,
   }
 
   computeLipFilterEquivalenceClasses(query_context_proto);
+
+  const size_t num_partitions_for_lips = query_context_proto.num_partitions_for_lips();
+  for (const LipFilterGroupIndex lip_filter_groups_index : lip_filter_groups_indexes_) {
+    shiftboss_indexes_for_lip_filter_groups_.emplace(lip_filter_groups_index,
+                                                     vector<size_t>(num_partitions_for_lips, kInvalidShiftbossIndex));
+  }
 }
 
 void QueryManagerDistributed::computeLipFilterEquivalenceClasses(
