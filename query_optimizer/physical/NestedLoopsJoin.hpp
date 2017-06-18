@@ -48,6 +48,8 @@ namespace physical {
 class NestedLoopsJoin;
 typedef std::shared_ptr<const NestedLoopsJoin> NestedLoopsJoinPtr;
 
+struct PartitionSchemeHeader;
+
 /**
  * @brief Physical nested loops join node.
  */
@@ -72,7 +74,8 @@ class NestedLoopsJoin : public BinaryJoin {
     return Create(new_children[0],
                   new_children[1],
                   join_predicate_,
-                  project_expressions());
+                  project_expressions(),
+                  cloneOutputPartitionSchemeHeader());
   }
 
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override;
@@ -81,6 +84,11 @@ class NestedLoopsJoin : public BinaryJoin {
       const expressions::UnorderedNamedExpressionSet &referenced_expressions,
       PhysicalPtr *output) const override;
 
+  PhysicalPtr copyWithNewOutputPartitionSchemeHeader(
+      PartitionSchemeHeader *partition_scheme_header) const override {
+    return Create(left(), right(), join_predicate_, project_expressions(), partition_scheme_header);
+  }
+
   /**
    * @brief Creates a NestedLoopsJoin.
    *
@@ -88,15 +96,18 @@ class NestedLoopsJoin : public BinaryJoin {
    * @param right The right operand.
    * @param join_predicate The join predicate.
    * @param project_expressions The project expressions.
+   * @param partition_scheme_header The optional output partition scheme header.
+   *
    * @return An immutable NestedLoopsJoin.
    */
   static NestedLoopsJoinPtr Create(
       const PhysicalPtr &left,
       const PhysicalPtr &right,
       const expressions::PredicatePtr &join_predicate,
-      const std::vector<expressions::NamedExpressionPtr> &project_expressions) {
+      const std::vector<expressions::NamedExpressionPtr> &project_expressions,
+      PartitionSchemeHeader *partition_scheme_header = nullptr) {
     return NestedLoopsJoinPtr(
-        new NestedLoopsJoin(left, right, join_predicate, project_expressions));
+        new NestedLoopsJoin(left, right, join_predicate, project_expressions, partition_scheme_header));
   }
 
  protected:
@@ -113,8 +124,9 @@ class NestedLoopsJoin : public BinaryJoin {
       const PhysicalPtr &left,
       const PhysicalPtr &right,
       const expressions::PredicatePtr &join_predicate,
-      const std::vector<expressions::NamedExpressionPtr> &project_expressions)
-      : BinaryJoin(left, right, project_expressions),
+      const std::vector<expressions::NamedExpressionPtr> &project_expressions,
+      PartitionSchemeHeader *partition_scheme_header)
+      : BinaryJoin(left, right, project_expressions, partition_scheme_header),
         join_predicate_(join_predicate) {
     DCHECK(join_predicate_ != nullptr);
   }

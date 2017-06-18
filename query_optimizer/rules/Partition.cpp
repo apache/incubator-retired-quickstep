@@ -159,6 +159,87 @@ E::AliasPtr GetReaggregateExpression(const E::AliasPtr &aggr_alias) {
                           aggr_alias->relation_name());
 }
 
+P::PhysicalPtr applyToNestedLoopsJoin(const P::NestedLoopsJoinPtr &nested_loops_join,
+                                      P::PhysicalPtr left, P::PhysicalPtr right) {
+  const P::PartitionSchemeHeader *left_partition_scheme_header =
+      left->getOutputPartitionSchemeHeader();
+  const std::size_t num_partitions =
+      left_partition_scheme_header ? left_partition_scheme_header->num_partitions : FLAGS_num_repartitions;
+  auto left_repartition_scheme_header = make_unique<P::PartitionSchemeHeader>(
+      P::PartitionSchemeHeader::PartitionType::kRandom, num_partitions, P::PartitionSchemeHeader::PartitionExprIds());
+
+  switch (left->getPhysicalType()) {
+    case P::PhysicalType::kTableReference:
+      if (left_partition_scheme_header) {
+        break;
+      }
+      // Fall through.
+    case P::PhysicalType::kSharedSubplanReference:
+    case P::PhysicalType::kSort:
+    case P::PhysicalType::kUnionAll:
+      // Add a Selection node.
+      left = P::Selection::Create(left,
+                                  CastSharedPtrVector<E::NamedExpression>(left->getOutputAttributes()),
+                                  nullptr /* filter_predicate */, left_repartition_scheme_header.release());
+      break;
+    default: {
+      if (!left_partition_scheme_header) {
+        left = left->copyWithNewOutputPartitionSchemeHeader(left_repartition_scheme_header.release());
+      }
+    }
+  }
+
+  const P::PartitionSchemeHeader *right_partition_scheme_header =
+      right->getOutputPartitionSchemeHeader();
+  if (right_partition_scheme_header && right_partition_scheme_header->num_partitions != num_partitions) {
+    auto right_repartition_scheme_header = make_unique<P::PartitionSchemeHeader>(
+        right_partition_scheme_header->partition_type, num_partitions,
+        P::PartitionSchemeHeader::PartitionExprIds(right_partition_scheme_header->partition_expr_ids));
+    if (needsSelection(right->getPhysicalType())) {
+      // Add a Selection node.
+      right = P::Selection::Create(right,
+                                   CastSharedPtrVector<E::NamedExpression>(right->getOutputAttributes()),
+                                   nullptr /* filter_predicate */, right_repartition_scheme_header.release());
+    } else {
+      right = right->copyWithNewOutputPartitionSchemeHeader(right_repartition_scheme_header.release());
+    }
+  }
+
+  unordered_set<E::ExprId> project_expr_ids;
+  for (const E::AttributeReferencePtr &project_expression : nested_loops_join->getOutputAttributes()) {
+    project_expr_ids.insert(project_expression->id());
+  }
+
+  left_partition_scheme_header = left->getOutputPartitionSchemeHeader();
+  const auto &left_partition_expr_ids = left_partition_scheme_header->partition_expr_ids;
+  P::PartitionSchemeHeader::PartitionExprIds output_partition_expr_ids;
+  for (const auto &equivalent_expr_ids : left_partition_expr_ids) {
+    P::PartitionSchemeHeader::EquivalentPartitionExprIds output_equivalent_partition_expr_ids;
+    for (const E::ExprId expr_id : equivalent_expr_ids) {
+      if (project_expr_ids.find(expr_id) != project_expr_ids.end()) {
+        output_equivalent_partition_expr_ids.insert(expr_id);
+      }
+    }
+
+    if (!output_equivalent_partition_expr_ids.empty()) {
+      output_partition_expr_ids.push_back(move(output_equivalent_partition_expr_ids));
+    }
+  }
+
+  std::unique_ptr<P::PartitionSchemeHeader> output_partition_scheme_header;
+  if (left_partition_expr_ids != output_partition_expr_ids) {
+    output_partition_scheme_header = make_unique<P::PartitionSchemeHeader>(
+        left_partition_scheme_header->partition_type, num_partitions, move(output_partition_expr_ids));
+  } else {
+    output_partition_scheme_header = make_unique<P::PartitionSchemeHeader>(*left_partition_scheme_header);
+  }
+
+  return P::NestedLoopsJoin::Create(left, right,
+                                    nested_loops_join->join_predicate(),
+                                    nested_loops_join->project_expressions(),
+                                    output_partition_scheme_header.release());
+}
+
 }  // namespace
 
 P::PhysicalPtr Partition::applyToNode(const P::PhysicalPtr &node) {
@@ -413,6 +494,22 @@ P::PhysicalPtr Partition::applyToNode(const P::PhysicalPtr &node) {
         return hash_join->copyWithNewOutputPartitionSchemeHeader(output_partition_scheme_header.release());
       }
       break;
+    }
+    case P::PhysicalType::kNestedLoopsJoin: {
+      const P::NestedLoopsJoinPtr nested_loops_join = static_pointer_cast<const P::NestedLoopsJoin>(node);
+
+      P::PhysicalPtr left = nested_loops_join->left();
+      P::PhysicalPtr right = nested_loops_join->right();
+      if (!left->getOutputPartitionSchemeHeader() && !right->getOutputPartitionSchemeHeader()) {
+        break;
+      }
+
+      // Left (larger) side becames RandomPartition, and the right (smaller) side for broadcast join.
+      if (cost_model_->estimateCardinality(left) > cost_model_->estimateCardinality(right)) {
+        return applyToNestedLoopsJoin(nested_loops_join, left, right);
+      } else {
+        return applyToNestedLoopsJoin(nested_loops_join, right, left);
+      }
     }
     case P::PhysicalType::kSelection: {
       const P::SelectionPtr selection = static_pointer_cast<const P::Selection>(node);

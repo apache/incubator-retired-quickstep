@@ -141,8 +141,10 @@ class NestedLoopsJoinOperator : public RelationalOperator {
           right_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
         }
       } else {
-        DCHECK_EQ(1u, num_partitions_);
-        right_relation_block_ids_[0] = right_input_relation_.getBlocksSnapshot();
+        // Broadcast right (smaller) side upon partitioned nlj.
+        for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+          right_relation_block_ids_[part_id] = right_input_relation_.getBlocksSnapshot();
+        }
       }
     }
   }
@@ -180,7 +182,10 @@ class NestedLoopsJoinOperator : public RelationalOperator {
     if (input_relation_id == left_input_relation_.getID()) {
       left_relation_block_ids_[part_id].push_back(input_block_id);
     } else if (input_relation_id == right_input_relation_.getID()) {
-      right_relation_block_ids_[part_id].push_back(input_block_id);
+      // Broadcast right (smaller) side upon partitioned nlj.
+      for (partition_id input_part_id = 0; input_part_id < num_partitions_; ++input_part_id) {
+        right_relation_block_ids_[input_part_id].push_back(input_block_id);
+      }
     } else {
       LOG(FATAL) << "The input block sent to the NestedLoopsJoinOperator belongs "
                  << "to a different relation than the left and right relations";

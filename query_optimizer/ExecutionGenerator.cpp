@@ -1004,19 +1004,16 @@ void ExecutionGenerator::convertNestedLoopsJoin(
   }
 
   const PartitionScheme *left_partition_scheme = left_relation.getPartitionScheme();
-  const PartitionScheme *right_partition_scheme = right_relation.getPartitionScheme();
-  if (left_partition_scheme && right_partition_scheme) {
-    DCHECK_EQ(left_partition_scheme->getPartitionSchemeHeader().getNumPartitions(),
-              right_partition_scheme->getPartitionSchemeHeader().getNumPartitions());
-  } else if (left_partition_scheme) {
-    LOG(FATAL) << "Left side has partitions, but right does not";
-  } else if (right_partition_scheme) {
-    LOG(FATAL) << "Right side has partitions, but left does not";
-  }
-
   const std::size_t num_partitions =
       left_partition_scheme ? left_partition_scheme->getPartitionSchemeHeader().getNumPartitions()
                             : 1u;
+
+#ifdef QUICKSTEP_DEBUG
+  const PartitionScheme *right_partition_scheme = right_relation.getPartitionScheme();
+  if (right_partition_scheme) {
+    DCHECK_EQ(num_partitions, right_partition_scheme->getPartitionSchemeHeader().getNumPartitions());
+  }
+#endif
 
   const std::size_t nested_loops_join_index =
       query_context_proto_->num_partitions_for_nested_loops_joins_size();
