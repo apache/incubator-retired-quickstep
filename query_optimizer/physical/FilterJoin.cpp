@@ -99,7 +99,7 @@ void FilterJoin::getFieldStringItems(
                                   container_child_fields);
 
   inline_field_names->push_back("is_anti_join");
-  inline_field_values->push_back(std::to_string(is_anti_join_));
+  inline_field_values->push_back(is_anti_join_ ? "true" : "false");
 
   if (build_side_filter_predicate_ != nullptr) {
     non_container_child_field_names->emplace_back("build_side_filter_predicate");
