@@ -907,6 +907,7 @@ target_link_libraries(quickstep_storage_SimpleScalarSeparateChainingHashTable
                       quickstep_utility_Macros
                       quickstep_utility_PrimeNumber)
 target_link_libraries(quickstep_storage_SplitRowStoreTupleStorageSubBlock
+                      glog
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_expressions_predicate_PredicateCost
                       quickstep_storage_SplitRowStoreValueAccessor

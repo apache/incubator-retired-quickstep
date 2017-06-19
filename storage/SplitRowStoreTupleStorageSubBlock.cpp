@@ -37,6 +37,8 @@
 #include "utility/Macros.hpp"
 #include "utility/ScopedBuffer.hpp"
 
+#include "glog/logging.h"
+
 namespace quickstep {
 
 QUICKSTEP_REGISTER_TUPLE_STORE(SplitRowStoreTupleStorageSubBlock, SPLIT_ROW_STORE);
@@ -128,6 +130,13 @@ SplitRowStoreTupleStorageSubBlock::SplitRowStoreTupleStorageSubBlock(
   tuple_slot_bytes_ = per_tuple_null_bitmap_bytes_
                       + relation.getFixedByteLength()
                       + relation.numVariableLengthAttributes() * (sizeof(std::uint32_t) * 2);
+  if (tuple_slot_bytes_ == 0) {
+    LOG(WARNING)
+        << "Estimated zero bytes per tuple for relation \"" << relation.getName()
+        << "\" (relation_id: " << relation.getID()
+        << "). Adjusting to 1 byte.";
+    tuple_slot_bytes_ = 1;
+  }
 
   // Size the occupancy bitmap by calculating the maximum tuples that can fit
   // assuming the bare-minimum per tuple storage is used (no variable-length
