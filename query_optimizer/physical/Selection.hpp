@@ -109,7 +109,10 @@ class Selection : public Physical {
       const PhysicalPtr &input,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
       const expressions::PredicatePtr &filter_predicate,
-      PartitionSchemeHeader *output_partition_scheme_header = nullptr);
+      PartitionSchemeHeader *output_partition_scheme_header = nullptr) {
+    return SelectionPtr(
+        new Selection(input, project_expressions, filter_predicate, output_partition_scheme_header));
+  }
 
   /**
    * @brief Creates a conjunctive predicate with \p filter_predicates

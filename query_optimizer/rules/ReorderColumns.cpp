@@ -189,7 +189,8 @@ P::PhysicalPtr ReorderColumns::applyInternal(const P::PhysicalPtr &input,
             std::static_pointer_cast<const P::Selection>(node);
         output = P::Selection::Create(output,
                                       project_expressions,
-                                      old_node->filter_predicate());
+                                      old_node->filter_predicate(),
+                                      output->cloneOutputPartitionSchemeHeader());
         break;
       }
       default:

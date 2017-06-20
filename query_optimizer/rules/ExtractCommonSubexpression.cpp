@@ -151,7 +151,8 @@ P::PhysicalPtr ExtractCommonSubexpression::applyToNode(
       if (new_expressions != selection->project_expressions()) {
         return P::Selection::Create(selection->input(),
                                     new_expressions,
-                                    selection->filter_predicate());
+                                    selection->filter_predicate(),
+                                    selection->input()->cloneOutputPartitionSchemeHeader());
       }
       break;
     }

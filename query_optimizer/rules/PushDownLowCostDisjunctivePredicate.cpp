@@ -195,7 +195,8 @@ P::PhysicalPtr PushDownLowCostDisjunctivePredicate::attachPredicates(
     const P::PhysicalPtr selection =
         P::Selection::Create(output,
                              E::ToNamedExpressions(output->getOutputAttributes()),
-                             CreateConjunctive(node_it->second.predicates));
+                             CreateConjunctive(node_it->second.predicates),
+                             output->cloneOutputPartitionSchemeHeader());
 
     // Applicable case 1: The stored relation has small cardinality.
     const bool is_small_cardinality_relation =

@@ -49,7 +49,8 @@ P::PhysicalPtr CollapseSelection::applyToNode(const P::PhysicalPtr &input) {
                              { &project_expressions } /* project_expression_lists */);
     return P::Selection::Create(child_selection->input(),
                                 project_expressions,
-                                selection->filter_predicate());
+                                selection->filter_predicate(),
+                                child_selection->input()->cloneOutputPartitionSchemeHeader());
   }
 
   return input;

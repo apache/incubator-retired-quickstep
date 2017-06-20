@@ -119,8 +119,23 @@ void Selection::addSelection(
     }
   }
 
+  std::unique_ptr<P::PartitionSchemeHeader> physical_output_partition_scheme_header;
+  const P::PartitionSchemeHeader *physical_input_partition_scheme_header =
+      physical_input->getOutputPartitionSchemeHeader();
+  if (physical_input_partition_scheme_header) {
+    std::unordered_set<E::ExprId> project_expr_ids;
+    for (const E::NamedExpressionPtr &project_expression : project_expressions) {
+      project_expr_ids.insert(project_expression->id());
+    }
+
+    if (physical_input_partition_scheme_header->reusablePartitionScheme(project_expr_ids)) {
+      physical_output_partition_scheme_header =
+          std::make_unique<P::PartitionSchemeHeader>(*physical_input_partition_scheme_header);
+    }
+  }
+
   *physical_output = P::Selection::Create(physical_input, project_expressions,
-                                          filter_predicate);
+                                          filter_predicate, physical_output_partition_scheme_header.release());
 }
 
 }  // namespace strategy
