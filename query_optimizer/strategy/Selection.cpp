@@ -20,11 +20,14 @@
 #include "query_optimizer/strategy/Selection.hpp"
 
 #include <map>
+#include <memory>
+#include <unordered_set>
 #include <vector>
 
 #include "query_optimizer/LogicalToPhysicalMapper.hpp"
 #include "query_optimizer/OptimizerContext.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
+#include "query_optimizer/expressions/ExprId.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
@@ -32,6 +35,7 @@
 #include "query_optimizer/logical/Logical.hpp"
 #include "query_optimizer/logical/PatternMatcher.hpp"
 #include "query_optimizer/logical/Project.hpp"
+#include "query_optimizer/physical/PartitionSchemeHeader.hpp"
 #include "query_optimizer/physical/PatternMatcher.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/Selection.hpp"
