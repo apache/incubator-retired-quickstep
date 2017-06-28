@@ -619,19 +619,17 @@ void PartitionAwareInsertDestination::bulkInsertTuples(ValueAccessor *accessor, 
       [this,
        &always_mark_full,
        &num_partitions](auto *accessor) -> void {  // NOLINT(build/c++11)
-    std::vector<std::unique_ptr<TupleIdSequence>> partition_membership;
+    std::vector<std::unique_ptr<TupleIdSequence>> partition_membership(num_partitions);
 
     // Create a tuple-id sequence for each partition.
     for (std::size_t partition = 0; partition < num_partitions; ++partition) {
-      partition_membership.emplace_back(std::make_unique<TupleIdSequence>(accessor->getEndPosition()));
+      partition_membership[partition] = std::make_unique<TupleIdSequence>(accessor->getEndPosition());
     }
 
     // Iterate over ValueAccessor for each tuple,
     // set a bit in the appropriate TupleIdSequence.
     accessor->beginIteration();
-    while (accessor->next()) {
-      partition_membership[this->getPartitionId(accessor)]->set(accessor->getCurrentPosition(), true);
-    }
+    this->setPartitionMembership(&partition_membership, accessor);
 
     // For each partition, create an adapter around Value Accessor and
     // TupleIdSequence.
@@ -670,19 +668,17 @@ void PartitionAwareInsertDestination::bulkInsertTuplesWithRemappedAttributes(
        &attribute_map,
        &always_mark_full,
        &num_partitions](auto *accessor) -> void {  // NOLINT(build/c++11)
-    std::vector<std::unique_ptr<TupleIdSequence>> partition_membership;
+    std::vector<std::unique_ptr<TupleIdSequence>> partition_membership(num_partitions);
 
     // Create a tuple-id sequence for each partition.
     for (std::size_t partition = 0; partition < num_partitions; ++partition) {
-      partition_membership.emplace_back(std::make_unique<TupleIdSequence>(accessor->getEndPosition()));
+      partition_membership[partition] = std::make_unique<TupleIdSequence>(accessor->getEndPosition());
     }
 
     // Iterate over ValueAccessor for each tuple,
     // set a bit in the appropriate TupleIdSequence.
     accessor->beginIteration();
-    while (accessor->next()) {
-      partition_membership[this->getPartitionId(accessor)]->set(accessor->getCurrentPosition(), true);
-    }
+    this->setPartitionMembership(&partition_membership, accessor);
 
     // For each partition, create an adapter around Value Accessor and
     // TupleIdSequence.

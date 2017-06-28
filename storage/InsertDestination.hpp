@@ -36,6 +36,7 @@
 #include "storage/StorageBlock.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageBlockLayout.hpp"
+#include "storage/TupleIdSequence.hpp"
 #include "storage/ValueAccessor.hpp"
 #include "threading/SpinMutex.hpp"
 #include "threading/ThreadIDBasedMap.hpp"
@@ -612,21 +613,35 @@ class PartitionAwareInsertDestination : public InsertDestination {
   }
 
   partition_id getPartitionId(const Tuple &tuple) const {
-    PartitionSchemeHeader::PartitionValues values;
-    for (const attribute_id attr_id : partition_scheme_header_->getPartitionAttributeIds()) {
-      values.push_back(tuple.getAttributeValue(attr_id));
+    const auto &partition_attr_ids = partition_scheme_header_->getPartitionAttributeIds();
+
+    PartitionSchemeHeader::PartitionValues values(partition_attr_ids.size());
+    for (std::size_t i = 0; i < partition_attr_ids.size(); ++i) {
+      values[i] = tuple.getAttributeValue(partition_attr_ids[i]);
     }
 
     return values.empty() ? input_partition_id_ : partition_scheme_header_->getPartitionId(values);
   }
 
-  partition_id getPartitionId(ValueAccessor *accessor) const {
-    PartitionSchemeHeader::PartitionValues values;
-    for (const attribute_id attr_id : partition_scheme_header_->getPartitionAttributeIds()) {
-      values.push_back(accessor->getTypedValueVirtual(attr_id));
-    }
+  template<typename ValueAccessorT>
+  void setPartitionMembership(std::vector<std::unique_ptr<TupleIdSequence>> *partition_membership,
+                              ValueAccessorT *accessor) const {
+    const auto &partition_attr_ids = partition_scheme_header_->getPartitionAttributeIds();
 
-    return values.empty() ? input_partition_id_ : partition_scheme_header_->getPartitionId(values);
+    if (partition_attr_ids.empty()) {
+      while (accessor->next()) {
+        (*partition_membership)[input_partition_id_]->set(accessor->getCurrentPosition(), true);
+      }
+    } else {
+      PartitionSchemeHeader::PartitionValues values(partition_attr_ids.size());
+      while (accessor->next()) {
+        for (std::size_t i = 0; i < partition_attr_ids.size(); ++i) {
+          values[i] = accessor->getTypedValue(partition_attr_ids[i]);
+        }
+        (*partition_membership)[partition_scheme_header_->getPartitionId(values)]->set(
+            accessor->getCurrentPosition(), true);
+      }
+    }
   }
 
   std::unique_ptr<const PartitionSchemeHeader> partition_scheme_header_;
@@ -646,6 +661,7 @@ class PartitionAwareInsertDestination : public InsertDestination {
 
   DISALLOW_COPY_AND_ASSIGN(PartitionAwareInsertDestination);
 };
+
 /** @} */
 
 }  // namespace quickstep
