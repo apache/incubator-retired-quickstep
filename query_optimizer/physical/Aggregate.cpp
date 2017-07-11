@@ -27,6 +27,8 @@
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/expressions/Predicate.hpp"
+#include "query_optimizer/physical/PartitionSchemeHeader.hpp"
+#include "query_optimizer/physical/Physical.hpp"
 #include "utility/Cast.hpp"
 
 namespace quickstep {
@@ -94,6 +96,11 @@ void Aggregate::getFieldStringItems(
     std::vector<OptimizerTreeBaseNodePtr> *non_container_child_fields,
     std::vector<std::string> *container_child_field_names,
     std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const {
+  if (partition_scheme_header_) {
+    inline_field_names->push_back("output_partition_scheme_header");
+    inline_field_values->push_back(partition_scheme_header_->toString());
+  }
+
   non_container_child_field_names->push_back("input");
   non_container_child_fields->push_back(input_);
 

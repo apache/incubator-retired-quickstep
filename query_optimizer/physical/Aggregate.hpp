@@ -47,6 +47,8 @@ namespace physical {
 class Aggregate;
 typedef std::shared_ptr<const Aggregate> AggregatePtr;
 
+struct PartitionSchemeHeader;
+
 /**
  * @brief Aggregate operator that computes aggregate expressions for each combination
  *        of the values of grouping expressions.
@@ -86,12 +88,19 @@ class Aggregate : public Physical {
   PhysicalPtr copyWithNewChildren(
       const std::vector<PhysicalPtr> &new_children) const override {
     DCHECK_EQ(getNumChildren(), new_children.size());
-    return Create(new_children[0], grouping_expressions_, aggregate_expressions_, filter_predicate_);
+    return Create(new_children[0], grouping_expressions_, aggregate_expressions_, filter_predicate_,
+                  cloneOutputPartitionSchemeHeader());
   }
 
   std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override;
 
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override;
+
+  PhysicalPtr copyWithNewOutputPartitionSchemeHeader(
+      PartitionSchemeHeader *partition_scheme_header) const override {
+    return Create(input_, grouping_expressions_, aggregate_expressions_, filter_predicate_,
+                  partition_scheme_header);
+  }
 
   bool maybeCopyWithPrunedExpressions(
       const expressions::UnorderedNamedExpressionSet &referenced_expressions,
@@ -107,15 +116,18 @@ class Aggregate : public Physical {
    * @param aggregate_expressions The aggregate expressions.
    * @param grouping_expressions The grouping expressions.
    * @param filter_predicate The filtering predicate applied before aggregation. Can be NULL.
+   * @param partition_scheme_header The optional output partition scheme header.
+   *
    * @return An immutable Aggregate node.
    */
   static AggregatePtr Create(
       PhysicalPtr input,
       const std::vector<expressions::NamedExpressionPtr> &grouping_expressions,
       const std::vector<expressions::AliasPtr> &aggregate_expressions,
-      const expressions::PredicatePtr &filter_predicate) {
+      const expressions::PredicatePtr &filter_predicate,
+      PartitionSchemeHeader *partition_scheme_header = nullptr) {
     return AggregatePtr(
-        new Aggregate(input, grouping_expressions, aggregate_expressions, filter_predicate));
+        new Aggregate(input, grouping_expressions, aggregate_expressions, filter_predicate, partition_scheme_header));
   }
 
  protected:
@@ -129,21 +141,23 @@ class Aggregate : public Physical {
 
  private:
   Aggregate(
-      PhysicalPtr input,
+      const PhysicalPtr &input,
       const std::vector<expressions::NamedExpressionPtr> &grouping_expressions,
       const std::vector<expressions::AliasPtr> &aggregate_expressions,
-      const expressions::PredicatePtr &filter_predicate)
-      : input_(input),
+      const expressions::PredicatePtr &filter_predicate,
+      PartitionSchemeHeader *partition_scheme_header)
+      : Physical(partition_scheme_header),
+        input_(input),
         grouping_expressions_(grouping_expressions),
         aggregate_expressions_(aggregate_expressions),
         filter_predicate_(filter_predicate) {
     addChild(input_);
   }
 
-  PhysicalPtr input_;
-  std::vector<expressions::NamedExpressionPtr> grouping_expressions_;
-  std::vector<expressions::AliasPtr> aggregate_expressions_;
-  expressions::PredicatePtr filter_predicate_;
+  const PhysicalPtr input_;
+  const std::vector<expressions::NamedExpressionPtr> grouping_expressions_;
+  const std::vector<expressions::AliasPtr> aggregate_expressions_;
+  const expressions::PredicatePtr filter_predicate_;
 
   DISALLOW_COPY_AND_ASSIGN(Aggregate);
 };
