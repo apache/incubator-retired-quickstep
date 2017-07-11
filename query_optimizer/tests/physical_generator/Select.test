@@ -1022,51 +1022,34 @@ TopLevelPlan
 [Physical Plan]
 TopLevelPlan
 +-plan=Selection
-| +-input=Selection
-| | +-input=Aggregate
-| | | +-input=TableReference[relation=Test,alias=test]
-| | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
-| | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
-| | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
-| | | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
-| | | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
-| | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
-| | | |   type=VarChar(20) NULL]
-| | | +-grouping_expressions=
-| | | | +-[]
-| | | +-aggregate_expressions=
-| | |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Long]
-| | |   | +-AggregateFunction[function=COUNT]
-| | |   |   +-[]
-| | |   +-Alias[id=7,name=,alias=$aggregate1,relation=$aggregate,type=Long]
-| | |   | +-AggregateFunction[function=COUNT]
-| | |   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
-| | |   +-Alias[id=8,name=,alias=$aggregate2,relation=$aggregate,type=Long NULL]
-| | |   | +-AggregateFunction[function=SUM]
-| | |   |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
-| | |   +-Alias[id=12,name=,alias=$aggregate3,relation=$aggregate,type=Long NULL]
-| | |   | +-AggregateFunction[function=SUM]
-| | |   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
-| | |   +-Alias[id=11,name=,alias=$aggregate4,relation=$aggregate,
-| | |     type=Double NULL]
-| | |     +-AggregateFunction[function=MAX]
-| | |       +-AttributeReference[id=3,name=double_col,relation=test,
-| | |         type=Double NULL]
-| | +-project_expressions=
-| |   +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
-| |   | type=Long]
-| |   +-AttributeReference[id=7,name=,alias=$aggregate1,relation=$aggregate,
-| |   | type=Long]
-| |   +-AttributeReference[id=8,name=,alias=$aggregate2,relation=$aggregate,
-| |   | type=Long NULL]
-| |   +-Alias[id=9,name=,alias=$aggregate3,relation=$aggregate,type=Long NULL]
-| |   | +-Divide
-| |   |   +-AttributeReference[id=12,name=,alias=$aggregate3,
-| |   |   | relation=$aggregate,type=Long NULL]
-| |   |   +-AttributeReference[id=7,name=,alias=$aggregate1,relation=$aggregate,
-| |   |     type=Long]
-| |   +-AttributeReference[id=11,name=,alias=$aggregate4,relation=$aggregate,
-| |     type=Double NULL]
+| +-input=Aggregate
+| | +-input=TableReference[relation=Test,alias=test]
+| | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+| | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+| | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+| | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+| | |   type=VarChar(20) NULL]
+| | +-grouping_expressions=
+| | | +-[]
+| | +-aggregate_expressions=
+| |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,type=Long]
+| |   | +-AggregateFunction[function=COUNT]
+| |   |   +-[]
+| |   +-Alias[id=7,name=,alias=$aggregate1,relation=$aggregate,type=Long]
+| |   | +-AggregateFunction[function=COUNT]
+| |   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   +-Alias[id=8,name=,alias=$aggregate2,relation=$aggregate,type=Long NULL]
+| |   | +-AggregateFunction[function=SUM]
+| |   |   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+| |   +-Alias[id=12,name=,alias=$aggregate3,relation=$aggregate,type=Long NULL]
+| |   | +-AggregateFunction[function=SUM]
+| |   |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+| |   +-Alias[id=11,name=,alias=$aggregate4,relation=$aggregate,type=Double NULL]
+| |     +-AggregateFunction[function=MAX]
+| |       +-AttributeReference[id=3,name=double_col,relation=test,
+| |         type=Double NULL]
 | +-filter_predicate=Greater
 | | +-Add
 | | | +-AttributeReference[id=11,name=,alias=$aggregate4,relation=$aggregate,
@@ -1081,10 +1064,13 @@ TopLevelPlan
 | |     | | type=Long]
 | |     | +-AttributeReference[id=8,name=,alias=$aggregate2,relation=$aggregate,
 | |     |   type=Long NULL]
-| |     +-AttributeReference[id=9,name=,alias=$aggregate3,relation=$aggregate,
-| |       type=Double NULL]
+| |     +-Divide
+| |       +-AttributeReference[id=12,name=,alias=$aggregate3,
+| |       | relation=$aggregate,type=Long NULL]
+| |       +-AttributeReference[id=7,name=,alias=$aggregate1,relation=$aggregate,
+| |         type=Long]
 | +-project_expressions=
-|   +-Alias[id=10,name=col,relation=,type=Double NULL]
+|   +-Alias[id=10,name=col,relation=,type=Long NULL]
 |     +-Add
 |       +-AttributeReference[id=6,name=,alias=$aggregate0,relation=$aggregate,
 |       | type=Long]
@@ -1094,10 +1080,13 @@ TopLevelPlan
 |         | | relation=$aggregate,type=Long]
 |         | +-AttributeReference[id=8,name=,alias=$aggregate2,
 |         |   relation=$aggregate,type=Long NULL]
-|         +-AttributeReference[id=9,name=,alias=$aggregate3,relation=$aggregate,
-|           type=Double NULL]
+|         +-Divide
+|           +-AttributeReference[id=12,name=,alias=$aggregate3,
+|           | relation=$aggregate,type=Long NULL]
+|           +-AttributeReference[id=7,name=,alias=$aggregate1,
+|             relation=$aggregate,type=Long]
 +-output_attributes=
-  +-AttributeReference[id=10,name=col,relation=,type=Double NULL]
+  +-AttributeReference[id=10,name=col,relation=,type=Long NULL]
 ==
 
 select long_col as col1, count(*) as col2
@@ -3445,4 +3434,3 @@ TopLevelPlan
 |   +-[]
 +-output_attributes=
   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
-==

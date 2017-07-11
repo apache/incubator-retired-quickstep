@@ -21,7 +21,11 @@
 
 #include <vector>
 
+#include "query_optimizer/expressions/Expression.hpp"
+#include "query_optimizer/expressions/LogicalAnd.hpp"
 #include "query_optimizer/expressions/NamedExpression.hpp"
+#include "query_optimizer/expressions/PatternMatcher.hpp"
+#include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/physical/PatternMatcher.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/Selection.hpp"
@@ -37,20 +41,36 @@ P::PhysicalPtr CollapseSelection::applyToNode(const P::PhysicalPtr &input) {
   P::SelectionPtr selection;
   P::SelectionPtr child_selection;
 
-  // TODO(jianqiao): Handle the case where filter predicates are present.
   if (P::SomeSelection::MatchesWithConditionalCast(input, &selection) &&
-      P::SomeSelection::MatchesWithConditionalCast(selection->input(), &child_selection) &&
-      selection->filter_predicate() == nullptr &&
-      child_selection->filter_predicate() == nullptr) {
+      P::SomeSelection::MatchesWithConditionalCast(selection->input(), &child_selection)) {
+    E::PredicatePtr filter_predicate = selection->filter_predicate();
+
+    std::vector<E::ExpressionPtr> non_project_expressions;
+    if (filter_predicate) {
+      non_project_expressions.push_back(filter_predicate);
+    }
+
     std::vector<E::NamedExpressionPtr> project_expressions =
         selection->project_expressions();
     PullUpProjectExpressions(child_selection->project_expressions(),
-                             {} /* non_project_expression_lists */,
-                             { &project_expressions } /* project_expression_lists */);
+                             { &non_project_expressions }, { &project_expressions });
+
+    const E::PredicatePtr &child_filter_predicate = child_selection->filter_predicate();
+    if (filter_predicate) {
+      CHECK(E::SomePredicate::MatchesWithConditionalCast(non_project_expressions[0],
+                                                         &filter_predicate))
+          << non_project_expressions[0]->toString();
+      if (child_filter_predicate) {
+        filter_predicate = E::LogicalAnd::Create({ filter_predicate, child_filter_predicate });
+      }
+    } else {
+      filter_predicate = child_filter_predicate;
+    }
+
     return P::Selection::Create(child_selection->input(),
                                 project_expressions,
-                                selection->filter_predicate(),
-                                child_selection->input()->cloneOutputPartitionSchemeHeader());
+                                filter_predicate,
+                                selection->cloneOutputPartitionSchemeHeader());
   }
 
   return input;
