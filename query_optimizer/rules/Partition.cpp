@@ -84,14 +84,15 @@ bool needsSelection(const P::PhysicalType physical_type) {
                                        P::PhysicalType::kUnionAll);
 }
 
-P::PhysicalPtr Repartition(const P::PhysicalPtr &node, const vector<E::AttributeReferencePtr> &join_attributes,
-                           const size_t num_partitions) {
+P::PhysicalPtr HashRepartition(const P::PhysicalPtr &node,
+                               const vector<E::AttributeReferencePtr> &repartition_attributes,
+                               const size_t num_repartitions) {
   P::PartitionSchemeHeader::PartitionExprIds repartition_expr_ids;
-  for (const E::AttributeReferencePtr &attr : join_attributes) {
+  for (const E::AttributeReferencePtr &attr : repartition_attributes) {
     repartition_expr_ids.push_back({ attr->id() });
   }
   auto repartition_scheme_header = make_unique<P::PartitionSchemeHeader>(
-      P::PartitionSchemeHeader::PartitionType::kHash, num_partitions, move(repartition_expr_ids));
+      P::PartitionSchemeHeader::PartitionType::kHash, num_repartitions, move(repartition_expr_ids));
 
   if (needsSelection(node->getPhysicalType())) {
     // Add a Selection node.
@@ -136,13 +137,13 @@ P::PhysicalPtr Partition::applyToNode(const P::PhysicalPtr &node) {
       needsRepartitionForHashJoin(left_partition_scheme_header, left_join_attributes,
                                   right_partition_scheme_header, right_join_attributes,
                                   &left_needs_repartition, &right_needs_repartition, &num_partitions);
-      // Repartition.
+      // Hash repartition.
       if (left_needs_repartition) {
-        left = Repartition(left, left_join_attributes, num_partitions);
+        left = HashRepartition(left, left_join_attributes, num_partitions);
       }
 
       if (right_needs_repartition) {
-        right = Repartition(right, right_join_attributes, num_partitions);
+        right = HashRepartition(right, right_join_attributes, num_partitions);
       }
 
       unordered_set<E::ExprId> project_expr_ids;
