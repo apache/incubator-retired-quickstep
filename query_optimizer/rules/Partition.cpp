@@ -490,10 +490,9 @@ P::PhysicalPtr Partition::applyToNode(const P::PhysicalPtr &node) {
                                    hash_join->project_expressions(),
                                    hash_join->join_type(),
                                    output_partition_scheme_header.release());
-      } else if (left_partition_scheme_header) {
-        return hash_join->copyWithNewOutputPartitionSchemeHeader(output_partition_scheme_header.release());
       }
-      break;
+
+      return hash_join->copyWithNewOutputPartitionSchemeHeader(output_partition_scheme_header.release());
     }
     case P::PhysicalType::kNestedLoopsJoin: {
       const P::NestedLoopsJoinPtr nested_loops_join = static_pointer_cast<const P::NestedLoopsJoin>(node);
@@ -549,7 +548,11 @@ P::PhysicalPtr Partition::applyToNode(const P::PhysicalPtr &node) {
           return selection->copyWithNewOutputPartitionSchemeHeader(output_partition_scheme_header.release());
         }
       }
-      break;
+
+      // TODO(quickstep-team): Check RangePartitionSchemeHeader against the project expressions.
+      DCHECK(input_partition_scheme_header->partition_type != P::PartitionSchemeHeader::PartitionType::kRange);
+      auto output_partition_scheme_header = make_unique<P::PartitionSchemeHeader>(*input_partition_scheme_header);
+      return selection->copyWithNewOutputPartitionSchemeHeader(output_partition_scheme_header.release());
     }
     default:
       break;
