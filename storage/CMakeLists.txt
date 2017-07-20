@@ -267,7 +267,6 @@ add_library(quickstep_storage_WindowAggregationOperationState_proto ${storage_Wi
 
 # Link dependencies:
 target_link_libraries(quickstep_storage_AggregationOperationState
-                      ${GFLAGS_LIB_NAME}
                       glog
                       quickstep_catalog_CatalogDatabaseLite
                       quickstep_catalog_CatalogRelationSchema

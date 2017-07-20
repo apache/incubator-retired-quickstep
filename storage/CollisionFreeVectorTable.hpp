@@ -58,6 +58,8 @@ class CollisionFreeVectorTable : public AggregationStateHashTableBase {
    *
    * @param key_type The group-by key type.
    * @param num_entries The estimated number of entries this table will hold.
+   * @param num_finalize_partitions The number of partitions to be used for
+   *        finalizing the aggregation.
    * @param handles The aggregation handles.
    * @param storage_manager The StorageManager to use (a StorageBlob will be
    *        allocated to hold this table's contents).
@@ -65,6 +67,7 @@ class CollisionFreeVectorTable : public AggregationStateHashTableBase {
   CollisionFreeVectorTable(
       const Type *key_type,
       const std::size_t num_entries,
+      const std::size_t num_finalize_partitions,
       const std::vector<AggregationHandle *> &handles,
       StorageManager *storage_manager);
 
@@ -191,17 +194,6 @@ class CollisionFreeVectorTable : public AggregationStateHashTableBase {
     // TODO(jianqiao): set the upbound as (# of workers * 2) instead of the
     // hardcoded 80.
     return std::max(1uL, std::min(memory_size / kInitBlockSize, 80uL));
-  }
-
-  inline static std::size_t CalculateNumFinalizationPartitions(
-      const std::size_t num_entries) {
-    // Set finalization segment size as 4096 entries.
-    constexpr std::size_t kFinalizeSegmentSize = 4uL * 1024L;
-
-    // At least 1 partition, at most 80 partitions.
-    // TODO(jianqiao): set the upbound as (# of workers * 2) instead of the
-    // hardcoded 80.
-    return std::max(1uL, std::min(num_entries / kFinalizeSegmentSize, 80uL));
   }
 
   inline std::size_t calculatePartitionLength() const {

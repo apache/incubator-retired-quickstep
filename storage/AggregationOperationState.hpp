@@ -98,6 +98,9 @@ class AggregationOperationState {
    * @param estimated_num_entries Estimated of number of entries in the hash
    *        table. A good estimate would be a fraction of total number of tuples
    *        in the input relation.
+   * @param is_partitioned Whether this aggregation state is partitioned.
+   * @param num_partitions The number of partitions of the aggregation state
+   *        hash table.
    * @param hash_table_impl_type The HashTable implementation to use for
    *        GROUP BY. Ignored if group_by is empty.
    * @param distinctify_hash_table_impl_type The HashTable implementation to use
@@ -114,6 +117,8 @@ class AggregationOperationState {
       std::vector<std::unique_ptr<const Scalar>> &&group_by,
       const Predicate *predicate,
       const std::size_t estimated_num_entries,
+      const bool is_partitioned,
+      const std::size_t num_partitions,
       const HashTableImplType hash_table_impl_type,
       const std::vector<HashTableImplType> &distinctify_hash_table_impl_types,
       StorageManager *storage_manager);
@@ -161,14 +166,6 @@ class AggregationOperationState {
   std::size_t getNumInitializationPartitions() const;
 
   /**
-   * @brief Get the number of partitions to be used for finalizing the
-   *        aggregation.
-   *
-   * @return The number of partitions to be used for finalizing the aggregation.
-   **/
-  std::size_t getNumFinalizationPartitions() const;
-
-  /**
    * @brief Initialize the specified partition of this aggregation.
    *
    * @param partition_id ID of the partition to be initialized.
@@ -213,13 +210,6 @@ class AggregationOperationState {
   std::size_t getMemoryConsumptionBytes() const;
 
  private:
-  // Check whether partitioned aggregation can be applied.
-  bool checkAggregatePartitioned(
-      const std::size_t estimated_num_groups,
-      const std::vector<bool> &is_distinct,
-      const std::vector<std::unique_ptr<const Scalar>> &group_by,
-      const std::vector<const AggregateFunction *> &aggregate_functions) const;
-
   // Aggregate on input block.
   void aggregateBlockSingleState(const ValueAccessorMultiplexer &accessor_mux);
 
@@ -271,10 +261,10 @@ class AggregationOperationState {
   const CatalogRelationSchema &input_relation_;
 
   // Whether the aggregation is collision free or not.
-  bool is_aggregate_collision_free_;
+  const bool is_aggregate_collision_free_;
 
   // Whether the aggregation is partitioned or not.
-  bool is_aggregate_partitioned_;
+  const bool is_aggregate_partitioned_;
 
   std::unique_ptr<const Predicate> predicate_;
 

@@ -61,19 +61,9 @@
 #include "utility/ColumnVectorCache.hpp"
 #include "utility/lip_filter/LIPFilterAdaptiveProber.hpp"
 
-#include "gflags/gflags.h"
-
 #include "glog/logging.h"
 
 namespace quickstep {
-
-DEFINE_int32(num_aggregation_partitions,
-             41,
-             "The number of partitions used for performing the aggregation");
-DEFINE_uint64(partition_aggregation_num_groups_threshold,
-              100000,
-              "The threshold used for deciding whether the aggregation is done "
-              "in a partitioned way or not");
 
 AggregationOperationState::AggregationOperationState(
     const CatalogRelationSchema &input_relation,
@@ -83,31 +73,21 @@ AggregationOperationState::AggregationOperationState(
     std::vector<std::unique_ptr<const Scalar>> &&group_by,
     const Predicate *predicate,
     const std::size_t estimated_num_entries,
+    const bool is_partitioned,
+    const std::size_t num_partitions,
     const HashTableImplType hash_table_impl_type,
     const std::vector<HashTableImplType> &distinctify_hash_table_impl_types,
     StorageManager *storage_manager)
     : input_relation_(input_relation),
-      is_aggregate_collision_free_(false),
-      is_aggregate_partitioned_(false),
+      is_aggregate_collision_free_(
+          group_by.empty() ? false
+                           : hash_table_impl_type == HashTableImplType::kCollisionFreeVector),
+      is_aggregate_partitioned_(is_partitioned),
       predicate_(predicate),
       is_distinct_(std::move(is_distinct)),
       all_distinct_(std::accumulate(is_distinct_.begin(), is_distinct_.end(),
                                     !is_distinct_.empty(), std::logical_and<bool>())),
       storage_manager_(storage_manager) {
-  if (!group_by.empty()) {
-    switch (hash_table_impl_type) {
-      case HashTableImplType::kCollisionFreeVector:
-        is_aggregate_collision_free_ = true;
-        break;
-      case HashTableImplType::kThreadPrivateCompactKey:
-        is_aggregate_partitioned_ = false;
-        break;
-      default:
-        is_aggregate_partitioned_ = checkAggregatePartitioned(
-            estimated_num_entries, is_distinct_, group_by, aggregate_functions);
-    }
-  }
-
   // Sanity checks: each aggregate has a corresponding list of arguments.
   DCHECK(aggregate_functions.size() == arguments.size());
 
@@ -195,7 +175,7 @@ AggregationOperationState::AggregationOperationState(
         DCHECK(partitioned_group_by_hashtable_pool_ == nullptr);
         partitioned_group_by_hashtable_pool_.reset(
             new PartitionedHashTablePool(estimated_num_entries,
-                                         FLAGS_num_aggregation_partitions,
+                                         num_partitions,
                                          *distinctify_hash_table_impl_types_it,
                                          key_types,
                                          {},
@@ -227,7 +207,8 @@ AggregationOperationState::AggregationOperationState(
               group_by_types_,
               estimated_num_entries,
               group_by_handles,
-              storage_manager));
+              storage_manager,
+              num_partitions));
     } else if (is_aggregate_partitioned_) {
       if (all_distinct_) {
         DCHECK_EQ(1u, group_by_handles.size());
@@ -241,7 +222,7 @@ AggregationOperationState::AggregationOperationState(
       } else {
         partitioned_group_by_hashtable_pool_.reset(
             new PartitionedHashTablePool(estimated_num_entries,
-                                         FLAGS_num_aggregation_partitions,
+                                         num_partitions,
                                          hash_table_impl_type,
                                          group_by_types_,
                                          group_by_handles,
@@ -315,6 +296,8 @@ AggregationOperationState* AggregationOperationState::ReconstructFromProto(
       std::move(group_by_expressions),
       predicate.release(),
       proto.estimated_num_entries(),
+      proto.is_partitioned(),
+      proto.num_partitions(),
       HashTableImplTypeFromProto(proto.hash_table_impl_type()),
       distinctify_hash_table_impl_types,
       storage_manager);
@@ -385,67 +368,12 @@ bool AggregationOperationState::ProtoIsValid(
   return true;
 }
 
-bool AggregationOperationState::checkAggregatePartitioned(
-    const std::size_t estimated_num_groups,
-    const std::vector<bool> &is_distinct,
-    const std::vector<std::unique_ptr<const Scalar>> &group_by,
-    const std::vector<const AggregateFunction *> &aggregate_functions) const {
-  // If there's no aggregation, return false.
-  if (aggregate_functions.empty()) {
-    return false;
-  }
-  // If there is only only aggregate function, we allow distinct aggregation.
-  // Otherwise it can't be partitioned with distinct aggregation.
-  if (aggregate_functions.size() > 1) {
-    for (auto distinct : is_distinct) {
-      if (distinct) {
-        return false;
-      }
-    }
-  }
-  // There's no distinct aggregation involved, Check if there's at least one
-  // GROUP BY operation.
-  if (group_by.empty()) {
-    return false;
-  }
-
-  // Currently we require that all the group-by keys are ScalarAttributes for
-  // the convenient of implementing copy elision.
-  // TODO(jianqiao): relax this requirement.
-  for (const auto &group_by_element : group_by) {
-    if (group_by_element->getAttributeIdForValueAccessor() == kInvalidAttributeID) {
-      return false;
-    }
-  }
-
-  // Currently we always use partitioned aggregation to parallelize distinct
-  // aggregation.
-  if (all_distinct_) {
-    return true;
-  }
-
-  // There are GROUP BYs without DISTINCT. Check if the estimated number of
-  // groups is large enough to warrant a partitioned aggregation.
-  return estimated_num_groups >= FLAGS_partition_aggregation_num_groups_threshold;
-}
-
 std::size_t AggregationOperationState::getNumInitializationPartitions() const {
   if (is_aggregate_collision_free_) {
     return static_cast<CollisionFreeVectorTable *>(
         collision_free_hashtable_.get())->getNumInitializationPartitions();
   } else {
     return 0u;
-  }
-}
-
-std::size_t AggregationOperationState::getNumFinalizationPartitions() const {
-  if (is_aggregate_collision_free_) {
-    return static_cast<CollisionFreeVectorTable *>(
-        collision_free_hashtable_.get())->getNumFinalizationPartitions();
-  } else if (is_aggregate_partitioned_) {
-    return partitioned_group_by_hashtable_pool_->getNumPartitions();
-  } else  {
-    return 1u;
   }
 }
 

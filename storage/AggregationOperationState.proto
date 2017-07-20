@@ -42,4 +42,7 @@ message AggregationOperationState {
 
   // Each DISTINCT aggregation has its distinctify hash table impl type.
   repeated HashTableImplType distinctify_hash_table_impl_types = 7;
+
+  optional bool is_partitioned = 8;
+  optional uint64 num_partitions = 9 [default = 1];
 }

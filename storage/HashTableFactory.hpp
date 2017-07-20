@@ -356,6 +356,8 @@ class AggregationStateHashTableFactory {
    * @param storage_manager The StorageManager to use (a StorageBlob will be
    *        allocated to hold the hash table's contents). Forwarded as-is to the
    *        hash table constructor.
+   * @param num_partitions The number of partitions of this aggregation state
+   *        hash table.
    * @return A new aggregation state hash table.
    **/
   static AggregationStateHashTableBase* CreateResizable(
@@ -363,12 +365,13 @@ class AggregationStateHashTableFactory {
       const std::vector<const Type*> &key_types,
       const std::size_t num_entries,
       const std::vector<AggregationHandle *> &handles,
-      StorageManager *storage_manager) {
+      StorageManager *storage_manager,
+      const std::size_t num_partitions = 1u) {
     switch (hash_table_type) {
       case HashTableImplType::kCollisionFreeVector:
         DCHECK_EQ(1u, key_types.size());
         return new CollisionFreeVectorTable(
-            key_types.front(), num_entries, handles, storage_manager);
+            key_types.front(), num_entries, num_partitions, handles, storage_manager);
       case HashTableImplType::kSeparateChaining:
         return new PackedPayloadHashTable(
             key_types, num_entries, handles, storage_manager);

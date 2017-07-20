@@ -50,7 +50,7 @@ bool FinalizeAggregationOperator::getAllWorkOrders(
           query_context->getAggregationState(aggr_state_index_, part_id);
       DCHECK(agg_state != nullptr);
       for (std::size_t state_part_id = 0;
-           state_part_id < agg_state->getNumFinalizationPartitions();
+           state_part_id < aggr_state_num_partitions_;
            ++state_part_id) {
         container->addNormalWorkOrder(
             new FinalizeAggregationWorkOrder(

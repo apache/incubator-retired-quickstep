@@ -293,6 +293,7 @@ class AggregationOperatorTest : public ::testing::Test {
         new FinalizeAggregationOperator(kQueryId,
                                         aggr_state_index,
                                         kNumPartitions,
+                                        kNumPartitions,
                                         *result_table_,
                                         insert_destination_index));
 
@@ -386,6 +387,7 @@ class AggregationOperatorTest : public ::testing::Test {
     finalize_op_.reset(
         new FinalizeAggregationOperator(kQueryId,
                                         aggr_state_index,
+                                        kNumPartitions,
                                         kNumPartitions,
                                         *result_table_,
                                         insert_destination_index));

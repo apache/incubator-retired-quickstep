@@ -21,7 +21,9 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <functional>
 #include <memory>
+#include <numeric>
 #include <string>
 #include <type_traits>
 #include <unordered_map>
@@ -46,6 +48,7 @@
 #include "catalog/CatalogTypedefs.hpp"
 #include "catalog/PartitionScheme.hpp"
 #include "catalog/PartitionSchemeHeader.hpp"
+#include "cli/Flags.hpp"
 #include "expressions/Expressions.pb.h"
 #include "expressions/aggregation/AggregateFunction.hpp"
 #include "expressions/aggregation/AggregateFunction.pb.h"
@@ -167,9 +170,82 @@ static const volatile bool aggregate_hashtable_type_dummy
 
 DEFINE_bool(parallelize_load, true, "Parallelize loading data files.");
 
+static bool ValidateNumAggregationPartitions(const char *flagname, int value) {
+  return value > 0;
+}
+DEFINE_int32(num_aggregation_partitions,
+             41,
+             "The number of partitions in PartitionedHashTablePool used for "
+             "performing the aggregation");
+static const volatile bool num_aggregation_partitions_dummy
+    = gflags::RegisterFlagValidator(&FLAGS_num_aggregation_partitions, &ValidateNumAggregationPartitions);
+
+DEFINE_uint64(partition_aggregation_num_groups_threshold,
+              100000,
+              "The threshold used for deciding whether the aggregation is done "
+              "in a partitioned way or not");
+
 namespace E = ::quickstep::optimizer::expressions;
 namespace P = ::quickstep::optimizer::physical;
 namespace S = ::quickstep::serialization;
+
+namespace {
+
+size_t CalculateNumFinalizationPartitionsForCollisionFreeVectorTable(const size_t num_entries) {
+  // Set finalization segment size as 4096 entries.
+  constexpr size_t kFinalizeSegmentSize = 4uL * 1024L;
+
+  // At least 1 partition, at most (#workers * 2) partitions.
+  return std::max(1uL, std::min(num_entries / kFinalizeSegmentSize,
+                                static_cast<size_t>(2 * FLAGS_num_workers)));
+}
+
+bool CheckAggregatePartitioned(const std::size_t num_aggregate_functions,
+                               const std::vector<bool> &is_distincts,
+                               const std::vector<attribute_id> &group_by_attrs,
+                               const std::size_t estimated_num_groups) {
+  // If there's no aggregation, return false.
+  if (num_aggregate_functions == 0) {
+    return false;
+  }
+  // If there is only only aggregate function, we allow distinct aggregation.
+  // Otherwise it can't be partitioned with distinct aggregation.
+  if (num_aggregate_functions > 1) {
+    for (const bool distinct : is_distincts) {
+      if (distinct) {
+        return false;
+      }
+    }
+  }
+  // There's no distinct aggregation involved, Check if there's at least one
+  // GROUP BY operation.
+  if (group_by_attrs.empty()) {
+    return false;
+  }
+
+  // Currently we require that all the group-by keys are ScalarAttributes for
+  // the convenient of implementing copy elision.
+  // TODO(jianqiao): relax this requirement.
+  for (const attribute_id group_by_attr : group_by_attrs) {
+    if (group_by_attr == kInvalidAttributeID) {
+      return false;
+    }
+  }
+
+  // Currently we always use partitioned aggregation to parallelize distinct
+  // aggregation.
+  const bool all_distinct = std::accumulate(is_distincts.begin(), is_distincts.end(),
+                                            !is_distincts.empty(), std::logical_and<bool>());
+  if (all_distinct) {
+    return true;
+  }
+
+  // There are GROUP BYs without DISTINCT. Check if the estimated number of
+  // groups is large enough to warrant a partitioned aggregation.
+  return estimated_num_groups >= FLAGS_partition_aggregation_num_groups_threshold;
+}
+
+}  // namespace
 
 constexpr QueryPlan::DAGNodeIndex ExecutionGenerator::CatalogRelationInfo::kInvalidOperatorIndex;
 
@@ -1618,8 +1694,8 @@ void ExecutionGenerator::convertAggregate(
     const P::AggregatePtr &physical_plan) {
   const CatalogRelationInfo *input_relation_info =
       findRelationInfoOutputByPhysical(physical_plan->input());
-  const CatalogRelation *input_relation = input_relation_info->relation;
-  const PartitionScheme *input_partition_scheme = input_relation->getPartitionScheme();
+  const CatalogRelation &input_relation = *input_relation_info->relation;
+  const PartitionScheme *input_partition_scheme = input_relation.getPartitionScheme();
   const size_t num_partitions =
       input_partition_scheme
           ? input_partition_scheme->getPartitionSchemeHeader().getNumPartitions()
@@ -1634,11 +1710,12 @@ void ExecutionGenerator::convertAggregate(
 
   S::AggregationOperationState *aggr_state_proto =
       aggr_state_context_proto->mutable_aggregation_state();
-  aggr_state_proto->set_relation_id(input_relation->getID());
+  aggr_state_proto->set_relation_id(input_relation.getID());
 
   bool use_parallel_initialization = false;
 
   std::vector<const Type*> group_by_types;
+  std::vector<attribute_id> group_by_attrs;
   for (const E::NamedExpressionPtr &grouping_expression : physical_plan->grouping_expressions()) {
     unique_ptr<const Scalar> execution_group_by_expression;
     E::AliasPtr alias;
@@ -1653,10 +1730,47 @@ void ExecutionGenerator::convertAggregate(
       execution_group_by_expression.reset(
           grouping_expression->concretize(attribute_substitution_map_));
     }
-    aggr_state_proto->add_group_by_expressions()->CopyFrom(execution_group_by_expression->getProto());
+    aggr_state_proto->add_group_by_expressions()->MergeFrom(execution_group_by_expression->getProto());
     group_by_types.push_back(&execution_group_by_expression->getType());
+    group_by_attrs.push_back(execution_group_by_expression->getAttributeIdForValueAccessor());
   }
 
+  const auto &aggregate_expressions = physical_plan->aggregate_expressions();
+  vector<bool> is_distincts;
+  for (const E::AliasPtr &named_aggregate_expression : aggregate_expressions) {
+    const E::AggregateFunctionPtr unnamed_aggregate_expression =
+        std::static_pointer_cast<const E::AggregateFunction>(named_aggregate_expression->expression());
+
+    // Add a new entry in 'aggregates'.
+    S::Aggregate *aggr_proto = aggr_state_proto->add_aggregates();
+
+    // Set the AggregateFunction.
+    aggr_proto->mutable_function()->MergeFrom(
+        unnamed_aggregate_expression->getAggregate().getProto());
+
+    // Add each of the aggregate's arguments.
+    for (const E::ScalarPtr &argument : unnamed_aggregate_expression->getArguments()) {
+      unique_ptr<const Scalar> concretized_argument(argument->concretize(attribute_substitution_map_));
+      aggr_proto->add_argument()->MergeFrom(concretized_argument->getProto());
+    }
+
+    // Set whether it is a DISTINCT aggregation.
+    const bool is_distinct = unnamed_aggregate_expression->is_distinct();
+    aggr_proto->set_is_distinct(is_distinct);
+    is_distincts.push_back(is_distinct);
+
+    // Add distinctify hash table impl type if it is a DISTINCT aggregation.
+    if (unnamed_aggregate_expression->is_distinct()) {
+      const std::vector<E::ScalarPtr> &arguments = unnamed_aggregate_expression->getArguments();
+      DCHECK_GE(arguments.size(), 1u);
+      // Right now only SeparateChaining implementation is supported.
+      aggr_state_proto->add_distinctify_hash_table_impl_types(
+          serialization::HashTableImplType::SEPARATE_CHAINING);
+    }
+  }
+
+  bool aggr_state_is_partitioned = false;
+  std::size_t aggr_state_num_partitions = 1u;
   if (!group_by_types.empty()) {
     const std::size_t estimated_num_groups =
         cost_model_for_aggregation_->estimateNumGroupsForAggregate(physical_plan);
@@ -1671,6 +1785,7 @@ void ExecutionGenerator::convertAggregate(
           serialization::HashTableImplType::COLLISION_FREE_VECTOR);
       aggr_state_proto->set_estimated_num_entries(max_num_groups);
       use_parallel_initialization = true;
+      aggr_state_num_partitions = CalculateNumFinalizationPartitionsForCollisionFreeVectorTable(max_num_groups);
     } else {
       if (cost_model_for_aggregation_->canUseTwoPhaseCompactKeyAggregation(
               physical_plan, estimated_num_groups)) {
@@ -1681,53 +1796,30 @@ void ExecutionGenerator::convertAggregate(
         // Otherwise, use SeparateChaining.
         aggr_state_proto->set_hash_table_impl_type(
             serialization::HashTableImplType::SEPARATE_CHAINING);
+        if (CheckAggregatePartitioned(aggregate_expressions.size(), is_distincts, group_by_attrs,
+                                      estimated_num_groups)) {
+          aggr_state_is_partitioned = true;
+          aggr_state_num_partitions = FLAGS_num_aggregation_partitions;
+        }
       }
       aggr_state_proto->set_estimated_num_entries(std::max(16uL, estimated_num_groups));
     }
   } else {
     aggr_state_proto->set_estimated_num_entries(1uL);
   }
-
-  for (const E::AliasPtr &named_aggregate_expression : physical_plan->aggregate_expressions()) {
-    const E::AggregateFunctionPtr unnamed_aggregate_expression =
-        std::static_pointer_cast<const E::AggregateFunction>(named_aggregate_expression->expression());
-
-    // Add a new entry in 'aggregates'.
-    S::Aggregate *aggr_proto = aggr_state_proto->add_aggregates();
-
-    // Set the AggregateFunction.
-    aggr_proto->mutable_function()->CopyFrom(
-        unnamed_aggregate_expression->getAggregate().getProto());
-
-    // Add each of the aggregate's arguments.
-    for (const E::ScalarPtr &argument : unnamed_aggregate_expression->getArguments()) {
-      unique_ptr<const Scalar> concretized_argument(argument->concretize(attribute_substitution_map_));
-      aggr_proto->add_argument()->CopyFrom(concretized_argument->getProto());
-    }
-
-    // Set whether it is a DISTINCT aggregation.
-    aggr_proto->set_is_distinct(unnamed_aggregate_expression->is_distinct());
-
-    // Add distinctify hash table impl type if it is a DISTINCT aggregation.
-    if (unnamed_aggregate_expression->is_distinct()) {
-      const std::vector<E::ScalarPtr> &arguments = unnamed_aggregate_expression->getArguments();
-      DCHECK_GE(arguments.size(), 1u);
-      // Right now only SeparateChaining implementation is supported.
-      aggr_state_proto->add_distinctify_hash_table_impl_types(
-          serialization::HashTableImplType::SEPARATE_CHAINING);
-    }
-  }
+  aggr_state_proto->set_is_partitioned(aggr_state_is_partitioned);
+  aggr_state_proto->set_num_partitions(aggr_state_num_partitions);
 
   if (physical_plan->filter_predicate() != nullptr) {
     unique_ptr<const Predicate> predicate(convertPredicate(physical_plan->filter_predicate()));
-    aggr_state_proto->mutable_predicate()->CopyFrom(predicate->getProto());
+    aggr_state_proto->mutable_predicate()->MergeFrom(predicate->getProto());
   }
 
   const QueryPlan::DAGNodeIndex aggregation_operator_index =
       execution_plan_->addRelationalOperator(
           new AggregationOperator(
               query_handle_->query_id(),
-              *input_relation_info->relation,
+              input_relation,
               input_relation_info->isStoredRelation(),
               aggr_state_index,
               num_partitions));
@@ -1765,6 +1857,7 @@ void ExecutionGenerator::convertAggregate(
           new FinalizeAggregationOperator(query_handle_->query_id(),
                                           aggr_state_index,
                                           num_partitions,
+                                          aggr_state_num_partitions,
                                           *output_relation,
                                           insert_destination_index));
 
@@ -1827,18 +1920,23 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
   std::unique_ptr<const Scalar> execution_group_by_expression(
       physical_plan->right_join_attributes().front()->concretize(
           attribute_substitution_map_));
-  aggr_state_proto->add_group_by_expressions()->CopyFrom(
+  aggr_state_proto->add_group_by_expressions()->MergeFrom(
       execution_group_by_expression->getProto());
 
   aggr_state_proto->set_hash_table_impl_type(
       serialization::HashTableImplType::COLLISION_FREE_VECTOR);
-  aggr_state_proto->set_estimated_num_entries(
-      physical_plan->group_by_key_value_range());
+
+  const size_t estimated_num_entries = physical_plan->group_by_key_value_range();
+  aggr_state_proto->set_estimated_num_entries(estimated_num_entries);
+
+  const size_t aggr_state_num_partitions =
+      CalculateNumFinalizationPartitionsForCollisionFreeVectorTable(estimated_num_entries);
+  aggr_state_proto->set_num_partitions(aggr_state_num_partitions);
 
   if (physical_plan->right_filter_predicate() != nullptr) {
     std::unique_ptr<const Predicate> predicate(
         convertPredicate(physical_plan->right_filter_predicate()));
-    aggr_state_proto->mutable_predicate()->CopyFrom(predicate->getProto());
+    aggr_state_proto->mutable_predicate()->MergeFrom(predicate->getProto());
   }
 
   for (const E::AliasPtr &named_aggregate_expression : physical_plan->aggregate_expressions()) {
@@ -1849,13 +1947,13 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
     S::Aggregate *aggr_proto = aggr_state_proto->add_aggregates();
 
     // Set the AggregateFunction.
-    aggr_proto->mutable_function()->CopyFrom(
+    aggr_proto->mutable_function()->MergeFrom(
         unnamed_aggregate_expression->getAggregate().getProto());
 
     // Add each of the aggregate's arguments.
     for (const E::ScalarPtr &argument : unnamed_aggregate_expression->getArguments()) {
       unique_ptr<const Scalar> concretized_argument(argument->concretize(attribute_substitution_map_));
-      aggr_proto->add_argument()->CopyFrom(concretized_argument->getProto());
+      aggr_proto->add_argument()->MergeFrom(concretized_argument->getProto());
     }
 
     // Set whether it is a DISTINCT aggregation.
@@ -1926,6 +2024,7 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
           new FinalizeAggregationOperator(query_handle_->query_id(),
                                           aggr_state_index,
                                           num_partitions,
+                                          aggr_state_num_partitions,
                                           *output_relation,
                                           insert_destination_index));
 

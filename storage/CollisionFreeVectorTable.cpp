@@ -43,15 +43,17 @@ namespace quickstep {
 CollisionFreeVectorTable::CollisionFreeVectorTable(
     const Type *key_type,
     const std::size_t num_entries,
+    const std::size_t num_finalize_partitions,
     const std::vector<AggregationHandle *> &handles,
     StorageManager *storage_manager)
     : key_type_(key_type),
       num_entries_(num_entries),
       num_handles_(handles.size()),
       handles_(handles),
-      num_finalize_partitions_(CalculateNumFinalizationPartitions(num_entries_)),
+      num_finalize_partitions_(num_finalize_partitions),
       storage_manager_(storage_manager) {
   DCHECK_GT(num_entries, 0u);
+  DCHECK_GT(num_finalize_partitions_, 0u);
 
   std::size_t required_memory = 0;
   const std::size_t existence_map_offset = 0;
