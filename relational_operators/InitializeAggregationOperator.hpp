@@ -58,13 +58,17 @@ class InitializeAggregationOperator : public RelationalOperator {
    * @param aggr_state_index The index of the AggregationOperationState in QueryContext.
    * @param num_partitions The number of partitions in 'input_relation'. If no
    *        partitions, it is one.
+   * @param aggr_state_num_init_partitions The number of partitions to be used
+   *        for initialize the aggregation state collision free vector table.
    **/
   InitializeAggregationOperator(const std::size_t query_id,
                                 const QueryContext::aggregation_state_id aggr_state_index,
-                                const std::size_t num_partitions)
+                                const std::size_t num_partitions,
+                                const std::size_t aggr_state_num_init_partitions)
       : RelationalOperator(query_id),
         aggr_state_index_(aggr_state_index),
         num_partitions_(num_partitions),
+        aggr_state_num_init_partitions_(aggr_state_num_init_partitions),
         started_(false) {}
 
   ~InitializeAggregationOperator() override {}
@@ -87,7 +91,7 @@ class InitializeAggregationOperator : public RelationalOperator {
 
  private:
   const QueryContext::aggregation_state_id aggr_state_index_;
-  const std::size_t num_partitions_;
+  const std::size_t num_partitions_, aggr_state_num_init_partitions_;
   bool started_;
 
   DISALLOW_COPY_AND_ASSIGN(InitializeAggregationOperator);

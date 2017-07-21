@@ -46,7 +46,7 @@ bool InitializeAggregationOperator::getAllWorkOrders(
       DCHECK(agg_state != nullptr);
 
       for (std::size_t state_part_id = 0;
-           state_part_id < agg_state->getNumInitializationPartitions();
+           state_part_id < aggr_state_num_init_partitions_;
            ++state_part_id) {
         container->addNormalWorkOrder(
             new InitializeAggregationWorkOrder(query_id_,

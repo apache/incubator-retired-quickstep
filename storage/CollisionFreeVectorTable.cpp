@@ -43,68 +43,33 @@ namespace quickstep {
 CollisionFreeVectorTable::CollisionFreeVectorTable(
     const Type *key_type,
     const std::size_t num_entries,
+    const std::size_t memory_size,
+    const std::size_t num_init_partitions,
     const std::size_t num_finalize_partitions,
+    const std::vector<std::size_t> &state_offsets,
     const std::vector<AggregationHandle *> &handles,
     StorageManager *storage_manager)
     : key_type_(key_type),
       num_entries_(num_entries),
       num_handles_(handles.size()),
       handles_(handles),
+      memory_size_(memory_size),
+      num_init_partitions_(num_init_partitions),
       num_finalize_partitions_(num_finalize_partitions),
       storage_manager_(storage_manager) {
   DCHECK_GT(num_entries, 0u);
   DCHECK_GT(num_finalize_partitions_, 0u);
-
-  std::size_t required_memory = 0;
-  const std::size_t existence_map_offset = 0;
-  std::vector<std::size_t> state_offsets;
-
-  required_memory += CacheLineAlignedBytes(
-      BarrieredReadWriteConcurrentBitVector::BytesNeeded(num_entries));
-
-  for (std::size_t i = 0; i < num_handles_; ++i) {
-    const AggregationHandle *handle = handles_[i];
-    const std::vector<const Type *> argument_types = handle->getArgumentTypes();
-
-    std::size_t state_size = 0;
-    switch (handle->getAggregationID()) {
-      case AggregationID::kCount: {
-        state_size = sizeof(std::atomic<std::size_t>);
-        break;
-      }
-      case AggregationID::kSum: {
-        DCHECK_EQ(1u, argument_types.size());
-        switch (argument_types.front()->getTypeID()) {
-          case TypeID::kInt:  // Fall through
-          case TypeID::kLong:
-            state_size = sizeof(std::atomic<std::int64_t>);
-            break;
-          case TypeID::kFloat:  // Fall through
-          case TypeID::kDouble:
-            state_size = sizeof(std::atomic<double>);
-            break;
-          default:
-            LOG(FATAL) << "Not implemented";
-        }
-        break;
-      }
-      default:
-        LOG(FATAL) << "Not implemented";
-    }
-
-    state_offsets.emplace_back(required_memory);
-    required_memory += CacheLineAlignedBytes(state_size * num_entries);
-  }
+  DCHECK_EQ(num_handles_, state_offsets.size());
 
   const std::size_t num_storage_slots =
-      storage_manager_->SlotsNeededForBytes(required_memory);
+      storage_manager_->SlotsNeededForBytes(memory_size_);
 
   const block_id blob_id = storage_manager_->createBlob(num_storage_slots);
   blob_ = storage_manager_->getBlobMutable(blob_id);
 
   void *memory_start = blob_->getMemoryMutable();
   existence_map_.reset(new BarrieredReadWriteConcurrentBitVector(
-      reinterpret_cast<char *>(memory_start) + existence_map_offset,
+      reinterpret_cast<char *>(memory_start),
       num_entries,
       false /* initialize */));
 
@@ -113,9 +78,6 @@ CollisionFreeVectorTable::CollisionFreeVectorTable(
     vec_tables_.emplace_back(
         reinterpret_cast<char *>(memory_start) + state_offsets.at(i));
   }
-
-  memory_size_ = required_memory;
-  num_init_partitions_ = CalculateNumInitializationPartitions(memory_size_);
 }
 
 CollisionFreeVectorTable::~CollisionFreeVectorTable() {

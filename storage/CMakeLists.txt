@@ -283,6 +283,7 @@ target_link_libraries(quickstep_storage_AggregationOperationState
                       quickstep_storage_HashTableBase
                       quickstep_storage_HashTableFactory
                       quickstep_storage_HashTablePool
+                      quickstep_storage_HashTable_proto
                       quickstep_storage_InsertDestination
                       quickstep_storage_PartitionedHashTablePool
                       quickstep_storage_PackedPayloadHashTable

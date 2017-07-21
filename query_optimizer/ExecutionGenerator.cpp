@@ -20,6 +20,7 @@
 #include "query_optimizer/ExecutionGenerator.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cstddef>
 #include <functional>
 #include <memory>
@@ -52,6 +53,7 @@
 #include "expressions/Expressions.pb.h"
 #include "expressions/aggregation/AggregateFunction.hpp"
 #include "expressions/aggregation/AggregateFunction.pb.h"
+#include "expressions/aggregation/AggregationID.hpp"
 #include "expressions/predicate/Predicate.hpp"
 #include "expressions/scalar/Scalar.hpp"
 #include "expressions/scalar/ScalarAttribute.hpp"
@@ -133,19 +135,23 @@
 #include "storage/InsertDestination.pb.h"
 #include "storage/StorageBlockLayout.hpp"
 #include "storage/StorageBlockLayout.pb.h"
+#include "storage/StorageConstants.hpp"
 #include "storage/SubBlockTypeRegistry.hpp"
 #include "types/Type.hpp"
 #include "types/Type.pb.h"
 #include "types/TypedValue.hpp"
 #include "types/TypedValue.pb.h"
 #include "types/containers/Tuple.pb.h"
+#include "utility/BarrieredReadWriteConcurrentBitVector.hpp"
 #include "utility/SqlError.hpp"
 
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
+using std::atomic;
 using std::make_unique;
 using std::move;
+using std::pair;
 using std::static_pointer_cast;
 using std::unique_ptr;
 using std::unordered_map;
@@ -190,6 +196,61 @@ namespace P = ::quickstep::optimizer::physical;
 namespace S = ::quickstep::serialization;
 
 namespace {
+
+size_t CacheLineAlignedBytes(const size_t actual_bytes) {
+  return (actual_bytes + kCacheLineBytes - 1) / kCacheLineBytes * kCacheLineBytes;
+}
+
+size_t CalculateNumInitializationPartitionsForCollisionFreeVectorTable(const size_t memory_size) {
+  // At least 1 partition, at most (#workers * 2) partitions.
+  return std::max(1uL, std::min(memory_size / kCollisonFreeVectorInitBlobSize,
+                                static_cast<size_t>(2 * FLAGS_num_workers)));
+}
+
+void CalculateCollisionFreeAggregationInfo(
+    const size_t num_entries, const vector<pair<AggregationID, vector<const Type *>>> &group_by_aggrs_info,
+    S::CollisionFreeVectorInfo *collision_free_vector_info) {
+  size_t memory_size = CacheLineAlignedBytes(
+      BarrieredReadWriteConcurrentBitVector::BytesNeeded(num_entries));
+
+  for (std::size_t i = 0; i < group_by_aggrs_info.size(); ++i) {
+    const auto &group_by_aggr_info = group_by_aggrs_info[i];
+
+    size_t state_size = 0;
+    switch (group_by_aggr_info.first) {
+      case AggregationID::kCount: {
+        state_size = sizeof(atomic<size_t>);
+        break;
+      }
+      case AggregationID::kSum: {
+        const vector<const Type *> &argument_types = group_by_aggr_info.second;
+        DCHECK_EQ(1u, argument_types.size());
+        switch (argument_types.front()->getTypeID()) {
+          case TypeID::kInt:
+          case TypeID::kLong:
+            state_size = sizeof(atomic<std::int64_t>);
+            break;
+          case TypeID::kFloat:
+          case TypeID::kDouble:
+            state_size = sizeof(atomic<double>);
+            break;
+          default:
+            LOG(FATAL) << "No support by CollisionFreeVector";
+        }
+        break;
+      }
+      default:
+        LOG(FATAL) << "No support by CollisionFreeVector";
+    }
+
+    collision_free_vector_info->add_state_offsets(memory_size);
+    memory_size += CacheLineAlignedBytes(state_size * num_entries);
+  }
+
+  collision_free_vector_info->set_memory_size(memory_size);
+  collision_free_vector_info->set_num_init_partitions(
+      CalculateNumInitializationPartitionsForCollisionFreeVectorTable(memory_size));
+}
 
 size_t CalculateNumFinalizationPartitionsForCollisionFreeVectorTable(const size_t num_entries) {
   // Set finalization segment size as 4096 entries.
@@ -1737,6 +1798,7 @@ void ExecutionGenerator::convertAggregate(
 
   const auto &aggregate_expressions = physical_plan->aggregate_expressions();
   vector<bool> is_distincts;
+  vector<pair<AggregationID, vector<const Type *>>> group_by_aggrs_info;
   for (const E::AliasPtr &named_aggregate_expression : aggregate_expressions) {
     const E::AggregateFunctionPtr unnamed_aggregate_expression =
         std::static_pointer_cast<const E::AggregateFunction>(named_aggregate_expression->expression());
@@ -1745,13 +1807,20 @@ void ExecutionGenerator::convertAggregate(
     S::Aggregate *aggr_proto = aggr_state_proto->add_aggregates();
 
     // Set the AggregateFunction.
-    aggr_proto->mutable_function()->MergeFrom(
-        unnamed_aggregate_expression->getAggregate().getProto());
+    const AggregateFunction &aggr_func = unnamed_aggregate_expression->getAggregate();
+    aggr_proto->mutable_function()->MergeFrom(aggr_func.getProto());
 
     // Add each of the aggregate's arguments.
+    vector<const Type *> argument_types;
     for (const E::ScalarPtr &argument : unnamed_aggregate_expression->getArguments()) {
       unique_ptr<const Scalar> concretized_argument(argument->concretize(attribute_substitution_map_));
+      argument_types.push_back(&concretized_argument->getType());
+
       aggr_proto->add_argument()->MergeFrom(concretized_argument->getProto());
+    }
+
+    if (!group_by_types.empty()) {
+      group_by_aggrs_info.emplace_back(aggr_func.getAggregationID(), move(argument_types));
     }
 
     // Set whether it is a DISTINCT aggregation.
@@ -1786,6 +1855,10 @@ void ExecutionGenerator::convertAggregate(
       aggr_state_proto->set_estimated_num_entries(max_num_groups);
       use_parallel_initialization = true;
       aggr_state_num_partitions = CalculateNumFinalizationPartitionsForCollisionFreeVectorTable(max_num_groups);
+
+      DCHECK(!group_by_aggrs_info.empty());
+      CalculateCollisionFreeAggregationInfo(max_num_groups, group_by_aggrs_info,
+                                            aggr_state_proto->mutable_collision_free_vector_info());
     } else {
       if (cost_model_for_aggregation_->canUseTwoPhaseCompactKeyAggregation(
               physical_plan, estimated_num_groups)) {
@@ -1831,12 +1904,15 @@ void ExecutionGenerator::convertAggregate(
   }
 
   if (use_parallel_initialization) {
+    DCHECK(aggr_state_proto->has_collision_free_vector_info());
+
     const QueryPlan::DAGNodeIndex initialize_aggregation_operator_index =
         execution_plan_->addRelationalOperator(
             new InitializeAggregationOperator(
                 query_handle_->query_id(),
                 aggr_state_index,
-                num_partitions));
+                num_partitions,
+                aggr_state_proto->collision_free_vector_info().num_init_partitions()));
 
     execution_plan_->addDirectDependency(aggregation_operator_index,
                                          initialize_aggregation_operator_index,
@@ -1939,6 +2015,7 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
     aggr_state_proto->mutable_predicate()->MergeFrom(predicate->getProto());
   }
 
+  vector<pair<AggregationID, vector<const Type *>>> group_by_aggrs_info;
   for (const E::AliasPtr &named_aggregate_expression : physical_plan->aggregate_expressions()) {
     const E::AggregateFunctionPtr unnamed_aggregate_expression =
         std::static_pointer_cast<const E::AggregateFunction>(named_aggregate_expression->expression());
@@ -1947,26 +2024,35 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
     S::Aggregate *aggr_proto = aggr_state_proto->add_aggregates();
 
     // Set the AggregateFunction.
-    aggr_proto->mutable_function()->MergeFrom(
-        unnamed_aggregate_expression->getAggregate().getProto());
+    const AggregateFunction &aggr_func = unnamed_aggregate_expression->getAggregate();
+    aggr_proto->mutable_function()->MergeFrom(aggr_func.getProto());
 
     // Add each of the aggregate's arguments.
+    vector<const Type *> argument_types;
     for (const E::ScalarPtr &argument : unnamed_aggregate_expression->getArguments()) {
       unique_ptr<const Scalar> concretized_argument(argument->concretize(attribute_substitution_map_));
+      argument_types.push_back(&concretized_argument->getType());
+
       aggr_proto->add_argument()->MergeFrom(concretized_argument->getProto());
     }
+
+    group_by_aggrs_info.emplace_back(aggr_func.getAggregationID(), move(argument_types));
 
     // Set whether it is a DISTINCT aggregation.
     DCHECK(!unnamed_aggregate_expression->is_distinct());
     aggr_proto->set_is_distinct(false);
   }
 
+  CalculateCollisionFreeAggregationInfo(estimated_num_entries, group_by_aggrs_info,
+                                        aggr_state_proto->mutable_collision_free_vector_info());
+
   const QueryPlan::DAGNodeIndex initialize_aggregation_operator_index =
       execution_plan_->addRelationalOperator(
           new InitializeAggregationOperator(
               query_handle_->query_id(),
               aggr_state_index,
-              num_partitions));
+              num_partitions,
+              aggr_state_proto->collision_free_vector_info().num_init_partitions()));
 
   const QueryPlan::DAGNodeIndex build_aggregation_existence_map_operator_index =
       execution_plan_->addRelationalOperator(

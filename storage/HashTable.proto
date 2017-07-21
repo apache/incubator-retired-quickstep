@@ -29,6 +29,12 @@ enum HashTableImplType {
   THREAD_PRIVATE_COMPACT_KEY = 4;
 }
 
+message CollisionFreeVectorInfo {
+  required uint64 memory_size = 1;
+  required uint64 num_init_partitions = 2;
+  repeated uint64 state_offsets = 3;
+}
+
 // NOTE(chasseur): This proto describes the run-time parameters for a resizable
 // HashTable. It does not describe any template parameters of the HashTable
 // class, which are different in different contexts (e.g. join vs. grouping).

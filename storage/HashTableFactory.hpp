@@ -358,6 +358,12 @@ class AggregationStateHashTableFactory {
    *        hash table constructor.
    * @param num_partitions The number of partitions of this aggregation state
    *        hash table.
+   * @param collision_free_vector_memory_size For CollisionFreeVectorTable,
+   *        the memory size.
+   * @param collision_free_vector_num_init_partitions For
+   *        CollisionFreeVectorTable, the number of partitions to initialize.
+   * @param collision_free_vector_state_offsets For CollisionFreeVectorTable,
+   *        the offsets for each state.
    * @return A new aggregation state hash table.
    **/
   static AggregationStateHashTableBase* CreateResizable(
@@ -366,12 +372,17 @@ class AggregationStateHashTableFactory {
       const std::size_t num_entries,
       const std::vector<AggregationHandle *> &handles,
       StorageManager *storage_manager,
-      const std::size_t num_partitions = 1u) {
+      const std::size_t num_partitions = 1u,
+      const std::size_t collision_free_vector_memory_size = 0,
+      const std::size_t collision_free_vector_num_init_partitions = 0,
+      const std::vector<std::size_t> &collision_free_vector_state_offsets = std::vector<std::size_t>()) {
     switch (hash_table_type) {
       case HashTableImplType::kCollisionFreeVector:
         DCHECK_EQ(1u, key_types.size());
         return new CollisionFreeVectorTable(
-            key_types.front(), num_entries, num_partitions, handles, storage_manager);
+            key_types.front(), num_entries, collision_free_vector_memory_size,
+            collision_free_vector_num_init_partitions, num_partitions,
+            collision_free_vector_state_offsets, handles, storage_manager);
       case HashTableImplType::kSeparateChaining:
         return new PackedPayloadHashTable(
             key_types, num_entries, handles, storage_manager);

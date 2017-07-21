@@ -122,6 +122,9 @@ const double kFixedSizeLinearOpenAddressingHashTableOverflowFactor = 0.0625f;
 // to indicate zero-sized blocks or sub-blocks.
 const std::size_t kZeroSize = 0;
 
+// Set initialization memory blob size for CollisonFreeVector as 4MB.
+constexpr std::size_t kCollisonFreeVectorInitBlobSize = 4uL * 1024u * 1024u;
+
 /** @} */
 
 }  // namespace quickstep

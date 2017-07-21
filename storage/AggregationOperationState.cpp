@@ -40,8 +40,9 @@
 #include "expressions/scalar/Scalar.hpp"
 #include "storage/AggregationOperationState.pb.h"
 #include "storage/CollisionFreeVectorTable.hpp"
-#include "storage/HashTableFactory.hpp"
+#include "storage/HashTable.pb.h"
 #include "storage/HashTableBase.hpp"
+#include "storage/HashTableFactory.hpp"
 #include "storage/InsertDestination.hpp"
 #include "storage/PackedPayloadHashTable.hpp"
 #include "storage/StorageBlock.hpp"
@@ -63,7 +64,12 @@
 
 #include "glog/logging.h"
 
+using std::size_t;
+using std::vector;
+
 namespace quickstep {
+
+namespace S = serialization;
 
 AggregationOperationState::AggregationOperationState(
     const CatalogRelationSchema &input_relation,
@@ -77,7 +83,10 @@ AggregationOperationState::AggregationOperationState(
     const std::size_t num_partitions,
     const HashTableImplType hash_table_impl_type,
     const std::vector<HashTableImplType> &distinctify_hash_table_impl_types,
-    StorageManager *storage_manager)
+    StorageManager *storage_manager,
+    const size_t collision_free_vector_memory_size,
+    const size_t collision_free_vector_num_init_partitions,
+    const vector<size_t> &collision_free_vector_state_offsets)
     : input_relation_(input_relation),
       is_aggregate_collision_free_(
           group_by.empty() ? false
@@ -208,7 +217,10 @@ AggregationOperationState::AggregationOperationState(
               estimated_num_entries,
               group_by_handles,
               storage_manager,
-              num_partitions));
+              num_partitions,
+              collision_free_vector_memory_size,
+              collision_free_vector_num_init_partitions,
+              collision_free_vector_state_offsets));
     } else if (is_aggregate_partitioned_) {
       if (all_distinct_) {
         DCHECK_EQ(1u, group_by_handles.size());
@@ -288,6 +300,19 @@ AggregationOperationState* AggregationOperationState::ReconstructFromProto(
         PredicateFactory::ReconstructFromProto(proto.predicate(), database));
   }
 
+  size_t collision_free_vector_memory_size = 0;
+  size_t collision_free_vector_num_init_partitions = 0;
+  vector<size_t> collision_free_vector_state_offsets;
+  if (proto.has_collision_free_vector_info()) {
+    const serialization::CollisionFreeVectorInfo &collision_free_vector_info =
+        proto.collision_free_vector_info();
+    collision_free_vector_memory_size = collision_free_vector_info.memory_size();
+    collision_free_vector_num_init_partitions = collision_free_vector_info.num_init_partitions();
+    for (int i = 0; i < collision_free_vector_info.state_offsets_size(); ++i) {
+      collision_free_vector_state_offsets.push_back(collision_free_vector_info.state_offsets(i));
+    }
+  }
+
   return new AggregationOperationState(
       database.getRelationSchemaById(proto.relation_id()),
       aggregate_functions,
@@ -300,7 +325,10 @@ AggregationOperationState* AggregationOperationState::ReconstructFromProto(
       proto.num_partitions(),
       HashTableImplTypeFromProto(proto.hash_table_impl_type()),
       distinctify_hash_table_impl_types,
-      storage_manager);
+      storage_manager,
+      collision_free_vector_memory_size,
+      collision_free_vector_num_init_partitions,
+      collision_free_vector_state_offsets);
 }
 
 bool AggregationOperationState::ProtoIsValid(
@@ -345,17 +373,30 @@ bool AggregationOperationState::ProtoIsValid(
     }
   }
 
-  for (int i = 0; i < proto.group_by_expressions_size(); ++i) {
+  const int group_by_expressions_size = proto.group_by_expressions_size();
+  for (int i = 0; i < group_by_expressions_size; ++i) {
     if (!ScalarFactory::ProtoIsValid(proto.group_by_expressions(i), database)) {
       return false;
     }
   }
 
-  if (proto.group_by_expressions_size() > 0) {
+  if (group_by_expressions_size > 0) {
     if (!proto.has_hash_table_impl_type() ||
         !serialization::HashTableImplType_IsValid(
             proto.hash_table_impl_type())) {
       return false;
+    }
+
+    if (proto.hash_table_impl_type() == S::HashTableImplType::COLLISION_FREE_VECTOR) {
+      if (!proto.has_collision_free_vector_info()) {
+        return false;
+      }
+
+      const S::CollisionFreeVectorInfo &proto_collision_free_vector_info = proto.collision_free_vector_info();
+      if (!proto_collision_free_vector_info.IsInitialized() ||
+          proto_collision_free_vector_info.state_offsets_size() != group_by_expressions_size) {
+        return false;
+      }
     }
   }
 
@@ -366,15 +407,6 @@ bool AggregationOperationState::ProtoIsValid(
   }
 
   return true;
-}
-
-std::size_t AggregationOperationState::getNumInitializationPartitions() const {
-  if (is_aggregate_collision_free_) {
-    return static_cast<CollisionFreeVectorTable *>(
-        collision_free_hashtable_.get())->getNumInitializationPartitions();
-  } else {
-    return 0u;
-  }
 }
 
 CollisionFreeVectorTable* AggregationOperationState
