@@ -20,6 +20,7 @@
 #include "query_execution/QueryManagerBase.hpp"
 
 #include <memory>
+#include <queue>
 #include <utility>
 #include <vector>
 
@@ -205,6 +206,8 @@ void QueryManagerBase::processDataPipelineMessage(const dag_node_index op_index,
                                                   const block_id block,
                                                   const relation_id rel_id,
                                                   const partition_id part_id) {
+  data_pipeline_op_indexes_.push(op_index);
+
   for (const dag_node_index consumer_index :
        output_consumers_[op_index]) {
     // Feed the streamed block to the consumer. Note that 'output_consumers_'
