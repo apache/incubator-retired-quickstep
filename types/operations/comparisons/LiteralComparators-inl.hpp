@@ -543,7 +543,11 @@ TypedValue LiteralUncheckedComparator<ComparisonFunctor,
         const TypedValue &current,
         ValueAccessor *accessor,
         const attribute_id value_accessor_id) const {
-  const void *current_literal = current.isNull() ? nullptr : current.getDataPtr();
+  bool is_null = current.isNull();
+  LeftCppType current_literal;
+  if (!is_null) {
+    current_literal = current.getLiteral<LeftCppType>();
+  }
 
   InvokeOnValueAccessorMaybeTupleIdSequenceAdapter(
       accessor,
@@ -555,32 +559,72 @@ TypedValue LiteralUncheckedComparator<ComparisonFunctor,
       std::unique_ptr<const ColumnAccessor<left_nullable>>
           column_accessor(accessor->template getColumnAccessor<left_nullable>(value_accessor_id));
       DCHECK(column_accessor != nullptr);
-      while (accessor->next()) {
-        const void *va_value = column_accessor->getUntypedValue();
-        if (left_nullable && !va_value) {
-          continue;
+
+      // Locate the first non-null value.
+      if (is_null) {
+        const void *va_value = nullptr;
+        while (accessor->next()) {
+          va_value = column_accessor->getUntypedValue();
+          if (!left_nullable || va_value) {
+            break;
+          }
         }
-        if (!current_literal || this->compareDataPtrsHelper<true>(va_value, current_literal)) {
-          current_literal = va_value;
+        if (va_value != nullptr) {
+          is_null = false;
+          current_literal = *static_cast<const LeftCppType*>(va_value);
+        }
+      }
+
+      // Aggregate on the remaining values.
+      if (!accessor->iterationFinished()) {
+        DCHECK(!is_null);
+        while (accessor->next()) {
+          const void *va_value = column_accessor->getUntypedValue();
+          if (left_nullable && !va_value) {
+            continue;
+          }
+          if (this->compareDataPtrsHelper<true>(va_value, &current_literal)) {
+            current_literal = *static_cast<const LeftCppType*>(va_value);
+          }
         }
       }
     } else {
-      while (accessor->next()) {
-        const void *va_value = accessor->template getUntypedValue<left_nullable>(value_accessor_id);
-        if (left_nullable && !va_value) {
-          continue;
+      // Locate the first non-null value.
+      if (is_null) {
+        const void *va_value = nullptr;
+        while (accessor->next()) {
+          va_value = accessor->template getUntypedValue<left_nullable>(value_accessor_id);
+          if (!left_nullable || va_value) {
+            break;
+          }
         }
-        if (!current_literal || this->compareDataPtrsHelper<true>(va_value, current_literal)) {
-          current_literal = va_value;
+        if (va_value != nullptr) {
+          is_null = false;
+          current_literal = *static_cast<const LeftCppType*>(va_value);
+        }
+      }
+
+      // Aggregate on the remaining values.
+      if (!accessor->iterationFinished()) {
+        DCHECK(!is_null);
+        while (accessor->next()) {
+          const void *va_value =
+              accessor->template getUntypedValue<left_nullable>(value_accessor_id);
+          if (left_nullable && !va_value) {
+            continue;
+          }
+          if (this->compareDataPtrsHelper<true>(va_value, &current_literal)) {
+            current_literal = *static_cast<const LeftCppType*>(va_value);
+          }
         }
       }
     }
   });
 
-  if (current_literal) {
-    return TypedValue(*static_cast<const LeftCppType*>(current_literal));
-  } else {
+  if (is_null) {
     return TypedValue(current.getTypeID());
+  } else {
+    return TypedValue(current_literal);
   }
 }
 
