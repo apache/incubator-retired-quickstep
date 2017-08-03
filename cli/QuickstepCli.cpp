@@ -406,9 +406,11 @@ int main(int argc, char* argv[]) {
             foreman.printWorkOrderProfilingResults(query_id, stdout);
           }
           if (quickstep::FLAGS_visualize_execution_dag) {
-            const auto &profiling_stats =
+            const auto *profiling_stats =
                 foreman.getWorkOrderProfilingResults(query_id);
-            dag_visualizer->bindProfilingStats(profiling_stats);
+            if (profiling_stats) {
+              dag_visualizer->bindProfilingStats(*profiling_stats);
+            }
             std::cerr << "\n" << dag_visualizer->toDOT() << "\n";
           }
         } catch (const std::exception &e) {

@@ -84,9 +84,11 @@ class ForemanBase : public Thread {
    * @param query_id The ID of the query for which the results are to be printed.
    * @return A vector of records, each being a single profiling entry.
    **/
-  const std::vector<WorkOrderTimeEntry>& getWorkOrderProfilingResults(
+  const std::vector<WorkOrderTimeEntry>* getWorkOrderProfilingResults(
       const std::size_t query_id) const {
-    return policy_enforcer_->getProfilingResults(query_id);
+    return policy_enforcer_->hasProfilingResults(query_id)
+               ? &(policy_enforcer_->getProfilingResults(query_id))
+               : nullptr;
   }
 
   /**
