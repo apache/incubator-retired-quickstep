@@ -83,7 +83,7 @@ script:
   - ./validate_cmakelists.py
   - ./cyclic_dependency.py
   - (cd build && make)
-  - (cd build && ctest --output-on-failure -j$TEST_JOBS)
+  - (cd build && ctest --output-on-failure -E NetworkUtil_unittest -j$TEST_JOBS)
 
 after_failure:
   - df -h
