@@ -237,8 +237,6 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
 
       LOG(INFO) << "Creating FinalizeAggregationWorkOrder (Partition " << part_id << ") for Query " << query_id
                 << " in Shiftboss " << shiftboss_index;
-      // TODO(quickstep-team): Handle inner-table partitioning in the distributed
-      // setting.
       return new FinalizeAggregationWorkOrder(
           query_id,
           part_id,
