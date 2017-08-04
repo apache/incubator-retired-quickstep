@@ -55,7 +55,7 @@ class ParseSimpleCaseExpression;
 class ParseSimpleTableReference;
 class ParseSubqueryTableReference;
 class ParseStatement;
-class ParseStatementCopyFrom;
+class ParseStatementCopy;
 class ParseStatementCreateTable;
 class ParseStatementCreateIndex;
 class ParseStatementDelete;
@@ -283,7 +283,16 @@ class Resolver {
    * @return A logical plan for the COPY FROM query.
    */
   logical::LogicalPtr resolveCopyFrom(
-      const ParseStatementCopyFrom &copy_from_statement);
+      const ParseStatementCopy &copy_from_statement);
+
+  /**
+   * @brief Resolves a COPY TO query and returns a logical plan.
+   *
+   * @param copy_to_statement The COPY TO parse tree.
+   * @return A logical plan for the COPY TO query.
+   */
+  logical::LogicalPtr resolveCopyTo(
+      const ParseStatementCopy &copy_to_statement);
 
   /**
    * @brief Resolves a UPDATE query and returns a logical plan.
@@ -619,6 +628,14 @@ class Resolver {
    * @return A string for the name.
    */
   static std::string GenerateOrderingAttributeAlias(int index);
+
+  /**
+   * @brief Reports an error if there is a WITH query that is not actually used.
+   *
+   * @param with_list The list of subqueries in WITH clause.
+   */
+  void reportIfWithClauseUnused(
+      const PtrVector<ParseSubqueryTableReference> &with_list) const;
 
   /**
    * @brief Validates each SELECT-list expression to ensure that it does not

@@ -17,8 +17,8 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_COPY_FROM_HPP_
-#define QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_COPY_FROM_HPP_
+#ifndef QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_COPY_TO_HPP_
+#define QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_COPY_TO_HPP_
 
 #include <memory>
 #include <string>
@@ -26,8 +26,6 @@
 
 #include "query_optimizer/OptimizerTree.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
-#include "query_optimizer/expressions/ExpressionUtil.hpp"
-#include "query_optimizer/expressions/NamedExpression.hpp"
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
 #include "utility/BulkIoConfiguration.hpp"
@@ -36,9 +34,6 @@
 #include "glog/logging.h"
 
 namespace quickstep {
-
-class CatalogRelation;
-
 namespace optimizer {
 namespace physical {
 
@@ -46,45 +41,55 @@ namespace physical {
  *  @{
  */
 
-class CopyFrom;
-typedef std::shared_ptr<const CopyFrom> CopyFromPtr;
+class CopyTo;
+typedef std::shared_ptr<const CopyTo> CopyToPtr;
 
 /**
- * @brief Represents an operation that copies  data from a text file to a relation.
+ * @brief Represents an operation that copies data from a relation to a text file.
  */
-class CopyFrom : public Physical {
+class CopyTo : public Physical {
  public:
-  PhysicalType getPhysicalType() const override { return PhysicalType::kCopyFrom; }
+  PhysicalType getPhysicalType() const override {
+    return PhysicalType::kCopyTo;
+  }
 
-  std::string getName() const override { return "CopyFrom"; }
-
-  /**
-   * @return The catalog relation to insert the tuples to.
-   */
-  const CatalogRelation* catalog_relation() const { return catalog_relation_; }
-
-  /**
-   * @return The name of the file to read the data from.
-   */
-  const std::string& file_name() const { return file_name_; }
+  std::string getName() const override {
+    return "CopyTo";
+  }
 
   /**
-   * @return The options for this COPY FROM statement.
+   * @return The input relation whose data is to be exported.
    */
-  const BulkIoConfigurationPtr& options() const { return options_; }
+  const PhysicalPtr& input() const {
+    return input_;
+  }
+
+  /**
+   * @return The name of the file to write the data to.
+   */
+  const std::string& file_name() const {
+    return file_name_;
+  }
+
+  /**
+   * @return The options for this COPY TO statement.
+   */
+  const BulkIoConfigurationPtr& options() const {
+    return options_;
+  }
 
   PhysicalPtr copyWithNewChildren(
       const std::vector<PhysicalPtr> &new_children) const override {
-    DCHECK(new_children.empty());
-    return Create(catalog_relation_, file_name_, options_);
+    DCHECK_EQ(1u, new_children.size());
+    return Create(new_children.front(), file_name_, options_);
   }
 
   std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {
-    return std::vector<expressions::AttributeReferencePtr>();
+    return {};
   }
 
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override {
-    return std::vector<expressions::AttributeReferencePtr>();
+    return input_->getOutputAttributes();
   }
 
   bool maybeCopyWithPrunedExpressions(
@@ -94,19 +99,17 @@ class CopyFrom : public Physical {
   }
 
   /**
-   * @brief Creates a CopyFrom physical node.
+   * @brief Creates a CopyTo physical node.
    *
-   * @param catalog_relation The catalog relation to insert the tuples to.
-   * @param file_name The name of the file to read the data from.
-   * @param column_delimiter The delimiter used in the text file to separate
-   *                         columns.
-   * @param escape_strings Whether to decode escape sequences in the text file.
-   * @return An immutable CopyFrom physical node.
+   * @param input The input relation whose data is to be exported.
+   * @param file_name The name of the file to write the data to.
+   * @param options The options for this COPY TO statement.
+   * @return An immutable CopyTo physical node.
    */
-  static CopyFromPtr Create(const CatalogRelation *catalog_relation,
-                            const std::string &file_name,
-                            const BulkIoConfigurationPtr &options) {
-    return CopyFromPtr(new CopyFrom(catalog_relation, file_name, options));
+  static CopyToPtr Create(const PhysicalPtr &input,
+                          const std::string &file_name,
+                          const BulkIoConfigurationPtr &options) {
+    return CopyToPtr(new CopyTo(input, file_name, options));
   }
 
  protected:
@@ -119,18 +122,20 @@ class CopyFrom : public Physical {
       std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const override;
 
  private:
-  CopyFrom(const CatalogRelation *catalog_relation,
-           const std::string &file_name,
-           const BulkIoConfigurationPtr &options)
-      : catalog_relation_(catalog_relation),
+  CopyTo(const PhysicalPtr &input,
+         const std::string &file_name,
+         const BulkIoConfigurationPtr &options)
+      : input_(input),
         file_name_(file_name),
-        options_(options) {}
+        options_(options) {
+    addChild(input);
+  }
 
-  const CatalogRelation *catalog_relation_;
+  const PhysicalPtr input_;
   const std::string file_name_;
   const BulkIoConfigurationPtr options_;
 
-  DISALLOW_COPY_AND_ASSIGN(CopyFrom);
+  DISALLOW_COPY_AND_ASSIGN(CopyTo);
 };
 
 /** @} */
@@ -139,4 +144,4 @@ class CopyFrom : public Physical {
 }  // namespace optimizer
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_COPY_FROM_HPP_
+#endif  // QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_COPY_TO_HPP_

@@ -21,7 +21,7 @@ package quickstep.serialization;
 
 import "relational_operators/SortMergeRunOperator.proto";
 
-// Next tag: 26.
+// Next tag: 27.
 enum WorkOrderType {
   AGGREGATION = 1;
   BUILD_AGGREGATION_EXISTENCE_MAP = 23;
@@ -43,6 +43,7 @@ enum WorkOrderType {
   SELECT = 15;
   SORT_MERGE_RUN = 16;
   SORT_RUN_GENERATION = 17;
+  TABLE_EXPORT_TO_STRING = 26;
   TABLE_GENERATOR = 18;
   TEXT_SCAN = 19;
   UNION_ALL = 24;

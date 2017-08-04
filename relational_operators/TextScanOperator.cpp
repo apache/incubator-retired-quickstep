@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <exception>
 #include <memory>
 #include <string>
 #include <utility>
@@ -54,15 +55,13 @@
 #include "types/containers/ColumnVector.hpp"
 #include "types/containers/ColumnVectorsValueAccessor.hpp"
 #include "types/containers/Tuple.hpp"
+#include "utility/BulkIoConfiguration.hpp"
 #include "utility/Glob.hpp"
 
 #include "gflags/gflags.h"
 #include "glog/logging.h"
 
 #include "tmb/id_typedefs.h"
-
-using std::size_t;
-using std::string;
 
 namespace quickstep {
 
@@ -82,14 +81,19 @@ static bool ValidateTextScanTextSegmentSize(const char *flagname,
   return true;
 }
 
-static const volatile bool text_scan_text_segment_size_dummy = gflags::RegisterFlagValidator(
-    &FLAGS_textscan_text_segment_size, &ValidateTextScanTextSegmentSize);
+static const volatile bool text_scan_text_segment_size_dummy =
+    gflags::RegisterFlagValidator(
+        &FLAGS_textscan_text_segment_size, &ValidateTextScanTextSegmentSize);
 
 namespace {
 
-size_t getFileSize(const string &file_name) {
+std::size_t GetFileSize(const std::string &file_name) {
   // Use standard C libary to retrieve the file size.
   FILE *fp = std::fopen(file_name.c_str(), "rb");
+  // TODO(quickstep-team): Decent handling of exceptions at query runtime.
+  if (fp == nullptr) {
+    throw std::runtime_error("Can not open file " + file_name + " for reading");
+  }
   std::fseek(fp, 0, SEEK_END);
   const std::size_t file_size = std::ftell(fp);
   std::fclose(fp);
@@ -127,7 +131,7 @@ bool TextScanOperator::getAllWorkOrders(
         << "File " << file << " is not readable due to permission issues.";
 #endif  // QUICKSTEP_HAVE_UNISTD
 
-    const std::size_t file_size = getFileSize(file);
+    const std::size_t file_size = GetFileSize(file);
 
     std::size_t text_offset = 0;
     for (size_t num_full_segments = file_size / FLAGS_textscan_text_segment_size;
@@ -138,8 +142,8 @@ bool TextScanOperator::getAllWorkOrders(
                                 file,
                                 text_offset,
                                 FLAGS_textscan_text_segment_size,
-                                field_terminator_,
-                                process_escape_sequences_,
+                                options_->getDelimiter(),
+                                options_->escapeStrings(),
                                 output_destination),
           op_index_);
     }
@@ -152,8 +156,8 @@ bool TextScanOperator::getAllWorkOrders(
                                 file,
                                 text_offset,
                                 file_size - text_offset,
-                                field_terminator_,
-                                process_escape_sequences_,
+                                options_->getDelimiter(),
+                                options_->escapeStrings(),
                                 output_destination),
           op_index_);
     }
@@ -169,22 +173,25 @@ bool TextScanOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container
     return true;
   }
 
-  for (const string &file : files) {
-    const std::size_t file_size = getFileSize(file);
+  for (const std::string &file : files) {
+    const std::size_t file_size = GetFileSize(file);
 
     size_t text_offset = 0;
     for (size_t num_full_segments = file_size / FLAGS_textscan_text_segment_size;
          num_full_segments > 0;
          --num_full_segments, text_offset += FLAGS_textscan_text_segment_size) {
-      container->addWorkOrderProto(createWorkOrderProto(file, text_offset, FLAGS_textscan_text_segment_size),
-                                   op_index_);
+      container->addWorkOrderProto(
+          createWorkOrderProto(file, text_offset,
+                               FLAGS_textscan_text_segment_size),
+          op_index_);
     }
 
     // Deal with the residual partial segment whose size is less than
     // 'FLAGS_textscan_text_segment_size'.
     if (text_offset < file_size) {
-      container->addWorkOrderProto(createWorkOrderProto(file, text_offset, file_size - text_offset),
-                                   op_index_);
+      container->addWorkOrderProto(
+          createWorkOrderProto(file, text_offset, file_size - text_offset),
+          op_index_);
     }
   }
 
@@ -192,9 +199,10 @@ bool TextScanOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container
   return true;
 }
 
-serialization::WorkOrder* TextScanOperator::createWorkOrderProto(const string &filename,
-                                                                 const size_t text_offset,
-                                                                 const size_t text_segment_size) {
+serialization::WorkOrder* TextScanOperator::createWorkOrderProto(
+    const std::string &filename,
+    const std::size_t text_offset,
+    const std::size_t text_segment_size) {
   serialization::WorkOrder *proto = new serialization::WorkOrder;
   proto->set_work_order_type(serialization::TEXT_SCAN);
   proto->set_query_id(query_id_);
@@ -202,9 +210,10 @@ serialization::WorkOrder* TextScanOperator::createWorkOrderProto(const string &f
   proto->SetExtension(serialization::TextScanWorkOrder::filename, filename);
   proto->SetExtension(serialization::TextScanWorkOrder::text_offset, text_offset);
   proto->SetExtension(serialization::TextScanWorkOrder::text_segment_size, text_segment_size);
-  proto->SetExtension(serialization::TextScanWorkOrder::field_terminator, field_terminator_);
+  proto->SetExtension(serialization::TextScanWorkOrder::field_terminator,
+                      options_->getDelimiter());
   proto->SetExtension(serialization::TextScanWorkOrder::process_escape_sequences,
-                      process_escape_sequences_);
+                      options_->escapeStrings());
   proto->SetExtension(serialization::TextScanWorkOrder::insert_destination_index,
                       output_destination_index_);
 
@@ -235,12 +244,14 @@ void TextScanWorkOrder::execute() {
     file_handle = hdfsOpenFile(hdfs, filename_.c_str(), O_RDONLY, buffer_size,
                                0 /* default replication */, 0 /* default block size */);
     if (file_handle == nullptr) {
-      LOG(ERROR) << "Failed to open file " << filename_ << " with error: " << strerror(errno);
+      LOG(ERROR) << "Failed to open file " << filename_
+                 << " with error: " << strerror(errno);
       return;
     }
 
     if (hdfsSeek(hdfs, file_handle, text_offset_)) {
-      LOG(ERROR) << "Failed to seek in file " << filename_ << " with error: " << strerror(errno);
+      LOG(ERROR) << "Failed to seek in file " << filename_
+                 << " with error: " << strerror(errno);
 
       hdfsCloseFile(hdfs, file_handle);
       return;
@@ -248,7 +259,9 @@ void TextScanWorkOrder::execute() {
 
     bytes_read = hdfsRead(hdfs, file_handle, buffer, text_segment_size_);
     while (bytes_read != text_segment_size_) {
-      bytes_read += hdfsRead(hdfs, file_handle, buffer + bytes_read, text_segment_size_ - bytes_read);
+      bytes_read += hdfsRead(hdfs, file_handle,
+                             buffer + bytes_read,
+                             text_segment_size_ - bytes_read);
     }
   }
 #endif  // QUICKSTEP_HAVE_FILE_MANAGER_HDFS
@@ -325,7 +338,8 @@ void TextScanWorkOrder::execute() {
   if (use_hdfs) {
 #ifdef QUICKSTEP_HAVE_FILE_MANAGER_HDFS
     if (hdfsSeek(hdfs, file_handle, dynamic_read_offset)) {
-      LOG(ERROR) << "Failed to seek in file " << filename_ << " with error: " << strerror(errno);
+      LOG(ERROR) << "Failed to seek in file " << filename_
+                 << " with error: " << strerror(errno);
 
       hdfsCloseFile(hdfs, file_handle);
       return;
@@ -343,7 +357,9 @@ void TextScanWorkOrder::execute() {
 
       // Read again when acrossing the HDFS block boundary.
       if (bytes_read != dynamic_read_size) {
-        bytes_read += hdfsRead(hdfs, file_handle, buffer + bytes_read, dynamic_read_size - bytes_read);
+        bytes_read += hdfsRead(hdfs, file_handle,
+                               buffer + bytes_read,
+                               dynamic_read_size - bytes_read);
       }
 #endif  // QUICKSTEP_HAVE_FILE_MANAGER_HDFS
     } else {

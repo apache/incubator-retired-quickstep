@@ -55,12 +55,15 @@ using std::to_string;
 namespace quickstep {
 
 DEFINE_bool(visualize_execution_dag_partition_info, false,
-            "If true, display the operator partition info in the visualized execution plan DAG."
-            "Valid iif 'visualize_execution_dag' turns on.");
+            "If true, display the operator partition info in the visualized "
+            "execution plan DAG. Valid iff 'visualize_execution_dag' turns on.");
 
 ExecutionDAGVisualizer::ExecutionDAGVisualizer(const QueryPlan &plan) {
+  using ROEnumType =
+      typename std::underlying_type<RelationalOperator::OperatorType>::type;
+
   // Do not display these relational operators in the graph.
-  const std::unordered_set<typename std::underlying_type<RelationalOperator::OperatorType>::type> no_display_op_types =
+  const std::unordered_set<ROEnumType> no_display_op_types =
       { RelationalOperator::kDestroyAggregationState,
         RelationalOperator::kDestroyHash,
         RelationalOperator::kDropTable };

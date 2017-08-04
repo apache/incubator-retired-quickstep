@@ -17,40 +17,59 @@
  * under the License.
  **/
 
-#include "query_optimizer/physical/CopyFrom.hpp"
+#include "query_optimizer/logical/CopyTo.hpp"
 
 #include <string>
 #include <vector>
 
-#include "catalog/CatalogRelation.hpp"
 #include "query_optimizer/OptimizerTree.hpp"
 #include "utility/StringUtil.hpp"
 
 namespace quickstep {
 namespace optimizer {
-namespace physical {
+namespace logical {
 
-void CopyFrom::getFieldStringItems(
+void CopyTo::getFieldStringItems(
     std::vector<std::string> *inline_field_names,
     std::vector<std::string> *inline_field_values,
     std::vector<std::string> *non_container_child_field_names,
     std::vector<OptimizerTreeBaseNodePtr> *non_container_child_fields,
     std::vector<std::string> *container_child_field_names,
     std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const {
-  inline_field_names->push_back("relation");
-  inline_field_values->push_back(catalog_relation_->getName());
-
   inline_field_names->push_back("file_name");
   inline_field_values->push_back(file_name_);
+
+  non_container_child_field_names->push_back("input");
+  non_container_child_fields->push_back(input_);
+
+  inline_field_names->push_back("format");
+  inline_field_values->push_back(options_->getFormatName());
 
   inline_field_names->push_back("column_delimiter");
   inline_field_values->push_back(
       "\"" + EscapeSpecialChars(std::string(1, options_->getDelimiter())) + "\"");
 
-  inline_field_names->push_back("escape_strings");
-  inline_field_values->push_back(options_->escapeStrings() ? "true" : "false");
+  if (options_->escapeStrings()) {
+    inline_field_names->push_back("escape_strings");
+    inline_field_values->push_back("true");
+  }
+
+  if (options_->hasHeader()) {
+    inline_field_names->push_back("header");
+    inline_field_values->push_back("true");
+  }
+
+  if (options_->getQuoteCharacter() != 0) {
+    inline_field_names->push_back("quote");
+    inline_field_values->push_back(std::string(1, options_->getQuoteCharacter()));
+  }
+
+  if (options_->getNullString() != "") {
+    inline_field_names->push_back("null_string");
+    inline_field_values->push_back(options_->getNullString());
+  }
 }
 
-}  // namespace physical
+}  // namespace logical
 }  // namespace optimizer
 }  // namespace quickstep

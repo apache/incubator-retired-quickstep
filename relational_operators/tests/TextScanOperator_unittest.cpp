@@ -40,6 +40,7 @@
 #include "threading/ThreadIDBasedMap.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
+#include "utility/BulkIoConfiguration.hpp"
 #include "utility/MemStream.hpp"
 
 #include "gflags/gflags.h"
@@ -191,11 +192,15 @@ TEST_F(TextScanOperatorTest, ScanTest) {
   output_destination_proto->set_relation_id(relation_->getID());
   output_destination_proto->set_relational_op_index(kOpIndex);
 
+  std::unique_ptr<BulkIoConfiguration> options =
+      std::make_unique<BulkIoConfiguration>(BulkIoFormat::kText);
+  options->setDelimiter('\t');
+  options->setEscapeStrings(true);
+
   std::unique_ptr<TextScanOperator> text_scan_op(
       new TextScanOperator(kQueryId,
                            input_filename,
-                           '\t',
-                           true,
+                           BulkIoConfigurationPtr(options.release()),
                            *relation_,
                            output_destination_index));
 

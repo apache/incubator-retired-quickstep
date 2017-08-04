@@ -32,8 +32,9 @@ namespace logical {
  * @brief Optimizer logical node types.
  **/
 enum class LogicalType {
-  kAggregate,
+  kAggregate = 0,
   kCopyFrom,
+  kCopyTo,
   kCreateIndex,
   kCreateTable,
   kDeleteTuples,

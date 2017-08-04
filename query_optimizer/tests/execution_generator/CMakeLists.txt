@@ -20,6 +20,11 @@ add_test(quickstep_queryoptimizer_tests_executiongenerator_commonsubexpression
          "${CMAKE_CURRENT_SOURCE_DIR}/CommonSubexpression.test"
          "${CMAKE_CURRENT_BINARY_DIR}/CommonSubexpression.test"
          "${CMAKE_CURRENT_BINARY_DIR}/CommonSubexpression/")
+add_test(quickstep_queryoptimizer_tests_executiongenerator_copy
+         "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
+         "${CMAKE_CURRENT_SOURCE_DIR}/Copy.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Copy.test"
+         "${CMAKE_CURRENT_BINARY_DIR}/Copy/")
 add_test(quickstep_queryoptimizer_tests_executiongenerator_create
          "../quickstep_queryoptimizer_tests_ExecutionGeneratorTest"
          "${CMAKE_CURRENT_SOURCE_DIR}/Create.test"
@@ -158,6 +163,7 @@ endif(ENABLE_DISTRIBUTED)
 # Create the folders where the unit tests will store their data blocks for the
 # duration of their test.
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/CommonSubexpression)
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Copy)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Create)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Delete)
 file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/Distinct)

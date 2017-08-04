@@ -62,6 +62,9 @@ void ExecutionGeneratorTestRunner::runTestCase(
   MemStream output_stream;
   sql_parser_.feedNextBuffer(new std::string(input));
 
+  // Redirect stderr to output_stream.
+  stderr = output_stream.file();
+
   while (true) {
     ParseResult result = sql_parser_.getNextStatement();
     if (result.condition != ParseResult::kSuccess) {
@@ -71,8 +74,6 @@ void ExecutionGeneratorTestRunner::runTestCase(
       break;
     } else {
       const ParseStatement &parse_statement = *result.parsed_statement;
-      std::printf("%s\n", parse_statement.toString().c_str());
-
       const CatalogRelation *query_result_relation = nullptr;
       try {
         OptimizerContext optimizer_context;

@@ -78,6 +78,7 @@
 #include "query_optimizer/expressions/WindowAggregateFunction.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
 #include "query_optimizer/physical/CopyFrom.hpp"
+#include "query_optimizer/physical/CopyTo.hpp"
 #include "query_optimizer/physical/CreateIndex.hpp"
 #include "query_optimizer/physical/CreateTable.hpp"
 #include "query_optimizer/physical/CrossReferenceCoalesceAggregate.hpp"
@@ -124,6 +125,7 @@
 #include "relational_operators/SelectOperator.hpp"
 #include "relational_operators/SortMergeRunOperator.hpp"
 #include "relational_operators/SortRunGenerationOperator.hpp"
+#include "relational_operators/TableExportOperator.hpp"
 #include "relational_operators/TableGeneratorOperator.hpp"
 #include "relational_operators/TextScanOperator.hpp"
 #include "relational_operators/UnionAllOperator.hpp"
@@ -409,6 +411,9 @@ void ExecutionGenerator::generatePlanInternal(
     case P::PhysicalType::kCopyFrom:
       return convertCopyFrom(
           std::static_pointer_cast<const P::CopyFrom>(physical_plan));
+    case P::PhysicalType::kCopyTo:
+      return convertCopyTo(
+          std::static_pointer_cast<const P::CopyTo>(physical_plan));
     case P::PhysicalType::kCreateIndex:
       return convertCreateIndex(
           std::static_pointer_cast<const P::CreateIndex>(physical_plan));
@@ -1223,8 +1228,7 @@ void ExecutionGenerator::convertCopyFrom(
           new TextScanOperator(
               query_handle_->query_id(),
               physical_plan->file_name(),
-              physical_plan->column_delimiter(),
-              physical_plan->escape_strings(),
+              physical_plan->options(),
               *output_relation,
               insert_destination_index));
   insert_destination_proto->set_relational_op_index(scan_operator_index);
@@ -1237,6 +1241,40 @@ void ExecutionGenerator::convertCopyFrom(
   execution_plan_->addDirectDependency(save_blocks_operator_index,
                                        scan_operator_index,
                                        false /* is_pipeline_breaker */);
+}
+
+void ExecutionGenerator::convertCopyTo(const P::CopyToPtr &physical_plan) {
+  // CopyTo is converted to a TableExport operator.
+
+  const CatalogRelation *input_relation;
+  bool input_relation_is_stored;
+
+  const P::PhysicalPtr &input = physical_plan->input();
+  P::TableReferencePtr table_reference;
+  const CatalogRelationInfo *input_relation_info = nullptr;
+  if (P::SomeTableReference::MatchesWithConditionalCast(input, &table_reference)) {
+    input_relation = table_reference->relation();
+    input_relation_is_stored = true;
+  } else {
+    input_relation_info = findRelationInfoOutputByPhysical(input);
+    input_relation = input_relation_info->relation;
+    input_relation_is_stored = false;
+  }
+
+  DCHECK(input_relation != nullptr);
+  const QueryPlan::DAGNodeIndex table_export_operator_index =
+      execution_plan_->addRelationalOperator(
+          new TableExportOperator(query_handle_->query_id(),
+                                  *input_relation,
+                                  input_relation_is_stored,
+                                  physical_plan->file_name(),
+                                  physical_plan->options()));
+  if (!input_relation_is_stored) {
+    DCHECK(input_relation_info != nullptr);
+    execution_plan_->addDirectDependency(table_export_operator_index,
+                                         input_relation_info->producer_operator_index,
+                                         false /* is_pipeline_breaker */);
+  }
 }
 
 void ExecutionGenerator::convertCreateIndex(

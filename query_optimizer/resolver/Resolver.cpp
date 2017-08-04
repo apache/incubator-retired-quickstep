@@ -93,6 +93,7 @@
 #include "query_optimizer/expressions/WindowAggregateFunction.hpp"
 #include "query_optimizer/logical/Aggregate.hpp"
 #include "query_optimizer/logical/CopyFrom.hpp"
+#include "query_optimizer/logical/CopyTo.hpp"
 #include "query_optimizer/logical/CreateIndex.hpp"
 #include "query_optimizer/logical/CreateTable.hpp"
 #include "query_optimizer/logical/DeleteTuples.hpp"
@@ -126,6 +127,7 @@
 #include "types/operations/unary_operations/DateExtractOperation.hpp"
 #include "types/operations/unary_operations/SubstringOperation.hpp"
 #include "types/operations/unary_operations/UnaryOperation.hpp"
+#include "utility/BulkIoConfiguration.hpp"
 #include "utility/PtrList.hpp"
 #include "utility/PtrVector.hpp"
 #include "utility/SqlError.hpp"
@@ -142,6 +144,45 @@ namespace resolver {
 namespace E = ::quickstep::optimizer::expressions;
 namespace L = ::quickstep::optimizer::logical;
 namespace S = ::quickstep::serialization;
+
+namespace {
+
+attribute_id GetAttributeIdFromName(
+    const PtrList<ParseAttributeDefinition> &attribute_definition_list,
+    const std::string &attribute_name) {
+  const std::string lower_attribute_name = ToLower(attribute_name);
+
+  attribute_id attr_id = 0;
+  for (const ParseAttributeDefinition &attribute_definition : attribute_definition_list) {
+    if (lower_attribute_name == ToLower(attribute_definition.name()->value())) {
+      return attr_id;
+    }
+
+    ++attr_id;
+  }
+
+  return kInvalidAttributeID;
+}
+
+const ParseString* GetKeyValueString(const ParseKeyValue &key_value) {
+  if (key_value.getKeyValueType() != ParseKeyValue::kStringString) {
+      THROW_SQL_ERROR_AT(&key_value)
+          << "Invalid value type for " << key_value.key()->value()
+          << ", expected a string.";
+  }
+  return static_cast<const ParseKeyStringValue&>(key_value).value();
+}
+
+bool GetKeyValueBool(const ParseKeyValue &key_value) {
+  if (key_value.getKeyValueType() != ParseKeyValue::kStringBool) {
+      THROW_SQL_ERROR_AT(&key_value)
+          << "Invalid value for " << key_value.key()->value()
+          << ", expected true or false.";
+  }
+  return static_cast<const ParseKeyBoolValue&>(key_value).value();
+}
+
+}  // namespace
 
 struct Resolver::ExpressionResolutionInfo {
   /**
@@ -316,11 +357,25 @@ struct Resolver::SelectListInfo {
 
 L::LogicalPtr Resolver::resolve(const ParseStatement &parse_query) {
   switch (parse_query.getStatementType()) {
-    case ParseStatement::kCopyFrom:
-      context_->set_is_catalog_changed();
-      logical_plan_ = resolveCopyFrom(
-          static_cast<const ParseStatementCopyFrom&>(parse_query));
+    case ParseStatement::kCopy: {
+      const ParseStatementCopy &copy_statemnt =
+          static_cast<const ParseStatementCopy&>(parse_query);
+      if (copy_statemnt.getCopyDirection() == ParseStatementCopy::kFrom) {
+        context_->set_is_catalog_changed();
+        logical_plan_ = resolveCopyFrom(copy_statemnt);
+      } else {
+        DCHECK(copy_statemnt.getCopyDirection() == ParseStatementCopy::kTo);
+        if (copy_statemnt.with_clause() != nullptr) {
+          resolveWithClause(*copy_statemnt.with_clause());
+        }
+        logical_plan_ = resolveCopyTo(copy_statemnt);
+
+        if (copy_statemnt.with_clause() != nullptr) {
+          reportIfWithClauseUnused(*copy_statemnt.with_clause());
+        }
+      }
       break;
+    }
     case ParseStatement::kCreateTable:
       context_->set_is_catalog_changed();
       logical_plan_ = resolveCreateTable(
@@ -359,16 +414,7 @@ L::LogicalPtr Resolver::resolve(const ParseStatement &parse_query) {
         logical_plan_ = resolveInsertSelection(insert_selection_statement);
 
         if (insert_selection_statement.with_clause() != nullptr) {
-          // Report an error if there is a WITH query that is not actually used.
-          if (!with_queries_info_.unreferenced_query_indexes.empty()) {
-            int unreferenced_with_query_index = *with_queries_info_.unreferenced_query_indexes.begin();
-            const ParseSubqueryTableReference &unreferenced_with_query =
-                (*insert_selection_statement.with_clause())[unreferenced_with_query_index];
-            THROW_SQL_ERROR_AT(&unreferenced_with_query)
-                << "WITH query "
-                << unreferenced_with_query.table_reference_signature()->table_alias()->value()
-                << " is defined but not used";
-          }
+          reportIfWithClauseUnused(*insert_selection_statement.with_clause());
         }
       }
       break;
@@ -385,16 +431,7 @@ L::LogicalPtr Resolver::resolve(const ParseStatement &parse_query) {
                               nullptr /* type_hints */,
                               nullptr /* parent_resolver */);
       if (set_operation_statement.with_clause() != nullptr) {
-        // Report an error if there is a WITH query that is not actually used.
-        if (!with_queries_info_.unreferenced_query_indexes.empty()) {
-          int unreferenced_with_query_index = *with_queries_info_.unreferenced_query_indexes.begin();
-          const ParseSubqueryTableReference &unreferenced_with_query =
-              (*set_operation_statement.with_clause())[unreferenced_with_query_index];
-          THROW_SQL_ERROR_AT(&unreferenced_with_query)
-              << "WITH query "
-              << unreferenced_with_query.table_reference_signature()->table_alias()->value()
-              << " is defined but not used";
-        }
+        reportIfWithClauseUnused(*set_operation_statement.with_clause());
       }
       break;
     }
@@ -418,27 +455,156 @@ L::LogicalPtr Resolver::resolve(const ParseStatement &parse_query) {
 }
 
 L::LogicalPtr Resolver::resolveCopyFrom(
-    const ParseStatementCopyFrom &copy_from_statement) {
-  // Default parameters.
-  std::string column_delimiter_ = "\t";
-  bool escape_strings_ = true;
+    const ParseStatementCopy &copy_from_statement) {
+  DCHECK(copy_from_statement.getCopyDirection() == ParseStatementCopy::kFrom);
+  const PtrList<ParseKeyValue> *params = copy_from_statement.params();
 
-  const ParseCopyFromParams *params = copy_from_statement.params();
+  BulkIoFormat file_format = BulkIoFormat::kText;
   if (params != nullptr) {
-    if (params->delimiter != nullptr) {
-      column_delimiter_ = params->delimiter->value();
-      if (column_delimiter_.size() != 1) {
-        THROW_SQL_ERROR_AT(params->delimiter)
-            << "DELIMITER is not a single character";
+    for (const ParseKeyValue &param : *params) {
+      const std::string &key = ToLower(param.key()->value());
+      if (key == "format") {
+        const ParseString *parse_format = GetKeyValueString(param);
+        const std::string format = ToLower(parse_format->value());
+        // TODO(jianqiao): Support other bulk load formats such as CSV.
+        if (format != "text") {
+          THROW_SQL_ERROR_AT(parse_format) << "Unsupported file format: " << format;
+        }
+        // Update file_format when other formats get supported.
+        break;
       }
     }
-    escape_strings_ = params->escape_strings;
+  }
+
+  std::unique_ptr<BulkIoConfiguration> options =
+      std::make_unique<BulkIoConfiguration>(file_format);
+  if (params != nullptr) {
+    for (const ParseKeyValue &param : *params) {
+      const std::string key = ToLower(param.key()->value());
+      if (key == "delimiter") {
+        const ParseString *parse_delimiter = GetKeyValueString(param);
+        const std::string &delimiter = parse_delimiter->value();
+        if (delimiter.size() != 1u) {
+          THROW_SQL_ERROR_AT(parse_delimiter)
+              << "DELIMITER is not a single character";
+        }
+        options->setDelimiter(delimiter.front());
+      } else if (key == "escape_strings") {
+        options->setEscapeStrings(GetKeyValueBool(param));
+      } else if (key != "format") {
+        THROW_SQL_ERROR_AT(&param) << "Unsupported copy option: " << key;
+      }
+    }
   }
 
   return L::CopyFrom::Create(resolveRelationName(copy_from_statement.relation_name()),
-                             copy_from_statement.source_filename()->value(),
-                             column_delimiter_[0],
-                             escape_strings_);
+                             copy_from_statement.file_name()->value(),
+                             BulkIoConfigurationPtr(options.release()));
+}
+
+L::LogicalPtr Resolver::resolveCopyTo(
+    const ParseStatementCopy &copy_to_statement) {
+  DCHECK(copy_to_statement.getCopyDirection() == ParseStatementCopy::kTo);
+  const PtrList<ParseKeyValue> *params = copy_to_statement.params();
+
+  // Check if copy format is explicitly specified.
+  BulkIoFormat file_format = BulkIoFormat::kText;
+  bool format_specified = false;
+  if (params != nullptr) {
+    for (const ParseKeyValue &param : *params) {
+      const std::string &key = ToLower(param.key()->value());
+      if (key == "format") {
+        const ParseString *parse_format = GetKeyValueString(param);
+        const std::string format = ToLower(parse_format->value());
+        if (format == "csv") {
+          file_format = BulkIoFormat::kCsv;
+        } else if (format == "text") {
+          file_format = BulkIoFormat::kText;
+        } else {
+          THROW_SQL_ERROR_AT(parse_format) << "Unsupported file format: " << format;
+        }
+        format_specified = true;
+        break;
+      }
+    }
+  }
+
+  const std::string &file_name = copy_to_statement.file_name()->value();
+  if (file_name.length() <= 1u) {
+    THROW_SQL_ERROR_AT(copy_to_statement.file_name())
+        << "File name can not be empty";
+  }
+
+  // Infer copy format from file name extension.
+  if (!format_specified) {
+    if (file_name.length() > 4u) {
+      if (ToLower(file_name.substr(file_name.length() - 4)) == ".csv") {
+        file_format = BulkIoFormat::kCsv;
+      }
+    }
+  }
+
+  // Resolve the copy options.
+  std::unique_ptr<BulkIoConfiguration> options =
+      std::make_unique<BulkIoConfiguration>(file_format);
+  if (params != nullptr) {
+    for (const ParseKeyValue &param : *params) {
+      const std::string key = ToLower(param.key()->value());
+      if (key == "delimiter") {
+        const ParseString *parse_delimiter = GetKeyValueString(param);
+        const std::string &delimiter = parse_delimiter->value();
+        if (delimiter.size() != 1u) {
+          THROW_SQL_ERROR_AT(parse_delimiter)
+              << "DELIMITER is not a single character";
+        }
+        options->setDelimiter(delimiter.front());
+      } else if (file_format == BulkIoFormat::kText && key == "escape_strings") {
+        options->setEscapeStrings(GetKeyValueBool(param));
+      } else if (file_format == BulkIoFormat::kCsv && key == "header") {
+        options->setHeader(GetKeyValueBool(param));
+      } else if (file_format == BulkIoFormat::kCsv && key == "quote") {
+        const ParseString *parse_quote = GetKeyValueString(param);
+        const std::string &quote = parse_quote->value();
+        if (quote.size() != 1u) {
+          THROW_SQL_ERROR_AT(parse_quote)
+              << "QUOTE is not a single character";
+        }
+        options->setQuoteCharacter(quote.front());
+      } else if (key == "null_string") {
+        const ParseString *parse_null_string = GetKeyValueString(param);
+        options->setNullString(parse_null_string->value());
+      } else if (key != "format") {
+        THROW_SQL_ERROR_AT(&param)
+            << "Unsupported copy option \"" << key
+            << "\" for file format " << options->getFormatName();
+      }
+    }
+  }
+
+  // Resolve the source relation.
+  L::LogicalPtr input;
+  if (copy_to_statement.set_operation_query() != nullptr) {
+    input = resolveSetOperation(*copy_to_statement.set_operation_query(),
+                                "" /* set_operation_name */,
+                                nullptr /* type_hints */,
+                                nullptr /* parent_resolver */);
+  } else {
+    const ParseString *relation_name = copy_to_statement.relation_name();
+    DCHECK(relation_name != nullptr);
+    ParseSimpleTableReference table_reference(
+        relation_name->line_number(),
+        relation_name->column_number(),
+        new ParseString(relation_name->line_number(),
+                        relation_name->column_number(),
+                        relation_name->value()),
+        nullptr /* sample */);
+    NameResolver name_resolver;
+    input = resolveTableReference(table_reference, &name_resolver);
+  }
+
+  return L::CopyTo::Create(input,
+                           copy_to_statement.file_name()->value(),
+                           BulkIoConfigurationPtr(options.release()));
 }
 
 L::LogicalPtr Resolver::resolveCreateTable(
@@ -490,26 +656,6 @@ L::LogicalPtr Resolver::resolveCreateTable(
 
   return L::CreateTable::Create(relation_name, attributes, block_properties, partition_scheme_header_proto);
 }
-
-namespace {
-
-attribute_id GetAttributeIdFromName(const PtrList<ParseAttributeDefinition> &attribute_definition_list,
-                                    const std::string &attribute_name) {
-  const std::string lower_attribute_name = ToLower(attribute_name);
-
-  attribute_id attr_id = 0;
-  for (const ParseAttributeDefinition &attribute_definition : attribute_definition_list) {
-    if (lower_attribute_name == ToLower(attribute_definition.name()->value())) {
-      return attr_id;
-    }
-
-    ++attr_id;
-  }
-
-  return kInvalidAttributeID;
-}
-
-}  // namespace
 
 StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
     const ParseStatementCreateTable &create_table_statement) {
@@ -1592,6 +1738,20 @@ void Resolver::appendProjectIfNeedPrecomputationAfterAggregation(
                                    child_project_attributes.begin(),
                                    child_project_attributes.end());
     *logical_plan = L::Project::Create(*logical_plan, precomputed_expressions);
+  }
+}
+
+void Resolver::reportIfWithClauseUnused(
+    const PtrVector<ParseSubqueryTableReference> &with_list) const {
+  if (!with_queries_info_.unreferenced_query_indexes.empty()) {
+    const int unreferenced_with_query_index =
+        *with_queries_info_.unreferenced_query_indexes.begin();
+    const ParseSubqueryTableReference &unreferenced_with_query =
+        with_list[unreferenced_with_query_index];
+    THROW_SQL_ERROR_AT(&unreferenced_with_query)
+        << "WITH query "
+        << unreferenced_with_query.table_reference_signature()->table_alias()->value()
+        << " is defined but not used";
   }
 }
 

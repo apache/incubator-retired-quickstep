@@ -24,34 +24,131 @@ COPY test FROM 'test.txt' WITH ()
 
 COPY test FROM 'test.txt'
 --
-CopyFromStatement[relation_name=test,source_file=test.txt]
+CopyStatement[direction=FROM,file=test.txt,relation_name=test]
 ==
 
 COPY test FROM 'test.txt' WITH (DELIMITER 'd', ESCAPE_STRINGS FALSE)
 --
-CopyFromStatement[relation_name=test,source_file=test.txt]
-+-params=CopyFromParams[delimiter=d,escape_string=false]
+CopyStatement[direction=FROM,file=test.txt,relation_name=test]
++-params=
+  +-KeyStringValue[key=DELIMITER]
+  | +-value=String[value=d]
+  +-KeyBoolValue[key=ESCAPE_STRINGS,value=false]
 ==
 
 COPY test FROM 'test.txt' WITH (DELIMITER '123', ESCAPE_STRINGS FALSE)
 --
-CopyFromStatement[relation_name=test,source_file=test.txt]
-+-params=CopyFromParams[delimiter=123,escape_string=false]
+CopyStatement[direction=FROM,file=test.txt,relation_name=test]
++-params=
+  +-KeyStringValue[key=DELIMITER]
+  | +-value=String[value=123]
+  +-KeyBoolValue[key=ESCAPE_STRINGS,value=false]
 ==
 
 COPY test FROM 'test.txt' WITH (DELIMITER e'\t')
 --
-CopyFromStatement[relation_name=test,source_file=test.txt]
-+-params=CopyFromParams[delimiter=	,escape_string=true]
+CopyStatement[direction=FROM,file=test.txt,relation_name=test]
++-params=
+  +-KeyStringValue[key=DELIMITER]
+    +-value=String[value=	]
 ==
 
 COPY test FROM 'test.txt' WITH (ESCAPE_STRINGS FALSE, DELIMITER 'd')
 --
-CopyFromStatement[relation_name=test,source_file=test.txt]
-+-params=CopyFromParams[delimiter=d,escape_string=false]
+CopyStatement[direction=FROM,file=test.txt,relation_name=test]
++-params=
+  +-KeyBoolValue[key=ESCAPE_STRINGS,value=false]
+  +-KeyStringValue[key=DELIMITER]
+    +-value=String[value=d]
 ==
 
 COPY test FROM 'test.txt' WITH (DELIMITER '1', ESCAPE_STRINGS FALSE, DELIMITER '2', ESCAPE_STRINGS TRUE)
 --
-CopyFromStatement[relation_name=test,source_file=test.txt]
-+-params=CopyFromParams[delimiter=2,escape_string=true]
+CopyStatement[direction=FROM,file=test.txt,relation_name=test]
++-params=
+  +-KeyStringValue[key=DELIMITER]
+  | +-value=String[value=1]
+  +-KeyBoolValue[key=ESCAPE_STRINGS,value=false]
+  +-KeyStringValue[key=DELIMITER]
+  | +-value=String[value=2]
+  +-KeyBoolValue[key=ESCAPE_STRINGS,value=true]
+==
+
+COPY test TO 'test.txt';
+--
+CopyStatement[direction=TO,file=@test.txt,relation_name=test]
+==
+
+COPY test TO stdout;
+--
+CopyStatement[direction=TO,file=$stdout,relation_name=test]
+==
+
+COPY test TO stderr;
+--
+CopyStatement[direction=TO,file=$stderr,relation_name=test]
+==
+
+COPY test TO 'stdout';
+--
+CopyStatement[direction=TO,file=@stdout,relation_name=test]
+==
+
+COPY test TO 'test.txt' WITH (FORMAT 'TEXT');
+--
+CopyStatement[direction=TO,file=@test.txt,relation_name=test]
++-params=
+  +-KeyStringValue[key=FORMAT]
+    +-value=String[value=TEXT]
+==
+
+COPY test TO 'test.txt' WITH (FORMAT 'CSV');
+--
+CopyStatement[direction=TO,file=@test.txt,relation_name=test]
++-params=
+  +-KeyStringValue[key=FORMAT]
+    +-value=String[value=CSV]
+==
+
+COPY test TO stdout
+WITH (FORMAT 'CSV', DELIMITER e'\t', HEADER TRUE, QUOTE '$', NULL_STRING 'NULL');
+--
+CopyStatement[direction=TO,file=$stdout,relation_name=test]
++-params=
+  +-KeyStringValue[key=FORMAT]
+  | +-value=String[value=CSV]
+  +-KeyStringValue[key=DELIMITER]
+  | +-value=String[value=	]
+  +-KeyBoolValue[key=HEADER,value=true]
+  +-KeyStringValue[key=QUOTE]
+  | +-value=String[value=$]
+  +-KeyStringValue[key=NULL_STRING]
+    +-value=String[value=NULL]
+==
+
+COPY
+  SELECT SUM(int_col) AS sum_int,
+         AVG(double_col) AS avg_dbl
+  FROM test
+  GROUP BY char_col
+TO 'test.txt' WITH (DELIMITER ',');
+--
+CopyStatement[direction=TO,file=@test.txt]
++-set_operation_query=SetOperation[set_operation_type=Select]
+| +-children=
+|   +-Select
+|     +-select_clause=SelectList
+|     | +-SelectListItem[alias=sum_int]
+|     | | +-FunctionCall[name=SUM]
+|     | |   +-AttributeReference[attribute_name=int_col]
+|     | +-SelectListItem[alias=avg_dbl]
+|     |   +-FunctionCall[name=AVG]
+|     |     +-AttributeReference[attribute_name=double_col]
+|     +-group_by=GroupBy
+|     | +-AttributeReference[attribute_name=char_col]
+|     +-from_clause=
+|       +-TableReference[table=test]
++-params=
+  +-KeyStringValue[key=DELIMITER]
+    +-value=String[value=,]
+==

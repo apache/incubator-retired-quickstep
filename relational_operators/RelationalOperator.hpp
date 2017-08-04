@@ -86,6 +86,7 @@ class RelationalOperator {
     kSelect,
     kSortMergeRun,
     kSortRunGeneration,
+    kTableExport,
     kTableGenerator,
     kTextScan,
     kUnionAll,

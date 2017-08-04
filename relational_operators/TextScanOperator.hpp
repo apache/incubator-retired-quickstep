@@ -32,6 +32,7 @@
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "types/containers/Tuple.hpp"
+#include "utility/BulkIoConfiguration.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -104,32 +105,28 @@ class TextScanFormatError : public std::exception {
 class TextScanOperator : public RelationalOperator {
  public:
   /**
-   * @brief Constructor
+   * @brief Constructor.
    *
    * @param query_id The ID of the query to which this operator belongs.
    * @param file_pattern The glob-like file pattern of the sources to load. The
    *        pattern could include * (wildcard for multiple chars) and ?
    *        (wildcard for single char). It defaults to single file load, if a
    *        file is specified.
-   * @param field_terminator The string which separates attribute values in
-   *        the text file.
-   * @param process_escape_sequences Whether to decode escape sequences in the
-   *        text file.
+   * @param options The options that specify the detailed format of the input
+            file(s).
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert tuples.
    **/
   TextScanOperator(const std::size_t query_id,
                    const std::string &file_pattern,
-                   const char field_terminator,
-                   const bool process_escape_sequences,
+                   const BulkIoConfigurationPtr &options,
                    const CatalogRelation &output_relation,
                    const QueryContext::insert_destination_id output_destination_index)
       : RelationalOperator(query_id, 1u, output_relation.getNumPartitions() != 1u /* has_repartition */,
                            output_relation.getNumPartitions()),
         file_pattern_(file_pattern),
-        field_terminator_(field_terminator),
-        process_escape_sequences_(process_escape_sequences),
+        options_(options),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         work_generated_(false) {}
@@ -166,8 +163,7 @@ class TextScanOperator : public RelationalOperator {
                                                  const std::size_t text_segment_size);
 
   const std::string file_pattern_;
-  const char field_terminator_;
-  const bool process_escape_sequences_;
+  const BulkIoConfigurationPtr options_;
 
   const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;

@@ -168,8 +168,7 @@ typedef void* yyscan_t;
   quickstep::ParseKeyStringValue *key_string_value_;
   quickstep::ParseKeyStringList *key_string_list_;
   quickstep::ParseKeyIntegerValue *key_integer_value_;
-
-  quickstep::ParseCopyFromParams *copy_from_params_;
+  quickstep::ParseKeyBoolValue *key_bool_value_;
 
   quickstep::ParseAssignment *assignment_;
   quickstep::PtrList<quickstep::ParseAssignment> *assignment_list_;
@@ -182,7 +181,7 @@ typedef void* yyscan_t;
   quickstep::ParseStatementUpdate *update_statement_;
   quickstep::ParseStatementInsert *insert_statement_;
   quickstep::ParseStatementDelete *delete_statement_;
-  quickstep::ParseStatementCopyFrom *copy_from_statement_;
+  quickstep::ParseStatementCopy *copy_statement_;
   quickstep::ParseStatementCreateTable *create_table_statement_;
   quickstep::ParsePartitionClause *partition_clause_;
   quickstep::ParseBlockProperties *block_properties_;
@@ -275,14 +274,12 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_DECIMAL;
 %token TOKEN_DEFAULT;
 %token TOKEN_DELETE;
-%token TOKEN_DELIMITER;
 %token TOKEN_DESC;
 %token TOKEN_DISTINCT;
 %token TOKEN_DOUBLE;
 %token TOKEN_DROP;
 %token TOKEN_ELSE;
 %token TOKEN_END;
-%token TOKEN_ESCAPE_STRINGS;
 %token TOKEN_EXISTS;
 %token TOKEN_EXTRACT;
 %token TOKEN_FALSE;
@@ -342,11 +339,14 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_SET;
 %token TOKEN_SMA;
 %token TOKEN_SMALLINT;
+%token TOKEN_STDERR;
+%token TOKEN_STDOUT;
 %token TOKEN_SUBSTRING;
 %token TOKEN_TABLE;
 %token TOKEN_THEN;
 %token TOKEN_TIME;
 %token TOKEN_TIMESTAMP;
+%token TOKEN_TO;
 %token TOKEN_TRUE;
 %token TOKEN_TUPLESAMPLE;
 %token TOKEN_UNBOUNDED;
@@ -370,6 +370,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
   datetime_unit
   index_type
   partition_type
+  copy_to_target
 
 %type <boolean_value_>
   boolean_value
@@ -471,6 +472,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <key_value_list_>
   key_value_list
+  opt_copy_params
   opt_index_properties
 
 %type <key_string_value_>
@@ -481,6 +483,9 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 
 %type <key_integer_value_>
   key_integer_value
+
+%type <key_bool_value_>
+  key_bool_value
 
 %type <assignment_>
   assignment_item
@@ -511,12 +516,8 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %type <insert_statement_>
   insert_statement
 
-%type <copy_from_statement_>
-  copy_from_statement
-
-%type <copy_from_params_>
-  copy_from_params
-  opt_copy_from_params
+%type <copy_statement_>
+  copy_statement
 
 %type <create_table_statement_>
   create_table_statement
@@ -665,7 +666,7 @@ sql_statement:
   alter_table_statement {
     $$ = $1;
   }
-  | copy_from_statement {
+  | copy_statement {
     $$ = $1;
   }
   | create_table_statement {
@@ -1024,17 +1025,23 @@ key_value:
   }
   | key_integer_value {
     $$ = $1;
+  }
+  | key_bool_value {
+    $$ = $1;
   };
 
 key_string_value:
   any_name any_name {
     $$ = new quickstep::ParseKeyStringValue(@1.first_line, @1.first_column, $1, $2);
   }
+  | any_name TOKEN_STRING_SINGLE_QUOTED {
+    $$ = new quickstep::ParseKeyStringValue(@1.first_line, @1.first_column, $1, $2);
+  }
   | any_name TOKEN_ALL {
     // This is a special case to handle the COMPRESS ALL option of the BLOCK PROPERTIES.
     $$ = new quickstep::ParseKeyStringValue(@1.first_line, @1.first_column, $1,
         new quickstep::ParseString(@2.first_line, @2.first_column, "ALL"));
-  }
+  };
 
 key_string_list:
   any_name '(' name_commalist ')' {
@@ -1050,6 +1057,11 @@ key_integer_value:
       YYERROR;
     }
     $$ = new quickstep::ParseKeyIntegerValue(@1.first_line, @1.first_column, $1, $2);
+  };
+
+key_bool_value:
+  any_name boolean_value {
+    $$ = new quickstep::ParseKeyBoolValue(@1.first_line, @1.first_column, $1, $2);
   };
 
 index_type:
@@ -1100,35 +1112,44 @@ insert_statement:
   }
   ;
 
-copy_from_statement:
-  TOKEN_COPY any_name TOKEN_FROM TOKEN_STRING_SINGLE_QUOTED opt_copy_from_params {
-    $$ = new quickstep::ParseStatementCopyFrom(@1.first_line, @1.first_column, $2, $4, $5);
+copy_statement:
+  TOKEN_COPY any_name TOKEN_FROM TOKEN_STRING_SINGLE_QUOTED opt_copy_params {
+    $$ = new quickstep::ParseStatementCopy(@1.first_line, @1.first_column,
+                                           quickstep::ParseStatementCopy::kFrom,
+                                           $2, $4, $5);
+  }
+  | TOKEN_COPY any_name copy_to_target opt_copy_params {
+    $$ = new quickstep::ParseStatementCopy(@1.first_line, @1.first_column,
+                                           quickstep::ParseStatementCopy::kTo,
+                                           $2, $3, $4);
+  }
+  | TOKEN_COPY set_operation_union copy_to_target opt_copy_params {
+    $$ = new quickstep::ParseStatementCopy(@1.first_line, @1.first_column,
+                                           $2, nullptr, $3, $4);
+  }
+  | with_clause TOKEN_COPY set_operation_union copy_to_target opt_copy_params {
+    $$ = new quickstep::ParseStatementCopy(@1.first_line, @1.first_column,
+                                           $3, $1, $4, $5);
   };
 
-opt_copy_from_params:
+copy_to_target:
+  TOKEN_TO TOKEN_STRING_SINGLE_QUOTED {
+    $$ = new quickstep::ParseString($2->line_number(), $2->column_number(), "@" + $2->value());
+    delete $2;
+  }
+  | TOKEN_TO TOKEN_STDOUT {
+    $$ = new quickstep::ParseString(@2.first_line, @2.first_column, "$stdout");
+  }
+  | TOKEN_TO TOKEN_STDERR {
+    $$ = new quickstep::ParseString(@2.first_line, @2.first_column, "$stderr");
+  };
+
+opt_copy_params:
   {
     $$ = nullptr;
   }
-  | TOKEN_WITH '(' copy_from_params ')' {
+  | TOKEN_WITH '(' key_value_list ')' {
     $$ = $3;
-  };
-
-copy_from_params:
-  TOKEN_DELIMITER TOKEN_STRING_SINGLE_QUOTED {
-    $$ = new quickstep::ParseCopyFromParams(@1.first_line, @1.first_column);
-    $$->set_delimiter($2);
-  }
-  | TOKEN_ESCAPE_STRINGS boolean_value {
-    $$ = new quickstep::ParseCopyFromParams(@1.first_line, @1.first_column);
-    $$->escape_strings = $2;
-  }
-  | copy_from_params ',' TOKEN_DELIMITER TOKEN_STRING_SINGLE_QUOTED {
-    $$ = $1;
-    $$->set_delimiter($4);
-  }
-  | copy_from_params ',' TOKEN_ESCAPE_STRINGS boolean_value {
-    $$ = $1;
-    $$->escape_strings = $4;
   };
 
 update_statement:

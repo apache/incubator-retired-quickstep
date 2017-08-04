@@ -37,14 +37,15 @@ namespace quickstep {
  */
 class ParseKeyValue : public ParseTreeNode {
  public:
-  enum class KeyValueType {
+  enum KeyValueType {
+    kStringBool = 0,
+    kStringInteger,
     kStringString,
-    kStringStringList,
-    kStringInteger
+    kStringStringList
   };
 
   /**
-   * @brief Single value constructor.
+   * @brief Constructor.
    *
    * @param line_number Line number of the first token of this node in the SQL statement.
    * @param column_number Column number of the first token of this node in the SQL statement.
@@ -87,7 +88,7 @@ class ParseKeyValue : public ParseTreeNode {
 class ParseKeyStringValue : public ParseKeyValue {
  public:
   /**
-   * @brief Single value constructor.
+   * @brief Constructor.
    *
    * @param line_number Line number of the first token of this node in the SQL statement.
    * @param column_number Column number of the first token of this node in the SQL statement.
@@ -102,7 +103,7 @@ class ParseKeyStringValue : public ParseKeyValue {
         value_(value) { }
 
   KeyValueType getKeyValueType() const override {
-    return ParseKeyValue::KeyValueType::kStringString;
+    return kStringString;
   }
 
   /**
@@ -143,7 +144,7 @@ class ParseKeyStringValue : public ParseKeyValue {
 class ParseKeyStringList : public ParseKeyValue {
  public:
   /**
-   * @brief Single value constructor.
+   * @brief Constructor.
    *
    * @param line_number Line number of the first token of this node in the SQL statement.
    * @param column_number Column number of the first token of this node in the SQL statement.
@@ -155,10 +156,10 @@ class ParseKeyStringList : public ParseKeyValue {
                      ParseString *key,
                      PtrList<ParseString> *value)
       : ParseKeyValue(line_number, column_number, key),
-        value_(value) { }
+        value_(value) {}
 
   KeyValueType getKeyValueType() const override {
-    return ParseKeyValue::KeyValueType::kStringStringList;
+    return kStringStringList;
   }
 
   /**
@@ -197,12 +198,12 @@ class ParseKeyStringList : public ParseKeyValue {
 };
 
 /**
- * @brief The parsed representation of a key-value pair.
+ * @brief The parsed representation of a key-value pair. Value is of int type.
  **/
 class ParseKeyIntegerValue : public ParseKeyValue {
  public:
   /**
-   * @brief Single value constructor.
+   * @brief Constructor.
    *
    * @param line_number Line number of the first token of this node in the SQL statement.
    * @param column_number Column number of the first token of this node in the SQL statement.
@@ -214,10 +215,10 @@ class ParseKeyIntegerValue : public ParseKeyValue {
                        ParseString *key,
                        NumericParseLiteralValue *value)
       : ParseKeyValue(line_number, column_number, key),
-        value_(value) { }
+        value_(value) {}
 
   KeyValueType getKeyValueType() const override {
-    return ParseKeyValue::KeyValueType::kStringInteger;
+    return kStringInteger;
   }
 
   /**
@@ -250,6 +251,62 @@ class ParseKeyIntegerValue : public ParseKeyValue {
   std::unique_ptr<NumericParseLiteralValue> value_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseKeyIntegerValue);
+};
+
+/**
+ * @brief The parsed representation of a key-value pair. Value is of bool type.
+ **/
+class ParseKeyBoolValue : public ParseKeyValue {
+ public:
+  /**
+   * @brief Constructor.
+   *
+   * @param line_number Line number of the first token of this node in the SQL statement.
+   * @param column_number Column number of the first token of this node in the SQL statement.
+   * @param key A parse string representing the key.
+   * @param value A single bool literal value.
+   **/
+  ParseKeyBoolValue(const int line_number,
+                    const int column_number,
+                    ParseString *key,
+                    const bool value)
+      : ParseKeyValue(line_number, column_number, key),
+        value_(value) {}
+
+  KeyValueType getKeyValueType() const override {
+    return kStringBool;
+  }
+
+  /**
+   * @return The bool value.
+   */
+  bool value() const {
+    return value_;
+  }
+
+  std::string getName() const override {
+    return "KeyBoolValue";
+  }
+
+ protected:
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<const ParseTreeNode*> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override {
+    inline_field_names->push_back("key");
+    inline_field_values->push_back(key_->value());
+
+    inline_field_names->push_back("value");
+    inline_field_values->push_back(value_ ? "true" : "false");
+  }
+
+ private:
+  const bool value_;
+
+  DISALLOW_COPY_AND_ASSIGN(ParseKeyBoolValue);
 };
 
 }  // namespace quickstep

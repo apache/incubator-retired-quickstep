@@ -17,8 +17,8 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_QUERY_OPTIMIZER_LOGICAL_COPY_FROM_HPP_
-#define QUICKSTEP_QUERY_OPTIMIZER_LOGICAL_COPY_FROM_HPP_
+#ifndef QUICKSTEP_QUERY_OPTIMIZER_LOGICAL_COPY_TO_HPP_
+#define QUICKSTEP_QUERY_OPTIMIZER_LOGICAL_COPY_TO_HPP_
 
 #include <memory>
 #include <string>
@@ -34,9 +34,6 @@
 #include "glog/logging.h"
 
 namespace quickstep {
-
-class CatalogRelation;
-
 namespace optimizer {
 namespace logical {
 
@@ -44,59 +41,69 @@ namespace logical {
  *  @{
  */
 
-class CopyFrom;
-typedef std::shared_ptr<const CopyFrom> CopyFromPtr;
+class CopyTo;
+typedef std::shared_ptr<const CopyTo> CopyToPtr;
 
 /**
- * @brief Represents an operation that copies data from a text file to a relation.
+ * @brief Represents an operation that copies data from a relation to a text file.
  */
-class CopyFrom : public Logical {
+class CopyTo : public Logical {
  public:
-  LogicalType getLogicalType() const override { return LogicalType::kCopyFrom; }
+  LogicalType getLogicalType() const override {
+    return LogicalType::kCopyTo;
+  }
 
-  std::string getName() const override { return "CopyFrom"; }
-
-  /**
-   * @return The catalog relation to insert the tuples to.
-   */
-  const CatalogRelation* catalog_relation() const { return catalog_relation_; }
-
-  /**
-   * @return The name of the file to read the data from.
-   */
-  const std::string& file_name() const { return file_name_; }
+  std::string getName() const override {
+    return "CopyTo";
+  }
 
   /**
-   * @return The options for this COPY FROM statement.
+   * @return The input relation whose data is to be exported.
    */
-  const BulkIoConfigurationPtr& options() const { return options_; }
+  const LogicalPtr& input() const {
+    return input_;
+  }
+
+  /**
+   * @return The name of the file to write the data to.
+   */
+  const std::string& file_name() const {
+    return file_name_;
+  }
+
+  /**
+   * @return The options for this COPY TO statement.
+   */
+  const BulkIoConfigurationPtr& options() const {
+    return options_;
+  }
 
   LogicalPtr copyWithNewChildren(
       const std::vector<LogicalPtr> &new_children) const override {
-    DCHECK(new_children.empty());
-    return Create(catalog_relation_, file_name_, options_);
+    DCHECK_EQ(1u, new_children.size());
+    return Create(new_children.front(), file_name_, options_);
   }
 
   std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override {
-    return std::vector<expressions::AttributeReferencePtr>();
+    return {};
   }
 
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override {
-    return std::vector<expressions::AttributeReferencePtr>();
+    return input_->getOutputAttributes();
   }
 
   /**
-   * @brief Creates a CopyFrom logical node.
+   * @brief Creates a CopyTo logical node.
    *
-   * @param catalog_relation The catalog relation to insert the tuples to.
-   * @param file_name The name of the file to read the data from.
-   * @param options The options for this COPY FROM statement.
-   * @return An immutable CopyFrom logical node.
+   * @param input The input relation whose data is to be exported.
+   * @param file_name The name of the file to write the data to.
+   * @param options The options for this COPY TO statement.
+   * @return An immutable CopyTo logical node.
    */
-  static CopyFromPtr Create(const CatalogRelation *catalog_relation,
-                            const std::string &file_name,
-                            const BulkIoConfigurationPtr &options) {
-    return CopyFromPtr(new CopyFrom(catalog_relation, file_name, options));
+  static CopyToPtr Create(const LogicalPtr &input,
+                          const std::string &file_name,
+                          const BulkIoConfigurationPtr &options) {
+    return CopyToPtr(new CopyTo(input, file_name, options));
   }
 
  protected:
@@ -109,18 +116,20 @@ class CopyFrom : public Logical {
       std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const override;
 
  private:
-  CopyFrom(const CatalogRelation *catalog_relation,
-           const std::string &file_name,
-           const BulkIoConfigurationPtr &options)
-      : catalog_relation_(catalog_relation),
+  CopyTo(const LogicalPtr &input,
+         const std::string &file_name,
+         const BulkIoConfigurationPtr &options)
+      : input_(input),
         file_name_(file_name),
-        options_(options) {}
+        options_(options) {
+    addChild(input);
+  }
 
-  const CatalogRelation *catalog_relation_;
+  const LogicalPtr input_;
   const std::string file_name_;
   const BulkIoConfigurationPtr options_;
 
-  DISALLOW_COPY_AND_ASSIGN(CopyFrom);
+  DISALLOW_COPY_AND_ASSIGN(CopyTo);
 };
 
 /** @} */
@@ -129,4 +138,4 @@ class CopyFrom : public Logical {
 }  // namespace optimizer
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_QUERY_OPTIMIZER_LOGICAL_COPY_FROM_HPP_
+#endif  // QUICKSTEP_QUERY_OPTIMIZER_LOGICAL_COPY_TO_HPP_

@@ -17,50 +17,34 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_PHYSICAL_TYPE_HPP_
-#define QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_PHYSICAL_TYPE_HPP_
+#include "utility/BulkIoConfiguration.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
-namespace optimizer {
-namespace physical {
 
-/** \addtogroup OptimizerPhysical
- *  @{
- */
+void BulkIoConfiguration::initializeDefaultParameters(const BulkIoFormat format) {
+  switch (format) {
+    case BulkIoFormat::kCsv: {
+      delimiter_ = ',';
+      escape_strings_ = false;
+      header_ = true;
+      quote_ = '"';
+      null_string_ = "";
+      break;
+    }
+    case BulkIoFormat::kText: {
+      delimiter_ = '\t';
+      escape_strings_ = true;
+      header_ = false;
+      quote_ = 0;
+      null_string_ = "\\N";
+      break;
+    }
+    default:
+      LOG(FATAL) << "Unexpected format in "
+                 << "BulkIoConfiguration::initializeDefaultParameters()";
+  }
+}
 
-/**
- * @brief Optimizer physical node types.
- **/
-enum class PhysicalType {
-  kAggregate = 0,
-  kCopyFrom,
-  kCopyTo,
-  kCreateIndex,
-  kCreateTable,
-  kCrossReferenceCoalesceAggregate,
-  kDeleteTuples,
-  kDropTable,
-  kFilterJoin,
-  kHashJoin,
-  kInsertSelection,
-  kInsertTuple,
-  kNestedLoopsJoin,
-  kSample,
-  kSelection,
-  kSharedSubplanReference,
-  kSort,
-  kTableGenerator,
-  kTableReference,
-  kTopLevelPlan,
-  kUnionAll,
-  kUpdateTable,
-  kWindowAggregate
-};
-
-/** @} */
-
-}  // namespace physical
-}  // namespace optimizer
 }  // namespace quickstep
-
-#endif /* QUICKSTEP_QUERY_OPTIMIZER_PHYSICAL_PHYSICAL_TYPE_HPP_ */

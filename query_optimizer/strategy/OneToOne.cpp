@@ -27,6 +27,7 @@
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/ExpressionUtil.hpp"
 #include "query_optimizer/logical/CopyFrom.hpp"
+#include "query_optimizer/logical/CopyTo.hpp"
 #include "query_optimizer/logical/CreateIndex.hpp"
 #include "query_optimizer/logical/CreateTable.hpp"
 #include "query_optimizer/logical/DeleteTuples.hpp"
@@ -45,6 +46,7 @@
 #include "query_optimizer/logical/WindowAggregate.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
 #include "query_optimizer/physical/CopyFrom.hpp"
+#include "query_optimizer/physical/CopyTo.hpp"
 #include "query_optimizer/physical/CreateIndex.hpp"
 #include "query_optimizer/physical/CreateTable.hpp"
 #include "query_optimizer/physical/DeleteTuples.hpp"
@@ -104,19 +106,28 @@ bool OneToOne::generatePlan(const L::LogicalPtr &logical_input,
     case L::LogicalType::kCopyFrom: {
       const L::CopyFromPtr copy_from =
           std::static_pointer_cast<const L::CopyFrom>(logical_input);
-      *physical_output = P::CopyFrom::Create(
-          copy_from->catalog_relation(), copy_from->file_name(),
-          copy_from->column_delimiter(), copy_from->escape_strings());
+      *physical_output = P::CopyFrom::Create(copy_from->catalog_relation(),
+                                             copy_from->file_name(),
+                                             copy_from->options());
+      return true;
+    }
+    case L::LogicalType::kCopyTo: {
+      const L::CopyToPtr copy_to =
+          std::static_pointer_cast<const L::CopyTo>(logical_input);
+      *physical_output = P::CopyTo::Create(
+          physical_mapper_->createOrGetPhysicalFromLogical(copy_to->input()),
+          copy_to->file_name(),
+          copy_to->options());
       return true;
     }
     case L::LogicalType::kCreateIndex: {
       const L::CreateIndexPtr create_index =
           std::static_pointer_cast<const L::CreateIndex>(logical_input);
-      *physical_output = P::CreateIndex::Create(physical_mapper_->createOrGetPhysicalFromLogical(
-                                                                    create_index->input()),
-                                                create_index->index_name(),
-                                                create_index->index_attributes(),
-                                                create_index->index_description());
+      *physical_output = P::CreateIndex::Create(
+          physical_mapper_->createOrGetPhysicalFromLogical(create_index->input()),
+          create_index->index_name(),
+          create_index->index_attributes(),
+          create_index->index_description());
       return true;
     }
     case L::LogicalType::kCreateTable: {

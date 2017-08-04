@@ -16,7 +16,7 @@
 # under the License.
 
 [default initial_logical_plan]
-copy test from 'test.txt'
+COPY test FROM 'test.txt'
 --
 TopLevelPlan
 +-plan=CopyFrom[relation=Test,file_name=test.txt,column_delimiter="\t",
@@ -25,14 +25,14 @@ TopLevelPlan
   +-[]
 ==
 
-copy tESt from 'test.txt' with (delimiter '123')
+COPY tESt FROM 'test.txt' WITH (delimiter '123')
 --
 ERROR: DELIMITER is not a single character (1 : 43)
-copy tESt from 'test.txt' with (delimiter '123')
+COPY tESt FROM 'test.txt' WITH (delimiter '123')
                                           ^
 ==
 
-copy tESt from 'test.txt' with (delimiter 'd', escape_strings false)
+COPY tESt FROM 'test.txt' WITH (delimiter 'd', escape_strings false)
 --
 TopLevelPlan
 +-plan=CopyFrom[relation=Test,file_name=test.txt,column_delimiter="d",
@@ -41,8 +41,160 @@ TopLevelPlan
   +-[]
 ==
 
-copy undefined_table from 'test.txt'
+COPY test TO 'test.txt';
+--
+TopLevelPlan
++-plan=CopyTo[file_name=@test.txt,format=TEXT,column_delimiter="\t",
+| escape_strings=true,null_string=\N]
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+|   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+|   +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
++-output_attributes=
+  +-[]
+==
+
+COPY test TO stdout WITH (FORMAT 'CSV');
+--
+TopLevelPlan
++-plan=CopyTo[file_name=$stdout,format=CSV,column_delimiter=",",header=true,
+| quote="]
+| +-input=TableReference[relation_name=Test,relation_alias=test]
+|   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
+|   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
+|   +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
++-output_attributes=
+  +-[]
+==
+
+COPY
+  SELECT SUM(int_col) AS sum_int,
+         AVG(double_col) AS avg_dbl
+  FROM test
+  GROUP BY char_col
+  UNION ALL
+  SELECT 1, 2.0
+  FROM generate_series(1, 1)
+TO 'test.txt' WITH (DELIMITER ',');
+--
+TopLevelPlan
++-plan=CopyTo[file_name=@test.txt,format=TEXT,column_delimiter=",",
+| escape_strings=true,null_string=\N]
+| +-input=UnionAll[set_operation_type=UnionAll]
+|   +-operands=
+|   | +-Project
+|   | | +-input=Project
+|   | | | +-input=Aggregate
+|   | | | | +-input=TableReference[relation_name=Test,relation_alias=test]
+|   | | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
+|   | | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
+|   | | | | | +-AttributeReference[id=2,name=float_col,relation=test,type=Float]
+|   | | | | | +-AttributeReference[id=3,name=double_col,relation=test,
+|   | | | | | | type=Double NULL]
+|   | | | | | +-AttributeReference[id=4,name=char_col,relation=test,
+|   | | | | | | type=Char(20)]
+|   | | | | | +-AttributeReference[id=5,name=vchar_col,relation=test,
+|   | | | | |   type=VarChar(20) NULL]
+|   | | | | +-grouping_expressions=
+|   | | | | | +-AttributeReference[id=4,name=char_col,relation=test,
+|   | | | | |   type=Char(20)]
+|   | | | | +-aggregate_expressions=
+|   | | | |   +-Alias[id=6,name=,alias=$aggregate0,relation=$aggregate,
+|   | | | |   | type=Long NULL]
+|   | | | |   | +-AggregateFunction[function=SUM]
+|   | | | |   |   +-AttributeReference[id=0,name=int_col,relation=test,
+|   | | | |   |     type=Int NULL]
+|   | | | |   +-Alias[id=7,name=,alias=$aggregate1,relation=$aggregate,
+|   | | | |     type=Double NULL]
+|   | | | |     +-AggregateFunction[function=AVG]
+|   | | | |       +-AttributeReference[id=3,name=double_col,relation=test,
+|   | | | |         type=Double NULL]
+|   | | | +-project_list=
+|   | | |   +-Alias[id=6,name=sum_int,relation=,type=Long NULL]
+|   | | |   | +-AttributeReference[id=6,name=,alias=$aggregate0,
+|   | | |   |   relation=$aggregate,type=Long NULL]
+|   | | |   +-Alias[id=7,name=avg_dbl,relation=,type=Double NULL]
+|   | | |     +-AttributeReference[id=7,name=,alias=$aggregate1,
+|   | | |       relation=$aggregate,type=Double NULL]
+|   | | +-project_list=
+|   | |   +-AttributeReference[id=6,name=sum_int,relation=,type=Long NULL]
+|   | |   +-AttributeReference[id=7,name=avg_dbl,relation=,type=Double NULL]
+|   | +-Project
+|   |   +-input=Project
+|   |   | +-input=TableGenerator[function_name=generate_series]
+|   |   | | +-AttributeReference[id=8,name=generate_series,
+|   |   | |   relation=generate_series,type=Int]
+|   |   | +-project_list=
+|   |   |   +-Alias[id=9,name=,alias=1,relation=,type=Int]
+|   |   |   | +-Literal[value=1,type=Int]
+|   |   |   +-Alias[id=10,name=,alias=2.0,relation=,type=Double]
+|   |   |     +-Literal[value=2,type=Double]
+|   |   +-project_list=
+|   |     +-Alias[id=11,name=,alias=1,relation=,type=Long NULL]
+|   |     | +-Cast[target_type=Long NULL]
+|   |     |   +-operand=AttributeReference[id=9,name=,alias=1,relation=,type=Int]
+|   |     +-Alias[id=12,name=,alias=2.0,relation=,type=Double NULL]
+|   |       +-Cast[target_type=Double NULL]
+|   |         +-operand=AttributeReference[id=10,name=,alias=2.0,relation=,
+|   |           type=Double]
+|   +-project_attributes=
+|     +-AttributeReference[id=13,name=sum_int,relation=,type=Long NULL]
+|     +-AttributeReference[id=14,name=avg_dbl,relation=,type=Double NULL]
++-output_attributes=
+  +-[]
+==
+
+COPY undefined_table FROM 'test.txt'
 --
 ERROR: Unrecognized relation undefined_table (1 : 6)
-copy undefined_table from 'test.txt...
+COPY undefined_table FROM 'test.txt...
      ^
+==
+
+COPY test FROM 'test.txt' WITH (FORMAT 'CSV')
+--
+ERROR: Unsupported file format: csv (1 : 40)
+COPY test FROM 'test.txt' WITH (FORMAT 'CSV')
+                                       ^
+==
+
+COPY test FROM 'test.txt' WITH (XXX 'YY');
+--
+ERROR: Unsupported copy option: xxx (1 : 33)
+COPY test FROM 'test.txt' WITH (XXX 'YY');
+                                ^
+==
+
+COPY test TO 'test.txt' WITH (QUOTE '$');
+--
+ERROR: Unsupported copy option "quote" for file format TEXT (1 : 31)
+COPY test TO 'test.txt' WITH (QUOTE '$');
+                              ^
+==
+
+COPY test TO 'test.txt' WITH (FORMAT 'CSV', ESCAPE_STRINGS TRUE);
+--
+ERROR: Unsupported copy option "escape_strings" for file format CSV (1 : 45)
+... test TO 'test.txt' WITH (FORMAT 'CSV', ESCAPE_STRINGS TRUE);
+                                           ^
+==
+
+COPY test TO 'test.txt' WITH (FORMAT CSV, QUOTE '$$');
+--
+ERROR: QUOTE is not a single character (1 : 49)
+...test TO 'test.txt' WITH (FORMAT CSV, QUOTE '$$');
+                                              ^
+==
+
+COPY test TO 'test.txt' WITH (FORMAT 'TEXT', QUOTE '"');
+--
+ERROR: Unsupported copy option "quote" for file format TEXT (1 : 46)
+...test TO 'test.txt' WITH (FORMAT 'TEXT', QUOTE '"');
+                                           ^
+==

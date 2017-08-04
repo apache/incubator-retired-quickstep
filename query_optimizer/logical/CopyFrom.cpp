@@ -44,11 +44,11 @@ void CopyFrom::getFieldStringItems(
   inline_field_values->push_back(file_name_);
 
   inline_field_names->push_back("column_delimiter");
-  inline_field_values->push_back("\"" + EscapeSpecialChars(std::string(1, column_delimiter_)) +
-                                 "\"");
+  inline_field_values->push_back(
+      "\"" + EscapeSpecialChars(std::string(1, options_->getDelimiter())) + "\"");
 
   inline_field_names->push_back("escape_strings");
-  inline_field_values->push_back(escape_strings_ ? "true" : "false");
+  inline_field_values->push_back(options_->escapeStrings() ? "true" : "false");
 }
 
 }  // namespace logical

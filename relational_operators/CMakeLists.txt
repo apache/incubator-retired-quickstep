@@ -71,6 +71,7 @@ add_library(quickstep_relationaloperators_SortMergeRunOperatorHelpers SortMergeR
             SortMergeRunOperatorHelpers.hpp)
 add_library(quickstep_relationaloperators_SortRunGenerationOperator SortRunGenerationOperator.cpp
             SortRunGenerationOperator.hpp)
+add_library(quickstep_relationaloperators_TableExportOperator TableExportOperator.cpp TableExportOperator.hpp)
 add_library(quickstep_relationaloperators_TableGeneratorOperator TableGeneratorOperator.cpp TableGeneratorOperator.hpp)
 add_library(quickstep_relationaloperators_TextScanOperator TextScanOperator.cpp TextScanOperator.hpp)
 add_library(quickstep_relationaloperators_UnionAllOperator UnionAllOperator.cpp UnionAllOperator.hpp)
@@ -473,6 +474,26 @@ target_link_libraries(quickstep_relationaloperators_SortRunGenerationOperator
                       quickstep_utility_Macros
                       quickstep_utility_SortConfiguration
                       tmb)
+target_link_libraries(quickstep_relationaloperators_TableExportOperator
+                      glog
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogRelation
+                      quickstep_catalog_CatalogTypedefs
+                      quickstep_queryexecution_QueryContext
+                      quickstep_queryexecution_WorkOrderProtosContainer
+                      quickstep_queryexecution_WorkOrdersContainer
+                      quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_WorkOrder
+                      quickstep_relationaloperators_WorkOrder_proto
+                      quickstep_storage_StorageBlockInfo
+                      quickstep_storage_StorageConstants
+                      quickstep_storage_ValueAccessor
+                      quickstep_threading_SpinMutex
+                      quickstep_types_TypedValue
+                      quickstep_types_containers_Tuple
+                      quickstep_utility_BulkIoConfiguration
+                      quickstep_utility_Macros
+                      quickstep_utility_StringUtil)
 target_link_libraries(quickstep_relationaloperators_TableGeneratorOperator
                       glog
                       quickstep_catalog_CatalogRelation
@@ -508,6 +529,7 @@ target_link_libraries(quickstep_relationaloperators_TextScanOperator
                       quickstep_types_containers_ColumnVector
                       quickstep_types_containers_ColumnVectorsValueAccessor
                       quickstep_types_containers_Tuple
+                      quickstep_utility_BulkIoConfiguration
                       quickstep_utility_Glob
                       quickstep_utility_Macros
                       tmb)
@@ -637,6 +659,7 @@ target_link_libraries(quickstep_relationaloperators
                       quickstep_relationaloperators_SortMergeRunOperatorHelpers
                       quickstep_relationaloperators_SortMergeRunOperator_proto
                       quickstep_relationaloperators_SortRunGenerationOperator
+                      quickstep_relationaloperators_TableExportOperator
                       quickstep_relationaloperators_TableGeneratorOperator
                       quickstep_relationaloperators_TextScanOperator
                       quickstep_relationaloperators_UnionAllOperator

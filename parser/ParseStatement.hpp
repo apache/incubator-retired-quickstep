@@ -60,16 +60,16 @@ class ParseStatement : public ParseTreeNode {
    * @brief The possible types of SQL statements.
    **/
   enum StatementType {
-    kCreateTable,
+    kCommand = 0,
+    kCopy,
     kCreateIndex,
-    kDropTable,
-    kSetOperation,
-    kInsert,
-    kCopyFrom,
-    kUpdate,
+    kCreateTable,
     kDelete,
+    kDropTable,
+    kInsert,
     kQuit,
-    kCommand
+    kSetOperation,
+    kUpdate
   };
 
   /**
@@ -215,9 +215,10 @@ class ParseStatementCreateTable : public ParseStatement {
   DISALLOW_COPY_AND_ASSIGN(ParseStatementCreateTable);
 };
 
-  /**
-   * @brief The parsed representation of a CREATE INDEX statement.
-   **/
+
+/**
+ * @brief The parsed representation of a CREATE INDEX statement.
+ **/
 class ParseStatementCreateIndex : public ParseStatement {
  public:
     /**
@@ -423,6 +424,7 @@ class ParseStatementCreateIndex : public ParseStatement {
     DISALLOW_COPY_AND_ASSIGN(ParseStatementCreateIndex);
 };
 
+
 /**
  * @brief The parsed representation of a DROP TABLE statement.
  **/
@@ -479,6 +481,7 @@ class ParseStatementDropTable : public ParseStatement {
   DISALLOW_COPY_AND_ASSIGN(ParseStatementDropTable);
 };
 
+
 /**
  * @brief The parsed representation of an UNION/INTERSECT/SELECT statement.
  **/
@@ -519,14 +522,14 @@ class ParseStatementSetOperation : public ParseStatement {
   std::string getName() const override { return "SetOperationStatement"; }
 
   /**
-   * @return Gets the top-level set operation query.
+   * @return Get the top-level set operation query.
    */
   const ParseSetOperation* set_operation_query() const {
     return set_operation_query_.get();
   }
 
   /**
-   * @brief Gets the WITH table queries.
+   * @brief Get the WITH table queries.
    *
    * @return The parsed WITH table list.
    */
@@ -574,6 +577,7 @@ class ParseStatementSetOperation : public ParseStatement {
 
   DISALLOW_COPY_AND_ASSIGN(ParseStatementSetOperation);
 };
+
 
 /**
  * @brief The parsed representation of an INSERT statement.
@@ -694,6 +698,7 @@ class ParseStatementInsertTuple : public ParseStatementInsert {
   DISALLOW_COPY_AND_ASSIGN(ParseStatementInsertTuple);
 };
 
+
 /**
  * @brief The parsed representation of an INSERT ... SELECT ... statement.
  **/
@@ -771,122 +776,135 @@ class ParseStatementInsertSelection : public ParseStatementInsert {
   DISALLOW_COPY_AND_ASSIGN(ParseStatementInsertSelection);
 };
 
-/**
- * @brief Optional parameters for a COPY FROM statement.
- **/
-struct ParseCopyFromParams : public ParseTreeNode {
-  /**
-   * @brief Constructor, sets default values.
-   **/
-  ParseCopyFromParams(const int line_number, const int column_number)
-      : ParseTreeNode(line_number, column_number),
-        escape_strings(true) {
-  }
-
-  std::string getName() const override { return "CopyFromParams"; }
-
-  /**
-   * @brief Sets the column delimiter.
-   *
-   * @param delimiter_in The column delimiter string.
-   */
-  void set_delimiter(ParseString* delimiter_in) {
-    delimiter.reset(delimiter_in);
-  }
-
-  /**
-   * @brief The string which terminates individual attribute values in the
-   *        input file. Can be NULL.
-   **/
-  std::unique_ptr<ParseString> delimiter;
-
-  /**
-   * @brief If true, replace C-style escape sequences in strings from the input
-   *        text file.
-   **/
-  bool escape_strings;
-
- protected:
-  void getFieldStringItems(
-      std::vector<std::string> *inline_field_names,
-      std::vector<std::string> *inline_field_values,
-      std::vector<std::string> *non_container_child_field_names,
-      std::vector<const ParseTreeNode*> *non_container_child_fields,
-      std::vector<std::string> *container_child_field_names,
-      std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override {
-    if (delimiter != nullptr) {
-      inline_field_names->push_back("delimiter");
-      inline_field_values->push_back(delimiter->value());
-    }
-
-    inline_field_names->push_back("escape_string");
-    inline_field_values->push_back(escape_strings ? "true" : "false");
-  }
-};
 
 /**
- * @brief The parsed representation of a COPY FROM statement.
+ * @brief The parsed representation of a COPY FROM/COPY TO statement.
  **/
-class ParseStatementCopyFrom : public ParseStatement {
+class ParseStatementCopy : public ParseStatement {
  public:
   /**
-   * @brief Constructor.
+   * @brief Copy direction (FROM text file/TO text file).
+   */
+  enum CopyDirection {
+    kFrom = 0,
+    kTo
+  };
+
+  /**
+   * @brief Constructor for a copy statement that copies a stored relation FROM
+   *        a text file (or multiple text files, in the case that the file name
+   *        is a GLOB pattern) / TO a text file.
    *
    * @param line_number Line number of the first token of this node in the SQL statement.
    * @param column_number Column number of the first token of this node in the SQL statement.
-   * @param relation_name The name of the relation to insert into.
-   * @param source_filename The name of the text file to bulk insert from.
-   * @param params The optional parameters of the COPY FROM statement (should
-   *        be supplied with defaults if not otherwise set).
+   * @param direction The copy direction (FROM/TO).
+   * @param relation_name The name of the relation.
+   * @param file_name The name of the file.
+   * @param params The optional parameters of the COPY statement.
    **/
-  ParseStatementCopyFrom(const int line_number,
-                         const int column_number,
-                         ParseString *relation_name,
-                         ParseString *source_filename,
-                         ParseCopyFromParams *params)
+  ParseStatementCopy(const int line_number,
+                     const int column_number,
+                     const CopyDirection direction,
+                     ParseString *relation_name,
+                     ParseString *file_name,
+                     PtrList<ParseKeyValue> *params)
       : ParseStatement(line_number, column_number),
+        direction_(direction),
         relation_name_(relation_name),
-        source_filename_(source_filename),
+        file_name_(file_name),
+        params_(params) {
+  }
+
+  /**
+   * @brief Constructor for a copy statement that copies the result table of a
+   *        query TO a text file.
+   *
+   * @param line_number Line number of the first token of this node in the SQL statement.
+   * @param column_number Column number of the first token of this node in the SQL statement.
+   * @param set_operation_query The set operation query.
+   * @param with_clause The WITH clause of common table query expressions.
+   * @param file_name The name of the file.
+   * @param params The optional parameters of the COPY statement.
+   **/
+  ParseStatementCopy(const int line_number,
+                     const int column_number,
+                     ParseSetOperation *set_operation_query,
+                     PtrVector<ParseSubqueryTableReference> *with_clause,
+                     ParseString *file_name,
+                     PtrList<ParseKeyValue> *params)
+      : ParseStatement(line_number, column_number),
+        direction_(kTo),
+        set_operation_query_(set_operation_query),
+        with_clause_(with_clause),
+        file_name_(file_name),
         params_(params) {
   }
 
   /**
    * @brief Destructor.
    */
-  ~ParseStatementCopyFrom() override {
+  ~ParseStatementCopy() override {
   }
 
   StatementType getStatementType() const override {
-    return kCopyFrom;
+    return kCopy;
   }
 
-  std::string getName() const override { return "CopyFromStatement"; }
+  std::string getName() const override {
+    return "CopyStatement";
+  }
 
   /**
-   * @brief Get the name of the relation to insert into.
+   * @brief Get the direction (FROM text file/TO text file) of the COPY statement.
    *
-   * @return The name of the relation to insert into.
+   * return The direction of the COPY statement.
+   */
+  const CopyDirection getCopyDirection() const {
+    return direction_;
+  }
+
+  /**
+   * @brief Get the name of the relation.
+   *
+   * @return The name of the relation.
    **/
   const ParseString* relation_name() const {
     return relation_name_.get();
   }
 
   /**
-   * @brief Get the name of the text file to copy from.
+   * @brief Get the set operation query.
    *
-   * @return The name of the text file to copy from.
-   **/
-  const ParseString* source_filename() const {
-    return source_filename_.get();
+   * @return The set operation query.
+   */
+  const ParseSetOperation* set_operation_query() const {
+    return set_operation_query_.get();
   }
 
   /**
-   * @brief Get the additional COPY FROM parameters.
+   * @brief Get the WITH table queries.
    *
-   * @return The string which terminates individual attribute values in the
-   *         input file.
+   * @return The parsed WITH table list.
+   */
+  const PtrVector<ParseSubqueryTableReference>* with_clause() const {
+    return with_clause_.get();
+  }
+
+  /**
+   * @brief Get the name of the text file to import from/export to.
+   *
+   * @return The name of the text file.
    **/
-  const ParseCopyFromParams* params() const {
+  const ParseString* file_name() const {
+    return file_name_.get();
+  }
+
+  /**
+   * @brief Get the additional COPY parameters.
+   *
+   * @return The additional COPY parameters.
+   **/
+  const PtrList<ParseKeyValue>* params() const {
     return params_.get();
   }
 
@@ -898,24 +916,53 @@ class ParseStatementCopyFrom : public ParseStatement {
       std::vector<const ParseTreeNode*> *non_container_child_fields,
       std::vector<std::string> *container_child_field_names,
       std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override {
-    inline_field_names->push_back("relation_name");
-    inline_field_values->push_back(relation_name_->value());
+    inline_field_names->push_back("direction");
+    inline_field_values->push_back(direction_ == kFrom ? "FROM" : "TO");
 
-    inline_field_names->push_back("source_file");
-    inline_field_values->push_back(source_filename_->value());
+    inline_field_names->push_back("file");
+    inline_field_values->push_back(file_name_->value());
+
+    if (relation_name_ != nullptr) {
+      inline_field_names->push_back("relation_name");
+      inline_field_values->push_back(relation_name_->value());
+    }
+
+    if (set_operation_query_ != nullptr) {
+      non_container_child_field_names->push_back("set_operation_query");
+      non_container_child_fields->push_back(set_operation_query_.get());
+    }
+
+    if (with_clause_ != nullptr && !with_clause_->empty()) {
+      container_child_field_names->push_back("with_clause");
+      container_child_fields->emplace_back();
+      for (const ParseSubqueryTableReference &common_subquery : *with_clause_) {
+        container_child_fields->back().push_back(&common_subquery);
+      }
+    }
 
     if (params_ != nullptr) {
-      non_container_child_field_names->push_back("params");
-      non_container_child_fields->push_back(params_.get());
+      container_child_field_names->push_back("params");
+      container_child_fields->emplace_back();
+      for (const ParseKeyValue &param : *params_) {
+        container_child_fields->back().push_back(&param);
+      }
     }
   }
 
  private:
-  std::unique_ptr<ParseString> relation_name_;
-  std::unique_ptr<ParseString> source_filename_;
-  std::unique_ptr<ParseCopyFromParams> params_;
+  const CopyDirection direction_;
 
-  DISALLOW_COPY_AND_ASSIGN(ParseStatementCopyFrom);
+  // NOTE(jianqiao):
+  // (1) Either relation_name_ or set_operation_query_ has non-null value.
+  // (2) set_operation_query_ must be null for COPY FROM statement.
+  std::unique_ptr<ParseString> relation_name_;
+  std::unique_ptr<ParseSetOperation> set_operation_query_;
+
+  std::unique_ptr<PtrVector<ParseSubqueryTableReference>> with_clause_;
+  std::unique_ptr<ParseString> file_name_;
+  std::unique_ptr<PtrList<ParseKeyValue>> params_;
+
+  DISALLOW_COPY_AND_ASSIGN(ParseStatementCopy);
 };
 
 
@@ -1028,6 +1075,7 @@ class ParseStatementUpdate : public ParseStatement {
   DISALLOW_COPY_AND_ASSIGN(ParseStatementUpdate);
 };
 
+
 /**
  * @brief The parsed representation of a DELETE statement.
  **/
@@ -1139,6 +1187,7 @@ class ParseStatementQuit : public ParseStatement {
  private:
   DISALLOW_COPY_AND_ASSIGN(ParseStatementQuit);
 };
+
 
 /**
  * @brief Class to hold the parsed command name and an optional argument string.

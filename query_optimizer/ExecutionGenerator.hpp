@@ -44,6 +44,7 @@
 #include "query_optimizer/expressions/Predicate.hpp"
 #include "query_optimizer/physical/Aggregate.hpp"
 #include "query_optimizer/physical/CopyFrom.hpp"
+#include "query_optimizer/physical/CopyTo.hpp"
 #include "query_optimizer/physical/CreateIndex.hpp"
 #include "query_optimizer/physical/CreateTable.hpp"
 #include "query_optimizer/physical/CrossReferenceCoalesceAggregate.hpp"
@@ -280,6 +281,13 @@ class ExecutionGenerator {
    * @param physical_plan The CopyFrom to be converted.
    */
   void convertCopyFrom(const physical::CopyFromPtr &physical_plan);
+
+  /**
+   * @brief Converts a CopyTo to a TableExport operator.
+   *
+   * @param physical_plan The CopyTo to be converted.
+   */
+  void convertCopyTo(const physical::CopyToPtr &physical_plan);
 
   /**
    * @brief Converts a CreateIndex to a CreateIndex operator.
