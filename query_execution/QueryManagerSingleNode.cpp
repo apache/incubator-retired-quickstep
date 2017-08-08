@@ -74,6 +74,20 @@ WorkerMessage* QueryManagerSingleNode::getNextWorkerMessage(
     const dag_node_index start_operator_index, const numa_node_id numa_node) {
   // Default policy: Operator with lowest index first.
   WorkOrder *work_order = nullptr;
+
+  while (!data_pipeline_op_indexes_.empty()) {
+    const dag_node_index op_index = data_pipeline_op_indexes_.front();
+    data_pipeline_op_indexes_.pop();
+
+    for (const dag_node_index consumer_index : output_consumers_[op_index]) {
+      work_order = workorders_container_->getNormalWorkOrder(consumer_index);
+      if (work_order != nullptr) {
+        query_exec_state_->incrementNumQueuedWorkOrders(consumer_index);
+        return WorkerMessage::WorkOrderMessage(work_order, consumer_index);
+      }
+    }
+  }
+
   size_t num_operators_checked = 0;
   for (dag_node_index index = start_operator_index;
        num_operators_checked < num_operators_in_dag_;

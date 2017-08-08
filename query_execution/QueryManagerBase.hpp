@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <queue>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -296,6 +297,8 @@ class QueryManagerBase {
   std::unique_ptr<QueryExecutionState> query_exec_state_;
 
   std::unique_ptr<ExecutionDAGVisualizer> dag_visualizer_;
+
+  std::queue<dag_node_index> data_pipeline_op_indexes_;
 
  private:
   /**
