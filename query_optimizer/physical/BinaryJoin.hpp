@@ -70,13 +70,15 @@ class BinaryJoin : public Join {
    * @param left The left operand.
    * @param right The right operand.
    * @param project_expressions The project expressions.
+   * @param has_repartition Whether this node has repartition.
    * @param partition_scheme_header The optional output partition scheme header.
    */
   BinaryJoin(const PhysicalPtr &left,
              const PhysicalPtr &right,
              const std::vector<expressions::NamedExpressionPtr> &project_expressions,
+             const bool has_repartition = false,
              PartitionSchemeHeader *partition_scheme_header = nullptr)
-      : Join(project_expressions, partition_scheme_header),
+      : Join(project_expressions, has_repartition, partition_scheme_header),
         left_(left),
         right_(right) {
     addChild(left_);

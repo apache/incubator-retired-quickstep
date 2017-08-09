@@ -269,6 +269,15 @@ class RelationalOperator {
   }
 
   /**
+   * @brief Whether this operator does repartition.
+   *
+   * @return True if this node does repartition. Otherwise, false.
+   */
+  bool hasRepartition() const {
+    return has_repartition_;
+  }
+
+  /**
    * @brief Deploy a group of LIPFilters to this operator.
    */
   void deployLIPFilters(const QueryContext::lip_deployment_id lip_deployment_index,
@@ -284,16 +293,20 @@ class RelationalOperator {
    * @param query_id The ID of the query to which this operator belongs.
    * @param num_partitions The number of partitions of the input relation.
    *        If create table / index, return zero. If no partitions, return one.
+   * @param has_repartition Whether this operator does repartition.
    **/
   explicit RelationalOperator(const std::size_t query_id,
-                              const std::size_t num_partitions = 1u)
+                              const std::size_t num_partitions = 1u,
+                              const bool has_repartition = false)
       : query_id_(query_id),
         num_partitions_(num_partitions),
+        has_repartition_(has_repartition),
         done_feeding_input_relation_(false),
         lip_deployment_index_(QueryContext::kInvalidLIPDeploymentId) {}
 
   const std::size_t query_id_;
   const std::size_t num_partitions_;
+  const bool has_repartition_;
 
   bool done_feeding_input_relation_;
   std::size_t op_index_;

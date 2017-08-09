@@ -85,8 +85,10 @@ class Selection : public Physical {
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override;
 
   PhysicalPtr copyWithNewOutputPartitionSchemeHeader(
-      PartitionSchemeHeader *partition_scheme_header) const override {
-    return Create(input(), project_expressions_, filter_predicate_, partition_scheme_header);
+      PartitionSchemeHeader *partition_scheme_header,
+      const bool has_repartition = true) const override {
+    return Create(input(), project_expressions_, filter_predicate_,
+                  has_repartition, partition_scheme_header);
   }
 
   bool maybeCopyWithPrunedExpressions(
@@ -109,9 +111,11 @@ class Selection : public Physical {
       const PhysicalPtr &input,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
       const expressions::PredicatePtr &filter_predicate,
+      const bool has_repartition = false,
       PartitionSchemeHeader *output_partition_scheme_header = nullptr) {
     return SelectionPtr(
-        new Selection(input, project_expressions, filter_predicate, output_partition_scheme_header));
+        new Selection(input, project_expressions, filter_predicate,
+                      has_repartition, output_partition_scheme_header));
   }
 
   /**
@@ -153,8 +157,9 @@ class Selection : public Physical {
       const PhysicalPtr &input,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
       const expressions::PredicatePtr &filter_predicate,
+      const bool has_repartition,
       PartitionSchemeHeader *partition_scheme_header)
-      : Physical(partition_scheme_header),
+      : Physical(has_repartition, partition_scheme_header),
         project_expressions_(project_expressions),
         filter_predicate_(filter_predicate) {
     addChild(input);

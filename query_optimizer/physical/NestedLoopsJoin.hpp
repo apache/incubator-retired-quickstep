@@ -75,6 +75,7 @@ class NestedLoopsJoin : public BinaryJoin {
                   new_children[1],
                   join_predicate_,
                   project_expressions(),
+                  has_repartition_,
                   cloneOutputPartitionSchemeHeader());
   }
 
@@ -85,8 +86,10 @@ class NestedLoopsJoin : public BinaryJoin {
       PhysicalPtr *output) const override;
 
   PhysicalPtr copyWithNewOutputPartitionSchemeHeader(
-      PartitionSchemeHeader *partition_scheme_header) const override {
-    return Create(left(), right(), join_predicate_, project_expressions(), partition_scheme_header);
+      PartitionSchemeHeader *partition_scheme_header,
+      const bool has_repartition = true) const override {
+    return Create(left(), right(), join_predicate_, project_expressions(),
+                  has_repartition, partition_scheme_header);
   }
 
   /**
@@ -105,9 +108,11 @@ class NestedLoopsJoin : public BinaryJoin {
       const PhysicalPtr &right,
       const expressions::PredicatePtr &join_predicate,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
+      const bool has_repartition = false,
       PartitionSchemeHeader *partition_scheme_header = nullptr) {
     return NestedLoopsJoinPtr(
-        new NestedLoopsJoin(left, right, join_predicate, project_expressions, partition_scheme_header));
+        new NestedLoopsJoin(left, right, join_predicate, project_expressions,
+                            has_repartition, partition_scheme_header));
   }
 
  protected:
@@ -125,8 +130,9 @@ class NestedLoopsJoin : public BinaryJoin {
       const PhysicalPtr &right,
       const expressions::PredicatePtr &join_predicate,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
+      const bool has_repartition,
       PartitionSchemeHeader *partition_scheme_header)
-      : BinaryJoin(left, right, project_expressions, partition_scheme_header),
+      : BinaryJoin(left, right, project_expressions, has_repartition, partition_scheme_header),
         join_predicate_(join_predicate) {
     DCHECK(join_predicate_ != nullptr);
   }

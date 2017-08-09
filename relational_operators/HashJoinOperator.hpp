@@ -104,6 +104,7 @@ class HashJoinOperator : public RelationalOperator {
    * @param any_join_key_attributes_nullable If any attribute is nullable.
    * @param num_partitions The number of partitions in 'probe_relation'.
    *        If no partitions, it is one.
+   * @param has_repartition Whether this operator does repartition.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the join results.
@@ -130,6 +131,7 @@ class HashJoinOperator : public RelationalOperator {
       const std::vector<attribute_id> &join_key_attributes,
       const bool any_join_key_attributes_nullable,
       const std::size_t num_partitions,
+      const bool has_repartition,
       const CatalogRelation &output_relation,
       const QueryContext::insert_destination_id output_destination_index,
       const QueryContext::join_hash_table_id hash_table_index,
@@ -137,7 +139,7 @@ class HashJoinOperator : public RelationalOperator {
       const QueryContext::scalar_group_id selection_index,
       const std::vector<bool> *is_selection_on_build = nullptr,
       const JoinType join_type = JoinType::kInnerJoin)
-      : RelationalOperator(query_id, num_partitions),
+      : RelationalOperator(query_id, num_partitions, has_repartition),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
         probe_relation_is_stored_(probe_relation_is_stored),

@@ -95,12 +95,14 @@ class Physical : public OptimizerTree<Physical> {
    * @param partition_scheme_header The partition scheme header to be
    *        substituted for the existing one, if any. It takes ownership of
    *        'partition_scheme_header'.
+   * @param has_repartition Whether the new node does repartition.
    *
    * @return A copy with \p partition_scheme_header as the partition scheme
    *         header.
    */
   virtual PhysicalPtr copyWithNewOutputPartitionSchemeHeader(
-      PartitionSchemeHeader *partition_scheme_header) const {
+      PartitionSchemeHeader *partition_scheme_header,
+      const bool has_repartition = true) const {
     std::unique_ptr<PartitionSchemeHeader> new_partition_scheme_header(partition_scheme_header);
     LOG(FATAL) << "copyWithNewOutputPartitionSchemeHeader is not implemented for " << getName();
   }
@@ -128,16 +130,29 @@ class Physical : public OptimizerTree<Physical> {
     return nullptr;
   }
 
+  /**
+   * @brief Whether the physical plan node does repartition.
+   *
+   * @return True if this node does repartition. Otherwise, false.
+   **/
+  bool hasRepartition() const {
+    return has_repartition_;
+  }
+
  protected:
   /**
    * @brief Constructor.
    *
+   * @param has_repartition Whether this node does repartition.
    * @param partition_scheme_header The partition scheme header of the relation.
    *        The constructor takes ownership of 'partition_scheme_header'.
    */
-  explicit Physical(PartitionSchemeHeader *partition_scheme_header = nullptr)
-      : partition_scheme_header_(partition_scheme_header) {}
+  explicit Physical(const bool has_repartition = false,
+                    PartitionSchemeHeader *partition_scheme_header = nullptr)
+      : has_repartition_(has_repartition),
+        partition_scheme_header_(partition_scheme_header) {}
 
+  const bool has_repartition_;
   std::unique_ptr<PartitionSchemeHeader> partition_scheme_header_;
 
  private:

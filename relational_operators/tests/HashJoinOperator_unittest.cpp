@@ -104,6 +104,9 @@ constexpr int kOpIndex = 0;
 constexpr std::size_t kSinglePartition = 1;
 constexpr std::size_t kMultiplePartitions = 4;
 
+const bool kHasRepartition = true;
+const bool kNoRepartition = false;
+
 }  // namespace
 
 class HashJoinOperatorTest : public ::testing::TestWithParam<HashTableImplType> {
@@ -454,6 +457,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
       std::vector<attribute_id>(1, fact_col_long.getID()),
       fact_col_long.getType().isNullable(),
       kSinglePartition,
+      kNoRepartition,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -604,6 +608,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
       std::vector<attribute_id>(1, fact_col_int.getID()),
       fact_col_int.getType().isNullable(),
       kSinglePartition,
+      kNoRepartition,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -763,6 +768,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
       std::vector<attribute_id>(1, fact_col_char.getID()),
       fact_col_char.getType().isNullable(),
       kSinglePartition,
+      kNoRepartition,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -906,6 +912,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
       std::vector<attribute_id>(1, fact_col_varchar.getID()),
       fact_col_varchar.getType().isNullable(),
       kSinglePartition,
+      kNoRepartition,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -1085,6 +1092,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
       fact_col_long.getType().isNullable() ||
           fact_col_varchar.getType().isNullable(),
       kSinglePartition,
+      kNoRepartition,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -1274,6 +1282,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
                            fact_col_long.getType().isNullable() ||
                                fact_col_varchar.getType().isNullable(),
                            kSinglePartition,
+                           kNoRepartition,
                            *result_table,
                            output_destination_index,
                            join_hash_table_index,
@@ -1446,6 +1455,7 @@ TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedLongKeyHashJoinTest) {
       { fact_col_long.getID() },
       fact_col_long.getType().isNullable(),
       kMultiplePartitions,
+      kHasRepartition,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -1591,6 +1601,7 @@ TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedCompositeKeyHashJoinTest)
       { fact_col_long.getID(), fact_col_varchar.getID() },
       fact_col_long.getType().isNullable() || fact_col_varchar.getType().isNullable(),
       kMultiplePartitions,
+      kHasRepartition,
       *result_table,
       output_destination_index,
       join_hash_table_index,
@@ -1771,6 +1782,7 @@ TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedCompositeKeyHashJoinWithR
       { fact_col_long.getID(), fact_col_varchar.getID() },
       fact_col_long.getType().isNullable() || fact_col_varchar.getType().isNullable(),
       kMultiplePartitions,
+      kHasRepartition,
       *result_table,
       output_destination_index,
       join_hash_table_index,

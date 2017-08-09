@@ -747,6 +747,8 @@ void ExecutionGenerator::convertSelection(
                                  insert_destination_proto);
 
   // Create and add a Select operator.
+  const bool has_repartition = physical_selection->hasRepartition();
+
   // Use the "simple" form of the selection operator (a pure projection that
   // doesn't require any expression evaluation or intermediate copies) if
   // possible.
@@ -755,6 +757,7 @@ void ExecutionGenerator::convertSelection(
       convertSimpleProjection(project_expressions_group_index, &attributes)
           ? new SelectOperator(query_handle_->query_id(),
                                input_relation,
+                               has_repartition,
                                *output_relation,
                                insert_destination_index,
                                execution_predicate_index,
@@ -762,6 +765,7 @@ void ExecutionGenerator::convertSelection(
                                input_relation_info->isStoredRelation())
           : new SelectOperator(query_handle_->query_id(),
                                input_relation,
+                               has_repartition,
                                *output_relation,
                                insert_destination_index,
                                execution_predicate_index,
@@ -1040,6 +1044,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               probe_attribute_ids,
               any_probe_attributes_nullable,
               probe_num_partitions,
+              physical_plan->hasRepartition(),
               *output_relation,
               insert_destination_index,
               join_hash_table_index,
@@ -1152,6 +1157,7 @@ void ExecutionGenerator::convertNestedLoopsJoin(
                                       left_relation,
                                       right_relation,
                                       num_partitions,
+                                      physical_plan->hasRepartition(),
                                       *output_relation,
                                       insert_destination_index,
                                       execution_join_predicate_index,
@@ -1539,6 +1545,15 @@ void ExecutionGenerator::convertInsertSelection(
         static_cast<const ScalarAttribute*>(attribute.get())->getAttribute().getID());
   }
 
+  const P::PartitionSchemeHeader *input_physical_partition_scheme_header =
+      physical_plan->selection()->getOutputPartitionSchemeHeader();
+  const P::PartitionSchemeHeader *output_physical_partition_scheme_header =
+      physical_plan->destination()->getOutputPartitionSchemeHeader();
+  const bool has_repartition =
+      (input_physical_partition_scheme_header && output_physical_partition_scheme_header)
+          ? input_physical_partition_scheme_header->equal(*output_physical_partition_scheme_header)
+          : (input_physical_partition_scheme_header || output_physical_partition_scheme_header);
+
   // Create the select operator.
   // TODO(jianqiao): This select operator is actually redundant. That is,
   // we may directly set physical_plan_->selection()'s output relation to be
@@ -1549,6 +1564,7 @@ void ExecutionGenerator::convertInsertSelection(
   SelectOperator *insert_selection_op =
       new SelectOperator(query_handle_->query_id(),
                          selection_relation,
+                         has_repartition,
                          destination_relation,
                          insert_destination_index,
                          QueryContext::kInvalidPredicateId,
@@ -1901,6 +1917,7 @@ void ExecutionGenerator::convertAggregate(
           new FinalizeAggregationOperator(query_handle_->query_id(),
                                           aggr_state_index,
                                           num_partitions,
+                                          physical_plan->hasRepartition(),
                                           aggr_state_num_partitions,
                                           *output_relation,
                                           insert_destination_index));
@@ -2078,6 +2095,7 @@ void ExecutionGenerator::convertCrossReferenceCoalesceAggregate(
           new FinalizeAggregationOperator(query_handle_->query_id(),
                                           aggr_state_index,
                                           num_partitions,
+                                          physical_plan->hasRepartition(),
                                           aggr_state_num_partitions,
                                           *output_relation,
                                           insert_destination_index));

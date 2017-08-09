@@ -100,7 +100,8 @@ P::PhysicalPtr Repartition(const P::PhysicalPtr &node, P::PartitionSchemeHeader 
     // Add a Selection node.
     return P::Selection::Create(node,
                                 CastSharedPtrVector<E::NamedExpression>(node->getOutputAttributes()),
-                                nullptr /* filter_predicate */, repartition_scheme_header);
+                                nullptr /* filter_predicate */,
+                                true /* has_repartition */, repartition_scheme_header);
   } else {
     // Overwrite the output partition scheme header of the node.
     return node->copyWithNewOutputPartitionSchemeHeader(repartition_scheme_header);
@@ -180,7 +181,8 @@ P::PhysicalPtr applyToNestedLoopsJoin(const P::NestedLoopsJoinPtr &nested_loops_
       // Add a Selection node.
       left = P::Selection::Create(left,
                                   CastSharedPtrVector<E::NamedExpression>(left->getOutputAttributes()),
-                                  nullptr /* filter_predicate */, left_repartition_scheme_header.release());
+                                  nullptr /* filter_predicate */,
+                                  true /* has_repartition */, left_repartition_scheme_header.release());
       break;
     default: {
       if (!left_partition_scheme_header) {
@@ -199,7 +201,8 @@ P::PhysicalPtr applyToNestedLoopsJoin(const P::NestedLoopsJoinPtr &nested_loops_
       // Add a Selection node.
       right = P::Selection::Create(right,
                                    CastSharedPtrVector<E::NamedExpression>(right->getOutputAttributes()),
-                                   nullptr /* filter_predicate */, right_repartition_scheme_header.release());
+                                   nullptr /* filter_predicate */,
+                                   true /* has_repartition */, right_repartition_scheme_header.release());
     } else {
       right = right->copyWithNewOutputPartitionSchemeHeader(right_repartition_scheme_header.release());
     }
@@ -227,9 +230,11 @@ P::PhysicalPtr applyToNestedLoopsJoin(const P::NestedLoopsJoinPtr &nested_loops_
   }
 
   std::unique_ptr<P::PartitionSchemeHeader> output_partition_scheme_header;
+  bool has_repartition = false;
   if (left_partition_expr_ids != output_partition_expr_ids) {
     output_partition_scheme_header = make_unique<P::PartitionSchemeHeader>(
         left_partition_scheme_header->partition_type, num_partitions, move(output_partition_expr_ids));
+    has_repartition = true;
   } else {
     output_partition_scheme_header = make_unique<P::PartitionSchemeHeader>(*left_partition_scheme_header);
   }
@@ -237,6 +242,7 @@ P::PhysicalPtr applyToNestedLoopsJoin(const P::NestedLoopsJoinPtr &nested_loops_
   return P::NestedLoopsJoin::Create(left, right,
                                     nested_loops_join->join_predicate(),
                                     nested_loops_join->project_expressions(),
+                                    has_repartition,
                                     output_partition_scheme_header.release());
 }
 
@@ -277,7 +283,8 @@ P::PhysicalPtr Partition::applyToNode(const P::PhysicalPtr &node) {
               input_partition_scheme_header->num_partitions,
               move(output_partition_expr_ids));
 
-          return aggregate->copyWithNewOutputPartitionSchemeHeader(output_partition_scheme_header.release());
+          return aggregate->copyWithNewOutputPartitionSchemeHeader(output_partition_scheme_header.release(),
+                                                                   false /* has_repartition */);
         }
       }
 
@@ -364,7 +371,8 @@ P::PhysicalPtr Partition::applyToNode(const P::PhysicalPtr &node) {
           avg_recompute_expressions.empty()
               ? aggregate->copyWithNewOutputPartitionSchemeHeader(output_partition_scheme_header.release())
               : P::Aggregate::Create(input, grouping_expressions, partial_aggregate_expressions,
-                                     filter_predicate, output_partition_scheme_header.release());
+                                     filter_predicate, true /* has_repartition */,
+                                     output_partition_scheme_header.release());
 
       vector<E::AliasPtr> reaggregate_expressions;
       for (const auto &aggregate_expr : partial_aggregate_expressions) {
@@ -383,7 +391,8 @@ P::PhysicalPtr Partition::applyToNode(const P::PhysicalPtr &node) {
       }
       const P::AggregatePtr reaggregate =
           P::Aggregate::Create(partial_aggregate, grouping_expressions, reaggregate_expressions,
-                               nullptr /* filter_predicate */, output_partition_scheme_header.release());
+                               nullptr /* filter_predicate */, false /* has_repartition */,
+                               output_partition_scheme_header.release());
 
       if (avg_recompute_expressions.empty()) {
         return reaggregate;
@@ -419,7 +428,7 @@ P::PhysicalPtr Partition::applyToNode(const P::PhysicalPtr &node) {
             make_unique<P::PartitionSchemeHeader>(*reaggregate->getOutputPartitionSchemeHeader());
       }
       return P::Selection::Create(reaggregate, project_expressions, nullptr /* filter_predicate */,
-                                  output_partition_scheme_header.release());
+                                  false /* has_repartition */, output_partition_scheme_header.release());
     }
     case P::PhysicalType::kHashJoin: {
       const P::HashJoinPtr hash_join = static_pointer_cast<const P::HashJoin>(node);
@@ -489,10 +498,12 @@ P::PhysicalPtr Partition::applyToNode(const P::PhysicalPtr &node) {
                                    hash_join->residual_predicate(),
                                    hash_join->project_expressions(),
                                    hash_join->join_type(),
+                                   false /* has_repartition */,
                                    output_partition_scheme_header.release());
       }
 
-      return hash_join->copyWithNewOutputPartitionSchemeHeader(output_partition_scheme_header.release());
+      return hash_join->copyWithNewOutputPartitionSchemeHeader(output_partition_scheme_header.release(),
+                                                               false /* has_repartition */);
     }
     case P::PhysicalType::kNestedLoopsJoin: {
       const P::NestedLoopsJoinPtr nested_loops_join = static_pointer_cast<const P::NestedLoopsJoin>(node);
@@ -552,7 +563,8 @@ P::PhysicalPtr Partition::applyToNode(const P::PhysicalPtr &node) {
       // TODO(quickstep-team): Check RangePartitionSchemeHeader against the project expressions.
       DCHECK(input_partition_scheme_header->partition_type != P::PartitionSchemeHeader::PartitionType::kRange);
       auto output_partition_scheme_header = make_unique<P::PartitionSchemeHeader>(*input_partition_scheme_header);
-      return selection->copyWithNewOutputPartitionSchemeHeader(output_partition_scheme_header.release());
+      return selection->copyWithNewOutputPartitionSchemeHeader(output_partition_scheme_header.release(),
+                                                               false /* has_repartition */);
     }
     default:
       break;

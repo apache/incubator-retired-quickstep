@@ -114,7 +114,7 @@ class TableReference : public Physical {
       const CatalogRelation *relation, const std::string &alias,
       const std::vector<expressions::AttributeReferencePtr> &attribute_list,
       PartitionSchemeHeader *partition_scheme_header)
-      : Physical(partition_scheme_header),
+      : Physical(false /* has_repartition */, partition_scheme_header),
         relation_(relation),
         alias_(alias),
         attribute_list_(attribute_list) {}

@@ -102,9 +102,11 @@ class TableGenerator : public Physical {
   }
 
   PhysicalPtr copyWithNewOutputPartitionSchemeHeader(
-      PartitionSchemeHeader *partition_scheme_header) const override {
+      PartitionSchemeHeader *partition_scheme_header,
+      const bool has_repartition = true) const override {
     return TableGeneratorPtr(
-        new TableGenerator(generator_function_handle_, table_alias_, attribute_list_, partition_scheme_header));
+        new TableGenerator(generator_function_handle_, table_alias_, attribute_list_,
+                           partition_scheme_header != nullptr, partition_scheme_header));
   }
 
   void getFieldStringItems(
@@ -152,8 +154,9 @@ class TableGenerator : public Physical {
   TableGenerator(const GeneratorFunctionHandlePtr &generator_function_handle,
                  const std::string &table_alias,
                  const std::vector<E::AttributeReferencePtr> &attribute_list,
+                 const bool has_repartition = false,
                  PartitionSchemeHeader *partition_scheme_header = nullptr)
-      : Physical(partition_scheme_header),
+      : Physical(has_repartition, partition_scheme_header),
         generator_function_handle_(generator_function_handle),
         table_alias_(table_alias),
         attribute_list_(attribute_list) {

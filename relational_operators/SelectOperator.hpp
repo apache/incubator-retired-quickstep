@@ -74,6 +74,7 @@ class SelectOperator : public RelationalOperator {
    *
    * @param query_id The ID of the query to which this operator belongs.
    * @param input_relation The relation to perform selection over.
+   * @param has_repartition Whether this operator does repartition.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the selection results.
@@ -89,12 +90,13 @@ class SelectOperator : public RelationalOperator {
   SelectOperator(
       const std::size_t query_id,
       const CatalogRelation &input_relation,
+      const bool has_repartition,
       const CatalogRelation &output_relation,
       const QueryContext::insert_destination_id output_destination_index,
       const QueryContext::predicate_id predicate_index,
       const QueryContext::scalar_group_id selection_index,
       const bool input_relation_is_stored)
-      : RelationalOperator(query_id, input_relation.getNumPartitions()),
+      : RelationalOperator(query_id, input_relation.getNumPartitions(), has_repartition),
         input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
@@ -129,6 +131,7 @@ class SelectOperator : public RelationalOperator {
    *
    * @param query_id The ID of the query to which this operator belongs.
    * @param input_relation The relation to perform selection over.
+   * @param has_repartition Whether this operator does repartition.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the selection results.
@@ -144,12 +147,13 @@ class SelectOperator : public RelationalOperator {
   SelectOperator(
       const std::size_t query_id,
       const CatalogRelation &input_relation,
+      const bool has_repartition,
       const CatalogRelation &output_relation,
       const QueryContext::insert_destination_id output_destination_index,
       const QueryContext::predicate_id predicate_index,
       std::vector<attribute_id> &&selection,
       const bool input_relation_is_stored)
-      : RelationalOperator(query_id, input_relation.getNumPartitions()),
+      : RelationalOperator(query_id, input_relation.getNumPartitions(), has_repartition),
         input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),

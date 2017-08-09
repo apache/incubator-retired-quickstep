@@ -81,6 +81,7 @@ bool HashJoin::maybeCopyWithPrunedExpressions(
                      residual_predicate_,
                      new_project_expressions,
                      join_type_,
+                     has_repartition_,
                      cloneOutputPartitionSchemeHeader());
     return true;
   }

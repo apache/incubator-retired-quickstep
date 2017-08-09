@@ -44,7 +44,7 @@ TopLevelPlan
   +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
++-plan=Selection[has_repartition=false]
 | +-input=TableReference[relation=Test,alias=test]
 | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -90,7 +90,7 @@ TopLevelPlan
   +-AttributeReference[id=7,name=,alias=2,relation=,type=Int]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
++-plan=Selection[has_repartition=false]
 | +-input=TableReference[relation=Test,alias=test]
 | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -148,7 +148,7 @@ TopLevelPlan
     type=Float NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=HashJoin
++-plan=HashJoin[has_repartition=false]
 | +-left=TableReference[relation=Test,alias=a]
 | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
@@ -233,7 +233,7 @@ TopLevelPlan
   +-AttributeReference[id=9,name=int_col,relation=,type=Int NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
++-plan=Selection[has_repartition=false]
 | +-input=TableReference[relation=Test,alias=test]
 | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -325,7 +325,7 @@ TopLevelPlan
   +-AttributeReference[id=12,name=float_col,relation=b,type=Float]
 [Physical Plan]
 TopLevelPlan
-+-plan=NestedLoopsJoin
++-plan=NestedLoopsJoin[has_repartition=false]
 | +-left=TableReference[relation=Test,alias=a]
 | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
@@ -421,7 +421,7 @@ TopLevelPlan
   +-AttributeReference[id=8,name=float_col,relation=b,type=Float]
 [Physical Plan]
 TopLevelPlan
-+-plan=NestedLoopsJoin
++-plan=NestedLoopsJoin[has_repartition=false]
 | +-left=TableReference[relation=Test,alias=a]
 | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
@@ -429,7 +429,7 @@ TopLevelPlan
 | | +-AttributeReference[id=3,name=double_col,relation=a,type=Double NULL]
 | | +-AttributeReference[id=4,name=char_col,relation=a,type=Char(20)]
 | | +-AttributeReference[id=5,name=vchar_col,relation=a,type=VarChar(20) NULL]
-| +-right=Selection
+| +-right=Selection[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
@@ -518,7 +518,7 @@ TopLevelPlan
   +-AttributeReference[id=12,name=float_col,relation=b,type=Float]
 [Physical Plan]
 TopLevelPlan
-+-plan=HashJoin
++-plan=HashJoin[has_repartition=false]
 | +-left=TableReference[relation=Test,alias=a]
 | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
@@ -526,7 +526,7 @@ TopLevelPlan
 | | +-AttributeReference[id=3,name=double_col,relation=a,type=Double NULL]
 | | +-AttributeReference[id=4,name=char_col,relation=a,type=Char(20)]
 | | +-AttributeReference[id=5,name=vchar_col,relation=a,type=VarChar(20) NULL]
-| +-right=Selection
+| +-right=Selection[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
@@ -604,7 +604,7 @@ TopLevelPlan
   +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=HashJoin
++-plan=HashJoin[has_repartition=false]
 | +-left=TableReference[relation=Test,alias=a]
 | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
@@ -675,7 +675,7 @@ TopLevelPlan
   +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=HashJoin
++-plan=HashJoin[has_repartition=false]
 | +-left=TableReference[relation=Test,alias=a]
 | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
@@ -683,7 +683,7 @@ TopLevelPlan
 | | +-AttributeReference[id=3,name=double_col,relation=a,type=Double NULL]
 | | +-AttributeReference[id=4,name=char_col,relation=a,type=Char(20)]
 | | +-AttributeReference[id=5,name=vchar_col,relation=a,type=VarChar(20) NULL]
-| +-right=Selection
+| +-right=Selection[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
@@ -755,7 +755,7 @@ TopLevelPlan
   +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=HashJoin
++-plan=HashJoin[has_repartition=false]
 | +-left=TableReference[relation=Test,alias=a]
 | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
@@ -835,8 +835,8 @@ TopLevelPlan
   +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=NestedLoopsJoin
-| +-left=HashJoin
++-plan=NestedLoopsJoin[has_repartition=false]
+| +-left=HashJoin[has_repartition=false]
 | | +-left=TableReference[relation=Test,alias=a]
 | | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
 | | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
@@ -857,7 +857,7 @@ TopLevelPlan
 | | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
 | | +-right_join_attributes=
 | |   +-AttributeReference[id=7,name=long_col,relation=b,type=Long]
-| +-right=Selection
+| +-right=Selection[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=c]
 | | | +-AttributeReference[id=12,name=int_col,relation=c,type=Int NULL]
 | | | +-AttributeReference[id=13,name=long_col,relation=c,type=Long]
@@ -916,7 +916,7 @@ TopLevelPlan
   +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=NestedLoopsJoin
++-plan=NestedLoopsJoin[has_repartition=false]
 | +-left=TableReference[relation=Test,alias=a]
 | | +-AttributeReference[id=0,name=int_col,relation=a,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=a,type=Long]
@@ -924,7 +924,7 @@ TopLevelPlan
 | | +-AttributeReference[id=3,name=double_col,relation=a,type=Double NULL]
 | | +-AttributeReference[id=4,name=char_col,relation=a,type=Char(20)]
 | | +-AttributeReference[id=5,name=vchar_col,relation=a,type=VarChar(20) NULL]
-| +-right=Selection
+| +-right=Selection[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
@@ -1021,8 +1021,8 @@ TopLevelPlan
   +-AttributeReference[id=10,name=col,relation=,type=Double NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
-| +-input=Aggregate
++-plan=Selection[has_repartition=false]
+| +-input=Aggregate[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -1157,8 +1157,8 @@ TopLevelPlan
   +-AttributeReference[id=6,name=col2,relation=,type=Long]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
-| +-input=Aggregate
++-plan=Selection[has_repartition=false]
+| +-input=Aggregate[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -1296,8 +1296,8 @@ TopLevelPlan
   +-AttributeReference[id=4,name=subquery_col3,relation=subquery,type=Char(20)]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
-| +-input=Aggregate
++-plan=Selection[has_repartition=false]
+| +-input=Aggregate[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -1407,8 +1407,8 @@ TopLevelPlan
   +-AttributeReference[id=6,name=,alias=count(*),relation=,type=Long]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
-| +-input=Aggregate
++-plan=Selection[has_repartition=false]
+| +-input=Aggregate[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -1465,8 +1465,8 @@ TopLevelPlan
   +-AttributeReference[id=6,name=,alias=count(*),relation=,type=Long]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
-| +-input=Aggregate
++-plan=Selection[has_repartition=false]
+| +-input=Aggregate[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -1522,8 +1522,8 @@ TopLevelPlan
   +-AttributeReference[id=7,name=,alias=count(*),relation=,type=Long]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
-| +-input=Aggregate
++-plan=Selection[has_repartition=false]
+| +-input=Aggregate[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -1585,7 +1585,7 @@ TopLevelPlan
   +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
++-plan=Selection[has_repartition=false]
 | +-input=SharedSubplanReference[subplan_id=0]
 | | +-referenced_attributes=
 | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
@@ -1598,7 +1598,7 @@ TopLevelPlan
 | +-project_expressions=
 |   +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 +-shared_subplans=
-| +-Selection
+| +-Selection[has_repartition=false]
 |   +-input=TableReference[relation=Test,alias=test]
 |   | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 |   | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -1673,8 +1673,8 @@ TopLevelPlan
     type=Double NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
-| +-input=Aggregate
++-plan=Selection[has_repartition=false]
+| +-input=Aggregate[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -1786,9 +1786,9 @@ TopLevelPlan
   +-AttributeReference[id=1,name=i,relation=,type=Int]
 [Physical Plan]
 TopLevelPlan
-+-plan=HashLeftSemiJoin
-| +-left=HashLeftAntiJoin
-| | +-left=Selection
++-plan=HashLeftSemiJoin[has_repartition=false]
+| +-left=HashLeftAntiJoin[has_repartition=false]
+| | +-left=Selection[has_repartition=false]
 | | | +-input=TableGenerator[function_name=generate_series,table_alias=gs1]
 | | | | +-AttributeReference[id=0,name=generate_series,alias=gs1,
 | | | |   relation=generate_series,type=Int]
@@ -1859,7 +1859,7 @@ TopLevelPlan
   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
++-plan=Selection[has_repartition=false]
 | +-input=TableReference[relation=Test,alias=test]
 | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -1925,7 +1925,7 @@ TopLevelPlan
   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
++-plan=Selection[has_repartition=false]
 | +-input=TableReference[relation=Test,alias=test]
 | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -2014,7 +2014,7 @@ TopLevelPlan
   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
 [Physical Plan]
 TopLevelPlan
-+-plan=HashLeftSemiJoin
++-plan=HashLeftSemiJoin[has_repartition=false]
 | +-left=TableReference[relation=Test,alias=test]
 | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -2022,8 +2022,8 @@ TopLevelPlan
 | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
 | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
 | | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
-| +-right=Selection
-| | +-input=Aggregate
+| +-right=Selection[has_repartition=false]
+| | +-input=Aggregate[has_repartition=false]
 | | | +-input=TableReference[relation=Test,alias=test]
 | | | | +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 | | | | +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
@@ -2105,7 +2105,7 @@ TopLevelPlan
   +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
 [Physical Plan]
 TopLevelPlan
-+-plan=HashLeftAntiJoin
++-plan=HashLeftAntiJoin[has_repartition=false]
 | +-left=TableReference[relation=Test,alias=test]
 | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -2113,7 +2113,7 @@ TopLevelPlan
 | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
 | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
 | | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
-| +-right=Selection
+| +-right=Selection[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
@@ -2179,11 +2179,11 @@ TopLevelPlan
     type=Long NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=NestedLoopsJoin
++-plan=NestedLoopsJoin[has_repartition=false]
 | +-left=TableReference[relation=b]
 | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
 | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
-| +-right=Aggregate
+| +-right=Aggregate[has_repartition=false]
 | | +-input=TableReference[relation=c]
 | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
 | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
@@ -2246,8 +2246,8 @@ TopLevelPlan
     type=Long NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=HashJoin
-| +-left=Aggregate
++-plan=HashJoin[has_repartition=false]
+| +-left=Aggregate[has_repartition=false]
 | | +-input=TableReference[relation=c]
 | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
 | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
@@ -2313,11 +2313,11 @@ TopLevelPlan
   +-AttributeReference[id=1,name=x,relation=b,type=Int]
 [Physical Plan]
 TopLevelPlan
-+-plan=NestedLoopsJoin
++-plan=NestedLoopsJoin[has_repartition=false]
 | +-left=TableReference[relation=b]
 | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
 | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
-| +-right=Aggregate
+| +-right=Aggregate[has_repartition=false]
 | | +-input=TableReference[relation=c]
 | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
 | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
@@ -2383,8 +2383,8 @@ TopLevelPlan
   +-AttributeReference[id=1,name=x,relation=b,type=Int]
 [Physical Plan]
 TopLevelPlan
-+-plan=HashJoin
-| +-left=Aggregate
++-plan=HashJoin[has_repartition=false]
+| +-left=Aggregate[has_repartition=false]
 | | +-input=TableReference[relation=c]
 | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
 | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
@@ -2490,9 +2490,9 @@ TopLevelPlan
     type=Long NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=HashJoin
-| +-left=NestedLoopsJoin
-| | +-left=Aggregate
++-plan=HashJoin[has_repartition=false]
+| +-left=NestedLoopsJoin[has_repartition=false]
+| | +-left=Aggregate[has_repartition=false]
 | | | +-input=TableReference[relation=c]
 | | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
 | | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
@@ -2505,7 +2505,7 @@ TopLevelPlan
 | | |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
 | | |     +-AggregateFunction[function=SUM]
 | | |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
-| | +-right=Aggregate
+| | +-right=Aggregate[has_repartition=false]
 | | | +-input=TableReference[relation=a]
 | | | | +-AttributeReference[id=5,name=w,relation=a,type=Int]
 | | | | +-AttributeReference[id=6,name=x,relation=a,type=Int]
@@ -2606,12 +2606,12 @@ TopLevelPlan
     alias=((x*SubqueryExpression)+SubqueryExpression),relation=,type=Double NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=NestedLoopsJoin
++-plan=NestedLoopsJoin[has_repartition=false]
 | +-left=TableReference[relation=b]
 | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
 | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
-| +-right=NestedLoopsJoin
-| | +-left=Aggregate
+| +-right=NestedLoopsJoin[has_repartition=false]
+| | +-left=Aggregate[has_repartition=false]
 | | | +-input=TableReference[relation=c]
 | | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
 | | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]
@@ -2621,7 +2621,7 @@ TopLevelPlan
 | | |   +-Alias[id=4,name=,alias=$aggregate0,relation=$aggregate,type=Long NULL]
 | | |     +-AggregateFunction[function=SUM]
 | | |       +-AttributeReference[id=3,name=y,relation=c,type=Int]
-| | +-right=Aggregate
+| | +-right=Aggregate[has_repartition=false]
 | | | +-input=TableReference[relation=d]
 | | | | +-AttributeReference[id=5,name=y,relation=d,type=Int]
 | | | | +-AttributeReference[id=6,name=z,relation=d,type=Int]
@@ -2712,12 +2712,12 @@ TopLevelPlan
     type=Long NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=NestedLoopsJoin
-| +-left=NestedLoopsJoin
++-plan=NestedLoopsJoin[has_repartition=false]
+| +-left=NestedLoopsJoin[has_repartition=false]
 | | +-left=TableReference[relation=b]
 | | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
 | | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
-| | +-right=Aggregate
+| | +-right=Aggregate[has_repartition=false]
 | | | +-input=TableReference[relation=d]
 | | | | +-AttributeReference[id=2,name=y,relation=d,type=Int]
 | | | | +-AttributeReference[id=3,name=z,relation=d,type=Int]
@@ -2734,7 +2734,7 @@ TopLevelPlan
 | | |   type=Double NULL]
 | | +-project_expressions=
 | |   +-AttributeReference[id=1,name=x,relation=b,type=Int]
-| +-right=Aggregate
+| +-right=Aggregate[has_repartition=false]
 | | +-input=TableReference[relation=c]
 | | | +-AttributeReference[id=5,name=x,relation=c,type=Int]
 | | | +-AttributeReference[id=6,name=y,relation=c,type=Int]
@@ -2835,9 +2835,9 @@ TopLevelPlan
   +-AttributeReference[id=6,name=y,relation=,type=Int]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
++-plan=Selection[has_repartition=false]
 | +-input=Sort[is_ascending=[true],nulls_first=[false]]
-| | +-input=HashJoin
+| | +-input=HashJoin[has_repartition=false]
 | | | +-left=SharedSubplanReference[subplan_id=0]
 | | | | +-referenced_attributes=
 | | | | | +-AttributeReference[id=3,name=x,relation=,type=Int]
@@ -2845,7 +2845,7 @@ TopLevelPlan
 | | | | +-output_attributes=
 | | | |   +-AttributeReference[id=5,name=x,relation=,type=Int]
 | | | |   +-AttributeReference[id=6,name=y,relation=,type=Int]
-| | | +-right=Aggregate
+| | | +-right=Aggregate[has_repartition=false]
 | | | | +-input=SharedSubplanReference[subplan_id=0]
 | | | | | +-referenced_attributes=
 | | | | | | +-AttributeReference[id=3,name=x,relation=,type=Int]
@@ -2875,7 +2875,7 @@ TopLevelPlan
 |   +-AttributeReference[id=5,name=x,relation=,type=Int]
 |   +-AttributeReference[id=6,name=y,relation=,type=Int]
 +-shared_subplans=
-| +-Selection
+| +-Selection[has_repartition=false]
 |   +-input=TableGenerator[function_name=generate_series,table_alias=g]
 |   | +-AttributeReference[id=0,name=generate_series,alias=g,
 |   |   relation=generate_series,type=Int]
@@ -2934,7 +2934,7 @@ TopLevelPlan
   +-AttributeReference[id=6,name=,alias=avg(int_col),relation=,type=Double NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
++-plan=Selection[has_repartition=false]
 | +-input=WindowAggregate
 | | +-input=Sort[is_ascending=[true,false],nulls_first=[false,false]]
 | | | +-input=TableReference[relation=Test,alias=test]
@@ -3018,7 +3018,7 @@ TopLevelPlan
     type=Double NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
++-plan=Selection[has_repartition=false]
 | +-input=WindowAggregate
 | | +-input=Sort[is_ascending=[true,true,false,true],
 | | | nulls_first=[false,false,false,true]]
@@ -3113,8 +3113,8 @@ TopLevelPlan
     type=Double NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
-| +-input=Aggregate
++-plan=Selection[has_repartition=false]
+| +-input=Aggregate[has_repartition=false]
 | | +-input=WindowAggregate
 | | | +-input=Sort[is_ascending=[true,true],nulls_first=[false,false]]
 | | | | +-input=TableReference[relation=Test,alias=test]
@@ -3192,10 +3192,10 @@ TopLevelPlan
   +-AttributeReference[id=12,name=int_col,relation=,type=Int NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=Aggregate
++-plan=Aggregate[has_repartition=false]
 | +-input=UnionAll
 | | +-operands=
-| | | +-Selection
+| | | +-Selection[has_repartition=false]
 | | | | +-input=TableReference[relation=Test,alias=test]
 | | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -3207,7 +3207,7 @@ TopLevelPlan
 | | | | |   type=VarChar(20) NULL]
 | | | | +-project_expressions=
 | | | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
-| | | +-Selection
+| | | +-Selection[has_repartition=false]
 | | |   +-input=TableReference[relation=Test,alias=test]
 | | |   | +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 | | |   | +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
@@ -3278,10 +3278,10 @@ TopLevelPlan
   +-AttributeReference[id=14,name=intv,relation=,type=Int NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
++-plan=Selection[has_repartition=false]
 | +-input=UnionAll
 | | +-operands=
-| | | +-Selection
+| | | +-Selection[has_repartition=false]
 | | | | +-input=TableReference[relation=Test,alias=test]
 | | | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -3293,7 +3293,7 @@ TopLevelPlan
 | | | | |   type=VarChar(20) NULL]
 | | | | +-project_expressions=
 | | | |   +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
-| | | +-Selection
+| | | +-Selection[has_repartition=false]
 | | |   +-input=TableReference[relation=Test,alias=test]
 | | |   | +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 | | |   | +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
@@ -3384,8 +3384,8 @@ TopLevelPlan
   +-AttributeReference[id=22,name=int_col,relation=,type=Int NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=Aggregate
-| +-input=HashLeftSemiJoin
++-plan=Aggregate[has_repartition=false]
+| +-input=HashLeftSemiJoin[has_repartition=false]
 | | +-left=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -3396,7 +3396,7 @@ TopLevelPlan
 | | |   type=VarChar(20) NULL]
 | | +-right=UnionAll
 | | | +-operands=
-| | | | +-Selection
+| | | | +-Selection[has_repartition=false]
 | | | | | +-input=TableReference[relation=Test,alias=test]
 | | | | | | +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
 | | | | | | +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
@@ -3408,7 +3408,7 @@ TopLevelPlan
 | | | | | |   type=VarChar(20) NULL]
 | | | | | +-project_expressions=
 | | | | |   +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
-| | | | +-Selection
+| | | | +-Selection[has_repartition=false]
 | | | |   +-input=TableReference[relation=Test,alias=test]
 | | | |   | +-AttributeReference[id=12,name=int_col,relation=test,type=Int NULL]
 | | | |   | +-AttributeReference[id=13,name=long_col,relation=test,type=Long]

@@ -45,7 +45,8 @@ namespace E = ::quickstep::optimizer::expressions;
 PhysicalPtr Selection::copyWithNewChildren(
     const std::vector<PhysicalPtr> &new_children) const {
   DCHECK_EQ(children().size(), new_children.size());
-  return Create(new_children[0], project_expressions_, filter_predicate_, cloneOutputPartitionSchemeHeader());
+  return Create(new_children[0], project_expressions_, filter_predicate_,
+                has_repartition_, cloneOutputPartitionSchemeHeader());
 }
 
 std::vector<E::AttributeReferencePtr> Selection::getOutputAttributes() const {
@@ -82,7 +83,8 @@ bool Selection::maybeCopyWithPrunedExpressions(
     }
   }
   if (new_project_expressions.size() != project_expressions_.size()) {
-    *output = Create(input(), new_project_expressions, filter_predicate_, cloneOutputPartitionSchemeHeader());
+    *output = Create(input(), new_project_expressions, filter_predicate_,
+                     has_repartition_, cloneOutputPartitionSchemeHeader());
     return true;
   }
   return false;
@@ -95,6 +97,9 @@ void Selection::getFieldStringItems(
     std::vector<OptimizerTreeBaseNodePtr> *non_container_child_fields,
     std::vector<std::string> *container_child_field_names,
     std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const {
+  inline_field_names->push_back("has_repartition");
+  inline_field_values->push_back(has_repartition_ ? "true" : "false");
+
   if (partition_scheme_header_) {
     inline_field_names->push_back("output_partition_scheme_header");
     inline_field_values->push_back(partition_scheme_header_->toString());

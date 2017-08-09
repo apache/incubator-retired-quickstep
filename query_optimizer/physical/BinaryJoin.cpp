@@ -40,6 +40,9 @@ void BinaryJoin::getFieldStringItems(
     std::vector<OptimizerTreeBaseNodePtr> *non_container_child_fields,
     std::vector<std::string> *container_child_field_names,
     std::vector<std::vector<OptimizerTreeBaseNodePtr>> *container_child_fields) const {
+  inline_field_names->push_back("has_repartition");
+  inline_field_values->push_back(has_repartition_ ? "true" : "false");
+
   if (partition_scheme_header_) {
     inline_field_names->push_back("output_partition_scheme_header");
     inline_field_values->push_back(partition_scheme_header_->toString());

@@ -23,9 +23,9 @@ FROM a JOIN b ON a.w = b.w
        JOIN d ON a.y = d.y;
 --
 TopLevelPlan
-+-plan=HashJoin
-| +-left=HashJoin
-| | +-left=HashJoin
++-plan=HashJoin[has_repartition=false]
+| +-left=HashJoin[has_repartition=false]
+| | +-left=HashJoin[has_repartition=false]
 | | | +-left=TableReference[relation=a]
 | | | | +-AttributeReference[id=0,name=w,relation=a,type=Int]
 | | | | +-AttributeReference[id=1,name=x,relation=a,type=Int]
@@ -71,9 +71,9 @@ FROM a JOIN b ON (a.w = b.w OR a.x > b.x)
        JOIN d ON (a.y = d.y OR a.z > d.z);
 --
 TopLevelPlan
-+-plan=NestedLoopsJoin
-| +-left=HashJoin
-| | +-left=NestedLoopsJoin
++-plan=NestedLoopsJoin[has_repartition=false]
+| +-left=HashJoin[has_repartition=false]
+| | +-left=NestedLoopsJoin[has_repartition=false]
 | | | +-left=TableReference[relation=a]
 | | | | +-AttributeReference[id=0,name=w,relation=a,type=Int]
 | | | | +-AttributeReference[id=1,name=x,relation=a,type=Int]
@@ -131,9 +131,9 @@ WHERE a1.x = b1.x
   AND a1.z = d1.z;
 --
 TopLevelPlan
-+-plan=HashJoin
-| +-left=HashJoin
-| | +-left=HashJoin
++-plan=HashJoin[has_repartition=false]
+| +-left=HashJoin[has_repartition=false]
+| | +-left=HashJoin[has_repartition=false]
 | | | +-left=TableReference[relation=a,alias=a1]
 | | | | +-AttributeReference[id=0,name=w,relation=a1,type=Int]
 | | | | +-AttributeReference[id=1,name=x,relation=a1,type=Int]
@@ -188,9 +188,9 @@ WHERE a1.x = b1.x
   AND a1.z = d1.z;
 --
 TopLevelPlan
-+-plan=HashJoin
-| +-left=HashJoin
-| | +-left=HashJoin
++-plan=HashJoin[has_repartition=false]
+| +-left=HashJoin[has_repartition=false]
+| | +-left=HashJoin[has_repartition=false]
 | | | +-left=TableReference[relation=a,alias=a1]
 | | | | +-AttributeReference[id=0,name=w,relation=a1,type=Int]
 | | | | +-AttributeReference[id=1,name=x,relation=a1,type=Int]
@@ -245,9 +245,9 @@ FROM a LEFT JOIN b ON a.w = b.w
        LEFT JOIN d ON a.y = d.y;
 --
 TopLevelPlan
-+-plan=HashLeftOuterJoin
-| +-left=HashLeftOuterJoin
-| | +-left=HashLeftOuterJoin
++-plan=HashLeftOuterJoin[has_repartition=false]
+| +-left=HashLeftOuterJoin[has_repartition=false]
+| | +-left=HashLeftOuterJoin[has_repartition=false]
 | | | +-left=TableReference[relation=a]
 | | | | +-AttributeReference[id=0,name=w,relation=a,type=Int]
 | | | | +-AttributeReference[id=1,name=x,relation=a,type=Int]
@@ -304,10 +304,10 @@ WHERE b.x > 10
   AND c.y > 20;
 --
 TopLevelPlan
-+-plan=HashLeftOuterJoin
-| +-left=HashJoin
-| | +-left=HashLeftOuterJoin
-| | | +-left=Selection
++-plan=HashLeftOuterJoin[has_repartition=false]
+| +-left=HashJoin[has_repartition=false]
+| | +-left=HashLeftOuterJoin[has_repartition=false]
+| | | +-left=Selection[has_repartition=false]
 | | | | +-input=TableReference[relation=b]
 | | | | | +-AttributeReference[id=4,name=w,relation=b,type=Int]
 | | | | | +-AttributeReference[id=5,name=x,relation=b,type=Int]
@@ -331,7 +331,7 @@ TopLevelPlan
 | | | | +-AttributeReference[id=4,name=w,relation=b,type=Int]
 | | | +-right_join_attributes=
 | | |   +-AttributeReference[id=0,name=w,relation=a,type=Int]
-| | +-right=Selection
+| | +-right=Selection[has_repartition=false]
 | | | +-input=TableReference[relation=c]
 | | | | +-AttributeReference[id=6,name=x,relation=c,type=Int]
 | | | | +-AttributeReference[id=7,name=y,relation=c,type=Int]
@@ -373,11 +373,11 @@ SELECT *
 FROM b LEFT JOIN c ON (b.x = c.x AND c.x > 10);
 --
 TopLevelPlan
-+-plan=HashLeftOuterJoin
++-plan=HashLeftOuterJoin[has_repartition=false]
 | +-left=TableReference[relation=b]
 | | +-AttributeReference[id=0,name=w,relation=b,type=Int]
 | | +-AttributeReference[id=1,name=x,relation=b,type=Int]
-| +-right=Selection
+| +-right=Selection[has_repartition=false]
 | | +-input=TableReference[relation=c]
 | | | +-AttributeReference[id=2,name=x,relation=c,type=Int]
 | | | +-AttributeReference[id=3,name=y,relation=c,type=Int]

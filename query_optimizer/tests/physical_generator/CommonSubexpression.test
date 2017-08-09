@@ -44,7 +44,7 @@ TopLevelPlan
   +-AttributeReference[id=7,name=,alias=(1+int_col),relation=,type=Int NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
++-plan=Selection[has_repartition=false]
 | +-input=TableReference[relation=Test,alias=test]
 | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -114,8 +114,8 @@ TopLevelPlan
     type=Float NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
-| +-input=Aggregate
++-plan=Selection[has_repartition=false]
+| +-input=Aggregate[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -216,7 +216,7 @@ TopLevelPlan
     type=Float NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=HashJoin
++-plan=HashJoin[has_repartition=false]
 | +-left=TableGenerator[function_name=generate_series,table_alias=g]
 | | +-AttributeReference[id=6,name=generate_series,alias=g,
 | |   relation=generate_series,type=Int]
@@ -318,7 +318,7 @@ TopLevelPlan
     type=Float NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=NestedLoopsJoin
++-plan=NestedLoopsJoin[has_repartition=false]
 | +-left=TableReference[relation=Test,alias=test]
 | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -416,7 +416,7 @@ TopLevelPlan
   +-AttributeReference[id=7,name=result,relation=,type=Long]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
++-plan=Selection[has_repartition=false]
 | +-input=TableReference[relation=Test,alias=test]
 | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -512,7 +512,7 @@ TopLevelPlan
   +-AttributeReference[id=8,name=,alias=(int_col+1),relation=,type=Int NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
++-plan=Selection[has_repartition=false]
 | +-input=TableReference[relation=Test,alias=test]
 | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -627,8 +627,8 @@ TopLevelPlan
   +-AttributeReference[id=11,name=,alias=COUNT(*),relation=,type=Long]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
-| +-input=Aggregate
++-plan=Selection[has_repartition=false]
+| +-input=Aggregate[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -731,8 +731,8 @@ TopLevelPlan
     type=Long NULL]
 [Physical Plan]
 TopLevelPlan
-+-plan=Selection
-| +-input=Aggregate
++-plan=Selection[has_repartition=false]
+| +-input=Aggregate[has_repartition=false]
 | | +-input=TableReference[relation=Test,alias=test]
 | | | +-AttributeReference[id=0,name=int_col,relation=test,type=Int NULL]
 | | | +-AttributeReference[id=1,name=long_col,relation=test,type=Long]
@@ -769,4 +769,3 @@ TopLevelPlan
   | type=Long NULL]
   +-AttributeReference[id=9,name=,alias=((SUM((long_col+1))+2)*3),relation=,
     type=Long NULL]
-==

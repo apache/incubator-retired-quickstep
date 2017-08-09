@@ -89,7 +89,7 @@ class Aggregate : public Physical {
       const std::vector<PhysicalPtr> &new_children) const override {
     DCHECK_EQ(getNumChildren(), new_children.size());
     return Create(new_children[0], grouping_expressions_, aggregate_expressions_, filter_predicate_,
-                  cloneOutputPartitionSchemeHeader());
+                  has_repartition_, cloneOutputPartitionSchemeHeader());
   }
 
   std::vector<expressions::AttributeReferencePtr> getOutputAttributes() const override;
@@ -97,9 +97,10 @@ class Aggregate : public Physical {
   std::vector<expressions::AttributeReferencePtr> getReferencedAttributes() const override;
 
   PhysicalPtr copyWithNewOutputPartitionSchemeHeader(
-      PartitionSchemeHeader *partition_scheme_header) const override {
+      PartitionSchemeHeader *partition_scheme_header,
+      const bool has_repartition = true) const override {
     return Create(input_, grouping_expressions_, aggregate_expressions_, filter_predicate_,
-                  partition_scheme_header);
+                  has_repartition, partition_scheme_header);
   }
 
   bool maybeCopyWithPrunedExpressions(
@@ -125,9 +126,11 @@ class Aggregate : public Physical {
       const std::vector<expressions::NamedExpressionPtr> &grouping_expressions,
       const std::vector<expressions::AliasPtr> &aggregate_expressions,
       const expressions::PredicatePtr &filter_predicate,
+      const bool has_repartition = false,
       PartitionSchemeHeader *partition_scheme_header = nullptr) {
     return AggregatePtr(
-        new Aggregate(input, grouping_expressions, aggregate_expressions, filter_predicate, partition_scheme_header));
+        new Aggregate(input, grouping_expressions, aggregate_expressions, filter_predicate, has_repartition,
+                      partition_scheme_header));
   }
 
  protected:
@@ -145,8 +148,9 @@ class Aggregate : public Physical {
       const std::vector<expressions::NamedExpressionPtr> &grouping_expressions,
       const std::vector<expressions::AliasPtr> &aggregate_expressions,
       const expressions::PredicatePtr &filter_predicate,
+      const bool has_repartition,
       PartitionSchemeHeader *partition_scheme_header)
-      : Physical(partition_scheme_header),
+      : Physical(has_repartition, partition_scheme_header),
         input_(input),
         grouping_expressions_(grouping_expressions),
         aggregate_expressions_(aggregate_expressions),

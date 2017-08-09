@@ -74,6 +74,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
    * @param right_input_relation The second relation in the join (order is not
    *        actually important).
    * @param num_partitions The number of partitions.
+   * @param has_repartition Whether this operator does repartition.
    * @param output_relation The output relation.
    * @param output_destination_index The index of the InsertDestination in the
    *        QueryContext to insert the join results.
@@ -94,13 +95,14 @@ class NestedLoopsJoinOperator : public RelationalOperator {
       const CatalogRelation &left_input_relation,
       const CatalogRelation &right_input_relation,
       const std::size_t num_partitions,
+      const bool has_repartition,
       const CatalogRelation &output_relation,
       const QueryContext::insert_destination_id output_destination_index,
       const QueryContext::predicate_id join_predicate_index,
       const QueryContext::scalar_group_id selection_index,
       const bool left_relation_is_stored,
       const bool right_relation_is_stored)
-      : RelationalOperator(query_id, num_partitions),
+      : RelationalOperator(query_id, num_partitions, has_repartition),
         nested_loops_join_index_(nested_loops_join_index),
         left_input_relation_(left_input_relation),
         right_input_relation_(right_input_relation),

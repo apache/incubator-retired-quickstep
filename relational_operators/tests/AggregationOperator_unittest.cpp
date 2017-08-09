@@ -83,6 +83,7 @@ namespace {
 constexpr std::size_t kQueryId = 0;
 constexpr int kOpIndex = 0;
 constexpr std::size_t kNumPartitions = 1u;
+constexpr bool kNoRepartition = false;
 }  // namespace
 
 class Type;
@@ -293,6 +294,7 @@ class AggregationOperatorTest : public ::testing::Test {
         new FinalizeAggregationOperator(kQueryId,
                                         aggr_state_index,
                                         kNumPartitions,
+                                        kNoRepartition,
                                         kNumPartitions,
                                         *result_table_,
                                         insert_destination_index));
@@ -388,6 +390,7 @@ class AggregationOperatorTest : public ::testing::Test {
         new FinalizeAggregationOperator(kQueryId,
                                         aggr_state_index,
                                         kNumPartitions,
+                                        kNoRepartition,
                                         kNumPartitions,
                                         *result_table_,
                                         insert_destination_index));

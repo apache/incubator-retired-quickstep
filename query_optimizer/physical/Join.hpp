@@ -70,12 +70,14 @@ class Join : public Physical {
    * @brief Constructor.
    *
    * @param project_expressions The project expressions.
+   * @param has_repartition Whether this node has repartition.
    * @param partition_scheme_header The optional output partition scheme header.
    */
   explicit Join(
       const std::vector<expressions::NamedExpressionPtr>& project_expressions,
+      const bool has_repartition = false,
       PartitionSchemeHeader *partition_scheme_header = nullptr)
-      : Physical(partition_scheme_header),
+      : Physical(has_repartition, partition_scheme_header),
         project_expressions_(project_expressions) {}
 
  private:
