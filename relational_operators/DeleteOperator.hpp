@@ -26,6 +26,7 @@
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/PartitionScheme.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "relational_operators/RelationalOperator.hpp"
@@ -73,14 +74,26 @@ class DeleteOperator : public RelationalOperator {
                  const CatalogRelation &relation,
                  const QueryContext::predicate_id predicate_index,
                  const bool relation_is_stored)
-      : RelationalOperator(query_id),
+      : RelationalOperator(query_id, relation.getNumPartitions()),
         relation_(relation),
         predicate_index_(predicate_index),
         relation_is_stored_(relation_is_stored),
         started_(false),
-        relation_block_ids_(relation_is_stored ? relation.getBlocksSnapshot()
-                                               : std::vector<block_id>()),
-        num_workorders_generated_(0) {}
+        relation_block_ids_(num_partitions_),
+        num_workorders_generated_(num_partitions_) {
+    if (relation_is_stored) {
+      if (relation.hasPartitionScheme()) {
+        const PartitionScheme &part_scheme = *relation.getPartitionScheme();
+
+        for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+          relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
+        }
+      } else {
+        DCHECK_EQ(1u, num_partitions_);
+        relation_block_ids_[0] = relation.getBlocksSnapshot();
+      }
+    }
+  }
 
   ~DeleteOperator() override {}
 
@@ -107,16 +120,17 @@ class DeleteOperator : public RelationalOperator {
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id,
                       const partition_id part_id) override {
     DCHECK(!relation_is_stored_);
-    relation_block_ids_.push_back(input_block_id);
+    relation_block_ids_[part_id].push_back(input_block_id);
   }
 
  private:
   /**
    * @brief Create Work Order proto.
    *
+   * @param part_id The partition id.
    * @param block The block id used in the Work Order.
    **/
-  serialization::WorkOrder* createWorkOrderProto(const block_id block);
+  serialization::WorkOrder* createWorkOrderProto(const partition_id part_id, const block_id block);
 
   const CatalogRelation &relation_;
   const QueryContext::predicate_id predicate_index_;
@@ -125,8 +139,8 @@ class DeleteOperator : public RelationalOperator {
 
   bool started_;
 
-  std::vector<block_id> relation_block_ids_;
-  std::vector<block_id>::size_type num_workorders_generated_;
+  std::vector<std::vector<block_id>> relation_block_ids_;
+  std::vector<std::size_t> num_workorders_generated_;
 
   DISALLOW_COPY_AND_ASSIGN(DeleteOperator);
 };
@@ -141,6 +155,7 @@ class DeleteWorkOrder : public WorkOrder {
    *
    * @param query_id The ID of the query to which this workorder belongs.
    * @param input_relation The relation to perform the DELETE over.
+   * @param part_id The partition id.
    * @param input_block_id The block Id.
    * @param predicate All tuples matching \c predicate will be deleted (If
    *        NULL, then all tuples will be deleted).
@@ -152,13 +167,14 @@ class DeleteWorkOrder : public WorkOrder {
    **/
   DeleteWorkOrder(const std::size_t query_id,
                   const CatalogRelationSchema &input_relation,
+                  const partition_id part_id,
                   const block_id input_block_id,
                   const Predicate *predicate,
                   StorageManager *storage_manager,
                   const std::size_t delete_operator_index,
                   const tmb::client_id scheduler_client_id,
                   MessageBus *bus)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         input_relation_(input_relation),
         input_block_id_(input_block_id),
         predicate_(predicate),

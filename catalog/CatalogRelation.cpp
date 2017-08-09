@@ -33,6 +33,7 @@
 #endif
 
 #include "catalog/PartitionScheme.hpp"
+#include "catalog/PartitionSchemeHeader.hpp"
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageBlockLayout.hpp"
 #include "storage/StorageBlockLayout.pb.h"
@@ -180,6 +181,10 @@ serialization::CatalogRelationSchema CatalogRelation::getProto() const {
 void CatalogRelation::setPartitionScheme(PartitionScheme* partition_scheme) {
   DCHECK_EQ(0u, size_blocks());
   partition_scheme_.reset(partition_scheme);
+
+  if (partition_scheme_) {
+    num_partitions_ = partition_scheme_->getPartitionSchemeHeader().getNumPartitions();
+  }
 }
 
 void CatalogRelation::setDefaultStorageBlockLayout(StorageBlockLayout *default_layout) {

@@ -89,12 +89,11 @@ class BuildHashOperator : public RelationalOperator {
                     const bool any_join_key_attributes_nullable,
                     const std::size_t num_partitions,
                     const QueryContext::join_hash_table_id hash_table_index)
-      : RelationalOperator(query_id),
+      : RelationalOperator(query_id, num_partitions),
         input_relation_(input_relation),
         input_relation_is_stored_(input_relation_is_stored),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        num_partitions_(num_partitions),
         is_broadcast_join_(num_partitions > 1u && !input_relation.hasPartitionScheme()),
         hash_table_index_(hash_table_index),
         input_relation_block_ids_(num_partitions),
@@ -102,8 +101,9 @@ class BuildHashOperator : public RelationalOperator {
         started_(false) {
     if (input_relation_is_stored) {
       if (input_relation.hasPartitionScheme()) {
+        DCHECK_EQ(num_partitions_, input_relation.getNumPartitions());
+
         const PartitionScheme &part_scheme = *input_relation.getPartitionScheme();
-        DCHECK_EQ(part_scheme.getPartitionSchemeHeader().getNumPartitions(), num_partitions_);
         for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
           input_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
         }
@@ -162,7 +162,6 @@ class BuildHashOperator : public RelationalOperator {
   const bool input_relation_is_stored_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const std::size_t num_partitions_;
   const bool is_broadcast_join_;
   const QueryContext::join_hash_table_id hash_table_index_;
 

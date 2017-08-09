@@ -108,6 +108,7 @@ target_link_libraries(quickstep_catalog_CatalogRelation
                       quickstep_catalog_Catalog_proto
                       quickstep_catalog_IndexScheme
                       quickstep_catalog_PartitionScheme
+                      quickstep_catalog_PartitionSchemeHeader
                       quickstep_storage_StorageBlockInfo
                       quickstep_storage_StorageBlockLayout
                       quickstep_storage_StorageBlockLayout_proto

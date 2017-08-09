@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "catalog/CatalogRelationSchema.hpp"
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionUtil.hpp"
@@ -58,36 +59,42 @@ bool DeleteOperator::getAllWorkOrders(
       return true;
     }
 
-    for (const block_id input_block_id : relation_block_ids_) {
-      container->addNormalWorkOrder(
-          new DeleteWorkOrder(query_id_,
-                              relation_,
-                              input_block_id,
-                              predicate,
-                              storage_manager,
-                              op_index_,
-                              scheduler_client_id,
-                              bus),
-          op_index_);
+    for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+      for (const block_id input_block_id : relation_block_ids_[part_id]) {
+        container->addNormalWorkOrder(
+            new DeleteWorkOrder(query_id_,
+                                relation_,
+                                part_id,
+                                input_block_id,
+                                predicate,
+                                storage_manager,
+                                op_index_,
+                                scheduler_client_id,
+                                bus),
+            op_index_);
+      }
     }
     started_ = true;
     return true;
-  } else {
-    while (num_workorders_generated_ < relation_block_ids_.size()) {
+  }
+
+  for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+    while (num_workorders_generated_[part_id] < relation_block_ids_[part_id].size()) {
       container->addNormalWorkOrder(
           new DeleteWorkOrder(query_id_,
                               relation_,
-                              relation_block_ids_[num_workorders_generated_],
+                              part_id,
+                              relation_block_ids_[part_id][num_workorders_generated_[part_id]],
                               predicate,
                               storage_manager,
                               op_index_,
                               scheduler_client_id,
                               bus),
           op_index_);
-      ++num_workorders_generated_;
+      ++num_workorders_generated_[part_id];
     }
-    return done_feeding_input_relation_;
   }
+  return done_feeding_input_relation_;
 }
 
 bool DeleteOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
@@ -97,23 +104,27 @@ bool DeleteOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) 
       return true;
     }
 
-    for (const block_id input_block_id : relation_block_ids_) {
-      container->addWorkOrderProto(createWorkOrderProto(input_block_id), op_index_);
+    for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+      for (const block_id input_block_id : relation_block_ids_[part_id]) {
+        container->addWorkOrderProto(createWorkOrderProto(part_id, input_block_id), op_index_);
+      }
     }
     started_ = true;
     return true;
-  } else {
-    while (num_workorders_generated_ < relation_block_ids_.size()) {
-      container->addWorkOrderProto(
-          createWorkOrderProto(relation_block_ids_[num_workorders_generated_]),
-          op_index_);
-      ++num_workorders_generated_;
-    }
-    return done_feeding_input_relation_;
   }
+
+  for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+    while (num_workorders_generated_[part_id] < relation_block_ids_[part_id].size()) {
+      container->addWorkOrderProto(
+          createWorkOrderProto(part_id, relation_block_ids_[part_id][num_workorders_generated_[part_id]]),
+          op_index_);
+      ++num_workorders_generated_[part_id];
+    }
+  }
+  return done_feeding_input_relation_;
 }
 
-serialization::WorkOrder* DeleteOperator::createWorkOrderProto(const block_id block) {
+serialization::WorkOrder* DeleteOperator::createWorkOrderProto(const partition_id part_id, const block_id block) {
   serialization::WorkOrder *proto = new serialization::WorkOrder;
   proto->set_work_order_type(serialization::DELETE);
   proto->set_query_id(query_id_);
@@ -122,6 +133,7 @@ serialization::WorkOrder* DeleteOperator::createWorkOrderProto(const block_id bl
   proto->SetExtension(serialization::DeleteWorkOrder::relation_id, relation_.getID());
   proto->SetExtension(serialization::DeleteWorkOrder::predicate_index, predicate_index_);
   proto->SetExtension(serialization::DeleteWorkOrder::block_id, block);
+  proto->SetExtension(serialization::DeleteWorkOrder::partition_id, part_id);
 
   return proto;
 }
@@ -139,6 +151,7 @@ void DeleteWorkOrder::execute() {
   proto.set_block_id(input_block_id_);
   proto.set_relation_id(input_relation_.getID());
   proto.set_query_id(query_id_);
+  proto.set_partition_id(partition_id_);
 
   // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
   const std::size_t proto_length = proto.ByteSize();

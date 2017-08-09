@@ -79,12 +79,11 @@ class BuildAggregationExistenceMapOperator : public RelationalOperator {
                                        const bool input_relation_is_stored,
                                        const QueryContext::aggregation_state_id aggr_state_index,
                                        const std::size_t num_partitions)
-      : RelationalOperator(query_id),
+      : RelationalOperator(query_id, num_partitions),
         input_relation_(input_relation),
         build_attribute_(build_attribute),
         input_relation_is_stored_(input_relation_is_stored),
         aggr_state_index_(aggr_state_index),
-        num_partitions_(num_partitions),
         input_relation_block_ids_(num_partitions),
         num_workorders_generated_(num_partitions),
         started_(false) {
@@ -138,7 +137,6 @@ class BuildAggregationExistenceMapOperator : public RelationalOperator {
   const attribute_id build_attribute_;
   const bool input_relation_is_stored_;
   const QueryContext::aggregation_state_id aggr_state_index_;
-  const std::size_t num_partitions_;
 
   // The index is the partition id.
   std::vector<BlocksInPartition> input_relation_block_ids_;

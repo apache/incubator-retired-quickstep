@@ -116,6 +116,7 @@ message DeleteWorkOrder {
     optional int32 relation_id = 97;
     optional int32 predicate_index = 98;
     optional fixed64 block_id = 99;
+    optional uint64 partition_id = 100;
   }
 }
 
@@ -235,6 +236,7 @@ message SaveBlocksWorkOrder {
     // All required.
     optional fixed64 block_id = 224;
     optional bool force = 225;
+    optional uint64 partition_id = 226;
   }
 }
 
@@ -320,6 +322,7 @@ message UpdateWorkOrder {
     optional int32 predicate_index = 323;
     optional uint32 update_group_index = 324;
     optional fixed64 block_id = 325;
+    optional uint64 partition_id = 326;
   }
 }
 

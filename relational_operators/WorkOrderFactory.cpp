@@ -170,11 +170,16 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               proto.GetExtension(serialization::BuildHashWorkOrder::lip_deployment_index), query_context));
     }
     case serialization::DELETE: {
-      LOG(INFO) << "Creating DeleteWorkOrder for Query " << query_id << " in Shiftboss " << shiftboss_index;
+      const partition_id part_id =
+          proto.GetExtension(serialization::DeleteWorkOrder::partition_id);
+
+      LOG(INFO) << "Creating DeleteWorkOrder (Partition " << part_id << ") for Query " << query_id
+                << " in Shiftboss " << shiftboss_index;
       return new DeleteWorkOrder(
           query_id,
           catalog_database->getRelationSchemaById(
               proto.GetExtension(serialization::DeleteWorkOrder::relation_id)),
+          part_id,
           proto.GetExtension(serialization::DeleteWorkOrder::block_id),
           query_context->getPredicate(
               proto.GetExtension(serialization::DeleteWorkOrder::predicate_index)),
@@ -436,10 +441,14 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           storage_manager);
     }
     case serialization::SAVE_BLOCKS: {
-      LOG(INFO) << "Creating SaveBlocksWorkOrder for Query " << query_id
+      const partition_id part_id =
+          proto.GetExtension(serialization::SaveBlocksWorkOrder::partition_id);
+
+      LOG(INFO) << "Creating SaveBlocksWorkOrder (Partition " << part_id << ") for Query " << query_id
                 << " in Shiftboss " << shiftboss_index;
       return new SaveBlocksWorkOrder(
           query_id,
+          part_id,
           proto.GetExtension(serialization::SaveBlocksWorkOrder::block_id),
           proto.GetExtension(serialization::SaveBlocksWorkOrder::force),
           storage_manager);
@@ -563,11 +572,16 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           storage_manager);
     }
     case serialization::UPDATE: {
-      LOG(INFO) << "Creating UpdateWorkOrder for Query " << query_id << " in Shiftboss " << shiftboss_index;
+      const partition_id part_id =
+          proto.GetExtension(serialization::UpdateWorkOrder::partition_id);
+
+      LOG(INFO) << "Creating UpdateWorkOrder (Partition " << part_id << ") for Query " << query_id
+                << " in Shiftboss " << shiftboss_index;
       return new UpdateWorkOrder(
           query_id,
           catalog_database->getRelationSchemaById(
               proto.GetExtension(serialization::UpdateWorkOrder::relation_id)),
+          part_id,
           proto.GetExtension(serialization::UpdateWorkOrder::block_id),
           query_context->getPredicate(
               proto.GetExtension(serialization::UpdateWorkOrder::predicate_index)),
@@ -600,7 +614,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
     default:
       LOG(FATAL) << "Unknown WorkOrder Type in WorkOrderFactory::ReconstructFromProto in Shiftboss" << shiftboss_index;
   }
-}
+}  // NOLINT(readability/fn_size)
 
 bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
                                     const CatalogDatabaseLite &catalog_database,
@@ -726,7 +740,8 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
              query_context.isValidPredicate(
                  proto.GetExtension(serialization::DeleteWorkOrder::predicate_index)) &&
              proto.HasExtension(serialization::DeleteWorkOrder::block_id) &&
-             proto.HasExtension(serialization::DeleteWorkOrder::operator_index);
+             proto.HasExtension(serialization::DeleteWorkOrder::operator_index) &&
+             proto.GetExtension(serialization::DeleteWorkOrder::partition_id);
     }
     case serialization::DESTROY_AGGREGATION_STATE: {
       return proto.HasExtension(serialization::DestroyAggregationStateWorkOrder::aggr_state_index) &&
@@ -885,7 +900,8 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
     }
     case serialization::SAVE_BLOCKS: {
       return proto.HasExtension(serialization::SaveBlocksWorkOrder::block_id) &&
-             proto.HasExtension(serialization::SaveBlocksWorkOrder::force);
+             proto.HasExtension(serialization::SaveBlocksWorkOrder::force) &&
+             proto.HasExtension(serialization::SaveBlocksWorkOrder::partition_id);
     }
     case serialization::SELECT: {
       if (!proto.HasExtension(serialization::SelectWorkOrder::relation_id) ||
@@ -1016,7 +1032,8 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
              query_context.isValidUpdateGroupId(
                  proto.GetExtension(serialization::UpdateWorkOrder::update_group_index)) &&
              proto.HasExtension(serialization::UpdateWorkOrder::operator_index) &&
-             proto.HasExtension(serialization::UpdateWorkOrder::block_id);
+             proto.HasExtension(serialization::UpdateWorkOrder::block_id) &&
+             proto.GetExtension(serialization::UpdateWorkOrder::partition_id);
     }
     case serialization::WINDOW_AGGREGATION: {
       return proto.HasExtension(serialization::WindowAggregationWorkOrder::window_aggr_state_index) &&

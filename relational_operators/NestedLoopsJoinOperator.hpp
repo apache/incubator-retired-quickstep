@@ -100,11 +100,10 @@ class NestedLoopsJoinOperator : public RelationalOperator {
       const QueryContext::scalar_group_id selection_index,
       const bool left_relation_is_stored,
       const bool right_relation_is_stored)
-      : RelationalOperator(query_id),
+      : RelationalOperator(query_id, num_partitions),
         nested_loops_join_index_(nested_loops_join_index),
         left_input_relation_(left_input_relation),
         right_input_relation_(right_input_relation),
-        num_partitions_(num_partitions),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         join_predicate_index_(join_predicate_index),
@@ -295,8 +294,6 @@ class NestedLoopsJoinOperator : public RelationalOperator {
 
   const CatalogRelation &left_input_relation_;
   const CatalogRelation &right_input_relation_;
-
-  const std::size_t num_partitions_;
 
   const CatalogRelation &output_relation_;
   const QueryContext::insert_destination_id output_destination_index_;

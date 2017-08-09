@@ -64,7 +64,7 @@ class CreateTableOperator : public RelationalOperator {
   CreateTableOperator(const std::size_t query_id,
                       CatalogRelation *relation,
                       CatalogDatabase *database)
-      : RelationalOperator(query_id),
+      : RelationalOperator(query_id, 0u),
         relation_(DCHECK_NOTNULL(relation)),
         database_(DCHECK_NOTNULL(database)) {}
 

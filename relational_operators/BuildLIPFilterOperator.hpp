@@ -28,7 +28,6 @@
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "catalog/PartitionScheme.hpp"
-#include "catalog/PartitionSchemeHeader.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -70,8 +69,6 @@ class BuildLIPFilterOperator : public RelationalOperator {
    *
    * @param query_id The ID of the query to which this operator belongs.
    * @param input_relation The relation to build LIP filters on.
-   * @param num_partitions The number of partitions in 'input_relation'.
-   *        If no partitions, it is one.
    * @param build_side_predicate_index The index of the predicate in QueryContext
    *        where the predicate is to be applied to the input relation before
    *        building the LIP filters (or kInvalidPredicateId if no predicate is
@@ -82,21 +79,18 @@ class BuildLIPFilterOperator : public RelationalOperator {
    **/
   BuildLIPFilterOperator(const std::size_t query_id,
                          const CatalogRelation &input_relation,
-                         const std::size_t num_partitions,
                          const QueryContext::predicate_id build_side_predicate_index,
                          const bool input_relation_is_stored)
-    : RelationalOperator(query_id),
+    : RelationalOperator(query_id, input_relation.getNumPartitions()),
       input_relation_(input_relation),
-      num_partitions_(num_partitions),
       build_side_predicate_index_(build_side_predicate_index),
       input_relation_is_stored_(input_relation_is_stored),
-      input_relation_block_ids_(num_partitions),
-      num_workorders_generated_(num_partitions),
+      input_relation_block_ids_(num_partitions_),
+      num_workorders_generated_(num_partitions_),
       started_(false) {
     if (input_relation_is_stored) {
       if (input_relation.hasPartitionScheme()) {
         const PartitionScheme &part_scheme = *input_relation.getPartitionScheme();
-        DCHECK_EQ(part_scheme.getPartitionSchemeHeader().getNumPartitions(), num_partitions_);
         for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
           input_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
         }
@@ -148,7 +142,6 @@ class BuildLIPFilterOperator : public RelationalOperator {
   serialization::WorkOrder* createWorkOrderProto(const partition_id part_id, const block_id block);
 
   const CatalogRelation &input_relation_;
-  const std::size_t num_partitions_;
   const QueryContext::predicate_id build_side_predicate_index_;
   const bool input_relation_is_stored_;
 

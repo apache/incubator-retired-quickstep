@@ -64,7 +64,7 @@ class CreateIndexOperator : public RelationalOperator {
                       CatalogRelation *relation,
                       const std::string &index_name,
                       IndexSubBlockDescription &&index_description)  // NOLINT(whitespace/operators)
-      : RelationalOperator(query_id),
+      : RelationalOperator(query_id, 0u),
         relation_(DCHECK_NOTNULL(relation)),
         index_name_(index_name),
         index_description_(index_description) {}

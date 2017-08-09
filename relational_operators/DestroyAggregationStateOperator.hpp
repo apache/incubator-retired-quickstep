@@ -61,9 +61,8 @@ class DestroyAggregationStateOperator : public RelationalOperator {
       const std::size_t query_id,
       const QueryContext::aggregation_state_id aggr_state_index,
       const std::size_t num_partitions)
-      : RelationalOperator(query_id),
+      : RelationalOperator(query_id, num_partitions),
         aggr_state_index_(aggr_state_index),
-        num_partitions_(num_partitions),
         work_generated_(false) {}
 
   ~DestroyAggregationStateOperator() override {}
@@ -86,7 +85,6 @@ class DestroyAggregationStateOperator : public RelationalOperator {
 
  private:
   const QueryContext::aggregation_state_id aggr_state_index_;
-  const std::size_t num_partitions_;
   bool work_generated_;
 
   DISALLOW_COPY_AND_ASSIGN(DestroyAggregationStateOperator);

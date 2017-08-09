@@ -22,6 +22,7 @@
 #include <vector>
 
 #include "catalog/CatalogRelation.hpp"
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/WorkOrderProtosContainer.hpp"
 #include "query_execution/WorkOrdersContainer.hpp"
 #include "relational_operators/WorkOrder.pb.h"
@@ -38,31 +39,37 @@ bool SaveBlocksOperator::getAllWorkOrders(
     StorageManager *storage_manager,
     const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
-  while (num_workorders_generated_ < destination_block_ids_.size()) {
-    container->addNormalWorkOrder(
-        new SaveBlocksWorkOrder(
-            query_id_,
-            destination_block_ids_[num_workorders_generated_],
-            force_,
-            storage_manager),
-        op_index_);
-    ++num_workorders_generated_;
+  for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+    while (num_workorders_generated_[part_id] < destination_block_ids_[part_id].size()) {
+      container->addNormalWorkOrder(
+          new SaveBlocksWorkOrder(
+              query_id_,
+              part_id,
+              destination_block_ids_[part_id][num_workorders_generated_[part_id]],
+              force_,
+              storage_manager),
+          op_index_);
+      ++num_workorders_generated_[part_id];
+    }
   }
   return done_feeding_input_relation_;
 }
 
 bool SaveBlocksOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
-  while (num_workorders_generated_ < destination_block_ids_.size()) {
-    serialization::WorkOrder *proto = new serialization::WorkOrder;
-    proto->set_work_order_type(serialization::SAVE_BLOCKS);
-    proto->set_query_id(query_id_);
-    proto->SetExtension(serialization::SaveBlocksWorkOrder::block_id,
-                        destination_block_ids_[num_workorders_generated_]);
-    proto->SetExtension(serialization::SaveBlocksWorkOrder::force, force_);
+  for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+    while (num_workorders_generated_[part_id] < destination_block_ids_[part_id].size()) {
+      serialization::WorkOrder *proto = new serialization::WorkOrder;
+      proto->set_work_order_type(serialization::SAVE_BLOCKS);
+      proto->set_query_id(query_id_);
+      proto->SetExtension(serialization::SaveBlocksWorkOrder::block_id,
+                          destination_block_ids_[part_id][num_workorders_generated_[part_id]]);
+      proto->SetExtension(serialization::SaveBlocksWorkOrder::force, force_);
+      proto->SetExtension(serialization::SaveBlocksWorkOrder::partition_id, part_id);
 
-    container->addWorkOrderProto(proto, op_index_);
+      container->addWorkOrderProto(proto, op_index_);
 
-    ++num_workorders_generated_;
+      ++num_workorders_generated_[part_id];
+    }
   }
   return done_feeding_input_relation_;
 }

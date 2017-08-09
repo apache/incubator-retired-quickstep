@@ -32,7 +32,7 @@
 #include "catalog/NUMAPlacementScheme.hpp"
 #endif
 
-#include "catalog/PartitionSchemeHeader.hpp"
+#include "catalog/PartitionScheme.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -85,8 +85,6 @@ class SelectOperator : public RelationalOperator {
    * @param input_relation_is_stored If input_relation is a stored relation and
    *        is fully available to the operator before it can start generating
    *        workorders.
-   * @param num_partitions The number of partitions in 'input_relation'.
-   *        If no partitions, it is one.
    **/
   SelectOperator(
       const std::size_t query_id,
@@ -95,17 +93,15 @@ class SelectOperator : public RelationalOperator {
       const QueryContext::insert_destination_id output_destination_index,
       const QueryContext::predicate_id predicate_index,
       const QueryContext::scalar_group_id selection_index,
-      const bool input_relation_is_stored,
-      const std::size_t num_partitions)
-      : RelationalOperator(query_id),
+      const bool input_relation_is_stored)
+      : RelationalOperator(query_id, input_relation.getNumPartitions()),
         input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         predicate_index_(predicate_index),
         selection_index_(selection_index),
-        num_partitions_(num_partitions),
-        input_relation_block_ids_(num_partitions),
-        num_workorders_generated_(num_partitions),
+        input_relation_block_ids_(num_partitions_),
+        num_workorders_generated_(num_partitions_),
         simple_projection_(false),
         input_relation_is_stored_(input_relation_is_stored),
         started_(false) {
@@ -120,6 +116,7 @@ class SelectOperator : public RelationalOperator {
           input_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
         }
       } else {
+        DCHECK_EQ(1u, num_partitions_);
         input_relation_block_ids_[0] = input_relation.getBlocksSnapshot();
       }
     }
@@ -143,8 +140,6 @@ class SelectOperator : public RelationalOperator {
    * @param input_relation_is_stored If input_relation is a stored relation and
    *        is fully available to the operator before it can start generating
    *        workorders.
-   * @param num_partitions The number of partitions in 'input_relation'.
-   *        If no partitions, it is one.
    **/
   SelectOperator(
       const std::size_t query_id,
@@ -153,18 +148,16 @@ class SelectOperator : public RelationalOperator {
       const QueryContext::insert_destination_id output_destination_index,
       const QueryContext::predicate_id predicate_index,
       std::vector<attribute_id> &&selection,
-      const bool input_relation_is_stored,
-      const std::size_t num_partitions)
-      : RelationalOperator(query_id),
+      const bool input_relation_is_stored)
+      : RelationalOperator(query_id, input_relation.getNumPartitions()),
         input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         predicate_index_(predicate_index),
         selection_index_(QueryContext::kInvalidScalarGroupId),
         simple_selection_(std::move(selection)),
-        num_partitions_(num_partitions),
-        input_relation_block_ids_(num_partitions),
-        num_workorders_generated_(num_partitions),
+        input_relation_block_ids_(num_partitions_),
+        num_workorders_generated_(num_partitions_),
         simple_projection_(true),
         input_relation_is_stored_(input_relation_is_stored),
         started_(false) {
@@ -179,6 +172,7 @@ class SelectOperator : public RelationalOperator {
           input_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
         }
       } else {
+        DCHECK_EQ(1u, num_partitions_);
         input_relation_block_ids_[0] = input_relation.getBlocksSnapshot();
       }
     }
@@ -239,7 +233,6 @@ class SelectOperator : public RelationalOperator {
   const QueryContext::scalar_group_id selection_index_;
   const std::vector<attribute_id> simple_selection_;
 
-  const std::size_t num_partitions_;
   // A vector of vectors V where V[i] indicates the list of block IDs of the
   // input relation that belong to the partition i.
   std::vector<std::vector<block_id>> input_relation_block_ids_;

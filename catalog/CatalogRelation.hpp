@@ -81,6 +81,7 @@ class CatalogRelation : public CatalogRelationSchema {
                   bool temporary = false)
       : CatalogRelationSchema(parent, name, id, temporary),
         default_layout_(nullptr),
+        num_partitions_(1u),
         statistics_(new CatalogRelationStatistics()) {
   }
 
@@ -135,6 +136,15 @@ class CatalogRelation : public CatalogRelationSchema {
    **/
   PartitionScheme* getPartitionSchemeMutable() {
     return partition_scheme_.get();
+  }
+
+  /**
+   * @brief Get the number of partitions for the relation.
+   *
+   * @return The number of partitions the relation is partitioned into.
+   **/
+  std::size_t getNumPartitions() const {
+    return num_partitions_;
   }
 
   /**
@@ -423,6 +433,7 @@ class CatalogRelation : public CatalogRelationSchema {
   // A relation may or may not have a Partition Scheme
   // assosiated with it.
   std::unique_ptr<PartitionScheme> partition_scheme_;
+  std::size_t num_partitions_;
 
   // Index scheme associated with this relation.
   // Defines a set of indices defined for this relation.

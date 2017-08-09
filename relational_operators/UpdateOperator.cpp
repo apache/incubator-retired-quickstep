@@ -25,6 +25,7 @@
 #include <utility>
 
 #include "catalog/CatalogRelationSchema.hpp"
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionMessages.pb.h"
 #include "query_execution/QueryExecutionUtil.hpp"
@@ -57,21 +58,24 @@ bool UpdateOperator::getAllWorkOrders(
   }
 
   DCHECK(query_context != nullptr);
-  for (const block_id input_block_id : input_blocks_) {
-    container->addNormalWorkOrder(
-        new UpdateWorkOrder(
-            query_id_,
-            relation_,
-            input_block_id,
-            query_context->getPredicate(predicate_index_),
-            query_context->getUpdateGroup(update_group_index_),
-            query_context->getInsertDestination(
-                relocation_destination_index_),
-            storage_manager,
-            op_index_,
-            scheduler_client_id,
-            bus),
-        op_index_);
+  for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+    for (const block_id input_block_id : input_blocks_[part_id]) {
+      container->addNormalWorkOrder(
+          new UpdateWorkOrder(
+              query_id_,
+              relation_,
+              part_id,
+              input_block_id,
+              query_context->getPredicate(predicate_index_),
+              query_context->getUpdateGroup(update_group_index_),
+              query_context->getInsertDestination(
+                  relocation_destination_index_),
+              storage_manager,
+              op_index_,
+              scheduler_client_id,
+              bus),
+          op_index_);
+    }
   }
   started_ = true;
   return true;
@@ -82,19 +86,22 @@ bool UpdateOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) 
     return true;
   }
 
-  for (const block_id input_block_id : input_blocks_) {
-    serialization::WorkOrder *proto = new serialization::WorkOrder;
-    proto->set_work_order_type(serialization::UPDATE);
-    proto->set_query_id(query_id_);
+  for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
+    for (const block_id input_block_id : input_blocks_[part_id]) {
+      serialization::WorkOrder *proto = new serialization::WorkOrder;
+      proto->set_work_order_type(serialization::UPDATE);
+      proto->set_query_id(query_id_);
 
-    proto->SetExtension(serialization::UpdateWorkOrder::operator_index, op_index_);
-    proto->SetExtension(serialization::UpdateWorkOrder::relation_id, relation_.getID());
-    proto->SetExtension(serialization::UpdateWorkOrder::insert_destination_index, relocation_destination_index_);
-    proto->SetExtension(serialization::UpdateWorkOrder::predicate_index, predicate_index_);
-    proto->SetExtension(serialization::UpdateWorkOrder::update_group_index, update_group_index_);
-    proto->SetExtension(serialization::UpdateWorkOrder::block_id, input_block_id);
+      proto->SetExtension(serialization::UpdateWorkOrder::operator_index, op_index_);
+      proto->SetExtension(serialization::UpdateWorkOrder::relation_id, relation_.getID());
+      proto->SetExtension(serialization::UpdateWorkOrder::insert_destination_index, relocation_destination_index_);
+      proto->SetExtension(serialization::UpdateWorkOrder::predicate_index, predicate_index_);
+      proto->SetExtension(serialization::UpdateWorkOrder::update_group_index, update_group_index_);
+      proto->SetExtension(serialization::UpdateWorkOrder::block_id, input_block_id);
+      proto->SetExtension(serialization::UpdateWorkOrder::partition_id, part_id);
 
-    container->addWorkOrderProto(proto, op_index_);
+      container->addWorkOrderProto(proto, op_index_);
+    }
   }
   started_ = true;
   return true;
@@ -120,6 +127,7 @@ void UpdateWorkOrder::execute() {
   proto.set_block_id(input_block_id_);
   proto.set_relation_id(relation_.getID());
   proto.set_query_id(query_id_);
+  proto.set_partition_id(partition_id_);
 
   // NOTE(zuyu): Using the heap memory to serialize proto as a c-like string.
   const std::size_t proto_length = proto.ByteSize();

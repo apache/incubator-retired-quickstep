@@ -747,13 +747,6 @@ void ExecutionGenerator::convertSelection(
                                  insert_destination_proto);
 
   // Create and add a Select operator.
-  const PartitionScheme *input_partition_scheme = input_relation.getPartitionScheme();
-
-  const std::size_t num_partitions =
-      input_partition_scheme
-          ? input_partition_scheme->getPartitionSchemeHeader().getNumPartitions()
-          : 1u;
-
   // Use the "simple" form of the selection operator (a pure projection that
   // doesn't require any expression evaluation or intermediate copies) if
   // possible.
@@ -766,16 +759,14 @@ void ExecutionGenerator::convertSelection(
                                insert_destination_index,
                                execution_predicate_index,
                                move(attributes),
-                               input_relation_info->isStoredRelation(),
-                               num_partitions)
+                               input_relation_info->isStoredRelation())
           : new SelectOperator(query_handle_->query_id(),
                                input_relation,
                                *output_relation,
                                insert_destination_index,
                                execution_predicate_index,
                                project_expressions_group_index,
-                               input_relation_info->isStoredRelation(),
-                               num_partitions);
+                               input_relation_info->isStoredRelation());
 
   const QueryPlan::DAGNodeIndex select_index =
       execution_plan_->addRelationalOperator(op);
@@ -847,12 +838,6 @@ void ExecutionGenerator::convertFilterJoin(const P::FilterJoinPtr &physical_plan
       findRelationInfoOutputByPhysical(build_physical);
 
   const CatalogRelation &build_relation = *build_relation_info->relation;
-  const PartitionScheme *build_partition_scheme = build_relation.getPartitionScheme();
-
-  const std::size_t build_num_partitions =
-      build_partition_scheme
-          ? build_partition_scheme->getPartitionSchemeHeader().getNumPartitions()
-          : 1u;
 
   // Create a BuildLIPFilterOperator for the FilterJoin. This operator builds
   // LIP filters that are applied properly in downstream operators to achieve
@@ -862,7 +847,6 @@ void ExecutionGenerator::convertFilterJoin(const P::FilterJoinPtr &physical_plan
           new BuildLIPFilterOperator(
               query_handle_->query_id(),
               build_relation,
-              build_num_partitions,
               build_side_predicate_index,
               build_relation_info->isStoredRelation()));
 
@@ -954,7 +938,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
 
   const CatalogRelationInfo *build_relation_info =
       findRelationInfoOutputByPhysical(build_physical);
-  const CatalogRelationInfo *probe_operator_info =
+  const CatalogRelationInfo *probe_relation_info =
       findRelationInfoOutputByPhysical(probe_physical);
 
   // Create a vector that indicates whether each project expression is using
@@ -970,9 +954,10 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   }
 
   const CatalogRelation *build_relation = build_relation_info->relation;
+  const CatalogRelation *probe_relation = probe_relation_info->relation;
 
   // FIXME(quickstep-team): Add support for self-join.
-  if (build_relation == probe_operator_info->relation) {
+  if (build_relation == probe_relation) {
     THROW_SQL_ERROR() << "Self-join is not supported";
   }
 
@@ -982,9 +967,7 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   S::QueryContext::HashTableContext *hash_table_context_proto =
       query_context_proto_->add_join_hash_tables();
 
-  const P::PartitionSchemeHeader *probe_partition_scheme_header = probe_physical->getOutputPartitionSchemeHeader();
-  const std::size_t probe_num_partitions =
-      probe_partition_scheme_header ? probe_partition_scheme_header->num_partitions : 1u;
+  const std::size_t probe_num_partitions = probe_relation->getNumPartitions();
   hash_table_context_proto->set_num_partitions(probe_num_partitions);
 
   S::HashTable *hash_table_proto = hash_table_context_proto->mutable_join_hash_table();
@@ -1052,8 +1035,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
           new HashJoinOperator(
               query_handle_->query_id(),
               *build_relation,
-              *probe_operator_info->relation,
-              probe_operator_info->isStoredRelation(),
+              *probe_relation,
+              probe_relation_info->isStoredRelation(),
               probe_attribute_ids,
               any_probe_attributes_nullable,
               probe_num_partitions,
@@ -1083,9 +1066,9 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
                                          build_relation_info->producer_operator_index,
                                          true /* is_pipeline_breaker */);
   }
-  if (!probe_operator_info->isStoredRelation()) {
+  if (!probe_relation_info->isStoredRelation()) {
     execution_plan_->addDirectDependency(join_operator_index,
-                                         probe_operator_info->producer_operator_index,
+                                         probe_relation_info->producer_operator_index,
                                          false /* is_pipeline_breaker */);
   }
   execution_plan_->addDirectDependency(join_operator_index,
@@ -1140,15 +1123,11 @@ void ExecutionGenerator::convertNestedLoopsJoin(
     THROW_SQL_ERROR() << "NestedLoopsJoin does not support self-join yet";
   }
 
-  const PartitionScheme *left_partition_scheme = left_relation.getPartitionScheme();
-  const std::size_t num_partitions =
-      left_partition_scheme ? left_partition_scheme->getPartitionSchemeHeader().getNumPartitions()
-                            : 1u;
+  const std::size_t num_partitions = left_relation.getNumPartitions();
 
 #ifdef QUICKSTEP_DEBUG
-  const PartitionScheme *right_partition_scheme = right_relation.getPartitionScheme();
-  if (right_partition_scheme) {
-    DCHECK_EQ(num_partitions, right_partition_scheme->getPartitionSchemeHeader().getNumPartitions());
+  if (right_relation.hasPartitionScheme()) {
+    DCHECK_EQ(num_partitions, right_relation.getNumPartitions());
   }
 #endif
 
@@ -1549,12 +1528,6 @@ void ExecutionGenerator::convertInsertSelection(
   const CatalogRelationInfo *selection_relation_info =
       findRelationInfoOutputByPhysical(physical_plan->selection());
   const CatalogRelation &selection_relation = *selection_relation_info->relation;
-  const PartitionScheme *selection_partition_scheme = selection_relation.getPartitionScheme();
-
-  const std::size_t num_partitions =
-      selection_partition_scheme
-          ? selection_partition_scheme->getPartitionSchemeHeader().getNumPartitions()
-          : 1u;
 
   // Prepare the attributes, which are output columns of the selection relation.
   std::vector<attribute_id> attributes;
@@ -1580,8 +1553,7 @@ void ExecutionGenerator::convertInsertSelection(
                          insert_destination_index,
                          QueryContext::kInvalidPredicateId,
                          move(attributes),
-                         selection_relation_info->isStoredRelation(),
-                         num_partitions);
+                         selection_relation_info->isStoredRelation());
 
   const QueryPlan::DAGNodeIndex insert_selection_index =
       execution_plan_->addRelationalOperator(insert_selection_op);
@@ -1756,11 +1728,7 @@ void ExecutionGenerator::convertAggregate(
   const CatalogRelationInfo *input_relation_info =
       findRelationInfoOutputByPhysical(physical_plan->input());
   const CatalogRelation &input_relation = *input_relation_info->relation;
-  const PartitionScheme *input_partition_scheme = input_relation.getPartitionScheme();
-  const size_t num_partitions =
-      input_partition_scheme
-          ? input_partition_scheme->getPartitionSchemeHeader().getNumPartitions()
-          : 1u;
+  const size_t num_partitions = input_relation.getNumPartitions();
 
   // Create aggr state proto.
   const QueryContext::aggregation_state_id aggr_state_index =
@@ -2312,7 +2280,9 @@ void ExecutionGenerator::convertWindowAggregate(
   // Get input.
   const CatalogRelationInfo *input_relation_info =
       findRelationInfoOutputByPhysical(physical_plan->input());
-  window_aggr_state_proto->set_input_relation_id(input_relation_info->relation->getID());
+  const CatalogRelation &input_relation = *input_relation_info->relation;
+  DCHECK_EQ(1u, input_relation.getNumPartitions());
+  window_aggr_state_proto->set_input_relation_id(input_relation.getID());
 
   // Get window aggregate function expression.
   const E::AliasPtr &named_window_aggregate_expression =
@@ -2382,7 +2352,7 @@ void ExecutionGenerator::convertWindowAggregate(
   const QueryPlan::DAGNodeIndex window_aggregation_operator_index =
       execution_plan_->addRelationalOperator(
           new WindowAggregationOperator(query_handle_->query_id(),
-                                        *input_relation_info->relation,
+                                        input_relation,
                                         *output_relation,
                                         window_aggr_state_index,
                                         insert_destination_index));

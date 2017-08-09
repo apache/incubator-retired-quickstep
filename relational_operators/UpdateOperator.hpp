@@ -28,6 +28,7 @@
 
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
+#include "catalog/PartitionScheme.hpp"
 #include "query_execution/QueryContext.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "relational_operators/RelationalOperator.hpp"
@@ -87,13 +88,24 @@ class UpdateOperator : public RelationalOperator {
       const QueryContext::insert_destination_id relocation_destination_index,
       const QueryContext::predicate_id predicate_index,
       const QueryContext::update_group_id update_group_index)
-      : RelationalOperator(query_id),
+      : RelationalOperator(query_id, relation.getNumPartitions()),
         relation_(relation),
         relocation_destination_index_(relocation_destination_index),
         predicate_index_(predicate_index),
         update_group_index_(update_group_index),
-        input_blocks_(relation.getBlocksSnapshot()),
-        started_(false) {}
+        input_blocks_(num_partitions_),
+        started_(false) {
+    if (relation.hasPartitionScheme()) {
+      const PartitionScheme &part_scheme = *relation.getPartitionScheme();
+
+      for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+        input_blocks_[part_id] = part_scheme.getBlocksInPartition(part_id);
+      }
+    } else {
+      DCHECK_EQ(1u, num_partitions_);
+      input_blocks_[0] = relation.getBlocksSnapshot();
+    }
+  }
 
   ~UpdateOperator() override {}
 
@@ -127,7 +139,7 @@ class UpdateOperator : public RelationalOperator {
   const QueryContext::predicate_id predicate_index_;
   const QueryContext::update_group_id update_group_index_;
 
-  const std::vector<block_id> input_blocks_;
+  std::vector<std::vector<block_id>> input_blocks_;
 
   bool started_;
 
@@ -144,6 +156,7 @@ class UpdateWorkOrder : public WorkOrder {
    *
    * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param relation The relation to perform the UPDATE over.
+   * @param part_id The partition id.
    * @param predicate All tuples matching \c predicate will be updated (or NULL
    *        to update all tuples).
    * @param assignments The assignments (the map of attribute_ids to Scalars)
@@ -161,6 +174,7 @@ class UpdateWorkOrder : public WorkOrder {
   UpdateWorkOrder(
       const std::size_t query_id,
       const CatalogRelationSchema &relation,
+      const partition_id part_id,
       const block_id input_block_id,
       const Predicate *predicate,
       const std::unordered_map<attribute_id, std::unique_ptr<const Scalar>>
@@ -170,7 +184,7 @@ class UpdateWorkOrder : public WorkOrder {
       const std::size_t update_operator_index,
       const tmb::client_id scheduler_client_id,
       MessageBus *bus)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         relation_(relation),
         input_block_id_(input_block_id),
         predicate_(predicate),

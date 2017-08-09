@@ -24,6 +24,7 @@
 #include <string>
 #include <vector>
 
+#include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/WorkOrder.hpp"
@@ -38,7 +39,6 @@ namespace tmb { class MessageBus; }
 
 namespace quickstep {
 
-class CatalogRelation;
 class QueryContext;
 class StorageManager;
 class WorkOrderProtosContainer;
@@ -64,10 +64,11 @@ class SaveBlocksOperator : public RelationalOperator {
   SaveBlocksOperator(const std::size_t query_id,
                      CatalogRelation *relation,
                      const bool force = false)
-      : RelationalOperator(query_id),
+      : RelationalOperator(query_id, relation->getNumPartitions()),
         force_(force),
         relation_(relation),
-        num_workorders_generated_(0) {}
+        destination_block_ids_(num_partitions_),
+        num_workorders_generated_(num_partitions_) {}
 
   ~SaveBlocksOperator() override {}
 
@@ -89,7 +90,7 @@ class SaveBlocksOperator : public RelationalOperator {
 
   void feedInputBlock(const block_id input_block_id, const relation_id input_relation_id,
                       const partition_id part_id) override {
-    destination_block_ids_.push_back(input_block_id);
+    destination_block_ids_[part_id].push_back(input_block_id);
   }
 
   void updateCatalogOnCompletion() override;
@@ -98,9 +99,9 @@ class SaveBlocksOperator : public RelationalOperator {
   const bool force_;
 
   CatalogRelation *relation_;
-  std::vector<block_id> destination_block_ids_;
+  std::vector<std::vector<block_id>> destination_block_ids_;
 
-  std::vector<block_id>::size_type num_workorders_generated_;
+  std::vector<std::size_t> num_workorders_generated_;
 
   DISALLOW_COPY_AND_ASSIGN(SaveBlocksOperator);
 };
@@ -114,16 +115,18 @@ class SaveBlocksWorkOrder : public WorkOrder {
    * @brief Constructor.
    *
    * @param query_id The ID of the query to which this operator belongs.
+   * @param part_id The partition id.
    * @param save_block_id The id of the block to save.
    * @param force If true, force writing of all blocks to disk, otherwise only
    *        write dirty blocks.
    * @param storage_manager The StorageManager to use.
    **/
   SaveBlocksWorkOrder(const std::size_t query_id,
+                      const partition_id part_id,
                       const block_id save_block_id,
                       const bool force,
                       StorageManager *storage_manager)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         save_block_id_(save_block_id),
         force_(force),
         storage_manager_(DCHECK_NOTNULL(storage_manager)) {}
