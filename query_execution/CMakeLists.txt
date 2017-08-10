@@ -63,6 +63,7 @@ add_library(quickstep_queryexecution_WorkOrdersContainer WorkOrdersContainer.cpp
 add_library(quickstep_queryexecution_Worker Worker.cpp Worker.hpp)
 add_library(quickstep_queryexecution_WorkerDirectory ../empty_src.cpp WorkerDirectory.hpp)
 add_library(quickstep_queryexecution_WorkerMessage ../empty_src.cpp WorkerMessage.hpp)
+add_library(quickstep_queryexecution_WorkOrderSelectionPolicy ../empty_src.cpp WorkOrderSelectionPolicy.hpp)
 add_library(quickstep_queryexecution_WorkerSelectionPolicy ../empty_src.cpp WorkerSelectionPolicy.hpp)
 
 # Link dependencies:
@@ -334,6 +335,7 @@ target_link_libraries(quickstep_queryexecution_WorkOrderProtosContainer
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryexecution_WorkOrdersContainer
                       glog
+                      quickstep_queryexecution_WorkOrderSelectionPolicy
                       quickstep_relationaloperators_WorkOrder
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector)
@@ -351,6 +353,9 @@ target_link_libraries(quickstep_queryexecution_Worker
                       tmb)
 target_link_libraries(quickstep_queryexecution_WorkerDirectory
                       quickstep_queryexecution_QueryExecutionTypedefs
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_queryexecution_WorkOrderSelectionPolicy
+                      glog
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryexecution_WorkerSelectionPolicy
                       quickstep_queryexecution_WorkerDirectory
@@ -377,6 +382,7 @@ target_link_libraries(quickstep_queryexecution
                       quickstep_queryexecution_Worker
                       quickstep_queryexecution_WorkerDirectory
                       quickstep_queryexecution_WorkerMessage
+                      quickstep_queryexecution_WorkOrderSelectionPolicy
                       quickstep_queryexecution_WorkerSelectionPolicy)
 if (ENABLE_DISTRIBUTED)
   target_link_libraries(quickstep_queryexecution

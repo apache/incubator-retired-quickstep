@@ -26,6 +26,7 @@
 #include <queue>
 #include <vector>
 
+#include "query_execution/WorkOrderSelectionPolicy.hpp"
 #include "relational_operators/WorkOrder.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
@@ -173,6 +174,22 @@ class WorkOrdersContainer {
         prefer_single_NUMA_node);
   }
 
+  WorkOrder* getNextWorkOrder(std::size_t *operator_index, bool *is_rebuild) {
+    if (rebuild_work_orders_policy_.hasWorkOrder()) {
+      *operator_index = rebuild_work_orders_policy_.getOperatorIndexForNextWorkOrder();
+      *is_rebuild = true;
+      return rebuild_workorders_[*operator_index].getWorkOrder();
+    }
+
+    if (normal_work_orders_policy_.hasWorkOrder()) {
+      *operator_index = normal_work_orders_policy_.getOperatorIndexForNextWorkOrder();
+      *is_rebuild = false;
+      return normal_workorders_[*operator_index].getWorkOrder();
+    }
+
+    return nullptr;
+  }
+
   /**
    * @brief Get a rebuild WorkOrder for a given operator whch prefer the
    *        specified NUMA node.
@@ -227,6 +244,7 @@ class WorkOrdersContainer {
     DCHECK(workorder != nullptr);
     DCHECK_LT(operator_index, num_operators_);
     normal_workorders_[operator_index].addWorkOrder(workorder);
+    normal_work_orders_policy_.addWorkOrder(operator_index);
   }
 
   /**
@@ -245,6 +263,7 @@ class WorkOrdersContainer {
     DCHECK(workorder != nullptr);
     DCHECK_LT(operator_index, num_operators_);
     rebuild_workorders_[operator_index].addWorkOrder(workorder);
+    rebuild_work_orders_policy_.addWorkOrder(operator_index);
   }
 
   /**
@@ -517,6 +536,9 @@ class WorkOrdersContainer {
 
   PtrVector<OperatorWorkOrdersContainer> normal_workorders_;
   PtrVector<OperatorWorkOrdersContainer> rebuild_workorders_;
+
+  LifoWorkOrderSelectionPolicy normal_work_orders_policy_;
+  FifoWorkOrderSelectionPolicy rebuild_work_orders_policy_;
 
   DISALLOW_COPY_AND_ASSIGN(WorkOrdersContainer);
 };
