@@ -54,22 +54,24 @@ bool DeleteOperator::getAllWorkOrders(
 
   if (relation_is_stored_) {
     // If relation_ is stored, iterate over the list of blocks in relation_.
-    if (!started_) {
-      for (const block_id input_block_id : relation_block_ids_) {
-        container->addNormalWorkOrder(
-            new DeleteWorkOrder(query_id_,
-                                relation_,
-                                input_block_id,
-                                predicate,
-                                storage_manager,
-                                op_index_,
-                                scheduler_client_id,
-                                bus),
-            op_index_);
-      }
-      started_ = true;
+    if (started_) {
+      return true;
     }
-    return started_;
+
+    for (const block_id input_block_id : relation_block_ids_) {
+      container->addNormalWorkOrder(
+          new DeleteWorkOrder(query_id_,
+                              relation_,
+                              input_block_id,
+                              predicate,
+                              storage_manager,
+                              op_index_,
+                              scheduler_client_id,
+                              bus),
+          op_index_);
+    }
+    started_ = true;
+    return true;
   } else {
     while (num_workorders_generated_ < relation_block_ids_.size()) {
       container->addNormalWorkOrder(
@@ -91,12 +93,14 @@ bool DeleteOperator::getAllWorkOrders(
 bool DeleteOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
   if (relation_is_stored_) {
     // If relation_ is stored, iterate over the list of blocks in relation_.
-    if (!started_) {
-      for (const block_id input_block_id : relation_block_ids_) {
-        container->addWorkOrderProto(createWorkOrderProto(input_block_id), op_index_);
-      }
-      started_ = true;
+    if (started_) {
+      return true;
     }
+
+    for (const block_id input_block_id : relation_block_ids_) {
+      container->addWorkOrderProto(createWorkOrderProto(input_block_id), op_index_);
+    }
+    started_ = true;
     return true;
   } else {
     while (num_workorders_generated_ < relation_block_ids_.size()) {

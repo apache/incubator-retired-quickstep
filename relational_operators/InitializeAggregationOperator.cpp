@@ -39,24 +39,27 @@ bool InitializeAggregationOperator::getAllWorkOrders(
     StorageManager *storage_manager,
     const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
-  if (!started_) {
-    for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
-      AggregationOperationState *agg_state =
-          query_context->getAggregationState(aggr_state_index_, part_id);
-      DCHECK(agg_state != nullptr);
-
-      for (std::size_t state_part_id = 0;
-           state_part_id < aggr_state_num_init_partitions_;
-           ++state_part_id) {
-        container->addNormalWorkOrder(
-            new InitializeAggregationWorkOrder(query_id_,
-                                               state_part_id,
-                                               agg_state),
-            op_index_);
-      }
-    }
-    started_ = true;
+  if (started_) {
+    return true;
   }
+
+  for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+    AggregationOperationState *agg_state =
+        query_context->getAggregationState(aggr_state_index_, part_id);
+    DCHECK(agg_state != nullptr);
+
+    for (std::size_t state_part_id = 0;
+         state_part_id < aggr_state_num_init_partitions_;
+         ++state_part_id) {
+      container->addNormalWorkOrder(
+          new InitializeAggregationWorkOrder(query_id_,
+                                             state_part_id,
+                                             agg_state),
+          op_index_);
+    }
+  }
+
+  started_ = true;
   return true;
 }
 

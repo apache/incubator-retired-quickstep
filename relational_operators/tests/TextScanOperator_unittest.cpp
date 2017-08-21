@@ -110,7 +110,6 @@ class TextScanOperatorTest : public ::testing::Test {
     op->setOperatorIndex(kOpIndex);
     WorkOrdersContainer container(1, 0);
     const std::size_t op_index = 0;
-    op->informAllBlockingDependenciesMet();
     op->getAllWorkOrders(&container,
                          query_context_.get(),
                          storage_manager_.get(),

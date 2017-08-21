@@ -52,49 +52,52 @@ bool UpdateOperator::getAllWorkOrders(
     StorageManager *storage_manager,
     const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
-  if (blocking_dependencies_met_ && !started_) {
-    DCHECK(query_context != nullptr);
-
-    for (const block_id input_block_id : input_blocks_) {
-      container->addNormalWorkOrder(
-          new UpdateWorkOrder(
-              query_id_,
-              relation_,
-              input_block_id,
-              query_context->getPredicate(predicate_index_),
-              query_context->getUpdateGroup(update_group_index_),
-              query_context->getInsertDestination(
-                  relocation_destination_index_),
-              storage_manager,
-              op_index_,
-              scheduler_client_id,
-              bus),
-          op_index_);
-    }
-    started_ = true;
+  if (started_) {
+    return true;
   }
-  return started_;
+
+  DCHECK(query_context != nullptr);
+  for (const block_id input_block_id : input_blocks_) {
+    container->addNormalWorkOrder(
+        new UpdateWorkOrder(
+            query_id_,
+            relation_,
+            input_block_id,
+            query_context->getPredicate(predicate_index_),
+            query_context->getUpdateGroup(update_group_index_),
+            query_context->getInsertDestination(
+                relocation_destination_index_),
+            storage_manager,
+            op_index_,
+            scheduler_client_id,
+            bus),
+        op_index_);
+  }
+  started_ = true;
+  return true;
 }
 
 bool UpdateOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
-  if (blocking_dependencies_met_ && !started_) {
-    for (const block_id input_block_id : input_blocks_) {
-      serialization::WorkOrder *proto = new serialization::WorkOrder;
-      proto->set_work_order_type(serialization::UPDATE);
-      proto->set_query_id(query_id_);
-
-      proto->SetExtension(serialization::UpdateWorkOrder::operator_index, op_index_);
-      proto->SetExtension(serialization::UpdateWorkOrder::relation_id, relation_.getID());
-      proto->SetExtension(serialization::UpdateWorkOrder::insert_destination_index, relocation_destination_index_);
-      proto->SetExtension(serialization::UpdateWorkOrder::predicate_index, predicate_index_);
-      proto->SetExtension(serialization::UpdateWorkOrder::update_group_index, update_group_index_);
-      proto->SetExtension(serialization::UpdateWorkOrder::block_id, input_block_id);
-
-      container->addWorkOrderProto(proto, op_index_);
-    }
-    started_ = true;
+  if (started_) {
+    return true;
   }
-  return started_;
+
+  for (const block_id input_block_id : input_blocks_) {
+    serialization::WorkOrder *proto = new serialization::WorkOrder;
+    proto->set_work_order_type(serialization::UPDATE);
+    proto->set_query_id(query_id_);
+
+    proto->SetExtension(serialization::UpdateWorkOrder::operator_index, op_index_);
+    proto->SetExtension(serialization::UpdateWorkOrder::relation_id, relation_.getID());
+    proto->SetExtension(serialization::UpdateWorkOrder::insert_destination_index, relocation_destination_index_);
+    proto->SetExtension(serialization::UpdateWorkOrder::predicate_index, predicate_index_);
+    proto->SetExtension(serialization::UpdateWorkOrder::update_group_index, update_group_index_);
+    proto->SetExtension(serialization::UpdateWorkOrder::block_id, input_block_id);
+
+    container->addWorkOrderProto(proto, op_index_);
+  }
+  started_ = true;
+  return true;
 }
 
 void UpdateWorkOrder::execute() {

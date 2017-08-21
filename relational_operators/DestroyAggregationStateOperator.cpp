@@ -35,32 +35,35 @@ bool DestroyAggregationStateOperator::getAllWorkOrders(
     StorageManager *storage_manager,
     const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
-  if (blocking_dependencies_met_ && !work_generated_) {
-    work_generated_ = true;
-    for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
-      container->addNormalWorkOrder(
-          new DestroyAggregationStateWorkOrder(query_id_, aggr_state_index_, part_id, query_context),
-          op_index_);
-    }
+  if (work_generated_) {
+    return true;
   }
-  return work_generated_;
+
+  for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+    container->addNormalWorkOrder(
+        new DestroyAggregationStateWorkOrder(query_id_, aggr_state_index_, part_id, query_context),
+        op_index_);
+  }
+  work_generated_ = true;
+  return true;
 }
 
 bool DestroyAggregationStateOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
-  if (blocking_dependencies_met_ && !work_generated_) {
-    work_generated_ = true;
-
-    for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
-      serialization::WorkOrder *proto = new serialization::WorkOrder;
-      proto->set_work_order_type(serialization::DESTROY_AGGREGATION_STATE);
-      proto->set_query_id(query_id_);
-      proto->SetExtension(serialization::DestroyAggregationStateWorkOrder::aggr_state_index, aggr_state_index_);
-      proto->SetExtension(serialization::DestroyAggregationStateWorkOrder::partition_id, part_id);
-
-      container->addWorkOrderProto(proto, op_index_);
-    }
+  if (work_generated_) {
+    return true;
   }
-  return work_generated_;
+
+  for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
+    serialization::WorkOrder *proto = new serialization::WorkOrder;
+    proto->set_work_order_type(serialization::DESTROY_AGGREGATION_STATE);
+    proto->set_query_id(query_id_);
+    proto->SetExtension(serialization::DestroyAggregationStateWorkOrder::aggr_state_index, aggr_state_index_);
+    proto->SetExtension(serialization::DestroyAggregationStateWorkOrder::partition_id, part_id);
+
+    container->addWorkOrderProto(proto, op_index_);
+  }
+  work_generated_ = true;
+  return true;
 }
 
 void DestroyAggregationStateWorkOrder::execute() {

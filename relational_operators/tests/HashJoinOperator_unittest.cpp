@@ -469,8 +469,6 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
-
-  prober->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(prober.get());
 
   // Check result values
@@ -512,7 +510,6 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
 
   // Create cleaner operator.
   unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, kSinglePartition, join_hash_table_index));
-  cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
   db_->dropRelationById(output_relation_id);
@@ -623,8 +620,6 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
-
-  prober->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(prober.get());
 
   // Check result values
@@ -687,7 +682,6 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
 
   // Create cleaner operator.
   unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, kSinglePartition, join_hash_table_index));
-  cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
   db_->dropRelationById(output_relation_id);
@@ -784,8 +778,6 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
-
-  prober->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(prober.get());
 
   // Check result values
@@ -827,7 +819,6 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
 
   // Create cleaner operator.
   unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, kSinglePartition, join_hash_table_index));
-  cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
   db_->dropRelationById(output_relation_id);
@@ -931,8 +922,6 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
-
-  prober->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(prober.get());
 
   // Check result values
@@ -999,7 +988,6 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
 
   // Create the cleaner operator.
   unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, kSinglePartition, join_hash_table_index));
-  cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
   db_->dropRelationById(output_relation_id);
@@ -1112,8 +1100,6 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
-
-  prober->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(prober.get());
 
   // Check result values
@@ -1180,7 +1166,6 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
 
   // Create cleaner operator.
   unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, kSinglePartition, join_hash_table_index));
-  cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
   db_->dropRelationById(output_relation_id);
@@ -1304,8 +1289,6 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
-
-  prober->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(prober.get());
 
   // Check result values
@@ -1372,7 +1355,6 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
 
   // Create cleaner operator.
   unique_ptr<DestroyHashOperator> cleaner(new DestroyHashOperator(kQueryId, kSinglePartition, join_hash_table_index));
-  cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
   db_->dropRelationById(output_relation_id);
@@ -1476,8 +1458,6 @@ TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedLongKeyHashJoinTest) {
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
-
-  prober->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(prober.get());
 
   // Check result values
@@ -1519,7 +1499,6 @@ TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedLongKeyHashJoinTest) {
 
   // Create cleaner operator.
   auto cleaner = make_unique<DestroyHashOperator>(kQueryId, kMultiplePartitions, join_hash_table_index);
-  cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
   db_->dropRelationById(output_relation_id);
@@ -1624,8 +1603,6 @@ TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedCompositeKeyHashJoinTest)
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
-
-  prober->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(prober.get());
 
   // Check result values
@@ -1692,7 +1669,6 @@ TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedCompositeKeyHashJoinTest)
 
   // Create cleaner operator.
   auto cleaner = make_unique<DestroyHashOperator>(kQueryId, kMultiplePartitions, join_hash_table_index);
-  cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
   db_->dropRelationById(output_relation_id);
@@ -1807,8 +1783,6 @@ TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedCompositeKeyHashJoinWithR
 
   // Execute the operators.
   fetchAndExecuteWorkOrders(builder.get());
-
-  prober->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(prober.get());
 
   // Check result values
@@ -1875,7 +1849,6 @@ TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedCompositeKeyHashJoinWithR
 
   // Create cleaner operator.
   auto cleaner = make_unique<DestroyHashOperator>(kQueryId, kMultiplePartitions, join_hash_table_index);
-  cleaner->informAllBlockingDependenciesMet();
   fetchAndExecuteWorkOrders(cleaner.get());
 
   db_->dropRelationById(output_relation_id);

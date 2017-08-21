@@ -70,7 +70,6 @@ QueryManagerDistributed::QueryManagerDistributed(QueryHandle *query_handle,
   // Collect all the workorders from all the relational operators in the DAG.
   for (dag_node_index index = 0; index < num_operators_in_dag_; ++index) {
     if (checkAllBlockingDependenciesMet(index)) {
-      query_dag_->getNodePayloadMutable(index)->informAllBlockingDependenciesMet();
       processOperator(index, false);
     }
   }

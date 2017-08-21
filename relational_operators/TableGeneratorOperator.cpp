@@ -39,35 +39,39 @@ bool TableGeneratorOperator::getAllWorkOrders(
     StorageManager *storage_manager,
     const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
-  if (!started_) {
-    DCHECK(query_context != nullptr);
-
-    // Currently the generator function is not abstracted to be parallelizable,
-    // so just produce one work order.
-    container->addNormalWorkOrder(
-        new TableGeneratorWorkOrder(
-            query_id_,
-            query_context->getGeneratorFunctionHandle(
-                generator_function_index_),
-            query_context->getInsertDestination(output_destination_index_)),
-        op_index_);
-    started_ = true;
+  if (started_) {
+    return true;
   }
-  return started_;
+
+  DCHECK(query_context != nullptr);
+
+  // Currently the generator function is not abstracted to be parallelizable,
+  // so just produce one work order.
+  container->addNormalWorkOrder(
+      new TableGeneratorWorkOrder(
+          query_id_,
+          query_context->getGeneratorFunctionHandle(
+              generator_function_index_),
+          query_context->getInsertDestination(output_destination_index_)),
+      op_index_);
+  started_ = true;
+  return true;
 }
 
 bool TableGeneratorOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
-  if (!started_) {
-    serialization::WorkOrder *proto = new serialization::WorkOrder;
-    proto->set_work_order_type(serialization::TABLE_GENERATOR);
-    proto->set_query_id(query_id_);
-
-    proto->SetExtension(serialization::TableGeneratorWorkOrder::generator_function_index, generator_function_index_);
-    proto->SetExtension(serialization::TableGeneratorWorkOrder::insert_destination_index, output_destination_index_);
-
-    container->addWorkOrderProto(proto, op_index_);
-    started_ = true;
+  if (started_) {
+    return true;
   }
+
+  serialization::WorkOrder *proto = new serialization::WorkOrder;
+  proto->set_work_order_type(serialization::TABLE_GENERATOR);
+  proto->set_query_id(query_id_);
+
+  proto->SetExtension(serialization::TableGeneratorWorkOrder::generator_function_index, generator_function_index_);
+  proto->SetExtension(serialization::TableGeneratorWorkOrder::insert_destination_index, output_destination_index_);
+
+  container->addWorkOrderProto(proto, op_index_);
+  started_ = true;
   return true;
 }
 

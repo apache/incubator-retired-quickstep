@@ -163,19 +163,6 @@ class RelationalOperator {
   }
 
   /**
-   * @brief Inform this RelationalOperator that ALL the dependencies which break
-   *        the pipeline have been met.
-   *
-   * @note This function is only relevant in certain operators like HashJoin
-   *       which have a pipeline breaking dependency on BuildHash operator.
-   *       Such operators can start generating WorkOrders when all the pipeline
-   *       breaking dependencies are met.
-   **/
-  inline void informAllBlockingDependenciesMet() {
-    blocking_dependencies_met_ = true;
-  }
-
-  /**
    * @brief Receive input blocks for this RelationalOperator.
    *
    * @param input_block_id The ID of the input block.
@@ -289,16 +276,13 @@ class RelationalOperator {
    * @param blocking_dependencies_met If those dependencies which break the
    *        pipeline have been met.
    **/
-  explicit RelationalOperator(const std::size_t query_id,
-                              const bool blocking_dependencies_met = false)
+  explicit RelationalOperator(const std::size_t query_id)
       : query_id_(query_id),
-        blocking_dependencies_met_(blocking_dependencies_met),
         done_feeding_input_relation_(false),
         lip_deployment_index_(QueryContext::kInvalidLIPDeploymentId) {}
 
   const std::size_t query_id_;
 
-  bool blocking_dependencies_met_;
   bool done_feeding_input_relation_;
   std::size_t op_index_;
 

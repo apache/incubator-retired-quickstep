@@ -53,39 +53,42 @@ bool SampleOperator::getAllWorkOrders(
   std::uniform_real_distribution<> distribution(0, 1);
   const double probability = static_cast<double>(percentage_) / 100;
   if (input_relation_is_stored_) {
-    if (!started_) {
-      // If the sampling is by block choose blocks randomly
-      if (is_block_sample_) {
-        for (const block_id input_block_id : input_relation_block_ids_) {
-          if (distribution(generator) <= probability) {
-            container->addNormalWorkOrder(
-                new SampleWorkOrder(query_id_,
-                                    input_relation_,
-                                    input_block_id,
-                                    is_block_sample_,
-                                    percentage_,
-                                    output_destination,
-                                    storage_manager),
-                op_index_);
-          }
-        }
-      } else {
-        // Add all the blocks for tuple sampling which would handle
-        // the sampling from each block
-        for (const block_id input_block_id : input_relation_block_ids_) {
-          container->addNormalWorkOrder(new SampleWorkOrder(query_id_,
-                                                            input_relation_,
-                                                            input_block_id,
-                                                            is_block_sample_,
-                                                            percentage_,
-                                                            output_destination,
-                                                            storage_manager),
-                                        op_index_);
+    if (started_) {
+      return true;
+    }
+
+    // If the sampling is by block choose blocks randomly
+    if (is_block_sample_) {
+      for (const block_id input_block_id : input_relation_block_ids_) {
+        if (distribution(generator) <= probability) {
+          container->addNormalWorkOrder(
+              new SampleWorkOrder(query_id_,
+                                  input_relation_,
+                                  input_block_id,
+                                  is_block_sample_,
+                                  percentage_,
+                                  output_destination,
+                                  storage_manager),
+              op_index_);
         }
       }
-      started_ = true;
+    } else {
+      // Add all the blocks for tuple sampling which would handle
+      // the sampling from each block
+      for (const block_id input_block_id : input_relation_block_ids_) {
+        container->addNormalWorkOrder(new SampleWorkOrder(query_id_,
+                                                          input_relation_,
+                                                          input_block_id,
+                                                          is_block_sample_,
+                                                          percentage_,
+                                                          output_destination,
+                                                          storage_manager),
+                                      op_index_);
+      }
     }
-    return started_;
+
+    started_ = true;
+    return true;
   } else {
     if (is_block_sample_) {
       while (num_workorders_generated_ < input_relation_block_ids_.size()) {

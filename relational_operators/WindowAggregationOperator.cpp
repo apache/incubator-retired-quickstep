@@ -39,32 +39,33 @@ bool WindowAggregationOperator::getAllWorkOrders(
     StorageManager *storage_manager,
     const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
-  DCHECK(query_context != nullptr);
-
-  if (blocking_dependencies_met_ && !generated_) {
-    std::vector<block_id> relation_blocks =
-        input_relation_.getBlocksSnapshot();
-
-    container->addNormalWorkOrder(
-        new WindowAggregationWorkOrder(
-            query_id_,
-            query_context->releaseWindowAggregationState(window_aggregation_state_index_),
-            std::move(relation_blocks),
-            query_context->getInsertDestination(output_destination_index_)),
-        op_index_);
-    generated_ = true;
+  if (generated_) {
+    return true;
   }
 
-  return generated_;
+  std::vector<block_id> relation_blocks =
+      input_relation_.getBlocksSnapshot();
+
+  DCHECK(query_context != nullptr);
+  container->addNormalWorkOrder(
+      new WindowAggregationWorkOrder(
+          query_id_,
+          query_context->releaseWindowAggregationState(window_aggregation_state_index_),
+          std::move(relation_blocks),
+          query_context->getInsertDestination(output_destination_index_)),
+      op_index_);
+  generated_ = true;
+  return true;
 }
 
 bool WindowAggregationOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
-  if (blocking_dependencies_met_ && !generated_) {
-    container->addWorkOrderProto(createWorkOrderProto(), op_index_);
-    generated_ = true;
+  if (generated_) {
+    return true;
   }
 
-  return generated_;
+  container->addWorkOrderProto(createWorkOrderProto(), op_index_);
+  generated_ = true;
+  return true;
 }
 
 serialization::WorkOrder* WindowAggregationOperator::createWorkOrderProto() {

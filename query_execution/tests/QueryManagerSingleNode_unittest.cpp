@@ -134,11 +134,6 @@ class MockOperator: public RelationalOperator {
     }
   }
 
-  inline bool getBlockingDependenciesMet() const {
-    MOCK_OP_LOG(3) << "met.";
-    return blocking_dependencies_met_;
-  }
-
   void setInsertDestinationID(const QueryContext::insert_destination_id insert_destination_index) {
     insert_destination_index_ = insert_destination_index;
   }
@@ -165,7 +160,7 @@ class MockOperator: public RelationalOperator {
           ++num_workorders_generated_;
         }
       } else {
-        if (blocking_dependencies_met_ && (num_workorders_generated_ < max_workorders_)) {
+        if (num_workorders_generated_ < max_workorders_) {
           MOCK_OP_LOG(3) << "[static] generate WorkOrder";
           container->addNormalWorkOrder(new MockWorkOrder(op_index_), op_index_);
           ++num_workorders_generated_;
@@ -304,9 +299,6 @@ TEST_F(QueryManagerTest, SingleNodeDAGNoWorkOrdersTest) {
 
   constructQueryManager();
 
-  // op doesn't have any dependencies.
-  EXPECT_TRUE(op.getBlockingDependenciesMet());
-
   // We expect one call for op's getAllWorkOrders().
   EXPECT_EQ(1, op.getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(0, op.getNumCalls(MockOperator::kFeedInputBlock));
@@ -321,9 +313,6 @@ TEST_F(QueryManagerTest, SingleNodeDAGStaticWorkOrdersTest) {
       query_plan_->getQueryPlanDAG().getNodePayload(id));
 
   constructQueryManager();
-
-  // op doesn't have any dependencies.
-  EXPECT_TRUE(op.getBlockingDependenciesMet());
 
   // We expect one call for op's getAllWorkOrders().
   EXPECT_EQ(1, op.getNumCalls(MockOperator::kGetAllWorkOrders));
@@ -371,9 +360,6 @@ TEST_F(QueryManagerTest, SingleNodeDAGDynamicWorkOrdersTest) {
       query_plan_->getQueryPlanDAG().getNodePayload(id));
 
   constructQueryManager();
-
-  // op doesn't have any dependencies.
-  EXPECT_TRUE(op.getBlockingDependenciesMet());
 
   for (int i = 0; i < 3; ++i) {
     // We expect one call for op's getAllWorkOrders().
@@ -437,9 +423,6 @@ TEST_F(QueryManagerTest, TwoNodesDAGBlockingLinkTest) {
 
   constructQueryManager();
 
-  // op1 doesn't have any dependencies
-  EXPECT_TRUE(op1.getBlockingDependenciesMet());
-
   // Only op1 should receive a call to getAllWorkOrders initially.
   EXPECT_EQ(1, op1.getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(0, op1.getNumCalls(MockOperator::kFeedInputBlock));
@@ -487,9 +470,6 @@ TEST_F(QueryManagerTest, TwoNodesDAGBlockingLinkTest) {
   delete worker_message->getWorkOrder();
 
   EXPECT_EQ(1, getNumWorkOrdersInExecution(id2));
-
-  // op1 is op2's blocking dependency.
-  EXPECT_TRUE(op2.getBlockingDependenciesMet());
 
   EXPECT_EQ(1, op1.getNumCalls(MockOperator::kGetAllWorkOrders));
   // op2 should get first call of getAllWorkOrders() when op1 is over.
@@ -540,11 +520,6 @@ TEST_F(QueryManagerTest, TwoNodesDAGPipeLinkTest) {
       query_plan_->getQueryPlanDAG().getNodePayload(id2));
 
   constructQueryManager();
-
-  // As none of the operators have a blocking link, blocking dependencies should
-  // be met.
-  EXPECT_TRUE(op1.getBlockingDependenciesMet());
-  EXPECT_TRUE(op2.getBlockingDependenciesMet());
 
   EXPECT_EQ(1, op1.getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(1, op1.getNumWorkOrders());
@@ -685,10 +660,6 @@ TEST_F(QueryManagerTest, TwoNodesDAGPartiallyFilledBlocksTest) {
   MutableBlockReference block_ref;
   static_cast<BlockPoolInsertDestination *>(insert_destination)
       ->available_block_refs_.push_back(move(block_ref));
-
-  // There's no blocking dependency in the DAG.
-  EXPECT_TRUE(op1.getBlockingDependenciesMet());
-  EXPECT_TRUE(op2.getBlockingDependenciesMet());
 
   EXPECT_EQ(1, op1.getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(1, op1.getNumWorkOrders());

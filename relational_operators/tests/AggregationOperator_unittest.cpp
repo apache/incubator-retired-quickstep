@@ -425,8 +425,6 @@ class AggregationOperatorTest : public ::testing::Test {
       delete work_order;
     }
 
-    finalize_op_->informAllBlockingDependenciesMet();
-
     WorkOrdersContainer finalize_op_container(1, 0);
     const std::size_t finalize_op_index = 0;
     finalize_op_->getAllWorkOrders(&finalize_op_container,
@@ -440,8 +438,6 @@ class AggregationOperatorTest : public ::testing::Test {
       work_order->execute();
       delete work_order;
     }
-
-    destroy_aggr_state_op_->informAllBlockingDependenciesMet();
 
     WorkOrdersContainer destroy_aggr_state_op_container(1, 0);
     const std::size_t destroy_aggr_state_op_index = 0;

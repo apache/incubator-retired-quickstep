@@ -70,14 +70,14 @@ QueryManagerBase::QueryManagerBase(QueryHandle *query_handle)
     for (const pair<dag_node_index, bool> &dependent_link :
          query_dag_->getDependents(node_index)) {
       const dag_node_index dependent_op_index = dependent_link.first;
-      if (!query_dag_->getLinkMetadata(node_index, dependent_op_index)) {
-        // The link is not a pipeline-breaker. Streaming of blocks is possible
-        // between these two operators.
-        output_consumers_[node_index].push_back(dependent_op_index);
-      } else {
+      if (query_dag_->getLinkMetadata(node_index, dependent_op_index)) {
         // The link is a pipeline-breaker. Streaming of blocks is not possible
         // between these two operators.
         blocking_dependencies_[dependent_op_index].push_back(node_index);
+      } else {
+        // The link is not a pipeline-breaker. Streaming of blocks is possible
+        // between these two operators.
+        output_consumers_[node_index].push_back(dependent_op_index);
       }
     }
   }
@@ -230,9 +230,6 @@ void QueryManagerBase::markOperatorFinished(const dag_node_index index) {
     // Signal dependent operator that current operator is done feeding input blocks.
     if (output_rel >= 0) {
       dependent_op->doneFeedingInputBlocks(output_rel);
-    }
-    if (checkAllBlockingDependenciesMet(dependent_op_index)) {
-      dependent_op->informAllBlockingDependenciesMet();
     }
   }
 }

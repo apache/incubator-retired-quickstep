@@ -42,42 +42,44 @@ bool DropTableOperator::getAllWorkOrders(
     StorageManager *storage_manager,
     const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
-  if (blocking_dependencies_met_ && !work_generated_) {
-    work_generated_ = true;
-
-    std::vector<block_id> relation_blocks(relation_.getBlocksSnapshot());
-
-    // DropTableWorkOrder only drops blocks, if any.
-    container->addNormalWorkOrder(
-        new DropTableWorkOrder(
-            query_id_, std::move(relation_blocks), storage_manager),
-        op_index_);
-
-    database_->setStatus(CatalogDatabase::Status::kPendingBlockDeletions);
+  if (work_generated_) {
+    return true;
   }
 
-  return work_generated_;
+  std::vector<block_id> relation_blocks(relation_.getBlocksSnapshot());
+
+  // DropTableWorkOrder only drops blocks, if any.
+  container->addNormalWorkOrder(
+      new DropTableWorkOrder(
+          query_id_, std::move(relation_blocks), storage_manager),
+      op_index_);
+
+  database_->setStatus(CatalogDatabase::Status::kPendingBlockDeletions);
+
+  work_generated_ = true;
+  return true;
 }
 
 bool DropTableOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *container) {
-  if (blocking_dependencies_met_ && !work_generated_) {
-    work_generated_ = true;
-
-    serialization::WorkOrder *proto = new serialization::WorkOrder;
-    proto->set_work_order_type(serialization::DROP_TABLE);
-    proto->set_query_id(query_id_);
-
-    std::vector<block_id> relation_blocks(relation_.getBlocksSnapshot());
-    for (const block_id relation_block : relation_blocks) {
-      proto->AddExtension(serialization::DropTableWorkOrder::block_ids, relation_block);
-    }
-
-    container->addWorkOrderProto(proto, op_index_);
-
-    database_->setStatus(CatalogDatabase::Status::kPendingBlockDeletions);
+  if (work_generated_) {
+    return true;
   }
 
-  return work_generated_;
+  serialization::WorkOrder *proto = new serialization::WorkOrder;
+  proto->set_work_order_type(serialization::DROP_TABLE);
+  proto->set_query_id(query_id_);
+
+  std::vector<block_id> relation_blocks(relation_.getBlocksSnapshot());
+  for (const block_id relation_block : relation_blocks) {
+    proto->AddExtension(serialization::DropTableWorkOrder::block_ids, relation_block);
+  }
+
+  container->addWorkOrderProto(proto, op_index_);
+
+  database_->setStatus(CatalogDatabase::Status::kPendingBlockDeletions);
+
+  work_generated_ = true;
+  return true;
 }
 
 void DropTableOperator::updateCatalogOnCompletion() {
