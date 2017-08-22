@@ -119,7 +119,6 @@ if (ENABLE_DISTRIBUTED)
                         quickstep_storage_StorageBlockInfo
                         quickstep_storage_StorageManager
                         quickstep_threading_ThreadUtil
-                        quickstep_utility_EqualsAnyConstant
                         quickstep_utility_Macros
                         tmb
                         ${GFLAGS_LIB_NAME})
@@ -135,7 +134,6 @@ target_link_libraries(quickstep_queryexecution_ForemanSingleNode
                       quickstep_queryexecution_WorkerDirectory
                       quickstep_queryexecution_WorkerMessage
                       quickstep_threading_ThreadUtil
-                      quickstep_utility_EqualsAnyConstant
                       quickstep_utility_Macros
                       tmb
                       ${GFLAGS_LIB_NAME})

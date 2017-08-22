@@ -50,7 +50,9 @@ QueryManagerBase::QueryManagerBase(QueryHandle *query_handle)
       num_operators_in_dag_(query_dag_->size()),
       output_consumers_(num_operators_in_dag_),
       blocking_dependencies_(num_operators_in_dag_),
-      query_exec_state_(new QueryExecutionState(num_operators_in_dag_)) {
+      query_exec_state_(new QueryExecutionState(num_operators_in_dag_)),
+      blocking_dependents_(num_operators_in_dag_),
+      non_blocking_dependencies_(num_operators_in_dag_) {
   if (FLAGS_visualize_execution_dag) {
     dag_visualizer_ =
         std::make_unique<quickstep::ExecutionDAGVisualizer>(query_handle_->getQueryPlan());
@@ -66,16 +68,22 @@ QueryManagerBase::QueryManagerBase(QueryHandle *query_handle)
       query_exec_state_->setRebuildRequired(node_index);
     }
 
+    if (query_dag_->getDependencies(node_index).empty()) {
+      non_dependent_operators_.push_back(node_index);
+    }
+
     for (const pair<dag_node_index, bool> &dependent_link :
          query_dag_->getDependents(node_index)) {
       const dag_node_index dependent_op_index = dependent_link.first;
       if (query_dag_->getLinkMetadata(node_index, dependent_op_index)) {
         // The link is a pipeline-breaker. Streaming of blocks is not possible
         // between these two operators.
-        blocking_dependencies_[dependent_op_index].push_back(node_index);
+        blocking_dependencies_[dependent_op_index].insert(node_index);
+        blocking_dependents_[node_index].push_back(dependent_op_index);
       } else {
         // The link is not a pipeline-breaker. Streaming of blocks is possible
         // between these two operators.
+        non_blocking_dependencies_[dependent_op_index].insert(node_index);
         output_consumers_[node_index].push_back(dependent_op_index);
       }
     }
@@ -102,6 +110,12 @@ void QueryManagerBase::processFeedbackMessage(
   RelationalOperator *op =
       query_dag_->getNodePayloadMutable(op_index);
   op->receiveFeedbackMessage(msg);
+
+  if (query_exec_state_->hasDoneGenerationWorkOrders(op_index)) {
+    return;
+  }
+
+  fetchNormalWorkOrders(op_index);
 }
 
 void QueryManagerBase::processWorkOrderCompleteMessage(
@@ -109,97 +123,32 @@ void QueryManagerBase::processWorkOrderCompleteMessage(
     const partition_id part_id) {
   query_exec_state_->decrementNumQueuedWorkOrders(op_index);
 
-  // Check if new work orders are available and fetch them if so.
-  fetchNormalWorkOrders(op_index);
+  if (!checkNormalExecutionOver(op_index)) {
+    // Normal execution under progress for this operator.
+    return;
+  }
 
   if (checkRebuildRequired(op_index)) {
-    if (checkNormalExecutionOver(op_index)) {
-      if (!checkRebuildInitiated(op_index)) {
-        if (initiateRebuild(op_index)) {
-          // Rebuild initiated and completed right away.
-          markOperatorFinished(op_index);
-        } else {
-          // Rebuild under progress.
-        }
-      } else if (checkRebuildOver(op_index)) {
-        // Rebuild was under progress and now it is over.
-        markOperatorFinished(op_index);
-      }
-    } else {
-      // Normal execution under progress for this operator.
+    DCHECK(!checkRebuildInitiated(op_index));
+    if (!initiateRebuild(op_index)) {
+      // Rebuild under progress.
+      return;
     }
-  } else if (checkOperatorExecutionOver(op_index)) {
-    // Rebuild not required for this operator and its normal execution is
-    // complete.
-    markOperatorFinished(op_index);
+    // Rebuild initiated and completed right away.
   }
 
-  for (const pair<dag_node_index, bool> &dependent_link :
-       query_dag_->getDependents(op_index)) {
-    const dag_node_index dependent_op_index = dependent_link.first;
-    if (checkAllBlockingDependenciesMet(dependent_op_index)) {
-      // Process the dependent operator (of the operator whose WorkOrder
-      // was just executed) for which all the dependencies have been met.
-      processOperator(dependent_op_index, true);
-    }
-  }
+  markOperatorFinished(op_index);
 }
 
 void QueryManagerBase::processRebuildWorkOrderCompleteMessage(const dag_node_index op_index,
                                                               const partition_id part_id) {
   query_exec_state_->decrementNumRebuildWorkOrders(op_index);
 
-  if (checkRebuildOver(op_index)) {
-    markOperatorFinished(op_index);
-
-    for (const pair<dag_node_index, bool> &dependent_link :
-         query_dag_->getDependents(op_index)) {
-      const dag_node_index dependent_op_index = dependent_link.first;
-      if (checkAllBlockingDependenciesMet(dependent_op_index)) {
-        processOperator(dependent_op_index, true);
-      }
-    }
-  }
-}
-
-void QueryManagerBase::processOperator(const dag_node_index index,
-                                       const bool recursively_check_dependents) {
-  if (fetchNormalWorkOrders(index)) {
-    // Fetched work orders. Return to wait for the generated work orders to
-    // execute, and skip the execution-finished checks.
+  if (!checkRebuildOver(op_index)) {
     return;
   }
 
-  if (checkNormalExecutionOver(index)) {
-    if (checkRebuildRequired(index)) {
-      if (!checkRebuildInitiated(index)) {
-        // Rebuild hasn't started, initiate it.
-        if (initiateRebuild(index)) {
-          // Rebuild initiated and completed right away.
-          markOperatorFinished(index);
-        } else {
-          // Rebuild WorkOrders have been generated.
-          return;
-        }
-      } else if (checkRebuildOver(index)) {
-        // Rebuild had been initiated and it is over.
-        markOperatorFinished(index);
-      }
-    } else {
-      // Rebuild is not required and normal execution over, mark finished.
-      markOperatorFinished(index);
-    }
-    // If we reach here, that means the operator has been marked as finished.
-    if (recursively_check_dependents) {
-      for (const pair<dag_node_index, bool> &dependent_link :
-           query_dag_->getDependents(index)) {
-        const dag_node_index dependent_op_index = dependent_link.first;
-        if (checkAllBlockingDependenciesMet(dependent_op_index)) {
-          processOperator(dependent_op_index, true);
-        }
-      }
-    }
-  }
+  markOperatorFinished(op_index);
 }
 
 void QueryManagerBase::processDataPipelineMessage(const dag_node_index op_index,
@@ -214,23 +163,44 @@ void QueryManagerBase::processDataPipelineMessage(const dag_node_index op_index,
     query_dag_->getNodePayloadMutable(consumer_index)->feedInputBlock(block, rel_id, part_id);
     // Because of the streamed input just fed, check if there are any new
     // WorkOrders available and if so, fetch them.
-    fetchNormalWorkOrders(consumer_index);
+    if (checkAllBlockingDependenciesMet(consumer_index)) {
+      fetchNormalWorkOrders(consumer_index);
+    }
   }
 }
 
 void QueryManagerBase::markOperatorFinished(const dag_node_index index) {
   query_exec_state_->setExecutionFinished(index);
 
+  for (const dag_node_index dependent_op_index : blocking_dependents_[index]) {
+    blocking_dependencies_[dependent_op_index].erase(index);
+  }
+
+  for (const dag_node_index dependent_op_index : output_consumers_[index]) {
+    non_blocking_dependencies_[dependent_op_index].erase(index);
+  }
+
   RelationalOperator *op = query_dag_->getNodePayloadMutable(index);
   op->updateCatalogOnCompletion();
 
   const relation_id output_rel = op->getOutputRelationID();
+
   for (const pair<dag_node_index, bool> &dependent_link : query_dag_->getDependents(index)) {
     const dag_node_index dependent_op_index = dependent_link.first;
-    RelationalOperator *dependent_op = query_dag_->getNodePayloadMutable(dependent_op_index);
-    // Signal dependent operator that current operator is done feeding input blocks.
     if (output_rel >= 0) {
-      dependent_op->doneFeedingInputBlocks(output_rel);
+      // Signal dependent operator that current operator is done feeding input blocks.
+      query_dag_->getNodePayloadMutable(dependent_op_index)->doneFeedingInputBlocks(output_rel);
+    }
+
+    if (checkAllBlockingDependenciesMet(dependent_op_index)) {
+      // Process the dependent operator (of the operator whose WorkOrder
+      // was just executed) for which all the dependencies have been met.
+      if (!fetchNormalWorkOrders(dependent_op_index) &&
+          non_blocking_dependencies_[dependent_op_index].empty() &&
+          checkNormalExecutionOver(dependent_op_index) &&
+          (!checkRebuildRequired(dependent_op_index) || initiateRebuild(dependent_op_index))) {
+        markOperatorFinished(dependent_op_index);
+      }
     }
   }
 }

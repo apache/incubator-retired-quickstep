@@ -67,10 +67,11 @@ QueryManagerDistributed::QueryManagerDistributed(QueryHandle *query_handle,
       bus_(bus),
       normal_workorder_protos_container_(
           new WorkOrderProtosContainer(num_operators_in_dag_)) {
-  // Collect all the workorders from all the relational operators in the DAG.
-  for (dag_node_index index = 0; index < num_operators_in_dag_; ++index) {
-    if (checkAllBlockingDependenciesMet(index)) {
-      processOperator(index, false);
+  // Collect all the workorders from all the non-blocking relational operators in the DAG.
+  for (const dag_node_index index : non_dependent_operators_) {
+    if (!fetchNormalWorkOrders(index)) {
+      DCHECK(!checkRebuildRequired(index) || initiateRebuild(index));
+      markOperatorFinished(index);
     }
   }
 
@@ -177,35 +178,22 @@ serialization::WorkOrderMessage* QueryManagerDistributed::getNextWorkOrderMessag
 }
 
 bool QueryManagerDistributed::fetchNormalWorkOrders(const dag_node_index index) {
-  bool generated_new_workorder_protos = false;
-  if (!query_exec_state_->hasDoneGenerationWorkOrders(index)) {
-    // Do not fetch any work units until all blocking dependencies are met.
-    // The releational operator is not aware of blocking dependencies for
-    // uncorrelated scalar queries.
-    if (!checkAllBlockingDependenciesMet(index)) {
-      return false;
-    }
-    const size_t num_pending_workorder_protos_before =
-        normal_workorder_protos_container_->getNumWorkOrderProtos(index);
-    const bool done_generation =
-        query_dag_->getNodePayloadMutable(index)
-            ->getAllWorkOrderProtos(normal_workorder_protos_container_.get());
-    if (done_generation) {
-      query_exec_state_->setDoneGenerationWorkOrders(index);
-    }
+  // Do not fetch any work units until all blocking dependencies are met.
+  // The releational operator is not aware of blocking dependencies for
+  // uncorrelated scalar queries.
+  DCHECK(checkAllBlockingDependenciesMet(index));
+  DCHECK(!query_exec_state_->hasDoneGenerationWorkOrders(index));
 
-    // TODO(shoban): It would be a good check to see if operator is making
-    // useful progress, i.e., the operator either generates work orders to
-    // execute or still has pending work orders executing. However, this will not
-    // work if Foreman polls operators without feeding data. This check can be
-    // enabled, if Foreman is refactored to call getAllWorkOrders() only when
-    // pending work orders are completed or new input blocks feed.
-
-    generated_new_workorder_protos =
-        (num_pending_workorder_protos_before <
-         normal_workorder_protos_container_->getNumWorkOrderProtos(index));
+  const size_t num_pending_workorder_protos_before =
+      normal_workorder_protos_container_->getNumWorkOrderProtos(index);
+  const bool done_generation =
+      query_dag_->getNodePayloadMutable(index)
+          ->getAllWorkOrderProtos(normal_workorder_protos_container_.get());
+  if (done_generation) {
+    query_exec_state_->setDoneGenerationWorkOrders(index);
   }
-  return generated_new_workorder_protos;
+
+  return (num_pending_workorder_protos_before < normal_workorder_protos_container_->getNumWorkOrderProtos(index));
 }
 
 void QueryManagerDistributed::processInitiateRebuildResponseMessage(const dag_node_index op_index,
@@ -225,7 +213,7 @@ void QueryManagerDistributed::processInitiateRebuildResponseMessage(const dag_no
        query_dag_->getDependents(op_index)) {
     const dag_node_index dependent_op_index = dependent_link.first;
     if (checkAllBlockingDependenciesMet(dependent_op_index)) {
-      processOperator(dependent_op_index, true);
+      fetchNormalWorkOrders(dependent_op_index);
     }
   }
 }

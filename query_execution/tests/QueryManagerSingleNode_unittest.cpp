@@ -353,14 +353,14 @@ TEST_F(QueryManagerTest, SingleNodeDAGDynamicWorkOrdersTest) {
   // This test creates a DAG of a single node. WorkOrders are generated
   // dynamically as pending work orders complete execution, i.e.,
   // getAllWorkOrders() is called multiple times.  getAllWorkOrders() will be
-  // called 5 times and 3 work orders will be returned, i.e., 1st 3 calls to
-  // getAllWorkOrders() insert 1 WorkOrder and return false, and the next will
-  // insert no WorkOrder and return true.
+  // called 3 times and 3 work orders will be returned, i.e., 2 calls to
+  // getAllWorkOrders() insert 2 WorkOrder and return false, and the last will
+  // insert 1 WorkOrder and return true.
 
   // TODO(shoban): This test can not be more robust than this because of fixed
   // scaffolding of mocking. If we use gMock, we can do much better.
   const QueryPlan::DAGNodeIndex id =
-      query_plan_->addRelationalOperator(new MockOperator(true, false, 4, 3));
+      query_plan_->addRelationalOperator(new MockOperator(true, false, 3, 3));
 
   const MockOperator &op = static_cast<const MockOperator &>(
       query_plan_->getQueryPlanDAG().getNodePayload(id));
@@ -378,7 +378,7 @@ TEST_F(QueryManagerTest, SingleNodeDAGDynamicWorkOrdersTest) {
     unique_ptr<WorkerMessage> worker_message;
     worker_message.reset(query_manager_->getNextWorkerMessage(id, -1));
 
-    EXPECT_TRUE(worker_message != nullptr);
+    ASSERT_TRUE(worker_message != nullptr);
     EXPECT_EQ(WorkerMessage::WorkerMessageType::kWorkOrder,
               worker_message->getType());
     EXPECT_EQ(id, worker_message->getRelationalOpIndex());
@@ -391,6 +391,7 @@ TEST_F(QueryManagerTest, SingleNodeDAGDynamicWorkOrdersTest) {
     if (i < 2) {
       // Send a message to QueryManager upon workorder completion.
       EXPECT_FALSE(placeWorkOrderCompleteMessage(id));
+      query_manager_->fetchNormalWorkOrders(id);
     } else {
       // Send a message to QueryManager upon workorder completion.
       // Last event.
@@ -511,7 +512,7 @@ TEST_F(QueryManagerTest, TwoNodesDAGPipeLinkTest) {
   const QueryPlan::DAGNodeIndex id1 =
       query_plan_->addRelationalOperator(new MockOperator(true, false, 1));
   const QueryPlan::DAGNodeIndex id2 =
-      query_plan_->addRelationalOperator(new MockOperator(true, true, 3));
+      query_plan_->addRelationalOperator(new MockOperator(true, true, 2));
 
   // Create a non-blocking link.
   query_plan_->addDirectDependency(id2, id1, false);
@@ -531,7 +532,7 @@ TEST_F(QueryManagerTest, TwoNodesDAGPipeLinkTest) {
   EXPECT_EQ(1, op1.getNumWorkOrders());
   EXPECT_EQ(0, op1.getNumCalls(MockOperator::kFeedInputBlock));
 
-  EXPECT_EQ(1, op2.getNumCalls(MockOperator::kGetAllWorkOrders));
+  EXPECT_EQ(0, op2.getNumCalls(MockOperator::kGetAllWorkOrders));
   // op2 will generate workorder only after receiving a streaming input.
   EXPECT_EQ(0, op2.getNumWorkOrders());
   EXPECT_EQ(0, op2.getNumCalls(MockOperator::kFeedInputBlock));
@@ -562,7 +563,7 @@ TEST_F(QueryManagerTest, TwoNodesDAGPipeLinkTest) {
   EXPECT_EQ(1, op2.getNumCalls(MockOperator::kFeedInputBlock));
 
   // A call to op2's getAllWorkOrders because of the streamed input.
-  EXPECT_EQ(2, op2.getNumCalls(MockOperator::kGetAllWorkOrders));
+  EXPECT_EQ(1, op2.getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(1, op2.getNumWorkOrders());
 
   // Place a message of a workorder completion of op1 on Foreman's input queue.
@@ -573,7 +574,7 @@ TEST_F(QueryManagerTest, TwoNodesDAGPipeLinkTest) {
   EXPECT_EQ(1, op2.getNumCalls(MockOperator::kDoneFeedingInputBlocks));
 
   // An additional call to op2's getAllWorkOrders because of completion of op1.
-  EXPECT_EQ(3, op2.getNumCalls(MockOperator::kGetAllWorkOrders));
+  EXPECT_EQ(2, op2.getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(2, op2.getNumWorkOrders());
 
   worker_message.reset(query_manager_->getNextWorkerMessage(id2, -1));
@@ -620,7 +621,7 @@ TEST_F(QueryManagerTest, TwoNodesDAGPartiallyFilledBlocksTest) {
   const QueryPlan::DAGNodeIndex id1 =
       query_plan_->addRelationalOperator(new MockOperator(true, false, 1));
   const QueryPlan::DAGNodeIndex id2 =
-      query_plan_->addRelationalOperator(new MockOperator(true, true, 3, 1));
+      query_plan_->addRelationalOperator(new MockOperator(true, true, 2, 1));
 
   // Create a non-blocking link.
   query_plan_->addDirectDependency(id2, id1, false);
@@ -670,7 +671,7 @@ TEST_F(QueryManagerTest, TwoNodesDAGPartiallyFilledBlocksTest) {
   EXPECT_EQ(1, op1.getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(1, op1.getNumWorkOrders());
 
-  EXPECT_EQ(1, op2.getNumCalls(MockOperator::kGetAllWorkOrders));
+  EXPECT_EQ(0, op2.getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(0, op2.getNumWorkOrders());
 
   unique_ptr<WorkerMessage> worker_message;
@@ -704,7 +705,7 @@ TEST_F(QueryManagerTest, TwoNodesDAGPartiallyFilledBlocksTest) {
   EXPECT_FALSE(placeRebuildWorkOrderCompleteMessage(id1));
   // Based on the streamed input, op2's getAllWorkOrders should produce a
   // workorder.
-  EXPECT_EQ(3, op2.getNumCalls(MockOperator::kGetAllWorkOrders));
+  EXPECT_EQ(2, op2.getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(1, op2.getNumWorkOrders());
 
   worker_message.reset(query_manager_->getNextWorkerMessage(id2, -1));
@@ -734,16 +735,14 @@ TEST_F(QueryManagerTest, MultipleNodesNoOutputTest) {
   // When an operator produces workorders but no output, the QueryManager should
   // check the dependents of this operator to make progress.
   const QueryPlan::DAGNodeIndex kNumNodes = 5;
-  std::vector<QueryPlan::DAGNodeIndex> ids;
-  ids.reserve(kNumNodes);
 
   for (QueryPlan::DAGNodeIndex i = 0; i < kNumNodes; ++i) {
     if (i == 0) {
-      ids[i] = query_plan_->addRelationalOperator(new MockOperator(true, false));
+      query_plan_->addRelationalOperator(new MockOperator(true, false));
     } else {
-      ids[i] = query_plan_->addRelationalOperator(new MockOperator(true, true));
+      query_plan_->addRelationalOperator(new MockOperator(true, true));
     }
-    VLOG(3) << ids[i];
+    VLOG(3) << i;
   }
 
   /**
@@ -753,46 +752,47 @@ TEST_F(QueryManagerTest, MultipleNodesNoOutputTest) {
    *
    **/
   for (QueryPlan::DAGNodeIndex i = 0; i < kNumNodes - 1; ++i) {
-    query_plan_->addDirectDependency(ids[i + 1], ids[i], false);
-    static_cast<MockOperator*>(query_plan_->getQueryPlanDAGMutable()->getNodePayloadMutable(ids[i]))
+    query_plan_->addDirectDependency(i + 1, i, false);
+    static_cast<MockOperator*>(query_plan_->getQueryPlanDAGMutable()->getNodePayloadMutable(i))
         ->setOutputRelationID(0xdead);
   }
 
   std::vector<const MockOperator*> operators;
   for (QueryPlan::DAGNodeIndex i = 0; i < kNumNodes; ++i) {
-    operators.push_back(static_cast<const MockOperator*>(&query_plan_->getQueryPlanDAG().getNodePayload(ids[i])));
+    operators.push_back(static_cast<const MockOperator*>(&query_plan_->getQueryPlanDAG().getNodePayload(i)));
   }
 
   constructQueryManager();
 
   // operators[0] should have produced a workorder by now.
+  EXPECT_EQ(1, operators[0]->getNumCalls(MockOperator::kGetAllWorkOrders));
   EXPECT_EQ(1, operators[0]->getNumWorkOrders());
 
   unique_ptr<WorkerMessage> worker_message;
-  worker_message.reset(query_manager_->getNextWorkerMessage(ids[0], -1));
+  worker_message.reset(query_manager_->getNextWorkerMessage(0, -1));
 
   EXPECT_TRUE(worker_message != nullptr);
   EXPECT_EQ(WorkerMessage::WorkerMessageType::kWorkOrder,
             worker_message->getType());
 
-  EXPECT_EQ(ids[0], worker_message->getRelationalOpIndex());
+  EXPECT_EQ(0, worker_message->getRelationalOpIndex());
 
   delete worker_message->getWorkOrder();
 
-  EXPECT_EQ(1, getNumWorkOrdersInExecution(ids[0]));
-  EXPECT_FALSE(getOperatorFinishedStatus(ids[0]));
+  EXPECT_EQ(1, getNumWorkOrdersInExecution(0));
+  EXPECT_FALSE(getOperatorFinishedStatus(0));
 
-  for (QueryPlan::DAGNodeIndex i = 0; i < kNumNodes; ++i) {
-    EXPECT_EQ(1, operators[ids[i]]->getNumCalls(MockOperator::kGetAllWorkOrders));
+  for (QueryPlan::DAGNodeIndex i = 1; i < kNumNodes; ++i) {
+    EXPECT_EQ(0, operators[i]->getNumCalls(MockOperator::kGetAllWorkOrders));
   }
 
   // Send a message to QueryManager upon workorder (generated by operators[0])
   // completion.
-  EXPECT_TRUE(placeWorkOrderCompleteMessage(ids[0]));
+  EXPECT_TRUE(placeWorkOrderCompleteMessage(0));
 
   for (QueryPlan::DAGNodeIndex i = 0; i < kNumNodes; ++i) {
-    EXPECT_EQ(0, getNumWorkOrdersInExecution(ids[i]));
-    EXPECT_TRUE(getOperatorFinishedStatus(ids[i]));
+    EXPECT_EQ(0, getNumWorkOrdersInExecution(i));
+    EXPECT_TRUE(getOperatorFinishedStatus(i));
     if (i < kNumNodes - 1) {
       EXPECT_EQ(1, operators[i + 1]->getNumCalls(MockOperator::kDoneFeedingInputBlocks));
     }

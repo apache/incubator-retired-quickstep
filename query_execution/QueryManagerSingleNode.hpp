@@ -99,8 +99,7 @@ class QueryManagerSingleNode final : public QueryManagerBase {
 
  private:
   bool checkNormalExecutionOver(const dag_node_index index) const override {
-    return (checkAllDependenciesMet(index) &&
-            !workorders_container_->hasNormalWorkOrder(index) &&
+    return (!workorders_container_->hasNormalWorkOrder(index) &&
             query_exec_state_->getNumQueuedWorkOrders(index) == 0 &&
             query_exec_state_->hasDoneGenerationWorkOrders(index));
   }
@@ -108,8 +107,8 @@ class QueryManagerSingleNode final : public QueryManagerBase {
   bool initiateRebuild(const dag_node_index index) override;
 
   bool checkRebuildOver(const dag_node_index index) const override {
-    return query_exec_state_->hasRebuildInitiated(index) &&
-           !workorders_container_->hasRebuildWorkOrder(index) &&
+    DCHECK(query_exec_state_->hasRebuildInitiated(index));
+    return !workorders_container_->hasRebuildWorkOrder(index) &&
            (query_exec_state_->getNumRebuildWorkOrders(index) == 0);
   }
 

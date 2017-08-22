@@ -250,8 +250,7 @@ class QueryManagerDistributed final : public QueryManagerBase {
 
  private:
   bool checkNormalExecutionOver(const dag_node_index index) const override {
-    return (checkAllDependenciesMet(index) &&
-            !normal_workorder_protos_container_->hasWorkOrderProto(index) &&
+    return (!normal_workorder_protos_container_->hasWorkOrderProto(index) &&
             query_exec_state_->getNumQueuedWorkOrders(index) == 0 &&
             query_exec_state_->hasDoneGenerationWorkOrders(index));
   }

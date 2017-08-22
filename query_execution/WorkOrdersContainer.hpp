@@ -542,6 +542,7 @@ class WorkOrdersContainer {
 
   DISALLOW_COPY_AND_ASSIGN(WorkOrdersContainer);
 };
+
 /** @} */
 
 }  // namespace quickstep

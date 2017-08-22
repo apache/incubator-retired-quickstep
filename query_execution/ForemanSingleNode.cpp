@@ -33,7 +33,6 @@
 #include "query_execution/WorkerDirectory.hpp"
 #include "query_execution/WorkerMessage.hpp"
 #include "threading/ThreadUtil.hpp"
-#include "utility/EqualsAnyConstant.hpp"
 #include "utility/Macros.hpp"
 
 #include "gflags/gflags.h"
@@ -179,18 +178,13 @@ void ForemanSingleNode::run() {
 }
 
 bool ForemanSingleNode::canCollectNewMessages(const tmb::message_type_id message_type) {
-  if (QUICKSTEP_EQUALS_ANY_CONSTANT(message_type,
-                                    kCatalogRelationNewBlockMessage,
-                                    kWorkOrderFeedbackMessage)) {
-    return false;
-  } else if (worker_directory_->getLeastLoadedWorker().second <=
-             FLAGS_min_load_per_worker) {
-    // If the least loaded worker has only one pending work order, we should
-    // collect new messages and dispatch them.
-    return true;
-  } else {
+  if (message_type == kCatalogRelationNewBlockMessage) {
     return false;
   }
+
+  // If the least loaded worker has only one pending work order, we should
+  // collect new messages and dispatch them.
+  return (worker_directory_->getLeastLoadedWorker().second <= FLAGS_min_load_per_worker);
 }
 
 void ForemanSingleNode::dispatchWorkerMessages(const vector<unique_ptr<WorkerMessage>> &messages) {

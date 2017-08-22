@@ -48,7 +48,6 @@
 #include "storage/StorageBlockInfo.hpp"
 #include "storage/StorageManager.hpp"
 #include "threading/ThreadUtil.hpp"
-#include "utility/EqualsAnyConstant.hpp"
 
 #include "glog/logging.h"
 
@@ -233,9 +232,7 @@ void ForemanDistributed::run() {
 }
 
 bool ForemanDistributed::canCollectNewMessages(const tmb::message_type_id message_type) {
-  return !QUICKSTEP_EQUALS_ANY_CONSTANT(message_type,
-                                        kCatalogRelationNewBlockMessage,
-                                        kWorkOrderFeedbackMessage);
+  return message_type != kCatalogRelationNewBlockMessage;
 }
 
 bool ForemanDistributed::isAggregationRelatedWorkOrder(const S::WorkOrderMessage &proto,

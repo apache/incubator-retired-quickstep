@@ -61,10 +61,11 @@ QueryManagerSingleNode::QueryManagerSingleNode(
       workorders_container_(
           new WorkOrdersContainer(num_operators_in_dag_, num_numa_nodes)),
       database_(static_cast<const CatalogDatabase&>(*catalog_database)) {
-  // Collect all the workorders from all the relational operators in the DAG.
-  for (dag_node_index index = 0; index < num_operators_in_dag_; ++index) {
-    if (checkAllBlockingDependenciesMet(index)) {
-      processOperator(index, false);
+  // Collect all the workorders from all the non-blocking relational operators in the DAG.
+  for (const dag_node_index index : non_dependent_operators_) {
+    if (!fetchNormalWorkOrders(index)) {
+      DCHECK(!checkRebuildRequired(index) || initiateRebuild(index));
+      markOperatorFinished(index);
     }
   }
 }
@@ -87,38 +88,25 @@ WorkerMessage* QueryManagerSingleNode::getNextWorkerMessage(
 }
 
 bool QueryManagerSingleNode::fetchNormalWorkOrders(const dag_node_index index) {
-  bool generated_new_workorders = false;
-  if (!query_exec_state_->hasDoneGenerationWorkOrders(index)) {
-    // Do not fetch any work units until all blocking dependencies are met.
-    // The releational operator is not aware of blocking dependencies for
-    // uncorrelated scalar queries.
-    if (!checkAllBlockingDependenciesMet(index)) {
-      return false;
-    }
-    const size_t num_pending_workorders_before =
-        workorders_container_->getNumNormalWorkOrders(index);
-    const bool done_generation =
-        query_dag_->getNodePayloadMutable(index)->getAllWorkOrders(workorders_container_.get(),
-                                                                   query_context_.get(),
-                                                                   storage_manager_,
-                                                                   foreman_client_id_,
-                                                                   bus_);
-    if (done_generation) {
-      query_exec_state_->setDoneGenerationWorkOrders(index);
-    }
+  // Do not fetch any work units until all blocking dependencies are met.
+  // The releational operator is not aware of blocking dependencies for
+  // uncorrelated scalar queries.
+  DCHECK(checkAllBlockingDependenciesMet(index));
+  DCHECK(!query_exec_state_->hasDoneGenerationWorkOrders(index));
 
-    // TODO(shoban): It would be a good check to see if operator is making
-    // useful progress, i.e., the operator either generates work orders to
-    // execute or still has pending work orders executing. However, this will not
-    // work if Foreman polls operators without feeding data. This check can be
-    // enabled, if Foreman is refactored to call getAllWorkOrders() only when
-    // pending work orders are completed or new input blocks feed.
-
-    generated_new_workorders =
-        (num_pending_workorders_before <
-         workorders_container_->getNumNormalWorkOrders(index));
+  const size_t num_pending_workorders_before =
+      workorders_container_->getNumNormalWorkOrders(index);
+  const bool done_generation =
+      query_dag_->getNodePayloadMutable(index)->getAllWorkOrders(workorders_container_.get(),
+                                                                 query_context_.get(),
+                                                                 storage_manager_,
+                                                                 foreman_client_id_,
+                                                                 bus_);
+  if (done_generation) {
+    query_exec_state_->setDoneGenerationWorkOrders(index);
   }
-  return generated_new_workorders;
+
+  return (num_pending_workorders_before < workorders_container_->getNumNormalWorkOrders(index));
 }
 
 bool QueryManagerSingleNode::initiateRebuild(const dag_node_index index) {

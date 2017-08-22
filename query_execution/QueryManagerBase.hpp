@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <unordered_set>
 #include <vector>
 
 #include "catalog/CatalogTypedefs.hpp"
@@ -165,54 +166,18 @@ class QueryManagerBase {
 
  protected:
   /**
-   * @brief Process a current relational operator: Get its workorders and store
-   *        them in the WorkOrdersContainer for this query. If the operator can
-   *        be marked as done, do so.
-   *
-   * @param index The index of the relational operator to be processed in the
-   *        query plan DAG.
-   * @param recursively_check_dependents If an operator is done, should we
-   *        call processOperator on its dependents recursively.
-   **/
-  void processOperator(const dag_node_index index,
-                       const bool recursively_check_dependents);
-
-  /**
    * @brief This function does the following things:
    *        1. Mark the given relational operator as "done".
-   *        2. For all the dependents of this operator, check if all of their
-   *        blocking dependencies are met. If so inform them that the blocking
-   *        dependencies are met.
-   *        3. Check if the given operator is done producing output. If it's
-   *        done, inform the dependents that they won't receive input anymore
-   *        from the given operator.
+   *        2. For all the dependents of this operator, check if the given
+   *        operator is done producing output. If it's done, inform the
+   *        dependents that they won't receive input anymore from the given
+   *        operator.
+   *        3. Check if all of their blocking dependencies are met. If so
+   *        fetch normal work orders.
    *
    * @param index The index of the given relational operator in the DAG.
    **/
   void markOperatorFinished(const dag_node_index index);
-
-  /**
-   * @brief Check if all the dependencies of the node at specified index have
-   *        finished their execution.
-   *
-   * @note This function's true return value is a pre-requisite for calling
-   *       getRebuildWorkOrders()
-   *
-   * @param node_index The index of the specified node in the query DAG.
-   *
-   * @return True if all the dependencies have finished their execution. False
-   *         otherwise.
-   **/
-  inline bool checkAllDependenciesMet(const dag_node_index node_index) const {
-    for (const dag_node_index dependency_index :
-         query_dag_->getDependencies(node_index)) {
-      // If at least one of the dependencies is not met, return false.
-      if (!query_exec_state_->hasExecutionFinished(dependency_index)) {
-        return false;
-      }
-    }
-    return true;
-  }
 
   /**
    * @brief Check if all the blocking dependencies of the node at specified
@@ -229,27 +194,7 @@ class QueryManagerBase {
    **/
   inline bool checkAllBlockingDependenciesMet(
       const dag_node_index node_index) const {
-    for (const dag_node_index blocking_dependency_index :
-         blocking_dependencies_[node_index]) {
-      if (!query_exec_state_->hasExecutionFinished(
-              blocking_dependency_index)) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  /**
-   * @brief Check if the execution of the given operator is over.
-   *
-   * @param index The index of the given operator in the DAG.
-   *
-   * @return True if the execution of the given operator is over, false
-   *         otherwise.
-   **/
-  inline bool checkOperatorExecutionOver(const dag_node_index index) const {
-    return this->checkNormalExecutionOver(index) &&
-           (!checkRebuildRequired(index) || this->checkRebuildOver(index));
+    return blocking_dependencies_[node_index].empty();
   }
 
   /**
@@ -295,7 +240,9 @@ class QueryManagerBase {
   std::vector<std::vector<dag_node_index>> output_consumers_;
 
   // For all nodes, store their pipeline breaking dependencies (if any).
-  std::vector<std::vector<dag_node_index>> blocking_dependencies_;
+  std::vector<std::unordered_set<dag_node_index>> blocking_dependencies_;
+
+  std::vector<dag_node_index> non_dependent_operators_;
 
   std::unique_ptr<QueryExecutionState> query_exec_state_;
 
@@ -337,6 +284,10 @@ class QueryManagerBase {
    * @return True if the rebuild operation is over, false otherwise.
    **/
   virtual bool checkRebuildOver(const dag_node_index index) const = 0;
+
+  // For all nodes, store their pipeline breaking dependents (if any).
+  std::vector<std::vector<dag_node_index>> blocking_dependents_;
+  std::vector<std::unordered_set<dag_node_index>> non_blocking_dependencies_;
 
   DISALLOW_COPY_AND_ASSIGN(QueryManagerBase);
 };
