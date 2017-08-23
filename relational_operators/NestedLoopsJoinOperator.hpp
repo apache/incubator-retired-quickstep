@@ -102,7 +102,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
       const QueryContext::scalar_group_id selection_index,
       const bool left_relation_is_stored,
       const bool right_relation_is_stored)
-      : RelationalOperator(query_id, num_partitions, has_repartition),
+      : RelationalOperator(query_id, num_partitions, has_repartition, output_relation.getNumPartitions()),
         nested_loops_join_index_(nested_loops_join_index),
         left_input_relation_(left_input_relation),
         right_input_relation_(right_input_relation),

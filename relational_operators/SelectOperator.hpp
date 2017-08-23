@@ -96,7 +96,8 @@ class SelectOperator : public RelationalOperator {
       const QueryContext::predicate_id predicate_index,
       const QueryContext::scalar_group_id selection_index,
       const bool input_relation_is_stored)
-      : RelationalOperator(query_id, input_relation.getNumPartitions(), has_repartition),
+      : RelationalOperator(query_id, input_relation.getNumPartitions(), has_repartition,
+                           output_relation.getNumPartitions()),
         input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
@@ -107,6 +108,7 @@ class SelectOperator : public RelationalOperator {
         simple_projection_(false),
         input_relation_is_stored_(input_relation_is_stored),
         started_(false) {
+    DCHECK(has_repartition || num_partitions_ == output_num_partitions_);
 #ifdef QUICKSTEP_HAVE_LIBNUMA
     placement_scheme_ = input_relation.getNUMAPlacementSchemePtr();
 #endif
@@ -153,7 +155,8 @@ class SelectOperator : public RelationalOperator {
       const QueryContext::predicate_id predicate_index,
       std::vector<attribute_id> &&selection,
       const bool input_relation_is_stored)
-      : RelationalOperator(query_id, input_relation.getNumPartitions(), has_repartition),
+      : RelationalOperator(query_id, input_relation.getNumPartitions(), has_repartition,
+                           output_relation.getNumPartitions()),
         input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
@@ -165,6 +168,7 @@ class SelectOperator : public RelationalOperator {
         simple_projection_(true),
         input_relation_is_stored_(input_relation_is_stored),
         started_(false) {
+    DCHECK(has_repartition || num_partitions_ == output_num_partitions_);
 #ifdef QUICKSTEP_HAVE_LIBNUMA
     placement_scheme_ = input_relation.getNUMAPlacementSchemePtr();
 #endif

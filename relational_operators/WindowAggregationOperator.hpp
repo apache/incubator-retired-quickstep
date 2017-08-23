@@ -70,7 +70,10 @@ class WindowAggregationOperator : public RelationalOperator {
                             const CatalogRelation &output_relation,
                             const QueryContext::window_aggregation_state_id window_aggregation_state_index,
                             const QueryContext::insert_destination_id output_destination_index)
-      : RelationalOperator(query_id),
+      : RelationalOperator(query_id, input_relation.getNumPartitions(),
+                           input_relation.getNumPartitions() !=
+                               output_relation.getNumPartitions() /* has_repartition */,
+                           output_relation.getNumPartitions()),
         input_relation_(input_relation),
         output_relation_(output_relation),
         window_aggregation_state_index_(window_aggregation_state_index),

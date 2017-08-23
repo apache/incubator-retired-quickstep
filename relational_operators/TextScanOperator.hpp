@@ -125,7 +125,8 @@ class TextScanOperator : public RelationalOperator {
                    const bool process_escape_sequences,
                    const CatalogRelation &output_relation,
                    const QueryContext::insert_destination_id output_destination_index)
-      : RelationalOperator(query_id),
+      : RelationalOperator(query_id, 1u, output_relation.getNumPartitions() != 1u /* has_repartition */,
+                           output_relation.getNumPartitions()),
         file_pattern_(file_pattern),
         field_terminator_(field_terminator),
         process_escape_sequences_(process_escape_sequences),

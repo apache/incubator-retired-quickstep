@@ -139,7 +139,7 @@ class HashJoinOperator : public RelationalOperator {
       const QueryContext::scalar_group_id selection_index,
       const std::vector<bool> *is_selection_on_build = nullptr,
       const JoinType join_type = JoinType::kInnerJoin)
-      : RelationalOperator(query_id, num_partitions, has_repartition),
+      : RelationalOperator(query_id, num_partitions, has_repartition, output_relation.getNumPartitions()),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
         probe_relation_is_stored_(probe_relation_is_stored),
@@ -157,6 +157,7 @@ class HashJoinOperator : public RelationalOperator {
         probe_relation_block_ids_(num_partitions),
         num_workorders_generated_(num_partitions),
         started_(false) {
+    DCHECK(has_repartition || num_partitions == output_num_partitions_);
     DCHECK(join_type != JoinType::kLeftOuterJoin ||
                (is_selection_on_build != nullptr &&
                 residual_predicate_index == QueryContext::kInvalidPredicateId));

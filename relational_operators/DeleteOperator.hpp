@@ -74,7 +74,8 @@ class DeleteOperator : public RelationalOperator {
                  const CatalogRelation &relation,
                  const QueryContext::predicate_id predicate_index,
                  const bool relation_is_stored)
-      : RelationalOperator(query_id, relation.getNumPartitions()),
+      : RelationalOperator(query_id, relation.getNumPartitions(), false /* has_repartition */,
+                           relation.getNumPartitions()),
         relation_(relation),
         predicate_index_(predicate_index),
         relation_is_stored_(relation_is_stored),

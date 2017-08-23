@@ -107,7 +107,8 @@ class SortMergeRunOperator : public RelationalOperator {
       const std::size_t merge_factor,
       const std::size_t top_k,
       const bool input_relation_is_stored)
-      : RelationalOperator(query_id),
+      : RelationalOperator(query_id, 1u /* input_num_partitions */, false /* has_repartition */,
+                           1u /* output_num_partition */),
         input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
@@ -124,6 +125,8 @@ class SortMergeRunOperator : public RelationalOperator {
         input_relation_is_stored_(input_relation_is_stored),
         input_stream_done_(input_relation_is_stored),
         started_(false) {
+    DCHECK_EQ(1u, input_relation.getNumPartitions());
+    DCHECK_EQ(1u, output_relation.getNumPartitions());
     DCHECK_GT(merge_factor_, 1u);
   }
 

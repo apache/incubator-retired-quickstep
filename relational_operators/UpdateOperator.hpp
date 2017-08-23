@@ -88,7 +88,8 @@ class UpdateOperator : public RelationalOperator {
       const QueryContext::insert_destination_id relocation_destination_index,
       const QueryContext::predicate_id predicate_index,
       const QueryContext::update_group_id update_group_index)
-      : RelationalOperator(query_id, relation.getNumPartitions()),
+      : RelationalOperator(query_id, relation.getNumPartitions(), false /* has_repartition */,
+                           relation.getNumPartitions()),
         relation_(relation),
         relocation_destination_index_(relocation_destination_index),
         predicate_index_(predicate_index),

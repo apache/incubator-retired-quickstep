@@ -70,7 +70,8 @@ class TableGeneratorOperator : public RelationalOperator {
       const CatalogRelation &output_relation,
       const QueryContext::insert_destination_id output_destination_index,
       const QueryContext::generator_function_id generator_function_index)
-      : RelationalOperator(query_id),
+      : RelationalOperator(query_id, 1u, output_relation.getNumPartitions() != 1u /* has_repartition */,
+                           output_relation.getNumPartitions()),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         generator_function_index_(generator_function_index),

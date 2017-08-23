@@ -98,7 +98,8 @@ class SortRunGenerationOperator : public RelationalOperator {
       const QueryContext::insert_destination_id output_destination_index,
       const QueryContext::sort_config_id sort_config_index,
       bool input_relation_is_stored)
-      : RelationalOperator(query_id),
+      : RelationalOperator(query_id, 1u /* input_num_partitions */, false /* has_repartition */,
+                           1u /* output_num_partition */),
         input_relation_(input_relation),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
@@ -108,7 +109,9 @@ class SortRunGenerationOperator : public RelationalOperator {
                                       : std::vector<block_id>()),
         num_workorders_generated_(0),
         started_(false),
-        input_relation_is_stored_(input_relation_is_stored) {}
+        input_relation_is_stored_(input_relation_is_stored) {
+    DCHECK_EQ(1u, output_relation.getNumPartitions());
+  }
 
   ~SortRunGenerationOperator() {}
 

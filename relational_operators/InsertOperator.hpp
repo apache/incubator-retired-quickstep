@@ -68,7 +68,7 @@ class InsertOperator : public RelationalOperator {
       const CatalogRelation &output_relation,
       const QueryContext::insert_destination_id output_destination_index,
       const QueryContext::tuple_id tuple_index)
-      : RelationalOperator(query_id),
+      : RelationalOperator(query_id, 1u, false, output_relation.getNumPartitions()),
         output_relation_(output_relation),
         output_destination_index_(output_destination_index),
         tuple_index_(tuple_index),
