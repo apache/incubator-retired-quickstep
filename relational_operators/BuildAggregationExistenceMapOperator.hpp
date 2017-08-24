@@ -158,6 +158,7 @@ class BuildAggregationExistenceMapWorkOrder : public WorkOrder {
    *
    * @param query_id The ID of this query.
    * @param input_relation The relation to build the existence map on.
+   * @param part_id The partition id of 'input_relation'.
    * @param build_block_id The block id.
    * @param build_attribute The ID of the attribute to build on.
    * @param state The AggregationState to use.
@@ -165,11 +166,12 @@ class BuildAggregationExistenceMapWorkOrder : public WorkOrder {
    **/
   BuildAggregationExistenceMapWorkOrder(const std::size_t query_id,
                                         const CatalogRelationSchema &input_relation,
+                                        const partition_id part_id,
                                         const block_id build_block_id,
                                         const attribute_id build_attribute,
                                         AggregationOperationState *state,
                                         StorageManager *storage_manager)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         input_relation_(input_relation),
         build_block_id_(build_block_id),
         build_attribute_(build_attribute),

@@ -61,6 +61,12 @@ using tmb::client_id;
 
 namespace quickstep {
 
+namespace {
+
+const partition_id kPartitionId = 0;
+
+}  // namespace
+
 class WorkOrderProtosContainer;
 
 class MockWorkOrder : public WorkOrder {
@@ -256,14 +262,14 @@ class QueryManagerTest : public ::testing::Test {
   inline bool placeWorkOrderCompleteMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place WorkOrderComplete message for Op[" << index << "]";
 
-    query_manager_->processWorkOrderCompleteMessage(index);
+    query_manager_->processWorkOrderCompleteMessage(index, kPartitionId);
     return query_manager_->getQueryExecutionState().hasQueryExecutionFinished();
   }
 
   inline bool placeRebuildWorkOrderCompleteMessage(const QueryPlan::DAGNodeIndex index) {
     VLOG(3) << "Place RebuildWorkOrderComplete message for Op[" << index << "]";
 
-    query_manager_->processRebuildWorkOrderCompleteMessage(index);
+    query_manager_->processRebuildWorkOrderCompleteMessage(index, kPartitionId);
     return query_manager_->getQueryExecutionState().hasQueryExecutionFinished();
   }
 

@@ -72,7 +72,7 @@ void PolicyEnforcerBase::processMessage(const TaggedMessage &tagged_message) {
       DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
 
       op_index = proto.operator_index();
-      admitted_queries_[query_id]->processWorkOrderCompleteMessage(op_index);
+      admitted_queries_[query_id]->processWorkOrderCompleteMessage(op_index, proto.partition_id());
       break;
     }
     case kRebuildWorkOrderCompleteMessage: {
@@ -87,7 +87,7 @@ void PolicyEnforcerBase::processMessage(const TaggedMessage &tagged_message) {
       DCHECK(admitted_queries_.find(query_id) != admitted_queries_.end());
 
       op_index = proto.operator_index();
-      admitted_queries_[query_id]->processRebuildWorkOrderCompleteMessage(op_index);
+      admitted_queries_[query_id]->processRebuildWorkOrderCompleteMessage(op_index, proto.partition_id());
       break;
     }
     case kCatalogRelationNewBlockMessage: {

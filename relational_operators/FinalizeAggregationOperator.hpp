@@ -139,8 +139,7 @@ class FinalizeAggregationWorkOrder : public WorkOrder {
                                const std::size_t state_partition_id,
                                AggregationOperationState *state,
                                InsertDestination *output_destination)
-      : WorkOrder(query_id),
-        part_id_(part_id),
+      : WorkOrder(query_id, part_id),
         state_partition_id_(state_partition_id),
         state_(DCHECK_NOTNULL(state)),
         output_destination_(DCHECK_NOTNULL(output_destination)) {}
@@ -150,7 +149,7 @@ class FinalizeAggregationWorkOrder : public WorkOrder {
   void execute() override;
 
  private:
-  const std::size_t part_id_, state_partition_id_;
+  const std::size_t state_partition_id_;
   AggregationOperationState *state_;
   InsertDestination *output_destination_;
 

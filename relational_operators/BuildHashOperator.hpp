@@ -203,11 +203,10 @@ class BuildHashWorkOrder : public WorkOrder {
                      JoinHashTable *hash_table,
                      StorageManager *storage_manager,
                      LIPFilterBuilder *lip_filter_builder)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         input_relation_(input_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        part_id_(part_id),
         build_block_id_(build_block_id),
         hash_table_(DCHECK_NOTNULL(hash_table)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
@@ -236,11 +235,10 @@ class BuildHashWorkOrder : public WorkOrder {
                      JoinHashTable *hash_table,
                      StorageManager *storage_manager,
                      LIPFilterBuilder *lip_filter_builder)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         input_relation_(input_relation),
         join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        part_id_(part_id),
         build_block_id_(build_block_id),
         hash_table_(DCHECK_NOTNULL(hash_table)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
@@ -254,20 +252,10 @@ class BuildHashWorkOrder : public WorkOrder {
 
   void execute() override;
 
-  /**
-   * @brief Get the partition id.
-   *
-   * @return The partition id.
-   */
-  partition_id getPartitionId() const {
-    return part_id_;
-  }
-
  private:
   const CatalogRelationSchema &input_relation_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const partition_id part_id_;
   const block_id build_block_id_;
 
   JoinHashTable *hash_table_;

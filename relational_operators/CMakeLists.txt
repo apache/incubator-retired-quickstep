@@ -565,6 +565,7 @@ target_link_libraries(quickstep_relationaloperators_WindowAggregationOperator
                       tmb)
 target_link_libraries(quickstep_relationaloperators_WorkOrder
                       glog
+                      quickstep_catalog_CatalogTypedefs
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_utility_Macros
                       tmb)

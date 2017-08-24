@@ -295,9 +295,8 @@ class SelectWorkOrder : public WorkOrder {
                   StorageManager *storage_manager,
                   LIPFilterAdaptiveProber *lip_filter_adaptive_prober,
                   const numa_node_id numa_node = 0)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         input_relation_(input_relation),
-        part_id_(part_id),
         input_block_id_(input_block_id),
         predicate_(predicate),
         simple_projection_(simple_projection),
@@ -343,9 +342,8 @@ class SelectWorkOrder : public WorkOrder {
                   StorageManager *storage_manager,
                   LIPFilterAdaptiveProber *lip_filter_adaptive_prober,
                   const numa_node_id numa_node = 0)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         input_relation_(input_relation),
-        part_id_(part_id),
         input_block_id_(input_block_id),
         predicate_(predicate),
         simple_projection_(simple_projection),
@@ -371,7 +369,6 @@ class SelectWorkOrder : public WorkOrder {
 
  private:
   const CatalogRelationSchema &input_relation_;
-  const partition_id part_id_;
   const block_id input_block_id_;
   const Predicate *predicate_;
 

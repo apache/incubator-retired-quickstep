@@ -67,7 +67,7 @@ bool DestroyAggregationStateOperator::getAllWorkOrderProtos(WorkOrderProtosConta
 }
 
 void DestroyAggregationStateWorkOrder::execute() {
-  query_context_->destroyAggregationState(aggr_state_index_, part_id_);
+  query_context_->destroyAggregationState(aggr_state_index_, partition_id_);
 }
 
 }  // namespace quickstep

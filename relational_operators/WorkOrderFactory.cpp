@@ -96,6 +96,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
                 << " in Shiftboss " << shiftboss_index;
       return new AggregationWorkOrder(
           query_id,
+          part_id,
           proto.GetExtension(serialization::AggregationWorkOrder::block_id),
           query_context->getAggregationState(
               proto.GetExtension(serialization::AggregationWorkOrder::aggr_state_index), part_id),
@@ -113,6 +114,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           query_id,
           catalog_database->getRelationSchemaById(
               proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::relation_id)),
+          part_id,
           proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::build_block_id),
           proto.GetExtension(serialization::BuildAggregationExistenceMapWorkOrder::build_attribute),
           query_context->getAggregationState(
@@ -120,7 +122,10 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           storage_manager);
     }
     case serialization::BUILD_LIP_FILTER: {
-      LOG(INFO) << "Creating BuildLIPFilterWorkOrder for Query " << query_id
+      const partition_id part_id =
+          proto.GetExtension(serialization::BuildLIPFilterWorkOrder::partition_id);
+
+      LOG(INFO) << "Creating BuildLIPFilterWorkOrder (Partition " << part_id << ") for Query " << query_id
                 << " in Shiftboss " << shiftboss_index;
 
       const QueryContext::lip_deployment_id lip_deployment_index =
@@ -130,6 +135,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           query_id,
           catalog_database->getRelationSchemaById(
               proto.GetExtension(serialization::BuildLIPFilterWorkOrder::relation_id)),
+          part_id,
           proto.GetExtension(serialization::BuildLIPFilterWorkOrder::build_block_id),
           query_context->getPredicate(
               proto.GetExtension(serialization::BuildLIPFilterWorkOrder::build_side_predicate_index)),
@@ -379,6 +385,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
           query_context->getAggregationState(
               proto.GetExtension(serialization::InitializeAggregationWorkOrder::aggr_state_index), part_id);
       return new InitializeAggregationWorkOrder(query_id,
+                                                part_id,
                                                 proto.GetExtension(
                                                     serialization::InitializeAggregationWorkOrder::state_partition_id),
                                                 aggr_state);
@@ -393,7 +400,10 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               proto.GetExtension(serialization::InsertWorkOrder::tuple_index)));
     }
     case serialization::NESTED_LOOP_JOIN: {
-      LOG(INFO) << "Creating NestedLoopsJoinWorkOrder for Query " << query_id
+      const partition_id part_id =
+          proto.GetExtension(serialization::NestedLoopsJoinWorkOrder::partition_id);
+
+      LOG(INFO) << "Creating NestedLoopsJoinWorkOrder (Partition " << part_id << ") for Query " << query_id
                 << " in Shiftboss " << shiftboss_index;
       return new NestedLoopsJoinWorkOrder(
           query_id,
@@ -401,6 +411,7 @@ WorkOrder* WorkOrderFactory::ReconstructFromProto(const serialization::WorkOrder
               proto.GetExtension(serialization::NestedLoopsJoinWorkOrder::left_relation_id)),
           catalog_database->getRelationSchemaById(
               proto.GetExtension(serialization::NestedLoopsJoinWorkOrder::right_relation_id)),
+          part_id,
           proto.GetExtension(serialization::NestedLoopsJoinWorkOrder::left_block_id),
           proto.GetExtension(serialization::NestedLoopsJoinWorkOrder::right_block_id),
           query_context->getPredicate(

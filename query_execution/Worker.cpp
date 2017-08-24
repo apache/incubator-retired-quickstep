@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
+#include <memory>
 #include <utility>
 
 #include "query_execution/QueryExecutionMessages.pb.h"
@@ -125,14 +126,17 @@ void Worker::executeWorkOrderHelper(const TaggedMessage &tagged_message,
   std::chrono::time_point<std::chrono::steady_clock> start, end;
   WorkerMessage worker_message(
       *static_cast<const WorkerMessage *>(tagged_message.message()));
-  DCHECK(worker_message.getWorkOrder() != nullptr);
-  const size_t query_id_for_workorder = worker_message.getWorkOrder()->getQueryID();
+  std::unique_ptr<WorkOrder> work_order(worker_message.getWorkOrder());
+  DCHECK(work_order);
+
+  const size_t query_id_for_workorder = work_order->getQueryID();
+  const partition_id part_id = work_order->getPartitionId();
 
   // Start measuring the execution time.
   start = std::chrono::steady_clock::now();
-  worker_message.getWorkOrder()->execute();
+  work_order->execute();
   end = std::chrono::steady_clock::now();
-  delete worker_message.getWorkOrder();
+  work_order.reset();
 
   // Convert the measured timestamps to epoch times in microseconds.
   const uint64_t execution_start_time =
@@ -147,6 +151,7 @@ void Worker::executeWorkOrderHelper(const TaggedMessage &tagged_message,
                                                    : WorkOrderCompletionMessage::NORMAL);
   proto->set_operator_index(worker_message.getRelationalOpIndex());
   proto->set_query_id(query_id_for_workorder);
+  proto->set_partition_id(part_id);
   proto->set_worker_thread_index(worker_thread_index_);
   proto->set_execution_start_time(execution_start_time);
   proto->set_execution_end_time(execution_end_time);

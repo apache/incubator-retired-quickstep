@@ -105,7 +105,8 @@ void QueryManagerBase::processFeedbackMessage(
 }
 
 void QueryManagerBase::processWorkOrderCompleteMessage(
-    const dag_node_index op_index) {
+    const dag_node_index op_index,
+    const partition_id part_id) {
   query_exec_state_->decrementNumQueuedWorkOrders(op_index);
 
   // Check if new work orders are available and fetch them if so.
@@ -144,7 +145,8 @@ void QueryManagerBase::processWorkOrderCompleteMessage(
   }
 }
 
-void QueryManagerBase::processRebuildWorkOrderCompleteMessage(const dag_node_index op_index) {
+void QueryManagerBase::processRebuildWorkOrderCompleteMessage(const dag_node_index op_index,
+                                                              const partition_id part_id) {
   query_exec_state_->decrementNumRebuildWorkOrders(op_index);
 
   if (checkRebuildOver(op_index)) {

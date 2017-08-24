@@ -31,6 +31,7 @@ import "relational_operators/WorkOrder.proto";
 // order completion message, we may be interested in adding the compression
 // ratio or dictionary size of the rebuilt block.
 
+// Next tag: 9.
 message WorkOrderCompletionMessage {
   enum WorkOrderType {
     NORMAL = 0;
@@ -42,6 +43,7 @@ message WorkOrderCompletionMessage {
   required uint64 operator_index = 2;
   required uint64 worker_thread_index = 3;
   required uint64 query_id = 4;
+  required uint64 partition_id = 8;
 
   // Epoch time in microseconds.
   optional uint64 execution_start_time = 5;

@@ -171,6 +171,7 @@ class BuildLIPFilterWorkOrder : public WorkOrder {
    *
    * @param query_id The ID of the query to which this WorkOrder belongs.
    * @param input_relation The relation to build LIP filters on.
+   * @param part_id The partition id of 'input_relation'.
    * @param build_block_id The block id.
    * @param build_side_predicate The predicate to be applied to filter the input
    *        relation before building the LIP filters (or nullptr if no predicate
@@ -181,12 +182,13 @@ class BuildLIPFilterWorkOrder : public WorkOrder {
    **/
   BuildLIPFilterWorkOrder(const std::size_t query_id,
                           const CatalogRelationSchema &input_relation,
+                          const partition_id part_id,
                           const block_id build_block_id,
                           const Predicate *build_side_predicate,
                           StorageManager *storage_manager,
                           LIPFilterAdaptiveProber *lip_filter_adaptive_prober,
                           LIPFilterBuilder *lip_filter_builder)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         input_relation_(input_relation),
         build_block_id_(build_block_id),
         build_side_predicate_(build_side_predicate),

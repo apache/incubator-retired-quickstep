@@ -53,6 +53,7 @@ bool InitializeAggregationOperator::getAllWorkOrders(
          ++state_part_id) {
       container->addNormalWorkOrder(
           new InitializeAggregationWorkOrder(query_id_,
+                                             part_id,
                                              state_part_id,
                                              agg_state),
           op_index_);

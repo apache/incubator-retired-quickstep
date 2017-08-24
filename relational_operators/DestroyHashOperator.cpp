@@ -68,7 +68,7 @@ bool DestroyHashOperator::getAllWorkOrderProtos(WorkOrderProtosContainer *contai
 
 
 void DestroyHashWorkOrder::execute() {
-  query_context_->destroyJoinHashTable(hash_table_index_, part_id_);
+  query_context_->destroyJoinHashTable(hash_table_index_, partition_id_);
 }
 
 }  // namespace quickstep

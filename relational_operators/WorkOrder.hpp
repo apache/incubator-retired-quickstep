@@ -27,6 +27,7 @@
 #include <utility>
 #include <vector>
 
+#include "catalog/CatalogTypedefs.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "utility/Macros.hpp"
 
@@ -295,8 +296,17 @@ class WorkOrder {
   /**
    * @brief Get the ID of the query which this WorkOder belongs to.
    **/
-  inline const std::size_t getQueryID() const {
+  inline std::size_t getQueryID() const {
     return query_id_;
+  }
+
+  /**
+   * @brief Get the partition id.
+   *
+   * @return The partition id.
+   */
+  partition_id getPartitionId() const {
+    return partition_id_;
   }
 
  protected:
@@ -304,11 +314,16 @@ class WorkOrder {
    * @brief Constructor.
    *
    * @param query_id The ID of the query to which this WorkOrder belongs.
+   * @param part_id The partition id.
    **/
-  explicit WorkOrder(const std::size_t query_id)
-      : query_id_(query_id) {}
+  explicit WorkOrder(const std::size_t query_id,
+                     const partition_id part_id = 0)
+      : query_id_(query_id),
+        partition_id_(part_id) {}
 
   const std::size_t query_id_;
+  const partition_id partition_id_;
+
   // A vector of preferred NUMA node IDs where this workorder should be executed.
   // These node IDs typically indicate the NUMA node IDs of the input(s) of the
   // workorder. Derived classes should ensure that there are no duplicate entries

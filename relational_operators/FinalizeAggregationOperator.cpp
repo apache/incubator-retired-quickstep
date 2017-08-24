@@ -96,7 +96,6 @@ bool FinalizeAggregationOperator::getAllWorkOrderProtos(WorkOrderProtosContainer
 }
 
 void FinalizeAggregationWorkOrder::execute() {
-  (void) part_id_;
   state_->finalizeAggregate(state_partition_id_, output_destination_);
 }
 

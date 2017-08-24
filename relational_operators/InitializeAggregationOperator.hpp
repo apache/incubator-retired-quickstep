@@ -106,13 +106,15 @@ class InitializeAggregationWorkOrder : public WorkOrder {
    * @brief Constructor.
    *
    * @param query_id The ID of the query to which this operator belongs.
+   * @param part_id The partition id.
    * @param state_partition_id The partition ID for which the work order is issued.
    * @param state The AggregationOperationState to be initialized.
    */
   InitializeAggregationWorkOrder(const std::size_t query_id,
+                                 const partition_id part_id,
                                  const std::size_t state_partition_id,
                                  AggregationOperationState *state)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         state_partition_id_(state_partition_id),
         state_(DCHECK_NOTNULL(state)) {}
 

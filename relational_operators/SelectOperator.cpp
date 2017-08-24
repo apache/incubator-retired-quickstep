@@ -159,7 +159,7 @@ serialization::WorkOrder* SelectOperator::createWorkOrderProto(const partition_i
 }
 
 void SelectWorkOrder::execute() {
-  output_destination_->setInputPartitionId(part_id_);
+  output_destination_->setInputPartitionId(partition_id_);
 
   BlockReference block(
       storage_manager_->getBlock(input_block_id_, input_relation_, getPreferredNUMANodes()[0]));

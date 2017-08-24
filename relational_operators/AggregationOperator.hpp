@@ -155,15 +155,17 @@ class AggregationWorkOrder : public WorkOrder {
    * @brief Constructor
    *
    * @param query_id The ID of this query.
+   * @param part_id The partition id.
    * @param input_block_id The block id.
    * @param state The AggregationState to use.
    * @param lip_filter_adaptive_prober The attached LIP filter prober.
    **/
   AggregationWorkOrder(const std::size_t query_id,
+                       const partition_id part_id,
                        const block_id input_block_id,
                        AggregationOperationState *state,
                        LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         input_block_id_(input_block_id),
         state_(DCHECK_NOTNULL(state)),
         lip_filter_adaptive_prober_(lip_filter_adaptive_prober) {}

@@ -65,6 +65,7 @@ bool BuildLIPFilterOperator::getAllWorkOrders(
             new BuildLIPFilterWorkOrder(
                 query_id_,
                 input_relation_,
+                part_id,
                 input_block_id,
                 build_side_predicate,
                 storage_manager,
@@ -82,6 +83,7 @@ bool BuildLIPFilterOperator::getAllWorkOrders(
             new BuildLIPFilterWorkOrder(
                 query_id_,
                 input_relation_,
+                part_id,
                 input_relation_block_ids_[part_id][num_workorders_generated_[part_id]],
                 build_side_predicate,
                 storage_manager,

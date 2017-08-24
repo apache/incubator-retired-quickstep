@@ -107,9 +107,8 @@ class DestroyHashWorkOrder : public WorkOrder {
                        const QueryContext::join_hash_table_id hash_table_index,
                        const partition_id part_id,
                        QueryContext *query_context)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         hash_table_index_(hash_table_index),
-        part_id_(part_id),
         query_context_(DCHECK_NOTNULL(query_context)) {}
 
   ~DestroyHashWorkOrder() override {}
@@ -118,7 +117,6 @@ class DestroyHashWorkOrder : public WorkOrder {
 
  private:
   const QueryContext::join_hash_table_id hash_table_index_;
-  const partition_id part_id_;
   QueryContext *query_context_;
 
   DISALLOW_COPY_AND_ASSIGN(DestroyHashWorkOrder);

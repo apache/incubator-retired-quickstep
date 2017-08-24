@@ -338,12 +338,11 @@ class HashInnerJoinWorkOrder : public WorkOrder {
       InsertDestination *output_destination,
       StorageManager *storage_manager,
       LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        part_id_(part_id),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
         selection_(selection),
@@ -391,12 +390,11 @@ class HashInnerJoinWorkOrder : public WorkOrder {
       InsertDestination *output_destination,
       StorageManager *storage_manager,
       LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        part_id_(part_id),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
         selection_(selection),
@@ -417,15 +415,6 @@ class HashInnerJoinWorkOrder : public WorkOrder {
    **/
   void execute() override;
 
-  /**
-   * @brief Get the partition id.
-   *
-   * @return The partition id.
-   */
-  partition_id getPartitionId() const {
-    return part_id_;
-  }
-
  private:
   void executeWithoutCopyElision(ValueAccessor *probe_accesor);
 
@@ -435,7 +424,6 @@ class HashInnerJoinWorkOrder : public WorkOrder {
   const CatalogRelationSchema &probe_relation_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const partition_id part_id_;
   const block_id block_id_;
   const Predicate *residual_predicate_;
   const std::vector<std::unique_ptr<const Scalar>> &selection_;
@@ -494,12 +482,11 @@ class HashSemiJoinWorkOrder : public WorkOrder {
       InsertDestination *output_destination,
       StorageManager *storage_manager,
       LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        part_id_(part_id),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
         selection_(selection),
@@ -547,12 +534,11 @@ class HashSemiJoinWorkOrder : public WorkOrder {
       InsertDestination *output_destination,
       StorageManager *storage_manager,
       LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        part_id_(part_id),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
         selection_(selection),
@@ -565,15 +551,6 @@ class HashSemiJoinWorkOrder : public WorkOrder {
 
   void execute() override;
 
-  /**
-   * @brief Get the partition id.
-   *
-   * @return The partition id.
-   */
-  partition_id getPartitionId() const {
-    return part_id_;
-  }
-
  private:
   void executeWithoutResidualPredicate();
 
@@ -583,7 +560,6 @@ class HashSemiJoinWorkOrder : public WorkOrder {
   const CatalogRelationSchema &probe_relation_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const partition_id part_id_;
   const block_id block_id_;
   const Predicate *residual_predicate_;
   const std::vector<std::unique_ptr<const Scalar>> &selection_;
@@ -642,12 +618,11 @@ class HashAntiJoinWorkOrder : public WorkOrder {
       InsertDestination *output_destination,
       StorageManager *storage_manager,
       LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        part_id_(part_id),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
         selection_(selection),
@@ -695,12 +670,11 @@ class HashAntiJoinWorkOrder : public WorkOrder {
       InsertDestination *output_destination,
       StorageManager *storage_manager,
       LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        part_id_(part_id),
         block_id_(lookup_block_id),
         residual_predicate_(residual_predicate),
         selection_(selection),
@@ -712,22 +686,13 @@ class HashAntiJoinWorkOrder : public WorkOrder {
   ~HashAntiJoinWorkOrder() override {}
 
   void execute() override {
-    output_destination_->setInputPartitionId(part_id_);
+    output_destination_->setInputPartitionId(partition_id_);
 
     if (residual_predicate_ == nullptr) {
       executeWithoutResidualPredicate();
     } else {
       executeWithResidualPredicate();
     }
-  }
-
-  /**
-   * @brief Get the partition id.
-   *
-   * @return The partition id.
-   */
-  partition_id getPartitionId() const {
-    return part_id_;
   }
 
  private:
@@ -739,7 +704,6 @@ class HashAntiJoinWorkOrder : public WorkOrder {
   const CatalogRelationSchema &probe_relation_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const partition_id part_id_;
   const block_id block_id_;
   const Predicate *residual_predicate_;
   const std::vector<std::unique_ptr<const Scalar>> &selection_;
@@ -796,12 +760,11 @@ class HashOuterJoinWorkOrder : public WorkOrder {
       InsertDestination *output_destination,
       StorageManager *storage_manager,
       LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        part_id_(part_id),
         block_id_(lookup_block_id),
         selection_(selection),
         is_selection_on_build_(is_selection_on_build),
@@ -847,12 +810,11 @@ class HashOuterJoinWorkOrder : public WorkOrder {
       InsertDestination *output_destination,
       StorageManager *storage_manager,
       LIPFilterAdaptiveProber *lip_filter_adaptive_prober)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         build_relation_(build_relation),
         probe_relation_(probe_relation),
         join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
-        part_id_(part_id),
         block_id_(lookup_block_id),
         selection_(selection),
         is_selection_on_build_(std::move(is_selection_on_build)),
@@ -865,21 +827,11 @@ class HashOuterJoinWorkOrder : public WorkOrder {
 
   void execute() override;
 
-  /**
-   * @brief Get the partition id.
-   *
-   * @return The partition id.
-   */
-  partition_id getPartitionId() const {
-    return part_id_;
-  }
-
  private:
   const CatalogRelationSchema &build_relation_;
   const CatalogRelationSchema &probe_relation_;
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
-  const partition_id part_id_;
   const block_id block_id_;
   const std::vector<std::unique_ptr<const Scalar>> &selection_;
   const std::vector<bool> is_selection_on_build_;

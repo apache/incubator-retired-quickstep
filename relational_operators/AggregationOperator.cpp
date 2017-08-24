@@ -51,6 +51,7 @@ bool AggregationOperator::getAllWorkOrders(
         container->addNormalWorkOrder(
             new AggregationWorkOrder(
                 query_id_,
+                part_id,
                 input_block_id,
                 query_context->getAggregationState(aggr_state_index_, part_id),
                 CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),
@@ -65,6 +66,7 @@ bool AggregationOperator::getAllWorkOrders(
         container->addNormalWorkOrder(
             new AggregationWorkOrder(
                 query_id_,
+                part_id,
                 input_relation_block_ids_[part_id][num_workorders_generated_[part_id]],
                 query_context->getAggregationState(aggr_state_index_, part_id),
                 CreateLIPFilterAdaptiveProberHelper(lip_deployment_index_, query_context)),

@@ -338,6 +338,7 @@ class NestedLoopsJoinWorkOrder : public WorkOrder {
    *        actually important).
    * @param right_input_relation The second relation in the join (order is not
    *        actually important).
+   * @param part_id The partition id.
    * @param left_block_id The block id of the first relation.
    * @param right_block_id The block id of the second relation.
    * @param join_predicate The join predicate to evaluate for each pair of
@@ -352,13 +353,14 @@ class NestedLoopsJoinWorkOrder : public WorkOrder {
       const std::size_t query_id,
       const CatalogRelationSchema &left_input_relation,
       const CatalogRelationSchema &right_input_relation,
+      const partition_id part_id,
       const block_id left_block_id,
       const block_id right_block_id,
       const Predicate *join_predicate,
       const std::vector<std::unique_ptr<const Scalar>> &selection,
       InsertDestination *output_destination,
       StorageManager *storage_manager)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         left_input_relation_(left_input_relation),
         right_input_relation_(right_input_relation),
         left_block_id_(left_block_id),

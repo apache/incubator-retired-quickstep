@@ -110,9 +110,8 @@ class DestroyAggregationStateWorkOrder : public WorkOrder {
       const QueryContext::aggregation_state_id aggr_state_index,
       const partition_id part_id,
       QueryContext *query_context)
-      : WorkOrder(query_id),
+      : WorkOrder(query_id, part_id),
         aggr_state_index_(aggr_state_index),
-        part_id_(part_id),
         query_context_(DCHECK_NOTNULL(query_context)) {}
 
   ~DestroyAggregationStateWorkOrder() override {}
@@ -121,7 +120,6 @@ class DestroyAggregationStateWorkOrder : public WorkOrder {
 
  private:
   const QueryContext::aggregation_state_id aggr_state_index_;
-  const partition_id part_id_;
   QueryContext *query_context_;
 
   DISALLOW_COPY_AND_ASSIGN(DestroyAggregationStateWorkOrder);
