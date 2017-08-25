@@ -360,7 +360,7 @@ int main(int argc, char* argv[]) {
 
           if (quickstep::FLAGS_visualize_execution_dag) {
             dag_visualizer =
-                std::make_unique<quickstep::ExecutionDAGVisualizer>(*query_handle->getQueryPlanMutable());
+                std::make_unique<quickstep::ExecutionDAGVisualizer>(query_handle->getQueryPlan());
           }
 
           query_result_relation = query_handle->getQueryResultRelation();

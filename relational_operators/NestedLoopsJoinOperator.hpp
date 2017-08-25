@@ -201,6 +201,14 @@ class NestedLoopsJoinOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  const CatalogRelation& left_input_relation() const {
+    return left_input_relation_;
+  }
+
+  const CatalogRelation& right_input_relation() const {
+    return right_input_relation_;
+  }
+
  private:
   /**
    * @brief Pairs block IDs from left and right relation block IDs and generates

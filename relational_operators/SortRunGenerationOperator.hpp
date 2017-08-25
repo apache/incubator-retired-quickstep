@@ -145,6 +145,10 @@ class SortRunGenerationOperator : public RelationalOperator {
     return output_relation_.getID();
   }
 
+  const CatalogRelation& input_relation() const {
+    return input_relation_;
+  }
+
  private:
   /**
    * @brief Create Work Order proto.

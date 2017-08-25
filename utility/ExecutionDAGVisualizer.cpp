@@ -23,32 +23,47 @@
 #include <cstddef>
 #include <iomanip>
 #include <limits>
-#include <set>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
+#include "catalog/CatalogRelation.hpp"
 #include "catalog/CatalogRelationSchema.hpp"
 #include "query_execution/QueryExecutionTypedefs.hpp"
 #include "query_optimizer/QueryPlan.hpp"
 #include "relational_operators/AggregationOperator.hpp"
 #include "relational_operators/BuildHashOperator.hpp"
+#include "relational_operators/BuildLIPFilterOperator.hpp"
 #include "relational_operators/HashJoinOperator.hpp"
+#include "relational_operators/NestedLoopsJoinOperator.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "relational_operators/SelectOperator.hpp"
+#include "relational_operators/SortRunGenerationOperator.hpp"
+#include "relational_operators/UnionAllOperator.hpp"
 #include "utility/DAG.hpp"
 #include "utility/StringUtil.hpp"
 
+#include "gflags/gflags.h"
 #include "glog/logging.h"
+
+using std::to_string;
 
 namespace quickstep {
 
+DEFINE_bool(visualize_execution_dag_partition_info, false,
+            "If true, display the operator partition info in the visualized execution plan DAG."
+            "Valid iif 'visualize_execution_dag' turns on.");
+
 ExecutionDAGVisualizer::ExecutionDAGVisualizer(const QueryPlan &plan) {
   // Do not display these relational operators in the graph.
-  std::set<std::string> no_display_op_names =
-      { "DestroyHashOperator", "DropTableOperator" };
+  const std::unordered_set<typename std::underlying_type<RelationalOperator::OperatorType>::type> no_display_op_types =
+      { RelationalOperator::kDestroyAggregationState,
+        RelationalOperator::kDestroyHash,
+        RelationalOperator::kDropTable };
 
   const auto &dag = plan.getQueryPlanDAG();
   num_nodes_ = dag.size();
@@ -57,39 +72,123 @@ ExecutionDAGVisualizer::ExecutionDAGVisualizer(const QueryPlan &plan) {
   std::vector<bool> display_ops(num_nodes_, false);
   for (std::size_t node_index = 0; node_index < num_nodes_; ++node_index) {
     const auto &node = dag.getNodePayload(node_index);
-    const std::string relop_name = node.getName();
-    if (no_display_op_names.find(relop_name) == no_display_op_names.end()) {
-      display_ops[node_index] = true;
-      NodeInfo &node_info = nodes_[node_index];
-      node_info.id = node_index;
-      node_info.labels.emplace_back(
-          "[" + std::to_string(node.getOperatorIndex()) + "] " + relop_name);
+    const RelationalOperator::OperatorType node_type = node.getOperatorType();
+    if (no_display_op_types.find(node_type) != no_display_op_types.end()) {
+      continue;
+    }
 
-      std::vector<std::pair<std::string, const CatalogRelationSchema*>> input_relations;
-      if (relop_name == "AggregationOperator") {
+    display_ops[node_index] = true;
+    NodeInfo &node_info = nodes_[node_index];
+    node_info.id = node_index;
+    node_info.labels.emplace_back(
+        "[" + std::to_string(node_index) + "] " + node.getName());
+
+    const CatalogRelationSchema *input_relation = nullptr;
+    std::string input_relation_info;
+    switch (node_type) {
+      case RelationalOperator::kAggregation: {
         const AggregationOperator &aggregation_op =
             static_cast<const AggregationOperator&>(node);
-        input_relations.emplace_back("input", &aggregation_op.input_relation());
-      } else if (relop_name == "BuildHashOperator") {
+        input_relation = &aggregation_op.input_relation();
+        input_relation_info = "input";
+        break;
+      }
+      case RelationalOperator::kBuildHash: {
         const BuildHashOperator &build_hash_op =
             static_cast<const BuildHashOperator&>(node);
-        input_relations.emplace_back("input", &build_hash_op.input_relation());
-      } else if (relop_name == "HashJoinOperator") {
+        input_relation = &build_hash_op.input_relation();
+        input_relation_info = "input";
+        break;
+      }
+      case RelationalOperator::kBuildLIPFilter: {
+        const BuildLIPFilterOperator &build_lip_filter_op =
+            static_cast<const BuildLIPFilterOperator&>(node);
+        input_relation = &build_lip_filter_op.input_relation();
+        input_relation_info = "input";
+        break;
+      }
+      case RelationalOperator::kInnerJoin:
+      case RelationalOperator::kLeftAntiJoin:
+      case RelationalOperator::kLeftOuterJoin:
+      case RelationalOperator::kLeftSemiJoin: {
         const HashJoinOperator &hash_join_op =
             static_cast<const HashJoinOperator&>(node);
-        input_relations.emplace_back("probe side", &hash_join_op.probe_relation());
-      } else if (relop_name == "SelectOperator") {
+        input_relation = &hash_join_op.probe_relation();
+        input_relation_info = "probe side";
+        break;
+      }
+      case RelationalOperator::kNestedLoopsJoin: {
+        const NestedLoopsJoinOperator &nlj_op =
+            static_cast<const NestedLoopsJoinOperator&>(node);
+
+        const CatalogRelation &left_input_relation = nlj_op.left_input_relation();
+        if (!left_input_relation.isTemporary()) {
+          node_info.labels.emplace_back(
+              "left input stored relation [" + left_input_relation.getName() + "]");
+        }
+
+        const CatalogRelation &right_input_relation = nlj_op.right_input_relation();
+        if (!right_input_relation.isTemporary()) {
+          node_info.labels.emplace_back(
+              "right input stored relation [" + right_input_relation.getName() + "]");
+        }
+        break;
+      }
+      case RelationalOperator::kSelect: {
         const SelectOperator &select_op =
             static_cast<const SelectOperator&>(node);
-        input_relations.emplace_back("input", &select_op.input_relation());
+        input_relation = &select_op.input_relation();
+        input_relation_info = "input";
+        break;
       }
-      for (const auto &rel_pair : input_relations) {
-        if (!rel_pair.second->isTemporary()) {
-          node_info.labels.emplace_back(
-              rel_pair.first + " stored relation [" +
-              rel_pair.second->getName() + "]");
+      case RelationalOperator::kSortRunGeneration: {
+        const SortRunGenerationOperator &sort_op =
+            static_cast<const SortRunGenerationOperator&>(node);
+        input_relation = &sort_op.input_relation();
+        input_relation_info = "input";
+        break;
+      }
+      case RelationalOperator::kUnionAll: {
+        const UnionAllOperator &union_all_op = static_cast<const UnionAllOperator&>(node);
+
+        std::string input_stored_relation_names;
+        std::size_t num_input_stored_relations = 0;
+        for (const auto &input_relation : union_all_op.input_relations()) {
+          if (!input_relation->isTemporary()) {
+            continue;
+          }
+          ++num_input_stored_relations;
+
+          if (!input_stored_relation_names.empty()) {
+            input_stored_relation_names += ", ";
+          }
+          input_stored_relation_names += input_relation->getName();
         }
+
+        if (!input_stored_relation_names.empty()) {
+          node_info.labels.emplace_back(
+              std::string("input stored relation") +
+              (num_input_stored_relations > 1 ? "s" : "") +
+              " [" + input_stored_relation_names + "]");
+        }
+        break;
       }
+      default:
+        break;
+    }
+
+    if (input_relation && !input_relation->isTemporary()) {
+      node_info.labels.emplace_back(
+          input_relation_info + " stored relation [" + input_relation->getName() + "]");
+    }
+
+    if (FLAGS_visualize_execution_dag_partition_info) {
+      node_info.labels.emplace_back(
+          "input #partitions = " + to_string(node.getNumPartitions()));
+      node_info.labels.emplace_back(
+          std::string("repartition = ") + (node.hasRepartition() ? "true" : "false"));
+      node_info.labels.emplace_back(
+          "output #partitions = " + to_string(node.getOutputNumPartitions()));
     }
   }
 

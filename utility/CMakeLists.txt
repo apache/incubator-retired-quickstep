@@ -255,17 +255,23 @@ target_link_libraries(quickstep_utility_DAG
 target_link_libraries(quickstep_utility_DisjointTreeForest
                       glog)
 target_link_libraries(quickstep_utility_ExecutionDAGVisualizer
+                      quickstep_catalog_CatalogRelation
                       quickstep_catalog_CatalogRelationSchema
                       quickstep_queryexecution_QueryExecutionTypedefs
                       quickstep_queryoptimizer_QueryPlan
                       quickstep_relationaloperators_AggregationOperator
                       quickstep_relationaloperators_BuildHashOperator
+                      quickstep_relationaloperators_BuildLIPFilterOperator
                       quickstep_relationaloperators_HashJoinOperator
-                      quickstep_relationaloperators_SelectOperator
+                      quickstep_relationaloperators_NestedLoopsJoinOperator
                       quickstep_relationaloperators_RelationalOperator
+                      quickstep_relationaloperators_SelectOperator
+                      quickstep_relationaloperators_SortRunGenerationOperator
+                      quickstep_relationaloperators_UnionAllOperator
                       quickstep_utility_DAG
                       quickstep_utility_Macros
-                      quickstep_utility_StringUtil)
+                      quickstep_utility_StringUtil
+                      ${GFLAGS_LIB_NAME})
 target_link_libraries(quickstep_utility_Glob
                       glog)
 target_link_libraries(quickstep_utility_MemStream

@@ -21,6 +21,7 @@
 #define QUICKSTEP_RELATIONAL_OPERATORS_RELATIONAL_OPERATOR_HPP_
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -61,7 +62,7 @@ class RelationalOperator {
   /**
    * @brief Enumeration of the operator types.
    **/
-  enum OperatorType {
+  enum OperatorType : std::uint8_t {
     kAggregation = 0,
     kBuildAggregationExistenceMap,
     kBuildHash,
