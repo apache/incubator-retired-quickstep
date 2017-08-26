@@ -64,7 +64,6 @@ QueryManagerBase::QueryManagerBase(QueryHandle *query_handle)
     if (insert_destination_index != QueryContext::kInvalidInsertDestinationId) {
       // Rebuild is necessary whenever InsertDestination is present.
       query_exec_state_->setRebuildRequired(node_index);
-      query_exec_state_->setRebuildStatus(node_index, 0, false);
     }
 
     for (const pair<dag_node_index, bool> &dependent_link :

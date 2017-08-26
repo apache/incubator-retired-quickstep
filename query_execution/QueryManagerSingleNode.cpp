@@ -126,22 +126,20 @@ bool QueryManagerSingleNode::initiateRebuild(const dag_node_index index) {
   DCHECK(checkRebuildRequired(index));
   DCHECK(!checkRebuildInitiated(index));
 
-  getRebuildWorkOrders(index, workorders_container_.get());
+  const std::size_t num_rebuild_work_orders = getRebuildWorkOrders(index, workorders_container_.get());
+  DCHECK_EQ(workorders_container_->getNumRebuildWorkOrders(index), num_rebuild_work_orders);
 
   query_exec_state_->setRebuildStatus(
-      index, workorders_container_->getNumRebuildWorkOrders(index), true);
+      index, num_rebuild_work_orders, true);
 
-  return (query_exec_state_->getNumRebuildWorkOrders(index) == 0);
+  return num_rebuild_work_orders == 0;
 }
 
-void QueryManagerSingleNode::getRebuildWorkOrders(const dag_node_index index,
-                                                  WorkOrdersContainer *container) {
+std::size_t QueryManagerSingleNode::getRebuildWorkOrders(const dag_node_index index,
+                                                         WorkOrdersContainer *container) {
   const RelationalOperator &op = query_dag_->getNodePayload(index);
   const QueryContext::insert_destination_id insert_destination_index = op.getInsertDestinationID();
-
-  if (insert_destination_index == QueryContext::kInvalidInsertDestinationId) {
-    return;
-  }
+  DCHECK_NE(insert_destination_index, QueryContext::kInvalidInsertDestinationId);
 
   std::vector<MutableBlockReference> partially_filled_block_refs;
   std::vector<partition_id> part_ids;
@@ -165,6 +163,8 @@ void QueryManagerSingleNode::getRebuildWorkOrders(const dag_node_index index,
                              bus_),
         index);
   }
+
+  return partially_filled_block_refs.size();
 }
 
 std::size_t QueryManagerSingleNode::getQueryMemoryConsumptionBytes() const {

@@ -99,14 +99,10 @@ class QueryExecutionState {
                                const bool rebuild_initiated) {
     DCHECK(operator_index < num_operators_);
     auto search_res = rebuild_status_.find(operator_index);
-    if (search_res != rebuild_status_.end()) {
-      search_res->second.has_initiated = rebuild_initiated;
-      search_res->second.num_pending_workorders = num_rebuild_workorders;
-    } else {
-      RebuildStatus rebuild_status(rebuild_initiated, num_rebuild_workorders);
+    DCHECK(search_res != rebuild_status_.end());
 
-      rebuild_status_.emplace(operator_index, std::move(rebuild_status));
-    }
+    search_res->second.has_initiated = rebuild_initiated;
+    search_res->second.num_pending_workorders = num_rebuild_workorders;
   }
 
 #ifdef QUICKSTEP_DISTRIBUTED
@@ -272,6 +268,8 @@ class QueryExecutionState {
   inline void setRebuildRequired(const std::size_t operator_index) {
     DCHECK(operator_index < num_operators_);
     rebuild_required_[operator_index] = true;
+
+    rebuild_status_.emplace(operator_index, RebuildStatus());
   }
 
   /**
@@ -353,10 +351,9 @@ class QueryExecutionState {
   std::vector<bool> execution_finished_;
 
   struct RebuildStatus {
-    RebuildStatus(const bool initiated,
-                  const std::size_t num_workorders)
-        : has_initiated(initiated),
-          num_pending_workorders(num_workorders) {}
+    RebuildStatus()
+        : has_initiated(false),
+          num_pending_workorders(0) {}
 
     // Whether rebuild for operator at index i has been initiated.
     bool has_initiated;

@@ -122,9 +122,11 @@ class QueryManagerSingleNode final : public QueryManagerBase {
    * @param index The index of the operator in the query plan DAG.
    * @param container A pointer to a WorkOrdersContainer to be used to store the
    *        generated WorkOrders.
+   *
+   * @return The number of generated rebuild work orders.
    **/
-  void getRebuildWorkOrders(const dag_node_index index,
-                            WorkOrdersContainer *container);
+  std::size_t getRebuildWorkOrders(const dag_node_index index,
+                                   WorkOrdersContainer *container);
 
   /**
    * @brief Get the total memory (in bytes) occupied by temporary relations
