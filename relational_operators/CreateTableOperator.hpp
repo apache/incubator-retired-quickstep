@@ -24,6 +24,7 @@
 #include <string>
 #include <memory>
 
+#include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "relational_operators/RelationalOperator.hpp"
 #include "utility/Macros.hpp"
@@ -84,7 +85,9 @@ class CreateTableOperator : public RelationalOperator {
                         QueryContext *query_context,
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
-                        tmb::MessageBus *bus) override;
+                        tmb::MessageBus *bus) override {
+    return true;
+  }
 
   /**
    * @note no WorkOrder proto generated for this operator.
@@ -93,7 +96,9 @@ class CreateTableOperator : public RelationalOperator {
     return true;
   }
 
-  void updateCatalogOnCompletion() override;
+  void updateCatalogOnCompletion() override {
+    database_->addRelation(relation_.release());
+  }
 
  private:
   std::unique_ptr<CatalogRelation> relation_;

@@ -38,8 +38,8 @@ add_library(quickstep_relationaloperators_BuildAggregationExistenceMapOperator
             BuildAggregationExistenceMapOperator.hpp)
 add_library(quickstep_relationaloperators_BuildHashOperator BuildHashOperator.cpp BuildHashOperator.hpp)
 add_library(quickstep_relationaloperators_BuildLIPFilterOperator BuildLIPFilterOperator.cpp BuildLIPFilterOperator.hpp)
-add_library(quickstep_relationaloperators_CreateIndexOperator CreateIndexOperator.cpp CreateIndexOperator.hpp)
-add_library(quickstep_relationaloperators_CreateTableOperator CreateTableOperator.cpp CreateTableOperator.hpp)
+add_library(quickstep_relationaloperators_CreateIndexOperator ../empty_src.cpp CreateIndexOperator.hpp)
+add_library(quickstep_relationaloperators_CreateTableOperator ../empty_src.cpp CreateTableOperator.hpp)
 add_library(quickstep_relationaloperators_DestroyAggregationStateOperator
             DestroyAggregationStateOperator.cpp
             DestroyAggregationStateOperator.hpp)

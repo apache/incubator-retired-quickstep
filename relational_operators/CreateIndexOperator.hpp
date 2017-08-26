@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <string>
+#include <utility>
 
 #include "catalog/CatalogRelation.hpp"
 #include "relational_operators/RelationalOperator.hpp"
@@ -85,7 +86,9 @@ class CreateIndexOperator : public RelationalOperator {
                         QueryContext *query_context,
                         StorageManager *storage_manager,
                         const tmb::client_id scheduler_client_id,
-                        tmb::MessageBus *bus) override;
+                        tmb::MessageBus *bus) override {
+    return true;
+  }
 
   /**
    * @note no WorkOrder proto generated for this operator.
@@ -94,7 +97,9 @@ class CreateIndexOperator : public RelationalOperator {
     return true;
   }
 
-  void updateCatalogOnCompletion() override;
+  void updateCatalogOnCompletion() override {
+    relation_->addIndex(index_name_, std::move(index_description_));
+  }
 
  private:
   CatalogRelation *relation_;
