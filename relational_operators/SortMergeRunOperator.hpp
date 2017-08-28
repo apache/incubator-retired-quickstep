@@ -123,7 +123,6 @@ class SortMergeRunOperator : public RelationalOperator {
         run_relation_(run_relation),
         run_block_destination_index_(run_block_destination_index),
         input_relation_is_stored_(input_relation_is_stored),
-        input_stream_done_(input_relation_is_stored),
         started_(false) {
     DCHECK_EQ(1u, input_relation.getNumPartitions());
     DCHECK_EQ(1u, output_relation.getNumPartitions());
@@ -214,7 +213,6 @@ class SortMergeRunOperator : public RelationalOperator {
   const QueryContext::insert_destination_id run_block_destination_index_;
 
   const bool input_relation_is_stored_;
-  const bool input_stream_done_;
 
   bool started_;
 
