@@ -154,7 +154,7 @@ ExecutionDAGVisualizer::ExecutionDAGVisualizer(const QueryPlan &plan) {
         std::string input_stored_relation_names;
         std::size_t num_input_stored_relations = 0;
         for (const auto &input_relation : union_all_op.input_relations()) {
-          if (!input_relation->isTemporary()) {
+          if (input_relation->isTemporary()) {
             continue;
           }
           ++num_input_stored_relations;
