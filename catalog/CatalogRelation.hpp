@@ -46,6 +46,8 @@
 #include "threading/SpinSharedMutex.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 namespace quickstep {
 
 class CatalogDatabase;
@@ -81,7 +83,6 @@ class CatalogRelation : public CatalogRelationSchema {
                   bool temporary = false)
       : CatalogRelationSchema(parent, name, id, temporary),
         default_layout_(nullptr),
-        num_partitions_(1u),
         statistics_(new CatalogRelationStatistics()) {
   }
 
@@ -144,6 +145,7 @@ class CatalogRelation : public CatalogRelationSchema {
    * @return The number of partitions the relation is partitioned into.
    **/
   std::size_t getNumPartitions() const {
+    DCHECK_GT(num_partitions_, 0u);
     return num_partitions_;
   }
 
@@ -433,7 +435,7 @@ class CatalogRelation : public CatalogRelationSchema {
   // A relation may or may not have a Partition Scheme
   // assosiated with it.
   std::unique_ptr<PartitionScheme> partition_scheme_;
-  std::size_t num_partitions_;
+  std::size_t num_partitions_ = 1u;
 
   // Index scheme associated with this relation.
   // Defines a set of indices defined for this relation.
