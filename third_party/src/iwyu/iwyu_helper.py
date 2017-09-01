@@ -22,12 +22,12 @@ QUICKSTEP_INCLUDES = [ '.',
                        './build/third_party/gflags/include',
                        './build/third_party/protobuf/include',
                        './build/third_party/tmb/include',
-                       './third_party/benchmark/include',
-                       './third_party/glog/src',
-                       './third_party/googletest/googletest/include',
-                       './third_party/protobuf/src',
-                       './third_party/re2',
-                       './third_party/tmb/include']
+                       './third_party/src/benchmark/include',
+                       './third_party/src/glog/src',
+                       './third_party/src/googletest/googletest/include',
+                       './third_party/src/protobuf/src',
+                       './third_party/src/re2',
+                       './third_party/src/tmb/include']
 QUICKSTEP_DEFINES = [ '-DQUICKSTEP_DEBUG',
                       '-DQUICKSTEP_ENABLE_VECTOR_COPY_ELISION_SELECTION', ]
 CLANG_FLAGS = [ '-std=c++14', '-x', 'c++', ]
