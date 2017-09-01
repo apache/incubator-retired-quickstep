@@ -63,7 +63,9 @@ void ExecutionGeneratorTestRunner::runTestCase(
   sql_parser_.feedNextBuffer(new std::string(input));
 
   // Redirect stderr to output_stream.
-  stderr = output_stream.file();
+  if (!FLAGS_logtostderr) {
+    stderr = output_stream.file();
+  }
 
   while (true) {
     ParseResult result = sql_parser_.getNextStatement();

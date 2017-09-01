@@ -28,7 +28,7 @@
 namespace quickstep {
 
 /**
- * An individual IO interaction with Quickstep.
+ * @brief An individual IO interaction with Quickstep.
  */
 class IOHandle {
  public:
@@ -56,18 +56,21 @@ class IOHandle {
 };
 
 /**
- * Virtual base defines a generic, file-based interface around IO. One IO interaction (eg a SQL query) will be assigned
- * an IOHandle. On destruction of the IOHandle, the IO interaction has finished.
+ * @brief Virtual base defines a generic, file-based interface around IO.
+ *        One IO interaction (eg a SQL query) will be assigned an IOHandle.
+ *        On destruction of the IOHandle, the IO interaction has finished.
  */
 class IOInterface {
  public:
   /**
-   * @note Destructing the IOInterface should close any outstanding IO state (eg an open port).
+   * @note Destructing the IOInterface should close any outstanding IO state
+   *       (e.g. an open port).
    */
   virtual ~IOInterface() {}
 
   /**
    * @brief Retrieves the next IOHandle. Blocks if no IO ready.
+   *
    * @return An IOHandle.
    */
   virtual IOHandle* getNextIOHandle() = 0;

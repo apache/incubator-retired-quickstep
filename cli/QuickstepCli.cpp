@@ -69,6 +69,7 @@
 #include "utility/ExecutionDAGVisualizer.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrVector.hpp"
+#include "utility/ScopedReassignment.hpp"
 #include "utility/SqlError.hpp"
 #include "utility/StringUtil.hpp"
 
@@ -105,6 +106,7 @@ using quickstep::PtrVector;
 using quickstep::QueryExecutionUtil;
 using quickstep::QueryHandle;
 using quickstep::QueryProcessor;
+using quickstep::ScopedReassignment;
 using quickstep::SqlParserWrapper;
 using quickstep::Worker;
 using quickstep::WorkerDirectory;
@@ -303,6 +305,9 @@ int main(int argc, char* argv[]) {
   for (;;) {
     string *command_string = new string();
     std::unique_ptr<quickstep::IOHandle> io_handle(io->getNextIOHandle());
+    ScopedReassignment<FILE*> reassign_stdout(&stdout, io_handle->out());
+    ScopedReassignment<FILE*> reassign_stderr(&stderr, io_handle->err());
+
     *command_string = io_handle->getCommand();
     LOG(INFO) << "Command received: " << *command_string;
     if (command_string->size() == 0) {
@@ -397,10 +402,12 @@ int main(int argc, char* argv[]) {
           }
 
           query_processor->saveCatalog();
-          std::chrono::duration<double, std::milli> time_ms = end - start;
-          fprintf(io_handle->out(), "Time: %s ms\n",
-                 quickstep::DoubleToStringWithSignificantDigits(
-                     time_ms.count(), 3).c_str());
+          if (quickstep::FLAGS_display_timing) {
+            std::chrono::duration<double, std::milli> time_ms = end - start;
+            fprintf(io_handle->out(), "Time: %s ms\n",
+                   quickstep::DoubleToStringWithSignificantDigits(
+                       time_ms.count(), 3).c_str());
+          }
           if (quickstep::FLAGS_profile_and_report_workorder_perf) {
             // TODO(harshad) - Allow user specified file instead of stdout.
             foreman.printWorkOrderProfilingResults(query_id, stdout);

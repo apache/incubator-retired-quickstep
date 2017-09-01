@@ -53,7 +53,6 @@ int main(int argc, char **argv) {
   while (!linereader.bufferEmpty()) {
     std::string query = linereader.getNextCommand();
     if (!query.empty()) {
-      std::cout << query << std::endl;
       std::cout << qs_client.Query(query) << std::endl;
     }
   }
