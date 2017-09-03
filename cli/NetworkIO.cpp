@@ -47,10 +47,15 @@ DEFINE_string(cli_network_ip, "0.0.0.0",
                 "if the cli is set to use the network mode (--mode=network). Defaults to "
                 "the address of localhost.");
 
+DEFINE_int32(cli_network_max_message_length, 1073741824,
+             "The maximum message length transferred through grpc");
+
 NetworkIO::NetworkIO() {
   grpc::ServerBuilder builder;
   builder.AddListeningPort(GetAddress(), grpc::InsecureServerCredentials());
   builder.RegisterService(&service_);
+  builder.SetMaxReceiveMessageSize(FLAGS_cli_network_max_message_length);
+  builder.SetMaxSendMessageSize(FLAGS_cli_network_max_message_length);
   server_ = builder.BuildAndStart();
   LOG(INFO) << "Listening on " << GetAddress();
 }

@@ -120,6 +120,8 @@ void TableExportOperator::receiveFeedbackMessage(
     } else if (lo_file_name == "$stderr") {
       file_ = stderr;
     } else {
+      DCHECK(!file_name_.empty());
+      DCHECK_EQ('@', file_name_.front());
       file_ = std::fopen(file_name_.substr(1).c_str(), "wb");
       // TODO(quickstep-team): Decent handling of exceptions at query runtime.
       if (file_ == nullptr) {

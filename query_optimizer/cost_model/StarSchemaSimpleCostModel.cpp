@@ -486,7 +486,7 @@ std::size_t StarSchemaSimpleCostModel::getNumDistinctValues(
       return stat.getNumDistinctValues(rel_attr_id);
     }
   }
-  return estimateCardinalityForTableReference(table_reference);
+  return estimateCardinalityForTableReference(table_reference) * 0.5;
 }
 
 bool StarSchemaSimpleCostModel::impliesUniqueAttributes(
@@ -520,7 +520,7 @@ bool StarSchemaSimpleCostModel::impliesUniqueAttributes(
           std::static_pointer_cast<const P::TableReference>(physical_plan);
       const CatalogRelationStatistics &stat =
           table_reference->relation()->getStatistics();
-      if (stat.hasNumTuples()) {
+      if (stat.isExact() && stat.hasNumTuples()) {
         const std::size_t num_tuples = stat.getNumTuples();
         for (const auto &attr : attributes) {
           const attribute_id rel_attr_id =

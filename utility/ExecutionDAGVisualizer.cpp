@@ -234,9 +234,6 @@ void ExecutionDAGVisualizer::bindProfilingStats(
         std::max(time_end[relop_index], workorder_end_time);
     time_elapsed[relop_index] += (workorder_end_time - workorder_start_time);
 
-    if (workorders_count.find(relop_index) == workorders_count.end()) {
-      workorders_count[relop_index] = 0;
-    }
     ++workorders_count[relop_index];
     if (mean_time_per_workorder.find(relop_index) ==
         mean_time_per_workorder.end()) {
@@ -292,8 +289,7 @@ void ExecutionDAGVisualizer::bindProfilingStats(
       node_info.labels.emplace_back(
           "effective concurrency: " + FormatDigits(concurrency, 2));
 
-      DCHECK(workorders_count.find(node_index) != workorders_count.end());
-      const std::size_t workorders_count_for_node = workorders_count.at(node_index);
+      const std::size_t workorders_count_for_node = workorders_count[node_index];
       if (workorders_count_for_node > 0) {
         mean_time_per_workorder[node_index] =
             mean_time_per_workorder[node_index] /

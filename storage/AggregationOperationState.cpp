@@ -393,8 +393,7 @@ bool AggregationOperationState::ProtoIsValid(
       }
 
       const S::CollisionFreeVectorInfo &proto_collision_free_vector_info = proto.collision_free_vector_info();
-      if (!proto_collision_free_vector_info.IsInitialized() ||
-          proto_collision_free_vector_info.state_offsets_size() != group_by_expressions_size) {
+      if (!proto_collision_free_vector_info.IsInitialized()) {
         return false;
       }
     }

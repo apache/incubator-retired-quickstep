@@ -201,61 +201,9 @@ void ExecuteAnalyze(const PtrVector<ParseString> &arguments,
     CatalogRelationStatistics *mutable_stat =
         mutable_relation->getStatisticsMutable();
 
+    mutable_stat->clear();
+
     const std::string rel_name = EscapeQuotes(relation.getName(), '"');
-
-    // Get the number of distinct values for each column.
-    for (const CatalogAttribute &attribute : relation) {
-      const std::string attr_name = EscapeQuotes(attribute.getName(), '"');
-      const Type &attr_type = attribute.getType();
-      bool is_min_applicable =
-          AggregateFunctionMin::Instance().canApplyToTypes({&attr_type});
-      bool is_max_applicable =
-          AggregateFunctionMax::Instance().canApplyToTypes({&attr_type});
-
-      // NOTE(jianqiao): Note that the relation name and the attribute names may
-      // contain non-letter characters, e.g. CREATE TABLE "with space"("1" int).
-      // So here we need to format the names with double quotes (").
-      std::string query_string = "SELECT COUNT(DISTINCT \"";
-      query_string.append(attr_name);
-      query_string.append("\")");
-      if (is_min_applicable) {
-        query_string.append(", MIN(\"");
-        query_string.append(attr_name);
-        query_string.append("\")");
-      }
-      if (is_max_applicable) {
-        query_string.append(", MAX(\"");
-        query_string.append(attr_name);
-        query_string.append("\")");
-      }
-      query_string.append(" FROM \"");
-      query_string.append(rel_name);
-      query_string.append("\";");
-
-      std::vector<TypedValue> results =
-          ExecuteQueryForSingleRow(main_thread_client_id,
-                                   foreman_client_id,
-                                   query_string,
-                                   bus,
-                                   storage_manager,
-                                   query_processor,
-                                   parser_wrapper.get());
-
-      auto results_it = results.begin();
-      DCHECK_EQ(TypeID::kLong, results_it->getTypeID());
-
-      const attribute_id attr_id = attribute.getID();
-      mutable_stat->setNumDistinctValues(attr_id,
-                                         results_it->getLiteral<std::int64_t>());
-      if (is_min_applicable) {
-        ++results_it;
-        mutable_stat->setMinValue(attr_id, *results_it);
-      }
-      if (is_max_applicable) {
-        ++results_it;
-        mutable_stat->setMaxValue(attr_id, *results_it);
-      }
-    }
 
     // Get the number of tuples for the relation.
     std::string query_string = "SELECT COUNT(*) FROM \"";
@@ -274,8 +222,209 @@ void ExecuteAnalyze(const PtrVector<ParseString> &arguments,
     DCHECK_EQ(TypeID::kLong, num_tuples.getTypeID());
     mutable_stat->setNumTuples(num_tuples.getLiteral<std::int64_t>());
 
-    mutable_stat->setExactness(true);
+    // Get the min/max values for each column.
+    for (const CatalogAttribute &attribute : relation) {
+      const std::string attr_name = EscapeQuotes(attribute.getName(), '"');
+      const Type &attr_type = attribute.getType();
+      bool is_min_applicable =
+          AggregateFunctionMin::Instance().canApplyToTypes({&attr_type});
+      bool is_max_applicable =
+          AggregateFunctionMax::Instance().canApplyToTypes({&attr_type});
+      if (!is_min_applicable || !is_max_applicable) {
+        continue;
+      }
 
+      std::string query_string = "SELECT MIN(\"";
+      query_string.append(attr_name);
+      query_string.append("\"), MAX(\"");
+      query_string.append(attr_name);
+      query_string.append("\") FROM \"");
+      query_string.append(rel_name);
+      query_string.append("\";");
+
+      std::vector<TypedValue> results =
+          ExecuteQueryForSingleRow(main_thread_client_id,
+                                   foreman_client_id,
+                                   query_string,
+                                   bus,
+                                   storage_manager,
+                                   query_processor,
+                                   parser_wrapper.get());
+      DCHECK_EQ(2u, results.size());
+
+      const attribute_id attr_id = attribute.getID();
+      mutable_stat->setMinValue(attr_id, results[0]);
+      mutable_stat->setMaxValue(attr_id, results[1]);
+    }
+
+    // Get the number of distinct values for each column.
+    for (const CatalogAttribute &attribute : relation) {
+      const std::string attr_name = EscapeQuotes(attribute.getName(), '"');
+
+      std::string query_string = "SELECT COUNT(*) FROM (SELECT \"";
+      query_string.append(attr_name);
+      query_string.append("\" FROM \"");
+      query_string.append(rel_name);
+      query_string.append("\" GROUP BY \"");
+      query_string.append(attr_name);
+      query_string.append("\") t;");
+
+      TypedValue num_distinct_values =
+          ExecuteQueryForSingleResult(main_thread_client_id,
+                                      foreman_client_id,
+                                      query_string,
+                                      bus,
+                                      storage_manager,
+                                      query_processor,
+                                      parser_wrapper.get());
+
+      DCHECK_EQ(TypeID::kLong, num_distinct_values.getTypeID());
+      mutable_stat->setNumDistinctValues(
+          attribute.getID(), num_distinct_values.getLiteral<std::int64_t>());
+    }
+
+    fprintf(out, "done\n");
+    fflush(out);
+  }
+  query_processor->markCatalogAltered();
+  query_processor->saveCatalog();
+}
+
+void ExecuteAnalyzeRange(const PtrVector<ParseString> &arguments,
+                         const tmb::client_id main_thread_client_id,
+                         const tmb::client_id foreman_client_id,
+                         MessageBus *bus,
+                         StorageManager *storage_manager,
+                         QueryProcessor *query_processor,
+                         FILE *out) {
+  const CatalogDatabase &database = *query_processor->getDefaultDatabase();
+
+  std::unique_ptr<SqlParserWrapper> parser_wrapper(new SqlParserWrapper());
+  std::vector<std::reference_wrapper<const CatalogRelation>> relations;
+  if (arguments.empty()) {
+    relations.insert(relations.begin(), database.begin(), database.end());
+  } else {
+    for (const auto &rel_name : arguments) {
+      const CatalogRelation *rel = database.getRelationByName(rel_name.value());
+      if (rel == nullptr) {
+        THROW_SQL_ERROR_AT(&rel_name) << "Table does not exist";
+      } else {
+        relations.emplace_back(*rel);
+      }
+    }
+  }
+
+  // Analyze each relation in the database.
+  for (const CatalogRelation &relation : relations) {
+    fprintf(out, "Analyzing %s ... ", relation.getName().c_str());
+    fflush(out);
+
+    CatalogRelation *mutable_relation =
+        query_processor->getDefaultDatabase()->getRelationByIdMutable(relation.getID());
+    CatalogRelationStatistics *mutable_stat =
+        mutable_relation->getStatisticsMutable();
+
+    if (!mutable_stat->isExact()) {
+      mutable_stat->clear();
+
+      const std::string rel_name = EscapeQuotes(relation.getName(), '"');
+
+      for (const CatalogAttribute &attribute : relation) {
+        const std::string attr_name = EscapeQuotes(attribute.getName(), '"');
+        const Type &attr_type = attribute.getType();
+        bool is_min_applicable =
+            AggregateFunctionMin::Instance().canApplyToTypes({&attr_type});
+        bool is_max_applicable =
+            AggregateFunctionMax::Instance().canApplyToTypes({&attr_type});
+        if (!is_min_applicable || !is_max_applicable) {
+          continue;
+        }
+
+        std::string query_string = "SELECT MIN(\"";
+        query_string.append(attr_name);
+        query_string.append("\"), MAX(\"");
+        query_string.append(attr_name);
+        query_string.append("\") FROM \"");
+        query_string.append(rel_name);
+        query_string.append("\";");
+
+        std::vector<TypedValue> results =
+            ExecuteQueryForSingleRow(main_thread_client_id,
+                                     foreman_client_id,
+                                     query_string,
+                                     bus,
+                                     storage_manager,
+                                     query_processor,
+                                     parser_wrapper.get());
+        DCHECK_EQ(2u, results.size());
+
+        const attribute_id attr_id = attribute.getID();
+        mutable_stat->setMinValue(attr_id, results[0]);
+        mutable_stat->setMaxValue(attr_id, results[1]);
+      }
+    }
+    fprintf(out, "done\n");
+    fflush(out);
+  }
+  query_processor->markCatalogAltered();
+  query_processor->saveCatalog();
+}
+
+void ExecuteAnalyzeCount(const PtrVector<ParseString> &arguments,
+                         const tmb::client_id main_thread_client_id,
+                         const tmb::client_id foreman_client_id,
+                         MessageBus *bus,
+                         StorageManager *storage_manager,
+                         QueryProcessor *query_processor,
+                         FILE *out) {
+  const CatalogDatabase &database = *query_processor->getDefaultDatabase();
+
+  std::unique_ptr<SqlParserWrapper> parser_wrapper(new SqlParserWrapper());
+  std::vector<std::reference_wrapper<const CatalogRelation>> relations;
+  if (arguments.empty()) {
+    relations.insert(relations.begin(), database.begin(), database.end());
+  } else {
+    for (const auto &rel_name : arguments) {
+      const CatalogRelation *rel = database.getRelationByName(rel_name.value());
+      if (rel == nullptr) {
+        THROW_SQL_ERROR_AT(&rel_name) << "Table does not exist";
+      } else {
+        relations.emplace_back(*rel);
+      }
+    }
+  }
+
+  // Analyze each relation in the database.
+  for (const CatalogRelation &relation : relations) {
+    fprintf(out, "Analyzing %s ... ", relation.getName().c_str());
+    fflush(out);
+
+    CatalogRelation *mutable_relation =
+        query_processor->getDefaultDatabase()->getRelationByIdMutable(relation.getID());
+    CatalogRelationStatistics *mutable_stat =
+        mutable_relation->getStatisticsMutable();
+
+    if (!mutable_stat->isExact()) {
+      mutable_stat->clear();
+
+      // Get the number of tuples for the relation.
+      std::string query_string = "SELECT COUNT(*) FROM \"";
+      query_string.append(EscapeQuotes(relation.getName(), '"'));
+      query_string.append("\";");
+
+      TypedValue num_tuples =
+          ExecuteQueryForSingleResult(main_thread_client_id,
+                                      foreman_client_id,
+                                      query_string,
+                                      bus,
+                                      storage_manager,
+                                      query_processor,
+                                      parser_wrapper.get());
+
+      DCHECK_EQ(TypeID::kLong, num_tuples.getTypeID());
+      mutable_stat->setNumTuples(num_tuples.getLiteral<std::int64_t>());
+
+    }
     fprintf(out, "done\n");
     fflush(out);
   }
@@ -314,6 +463,20 @@ void executeCommand(const ParseStatement &statement,
                    bus,
                    storage_manager,
                    query_processor, out);
+  } else if (command_str == kAnalyzeRangeCommand) {
+    ExecuteAnalyzeRange(arguments,
+                        main_thread_client_id,
+                        foreman_client_id,
+                        bus,
+                        storage_manager,
+                        query_processor, out);
+  } else if (command_str == kAnalyzeCountCommand) {
+    ExecuteAnalyzeCount(arguments,
+                        main_thread_client_id,
+                        foreman_client_id,
+                        bus,
+                        storage_manager,
+                        query_processor, out);
   } else {
     THROW_SQL_ERROR_AT(command.command()) << "Invalid Command";
   }

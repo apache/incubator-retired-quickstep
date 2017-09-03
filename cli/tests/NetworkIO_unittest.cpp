@@ -68,7 +68,7 @@ class TestNetworkIO {
     CHECK(current_request_ == nullptr);
     current_request_ = service_.waitForRequest();
     EXPECT_EQ(current_request_->getCanceled(), false);
-    return current_request_->getRequest();
+    return current_request_->getRequest().query();
   }
 
   /**

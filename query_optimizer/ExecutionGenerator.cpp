@@ -1212,10 +1212,13 @@ void ExecutionGenerator::convertCopyFrom(
         ->MergeFrom(output_relation->getPartitionScheme()->getProto());
   } else {
     insert_destination_proto->set_insert_destination_type(S::InsertDestinationType::BLOCK_POOL);
-
-    const vector<block_id> blocks(output_relation->getBlocksSnapshot());
-    for (const block_id block : blocks) {
-      insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+    const StorageBlockLayout &layout = output_relation->getDefaultStorageBlockLayout();
+    const auto sub_block_type = layout.getDescription().tuple_store_description().sub_block_type();
+    if (sub_block_type != TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE) {
+      const vector<block_id> blocks(output_relation->getBlocksSnapshot());
+      for (const block_id block : blocks) {
+        insert_destination_proto->AddExtension(S::BlockPoolInsertDestination::blocks, block);
+      }
     }
   }
 
@@ -1880,7 +1883,6 @@ void ExecutionGenerator::convertAggregate(
       use_parallel_initialization = true;
       aggr_state_num_partitions = CalculateNumFinalizationPartitionsForCollisionFreeVectorTable(max_num_groups);
 
-      DCHECK(!group_by_aggrs_info.empty());
       CalculateCollisionFreeAggregationInfo(max_num_groups, group_by_aggrs_info,
                                             aggr_state_proto->mutable_collision_free_vector_info());
     } else {

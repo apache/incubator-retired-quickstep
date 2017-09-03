@@ -225,6 +225,8 @@ class TextScanWorkOrder : public WorkOrder {
   void execute() override;
 
  private:
+  void executeInputStream();
+
   /**
    * @brief Extract a field string starting at \p *field_ptr. This method also
    *        expands escape sequences if \p process_escape_sequences_ is true.

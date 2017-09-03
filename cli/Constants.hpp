@@ -30,6 +30,8 @@ namespace cli {
 constexpr char kDescribeDatabaseCommand[] = "\\dt";
 constexpr char kDescribeTableCommand[] = "\\d";
 constexpr char kAnalyzeCommand[] = "\\analyze";
+constexpr char kAnalyzeRangeCommand[] = "\\analyzerange";
+constexpr char kAnalyzeCountCommand[] = "\\analyzecount";
 
 /** @} */
 

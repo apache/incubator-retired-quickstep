@@ -53,9 +53,10 @@ class NetworkCliClient {
    * @param user_query A SQL statement or command to be executed on the server.
    * @return The text of the server's response.
    */
-  std::string Query(const std::string &user_query) {
+  std::string Query(const std::string &user_query, const std::string &data) {
     QueryRequest request;
     request.set_query(user_query);
+    request.set_data(data);
     QueryResponse response;
 
     Status status = SendQuery(request, &response);
@@ -63,8 +64,8 @@ class NetworkCliClient {
     if (status.ok()) {
       return HandleQueryResponse(response);
     } else {
-      LOG(WARNING) << "RPC call failed with code " << status.error_code()
-                   << " and message: " << status.error_message();
+      std::cout << "RPC call failed with code " << status.error_code()
+                << " and message: " << status.error_message() << "\n";
       return "RPC failed";
     }
   }

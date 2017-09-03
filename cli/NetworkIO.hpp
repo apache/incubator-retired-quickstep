@@ -47,6 +47,7 @@ using grpc::Status;
 namespace quickstep {
 DECLARE_int32(cli_network_port);
 DECLARE_string(cli_network_ip);
+DECLARE_int32(cli_network_max_message_length);
 namespace networkio_internal {
 
 /**
@@ -80,8 +81,9 @@ class RequestState {
    * @note Quickstep may either produce a query response or cancel. Both these actions must notify the condition.
    */
   void waitForResponse() {
-    while (!response_ready_)
+    while (!response_ready_) {
       condition_->await();
+    }
   }
 
   /**
@@ -95,16 +97,16 @@ class RequestState {
   }
 
   /**
-   * @return The producer's query for Quickstep to process.
+   * @return The producer's request for Quickstep to process.
    */
-  std::string getRequest() const {
-    return request_.query();
+  const QueryRequest& getRequest() const {
+    return request_;
   }
 
   /**
    * @return The response message from Quickstep.
    */
-  QueryResponse getResponse() const {
+  const QueryResponse& getResponse() const {
     DCHECK(response_ready_);
     return response_message_;
   }
@@ -212,12 +214,21 @@ class NetworkCliServiceImpl final : public NetworkCli::Service {
 class NetworkIOHandle final : public IOHandle {
  public:
   explicit NetworkIOHandle(RequestState* state)
-      : request_state_(state) {}
+      : request_state_(state) {
+    const std::string &data = request_state_->getRequest().data();
+    if (!data.empty()) {
+      std::fwrite(data.c_str(), 1, data.length(), in_stream_.file());
+    }
+  }
 
   ~NetworkIOHandle() override {
-      // All the commands from the last network interaction have completed, return our response.
-      // This signals to the producer thread that the interaction is complete.
-      request_state_->responseReady(out_stream_.str(), err_stream_.str());
+    // All the commands from the last network interaction have completed, return our response.
+    // This signals to the producer thread that the interaction is complete.
+    request_state_->responseReady(out_stream_.str(), err_stream_.str());
+  }
+
+  FILE* in() override {
+    return in_stream_.file();
   }
 
   FILE* out() override {
@@ -229,11 +240,11 @@ class NetworkIOHandle final : public IOHandle {
   }
 
   std::string getCommand() const override {
-    return request_state_->getRequest();
+    return request_state_->getRequest().query();
   }
 
  private:
-  MemStream out_stream_, err_stream_;
+  MemStream in_stream_, out_stream_, err_stream_;
   RequestState *request_state_;
 
   DISALLOW_COPY_AND_ASSIGN(NetworkIOHandle);

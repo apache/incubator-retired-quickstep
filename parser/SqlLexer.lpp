@@ -270,6 +270,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   "sma"              return TOKEN_SMA;
   "smallint"         return TOKEN_SMALLINT;
   "stderr"           return TOKEN_STDERR;
+  "stdin"            return TOKEN_STDIN;
   "stdout"           return TOKEN_STDOUT;
   "substring"        return TOKEN_SUBSTRING;
   "table"            return TOKEN_TABLE;

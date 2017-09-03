@@ -305,8 +305,9 @@ int main(int argc, char* argv[]) {
   for (;;) {
     string *command_string = new string();
     std::unique_ptr<quickstep::IOHandle> io_handle(io->getNextIOHandle());
+    ScopedReassignment<FILE*> reassign_stdin(&stdin, io_handle->in());
     ScopedReassignment<FILE*> reassign_stdout(&stdout, io_handle->out());
-    ScopedReassignment<FILE*> reassign_stderr(&stderr, io_handle->err());
+//    ScopedReassignment<FILE*> reassign_stderr(&stderr, io_handle->err());
 
     *command_string = io_handle->getCommand();
     LOG(INFO) << "Command received: " << *command_string;

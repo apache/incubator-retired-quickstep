@@ -68,6 +68,15 @@ class CatalogRelationStatistics {
   serialization::CatalogRelationStatistics getProto() const;
 
   /**
+   * @brief Clear all statistics.
+   */
+  void clear() {
+    num_tuples_ = kNullValue;
+    column_stats_.clear();
+    is_exact_ = true;
+  }
+
+  /**
    * @brief Check whether the statistics are exact for the relation.
    *
    * return True if the statistics are exact for the relation, false otherwise.

@@ -1019,10 +1019,13 @@ L::LogicalPtr Resolver::resolveInsertSelection(
     if (destination_type.equals(selection_type)) {
       cast_expressions.emplace_back(selection_attributes[aid]);
     } else {
-      // TODO(jianqiao): implement Cast operation for non-numeric types.
+      // TODO(jianqiao): Implement Cast operation for non-numeric types.
+      // TODO(jianqiao): We temporarily disable the safely-coercible check for
+      // tricks that work around "argmin". Will switch it back once the "Cast"
+      // function is supported.
       if (destination_type.getSuperTypeID() == Type::SuperTypeID::kNumeric &&
           selection_type.getSuperTypeID() == Type::SuperTypeID::kNumeric &&
-          destination_type.isSafelyCoercibleFrom(selection_type)) {
+          destination_type.isCoercibleFrom(selection_type)) {
         // Add cast operation
         const E::AttributeReferencePtr attr = selection_attributes[aid];
         const E::ExpressionPtr cast_expr =
@@ -1038,7 +1041,7 @@ L::LogicalPtr Resolver::resolveInsertSelection(
             << insert_statement.relation_name()->value() << "."
             << destination_attributes[aid]->attribute_name() << " has type "
             << selection_attributes[aid]->getValueType().getName()
-            << ", which cannot be safely coerced to the column's type "
+            << ", which cannot be coerced to the column's type "
             << destination_attributes[aid]->getValueType().getName();
      }
     }

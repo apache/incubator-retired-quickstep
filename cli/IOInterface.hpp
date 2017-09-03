@@ -40,14 +40,19 @@ class IOHandle {
   virtual ~IOHandle() {}
 
   /**
+   * @return A file handle for standard input.
+   */
+  virtual FILE* in() = 0;
+
+  /**
    * @return A file handle for standard output.
    */
-  virtual FILE *out() = 0;
+  virtual FILE* out() = 0;
 
   /**
    * @return A file handle for error output.
    */
-  virtual FILE *err() = 0;
+  virtual FILE* err() = 0;
 
   virtual std::string getCommand() const = 0;
 

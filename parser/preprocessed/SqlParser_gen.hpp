@@ -156,29 +156,30 @@ extern int quickstep_yydebug;
     TOKEN_SMA = 366,
     TOKEN_SMALLINT = 367,
     TOKEN_STDERR = 368,
-    TOKEN_STDOUT = 369,
-    TOKEN_SUBSTRING = 370,
-    TOKEN_TABLE = 371,
-    TOKEN_THEN = 372,
-    TOKEN_TIME = 373,
-    TOKEN_TIMESTAMP = 374,
-    TOKEN_TO = 375,
-    TOKEN_TRUE = 376,
-    TOKEN_TUPLESAMPLE = 377,
-    TOKEN_UNBOUNDED = 378,
-    TOKEN_UNIQUE = 379,
-    TOKEN_UPDATE = 380,
-    TOKEN_USING = 381,
-    TOKEN_VALUES = 382,
-    TOKEN_VARCHAR = 383,
-    TOKEN_WHEN = 384,
-    TOKEN_WHERE = 385,
-    TOKEN_WINDOW = 386,
-    TOKEN_WITH = 387,
-    TOKEN_YEAR = 388,
-    TOKEN_YEARMONTH = 389,
-    TOKEN_EOF = 390,
-    TOKEN_LEX_ERROR = 391
+    TOKEN_STDIN = 369,
+    TOKEN_STDOUT = 370,
+    TOKEN_SUBSTRING = 371,
+    TOKEN_TABLE = 372,
+    TOKEN_THEN = 373,
+    TOKEN_TIME = 374,
+    TOKEN_TIMESTAMP = 375,
+    TOKEN_TO = 376,
+    TOKEN_TRUE = 377,
+    TOKEN_TUPLESAMPLE = 378,
+    TOKEN_UNBOUNDED = 379,
+    TOKEN_UNIQUE = 380,
+    TOKEN_UPDATE = 381,
+    TOKEN_USING = 382,
+    TOKEN_VALUES = 383,
+    TOKEN_VARCHAR = 384,
+    TOKEN_WHEN = 385,
+    TOKEN_WHERE = 386,
+    TOKEN_WINDOW = 387,
+    TOKEN_WITH = 388,
+    TOKEN_YEAR = 389,
+    TOKEN_YEARMONTH = 390,
+    TOKEN_EOF = 391,
+    TOKEN_LEX_ERROR = 392
   };
 #endif
 
@@ -289,7 +290,7 @@ union YYSTYPE
 
   quickstep::ParsePriority *opt_priority_clause_;
 
-#line 293 "SqlParser_gen.hpp" /* yacc.c:1915  */
+#line 294 "SqlParser_gen.hpp" /* yacc.c:1915  */
 };
 
 typedef union YYSTYPE YYSTYPE;

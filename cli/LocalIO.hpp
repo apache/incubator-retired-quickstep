@@ -46,6 +46,10 @@ class LocalIOHandle final : public IOHandle {
 
   ~LocalIOHandle() override {}
 
+  FILE *in() override {
+    return stdin;
+  }
+
   FILE *out() override {
     return stdout;
   }

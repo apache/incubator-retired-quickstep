@@ -341,6 +341,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_SMA;
 %token TOKEN_SMALLINT;
 %token TOKEN_STDERR;
+%token TOKEN_STDIN;
 %token TOKEN_STDOUT;
 %token TOKEN_SUBSTRING;
 %token TOKEN_TABLE;
@@ -371,6 +372,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
   datetime_unit
   index_type
   partition_type
+  copy_from_target
   copy_to_target
 
 %type <boolean_value_>
@@ -1117,10 +1119,10 @@ insert_statement:
   ;
 
 copy_statement:
-  TOKEN_COPY any_name TOKEN_FROM TOKEN_STRING_SINGLE_QUOTED opt_copy_params {
+  TOKEN_COPY any_name copy_from_target opt_copy_params {
     $$ = new quickstep::ParseStatementCopy(@1.first_line, @1.first_column,
                                            quickstep::ParseStatementCopy::kFrom,
-                                           $2, $4, $5);
+                                           $2, $3, $4);
   }
   | TOKEN_COPY any_name copy_to_target opt_copy_params {
     $$ = new quickstep::ParseStatementCopy(@1.first_line, @1.first_column,
@@ -1134,6 +1136,15 @@ copy_statement:
   | with_clause TOKEN_COPY set_operation_union copy_to_target opt_copy_params {
     $$ = new quickstep::ParseStatementCopy(@1.first_line, @1.first_column,
                                            $3, $1, $4, $5);
+  };
+
+copy_from_target:
+  TOKEN_FROM TOKEN_STRING_SINGLE_QUOTED {
+    $$ = new quickstep::ParseString($2->line_number(), $2->column_number(), "@" + $2->value());
+    delete $2;
+  }
+  | TOKEN_FROM TOKEN_STDIN {
+    $$ = new quickstep::ParseString(@2.first_line, @2.first_column, "$stdin");
   };
 
 copy_to_target:

@@ -50,7 +50,9 @@ const Type* AggregateFunctionMin::resultTypeForArgumentTypes(
     return nullptr;
   }
 
-  return &(argument_types.front()->getNullableVersion());
+  // FIXME(jianqiao): The result type can be nullable when it is NOT a group-by
+  // aggregation.
+  return argument_types.front();
 }
 
 AggregationHandle* AggregateFunctionMin::createHandle(

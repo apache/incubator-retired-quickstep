@@ -57,6 +57,7 @@
 #include "types/containers/Tuple.hpp"
 #include "utility/BulkIoConfiguration.hpp"
 #include "utility/Glob.hpp"
+#include "utility/ScopedBuffer.hpp"
 
 #include "gflags/gflags.h"
 #include "glog/logging.h"
@@ -110,18 +111,35 @@ bool TextScanOperator::getAllWorkOrders(
     const tmb::client_id scheduler_client_id,
     tmb::MessageBus *bus) {
   DCHECK(query_context != nullptr);
-
-  const std::vector<std::string> files = utility::file::GlobExpand(file_pattern_);
-
-  CHECK_NE(files.size(), 0u)
-      << "No files matched '" << file_pattern_ << "'. Exiting.";
-
-  InsertDestination *output_destination =
-      query_context->getInsertDestination(output_destination_index_);
+  DCHECK(!file_pattern_.empty());
 
   if (work_generated_) {
     return true;
   }
+
+  InsertDestination *output_destination =
+      query_context->getInsertDestination(output_destination_index_);
+
+  if (file_pattern_ == "$stdin") {
+    container->addNormalWorkOrder(
+        new TextScanWorkOrder(query_id_,
+                              file_pattern_,
+                              0,
+                              -1 /* text_segment_size */,
+                              options_->getDelimiter(),
+                              options_->escapeStrings(),
+                              output_destination),
+        op_index_);
+    work_generated_ = true;
+    return true;
+  }
+
+  DCHECK_EQ('@', file_pattern_.front());
+  const std::vector<std::string> files =
+      utility::file::GlobExpand(file_pattern_.substr(1));
+
+  CHECK_NE(files.size(), 0u)
+      << "No files matched '" << file_pattern_ << "'. Exiting.";
 
   for (const std::string &file : files) {
 #ifdef QUICKSTEP_HAVE_UNISTD
@@ -221,6 +239,12 @@ serialization::WorkOrder* TextScanOperator::createWorkOrderProto(
 }
 
 void TextScanWorkOrder::execute() {
+  DCHECK(!filename_.empty());
+  if (filename_ == "$stdin") {
+    executeInputStream();
+    return;
+  }
+
   const CatalogRelationSchema &relation = output_destination_->getRelation();
   std::vector<Tuple> tuples;
   bool is_faulty;
@@ -408,6 +432,76 @@ void TextScanWorkOrder::execute() {
   }
 
   free(buffer);
+
+  // Store the tuples in a ColumnVectorsValueAccessor for bulk insert.
+  ColumnVectorsValueAccessor column_vectors;
+  std::size_t attr_id = 0;
+  for (const auto &attribute : relation) {
+    const Type &attr_type = attribute.getType();
+    if (attr_type.isVariableLength()) {
+      std::unique_ptr<IndirectColumnVector> column(
+          new IndirectColumnVector(attr_type, tuples.size()));
+      for (const auto &tuple : tuples) {
+        column->appendTypedValue(tuple.getAttributeValue(attr_id));
+      }
+      column_vectors.addColumn(column.release());
+    } else {
+      std::unique_ptr<NativeColumnVector> column(
+          new NativeColumnVector(attr_type, tuples.size()));
+      for (const auto &tuple : tuples) {
+        column->appendTypedValue(tuple.getAttributeValue(attr_id));
+      }
+      column_vectors.addColumn(column.release());
+    }
+    ++attr_id;
+  }
+
+  // Bulk insert the tuples.
+  output_destination_->bulkInsertTuples(&column_vectors);
+}
+
+void TextScanWorkOrder::executeInputStream() {
+  std::string data;
+  const int len = std::ftell(stdin);
+  if (len >= 0) {
+    ScopedBuffer buffer(len, false);
+    std::rewind(stdin);
+    std::fread(buffer.get(), 1, len, stdin);
+    data = std::string(static_cast<char*>(buffer.get()), len);
+  } else {
+    std::unique_ptr<std::ostringstream> oss = std::make_unique<std::ostringstream>();
+    *oss << std::cin.rdbuf();
+    data = oss->str();
+    oss.reset();
+  }
+
+  if (data.back() != '\n') {
+    data.push_back('\n');
+  }
+
+  const CatalogRelationSchema &relation = output_destination_->getRelation();
+  std::vector<Tuple> tuples;
+  std::vector<TypedValue> row_tuple;
+  bool is_faulty;
+
+  const char *row_ptr = data.c_str();
+  const char *end_ptr = row_ptr + data.length();
+
+  while (row_ptr < end_ptr) {
+    if (*row_ptr == '\r' || *row_ptr == '\n') {
+      // Skip empty lines.
+      ++row_ptr;
+    } else {
+      row_tuple = parseRow(&row_ptr, relation, &is_faulty);
+      if (is_faulty) {
+        // Skip faulty rows
+        LOG(INFO) << "Faulty row found. Hence switching to next row.";
+      } else {
+        // Convert vector returned to tuple only when a valid row is encountered.
+        tuples.emplace_back(Tuple(std::move(row_tuple)));
+      }
+    }
+  }
 
   // Store the tuples in a ColumnVectorsValueAccessor for bulk insert.
   ColumnVectorsValueAccessor column_vectors;
