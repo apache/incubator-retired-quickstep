@@ -46,6 +46,7 @@
 #include "query_optimizer/physical/Physical.hpp"
 #include "query_optimizer/physical/PhysicalType.hpp"
 #include "query_optimizer/physical/Selection.hpp"
+#include "query_optimizer/physical/Sort.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
@@ -565,6 +566,16 @@ P::PhysicalPtr Partition::applyToNode(const P::PhysicalPtr &node) {
       auto output_partition_scheme_header = make_unique<P::PartitionSchemeHeader>(*input_partition_scheme_header);
       return selection->copyWithNewOutputPartitionSchemeHeader(output_partition_scheme_header.release(),
                                                                false /* has_repartition */);
+    }
+    case P::PhysicalType::kSort: {
+      const P::SortPtr sort = static_pointer_cast<const P::Sort>(node);
+      const P::PhysicalPtr input = sort->input();
+      if (P::SomeTableReference::Matches(input) ||
+          !input->getOutputPartitionSchemeHeader()) {
+        break;
+      }
+
+      return sort->copyWithNewChildren({ input->copyWithNewOutputPartitionSchemeHeader(nullptr) });
     }
     default:
       break;

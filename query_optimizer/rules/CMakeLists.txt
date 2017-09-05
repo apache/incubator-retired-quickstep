@@ -182,6 +182,7 @@ target_link_libraries(quickstep_queryoptimizer_rules_Partition
                       quickstep_queryoptimizer_physical_Physical
                       quickstep_queryoptimizer_physical_PhysicalType
                       quickstep_queryoptimizer_physical_Selection
+                      quickstep_queryoptimizer_physical_Sort
                       quickstep_queryoptimizer_physical_TableReference
                       quickstep_queryoptimizer_physical_TopLevelPlan
                       quickstep_queryoptimizer_rules_BottomUpRule
