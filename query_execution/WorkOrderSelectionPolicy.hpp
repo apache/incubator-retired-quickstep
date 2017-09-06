@@ -21,8 +21,9 @@
 #define QUICKSTEP_QUERY_EXECUTION_WORK_ORDER_SELECTION_POLICY_HPP_
 
 #include <cstddef>
-#include <stack>
 #include <queue>
+#include <stack>
+#include <utility>
 
 #include "utility/Macros.hpp"
 
@@ -117,19 +118,33 @@ class LifoWorkOrderSelectionPolicy final : public WorkOrderSelectionPolicy {
   }
 
   void addWorkOrder(const std::size_t operator_index) override {
-    work_orders_.push(operator_index);
+    if (!work_orders_.empty() && operator_index == work_orders_.top().first) {
+      // Increase the counter for 'operator_index'.
+      ++(work_orders_.top().second);
+      return;
+    }
+
+    work_orders_.emplace(operator_index, 1u);
   }
 
   std::size_t getOperatorIndexForNextWorkOrder() override {
     DCHECK(hasWorkOrder());
-    const std::size_t operator_index = work_orders_.top();
-    work_orders_.pop();
+    auto &work_order_info = work_orders_.top();
+    const std::size_t operator_index = work_order_info.first;
+
+    if (work_order_info.second > 1u) {
+      // Decrease the counter for 'operator_index'.
+      --work_order_info.second;
+    } else {
+      work_orders_.pop();
+    }
 
     return operator_index;
   }
 
  private:
-  std::stack<std::size_t> work_orders_;
+  // <operator_index, counter> pair.
+  std::stack<std::pair<std::size_t, std::size_t>> work_orders_;
 
   DISALLOW_COPY_AND_ASSIGN(LifoWorkOrderSelectionPolicy);
 };
