@@ -212,6 +212,7 @@ target_link_libraries(quickstep_queryoptimizer_OptimizerContext
                       quickstep_queryoptimizer_expressions_ExprId
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_OptimizerTree
+                      quickstep_catalog_Catalog_proto
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_utility_Macros
                       quickstep_utility_TreeStringSerializable)

@@ -52,6 +52,10 @@ CREATE TABLE foo (attr INT) PARTITION BY HASH(attr) PARTITIONS 4;
 --
 TopLevelPlan
 +-plan=CreateTable[relation=foo]
+| +-partition_scheme_header=ProtoDescription
+| | +-Property=ProtoProperty[Property=partition_type,Value=hash]
+| | +-Property=ProtoProperty[Property=num_partitions,Value=4]
+| | +-Property=ProtoProperty[Property=partition_attr_id,Value=0]
 | +-attributes=
 |   +-AttributeReference[id=0,name=attr,relation=foo,type=Int]
 +-output_attributes=
@@ -59,10 +63,19 @@ TopLevelPlan
 ==
 
 CREATE TABLE foo (attr1 INT, attr2 LONG, attr3 FLOAT, attr4 DOUBLE, attr5 CHAR(5), attr6 VARCHAR(4))
-PARTITION BY HASH(attr1, attr2, attr3, attr4, attr5, attr6) PARTITIONS 4;
+PARTITION BY HASH(attr2, attr1, attr3, attr4, attr5, attr6) PARTITIONS 4;
 --
 TopLevelPlan
 +-plan=CreateTable[relation=foo]
+| +-partition_scheme_header=ProtoDescription
+| | +-Property=ProtoProperty[Property=partition_type,Value=hash]
+| | +-Property=ProtoProperty[Property=num_partitions,Value=4]
+| | +-Property=ProtoProperty[Property=partition_attr_id,Value=1]
+| | +-Property=ProtoProperty[Property=partition_attr_id,Value=0]
+| | +-Property=ProtoProperty[Property=partition_attr_id,Value=2]
+| | +-Property=ProtoProperty[Property=partition_attr_id,Value=3]
+| | +-Property=ProtoProperty[Property=partition_attr_id,Value=4]
+| | +-Property=ProtoProperty[Property=partition_attr_id,Value=5]
 | +-attributes=
 |   +-AttributeReference[id=0,name=attr1,relation=foo,type=Int]
 |   +-AttributeReference[id=1,name=attr2,relation=foo,type=Long]

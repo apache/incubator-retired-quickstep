@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+#include "catalog/Catalog.pb.h"
 #include "storage/StorageBlockLayout.pb.h"
 #include "utility/Macros.hpp"
 #include "utility/TreeStringSerializable.hpp"
@@ -280,6 +281,44 @@ OptimizerProtoRepresentation<TreeNodeType>* getOptimizerRepresentationForProto(
   }
   // Every case will specify a slots number.
   node->addProperty("slots", description->num_slots());
+  return node.release();
+}
+
+template<class TreeNodeType>
+OptimizerProtoRepresentation<TreeNodeType>* getOptimizerRepresentationForProto(
+    const serialization::PartitionSchemeHeader *partition_header) {
+  if (partition_header == nullptr) {
+    return nullptr;
+  }
+
+  auto node = std::make_unique<OptimizerProtoRepresentation<TreeNodeType>>();
+
+  // Add properties based on the partition type.
+  switch (partition_header->partition_type()) {
+    case serialization::PartitionSchemeHeader::HASH: {
+      node->addProperty("partition_type", "hash");
+      break;
+    }
+    case serialization::PartitionSchemeHeader::RANDOM: {
+      node->addProperty("partition_type", "random");
+      break;
+    }
+    case serialization::PartitionSchemeHeader::RANGE: {
+      node->addProperty("partition_type", "range");
+      // TODO(quickstep-team): display the range boundaries.
+      node->addProperty("range_boundaries", "TODO");
+      break;
+    }
+    default:
+      LOG(FATAL) << "Unrecognized partition type in protobuf message.";
+  }
+  // Every case will specify a partition number and a partition attributes.
+  node->addProperty("num_partitions", partition_header->num_partitions());
+
+  for (int i = 0; i < partition_header->partition_attribute_ids_size(); ++i) {
+    node->addProperty("partition_attr_id", partition_header->partition_attribute_ids(i));
+  }
+
   return node.release();
 }
 

@@ -49,7 +49,7 @@ typedef std::shared_ptr<const CreateTable> CreateTablePtr;
 /**
  * @brief Creates a table.
  */
-class CreateTable : public Physical {
+class CreateTable final : public Physical {
  public:
   PhysicalType getPhysicalType() const override {
     return PhysicalType::kCreateTable;
@@ -145,13 +145,17 @@ class CreateTable : public Physical {
         block_properties_(block_properties),
         block_properties_representation_(
             getOptimizerRepresentationForProto<OptimizerTreeBaseNodePtr>(block_properties_.get())),
-        partition_scheme_header_proto_(partition_scheme_header_proto) {}
+        partition_scheme_header_proto_(partition_scheme_header_proto),
+        partition_scheme_header_proto_representation_(
+            getOptimizerRepresentationForProto<OptimizerTreeBaseNodePtr>(partition_scheme_header_proto_.get())) {}
 
-  std::string relation_name_;
-  std::vector<expressions::AttributeReferencePtr> attributes_;
-  std::shared_ptr<const StorageBlockLayoutDescription> block_properties_;
-  std::shared_ptr<const OptimizerProtoRepresentation<OptimizerTreeBaseNodePtr> > block_properties_representation_;
-  std::shared_ptr<const serialization::PartitionSchemeHeader> partition_scheme_header_proto_;
+  const std::string relation_name_;
+  const std::vector<expressions::AttributeReferencePtr> attributes_;
+  const std::shared_ptr<const StorageBlockLayoutDescription> block_properties_;
+  const std::shared_ptr<const OptimizerProtoRepresentation<OptimizerTreeBaseNodePtr>> block_properties_representation_;
+  const std::shared_ptr<const serialization::PartitionSchemeHeader> partition_scheme_header_proto_;
+  const std::shared_ptr<const OptimizerProtoRepresentation<OptimizerTreeBaseNodePtr>>
+      partition_scheme_header_proto_representation_;
 
   DISALLOW_COPY_AND_ASSIGN(CreateTable);
 };

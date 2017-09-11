@@ -49,6 +49,11 @@ void CreateTable::getFieldStringItems(
     non_container_child_field_names->push_back("block_properties");
     non_container_child_fields->push_back(block_properties_representation_);
   }
+
+  if (partition_scheme_header_proto_representation_) {
+    non_container_child_field_names->push_back("partition_scheme_header");
+    non_container_child_fields->push_back(partition_scheme_header_proto_representation_);
+  }
 }
 
 }  // namespace physical
