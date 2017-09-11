@@ -147,6 +147,7 @@ target_link_libraries(quickstep_cli_CommandExecutorUtil
                       quickstep_catalog_CatalogDatabase
                       quickstep_catalog_CatalogRelation
                       quickstep_catalog_IndexScheme
+                      quickstep_catalog_PartitionScheme
                       quickstep_cli_PrintToScreen
                       quickstep_parser_ParseString
                       quickstep_storage_StorageBlockLayout_proto

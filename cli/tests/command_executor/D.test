@@ -38,6 +38,11 @@ CREATE TABLE foo4 (col1 INT,
                    col5 CHAR(5));
 CREATE INDEX foo4_index_1 ON foo4 (col1, col2) USING CSBTREE;
 CREATE INDEX foo4_index_2 ON foo4 (col3, col4) USING CSBTREE;
+CREATE TABLE foo_hash_part (col1 INT,
+                            col2 FLOAT)
+PARTITION BY HASH(col1) PARTITIONS 4;
+INSERT INTO foo_hash_part
+SELECT i, i * 3.0 FROM generate_series(1, 100) AS gs(i);
 CREATE TABLE averylongtablenamethatseemstoneverend (col1 INT);
 DROP TABLE TEST;
 INSERT INTO averylongtablenamethatseemstoneverend VALUES (1);
@@ -102,6 +107,17 @@ INSERT INTO foo3 values(5, 1, 1.0, 1.0, 'XYZZ');
   "foo4_index_2" CSB_TREE (col3, col4)
   "foo4_index_1" CSB_TREE (col1, col2)
 ==
+\d foo_hash_part
+--
+ Table "foo_hash_part"
+ Column | Type  
++-------+-------+
+ col1   | Int   
+ col2   | Float 
+ Partition Info
+  PARTITION BY HASH ( col1 ) PARTITIONS 4
+  | 1 | 1 | 1 | 1 |
+==
 \d
 --
        List of relations
@@ -112,6 +128,7 @@ INSERT INTO foo3 values(5, 1, 1.0, 1.0, 'XYZZ');
  foo2                                  | table | 1      
  foo3                                  | table | 1      
  foo4                                  | table | 0      
+ foo_hash_part                         | table | 4      
  averylongtablenamethatseemstoneverend | table | 1      
 
 ==

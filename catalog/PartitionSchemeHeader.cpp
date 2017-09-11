@@ -20,11 +20,15 @@
 #include "catalog/PartitionSchemeHeader.hpp"
 
 #include <cstddef>
+#include <sstream>
+#include <string>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
 #include "catalog/Catalog.pb.h"
+#include "catalog/CatalogAttribute.hpp"
+#include "catalog/CatalogRelationSchema.hpp"
 #include "catalog/CatalogTypedefs.hpp"
 #include "types/Type.hpp"
 #include "types/Type.pb.h"
@@ -163,6 +167,40 @@ serialization::PartitionSchemeHeader PartitionSchemeHeader::getProto() const {
   }
 
   return proto;
+}
+
+std::string PartitionSchemeHeader::toString(const CatalogRelationSchema &relation_schema) const {
+  std::ostringstream oss;
+  oss << "PARTITION BY ";
+  switch (partition_type_) {
+    case PartitionType::kHash:
+      oss << "HASH";
+      break;
+    case PartitionType::kRandom:
+      oss << "RANDOM";
+      break;
+    case PartitionType::kRange:
+      oss << "RANGE";
+      break;
+    default:
+      LOG(FATAL) << "Invalid Partition Type.";
+  }
+
+  oss << " ( ";
+  if (!partition_attribute_ids_.empty()) {
+    const CatalogAttribute *attr = relation_schema.getAttributeById(partition_attribute_ids_[0]);
+    DCHECK(attr);
+    oss << attr->getName();
+
+    for (size_t i = 1; i < partition_attribute_ids_.size(); ++i) {
+      attr = relation_schema.getAttributeById(partition_attribute_ids_[i]);
+      DCHECK(attr);
+      oss << ", " << attr->getName();
+    }
+  }
+  oss << " ) PARTITIONS " << num_partitions_ << '\n';
+
+  return oss.str();
 }
 
 serialization::PartitionSchemeHeader RangePartitionSchemeHeader::getProto() const {

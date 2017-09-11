@@ -167,6 +167,8 @@ target_link_libraries(quickstep_catalog_PartitionScheme
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_catalog_PartitionSchemeHeader
                       glog
+                      quickstep_catalog_CatalogAttribute
+                      quickstep_catalog_CatalogRelationSchema
                       quickstep_catalog_CatalogTypedefs
                       quickstep_catalog_Catalog_proto
                       quickstep_storage_StorageConstants

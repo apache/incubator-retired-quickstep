@@ -22,6 +22,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <iomanip>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -29,6 +30,7 @@
 #include "catalog/CatalogDatabase.hpp"
 #include "catalog/CatalogRelation.hpp"
 #include "catalog/IndexScheme.hpp"
+#include "catalog/PartitionScheme.hpp"
 #include "cli/PrintToScreen.hpp"
 #include "parser/ParseString.hpp"
 #include "storage/StorageBlockLayout.pb.h"
@@ -146,9 +148,9 @@ string ExecuteDescribeTable(
   }
 
   ostringstream oss;
-  oss << setw(kInitMaxColumnWidth) << "Table" << " \"" << table_name_val << "\"\n";
-  oss << std::left << setw(max_attr_column_width + 1) << " Column" << " |";
-  oss << setw(max_type_column_width + 1) << " Type" << '\n';
+  oss << setw(kInitMaxColumnWidth) << "Table" << " \"" << table_name_val << "\"\n"
+      << std::left << setw(max_attr_column_width + 1) << " Column" << " |"
+      << setw(max_type_column_width + 1) << " Type" << '\n';
 
   // Add room for one extra character to allow spacing between the column ending and the vertical bar
   oss << PrintToScreen::GenerateHBar({ max_attr_column_width + 1, max_type_column_width + 1 });
@@ -157,7 +159,7 @@ string ExecuteDescribeTable(
     oss << ' ' << setw(max_attr_column_width) << attr.getDisplayName() << " | "
         << setw(max_type_column_width) << attr.getType().getName() << '\n';
   }
-  // TODO(rogers): Add handlers for partitioning information.
+
   if (relation->hasIndexScheme()) {
     oss << setw(kInitMaxColumnWidth + 2) << " Indexes" << '\n';
     for (const auto &index : relation->getIndexScheme()) {
@@ -171,6 +173,11 @@ string ExecuteDescribeTable(
       }
       oss << ")\n";
     }
+  }
+
+  if (relation->hasPartitionScheme()) {
+    oss << setw(kInitMaxColumnWidth + 2) << " Partition Info\n  "
+        << relation->getPartitionScheme()->toString(*relation);
   }
 
   return oss.str();

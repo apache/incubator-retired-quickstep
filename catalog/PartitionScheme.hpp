@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <string>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -38,6 +39,8 @@
 #include "glog/logging.h"
 
 namespace quickstep {
+
+class CatalogRelationSchema;
 
 /** \addtogroup Catalog
  *  @{
@@ -167,6 +170,15 @@ class PartitionScheme {
    *         std::size_t is returned.
    **/
   partition_id getPartitionForBlock(const block_id block) const;
+
+  /**
+   * @brief Display the partition scheme as a string.
+   *
+   * @param relation_schema The relation schema that owns this scheme.
+   *
+   * @return the string of the partition scheme.
+   **/
+  std::string toString(const CatalogRelationSchema &relation_schema) const;
 
  private:
   std::unique_ptr<const PartitionSchemeHeader> header_;

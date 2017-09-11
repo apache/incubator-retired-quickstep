@@ -21,6 +21,8 @@
 
 #include <cstddef>
 #include <limits>
+#include <sstream>
+#include <string>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -109,6 +111,18 @@ partition_id PartitionScheme::getPartitionForBlock(const block_id block) const {
   }
   // Block was not found in any partitions.
   return std::numeric_limits<std::size_t>::max();
+}
+
+std::string PartitionScheme::toString(const CatalogRelationSchema &relation_schema) const {
+  std::ostringstream oss;
+  oss << "  |";
+  for (std::size_t i = 0; i < blocks_in_partition_.size(); ++i) {
+    SpinSharedMutexSharedLock<false> lock(blocks_in_partition_mutexes_[i]);
+    oss << ' ' << blocks_in_partition_[i].size() << " |";
+  }
+  oss << '\n';
+
+  return header_->toString(relation_schema) + oss.str();
 }
 
 }  // namespace quickstep

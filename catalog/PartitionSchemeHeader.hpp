@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <memory>
 #include <random>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -41,6 +42,7 @@
 
 namespace quickstep {
 
+class CatalogRelationSchema;
 class Type;
 
 /** \addtogroup Catalog
@@ -164,6 +166,10 @@ class PartitionSchemeHeader {
   const PartitionAttributeIds partition_attribute_ids_;
 
  private:
+  std::string toString(const CatalogRelationSchema &relation_schema) const;
+
+  friend class PartitionScheme;
+
   DISALLOW_COPY_AND_ASSIGN(PartitionSchemeHeader);
 };
 
