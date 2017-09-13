@@ -683,8 +683,6 @@ StorageManager::BlockHandle StorageManager::loadBlockOrBlob(
     loaded_handle.block_memory = block_buffer;
     loaded_handle.block_memory_size = num_slots;
   } else {
-    bool pull_succeeded = false;
-
 #ifdef QUICKSTEP_DISTRIBUTED
     const string domain_network_address = getPeerDomainNetworkAddress(BlockIdUtil::Domain(block));
     DLOG(INFO) << "Pulling Block " << BlockIdUtil::ToString(block) << " from " << domain_network_address;
@@ -693,11 +691,9 @@ StorageManager::BlockHandle StorageManager::loadBlockOrBlob(
     while (!client.Pull(block, numa_node, &loaded_handle)) {
       LOG(INFO) << "Retry pulling Block " << BlockIdUtil::ToString(block) << " from " << domain_network_address;
     }
-
-    pull_succeeded = true;
+#else
+    LOG(FATAL) << "Block not found from persistent storage: " << block;
 #endif
-
-    CHECK(pull_succeeded) << "Failed to pull Block " << BlockIdUtil::ToString(block) << " from remote peers.";
   }
 
 #ifdef QUICKSTEP_DISTRIBUTED
