@@ -113,7 +113,8 @@ class NestedLoopsJoinOperator : public RelationalOperator {
         left_relation_is_stored_(left_relation_is_stored),
         right_relation_is_stored_(right_relation_is_stored),
         left_relation_block_ids_(num_partitions),
-        right_relation_block_ids_(num_partitions),
+        right_relation_block_ids_(right_relation_is_stored ? right_input_relation_.getBlocksSnapshot()
+                                                           : std::vector<block_id>()),
         num_left_workorders_generated_(num_partitions),
         num_right_workorders_generated_(num_partitions),
         done_feeding_left_relation_(false),
@@ -131,21 +132,6 @@ class NestedLoopsJoinOperator : public RelationalOperator {
       } else {
         DCHECK_EQ(1u, num_partitions_);
         left_relation_block_ids_[0] = left_input_relation_.getBlocksSnapshot();
-      }
-    }
-
-    if (right_relation_is_stored) {
-      if (right_input_relation_.hasPartitionScheme()) {
-        const PartitionScheme &part_scheme = *right_input_relation_.getPartitionScheme();
-        DCHECK_EQ(num_partitions_, part_scheme.getPartitionSchemeHeader().getNumPartitions());
-        for (std::size_t part_id = 0; part_id < num_partitions_; ++part_id) {
-          right_relation_block_ids_[part_id] = part_scheme.getBlocksInPartition(part_id);
-        }
-      } else {
-        // Broadcast right (smaller) side upon partitioned nlj.
-        for (partition_id part_id = 0; part_id < num_partitions_; ++part_id) {
-          right_relation_block_ids_[part_id] = right_input_relation_.getBlocksSnapshot();
-        }
       }
     }
   }
@@ -183,10 +169,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
     if (input_relation_id == left_input_relation_.getID()) {
       left_relation_block_ids_[part_id].push_back(input_block_id);
     } else if (input_relation_id == right_input_relation_.getID()) {
-      // Broadcast right (smaller) side upon partitioned nlj.
-      for (partition_id input_part_id = 0; input_part_id < num_partitions_; ++input_part_id) {
-        right_relation_block_ids_[input_part_id].push_back(input_block_id);
-      }
+      right_relation_block_ids_.push_back(input_block_id);
     } else {
       LOG(FATAL) << "The input block sent to the NestedLoopsJoinOperator belongs "
                  << "to a different relation than the left and right relations";
@@ -315,7 +298,7 @@ class NestedLoopsJoinOperator : public RelationalOperator {
   const bool right_relation_is_stored_;
 
   std::vector<BlocksInPartition> left_relation_block_ids_;
-  std::vector<BlocksInPartition> right_relation_block_ids_;
+  std::vector<block_id> right_relation_block_ids_;
 
   // At a given point of time, we have paired num_left_workorders_generated[part_id]
   // number of blocks from the left relation with num_right_workorders_generated[part_id]

@@ -226,7 +226,42 @@ GROUP BY fact.id;
 +-----------+------------------------+
 ==
 
-# Partitioned NestedLoopsJoin
+# Partitioned NestedLoopsJoin w/ both stored relations.
+SELECT COUNT(*)
+FROM dim_4_hash_partitions, fact;
+--
++--------------------+
+|COUNT(*)            |
++--------------------+
+|                 220|
++--------------------+
+==
+
+# Partitioned NestedLoopsJoin w/ one stored relation.
+SELECT COUNT(*)
+FROM dim_4_hash_partitions, fact
+WHERE dim_4_hash_partitions.id > 20;
+--
++--------------------+
+|COUNT(*)            |
++--------------------+
+|                  20|
++--------------------+
+==
+
+# Partitioned NestedLoopsJoin w/ the other stored relation.
+SELECT COUNT(*)
+FROM dim_4_hash_partitions, fact
+WHERE fact.id > 0;
+--
++--------------------+
+|COUNT(*)            |
++--------------------+
+|                 220|
++--------------------+
+==
+
+# Partitioned NestedLoopsJoin w/ both non-stored relations.
 SELECT dim_4_hash_partitions.id as dim_id, fact.id as fact_id
 FROM dim_4_hash_partitions, fact
 WHERE dim_4_hash_partitions.id > 20 AND fact.id > 0;
