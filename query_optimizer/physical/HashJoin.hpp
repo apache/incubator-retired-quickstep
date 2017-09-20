@@ -103,6 +103,13 @@ class HashJoin : public BinaryJoin {
   }
 
   /**
+   * @ brief The select predicate for a hash join fuse.
+   */
+  const expressions::PredicatePtr& build_predicate() const {
+    return build_predicate_;
+  }
+
+  /**
    * @return Join type of this hash join.
    */
   JoinType join_type() const {
@@ -117,6 +124,7 @@ class HashJoin : public BinaryJoin {
                   left_join_attributes_,
                   right_join_attributes_,
                   residual_predicate_,
+                  build_predicate_,
                   project_expressions(),
                   join_type_,
                   has_repartition_,
@@ -129,7 +137,7 @@ class HashJoin : public BinaryJoin {
       PartitionSchemeHeader *partition_scheme_header,
       const bool has_repartition = true) const override {
     return Create(left(), right(), left_join_attributes_, right_join_attributes_,
-                  residual_predicate_, project_expressions(), join_type_,
+                  residual_predicate_, build_predicate_, project_expressions(), join_type_,
                   has_repartition, partition_scheme_header);
   }
 
@@ -146,6 +154,7 @@ class HashJoin : public BinaryJoin {
    * @param left_join_attributes The join attributes in the 'left'.
    * @param right_join_attributes The join attributes in the 'right'.
    * @param residual_predicate Optional filtering predicate evaluated after join.
+   * @param build_predicate Optional select predicate for a hash join fuse.
    * @param project_expressions The project expressions.
    * @param Join type of this hash join.
    * @param has_repartition Whether this node has repartition.
@@ -159,6 +168,7 @@ class HashJoin : public BinaryJoin {
       const std::vector<expressions::AttributeReferencePtr> &left_join_attributes,
       const std::vector<expressions::AttributeReferencePtr> &right_join_attributes,
       const expressions::PredicatePtr &residual_predicate,
+      const expressions::PredicatePtr &build_predicate,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
       const JoinType join_type,
       const bool has_repartition = false,
@@ -169,6 +179,7 @@ class HashJoin : public BinaryJoin {
                      left_join_attributes,
                      right_join_attributes,
                      residual_predicate,
+                     build_predicate,
                      project_expressions,
                      join_type,
                      has_repartition,
@@ -191,6 +202,7 @@ class HashJoin : public BinaryJoin {
       const std::vector<expressions::AttributeReferencePtr> &left_join_attributes,
       const std::vector<expressions::AttributeReferencePtr> &right_join_attributes,
       const expressions::PredicatePtr &residual_predicate,
+      const expressions::PredicatePtr &build_predicate,
       const std::vector<expressions::NamedExpressionPtr> &project_expressions,
       const JoinType join_type,
       const bool has_repartition,
@@ -199,12 +211,14 @@ class HashJoin : public BinaryJoin {
         left_join_attributes_(left_join_attributes),
         right_join_attributes_(right_join_attributes),
         residual_predicate_(residual_predicate),
+        build_predicate_(build_predicate),
         join_type_(join_type) {
   }
 
   std::vector<expressions::AttributeReferencePtr> left_join_attributes_;
   std::vector<expressions::AttributeReferencePtr> right_join_attributes_;
   expressions::PredicatePtr residual_predicate_;
+  expressions::PredicatePtr build_predicate_;
   JoinType join_type_;
 
   DISALLOW_COPY_AND_ASSIGN(HashJoin);

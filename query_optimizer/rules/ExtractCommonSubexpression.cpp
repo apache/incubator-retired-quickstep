@@ -171,6 +171,7 @@ P::PhysicalPtr ExtractCommonSubexpression::applyToNode(
                                    hash_join->left_join_attributes(),
                                    hash_join->right_join_attributes(),
                                    hash_join->residual_predicate(),
+                                   hash_join->build_predicate(),
                                    new_expressions,
                                    hash_join->join_type());
       }

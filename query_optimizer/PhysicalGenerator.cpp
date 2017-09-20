@@ -30,6 +30,7 @@
 #include "query_optimizer/rules/CollapseSelection.hpp"
 #include "query_optimizer/rules/ExtractCommonSubexpression.hpp"
 #include "query_optimizer/rules/FuseAggregateJoin.hpp"
+#include "query_optimizer/rules/FuseHashSelect.hpp"
 #include "query_optimizer/rules/InjectJoinFilters.hpp"
 #include "query_optimizer/rules/Partition.hpp"
 #include "query_optimizer/rules/PruneColumns.hpp"
@@ -66,6 +67,10 @@ DEFINE_bool(reorder_hash_joins, true,
 DEFINE_bool(use_partition_rule, true,
             "If true, apply an optimization to support partitioned inputs. The "
             "optimization may add additional Selection for repartitioning.");
+
+DEFINE_bool(use_fuse_hash_select, true,
+            "If true, apply an optimization that moves build-side Selection nodes"
+            "into the hash join operator instead.");
 
 DEFINE_bool(use_filter_joins, true,
             "If true, apply an optimization that strength-reduces HashJoins to "
@@ -174,6 +179,10 @@ P::PhysicalPtr PhysicalGenerator::optimizePlan() {
   if (FLAGS_use_partition_rule) {
     rules.push_back(std::make_unique<Partition>(optimizer_context_));
     rules.push_back(std::make_unique<PruneColumns>());
+  }
+
+  if (FLAGS_use_fuse_hash_select) {
+    rules.emplace_back(new FuseHashSelect());
   }
 
   // NOTE(jianqiao): Adding rules after InjectJoinFilters (or AttachLIPFilters)

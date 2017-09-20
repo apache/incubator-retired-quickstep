@@ -315,6 +315,7 @@ physical::PhysicalPtr StarSchemaHashJoinOrderOptimization::generatePlan(
                               probe_attributes,
                               build_attributes,
                               nullptr,
+                              nullptr,
                               output_attributes,
                               P::HashJoin::JoinType::kInnerJoin);
 
@@ -347,6 +348,7 @@ physical::PhysicalPtr StarSchemaHashJoinOrderOptimization::generatePlan(
                                  probe_attributes,
                                  build_attributes,
                                  residual_predicate,
+                                 nullptr,
                                  project_expressions,
                                  P::HashJoin::JoinType::kInnerJoin);
     }

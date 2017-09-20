@@ -58,6 +58,7 @@ P::PhysicalPtr SwapProbeBuild::applyToNode(const P::PhysicalPtr &input) {
                                                   right_join_attributes,
                                                   left_join_attributes,
                                                   hash_join->residual_predicate(),
+                                                  hash_join->build_predicate(),
                                                   hash_join->project_expressions(),
                                                   hash_join->join_type());
       LOG_APPLYING_RULE(input, output);
