@@ -173,6 +173,7 @@ P::PhysicalPtr PhysicalGenerator::optimizePlan() {
   // set output PartitionSchemeHeader in a Physical Plan node, when needed.
   if (FLAGS_use_partition_rule) {
     rules.push_back(std::make_unique<Partition>(optimizer_context_));
+    rules.push_back(std::make_unique<PruneColumns>());
   }
 
   // NOTE(jianqiao): Adding rules after InjectJoinFilters (or AttachLIPFilters)
