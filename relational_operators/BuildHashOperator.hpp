@@ -81,6 +81,7 @@ class BuildHashOperator : public RelationalOperator {
    * @param hash_table_index The index of the JoinHashTable in QueryContext.
    *        The HashTable's key Type(s) should be the Type(s) of the
    *        join_key_attributes in input_relation.
+   * @param build_predicate_index The index of the build_predicate in QueryContext.
    **/
   BuildHashOperator(const std::size_t query_id,
                     const CatalogRelation &input_relation,
@@ -88,7 +89,8 @@ class BuildHashOperator : public RelationalOperator {
                     const std::vector<attribute_id> &join_key_attributes,
                     const bool any_join_key_attributes_nullable,
                     const std::size_t num_partitions,
-                    const QueryContext::join_hash_table_id hash_table_index)
+                    const QueryContext::join_hash_table_id hash_table_index,
+                    const QueryContext::predicate_id build_predicate_index)
       : RelationalOperator(query_id, num_partitions),
         input_relation_(input_relation),
         input_relation_is_stored_(input_relation_is_stored),
@@ -96,6 +98,7 @@ class BuildHashOperator : public RelationalOperator {
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         is_broadcast_join_(num_partitions > 1u && !input_relation.hasPartitionScheme()),
         hash_table_index_(hash_table_index),
+        build_predicate_index_(build_predicate_index),
         input_relation_block_ids_(num_partitions),
         num_workorders_generated_(num_partitions),
         started_(false) {
@@ -164,6 +167,7 @@ class BuildHashOperator : public RelationalOperator {
   const bool any_join_key_attributes_nullable_;
   const bool is_broadcast_join_;
   const QueryContext::join_hash_table_id hash_table_index_;
+  const QueryContext::predicate_id build_predicate_index_;
 
   // The index is the partition id.
   std::vector<BlocksInPartition> input_relation_block_ids_;
@@ -189,6 +193,7 @@ class BuildHashWorkOrder : public WorkOrder {
    * @param any_join_key_attributes_nullable If any attribute is nullable.
    * @param part_id The partition id of 'input_relation'.
    * @param build_block_id The block id.
+   * @param predicate The Predicate to use.
    * @param hash_table The JoinHashTable to use.
    * @param storage_manager The StorageManager to use.
    * @param lip_filter_builder The attached LIP filter builer.
@@ -199,6 +204,7 @@ class BuildHashWorkOrder : public WorkOrder {
                      const bool any_join_key_attributes_nullable,
                      const partition_id part_id,
                      const block_id build_block_id,
+                     const Predicate *predicate,
                      JoinHashTable *hash_table,
                      StorageManager *storage_manager,
                      LIPFilterBuilder *lip_filter_builder)
@@ -207,6 +213,7 @@ class BuildHashWorkOrder : public WorkOrder {
         join_key_attributes_(join_key_attributes),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         build_block_id_(build_block_id),
+        predicate_(predicate),
         hash_table_(DCHECK_NOTNULL(hash_table)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
         lip_filter_builder_(lip_filter_builder) {}
@@ -221,6 +228,7 @@ class BuildHashWorkOrder : public WorkOrder {
    * @param any_join_key_attributes_nullable If any attribute is nullable.
    * @param part_id The partition id of 'input_relation'.
    * @param build_block_id The block id.
+   * @param predicate The Predicate to use.
    * @param hash_table The JoinHashTable to use.
    * @param storage_manager The StorageManager to use.
    * @param lip_filter_builder The attached LIP filter builer.
@@ -231,6 +239,7 @@ class BuildHashWorkOrder : public WorkOrder {
                      const bool any_join_key_attributes_nullable,
                      const partition_id part_id,
                      const block_id build_block_id,
+                     const Predicate *predicate,
                      JoinHashTable *hash_table,
                      StorageManager *storage_manager,
                      LIPFilterBuilder *lip_filter_builder)
@@ -239,6 +248,7 @@ class BuildHashWorkOrder : public WorkOrder {
         join_key_attributes_(std::move(join_key_attributes)),
         any_join_key_attributes_nullable_(any_join_key_attributes_nullable),
         build_block_id_(build_block_id),
+        predicate_(predicate),
         hash_table_(DCHECK_NOTNULL(hash_table)),
         storage_manager_(DCHECK_NOTNULL(storage_manager)),
         lip_filter_builder_(lip_filter_builder) {}
@@ -256,6 +266,7 @@ class BuildHashWorkOrder : public WorkOrder {
   const std::vector<attribute_id> join_key_attributes_;
   const bool any_join_key_attributes_nullable_;
   const block_id build_block_id_;
+  const Predicate *predicate_;
 
   JoinHashTable *hash_table_;
   StorageManager *storage_manager_;

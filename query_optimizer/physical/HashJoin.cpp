@@ -57,6 +57,13 @@ std::vector<expressions::AttributeReferencePtr> HashJoin::getReferencedAttribute
                                  referenced_attributes_in_residual.begin(),
                                  referenced_attributes_in_residual.end());
   }
+  if (build_predicate_ != nullptr) {
+    const std::vector<expressions::AttributeReferencePtr> referenced_attributes_in_build =
+        build_predicate_->getReferencedAttributes();
+    referenced_attributes.insert(referenced_attributes.end(),
+                                 referenced_attributes_in_build.begin(),
+                                 referenced_attributes_in_build.end());
+  }
   return referenced_attributes;
 }
 
@@ -79,6 +86,7 @@ bool HashJoin::maybeCopyWithPrunedExpressions(
                      left_join_attributes_,
                      right_join_attributes_,
                      residual_predicate_,
+                     build_predicate_,
                      new_project_expressions,
                      join_type_,
                      has_repartition_,
@@ -104,6 +112,10 @@ void HashJoin::getFieldStringItems(
   if (residual_predicate_ != nullptr) {
     non_container_child_field_names->push_back("residual_predicate");
     non_container_child_fields->push_back(residual_predicate_);
+  }
+  if (build_predicate_ != nullptr) {
+    non_container_child_field_names->push_back("build_predicate");
+    non_container_child_fields->push_back(build_predicate_);
   }
   container_child_field_names->push_back("left_join_attributes");
   container_child_fields->push_back(CastSharedPtrVector<OptimizerTreeBase>(left_join_attributes_));

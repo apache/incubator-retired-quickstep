@@ -427,7 +427,8 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
                             std::vector<attribute_id>(1, dim_col_long.getID()),
                             dim_col_long.getType().isNullable(),
                             kSinglePartition,
-                            join_hash_table_index));
+                            join_hash_table_index,
+                            QueryContext::kInvalidPredicateId));
 
   // Create the prober operator with one selection attribute.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
@@ -573,7 +574,8 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
                             std::vector<attribute_id>(1, dim_col_int.getID()),
                             dim_col_int.getType().isNullable(),
                             kSinglePartition,
-                            join_hash_table_index));
+                            join_hash_table_index,
+                            QueryContext::kInvalidPredicateId));
 
   // Create the prober operator with two selection attributes.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
@@ -738,7 +740,8 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
                             std::vector<attribute_id>(1, dim_col_char.getID()),
                             dim_col_char.getType().isNullable(),
                             kSinglePartition,
-                            join_hash_table_index));
+                            join_hash_table_index,
+                            QueryContext::kInvalidPredicateId));
 
   // Create prober operator with one selection attribute.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
@@ -877,7 +880,8 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
                             std::vector<attribute_id>(1, dim_col_varchar.getID()),
                             dim_col_varchar.getType().isNullable(),
                             kSinglePartition,
-                            join_hash_table_index));
+                            join_hash_table_index,
+                            QueryContext::kInvalidPredicateId));
 
   // Create prober operator with two selection attributes.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
@@ -1052,7 +1056,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
                             dim_key_attrs,
                             dim_col_long.getType().isNullable() || dim_col_varchar.getType().isNullable(),
                             kSinglePartition,
-                            join_hash_table_index));
+                            join_hash_table_index,
+                            QueryContext::kInvalidPredicateId));
 
   // Create the prober operator with two selection attributes.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
@@ -1232,7 +1237,8 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
                             dim_key_attrs,
                             dim_col_long.getType().isNullable() || dim_col_varchar.getType().isNullable(),
                             kSinglePartition,
-                            join_hash_table_index));
+                            join_hash_table_index,
+                            QueryContext::kInvalidPredicateId));
 
   // Create prober operator with two selection attributes.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
@@ -1425,7 +1431,8 @@ TEST_P(HashJoinOperatorTest, SingleAttributePartitionedLongKeyHashJoinTest) {
       { dim_col_long.getID() },
       dim_col_long.getType().isNullable(),
       kMultiplePartitions,
-      join_hash_table_index));
+      join_hash_table_index,
+      QueryContext::kInvalidPredicateId));
 
   // Create the prober operator with one selection attribute.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
@@ -1566,7 +1573,8 @@ TEST_P(HashJoinOperatorTest, SingleAttributePartitionedCompositeKeyHashJoinTest)
       { dim_col_long.getID(), dim_col_varchar.getID() },
       dim_col_long.getType().isNullable() || dim_col_varchar.getType().isNullable(),
       kMultiplePartitions,
-      join_hash_table_index));
+      join_hash_table_index,
+      QueryContext::kInvalidPredicateId));
 
   // Create the prober operator with two selection attributes.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();
@@ -1737,7 +1745,8 @@ TEST_P(HashJoinOperatorTest, SingleAttributePartitionedCompositeKeyHashJoinWithR
       { dim_col_long.getID(), dim_col_varchar.getID() },
       dim_col_long.getType().isNullable() || dim_col_varchar.getType().isNullable(),
       kMultiplePartitions,
-      join_hash_table_index));
+      join_hash_table_index,
+      QueryContext::kInvalidPredicateId));
 
   // Create prober operator with two selection attributes.
   const QueryContext::scalar_group_id selection_index = query_context_proto.scalar_groups_size();

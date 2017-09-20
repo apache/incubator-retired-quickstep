@@ -371,6 +371,7 @@ void Join::addHashJoin(const logical::ProjectPtr &logical_project,
                           left_join_attributes,
                           right_join_attributes,
                           residual_predicate,
+                          E::PredicatePtr() /* build_predicate */,
                           project_expressions,
                           join_type);
 }

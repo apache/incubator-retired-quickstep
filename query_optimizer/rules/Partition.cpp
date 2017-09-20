@@ -497,6 +497,7 @@ P::PhysicalPtr Partition::applyToNode(const P::PhysicalPtr &node) {
       if (left_needs_repartition || right_needs_repartition) {
         return P::HashJoin::Create(left, right, left_join_attributes, right_join_attributes,
                                    hash_join->residual_predicate(),
+                                   hash_join->build_predicate(),
                                    hash_join->project_expressions(),
                                    hash_join->join_type(),
                                    false /* has_repartition */,

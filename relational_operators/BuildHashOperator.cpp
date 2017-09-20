@@ -70,6 +70,10 @@ bool BuildHashOperator::getAllWorkOrders(
     tmb::MessageBus *bus) {
   DCHECK(query_context != nullptr);
 
+  // Get the build predicate from the query context if it exists.
+  const Predicate *predicate =
+      query_context->getPredicate(build_predicate_index_);
+
   if (input_relation_is_stored_) {
     if (started_) {
       return true;
@@ -80,7 +84,7 @@ bool BuildHashOperator::getAllWorkOrders(
       for (const block_id block : input_relation_block_ids_[part_id]) {
         container->addNormalWorkOrder(
             new BuildHashWorkOrder(query_id_, input_relation_, join_key_attributes_, any_join_key_attributes_nullable_,
-                                   part_id, block, hash_table, storage_manager,
+                                   part_id, block, predicate, hash_table, storage_manager,
                                    CreateLIPFilterBuilderHelper(lip_deployment_index_, query_context)),
             op_index_);
       }
@@ -95,7 +99,7 @@ bool BuildHashOperator::getAllWorkOrders(
         container->addNormalWorkOrder(
             new BuildHashWorkOrder(query_id_, input_relation_, join_key_attributes_, any_join_key_attributes_nullable_,
                                    part_id, input_relation_block_ids_[part_id][num_workorders_generated_[part_id]],
-                                   hash_table, storage_manager,
+                                   predicate, hash_table, storage_manager,
                                    CreateLIPFilterBuilderHelper(lip_deployment_index_, query_context)),
             op_index_);
         ++num_workorders_generated_[part_id];
@@ -143,6 +147,7 @@ serialization::WorkOrder* BuildHashOperator::createWorkOrderProto(const block_id
   proto->SetExtension(serialization::BuildHashWorkOrder::any_join_key_attributes_nullable,
                       any_join_key_attributes_nullable_);
   proto->SetExtension(serialization::BuildHashWorkOrder::join_hash_table_index, hash_table_index_);
+  proto->SetExtension(serialization::BuildHashWorkOrder::build_predicate_index, build_predicate_index_);
   proto->SetExtension(serialization::BuildHashWorkOrder::partition_id, part_id);
   proto->SetExtension(serialization::BuildHashWorkOrder::block_id, block);
   proto->SetExtension(serialization::BuildHashWorkOrder::lip_deployment_index, lip_deployment_index_);
@@ -158,8 +163,25 @@ void BuildHashWorkOrder::execute() {
   BlockReference block(
       storage_manager_->getBlock(build_block_id_, input_relation_));
 
+  // Create the ValueAccessor to be initialized later.
+  std::unique_ptr<ValueAccessor> accessor;
+
+  // If there is a build predicate, find the tuples that match it in the block.
+  std::unique_ptr<TupleIdSequence> predicate_matches;
+  if (predicate_ != nullptr) {
+    predicate_matches.reset(
+        block->getMatchesForPredicate(predicate_));
+  }
+
+  // Use the tuples from the build predicate to fill a ValueAccessor, else
+  // initialize it to a default state for normal use.
   TupleReferenceGenerator generator(build_block_id_);
-  std::unique_ptr<ValueAccessor> accessor(block->getTupleStorageSubBlock().createValueAccessor());
+  if (predicate_ != nullptr) {
+    accessor.reset(
+        block->getTupleStorageSubBlock().createValueAccessor(predicate_matches.get()));
+  } else {
+    accessor.reset(block->getTupleStorageSubBlock().createValueAccessor());
+  }
 
   // Build LIPFilters if enabled.
   if (lip_filter_builder_ != nullptr) {

@@ -2113,23 +2113,20 @@ TopLevelPlan
 | | +-AttributeReference[id=3,name=double_col,relation=test,type=Double NULL]
 | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
 | | +-AttributeReference[id=5,name=vchar_col,relation=test,type=VarChar(20) NULL]
-| +-right=Selection[has_repartition=false]
-| | +-input=TableReference[relation=Test,alias=test]
-| | | +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
-| | | +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
-| | | +-AttributeReference[id=8,name=float_col,relation=test,type=Float]
-| | | +-AttributeReference[id=9,name=double_col,relation=test,type=Double NULL]
-| | | +-AttributeReference[id=10,name=char_col,relation=test,type=Char(20)]
-| | | +-AttributeReference[id=11,name=vchar_col,relation=test,
-| | |   type=VarChar(20) NULL]
-| | +-filter_predicate=InValueList
-| | | +-test_expression=AttributeReference[id=7,name=long_col,relation=test,
-| | | | type=Long]
-| | | +-match_expressions=
-| | |   +-Literal[value=1,type=Long]
-| | |   +-Literal[value=2,type=Long]
-| | +-project_expressions=
-| |   +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
+| +-right=TableReference[relation=Test,alias=test]
+| | +-AttributeReference[id=6,name=int_col,relation=test,type=Int NULL]
+| | +-AttributeReference[id=7,name=long_col,relation=test,type=Long]
+| | +-AttributeReference[id=8,name=float_col,relation=test,type=Float]
+| | +-AttributeReference[id=9,name=double_col,relation=test,type=Double NULL]
+| | +-AttributeReference[id=10,name=char_col,relation=test,type=Char(20)]
+| | +-AttributeReference[id=11,name=vchar_col,relation=test,
+| |   type=VarChar(20) NULL]
+| +-build_predicate=InValueList
+| | +-test_expression=AttributeReference[id=7,name=long_col,relation=test,
+| | | type=Long]
+| | +-match_expressions=
+| |   +-Literal[value=1,type=Long]
+| |   +-Literal[value=2,type=Long]
 | +-project_expressions=
 | | +-AttributeReference[id=4,name=char_col,relation=test,type=Char(20)]
 | +-left_join_attributes=

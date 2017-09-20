@@ -180,6 +180,7 @@ P::PhysicalPtr ReorderColumns::applyInternal(const P::PhysicalPtr &input,
                                      old_node->left_join_attributes(),
                                      old_node->right_join_attributes(),
                                      old_node->residual_predicate(),
+                                     old_node->build_predicate(),
                                      project_expressions,
                                      old_node->join_type());
         break;

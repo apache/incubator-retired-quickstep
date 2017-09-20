@@ -82,7 +82,7 @@ message BuildAggregationExistenceMapWorkOrder {
   }
 }
 
-// Next tag: 40.
+// Next tag: 41.
 message BuildHashWorkOrder {
   extend WorkOrder {
     // All required.
@@ -94,6 +94,7 @@ message BuildHashWorkOrder {
     optional fixed64 block_id = 36;
     optional int32 lip_deployment_index = 37;
     repeated uint32 lip_filter_indexes = 39;
+    optional uint32 build_predicate_index = 40;
   }
 }
 

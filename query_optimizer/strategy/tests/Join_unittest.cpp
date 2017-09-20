@@ -96,6 +96,7 @@ class JoinTest : public StrategyTest {
                             {relation_attribute_reference_0_0_},
                             {relation_attribute_reference_1_0_},
                             E::PredicatePtr(),
+                            E::PredicatePtr(),
                             project_expressions,
                             P::HashJoin::JoinType::kInnerJoin);
   }
@@ -142,6 +143,7 @@ TEST_F(JoinTest, ProjectOnJoin) {
       {relation_attribute_reference_0_0_},
       {relation_attribute_reference_1_0_},
       E::PredicatePtr(),
+      E::PredicatePtr(),
       logical_project_0_->project_expressions(),
       P::HashJoin::JoinType::kInnerJoin);
   EXPECT_CORRECT_PHYSICAL();
@@ -183,6 +185,7 @@ TEST_F(JoinTest, ProjectOnFilterOnHashJoin) {
       {relation_attribute_reference_1_0_,
        relation_attribute_reference_1_1_},
       filter_predicate_0_,
+      E::PredicatePtr(),
       logical_project_1_->project_expressions(),
       P::HashJoin::JoinType::kInnerJoin);
   EXPECT_CORRECT_PHYSICAL();
@@ -212,6 +215,7 @@ TEST_F(JoinTest, FilterOnHashJoin) {
       {relation_attribute_reference_0_0_},
       {relation_attribute_reference_1_0_},
       filter_predicate_0_,
+      E::PredicatePtr(),
       physical_nested_loops_join_->project_expressions(),
       P::HashJoin::JoinType::kInnerJoin);
   EXPECT_CORRECT_PHYSICAL();
@@ -247,6 +251,7 @@ TEST_F(JoinTest, HashJoinOnSelection) {
       physical_project_on_filter_1_,
       {relation_attribute_reference_0_0_},
       {relation_attribute_reference_1_0_},
+      E::PredicatePtr(),
       E::PredicatePtr(),
       {alias_on_alias_reference_after_pullup} /* project_expressions */,
       P::HashJoin::JoinType::kInnerJoin);
@@ -285,6 +290,7 @@ TEST_F(JoinTest, HashJoinOnSelection) {
                           physical_table_reference_1_,
                           {E::ToRef(alias_add_literal_0_)},
                           {relation_attribute_reference_1_0_},
+                          E::PredicatePtr(),
                           E::PredicatePtr(),
                           project_expressions,
                           P::HashJoin::JoinType::kInnerJoin);

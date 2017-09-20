@@ -939,6 +939,15 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
     query_context_proto_->add_predicates()->CopyFrom(residual_predicate->getProto());
   }
 
+  // Convert the build predicate proto.
+  QueryContext::predicate_id build_predicate_index = QueryContext::kInvalidPredicateId;
+  if (physical_plan->build_predicate()) {
+    build_predicate_index = query_context_proto_->predicates_size();
+
+    unique_ptr<const Predicate> build_predicate(convertPredicate(physical_plan->build_predicate()));
+    query_context_proto_->add_predicates()->MergeFrom(build_predicate->getProto());
+  }
+
   // Convert the project expressions proto.
   const QueryContext::scalar_group_id project_expressions_group_index =
       query_context_proto_->scalar_groups_size();
@@ -966,7 +975,9 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
   const CatalogRelation *probe_relation = probe_relation_info->relation;
 
   // FIXME(quickstep-team): Add support for self-join.
-  if (build_relation == probe_relation) {
+  // We check to see if the build_predicate is null as certain queries that
+  // support hash-select fuse will result in the first check being true.
+  if (build_relation == probe_relation && physical_plan->build_predicate() == nullptr) {
     THROW_SQL_ERROR() << "Self-join is not supported";
   }
 
@@ -1006,7 +1017,8 @@ void ExecutionGenerator::convertHashJoin(const P::HashJoinPtr &physical_plan) {
               build_attribute_ids,
               any_build_attributes_nullable,
               probe_num_partitions,
-              join_hash_table_index));
+              join_hash_table_index,
+              build_predicate_index));
 
   // Create InsertDestination proto.
   const CatalogRelation *output_relation = nullptr;
