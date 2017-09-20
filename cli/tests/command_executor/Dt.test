@@ -50,6 +50,8 @@ INSERT INTO foo2 values(5, 1, 1.0, 1.0, 'XYZ');
 INSERT INTO foo3 values(5, 1, 1.0, 1.0, 'XYZZ');
 --
 ==
+
+
 \dt
 --
        List of relations
@@ -63,6 +65,7 @@ INSERT INTO foo3 values(5, 1, 1.0, 1.0, 'XYZZ');
  averylongtablenamethatseemstoneverend | table | 1      
 
 ==
+
 \dt foo
 --
        List of relations
@@ -72,6 +75,7 @@ INSERT INTO foo3 values(5, 1, 1.0, 1.0, 'XYZZ');
  foo    | table | 1      
 
 ==
+
 \dt invalidtable
 --
 ERROR:  Unrecognized relation invalidtable (1 : 5)

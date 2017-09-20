@@ -23,6 +23,8 @@
 #include <cctype>
 #include <string>
 
+#include "glog/logging.h"
+
 using std::ispunct;
 using std::size_t;
 using std::string;
@@ -171,7 +173,7 @@ std::string LineReader::getNextCommand() {
             case '.':
             case '\\':  //  Fall Through.
               // If the dot or forward slash begins the line, begin a command search.
-              if (scan_position == 0) {
+              if (special_char_location == multiline_buffer.find_first_not_of(" \t\r\n")) {
                 line_state = kCommand;
               } else {
                 // This is a regular character, so skip over it.
@@ -217,7 +219,12 @@ std::string LineReader::getNextCommand() {
             if (std::all_of(leftover_.begin(), leftover_.end(), ::isspace)) {
               leftover_.clear();
             }
-            return multiline_buffer.substr(0, special_char_location + 1);
+            // Skip all the whitespaces before the command.
+            const std::size_t start_position =
+                multiline_buffer.find_first_not_of(" \t\r\n");
+            DCHECK_LT(start_position, special_char_location + 1);
+            return multiline_buffer.substr(start_position,
+                                           special_char_location + 1 - start_position);
           }
           break;
       }

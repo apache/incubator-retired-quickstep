@@ -189,10 +189,12 @@ if(QUICKSTEP_HAVE_LIBNUMA)
 endif()
 if(USE_LINENOISE)
   target_link_libraries(quickstep_cli_LineReader
+                        glog
                         linenoise
                         quickstep_utility_Macros)
 else()
   target_link_libraries(quickstep_cli_LineReader
+                        glog
                         quickstep_utility_Macros)
 endif()
 target_link_libraries(quickstep_cli_LineReaderBuffered
