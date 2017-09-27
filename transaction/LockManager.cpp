@@ -80,21 +80,22 @@ void LockManager::run() {
         if (request.getRequestType() == RequestType::kReleaseLocks) {
           CHECK(releaseAllLocks(request.getTransactionId()))
               << "Unexpected condition occured.";
-
         } else if (acquireLock(request.getTransactionId(),
                                request.getResourceId(),
                                request.getAccessMode())) {
+          // Lock has been acquired.
+          LOG(INFO) << "Transaction "
+                    << std::to_string(request.getTransactionId())
+                    << " acquired " + request.getResourceId().toString();
+
+          permitted_requests_.push(request);
+        } else {
+          // We are unable to acquire lock at this point.
           LOG(INFO) << "Transaction "
                     << std::to_string(request.getTransactionId())
                     << " is waiting " + request.getResourceId().toString();
 
-            inner_pending_requests_.push(request);
-        } else {
-            LOG(INFO) << "Transaction "
-                      << std::to_string(request.getTransactionId())
-                      << " acquired " + request.getResourceId().toString();
-
-            permitted_requests_.push(request);
+          inner_pending_requests_.push(request);
         }
       }
     }
