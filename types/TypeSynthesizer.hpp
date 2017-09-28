@@ -46,15 +46,15 @@ template <TypeID type_id>
 class TypeSynthesizer
     : public Type,
       public TypeInstance<typename TypeIDTrait<type_id>::TypeClass,
-                          TypeIDTrait<type_id>::kParameterized> {
+                          TypeIDTrait<type_id>::kIsParameterizedPod> {
  public:
   using Trait = TypeIDTrait<type_id>;
   using TypeClass = typename Trait::TypeClass;
 
   static constexpr Type::SuperTypeID kStaticSuperTypeID = Trait::kStaticSuperTypeID;
   static constexpr TypeID kStaticTypeID = Trait::kStaticTypeID;
-  static constexpr bool kParameterized = Trait::kParameterized;
-  static constexpr TypeStorageLayout kLayout = Trait::kLayout;
+  static constexpr bool kIsParameterizedPod = Trait::kIsParameterizedPod;
+  static constexpr MemoryLayout kMemoryLayout = Trait::kMemoryLayout;
 
   typedef typename Trait::cpptype cpptype;
 
@@ -64,7 +64,7 @@ class TypeSynthesizer
     proto.mutable_type_id()->CopyFrom(TypeIDFactory::GetProto(type_id_));
     proto.set_nullable(nullable_);
 
-    if (kParameterized) {
+    if (kIsParameterizedPod) {
       proto.set_length(parameter_);
     }
 
@@ -72,62 +72,45 @@ class TypeSynthesizer
   }
 
   const Type& getNullableVersion() const override {
-    return getInstance<kParameterized>(true);
+    return getInstance<kIsParameterizedPod>(true);
   }
 
   const Type& getNonNullableVersion() const override {
-    return getInstance<kParameterized>(false);
+    return getInstance<kIsParameterizedPod>(false);
   }
 
  protected:
-  template <TypeStorageLayout layout = kLayout, bool parameterized = kParameterized>
+  template <MemoryLayout layout = kMemoryLayout, bool par = kIsParameterizedPod>
   explicit TypeSynthesizer(const bool nullable,
-                           std::enable_if_t<layout == kNativeEmbedded ||
-                                            layout == kNativeInline>* = 0)
+                           std::enable_if_t<layout == kCxxNativePod>* = 0)
       : Type(kStaticSuperTypeID, kStaticTypeID, nullable,
              sizeof(cpptype), sizeof(cpptype)) {
-    DCHECK(!kParameterized);
   }
 
-  template <TypeStorageLayout layout = kLayout, bool parameterized = kParameterized>
+  template <MemoryLayout layout = kMemoryLayout, bool par = kIsParameterizedPod>
   TypeSynthesizer(const bool nullable,
                   const std::size_t minimum_byte_length,
                   const std::size_t maximum_byte_length,
                   const std::size_t parameter,
-                  std::enable_if_t<parameterized &&
-                                   (layout == kNonNativeInline ||
-                                    layout == kOutOfLine)>* = 0)
+                  std::enable_if_t<par>* = 0)
       : Type(kStaticSuperTypeID, kStaticTypeID, nullable,
              minimum_byte_length, maximum_byte_length, parameter) {
-    DCHECK(kLayout != kNonNativeInline || minimum_byte_length == maximum_byte_length);
-  }
-
-  template <TypeStorageLayout layout = kLayout, bool parameterized = kParameterized>
-  TypeSynthesizer(const bool nullable,
-                  const std::size_t minimum_byte_length,
-                  const std::size_t maximum_byte_length,
-                  std::enable_if_t<!parameterized &&
-                                   (layout == kNonNativeInline ||
-                                    layout == kOutOfLine)>* = 0)
-      : Type(kStaticSuperTypeID, kStaticTypeID, nullable,
-             minimum_byte_length, maximum_byte_length) {
-    DCHECK(kLayout != kNonNativeInline || minimum_byte_length == maximum_byte_length);
   }
 
  private:
   template <bool has_param>
   inline const Type& getInstance(const bool nullable,
                                  std::enable_if_t<has_param>* = 0) const {
-    return TypeInstance<TypeClass, kParameterized>::Instance(parameter_, nullable);
+    return TypeInstance<TypeClass, kIsParameterizedPod>::Instance(parameter_, nullable);
   }
 
   template <bool has_param>
   inline const Type& getInstance(const bool nullable,
                                  std::enable_if_t<!has_param>* = 0) const {
-    return TypeInstance<TypeClass, kParameterized>::Instance(nullable);
+    return TypeInstance<TypeClass, kIsParameterizedPod>::Instance(nullable);
   }
 
-  friend class TypeInstance<TypeClass, kParameterized>;
+  friend class TypeInstance<TypeClass, kIsParameterizedPod>;
 
   DISALLOW_COPY_AND_ASSIGN(TypeSynthesizer);
 };
@@ -139,10 +122,10 @@ template <TypeID type_id>
 constexpr TypeID TypeSynthesizer<type_id>::kStaticTypeID;
 
 template <TypeID type_id>
-constexpr bool TypeSynthesizer<type_id>::kParameterized;
+constexpr bool TypeSynthesizer<type_id>::kIsParameterizedPod;
 
 template <TypeID type_id>
-constexpr TypeStorageLayout TypeSynthesizer<type_id>::kLayout;
+constexpr MemoryLayout TypeSynthesizer<type_id>::kMemoryLayout;
 
 
 template <typename TypeClass>

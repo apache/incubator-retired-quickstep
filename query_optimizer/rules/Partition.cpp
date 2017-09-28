@@ -49,9 +49,8 @@
 #include "query_optimizer/physical/Sort.hpp"
 #include "query_optimizer/physical/TableReference.hpp"
 #include "query_optimizer/physical/TopLevelPlan.hpp"
+#include "types/operations/OperationFactory.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
-#include "types/operations/binary_operations/BinaryOperationFactory.hpp"
-#include "types/operations/binary_operations/BinaryOperationID.hpp"
 #include "utility/Cast.hpp"
 #include "utility/EqualsAnyConstant.hpp"
 
@@ -410,10 +409,17 @@ P::PhysicalPtr Partition::applyToNode(const P::PhysicalPtr &node) {
       for (const auto &avg_recompute_expression : avg_recompute_expressions) {
         const auto &avg_expr = get<0>(avg_recompute_expression);
         // Obtain AVG by evaluating SUM/COUNT in Selection.
-        const BinaryOperation &divide_op =
-            BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kDivide);
+        const OperationSignaturePtr op_sig =
+            OperationSignature::Create(
+                "+",
+                { get<1>(avg_recompute_expression)->getValueType().getTypeID(),
+                  get<2>(avg_recompute_expression)->getValueType().getTypeID() },
+                0);
+        const BinaryOperationPtr divide_op =
+            OperationFactory::Instance().getBinaryOperation(op_sig);
         const E::BinaryExpressionPtr new_avg_expr =
-            E::BinaryExpression::Create(divide_op,
+            E::BinaryExpression::Create(op_sig,
+                                        divide_op,
                                         get<1>(avg_recompute_expression),
                                         get<2>(avg_recompute_expression));
         project_expressions.emplace_back(

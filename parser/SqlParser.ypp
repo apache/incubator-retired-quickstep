@@ -272,6 +272,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_DESC;
 %token TOKEN_DISTINCT;
 %token TOKEN_DOUBLE;
+%token TOKEN_DOUBLECOLON;
 %token TOKEN_DROP;
 %token TOKEN_ELSE;
 %token TOKEN_END;
@@ -1776,7 +1777,30 @@ cast_function:
     auto *name = new quickstep::ParseString(@1.first_line, @1.first_column, "cast");
     $$ = new quickstep::ParseFunctionCall(
         @1.first_line, @1.first_column, false, name, arguments);
-  };
+  }
+  | expression_base TOKEN_DOUBLECOLON data_type {
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($1);
+    arguments->push_back(new quickstep::ParseScalarLiteral(
+        new quickstep::StringParseLiteralValue(
+            new quickstep::ParseString(@3.first_line,
+                                       @3.first_column,
+                                       $3->getType().getName()),
+            nullptr)));
+    delete $3;
+    auto *name = new quickstep::ParseString(@2.first_line, @2.first_column, "cast");
+    $$ = new quickstep::ParseFunctionCall(
+        @2.first_line, @2.first_column, false, name, arguments);
+  }
+  | expression_base TOKEN_DOUBLECOLON any_name {
+    auto *arguments = new quickstep::PtrList<quickstep::ParseExpression>();
+    arguments->push_back($1);
+    arguments->push_back(new quickstep::ParseScalarLiteral(
+        new quickstep::StringParseLiteralValue($3, nullptr)));
+    auto *name = new quickstep::ParseString(@2.first_line, @2.first_column, "cast");
+    $$ = new quickstep::ParseFunctionCall(
+        @2.first_line, @2.first_column, false, name, arguments);
+  }
 
 extract_function:
   TOKEN_EXTRACT '(' datetime_unit TOKEN_FROM add_expression ')' {

@@ -33,7 +33,7 @@
 namespace quickstep {
 
 bool TypeFactory::TypeRequiresLengthParameter(const TypeID id) {
-  return TypeUtil::IsParameterized(id);
+  return TypeUtil::IsParameterizedPod(id);
 }
 
 const Type& TypeFactory::GetType(const TypeID id,

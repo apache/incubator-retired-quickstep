@@ -73,10 +73,11 @@ class ColumnVectorsValueAccessor : public ValueAccessor {
    *             this value-accessor is responsible for freeing this column
    *             vector.
    **/
-  void addColumn(ColumnVectorPtr column) {
+  void addColumn(const ColumnVectorPtr &column) {
     // If this is not the first column to be added, make sure it is the same
     // length as the others.
     DCHECK(columns_.empty() || column->size() == column_length_);
+    DCHECK(column->isNative() || column->isIndrect());
     columns_.push_back(column);
     column_native_.push_back(column->isNative());
     column_length_ = column->size();

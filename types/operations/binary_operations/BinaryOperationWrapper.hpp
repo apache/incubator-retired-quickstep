@@ -195,7 +195,7 @@ class UncheckedBinaryOperatorWrapperCodegen : public UncheckedBinaryOperator {
       std::size_t *num_tuples_applied) const override {
     constexpr bool is_supported =
         LeftType::kStaticTypeID == ResultType::kStaticTypeID &&
-        (LeftType::kLayout == kNativeEmbedded || LeftType::kLayout == kNativeInline) &&
+        LeftType::kMemoryLayout == kCxxNativePod &&
         std::is_copy_assignable<typename LeftType::cpptype>::value;
 
     using RightCVT = typename RightGen::ColumnVectorType;
@@ -217,7 +217,7 @@ class UncheckedBinaryOperatorWrapperCodegen : public UncheckedBinaryOperator {
       std::size_t *num_tuples_applied) const override {
     constexpr bool is_supported =
         LeftType::kStaticTypeID == ResultType::kStaticTypeID &&
-        (LeftType::kLayout == kNativeEmbedded || LeftType::kLayout == kNativeInline) &&
+        LeftType::kMemoryLayout == kCxxNativePod &&
         std::is_copy_assignable<typename LeftType::cpptype>::value;
 
     return InvokeOnValueAccessorMaybeTupleIdSequenceAdapter(
@@ -511,7 +511,7 @@ class BinaryOperationWrapper : public BinaryOperation {
     DCHECK(left.getTypeID() == LeftType::kStaticTypeID);
     DCHECK(right.getTypeID() == RightType::kStaticTypeID);
     DCHECK(static_arguments.empty());
-    return getResultTypeImpl<ResultType::kParameterized>(
+    return getResultTypeImpl<ResultType::kIsParameterizedPod>(
         left, right, static_arguments);
   }
 

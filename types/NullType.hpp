@@ -88,7 +88,7 @@ class NullType : public TypeSynthesizer<kNullType> {
   // NOTE(chasseur): NullType requires 0 bytes of inherent storage. It does,
   // however, require a bit in NULL bitmaps.
   NullType(const bool nullable)
-      : TypeSynthesizer<kNullType>(nullable, 0, 0) {
+      : TypeSynthesizer<kNullType>(nullable) {
     DCHECK(nullable);
   }
 

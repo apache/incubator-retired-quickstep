@@ -70,13 +70,25 @@ typedef std::shared_ptr<const ColumnVector> ColumnVectorPtr;
  **/
 class ColumnVector {
  public:
+   /**
+    * @brief Enum with cases for different subclasses of ColumnVector.
+    */
+   enum Implementation {
+     kNative = 0,
+     kIndirect,
+     kGeneric
+   };
+
   /**
    * @brief Constructor.
    *
    * @param type The Type of values to hold.
    **/
-  explicit ColumnVector(const Type &type)
-      : type_(type) {
+  explicit ColumnVector(const Implementation implementation,
+                        const Type &type)
+      : implementation_(implementation),
+        type_(type) {
+    // TODO: check that impl matches type.
   }
 
   /**
@@ -101,14 +113,27 @@ class ColumnVector {
       const TypedValue &value,
       const std::size_t num_copies);
 
+
   /**
-   * @brief Check whether this ColumnVector is a NativeColumnVector or an
-   *        IndirectColumnVector.
+   * @brief Determine the concrete type of this ColumnVector.
    *
-   * @return true if this is a NativeColumnVector, false if this is an
-   *         IndirectColumnVector.
+   * @return The implementation type of this ColumnVector.
    **/
-  virtual bool isNative() const = 0;
+  inline Implementation getImplementation() const {
+    return implementation_;
+  }
+
+  inline bool isNative() const {
+    return implementation_ == kNative;
+  }
+
+  inline bool isIndrect() const {
+    return implementation_ == kIndirect;
+  }
+
+  inline bool isGeneric() const {
+    return implementation_ == kGeneric;
+  }
 
   /**
    * @brief Get the number of values in this ColumnVector.
@@ -118,6 +143,7 @@ class ColumnVector {
   virtual std::size_t size() const = 0;
 
  protected:
+  const Implementation implementation_;
   const Type &type_;
 
  private:
@@ -140,7 +166,7 @@ class NativeColumnVector : public ColumnVector {
    *        NativeColumnVector will hold.
    **/
   NativeColumnVector(const Type &type, const std::size_t reserved_length)
-      : ColumnVector(type),
+      : ColumnVector(ColumnVector::kNative, type),
         type_length_(type.maximumByteLength()),
         reserved_length_(reserved_length),
         values_(std::malloc(type.maximumByteLength() * reserved_length)),
@@ -168,10 +194,6 @@ class NativeColumnVector : public ColumnVector {
    **/
   static bool UsableForType(const Type &type) {
     return !type.isVariableLength();
-  }
-
-  bool isNative() const override {
-    return true;
   }
 
   /**
@@ -421,7 +443,7 @@ class IndirectColumnVector : public ColumnVector {
    * @param reserved_length The number of values to reserve space for.
    **/
   IndirectColumnVector(const Type &type, const std::size_t reserved_length)
-      : ColumnVector(type),
+      : ColumnVector(ColumnVector::kIndirect, type),
         type_is_nullable_(type.isNullable()),
         reserved_length_(reserved_length) {
     values_.reserve(reserved_length);
@@ -431,10 +453,6 @@ class IndirectColumnVector : public ColumnVector {
    * @brief Destructor.
    **/
   ~IndirectColumnVector() override {
-  }
-
-  bool isNative() const override {
-    return false;
   }
 
   /**
@@ -588,6 +606,11 @@ class IndirectColumnVector : public ColumnVector {
   std::vector<TypedValue> values_;
 
   DISALLOW_COPY_AND_ASSIGN(IndirectColumnVector);
+};
+
+class GenericColumnVector {
+
+
 };
 
 /** @} */

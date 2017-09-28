@@ -301,6 +301,7 @@ unsigned_numeric_literal {exact_numeric_literal}|{approximate_numeric_literal}
   ">"                return TOKEN_GT;
   "<="               return TOKEN_LEQ;
   ">="               return TOKEN_GEQ;
+  "::"               return TOKEN_DOUBLECOLON;
 
   [-+*/%(),.;]       return yytext[0];
   [\[\]]             return yytext[0];

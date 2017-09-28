@@ -49,11 +49,11 @@ enum TypeID : int {
   kNumTypeIDs  // Not a real TypeID, exists for counting purposes.
 };
 
-enum TypeStorageLayout {
-  kNativeEmbedded,
-  kNativeInline,
-  kNonNativeInline,
-  kOutOfLine
+enum MemoryLayout {
+  kCxxNativePod,
+  kParNativePod,
+  kParIndirectPod,
+  kGeneric
 };
 
 /**

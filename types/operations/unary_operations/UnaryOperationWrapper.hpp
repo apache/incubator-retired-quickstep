@@ -184,7 +184,7 @@ class UnaryOperationWrapper : public UnaryOperation {
       const std::vector<TypedValue> &static_arguments) const override {
     DCHECK(argument_type.getTypeID() == ArgumentType::kStaticTypeID);
     DCHECK(static_arguments.empty());
-    return getResultTypeImpl<ResultType::kParameterized>(
+    return getResultTypeImpl<ResultType::kIsParameterizedPodz>(
         argument_type, static_arguments);
   }
 

@@ -49,11 +49,11 @@ namespace quickstep {
 
 class TypeUtil {
  public:
-  static bool IsParameterized(const TypeID type_id) {
+  static bool IsParameterizedPod(const TypeID type_id) {
     return InvokeOnTypeID(
         type_id,
         [&](auto tid) -> bool {  // NOLINT(build/c++11)
-      return TypeIDTrait<decltype(tid)::value>::kParameterized;
+      return TypeIDTrait<decltype(tid)::value>::kIsParameterizedPod;
     });
   }
 

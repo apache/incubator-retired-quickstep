@@ -103,7 +103,7 @@ template <typename FuncSpec, typename T, typename EnableT = void>
 struct Codegen;
 
 template <typename FuncSpec, typename T>
-struct Codegen<FuncSpec, T, std::enable_if_t<T::kLayout == kNativeEmbedded>> {
+struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kCxxNativePod>> {
   using ColumnVectorType = NativeColumnVector;
   using FunctorSpecializer = FuncSpec;
 
@@ -171,7 +171,7 @@ struct Codegen<FuncSpec, T, std::enable_if_t<T::kLayout == kNativeEmbedded>> {
 };
 
 template <typename FuncSpec, typename T>
-struct Codegen<FuncSpec, T, std::enable_if_t<T::kLayout == kNonNativeInline>> {
+struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kParNativePod>> {
   using ColumnVectorType = NativeColumnVector;
   using FunctorSpecializer = FuncSpec;
 
@@ -244,7 +244,7 @@ struct Codegen<FuncSpec, T, std::enable_if_t<T::kLayout == kNonNativeInline>> {
 };
 
 template <typename FuncSpec, typename T>
-struct Codegen<FuncSpec, T, std::enable_if_t<T::kLayout == kOutOfLine>> {
+struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kParIndirectPod>> {
   using ColumnVectorType = IndirectColumnVector;
   using FunctorSpecializer = FuncSpec;
 
