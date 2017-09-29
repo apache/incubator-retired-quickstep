@@ -147,7 +147,7 @@ class LIPFilterAdaptiveProber {
 
       const std::uint32_t num_hits = filterBatch(accessor, &batch, batch_size);
       for (std::uint32_t i = 0; i < num_hits; ++i) {
-        matches->set(batch[i], true);
+        matches->set(batch[i]);
       }
 
       batch_start += batch_size;
@@ -181,7 +181,7 @@ class LIPFilterAdaptiveProber {
 
       const std::uint32_t num_hits = filterBatch(accessor, &batch, batch_size);
       for (std::uint32_t i = 0; i < num_hits; ++i) {
-        matches->set(batch[i], true);
+        matches->set(batch[i]);
       }
 
       num_tuples_left -= batch_size;

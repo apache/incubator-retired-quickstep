@@ -319,7 +319,7 @@ ColumnVectorPtr ScalarCaseExpression::getAllValuesForJoin(
                                                 *right_accessor,
                                                 right_relation_id,
                                                 check_pair.second)) {
-        current_case_positions->set(pos, true);
+        current_case_positions->set(pos);
         current_case_matches.emplace_back(check_pair);
       }
     }

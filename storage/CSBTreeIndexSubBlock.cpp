@@ -1791,7 +1791,7 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateEqualPredicate(
           // End of matches.
           return matches.release();
         }
-        matches->set(*reinterpret_cast<const tuple_id*>(key_ptr + key_length_bytes_), true);
+        matches->set(*reinterpret_cast<const tuple_id*>(key_ptr + key_length_bytes_));
       }
       key_ptr += key_tuple_id_pair_length_bytes_;
     }
@@ -1824,7 +1824,7 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateNotEqualPredicate(
                                + sizeof(NodeHeader)
                                + key_length_bytes_;
     for (uint16_t entry_num = 0; entry_num < num_keys; ++entry_num) {
-      matches->set(*reinterpret_cast<const tuple_id*>(tuple_id_ptr), true);
+      matches->set(*reinterpret_cast<const tuple_id*>(tuple_id_ptr));
       tuple_id_ptr += key_tuple_id_pair_length_bytes_;
     }
     search_node = getRightSiblingOfLeafNode(search_node);
@@ -1841,7 +1841,7 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateNotEqualPredicate(
       if (!equal_found) {
         if (key_less_literal_comparator.compareDataPtrsInl(key_ptr, literal)) {
           // key < literal
-          matches->set(*reinterpret_cast<const tuple_id*>(key_ptr + key_length_bytes_), true);
+          matches->set(*reinterpret_cast<const tuple_id*>(key_ptr + key_length_bytes_));
         } else {
           equal_found = true;
         }
@@ -1854,7 +1854,7 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateNotEqualPredicate(
           for (uint16_t subsequent_num = entry_num;
                subsequent_num < num_keys;
                ++subsequent_num) {
-            matches->set(*reinterpret_cast<const tuple_id*>(key_ptr + key_length_bytes_), true);
+            matches->set(*reinterpret_cast<const tuple_id*>(key_ptr + key_length_bytes_));
             key_ptr += key_tuple_id_pair_length_bytes_;
           }
           past_equal = true;
@@ -1877,7 +1877,7 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateNotEqualPredicate(
                                + sizeof(NodeHeader)
                                + key_length_bytes_;
     for (uint16_t entry_num = 0; entry_num < num_keys; ++entry_num) {
-      matches->set(*reinterpret_cast<const tuple_id*>(tuple_id_ptr), true);
+      matches->set(*reinterpret_cast<const tuple_id*>(tuple_id_ptr));
       tuple_id_ptr += key_tuple_id_pair_length_bytes_;
     }
     search_node = getRightSiblingOfLeafNode(search_node);
@@ -1910,7 +1910,7 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateLessPredicate(
                                + sizeof(NodeHeader)
                                + key_length_bytes_;
     for (uint16_t entry_num = 0; entry_num < num_keys; ++entry_num) {
-      matches->set(*reinterpret_cast<const tuple_id*>(tuple_id_ptr), true);
+      matches->set(*reinterpret_cast<const tuple_id*>(tuple_id_ptr));
       tuple_id_ptr += key_tuple_id_pair_length_bytes_;
     }
     search_node = getRightSiblingOfLeafNode(search_node);
@@ -1927,7 +1927,7 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateLessPredicate(
         if (!equal_found) {
           if (key_less_literal_comparator.compareDataPtrsInl(key_ptr, literal)) {
             // key < literal
-            matches->set(*reinterpret_cast<const tuple_id*>(key_ptr + key_length_bytes_), true);
+            matches->set(*reinterpret_cast<const tuple_id*>(key_ptr + key_length_bytes_));
           } else {
             equal_found = true;
           }
@@ -1938,7 +1938,7 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateLessPredicate(
             // literal < key
             return matches.release();
           } else {
-            matches->set(*reinterpret_cast<const tuple_id*>(key_ptr + key_length_bytes_), true);
+            matches->set(*reinterpret_cast<const tuple_id*>(key_ptr + key_length_bytes_));
           }
         }
 
@@ -1954,7 +1954,7 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateLessPredicate(
       for (uint16_t entry_num = 0; entry_num < num_keys; ++entry_num) {
         if (key_less_literal_comparator.compareDataPtrsInl(key_ptr, literal)) {
           // key < literal
-          matches->set(*reinterpret_cast<const tuple_id*>(key_ptr + key_length_bytes_), true);
+          matches->set(*reinterpret_cast<const tuple_id*>(key_ptr + key_length_bytes_));
         } else {
           return matches.release();
         }
@@ -2001,7 +2001,7 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateGreaterPredicate(
       if (match_found) {
         // Fill in the matching entries from this leaf.
         for (uint16_t match_num = entry_num; match_num < num_keys; ++match_num) {
-          matches->set(*reinterpret_cast<const tuple_id*>(key_ptr + key_length_bytes_), true);
+          matches->set(*reinterpret_cast<const tuple_id*>(key_ptr + key_length_bytes_));
           key_ptr += key_tuple_id_pair_length_bytes_;
         }
         break;
@@ -2024,7 +2024,7 @@ TupleIdSequence* CSBTreeIndexSubBlock::evaluateGreaterPredicate(
                                + sizeof(NodeHeader)
                                + key_length_bytes_;
     for (uint16_t entry_num = 0; entry_num < num_keys; ++entry_num) {
-      matches->set(*reinterpret_cast<const tuple_id*>(tuple_id_ptr), true);
+      matches->set(*reinterpret_cast<const tuple_id*>(tuple_id_ptr));
       tuple_id_ptr += key_tuple_id_pair_length_bytes_;
     }
     search_node = getRightSiblingOfLeafNode(search_node);

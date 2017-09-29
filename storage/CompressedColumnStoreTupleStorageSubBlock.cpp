@@ -538,7 +538,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getNotEqualCodesExcl
                ++tid) {
             if ((code != static_cast<const uint8_t*>(attr_stripe)[tid])
                 && (null_code != static_cast<const uint8_t*>(attr_stripe)[tid])) {
-              matches->set(tid, true);
+              matches->set(tid);
             }
           }
           break;
@@ -548,7 +548,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getNotEqualCodesExcl
                ++tid) {
             if ((code != static_cast<const uint16_t*>(attr_stripe)[tid])
                 && (null_code != static_cast<const uint16_t*>(attr_stripe)[tid])) {
-              matches->set(tid, true);
+              matches->set(tid);
             }
           }
           break;
@@ -558,7 +558,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getNotEqualCodesExcl
                ++tid) {
             if ((code != static_cast<const uint16_t*>(attr_stripe)[tid])
                 && (null_code != static_cast<const uint16_t*>(attr_stripe)[tid])) {
-              matches->set(tid, true);
+              matches->set(tid);
             }
           }
           break;
@@ -578,7 +578,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getNotEqualCodesExcl
                ++filter_it) {
             if ((code != static_cast<const uint8_t*>(attr_stripe)[*filter_it])
                 && (null_code != static_cast<const uint8_t*>(attr_stripe)[*filter_it])) {
-              matches->set(*filter_it, true);
+              matches->set(*filter_it);
             }
           }
           break;
@@ -588,7 +588,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getNotEqualCodesExcl
                ++filter_it) {
             if ((code != static_cast<const uint16_t*>(attr_stripe)[*filter_it])
                 && (null_code != static_cast<const uint16_t*>(attr_stripe)[*filter_it])) {
-              matches->set(*filter_it, true);
+              matches->set(*filter_it);
             }
           }
           break;
@@ -598,7 +598,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getNotEqualCodesExcl
                ++filter_it) {
             if ((code != static_cast<const uint16_t*>(attr_stripe)[*filter_it])
                 && (null_code != static_cast<const uint16_t*>(attr_stripe)[*filter_it])) {
-              matches->set(*filter_it, true);
+              matches->set(*filter_it);
             }
           }
           break;
@@ -677,7 +677,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesInRange(
                ++tid) {
             if (range.first <= (static_cast<const uint8_t*>(attr_stripe)[tid])
                 && (static_cast<const uint8_t*>(attr_stripe)[tid] < range.second)) {
-              matches->set(tid, true);
+              matches->set(tid);
             }
           }
           break;
@@ -687,7 +687,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesInRange(
                ++tid) {
             if (range.first <= (static_cast<const uint16_t*>(attr_stripe)[tid])
                 && (static_cast<const uint16_t*>(attr_stripe)[tid] < range.second)) {
-              matches->set(tid, true);
+              matches->set(tid);
             }
           }
           break;
@@ -697,7 +697,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesInRange(
                ++tid) {
             if (range.first <= (static_cast<const uint32_t*>(attr_stripe)[tid])
                 && (static_cast<const uint32_t*>(attr_stripe)[tid] < range.second)) {
-              matches->set(tid, true);
+              matches->set(tid);
             }
           }
           break;
@@ -717,7 +717,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesInRange(
                ++filter_it) {
             if (range.first <= (static_cast<const uint8_t*>(attr_stripe)[*filter_it])
                 && (static_cast<const uint8_t*>(attr_stripe)[*filter_it] < range.second)) {
-              matches->set(*filter_it, true);
+              matches->set(*filter_it);
             }
           }
           break;
@@ -727,7 +727,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesInRange(
                ++filter_it) {
             if (range.first <= (static_cast<const uint16_t*>(attr_stripe)[*filter_it])
                 && (static_cast<const uint16_t*>(attr_stripe)[*filter_it] < range.second)) {
-              matches->set(*filter_it, true);
+              matches->set(*filter_it);
             }
           }
           break;
@@ -737,7 +737,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesInRange(
                ++filter_it) {
             if (range.first <= (static_cast<const uint32_t*>(attr_stripe)[*filter_it])
                 && (static_cast<const uint32_t*>(attr_stripe)[*filter_it] < range.second)) {
-              matches->set(*filter_it, true);
+              matches->set(*filter_it);
             }
           }
           break;
@@ -924,7 +924,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesSatisfyingCo
              tid < *static_cast<const tuple_id*>(sub_block_memory_);
              ++tid) {
           if (comp(code, static_cast<const uint8_t*>(attr_stripe)[tid])) {
-            matches->set(tid, true);
+            matches->set(tid);
           }
         }
         break;
@@ -933,7 +933,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesSatisfyingCo
              tid < *static_cast<const tuple_id*>(sub_block_memory_);
              ++tid) {
           if (comp(code, static_cast<const uint16_t*>(attr_stripe)[tid])) {
-            matches->set(tid, true);
+            matches->set(tid);
           }
         }
         break;
@@ -942,7 +942,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesSatisfyingCo
              tid < *static_cast<const tuple_id*>(sub_block_memory_);
              ++tid) {
           if (comp(code, static_cast<const uint32_t*>(attr_stripe)[tid])) {
-            matches->set(tid, true);
+            matches->set(tid);
           }
         }
         break;
@@ -961,7 +961,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesSatisfyingCo
              filter_it != filter->end();
              ++filter_it) {
           if (comp(code, static_cast<const uint8_t*>(attr_stripe)[*filter_it])) {
-            matches->set(*filter_it, true);
+            matches->set(*filter_it);
           }
         }
         break;
@@ -970,7 +970,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesSatisfyingCo
              filter_it != filter->end();
              ++filter_it) {
           if (comp(code, static_cast<const uint16_t*>(attr_stripe)[*filter_it])) {
-            matches->set(*filter_it, true);
+            matches->set(*filter_it);
           }
         }
         break;
@@ -979,7 +979,7 @@ TupleIdSequence* CompressedColumnStoreTupleStorageSubBlock::getCodesSatisfyingCo
              filter_it != filter->end();
              ++filter_it) {
           if (comp(code, static_cast<const uint32_t*>(attr_stripe)[*filter_it])) {
-            matches->set(*filter_it, true);
+            matches->set(*filter_it);
           }
         }
         break;

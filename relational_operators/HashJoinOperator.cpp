@@ -758,7 +758,7 @@ void HashSemiJoinWorkOrder::executeWithResidualPredicate() {
                                                       *probe_accessor,
                                                       probe_relation_id,
                                                       hash_match.second)) {
-        filter.set(hash_match.second, true);
+        filter.set(hash_match.second);
       }
     }
   }

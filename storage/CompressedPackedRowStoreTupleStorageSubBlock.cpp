@@ -403,7 +403,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getNotEqualCodesE
              ++tid, attr_location += tuple_length_bytes_) {
           if ((code != *reinterpret_cast<const uint8_t*>(attr_location))
               && (null_code != *reinterpret_cast<const uint8_t*>(attr_location))) {
-            matches->set(tid, true);
+            matches->set(tid);
           }
         }
         break;
@@ -413,7 +413,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getNotEqualCodesE
              ++tid, attr_location += tuple_length_bytes_) {
           if ((code != *reinterpret_cast<const uint16_t*>(attr_location))
               && (null_code != *reinterpret_cast<const uint16_t*>(attr_location))) {
-            matches->set(tid, true);
+            matches->set(tid);
           }
         }
         break;
@@ -423,7 +423,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getNotEqualCodesE
              ++tid, attr_location += tuple_length_bytes_) {
           if ((code != *reinterpret_cast<const uint32_t*>(attr_location))
               && (null_code != *reinterpret_cast<const uint32_t*>(attr_location))) {
-            matches->set(tid, true);
+            matches->set(tid);
           }
         }
         break;
@@ -444,7 +444,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getNotEqualCodesE
           const void *local_attr_location = attr_location + (*filter_it) * tuple_length_bytes_;
           if ((code != *reinterpret_cast<const uint8_t*>(local_attr_location))
               && (null_code != *reinterpret_cast<const uint8_t*>(local_attr_location))) {
-            matches->set(*filter_it, true);
+            matches->set(*filter_it);
           }
         }
         break;
@@ -455,7 +455,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getNotEqualCodesE
           const void *local_attr_location = attr_location + (*filter_it) * tuple_length_bytes_;
           if ((code != *reinterpret_cast<const uint16_t*>(local_attr_location))
               && (null_code != *reinterpret_cast<const uint16_t*>(local_attr_location))) {
-            matches->set(*filter_it, true);
+            matches->set(*filter_it);
           }
         }
         break;
@@ -466,7 +466,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getNotEqualCodesE
           const void *local_attr_location = attr_location + (*filter_it) * tuple_length_bytes_;
           if ((code != *reinterpret_cast<const uint32_t*>(local_attr_location))
               && (null_code != *reinterpret_cast<const uint32_t*>(local_attr_location))) {
-            matches->set(*filter_it, true);
+            matches->set(*filter_it);
           }
         }
         break;
@@ -513,7 +513,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getCodesInRange(
              ++tid, attr_location += tuple_length_bytes_) {
           if (range.first <= (*reinterpret_cast<const uint8_t*>(attr_location))
               && (*reinterpret_cast<const uint8_t*>(attr_location) < range.second)) {
-            matches->set(tid, true);
+            matches->set(tid);
           }
         }
         break;
@@ -523,7 +523,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getCodesInRange(
              ++tid, attr_location += tuple_length_bytes_) {
           if (range.first <= (*reinterpret_cast<const uint16_t*>(attr_location))
               && (*reinterpret_cast<const uint16_t*>(attr_location) < range.second)) {
-            matches->set(tid, true);
+            matches->set(tid);
           }
         }
         break;
@@ -533,7 +533,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getCodesInRange(
              ++tid, attr_location += tuple_length_bytes_) {
           if (range.first <= (*reinterpret_cast<const uint32_t*>(attr_location))
               && (*reinterpret_cast<const uint32_t*>(attr_location) < range.second)) {
-            matches->set(tid, true);
+            matches->set(tid);
           }
         }
         break;
@@ -554,7 +554,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getCodesInRange(
           const void *local_attr_location = attr_location + (*filter_it) * tuple_length_bytes_;
           if (range.first <= (*reinterpret_cast<const uint8_t*>(local_attr_location))
               && (*reinterpret_cast<const uint8_t*>(local_attr_location) < range.second)) {
-            matches->set(*filter_it, true);
+            matches->set(*filter_it);
           }
         }
         break;
@@ -565,7 +565,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getCodesInRange(
           const void *local_attr_location = attr_location + (*filter_it) * tuple_length_bytes_;
           if (range.first <= (*reinterpret_cast<const uint16_t*>(local_attr_location))
               && (*reinterpret_cast<const uint16_t*>(local_attr_location) < range.second)) {
-            matches->set(*filter_it, true);
+            matches->set(*filter_it);
           }
         }
         break;
@@ -576,7 +576,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getCodesInRange(
           const void *local_attr_location = attr_location + (*filter_it) * tuple_length_bytes_;
           if (range.first <= (*reinterpret_cast<const uint32_t*>(local_attr_location))
               && (*reinterpret_cast<const uint32_t*>(local_attr_location) < range.second)) {
-            matches->set(*filter_it, true);
+            matches->set(*filter_it);
           }
         }
         break;
@@ -638,7 +638,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getCodesSatisfyin
              tid < *static_cast<const tuple_id*>(sub_block_memory_);
              ++tid, attr_location += tuple_length_bytes_) {
           if (comp(code, *reinterpret_cast<const uint8_t*>(attr_location))) {
-            matches->set(tid, true);
+            matches->set(tid);
           }
         }
         break;
@@ -647,7 +647,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getCodesSatisfyin
              tid < *static_cast<const tuple_id*>(sub_block_memory_);
              ++tid, attr_location += tuple_length_bytes_) {
           if (comp(code, *reinterpret_cast<const uint16_t*>(attr_location))) {
-            matches->set(tid, true);
+            matches->set(tid);
           }
         }
         break;
@@ -656,7 +656,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getCodesSatisfyin
              tid < *static_cast<const tuple_id*>(sub_block_memory_);
              ++tid, attr_location += tuple_length_bytes_) {
           if (comp(code, *reinterpret_cast<const uint32_t*>(attr_location))) {
-            matches->set(tid, true);
+            matches->set(tid);
           }
         }
         break;
@@ -676,7 +676,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getCodesSatisfyin
              ++filter_it) {
           const void *local_attr_location = attr_location + (*filter_it) * tuple_length_bytes_;
           if (comp(code, *reinterpret_cast<const uint8_t*>(local_attr_location))) {
-            matches->set(*filter_it, true);
+            matches->set(*filter_it);
           }
         }
         break;
@@ -686,7 +686,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getCodesSatisfyin
              ++filter_it) {
           const void *local_attr_location = attr_location + (*filter_it) * tuple_length_bytes_;
           if (comp(code, *reinterpret_cast<const uint16_t*>(local_attr_location))) {
-            matches->set(*filter_it, true);
+            matches->set(*filter_it);
           }
         }
         break;
@@ -696,7 +696,7 @@ TupleIdSequence* CompressedPackedRowStoreTupleStorageSubBlock::getCodesSatisfyin
              ++filter_it) {
           const void *local_attr_location = attr_location + (*filter_it) * tuple_length_bytes_;
           if (comp(code, *reinterpret_cast<const uint32_t*>(local_attr_location))) {
-            matches->set(*filter_it, true);
+            matches->set(*filter_it);
           }
         }
         break;

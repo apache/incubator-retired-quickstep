@@ -279,6 +279,18 @@ class BitVector {
   }
 
   /**
+   * @brief Set the value of a single bit.
+   *
+   * @param bit_num The desired bit in this BitVector.
+   **/
+  inline void setBit(const std::size_t bit_num) {
+    DCHECK(!short_version_) << "Not implemented.";
+    DCHECK_LT(bit_num, num_bits_);
+
+    setBitRegularVersion(bit_num);
+  }
+
+  /**
    * @brief Set the value of a range of bits simulaneously.
    *
    * @param start_bit_num The first bit whose value should be set.
@@ -916,6 +928,10 @@ class BitVector {
     // Note that bitwise OR with op_value will set the required bit position to 1 if the
     // value was indeed true, but it will be a no-op if the value was false.
     data_array_[index_pos_in_data_array] |= op_value;
+  }
+
+  inline void setBitRegularVersion(const std::size_t bit_num) {
+    data_array_[bit_num >> kHigherOrderShift] |= (TopBit<std::size_t>() >> (bit_num & kLowerOrderMask));
   }
 
   template <typename VectorType>

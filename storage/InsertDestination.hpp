@@ -646,7 +646,7 @@ class PartitionAwareInsertDestination : public InsertDestination {
 
     if (partition_attr_ids.empty()) {
       while (accessor->next()) {
-        (*partition_membership)[input_partition_id_]->set(accessor->getCurrentPosition(), true);
+        (*partition_membership)[input_partition_id_]->set(accessor->getCurrentPosition());
       }
     } else {
       PartitionSchemeHeader::PartitionValues values(partition_attr_ids.size());
@@ -655,7 +655,7 @@ class PartitionAwareInsertDestination : public InsertDestination {
           values[i] = accessor->getTypedValue(partition_attr_ids[i]);
         }
         (*partition_membership)[partition_scheme_header_->getPartitionId(values)]->set(
-            accessor->getCurrentPosition(), true);
+            accessor->getCurrentPosition());
       }
     }
   }

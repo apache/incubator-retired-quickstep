@@ -1065,6 +1065,7 @@ target_link_libraries(quickstep_storage_ThreadPrivateCompactKeyHashTable
                       quickstep_utility_Macros
                       quickstep_utility_ScopedBuffer)
 target_link_libraries(quickstep_storage_TupleIdSequence
+                      glog
                       quickstep_storage_StorageBlockInfo
                       quickstep_utility_BitVector
                       quickstep_utility_Macros)

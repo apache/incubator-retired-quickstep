@@ -28,6 +28,8 @@
 #include "utility/BitVector.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 namespace quickstep {
 
 /** \addtogroup Storage
@@ -152,6 +154,19 @@ class TupleIdSequence {
     DEBUG_ASSERT(tuple >= 0);
     DEBUG_ASSERT(static_cast<std::size_t>(tuple) < internal_bitvector_.size());
     internal_bitvector_.setBit(tuple, on);
+  }
+
+  /**
+   * @brief Set a particular tuple ID as being on or off in this sequence.
+   *
+   * @param on If true, tuple should be part of this sequence. If false,
+   *        remove tuple from this sequence (if it was present).
+   **/
+  inline void set(const tuple_id tuple) {
+    DCHECK_GE(tuple, 0);
+    DCHECK_LT(static_cast<std::size_t>(tuple), internal_bitvector_.size());
+
+    internal_bitvector_.setBit(tuple);
   }
 
   /**

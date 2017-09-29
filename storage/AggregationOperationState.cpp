@@ -579,8 +579,7 @@ void AggregationOperationState::aggregateBlockHashTableImplPartitioned(
           accessor->getTupleWithAttributes(group_by_key_ids));
       const std::size_t curr_tuple_partition_id =
           curr_tuple->getTupleHash() % num_partitions;
-      partition_membership[curr_tuple_partition_id]->set(
-          accessor->getCurrentPosition(), true);
+      partition_membership[curr_tuple_partition_id]->set(accessor->getCurrentPosition());
     }
 
     // Aggregate each partition.

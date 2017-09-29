@@ -206,7 +206,7 @@ TupleIdSequence* BloomFilterIndexSubBlock::getMatchesForPredicate(
     } else {
       for (tuple_id tid = 0; tid <= tuple_store_.getMaxTupleID(); ++tid) {
         if (tuple_store_.hasTupleWithID(tid)) {
-          tuple_sequence->set(tid, true);
+          tuple_sequence->set(tid);
         }
       }
     }

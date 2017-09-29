@@ -347,8 +347,7 @@ void StorageBlock::sample(const bool is_block_sample,
         sequence_mask->set(tuple_index_mapping.find(random_number) ==
                                    tuple_index_mapping.end()
                                ? random_number
-                               : tuple_index_mapping[random_number],
-                           true);
+                               : tuple_index_mapping[random_number]);
         tuple_index_mapping[random_number] = sequence->length() - (n + 1);
     }
 
@@ -461,7 +460,7 @@ StorageBlock::UpdateResult StorageBlock::update(
         tuple_store_->setAttributeValueInPlaceTyped(*match_it, update_it->first, update_it->second);
       }
 
-      in_place_ids.set(*match_it, true);
+      in_place_ids.set(*match_it);
     } else {
       // Make a copy of the tuple with the updated values.
       std::vector<TypedValue> updated_tuple_values;
@@ -479,7 +478,7 @@ StorageBlock::UpdateResult StorageBlock::update(
       }
 
       relocation_buffer.emplace_back(std::move(updated_tuple_values));
-      relocate_ids.set(*match_it, true);
+      relocate_ids.set(*match_it);
     }
   }
 
@@ -526,7 +525,7 @@ StorageBlock::UpdateResult StorageBlock::update(
             rebuild_all = true;
           } else {
             // Only bother adding 'reinsert_id' to 'in_place_ids' if not rebuilding.
-            in_place_ids.set(reinsert_result.inserted_id, true);
+            in_place_ids.set(reinsert_result.inserted_id);
           }
         }
       }

@@ -65,7 +65,7 @@ TupleIdSequence* TupleStorageSubBlock::getExistenceMap() const {
   } else {
     for (tuple_id tid = 0; tid <= max_tid; ++tid) {
       if (hasTupleWithID(tid)) {
-        existing_tuples->set(tid, true);
+        existing_tuples->set(tid);
       }
     }
   }

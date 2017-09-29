@@ -357,14 +357,14 @@ TYPED_TEST(BitVectorTest, SetAndGetTest) {
   big_bit_vector->clear();
 
   // Set some bits, particularly around potential boundaries between size_t strides.
-  big_bit_vector->setBit(0, true);
-  big_bit_vector->setBit(5, true);
-  big_bit_vector->setBit(31, true);
-  big_bit_vector->setBit(32, true);
-  big_bit_vector->setBit(63, true);
-  big_bit_vector->setBit(64, true);
-  big_bit_vector->setBit(127, true);
-  big_bit_vector->setBit(128, true);
+  big_bit_vector->setBit(0);
+  big_bit_vector->setBit(5);
+  big_bit_vector->setBit(31);
+  big_bit_vector->setBit(32);
+  big_bit_vector->setBit(63);
+  big_bit_vector->setBit(64);
+  big_bit_vector->setBit(127);
+  big_bit_vector->setBit(128);
 
   for (size_t i = 0; i < TestFixture::kBigBitSize; ++i) {
     if ((i == 0) || (i == 5) || (i == 31) || (i == 32) || (i == 63) || (i == 64) || (i == 127) || (i == 128)) {
@@ -454,7 +454,7 @@ TYPED_TEST(BitVectorTest, SetAndGetTest) {
 
   // Set all the bits.
   for (size_t i = 0; i < TestFixture::kBigBitSize; ++i) {
-    big_bit_vector->setBit(i, true);
+    big_bit_vector->setBit(i);
   }
   EXPECT_EQ(TestFixture::kBigBitSize, big_bit_vector->onesCount());
   EXPECT_EQ(TestFixture::kBigBitSize, big_bit_vector->firstZero());
@@ -487,10 +487,10 @@ TYPED_TEST(BitVectorTest, AssignFromTest) {
   std::unique_ptr<TypeParam> big_bit_vector(this->createBitVector(TestFixture::kBigBitSize));
   big_bit_vector->clear();
 
-  big_bit_vector->setBit(2, true);
-  big_bit_vector->setBit(4, true);
-  big_bit_vector->setBit(42, true);
-  big_bit_vector->setBit(77, true);
+  big_bit_vector->setBit(2);
+  big_bit_vector->setBit(4);
+  big_bit_vector->setBit(42);
+  big_bit_vector->setBit(77);
 
   std::unique_ptr<TypeParam> big_bit_vector_copy(this->createBitVector(TestFixture::kBigBitSize));
   big_bit_vector_copy->assignFrom(*big_bit_vector);
@@ -693,14 +693,14 @@ TYPED_TEST(BitVectorTest, ShiftTailForwardTest) {
   std::unique_ptr<TypeParam> big_bit_vector(this->createBitVector(TestFixture::kBigBitSize));
   big_bit_vector->clear();
 
-  big_bit_vector->setBit(11, true);
-  big_bit_vector->setBit(13, true);
-  big_bit_vector->setBit(27, true);
-  big_bit_vector->setBit(42, true);
-  big_bit_vector->setBit(84, true);
-  big_bit_vector->setBit(88, true);
-  big_bit_vector->setBit(91, true);
-  big_bit_vector->setBit(123, true);
+  big_bit_vector->setBit(11);
+  big_bit_vector->setBit(13);
+  big_bit_vector->setBit(27);
+  big_bit_vector->setBit(42);
+  big_bit_vector->setBit(84);
+  big_bit_vector->setBit(88);
+  big_bit_vector->setBit(91);
+  big_bit_vector->setBit(123);
 
   big_bit_vector->shiftTailForward(15, 70);
   for (size_t i = 0; i < TestFixture::kBigBitSize; ++i) {
@@ -714,16 +714,16 @@ TYPED_TEST(BitVectorTest, ShiftTailForwardTest) {
 
   // Also try a relatively small shift within the same word.
   big_bit_vector->clear();
-  big_bit_vector->setBit(11, true);
-  big_bit_vector->setBit(13, true);
-  big_bit_vector->setBit(27, true);
-  big_bit_vector->setBit(42, true);
-  big_bit_vector->setBit(45, true);
-  big_bit_vector->setBit(51, true);
-  big_bit_vector->setBit(84, true);
-  big_bit_vector->setBit(88, true);
-  big_bit_vector->setBit(91, true);
-  big_bit_vector->setBit(123, true);
+  big_bit_vector->setBit(11);
+  big_bit_vector->setBit(13);
+  big_bit_vector->setBit(27);
+  big_bit_vector->setBit(42);
+  big_bit_vector->setBit(45);
+  big_bit_vector->setBit(51);
+  big_bit_vector->setBit(84);
+  big_bit_vector->setBit(88);
+  big_bit_vector->setBit(91);
+  big_bit_vector->setBit(123);
 
   big_bit_vector->shiftTailForward(43, 7);
   for (size_t i = 0; i < TestFixture::kBigBitSize; ++i) {
@@ -738,18 +738,18 @@ TYPED_TEST(BitVectorTest, ShiftTailForwardTest) {
 
   // Align the shift distance to size_t.
   big_bit_vector->clear();
-  big_bit_vector->setBit(11, true);
-  big_bit_vector->setBit(13, true);
-  big_bit_vector->setBit(27, true);
-  big_bit_vector->setBit(42, true);
-  big_bit_vector->setBit(45, true);
-  big_bit_vector->setBit(51, true);
-  big_bit_vector->setBit(84, true);
-  big_bit_vector->setBit(88, true);
-  big_bit_vector->setBit(91, true);
-  big_bit_vector->setBit(123, true);
-  big_bit_vector->setBit(128, true);
-  big_bit_vector->setBit(137, true);
+  big_bit_vector->setBit(11);
+  big_bit_vector->setBit(13);
+  big_bit_vector->setBit(27);
+  big_bit_vector->setBit(42);
+  big_bit_vector->setBit(45);
+  big_bit_vector->setBit(51);
+  big_bit_vector->setBit(84);
+  big_bit_vector->setBit(88);
+  big_bit_vector->setBit(91);
+  big_bit_vector->setBit(123);
+  big_bit_vector->setBit(128);
+  big_bit_vector->setBit(137);
 
   big_bit_vector->shiftTailForward(43, 64);
   for (size_t i = 0; i < TestFixture::kBigBitSize; ++i) {
@@ -764,18 +764,18 @@ TYPED_TEST(BitVectorTest, ShiftTailForwardTest) {
 
   // Exactly align both the tail start and the shift distance to size_t.
   big_bit_vector->clear();
-  big_bit_vector->setBit(11, true);
-  big_bit_vector->setBit(13, true);
-  big_bit_vector->setBit(27, true);
-  big_bit_vector->setBit(42, true);
-  big_bit_vector->setBit(45, true);
-  big_bit_vector->setBit(51, true);
-  big_bit_vector->setBit(84, true);
-  big_bit_vector->setBit(88, true);
-  big_bit_vector->setBit(91, true);
-  big_bit_vector->setBit(123, true);
-  big_bit_vector->setBit(128, true);
-  big_bit_vector->setBit(137, true);
+  big_bit_vector->setBit(11);
+  big_bit_vector->setBit(13);
+  big_bit_vector->setBit(27);
+  big_bit_vector->setBit(42);
+  big_bit_vector->setBit(45);
+  big_bit_vector->setBit(51);
+  big_bit_vector->setBit(84);
+  big_bit_vector->setBit(88);
+  big_bit_vector->setBit(91);
+  big_bit_vector->setBit(123);
+  big_bit_vector->setBit(128);
+  big_bit_vector->setBit(137);
 
   big_bit_vector->shiftTailForward(64, 64);
   for (size_t i = 0; i < TestFixture::kBigBitSize; ++i) {
@@ -867,14 +867,14 @@ TYPED_TEST(BitVectorTest, ShiftTailBackwardTest) {
   std::unique_ptr<TypeParam> big_bit_vector(this->createBitVector(TestFixture::kBigBitSize));
   big_bit_vector->clear();
 
-  big_bit_vector->setBit(11, true);
-  big_bit_vector->setBit(13, true);
-  big_bit_vector->setBit(27, true);
-  big_bit_vector->setBit(42, true);
-  big_bit_vector->setBit(84, true);
-  big_bit_vector->setBit(88, true);
-  big_bit_vector->setBit(91, true);
-  big_bit_vector->setBit(123, true);
+  big_bit_vector->setBit(11);
+  big_bit_vector->setBit(13);
+  big_bit_vector->setBit(27);
+  big_bit_vector->setBit(42);
+  big_bit_vector->setBit(84);
+  big_bit_vector->setBit(88);
+  big_bit_vector->setBit(91);
+  big_bit_vector->setBit(123);
 
   big_bit_vector->shiftTailBackward(15, 70);
   for (size_t i = 0; i < TestFixture::kBigBitSize; ++i) {
@@ -889,16 +889,16 @@ TYPED_TEST(BitVectorTest, ShiftTailBackwardTest) {
 
   // Also try a relatively small shift within the same word.
   big_bit_vector->clear();
-  big_bit_vector->setBit(11, true);
-  big_bit_vector->setBit(13, true);
-  big_bit_vector->setBit(27, true);
-  big_bit_vector->setBit(42, true);
-  big_bit_vector->setBit(45, true);
-  big_bit_vector->setBit(51, true);
-  big_bit_vector->setBit(84, true);
-  big_bit_vector->setBit(88, true);
-  big_bit_vector->setBit(91, true);
-  big_bit_vector->setBit(123, true);
+  big_bit_vector->setBit(11);
+  big_bit_vector->setBit(13);
+  big_bit_vector->setBit(27);
+  big_bit_vector->setBit(42);
+  big_bit_vector->setBit(45);
+  big_bit_vector->setBit(51);
+  big_bit_vector->setBit(84);
+  big_bit_vector->setBit(88);
+  big_bit_vector->setBit(91);
+  big_bit_vector->setBit(123);
 
   big_bit_vector->shiftTailBackward(43, 7);
   for (size_t i = 0; i < TestFixture::kBigBitSize; ++i) {
@@ -913,18 +913,18 @@ TYPED_TEST(BitVectorTest, ShiftTailBackwardTest) {
 
   // Align the shift distance to size_t.
   big_bit_vector->clear();
-  big_bit_vector->setBit(11, true);
-  big_bit_vector->setBit(13, true);
-  big_bit_vector->setBit(27, true);
-  big_bit_vector->setBit(42, true);
-  big_bit_vector->setBit(45, true);
-  big_bit_vector->setBit(51, true);
-  big_bit_vector->setBit(84, true);
-  big_bit_vector->setBit(88, true);
-  big_bit_vector->setBit(91, true);
-  big_bit_vector->setBit(123, true);
-  big_bit_vector->setBit(128, true);
-  big_bit_vector->setBit(137, true);
+  big_bit_vector->setBit(11);
+  big_bit_vector->setBit(13);
+  big_bit_vector->setBit(27);
+  big_bit_vector->setBit(42);
+  big_bit_vector->setBit(45);
+  big_bit_vector->setBit(51);
+  big_bit_vector->setBit(84);
+  big_bit_vector->setBit(88);
+  big_bit_vector->setBit(91);
+  big_bit_vector->setBit(123);
+  big_bit_vector->setBit(128);
+  big_bit_vector->setBit(137);
 
   big_bit_vector->shiftTailBackward(43, 64);
   for (size_t i = 0; i < TestFixture::kBigBitSize; ++i) {
@@ -940,18 +940,18 @@ TYPED_TEST(BitVectorTest, ShiftTailBackwardTest) {
 
   // Exactly align both the tail start and the shift distance to size_t.
   big_bit_vector->clear();
-  big_bit_vector->setBit(11, true);
-  big_bit_vector->setBit(13, true);
-  big_bit_vector->setBit(27, true);
-  big_bit_vector->setBit(42, true);
-  big_bit_vector->setBit(45, true);
-  big_bit_vector->setBit(51, true);
-  big_bit_vector->setBit(84, true);
-  big_bit_vector->setBit(88, true);
-  big_bit_vector->setBit(91, true);
-  big_bit_vector->setBit(123, true);
-  big_bit_vector->setBit(128, true);
-  big_bit_vector->setBit(137, true);
+  big_bit_vector->setBit(11);
+  big_bit_vector->setBit(13);
+  big_bit_vector->setBit(27);
+  big_bit_vector->setBit(42);
+  big_bit_vector->setBit(45);
+  big_bit_vector->setBit(51);
+  big_bit_vector->setBit(84);
+  big_bit_vector->setBit(88);
+  big_bit_vector->setBit(91);
+  big_bit_vector->setBit(123);
+  big_bit_vector->setBit(128);
+  big_bit_vector->setBit(137);
 
   big_bit_vector->shiftTailBackward(64, 64);
   for (size_t i = 0; i < TestFixture::kBigBitSize; ++i) {
@@ -1027,14 +1027,14 @@ TYPED_TEST(BitVectorTest, RebindTest) {
 
   // Set some bits, particularly around potential boundaries between size_t
   // strides.
-  big_bit_vector->setBit(0, true);
-  big_bit_vector->setBit(5, true);
-  big_bit_vector->setBit(31, true);
-  big_bit_vector->setBit(32, true);
-  big_bit_vector->setBit(63, true);
-  big_bit_vector->setBit(64, true);
-  big_bit_vector->setBit(127, true);
-  big_bit_vector->setBit(128, true);
+  big_bit_vector->setBit(0);
+  big_bit_vector->setBit(5);
+  big_bit_vector->setBit(31);
+  big_bit_vector->setBit(32);
+  big_bit_vector->setBit(63);
+  big_bit_vector->setBit(64);
+  big_bit_vector->setBit(127);
+  big_bit_vector->setBit(128);
 
   // Destroy the old BitVector and create a new one bound to the same memory.
   ASSERT_EQ(1u, this->allocated_chunks_.size());
@@ -1093,19 +1093,19 @@ TYPED_TEST(BitVectorTest, AnyTest) {
   big_bit_vector->clear();
   EXPECT_FALSE(big_bit_vector->any());
 
-  big_bit_vector->setBit(0, true);
+  big_bit_vector->setBit(0);
   EXPECT_TRUE(big_bit_vector->any());
   big_bit_vector->setBit(0, false);
   EXPECT_FALSE(big_bit_vector->any());
 
-  big_bit_vector->setBit(TestFixture::kBigBitSize - 1, true);
+  big_bit_vector->setBit(TestFixture::kBigBitSize - 1);
   EXPECT_TRUE(big_bit_vector->any());
   big_bit_vector->setBit(TestFixture::kBigBitSize - 1, false);
   EXPECT_FALSE(big_bit_vector->any());
 
-  big_bit_vector->setBit(TestFixture::kBigBitSize / 2, true);
+  big_bit_vector->setBit(TestFixture::kBigBitSize / 2);
   EXPECT_TRUE(big_bit_vector->any());
-  big_bit_vector->setBit(TestFixture::kBigBitSize / 2 + 1, true);
+  big_bit_vector->setBit(TestFixture::kBigBitSize / 2 + 1);
   EXPECT_TRUE(big_bit_vector->any());
   big_bit_vector->setBit(TestFixture::kBigBitSize / 2, false);
   EXPECT_TRUE(big_bit_vector->any());
@@ -1150,21 +1150,21 @@ TYPED_TEST(BitVectorTest, AllTest) {
 
   big_bit_vector->setBit(0, false);
   EXPECT_FALSE(big_bit_vector->all());
-  big_bit_vector->setBit(0, true);
+  big_bit_vector->setBit(0);
   EXPECT_TRUE(big_bit_vector->all());
 
   big_bit_vector->setBit(TestFixture::kBigBitSize - 1, false);
   EXPECT_FALSE(big_bit_vector->all());
-  big_bit_vector->setBit(TestFixture::kBigBitSize - 1, true);
+  big_bit_vector->setBit(TestFixture::kBigBitSize - 1);
   EXPECT_TRUE(big_bit_vector->all());
 
   big_bit_vector->setBit(TestFixture::kBigBitSize / 2, false);
   EXPECT_FALSE(big_bit_vector->all());
   big_bit_vector->setBit(TestFixture::kBigBitSize / 2 + 1, false);
   EXPECT_FALSE(big_bit_vector->all());
-  big_bit_vector->setBit(TestFixture::kBigBitSize / 2, true);
+  big_bit_vector->setBit(TestFixture::kBigBitSize / 2);
   EXPECT_FALSE(big_bit_vector->all());
-  big_bit_vector->setBit(TestFixture::kBigBitSize / 2 + 1, true);
+  big_bit_vector->setBit(TestFixture::kBigBitSize / 2 + 1);
   EXPECT_TRUE(big_bit_vector->all());
 }
 
