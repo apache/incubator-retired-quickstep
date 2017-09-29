@@ -469,7 +469,7 @@ def main(cmakelists_to_process):
         int: The total number of targets that failed validation because of
             missing or superfluous dependencies.
     """
-    if not os.getcwd().endswith("quickstep"):
+    if not os.path.isfile("validate_cmakelists.py"):
         print("WARNING: you don't appear to be running in the root quickstep "
               "source directory. Don't blame me if something goes wrong.")
     qs_module_dirs = []
