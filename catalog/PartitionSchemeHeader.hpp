@@ -187,7 +187,8 @@ class HashPartitionSchemeHeader final : public PartitionSchemeHeader {
    **/
   HashPartitionSchemeHeader(const std::size_t num_partitions,
                             PartitionAttributeIds &&attributes)  // NOLINT(whitespace/operators)
-      : PartitionSchemeHeader(PartitionType::kHash, num_partitions, std::move(attributes)) {
+      : PartitionSchemeHeader(PartitionType::kHash, num_partitions, std::move(attributes)),
+        is_power_of_two_(!(num_partitions & (num_partitions - 1))) {
   }
 
   /**
@@ -199,13 +200,20 @@ class HashPartitionSchemeHeader final : public PartitionSchemeHeader {
   partition_id getPartitionId(
       const PartitionValues &value_of_attributes) const override {
     DCHECK_EQ(partition_attribute_ids_.size(), value_of_attributes.size());
-    // TODO(gerald): Optimize for the case where the number of partitions is a
-    // power of 2. We can just mask out the lower-order hash bits rather than
-    // doing a division operation.
-    return HashCompositeKey(value_of_attributes) % num_partitions_;
+    return getPartitionId(HashCompositeKey(value_of_attributes));
   }
 
  private:
+  partition_id getPartitionId(const std::size_t hash_code) const {
+    if (is_power_of_two_) {
+      return hash_code & (num_partitions_ - 1);
+    }
+
+    return (hash_code >= num_partitions_) ? hash_code % num_partitions_
+                                          : hash_code;
+  }
+
+  const bool is_power_of_two_;
   DISALLOW_COPY_AND_ASSIGN(HashPartitionSchemeHeader);
 };
 
