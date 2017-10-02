@@ -79,8 +79,8 @@ class NullType : public TypeSynthesizer<kNullType> {
     LOG(FATAL) << "NullType is not printable";
   }
 
-  bool parseValueFromString(const std::string &value_string,
-                            TypedValue *value) const override {
+  bool parseTypedValueFromString(const std::string &value_string,
+                                 TypedValue *value) const override {
     return false;
   }
 

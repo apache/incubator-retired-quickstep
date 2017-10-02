@@ -29,6 +29,10 @@
 #include "utility/HashError.hpp"
 #include "utility/Macros.hpp"
 
+// TODO(refactor-type): Remove this.
+#include "types/TypedValue.hpp"
+#include "types/GenericValue.hpp"
+
 namespace quickstep {
 
 class CatalogAttribute;
@@ -105,6 +109,16 @@ class Scalar : public Expression {
    */
   virtual std::size_t computeHash() const {
     throw HashNotSupported("Unsupported computeHash() in " + getName());
+  }
+
+  // TODO(refactor-type): Remove this.
+  inline static std::shared_ptr<const std::vector<TypedValue>> ToTypedValue(
+      const std::vector<GenericValue> &input) {
+    std::vector<TypedValue> values;
+    for (const auto &item : input) {
+      values.emplace_back(item.toTypedValue());
+    }
+    return std::make_shared<const std::vector<TypedValue>>(std::move(values));
   }
 
  private:

@@ -70,8 +70,8 @@ class DatetimeType
    *       fail if there are any "extra" characters at the end of the string
    *       after a parsable ISO-8601 date/time.
    **/
-  bool parseValueFromString(const std::string &value_string,
-                            TypedValue *value) const override;
+  bool parseTypedValueFromString(const std::string &value_string,
+                                 TypedValue *value) const override;
 
  private:
   explicit DatetimeType(const bool nullable)

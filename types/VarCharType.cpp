@@ -103,8 +103,8 @@ void VarCharType::printValueToFile(const UntypedLiteral *value,
                static_cast<const char*>(castValueToLiteral(value).getOutOfLineData()));
 }
 
-bool VarCharType::parseValueFromString(const std::string &value_string,
-                                       TypedValue *value) const {
+bool VarCharType::parseTypedValueFromString(const std::string &value_string,
+                                            TypedValue *value) const {
   if (value_string.length() > length_) {
     return false;
   }
@@ -114,8 +114,8 @@ bool VarCharType::parseValueFromString(const std::string &value_string,
   return true;
 }
 
-TypedValue VarCharType::coerceValue(const TypedValue &original_value,
-                                    const Type &original_type) const {
+TypedValue VarCharType::coerceTypedValue(const TypedValue &original_value,
+                                         const Type &original_type) const {
   DCHECK(isCoercibleFrom(original_type))
       << "Can't coerce value of Type " << original_type.getName()
       << " to Type " << getName();

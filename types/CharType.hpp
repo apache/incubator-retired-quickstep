@@ -59,11 +59,11 @@ class CharType : public AsciiStringSuperType<kChar> {
                         FILE *file,
                         const int padding = 0) const override;
 
-  bool parseValueFromString(const std::string &value_string,
-                            TypedValue *value) const override;
+  bool parseTypedValueFromString(const std::string &value_string,
+                                 TypedValue *value) const override;
 
-  TypedValue coerceValue(const TypedValue &original_value,
-                         const Type &original_type) const override;
+  TypedValue coerceTypedValue(const TypedValue &original_value,
+                              const Type &original_type) const override;
 
  private:
   CharType(const bool nullable, const std::size_t length)

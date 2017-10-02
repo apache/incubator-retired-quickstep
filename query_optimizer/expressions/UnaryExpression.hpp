@@ -31,6 +31,7 @@
 #include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/ExpressionType.hpp"
 #include "query_optimizer/expressions/Scalar.hpp"
+#include "types/GenericValue.hpp"
 #include "types/operations/OperationSignature.hpp"
 #include "types/operations/unary_operations/UnaryOperation.hpp"
 #include "utility/Macros.hpp"
@@ -101,14 +102,12 @@ class UnaryExpression : public Scalar {
       const OperationSignaturePtr &op_signature,
       const UnaryOperationPtr &operation,
       const ScalarPtr &operand,
-      const std::shared_ptr<const std::vector<TypedValue>> &static_arguments,
-      const std::shared_ptr<const std::vector<const Type*>> &static_argument_types) {
+      const std::shared_ptr<const std::vector<GenericValue>> &static_arguments) {
     return UnaryExpressionPtr(
         new UnaryExpression(op_signature,
                             operation,
                             operand,
-                            static_arguments,
-                            static_argument_types));
+                            static_arguments));
   }
 
  protected:
@@ -126,22 +125,23 @@ class UnaryExpression : public Scalar {
   UnaryExpression(const OperationSignaturePtr &op_signature,
                   const UnaryOperationPtr &operation,
                   const ScalarPtr &operand,
-                  const std::shared_ptr<const std::vector<TypedValue>> &static_arguments,
-                  const std::shared_ptr<const std::vector<const Type*>> &static_argument_types)
+                  const std::shared_ptr<const std::vector<GenericValue>> &static_arguments)
       : op_signature_(op_signature),
         operation_(operation),
         operand_(operand),
         static_arguments_(static_arguments),
-        static_argument_types_(static_argument_types),
-        result_type_(*(operation_->getResultType(operand_->getValueType(), *static_arguments_))) {
+        static_arguments_cache_(ToTypedValue(*static_arguments_)),
+        result_type_(*(operation_->getResultType(operand_->getValueType(),
+                                                 *static_arguments_cache_))) {
     addChild(operand);
   }
 
   const OperationSignaturePtr op_signature_;
   const UnaryOperationPtr operation_;
   const ScalarPtr operand_;
-  const std::shared_ptr<const std::vector<TypedValue>> static_arguments_;
-  const std::shared_ptr<const std::vector<const Type*>> static_argument_types_;
+  const std::shared_ptr<const std::vector<GenericValue>> static_arguments_;
+  // TODO(refactor-type): Remove this.
+  const std::shared_ptr<const std::vector<TypedValue>> static_arguments_cache_;
   const Type &result_type_;
 
   DISALLOW_COPY_AND_ASSIGN(UnaryExpression);

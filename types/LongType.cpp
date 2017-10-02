@@ -52,8 +52,8 @@ void LongType::printValueToFile(const UntypedLiteral *value,
                castValueToLiteral(value));
 }
 
-bool LongType::parseValueFromString(const std::string &value_string,
-                                    TypedValue *value) const {
+bool LongType::parseTypedValueFromString(const std::string &value_string,
+                                         TypedValue *value) const {
   std::int64_t parsed_long;
   int read_chars;
   int matched = std::sscanf(value_string.c_str(),

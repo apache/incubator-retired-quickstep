@@ -103,8 +103,8 @@ std::string DatetimeType::printValueToString(const UntypedLiteral *value) const 
   return std::string(datebuf);
 }
 
-bool DatetimeType::parseValueFromString(const std::string &value_string,
-                                        TypedValue *value) const {
+bool DatetimeType::parseTypedValueFromString(const std::string &value_string,
+                                             TypedValue *value) const {
   int year;
   int month;
   int day;

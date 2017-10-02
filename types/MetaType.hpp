@@ -46,8 +46,8 @@ class MetaType : public TypeSynthesizer<kMetaType> {
 
   std::string printValueToString(const UntypedLiteral *value) const override;
 
-  bool parseValueFromString(const std::string &value_string,
-                            TypedValue *value) const override {
+  bool parseTypedValueFromString(const std::string &value_string,
+                                 TypedValue *value) const override {
     return false;
   }
 

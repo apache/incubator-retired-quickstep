@@ -47,8 +47,8 @@ void BoolType::printValueToFile(const UntypedLiteral *value,
                castValueToLiteral(value) ? "true" : "false");
 }
 
-bool BoolType::parseValueFromString(const std::string &value_string,
-                                    TypedValue *value) const {
+bool BoolType::parseTypedValueFromString(const std::string &value_string,
+                                         TypedValue *value) const {
   const std::string lo_value = ToLower(value_string);
   if (lo_value == "true") {
     *value = TypedValue(true);

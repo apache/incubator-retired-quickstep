@@ -131,7 +131,7 @@ class CastOperation : public UnaryOperation {
       return &TypeFactory::GetType(it->second);
     } else {
       TypedValue length_value;
-      if (IntType::InstanceNonNullable().parseValueFromString(length_str, &length_value)) {
+      if (IntType::InstanceNonNullable().parseTypedValueFromString(length_str, &length_value)) {
         return &TypeFactory::GetType(
             it->second,
             static_cast<std::size_t>(length_value.getLiteral<int>()),

@@ -59,8 +59,8 @@ void Type::printValueToFile(const UntypedLiteral *value,
   std::fprintf(file, "%*s", padding, printValueToString(value).c_str());
 }
 
-TypedValue Type::coerceValue(const TypedValue &original_value,
-                             const Type &original_type) const {
+TypedValue Type::coerceTypedValue(const TypedValue &original_value,
+                                  const Type &original_type) const {
   DCHECK(isCoercibleFrom(original_type))
       << "Can't coerce value of Type " << original_type.getName()
       << " to Type " << getName();

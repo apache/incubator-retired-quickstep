@@ -66,8 +66,8 @@ void FloatType::printValueToFile(const UntypedLiteral *value,
                castValueToLiteral(value));
 }
 
-bool FloatType::parseValueFromString(const std::string &value_string,
-                                     TypedValue *value) const {
+bool FloatType::parseTypedValueFromString(const std::string &value_string,
+                                          TypedValue *value) const {
   float parsed_float;
   int read_chars;
   int matched = std::sscanf(value_string.c_str(),

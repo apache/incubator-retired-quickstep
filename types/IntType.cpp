@@ -46,8 +46,8 @@ void IntType::printValueToFile(const UntypedLiteral *value,
                castValueToLiteral(value));
 }
 
-bool IntType::parseValueFromString(const std::string &value_string,
-                                   TypedValue *value) const {
+bool IntType::parseTypedValueFromString(const std::string &value_string,
+                                        TypedValue *value) const {
   int parsed_int;
   int read_chars;
   int matched = std::sscanf(value_string.c_str(),

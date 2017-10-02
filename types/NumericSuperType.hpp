@@ -62,8 +62,8 @@ class NumericSuperType : public TypeSynthesizer<type_id> {
     return TypedValue(static_cast<typename TypeIDTrait<type_id>::cpptype>(0));
   }
 
-  TypedValue coerceValue(const TypedValue &original_value,
-                         const Type &original_type) const override {
+  TypedValue coerceTypedValue(const TypedValue &original_value,
+                              const Type &original_type) const override {
     if (original_type.getSuperTypeID() != SuperTypeID::kNumeric) {
       LOG(FATAL) << "Attempted to coerce Type " << original_type.getName()
                  << " (not recognized as a numeric Type) to " << Type::getName();

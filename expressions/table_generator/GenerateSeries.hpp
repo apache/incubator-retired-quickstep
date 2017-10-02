@@ -118,11 +118,11 @@ class GenerateSeries : public GeneratorFunction {
     DCHECK(args.size() == 2 || args.size() == 3);
 
     // Coerce all arguments to the unified type.
-    TypedValue start = type.coerceValue(args[0], *arg_types[0]);
-    TypedValue end = type.coerceValue(args[1], *arg_types[1]);
-    TypedValue step =
-        args.size() > 2 ? type.coerceValue(args[2], *arg_types[2])
-                        : type.coerceValue(TypedValue(1), TypeFactory::GetType(TypeID::kInt));
+    TypedValue start = type.coerceTypedValue(args[0], *arg_types[0]);
+    TypedValue end = type.coerceTypedValue(args[1], *arg_types[1]);
+    TypedValue step = args.size() > 2
+        ? type.coerceTypedValue(args[2], *arg_types[2])
+        : type.coerceTypedValue(TypedValue(1), TypeFactory::GetType(TypeID::kInt));
 
     // Check that step is not 0, and (end - start) / step is positive
     const GreaterComparison &gt_comparator = GreaterComparison::Instance();

@@ -26,8 +26,10 @@
 #include <string>
 
 #include "types/Type.hpp"
+#include "types/Type.pb.h"
 #include "types/TypeID.hpp"
 #include "types/TypeRegistrar.hpp"
+#include "types/TypedValue.hpp"
 #include "utility/HashPair.hpp"
 #include "utility/Macros.hpp"
 
@@ -41,8 +43,14 @@ namespace quickstep {
 
 class GenericValue {
  public:
+  GenericValue(const Type &type)
+      : type_(type), value_(nullptr), owns_(true) {}
+
   GenericValue(const Type &type, const UntypedLiteral *value, const bool owns)
       : type_(type), value_(value), owns_(owns) {}
+
+  GenericValue(const Type &type, const TypedValue &value)
+      : type_(type), value_(type.unmarshallTypedValue(value)), owns_(true) {}
 
   template <typename TypeClass>
   GenericValue(const TypeClass &type, const typename TypeClass::cpptype &value)
@@ -50,7 +58,8 @@ class GenericValue {
 
   GenericValue(const GenericValue &other)
       : type_(other.type_),
-        value_(other.owns_ ? type_.cloneValue(other.value_) : other.value_),
+        value_((other.owns_ && !other.isNull()) ? type_.cloneValue(other.value_)
+                                                : other.value_),
         owns_(other.owns_) {}
 
   GenericValue(GenericValue &&other)
@@ -61,9 +70,13 @@ class GenericValue {
   }
 
   ~GenericValue() {
-    if (owns_ && value_ != nullptr) {
+    if (owns_ && !isNull()) {
       type_.destroyValue(const_cast<void*>(value_));
     }
+  }
+
+  serialization::GenericValue getProto() const {
+    LOG(FATAL) << "Not implemented";
   }
 
   inline bool isNull() const {
@@ -86,23 +99,47 @@ class GenericValue {
   template <TypeID type_id>
   inline const typename TypeIDTrait<type_id>::cpptype& getLiteral() const {
     DCHECK_EQ(type_id, type_.getTypeID());
-    return *static_cast<typename TypeIDTrait<type_id>::cpptype*>(value_);
+    return *static_cast<const typename TypeIDTrait<type_id>::cpptype*>(value_);
   }
 
   inline void ensureNotReference() {
     if (isReference()) {
-      value_ = type_.cloneValue(value_);
+      if (!isNull()) {
+        value_ = type_.cloneValue(value_);
+      }
       owns_ = true;
     }
   }
 
+  inline GenericValue makeReferenceToThis() const {
+    return GenericValue(type_, value_, false);
+  }
+
+  inline bool equals(const GenericValue &other) const {
+    if (isNull() || other.isNull()) {
+      return isNull() && other.isNull();
+    }
+    return type_.checkValuesEqual(value_, other.value_, other.type_);
+  }
+
   inline bool operator==(const GenericValue &other) const {
-    return type_.equals(other.type_) &&
-           type_.checkValuesEqual(value_, other.value_);
+    return equals(other);
   }
 
   inline std::size_t getHash() const {
-    return CombineHashes(type_.getHash(), type_.hashValue(value_));
+    return isNull() ? 0  : type_.hashValue(value_);
+  }
+
+  inline GenericValue coerce(const Type &other_type) const {
+    LOG(FATAL) << "Not implemented";
+  }
+
+  inline TypedValue toTypedValue() const {
+    return isNull() ? type_.makeNullValue() : type_.marshallValue(value_);
+  }
+
+  inline std::string toString() const {
+    return isNull() ? "NULL" : type_.printValueToString(value_);
   }
 
  private:

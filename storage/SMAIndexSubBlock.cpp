@@ -640,7 +640,7 @@ Selectivity SMAIndexSubBlock::getSelectivityForPredicate(const ComparisonPredica
       SMAPredicate *replacement = new SMAPredicate(
           sma_predicate->attribute,
           sma_predicate->comparison,
-          attribute_type.coerceValue(sma_predicate->literal, literal_type));
+          attribute_type.coerceTypedValue(sma_predicate->literal, literal_type));
       sma_predicate.reset(replacement);
     } else {
       // The literal type cannot be converted, so do not evaluate with the SMA.

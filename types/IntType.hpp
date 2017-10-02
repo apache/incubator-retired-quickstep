@@ -54,8 +54,8 @@ class IntType : public NumericSuperType<kInt> {
                         FILE *file,
                         const int padding = 0) const override;
 
-  bool parseValueFromString(const std::string &value_string,
-                            TypedValue *value) const override;
+  bool parseTypedValueFromString(const std::string &value_string,
+                                 TypedValue *value) const override;
 
  private:
   explicit IntType(const bool nullable)

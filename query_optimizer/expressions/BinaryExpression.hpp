@@ -31,6 +31,7 @@
 #include "query_optimizer/expressions/Expression.hpp"
 #include "query_optimizer/expressions/ExpressionType.hpp"
 #include "query_optimizer/expressions/Scalar.hpp"
+#include "types/GenericValue.hpp"
 #include "types/operations/OperationSignature.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
 #include "utility/Macros.hpp"
@@ -101,15 +102,13 @@ class BinaryExpression : public Scalar {
       const BinaryOperationPtr &operation,
       const ScalarPtr &left,
       const ScalarPtr &right,
-      const std::shared_ptr<const std::vector<TypedValue>> &static_arguments,
-      const std::shared_ptr<const std::vector<const Type*>> &static_argument_types) {
+      const std::shared_ptr<const std::vector<GenericValue>> &static_arguments) {
     return BinaryExpressionPtr(
         new BinaryExpression(op_signature,
                              operation,
                              left,
                              right,
-                             static_arguments,
-                             static_argument_types));
+                             static_arguments));
   }
 
   static BinaryExpressionPtr Create(
@@ -122,8 +121,7 @@ class BinaryExpression : public Scalar {
                              operation,
                              left,
                              right,
-                             std::make_shared<const std::vector<TypedValue>>(),
-                             std::make_shared<const std::vector<const Type*>>()));
+                             std::make_shared<const std::vector<GenericValue>>()));
   }
 
  protected:
@@ -142,17 +140,16 @@ class BinaryExpression : public Scalar {
                    const BinaryOperationPtr &operation,
                    const ScalarPtr &left,
                    const ScalarPtr &right,
-                   const std::shared_ptr<const std::vector<TypedValue>> &static_arguments,
-                   const std::shared_ptr<const std::vector<const Type*>> &static_argument_types)
+                   const std::shared_ptr<const std::vector<GenericValue>> &static_arguments)
       : op_signature_(op_signature),
         operation_(operation),
         left_(left),
         right_(right),
         static_arguments_(static_arguments),
-        static_argument_types_(static_argument_types),
+        static_arguments_cache_(ToTypedValue(*static_arguments_)),
         result_type_(*(operation_->getResultType(left_->getValueType(),
                                                  right_->getValueType(),
-                                                 *static_arguments))) {
+                                                 *static_arguments_cache_))) {
     addChild(left);
     addChild(right);
   }
@@ -161,8 +158,9 @@ class BinaryExpression : public Scalar {
   const BinaryOperationPtr operation_;
   const ScalarPtr left_;
   const ScalarPtr right_;
-  const std::shared_ptr<const std::vector<TypedValue>> static_arguments_;
-  const std::shared_ptr<const std::vector<const Type*>> static_argument_types_;
+  const std::shared_ptr<const std::vector<GenericValue>> static_arguments_;
+  // TODO(refactor-type): Remove this.
+  const std::shared_ptr<const std::vector<TypedValue>> static_arguments_cache_;
   const Type &result_type_;
 
   DISALLOW_COPY_AND_ASSIGN(BinaryExpression);

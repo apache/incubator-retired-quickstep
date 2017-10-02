@@ -53,8 +53,8 @@ class DatetimeIntervalType : public TypeSynthesizer<kDatetimeInterval> {
     return TypedValue(DatetimeIntervalLit{0});
   }
 
-  bool parseValueFromString(const std::string &value_string,
-                            TypedValue *value) const override;
+  bool parseTypedValueFromString(const std::string &value_string,
+                                 TypedValue *value) const override;
 
  private:
   explicit DatetimeIntervalType(const bool nullable)

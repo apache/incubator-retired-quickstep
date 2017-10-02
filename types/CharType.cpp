@@ -87,8 +87,8 @@ void CharType::printValueToFile(const UntypedLiteral *value,
                castValueToLiteral(value).getOutOfLineData());
 }
 
-bool CharType::parseValueFromString(const std::string &value_string,
-                                    TypedValue *value) const {
+bool CharType::parseTypedValueFromString(const std::string &value_string,
+                                         TypedValue *value) const {
   if (value_string.length() > length_) {
     return false;
   }
@@ -102,8 +102,8 @@ bool CharType::parseValueFromString(const std::string &value_string,
   return true;
 }
 
-TypedValue CharType::coerceValue(const TypedValue &original_value,
-                                 const Type &original_type) const {
+TypedValue CharType::coerceTypedValue(const TypedValue &original_value,
+                                      const Type &original_type) const {
   DCHECK(isCoercibleFrom(original_type))
       << "Can't coerce value of Type " << original_type.getName()
       << " to Type " << getName();

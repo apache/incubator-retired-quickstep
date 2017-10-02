@@ -245,8 +245,8 @@ bool BasicComparison::compareTypedValuesCheckedHelper(const TypedValue &left,
   const Type *unifier = TypeFactory::GetUnifyingType(left_type, right_type);
   DCHECK(unifier != nullptr);
 
-  const TypedValue left_coerced = unifier->coerceValue(left, left_type);
-  const TypedValue right_coerced = unifier->coerceValue(right, right_type);
+  const TypedValue left_coerced = unifier->coerceTypedValue(left, left_type);
+  const TypedValue right_coerced = unifier->coerceTypedValue(right, right_type);
 
   switch (unifier->getTypeID()) {
     case kInt: {

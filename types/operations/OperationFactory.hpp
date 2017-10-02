@@ -26,8 +26,8 @@
 #include <utility>
 #include <vector>
 
+#include "types/GenericValue.hpp"
 #include "types/TypeID.hpp"
-#include "types/TypedValue.hpp"
 #include "types/operations/Operation.hpp"
 #include "types/operations/OperationSignature.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
@@ -104,9 +104,9 @@ class OperationFactory {
   OperationSignaturePtr resolveOperation(
       const std::string &operation_name,
       const std::shared_ptr<const std::vector<const Type*>> &argument_types,
-      const std::shared_ptr<const std::vector<TypedValue>> &static_arguments,
+      const std::shared_ptr<const std::vector<GenericValue>> &static_arguments,
       std::shared_ptr<const std::vector<const Type*>> *coerced_argument_types,
-      std::shared_ptr<const std::vector<TypedValue>> *coerced_static_arguments,
+      std::shared_ptr<const std::vector<GenericValue>> *coerced_static_arguments,
       std::string *message) const;
 
  private:
@@ -155,8 +155,8 @@ class OperationFactory {
       const PartialSignatureIndex &secondary_index,
       const std::vector<TypeID> &argument_type_ids,
       const std::vector<const Type*> &argument_types,
-      const std::vector<TypedValue> &static_arguments,
-      std::shared_ptr<const std::vector<TypedValue>> *trimmed_static_arguments,
+      const std::vector<GenericValue> &static_arguments,
+      std::shared_ptr<const std::vector<GenericValue>> *coerced_static_arguments,
       OperationSignaturePtr *resolved_op_signature,
       std::string *message) const;
 
@@ -164,9 +164,9 @@ class OperationFactory {
       const PartialSignatureIndex &secondary_index,
       const std::vector<TypeID> &argument_type_ids,
       const std::vector<const Type*> &argument_types,
-      const std::vector<TypedValue> &static_arguments,
+      const std::vector<GenericValue> &static_arguments,
       std::shared_ptr<const std::vector<const Type*>> *coerced_argument_types,
-      std::shared_ptr<const std::vector<TypedValue>> *coerced_static_arguments,
+      std::shared_ptr<const std::vector<GenericValue>> *coerced_static_arguments,
       OperationSignaturePtr *resolved_op_signature,
       std::string *message) const;
 
@@ -174,15 +174,15 @@ class OperationFactory {
 //      const std::set<OperationSignaturePtr> signatures,
 //      const std::vector<TypeID> &argument_type_ids,
 //      const std::vector<const Type*> &argument_types,
-//      const std::vector<TypedValue> &static_arguments,
+//      const std::vector<GenericValue> &static_arguments,
 //      std::shared_ptr<const std::vector<const Type*>> *coerced_argument_types,
-//      std::shared_ptr<const std::vector<TypedValue>> *coerced_static_arguments,
+//      std::shared_ptr<const std::vector<GenericValue>> *coerced_static_arguments,
 //      OperationSignaturePtr *op_signature,
 //      std::string *message) const;
 
   bool canApplyOperationTo(const OperationPtr operation,
                            const std::vector<const Type*> &argument_types,
-                           const std::vector<TypedValue> &static_arguments,
+                           const std::vector<GenericValue> &static_arguments,
                            std::string *message) const;
 
   std::unordered_map<OperationSignaturePtr,

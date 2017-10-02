@@ -110,8 +110,8 @@ std::string DatetimeIntervalType::printValueToString(const UntypedLiteral *value
   return std::string(interval_buf);
 }
 
-bool DatetimeIntervalType::parseValueFromString(const std::string &value_string,
-                                                TypedValue *value) const {
+bool DatetimeIntervalType::parseTypedValueFromString(const std::string &value_string,
+                                                     TypedValue *value) const {
   // Try simple-format parse first.
   std::int64_t count;
   std::string units;

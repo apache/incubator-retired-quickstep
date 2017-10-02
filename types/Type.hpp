@@ -293,12 +293,12 @@ class Type {
 
   virtual std::string printValueToString(const UntypedLiteral *value) const = 0;
 
+  virtual std::string printTypedValueToString(const TypedValue &value) const = 0;
+
 
   virtual void printValueToFile(const UntypedLiteral *value,
                                 FILE *file,
                                 const int padding = 0) const;
-
-  virtual std::string printTypedValueToString(const TypedValue &value) const = 0;
 
   virtual void printTypedValueToFile(const TypedValue &value,
                                      FILE *file,
@@ -379,8 +379,8 @@ class Type {
    * @return true if value_string was successfully parsed and value was
    *         written. false if value_string was not in the correct format.
    **/
-  virtual bool parseValueFromString(const std::string &value_string,
-                                    TypedValue *value) const = 0;
+  virtual bool parseTypedValueFromString(const std::string &value_string,
+                                         TypedValue *value) const = 0;
 
   /**
    * @brief Coerce a value of another Type to this Type.
@@ -398,32 +398,32 @@ class Type {
    * @return A new TypedValue that represents original_value as an instance of
    *         this Type.
    **/
-  virtual TypedValue coerceValue(const TypedValue &original_value,
-                                 const Type &original_type) const;
+  virtual TypedValue coerceTypedValue(const TypedValue &original_value,
+                                      const Type &original_type) const;
 
-  virtual std::size_t getHash() const {
-    LOG(FATAL) << "Not implemented";
-  }
 
+  virtual std::size_t getHash() const = 0;
 
   virtual bool checkValuesEqual(const UntypedLiteral *lhs,
-                                const UntypedLiteral *rhs) const {
+                                const UntypedLiteral *rhs,
+                                const Type &rhs_type) const {
     LOG(FATAL) << "Not implemented";
   }
 
-  virtual UntypedLiteral* cloneValue(const UntypedLiteral *value) const {
-    LOG(FATAL) << "Not implemented";
+  inline bool checkValuesEqual(const UntypedLiteral *lhs,
+                               const UntypedLiteral *rhs) const {
+    return checkValuesEqual(lhs, rhs, *this);
   }
+
+  virtual UntypedLiteral* cloneValue(const UntypedLiteral *value) const = 0;
+
+  virtual void destroyValue(UntypedLiteral *value) const = 0;
 
   virtual std::size_t hashValue(const UntypedLiteral *value) const {
     LOG(FATAL) << "Not implemented";
   }
 
-  virtual void destroyValue(UntypedLiteral *value_ptr) const {
-    LOG(FATAL) << "Not implemented";
-  }
-
-  virtual CharStream marshallValue(const UntypedLiteral *value) const {
+  virtual TypedValue marshallValue(const UntypedLiteral *value) const {
     LOG(FATAL) << "Not implemented";
   }
 
@@ -433,9 +433,9 @@ class Type {
 
   }
 
-  virtual UntypedLiteral* unmarshallValue(const TypedValue &value) const = 0;
+  virtual UntypedLiteral* unmarshallTypedValue(const TypedValue &value) const = 0;
 
-  virtual UntypedLiteral* unmarshallValue(TypedValue &&value) const = 0;
+  virtual UntypedLiteral* unmarshallTypedValue(TypedValue &&value) const = 0;
 
  protected:
   Type(const SuperTypeID super_type_id,

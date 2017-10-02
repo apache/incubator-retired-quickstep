@@ -52,8 +52,8 @@ class YearMonthIntervalType : public TypeSynthesizer<kYearMonthInterval> {
     return TypedValue(YearMonthIntervalLit{0});
   }
 
-  bool parseValueFromString(const std::string &value_string,
-                            TypedValue *value) const override;
+  bool parseTypedValueFromString(const std::string &value_string,
+                                 TypedValue *value) const override;
 
  private:
   explicit YearMonthIntervalType(const bool nullable)

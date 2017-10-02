@@ -58,8 +58,7 @@ ExpressionPtr BinaryExpression::copyWithNewChildren(
       operation_,
       std::static_pointer_cast<const Scalar>(new_children[0]),
       std::static_pointer_cast<const Scalar>(new_children[1]),
-      static_arguments_,
-      static_argument_types_);
+      static_arguments_);
 }
 
 std::vector<AttributeReferencePtr> BinaryExpression::getReferencedAttributes() const {
@@ -80,7 +79,7 @@ std::vector<AttributeReferencePtr> BinaryExpression::getReferencedAttributes() c
       operation_,
       left_->concretize(substitution_map),
       right_->concretize(substitution_map),
-      static_arguments_);
+      static_arguments_cache_);
 }
 
 std::size_t BinaryExpression::computeHash() const {
@@ -94,10 +93,8 @@ std::size_t BinaryExpression::computeHash() const {
   hash_code = CombineHashes(hash_code, left_hash);
   hash_code = CombineHashes(hash_code, right_hash);
 
-  for (const TypedValue &st_arg : *static_arguments_) {
-    if (!st_arg.isNull()) {
-      hash_code = CombineHashes(hash_code, st_arg.getHash());
-    }
+  for (const GenericValue &st_arg : *static_arguments_) {
+    hash_code = CombineHashes(hash_code, st_arg.getHash());
   }
   return hash_code;
 }
@@ -147,8 +144,7 @@ void BinaryExpression::getFieldStringItems(
     container_child_fields->emplace_back();
     for (std::size_t i = 0; i < static_arguments_->size(); ++i) {
       container_child_fields->back().emplace_back(
-          ScalarLiteral::Create(static_arguments_->at(i),
-                                *static_argument_types_->at(i)));
+          ScalarLiteral::Create(static_arguments_->at(i)));
     }
   }
 }

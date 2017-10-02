@@ -474,7 +474,7 @@ std::vector<TypedValue> TextScanWorkOrder::parseRow(const char **row_ptr,
       attribute_values.emplace_back(attr.getType().makeNullValue());
     } else {
       attribute_values.emplace_back();
-      if (!attr.getType().parseValueFromString(value_str, &(attribute_values.back()))) {
+      if (!attr.getType().parseTypedValueFromString(value_str, &(attribute_values.back()))) {
         // Do not abort if one of the row is faulty.
         *is_faulty = true;
         LOG(INFO) << "Failed to parse value.";

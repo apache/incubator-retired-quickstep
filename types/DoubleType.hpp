@@ -52,8 +52,8 @@ class DoubleType : public NumericSuperType<kDouble> {
                         FILE *file,
                         const int padding = 0) const override;
 
-  bool parseValueFromString(const std::string &value_string,
-                            TypedValue *value) const override;
+  bool parseTypedValueFromString(const std::string &value_string,
+                                 TypedValue *value) const override;
 
  private:
   static_assert((std::numeric_limits<double>::max_exponent10 < 1000)

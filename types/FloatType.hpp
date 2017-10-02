@@ -52,8 +52,8 @@ class FloatType : public NumericSuperType<kFloat> {
                         FILE *file,
                         const int padding = 0) const override;
 
-  bool parseValueFromString(const std::string &value_string,
-                            TypedValue *value) const override;
+  bool parseTypedValueFromString(const std::string &value_string,
+                                 TypedValue *value) const override;
 
  private:
   static_assert((std::numeric_limits<float>::max_exponent10 < 100)

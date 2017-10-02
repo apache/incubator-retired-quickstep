@@ -24,11 +24,11 @@
 #include <string>
 #include <vector>
 
+#include "types/GenericValue.hpp"
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypeUtil.hpp"
-#include "types/TypedValue.hpp"
 #include "types/operations/Operation.hpp"
 #include "types/operations/OperationSignature.hpp"
 #include "types/operations/binary_operations/ArithmeticBinaryOperations.hpp"
@@ -68,6 +68,16 @@ struct FunctorPackDispatcher {
   }
 };
 
+// TODO(refactor-type): Remove this.
+inline static std::shared_ptr<const std::vector<TypedValue>> ToTypedValue(
+    const std::vector<GenericValue> &input) {
+  std::vector<TypedValue> values;
+  for (const auto &item : input) {
+    values.emplace_back(item.toTypedValue());
+  }
+  return std::make_shared<const std::vector<TypedValue>>(std::move(values));
+}
+
 }  // namespace
 
 OperationFactory::OperationFactory() {
@@ -87,9 +97,9 @@ OperationFactory::OperationFactory() {
 OperationSignaturePtr OperationFactory::resolveOperation(
     const std::string &operation_name,
     const std::shared_ptr<const std::vector<const Type*>> &argument_types,
-    const std::shared_ptr<const std::vector<TypedValue>> &static_arguments,
+    const std::shared_ptr<const std::vector<GenericValue>> &static_arguments,
     std::shared_ptr<const std::vector<const Type*>> *coerced_argument_types,
-    std::shared_ptr<const std::vector<TypedValue>> *coerced_static_arguments,
+    std::shared_ptr<const std::vector<GenericValue>> *coerced_static_arguments,
     std::string *message) const {
   const std::string lower_case_name = ToLower(operation_name);
   const std::size_t arity = argument_types->size();
@@ -151,8 +161,8 @@ OperationFactory::ResolveStatus OperationFactory::resolveOperationWithFullTypeMa
     const PartialSignatureIndex &secondary_index,
     const std::vector<TypeID> &argument_type_ids,
     const std::vector<const Type*> &argument_types,
-    const std::vector<TypedValue> &static_arguments,
-    std::shared_ptr<const std::vector<TypedValue>> *partial_static_arguments,
+    const std::vector<GenericValue> &static_arguments,
+    std::shared_ptr<const std::vector<GenericValue>> *coerced_static_arguments,
     OperationSignaturePtr *resolved_op_signature,
     std::string *message) const {
   const std::size_t max_num_static_arguments = static_arguments.size();
@@ -163,15 +173,15 @@ OperationFactory::ResolveStatus OperationFactory::resolveOperationWithFullTypeMa
     const OperationSignaturePtr op_signature = it->second;
     const OperationPtr operation = getOperation(op_signature);
 
-    *partial_static_arguments =
-        std::make_shared<const std::vector<TypedValue>>(
+    *coerced_static_arguments =
+        std::make_shared<const std::vector<GenericValue>>(
             static_arguments.begin()
                 + (max_num_static_arguments - op_signature->getNumStaticArguments()),
             static_arguments.end());
 
     if (canApplyOperationTo(operation,
                             argument_types,
-                            **partial_static_arguments,
+                            **coerced_static_arguments,
                             message)) {
       *resolved_op_signature = op_signature;
       return ResolveStatus::kSuccess;
@@ -187,9 +197,9 @@ OperationFactory::ResolveStatus OperationFactory::resolveOperationWithPartialTyp
     const PartialSignatureIndex &secondary_index,
     const std::vector<TypeID> &argument_type_ids,
     const std::vector<const Type*> &argument_types,
-    const std::vector<TypedValue> &static_arguments,
+    const std::vector<GenericValue> &static_arguments,
     std::shared_ptr<const std::vector<const Type*>> *coerced_argument_types,
-    std::shared_ptr<const std::vector<TypedValue>> *coerced_static_arguments,
+    std::shared_ptr<const std::vector<GenericValue>> *coerced_static_arguments,
     OperationSignaturePtr *resolved_op_signature,
     std::string *message) const {
   const std::size_t arity = argument_types.size();
@@ -211,18 +221,16 @@ OperationFactory::ResolveStatus OperationFactory::resolveOperationWithPartialTyp
     }
 
     // Coerce static arguments
-    std::vector<const Type*> coerced_static_arg_types;
-    std::vector<TypedValue> coerced_static_args;
+    std::vector<GenericValue> coerced_static_args;
 
     bool is_coercible = true;
     for (std::size_t i = num_non_static_arguments; i < arity; ++i) {
       const Type &arg_type = *argument_types.at(i);
-      const TypedValue &arg_value =
+      const GenericValue &arg_value =
           static_arguments.at(i - first_static_argument_position);
       const TypeID &expected_type_id = expected_type_ids.at(i);
 
       if (arg_type.getTypeID() == expected_type_id) {
-        coerced_static_arg_types.emplace_back(&arg_type);
         coerced_static_args.emplace_back(arg_value);
       } else {
         const Type *expected_type = nullptr;
@@ -240,9 +248,7 @@ OperationFactory::ResolveStatus OperationFactory::resolveOperationWithPartialTyp
         }
 
         if (expected_type != nullptr && expected_type->isSafelyCoercibleFrom(arg_type)) {
-          coerced_static_arg_types.emplace_back(expected_type);
-          coerced_static_args.emplace_back(
-              expected_type->coerceValue(arg_value, arg_type));
+          coerced_static_args.emplace_back(arg_value.coerce(*expected_type));
         } else {
           is_coercible = false;
           break;
@@ -254,8 +260,8 @@ OperationFactory::ResolveStatus OperationFactory::resolveOperationWithPartialTyp
       std::vector<const Type*> coerced_arg_types(
           argument_types.begin(),
           argument_types.begin() + num_non_static_arguments);
-      for (const Type *type : coerced_static_arg_types) {
-        coerced_arg_types.emplace_back(type);
+      for (const auto &value : coerced_static_args) {
+        coerced_arg_types.emplace_back(&value.getType());
       }
 
       const OperationPtr operation = getOperation(it->second);
@@ -266,7 +272,7 @@ OperationFactory::ResolveStatus OperationFactory::resolveOperationWithPartialTyp
         *coerced_argument_types =
             std::make_shared<const std::vector<const Type*>>(std::move(coerced_arg_types));
         *coerced_static_arguments =
-            std::make_shared<const std::vector<TypedValue>>(std::move(coerced_static_args));
+            std::make_shared<const std::vector<GenericValue>>(std::move(coerced_static_args));
         *resolved_op_signature = it->second;
         return ResolveStatus::kSuccess;
       }
@@ -281,14 +287,14 @@ OperationFactory::ResolveStatus OperationFactory::resolveOperationWithPartialTyp
 bool OperationFactory::canApplyOperationTo(
     const OperationPtr operation,
     const std::vector<const Type*> &argument_types,
-    const std::vector<TypedValue> &static_arguments,
+    const std::vector<GenericValue> &static_arguments,
     std::string *message) const {
   switch (operation->getOperationSuperTypeID()) {
     case Operation::kUnaryOperation: {
       const UnaryOperationPtr unary_operation =
           std::static_pointer_cast<const UnaryOperation>(operation);
       return unary_operation->canApplyTo(*argument_types[0],
-                                         static_arguments,
+                                         *ToTypedValue(static_arguments),
                                          message);
     }
     case Operation::kBinaryOperation: {
@@ -296,7 +302,7 @@ bool OperationFactory::canApplyOperationTo(
           std::static_pointer_cast<const BinaryOperation>(operation);
       return binary_operation->canApplyTo(*argument_types[0],
                                           *argument_types[1],
-                                          static_arguments,
+                                          *ToTypedValue(static_arguments),
                                           message);
     }
     default: {

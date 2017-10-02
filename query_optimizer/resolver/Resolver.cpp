@@ -115,6 +115,7 @@
 #include "query_optimizer/resolver/NameResolver.hpp"
 #include "storage/StorageBlockLayout.pb.h"
 #include "storage/StorageConstants.hpp"
+#include "types/GenericValue.hpp"
 #include "types/IntType.hpp"
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
@@ -1073,6 +1074,7 @@ L::LogicalPtr Resolver::resolveInsertTuple(
   std::vector<E::ScalarLiteralPtr> resolved_column_values;
   std::vector<E::AttributeReferencePtr>::size_type aid = 0;
   for (const ParseScalarLiteral &parse_literal_value : parse_column_values) {
+    const Type &attribute_type = relation_attributes[aid]->getValueType();
     E::ScalarLiteralPtr resolved_literal_value;
     ExpressionResolutionInfo expr_resolution_info(
         name_resolver,
@@ -1081,30 +1083,25 @@ L::LogicalPtr Resolver::resolveInsertTuple(
     // When resolving the literal, use the attribute's Type as a hint.
     CHECK(E::SomeScalarLiteral::MatchesWithConditionalCast(
         resolveExpression(parse_literal_value,
-                          &(relation_attributes[aid]->getValueType()),
+                          &attribute_type,
                           &expr_resolution_info),
         &resolved_literal_value));
 
     // Check that the resolved Type is safely coercible to the attribute's
     // Type.
-    if (!relation_attributes[aid]->getValueType().isSafelyCoercibleFrom(
-            resolved_literal_value->getValueType())) {
+    if (!attribute_type.isSafelyCoercibleFrom(resolved_literal_value->getValueType())) {
       THROW_SQL_ERROR_AT(&parse_literal_value)
           << "The assigned value for the column "
           << relation_attributes[aid]->attribute_name() << " has the type "
           << resolved_literal_value->getValueType().getName()
           << ", which cannot be safely coerced to the column's type "
-          << relation_attributes[aid]->getValueType().getName();
+          << attribute_type.getName();
     }
 
     // If the Type is not exactly right (but is safely coercible), coerce it.
-    if (!resolved_literal_value->getValueType().equals(
-            relation_attributes[aid]->getValueType())) {
+    if (!resolved_literal_value->getValueType().equals(attribute_type)) {
       resolved_literal_value = E::ScalarLiteral::Create(
-          relation_attributes[aid]->getValueType().coerceValue(
-              resolved_literal_value->value(),
-              resolved_literal_value->getValueType()),
-          relation_attributes[aid]->getValueType());
+          resolved_literal_value->value().coerce(attribute_type));
     }
 
     resolved_column_values.push_back(resolved_literal_value);
@@ -1119,8 +1116,7 @@ L::LogicalPtr Resolver::resolveInsertTuple(
     }
     // Create a NULL value.
     resolved_column_values.push_back(E::ScalarLiteral::Create(
-        relation_attributes[aid]->getValueType().makeNullValue(),
-        relation_attributes[aid]->getValueType()));
+        GenericValue(relation_attributes[aid]->getValueType())));
     ++aid;
   }
 
@@ -2455,7 +2451,7 @@ E::ScalarPtr Resolver::resolveExpression(
       const Type *concrete_type = nullptr;
       TypedValue concrete = parse_literal_scalar.literal_value()
           ->concretize(type_hint, &concrete_type);
-      return E::ScalarLiteral::Create(std::move(concrete), *concrete_type);
+      return E::ScalarLiteral::Create(GenericValue(*concrete_type, concrete));
     }
     case ParseExpression::kSearchedCaseExpression: {
       const ParseSearchedCaseExpression &parse_searched_case_expression =
@@ -2510,7 +2506,6 @@ E::ScalarPtr Resolver::resolveArray(
 //
 //    // Currently we only support homogeneous array with literal values.
 //  }
-
   LOG(FATAL) << "Not supported";
 }
 
@@ -2788,22 +2783,22 @@ E::ScalarPtr Resolver::resolveScalarFunction(
     argument_types.emplace_back(&argument->getValueType());
   }
 
-  std::vector<TypedValue> static_arguments;
+  std::vector<GenericValue> static_arguments;
   for (std::size_t i = first_static_argument_position; i < arity; ++i) {
     static_arguments.emplace_back(
         std::static_pointer_cast<const E::ScalarLiteral>(
             resolved_arguments[i])->value());
-    DCHECK(static_arguments.back().getTypeID() == argument_types[i]->getTypeID());
+    DCHECK(static_arguments.back().getType().getTypeID() == argument_types[i]->getTypeID());
   }
 
   std::shared_ptr<const std::vector<const Type*>> coerced_argument_types;
-  std::shared_ptr<const std::vector<TypedValue>> coerced_static_arguments;
+  std::shared_ptr<const std::vector<GenericValue>> coerced_static_arguments;
   std::string message;
   const OperationSignaturePtr op_signature =
       OperationFactory::Instance().resolveOperation(
           function_name,
           std::make_shared<const std::vector<const Type*>>(std::move(argument_types)),
-          std::make_shared<const std::vector<TypedValue>>(std::move(static_arguments)),
+          std::make_shared<const std::vector<GenericValue>>(std::move(static_arguments)),
           &coerced_argument_types,
           &coerced_static_arguments,
           &message);
@@ -2818,11 +2813,7 @@ E::ScalarPtr Resolver::resolveScalarFunction(
   }
 
   // TODO: add cast if neccessary.
-
-  const auto coerced_static_argument_types =
-      std::make_shared<const std::vector<const Type*>>(
-          coerced_argument_types->begin() + op_signature->getNonStaticArity(),
-          coerced_argument_types->end());
+  (void)coerced_argument_types;
 
   const OperationPtr operation =
       OperationFactory::Instance().getOperation(op_signature);
@@ -2832,16 +2823,14 @@ E::ScalarPtr Resolver::resolveScalarFunction(
           op_signature,
           std::static_pointer_cast<const UnaryOperation>(operation),
           resolved_arguments[0],
-          coerced_static_arguments,
-          coerced_static_argument_types);
+          coerced_static_arguments);
     case Operation::kBinaryOperation:
       return E::BinaryExpression::Create(
           op_signature,
           std::static_pointer_cast<const BinaryOperation>(operation),
           resolved_arguments[0],
           resolved_arguments[1],
-          coerced_static_arguments,
-          coerced_static_argument_types);
+          coerced_static_arguments);
     default: {
       const auto operation_id =
          static_cast<std::underlying_type_t<Operation::OperationSuperTypeID>>(
@@ -3340,7 +3329,7 @@ void Resolver::rewriteIfOrdinalReference(
   if (E::SomeScalarLiteral::MatchesWithConditionalCast(*expression, &literal) &&
       literal->getValueType().getTypeID() == kInt &&
       !literal->value().isNull()) {
-    int position = literal->value().getLiteral<int>();
+    int position = literal->value().getLiteral<kInt>();
     if (position < 1 ||
         position > static_cast<int>(
                        select_list_info->select_list_expressions.size())) {

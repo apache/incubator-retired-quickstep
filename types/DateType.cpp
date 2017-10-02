@@ -75,8 +75,8 @@ std::string DateType::printValueToString(const UntypedLiteral *value) const {
   return std::string(datebuf);
 }
 
-bool DateType::parseValueFromString(const std::string &value_string,
-                                    TypedValue *value) const {
+bool DateType::parseTypedValueFromString(const std::string &value_string,
+                                         TypedValue *value) const {
   std::int32_t year;
   std::uint32_t month, day;
 

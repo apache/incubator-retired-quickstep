@@ -66,8 +66,8 @@ void DoubleType::printValueToFile(const UntypedLiteral *value,
                castValueToLiteral(value));
 }
 
-bool DoubleType::parseValueFromString(const std::string &value_string,
-                                      TypedValue *value) const {
+bool DoubleType::parseTypedValueFromString(const std::string &value_string,
+                                           TypedValue *value) const {
   double parsed_double;
   int read_chars;
   int matched = std::sscanf(value_string.c_str(),

@@ -116,8 +116,8 @@ std::string YearMonthIntervalType::printValueToString(const UntypedLiteral *valu
   return std::string(interval_buf);
 }
 
-bool YearMonthIntervalType::parseValueFromString(const std::string &value_string,
-                                                 TypedValue *value) const {
+bool YearMonthIntervalType::parseTypedValueFromString(const std::string &value_string,
+                                                      TypedValue *value) const {
   // Try simple-format parse first.
   std::int64_t count;
   std::string units;
