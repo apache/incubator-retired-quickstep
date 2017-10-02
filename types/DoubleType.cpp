@@ -38,15 +38,15 @@ using std::snprintf;
 
 namespace quickstep {
 
-std::string DoubleType::printValueToString(const TypedValue &value) const {
-  DCHECK(!value.isNull());
+std::string DoubleType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
 
   char printbuffer[kPrintWidth + 1];
   int written = snprintf(printbuffer,
                          sizeof(printbuffer),
                          "%.*g",
                          std::numeric_limits<double>::max_digits10,
-                         value.getLiteral<double>());
+                         castValueToLiteral(value));
   DCHECK_GE(written, 0) << "snprintf() encountered an encoding error";
   DCHECK_LT(static_cast<std::size_t>(written), sizeof(printbuffer))
       << "snprintf() would have written a string of length " << written
@@ -54,16 +54,16 @@ std::string DoubleType::printValueToString(const TypedValue &value) const {
   return std::string(printbuffer);
 }
 
-void DoubleType::printValueToFile(const TypedValue &value,
+void DoubleType::printValueToFile(const UntypedLiteral *value,
                                   FILE *file,
                                   const int padding) const {
-  DCHECK(!value.isNull());
+  DCHECK(value != nullptr);
 
   std::fprintf(file,
                "%*.*g",
                padding,
                std::numeric_limits<double>::max_digits10,
-               value.getLiteral<double>());
+               castValueToLiteral(value));
 }
 
 bool DoubleType::parseValueFromString(const std::string &value_string,

@@ -46,7 +46,7 @@ class YearMonthIntervalType : public TypeSynthesizer<kYearMonthInterval> {
     return YearMonthIntervalLit::kPrintingChars;
   }
 
-  std::string printValueToString(const TypedValue &value) const override;
+  std::string printValueToString(const UntypedLiteral *value) const override;
 
   TypedValue makeZeroValue() const override {
     return TypedValue(YearMonthIntervalLit{0});
@@ -59,9 +59,7 @@ class YearMonthIntervalType : public TypeSynthesizer<kYearMonthInterval> {
   explicit YearMonthIntervalType(const bool nullable)
       : TypeSynthesizer<kYearMonthInterval>(nullable) {}
 
-  template <typename, bool> friend class TypeInstance;
-
-  DISALLOW_COPY_AND_ASSIGN(YearMonthIntervalType);
+  QUICKSTEP_SYNTHESIZE_TYPE(YearMonthIntervalType);
 };
 
 /** @} */

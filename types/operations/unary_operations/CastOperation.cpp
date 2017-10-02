@@ -62,7 +62,7 @@ class CastToAsciiStringFunctor : public UnaryFunctor<ArgumentT, ResultT> {
         max_string_length_(max_string_length) {}
 
   inline void apply(const typename ArgumentT::cpptype &argument, void *result) const {
-    std::string str = argument_type_.printValueToString(TypedValue(argument));
+    std::string str = argument_type_.printValueToString(&argument);
     const std::size_t str_len = str.length();
 
     if (str_len < max_string_length_) {
@@ -74,7 +74,7 @@ class CastToAsciiStringFunctor : public UnaryFunctor<ArgumentT, ResultT> {
   }
 
   inline TypedValue apply(const typename ArgumentT::cpptype &argument) const {
-    std::string str = argument_type_.printValueToString(TypedValue(argument));
+    std::string str = argument_type_.printValueToString(&argument);
     const std::size_t len = std::min(str.length(), max_string_length_);
     const std::size_t buf_len = len + 1;
 
@@ -225,7 +225,7 @@ UncheckedUnaryOperator* CastOperation::makeUncheckedUnaryOperator(
         }
         case kChar:  // Fall through
         case kVarChar: {
-          return InvokeOnTypeID<TypeIDSelectorEqualsAny<kChar, kVarChar>>(
+          return InvokeOnTypeID<TypeIDSelector<kChar, kVarChar>>(
               result_type_id,
               [&](auto result_tid) -> UncheckedUnaryOperator* {  // NOLINT(build/c++11)
             using ResultT = typename TypeIDTrait<decltype(result_tid)::value>::TypeClass;
@@ -244,7 +244,7 @@ UncheckedUnaryOperator* CastOperation::makeUncheckedUnaryOperator(
       }
     });
   } else if (QUICKSTEP_EQUALS_ANY_CONSTANT(argument_type_id, kChar, kVarChar)) {
-    return InvokeOnTypeID<TypeIDSelectorEqualsAny<kChar, kVarChar>>(
+    return InvokeOnTypeID<TypeIDSelector<kChar, kVarChar>>(
         argument_type_id,
         [&](auto arg_tid) -> UncheckedUnaryOperator* {  // NOLINT(build/c++11)
       using ArgumentT = typename TypeIDTrait<decltype(arg_tid)::value>::TypeClass;
@@ -270,7 +270,7 @@ UncheckedUnaryOperator* CastOperation::makeUncheckedUnaryOperator(
         }
         case kChar:  // Fall through
         case kVarChar: {
-          return InvokeOnTypeID<TypeIDSelectorEqualsAny<kChar, kVarChar>>(
+          return InvokeOnTypeID<TypeIDSelector<kChar, kVarChar>>(
               result_type_id,
               [&](auto result_tid) -> UncheckedUnaryOperator* {  // NOLINT(build/c++11)
             using ResultT = typename TypeIDTrait<decltype(result_tid)::value>::TypeClass;

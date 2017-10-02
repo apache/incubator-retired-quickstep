@@ -29,11 +29,20 @@
 namespace quickstep {
 
 /**
+ * @brief Categories of intermediate supertypes.
+ **/
+enum class SuperTypeID {
+  kNumeric = 0,  // Fixed-length numeric types (Int, Long, Float, Double)
+  kAsciiString,  // ASCII strings (Char, VarChar)
+  kOther         // Others (Date, Datetime, DatetimeInterval, YearMonthInterval)
+};
+
+/**
  * @brief Concrete Types.
  *
  * @note TypedValue assumes that this doesn't exceed 64 TypeIDs.
  **/
-enum TypeID : int {
+enum TypeID {
   kBool = 0,
   kInt,
   kLong,
@@ -45,15 +54,17 @@ enum TypeID : int {
   kDatetime,
   kDatetimeInterval,
   kYearMonthInterval,
+  kArray,
+  kMetaType,
   kNullType,
   kNumTypeIDs  // Not a real TypeID, exists for counting purposes.
 };
 
 enum MemoryLayout {
-  kCxxNativePod,
-  kParNativePod,
-  kParIndirectPod,
-  kGeneric
+  kCxxInlinePod,
+  kParInlinePod,
+  kParOutOfLinePod,
+  kCxxGeneric
 };
 
 /**
@@ -98,5 +109,16 @@ class TypeIDFactory {
 };
 
 }  // namespace quickstep
+
+namespace std {
+
+template <>
+struct hash<quickstep::TypeID> {
+  size_t operator()(const quickstep::TypeID &arg) const {
+    return static_cast<typename std::underlying_type<quickstep::TypeID>::type>(arg);
+  }
+};
+
+}  // namespace std
 
 #endif  // QUICKSTEP_TYPES_TYPE_ID_HPP_

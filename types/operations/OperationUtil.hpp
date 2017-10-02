@@ -17,8 +17,8 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_TYPES_OPERATIONS_OPERATION_UTIL_HPP_
-#define QUICKSTEP_TYPES_OPERATIONS_OPERATION_UTIL_HPP_
+#ifndef QUICKSTEP_TYPES_OPERATIONS_OPERATION_SYNTHESIZE_UTIL_HPP_
+#define QUICKSTEP_TYPES_OPERATIONS_OPERATION_SYNTHESIZE_UTIL_HPP_
 
 #include <cstddef>
 #include <list>
@@ -103,7 +103,7 @@ template <typename FuncSpec, typename T, typename EnableT = void>
 struct Codegen;
 
 template <typename FuncSpec, typename T>
-struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kCxxNativePod>> {
+struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kCxxInlinePod>> {
   using ColumnVectorType = NativeColumnVector;
   using FunctorSpecializer = FuncSpec;
 
@@ -171,7 +171,7 @@ struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kCxxNativePod>>
 };
 
 template <typename FuncSpec, typename T>
-struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kParNativePod>> {
+struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kParInlinePod>> {
   using ColumnVectorType = NativeColumnVector;
   using FunctorSpecializer = FuncSpec;
 
@@ -244,7 +244,7 @@ struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kParNativePod>>
 };
 
 template <typename FuncSpec, typename T>
-struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kParIndirectPod>> {
+struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kParOutOfLinePod>> {
   using ColumnVectorType = IndirectColumnVector;
   using FunctorSpecializer = FuncSpec;
 
@@ -331,4 +331,4 @@ struct OperationPack {
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_TYPES_OPERATIONS_OPERATION_UTIL_HPP_
+#endif  // QUICKSTEP_TYPES_OPERATIONS_OPERATION_SYNTHESIZE_UTIL_HPP_

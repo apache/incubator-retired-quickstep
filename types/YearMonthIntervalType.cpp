@@ -45,10 +45,10 @@ using std::snprintf;
 
 namespace quickstep {
 
-std::string YearMonthIntervalType::printValueToString(const TypedValue &value) const {
-  DCHECK(!value.isNull());
+std::string YearMonthIntervalType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
 
-  std::int64_t months = value.getLiteral<YearMonthIntervalLit>().months;
+  std::int64_t months = castValueToLiteral(value).months;
   const bool negative_interval = months < 0;
   if (negative_interval) {
     months = -months;

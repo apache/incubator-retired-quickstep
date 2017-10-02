@@ -35,21 +35,21 @@
 
 namespace quickstep {
 
-std::string LongType::printValueToString(const TypedValue &value) const {
-  DCHECK(!value.isNull());
+std::string LongType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
 
-  return std::to_string(value.getLiteral<std::int64_t>());
+  return std::to_string(castValueToLiteral(value));
 }
 
-void LongType::printValueToFile(const TypedValue &value,
+void LongType::printValueToFile(const UntypedLiteral *value,
                                 FILE *file,
                                 const int padding) const {
-  DCHECK(!value.isNull());
+  DCHECK(value != nullptr);
 
   std::fprintf(file,
                "%*" PRId64,
                static_cast<int>(padding),
-               value.getLiteral<std::int64_t>());
+               castValueToLiteral(value));
 }
 
 bool LongType::parseValueFromString(const std::string &value_string,

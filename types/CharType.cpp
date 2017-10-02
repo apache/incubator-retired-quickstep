@@ -65,17 +65,17 @@ string CharType::getName() const {
   return name;
 }
 
-std::string CharType::printValueToString(const TypedValue &value) const {
-  DCHECK(!value.isNull());
+std::string CharType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
 
-  const char *cstr = static_cast<const char*>(value.getOutOfLineData());
+  const char *cstr = static_cast<const char*>(castValueToLiteral(value).getOutOfLineData());
   return std::string(cstr, strnlen(cstr, length_));
 }
 
-void CharType::printValueToFile(const TypedValue &value,
+void CharType::printValueToFile(const UntypedLiteral *value,
                                 FILE *file,
                                 const int padding) const {
-  DCHECK(!value.isNull());
+  DCHECK(value != nullptr);
   DCHECK_EQ(length_, static_cast<decltype(length_)>(static_cast<int>(length_)))
       << "Can not convert CHAR Type's maximum length " << length_
       << " to int for fprintf()";
@@ -84,7 +84,7 @@ void CharType::printValueToFile(const TypedValue &value,
                "%*.*s",
                padding,
                static_cast<int>(length_),
-               static_cast<const char*>(value.getOutOfLineData()));
+               castValueToLiteral(value).getOutOfLineData());
 }
 
 bool CharType::parseValueFromString(const std::string &value_string,

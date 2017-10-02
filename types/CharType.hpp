@@ -53,9 +53,9 @@ class CharType : public AsciiStringSuperType<kChar> {
     return length_;
   }
 
-  std::string printValueToString(const TypedValue &value) const override;
+  std::string printValueToString(const UntypedLiteral *value) const override;
 
-  void printValueToFile(const TypedValue &value,
+  void printValueToFile(const UntypedLiteral *value,
                         FILE *file,
                         const int padding = 0) const override;
 
@@ -66,12 +66,10 @@ class CharType : public AsciiStringSuperType<kChar> {
                          const Type &original_type) const override;
 
  private:
-  CharType(const std::size_t length, const bool nullable)
+  CharType(const bool nullable, const std::size_t length)
       : AsciiStringSuperType<kChar>(nullable, length, length, length) {}
 
-  template <typename, bool> friend class TypeInstance;
-
-  DISALLOW_COPY_AND_ASSIGN(CharType);
+  QUICKSTEP_SYNTHESIZE_TYPE(CharType);
 };
 
 /** @} */

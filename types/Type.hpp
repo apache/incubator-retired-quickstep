@@ -24,10 +24,13 @@
 #include <cstdint>
 #include <cstdio>
 #include <string>
+#include <vector>
 
 #include "types/Type.pb.h"
 #include "types/TypeID.hpp"
+#include "types/TypeRegistrar.hpp"
 #include "types/TypedValue.hpp"
+#include "utility/CharStream.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
@@ -93,15 +96,6 @@ struct YearMonthIntervalLit;
 class Type {
  public:
   /**
-   * @brief Categories of intermediate supertypes.
-   **/
-  enum SuperTypeID {
-    kNumeric = 0,  // Fixed-length numeric types (Int, Long, Float, Double)
-    kAsciiString,  // ASCII strings (Char, VarChar)
-    kOther         // Others (Date, Datetime, DatetimeInterval, YearMonthInterval)
-  };
-
-  /**
    * @brief Virtual destructor.
    **/
   virtual ~Type() {
@@ -139,23 +133,6 @@ class Type {
    **/
   inline bool isNullable() const {
     return nullable_;
-  }
-
-  /**
-   * @brief Get this Type's signature.
-   *
-   * @note The signature does not necessarily uniquely identify this Type. It
-   *       merely provides some basic information for debugging that can be
-   *       passed to TypedValue::isPlausibleInstanceOf().
-   *
-   * @return This Type's signature.
-   **/
-  inline TypeSignature getSignature() const {
-    TypeSignature sig;
-    sig.id = type_id_;
-    sig.nullable = nullable_;
-    sig.length = parameter_;
-    return sig;
   }
 
   /**
@@ -313,34 +290,19 @@ class Type {
    **/
   virtual int getPrintWidth() const = 0;
 
-  /**
-   * @brief "Print" a value of this Type as a human-readable string.
-   * @warning It is an error to call this with a NULL value. This method prints
-   *          non-NULL values only.
-   *
-   * @param value A value of this Type.
-   * @return The human-readable string representation of value.
-   **/
-  virtual std::string printValueToString(const TypedValue &value) const = 0;
 
-  /**
-   * @brief Print the human-readable string representation of a value of this
-   *        type to a FILE stream.
-   * @warning It is an error to call this with a NULL value. This method prints
-   *          non-NULL values only.
-   *
-   * @param value A value of this Type.
-   * @param file An open FILE stream to print to.
-   * @param padding If nonzero, left-pad the printed value with spaces up to
-   *        this length. If padding is less than the number of characters
-   *        needed to print the value, then more than padding characters will
-   *        be printed (see getPrintWidth() for information about how long a
-   *        printed string may be).
-   **/
-  virtual void printValueToFile(const TypedValue &value,
+  virtual std::string printValueToString(const UntypedLiteral *value) const = 0;
+
+
+  virtual void printValueToFile(const UntypedLiteral *value,
                                 FILE *file,
                                 const int padding = 0) const;
 
+  virtual std::string printTypedValueToString(const TypedValue &value) const = 0;
+
+  virtual void printTypedValueToFile(const TypedValue &value,
+                                     FILE *file,
+                                     const int padding = 0) const = 0;
   /**
    * @brief Make a TypedValue of this Type.
    *
@@ -439,17 +401,51 @@ class Type {
   virtual TypedValue coerceValue(const TypedValue &original_value,
                                  const Type &original_type) const;
 
+  virtual std::size_t getHash() const {
+    LOG(FATAL) << "Not implemented";
+  }
+
+
+  virtual bool checkValuesEqual(const UntypedLiteral *lhs,
+                                const UntypedLiteral *rhs) const {
+    LOG(FATAL) << "Not implemented";
+  }
+
+  virtual UntypedLiteral* cloneValue(const UntypedLiteral *value) const {
+    LOG(FATAL) << "Not implemented";
+  }
+
+  virtual std::size_t hashValue(const UntypedLiteral *value) const {
+    LOG(FATAL) << "Not implemented";
+  }
+
+  virtual void destroyValue(UntypedLiteral *value_ptr) const {
+    LOG(FATAL) << "Not implemented";
+  }
+
+  virtual CharStream marshallValue(const UntypedLiteral *value) const {
+    LOG(FATAL) << "Not implemented";
+  }
+
+  virtual UntypedLiteral* unmarshallValue(const void *data,
+                                          const std::size_t length) const {
+    LOG(FATAL) << "Not implemented";
+
+  }
+
+  virtual UntypedLiteral* unmarshallValue(const TypedValue &value) const = 0;
+
+  virtual UntypedLiteral* unmarshallValue(TypedValue &&value) const = 0;
+
  protected:
   Type(const SuperTypeID super_type_id,
        const TypeID type_id,
        const bool nullable,
        const std::size_t minimum_byte_length,
-       const std::size_t maximum_byte_length,
-       const std::size_t parameter = 0)
+       const std::size_t maximum_byte_length)
       : super_type_id_(super_type_id),
         type_id_(type_id),
         nullable_(nullable),
-        parameter_(parameter),
         minimum_byte_length_(minimum_byte_length),
         maximum_byte_length_(maximum_byte_length) {
   }
@@ -457,7 +453,6 @@ class Type {
   const SuperTypeID super_type_id_;
   const TypeID type_id_;
   const bool nullable_;
-  const std::size_t parameter_;
   const std::size_t minimum_byte_length_;
   const std::size_t maximum_byte_length_;
 

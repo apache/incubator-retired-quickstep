@@ -301,6 +301,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_JOIN;
 %token TOKEN_KEY;
 %token TOKEN_LAST;
+%token TOKEN_LBRACE;
 %token TOKEN_LEFT;
 %token TOKEN_LIMIT;
 %token TOKEN_LONG;
@@ -323,6 +324,7 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
 %token TOKEN_PRIORITY;
 %token TOKEN_QUIT;
 %token TOKEN_RANGE;
+%token TOKEN_RBRACE;
 %token TOKEN_REAL;
 %token TOKEN_REFERENCES;
 %token TOKEN_REGEXP;

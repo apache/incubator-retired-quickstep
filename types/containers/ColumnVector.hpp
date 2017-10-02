@@ -280,7 +280,8 @@ class NativeColumnVector : public ColumnVector {
    **/
   inline void appendTypedValue(const TypedValue &value) {
     DCHECK_LT(actual_length_, reserved_length_);
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     if (null_bitmap_ && value.isNull()) {
       null_bitmap_->setBit(actual_length_, true);
     } else {
@@ -319,7 +320,8 @@ class NativeColumnVector : public ColumnVector {
    * @param value A value to fill this ColumnVector with.
    **/
   inline void fillWithValue(const TypedValue &value) {
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     if (value.isNull()) {
       fillWithNulls();
     } else {
@@ -408,7 +410,8 @@ class NativeColumnVector : public ColumnVector {
   inline void positionalWriteTypedValue(const std::size_t position,
                                         const TypedValue &value) {
     DCHECK_LT(position, actual_length_);
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     if (null_bitmap_ && value.isNull()) {
       null_bitmap_->setBit(position, true);
     } else {
@@ -515,7 +518,8 @@ class IndirectColumnVector : public ColumnVector {
    * @param value A value to append to this NativeColumnVector.
    **/
   inline void appendTypedValue(const TypedValue &value) {
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     DCHECK_LT(values_.size(), reserved_length_);
     values_.emplace_back(value);
   }
@@ -526,7 +530,8 @@ class IndirectColumnVector : public ColumnVector {
    * @param value A value to append to this NativeColumnVector.
    **/
   inline void appendTypedValue(TypedValue &&value) {
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature())) << type_.getName();
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature())) << type_.getName();
+    // TODO(refactor-type): fix signature.
     DCHECK_LT(values_.size(), reserved_length_);
     values_.emplace_back(std::move(value));
   }
@@ -547,7 +552,8 @@ class IndirectColumnVector : public ColumnVector {
    * @param value A value to fill this ColumnVector with.
    **/
   inline void fillWithValue(const TypedValue &value) {
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     values_.assign(reserved_length_, value);
   }
 
@@ -576,7 +582,8 @@ class IndirectColumnVector : public ColumnVector {
    **/
   inline void positionalWriteTypedValue(const std::size_t position,
                                         const TypedValue &value) {
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     DCHECK_LT(position, values_.size());
     values_[position] = value;
   }
@@ -594,7 +601,8 @@ class IndirectColumnVector : public ColumnVector {
    **/
   inline void positionalWriteTypedValue(const std::size_t position,
                                         TypedValue &&value) {  // NOLINT(whitespace/operators)
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     DCHECK_LT(position, values_.size());
     values_[position] = std::move(value);
   }

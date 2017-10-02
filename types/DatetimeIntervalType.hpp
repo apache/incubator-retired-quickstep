@@ -47,7 +47,7 @@ class DatetimeIntervalType : public TypeSynthesizer<kDatetimeInterval> {
     return DatetimeIntervalLit::kPrintingChars;
   }
 
-  std::string printValueToString(const TypedValue &value) const override;
+  std::string printValueToString(const UntypedLiteral *value) const override;
 
   TypedValue makeZeroValue() const override {
     return TypedValue(DatetimeIntervalLit{0});
@@ -60,9 +60,7 @@ class DatetimeIntervalType : public TypeSynthesizer<kDatetimeInterval> {
   explicit DatetimeIntervalType(const bool nullable)
       : TypeSynthesizer<kDatetimeInterval>(nullable) {}
 
-  template <typename, bool> friend class TypeInstance;
-
-  DISALLOW_COPY_AND_ASSIGN(DatetimeIntervalType);
+  QUICKSTEP_SYNTHESIZE_TYPE(DatetimeIntervalType);
 };
 
 /** @} */

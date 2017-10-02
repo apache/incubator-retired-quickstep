@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <unordered_set>
+#include <utility>
 
 #include "types/NullCoercibilityCheckMacro.hpp"
 #include "types/NumericTypeSafeCoercibility.hpp"
@@ -54,7 +55,7 @@ class NumericSuperType : public TypeSynthesizer<type_id> {
 
   bool isCoercibleFrom(const Type &original_type) const override {
     QUICKSTEP_NULL_COERCIBILITY_CHECK();
-    return (original_type.getSuperTypeID() == Type::kNumeric);
+    return (original_type.getSuperTypeID() == SuperTypeID::kNumeric);
   }
 
   TypedValue makeZeroValue() const override {
@@ -63,7 +64,7 @@ class NumericSuperType : public TypeSynthesizer<type_id> {
 
   TypedValue coerceValue(const TypedValue &original_value,
                          const Type &original_type) const override {
-    if (original_type.getSuperTypeID() != Type::kNumeric) {
+    if (original_type.getSuperTypeID() != SuperTypeID::kNumeric) {
       LOG(FATAL) << "Attempted to coerce Type " << original_type.getName()
                  << " (not recognized as a numeric Type) to " << Type::getName();
     }

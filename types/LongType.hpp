@@ -49,9 +49,9 @@ class LongType : public NumericSuperType<kLong> {
     return std::numeric_limits<std::int64_t>::digits10 + 2;
   }
 
-  std::string printValueToString(const TypedValue &value) const override;
+  std::string printValueToString(const UntypedLiteral *value) const override;
 
-  void printValueToFile(const TypedValue &value,
+  void printValueToFile(const UntypedLiteral *value,
                         FILE *file,
                         const int padding = 0) const override;
 
@@ -62,9 +62,7 @@ class LongType : public NumericSuperType<kLong> {
   explicit LongType(const bool nullable)
       : NumericSuperType<kLong>(nullable) {}
 
-  template <typename, bool> friend class TypeInstance;
-
-  DISALLOW_COPY_AND_ASSIGN(LongType);
+  QUICKSTEP_SYNTHESIZE_TYPE(LongType);
 };
 
 /** @} */

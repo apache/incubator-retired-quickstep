@@ -29,21 +29,21 @@
 
 namespace quickstep {
 
-std::string IntType::printValueToString(const TypedValue &value) const {
-  DCHECK(!value.isNull());
+std::string IntType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
 
-  return std::to_string(value.getLiteral<int>());
+  return std::to_string(castValueToLiteral(value));
 }
 
-void IntType::printValueToFile(const TypedValue &value,
+void IntType::printValueToFile(const UntypedLiteral *value,
                                FILE *file,
                                const int padding) const {
-  DCHECK(!value.isNull());
+  DCHECK(value != nullptr);
 
   std::fprintf(file,
                "%*d",
                static_cast<int>(padding),
-               value.getLiteral<int>());
+               castValueToLiteral(value));
 }
 
 bool IntType::parseValueFromString(const std::string &value_string,

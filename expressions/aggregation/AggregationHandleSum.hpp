@@ -113,7 +113,8 @@ class AggregationHandleSum : public AggregationConcreteHandle {
 
   inline void iterateUnaryInl(AggregationStateSum *state,
                               const TypedValue &value) const {
-    DCHECK(value.isPlausibleInstanceOf(argument_type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(argument_type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     if (value.isNull()) return;
 
     SpinMutexLock lock(state->mutex_);
@@ -123,8 +124,10 @@ class AggregationHandleSum : public AggregationConcreteHandle {
 
   inline void iterateUnaryInl(const TypedValue &value,
                               std::uint8_t *byte_ptr) const {
-    DCHECK(value.isPlausibleInstanceOf(argument_type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(argument_type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     if (value.isNull()) return;
+
     TypedValue *sum_ptr =
         reinterpret_cast<TypedValue *>(byte_ptr + blank_state_.sum_offset_);
     bool *null_ptr =

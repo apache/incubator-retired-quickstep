@@ -53,7 +53,7 @@ std::size_t Type::estimateAverageByteLength() const {
   }
 }
 
-void Type::printValueToFile(const TypedValue &value,
+void Type::printValueToFile(const UntypedLiteral *value,
                             FILE *file,
                             const int padding) const {
   std::fprintf(file, "%*s", padding, printValueToString(value).c_str());

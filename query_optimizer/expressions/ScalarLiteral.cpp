@@ -85,7 +85,7 @@ void ScalarLiteral::getFieldStringItems(
   if (value_.isNull()) {
     inline_field_values->push_back("NULL");
   } else {
-    inline_field_values->push_back(value_type_.printValueToString(value_));
+    inline_field_values->push_back(value_type_.printTypedValueToString(value_));
   }
 
   inline_field_names->push_back("type");

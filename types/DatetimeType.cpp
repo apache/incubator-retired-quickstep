@@ -50,10 +50,10 @@ using std::snprintf;
 
 namespace quickstep {
 
-std::string DatetimeType::printValueToString(const TypedValue &value) const {
-  DCHECK(!value.isNull());
+std::string DatetimeType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
 
-  const DatetimeLit literal = value.getLiteral<DatetimeLit>();
+  const DatetimeLit &literal = castValueToLiteral(value);
   const std::time_t timestamp = literal.epochTime();
   struct tm timeinfo;
   quickstep::gmtime_r(&timestamp, &timeinfo);

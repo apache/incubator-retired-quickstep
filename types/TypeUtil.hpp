@@ -22,6 +22,7 @@
 
 #include <type_traits>
 
+#include "types/ArrayType.hpp"
 #include "types/BoolType.hpp"
 #include "types/CharType.hpp"
 #include "types/DateType.hpp"
@@ -31,6 +32,7 @@
 #include "types/FloatType.hpp"
 #include "types/IntType.hpp"
 #include "types/LongType.hpp"
+#include "types/MetaType.hpp"
 #include "types/NullType.hpp"
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
@@ -53,7 +55,7 @@ class TypeUtil {
     return InvokeOnTypeID(
         type_id,
         [&](auto tid) -> bool {  // NOLINT(build/c++11)
-      return TypeIDTrait<decltype(tid)::value>::kIsParameterizedPod;
+      return TypeIDTrait<decltype(tid)::value>::kIsParPod;
     });
   }
 

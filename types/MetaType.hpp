@@ -17,55 +17,51 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_TYPES_BOOL_TYPE_HPP_
-#define QUICKSTEP_TYPES_BOOL_TYPE_HPP_
+#ifndef QUICKSTEP_TYPES_META_TYPE_HPP_
+#define QUICKSTEP_TYPES_META_TYPE_HPP_
 
-#include <array>
-#include <cstdio>
-#include <limits>
+#include <cstddef>
 #include <string>
 
-#include "types/NumericSuperType.hpp"
+#include "types/Type.hpp"
 #include "types/TypeID.hpp"
+#include "types/TypeSynthesizer.hpp"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 
-class Type;
 class TypedValue;
 
 /** \addtogroup Types
  *  @{
  */
 
-/**
- * @brief A type representing a 8-bit bool.
- **/
-class BoolType : public NumericSuperType<kBool> {
+class MetaType : public TypeSynthesizer<kMetaType> {
  public:
   int getPrintWidth() const override {
-    // "true" or "false"
-    return 5;
+    return 16;
   }
 
   std::string printValueToString(const UntypedLiteral *value) const override;
 
-  void printValueToFile(const UntypedLiteral *value,
-                        FILE *file,
-                        const int padding = 0) const override;
-
   bool parseValueFromString(const std::string &value_string,
-                            TypedValue *value) const override;
+                            TypedValue *value) const override {
+    return false;
+  }
 
  private:
-  explicit BoolType(const bool nullable)
-      : NumericSuperType<kBool>(nullable) {}
+  MetaType(const bool nullable)
+      : TypeSynthesizer<kMetaType>(nullable, sizeof(TypeID), 0x100) {
+    // TODO(refactor-type): Possibly infinite maximum size.
+  }
 
-  QUICKSTEP_SYNTHESIZE_TYPE(BoolType);
+  QUICKSTEP_SYNTHESIZE_TYPE(MetaType);
 };
 
 /** @} */
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_TYPES_BOOL_TYPE_HPP_
+#endif  // QUICKSTEP_TYPES_META_TYPE_HPP_

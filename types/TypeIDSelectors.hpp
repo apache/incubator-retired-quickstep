@@ -23,6 +23,7 @@
 #include <type_traits>
 
 #include "types/TypeID.hpp"
+#include "types/TypeRegistrar.hpp"
 #include "utility/meta/Common.hpp"
 
 #include "glog/logging.h"
@@ -42,7 +43,7 @@ struct TypeIDSelectorParameterized;
 struct TypeIDSelectorNonParameterized;
 
 template <TypeID ...candidates>
-struct TypeIDSelectorEqualsAny;
+struct TypeIDSelector;
 
 
 // Forward declaration
@@ -76,14 +77,14 @@ template <typename TypeIDConstant, typename FunctorT>
 struct TypeIDSelectorNumeric::Implementation<
     TypeIDConstant, FunctorT,
     std::enable_if_t<TypeIDTrait<TypeIDConstant::value>
-                         ::kStaticSuperTypeID == Type::kNumeric>> {
+                         ::kStaticSuperTypeID == SuperTypeID::kNumeric>> {
   inline static auto Invoke(const FunctorT &functor) {
     return functor(TypeIDConstant());
   }
 };
 
 template <TypeID ...candidates>
-struct TypeIDSelectorEqualsAny {
+struct TypeIDSelector {
   template <typename TypeIDConstant, typename FunctorT, typename EnableT = void>
   struct Implementation {
 #pragma GCC diagnostic push
@@ -99,7 +100,7 @@ struct TypeIDSelectorEqualsAny {
 
 template <TypeID ...candidates>
 template <typename TypeIDConstant, typename FunctorT>
-struct TypeIDSelectorEqualsAny<candidates...>::Implementation<
+struct TypeIDSelector<candidates...>::Implementation<
     TypeIDConstant, FunctorT,
     std::enable_if_t<
         meta::EqualsAny<TypeIDConstant,
@@ -109,10 +110,8 @@ struct TypeIDSelectorEqualsAny<candidates...>::Implementation<
   }
 };
 
-namespace internal {
-
-template <bool require_parameterized>
-struct TypeIDSelectorParameterizedHelper {
+template <MemoryLayout ...candidates>
+struct TypeIDSelectorMemoryLayout {
   template <typename TypeIDConstant, typename FunctorT, typename EnableT = void>
   struct Implementation {
 #pragma GCC diagnostic push
@@ -126,24 +125,49 @@ struct TypeIDSelectorParameterizedHelper {
   };
 };
 
-template <bool require_non_parameterized>
+template <MemoryLayout ...candidates>
 template <typename TypeIDConstant, typename FunctorT>
-struct TypeIDSelectorParameterizedHelper<require_non_parameterized>::Implementation<
+struct TypeIDSelectorMemoryLayout<candidates...>::Implementation<
     TypeIDConstant, FunctorT,
-    std::enable_if_t<TypeIDTrait<TypeIDConstant::value>::kParameterized
-                         ^ require_non_parameterized>> {
+    std::enable_if_t<
+        meta::EqualsAny<
+            std::integral_constant<MemoryLayout,
+                                   TypeIDTrait<TypeIDConstant::value>::kMemoryLayout>,
+            std::integral_constant<MemoryLayout, candidates>...>::value>> {
   inline static auto Invoke(const FunctorT &functor) {
     return functor(TypeIDConstant());
   }
 };
 
-}  // namespace internal
-
-struct TypeIDSelectorNonParameterized
-    : internal::TypeIDSelectorParameterizedHelper<true> {};
-
-struct TypeIDSelectorParameterized
-    : internal::TypeIDSelectorParameterizedHelper<false> {};
+//namespace internal {
+//
+//template <bool require_parameterized>
+//struct TypeIDSelectorParameterizedHelper {
+//  template <typename TypeIDConstant, typename FunctorT, typename EnableT = void>
+//  struct Implementation {
+//#pragma GCC diagnostic push
+//#pragma GCC diagnostic ignored "-Wreturn-type"
+//    inline static auto Invoke(const FunctorT &functor)
+//        -> decltype(functor(TypeIDConstant())) {
+//      DLOG(FATAL) << "Unexpected TypeID: "
+//                  << kTypeNames[static_cast<int>(TypeIDConstant::value)];
+//    }
+//#pragma GCC diagnostic pop
+//  };
+//};
+//
+//template <bool require_non_parameterized>
+//template <typename TypeIDConstant, typename FunctorT>
+//struct TypeIDSelectorParameterizedHelper<require_non_parameterized>::Implementation<
+//    TypeIDConstant, FunctorT,
+//    std::enable_if_t<TypeIDTrait<TypeIDConstant::value>::kIsParPod
+//                         ^ require_non_parameterized>> {
+//  inline static auto Invoke(const FunctorT &functor) {
+//    return functor(TypeIDConstant());
+//  }
+//};
+//
+//}  // namespace internal
 
 /** @} */
 

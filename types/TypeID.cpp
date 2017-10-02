@@ -33,6 +33,8 @@ const char *kTypeNames[] = {
   "Datetime",
   "DatetimeInterval",
   "YearMonthInterval",
+  "Array",
+  "MetaType",
   "NullType"
 };
 

@@ -17,55 +17,62 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_TYPES_BOOL_TYPE_HPP_
-#define QUICKSTEP_TYPES_BOOL_TYPE_HPP_
+#ifndef QUICKSTEP_TYPES_ARRAY_TYPE_HPP_
+#define QUICKSTEP_TYPES_ARRAY_TYPE_HPP_
 
-#include <array>
-#include <cstdio>
-#include <limits>
+#include <cstddef>
 #include <string>
 
-#include "types/NumericSuperType.hpp"
+#include "types/Type.hpp"
 #include "types/TypeID.hpp"
+#include "types/TypeSynthesizer.hpp"
 #include "utility/Macros.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 
-class Type;
 class TypedValue;
 
 /** \addtogroup Types
  *  @{
  */
 
-/**
- * @brief A type representing a 8-bit bool.
- **/
-class BoolType : public NumericSuperType<kBool> {
+class ArrayType : public TypeSynthesizer<kArray> {
  public:
   int getPrintWidth() const override {
-    // "true" or "false"
-    return 5;
+    return 16;
   }
 
   std::string printValueToString(const UntypedLiteral *value) const override;
 
-  void printValueToFile(const UntypedLiteral *value,
-                        FILE *file,
-                        const int padding = 0) const override;
-
   bool parseValueFromString(const std::string &value_string,
-                            TypedValue *value) const override;
+                            TypedValue *value) const override {
+    return false;
+  }
 
  private:
-  explicit BoolType(const bool nullable)
-      : NumericSuperType<kBool>(nullable) {}
+  ArrayType(const bool nullable, const std::vector<GenericValue> &parameters)
+      : TypeSynthesizer<kArray>(nullable, 0, 0x1000, parameters),
+        element_type_(ExtractType(parameters)) {
+    // TODO(refactor-type): Possibly infinite maximum size.
+    // TODO(refactor-type): Validate parameters.
+  }
 
-  QUICKSTEP_SYNTHESIZE_TYPE(BoolType);
+  static const Type& ExtractType(const std::vector<GenericValue> &parameters) {
+    DCHECK_EQ(1u, parameters.size());
+    const GenericValue &value = parameters.front();
+    DCHECK(value.getType().getTypeID() == kMetaType);
+    return *static_cast<const Type*>(value.getValue());
+  }
+
+  const Type &element_type_;
+
+  QUICKSTEP_SYNTHESIZE_TYPE(ArrayType);
 };
 
 /** @} */
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_TYPES_BOOL_TYPE_HPP_
+#endif  // QUICKSTEP_TYPES_ARRAY_TYPE_HPP_

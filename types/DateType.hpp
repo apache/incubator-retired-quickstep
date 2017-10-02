@@ -47,7 +47,7 @@ class DateType : public TypeSynthesizer<kDate> {
     return DateLit::kIsoChars;
   }
 
-  std::string printValueToString(const TypedValue &value) const override;
+  std::string printValueToString(const UntypedLiteral *value) const override;
 
   /**
    * @note value_string is expected to be in (possibly extended) ISO-8601
@@ -68,9 +68,7 @@ class DateType : public TypeSynthesizer<kDate> {
   explicit DateType(const bool nullable)
       : TypeSynthesizer<kDate>(nullable) {}
 
-  template <typename, bool> friend class TypeInstance;
-
-  DISALLOW_COPY_AND_ASSIGN(DateType);
+  QUICKSTEP_SYNTHESIZE_TYPE(DateType);
 };
 
 /** @} */

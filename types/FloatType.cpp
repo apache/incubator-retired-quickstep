@@ -38,15 +38,15 @@ using std::snprintf;
 
 namespace quickstep {
 
-std::string FloatType::printValueToString(const TypedValue &value) const {
-  DCHECK(!value.isNull());
+std::string FloatType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
 
   char printbuffer[kPrintWidth + 1];
   int written = snprintf(printbuffer,
                          sizeof(printbuffer),
                          "%.*g",
                          std::numeric_limits<float>::max_digits10,
-                         value.getLiteral<float>());
+                         castValueToLiteral(value));
   DCHECK_GE(written, 0) << "snprintf() encountered an encoding error";
   DCHECK_LT(static_cast<std::size_t>(written), sizeof(printbuffer))
       << "snprintf() would have written a string of length " << written
@@ -54,16 +54,16 @@ std::string FloatType::printValueToString(const TypedValue &value) const {
   return std::string(printbuffer);
 }
 
-void FloatType::printValueToFile(const TypedValue &value,
+void FloatType::printValueToFile(const UntypedLiteral *value,
                                  FILE *file,
                                  const int padding) const {
-  DCHECK(!value.isNull());
+  DCHECK(value != nullptr);
 
   std::fprintf(file,
                "%*.*g",
                static_cast<int>(padding),
                std::numeric_limits<float>::max_digits10,
-               value.getLiteral<float>());
+               castValueToLiteral(value));
 }
 
 bool FloatType::parseValueFromString(const std::string &value_string,

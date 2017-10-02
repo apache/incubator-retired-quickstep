@@ -48,9 +48,9 @@ class IntType : public NumericSuperType<kInt> {
     return std::numeric_limits<int>::digits10 + 2;
   }
 
-  std::string printValueToString(const TypedValue &value) const override;
+  std::string printValueToString(const UntypedLiteral *value) const override;
 
-  void printValueToFile(const TypedValue &value,
+  void printValueToFile(const UntypedLiteral *value,
                         FILE *file,
                         const int padding = 0) const override;
 
@@ -61,9 +61,7 @@ class IntType : public NumericSuperType<kInt> {
   explicit IntType(const bool nullable)
       : NumericSuperType<kInt>(nullable) {}
 
-  template <typename, bool> friend class TypeInstance;
-
-  DISALLOW_COPY_AND_ASSIGN(IntType);
+  QUICKSTEP_SYNTHESIZE_TYPE(IntType);
 };
 
 /** @} */

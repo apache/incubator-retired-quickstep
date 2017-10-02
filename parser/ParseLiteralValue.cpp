@@ -87,7 +87,7 @@ TypedValue NumericParseLiteralValue::concretize(
     const Type **concretized_type) const {
   TypedValue parsed_value;
   if ((type_hint != nullptr)
-      && (type_hint->getSuperTypeID() == Type::kNumeric)
+      && (type_hint->getSuperTypeID() == SuperTypeID::kNumeric)
       && (type_hint->parseValueFromString(numeric_string_, &parsed_value))) {
     *concretized_type = &(type_hint->getNonNullableVersion());
     return parsed_value;

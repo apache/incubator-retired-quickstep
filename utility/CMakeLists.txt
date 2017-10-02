@@ -163,6 +163,9 @@ add_subdirectory(meta)
 
 # Declare micro-libs:
 add_library(quickstep_utility_Alignment ../empty_src.cpp Alignment.hpp)
+add_library(quickstep_utility_BarrieredReadWriteConcurrentBitVector
+            ../empty_src.cpp
+            BarrieredReadWriteConcurrentBitVector.hpp)
 add_library(quickstep_utility_BitManipulation ../empty_src.cpp BitManipulation.hpp)
 add_library(quickstep_utility_BitVector ../empty_src.cpp BitVector.hpp)
 add_library(quickstep_utility_BloomFilter ../empty_src.cpp BloomFilter.hpp)
@@ -172,12 +175,10 @@ add_library(quickstep_utility_BloomFilter_proto
 add_library(quickstep_utility_BulkIoConfiguration BulkIoConfiguration.cpp BulkIoConfiguration.hpp)
 add_library(quickstep_utility_CalculateInstalledMemory CalculateInstalledMemory.cpp CalculateInstalledMemory.hpp)
 add_library(quickstep_utility_Cast ../empty_src.cpp Cast.hpp)
+add_library(quickstep_utility_CharStream ../empty_src.cpp CharStream.hpp)
 add_library(quickstep_utility_CheckSnprintf ../empty_src.cpp CheckSnprintf.hpp)
 add_library(quickstep_utility_ColumnVectorCache ../empty_src.cpp ColumnVectorCache.hpp)
 add_library(quickstep_utility_CompositeHash ../empty_src.cpp CompositeHash.hpp)
-add_library(quickstep_utility_BarrieredReadWriteConcurrentBitVector
-            ../empty_src.cpp
-            BarrieredReadWriteConcurrentBitVector.hpp)
 add_library(quickstep_utility_DAG ../empty_src.cpp DAG.hpp)
 add_library(quickstep_utility_DisjointTreeForest ../empty_src.cpp DisjointTreeForest.hpp)
 add_library(quickstep_utility_EqualsAnyConstant ../empty_src.cpp EqualsAnyConstant.hpp)

@@ -158,7 +158,7 @@ void PrintToScreen::printTuple(const TupleStorageSubBlock &tuple_store,
               *width_it,
               "NULL");
     } else {
-      attr_it->getType().printValueToFile(value, out, *width_it);
+      attr_it->getType().printTypedValueToFile(value, out, *width_it);
     }
 
     fputc('|', out);

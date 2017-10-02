@@ -27,5 +27,10 @@ message Type {
   required TypeID type_id = 1;
   required bool nullable = 2;
   optional uint64 length = 3;
+  repeated GenericValue parameters = 4;
 }
 
+message GenericValue {
+  required Type type = 1;
+  required bytes data = 2;
+}

@@ -48,7 +48,7 @@ class DatetimeType
     return DatetimeLit::kIsoChars;
   }
 
-  std::string printValueToString(const TypedValue &value) const override;
+  std::string printValueToString(const UntypedLiteral *value) const override;
 
   /**
    * @note value_string is expected to be in (possibly extended) ISO-8601
@@ -77,9 +77,7 @@ class DatetimeType
   explicit DatetimeType(const bool nullable)
       : TypeSynthesizer<kDatetime>(nullable) {}
 
-  template <typename, bool> friend class TypeInstance;
-
-  DISALLOW_COPY_AND_ASSIGN(DatetimeType);
+  QUICKSTEP_SYNTHESIZE_TYPE(DatetimeType);
 };
 
 /** @} */

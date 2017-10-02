@@ -89,7 +89,7 @@ void ScalarLiteral::getFieldStringItems(
   if (internal_literal_.isNull()) {
     inline_field_values->emplace_back("NULL");
   } else {
-    inline_field_values->emplace_back(type_.printValueToString(internal_literal_));
+    inline_field_values->emplace_back(type_.printTypedValueToString(internal_literal_));
   }
 }
 

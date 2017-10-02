@@ -506,6 +506,28 @@ class TypedValue {
     return value_union_.out_of_line_data;
   }
 
+  inline void* releaseOutOfLineData() {
+    DCHECK(!(getTypeID() == kBool
+                   || getTypeID() == kInt
+                   || getTypeID() == kLong
+                   || getTypeID() == kFloat
+                   || getTypeID() == kDouble
+                   || getTypeID() == kDate
+                   || getTypeID() == kDatetime
+                   || getTypeID() == kDatetimeInterval
+                   || getTypeID() == kYearMonthInterval));
+    DCHECK(!isNull());
+    if (ownsOutOfLineData()) {
+      value_info_ &= ~kOwnershipMask;
+      return const_cast<void*>(value_union_.out_of_line_data);
+    } else {
+      const std::size_t length = value_info_ >> kSizeShift;
+      void *data = std::malloc(length);
+      std::memcpy(data, value_union_.out_of_line_data, length);
+      return data;
+    }
+  }
+
   /**
    * @brief Get the length of the ASCII string this TypedValue represents,
    *        not counting a null terminator character, if any (same behavior

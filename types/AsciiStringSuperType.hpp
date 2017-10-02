@@ -42,7 +42,7 @@ class AsciiStringSuperType : public TypeSynthesizer<type_id> {
     if (original_type.isNullable() && !this->nullable_) {
       return false;
     }
-    return (original_type.getSuperTypeID() == Type::kAsciiString)
+    return (original_type.getSuperTypeID() == SuperTypeID::kAsciiString)
            || (original_type.getTypeID() == kNullType);
   }
 

@@ -17,47 +17,20 @@
  * under the License.
  **/
 
-#include "types/BoolType.hpp"
+#include "types/MetaType.hpp"
 
-#include <cstdio>
 #include <string>
 
 #include "types/TypeID.hpp"
-#include "types/TypedValue.hpp"
-#include "utility/StringUtil.hpp"
 
 #include "glog/logging.h"
 
 namespace quickstep {
 
-std::string BoolType::printValueToString(const UntypedLiteral *value) const {
+std::string MetaType::printValueToString(const UntypedLiteral *value) const {
   DCHECK(value != nullptr);
 
-  return castValueToLiteral(value) ? "true" : "false";
-}
-
-void BoolType::printValueToFile(const UntypedLiteral *value,
-                                FILE *file,
-                                const int padding) const {
-  DCHECK(value != nullptr);
-
-  std::fprintf(file,
-               "%*s",
-               static_cast<int>(padding),
-               castValueToLiteral(value) ? "true" : "false");
-}
-
-bool BoolType::parseValueFromString(const std::string &value_string,
-                                    TypedValue *value) const {
-  const std::string lo_value = ToLower(value_string);
-  if (lo_value == "true") {
-    *value = TypedValue(true);
-    return true;
-  } else if (lo_value == "false") {
-    *value = TypedValue(false);
-    return true;
-  }
-  return false;
+  return castValueToLiteral(value)->getName();
 }
 
 }  // namespace quickstep

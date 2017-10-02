@@ -17,8 +17,8 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_TYPES_NULLTYPE_HPP_
-#define QUICKSTEP_TYPES_NULLTYPE_HPP_
+#ifndef QUICKSTEP_TYPES_NULL_TYPE_HPP_
+#define QUICKSTEP_TYPES_NULL_TYPE_HPP_
 
 #include <cstddef>
 #include <cstdio>
@@ -69,11 +69,11 @@ class NullType : public TypeSynthesizer<kNullType> {
     return 0;
   }
 
-  std::string printValueToString(const TypedValue &value) const override {
+  std::string printValueToString(const UntypedLiteral *value) const override {
     LOG(FATAL) << "NullType is not printable";
   }
 
-  void printValueToFile(const TypedValue &value,
+  void printValueToFile(const UntypedLiteral *value,
                         FILE *file,
                         const int padding = 0) const override {
     LOG(FATAL) << "NullType is not printable";
@@ -92,13 +92,11 @@ class NullType : public TypeSynthesizer<kNullType> {
     DCHECK(nullable);
   }
 
-  template <typename, bool> friend class TypeInstance;
-
-  DISALLOW_COPY_AND_ASSIGN(NullType);
+  QUICKSTEP_SYNTHESIZE_TYPE(NullType);
 };
 
 /** @} */
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_TYPES_NULLTYPE_HPP_
+#endif  // QUICKSTEP_TYPES_NULL_TYPE_HPP_

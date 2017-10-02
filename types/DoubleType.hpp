@@ -46,9 +46,9 @@ class DoubleType : public NumericSuperType<kDouble> {
     return kPrintWidth;
   }
 
-  std::string printValueToString(const TypedValue &value) const override;
+  std::string printValueToString(const UntypedLiteral *value) const override;
 
-  void printValueToFile(const TypedValue &value,
+  void printValueToFile(const UntypedLiteral *value,
                         FILE *file,
                         const int padding = 0) const override;
 
@@ -74,9 +74,7 @@ class DoubleType : public NumericSuperType<kDouble> {
   explicit DoubleType(const bool nullable)
       : NumericSuperType<kDouble>(nullable) {}
 
-  template <typename, bool> friend class TypeInstance;
-
-  DISALLOW_COPY_AND_ASSIGN(DoubleType);
+  QUICKSTEP_SYNTHESIZE_TYPE(DoubleType);
 };
 
 /** @} */

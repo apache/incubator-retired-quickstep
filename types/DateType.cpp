@@ -45,10 +45,10 @@ using std::snprintf;
 
 namespace quickstep {
 
-std::string DateType::printValueToString(const TypedValue &value) const {
-  DCHECK(!value.isNull());
+std::string DateType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
 
-  const DateLit literal = value.getLiteral<DateLit>();
+  const DateLit &literal = castValueToLiteral(value);
   const std::int32_t year = literal.year;
 
   char datebuf[DateLit::kIsoChars + 1];

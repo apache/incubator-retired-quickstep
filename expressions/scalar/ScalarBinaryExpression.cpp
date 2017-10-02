@@ -427,7 +427,7 @@ void ScalarBinaryExpression::getFieldStringItems(
     if (static_value_->isNull()) {
       inline_field_values->emplace_back("NULL");
     } else {
-      inline_field_values->emplace_back(type_.printValueToString(*static_value_));
+      inline_field_values->emplace_back(type_.printTypedValueToString(*static_value_));
     }
   }
 

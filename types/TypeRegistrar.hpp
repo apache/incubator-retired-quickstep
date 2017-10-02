@@ -20,13 +20,14 @@
 #ifndef QUICKSTEP_TYPES_TYPE_REGISTRAR_HPP_
 #define QUICKSTEP_TYPES_TYPE_REGISTRAR_HPP_
 
+#include <cstddef>
 #include <cstdint>
 #include <type_traits>
+#include <vector>
 
 #include "types/DatetimeLit.hpp"
 #include "types/IntervalLit.hpp"
 #include "types/NullLit.hpp"
-#include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypeIDSelectors.hpp"
 #include "utility/meta/Common.hpp"
@@ -39,6 +40,14 @@ namespace quickstep {
  *  @{
  */
 
+class Type;
+class TypedValue;
+
+using UntypedLiteral = void;
+
+using ArrayLiteral = std::vector<UntypedLiteral*>;
+using MetaTypeLiteral = const Type*;
+
 template <TypeID type_id>
 struct TypeIDTrait;
 
@@ -48,36 +57,40 @@ struct TypeIDTrait;
     typedef type_class TypeClass; \
     typedef cpp_type cpptype; \
     static constexpr TypeID kStaticTypeID = type_id; \
-    static constexpr Type::SuperTypeID kStaticSuperTypeID = super_type_id; \
+    static constexpr SuperTypeID kStaticSuperTypeID = super_type_id; \
     static constexpr MemoryLayout kMemoryLayout = memory_layout; \
-    static constexpr bool kIsParameterizedPod = \
-        (memory_layout == kParNativePod || memory_layout == kParIndirectPod); \
+    static constexpr bool kIsParPod = \
+        (memory_layout == kParInlinePod || memory_layout == kParOutOfLinePod); \
   };
 
-REGISTER_TYPE(BoolType, kBool, \
-              Type::kNumeric, kCxxNativePod, bool);
-REGISTER_TYPE(IntType, kInt, \
-              Type::kNumeric, kCxxNativePod, int);
-REGISTER_TYPE(LongType, kLong, \
-              Type::kNumeric, kCxxNativePod, std::int64_t);
-REGISTER_TYPE(FloatType, kFloat, \
-              Type::kNumeric, kCxxNativePod, float);
-REGISTER_TYPE(DoubleType, kDouble, \
-              Type::kNumeric, kCxxNativePod, double);
-REGISTER_TYPE(DateType, kDate, \
-              Type::kOther, kCxxNativePod, DateLit);
-REGISTER_TYPE(DatetimeType, kDatetime, \
-              Type::kOther, kCxxNativePod, DatetimeLit);
-REGISTER_TYPE(DatetimeIntervalType, kDatetimeInterval, \
-              Type::kOther, kCxxNativePod, DatetimeIntervalLit);
-REGISTER_TYPE(YearMonthIntervalType, kYearMonthInterval, \
-              Type::kOther, kCxxNativePod, YearMonthIntervalLit);
-REGISTER_TYPE(CharType, kChar, \
-              Type::kAsciiString, kParNativePod, void);
-REGISTER_TYPE(VarCharType, kVarChar, \
-              Type::kAsciiString, kParIndirectPod, void);
-REGISTER_TYPE(NullType, kNullType, \
-              Type::kOther, kCxxNativePod, NullLit);
+REGISTER_TYPE(BoolType, kBool,
+              SuperTypeID::kNumeric, kCxxInlinePod, bool);
+REGISTER_TYPE(IntType, kInt,
+              SuperTypeID::kNumeric, kCxxInlinePod, int);
+REGISTER_TYPE(LongType, kLong,
+              SuperTypeID::kNumeric, kCxxInlinePod, std::int64_t);
+REGISTER_TYPE(FloatType, kFloat,
+              SuperTypeID::kNumeric, kCxxInlinePod, float);
+REGISTER_TYPE(DoubleType, kDouble,
+              SuperTypeID::kNumeric, kCxxInlinePod, double);
+REGISTER_TYPE(DateType, kDate,
+              SuperTypeID::kOther, kCxxInlinePod, DateLit);
+REGISTER_TYPE(DatetimeType, kDatetime,
+              SuperTypeID::kOther, kCxxInlinePod, DatetimeLit);
+REGISTER_TYPE(DatetimeIntervalType, kDatetimeInterval,
+              SuperTypeID::kOther, kCxxInlinePod, DatetimeIntervalLit);
+REGISTER_TYPE(YearMonthIntervalType, kYearMonthInterval,
+              SuperTypeID::kOther, kCxxInlinePod, YearMonthIntervalLit);
+REGISTER_TYPE(CharType, kChar,
+              SuperTypeID::kAsciiString, kParInlinePod, TypedValue);
+REGISTER_TYPE(VarCharType, kVarChar,
+              SuperTypeID::kAsciiString, kParOutOfLinePod, TypedValue);
+REGISTER_TYPE(ArrayType, kArray,
+              SuperTypeID::kOther, kCxxGeneric, ArrayLiteral);
+REGISTER_TYPE(MetaType, kMetaType,
+              SuperTypeID::kOther, kCxxGeneric, MetaTypeLiteral);
+REGISTER_TYPE(NullType, kNullType,
+              SuperTypeID::kOther, kCxxInlinePod, NullLit);
 
 #undef REGISTER_TYPE
 
@@ -91,8 +104,8 @@ auto InvokeOnTypeID(const TypeID type_id, const FunctorT &functor);
 namespace internal {
 
 template <int l, int r, typename Selector, typename FunctorT>
-inline auto InvokeOnTypeIDInner(const int value,
-                                const FunctorT &functor) {
+inline auto InvokeOnTypeIDInternal(const int value,
+                                   const FunctorT &functor) {
   DCHECK_LE(l, r);
   if (l == r) {
     constexpr TypeID type_id = static_cast<TypeID>(r);
@@ -101,9 +114,9 @@ inline auto InvokeOnTypeIDInner(const int value,
   }
   constexpr int m = (l + r) >> 1;
   if (value <= m) {
-    return InvokeOnTypeIDInner<l, m, Selector, FunctorT>(value, functor);
+    return InvokeOnTypeIDInternal<l, m, Selector, FunctorT>(value, functor);
   } else {
-    return InvokeOnTypeIDInner<m+1, r, Selector, FunctorT>(value, functor);
+    return InvokeOnTypeIDInternal<m+1, r, Selector, FunctorT>(value, functor);
   }
 }
 
@@ -112,8 +125,8 @@ inline auto InvokeOnTypeIDInner(const int value,
 template <typename Selector, typename FunctorT>
 auto InvokeOnTypeID(const TypeID type_id,
                     const FunctorT &functor) {
-  return internal::InvokeOnTypeIDInner<0, static_cast<int>(kNumTypeIDs)-1,
-                                       Selector, FunctorT>(
+  return internal::InvokeOnTypeIDInternal<0, static_cast<int>(kNumTypeIDs)-1,
+                                          Selector, FunctorT>(
       static_cast<int>(type_id), functor);
 }
 

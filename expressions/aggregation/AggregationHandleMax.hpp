@@ -98,13 +98,15 @@ class AggregationHandleMax : public AggregationConcreteHandle {
 
   inline void iterateUnaryInl(AggregationStateMax *state,
                               const TypedValue &value) const {
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     compareAndUpdate(static_cast<AggregationStateMax *>(state), value);
   }
 
   inline void iterateUnaryInl(const TypedValue &value,
                               std::uint8_t *byte_ptr) const {
-    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+//    DCHECK(value.isPlausibleInstanceOf(type_.getSignature()));
+    // TODO(refactor-type): fix signature.
     TypedValue *max_ptr = reinterpret_cast<TypedValue *>(byte_ptr);
     compareAndUpdate(max_ptr, value);
   }

@@ -86,21 +86,21 @@ string VarCharType::getName() const {
   return name;
 }
 
-std::string VarCharType::printValueToString(const TypedValue &value) const {
-  DCHECK(!value.isNull());
+std::string VarCharType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
 
-  return std::string(static_cast<const char*>(value.getOutOfLineData()));
+  return std::string(static_cast<const char*>(castValueToLiteral(value).getOutOfLineData()));
 }
 
-void VarCharType::printValueToFile(const TypedValue &value,
+void VarCharType::printValueToFile(const UntypedLiteral *value,
                                    FILE *file,
                                    const int padding) const {
-  DCHECK(!value.isNull());
+  DCHECK(value != nullptr);
 
   std::fprintf(file,
                "%*s",
                static_cast<int>(padding),
-               static_cast<const char*>(value.getOutOfLineData()));
+               static_cast<const char*>(castValueToLiteral(value).getOutOfLineData()));
 }
 
 bool VarCharType::parseValueFromString(const std::string &value_string,

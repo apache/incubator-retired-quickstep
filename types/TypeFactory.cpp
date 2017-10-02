@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <string>
 
+#include "types/GenericValue.hpp"
 #include "types/Type.hpp"
 #include "types/Type.pb.h"
 #include "types/TypeID.hpp"
@@ -42,7 +43,7 @@ const Type& TypeFactory::GetType(const TypeID id,
       << "Called TypeFactory::GetType() for a type which requires "
       << " a length parameter without specifying one.";
 
-  return *InvokeOnTypeID<TypeIDSelectorNonParameterized>(
+  return *InvokeOnTypeID<TypeIDSelectorMemoryLayout<kCxxInlinePod>>(
       id,
       [&](auto id) -> const Type* {  // NOLINT(build/c++11)
     return &TypeIDTrait<decltype(id)::value>::TypeClass::Instance(nullable);
@@ -56,7 +57,7 @@ const Type& TypeFactory::GetType(const TypeID id,
       << "Provided a length parameter to TypeFactory::GetType() for "
       << "a type which does not take one.";
 
-  return *InvokeOnTypeID<TypeIDSelectorParameterized>(
+  return *InvokeOnTypeID<TypeIDSelectorMemoryLayout<kParInlinePod, kParOutOfLinePod>>(
       id,
       [&](auto id) -> const Type* {  // NOLINT(build/c++11)
     return &TypeIDTrait<decltype(id)::value>::TypeClass::Instance(nullable, length);

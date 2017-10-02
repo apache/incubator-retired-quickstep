@@ -1017,8 +1017,8 @@ L::LogicalPtr Resolver::resolveInsertSelection(
       cast_expressions.emplace_back(selection_attributes[aid]);
     } else {
       // TODO(jianqiao): implement Cast operation for non-numeric types.
-      if (destination_type.getSuperTypeID() == Type::SuperTypeID::kNumeric &&
-          selection_type.getSuperTypeID() == Type::SuperTypeID::kNumeric &&
+      if (destination_type.getSuperTypeID() == SuperTypeID::kNumeric &&
+          selection_type.getSuperTypeID() == SuperTypeID::kNumeric &&
           destination_type.isSafelyCoercibleFrom(selection_type)) {
         // Add cast operation
 //        const E::AttributeReferencePtr attr = selection_attributes[aid];
@@ -1550,8 +1550,8 @@ L::LogicalPtr Resolver::resolveSetOperations(
       const Type &current_type = attribute_matrix[opid][aid]->getValueType();
       const Type &possible_type = possible_attribute->getValueType();
       if (!possible_type.equals(current_type)) {
-        if (possible_type.getSuperTypeID() == Type::SuperTypeID::kNumeric &&
-            current_type.getSuperTypeID() == Type::SuperTypeID::kNumeric) {
+        if (possible_type.getSuperTypeID() == SuperTypeID::kNumeric &&
+            current_type.getSuperTypeID() == SuperTypeID::kNumeric) {
           if (possible_type.isSafelyCoercibleFrom(current_type)) {
             // Cast current_type to possible_type.
             // Possible_attribute remain the same, nothing needs to change.
@@ -2075,7 +2075,7 @@ E::WindowInfo Resolver::resolveWindow(const ParseWindow &parse_window,
     // needed because -1 might not make sense in this case.
     if (!parse_frame_info->is_row &&
         (order_by_attributes.empty() ||
-         order_by_attributes[0]->getValueType().getSuperTypeID() != Type::SuperTypeID::kNumeric)) {
+         order_by_attributes[0]->getValueType().getSuperTypeID() != SuperTypeID::kNumeric)) {
       THROW_SQL_ERROR_AT(&parse_window)
           << "A numeric attribute should be specified as the first ORDER BY "
           << "attribute in FRAME mode";

@@ -46,10 +46,10 @@ using std::snprintf;
 
 namespace quickstep {
 
-std::string DatetimeIntervalType::printValueToString(const TypedValue &value) const {
-  DCHECK(!value.isNull());
+std::string DatetimeIntervalType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
 
-  std::int64_t subseconds = value.getLiteral<DatetimeIntervalLit>().interval_ticks;
+  std::int64_t subseconds = castValueToLiteral(value).interval_ticks;
   const bool negative_interval = subseconds < 0;
   if (negative_interval) {
     subseconds = -subseconds;
