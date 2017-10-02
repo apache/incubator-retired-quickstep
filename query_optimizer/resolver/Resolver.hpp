@@ -41,6 +41,7 @@ namespace quickstep {
 class CatalogDatabase;
 class CatalogRelation;
 class Comparison;
+class ParseArray;
 class ParseExpression;
 class ParseFunctionCall;
 class ParseGeneratorTableReference;
@@ -443,6 +444,11 @@ class Resolver {
    */
   expressions::ScalarPtr resolveExpression(
       const ParseExpression &parse_expression,
+      const Type *type_hint,
+      ExpressionResolutionInfo *expression_resolution_info);
+
+  expressions::ScalarPtr resolveArray(
+      const ParseArray &parse_array,
       const Type *type_hint,
       ExpressionResolutionInfo *expression_resolution_info);
 

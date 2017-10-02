@@ -2384,6 +2384,11 @@ E::ScalarPtr Resolver::resolveExpression(
     const Type *type_hint,
     ExpressionResolutionInfo *expression_resolution_info) {
   switch (parse_expression.getExpressionType()) {
+    case ParseExpression::kArray: {
+      const ParseArray &parse_array =
+          static_cast<const ParseArray&>(parse_expression);
+      return resolveArray(parse_array, type_hint, expression_resolution_info);
+    }
     case ParseExpression::kAttribute: {
       const ParseAttribute &parse_attribute_scalar =
           static_cast<const ParseAttribute&>(parse_expression);
@@ -2486,6 +2491,29 @@ E::ScalarPtr Resolver::resolveExpression(
                  << parse_expression.getExpressionType();
   }
 }
+
+E::ScalarPtr Resolver::resolveArray(
+    const ParseArray &parse_array,
+    const Type *type_hint,
+    ExpressionResolutionInfo *expression_resolution_info) {
+//  std::vector<E::ScalarPtr> elements;
+//  const auto &parse_elements = parse_array.elements();
+//  if (parse_elements.empty()) {
+//    // TODO(jianqiao): Figure out how to handle empty array.
+//
+//  } else {
+//    elements.reserve(parse_elements.size());
+//    for (const auto &parse_element : parse_elements) {
+//      elements.emplace_back(
+//          resolveExpression(*parse_element, nullptr, expression_resolution_info));
+//    }
+//
+//    // Currently we only support homogeneous array with literal values.
+//  }
+
+  LOG(FATAL) << "Not supported";
+}
+
 
 E::ScalarPtr Resolver::resolveSearchedCaseExpression(
     const ParseSearchedCaseExpression &parse_searched_case_expression,

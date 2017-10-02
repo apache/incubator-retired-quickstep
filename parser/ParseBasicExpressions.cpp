@@ -127,4 +127,31 @@ void ParseFunctionCall::getFieldStringItems(
   }
 }
 
+std::string ParseArray::generateName() const {
+  string name("{");
+  if (!elements_.empty()) {
+    name.append(elements_.front()->generateName());
+    for (std::size_t i = 1; i < elements_.size(); ++i) {
+      name.append(",");
+      name.append(elements_.at(i)->generateName());
+    }
+  }
+  name.append("}");
+  return name;
+}
+
+void ParseArray::getFieldStringItems(
+    std::vector<std::string> *inline_field_names,
+    std::vector<std::string> *inline_field_values,
+    std::vector<std::string> *non_container_child_field_names,
+    std::vector<const ParseTreeNode*> *non_container_child_fields,
+    std::vector<std::string> *container_child_field_names,
+    std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
+  container_child_field_names->emplace_back("elements");
+  container_child_fields->emplace_back();
+  for (const auto &element : elements_) {
+    container_child_fields->back().emplace_back(element.get());
+  }
+}
+
 }  // namespace quickstep

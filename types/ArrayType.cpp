@@ -35,7 +35,7 @@ std::string ArrayType::printValueToString(const UntypedLiteral *value) const {
   if (!literals.empty()) {
     ret.append(element_type_.printValueToString(literals.front()));
     for (std::size_t i = 1; i < literals.size(); ++i) {
-      ret.append(", ");
+      ret.append(",");
       ret.append(element_type_.printValueToString(literals.at(i)));
     }
   }

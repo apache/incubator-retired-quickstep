@@ -344,6 +344,48 @@ class ParseFunctionCall : public ParseExpression {
   DISALLOW_COPY_AND_ASSIGN(ParseFunctionCall);
 };
 
+
+class ParseArray : public ParseExpression {
+ public:
+  ParseArray(const int line_number, const int column_number)
+      : ParseExpression(line_number, column_number) {}
+
+  ~ParseArray() override {
+  }
+
+  ExpressionType getExpressionType() const override {
+    return kArray;
+  }
+
+  std::string getName() const override {
+    return "Array";
+  }
+
+  std::string generateName() const override;
+
+  const std::vector<std::unique_ptr<ParseExpression>>& elements() const {
+    return elements_;
+  }
+
+  void add(ParseExpression *element) {
+    elements_.emplace_back(std::unique_ptr<ParseExpression>(element));
+  }
+
+ protected:
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<const ParseTreeNode*> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override;
+
+ private:
+  std::vector<std::unique_ptr<ParseExpression>> elements_;
+
+  DISALLOW_COPY_AND_ASSIGN(ParseArray);
+};
+
 /** @} */
 
 }  // namespace quickstep

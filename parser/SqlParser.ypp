@@ -186,6 +186,7 @@ typedef void* yyscan_t;
   quickstep::ParseString *unary_operation_;
   quickstep::ParseString *binary_operation_;
 
+  quickstep::ParseArray *array_expression_;
   quickstep::ParseFunctionCall *function_call_;
   quickstep::PtrList<quickstep::ParseExpression> *expression_list_;
 
@@ -395,6 +396,11 @@ void NotSupported(const YYLTYPE *location, yyscan_t yyscanner, const std::string
   cast_function
   extract_function
   substr_function
+
+
+%type <array_expression_>
+  array_expression
+  array_element_commalist
 
 %type <attribute_>
   attribute_ref
@@ -1710,6 +1716,9 @@ expression_base:
   | literal_value {
     $$ = new quickstep::ParseScalarLiteral($1);
   }
+  | array_expression {
+    $$ = $1;
+  }
   | function_call {
     $$ = $1;
   }
@@ -1739,6 +1748,26 @@ expression_base:
   | subquery_expression {
     $$ = $1;
   };
+
+array_expression:
+  array_element_commalist TOKEN_RBRACE {
+    $$ = $1;
+  }
+  | TOKEN_LBRACE TOKEN_RBRACE {
+    $$ = new quickstep::ParseArray(@1.first_line, @1.first_column);
+  }
+  ;
+
+array_element_commalist:
+  array_element_commalist ',' add_expression {
+    $$ = $1;
+    $$->add($3);
+  }
+  | TOKEN_LBRACE add_expression {
+    $$ = new quickstep::ParseArray(@1.first_line, @1.first_column);
+    $$->add($2);
+  }
+  ;
 
 function_call:
   any_name '(' ')' {
