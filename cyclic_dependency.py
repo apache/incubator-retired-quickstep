@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 # Script to do analyze the dependencies in Quickstep particularly cycles in the
 # dependency graph. This script can be used to find:
@@ -169,7 +169,7 @@ def find_path(G, nodes_list, nodes_map, source, target):
         print('No path.')
 
 def main():
-    if not os.getcwd().endswith("quickstep"):
+    if not os.path.isfile("cyclic_dependency.py"):
         print("WARNING: you don't appear to be running in the root quickstep "
               "source directory. Don't blame me if something goes wrong.")
     qs_module_dirs = []
