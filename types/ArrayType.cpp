@@ -19,13 +19,42 @@
 
 #include "types/ArrayType.hpp"
 
+#include <cstdlib>
 #include <string>
 
+#include "types/Type.pb.h"
 #include "types/TypeID.hpp"
 
 #include "glog/logging.h"
 
 namespace quickstep {
+
+TypedValue ArrayType::marshallValue(const UntypedLiteral *value) const {
+  const ArrayLiteral &array = *static_cast<const ArrayLiteral*>(value);
+  serialization::ArrayLiteral proto;
+  for (const auto &element : array) {
+    // TODO(refactor-type): Improve performance.
+    TypedValue value = element_type_.marshallValue(element);
+    proto.add_data(value.getDataPtr(), value.getDataSize());
+  }
+  const std::size_t data_size = proto.ByteSize();
+  void *data = std::malloc(data_size);
+  proto.SerializeToArray(data, data_size);
+  return TypedValue::CreateWithOwnedData(kArray, data, data_size);
+}
+
+UntypedLiteral* ArrayType::unmarshallValue(const void *data,
+                                           const std::size_t data_size) const {
+  std::unique_ptr<ArrayLiteral> array = std::make_unique<ArrayLiteral>();
+  serialization::ArrayLiteral proto;
+  proto.ParseFromArray(data, data_size);
+  for (int i = 0; i < proto.data_size(); ++i) {
+    const std::string &element_data = proto.data(i);
+    array->emplace_back(
+        element_type_.unmarshallValue(element_data.c_str(), element_data.size()));
+  }
+  return array.release();
+}
 
 std::string ArrayType::printValueToString(const UntypedLiteral *value) const {
   DCHECK(value != nullptr);

@@ -34,3 +34,7 @@ message GenericValue {
   required Type type = 1;
   optional bytes data = 2;
 }
+
+message ArrayLiteral {
+  repeated bytes data = 1;
+}

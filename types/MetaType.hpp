@@ -20,48 +20,6 @@
 #ifndef QUICKSTEP_TYPES_META_TYPE_HPP_
 #define QUICKSTEP_TYPES_META_TYPE_HPP_
 
-#include <cstddef>
-#include <string>
-
-#include "types/Type.hpp"
-#include "types/TypeID.hpp"
-#include "types/TypeSynthesizer.hpp"
-#include "utility/Macros.hpp"
-
-#include "glog/logging.h"
-
-namespace quickstep {
-
-class TypedValue;
-
-/** \addtogroup Types
- *  @{
- */
-
-class MetaType : public TypeSynthesizer<kMetaType> {
- public:
-  int getPrintWidth() const override {
-    return 16;
-  }
-
-  std::string printValueToString(const UntypedLiteral *value) const override;
-
-  bool parseTypedValueFromString(const std::string &value_string,
-                                 TypedValue *value) const override {
-    return false;
-  }
-
- private:
-  MetaType(const bool nullable)
-      : TypeSynthesizer<kMetaType>(nullable, sizeof(TypeID), 0x100) {
-    // TODO(refactor-type): Possibly infinite maximum size.
-  }
-
-  QUICKSTEP_SYNTHESIZE_TYPE(MetaType);
-};
-
-/** @} */
-
-}  // namespace quickstep
+#include "types/MetaTypeLite.hpp"
 
 #endif  // QUICKSTEP_TYPES_META_TYPE_HPP_

@@ -114,9 +114,7 @@ class TypeSynthesizePolicy<
   }
 
   TypedValue marshallValue(const UntypedLiteral *value) const override {
-    TypedValue ret = makeValue(value, sizeof(cpptype));
-    ret.ensureNotReference();
-    return ret;
+    return makeValue(value, sizeof(cpptype)).ensureNotReference();
   }
 
   UntypedLiteral* unmarshallValue(const void *data,
@@ -340,7 +338,9 @@ class TypeSynthesizePolicy<
   bool checkValuesEqual(const UntypedLiteral *lhs,
                         const UntypedLiteral *rhs,
                         const Type &rhs_type) const override {
-    LOG(FATAL) << "Not implemented";
+    // LOG(FATAL) << "Not implemented";
+    // TODO.
+    return false;
   }
 
   UntypedLiteral* cloneValue(const UntypedLiteral *value) const override {

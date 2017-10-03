@@ -147,8 +147,12 @@ serialization::TypedValue TypedValue::getProto() const {
       DCHECK(isNull());
       break;
     default:
-      FATAL_ERROR("Unrecognized TypeID in TypedValue::getProto");
-  }
+//      FATAL_ERROR("Unrecognized TypeID in TypedValue::getProto");
+      if (!isNull()) {
+        proto.set_out_of_line_data(static_cast<const char*>(getOutOfLineData()), getDataSize());
+      }
+      break;
+}
 
   return proto;
 }
@@ -231,7 +235,12 @@ TypedValue TypedValue::ReconstructFromProto(const serialization::TypedValue &pro
     case kNullType:
       return TypedValue(kNullType);
     default:
-      FATAL_ERROR("Unrecognized TypeID in TypedValue::ReconstructFromProto");
+//      FATAL_ERROR("Unrecognized TypeID in TypedValue::ReconstructFromProto");
+      return proto.has_out_of_line_data() ?
+          TypedValue(type_id,
+                     static_cast<const void*>(proto.out_of_line_data().c_str()),
+                     proto.out_of_line_data().size()).ensureNotReference() :
+          TypedValue(type_id);
   }
 }
 
