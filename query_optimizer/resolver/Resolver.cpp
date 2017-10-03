@@ -115,8 +115,11 @@
 #include "query_optimizer/resolver/NameResolver.hpp"
 #include "storage/StorageBlockLayout.pb.h"
 #include "storage/StorageConstants.hpp"
+#include "types/ArrayType.hpp"
 #include "types/GenericValue.hpp"
 #include "types/IntType.hpp"
+#include "types/MetaType.hpp"
+#include "types/NullType.hpp"
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypeUtil.hpp"
@@ -2492,21 +2495,58 @@ E::ScalarPtr Resolver::resolveArray(
     const ParseArray &parse_array,
     const Type *type_hint,
     ExpressionResolutionInfo *expression_resolution_info) {
-//  std::vector<E::ScalarPtr> elements;
-//  const auto &parse_elements = parse_array.elements();
-//  if (parse_elements.empty()) {
-//    // TODO(jianqiao): Figure out how to handle empty array.
-//
-//  } else {
-//    elements.reserve(parse_elements.size());
-//    for (const auto &parse_element : parse_elements) {
-//      elements.emplace_back(
-//          resolveExpression(*parse_element, nullptr, expression_resolution_info));
-//    }
-//
-//    // Currently we only support homogeneous array with literal values.
-//  }
-  LOG(FATAL) << "Not supported";
+  const auto &parse_elements = parse_array.elements();
+  if (parse_elements.empty()) {
+    // TODO(jianqiao): Figure out how to handle empty array.
+    const GenericValue meta_null_type_value(
+        MetaType::InstanceNonNullable(), &NullType::InstanceNullable());
+    return E::ScalarLiteral::Create(
+        GenericValue(ArrayType::InstanceNonNullable({meta_null_type_value}),
+                     ArrayLiteral()));
+  } else {
+    // Currently we only support homogeneous array with literal values.
+    std::vector<E::ScalarLiteralPtr> literals;
+    const Type *element_type = nullptr;
+    for (const auto &parse_element : parse_elements) {
+      const E::ScalarPtr scalar =
+          resolveExpression(*parse_element, nullptr, expression_resolution_info);
+      E::ScalarLiteralPtr literal;
+      if (E::SomeScalarLiteral::MatchesWithConditionalCast(scalar, &literal)) {
+        const GenericValue &value = literal->value();
+        if (element_type == nullptr) {
+          element_type = &value.getType();
+        } else {
+          if (!element_type->equals(value.getType())) {
+            THROW_SQL_ERROR_AT(parse_element)
+                << "Heterogeneous array is not supported: "
+                << "array contains elements of at least two types "
+                << element_type->getName() << " and "
+                << value.getType().getName();
+          }
+        }
+        literals.emplace_back(literal);
+      } else {
+        THROW_SQL_ERROR_AT(parse_element)
+            << "Non-static array element is not supported yet";
+      }
+    }
+    DCHECK(element_type != nullptr);
+
+    const GenericValue meta_element_type_value(
+        MetaType::InstanceNonNullable(), element_type);
+    const Type &array_type =
+        ArrayType::InstanceNonNullable({meta_element_type_value});
+
+    // NOTE(refactor-type): Possibly memory leak region, noexcept.
+    std::unique_ptr<ArrayLiteral> array_literal = std::make_unique<ArrayLiteral>();
+    for (const auto &literal : literals) {
+      array_literal->emplace_back(
+          element_type->cloneValue(literal->value().getValue()));
+    }
+    return E::ScalarLiteral::Create(GenericValue(array_type,
+                                                 array_literal.release(),
+                                                 true /* take_ownership */));
+  }
 }
 
 

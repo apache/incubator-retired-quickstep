@@ -46,8 +46,10 @@ class GenericValue {
   GenericValue(const Type &type)
       : type_(type), value_(nullptr), owns_(true) {}
 
-  GenericValue(const Type &type, const UntypedLiteral *value, const bool owns)
-      : type_(type), value_(value), owns_(owns) {}
+  GenericValue(const Type &type,
+               const UntypedLiteral *value,
+               const bool take_ownership)
+      : type_(type), value_(value), owns_(take_ownership) {}
 
   GenericValue(const Type &type, const TypedValue &value)
       : type_(type), value_(type.unmarshallTypedValue(value)), owns_(true) {}
@@ -76,7 +78,13 @@ class GenericValue {
   }
 
   serialization::GenericValue getProto() const {
-    LOG(FATAL) << "Not implemented";
+    serialization::GenericValue proto;
+    proto.mutable_type()->MergeFrom(type_.getProto());
+    if (!isNull()) {
+      TypedValue tv = type_.marshallValue(value_);
+      proto.set_data(tv.getDataPtr(), tv.getDataSize());
+    }
+    return proto;
   }
 
   inline bool isNull() const {
@@ -131,7 +139,9 @@ class GenericValue {
   }
 
   inline GenericValue coerce(const Type &other_type) const {
-    LOG(FATAL) << "Not implemented";
+    return GenericValue(other_type,
+                        other_type.coerceValue(value_, type_),
+                        true /* take_ownership */);
   }
 
   inline TypedValue toTypedValue() const {

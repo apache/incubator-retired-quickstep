@@ -415,7 +415,7 @@ def process_cmakelists_file(cmakelists_filename, qs_module_dirs):
                     validation_failed_targets.add(target)
                     print("Missing target_link_libraries() for " + target + ":")
                     for dep in sorted(include_deps):
-                        print("\t" + dep)
+                        print("                      " + dep)
             else:
                 missing_deps = (include_deps
                                 - deps_in_cmake[target]
@@ -424,7 +424,7 @@ def process_cmakelists_file(cmakelists_filename, qs_module_dirs):
                     validation_failed_targets.add(target)
                     print("Missing target_link_libraries() for " + target + ":")
                     for dep in sorted(missing_deps):
-                        print("\t" + dep)
+                        print("                      " + dep)
         elif target == module_targetname:
             # Special case hack for module all-in-one library
             missing_deps = (frozenset(deps_from_includes.keys())
@@ -438,7 +438,7 @@ def process_cmakelists_file(cmakelists_filename, qs_module_dirs):
                 validation_failed_targets.add(target)
                 print("Missing target_link_libraries() for " + target + ":")
                 for dep in sorted(true_missing_deps):
-                    print("\t" + dep)
+                    print("                      " + dep)
     # Also report possibly superfluous extra dependencies.
     for target, cmake_deps in iter(deps_in_cmake.items()):
         if (target not in skipped_targets) and (target in deps_from_includes):
@@ -450,7 +450,7 @@ def process_cmakelists_file(cmakelists_filename, qs_module_dirs):
                 print("Possibly superfluous target_link_libraries() for "
                        + target + ":")
                 for dep in sorted(extra_deps):
-                    print("\t" + dep)
+                    print("                      " + dep)
     return (validation_failed_targets, skipped_targets, generated_targets)
 
 def main(cmakelists_to_process):

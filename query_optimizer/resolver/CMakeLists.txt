@@ -120,7 +120,11 @@ target_link_libraries(quickstep_queryoptimizer_resolver_Resolver
                       quickstep_queryoptimizer_resolver_NameResolver
                       quickstep_storage_StorageBlockLayout_proto
                       quickstep_storage_StorageConstants
+                      quickstep_types_ArrayType
+                      quickstep_types_GenericValue
                       quickstep_types_IntType
+                      quickstep_types_MetaType
+                      quickstep_types_NullType
                       quickstep_types_Type
                       quickstep_types_TypeUtil
                       quickstep_types_TypedValue

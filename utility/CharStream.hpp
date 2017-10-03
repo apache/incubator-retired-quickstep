@@ -40,32 +40,45 @@ class CharStream {
   template <typename T>
   CharStream(const T &value,
              std::enable_if_t<std::is_pod<T>::value && sizeof(T) <= sizeof(std::uint64_t)> * = 0)
-      : length_(sizeof(T)),
+      : object_(nullptr),
+        length_(sizeof(T)),
         delete_function_(nullptr) {
     std::memcpy(&value_union_.inline_data, &value, sizeof(T));
   }
 
-  CharStream(std::vector<char> &&value)
-      : length_(value.size()),
+  CharStream(const std::vector<char> *value)
+      : object_(const_cast<std::vector<char>*>(value)),
+        length_(value->size()),
         delete_function_(&DeleteObject<std::vector<char>>) {
-    value_union_.out_of_line_data = new std::vector<char>(std::move(value));
+    value_union_.out_of_line_data = value->data();
   }
 
-  CharStream(const void *value, const std::size_t length, const bool take_ownership)
+  CharStream(const void *value,
+             const std::size_t length,
+             const bool take_ownership)
       : length_(length),
         delete_function_(std::free) {
     if (take_ownership) {
-      value_union_.out_of_line_data = value;
+      object_ = const_cast<void*>(value);
     } else {
-      void *copy_of_value = std::malloc(length);
-      std::memcpy(copy_of_value, value, length);
-      value_union_.out_of_line_data = copy_of_value;
+      object_ = std::malloc(length);
+      std::memcpy(object_, value, length);
     }
+    value_union_.out_of_line_data = object_;
+  }
+
+  CharStream(CharStream &&other)
+      : object_(other.object_),
+        length_(other.length_),
+        value_union_(other.value_union_),
+        delete_function_(other.delete_function_) {
+    other.delete_function_ = nullptr;
   }
 
   ~CharStream() {
     if (delete_function_ != nullptr) {
-      delete_function_(const_cast<void*>(value_union_.out_of_line_data));
+      DCHECK(object_ != nullptr);
+      delete_function_(object_);
     }
   }
 
@@ -91,6 +104,7 @@ class CharStream {
     delete static_cast<T*>(object);
   }
 
+  void *object_;
   std::size_t length_;
   ValueUnion value_union_;
   DeleterFunction delete_function_;

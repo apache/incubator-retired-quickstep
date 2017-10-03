@@ -108,7 +108,8 @@ class ScalarLiteral : public Scalar {
   ScalarLiteral(const GenericValue &literal_value)
       : value_(literal_value) {}
 
-  const GenericValue &value_;
+  const GenericValue value_;
+
   DISALLOW_COPY_AND_ASSIGN(ScalarLiteral);
 };
 

@@ -97,6 +97,7 @@ target_link_libraries(quickstep_queryoptimizer_expressions_BinaryExpression
                       quickstep_queryoptimizer_expressions_PatternMatcher
                       quickstep_queryoptimizer_expressions_Scalar
                       quickstep_queryoptimizer_expressions_ScalarLiteral
+                      quickstep_types_GenericValue
                       quickstep_types_operations_OperationSignature
                       quickstep_types_operations_binaryoperations_BinaryOperation
                       quickstep_utility_HashPair

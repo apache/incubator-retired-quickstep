@@ -401,41 +401,32 @@ class Type {
   virtual TypedValue coerceTypedValue(const TypedValue &original_value,
                                       const Type &original_type) const;
 
-
   virtual std::size_t getHash() const = 0;
 
   virtual bool checkValuesEqual(const UntypedLiteral *lhs,
                                 const UntypedLiteral *rhs,
-                                const Type &rhs_type) const {
-    LOG(FATAL) << "Not implemented";
-  }
+                                const Type &rhs_type) const = 0;
 
   inline bool checkValuesEqual(const UntypedLiteral *lhs,
                                const UntypedLiteral *rhs) const {
     return checkValuesEqual(lhs, rhs, *this);
   }
 
+  virtual UntypedLiteral* coerceValue(const UntypedLiteral *original_value,
+                                      const Type &original_type) const;
+
   virtual UntypedLiteral* cloneValue(const UntypedLiteral *value) const = 0;
 
   virtual void destroyValue(UntypedLiteral *value) const = 0;
 
-  virtual std::size_t hashValue(const UntypedLiteral *value) const {
-    LOG(FATAL) << "Not implemented";
-  }
+  virtual std::size_t hashValue(const UntypedLiteral *value) const = 0;
 
-  virtual TypedValue marshallValue(const UntypedLiteral *value) const {
-    LOG(FATAL) << "Not implemented";
-  }
+  virtual TypedValue marshallValue(const UntypedLiteral *value) const = 0;
 
   virtual UntypedLiteral* unmarshallValue(const void *data,
-                                          const std::size_t length) const {
-    LOG(FATAL) << "Not implemented";
-
-  }
+                                          const std::size_t length) const = 0;
 
   virtual UntypedLiteral* unmarshallTypedValue(const TypedValue &value) const = 0;
-
-  virtual UntypedLiteral* unmarshallTypedValue(TypedValue &&value) const = 0;
 
  protected:
   Type(const SuperTypeID super_type_id,

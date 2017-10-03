@@ -27,6 +27,22 @@ namespace meta {
  *  @{
  */
 
+template <typename ...> struct Conjunction : std::true_type {};
+template <typename B> struct Conjunction<B> : B {};
+template <typename B, typename ...Bs>
+struct Conjunction<B, Bs...>
+    : std::conditional_t<B::value, Conjunction<Bs...>, B> {};
+
+template <typename ...> struct Disjunction : std::false_type {};
+template <typename B> struct Disjunction<B> : B {};
+template <typename B, typename ...Bs>
+struct Disjunction<B, Bs...>
+    : std::conditional_t<B::value, B, Disjunction<Bs...>> {};
+
+template <typename check, typename ...cases>
+struct EqualsAny : Disjunction<std::is_same<check, cases>...> {};
+
+
 template <typename T, T ...s>
 struct Sequence {
   template <template <typename ...> class Host>
@@ -37,6 +53,10 @@ struct Sequence {
 
   template <typename U>
   using cast_to = Sequence<U, static_cast<U>(s)...>;
+
+  template <T v>
+  using contains = EqualsAny<std::integral_constant<T, v>,
+                             std::integral_constant<T, s>...>;
 
   template <typename CollectionT>
   inline static CollectionT Instantiate() {
@@ -54,25 +74,6 @@ struct MakeSequence : MakeSequence<n-1, n-1, s...> {};
 template <std::size_t ...s>
 struct MakeSequence<0, s...> {
   using type = IntegerSequence<s...>;
-};
-
-
-template <typename ...> struct Conjunction : std::true_type {};
-template <typename B> struct Conjunction<B> : B {};
-template <typename B, typename ...Bs>
-struct Conjunction<B, Bs...>
-    : std::conditional_t<B::value, Conjunction<Bs...>, B> {};
-
-template <typename ...> struct Disjunction : std::false_type {};
-template <typename B> struct Disjunction<B> : B {};
-template <typename B, typename ...Bs>
-struct Disjunction<B, Bs...>
-    : std::conditional_t<B::value, B, Disjunction<Bs...>> {};
-
-template <typename check, typename ...cases>
-struct EqualsAny {
-  static constexpr bool value =
-     Disjunction<std::is_same<check, cases>...>::value;
 };
 
 
@@ -133,6 +134,25 @@ template <template <typename ...> class Op>
 struct TraitUnwrapper {
   template <typename ...ArgTypes>
   using type = typename Op<ArgTypes...>::type;
+};
+
+
+using CxxSupportedIntegerSizes = meta::IntegerSequence<1u, 2u, 4u, 8u>;
+
+template <std::size_t size>
+struct UnsignedInteger;
+
+template <> struct UnsignedInteger<1u> {
+  using type = std::uint8_t;
+};
+template <> struct UnsignedInteger<2u> {
+  using type = std::uint16_t;
+};
+template <> struct UnsignedInteger<4u> {
+  using type = std::uint32_t;
+};
+template <> struct UnsignedInteger<8u> {
+  using type = std::uint64_t;
 };
 
 /** @} */

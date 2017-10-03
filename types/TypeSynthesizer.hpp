@@ -38,6 +38,9 @@
 #include "types/TypedValue.hpp"
 #include "utility/HashPair.hpp"
 #include "utility/Macros.hpp"
+#include "utility/meta/Common.hpp"
+
+#include "third_party/src/farmhash/farmhash.h"
 
 #include "glog/logging.h"
 
@@ -51,142 +54,13 @@ template <TypeID type_id, typename Enable = void>
 class TypeSynthesizePolicy;
 
 
-template <TypeID type_id>
-class TypeSynthesizer
-    : public Type,
-      public TypeSynthesizePolicy<type_id> {
- private:
-  using Trait = TypeIDTrait<type_id>;
-  using SynthesizePolicy = TypeSynthesizePolicy<type_id>;
-
- public:
-  static constexpr SuperTypeID kStaticSuperTypeID = Trait::kStaticSuperTypeID;
-  static constexpr TypeID kStaticTypeID = Trait::kStaticTypeID;
-  static constexpr bool kIsParPod = Trait::kIsParPod;
-  static constexpr MemoryLayout kMemoryLayout = Trait::kMemoryLayout;
-
-  using TypeClass = typename Trait::TypeClass;
-  using cpptype = typename Trait::cpptype;
-
-  serialization::Type getProto() const override {
-    serialization::Type proto;
-
-    proto.mutable_type_id()->CopyFrom(TypeIDFactory::GetProto(type_id_));
-    proto.set_nullable(nullable_);
-    SynthesizePolicy::mergeIntoProto(&proto);
-
-    return proto;
-  }
-
-  const Type& getNullableVersion() const override {
-    return SynthesizePolicy::getInstance(true);
-  }
-
-  const Type& getNonNullableVersion() const override {
-    return SynthesizePolicy::getInstance(false);
-  }
-
-  std::size_t getHash() const override {
-    return SynthesizePolicy::getHash();
-  }
-
-  UntypedLiteral* cloneValue(const UntypedLiteral *value) const override {
-    return SynthesizePolicy::cloneValue(value);
-  }
-
-  void destroyValue(UntypedLiteral *value) const override {
-    return SynthesizePolicy::destroyValue(value);
-  }
-
-  UntypedLiteral* unmarshallTypedValue(const TypedValue &value) const override {
-    return SynthesizePolicy::unmarshallTypedValue(value);
-  }
-
-  UntypedLiteral* unmarshallTypedValue(TypedValue &&value) const override {
-    return SynthesizePolicy::unmarshallTypedValue(std::move(value));
-  }
-
-  std::string printTypedValueToString(const TypedValue &value) const override {
-    return SynthesizePolicy::invokeOnUnmarshalledTypedValue(
-        value,
-        [&](const UntypedLiteral *value) -> std::string {
-      return this->printValueToString(value);
-    });
-  }
-
-  void printTypedValueToFile(const TypedValue &value,
-                             FILE *file,
-                             const int padding = 0) const override {
-    SynthesizePolicy::invokeOnUnmarshalledTypedValue(
-        value,
-        [&](const UntypedLiteral *value) -> void {
-      this->printValueToFile(value, file, padding);
-    });
-  }
-
-  const cpptype& castValueToLiteral(const UntypedLiteral *value) const {
-    return *static_cast<const cpptype*>(value);
-  }
-
-  cpptype& castValueToLiteral(UntypedLiteral *value) const {
-    return *static_cast<cpptype*>(value);
-  }
-
- protected:
-  template <MemoryLayout layout = kMemoryLayout>
-  explicit TypeSynthesizer(const bool nullable,
-                           std::enable_if_t<layout == kCxxInlinePod>* = 0)
-      : Type(kStaticSuperTypeID, kStaticTypeID, nullable,
-             sizeof(cpptype), sizeof(cpptype)),
-        TypeSynthesizePolicy<type_id>(this) {
-  }
-
-  template <MemoryLayout layout = kMemoryLayout>
-  TypeSynthesizer(const bool nullable,
-                  const std::size_t minimum_byte_length,
-                  const std::size_t maximum_byte_length,
-                  const std::size_t parameter,
-                  std::enable_if_t<layout == kParInlinePod ||
-                                   layout == kParOutOfLinePod>* = 0)
-      : Type(kStaticSuperTypeID, kStaticTypeID, nullable,
-             minimum_byte_length, maximum_byte_length),
-        TypeSynthesizePolicy<type_id>(this, parameter) {
-  }
-
-  template <MemoryLayout layout = kMemoryLayout>
-  TypeSynthesizer(const bool nullable,
-                  const std::size_t minimum_byte_length,
-                  const std::size_t maximum_byte_length,
-                  const std::vector<GenericValue> &parameters = {},
-                  std::enable_if_t<layout == kCxxGeneric>* = 0)
-      : Type(kStaticSuperTypeID, kStaticTypeID, nullable,
-             minimum_byte_length, maximum_byte_length),
-        TypeSynthesizePolicy<type_id>(this, parameters) {
-  }
-
- private:
-  template <TypeID, typename> friend class TypeSynthesizePolicy;
-
-  DISALLOW_COPY_AND_ASSIGN(TypeSynthesizer);
-};
-
-template <TypeID type_id>
-constexpr SuperTypeID TypeSynthesizer<type_id>::kStaticSuperTypeID;
-
-template <TypeID type_id>
-constexpr TypeID TypeSynthesizer<type_id>::kStaticTypeID;
-
-template <TypeID type_id>
-constexpr bool TypeSynthesizer<type_id>::kIsParPod;
-
-template <TypeID type_id>
-constexpr MemoryLayout TypeSynthesizer<type_id>::kMemoryLayout;
-
-
+////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////  CxxInlinePod  ///////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 template <TypeID type_id>
 class TypeSynthesizePolicy<
     type_id,
-    std::enable_if_t<TypeIDTrait<type_id>::kMemoryLayout == kCxxInlinePod>> {
+    std::enable_if_t<TypeIDTrait<type_id>::kMemoryLayout == kCxxInlinePod>> : public Type {
  private:
   using Trait = TypeIDTrait<type_id>;
   using TypeClass = typename Trait::TypeClass;
@@ -209,9 +83,54 @@ class TypeSynthesizePolicy<
     }
   }
 
+  std::size_t getHash() const override {
+    return static_cast<std::size_t>(getTypeID());
+  }
+
+  bool checkValuesEqual(const UntypedLiteral *lhs,
+                        const UntypedLiteral *rhs,
+                        const Type &rhs_type) const override {
+    // TODO(refactor-type): Operator == overloading.
+    if (type_id_ != rhs_type.getTypeID()) {
+      return false;
+    }
+    return !std::memcmp(lhs, rhs, sizeof(cpptype));
+  }
+
+  UntypedLiteral* cloneValue(const UntypedLiteral *value) const override {
+    DCHECK(value != nullptr);
+    UntypedLiteral* clone = std::malloc(sizeof(cpptype));
+    std::memcpy(clone, value, sizeof(cpptype));
+    return clone;
+  }
+
+  void destroyValue(UntypedLiteral *value) const override {
+    DCHECK(value != nullptr);
+    std::free(value);
+  }
+
+  std::size_t hashValue(const UntypedLiteral *value) const override {
+    return hashValueInl<sizeof(cpptype)>(value);
+  }
+
+  TypedValue marshallValue(const UntypedLiteral *value) const override {
+    TypedValue ret = makeValue(value, sizeof(cpptype));
+    ret.ensureNotReference();
+    return ret;
+  }
+
+  UntypedLiteral* unmarshallValue(const void *data,
+                                  const std::size_t length) const override {
+    DCHECK_EQ(sizeof(cpptype), length);
+    UntypedLiteral *value = std::malloc(sizeof(cpptype));
+    std::memcpy(value, data, sizeof(cpptype));
+    return value;
+  }
+
  protected:
-  explicit TypeSynthesizePolicy(const Type *base)
-      : base_(*base) {}
+  explicit TypeSynthesizePolicy(const bool nullable)
+      : Type(Trait::kStaticSuperTypeID, type_id, nullable,
+             sizeof(cpptype), sizeof(cpptype)) {}
 
   inline const Type& getInstance(const bool nullable) const {
     return nullable ? InstanceNullable() : InstanceNonNullable();
@@ -219,24 +138,8 @@ class TypeSynthesizePolicy<
 
   inline void mergeIntoProto(serialization::Type *proto) const {}
 
-  inline std::size_t getHash() const {
-    return static_cast<std::size_t>(base_.getTypeID());
-  }
-
-  inline UntypedLiteral* cloneValue(const UntypedLiteral *value) const {
-    DCHECK(value != nullptr);
-    UntypedLiteral* clone = std::malloc(sizeof(cpptype));
-    std::memcpy(clone, value, sizeof(cpptype));
-    return clone;
-  }
-
-  inline void destroyValue(UntypedLiteral *value) const {
-    DCHECK(value != nullptr);
-    std::free(value);
-  }
-
-  inline UntypedLiteral* unmarshallTypedValue(const TypedValue &value) const {
-    return base_.cloneValue(value.getDataPtr());
+  inline UntypedLiteral* unmarshallTypedValueInl(const TypedValue &value) const {
+    return cloneValue(value.getDataPtr());
   }
 
   template <typename Functor>
@@ -252,14 +155,35 @@ class TypeSynthesizePolicy<
     return instance;
   }
 
-  const Type &base_;
+  template <std::size_t size>
+  inline std::size_t hashValueInl(
+      const UntypedLiteral *value,
+      std::enable_if_t<meta::CxxSupportedIntegerSizes
+                           ::template contains<size>::value> * = 0) const {
+    using CxxUIntType = typename meta::UnsignedInteger<size>::type;
+    CxxUIntType buffer;
+    std::memcpy(&buffer, value, size);
+    return buffer;
+  }
+
+  template <std::size_t size>
+  inline std::size_t hashValueInl(
+      const UntypedLiteral *value,
+      std::enable_if_t<!meta::CxxSupportedIntegerSizes
+                            ::template contains<size>::value> * = 0) const {
+    return util::Hash(static_cast<const char*>(value), size);
+  }
 };
 
+
+////////////////////////////////////////////////////////////////////////////////
+///////////////////////  ParInlinePod & ParOutOfLinePod  ///////////////////////
+////////////////////////////////////////////////////////////////////////////////
 template <TypeID type_id>
 class TypeSynthesizePolicy<
     type_id,
     std::enable_if_t<TypeIDTrait<type_id>::kMemoryLayout == kParInlinePod ||
-                     TypeIDTrait<type_id>::kMemoryLayout == kParOutOfLinePod>> {
+                     TypeIDTrait<type_id>::kMemoryLayout == kParOutOfLinePod>> : public Type {
  private:
   using Trait = TypeIDTrait<type_id>;
   using TypeClass = typename Trait::TypeClass;
@@ -285,14 +209,57 @@ class TypeSynthesizePolicy<
     }
   }
 
-  inline std::size_t length() const {
+  std::size_t length() const {
     return length_;
   }
 
+  std::size_t getHash() const override {
+    return CombineHashes(static_cast<std::size_t>(type_id), length_);
+  }
+
+  std::size_t hashValue(const UntypedLiteral *value) const override {
+    // TODO(refactor-type): Better implementation.
+    return static_cast<const TypedValue*>(value)->getHash();
+  }
+
+  bool checkValuesEqual(const UntypedLiteral *lhs,
+                        const UntypedLiteral *rhs,
+                        const Type &rhs_type) const override {
+    // TODO(refactor-type): Better implementation.
+    const TypedValue *lhs_value = static_cast<const TypedValue*>(lhs);
+    const TypedValue *rhs_value = static_cast<const TypedValue*>(rhs);
+    return lhs_value->fastEqualCheck(*rhs_value);
+  }
+
+  UntypedLiteral* cloneValue(const UntypedLiteral *value) const override {
+    DCHECK(value != nullptr);
+    return new TypedValue(*static_cast<const TypedValue*>(value));
+  }
+
+  void destroyValue(UntypedLiteral *value) const override {
+    DCHECK(value != nullptr);
+    delete static_cast<TypedValue*>(value);
+  }
+
+  TypedValue marshallValue(const UntypedLiteral *value) const override {
+    return *static_cast<const TypedValue*>(value);
+  }
+
+  UntypedLiteral* unmarshallValue(const void *data,
+                                  const std::size_t length) const override {
+    TypedValue *value = new TypedValue(makeValue(data, length));
+    value->ensureNotReference();
+    return value;
+  }
+
  protected:
-  TypeSynthesizePolicy(const Type *base, const std::size_t length)
-      : length_(length),
-        base_(*base) {}
+  TypeSynthesizePolicy(const bool nullable,
+                       const std::size_t minimum_byte_length,
+                       const std::size_t maximum_byte_length,
+                       const std::size_t length)
+      : Type(Trait::kStaticSuperTypeID, type_id, nullable,
+             minimum_byte_length, maximum_byte_length),
+        length_(length) {}
 
   const std::size_t length_;
 
@@ -304,26 +271,8 @@ class TypeSynthesizePolicy<
     proto->set_length(length_);
   }
 
-  inline std::size_t getHash() const {
-    return CombineHashes(static_cast<std::size_t>(base_.getTypeID()), length_);
-  }
-
-  inline UntypedLiteral* cloneValue(const UntypedLiteral *value) const {
-    DCHECK(value != nullptr);
-    return new TypedValue(*static_cast<const TypedValue*>(value));
-  }
-
-  inline void destroyValue(UntypedLiteral *value) const {
-    DCHECK(value != nullptr);
-    delete static_cast<TypedValue*>(value);
-  }
-
-  inline UntypedLiteral* unmarshallTypedValue(const TypedValue &value) const {
-    return base_.cloneValue(&value);
-  }
-
-  inline UntypedLiteral* unmarshallTypedValue(TypedValue &&value) const {
-    return new TypedValue(std::move(value));
+  inline UntypedLiteral* unmarshallTypedValueInl(const TypedValue &value) const {
+    return new TypedValue(value);
   }
 
   template <typename Functor>
@@ -343,14 +292,16 @@ class TypeSynthesizePolicy<
     }
     return *(imit->second);
   }
-
-  const Type &base_;
 };
 
+
+////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////  CxxGeneric  ////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
 template <TypeID type_id>
 class TypeSynthesizePolicy<
     type_id,
-    std::enable_if_t<TypeIDTrait<type_id>::kMemoryLayout == kCxxGeneric>> {
+    std::enable_if_t<TypeIDTrait<type_id>::kMemoryLayout == kCxxGeneric>> : public Type {
  private:
   using Trait = TypeIDTrait<type_id>;
   using TypeClass = typename Trait::TypeClass;
@@ -377,15 +328,53 @@ class TypeSynthesizePolicy<
     }
   }
 
-  inline const std::vector<GenericValue>& parameters() const {
+  const std::vector<GenericValue>& parameters() const {
     return parameters_;
   }
 
+  std::size_t getHash() const override {
+    return CombineHashes(static_cast<std::size_t>(type_id_),
+                         ParametersHasher::ComputeHash(parameters_));
+  }
+
+  bool checkValuesEqual(const UntypedLiteral *lhs,
+                        const UntypedLiteral *rhs,
+                        const Type &rhs_type) const override {
+    LOG(FATAL) << "Not implemented";
+  }
+
+  UntypedLiteral* cloneValue(const UntypedLiteral *value) const override {
+    DCHECK(value != nullptr);
+    return new cpptype(*static_cast<const cpptype*>(value));
+  }
+
+  void destroyValue(UntypedLiteral *value) const override {
+    DCHECK(value != nullptr);
+    delete static_cast<cpptype*>(value);
+  }
+
+  std::size_t hashValue(const UntypedLiteral *value) const override {
+    // TODO(refactor-type): Add note that it is a shallow hash.
+    return util::Hash(static_cast<const char*>(value), sizeof(cpptype));
+  }
+
+  TypedValue marshallValue(const UntypedLiteral *value) const override {
+    LOG(FATAL) << "Not implemented";
+  }
+
+  UntypedLiteral* unmarshallValue(const void *data,
+                                  const std::size_t length) const override {
+    LOG(FATAL) << "Not implemented";
+  }
+
  protected:
-  TypeSynthesizePolicy(const Type *base,
+  TypeSynthesizePolicy(const bool nullable,
+                       const std::size_t minimum_byte_length,
+                       const std::size_t maximum_byte_length,
                        const std::vector<GenericValue> &parameters)
-      : parameters_(parameters),
-        base_(*base) {}
+      : Type(Trait::kStaticSuperTypeID, type_id, nullable,
+             minimum_byte_length, maximum_byte_length),
+        parameters_(parameters) {}
 
   inline const Type& getInstance(const bool nullable) const {
     return nullable ? InstanceNullable(parameters_)
@@ -398,32 +387,16 @@ class TypeSynthesizePolicy<
     }
   }
 
-  inline std::size_t getHash() const {
-    return CombineHashes(static_cast<std::size_t>(base_.getTypeID()),
-                         ParametersHasher::ComputeHash(parameters_));
-  }
-
-  inline UntypedLiteral* cloneValue(const UntypedLiteral *value) const {
-    DCHECK(value != nullptr);
-    return new cpptype(*static_cast<const cpptype*>(value));
-  }
-
-  inline void destroyValue(UntypedLiteral *value) const {
-    DCHECK(value != nullptr);
-    delete static_cast<cpptype*>(value);
-  }
-
-  inline UntypedLiteral* unmarshallTypedValue(const TypedValue &value) const {
-    return base_.unmarshallValue(value.getOutOfLineData(), value.getDataSize());
+  inline UntypedLiteral* unmarshallTypedValueInl(const TypedValue &value) const {
+    return unmarshallValue(value.getOutOfLineData(), value.getDataSize());
   }
 
   template <typename Functor>
   inline auto invokeOnUnmarshalledTypedValue(const TypedValue &value,
                                              const Functor &functor) const {
-    std::unique_ptr<typename Trait::cpptype> literal(
-        static_cast<typename Trait::cpptype*>(
-            base_.unmarshallValue(value.getOutOfLineData(),
-                                  value.getDataSize())));
+    std::unique_ptr<cpptype> literal(
+        static_cast<cpptype*>(unmarshallValue(value.getOutOfLineData(),
+                                              value.getDataSize())));
     return functor(literal.get());
   }
 
@@ -477,9 +450,119 @@ class TypeSynthesizePolicy<
     }
     return *(imit->second);
   }
-
-  const Type &base_;
 };
+
+
+////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////  TypeSynthesizer  //////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+template <TypeID type_id>
+class TypeSynthesizer : public TypeSynthesizePolicy<type_id> {
+ private:
+  using Trait = TypeIDTrait<type_id>;
+  using SynthesizePolicy = TypeSynthesizePolicy<type_id>;
+
+ public:
+  static constexpr SuperTypeID kStaticSuperTypeID = Trait::kStaticSuperTypeID;
+  static constexpr TypeID kStaticTypeID = Trait::kStaticTypeID;
+  static constexpr bool kIsParPod = Trait::kIsParPod;
+  static constexpr MemoryLayout kMemoryLayout = Trait::kMemoryLayout;
+
+  using TypeClass = typename Trait::TypeClass;
+  using cpptype = typename Trait::cpptype;
+
+  serialization::Type getProto() const override {
+    serialization::Type proto;
+    proto.mutable_type_id()->CopyFrom(TypeIDFactory::GetProto(Type::type_id_));
+    proto.set_nullable(Type::nullable_);
+    SynthesizePolicy::mergeIntoProto(&proto);
+    return proto;
+  }
+
+  const Type& getNullableVersion() const override {
+    return SynthesizePolicy::getInstance(true);
+  }
+
+  const Type& getNonNullableVersion() const override {
+    return SynthesizePolicy::getInstance(false);
+  }
+
+  UntypedLiteral* unmarshallTypedValue(const TypedValue &value) const override {
+    return SynthesizePolicy::unmarshallTypedValueInl(value);
+  }
+
+  std::string printTypedValueToString(const TypedValue &value) const override {
+    return SynthesizePolicy::invokeOnUnmarshalledTypedValue(
+        value,
+        [&](const UntypedLiteral *value) -> std::string {
+      return this->printValueToString(value);
+    });
+  }
+
+  void printTypedValueToFile(const TypedValue &value,
+                             FILE *file,
+                             const int padding = 0) const override {
+    SynthesizePolicy::invokeOnUnmarshalledTypedValue(
+        value,
+        [&](const UntypedLiteral *value) -> void {
+      this->printValueToFile(value, file, padding);
+    });
+  }
+
+  const cpptype& castValueToLiteral(const UntypedLiteral *value) const {
+    return *static_cast<const cpptype*>(value);
+  }
+
+  cpptype& castValueToLiteral(UntypedLiteral *value) const {
+    return *static_cast<cpptype*>(value);
+  }
+
+ protected:
+  template <MemoryLayout layout = kMemoryLayout>
+  explicit TypeSynthesizer(const bool nullable,
+                           std::enable_if_t<layout == kCxxInlinePod>* = 0)
+      : TypeSynthesizePolicy<type_id>(nullable) {
+  }
+
+  template <MemoryLayout layout = kMemoryLayout>
+  TypeSynthesizer(const bool nullable,
+                  const std::size_t minimum_byte_length,
+                  const std::size_t maximum_byte_length,
+                  const std::size_t parameter,
+                  std::enable_if_t<layout == kParInlinePod ||
+                                   layout == kParOutOfLinePod>* = 0)
+      : TypeSynthesizePolicy<type_id>(nullable, minimum_byte_length,
+                                      maximum_byte_length, parameter) {
+  }
+
+  template <MemoryLayout layout = kMemoryLayout>
+  TypeSynthesizer(const bool nullable,
+                  const std::size_t minimum_byte_length,
+                  const std::size_t maximum_byte_length,
+                  const std::vector<GenericValue> &parameters = {},
+                  std::enable_if_t<layout == kCxxGeneric>* = 0)
+      : TypeSynthesizePolicy<type_id>(nullable, minimum_byte_length,
+                                      maximum_byte_length, parameters) {
+  }
+
+ private:
+  template <TypeID, typename> friend class TypeSynthesizePolicy;
+
+  DISALLOW_COPY_AND_ASSIGN(TypeSynthesizer);
+};
+
+template <TypeID type_id>
+constexpr SuperTypeID TypeSynthesizer<type_id>::kStaticSuperTypeID;
+
+template <TypeID type_id>
+constexpr TypeID TypeSynthesizer<type_id>::kStaticTypeID;
+
+template <TypeID type_id>
+constexpr bool TypeSynthesizer<type_id>::kIsParPod;
+
+template <TypeID type_id>
+constexpr MemoryLayout TypeSynthesizer<type_id>::kMemoryLayout;
+
 
 #define QUICKSTEP_SYNTHESIZE_TYPE(type) \
   template <TypeID, typename> friend class TypeSynthesizePolicy; \
