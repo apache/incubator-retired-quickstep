@@ -25,6 +25,7 @@
 
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
+#include "types/TypeRegistrar.hpp"
 #include "types/TypeSynthesizer.hpp"
 #include "utility/Macros.hpp"
 
@@ -41,8 +42,14 @@ class TypedValue;
 class ArrayType : public TypeSynthesizer<kArray> {
  public:
   int getPrintWidth() const override {
-    return 16;
+    return 32;
   }
+
+  std::string getName() const override;
+
+  bool checkValuesEqual(const UntypedLiteral *lhs,
+                        const UntypedLiteral *rhs,
+                        const Type &rhs_type) const override;
 
   TypedValue marshallValue(const UntypedLiteral *value) const override;
 
@@ -75,6 +82,22 @@ class ArrayType : public TypeSynthesizer<kArray> {
 
   QUICKSTEP_SYNTHESIZE_TYPE(ArrayType);
 };
+
+
+template <TypeID type_id, TypeID element_type_id>
+class FirstOrderArrayType {
+ public:
+
+
+ private:
+
+  QUICKSTEP_SYNTHESIZE_TYPE(FirstOrderArrayType);
+};
+
+
+
+
+
 
 /** @} */
 

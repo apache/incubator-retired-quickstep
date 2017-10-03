@@ -106,11 +106,6 @@ class CastOperation : public UnaryOperation {
     const std::string type_str =
         ToLower(std::string(static_cast<const char*>(type_arg.getOutOfLineData())));
 
-    if (type_str == "text") {
-      return &TypeFactory::GetType(
-          kVarChar, type.getPrintWidth(), type.isNullable());
-    }
-
     const re2::StringPiece type_piece(type_str);
     std::string type_name;
     std::string length_str;

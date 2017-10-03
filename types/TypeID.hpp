@@ -54,6 +54,7 @@ enum TypeID {
   kDatetime,
   kDatetimeInterval,
   kYearMonthInterval,
+  kText,
   kArray,
   kMetaType,
   kNullType,

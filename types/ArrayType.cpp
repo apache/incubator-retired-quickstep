@@ -29,6 +29,35 @@
 
 namespace quickstep {
 
+std::string ArrayType::getName() const {
+  std::string name("Array(");
+  name.append(element_type_.getName());
+  name.push_back(')');
+  if (nullable_) {
+    name.append(" NULL");
+  }
+  return name;
+}
+
+bool ArrayType::checkValuesEqual(const UntypedLiteral *lhs,
+                                 const UntypedLiteral *rhs,
+                                 const Type &rhs_type) const {
+  if (!equals(rhs_type)) {
+    return false;
+  }
+  const ArrayLiteral &lhs_array = castValueToLiteral(lhs);
+  const ArrayLiteral &rhs_array = castValueToLiteral(rhs);
+  if (lhs_array.size() != rhs_array.size()) {
+    return false;
+  }
+  for (std::size_t i = 0; i < lhs_array.size(); ++i) {
+    if (!element_type_.checkValuesEqual(lhs_array.at(i), rhs_array.at(i))) {
+      return false;
+    }
+  }
+  return true;
+}
+
 TypedValue ArrayType::marshallValue(const UntypedLiteral *value) const {
   const ArrayLiteral &array = *static_cast<const ArrayLiteral*>(value);
   serialization::ArrayLiteral proto;

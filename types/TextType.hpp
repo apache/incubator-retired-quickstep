@@ -17,31 +17,29 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_TYPES_META_TYPE_LITE_HPP_
-#define QUICKSTEP_TYPES_META_TYPE_LITE_HPP_
+#ifndef QUICKSTEP_TYPES_TEXT_TYPE_HPP_
+#define QUICKSTEP_TYPES_TEXT_TYPE_HPP_
 
 #include <cstddef>
+#include <cstdio>
 #include <string>
 
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypeSynthesizer.hpp"
+#include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
 
-#include "glog/logging.h"
-
 namespace quickstep {
-
-class TypedValue;
 
 /** \addtogroup Types
  *  @{
  */
 
-class MetaType : public TypeSynthesizer<kMetaType> {
+class TextType : public TypeSynthesizer<kText> {
  public:
   int getPrintWidth() const override {
-    return 16;
+    return 32;
   }
 
   bool checkValuesEqual(const UntypedLiteral *lhs,
@@ -61,16 +59,15 @@ class MetaType : public TypeSynthesizer<kMetaType> {
   }
 
  private:
-  MetaType(const bool nullable)
-      : TypeSynthesizer<kMetaType>(nullable, sizeof(TypeID), 0x100) {
+  TextType(const bool nullable)
+      : TypeSynthesizer<kText>(nullable, 0, 0x1000) {
     // TODO(refactor-type): Possibly infinite maximum size.
   }
 
-  QUICKSTEP_SYNTHESIZE_TYPE(MetaType);
+  QUICKSTEP_SYNTHESIZE_TYPE(TextType);
 };
 
-/** @} */
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_TYPES_META_TYPE_LITE_HPP_
+#endif  // QUICKSTEP_TYPES_TEXT_TYPE_HPP_

@@ -338,9 +338,7 @@ class TypeSynthesizePolicy<
   bool checkValuesEqual(const UntypedLiteral *lhs,
                         const UntypedLiteral *rhs,
                         const Type &rhs_type) const override {
-    // LOG(FATAL) << "Not implemented";
-    // TODO.
-    return false;
+    LOG(FATAL) << "Not implemented";
   }
 
   UntypedLiteral* cloneValue(const UntypedLiteral *value) const override {
@@ -358,14 +356,14 @@ class TypeSynthesizePolicy<
     return util::Hash(static_cast<const char*>(value), sizeof(cpptype));
   }
 
-  TypedValue marshallValue(const UntypedLiteral *value) const override {
-    LOG(FATAL) << "Not implemented";
-  }
-
-  UntypedLiteral* unmarshallValue(const void *data,
-                                  const std::size_t length) const override {
-    LOG(FATAL) << "Not implemented";
-  }
+//  TypedValue marshallValue(const UntypedLiteral *value) const override {
+//    LOG(FATAL) << "Not implemented";
+//  }
+//
+//  UntypedLiteral* unmarshallValue(const void *data,
+//                                  const std::size_t length) const override {
+//    LOG(FATAL) << "Not implemented";
+//  }
 
  protected:
   TypeSynthesizePolicy(const bool nullable,

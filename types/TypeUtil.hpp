@@ -32,8 +32,9 @@
 #include "types/FloatType.hpp"
 #include "types/IntType.hpp"
 #include "types/LongType.hpp"
-#include "types/MetaType.hpp"
+#include "types/MetaTypeLite.hpp"
 #include "types/NullType.hpp"
+#include "types/TextType.hpp"
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypeRegistrar.hpp"
@@ -51,6 +52,14 @@ namespace quickstep {
 
 class TypeUtil {
  public:
+  static MemoryLayout GetMemoryLayout(const TypeID type_id) {
+    return InvokeOnTypeID(
+        type_id,
+        [&](auto tid) -> MemoryLayout {  // NOLINT(build/c++11)
+      return TypeIDTrait<decltype(tid)::value>::kMemoryLayout;
+    });
+  }
+
   static bool IsParameterizedPod(const TypeID type_id) {
     return InvokeOnTypeID(
         type_id,

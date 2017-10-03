@@ -22,6 +22,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <type_traits>
 #include <vector>
 
@@ -85,6 +86,8 @@ REGISTER_TYPE(CharType, kChar,
               SuperTypeID::kAsciiString, kParInlinePod, TypedValue);
 REGISTER_TYPE(VarCharType, kVarChar,
               SuperTypeID::kAsciiString, kParOutOfLinePod, TypedValue);
+REGISTER_TYPE(TextType, kText,
+              SuperTypeID::kOther, kCxxGeneric, std::string);
 REGISTER_TYPE(ArrayType, kArray,
               SuperTypeID::kOther, kCxxGeneric, ArrayLiteral);
 REGISTER_TYPE(MetaType, kMetaType,

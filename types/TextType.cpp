@@ -17,31 +17,34 @@
  * under the License.
  **/
 
-#include "types/MetaTypeLite.hpp"
+#include "types/TextType.hpp"
 
 #include <cstddef>
 #include <string>
 
-#include "types/TypeID.hpp"
-#include "types/TypedValue.hpp"
-
-#include "glog/logging.h"
-
 namespace quickstep {
 
-TypedValue MetaType::marshallValue(const UntypedLiteral *value) const {
-  const Type *type = castValueToLiteral(value);
-  serialization::Type proto = type->getProto();
-  const std::size_t data_size = proto.ByteSize();
-  void *data = std::malloc(data_size);
-  proto.SerializeToArray(data, data_size);
-  return TypedValue::CreateWithOwnedData(kMetaType, data, data_size);
+bool TextType::checkValuesEqual(const UntypedLiteral *lhs,
+                                const UntypedLiteral *rhs,
+                                const Type &rhs_type) const {
+  if (!equals(rhs_type)) {
+    return false;
+  }
+  return castValueToLiteral(lhs) == castValueToLiteral(rhs);
 }
 
-std::string MetaType::printValueToString(const UntypedLiteral *value) const {
-  DCHECK(value != nullptr);
+TypedValue TextType::marshallValue(const UntypedLiteral *value) const {
+  const std::string &str = castValueToLiteral(value);
+  return TypedValue(kText, str.c_str(), str.length()).ensureNotReference();
+}
 
-  return castValueToLiteral(value)->getName();
+UntypedLiteral* TextType::unmarshallValue(const void *data,
+                                          const std::size_t length) const {
+  return new std::string(static_cast<const char*>(data), length);
+}
+
+std::string TextType::printValueToString(const UntypedLiteral *value) const {
+  return castValueToLiteral(value);
 }
 
 }  // namespace quickstep
