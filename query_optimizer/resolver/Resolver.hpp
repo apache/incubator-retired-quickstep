@@ -42,6 +42,7 @@ class CatalogDatabase;
 class CatalogRelation;
 class Comparison;
 class ParseArray;
+class ParseDataType;
 class ParseExpression;
 class ParseFunctionCall;
 class ParseGeneratorTableReference;
@@ -580,6 +581,8 @@ class Resolver {
    * @return The CatalogRelation.
    */
   const CatalogRelation *resolveRelationName(const ParseString *relation_name);
+
+  const Type& resolveDataType(const ParseDataType &parse_data_type);
 
   /**
    * @brief Determines whether \p op can apply to \p left_operand and \p

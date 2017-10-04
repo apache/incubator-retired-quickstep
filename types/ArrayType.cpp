@@ -39,6 +39,13 @@ std::string ArrayType::getName() const {
   return name;
 }
 
+bool ArrayType::TypeParametersAreValid(const std::vector<GenericValue> &parameters) {
+  if (parameters.size() != 1u) {
+    return false;
+  }
+  return parameters.front().getType().getTypeID() == kMetaType;
+}
+
 bool ArrayType::checkValuesEqual(const UntypedLiteral *lhs,
                                  const UntypedLiteral *rhs,
                                  const Type &rhs_type) const {

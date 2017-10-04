@@ -365,6 +365,12 @@ class TypeSynthesizePolicy<
 //    LOG(FATAL) << "Not implemented";
 //  }
 
+  template <typename T = TypeClass>
+  static bool TypeParametersAreValid(const std::vector<GenericValue> &parameters,
+                                     decltype(new T(true)) * = 0) {
+    return parameters.empty();
+  }
+
  protected:
   TypeSynthesizePolicy(const bool nullable,
                        const std::size_t minimum_byte_length,

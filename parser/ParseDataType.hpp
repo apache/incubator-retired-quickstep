@@ -41,7 +41,7 @@ class Type;
 
 class ParseDataTypeParameter : public ParseTreeNode {
  public:
-  enum class ParameterType {
+  enum ParameterType {
     kDataType,
     kLiteralValue
   };
@@ -64,13 +64,17 @@ class ParseDataType : public ParseTreeNode {
  public:
   ParseDataType(const int line_number,
                 const int column_number,
-                ParseString *name)
+                ParseString *type_name)
       : ParseTreeNode(line_number, column_number),
-        name_(name),
+        type_name_(type_name),
         nullable_(false) {}
 
   std::string getName() const override {
     return "DataType";
+  }
+
+  const ParseString& type_name() const {
+    return *type_name_;
   }
 
   const std::vector<std::unique_ptr<ParseDataTypeParameter>>& parameters() const {
@@ -99,7 +103,7 @@ class ParseDataType : public ParseTreeNode {
       std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override;
 
  private:
-  const std::unique_ptr<ParseString> name_;
+  const std::unique_ptr<ParseString> type_name_;
   std::vector<std::unique_ptr<ParseDataTypeParameter>> parameters_;
   bool nullable_;
 

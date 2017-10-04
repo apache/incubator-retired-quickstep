@@ -63,19 +63,17 @@ class ArrayType : public TypeSynthesizer<kArray> {
     return false;
   }
 
+  static bool TypeParametersAreValid(const std::vector<GenericValue> &parameters);
+
  private:
   ArrayType(const bool nullable, const std::vector<GenericValue> &parameters)
       : TypeSynthesizer<kArray>(nullable, 0, 0x1000, parameters),
         element_type_(ExtractType(parameters)) {
-    // TODO(refactor-type): Possibly infinite maximum size.
-    // TODO(refactor-type): Validate parameters.
   }
 
   static const Type& ExtractType(const std::vector<GenericValue> &parameters) {
-    DCHECK_EQ(1u, parameters.size());
-    const GenericValue &value = parameters.front();
-    DCHECK(value.getType().getTypeID() == kMetaType);
-    return **static_cast<const MetaTypeLiteral*>(value.getValue());
+    DCHECK(TypeParametersAreValid(parameters));
+    return **static_cast<const MetaTypeLiteral*>(parameters.front().getValue());
   }
 
   const Type &element_type_;

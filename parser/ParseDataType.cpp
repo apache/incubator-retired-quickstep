@@ -33,11 +33,11 @@ void ParseDataType::getFieldStringItems(
     std::vector<const ParseTreeNode*> *non_container_child_fields,
     std::vector<std::string> *container_child_field_names,
     std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
-  inline_field_names->emplace_back("name");
-  inline_field_values->emplace_back(name_->value());
+  inline_field_names->emplace_back("type_name");
+  inline_field_values->emplace_back(type_name_->value());
 
   inline_field_names->emplace_back("nullable");
-
+  inline_field_values->emplace_back(nullable_ ? "true" : "false");
 
   container_child_field_names->emplace_back("parameters");
   container_child_fields->emplace_back();

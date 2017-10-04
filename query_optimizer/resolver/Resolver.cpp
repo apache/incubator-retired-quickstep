@@ -43,6 +43,7 @@
 #include "parser/ParseBasicExpressions.hpp"
 #include "parser/ParseBlockProperties.hpp"
 #include "parser/ParseCaseExpressions.hpp"
+#include "parser/ParseDataType.hpp"
 #include "parser/ParseExpression.hpp"
 #include "parser/ParseGeneratorTableReference.hpp"
 #include "parser/ParseGroupBy.hpp"
@@ -118,6 +119,7 @@
 #include "types/ArrayType.hpp"
 #include "types/GenericValue.hpp"
 #include "types/IntType.hpp"
+#include "types/LongType.hpp"
 #include "types/MetaType.hpp"
 #include "types/NullType.hpp"
 #include "types/Type.hpp"
@@ -639,14 +641,13 @@ L::LogicalPtr Resolver::resolveCreateTable(
           << "Column " << attribute_definition.name()->value()
           << " is specified more than once";
     }
-    LOG(FATAL) << "TODO(refactor-type): To implement";
-//    attributes.emplace_back(
-//        E::AttributeReference::Create(context_->nextExprId(),
-//                                      attribute_definition.name()->value(),
-//                                      attribute_definition.name()->value(),
-//                                      relation_name,
-//                                      attribute_definition.data_type().getType(),
-//                                      E::AttributeReferenceScope::kLocal));
+    attributes.emplace_back(
+        E::AttributeReference::Create(context_->nextExprId(),
+                                      attribute_definition.name()->value(),
+                                      attribute_definition.name()->value(),
+                                      relation_name,
+                                      resolveDataType(attribute_definition.data_type()),
+                                      E::AttributeReferenceScope::kLocal));
     attribute_name_set.insert(lower_attribute_name);
   }
 
@@ -1120,7 +1121,7 @@ L::LogicalPtr Resolver::resolveInsertTuple(
     }
     // Create a NULL value.
     resolved_column_values.push_back(E::ScalarLiteral::Create(
-        GenericValue(relation_attributes[aid]->getValueType())));
+        GenericValue::CreateNullValue(relation_attributes[aid]->getValueType())));
     ++aid;
   }
 
@@ -1194,6 +1195,72 @@ L::LogicalPtr Resolver::resolveUpdate(
                                 assignees,
                                 assignment_expressions,
                                 resolved_where_predicate);
+}
+
+const Type& Resolver::resolveDataType(const ParseDataType &parse_data_type) {
+  const std::string &type_name = ToLower(parse_data_type.type_name().value());
+  if (!TypeFactory::TypeNameIsValid(type_name)) {
+    THROW_SQL_ERROR_AT(&parse_data_type.type_name())
+        << "Unrecognized type name: " << type_name;
+  }
+
+  const TypeID type_id = TypeFactory::GetTypeIDForName(type_name);
+  const MemoryLayout memory_layout = TypeUtil::GetMemoryLayout(type_id);
+
+  const auto &parse_parameters = parse_data_type.parameters();
+  if (memory_layout == kCxxInlinePod) {
+    if (!parse_parameters.empty()) {
+      THROW_SQL_ERROR_AT(parse_parameters.front())
+          << "Invalid parameter to type " << type_name;
+    }
+    return TypeFactory::GetType(type_id, parse_data_type.nullable());
+  }
+
+  std::vector<GenericValue> values;
+  for (const auto &param : parse_parameters) {
+    if (param->getParameterType() == ParseDataTypeParameter::kLiteralValue) {
+      const ParseLiteralValue &literal_value =
+          static_cast<const ParseDataTypeParameterLiteralValue&>(*param).literal_value();
+      const Type *value_type = nullptr;
+      TypedValue value = literal_value.concretize(nullptr, &value_type);
+      DCHECK(value_type != nullptr);
+      values.emplace_back(GenericValue::CreateWithTypedValue(*value_type, value));
+    } else {
+      DCHECK(param->getParameterType() == ParseDataTypeParameter::kDataType);
+      const ParseDataType &element_type =
+          static_cast<const ParseDataTypeParameterDataType&>(*param).data_type();
+      values.emplace_back(
+          GenericValue::CreateWithLiteral(MetaType::InstanceNonNullable(),
+                                          &resolveDataType(element_type)));
+    }
+  }
+
+  if (memory_layout == kParInlinePod || memory_layout == kParOutOfLinePod) {
+    if (values.size() != 1) {
+      THROW_SQL_ERROR_AT(parse_parameters.front())
+          << "Invalid parameter to type " << type_name;
+    }
+    const GenericValue &value = values.front();
+    const Type &value_type = value.getType();
+
+    std::size_t length = 0;
+    if (value_type.getTypeID() == kInt) {
+      length = value.getLiteral<kInt>();
+    } else if (value_type.getTypeID() == kLong) {
+      length = value.getLiteral<kLong>();
+    } else {
+      THROW_SQL_ERROR_AT(parse_parameters.front())
+          << "Invalid parameter to type " << type_name;
+    }
+    return TypeFactory::GetType(type_id, length);
+  }
+
+  DCHECK(memory_layout == kCxxGeneric);
+  if (!TypeFactory::TypeParametersAreValid(type_id, values)) {
+    THROW_SQL_ERROR_AT(parse_parameters.front())
+        << "Invalid parameter to type " << type_name;
+  }
+  return TypeFactory::GetType(type_id, values);
 }
 
 L::LogicalPtr Resolver::resolveSelect(
@@ -2455,7 +2522,8 @@ E::ScalarPtr Resolver::resolveExpression(
       const Type *concrete_type = nullptr;
       TypedValue concrete = parse_literal_scalar.literal_value()
           ->concretize(type_hint, &concrete_type);
-      return E::ScalarLiteral::Create(GenericValue(*concrete_type, concrete));
+      return E::ScalarLiteral::Create(
+          GenericValue::CreateWithTypedValue(*concrete_type, concrete));
     }
     case ParseExpression::kSearchedCaseExpression: {
       const ParseSearchedCaseExpression &parse_searched_case_expression =
@@ -2499,11 +2567,13 @@ E::ScalarPtr Resolver::resolveArray(
   const auto &parse_elements = parse_array.elements();
   if (parse_elements.empty()) {
     // TODO(jianqiao): Figure out how to handle empty array.
-    const GenericValue meta_null_type_value(
-        MetaType::InstanceNonNullable(), &NullType::InstanceNullable());
+    const GenericValue meta_null_type_value =
+        GenericValue::CreateWithLiteral(MetaType::InstanceNonNullable(),
+                                        &NullType::InstanceNullable());
     return E::ScalarLiteral::Create(
-        GenericValue(ArrayType::InstanceNonNullable({meta_null_type_value}),
-                     ArrayLiteral()));
+        GenericValue::CreateWithLiteral(
+            ArrayType::InstanceNonNullable({meta_null_type_value}),
+            ArrayLiteral()));
   } else {
     // Currently we only support homogeneous array with literal values.
     std::vector<E::ScalarLiteralPtr> literals;
@@ -2533,8 +2603,9 @@ E::ScalarPtr Resolver::resolveArray(
     }
     DCHECK(element_type != nullptr);
 
-    const GenericValue meta_element_type_value(
-        MetaType::InstanceNonNullable(), element_type);
+    const GenericValue meta_element_type_value =
+        GenericValue::CreateWithLiteral(MetaType::InstanceNonNullable(),
+                                        element_type);
     const Type &array_type =
         ArrayType::InstanceNonNullable({meta_element_type_value});
 
@@ -2544,9 +2615,8 @@ E::ScalarPtr Resolver::resolveArray(
       array_literal->emplace_back(
           element_type->cloneValue(literal->value().getValue()));
     }
-    return E::ScalarLiteral::Create(GenericValue(array_type,
-                                                 array_literal.release(),
-                                                 true /* take_ownership */));
+    return E::ScalarLiteral::Create(
+        GenericValue::CreateWithOwnedData(array_type, array_literal.release()));
   }
 }
 

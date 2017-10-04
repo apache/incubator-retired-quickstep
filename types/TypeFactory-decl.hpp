@@ -21,6 +21,9 @@
 #define QUICKSTEP_TYPES_TYPE_FACTORY_DECL_HPP_
 
 #include <cstddef>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 #include "types/GenericValue.hpp"
 #include "types/TypeID.hpp"
@@ -42,6 +45,10 @@ namespace serialization { class Type; }
  **/
 class TypeFactory {
  public:
+  static bool TypeNameIsValid(const std::string &type_name);
+
+  static TypeID GetTypeIDForName(const std::string &type_name);
+
   /**
    * @brief Determine if a length parameter is required when getting a Type of
    *        the specified TypeID.
@@ -50,6 +57,9 @@ class TypeFactory {
    * @return Whether a length must be specified for Types of the given id.
    **/
   static bool TypeRequiresLengthParameter(const TypeID id);
+
+  static bool TypeParametersAreValid(const TypeID id,
+                                     const std::vector<GenericValue> &parameters);
 
   /**
    * @brief Factory method to get a Type by its TypeID.
@@ -130,6 +140,8 @@ class TypeFactory {
   // Undefined default constructor. Class is all-static and should not be
   // instantiated.
   TypeFactory();
+
+  static const std::unordered_map<std::string, TypeID>& GetTypeNameMap();
 
   DISALLOW_COPY_AND_ASSIGN(TypeFactory);
 };

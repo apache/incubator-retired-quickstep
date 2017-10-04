@@ -43,20 +43,30 @@ namespace quickstep {
 
 class GenericValue {
  public:
-  GenericValue(const Type &type)
-      : type_(type), value_(nullptr), owns_(true) {}
+  static GenericValue CreateNullValue(const Type &type) {
+    return GenericValue(type, nullptr, true);
+  }
 
-  GenericValue(const Type &type,
-               const UntypedLiteral *value,
-               const bool take_ownership)
-      : type_(type), value_(value), owns_(take_ownership) {}
+  static GenericValue CreateWithOwnedData(const Type &type,
+                                          const UntypedLiteral *value) {
+    return GenericValue(type, value, true);
+  }
 
-  GenericValue(const Type &type, const TypedValue &value)
-      : type_(type), value_(type.unmarshallTypedValue(value)), owns_(true) {}
+  static GenericValue CreateReference(const Type &type,
+                                      const UntypedLiteral *value) {
+    return GenericValue(type, value, false);
+  }
+
+  static GenericValue CreateWithTypedValue(const Type &type,
+                                           const TypedValue &value) {
+    return GenericValue(type, type.unmarshallTypedValue(value), true);
+  }
 
   template <typename TypeClass>
-  GenericValue(const TypeClass &type, const typename TypeClass::cpptype &value)
-      : type_(type), value_(type.cloneValue(&value)), owns_(true) {}
+  static GenericValue CreateWithLiteral(const TypeClass &type,
+                                        const typename TypeClass::cpptype &value) {
+    return GenericValue(type, type.cloneValue(&value), true);
+  }
 
   GenericValue(const GenericValue &other)
       : type_(other.type_),
@@ -153,6 +163,11 @@ class GenericValue {
   }
 
  private:
+  GenericValue(const Type &type,
+               const UntypedLiteral *value,
+               const bool take_ownership)
+      : type_(type), value_(value), owns_(take_ownership) {}
+
   const Type &type_;
   const UntypedLiteral *value_;
   bool owns_;

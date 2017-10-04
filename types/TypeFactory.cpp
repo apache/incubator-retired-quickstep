@@ -21,6 +21,7 @@
 
 #include <cstddef>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "types/GenericValue.hpp"
@@ -30,14 +31,40 @@
 #include "types/TypeSynthesizer.hpp"
 #include "types/TypeUtil.hpp"
 #include "utility/Macros.hpp"
+#include "utility/StringUtil.hpp"
 
 #include "glog/logging.h"
 
 namespace quickstep {
 
+bool TypeFactory::TypeNameIsValid(const std::string &type_name) {
+  const auto &type_name_map = GetTypeNameMap();
+  return type_name_map.find(type_name) != type_name_map.end();
+}
+
+TypeID TypeFactory::GetTypeIDForName(const std::string &type_name) {
+  DCHECK(TypeNameIsValid(type_name));
+  return GetTypeNameMap().at(type_name);
+}
+
 bool TypeFactory::TypeRequiresLengthParameter(const TypeID id) {
   return TypeUtil::IsParameterizedPod(id);
 }
+
+bool TypeFactory::TypeParametersAreValid(
+    const TypeID id, const std::vector<GenericValue> &parameters) {
+  if (TypeUtil::GetMemoryLayout(id) != kCxxGeneric) {
+    return false;
+  }
+
+  return InvokeOnTypeID<TypeIDSelectorMemoryLayout<kCxxGeneric>>(
+      id,
+      [&](auto id) -> bool {  // NOLINT(build/c++11)
+    using TypeClass = typename TypeIDTrait<decltype(id)::value>::TypeClass;
+    return TypeClass::TypeParametersAreValid(parameters);
+  });
+}
+
 
 const Type& TypeFactory::GetType(const TypeID id,
                                  const bool nullable) {
@@ -124,12 +151,10 @@ GenericValue TypeFactory::ReconstructValueFromProto(
     const serialization::GenericValue &proto) {
   const Type &type = ReconstructFromProto(proto.type());
   if (proto.has_data()) {
-    return GenericValue(type,
-                        type.unmarshallValue(proto.data().c_str(),
-                                             proto.data().size()),
-                        true /* take_ownership */);
+    return GenericValue::CreateWithOwnedData(
+        type, type.unmarshallValue(proto.data().c_str(), proto.data().size()));
   } else {
-    return GenericValue(type);
+    return GenericValue::CreateNullValue(type);
   }
 }
 
@@ -166,6 +191,16 @@ const Type* TypeFactory::GetUnifyingType(const Type &first, const Type &second) 
   }
 
   return unifier;
+}
+
+const std::unordered_map<std::string, TypeID>& TypeFactory::GetTypeNameMap() {
+  static std::unordered_map<std::string, TypeID> type_name_map;
+  if (type_name_map.empty()) {
+    for (std::size_t i = 0; i < static_cast<std::size_t>(kNumTypeIDs); ++i) {
+      type_name_map.emplace(ToLower(kTypeNames[i]), static_cast<TypeID>(i));
+    }
+  }
+  return type_name_map;
 }
 
 }  // namespace quickstep
