@@ -17,75 +17,55 @@
  * under the License.
  **/
 
-#include "parser/ParseAttributeDefinition.hpp"
+#include "parser/ParseDataType.hpp"
 
 #include <string>
 #include <vector>
 
-#include "parser/ParseString.hpp"
-#include "types/Type.hpp"
-#include "utility/PtrList.hpp"
+#include "parser/ParseTreeNode.hpp"
 
 namespace quickstep {
 
-ParseAttributeDefinition::ParseAttributeDefinition(const int line_number,
-                                                   const int column_number,
-                                                   ParseString *name,
-                                                   ParseDataType *data_type,
-                                                   PtrList<ParseColumnConstraint> *constraint_list)
-    : ParseTreeNode(line_number, column_number), name_(name), data_type_(data_type) {
-  if (constraint_list != nullptr) {
-    for (PtrList<ParseColumnConstraint>::const_iterator it = constraint_list->begin();
-         it != constraint_list->end();
-         ++it) {
-      it->applyTo(this);
-    }
+void ParseDataType::getFieldStringItems(
+    std::vector<std::string> *inline_field_names,
+    std::vector<std::string> *inline_field_values,
+    std::vector<std::string> *non_container_child_field_names,
+    std::vector<const ParseTreeNode*> *non_container_child_fields,
+    std::vector<std::string> *container_child_field_names,
+    std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
+  inline_field_names->emplace_back("name");
+  inline_field_values->emplace_back(name_->value());
 
-    delete constraint_list;
+  inline_field_names->emplace_back("nullable");
+
+
+  container_child_field_names->emplace_back("parameters");
+  container_child_fields->emplace_back();
+  for (const auto &parameter : parameters_) {
+    container_child_fields->back().emplace_back(parameter.get());
   }
 }
 
-void ParseAttributeDefinition::getFieldStringItems(
+void ParseDataTypeParameterLiteralValue::getFieldStringItems(
     std::vector<std::string> *inline_field_names,
     std::vector<std::string> *inline_field_values,
     std::vector<std::string> *non_container_child_field_names,
     std::vector<const ParseTreeNode*> *non_container_child_fields,
     std::vector<std::string> *container_child_field_names,
     std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
-  inline_field_names->push_back("name");
-  inline_field_values->push_back(name_->value());
-  non_container_child_field_names->push_back("type");
-  non_container_child_fields->push_back(data_type_.get());
+  non_container_child_field_names->emplace_back("literal_value");
+  non_container_child_fields->emplace_back(literal_value_.get());
 }
 
-void ParseColumnConstraintNull::applyTo(ParseAttributeDefinition *target) const {
-  target->setNullable(true);
-}
-
-void ParseColumnConstraintNull::getFieldStringItems(
+void ParseDataTypeParameterDataType::getFieldStringItems(
     std::vector<std::string> *inline_field_names,
     std::vector<std::string> *inline_field_values,
     std::vector<std::string> *non_container_child_field_names,
     std::vector<const ParseTreeNode*> *non_container_child_fields,
     std::vector<std::string> *container_child_field_names,
     std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
-  inline_field_names->push_back("nullable");
-  inline_field_values->push_back("true");
-}
-
-void ParseColumnConstraintNotNull::applyTo(ParseAttributeDefinition *target) const {
-  target->setNullable(false);
-}
-
-void ParseColumnConstraintNotNull::getFieldStringItems(
-    std::vector<std::string> *inline_field_names,
-    std::vector<std::string> *inline_field_values,
-    std::vector<std::string> *non_container_child_field_names,
-    std::vector<const ParseTreeNode*> *non_container_child_fields,
-    std::vector<std::string> *container_child_field_names,
-    std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
-  inline_field_names->push_back("nullable");
-  inline_field_values->push_back("false");
+  non_container_child_field_names->emplace_back("data_type");
+  non_container_child_fields->emplace_back(data_type_.get());
 }
 
 }  // namespace quickstep

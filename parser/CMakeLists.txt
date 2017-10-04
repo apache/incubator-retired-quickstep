@@ -89,6 +89,7 @@ add_library(quickstep_parser_ParseAttributeDefinition ParseAttributeDefinition.c
 add_library(quickstep_parser_ParseBasicExpressions ParseBasicExpressions.cpp ParseBasicExpressions.hpp)
 add_library(quickstep_parser_ParseBlockProperties ParseBlockProperties.cpp ParseBlockProperties.hpp)
 add_library(quickstep_parser_ParseCaseExpressions ParseCaseExpressions.cpp ParseCaseExpressions.hpp)
+add_library(quickstep_parser_ParseDataType ParseDataType.cpp ParseDataType.hpp)
 add_library(quickstep_parser_ParseExpression ../empty_src.cpp ParseExpression.hpp)
 add_library(quickstep_parser_ParseGeneratorTableReference ParseGeneratorTableReference.cpp ParseGeneratorTableReference.hpp)
 add_library(quickstep_parser_ParseGroupBy ParseGroupBy.cpp ParseGroupBy.hpp)
@@ -128,12 +129,14 @@ target_link_libraries(quickstep_parser_ParseAssignment
                       quickstep_parser_ParseTreeNode
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_parser_ParseAttributeDefinition
+                      quickstep_parser_ParseDataType
                       quickstep_parser_ParseString
                       quickstep_parser_ParseTreeNode
                       quickstep_types_Type
                       quickstep_utility_Macros
                       quickstep_utility_PtrList)
 target_link_libraries(quickstep_parser_ParseBasicExpressions
+                      quickstep_parser_ParseDataType
                       quickstep_parser_ParseExpression
                       quickstep_parser_ParseLiteralValue
                       quickstep_parser_ParseString
@@ -158,6 +161,11 @@ target_link_libraries(quickstep_parser_ParseCaseExpressions
                       quickstep_parser_ParseTreeNode
                       quickstep_utility_Macros
                       quickstep_utility_PtrVector)
+target_link_libraries(quickstep_parser_ParseDataType
+                      quickstep_parser_ParseLiteralValue
+                      quickstep_parser_ParseString
+                      quickstep_parser_ParseTreeNode
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_parser_ParseExpression
                       quickstep_parser_ParseTreeNode
                       quickstep_utility_Macros)
@@ -337,6 +345,7 @@ target_link_libraries(quickstep_parser_SqlParser
                       quickstep_parser_ParseBasicExpressions
                       quickstep_parser_ParseBlockProperties
                       quickstep_parser_ParseCaseExpressions
+                      quickstep_parser_ParseDataType
                       quickstep_parser_ParseExpression
                       quickstep_parser_ParseGeneratorTableReference
                       quickstep_parser_ParseGroupBy
@@ -410,6 +419,7 @@ target_link_libraries(quickstep_parser
                       quickstep_parser_ParseBasicExpressions
                       quickstep_parser_ParseBlockProperties
                       quickstep_parser_ParseCaseExpressions
+                      quickstep_parser_ParseDataType
                       quickstep_parser_ParseExpression
                       quickstep_parser_ParseGeneratorTableReference
                       quickstep_parser_ParseGroupBy

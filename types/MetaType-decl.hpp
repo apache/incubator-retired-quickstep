@@ -17,8 +17,8 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_TYPES_META_TYPE_LITE_HPP_
-#define QUICKSTEP_TYPES_META_TYPE_LITE_HPP_
+#ifndef QUICKSTEP_TYPES_META_TYPE_DECL_HPP_
+#define QUICKSTEP_TYPES_META_TYPE_DECL_HPP_
 
 #include <cstddef>
 #include <string>
@@ -73,4 +73,4 @@ class MetaType : public TypeSynthesizer<kMetaType> {
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_TYPES_META_TYPE_LITE_HPP_
+#endif  // QUICKSTEP_TYPES_META_TYPE_DECL_HPP_

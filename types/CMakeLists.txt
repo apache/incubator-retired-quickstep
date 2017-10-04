@@ -49,7 +49,7 @@ add_library(quickstep_types_IntervalLit ../empty_src.cpp IntervalLit.hpp)
 add_library(quickstep_types_IntervalParser IntervalParser.cpp IntervalParser.hpp)
 add_library(quickstep_types_LongType LongType.cpp LongType.hpp)
 add_library(quickstep_types_MetaType MetaType.cpp MetaType.hpp)
-add_library(quickstep_types_MetaTypeLite MetaTypeLite.cpp MetaTypeLite.hpp)
+add_library(quickstep_types_MetaType-decl ../empty_src.cpp MetaType-decl.hpp)
 add_library(quickstep_types_NullCoercibilityCheckMacro ../empty_src.cpp NullCoercibilityCheckMacro.hpp)
 add_library(quickstep_types_NullLit ../empty_src.cpp NullLit.hpp)
 add_library(quickstep_types_NullType ../empty_src.cpp NullType.hpp)
@@ -59,8 +59,8 @@ add_library(quickstep_types_NumericTypeUnifier ../empty_src.cpp NumericTypeUnifi
 add_library(quickstep_types_TextType TextType.cpp TextType.hpp)
 add_library(quickstep_types_Type Type.cpp Type.hpp)
 add_library(quickstep_types_TypeErrors ../empty_src.cpp TypeErrors.hpp)
-add_library(quickstep_types_TypeFactory ../empty_src.cpp TypeFactory.hpp)
-add_library(quickstep_types_TypeFactoryLite TypeFactoryLite.cpp TypeFactoryLite.hpp)
+add_library(quickstep_types_TypeFactory TypeFactory.cpp TypeFactory.hpp)
+add_library(quickstep_types_TypeFactory-decl ../empty_src.cpp TypeFactory-decl.hpp)
 add_library(quickstep_types_TypeID TypeID.cpp TypeID.hpp)
 add_library(quickstep_types_TypeIDSelectors ../empty_src.cpp TypeIDSelectors.hpp)
 add_library(quickstep_types_TypeRegistrar ../empty_src.cpp TypeRegistrar.hpp)
@@ -76,6 +76,7 @@ add_library(quickstep_types_YearMonthIntervalType YearMonthIntervalType.cpp Year
 target_link_libraries(quickstep_types_ArrayType
                       quickstep_types_Type
                       quickstep_types_TypeID
+                      quickstep_types_TypeRegistrar
                       quickstep_types_TypeSynthesizer
                       quickstep_types_Type_proto
                       quickstep_utility_Macros)
@@ -175,10 +176,12 @@ target_link_libraries(quickstep_types_LongType
                       quickstep_types_TypedValue
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_types_MetaType
-                      quickstep_types_MetaTypeLite
-                      quickstep_types_TypeFactoryLite
+                      quickstep_types_MetaType-decl
+                      quickstep_types_TypeFactory-decl
+                      quickstep_types_TypeID
+                      quickstep_types_TypedValue
                       quickstep_types_Type_proto)
-target_link_libraries(quickstep_types_MetaTypeLite
+target_link_libraries(quickstep_types_MetaType-decl
                       quickstep_types_Type
                       quickstep_types_TypeID
                       quickstep_types_TypeSynthesizer
@@ -204,7 +207,6 @@ target_link_libraries(quickstep_types_NumericTypeSafeCoercibility
 target_link_libraries(quickstep_types_NumericTypeUnifier
                       quickstep_types_NumericTypeSafeCoercibility)
 target_link_libraries(quickstep_types_TextType
-                      quickstep_types_TextType
                       quickstep_types_Type
                       quickstep_types_TypeID
                       quickstep_types_TypeSynthesizer
@@ -214,19 +216,24 @@ target_link_libraries(quickstep_types_Type
                       glog
                       quickstep_types_Type_proto
                       quickstep_types_TypeID
+                      quickstep_types_TypeRegistrar
                       quickstep_types_TypedValue
                       quickstep_utility_Macros)
-target_link_libraries(quickstep_types_TypeFactoryLite
-                      glog
+target_link_libraries(quickstep_types_TypeFactory
                       quickstep_types_GenericValue
+                      quickstep_types_MetaType
                       quickstep_types_Type
+                      quickstep_types_TypeFactory-decl
                       quickstep_types_TypeID
+                      quickstep_types_TypeSynthesizer
                       quickstep_types_TypeUtil
                       quickstep_types_Type_proto
                       quickstep_utility_Macros)
-target_link_libraries(quickstep_types_TypeFactory
-                      quickstep_types_MetaType
-                      quickstep_types_TypeFactoryLite)
+target_link_libraries(quickstep_types_TypeFactory-decl
+                      glog
+                      quickstep_types_GenericValue
+                      quickstep_types_TypeID
+                      quickstep_utility_Macros)
 target_link_libraries(quickstep_types_TypeID
                       quickstep_types_Type_proto
                       quickstep_utility_Macros)
@@ -237,7 +244,6 @@ target_link_libraries(quickstep_types_TypeRegistrar
                       quickstep_types_DatetimeLit
                       quickstep_types_IntervalLit
                       quickstep_types_NullLit
-                      quickstep_types_Type
                       quickstep_types_TypeID
                       quickstep_types_TypeIDSelectors
                       quickstep_utility_meta_Common)
@@ -250,7 +256,6 @@ target_link_libraries(quickstep_types_TypeSynthesizer
                       quickstep_types_Type_proto
                       quickstep_utility_HashPair
                       quickstep_utility_Macros
-                      quickstep_utility_PtrMap
                       quickstep_utility_meta_Common)
 target_link_libraries(quickstep_types_TypeUtil
                       quickstep_types_ArrayType
@@ -263,7 +268,7 @@ target_link_libraries(quickstep_types_TypeUtil
                       quickstep_types_FloatType
                       quickstep_types_IntType
                       quickstep_types_LongType
-                      quickstep_types_MetaTypeLite
+                      quickstep_types_MetaType-decl
                       quickstep_types_NullType
                       quickstep_types_TextType
                       quickstep_types_Type
@@ -329,7 +334,7 @@ target_link_libraries(quickstep_types
                       quickstep_types_IntervalParser
                       quickstep_types_LongType
                       quickstep_types_MetaType
-                      quickstep_types_MetaTypeLite
+                      quickstep_types_MetaType-decl
                       quickstep_types_NullCoercibilityCheckMacro
                       quickstep_types_NullLit
                       quickstep_types_NullType
@@ -342,7 +347,7 @@ target_link_libraries(quickstep_types
                       quickstep_types_Type_proto
                       quickstep_types_TypeErrors
                       quickstep_types_TypeFactory
-                      quickstep_types_TypeFactoryLite
+                      quickstep_types_TypeFactory-decl
                       quickstep_types_TypeID
                       quickstep_types_TypeIDSelectors
                       quickstep_types_TypeRegistrar

@@ -23,7 +23,9 @@
 #include <string>
 
 #include "types/Type.pb.h"
-#include "types/TypeFactoryLite.hpp"
+#include "types/TypeFactory-decl.hpp"
+#include "types/TypeID.hpp"
+#include "types/TypedValue.hpp"
 
 namespace quickstep {
 
@@ -36,11 +38,26 @@ bool MetaType::checkValuesEqual(const UntypedLiteral *lhs,
   return castValueToLiteral(lhs)->equals(*castValueToLiteral(rhs));
 }
 
+TypedValue MetaType::marshallValue(const UntypedLiteral *value) const {
+  const Type *type = castValueToLiteral(value);
+  serialization::Type proto = type->getProto();
+  const std::size_t data_size = proto.ByteSize();
+  void *data = std::malloc(data_size);
+  proto.SerializeToArray(data, data_size);
+  return TypedValue::CreateWithOwnedData(kMetaType, data, data_size);
+}
+
 UntypedLiteral* MetaType::unmarshallValue(const void *data,
                                           const std::size_t data_size) const {
   serialization::Type proto;
   proto.ParseFromArray(data, data_size);
   return new MetaTypeLiteral(&TypeFactory::ReconstructFromProto(proto));
+}
+
+std::string MetaType::printValueToString(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
+
+  return castValueToLiteral(value)->getName();
 }
 
 }  // namespace quickstep

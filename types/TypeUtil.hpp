@@ -32,7 +32,7 @@
 #include "types/FloatType.hpp"
 #include "types/IntType.hpp"
 #include "types/LongType.hpp"
-#include "types/MetaTypeLite.hpp"
+#include "types/MetaType-decl.hpp"
 #include "types/NullType.hpp"
 #include "types/TextType.hpp"
 #include "types/Type.hpp"

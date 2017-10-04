@@ -20,7 +20,6 @@
 #ifndef QUICKSTEP_TYPES_TYPE_FACTORY_HPP_
 #define QUICKSTEP_TYPES_TYPE_FACTORY_HPP_
 
-#include "types/MetaType.hpp"
-#include "types/TypeFactoryLite.hpp"
+#include "types/TypeFactory-decl.hpp"
 
 #endif  // QUICKSTEP_TYPES_TYPE_FACTORY_HPP_

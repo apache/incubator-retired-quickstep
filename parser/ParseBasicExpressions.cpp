@@ -127,6 +127,23 @@ void ParseFunctionCall::getFieldStringItems(
   }
 }
 
+std::string ParseTypeCast::generateName() const {
+  return operand_->generateName();
+}
+
+void ParseTypeCast::getFieldStringItems(
+    std::vector<std::string> *inline_field_names,
+    std::vector<std::string> *inline_field_values,
+    std::vector<std::string> *non_container_child_field_names,
+    std::vector<const ParseTreeNode*> *non_container_child_fields,
+    std::vector<std::string> *container_child_field_names,
+    std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const {
+  non_container_child_field_names->emplace_back("operand");
+  non_container_child_fields->emplace_back(operand_.get());
+  non_container_child_field_names->emplace_back("target_type");
+  non_container_child_fields->emplace_back(target_type_.get());
+}
+
 std::string ParseArray::generateName() const {
   string name("{");
   if (!elements_.empty()) {

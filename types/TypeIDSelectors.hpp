@@ -23,7 +23,6 @@
 #include <type_traits>
 
 #include "types/TypeID.hpp"
-#include "types/TypeRegistrar.hpp"
 #include "utility/meta/Common.hpp"
 
 #include "glog/logging.h"
@@ -138,36 +137,6 @@ struct TypeIDSelectorMemoryLayout<candidates...>::Implementation<
     return functor(TypeIDConstant());
   }
 };
-
-//namespace internal {
-//
-//template <bool require_parameterized>
-//struct TypeIDSelectorParameterizedHelper {
-//  template <typename TypeIDConstant, typename FunctorT, typename EnableT = void>
-//  struct Implementation {
-//#pragma GCC diagnostic push
-//#pragma GCC diagnostic ignored "-Wreturn-type"
-//    inline static auto Invoke(const FunctorT &functor)
-//        -> decltype(functor(TypeIDConstant())) {
-//      DLOG(FATAL) << "Unexpected TypeID: "
-//                  << kTypeNames[static_cast<int>(TypeIDConstant::value)];
-//    }
-//#pragma GCC diagnostic pop
-//  };
-//};
-//
-//template <bool require_non_parameterized>
-//template <typename TypeIDConstant, typename FunctorT>
-//struct TypeIDSelectorParameterizedHelper<require_non_parameterized>::Implementation<
-//    TypeIDConstant, FunctorT,
-//    std::enable_if_t<TypeIDTrait<TypeIDConstant::value>::kIsParPod
-//                         ^ require_non_parameterized>> {
-//  inline static auto Invoke(const FunctorT &functor) {
-//    return functor(TypeIDConstant());
-//  }
-//};
-//
-//}  // namespace internal
 
 /** @} */
 

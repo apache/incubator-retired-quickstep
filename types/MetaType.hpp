@@ -20,6 +20,6 @@
 #ifndef QUICKSTEP_TYPES_META_TYPE_HPP_
 #define QUICKSTEP_TYPES_META_TYPE_HPP_
 
-#include "types/MetaTypeLite.hpp"
+#include "types/MetaType-decl.hpp"
 
 #endif  // QUICKSTEP_TYPES_META_TYPE_HPP_

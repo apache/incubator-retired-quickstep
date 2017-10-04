@@ -26,6 +26,7 @@
 #include <string>
 #include <vector>
 
+#include "parser/ParseDataType.hpp"
 #include "parser/ParseExpression.hpp"
 #include "parser/ParseLiteralValue.hpp"
 #include "parser/ParseString.hpp"
@@ -342,6 +343,53 @@ class ParseFunctionCall : public ParseExpression {
   std::unique_ptr<ParseWindow> window_;
 
   DISALLOW_COPY_AND_ASSIGN(ParseFunctionCall);
+};
+
+
+class ParseTypeCast : public ParseExpression {
+ public:
+  ParseTypeCast(const int line_number,
+                const int column_number,
+                ParseExpression *operand,
+                ParseDataType *target_type)
+      : ParseExpression(line_number, column_number),
+        operand_(operand),
+        target_type_(target_type) {}
+
+  ~ParseTypeCast() override {}
+
+  ExpressionType getExpressionType() const override {
+    return kTypeCast;
+  }
+
+  std::string getName() const override {
+    return "TypeCast";
+  }
+
+  std::string generateName() const override;
+
+  const ParseExpression& operand() const {
+    return *operand_;
+  }
+
+  const ParseDataType& target_type() const {
+    return *target_type_;
+  }
+
+ protected:
+  void getFieldStringItems(
+      std::vector<std::string> *inline_field_names,
+      std::vector<std::string> *inline_field_values,
+      std::vector<std::string> *non_container_child_field_names,
+      std::vector<const ParseTreeNode*> *non_container_child_fields,
+      std::vector<std::string> *container_child_field_names,
+      std::vector<std::vector<const ParseTreeNode*>> *container_child_fields) const override;
+
+ private:
+  std::unique_ptr<ParseExpression> operand_;
+  std::unique_ptr<ParseDataType> target_type_;
+
+  DISALLOW_COPY_AND_ASSIGN(ParseTypeCast);
 };
 
 

@@ -17,31 +17,8 @@
  * under the License.
  **/
 
-#include "types/MetaTypeLite.hpp"
+#ifndef QUICKSTEP_PARSER_PARSE_DATA_TYPE_DECL_HPP_
+#define QUICKSTEP_PARSER_PARSE_DATA_TYPE_DECL_HPP_
 
-#include <cstddef>
-#include <string>
 
-#include "types/TypeID.hpp"
-#include "types/TypedValue.hpp"
-
-#include "glog/logging.h"
-
-namespace quickstep {
-
-TypedValue MetaType::marshallValue(const UntypedLiteral *value) const {
-  const Type *type = castValueToLiteral(value);
-  serialization::Type proto = type->getProto();
-  const std::size_t data_size = proto.ByteSize();
-  void *data = std::malloc(data_size);
-  proto.SerializeToArray(data, data_size);
-  return TypedValue::CreateWithOwnedData(kMetaType, data, data_size);
-}
-
-std::string MetaType::printValueToString(const UntypedLiteral *value) const {
-  DCHECK(value != nullptr);
-
-  return castValueToLiteral(value)->getName();
-}
-
-}  // namespace quickstep
+#endif  // QUICKSTEP_PARSER_PARSE_DATA_TYPE_DECL_HPP_

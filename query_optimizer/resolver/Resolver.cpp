@@ -639,13 +639,14 @@ L::LogicalPtr Resolver::resolveCreateTable(
           << "Column " << attribute_definition.name()->value()
           << " is specified more than once";
     }
-    attributes.emplace_back(
-        E::AttributeReference::Create(context_->nextExprId(),
-                                      attribute_definition.name()->value(),
-                                      attribute_definition.name()->value(),
-                                      relation_name,
-                                      attribute_definition.data_type().getType(),
-                                      E::AttributeReferenceScope::kLocal));
+    LOG(FATAL) << "TODO(refactor-type): To implement";
+//    attributes.emplace_back(
+//        E::AttributeReference::Create(context_->nextExprId(),
+//                                      attribute_definition.name()->value(),
+//                                      attribute_definition.name()->value(),
+//                                      relation_name,
+//                                      attribute_definition.data_type().getType(),
+//                                      E::AttributeReferenceScope::kLocal));
     attribute_name_set.insert(lower_attribute_name);
   }
 

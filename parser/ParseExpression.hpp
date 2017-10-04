@@ -45,6 +45,7 @@ class ParseExpression : public ParseTreeNode {
     kSearchedCaseExpression,
     kSimpleCaseExpression,
     kSubqueryExpression,
+    kTypeCast,
   };
 
   /**
