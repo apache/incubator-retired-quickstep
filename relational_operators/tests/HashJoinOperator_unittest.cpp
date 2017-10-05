@@ -485,7 +485,7 @@ TEST_P(HashJoinOperatorTest, LongKeyHashJoinTest) {
   InsertDestination *insert_destination = query_context_->getInsertDestination(prober->getInsertDestinationID());
   DCHECK(insert_destination);
 
-  const std::vector<block_id> &result_blocks = insert_destination->getTouchedBlocks();
+  const std::vector<block_id> result_blocks = insert_destination->getTouchedBlocks();
   for (std::size_t bid = 0; bid < result_blocks.size(); ++bid) {
     BlockReference result_block = storage_manager_->getBlock(result_blocks[bid],
                                                              insert_destination->getRelation());
@@ -640,7 +640,7 @@ TEST_P(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest) {
   InsertDestination *insert_destination = query_context_->getInsertDestination(prober->getInsertDestinationID());
   DCHECK(insert_destination);
 
-  const std::vector<block_id> &result_blocks = insert_destination->getTouchedBlocks();
+  const std::vector<block_id> result_blocks = insert_destination->getTouchedBlocks();
   for (std::size_t bid = 0; bid < result_blocks.size(); ++bid) {
     BlockReference result_block = storage_manager_->getBlock(result_blocks[bid],
                                                              insert_destination->getRelation());
@@ -795,7 +795,7 @@ TEST_P(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest) {
   InsertDestination *insert_destination = query_context_->getInsertDestination(prober->getInsertDestinationID());
   DCHECK(insert_destination);
 
-  const std::vector<block_id> &result_blocks = insert_destination->getTouchedBlocks();
+  const std::vector<block_id> result_blocks = insert_destination->getTouchedBlocks();
   for (std::size_t bid = 0; bid < result_blocks.size(); ++bid) {
     BlockReference result_block = storage_manager_->getBlock(result_blocks[bid],
                                                              insert_destination->getRelation());
@@ -944,7 +944,7 @@ TEST_P(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest) {
   InsertDestination *insert_destination = query_context_->getInsertDestination(prober->getInsertDestinationID());
   DCHECK(insert_destination);
 
-  const std::vector<block_id> &result_blocks = insert_destination->getTouchedBlocks();
+  const std::vector<block_id> result_blocks = insert_destination->getTouchedBlocks();
   for (std::size_t bid = 0; bid < result_blocks.size(); ++bid) {
     BlockReference result_block = storage_manager_->getBlock(result_blocks[bid],
                                                              insert_destination->getRelation());
@@ -1123,7 +1123,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinTest) {
   InsertDestination *insert_destination = query_context_->getInsertDestination(prober->getInsertDestinationID());
   DCHECK(insert_destination);
 
-  const std::vector<block_id> &result_blocks = insert_destination->getTouchedBlocks();
+  const std::vector<block_id> result_blocks = insert_destination->getTouchedBlocks();
   for (std::size_t bid = 0; bid < result_blocks.size(); ++bid) {
     BlockReference result_block = storage_manager_->getBlock(result_blocks[bid],
                                                              insert_destination->getRelation());
@@ -1313,7 +1313,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
   InsertDestination *insert_destination = query_context_->getInsertDestination(prober->getInsertDestinationID());
   DCHECK(insert_destination);
 
-  const std::vector<block_id> &result_blocks = insert_destination->getTouchedBlocks();
+  const std::vector<block_id> result_blocks = insert_destination->getTouchedBlocks();
   for (std::size_t bid = 0; bid < result_blocks.size(); ++bid) {
     BlockReference result_block = storage_manager_->getBlock(result_blocks[bid],
                                                              insert_destination->getRelation());
@@ -1370,7 +1370,7 @@ TEST_P(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest) {
 }
 
 // Hash join tests with single attribute partitions.
-TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedLongKeyHashJoinTest) {
+TEST_P(HashJoinOperatorTest, SingleAttributePartitionedLongKeyHashJoinTest) {
   insertTuplesWithSingleAttributePartitions();
 
   // Setup the hash table proto in the query context proto.
@@ -1480,7 +1480,7 @@ TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedLongKeyHashJoinTest) {
   InsertDestination *insert_destination = query_context_->getInsertDestination(prober->getInsertDestinationID());
   DCHECK(insert_destination);
 
-  const std::vector<block_id> &result_blocks = insert_destination->getTouchedBlocks();
+  const std::vector<block_id> result_blocks = insert_destination->getTouchedBlocks();
   for (std::size_t bid = 0; bid < result_blocks.size(); ++bid) {
     BlockReference result_block = storage_manager_->getBlock(result_blocks[bid],
                                                              insert_destination->getRelation());
@@ -1514,7 +1514,7 @@ TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedLongKeyHashJoinTest) {
   db_->dropRelationById(output_relation_id);
 }
 
-TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedCompositeKeyHashJoinTest) {
+TEST_P(HashJoinOperatorTest, SingleAttributePartitionedCompositeKeyHashJoinTest) {
   insertTuplesWithSingleAttributePartitions();
 
   // Setup the hash table proto in the query context proto.
@@ -1629,7 +1629,7 @@ TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedCompositeKeyHashJoinTest)
   InsertDestination *insert_destination = query_context_->getInsertDestination(prober->getInsertDestinationID());
   DCHECK(insert_destination);
 
-  const std::vector<block_id> &result_blocks = insert_destination->getTouchedBlocks();
+  const std::vector<block_id> result_blocks = insert_destination->getTouchedBlocks();
   for (std::size_t bid = 0; bid < result_blocks.size(); ++bid) {
     BlockReference result_block = storage_manager_->getBlock(result_blocks[bid],
                                                              insert_destination->getRelation());
@@ -1685,7 +1685,7 @@ TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedCompositeKeyHashJoinTest)
   db_->dropRelationById(output_relation_id);
 }
 
-TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedCompositeKeyHashJoinWithResidualPredicateTest) {
+TEST_P(HashJoinOperatorTest, SingleAttributePartitionedCompositeKeyHashJoinWithResidualPredicateTest) {
   insertTuplesWithSingleAttributePartitions();
 
   // Setup the hash table proto in the query context proto.
@@ -1810,7 +1810,7 @@ TEST_P(HashJoinOperatorTest, SinlgeAttributePartitionedCompositeKeyHashJoinWithR
   InsertDestination *insert_destination = query_context_->getInsertDestination(prober->getInsertDestinationID());
   DCHECK(insert_destination);
 
-  const std::vector<block_id> &result_blocks = insert_destination->getTouchedBlocks();
+  const std::vector<block_id> result_blocks = insert_destination->getTouchedBlocks();
   for (std::size_t bid = 0; bid < result_blocks.size(); ++bid) {
     BlockReference result_block = storage_manager_->getBlock(result_blocks[bid],
                                                              insert_destination->getRelation());

@@ -58,6 +58,8 @@ class StorageManager;
 
 namespace merge_run_operator {
 class RunCreator;
+class RunMergerTest;
+class RunTest;
 }  // namespace merge_run_operator
 
 namespace serialization { class InsertDestination; }
@@ -173,21 +175,6 @@ class InsertDestination : public InsertDestinationInterface {
   }
 
   /**
-   * @brief Get the set of blocks that were used by clients of this
-   *        InsertDestination for insertion.
-   * @warning Should only be called AFTER this InsertDestination will no longer
-   *          be used, and all blocks have been returned to it via
-   *          returnBlock().
-   *
-   * @return A reference to a vector of block_ids of blocks that were used for
-   *         insertion.
-   **/
-  const std::vector<block_id>& getTouchedBlocks() {
-    SpinMutexLock lock(mutex_);
-    return getTouchedBlocksInternal();
-  }
-
-  /**
    * @brief Get the set of blocks that were partially filled by clients of this
    *        InsertDestination for insertion.
    * @warning Should only be called AFTER this InsertDestination will no longer
@@ -232,8 +219,6 @@ class InsertDestination : public InsertDestinationInterface {
   // TODO(chasseur): Once StorageManager is threadsafe, it will be safe to use
   // this without holding the mutex.
   virtual MutableBlockReference createNewBlock() = 0;
-
-  virtual const std::vector<block_id>& getTouchedBlocksInternal() = 0;
 
   /**
    * @brief When a StorageBlock becomes full, pipeline the block id to the
@@ -311,11 +296,43 @@ class InsertDestination : public InsertDestinationInterface {
   SpinMutex mutex_;
 
  private:
+  /**
+   * @brief Get the set of blocks that were used by clients of this
+   *        InsertDestination for insertion.
+   * @warning Should only be called AFTER this InsertDestination will no longer
+   *          be used, and all blocks have been returned to it via
+   *          returnBlock().
+   *
+   * @return A vector of block_ids of blocks that were used for insertion.
+   **/
+  std::vector<block_id> getTouchedBlocks() {
+    SpinMutexLock lock(mutex_);
+    return getTouchedBlocksInternal();
+  }
+
+  virtual std::vector<block_id> getTouchedBlocksInternal() = 0;
+
   // TODO(shoban): Workaround to support sort. Sort needs finegrained control of
   // blocks being used to insert, since inserting in an arbitrary block could
   // lead to unsorted results. InsertDestination API changed while sort was
   // being implemented.
   friend class merge_run_operator::RunCreator;
+
+  // NOTE(zuyu): Access getTouchedBlocks.
+  friend class AggregationOperatorTest;
+  friend class merge_run_operator::RunTest;
+  friend class merge_run_operator::RunMergerTest;
+
+  FRIEND_TEST(HashJoinOperatorTest, LongKeyHashJoinTest);
+  FRIEND_TEST(HashJoinOperatorTest, IntDuplicateKeyHashJoinTest);
+  FRIEND_TEST(HashJoinOperatorTest, CharKeyCartesianProductHashJoinTest);
+  FRIEND_TEST(HashJoinOperatorTest, VarCharDuplicateKeyHashJoinTest);
+  FRIEND_TEST(HashJoinOperatorTest, CompositeKeyHashJoinTest);
+  FRIEND_TEST(HashJoinOperatorTest, CompositeKeyHashJoinWithResidualPredicateTest);
+  FRIEND_TEST(HashJoinOperatorTest, SingleAttributePartitionedLongKeyHashJoinTest);
+  FRIEND_TEST(HashJoinOperatorTest, SingleAttributePartitionedCompositeKeyHashJoinTest);
+  FRIEND_TEST(HashJoinOperatorTest,
+              SingleAttributePartitionedCompositeKeyHashJoinWithResidualPredicateTest);
 
   DISALLOW_COPY_AND_ASSIGN(InsertDestination);
 };
@@ -358,15 +375,15 @@ class AlwaysCreateBlockInsertDestination : public InsertDestination {
 
   MutableBlockReference createNewBlock() override;
 
-  const std::vector<block_id>& getTouchedBlocksInternal() override {
-    return returned_block_ids_;
-  }
-
   void getPartiallyFilledBlocks(std::vector<MutableBlockReference> *partial_blocks,
                                 std::vector<partition_id> *part_ids) override {
   }
 
  private:
+  std::vector<block_id> getTouchedBlocksInternal() override {
+    return returned_block_ids_;
+  }
+
   std::vector<block_id> returned_block_ids_;
 
   DISALLOW_COPY_AND_ASSIGN(AlwaysCreateBlockInsertDestination);
@@ -454,11 +471,11 @@ class BlockPoolInsertDestination : public InsertDestination {
   void getPartiallyFilledBlocks(std::vector<MutableBlockReference> *partial_blocks,
                                 std::vector<partition_id> *part_ids) override;
 
-  const std::vector<block_id>& getTouchedBlocksInternal() override;
-
   MutableBlockReference createNewBlock() override;
 
  private:
+  std::vector<block_id> getTouchedBlocksInternal() override;
+
   FRIEND_TEST(QueryManagerTest, TwoNodesDAGPartiallyFilledBlocksTest);
 
   // A vector of references to blocks which are loaded in memory.
@@ -585,10 +602,9 @@ class PartitionAwareInsertDestination : public InsertDestination {
   MutableBlockReference createNewBlock() override;
   MutableBlockReference createNewBlockInPartition(const partition_id part_id);
 
-  const std::vector<block_id>& getTouchedBlocksInternal() override;
-  const std::vector<block_id>& getTouchedBlocksInternalInPartition(partition_id part_id);
-
  private:
+  std::vector<block_id> getTouchedBlocksInternal() override;
+
   /**
    * @brief Get the set of blocks that were partially filled by clients of this
    *        InsertDestination for insertion.
@@ -652,8 +668,6 @@ class PartitionAwareInsertDestination : public InsertDestination {
   std::vector< std::vector<block_id> > available_block_ids_;
   // A vector of done block ids for each partition.
   std::vector< std::vector<block_id> > done_block_ids_;
-  // Done block ids across all partitions.
-  std::vector<block_id> all_partitions_done_block_ids_;
   // Mutex for locking each partition separately.
   SpinMutex *mutexes_for_partition_;
 

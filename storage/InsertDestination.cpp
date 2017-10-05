@@ -475,7 +475,7 @@ void BlockPoolInsertDestination::returnBlock(MutableBlockReference &&block, cons
   sendBlockFilledMessage(block->getID());
 }
 
-const std::vector<block_id>& BlockPoolInsertDestination::getTouchedBlocksInternal() {
+std::vector<block_id> BlockPoolInsertDestination::getTouchedBlocksInternal() {
   for (std::vector<MutableBlockReference>::size_type i = 0; i < available_block_refs_.size(); ++i) {
     done_block_ids_.push_back(available_block_refs_[i]->getID());
   }
@@ -546,27 +546,22 @@ MutableBlockReference PartitionAwareInsertDestination::createNewBlockInPartition
   return storage_manager_->getBlockMutable(new_id, relation_);
 }
 
-const std::vector<block_id>& PartitionAwareInsertDestination::getTouchedBlocksInternal() {
+std::vector<block_id> PartitionAwareInsertDestination::getTouchedBlocksInternal() {
+  std::vector<block_id> all_partitions_done_block_ids;
   // Iterate through each partition and get all the touched blocks.
   for (std::size_t part_id = 0;
        part_id < partition_scheme_header_->getNumPartitions();
        ++part_id) {
-    done_block_ids_[part_id] = getTouchedBlocksInternalInPartition(part_id);
-    all_partitions_done_block_ids_.insert(
-        all_partitions_done_block_ids_.end(), done_block_ids_[part_id].begin(), done_block_ids_[part_id].end());
+    for (std::size_t i = 0; i < available_block_refs_[part_id].size(); ++i) {
+      done_block_ids_[part_id].push_back(available_block_refs_[part_id][i]->getID());
+    }
+    available_block_refs_[part_id].clear();
+
+    all_partitions_done_block_ids.insert(
+        all_partitions_done_block_ids.end(), done_block_ids_[part_id].begin(), done_block_ids_[part_id].end());
     done_block_ids_[part_id].clear();
   }
-  return all_partitions_done_block_ids_;
-}
-
-const std::vector<block_id>& PartitionAwareInsertDestination::getTouchedBlocksInternalInPartition(
-    partition_id part_id) {
-  for (std::vector<MutableBlockReference>::size_type i = 0; i < available_block_refs_[part_id].size(); ++i) {
-    done_block_ids_[part_id].push_back(available_block_refs_[part_id][i]->getID());
-  }
-  available_block_refs_[part_id].clear();
-
-  return done_block_ids_[part_id];
+  return all_partitions_done_block_ids;
 }
 
 PartitionSchemeHeader::PartitionAttributeIds PartitionAwareInsertDestination::getPartitioningAttributes() const {
