@@ -175,20 +175,148 @@ class TypeSynthesizePolicy<
 
 
 ////////////////////////////////////////////////////////////////////////////////
-///////////////////////  ParInlinePod & ParOutOfLinePod  ///////////////////////
+/////////////////////////////////  ParInlinePod  ///////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////
 template <TypeID type_id>
 class TypeSynthesizePolicy<
     type_id,
-    std::enable_if_t<TypeIDTrait<type_id>::kMemoryLayout == kParInlinePod ||
-                     TypeIDTrait<type_id>::kMemoryLayout == kParOutOfLinePod>> : public Type {
+    std::enable_if_t<TypeIDTrait<type_id>::kMemoryLayout == kParInlinePod>> : public Type {
+ private:
+  using Trait = TypeIDTrait<type_id>;
+  using TypeClass = typename Trait::TypeClass;
+  using cpptype = typename Trait::cpptype;
+
+  static_assert(std::is_same<cpptype, const void*>::value,
+                "Unexpected cpptype for ParInlinePod.");
+
+ public:
+  static const TypeClass& InstanceNonNullable(const std::size_t length) {
+    return InstanceInternal<false>(length);
+  }
+
+  static const TypeClass& InstanceNullable(const std::size_t length) {
+    return InstanceInternal<true>(length);
+  }
+
+  static const TypeClass& Instance(const bool nullable, const std::size_t length) {
+    if (nullable) {
+      return InstanceNullable(length);
+    } else {
+      return InstanceNonNullable(length);
+    }
+  }
+
+  std::size_t length() const {
+    return length_;
+  }
+
+  std::size_t getHash() const override {
+    return CombineHashes(static_cast<std::size_t>(type_id), length_);
+  }
+
+  std::size_t hashValue(const UntypedLiteral *value) const override {
+    // TODO(refactor-type): Implementation.
+    return TypedValue(type_id_,
+                      *static_cast<const cpptype*>(value),
+                      maximum_byte_length_).getHash();
+  }
+
+  bool checkValuesEqual(const UntypedLiteral *lhs,
+                        const UntypedLiteral *rhs,
+                        const Type &rhs_type) const override {
+    if (!equals(rhs_type)) {
+      return false;
+    }
+    return !std::memcmp(*static_cast<const cpptype*>(lhs),
+                        *static_cast<const cpptype*>(rhs),
+                        maximum_byte_length_);
+  }
+
+  UntypedLiteral* cloneValue(const UntypedLiteral *value) const override {
+    DCHECK(value != nullptr);
+    void *value_copy = std::malloc(maximum_byte_length_);
+    std::memcpy(value_copy,
+                *static_cast<const cpptype*>(value),
+                maximum_byte_length_);
+    return new cpptype(value_copy);
+  }
+
+  void destroyValue(UntypedLiteral *value) const override {
+    DCHECK(value != nullptr);
+    cpptype *value_ptr = static_cast<cpptype*>(value);
+    std::free(const_cast<void*>(*value_ptr));
+    delete value_ptr;
+  }
+
+  TypedValue marshallValue(const UntypedLiteral *value) const override {
+    return TypedValue(type_id_, value, maximum_byte_length_).ensureNotReference();
+  }
+
+  UntypedLiteral* unmarshallValue(const void *data,
+                                  const std::size_t length) const override {
+    DCHECK_EQ(maximum_byte_length_, length);
+    void *value = std::malloc(maximum_byte_length_);
+    std::memcpy(value, data, length);
+    return new cpptype(value);
+  }
+
+ protected:
+  TypeSynthesizePolicy(const bool nullable,
+                       const std::size_t minimum_byte_length,
+                       const std::size_t maximum_byte_length,
+                       const std::size_t length)
+      : Type(Trait::kStaticSuperTypeID, type_id, nullable,
+             minimum_byte_length, maximum_byte_length),
+        length_(length) {}
+
+  const std::size_t length_;
+
+  inline const Type& getInstance(const bool nullable) const {
+    return nullable ? InstanceNullable(length_) : InstanceNonNullable(length_);
+  }
+
+  inline void mergeIntoProto(serialization::Type *proto) const {
+    proto->set_length(length_);
+  }
+
+  inline UntypedLiteral* unmarshallTypedValueInl(const TypedValue &value) const {
+    return unmarshallValue(value.getDataPtr(), value.getDataSize());
+  }
+
+  template <typename Functor>
+  inline auto invokeOnUnmarshalledTypedValue(const TypedValue &value,
+                                             const Functor &functor) const {
+    return functor(&value);
+  }
+
+ private:
+  template <bool nullable>
+  inline static const TypeClass& InstanceInternal(const std::size_t length) {
+    static std::unordered_map<size_t, std::unique_ptr<TypeClass>> instance_map;
+    auto imit = instance_map.find(length);
+    if (imit == instance_map.end()) {
+      std::unique_ptr<TypeClass> instance(new TypeClass(nullable, length));
+      imit = instance_map.emplace(length, std::move(instance)).first;
+    }
+    return *(imit->second);
+  }
+};
+
+
+////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////  ParOutOfLinePod  /////////////////////////////
+////////////////////////////////////////////////////////////////////////////////
+template <TypeID type_id>
+class TypeSynthesizePolicy<
+    type_id,
+    std::enable_if_t<TypeIDTrait<type_id>::kMemoryLayout == kParOutOfLinePod>> : public Type {
  private:
   using Trait = TypeIDTrait<type_id>;
   using TypeClass = typename Trait::TypeClass;
   using cpptype = typename Trait::cpptype;
 
   static_assert(std::is_same<cpptype, TypedValue>::value,
-                "Unexpected cpptype for paramerized PODs.");
+                "Unexpected cpptype for ParOutOfLinePod.");
 
  public:
   static const TypeClass& InstanceNonNullable(const std::size_t length) {

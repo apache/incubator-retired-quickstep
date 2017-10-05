@@ -71,6 +71,7 @@
 #include "query_optimizer/expressions/Alias.hpp"
 #include "query_optimizer/expressions/AttributeReference.hpp"
 #include "query_optimizer/expressions/BinaryExpression.hpp"
+#include "query_optimizer/expressions/Cast.hpp"
 #include "query_optimizer/expressions/ComparisonExpression.hpp"
 #include "query_optimizer/expressions/Exists.hpp"
 #include "query_optimizer/expressions/ExprId.hpp"
@@ -2553,6 +2554,15 @@ E::ScalarPtr Resolver::resolveExpression(
           &type_hints,
           expression_resolution_info,
           true /* has_single_column */);
+    }
+    case ParseExpression::kTypeCast: {
+      const ParseTypeCast &parse_type_cast =
+          static_cast<const ParseTypeCast&>(parse_expression);
+      return E::Cast::Create(
+          resolveExpression(parse_type_cast.operand(),
+                            nullptr /* type_hint */,
+                            expression_resolution_info),
+          resolveDataType(parse_type_cast.target_type()));
     }
     default:
       LOG(FATAL) << "Unknown scalar type: "

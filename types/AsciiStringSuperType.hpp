@@ -52,7 +52,7 @@ class AsciiStringSuperType : public TypeSynthesizer<type_id> {
    * @return The maximum length of a string of this type.
    **/
   inline std::size_t getStringLength() const {
-    return length_;
+    return TypeSynthesizer<type_id>::length_;
   }
 
  protected:
@@ -61,11 +61,8 @@ class AsciiStringSuperType : public TypeSynthesizer<type_id> {
                        const std::size_t maximum_byte_length,
                        const std::size_t string_length)
       : TypeSynthesizer<type_id>(
-            nullable, minimum_byte_length, maximum_byte_length, string_length),
-        length_(string_length) {
+            nullable, minimum_byte_length, maximum_byte_length, string_length) {
   }
-
-  const std::size_t length_;
 
  private:
   DISALLOW_COPY_AND_ASSIGN(AsciiStringSuperType);

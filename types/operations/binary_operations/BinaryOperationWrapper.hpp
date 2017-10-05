@@ -35,8 +35,8 @@
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVector.hpp"
 #include "types/operations/OperationSignature.hpp"
-#include "types/operations/OperationUtil.hpp"
 #include "types/operations/binary_operations/BinaryOperation.hpp"
+#include "types/operations/utility/OperationSynthesizeUtil.hpp"
 #include "utility/Macros.hpp"
 #include "utility/meta/Common.hpp"
 
@@ -237,9 +237,9 @@ class UncheckedBinaryOperatorWrapperCodegen : public UncheckedBinaryOperator {
   using ResultType = typename FunctorT::ResultType;
 
   using FuncSpec = typename FunctorSpecializer<FunctorT, SpecArgs...>::type;
-  using LeftGen = Codegen<FuncSpec, LeftType>;
-  using RightGen = Codegen<FuncSpec, RightType>;
-  using ResultGen = Codegen<FuncSpec, ResultType>;
+  using LeftGen = OperationCodegen<FuncSpec, LeftType>;
+  using RightGen = OperationCodegen<FuncSpec, RightType>;
+  using ResultGen = OperationCodegen<FuncSpec, ResultType>;
 
   template <bool left_nullable, bool right_nullable>
   struct Implementation;

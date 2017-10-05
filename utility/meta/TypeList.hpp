@@ -26,15 +26,19 @@
 namespace quickstep {
 namespace meta {
 
-/** \addtogroup Utility
+/** \addtogroup Meta
  *  @{
  */
 
 template <typename ...Ts>
 class TypeList;
 
+namespace internal {
+
+using EmptyList = TypeList<>;
+
 template <typename ...Ts>
-class TypeListCommon {
+class TypeListBase {
  private:
   template <typename ...Tail> struct AppendHelper {
     using type = TypeList<Ts..., Tail...>;
@@ -44,13 +48,20 @@ class TypeListCommon {
   static constexpr std::size_t length = sizeof...(Ts);
 
   using type = TypeList<Ts...>;
+  using self = type;
 
   template <template <typename ...> class Host>
   using bind_to = Host<Ts...>;
 
   template <std::size_t ...pos>
-  using at = typename internal::ElementAtImpl<
-      TypeList<Ts...>, TypeList<std::integral_constant<std::size_t, pos>...>>::type;
+  using at = typename ElementAtImpl<
+      self, TypeList<std::integral_constant<std::size_t, pos>...>>::type;
+
+  template <std::size_t n>
+  using take = typename TakeImpl<self, EmptyList, n>::type;
+
+  template <std::size_t n>
+  using skip = typename SkipImpl<self, n>::type;
 
   template <typename T>
   using push_front = TypeList<T, Ts...>;
@@ -62,59 +73,59 @@ class TypeListCommon {
   using contains = EqualsAny<T, Ts...>;
 
   template <typename ...DumbT>
-  using unique = typename internal::UniqueImpl<TypeList<>, TypeList<Ts...>, DumbT...>::type;
+  using unique = typename UniqueImpl<EmptyList, self, DumbT...>::type;
 
   template <typename TL>
   using append = typename TL::template bind_to<AppendHelper>::type;
 
   template <typename TL>
-  using cartesian_product = typename internal::CartesianProductImpl<TypeList<Ts...>, TL>::type;
+  using cartesian_product = typename CartesianProductImpl<self, TL>::type;
 
   template <typename Subtrahend>
-  using subtract = typename internal::SubtractImpl<TypeList<>, TypeList<Ts...>, Subtrahend>::type;
+  using subtract = typename SubtractImpl<EmptyList, self, Subtrahend>::type;
 
   template <template <typename ...> class Op>
   using map = TypeList<typename Op<Ts>::type...>;
 
   template <template <typename ...> class Op>
-  using flatmap = typename internal::FlatmapImpl<TypeList<>, TypeList<Ts...>, Op>::type;
+  using flatmap = typename FlatmapImpl<EmptyList, self, Op>::type;
 
   template <template <typename ...> class Op>
-  using filter = typename internal::FilterImpl<TypeList<>, TypeList<Ts...>, Op>::type;
+  using filter = typename FilterImpl<EmptyList, self, Op>::type;
 
   template <template <typename ...> class Op>
-  using filtermap = typename internal::FiltermapImpl<TypeList<>, TypeList<Ts...>, Op>::type;
+  using filtermap = typename FiltermapImpl<EmptyList, self, Op>::type;
 
   template <typename ...DumbT>
-  using flatten_once = typename internal::FlattenOnceImpl<TypeList<>, TypeList<Ts...>, DumbT...>::type;
+  using flatten = typename FlattenImpl<EmptyList, self, DumbT...>::type;
+
+  template <typename ...DumbT>
+  using flatten_once = typename FlattenOnceImpl<EmptyList, self, DumbT...>::type;
+
+  template <template <typename ...> class Op, typename InitT>
+  using foldl = typename FoldlImpl<InitT, self, Op>::type;
 
   template <typename TL>
-  using zip = typename internal::ZipImpl<TypeList<>, TypeList<Ts...>, TL>::type;
+  using zip = typename ZipImpl<EmptyList, self, TL>::type;
 
   template <typename TL, template <typename ...> class Op>
-  using zip_with = typename internal::ZipWithImpl<TypeList<>, TypeList<Ts...>, TL, Op>::type;
+  using zip_with = typename ZipWithImpl<EmptyList, self, TL, Op>::type;
 
   template <typename T>
-  using as_sequence = typename internal::AsSequenceImpl<T, Ts...>::type;
+  using as_sequence = typename AsSequenceImpl<T, Ts...>::type;
 };
 
-template <typename ...Ts>
-class TypeList : public TypeListCommon<Ts...> {
- private:
-  template <typename Head, typename ...Tail>
-  struct HeadTailHelper {
-    using head = Head;
-    using tail = TypeList<Tail...>;
-  };
+}  // namespace internal
 
+template <typename T, typename ...Ts>
+class TypeList<T, Ts...> : public internal::TypeListBase<T, Ts...> {
  public:
-  using head = typename HeadTailHelper<Ts...>::head;
-  using tail = typename HeadTailHelper<Ts...>::tail;
+  using head = T;
+  using tail = TypeList<Ts...>;
 };
 
 template <>
-class TypeList<> : public TypeListCommon<> {
-};
+class TypeList<> : public internal::TypeListBase<> {};
 
 /** @} */
 

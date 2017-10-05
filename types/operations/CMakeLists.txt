@@ -18,6 +18,7 @@
 add_subdirectory(binary_operations)
 add_subdirectory(comparisons)
 add_subdirectory(unary_operations)
+add_subdirectory(utility)
 
 QS_PROTOBUF_GENERATE_CPP(types_operations_Operation_proto_srcs
                          types_operations_Operation_proto_hdrs
@@ -26,7 +27,6 @@ QS_PROTOBUF_GENERATE_CPP(types_operations_Operation_proto_srcs
 # Declare micro-libs:
 add_library(quickstep_types_operations_Operation Operation.cpp Operation.hpp)
 add_library(quickstep_types_operations_OperationFactory OperationFactory.cpp OperationFactory.hpp)
-add_library(quickstep_types_operations_OperationUtil ../../empty_src.cpp OperationUtil.hpp)
 add_library(quickstep_types_operations_OperationSignature OperationSignature.cpp OperationSignature.hpp)
 add_library(quickstep_types_operations_Operation_proto ${types_operations_Operation_proto_srcs})
 
@@ -42,14 +42,14 @@ target_link_libraries(quickstep_types_operations_OperationFactory
                       quickstep_types_TypedValue
                       quickstep_types_operations_Operation
                       quickstep_types_operations_OperationSignature
-                      quickstep_types_operations_binaryoperations_ArithmeticBinaryOperations
-                      quickstep_types_operations_binaryoperations_AsciiStringBinaryOperations
+                      quickstep_types_operations_binaryoperations_ArithmeticBinaryFunctors
+                      quickstep_types_operations_binaryoperations_AsciiStringBinaryFunctors
                       quickstep_types_operations_binaryoperations_BinaryOperation
                       quickstep_types_operations_binaryoperations_BinaryOperationWrapper
-                      quickstep_types_operations_binaryoperations_CMathBinaryOperations
-                      quickstep_types_operations_unaryoperations_ArithmeticUnaryOperations
-                      quickstep_types_operations_unaryoperations_AsciiStringUnaryOperations
-                      quickstep_types_operations_unaryoperations_CMathUnaryOperations
+                      quickstep_types_operations_binaryoperations_CMathBinaryFunctors
+                      quickstep_types_operations_unaryoperations_ArithmeticUnaryFunctors
+                      quickstep_types_operations_unaryoperations_AsciiStringUnaryFunctors
+                      quickstep_types_operations_unaryoperations_CMathUnaryFunctors
                       quickstep_types_operations_unaryoperations_CastOperation
                       quickstep_types_operations_unaryoperations_DateExtractOperation
                       quickstep_types_operations_unaryoperations_SubstringOperation
@@ -58,11 +58,6 @@ target_link_libraries(quickstep_types_operations_OperationFactory
                       quickstep_utility_HashPair
                       quickstep_utility_Macros
                       quickstep_utility_StringUtil)
-target_link_libraries(quickstep_types_operations_OperationUtil
-                      quickstep_catalog_CatalogTypedefs
-                      quickstep_types_Type
-                      quickstep_types_TypedValue
-                      quickstep_types_containers_ColumnVector)
 target_link_libraries(quickstep_types_operations_OperationSignature
                       quickstep_types_TypeID
                       quickstep_types_Type_proto
@@ -79,9 +74,9 @@ add_library(quickstep_types_operations ../../empty_src.cpp)
 target_link_libraries(quickstep_types_operations
                       quickstep_types_operations_Operation
                       quickstep_types_operations_OperationFactory
-                      quickstep_types_operations_OperationUtil
                       quickstep_types_operations_OperationSignature
                       quickstep_types_operations_Operation_proto
                       quickstep_types_operations_binaryoperations
                       quickstep_types_operations_comparisons
-                      quickstep_types_operations_unaryoperations)
+                      quickstep_types_operations_unaryoperations
+                      quickstep_types_operations_utility)

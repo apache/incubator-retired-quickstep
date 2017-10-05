@@ -17,8 +17,8 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_TYPES_OPERATIONS_BINARY_OPERATIONS_CMATH_BINARY_OPERATIONS_HPP_
-#define QUICKSTEP_TYPES_OPERATIONS_BINARY_OPERATIONS_CMATH_BINARY_OPERATIONS_HPP_
+#ifndef QUICKSTEP_TYPES_OPERATIONS_BINARY_OPERATIONS_CMATH_BINARY_FUNCTORS_HPP_
+#define QUICKSTEP_TYPES_OPERATIONS_BINARY_OPERATIONS_CMATH_BINARY_FUNCTORS_HPP_
 
 #include <cmath>
 #include <string>
@@ -27,8 +27,8 @@
 #include "types/FloatType.hpp"
 #include "types/IntType.hpp"
 #include "types/LongType.hpp"
-#include "types/operations/OperationUtil.hpp"
 #include "types/operations/binary_operations/BinaryOperationWrapper.hpp"
+#include "types/operations/utility/OperationSynthesizeUtil.hpp"
 #include "utility/meta/Common.hpp"
 
 namespace quickstep {
@@ -75,4 +75,4 @@ using CMathBinaryFunctorPack = FunctorPack<
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_TYPES_OPERATIONS_UNARY_OPERATIONS_CMATH_UNARY_OPERATIONS_HPP_
+#endif  // QUICKSTEP_TYPES_OPERATIONS_BINARY_OPERATIONS_CMATH_BINARY_FUNCTORS_HPP_

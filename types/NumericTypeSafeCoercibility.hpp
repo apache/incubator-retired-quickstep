@@ -21,14 +21,9 @@
 #define QUICKSTEP_TYPES_NUMERIC_TYPE_SAFE_COERCIBILITY_HPP_
 
 #include "utility/meta/TMP.hpp"
+#include "types/TypeRegistrar.hpp"
 
 namespace quickstep {
-
-class BoolType;
-class DoubleType;
-class FloatType;
-class IntType;
-class LongType;
 
 /** \addtogroup Types
  *  @{
@@ -42,7 +37,8 @@ using NumericTypeSafeCoersionPartialOrder = meta::TypeList<
     IsSafelyCoercible<IntType, FloatType>,
     IsSafelyCoercible<IntType, LongType>,
     IsSafelyCoercible<FloatType, DoubleType>,
-    IsSafelyCoercible<LongType, DoubleType>>;
+    IsSafelyCoercible<LongType, DoubleType>
+>;
 
 using NumericTypeSafeCoersionClosure =
     meta::TransitiveClosure<NumericTypeSafeCoersionPartialOrder>;

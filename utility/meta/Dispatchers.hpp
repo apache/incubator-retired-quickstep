@@ -25,7 +25,7 @@
 namespace quickstep {
 namespace meta {
 
-/** \addtogroup Utility
+/** \addtogroup Meta
  *  @{
  */
 

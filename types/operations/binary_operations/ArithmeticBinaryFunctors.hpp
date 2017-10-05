@@ -17,8 +17,8 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_TYPES_OPERATIONS_BINARY_OPERATIONS_ARITHMETIC_BINARY_OPERATIONS_HPP_
-#define QUICKSTEP_TYPES_OPERATIONS_BINARY_OPERATIONS_ARITHMETIC_BINARY_OPERATIONS_HPP_
+#ifndef QUICKSTEP_TYPES_OPERATIONS_BINARY_OPERATIONS_ARITHMETIC_BINARY_FUNCTORS_HPP_
+#define QUICKSTEP_TYPES_OPERATIONS_BINARY_OPERATIONS_ARITHMETIC_BINARY_FUNCTORS_HPP_
 
 #include <string>
 #include <tuple>
@@ -48,8 +48,8 @@ namespace quickstep {
 template <typename LeftT, typename RightT, typename ResultT,
           template <typename LeftCppType,
                     typename RightCppType,
-                    typename EnableT = void> class FunctorOverloadsT,
-          typename FunctorNameT>
+                    typename EnableT = void> class FunctorOverload,
+          typename FunctorName>
 struct ArithmeticBinaryFunctor : public BinaryFunctor<LeftT, RightT, ResultT> {
   ArithmeticBinaryFunctor() : spec() {}
   inline typename ResultT::cpptype apply(const typename LeftT::cpptype &left,
@@ -57,10 +57,10 @@ struct ArithmeticBinaryFunctor : public BinaryFunctor<LeftT, RightT, ResultT> {
     return spec(left, right);
   }
   inline static std::string GetName() {
-    return FunctorNameT::ToString();
+    return FunctorName::ToString();
   }
-  const FunctorOverloadsT<typename LeftT::cpptype,
-                          typename RightT::cpptype> spec;
+  const FunctorOverload<typename LeftT::cpptype,
+                        typename RightT::cpptype> spec;
 };
 
 template <typename LeftT, typename RightT, typename ResultT>
@@ -179,4 +179,4 @@ using ArithmeticBinaryFunctorPack = FunctorPack<
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_TYPES_OPERATIONS_BINARY_OPERATIONS_ARITHMETIC_BINARY_OPERATIONS_HPP_
+#endif  // QUICKSTEP_TYPES_OPERATIONS_BINARY_OPERATIONS_ARITHMETIC_BINARY_FUNCTORS_HPP_

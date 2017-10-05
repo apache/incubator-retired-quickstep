@@ -19,6 +19,7 @@
 
 #include "types/CharType.hpp"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdio>
 #include <cstdlib>
@@ -33,12 +34,9 @@
 #include "types/port/strnlen.hpp"
 #include "utility/PtrMap.hpp"
 
-#include "glog/logging.h"
+#include "third_party/src/farmhash/farmhash.h"
 
-using std::pair;
-using std::size_t;
-using std::strcmp;
-using std::string;
+#include "glog/logging.h"
 
 namespace quickstep {
 
@@ -55,8 +53,8 @@ bool CharType::isSafelyCoercibleFrom(const Type &original_type) const {
   }
 }
 
-string CharType::getName() const {
-  string name("Char(");
+std::string CharType::getName() const {
+  std::string name("Char(");
   name.append(std::to_string(length_));
   name.push_back(')');
   if (nullable_) {
@@ -65,10 +63,58 @@ string CharType::getName() const {
   return name;
 }
 
+std::size_t CharType::hashValue(const UntypedLiteral *value) const {
+  const char *cstr = static_cast<const char*>(castValueToLiteral(value));
+  const std::size_t len = strnlen(cstr, length_);
+  return util::Hash(cstr, len);
+}
+
+bool CharType::checkValuesEqual(const UntypedLiteral *lhs,
+                                const UntypedLiteral *rhs,
+                                const Type &rhs_type) const {
+  return std::strncmp(static_cast<const char*>(castValueToLiteral(lhs)),
+                      static_cast<const char*>(castValueToLiteral(rhs)),
+                      length_);
+}
+
+UntypedLiteral* CharType::cloneValue(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
+
+  const char *cstr = static_cast<const char*>(castValueToLiteral(value));
+  const std::size_t len = strnlen(cstr, length_);
+  char *value_copy = static_cast<char*>(std::malloc(length_));
+  std::memcpy(value_copy, cstr, len);
+  if (len < length_) {
+    value_copy[len] = 0;
+  }
+  return new cpptype(value_copy);
+}
+
+
+TypedValue CharType::marshallValue(const UntypedLiteral *value) const {
+  DCHECK(value != nullptr);
+
+  const char *cstr = static_cast<const char*>(castValueToLiteral(value));
+  const std::size_t len = std::min(strnlen(cstr, length_) + 1, length_);
+  return TypedValue(kChar, cstr, len).ensureNotReference();
+}
+
+UntypedLiteral* CharType::unmarshallValue(const void *data,
+                                          const std::size_t length) const {
+  const char *cstr = static_cast<const char*>(data);
+  const std::size_t len = std::min(strnlen(cstr, length), length_);
+  char *value = static_cast<char*>(std::malloc(length_));
+  std::memcpy(value, cstr, len);
+  if (len < length_) {
+    value[len] = 0;
+  }
+  return new cpptype(value);
+}
+
 std::string CharType::printValueToString(const UntypedLiteral *value) const {
   DCHECK(value != nullptr);
 
-  const char *cstr = static_cast<const char*>(castValueToLiteral(value).getOutOfLineData());
+  const char *cstr = static_cast<const char*>(castValueToLiteral(value));
   return std::string(cstr, strnlen(cstr, length_));
 }
 
@@ -84,7 +130,7 @@ void CharType::printValueToFile(const UntypedLiteral *value,
                "%*.*s",
                padding,
                static_cast<int>(length_),
-               castValueToLiteral(value).getOutOfLineData());
+               castValueToLiteral(value));
 }
 
 bool CharType::parseTypedValueFromString(const std::string &value_string,

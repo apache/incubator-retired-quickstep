@@ -20,6 +20,7 @@ add_library(quickstep_queryoptimizer_expressions_AggregateFunction AggregateFunc
 add_library(quickstep_queryoptimizer_expressions_Alias Alias.cpp Alias.hpp)
 add_library(quickstep_queryoptimizer_expressions_AttributeReference AttributeReference.cpp AttributeReference.hpp)
 add_library(quickstep_queryoptimizer_expressions_BinaryExpression BinaryExpression.cpp BinaryExpression.hpp)
+add_library(quickstep_queryoptimizer_expressions_Cast Cast.cpp Cast.hpp)
 add_library(quickstep_queryoptimizer_expressions_CommonSubexpression
             CommonSubexpression.cpp
             CommonSubexpression.hpp)
@@ -100,6 +101,20 @@ target_link_libraries(quickstep_queryoptimizer_expressions_BinaryExpression
                       quickstep_types_GenericValue
                       quickstep_types_operations_OperationSignature
                       quickstep_types_operations_binaryoperations_BinaryOperation
+                      quickstep_utility_HashPair
+                      quickstep_utility_Macros)
+target_link_libraries(quickstep_queryoptimizer_expressions_Cast
+                      quickstep_expressions_scalar_Scalar
+                      quickstep_expressions_scalar_ScalarUnaryExpression
+                      quickstep_queryoptimizer_OptimizerTree
+                      quickstep_queryoptimizer_expressions_AttributeReference
+                      quickstep_queryoptimizer_expressions_ExprId
+                      quickstep_queryoptimizer_expressions_Expression
+                      quickstep_queryoptimizer_expressions_ExpressionType
+                      quickstep_queryoptimizer_expressions_PatternMatcher
+                      quickstep_queryoptimizer_expressions_Scalar
+                      quickstep_types_Type
+                      quickstep_types_operations_unaryoperations_CastOperation
                       quickstep_utility_HashPair
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_expressions_CommonSubexpression

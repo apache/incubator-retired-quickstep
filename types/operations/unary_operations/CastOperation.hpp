@@ -64,7 +64,7 @@ class CastOperation : public UnaryOperation {
   std::vector<OperationSignaturePtr> getSignatures() const override {
     const std::vector<TypeID> source_type_ids =
         { kBool, kInt, kLong, kFloat, kDouble, kChar, kVarChar };
-    const std::vector<TypeID> target_type_carrier = { kVarChar };
+    const std::vector<TypeID> target_type_carrier = { kMetaType };
 
     std::vector<OperationSignaturePtr> signatures;
     for (const TypeID source_type_id : source_type_ids) {
@@ -76,68 +76,20 @@ class CastOperation : public UnaryOperation {
 
   bool canApplyTo(const Type &type,
                   const std::vector<TypedValue> &static_arguments,
-                  std::string *message) const override {
-    DCHECK_EQ(1u, static_arguments.size());
-    if (getResultTypeInternal(type, static_arguments.front()) == nullptr) {
-      *message = "Invalid target type for CAST";
-      return false;
-    }
-    return true;
-  }
+                  std::string *message) const override;
 
   const Type* getResultType(
       const Type &type,
-      const std::vector<TypedValue> &static_arguments) const override {
-    DCHECK_EQ(1u, static_arguments.size());
-    const Type *target_type =
-        getResultTypeInternal(type, static_arguments.front());
-    DCHECK(target_type != nullptr);
-    return target_type;
-  }
+      const std::vector<TypedValue> &static_arguments) const override;
 
   UncheckedUnaryOperator* makeUncheckedUnaryOperator(
       const Type &type,
       const std::vector<TypedValue> &static_arguments) const override;
 
  private:
-  static const Type* getResultTypeInternal(const Type &type,
-                                           const TypedValue &type_arg) {
-    DCHECK(type_arg.getTypeID() == kVarChar);
-    const std::string type_str =
-        ToLower(std::string(static_cast<const char*>(type_arg.getOutOfLineData())));
-
-    const re2::StringPiece type_piece(type_str);
-    std::string type_name;
-    std::string length_str;
-    if (!re2::RE2::FullMatch(type_piece,
-                             kTypePattern,
-                             &type_name,
-                             static_cast<void *>(nullptr),
-                             &length_str)) {
-      return nullptr;
-    }
-
-    auto it = kNameToTypeIDMap.find(type_name);
-    if (it == kNameToTypeIDMap.end()) {
-      return nullptr;
-    }
-
-    if (length_str.empty()) {
-      return &TypeFactory::GetType(it->second);
-    } else {
-      TypedValue length_value;
-      if (IntType::InstanceNonNullable().parseTypedValueFromString(length_str, &length_value)) {
-        return &TypeFactory::GetType(
-            it->second,
-            static_cast<std::size_t>(length_value.getLiteral<int>()),
-            type.isNullable());
-      }
-    }
-    return nullptr;
-  }
-
-  static const re2::RE2 kTypePattern;
-  static const std::map<std::string, TypeID> kNameToTypeIDMap;
+  static const Type* ExtractTargetType(
+      const Type &type,
+      const std::vector<TypedValue> &static_arguments);
 
   DISALLOW_COPY_AND_ASSIGN(CastOperation);
 };

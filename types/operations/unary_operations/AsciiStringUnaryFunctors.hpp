@@ -17,8 +17,8 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_TYPES_OPERATIONS_UNARY_OPERATIONS_ASCII_STRING_UNARY_OPERATIONS_HPP_
-#define QUICKSTEP_TYPES_OPERATIONS_UNARY_OPERATIONS_ASCII_STRING_UNARY_OPERATIONS_HPP_
+#ifndef QUICKSTEP_TYPES_OPERATIONS_UNARY_OPERATIONS_ASCII_STRING_UNARY_FUNCTORS_HPP_
+#define QUICKSTEP_TYPES_OPERATIONS_UNARY_OPERATIONS_ASCII_STRING_UNARY_FUNCTORS_HPP_
 
 #include <cctype>
 #include <cstring>
@@ -30,8 +30,8 @@
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
 #include "types/VarCharType.hpp"
-#include "types/operations/OperationUtil.hpp"
 #include "types/operations/unary_operations/UnaryOperationWrapper.hpp"
+#include "types/operations/utility/OperationSynthesizeUtil.hpp"
 #include "types/port/strnlen.hpp"
 #include "utility/meta/Common.hpp"
 
@@ -119,4 +119,4 @@ using AsciiStringUnaryFunctorPack = FunctorPack<
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_TYPES_OPERATIONS_UNARY_OPERATIONS_ASCII_STRING_UNARY_OPERATIONS_HPP_
+#endif  // QUICKSTEP_TYPES_OPERATIONS_UNARY_OPERATIONS_ASCII_STRING_UNARY_FUNCTORS_HPP_

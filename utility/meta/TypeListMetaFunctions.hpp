@@ -25,12 +25,23 @@
 namespace quickstep {
 namespace meta {
 
-/** \addtogroup Utility
+/** \addtogroup Meta
  *  @{
  */
 
 template <typename ...Ts>
 class TypeList;
+
+
+template <typename T>
+struct IsTypeList {
+  constexpr static bool value = false;
+};
+template <typename ...Ts>
+struct IsTypeList<TypeList<Ts...>> {
+  constexpr static bool value = true;
+};
+
 
 namespace internal {
 
@@ -50,6 +61,34 @@ struct ElementAtImpl<TL, PosTL,
                         PosTL::head::value,
                         typename TL::template bind_to<std::tuple>>::type,
                     typename PosTL::tail> {};
+
+
+template <typename TL, typename Out, std::size_t rest, typename Enable = void>
+struct TakeImpl;
+
+template <typename TL, typename Out, std::size_t rest>
+struct TakeImpl<TL, Out, rest, std::enable_if_t<rest == 0>> {
+  using type = Out;
+};
+
+template <typename TL, typename Out, std::size_t rest>
+struct TakeImpl<TL, Out, rest, std::enable_if_t<rest != 0>>
+    : TakeImpl<typename TL::tail,
+               typename Out::template push_back<typename TL::head>,
+               rest - 1> {};
+
+
+template <typename TL, std::size_t rest, typename Enable = void>
+struct SkipImpl;
+
+template <typename TL, std::size_t rest>
+struct SkipImpl<TL, rest, std::enable_if_t<rest == 0>> {
+  using type = TL;
+};
+
+template <typename TL, std::size_t rest>
+struct SkipImpl<TL, rest, std::enable_if_t<rest != 0>>
+    : SkipImpl<typename TL::tail, rest - 1> {};
 
 
 template <typename Out, typename Rest, typename Enable = void>
@@ -174,6 +213,30 @@ struct FiltermapImpl<Out, Rest, Op,
 
 
 template <typename Out, typename Rest, typename Enable = void>
+struct FlattenImpl;
+
+template <typename Out, typename Rest>
+struct FlattenImpl<Out, Rest,
+                   std::enable_if_t<Rest::length == 0>> {
+  using type = Out;
+};
+
+template <typename Out, typename Rest>
+struct FlattenImpl<Out, Rest,
+                   std::enable_if_t<Rest::length != 0 &&
+                                    IsTypeList<typename Rest::head>::value>>
+    : FlattenImpl<typename Out::template append<typename Rest::head::template flatten<>>,
+                  typename Rest::tail> {};
+
+template <typename Out, typename Rest>
+struct FlattenImpl<Out, Rest,
+                   std::enable_if_t<Rest::length != 0 &&
+                                    !IsTypeList<typename Rest::head>::value>>
+    : FlattenImpl<typename Out::template push_back<typename Rest::head>,
+                  typename Rest::tail> {};
+
+
+template <typename Out, typename Rest, typename Enable = void>
 struct FlattenOnceImpl;
 
 template <typename Out, typename Rest>
@@ -188,6 +251,21 @@ struct FlattenOnceImpl<Out, Rest,
     : FlattenOnceImpl<typename Out::template append<typename Rest::head>,
                       typename Rest::tail> {};
 
+template <typename Out, typename Rest, template <typename ...> class Op,
+          typename Enable = void>
+struct FoldlImpl;
+
+template <typename Out, typename Rest, template <typename ...> class Op>
+struct FoldlImpl<Out, Rest, Op,
+                 std::enable_if_t<Rest::length == 0>> {
+  using type = Out;
+};
+
+template <typename Out, typename Rest, template <typename ...> class Op>
+struct FoldlImpl<Out, Rest, Op,
+                 std::enable_if_t<Rest::length != 0>>
+    : FoldlImpl<typename Op<Out, typename Rest::head>::type,
+                typename Rest::tail, Op> {};
 
 template <typename Out, typename RestL, typename RestR, typename Enable = void>
 struct ZipImpl;

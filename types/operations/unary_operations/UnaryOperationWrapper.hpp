@@ -33,8 +33,8 @@
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVector.hpp"
 #include "types/operations/OperationSignature.hpp"
-#include "types/operations/OperationUtil.hpp"
 #include "types/operations/unary_operations/UnaryOperation.hpp"
+#include "types/operations/utility/OperationSynthesizeUtil.hpp"
 #include "utility/Macros.hpp"
 
 namespace quickstep {
@@ -89,8 +89,8 @@ class UncheckedUnaryOperatorWrapperCodegen : public UncheckedUnaryOperator {
   using ResultType = typename FunctorT::ResultType;
 
   using FuncSpec = typename FunctorSpecializer<FunctorT, SpecArgs...>::type;
-  using ArgumentGen = Codegen<FuncSpec, ArgumentType>;
-  using ResultGen = Codegen<FuncSpec, ResultType>;
+  using ArgumentGen = OperationCodegen<FuncSpec, ArgumentType>;
+  using ResultGen = OperationCodegen<FuncSpec, ResultType>;
 
   template <bool argument_nullable>
   struct Implementation;

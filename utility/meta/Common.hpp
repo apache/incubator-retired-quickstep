@@ -23,7 +23,7 @@
 namespace quickstep {
 namespace meta {
 
-/** \addtogroup Utility
+/** \addtogroup Meta
  *  @{
  */
 
@@ -97,6 +97,19 @@ template <typename T, template <typename> class Op>
 struct IsWellFormed<T, Op, std::enable_if_t<std::is_same<Op<T>, Op<T>>::value>> {
   static constexpr bool value = true;
 };
+
+
+namespace internal {
+
+template <typename T, std::size_t = sizeof(T)>
+std::true_type IsCompleteTypeImpl(T *);
+
+std::false_type IsCompleteTypeImpl(...);
+
+}  // namespace internal
+
+template <typename T>
+using IsCompleteType = decltype(internal::IsCompleteTypeImpl(std::declval<T*>()));
 
 
 template <typename LeftT, typename RightT>

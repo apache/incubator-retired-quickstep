@@ -100,10 +100,11 @@ struct ColumnVectorValueAccessor {
 };
 
 template <typename FuncSpec, typename T, typename EnableT = void>
-struct Codegen;
+struct OperationCodegen;
 
 template <typename FuncSpec, typename T>
-struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kCxxInlinePod>> {
+struct OperationCodegen<FuncSpec, T,
+                        std::enable_if_t<T::kMemoryLayout == kCxxInlinePod>> {
   using ColumnVectorType = NativeColumnVector;
   using FunctorSpecializer = FuncSpec;
 
@@ -149,9 +150,8 @@ struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kCxxInlinePod>>
   }
 
   template <bool nullable, typename AccessorT>
-  inline static NativeTypeConstPtr GetValuePtr(
-      const AccessorT *accessor,
-      const attribute_id attr_id) {
+  inline static NativeTypeConstPtr GetValuePtr(const AccessorT *accessor,
+                                               const attribute_id attr_id) {
     return static_cast<NativeTypeConstPtr>(
         accessor->template getUntypedValue<nullable>(attr_id));
   }
@@ -171,11 +171,12 @@ struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kCxxInlinePod>>
 };
 
 template <typename FuncSpec, typename T>
-struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kParInlinePod>> {
+struct OperationCodegen<FuncSpec, T,
+                        std::enable_if_t<T::kMemoryLayout == kParInlinePod>> {
   using ColumnVectorType = NativeColumnVector;
   using FunctorSpecializer = FuncSpec;
 
-  using NativeType = void*;
+  using NativeType = const void*;
   using NativeTypeConst = const void*;
   using NativeTypeConstRef = const void*;
   using NativeTypeConstPtr = const void*;
@@ -223,9 +224,8 @@ struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kParInlinePod>>
   }
 
   template <bool nullable, typename AccessorT>
-  inline static NativeTypeConstPtr GetValuePtr(
-      const AccessorT *accessor,
-      const attribute_id attr_id) {
+  inline static NativeTypeConstPtr GetValuePtr(const AccessorT *accessor,
+                                               const attribute_id attr_id) {
     return accessor->template getUntypedValue<nullable>(attr_id);
   }
 
@@ -244,7 +244,8 @@ struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kParInlinePod>>
 };
 
 template <typename FuncSpec, typename T>
-struct Codegen<FuncSpec, T, std::enable_if_t<T::kMemoryLayout == kParOutOfLinePod>> {
+struct OperationCodegen<FuncSpec, T,
+                        std::enable_if_t<T::kMemoryLayout == kParOutOfLinePod>> {
   using ColumnVectorType = IndirectColumnVector;
   using FunctorSpecializer = FuncSpec;
 

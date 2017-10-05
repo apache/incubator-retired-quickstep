@@ -53,6 +53,19 @@ class CharType : public AsciiStringSuperType<kChar> {
     return length_;
   }
 
+  std::size_t hashValue(const UntypedLiteral *value) const override;
+
+  bool checkValuesEqual(const UntypedLiteral *lhs,
+                        const UntypedLiteral *rhs,
+                        const Type &rhs_type) const override;
+
+  UntypedLiteral* cloneValue(const UntypedLiteral *value) const override;
+
+  TypedValue marshallValue(const UntypedLiteral *value) const override;
+
+  UntypedLiteral* unmarshallValue(const void *data,
+                                  const std::size_t length) const override;
+
   std::string printValueToString(const UntypedLiteral *value) const override;
 
   void printValueToFile(const UntypedLiteral *value,

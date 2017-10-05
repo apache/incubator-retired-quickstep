@@ -110,6 +110,10 @@ class GenericValue {
     return type_;
   }
 
+  inline TypeID getTypeID() const {
+    return type_.getTypeID();
+  }
+
   inline const UntypedLiteral* getValue() const {
     return value_;
   }

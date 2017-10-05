@@ -48,6 +48,8 @@ using UntypedLiteral = void;
 
 using ArrayLiteral = std::vector<UntypedLiteral*>;
 using MetaTypeLiteral = const Type*;
+using ParInlinePodLiteral = const void*;
+using ParOutOfLinePodLiteral = TypedValue;
 
 template <TypeID type_id>
 struct TypeIDTrait;
@@ -83,9 +85,9 @@ REGISTER_TYPE(DatetimeIntervalType, kDatetimeInterval,
 REGISTER_TYPE(YearMonthIntervalType, kYearMonthInterval,
               SuperTypeID::kOther, kCxxInlinePod, YearMonthIntervalLit);
 REGISTER_TYPE(CharType, kChar,
-              SuperTypeID::kAsciiString, kParInlinePod, TypedValue);
+              SuperTypeID::kAsciiString, kParInlinePod, ParInlinePodLiteral);
 REGISTER_TYPE(VarCharType, kVarChar,
-              SuperTypeID::kAsciiString, kParOutOfLinePod, TypedValue);
+              SuperTypeID::kAsciiString, kParOutOfLinePod, ParOutOfLinePodLiteral);
 REGISTER_TYPE(TextType, kText,
               SuperTypeID::kOther, kCxxGeneric, std::string);
 REGISTER_TYPE(ArrayType, kArray,

@@ -1466,7 +1466,8 @@ void ExecutionGenerator::convertInsertTuple(
 
   S::Tuple *tuple_proto = query_context_proto_->add_tuples();
   for (const E::ScalarLiteralPtr &literal : physical_plan->column_values()) {
-    tuple_proto->add_attribute_values()->CopyFrom(literal->value().getProto());
+    tuple_proto->add_attribute_values()->CopyFrom(
+        literal->value().toTypedValue().getProto());
   }
 
   // FIXME(qzeng): A better way is using a traits struct to look up whether a storage

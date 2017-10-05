@@ -26,13 +26,12 @@
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypeSynthesizer.hpp"
+#include "types/TypedValue.hpp"
 #include "utility/Macros.hpp"
 
 #include "glog/logging.h"
 
 namespace quickstep {
-
-class TypedValue;
 
 /** \addtogroup Types
  *  @{

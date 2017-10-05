@@ -17,8 +17,8 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_TYPES_OPERATIONS_UNARY_OPERATIONS_ARITHMETIC_UNARY_OPERATIONS_HPP_
-#define QUICKSTEP_TYPES_OPERATIONS_UNARY_OPERATIONS_ARITHMETIC_UNARY_OPERATIONS_HPP_
+#ifndef QUICKSTEP_TYPES_OPERATIONS_UNARY_OPERATIONS_ARITHMETIC_UNARY_FUNCTORS_HPP_
+#define QUICKSTEP_TYPES_OPERATIONS_UNARY_OPERATIONS_ARITHMETIC_UNARY_FUNCTORS_HPP_
 
 #include <string>
 
@@ -28,8 +28,8 @@
 #include "types/IntType.hpp"
 #include "types/LongType.hpp"
 #include "types/YearMonthIntervalType.hpp"
-#include "types/operations/OperationUtil.hpp"
 #include "types/operations/unary_operations/UnaryOperationWrapper.hpp"
+#include "types/operations/utility/OperationSynthesizeUtil.hpp"
 
 namespace quickstep {
 
@@ -37,10 +37,9 @@ namespace quickstep {
  *  @{
  */
 
-template <typename ArgumentT, typename ResultT>
-struct NegateFunctor : public UnaryFunctor<ArgumentT, ResultT> {
-  inline typename ResultT::cpptype apply(
-      const typename ArgumentT::cpptype &argument) const {
+template <typename T>
+struct NegateFunctor : public UnaryFunctor<T, T> {
+  inline typename T::cpptype apply(const typename T::cpptype &argument) const {
     return -argument;
   }
   inline static std::string GetName() {
@@ -60,12 +59,12 @@ struct SgnFunctor : public UnaryFunctor<ArgumentT, IntType> {
 
 using ArithmeticUnaryFunctorPack = FunctorPack<
 // negate
-  NegateFunctor<IntType, IntType>,
-  NegateFunctor<LongType, LongType>,
-  NegateFunctor<FloatType, FloatType>,
-  NegateFunctor<DoubleType, DoubleType>,
-  NegateFunctor<DatetimeIntervalType, DatetimeIntervalType>,
-  NegateFunctor<YearMonthIntervalType, YearMonthIntervalType>,
+  NegateFunctor<IntType>,
+  NegateFunctor<LongType>,
+  NegateFunctor<FloatType>,
+  NegateFunctor<DoubleType>,
+  NegateFunctor<DatetimeIntervalType>,
+  NegateFunctor<YearMonthIntervalType>,
 
 // sgn (Sign of a numeric value)
   SgnFunctor<IntType>,
@@ -78,4 +77,4 @@ using ArithmeticUnaryFunctorPack = FunctorPack<
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_TYPES_OPERATIONS_UNARY_OPERATIONS_ARITHMETIC_UNARY_OPERATIONS_HPP_
+#endif  // QUICKSTEP_TYPES_OPERATIONS_UNARY_OPERATIONS_ARITHMETIC_UNARY_FUNCTORS_HPP_
