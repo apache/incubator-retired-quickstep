@@ -104,7 +104,7 @@ class InsertDestinationInterface {
    *        insertion from ValueAccessor even when partially full.
    **/
   virtual void bulkInsertTuples(ValueAccessor *accessor,
-                                bool always_mark_full = false) = 0;
+                                const bool always_mark_full = false) = 0;
 
   /**
    * @brief Bulk-insert tuples from a ValueAccessor with differently-ordered
@@ -115,13 +115,10 @@ class InsertDestinationInterface {
    *        corresponding attributes which should be read from accessor.
    * @param accessor A ValueAccessor whose tuples will by inserted into blocks
    *        from this InsertDestination.
-   * @param always_mark_full If \c true, always mark the blocks full after
-   *        insertion from ValueAccessor even when partially full.
    **/
   virtual void bulkInsertTuplesWithRemappedAttributes(
       const std::vector<attribute_id> &attribute_map,
-      ValueAccessor *accessor,
-      bool always_mark_full = false) = 0;
+      ValueAccessor *accessor) = 0;
 
   /**
    * @brief Bulk-insert tuples from one or more ValueAccessors
@@ -137,12 +134,9 @@ class InsertDestinationInterface {
    *        is the attribute_id "n" in corresponding input value accessor.
    *        Set the i-th element to kInvalidCatalogId if it doesn't come from
    *        the corresponding value accessor.
-   * @param always_mark_full If \c true, always mark the blocks full after
-   *        insertion from ValueAccessor even when partially full.
    **/
   virtual void bulkInsertTuplesFromValueAccessors(
-      const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map,
-      bool always_mark_full = false) = 0;
+      const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map) = 0;
 
   /**
    * @brief Insert tuples from a range of Tuples in a vector.

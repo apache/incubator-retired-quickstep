@@ -156,16 +156,15 @@ class InsertDestination : public InsertDestinationInterface {
 
   void insertTupleInBatch(const Tuple &tuple) override;
 
-  void bulkInsertTuples(ValueAccessor *accessor, bool always_mark_full = false) override;
+  void bulkInsertTuples(ValueAccessor *accessor,
+                        const bool always_mark_full = false) override;
 
   void bulkInsertTuplesWithRemappedAttributes(
       const std::vector<attribute_id> &attribute_map,
-      ValueAccessor *accessor,
-      bool always_mark_full = false) override;
+      ValueAccessor *accessor) override;
 
   void bulkInsertTuplesFromValueAccessors(
-      const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map,
-      bool always_mark_full = false) override;
+      const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map) override;
 
   void insertTuplesFromVector(std::vector<Tuple>::const_iterator begin,
                               std::vector<Tuple>::const_iterator end) override;
@@ -363,8 +362,7 @@ class AlwaysCreateBlockInsertDestination : public InsertDestination {
   }
 
   void bulkInsertTuplesFromValueAccessors(
-      const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map,
-      bool always_mark_full = false) override {
+      const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map) override {
     LOG(FATAL) << "bulkInsertTuplesFromValueAccessors is not implemented for AlwaysCreateBlockInsertDestination";
   }
 
@@ -551,16 +549,15 @@ class PartitionAwareInsertDestination : public InsertDestination {
 
   void insertTupleInBatch(const Tuple &tuple) override;
 
-  void bulkInsertTuples(ValueAccessor *accessor, bool always_mark_full = false) override;
+  void bulkInsertTuples(ValueAccessor *accessor,
+                        const bool always_mark_full = false) override;
 
   void bulkInsertTuplesWithRemappedAttributes(
       const std::vector<attribute_id> &attribute_map,
-      ValueAccessor *accessor,
-      bool always_mark_full = false) override;
+      ValueAccessor *accessor) override;
 
   void bulkInsertTuplesFromValueAccessors(
-      const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map,
-      bool always_mark_full = false) override {
+      const std::vector<std::pair<ValueAccessor *, std::vector<attribute_id>>> &accessor_attribute_map) override {
     LOG(FATAL) << "bulkInsertTuplesFromValueAccessors is not implemented for PartitionAwareInsertDestination";
   }
 
