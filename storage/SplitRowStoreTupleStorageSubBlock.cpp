@@ -343,7 +343,7 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertPartialTuplesImpl(
 
   InvokeOnAnyValueAccessor(
       accessor,
-      [&](auto *accessor) -> void {  // NOLINT(build/c++11
+      [&](auto *accessor) -> void {  // NOLINT(build/c++11)
     BitVector<true> tuple_null_bitmap(tuple_slot, num_null_attrs_);
     const std::size_t nullmap_size = BitVector<true>::BytesNeeded(num_null_attrs_);
 
@@ -410,7 +410,7 @@ tuple_id SplitRowStoreTupleStorageSubBlock::bulkInsertPartialTuplesImpl(
           max_num_tuples_to_insert += additional_tuples_insert;
         }
       }
-    } while (fill_to_capacity && !accessor->iterationFinishedVirtual() &&
+    } while (fill_to_capacity && !accessor->iterationFinished() &&
              num_tuples_inserted < max_num_tuples_to_insert);
   });
 
