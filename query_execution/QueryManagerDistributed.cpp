@@ -70,8 +70,11 @@ QueryManagerDistributed::QueryManagerDistributed(QueryHandle *query_handle,
   // Collect all the workorders from all the non-blocking relational operators in the DAG.
   for (const dag_node_index index : non_dependent_operators_) {
     if (!fetchNormalWorkOrders(index)) {
-      DCHECK(!checkRebuildRequired(index) || initiateRebuild(index));
-      markOperatorFinished(index);
+      if (checkRebuildRequired(index)) {
+        initiateRebuild(index);
+      } else {
+        markOperatorFinished(index);
+      }
     }
   }
 
@@ -201,21 +204,12 @@ void QueryManagerDistributed::processInitiateRebuildResponseMessage(const dag_no
                                                                     const std::size_t shiftboss_index) {
   query_exec_state_->updateRebuildStatus(op_index, num_rebuild_work_orders, shiftboss_index);
 
-  if (!query_exec_state_->hasRebuildFinished(op_index, num_shiftbosses_)) {
-    // Wait for the rebuild work orders to finish.
-    return;
+  if (query_exec_state_->hasRebuildFinished(op_index, num_shiftbosses_)) {
+    // No needs for rebuilds, or the rebuild has finished.
+    markOperatorFinished(op_index);
   }
 
-  // No needs for rebuilds, or the rebuild has finished.
-  markOperatorFinished(op_index);
-
-  for (const std::pair<dag_node_index, bool> &dependent_link :
-       query_dag_->getDependents(op_index)) {
-    const dag_node_index dependent_op_index = dependent_link.first;
-    if (checkAllBlockingDependenciesMet(dependent_op_index)) {
-      fetchNormalWorkOrders(dependent_op_index);
-    }
-  }
+  // Wait for the rebuild work orders to finish.
 }
 
 bool QueryManagerDistributed::initiateRebuild(const dag_node_index index) {

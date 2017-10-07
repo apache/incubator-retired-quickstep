@@ -741,7 +741,7 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
                  proto.GetExtension(serialization::DeleteWorkOrder::predicate_index)) &&
              proto.HasExtension(serialization::DeleteWorkOrder::block_id) &&
              proto.HasExtension(serialization::DeleteWorkOrder::operator_index) &&
-             proto.GetExtension(serialization::DeleteWorkOrder::partition_id);
+             proto.HasExtension(serialization::DeleteWorkOrder::partition_id);
     }
     case serialization::DESTROY_AGGREGATION_STATE: {
       return proto.HasExtension(serialization::DestroyAggregationStateWorkOrder::aggr_state_index) &&
@@ -1033,7 +1033,7 @@ bool WorkOrderFactory::ProtoIsValid(const serialization::WorkOrder &proto,
                  proto.GetExtension(serialization::UpdateWorkOrder::update_group_index)) &&
              proto.HasExtension(serialization::UpdateWorkOrder::operator_index) &&
              proto.HasExtension(serialization::UpdateWorkOrder::block_id) &&
-             proto.GetExtension(serialization::UpdateWorkOrder::partition_id);
+             proto.HasExtension(serialization::UpdateWorkOrder::partition_id);
     }
     case serialization::WINDOW_AGGREGATION: {
       return proto.HasExtension(serialization::WindowAggregationWorkOrder::window_aggr_state_index) &&
