@@ -552,13 +552,15 @@ TEST_F(CatalogTest, CatalogIndexTest) {
   IndexSubBlockDescription index_description;
   index_description.set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
   index_description.add_indexed_attribute_ids(rel->getAttributeByName("attr_idx1")->getID());
+  IndexSubBlockDescription index_description_copy;
+  index_description_copy.MergeFrom(index_description);
 
   EXPECT_TRUE(rel->addIndex("idx1", std::move(index_description)));
   EXPECT_TRUE(rel->hasIndexWithName("idx1"));
   // Adding an index with duplicate name should return false.
-  EXPECT_FALSE(rel->addIndex("idx1", std::move(index_description)));
+  EXPECT_FALSE(rel->addIndex("idx1", IndexSubBlockDescription()));
   // Adding an index of same type with different name on the same attribute should return false.
-  EXPECT_FALSE(rel->addIndex("idx2", std::move(index_description)));
+  EXPECT_FALSE(rel->addIndex("idx2", std::move(index_description_copy)));
 
   index_description.Clear();
   index_description.set_sub_block_type(IndexSubBlockDescription::CSB_TREE);
