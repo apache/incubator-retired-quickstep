@@ -150,6 +150,7 @@ target_link_libraries(quickstep_parser_ParseBlockProperties
                       quickstep_parser_ParseTreeNode
                       quickstep_utility_Macros
                       quickstep_utility_PtrList
+                      quickstep_utility_SqlError
                       quickstep_utility_StringUtil)
 target_link_libraries(quickstep_parser_ParseCaseExpressions
                       quickstep_parser_ParseExpression

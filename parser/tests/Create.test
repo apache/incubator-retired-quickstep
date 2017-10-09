@@ -259,6 +259,51 @@ CreateTableStatement[relation_name=test]
       +-value=String[value=rowstore]
 ==
 
+CREATE TABLE test (attr INT, attr2 INT) WITH BLOCKPROPERTIES
+(TYPE columnstore)
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+| +-AttributeDefinition[name=attr,type=Int]
+| +-AttributeDefinition[name=attr2,type=Int]
++-block_properties=
+  +-BlockProperties
+    +-block_property=KeyStringValue[key=TYPE]
+      +-value=String[value=columnstore]
+==
+
+CREATE TABLE test (attr INT, attr2 INT) WITH BLOCKPROPERTIES
+(TYPE columnstore, SORT attr)
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+| +-AttributeDefinition[name=attr,type=Int]
+| +-AttributeDefinition[name=attr2,type=Int]
++-block_properties=
+  +-BlockProperties
+    +-block_property=KeyStringValue[key=TYPE]
+    | +-value=String[value=columnstore]
+    +-block_property=KeyStringValue[key=SORT]
+      +-value=String[value=attr]
+==
+
+CREATE TABLE test (attr INT, attr2 INT) WITH BLOCKPROPERTIES
+(TYPE columnstore, SORT (attr, attr2))
+--
+CreateTableStatement[relation_name=test]
++-attribute_list=
+| +-AttributeDefinition[name=attr,type=Int]
+| +-AttributeDefinition[name=attr2,type=Int]
++-block_properties=
+  +-BlockProperties
+    +-block_property=KeyStringValue[key=TYPE]
+    | +-value=String[value=columnstore]
+    +-block_property=KeyStringList[key=SORT]
+      +-value_list=
+        +-String[value=attr]
+        +-String[value=attr2]
+==
+
 CREATE TABLE test (attr INT) WITH BLOCKPROPERTIES
 (TYPE compressed_columnstore, SORT attr, COMPRESS ALL)
 --

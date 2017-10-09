@@ -31,6 +31,7 @@
 #include "parser/ParseTreeNode.hpp"
 #include "utility/Macros.hpp"
 #include "utility/PtrList.hpp"
+#include "utility/SqlError.hpp"
 #include "utility/StringUtil.hpp"
 
 #include "glog/logging.h"
@@ -143,10 +144,13 @@ class ParseBlockProperties : public ParseTreeNode {
     if (sort_key_value == nullptr) {
       return nullptr;
     }
-    if (sort_key_value->getKeyValueType() !=
-        ParseKeyValue::KeyValueType::kStringString) {
-      return nullptr;
+    if (sort_key_value->getKeyValueType() ==
+        ParseKeyValue::KeyValueType::kStringStringList) {
+      THROW_SQL_ERROR_AT(sort_key_value)
+          << "The SORT property must be a string, not a string list.";
     }
+
+    DCHECK(sort_key_value->getKeyValueType() == ParseKeyValue::KeyValueType::kStringString);
     return static_cast<const ParseKeyStringValue*>(sort_key_value)->value();
   }
 

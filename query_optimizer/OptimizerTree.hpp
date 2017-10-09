@@ -240,9 +240,12 @@ OptimizerProtoRepresentation<TreeNodeType>* getOptimizerRepresentationForProto(
     }
     case TupleStorageSubBlockDescription::BASIC_COLUMN_STORE: {
       node->addProperty("blocktype", "columnstore");
-      node->addProperty("sort",
-          storage_block_description.GetExtension(
-              quickstep::BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id));
+      if (storage_block_description.HasExtension(
+              quickstep::BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id)) {
+        node->addProperty("sort",
+            storage_block_description.GetExtension(
+                quickstep::BasicColumnStoreTupleStorageSubBlockDescription::sort_attribute_id));
+      }
       break;
     }
     case TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE: {

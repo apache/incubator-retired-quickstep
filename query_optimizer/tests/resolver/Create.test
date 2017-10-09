@@ -133,13 +133,37 @@ ERROR: The SORT property does not apply to this block type. (2 : 28)
                            ^
 ==
 
-# Columnstores require a sort attribute.
+# Columnstores do not require a sort attribute.
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES
 (TYPE columnstore);
 --
-ERROR: The SORT property must be specified as an attribute name. (2 : 7)
-(TYPE columnstore);
-      ^
+TopLevelPlan
++-plan=CreateTable[relation=foo]
+| +-block_properties=ProtoDescription
+| | +-Property=ProtoProperty[Property=blocktype,Value=columnstore]
+| | +-Property=ProtoProperty[Property=slots,Value=1]
+| +-attributes=
+|   +-AttributeReference[id=0,name=attr,relation=foo,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=attr,relation=foo,type=Int]
+==
+
+# Columnstores have a optional sort attribute.
+CREATE TABLE foo (attr INT, attr2 INT) WITH BLOCKPROPERTIES
+(TYPE columnstore, SORT attr2);
+--
+TopLevelPlan
++-plan=CreateTable[relation=foo]
+| +-block_properties=ProtoDescription
+| | +-Property=ProtoProperty[Property=blocktype,Value=columnstore]
+| | +-Property=ProtoProperty[Property=sort,Value=1]
+| | +-Property=ProtoProperty[Property=slots,Value=1]
+| +-attributes=
+|   +-AttributeReference[id=0,name=attr,relation=foo,type=Int]
+|   +-AttributeReference[id=1,name=attr2,relation=foo,type=Int]
++-output_attributes=
+  +-AttributeReference[id=0,name=attr,relation=foo,type=Int]
+  +-AttributeReference[id=1,name=attr2,relation=foo,type=Int]
 ==
 
 # Non-existant columns should be caught.
@@ -155,9 +179,9 @@ ERROR: The SORT property did not match any attribute name. (2 : 25)
 CREATE TABLE foo (attr INT, attr2 INT) WITH BLOCKPROPERTIES
 (TYPE columnstore, SORT (attr, attr2));
 --
-ERROR: The SORT property must be specified as an attribute name. (2 : 7)
-(TYPE columnstore, SORT (attr, attr2...
-      ^
+ERROR: The SORT property must be a string, not a string list. (2 : 20)
+(TYPE columnstore, SORT (attr, attr2));
+                   ^
 ==
 # Compress should only be specified on compressed blocks.
 CREATE TABLE foo (attr INT) WITH BLOCKPROPERTIES

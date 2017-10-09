@@ -687,7 +687,7 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
 
   // Resolve TYPE property.
   // The type of the block will determine these:
-  bool block_requires_sort = false;
+  bool block_allows_sort = false;
   bool block_requires_compress = false;
 
   const ParseString *type_parse_string = block_properties->getType();
@@ -702,7 +702,8 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
   } else if (type_string.compare("columnstore") == 0) {
     description->set_sub_block_type(
         quickstep::TupleStorageSubBlockDescription::BASIC_COLUMN_STORE);
-    block_requires_sort = true;
+    // NOTE(zuyu): sort is optional.
+    block_allows_sort = true;
   } else if (type_string.compare("compressed_rowstore") == 0) {
     description->set_sub_block_type(
         quickstep::TupleStorageSubBlockDescription::COMPRESSED_PACKED_ROW_STORE);
@@ -710,7 +711,7 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
   } else if (type_string.compare("compressed_columnstore") == 0) {
     description->set_sub_block_type(
         quickstep::TupleStorageSubBlockDescription::COMPRESSED_COLUMN_STORE);
-    block_requires_sort = true;
+    block_allows_sort = true;
     block_requires_compress = true;
   } else {
     THROW_SQL_ERROR_AT(type_parse_string) << "Unrecognized storage type.";
@@ -718,10 +719,12 @@ StorageBlockLayoutDescription* Resolver::resolveBlockProperties(
 
   // Resolve the SORT property.
   const ParseString *sort_parse_string = block_properties->getSort();
-  if (block_requires_sort) {
+  if (block_allows_sort) {
     if (sort_parse_string == nullptr) {
-      THROW_SQL_ERROR_AT(type_parse_string)
-          << "The SORT property must be specified as an attribute name.";
+      if (description->sub_block_type() != TupleStorageSubBlockDescription::BASIC_COLUMN_STORE) {
+        THROW_SQL_ERROR_AT(type_parse_string)
+            << "The SORT property must be specified as an attribute name.";
+      }
     } else {
       // Lookup the name and map to a column id.
       const attribute_id sort_id = GetAttributeIdFromName(create_table_statement.attribute_definition_list(),
