@@ -28,9 +28,9 @@ add_library(quickstep_types_operations_binaryoperations_AsciiStringBinaryFunctor
 add_library(quickstep_types_operations_binaryoperations_BinaryOperation
             BinaryOperation.cpp
             BinaryOperation.hpp)
-add_library(quickstep_types_operations_binaryoperations_BinaryOperationWrapper
+add_library(quickstep_types_operations_binaryoperations_BinaryOperationSynthesizer
             ../../../empty_src.cpp
-            BinaryOperationWrapper.hpp)
+            BinaryOperationSynthesizer.hpp)
 add_library(quickstep_types_operations_binaryoperations_CMathBinaryFunctors
             ../../../empty_src.cpp
             CMathBinaryFunctors.hpp)
@@ -53,17 +53,18 @@ target_link_libraries(quickstep_types_operations_binaryoperations_ArithmeticBina
                       quickstep_types_TypedValue
                       quickstep_types_YearMonthIntervalType
                       quickstep_types_operations_binaryoperations_ArithmeticBinaryFunctorOverloads
-                      quickstep_types_operations_binaryoperations_BinaryOperationWrapper
+                      quickstep_types_operations_binaryoperations_BinaryOperationSynthesizer
                       quickstep_utility_meta_Common)
 target_link_libraries(quickstep_types_operations_binaryoperations_AsciiStringBinaryFunctors
                       glog
                       quickstep_types_CharType
                       quickstep_types_IntType
+                      quickstep_types_TextType
                       quickstep_types_Type
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID
                       quickstep_types_VarCharType
-                      quickstep_types_operations_unaryoperations_UnaryOperationWrapper
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
                       quickstep_types_operations_utility_OperationSynthesizeUtil
                       quickstep_types_port_strnlen)
 target_link_libraries(quickstep_types_operations_binaryoperations_BinaryOperation
@@ -73,7 +74,7 @@ target_link_libraries(quickstep_types_operations_binaryoperations_BinaryOperatio
                       quickstep_types_operations_Operation
                       quickstep_types_operations_OperationSignature
                       quickstep_utility_Macros)
-target_link_libraries(quickstep_types_operations_binaryoperations_BinaryOperationWrapper
+target_link_libraries(quickstep_types_operations_binaryoperations_BinaryOperationSynthesizer
                       glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_storage_ValueAccessor
@@ -93,7 +94,7 @@ target_link_libraries(quickstep_types_operations_binaryoperations_CMathBinaryFun
                       quickstep_types_FloatType
                       quickstep_types_IntType
                       quickstep_types_LongType
-                      quickstep_types_operations_binaryoperations_BinaryOperationWrapper
+                      quickstep_types_operations_binaryoperations_BinaryOperationSynthesizer
                       quickstep_types_operations_utility_OperationSynthesizeUtil
                       quickstep_utility_meta_Common)
 
@@ -105,7 +106,7 @@ target_link_libraries(quickstep_types_operations_binaryoperations
                       quickstep_types_operations_binaryoperations_ArithmeticBinaryFunctorOverloads
                       quickstep_types_operations_binaryoperations_AsciiStringBinaryFunctors
                       quickstep_types_operations_binaryoperations_BinaryOperation
-                      quickstep_types_operations_binaryoperations_BinaryOperationWrapper
+                      quickstep_types_operations_binaryoperations_BinaryOperationSynthesizer
                       quickstep_types_operations_binaryoperations_CMathBinaryFunctors)
 
 # Tests:

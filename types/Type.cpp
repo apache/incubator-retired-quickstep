@@ -28,10 +28,6 @@
 
 namespace quickstep {
 
-bool Type::isCoercibleFrom(const Type &original_type) const {
-  return isSafelyCoercibleFrom(original_type);
-}
-
 bool Type::isSafelyCoercibleFrom(const Type &original_type) const {
   if (original_type.isNullable() && !this->nullable_) {
     return false;
@@ -79,20 +75,10 @@ TypedValue Type::coerceTypedValue(const TypedValue &original_value,
 
 UntypedLiteral* Type::coerceValue(const UntypedLiteral *original_value,
                                   const Type &original_type) const {
-  DCHECK(isCoercibleFrom(original_type))
-      << "Can't coerce value of Type " << original_type.getName()
-      << " to Type " << getName();
-
-  if (original_type.getTypeID() == kNullType) {
-    return nullptr;
-  }
-
-  DCHECK(equals(original_type) || equals(original_type.getNullableVersion()))
-      << "Base version of Type::coerceValue() called for a non-trivial "
-      << "coercion from Type " << original_type.getName()
-      << " to Type " << getName();
-
-  return cloneValue(original_value);
+  // TODO(refactor-type): Implement coerceValue based on CastFunctor.
+  TypedValue original_tv = original_type.marshallValue(original_value);
+  TypedValue target_tv = coerceTypedValue(original_tv, original_type);
+  return unmarshallTypedValue(target_tv);
 }
 
 }  // namespace quickstep

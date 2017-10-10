@@ -38,7 +38,7 @@
 #include "types/TypedValue.hpp"
 #include "types/VarCharType.hpp"
 #include "types/operations/unary_operations/CastFunctorOverloads.hpp"
-#include "types/operations/unary_operations/UnaryOperationWrapper.hpp"
+#include "types/operations/unary_operations/UnaryOperationSynthesizer.hpp"
 #include "types/port/strnlen.hpp"
 #include "utility/EqualsAnyConstant.hpp"
 #include "utility/StringUtil.hpp"
@@ -53,7 +53,7 @@ UncheckedUnaryOperator* MakeUncheckedCastOperatorConstructorSpec(
     const SourceType &source_type,
     const TargetType &target_type,
     decltype(new CastFunctor<SourceType, TargetType>()) * = 0) {
-  return new UncheckedUnaryOperatorWrapperCodegen<
+  return new UncheckedUnaryOperatorSynthesizer<
       CastFunctor<SourceType, TargetType>>(
           source_type, target_type);
 }
@@ -63,7 +63,7 @@ UncheckedUnaryOperator* MakeUncheckedCastOperatorConstructorSpec(
     const SourceType &source_type,
     const TargetType &target_type,
     decltype(new CastFunctor<SourceType, TargetType>(source_type, target_type)) * = 0) {
-  return new UncheckedUnaryOperatorWrapperCodegen<
+  return new UncheckedUnaryOperatorSynthesizer<
       CastFunctor<SourceType, TargetType>>(
           source_type, target_type, source_type, target_type);
 }

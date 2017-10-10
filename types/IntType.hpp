@@ -40,7 +40,7 @@ class TypedValue;
 /**
  * @brief A type representing a 32-bit integer.
  **/
-class IntType : public NumericSuperType<kInt> {
+class IntType final : public NumericSuperType<kInt> {
  public:
   int getPrintWidth() const override {
     // Fully represented digits, single leading digit, and possible '-'

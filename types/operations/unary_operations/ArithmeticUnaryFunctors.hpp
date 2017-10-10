@@ -28,7 +28,7 @@
 #include "types/IntType.hpp"
 #include "types/LongType.hpp"
 #include "types/YearMonthIntervalType.hpp"
-#include "types/operations/unary_operations/UnaryOperationWrapper.hpp"
+#include "types/operations/unary_operations/UnaryOperationSynthesizer.hpp"
 #include "types/operations/utility/OperationSynthesizeUtil.hpp"
 
 namespace quickstep {

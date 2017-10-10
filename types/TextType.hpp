@@ -36,7 +36,7 @@ namespace quickstep {
  *  @{
  */
 
-class TextType : public TypeSynthesizer<kText> {
+class TextType final : public TypeSynthesizer<kText> {
  public:
   int getPrintWidth() const override {
     return 32;

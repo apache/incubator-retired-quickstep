@@ -40,7 +40,7 @@ class TypedValue;
 /**
  * @brief A type representing a single-precision floating-point number.
  **/
-class FloatType : public NumericSuperType<kFloat> {
+class FloatType final : public NumericSuperType<kFloat> {
  public:
   int getPrintWidth() const override {
     return kPrintWidth;

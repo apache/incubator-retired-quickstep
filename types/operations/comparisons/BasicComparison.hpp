@@ -284,19 +284,18 @@ template <template <typename LeftCppType, bool left_type_nullable,
                     bool right_nullable, bool right_null_terminated, bool right_longer> class StringComparator>
 UncheckedComparator* BasicComparison::makeUncheckedComparatorForTypesHelper(const Type &left,
                                                                             const Type &right) const {
-//  if (left.getSuperTypeID() == Type::kNumeric && right.getSuperTypeID() == Type::kNumeric) {
-//    return makeNumericComparatorOuterHelper<LiteralComparator>(left, right);
-//  } else if ((left.getTypeID() == kDate && right.getTypeID() == kDate)                         ||
-//             (left.getTypeID() == kDatetime && right.getTypeID() == kDatetime)                 ||
-//             (left.getTypeID() == kDatetimeInterval && right.getTypeID() == kDatetimeInterval) ||
-//             (left.getTypeID() == kYearMonthInterval && right.getTypeID() == kYearMonthInterval)) {
-//    return makeDateComparatorOuterHelper<LiteralComparator>(left, right);
-//  } else if (left.getSuperTypeID() == Type::kAsciiString && right.getSuperTypeID() == Type::kAsciiString) {
-//    return makeStringComparatorOuterHelper<StringComparator>(left, right);
-//  } else {
+  if (left.getSuperTypeID() == SuperTypeID::kNumeric && right.getSuperTypeID() == SuperTypeID::kNumeric) {
+    return makeNumericComparatorOuterHelper<LiteralComparator>(left, right);
+  } else if ((left.getTypeID() == kDate && right.getTypeID() == kDate)                         ||
+             (left.getTypeID() == kDatetime && right.getTypeID() == kDatetime)                 ||
+             (left.getTypeID() == kDatetimeInterval && right.getTypeID() == kDatetimeInterval) ||
+             (left.getTypeID() == kYearMonthInterval && right.getTypeID() == kYearMonthInterval)) {
+    return makeDateComparatorOuterHelper<LiteralComparator>(left, right);
+  } else if (left.getSuperTypeID() == SuperTypeID::kAsciiString && right.getSuperTypeID() == SuperTypeID::kAsciiString) {
+    return makeStringComparatorOuterHelper<StringComparator>(left, right);
+  } else {
     throw OperationInapplicableToType(getName(), 2, kTypeNames[left.getTypeID()], kTypeNames[right.getTypeID()]);
-//  }
-  // TODO(refactor-type): Switch back.
+  }
 }
 
 template <template <typename LeftCppType, bool left_type_nullable,

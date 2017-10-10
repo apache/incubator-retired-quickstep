@@ -30,7 +30,7 @@
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
 #include "types/VarCharType.hpp"
-#include "types/operations/unary_operations/UnaryOperationWrapper.hpp"
+#include "types/operations/unary_operations/UnaryOperationSynthesizer.hpp"
 #include "types/operations/utility/OperationSynthesizeUtil.hpp"
 #include "types/port/strnlen.hpp"
 #include "utility/meta/Common.hpp"

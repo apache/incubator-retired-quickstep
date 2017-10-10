@@ -66,12 +66,12 @@ AggregationHandleSum::AggregationHandleSum(const Type &type)
 
   // Make operators to do arithmetic:
   // Add operator for summing argument values.
-  fast_operator_.reset(OperationFactory::Instance()
-      .getBinaryOperation("+", {type_precision_id, argument_type_.getTypeID()})
+  fast_operator_.reset(
+      OperationFactory::GetAddOperation(type_precision_id, argument_type_.getTypeID())
           ->makeUncheckedBinaryOperator(sum_type, argument_type_));
   // Add operator for merging states.
-  merge_operator_.reset(OperationFactory::Instance()
-      .getBinaryOperation("+", {type_precision_id, type_precision_id})
+  merge_operator_.reset(
+      OperationFactory::GetAddOperation(type_precision_id, type_precision_id)
           ->makeUncheckedBinaryOperator(sum_type, sum_type));
 
   // Result is nullable, because SUM() over 0 values (or all NULL values) is

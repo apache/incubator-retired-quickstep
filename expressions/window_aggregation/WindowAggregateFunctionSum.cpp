@@ -39,7 +39,7 @@ bool WindowAggregateFunctionSum::canApplyToTypes(
   }
 
   // Argument must be addable.
-// TODO
+  // TODO(refactor-type): Fix this.
 //  return BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
 //             .canApplyTo(*argument_types.front(), *argument_types.front());
   return false;

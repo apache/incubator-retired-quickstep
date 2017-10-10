@@ -37,6 +37,8 @@
 #include "types/operations/utility/OperationSynthesizeUtil.hpp"
 #include "utility/Macros.hpp"
 
+#include "glog/logging.h"
+
 namespace quickstep {
 
 /** \addtogroup Types
@@ -53,14 +55,17 @@ struct UnaryFunctor {
 };
 
 template <typename FunctorT, typename ...SpecArgs>
-class UncheckedUnaryOperatorWrapperCodegen : public UncheckedUnaryOperator {
+class UncheckedUnaryOperatorSynthesizer : public UncheckedUnaryOperator {
  public:
-  template <typename ...ConstructorArgs>
-  UncheckedUnaryOperatorWrapperCodegen(const Type &argument_type,
-                                       const Type &result_type,
-                                       ConstructorArgs &&...args)
-      : functor_(std::forward<ConstructorArgs>(args)...),
-        impl_(functor_, argument_type, result_type) {}
+  template <typename ...FunctorArgs>
+  UncheckedUnaryOperatorSynthesizer(const Type &argument_type,
+                                    const Type &result_type,
+                                    FunctorArgs &&...args)
+      : functor_(std::forward<FunctorArgs>(args)...),
+        impl_(functor_, argument_type, result_type) {
+    DCHECK(argument_type.getTypeID() == ArgumentType::kStaticTypeID);
+    DCHECK(result_type.getTypeID() == ResultType::kStaticTypeID);
+  }
 
   TypedValue applyToTypedValue(const TypedValue &argument) const override {
     return impl_.applyToTypedValue(argument);
@@ -68,9 +73,9 @@ class UncheckedUnaryOperatorWrapperCodegen : public UncheckedUnaryOperator {
 
   ColumnVector* applyToColumnVector(const ColumnVector &argument) const override {
     using ArgumentCVT = typename ArgumentGen::ColumnVectorType;
-    DCHECK_EQ(argument.isNative(), ArgumentCVT::kNative);
+    DCHECK_EQ(argument.getImplementation(), ArgumentCVT::kImplementation);
 
-    using ArgumentAccessorT = ColumnVectorValueAccessor<ArgumentCVT>;
+    using ArgumentAccessorT = ColumnVectorAccessor<ArgumentCVT>;
     ArgumentAccessorT accessor(static_cast<const ArgumentCVT&>(argument));
     return impl_.applyToValueAccessor(&accessor, 0);
   }
@@ -98,19 +103,19 @@ class UncheckedUnaryOperatorWrapperCodegen : public UncheckedUnaryOperator {
   const FunctorT functor_;
   const Implementation<true> impl_;
 
-  DISALLOW_COPY_AND_ASSIGN(UncheckedUnaryOperatorWrapperCodegen);
+  DISALLOW_COPY_AND_ASSIGN(UncheckedUnaryOperatorSynthesizer);
 };
 
 template <typename FunctorT, typename ...SpecArgs>
 template <bool argument_nullable>
-struct UncheckedUnaryOperatorWrapperCodegen<FunctorT, SpecArgs...>
+struct UncheckedUnaryOperatorSynthesizer<FunctorT, SpecArgs...>
     ::Implementation {
   Implementation(const FunctorT &functor_in,
                  const Type &argument_type_in,
                  const Type &result_type_in)
       : functor(functor_in),
-        argument_type(argument_type_in),
-        result_type(result_type_in) {}
+        argument_type(static_cast<const ArgumentType&>(argument_type_in)),
+        result_type(static_cast<const ResultType&>(result_type_in)) {}
 
   inline TypedValue applyToTypedValue(const TypedValue &argument) const {
     if (argument_nullable && argument.isNull()) {
@@ -118,7 +123,7 @@ struct UncheckedUnaryOperatorWrapperCodegen<FunctorT, SpecArgs...>
     }
 
     return ResultGen::template ApplyUnaryTypedValue<ArgumentGen>(
-        ArgumentGen::ToNativeValueConst(argument),
+        ArgumentGen::ToNativeValueConst(argument, argument_type),
         result_type,
         functor);
   }
@@ -129,11 +134,12 @@ struct UncheckedUnaryOperatorWrapperCodegen<FunctorT, SpecArgs...>
     using ResultCVT = typename ResultGen::ColumnVectorType;
     ResultCVT *result_cv = new ResultCVT(result_type, accessor->getNumTuples());
 
+    std::unique_ptr<typename ArgumentGen::NativeType> value_cache;
     accessor->beginIteration();
     while (accessor->next()) {
       typename ArgumentGen::NativeTypeConstPtr arg_value =
-          ArgumentGen::template GetValuePtr<
-              argument_nullable, AccessorT>(accessor, attr_id);
+          ArgumentGen::template GetValuePtr<argument_nullable, AccessorT>(
+              accessor, attr_id, argument_type, &value_cache);
 
       if (argument_nullable && ArgumentGen::IsNull(arg_value)) {
         result_cv->appendNullValue();
@@ -146,14 +152,14 @@ struct UncheckedUnaryOperatorWrapperCodegen<FunctorT, SpecArgs...>
   }
 
   const FunctorT &functor;
-  const Type &argument_type;
-  const Type &result_type;
+  const ArgumentType &argument_type;
+  const ResultType &result_type;
 };
 
 template <typename FunctorT>
-class UnaryOperationWrapper : public UnaryOperation {
+class UnaryOperationSynthesizer : public UnaryOperation {
  public:
-  UnaryOperationWrapper()
+  UnaryOperationSynthesizer()
       : UnaryOperation(),
         operation_name_(FunctorT::GetName()) {}
 
@@ -184,7 +190,7 @@ class UnaryOperationWrapper : public UnaryOperation {
       const std::vector<TypedValue> &static_arguments) const override {
     DCHECK(argument_type.getTypeID() == ArgumentType::kStaticTypeID);
     DCHECK(static_arguments.empty());
-    return getResultTypeImpl<ResultType::kIsParPod>(
+    return getResultTypeImpl<HasGetType<FunctorT>::value>(
         argument_type, static_arguments);
   }
 
@@ -202,12 +208,14 @@ class UnaryOperationWrapper : public UnaryOperation {
   using ArgumentType = typename FunctorT::ArgumentType;
   using ResultType = typename FunctorT::ResultType;
 
+  QUICKSTEP_TRAIT_HAS_STATIC_METHOD(HasGetType, GetType);
+
   template <bool functor_use_default_constructor>
   inline UncheckedUnaryOperator* makeUncheckedUnaryOperatorImpl(
       const Type &argument_type,
       const std::vector<TypedValue> &static_arguments,
-      std::enable_if_t<functor_use_default_constructor>* = 0) const {
-    return new UncheckedUnaryOperatorWrapperCodegen<FunctorT>(
+      std::enable_if_t<functor_use_default_constructor> * = 0) const {
+    return new UncheckedUnaryOperatorSynthesizer<FunctorT>(
         argument_type, *getResultType(argument_type, static_arguments));
   }
 
@@ -215,32 +223,47 @@ class UnaryOperationWrapper : public UnaryOperation {
   inline UncheckedUnaryOperator* makeUncheckedUnaryOperatorImpl(
       const Type &argument_type,
       const std::vector<TypedValue> &static_arguments,
-      std::enable_if_t<!functor_use_default_constructor>* = 0) const {
-    return new UncheckedUnaryOperatorWrapperCodegen<FunctorT>(
+      std::enable_if_t<!functor_use_default_constructor> * = 0) const {
+    return new UncheckedUnaryOperatorSynthesizer<FunctorT>(
         argument_type, *getResultType(argument_type, static_arguments),
         static_cast<const ArgumentType&>(argument_type));
   }
 
-  template <bool result_type_has_parameter>
+  template <bool user_defined_get_type>
   inline const Type* getResultTypeImpl(
       const Type &argument_type,
       const std::vector<TypedValue> &static_arguments,
-      std::enable_if_t<!result_type_has_parameter>* = 0) const {
+      std::enable_if_t<!user_defined_get_type &&
+                       ResultType::kMemoryLayout == kCxxInlinePod> * = 0) const {
     return &TypeFactory::GetType(ResultType::kStaticTypeID,
                                  argument_type.isNullable());
   }
 
-  template <bool result_type_has_parameter>
+  template <bool user_defined_get_type>
   inline const Type* getResultTypeImpl(
       const Type &argument_type,
       const std::vector<TypedValue> &static_arguments,
-      std::enable_if_t<result_type_has_parameter>* = 0) const {
+      std::enable_if_t<!user_defined_get_type &&
+                       ResultType::kMemoryLayout == kCxxGeneric> * = 0) const {
+    return &TypeFactory::GetType(ResultType::kStaticTypeID,
+                                 std::vector<GenericValue>(),
+                                 argument_type.isNullable());
+  }
+
+  template <bool user_defined_get_type>
+  inline const Type* getResultTypeImpl(
+      const Type &argument_type,
+      const std::vector<TypedValue> &static_arguments,
+      std::enable_if_t<user_defined_get_type ||
+                       ResultType::kMemoryLayout == kParInlinePod ||
+                       ResultType::kMemoryLayout == kParOutOfLinePod> * = 0) const {
+    // TODO(refactor-type): Specialize with regard to static arguments.
     return FunctorT::GetResultType(argument_type);
   }
 
   const std::string operation_name_;
 
-  DISALLOW_COPY_AND_ASSIGN(UnaryOperationWrapper);
+  DISALLOW_COPY_AND_ASSIGN(UnaryOperationSynthesizer);
 };
 
 /** @} */

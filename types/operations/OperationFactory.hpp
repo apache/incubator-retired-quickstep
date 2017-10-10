@@ -47,70 +47,84 @@ class Type;
 
 class OperationFactory {
  public:
-  static const OperationFactory& Instance();
+  static bool HasOperation(const std::string &operation_name,
+                           const std::size_t arity);
 
-  inline bool hasOperation(const std::string &operation_name,
-                           const std::size_t arity) const {
-    const auto indices_it =
-        primary_index_.find(std::make_pair(operation_name, arity));
-    return indices_it != primary_index_.end();
-  }
+  static bool HasOperation(const OperationSignaturePtr &op_signature);
 
-  inline OperationPtr getOperation(const OperationSignaturePtr &op_signature) const {
-    DCHECK(operations_.find(op_signature) != operations_.end());
-    return operations_.at(op_signature);
-  }
-
-  inline OperationPtr getOperation(const std::string &operation_name,
-                                   const std::vector<TypeID> &argument_type_ids,
-                                   const std::size_t num_static_arguments = 0) const {
-    return getOperation(
-        OperationSignature::Create(
-            operation_name, argument_type_ids, num_static_arguments));
-  }
-
-  inline UnaryOperationPtr getUnaryOperation(
-      const OperationSignaturePtr &op_signature) const {
-    const OperationPtr operation = getOperation(op_signature);
-    DCHECK(operation->getOperationSuperTypeID() == Operation::kUnaryOperation);
-    return std::static_pointer_cast<const UnaryOperation>(operation);
-  }
-
-  inline UnaryOperationPtr getUnaryOperation(
+  static bool CanApplyUnaryOperation(
       const std::string &operation_name,
-      const std::vector<TypeID> &argument_type_ids,
-      const std::size_t num_static_arguments = 0) const {
-    return getUnaryOperation(
-        OperationSignature::Create(
-            operation_name, argument_type_ids, num_static_arguments));
-  }
+      const Type &type,
+      const std::vector<GenericValue> &static_arguments = {});
 
-  inline BinaryOperationPtr getBinaryOperation(
-      const OperationSignaturePtr &op_signature) const {
-    const OperationPtr operation = getOperation(op_signature);
-    DCHECK(operation->getOperationSuperTypeID() == Operation::kBinaryOperation);
-    return std::static_pointer_cast<const BinaryOperation>(operation);
-  }
-
-  inline BinaryOperationPtr getBinaryOperation(
+  static bool CanApplyBinaryOperation(
       const std::string &operation_name,
-      const std::vector<TypeID> &argument_type_ids,
-      const std::size_t num_static_arguments = 0) const {
-    return getBinaryOperation(
-        OperationSignature::Create(
-            operation_name, argument_type_ids, num_static_arguments));
-  }
+      const Type &left, const Type &right,
+      const std::vector<GenericValue> &static_arguments = {});
 
-  OperationSignaturePtr resolveOperation(
+  /**
+   * @brief Get the Operation for a specified operation signature.
+   */
+  static OperationPtr GetOperation(const OperationSignaturePtr &op_signature);
+
+
+  /**
+   * @brief Get the UnaryOperation for a specified operation signature.
+   */
+  static UnaryOperationPtr GetUnaryOperation(const OperationSignaturePtr &op_signature);
+
+  /**
+   * @brief Get the BinaryOperation for a specified operation signature.
+   */
+  static BinaryOperationPtr GetBinaryOperation(const OperationSignaturePtr &op_signature);
+
+  /**
+   * @brief Resolve an operation from its name and arguments.
+   */
+  static OperationSignaturePtr ResolveOperation(
       const std::string &operation_name,
       const std::shared_ptr<const std::vector<const Type*>> &argument_types,
       const std::shared_ptr<const std::vector<GenericValue>> &static_arguments,
       std::shared_ptr<const std::vector<const Type*>> *coerced_argument_types,
       std::shared_ptr<const std::vector<GenericValue>> *coerced_static_arguments,
-      std::string *message) const;
+      std::string *message);
+
+
+  // ---------------------------------------------------------------------------
+  // Utility short-cuts.
+
+
+  static bool CanApplyCastOperation(const Type &source_type, const Type &target_type);
+
+  static UnaryOperationPtr GetCastOperation(const TypeID source_id);
+
+
+  static bool CanApplyAddOperation(const Type &left, const Type &right);
+
+  static BinaryOperationPtr GetAddOperation(const TypeID left_id,
+                                            const TypeID right_id);
+
+
+  static bool CanApplySubtractOperation(const Type &left, const Type &right);
+
+  static BinaryOperationPtr GetSubtractOperation(const TypeID left_id,
+                                                 const TypeID right_id);
+
+
+  static bool CanApplyMultiplyOperation(const Type &left,  const Type &right);
+
+  static BinaryOperationPtr GetMultiplyOperation(const TypeID left_id,
+                                                 const TypeID right_id);
+
+  static bool CanApplyDivideOperation(const Type &left, const Type &right);
+
+  static BinaryOperationPtr GetDivideOperation(const TypeID left_id,
+                                               const TypeID right_id);
 
  private:
   OperationFactory();
+
+  static const OperationFactory& Instance();
 
   template <typename OperationT>
   void registerOperation();
@@ -151,6 +165,14 @@ class OperationFactory {
     kNotFound
   };
 
+  OperationSignaturePtr resolveOperation(
+      const std::string &operation_name,
+      const std::shared_ptr<const std::vector<const Type*>> &argument_types,
+      const std::shared_ptr<const std::vector<GenericValue>> &static_arguments,
+      std::shared_ptr<const std::vector<const Type*>> *coerced_argument_types,
+      std::shared_ptr<const std::vector<GenericValue>> *coerced_static_arguments,
+      std::string *message) const;
+
   ResolveStatus resolveOperationWithFullTypeMatch(
       const PartialSignatureIndex &secondary_index,
       const std::vector<TypeID> &argument_type_ids,
@@ -170,16 +192,6 @@ class OperationFactory {
       OperationSignaturePtr *resolved_op_signature,
       std::string *message) const;
 
-//  ResolveStatus resolveOperationGeneric(
-//      const std::set<OperationSignaturePtr> signatures,
-//      const std::vector<TypeID> &argument_type_ids,
-//      const std::vector<const Type*> &argument_types,
-//      const std::vector<GenericValue> &static_arguments,
-//      std::shared_ptr<const std::vector<const Type*>> *coerced_argument_types,
-//      std::shared_ptr<const std::vector<GenericValue>> *coerced_static_arguments,
-//      OperationSignaturePtr *op_signature,
-//      std::string *message) const;
-
   bool canApplyOperationTo(const OperationPtr operation,
                            const std::vector<const Type*> &argument_types,
                            const std::vector<GenericValue> &static_arguments,
@@ -195,6 +207,8 @@ class OperationFactory {
 
   DISALLOW_COPY_AND_ASSIGN(OperationFactory);
 };
+
+
 
 /** @} */
 

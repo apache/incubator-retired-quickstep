@@ -32,7 +32,7 @@
 #include "types/Type.hpp"
 #include "types/TypeID.hpp"
 #include "types/TypedValue.hpp"
-#include "types/operations/unary_operations/UnaryOperationWrapper.hpp"
+#include "types/operations/unary_operations/UnaryOperationSynthesizer.hpp"
 
 #include "glog/logging.h"
 
@@ -96,17 +96,17 @@ UncheckedUnaryOperator* DateExtractOperation::makeUncheckedUnaryOperator(
   if (type.getTypeID() == kDate) {
     switch (unit) {
       case DateExtractUnit::kYear:
-        return new UncheckedUnaryOperatorWrapperCodegen<
+        return new UncheckedUnaryOperatorSynthesizer<
              DateExtractFunctor,
              std::integral_constant<DateExtractUnit, DateExtractUnit::kYear>>(
                  type, *result_type);
       case DateExtractUnit::kMonth:
-        return new UncheckedUnaryOperatorWrapperCodegen<
+        return new UncheckedUnaryOperatorSynthesizer<
              DateExtractFunctor,
              std::integral_constant<DateExtractUnit, DateExtractUnit::kMonth>>(
                  type, *result_type);
       case DateExtractUnit::kDay:
-        return new UncheckedUnaryOperatorWrapperCodegen<
+        return new UncheckedUnaryOperatorSynthesizer<
              DateExtractFunctor,
              std::integral_constant<DateExtractUnit, DateExtractUnit::kDay>>(
                  type, *result_type);
@@ -117,32 +117,32 @@ UncheckedUnaryOperator* DateExtractOperation::makeUncheckedUnaryOperator(
   } else {
     switch (unit) {
       case DateExtractUnit::kYear:
-        return new UncheckedUnaryOperatorWrapperCodegen<
+        return new UncheckedUnaryOperatorSynthesizer<
              DatetimeExtractFunctor,
              std::integral_constant<DateExtractUnit, DateExtractUnit::kYear>>(
                  type, *result_type);
       case DateExtractUnit::kMonth:
-        return new UncheckedUnaryOperatorWrapperCodegen<
+        return new UncheckedUnaryOperatorSynthesizer<
              DatetimeExtractFunctor,
              std::integral_constant<DateExtractUnit, DateExtractUnit::kMonth>>(
                  type, *result_type);
       case DateExtractUnit::kDay:
-        return new UncheckedUnaryOperatorWrapperCodegen<
+        return new UncheckedUnaryOperatorSynthesizer<
              DatetimeExtractFunctor,
              std::integral_constant<DateExtractUnit, DateExtractUnit::kDay>>(
                  type, *result_type);
       case DateExtractUnit::kHour:
-        return new UncheckedUnaryOperatorWrapperCodegen<
+        return new UncheckedUnaryOperatorSynthesizer<
              DatetimeExtractFunctor,
              std::integral_constant<DateExtractUnit, DateExtractUnit::kHour>>(
                  type, *result_type);
       case DateExtractUnit::kMinute:
-        return new UncheckedUnaryOperatorWrapperCodegen<
+        return new UncheckedUnaryOperatorSynthesizer<
              DatetimeExtractFunctor,
              std::integral_constant<DateExtractUnit, DateExtractUnit::kMinute>>(
                  type, *result_type);
       case DateExtractUnit::kSecond:
-        return new UncheckedUnaryOperatorWrapperCodegen<
+        return new UncheckedUnaryOperatorSynthesizer<
              DatetimeExtractFunctor,
              std::integral_constant<DateExtractUnit, DateExtractUnit::kSecond>>(
                  type, *result_type);

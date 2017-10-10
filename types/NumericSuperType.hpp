@@ -53,11 +53,6 @@ class NumericSuperType : public TypeSynthesizer<type_id> {
     return it != safe_coerce_cache_.end();
   }
 
-  bool isCoercibleFrom(const Type &original_type) const override {
-    QUICKSTEP_NULL_COERCIBILITY_CHECK();
-    return (original_type.getSuperTypeID() == SuperTypeID::kNumeric);
-  }
-
   TypedValue makeZeroValue() const override {
     return TypedValue(static_cast<typename TypeIDTrait<type_id>::cpptype>(0));
   }

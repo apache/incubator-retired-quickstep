@@ -39,6 +39,7 @@ bool WindowAggregateFunctionAvg::canApplyToTypes(
   }
 
   // Argument must be addable and divisible.
+  // TODO(refactor-type): Fix this.
 //  return BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kAdd)
 //             .canApplyTo(*argument_types.front(), *argument_types.front()) &&
 //         BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kDivide)
@@ -66,7 +67,7 @@ const Type* WindowAggregateFunctionAvg::resultTypeForArgumentTypes(
       break;
   }
 
-// TODO
+  // TODO(refactor-type): Fix this.
 //  return BinaryOperationFactory::GetBinaryOperation(BinaryOperationID::kDivide)
 //             .getResultType(*sum_type, TypeFactory::GetType(kDouble));
   return nullptr;

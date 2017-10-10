@@ -324,7 +324,7 @@ P::PhysicalPtr ReuseAggregateExpressions::applyToNode(
               OperationSignature::Create("/", operand_tids, 0);
 
           const BinaryOperationPtr &divide_op =
-              OperationFactory::Instance().getBinaryOperation(op_sig);
+              OperationFactory::GetBinaryOperation(op_sig);
           const E::BinaryExpressionPtr avg_expr =
               E::BinaryExpression::Create(op_sig,
                                           divide_op,

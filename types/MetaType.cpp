@@ -51,7 +51,7 @@ UntypedLiteral* MetaType::unmarshallValue(const void *data,
                                           const std::size_t data_size) const {
   serialization::Type proto;
   proto.ParseFromArray(data, data_size);
-  return new MetaTypeLiteral(&TypeFactory::ReconstructFromProto(proto));
+  return new MetaTypeLit(&TypeFactory::ReconstructFromProto(proto));
 }
 
 std::string MetaType::printValueToString(const UntypedLiteral *value) const {

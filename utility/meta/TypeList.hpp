@@ -31,24 +31,21 @@ namespace meta {
  */
 
 template <typename ...Ts>
-class TypeList;
+struct TypeList;
 
 namespace internal {
 
 using EmptyList = TypeList<>;
 
 template <typename ...Ts>
-class TypeListBase {
- private:
-  template <typename ...Tail> struct AppendHelper {
-    using type = TypeList<Ts..., Tail...>;
-  };
-
- public:
+struct TypeListBase {
   static constexpr std::size_t length = sizeof...(Ts);
 
   using type = TypeList<Ts...>;
   using self = type;
+
+  // ---------------------------------------------------------------------------
+  // Meta-methods.
 
   template <template <typename ...> class Host>
   using bind_to = Host<Ts...>;
@@ -76,7 +73,7 @@ class TypeListBase {
   using unique = typename UniqueImpl<EmptyList, self, DumbT...>::type;
 
   template <typename TL>
-  using append = typename TL::template bind_to<AppendHelper>::type;
+  using append = typename AppendImpl<self, TL>::type;
 
   template <typename TL>
   using cartesian_product = typename CartesianProductImpl<self, TL>::type;
@@ -113,19 +110,32 @@ class TypeListBase {
 
   template <typename T>
   using as_sequence = typename AsSequenceImpl<T, Ts...>::type;
+
+  // ---------------------------------------------------------------------------
+  // Methods.
+
+  template <typename Collection, typename Instantiator>
+  static Collection Instantiate(const Instantiator &functor) {
+    return { functor(Ts())... };
+  }
+
+  template <typename Collection, template <typename ...> class Instantiator>
+  static Collection Instantiate() {
+    return { Instantiator<Ts>()()... };
+  }
 };
 
 }  // namespace internal
 
 template <typename T, typename ...Ts>
-class TypeList<T, Ts...> : public internal::TypeListBase<T, Ts...> {
+struct TypeList<T, Ts...> : public internal::TypeListBase<T, Ts...> {
  public:
   using head = T;
   using tail = TypeList<Ts...>;
 };
 
 template <>
-class TypeList<> : public internal::TypeListBase<> {};
+struct TypeList<> : public internal::TypeListBase<> {};
 
 /** @} */
 

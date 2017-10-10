@@ -69,7 +69,7 @@ WindowAggregationHandleAvg::WindowAggregationHandleAvg(
 
   sum_type_ = &(TypeFactory::GetType(type_id));
 
-// TODO
+  LOG(FATAL) << "TODO(refactor-type)";
 //  // Result is nullable, because AVG() over 0 values (or all NULL values) is
 //  // NULL.
 //  result_type_
@@ -98,7 +98,7 @@ ColumnVector* WindowAggregationHandleAvg::calculate(
     ColumnVectorsValueAccessor *tuple_accessor,
     const std::vector<ColumnVector*> &arguments) const {
   DCHECK_EQ(1u, arguments.size());
-  DCHECK(arguments[0]->isNative());
+  DCHECK(arguments[0]->getImplementation() == ColumnVector::kNative);
   DCHECK_EQ(static_cast<std::size_t>(tuple_accessor->getNumTuples()),
             static_cast<const NativeColumnVector*>(arguments[0])->size());
 

@@ -41,7 +41,7 @@ namespace quickstep {
 /**
  * @brief A type representing the datetime interval.
  **/
-class DatetimeIntervalType : public TypeSynthesizer<kDatetimeInterval> {
+class DatetimeIntervalType final : public TypeSynthesizer<kDatetimeInterval> {
  public:
   int getPrintWidth() const override {
     return DatetimeIntervalLit::kPrintingChars;

@@ -36,7 +36,7 @@
 #include "types/TypedValue.hpp"
 #include "types/YearMonthIntervalType.hpp"
 #include "types/operations/binary_operations/ArithmeticBinaryFunctorOverloads.hpp"
-#include "types/operations/binary_operations/BinaryOperationWrapper.hpp"
+#include "types/operations/binary_operations/BinaryOperationSynthesizer.hpp"
 #include "utility/meta/Common.hpp"
 
 namespace quickstep {

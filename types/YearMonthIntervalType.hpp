@@ -40,7 +40,7 @@ namespace quickstep {
 /**
  * @brief A type representing the year-month interval.
  **/
-class YearMonthIntervalType : public TypeSynthesizer<kYearMonthInterval> {
+class YearMonthIntervalType final : public TypeSynthesizer<kYearMonthInterval> {
  public:
   int getPrintWidth() const override {
     return YearMonthIntervalLit::kPrintingChars;

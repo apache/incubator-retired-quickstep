@@ -62,8 +62,8 @@ TupleIdSequence* LiteralUncheckedComparator<ComparisonFunctor,
   static constexpr bool short_circuit = false;
 #endif
   // All literal types are usable with NativeColumnVector.
-  DCHECK(left.isNative());
-  DCHECK(right.isNative());
+  DCHECK(left.getImplementation() == ColumnVector::kNative);
+  DCHECK(right.getImplementation() == ColumnVector::kNative);
 
   const NativeColumnVector &left_native = static_cast<const NativeColumnVector&>(left);
   const NativeColumnVector &right_native = static_cast<const NativeColumnVector&>(right);
@@ -155,7 +155,7 @@ TupleIdSequence* LiteralUncheckedComparator<ComparisonFunctor,
   constexpr bool cv_nullable = column_vector_on_left ? left_nullable : right_nullable;
   constexpr bool static_value_nullable = column_vector_on_left ? right_nullable : left_nullable;
 
-  DCHECK(column_vector.isNative());
+  DCHECK(column_vector.getImplementation() == ColumnVector::kNative);
   const NativeColumnVector &native_column_vector
       = static_cast<const NativeColumnVector&>(column_vector);
 
@@ -402,7 +402,7 @@ TupleIdSequence* LiteralUncheckedComparator<ComparisonFunctor,
         const attribute_id value_accessor_attr_id,
         const TupleIdSequence *filter,
         const TupleIdSequence *existence_bitmap) const {
-  DCHECK(column_vector.isNative());
+  DCHECK(column_vector.getImplementation() == ColumnVector::kNative);
   const NativeColumnVector &native_column_vector
       = static_cast<const NativeColumnVector&>(column_vector);
 
@@ -642,7 +642,7 @@ TypedValue LiteralUncheckedComparator<ComparisonFunctor,
   const void *current_literal = current.isNull() ? nullptr : current.getDataPtr();
 
   // All literal types are usable with NativeColumnVector.
-  DCHECK(column_vector.isNative());
+  DCHECK(column_vector.getImplementation() == ColumnVector::kNative);
 
   const NativeColumnVector &native_vector = static_cast<const NativeColumnVector&>(column_vector);
   for (std::size_t pos = 0; pos < native_vector.size(); ++pos) {

@@ -1024,19 +1024,15 @@ L::LogicalPtr Resolver::resolveInsertSelection(
       cast_expressions.emplace_back(selection_attributes[aid]);
     } else {
       // TODO(jianqiao): implement Cast operation for non-numeric types.
-      if (destination_type.getSuperTypeID() == SuperTypeID::kNumeric &&
-          selection_type.getSuperTypeID() == SuperTypeID::kNumeric &&
-          destination_type.isSafelyCoercibleFrom(selection_type)) {
+      if (destination_type.isSafelyCoercibleFrom(selection_type)) {
         // Add cast operation
-//        const E::AttributeReferencePtr attr = selection_attributes[aid];
-//        const E::ExpressionPtr cast_expr =
-//            E::Cast::Create(attr, destination_type);
-//        cast_expressions.emplace_back(
-//            E::Alias::Create(context_->nextExprId(),
-//                             cast_expr,
-//                             attr->attribute_name(),
-//                             attr->attribute_alias()));
-        THROW_SQL_ERROR_AT(insert_statement.relation_name()) << "TODO: not handled";
+        const E::AttributeReferencePtr attr = selection_attributes[aid];
+        const E::ExpressionPtr cast_expr = E::Cast::Create(attr, destination_type);
+        cast_expressions.emplace_back(
+            E::Alias::Create(context_->nextExprId(),
+                             cast_expr,
+                             attr->attribute_name(),
+                             attr->attribute_alias()));
       } else {
         THROW_SQL_ERROR_AT(insert_statement.relation_name())
             << "The assigned value for the column "
@@ -1169,9 +1165,8 @@ L::LogicalPtr Resolver::resolveUpdate(
     // Coerce the assignment expression if its Type is not equal to that of the
     // assigned attribute.
     if (!assignment_expression->getValueType().equals(attribute->getValueType())) {
-//      assignment_expression =
-//          E::Cast::Create(assignment_expression, attribute->getValueType());
-      THROW_SQL_ERROR_AT(&assignment) << "TODO: not handled";
+      assignment_expression =
+          E::Cast::Create(assignment_expression, attribute->getValueType());
     }
     if (assignee_ids.find(attribute->id()) != assignee_ids.end()) {
       THROW_SQL_ERROR_AT(&assignment) << "Multiple assignments to the column "
@@ -1655,12 +1650,11 @@ L::LogicalPtr Resolver::resolveSetOperations(
       if (possible_type.equals(current_type)) {
         cast_expressions.emplace_back(current_attr);
       } else {
-//        cast_expressions.emplace_back(
-//            E::Alias::Create(context_->nextExprId(),
-//                             E::Cast::Create(current_attr, possible_type),
-//                             current_attr->attribute_name(),
-//                             current_attr->attribute_alias()));
-        LOG(FATAL) << "TODO: not handled";
+        cast_expressions.emplace_back(
+            E::Alias::Create(context_->nextExprId(),
+                             E::Cast::Create(current_attr, possible_type),
+                             current_attr->attribute_name(),
+                             current_attr->attribute_alias()));
       }
     }
     resolved_operations[opid] = L::Project::Create(resolved_operations[opid], cast_expressions);
@@ -2558,11 +2552,19 @@ E::ScalarPtr Resolver::resolveExpression(
     case ParseExpression::kTypeCast: {
       const ParseTypeCast &parse_type_cast =
           static_cast<const ParseTypeCast&>(parse_expression);
-      return E::Cast::Create(
+      const E::ScalarPtr operand =
           resolveExpression(parse_type_cast.operand(),
                             nullptr /* type_hint */,
-                            expression_resolution_info),
-          resolveDataType(parse_type_cast.target_type()));
+                            expression_resolution_info);
+      const Type &target_type =
+          resolveDataType(parse_type_cast.target_type());
+      if (!OperationFactory::CanApplyCastOperation(operand->getValueType(),
+                                                   target_type)) {
+        THROW_SQL_ERROR_AT(&parse_type_cast)
+            << "Cannot cast from " << operand->getValueType().getName()
+            << " type to " << target_type.getName() << " type";
+      }
+      return E::Cast::Create(operand, target_type);
     }
     default:
       LOG(FATAL) << "Unknown scalar type: "
@@ -2583,7 +2585,7 @@ E::ScalarPtr Resolver::resolveArray(
     return E::ScalarLiteral::Create(
         GenericValue::CreateWithLiteral(
             ArrayType::InstanceNonNullable({meta_null_type_value}),
-            ArrayLiteral()));
+            ArrayLit(NullType::InstanceNullable())));
   } else {
     // Currently we only support homogeneous array with literal values.
     std::vector<E::ScalarLiteralPtr> literals;
@@ -2620,9 +2622,9 @@ E::ScalarPtr Resolver::resolveArray(
         ArrayType::InstanceNonNullable({meta_element_type_value});
 
     // NOTE(refactor-type): Possibly memory leak region, noexcept.
-    std::unique_ptr<ArrayLiteral> array_literal = std::make_unique<ArrayLiteral>();
+    std::unique_ptr<ArrayLit> array_literal = std::make_unique<ArrayLit>(*element_type);
     for (const auto &literal : literals) {
-      array_literal->emplace_back(
+      array_literal->push_back(
           element_type->cloneValue(literal->value().getValue()));
     }
     return E::ScalarLiteral::Create(
@@ -2718,15 +2720,13 @@ E::ScalarPtr Resolver::resolveSearchedCaseExpression(
   // Cast all the result expressions to the same type.
   for (E::ScalarPtr &conditional_result_expression : conditional_result_expressions) {
     if (conditional_result_expression->getValueType().getTypeID() != result_data_type->getTypeID()) {
-//      conditional_result_expression =
-//          E::Cast::Create(conditional_result_expression, *result_data_type);
-      LOG(FATAL) << "TODO: not handled";
+      conditional_result_expression =
+          E::Cast::Create(conditional_result_expression, *result_data_type);
     }
   }
   if (else_result_expression != nullptr
       && else_result_expression->getValueType().getTypeID() != result_data_type->getTypeID()) {
-//    else_result_expression = E::Cast::Create(else_result_expression, *result_data_type);
-    LOG(FATAL) << "TODO: not handled";
+    else_result_expression = E::Cast::Create(else_result_expression, *result_data_type);
   }
 
   if (else_result_expression == nullptr) {
@@ -2864,15 +2864,13 @@ E::ScalarPtr Resolver::resolveSimpleCaseExpression(
   // Cast all the result expressions to the same type.
   for (E::ScalarPtr &conditional_result_expression : conditional_result_expressions) {
     if (conditional_result_expression->getValueType().getTypeID() != result_data_type->getTypeID()) {
-//      conditional_result_expression =
-//          E::Cast::Create(conditional_result_expression, *result_data_type);
-      LOG(FATAL) << "TODO: not handled";
+      conditional_result_expression =
+          E::Cast::Create(conditional_result_expression, *result_data_type);
     }
   }
   if (else_result_expression != nullptr
       && else_result_expression->getValueType().getTypeID() != result_data_type->getTypeID()) {
-//    else_result_expression = E::Cast::Create(else_result_expression, *result_data_type);
-    LOG(FATAL) << "TODO: not handled";
+    else_result_expression = E::Cast::Create(else_result_expression, *result_data_type);
   }
 
   if (else_result_expression == nullptr) {
@@ -2916,7 +2914,7 @@ E::ScalarPtr Resolver::resolveScalarFunction(
   std::shared_ptr<const std::vector<GenericValue>> coerced_static_arguments;
   std::string message;
   const OperationSignaturePtr op_signature =
-      OperationFactory::Instance().resolveOperation(
+      OperationFactory::ResolveOperation(
           function_name,
           std::make_shared<const std::vector<const Type*>>(std::move(argument_types)),
           std::make_shared<const std::vector<GenericValue>>(std::move(static_arguments)),
@@ -2936,8 +2934,7 @@ E::ScalarPtr Resolver::resolveScalarFunction(
   // TODO: add cast if neccessary.
   (void)coerced_argument_types;
 
-  const OperationPtr operation =
-      OperationFactory::Instance().getOperation(op_signature);
+  const OperationPtr operation = OperationFactory::GetOperation(op_signature);
   switch (operation->getOperationSuperTypeID()) {
     case Operation::kUnaryOperation:
       return E::UnaryExpression::Create(
@@ -3008,8 +3005,7 @@ E::ScalarPtr Resolver::resolveFunctionCall(
     }
   }
 
-  if (OperationFactory::Instance().hasOperation(function_name,
-                                                resolved_arguments.size())) {
+  if (OperationFactory::HasOperation(function_name, resolved_arguments.size())) {
     E::ScalarPtr scalar = resolveScalarFunction(parse_function_call,
                                                 function_name,
                                                 resolved_arguments,

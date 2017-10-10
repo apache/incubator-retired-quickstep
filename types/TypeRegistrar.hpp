@@ -43,13 +43,13 @@ namespace quickstep {
 
 class Type;
 class TypedValue;
+class ArrayLit;
 
 using UntypedLiteral = void;
 
-using ArrayLiteral = std::vector<UntypedLiteral*>;
-using MetaTypeLiteral = const Type*;
-using ParInlinePodLiteral = const void*;
-using ParOutOfLinePodLiteral = TypedValue;
+using MetaTypeLit = const Type*;
+using ParInlinePodLit = const void*;
+using ParOutOfLinePodLit = TypedValue;
 
 template <TypeID type_id>
 struct TypeIDTrait;
@@ -85,15 +85,15 @@ REGISTER_TYPE(DatetimeIntervalType, kDatetimeInterval,
 REGISTER_TYPE(YearMonthIntervalType, kYearMonthInterval,
               SuperTypeID::kOther, kCxxInlinePod, YearMonthIntervalLit);
 REGISTER_TYPE(CharType, kChar,
-              SuperTypeID::kAsciiString, kParInlinePod, ParInlinePodLiteral);
+              SuperTypeID::kAsciiString, kParInlinePod, ParInlinePodLit);
 REGISTER_TYPE(VarCharType, kVarChar,
-              SuperTypeID::kAsciiString, kParOutOfLinePod, ParOutOfLinePodLiteral);
+              SuperTypeID::kAsciiString, kParOutOfLinePod, ParOutOfLinePodLit);
 REGISTER_TYPE(TextType, kText,
               SuperTypeID::kOther, kCxxGeneric, std::string);
 REGISTER_TYPE(ArrayType, kArray,
-              SuperTypeID::kOther, kCxxGeneric, ArrayLiteral);
+              SuperTypeID::kOther, kCxxGeneric, ArrayLit);
 REGISTER_TYPE(MetaType, kMetaType,
-              SuperTypeID::kOther, kCxxGeneric, MetaTypeLiteral);
+              SuperTypeID::kOther, kCxxGeneric, MetaTypeLit);
 REGISTER_TYPE(NullType, kNullType,
               SuperTypeID::kOther, kCxxInlinePod, NullLit);
 

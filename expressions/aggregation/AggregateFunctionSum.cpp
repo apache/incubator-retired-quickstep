@@ -41,9 +41,7 @@ bool AggregateFunctionSum::canApplyToTypes(
 
   // Argument must be addable.
   const Type &type = *argument_types.front();
-  return OperationFactory::Instance()
-      .getBinaryOperation("+", {type.getTypeID(), type.getTypeID()})
-          ->canApplyTo(type, type);
+  return OperationFactory::CanApplyAddOperation(type, type);
 }
 
 const Type* AggregateFunctionSum::resultTypeForArgumentTypes(

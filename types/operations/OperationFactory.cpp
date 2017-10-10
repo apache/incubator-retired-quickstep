@@ -33,7 +33,7 @@
 #include "types/operations/OperationSignature.hpp"
 #include "types/operations/binary_operations/ArithmeticBinaryFunctors.hpp"
 #include "types/operations/binary_operations/AsciiStringBinaryFunctors.hpp"
-#include "types/operations/binary_operations/BinaryOperationWrapper.hpp"
+#include "types/operations/binary_operations/BinaryOperationSynthesizer.hpp"
 #include "types/operations/binary_operations/CMathBinaryFunctors.hpp"
 #include "types/operations/unary_operations/ArithmeticUnaryFunctors.hpp"
 #include "types/operations/unary_operations/AsciiStringUnaryFunctors.hpp"
@@ -41,8 +41,10 @@
 #include "types/operations/unary_operations/CastOperation.hpp"
 #include "types/operations/unary_operations/DateExtractOperation.hpp"
 #include "types/operations/unary_operations/SubstringOperation.hpp"
-#include "types/operations/unary_operations/UnaryOperationWrapper.hpp"
+#include "types/operations/unary_operations/UnaryOperationSynthesizer.hpp"
 #include "utility/StringUtil.hpp"
+
+#include "glog/logging.h"
 
 namespace quickstep {
 
@@ -52,13 +54,13 @@ struct FunctorPackDispatcher {
   template <typename FunctorT>
   inline static std::list<OperationPtr> Generate(
       std::enable_if_t<FunctorT::kOperationSuperTypeID == Operation::kUnaryOperation>* = 0) {
-    return { std::make_shared<const UnaryOperationWrapper<FunctorT>>() };
+    return { std::make_shared<const UnaryOperationSynthesizer<FunctorT>>() };
   }
 
   template <typename FunctorT>
   inline static std::list<OperationPtr> Generate(
       std::enable_if_t<FunctorT::kOperationSuperTypeID == Operation::kBinaryOperation>* = 0) {
-    return { std::make_shared<const BinaryOperationWrapper<FunctorT>>() };
+    return { std::make_shared<const BinaryOperationSynthesizer<FunctorT>>() };
   }
 
   template <typename FunctorT>
@@ -93,6 +95,98 @@ OperationFactory::OperationFactory() {
   registerFunctorPack<AsciiStringBinaryFunctorPack>();
   registerFunctorPack<CMathBinaryFunctorPack>();
 }
+
+bool OperationFactory::HasOperation(const std::string &operation_name,
+                                    const std::size_t arity) {
+  const auto &primary_index = Instance().primary_index_;
+  const auto indices_it =
+      primary_index.find(std::make_pair(operation_name, arity));
+  return indices_it != primary_index.end();
+}
+
+bool OperationFactory::HasOperation(const OperationSignaturePtr &op_signature) {
+  const auto &operations = Instance().operations_;
+  return operations.find(op_signature) != operations.end();
+}
+
+bool OperationFactory::CanApplyUnaryOperation(
+    const std::string &operation_name,
+    const Type &type,
+    const std::vector<GenericValue> &static_arguments) {
+  std::vector<TypeID> argument_type_ids = {type.getTypeID()};
+  std::vector<TypedValue> static_tv_arguments;
+  for (const auto &value : static_arguments) {
+    argument_type_ids.emplace_back(value.getTypeID());
+    // TODO(refactor-type): Remove this.
+    static_tv_arguments.emplace_back(value.toTypedValue());
+  }
+  const OperationSignaturePtr op_signature =
+      OperationSignature::Create(
+          operation_name, argument_type_ids, static_arguments.size());
+  if (!HasOperation(op_signature)) {
+    return false;
+  }
+  return GetUnaryOperation(op_signature)->canApplyTo(type, static_tv_arguments);
+}
+
+bool OperationFactory::CanApplyBinaryOperation(
+    const std::string &operation_name,
+    const Type &left, const Type &right,
+    const std::vector<GenericValue> &static_arguments) {
+  std::vector<TypeID> argument_type_ids = {left.getTypeID(), right.getTypeID()};
+  std::vector<TypedValue> static_tv_arguments;
+  for (const auto &value : static_arguments) {
+    argument_type_ids.emplace_back(value.getTypeID());
+    // TODO(refactor-type): Remove this.
+    static_tv_arguments.emplace_back(value.toTypedValue());
+  }
+  // TODO(refactor-type): Handle this.
+  DCHECK_EQ(0u, static_arguments.size());
+  const OperationSignaturePtr op_signature =
+      OperationSignature::Create(
+          operation_name, argument_type_ids, static_arguments.size());
+  if (!HasOperation(op_signature)) {
+    return false;
+  }
+  return GetBinaryOperation(op_signature)->canApplyTo(left, right, static_tv_arguments);
+}
+
+OperationPtr OperationFactory::GetOperation(
+    const OperationSignaturePtr &op_signature) {
+  DCHECK(HasOperation(op_signature));
+  return Instance().operations_.at(op_signature);
+}
+
+
+UnaryOperationPtr OperationFactory::GetUnaryOperation(
+    const OperationSignaturePtr &op_signature) {
+  const OperationPtr operation = GetOperation(op_signature);
+  DCHECK(operation->getOperationSuperTypeID() == Operation::kUnaryOperation);
+  return std::static_pointer_cast<const UnaryOperation>(operation);
+}
+
+BinaryOperationPtr OperationFactory::GetBinaryOperation(
+    const OperationSignaturePtr &op_signature) {
+  const OperationPtr operation = GetOperation(op_signature);
+  DCHECK(operation->getOperationSuperTypeID() == Operation::kBinaryOperation);
+  return std::static_pointer_cast<const BinaryOperation>(operation);
+}
+
+OperationSignaturePtr OperationFactory::ResolveOperation(
+    const std::string &operation_name,
+    const std::shared_ptr<const std::vector<const Type*>> &argument_types,
+    const std::shared_ptr<const std::vector<GenericValue>> &static_arguments,
+    std::shared_ptr<const std::vector<const Type*>> *coerced_argument_types,
+    std::shared_ptr<const std::vector<GenericValue>> *coerced_static_arguments,
+    std::string *message) {
+  return Instance().resolveOperation(operation_name,
+                                     argument_types,
+                                     static_arguments,
+                                     coerced_argument_types,
+                                     coerced_static_arguments,
+                                     message);
+}
+
 
 OperationSignaturePtr OperationFactory::resolveOperation(
     const std::string &operation_name,
@@ -171,7 +265,7 @@ OperationFactory::ResolveStatus OperationFactory::resolveOperationWithFullTypeMa
 
   if (it != secondary_index.end() && *it->first.first == argument_type_ids) {
     const OperationSignaturePtr op_signature = it->second;
-    const OperationPtr operation = getOperation(op_signature);
+    const OperationPtr operation = operations_.at(op_signature);
 
     *coerced_static_arguments =
         std::make_shared<const std::vector<GenericValue>>(
@@ -264,7 +358,7 @@ OperationFactory::ResolveStatus OperationFactory::resolveOperationWithPartialTyp
         coerced_arg_types.emplace_back(&value.getType());
       }
 
-      const OperationPtr operation = getOperation(it->second);
+      const OperationPtr operation = operations_.at(it->second);
       if (canApplyOperationTo(operation,
                               coerced_arg_types,
                               coerced_static_args,
@@ -359,5 +453,59 @@ void OperationFactory::registerOperationInternal(const OperationPtr &operation) 
   }
 }
 
+
+// ----------------------------------------------------------------------------
+// Implemenation of utility short-cuts.
+
+bool OperationFactory::CanApplyCastOperation(const Type &source_type,
+                                             const Type &target_type) {
+  const GenericValue target_meta_type_value =
+      GenericValue::CreateWithLiteral(MetaType::InstanceNonNullable(),
+                                      &target_type);
+  return CanApplyUnaryOperation("cast", source_type, {target_meta_type_value});
+}
+
+UnaryOperationPtr OperationFactory::GetCastOperation(const TypeID source_id) {
+  const OperationSignaturePtr op_signature =
+      OperationSignature::Create("cast", {source_id, kMetaType}, 1);
+  DCHECK(HasOperation(op_signature));
+  return GetUnaryOperation(op_signature);
+}
+
+bool OperationFactory::CanApplyAddOperation(const Type &left, const Type &right) {
+  return CanApplyBinaryOperation("+", left, right);
+}
+
+BinaryOperationPtr OperationFactory::GetAddOperation(const TypeID left_id,
+                                                     const TypeID right_id) {
+  return GetBinaryOperation(OperationSignature::Create("+", {left_id, right_id}, 0));
+}
+
+bool OperationFactory::CanApplySubtractOperation(const Type &left, const Type &right) {
+  return CanApplyBinaryOperation("-", left, right);
+}
+
+BinaryOperationPtr OperationFactory::GetSubtractOperation(const TypeID left_id,
+                                                          const TypeID right_id) {
+  return GetBinaryOperation(OperationSignature::Create("-", {left_id, right_id}, 0));
+}
+
+bool OperationFactory::CanApplyMultiplyOperation(const Type &left, const Type &right) {
+  return CanApplyBinaryOperation("*", left, right);
+}
+
+BinaryOperationPtr OperationFactory::GetMultiplyOperation(const TypeID left_id,
+                                                          const TypeID right_id) {
+  return GetBinaryOperation(OperationSignature::Create("*", {left_id, right_id}, 0));
+}
+
+bool OperationFactory::CanApplyDivideOperation(const Type &left, const Type &right) {
+  return CanApplyBinaryOperation("/", left, right);
+}
+
+BinaryOperationPtr OperationFactory::GetDivideOperation(const TypeID left_id,
+                                                        const TypeID right_id) {
+  return GetBinaryOperation(OperationSignature::Create("/", {left_id, right_id}, 0));
+}
 
 }  // namespace quickstep

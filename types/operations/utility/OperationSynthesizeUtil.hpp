@@ -17,11 +17,12 @@
  * under the License.
  **/
 
-#ifndef QUICKSTEP_TYPES_OPERATIONS_OPERATION_SYNTHESIZE_UTIL_HPP_
-#define QUICKSTEP_TYPES_OPERATIONS_OPERATION_SYNTHESIZE_UTIL_HPP_
+#ifndef QUICKSTEP_TYPES_OPERATIONS_UTILITY_OPERATION_SYNTHESIZE_UTIL_HPP_
+#define QUICKSTEP_TYPES_OPERATIONS_UTILITY_OPERATION_SYNTHESIZE_UTIL_HPP_
 
 #include <cstddef>
 #include <list>
+#include <memory>
 #include <string>
 #include <type_traits>
 
@@ -29,6 +30,8 @@
 #include "types/Type.hpp"
 #include "types/TypedValue.hpp"
 #include "types/containers/ColumnVector.hpp"
+#include "utility/Macros.hpp"
+#include "utility/meta/TypeList.hpp"
 
 namespace quickstep {
 
@@ -68,35 +71,48 @@ struct FunctorSpecializer<FunctorT, SpecArgs...>
 };
 
 template <typename ColumnVectorT>
-struct ColumnVectorValueAccessor {
-  explicit ColumnVectorValueAccessor(const ColumnVectorT &column_vector_in)
-      : column_vector(column_vector_in),
-        length(column_vector.size()) {}
+class ColumnVectorAccessor {
+ public:
+  constexpr static bool kIsGenericColumnVectorAccessor =
+      (ColumnVectorT::kImplementation == ColumnVector::kGeneric);
+
+  inline explicit ColumnVectorAccessor(const ColumnVectorT &column_vector)
+      : column_vector_(column_vector),
+        length_(column_vector.size()) {}
 
   inline void beginIteration() {
-    pos = static_cast<std::size_t>(-1);
+    pos_ = static_cast<std::size_t>(-1);
   }
 
   inline bool next() {
-    return (++pos) < length;
+    return (++pos_) < length_;
   }
 
   inline std::size_t getNumTuples() const {
-    return length;
+    return length_;
   }
 
-  template <bool nullable>
+  template <bool check_null>
   inline const void* getUntypedValue(const attribute_id) const {
-    return column_vector.template getUntypedValue<nullable>(pos);
+    return column_vector_.template getUntypedValue<check_null>(pos_);
   }
 
   inline TypedValue getTypedValue(const attribute_id) const {
-    return column_vector.getTypedValue(pos);
+    return column_vector_.getTypedValue(pos_);
   }
 
-  const ColumnVectorT &column_vector;
-  const std::size_t length;
-  std::size_t pos;
+  template <bool check_null, bool generic>
+  inline typename std::enable_if_t<generic, ColumnVectorT>::cpptype
+      getLiteralValue() const {
+    return column_vector_.template getLiteralValue<check_null>(pos_);
+  }
+
+ private:
+  const ColumnVectorT &column_vector_;
+  const std::size_t length_;
+  std::size_t pos_;
+
+  DISALLOW_COPY_AND_ASSIGN(ColumnVectorAccessor);
 };
 
 template <typename FuncSpec, typename T, typename EnableT = void>
@@ -105,11 +121,12 @@ struct OperationCodegen;
 template <typename FuncSpec, typename T>
 struct OperationCodegen<FuncSpec, T,
                         std::enable_if_t<T::kMemoryLayout == kCxxInlinePod>> {
+  using ValueType = T;
   using ColumnVectorType = NativeColumnVector;
   using FunctorSpecializer = FuncSpec;
 
   using NativeType = typename T::cpptype;
-  using NativeTypeConst = const typename T::cpptype;
+  using NativeTypeConst = const NativeType;
   using NativeTypeConstRef = const NativeType&;
   using NativeTypeConstPtr = const NativeType*;
 
@@ -151,7 +168,8 @@ struct OperationCodegen<FuncSpec, T,
 
   template <bool nullable, typename AccessorT>
   inline static NativeTypeConstPtr GetValuePtr(const AccessorT *accessor,
-                                               const attribute_id attr_id) {
+                                               const attribute_id attr_id,
+                                               const Type &, void *) {
     return static_cast<NativeTypeConstPtr>(
         accessor->template getUntypedValue<nullable>(attr_id));
   }
@@ -165,7 +183,8 @@ struct OperationCodegen<FuncSpec, T,
     return *value;
   }
 
-  inline static const NativeType ToNativeValueConst(const TypedValue &value) {
+  inline static const NativeType ToNativeValueConst(const TypedValue &value,
+                                                    const Type &) {
     return value.getLiteral<NativeType>();
   }
 };
@@ -173,6 +192,7 @@ struct OperationCodegen<FuncSpec, T,
 template <typename FuncSpec, typename T>
 struct OperationCodegen<FuncSpec, T,
                         std::enable_if_t<T::kMemoryLayout == kParInlinePod>> {
+  using ValueType = T;
   using ColumnVectorType = NativeColumnVector;
   using FunctorSpecializer = FuncSpec;
 
@@ -223,9 +243,11 @@ struct OperationCodegen<FuncSpec, T,
     FuncSpec::Invoke(functor, left, right, cv->getPtrForDirectWrite());
   }
 
+  // TODO(refactor-type): Use ColumnAccessor to improve performance.
   template <bool nullable, typename AccessorT>
   inline static NativeTypeConstPtr GetValuePtr(const AccessorT *accessor,
-                                               const attribute_id attr_id) {
+                                               const attribute_id attr_id,
+                                               const Type &, void *) {
     return accessor->template getUntypedValue<nullable>(attr_id);
   }
 
@@ -238,7 +260,8 @@ struct OperationCodegen<FuncSpec, T,
     return value;
   }
 
-  inline static const void* ToNativeValueConst(const TypedValue &value) {
+  inline static const void* ToNativeValueConst(const TypedValue &value,
+                                               const Type &) {
     return value.getDataPtr();
   }
 };
@@ -246,6 +269,7 @@ struct OperationCodegen<FuncSpec, T,
 template <typename FuncSpec, typename T>
 struct OperationCodegen<FuncSpec, T,
                         std::enable_if_t<T::kMemoryLayout == kParOutOfLinePod>> {
+  using ValueType = T;
   using ColumnVectorType = IndirectColumnVector;
   using FunctorSpecializer = FuncSpec;
 
@@ -289,9 +313,9 @@ struct OperationCodegen<FuncSpec, T,
   }
 
   template <bool nullable, typename AccessorT>
-  inline static NativeTypeConstPtr GetValuePtr(
-      const AccessorT *accessor,
-      const attribute_id attr_id) {
+  inline static NativeTypeConstPtr GetValuePtr(const AccessorT *accessor,
+                                               const attribute_id attr_id,
+                                               const Type &, void *) {
     return accessor->getTypedValue(attr_id);
   }
 
@@ -304,10 +328,120 @@ struct OperationCodegen<FuncSpec, T,
     return value;
   }
 
-  inline static const NativeType& ToNativeValueConst(const TypedValue &value) {
+  inline static const NativeType& ToNativeValueConst(const TypedValue &value,
+                                                     const Type &) {
     return value;
   }
 };
+
+
+// TODO(refactor-type): Remove this.
+namespace internal {
+
+template <typename T>
+std::enable_if_t<T::kIsGenericColumnVectorAccessor,
+                 std::true_type> IsGenericColumnVectorAccessorImpl(int);
+template <typename>
+std::false_type IsGenericColumnVectorAccessorImpl(...);
+
+}  // namespace internal
+
+template <typename T>
+using IsGenericColumnVectorAccessor =
+    decltype(internal::IsGenericColumnVectorAccessorImpl<T>());
+
+template <typename FuncSpec, typename T>
+struct OperationCodegen<FuncSpec, T,
+                        std::enable_if_t<T::kMemoryLayout == kCxxGeneric>> {
+  using ValueType = T;
+  using ColumnVectorType = GenericColumnVector<T>;
+  using FunctorSpecializer = FuncSpec;
+
+  using NativeType = typename T::cpptype;
+  using NativeTypeConst = const NativeType;
+  using NativeTypeConstRef = const NativeType&;
+  using NativeTypeConstPtr = const NativeType*;
+
+  template <typename ArgumentGen, typename ResultType>
+  inline static TypedValue ApplyUnaryTypedValue(
+      typename ArgumentGen::NativeTypeConstRef argument,
+      const ResultType &result_type,
+      const typename FuncSpec::FunctorType &functor) {
+    const NativeType result = FuncSpec::Invoke(functor, argument);
+    return result_type.marshallValue(&result);
+  }
+
+  template <typename ArgumentGen>
+  inline static void ApplyUnaryColumnVector(
+      const typename ArgumentGen::NativeTypeConstRef argument,
+      const typename FuncSpec::FunctorType &functor,
+      ColumnVectorType *cv) {
+    cv->appendLiteralValue(FuncSpec::Invoke(functor, argument));
+  }
+
+  template <typename LeftGen, typename RightGen, typename ResultType>
+  inline static TypedValue ApplyBinaryTypedValue(
+      typename LeftGen::NativeTypeConstRef left,
+      typename RightGen::NativeTypeConstRef right,
+      const ResultType &result_type,
+      const typename FuncSpec::FunctorType &functor) {
+    const NativeType result = FuncSpec::Invoke(functor, left, right);
+    return result_type.marshallValue(&result);
+  }
+
+  template <typename LeftGen, typename RightGen>
+  inline static void ApplyBinaryColumnVector(
+      const typename LeftGen::NativeTypeConstRef left,
+      const typename RightGen::NativeTypeConstRef right,
+      const typename FuncSpec::FunctorType &functor,
+      ColumnVectorType *cv) {
+    cv->appendLiteralValue(FuncSpec::Invoke(functor, left, right));
+  }
+
+  // TODO(refactor-type): Use ColumnAccessor to handle the more general case.
+  template <bool nullable, typename AccessorT>
+  inline static NativeTypeConstPtr GetValuePtr(
+      const AccessorT *accessor,
+      const attribute_id attr_id,
+      const Type &, void *,
+      std::enable_if_t<IsGenericColumnVectorAccessor<AccessorT>::value> * = 0) {
+    return &accessor->template getLiteralValue<nullable, true>();
+  }
+
+  // TODO(refactor-type): Use ColumnAccessor to handle the more general case.
+  template <bool nullable, typename AccessorT>
+  inline static NativeTypeConstPtr GetValuePtr(
+      const AccessorT *accessor,
+      const attribute_id attr_id,
+      const ValueType &value_type,
+      std::unique_ptr<NativeType> *cache,
+      std::enable_if_t<!IsGenericColumnVectorAccessor<AccessorT>::value> * = 0) {
+    static_assert(std::is_same<NativeType, typename ValueType::cpptype>::value,
+                  "Unexpected value type in OperationCodegen::GetValuePtr for "
+                  "CxxGeneric types.");
+    cache->reset(static_cast<NativeType*>(
+        value_type.unmarshallTypedValue(accessor->getTypedValue(attr_id))));
+    return cache->get();
+  }
+
+  inline static bool IsNull(NativeTypeConstPtr &value) {
+    return value == nullptr;
+  }
+
+  // Dereference: NativeTypeConstPtr& -> const NativeType&
+  inline static const NativeType& Dereference(NativeTypeConstPtr &value) {
+    return *value;
+  }
+
+  inline static const NativeType ToNativeValueConst(const TypedValue &value,
+                                                    const ValueType &value_type) {
+    // TODO(refactor-type): Improve performance.
+    std::unique_ptr<NativeType> cache(
+        static_cast<NativeType*>(value_type.unmarshallTypedValue(value)));
+    return *cache;
+  }
+};
+
 
 template <typename ...FunctorTypes>
 struct FunctorPack {
@@ -332,4 +466,4 @@ struct OperationPack {
 
 }  // namespace quickstep
 
-#endif  // QUICKSTEP_TYPES_OPERATIONS_OPERATION_SYNTHESIZE_UTIL_HPP_
+#endif  // QUICKSTEP_TYPES_OPERATIONS_OPERATION_UTILITY_SYNTHESIZE_UTIL_HPP_

@@ -22,6 +22,7 @@
 #include <cstdlib>
 #include <string>
 
+#include "types/ArrayLit.hpp"
 #include "types/Type.pb.h"
 #include "types/TypeID.hpp"
 
@@ -39,6 +40,15 @@ std::string ArrayType::getName() const {
   return name;
 }
 
+bool ArrayType::isCoercibleFrom(const Type &original_type) const {
+  if (original_type.getTypeID() != kArray) {
+    return false;
+  }
+  const Type &original_element_type =
+      static_cast<const ArrayType&>(original_type).element_type_;
+  return element_type_.isCoercibleFrom(original_element_type);
+}
+
 bool ArrayType::TypeParametersAreValid(const std::vector<GenericValue> &parameters) {
   if (parameters.size() != 1u) {
     return false;
@@ -52,13 +62,13 @@ bool ArrayType::checkValuesEqual(const UntypedLiteral *lhs,
   if (!equals(rhs_type)) {
     return false;
   }
-  const ArrayLiteral &lhs_array = castValueToLiteral(lhs);
-  const ArrayLiteral &rhs_array = castValueToLiteral(rhs);
+  const ArrayLit &lhs_array = castValueToLiteral(lhs);
+  const ArrayLit &rhs_array = castValueToLiteral(rhs);
   if (lhs_array.size() != rhs_array.size()) {
     return false;
   }
   for (std::size_t i = 0; i < lhs_array.size(); ++i) {
-    if (!element_type_.checkValuesEqual(lhs_array.at(i), rhs_array.at(i))) {
+    if (!element_type_.checkValuesEqual(lhs_array[i], rhs_array[i])) {
       return false;
     }
   }
@@ -66,8 +76,8 @@ bool ArrayType::checkValuesEqual(const UntypedLiteral *lhs,
 }
 
 TypedValue ArrayType::marshallValue(const UntypedLiteral *value) const {
-  const ArrayLiteral &array = *static_cast<const ArrayLiteral*>(value);
-  serialization::ArrayLiteral proto;
+  const ArrayLit &array = *static_cast<const ArrayLit*>(value);
+  serialization::ArrayLit proto;
   for (const auto &element : array) {
     // TODO(refactor-type): Improve performance.
     TypedValue value = element_type_.marshallValue(element);
@@ -81,12 +91,12 @@ TypedValue ArrayType::marshallValue(const UntypedLiteral *value) const {
 
 UntypedLiteral* ArrayType::unmarshallValue(const void *data,
                                            const std::size_t data_size) const {
-  std::unique_ptr<ArrayLiteral> array = std::make_unique<ArrayLiteral>();
-  serialization::ArrayLiteral proto;
+  std::unique_ptr<ArrayLit> array = std::make_unique<ArrayLit>(element_type_);
+  serialization::ArrayLit proto;
   proto.ParseFromArray(data, data_size);
   for (int i = 0; i < proto.data_size(); ++i) {
     const std::string &element_data = proto.data(i);
-    array->emplace_back(
+    array->push_back(
         element_type_.unmarshallValue(element_data.c_str(), element_data.size()));
   }
   return array.release();
@@ -95,13 +105,13 @@ UntypedLiteral* ArrayType::unmarshallValue(const void *data,
 std::string ArrayType::printValueToString(const UntypedLiteral *value) const {
   DCHECK(value != nullptr);
 
-  const std::vector<UntypedLiteral*> &literals = castValueToLiteral(value);
+  const ArrayLit &literals = castValueToLiteral(value);
   std::string ret = "{";
   if (!literals.empty()) {
     ret.append(element_type_.printValueToString(literals.front()));
     for (std::size_t i = 1; i < literals.size(); ++i) {
       ret.append(",");
-      ret.append(element_type_.printValueToString(literals.at(i)));
+      ret.append(element_type_.printValueToString(literals[i]));
     }
   }
   ret.append("}");

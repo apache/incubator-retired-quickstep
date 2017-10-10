@@ -28,6 +28,7 @@
 #include <vector>
 
 #include "types/Type.hpp"
+#include "types/TypeRegistrar.hpp"
 #include "types/TypedValue.hpp"
 #include "utility/BitVector.hpp"
 #include "utility/Macros.hpp"
@@ -123,24 +124,16 @@ class ColumnVector {
     return implementation_;
   }
 
-  inline bool isNative() const {
-    return implementation_ == kNative;
-  }
-
-  inline bool isIndrect() const {
-    return implementation_ == kIndirect;
-  }
-
-  inline bool isGeneric() const {
-    return implementation_ == kGeneric;
-  }
-
   /**
    * @brief Get the number of values in this ColumnVector.
    *
    * @return The number of values in this ColumnVector.
    **/
   virtual std::size_t size() const = 0;
+
+  virtual TypedValue getTypedValueVirtual(const std::size_t position) const {
+    LOG(FATAL) << "Unexpected call to ColumnVector::getTypedValueVirtual()";
+  }
 
  protected:
   const Implementation implementation_;
@@ -155,7 +148,7 @@ class ColumnVector {
  **/
 class NativeColumnVector : public ColumnVector {
  public:
-  static constexpr bool kNative = true;
+  static constexpr Implementation kImplementation = ColumnVector::kNative;
 
   /**
    * @brief Constructor for a NativeColumnVector which owns its own array of
@@ -166,16 +159,13 @@ class NativeColumnVector : public ColumnVector {
    *        NativeColumnVector will hold.
    **/
   NativeColumnVector(const Type &type, const std::size_t reserved_length)
-      : ColumnVector(ColumnVector::kNative, type),
+      : ColumnVector(kImplementation, type),
         type_length_(type.maximumByteLength()),
         reserved_length_(reserved_length),
         values_(std::malloc(type.maximumByteLength() * reserved_length)),
         actual_length_(0u),
         null_bitmap_(type.isNullable() ? new BitVector<false>(reserved_length) : nullptr) {
     DCHECK(UsableForType(type_));
-    if (null_bitmap_) {
-      null_bitmap_->clear();
-    }
   }
 
   /**
@@ -193,7 +183,8 @@ class NativeColumnVector : public ColumnVector {
    *         IndirectColumnVector must be used instead.
    **/
   static bool UsableForType(const Type &type) {
-    return !type.isVariableLength();
+    return type.getMemoryLayout() == kCxxInlinePod ||
+           type.getMemoryLayout() == kParInlinePod;
   }
 
   /**
@@ -437,7 +428,7 @@ class NativeColumnVector : public ColumnVector {
  **/
 class IndirectColumnVector : public ColumnVector {
  public:
-  static constexpr bool kNative = false;
+  static constexpr Implementation kImplementation = ColumnVector::kIndirect;
 
   /**
    * @brief Constructor.
@@ -446,7 +437,7 @@ class IndirectColumnVector : public ColumnVector {
    * @param reserved_length The number of values to reserve space for.
    **/
   IndirectColumnVector(const Type &type, const std::size_t reserved_length)
-      : ColumnVector(ColumnVector::kIndirect, type),
+      : ColumnVector(kImplementation, type),
         type_is_nullable_(type.isNullable()),
         reserved_length_(reserved_length) {
     values_.reserve(reserved_length);
@@ -616,10 +607,101 @@ class IndirectColumnVector : public ColumnVector {
   DISALLOW_COPY_AND_ASSIGN(IndirectColumnVector);
 };
 
-class GenericColumnVector {
+template <typename TypeClass>
+class GenericColumnVector : public ColumnVector {
+ public:
+  static constexpr Implementation kImplementation = ColumnVector::kGeneric;
 
+  using cpptype = typename TypeClass::cpptype;
 
+  GenericColumnVector(const Type &type, const std::size_t reserved_length)
+      : ColumnVector(kImplementation, type),
+        type_(static_cast<const TypeClass&>(type)),
+        reserved_length_(reserved_length) {
+    DCHECK(TypeClass::kStaticTypeID == type.getTypeID());
+    values_.reserve(reserved_length_);
+    if (type.isNullable()) {
+      null_bitmap_ = std::make_unique<BitVector<false>>(reserved_length_);
+    }
+  }
+
+  static bool UsableForType(const Type &type) {
+    return type.getMemoryLayout() == kCxxGeneric;
+  }
+
+  inline bool typeIsNullable() const {
+    return null_bitmap_.get() != nullptr;
+  }
+
+  inline std::size_t size() const override {
+    return values_.size();
+  }
+
+  template <bool check_null = true>
+  inline cpptype& getLiteralValue(const std::size_t position) const {
+    DCHECK_LT(position, values_.size());
+    return (check_null && null_bitmap_ && null_bitmap_->getBit(position))
+        ? nullptr
+        : values_[position];
+  }
+
+  TypedValue getTypedValueVirtual(const std::size_t position) const override {
+    return getTypedValue(position);
+  }
+
+  inline TypedValue getTypedValue(const std::size_t position) const {
+    DCHECK_LT(position, values_.size());
+    // TODO(refactor-type): Implement marshallValueMaybeReference() to improve performance.
+    return (null_bitmap_ && null_bitmap_->getBit(position))
+        ? type_.makeNullValue()
+        : type_.marshallValue(&values_[position]);
+  }
+
+  inline void appendNullValue() {
+    DCHECK_LT(values_.size(), reserved_length_);
+    DCHECK(null_bitmap_);
+    null_bitmap_->setBit(values_.size(), true);
+    // TODO(refactor-type): Specialize nullable GenericColumnVector.
+    LOG(FATAL) << "Not implemented";
+  }
+
+  inline void fillWithNulls() {
+    DCHECK(null_bitmap_);
+    null_bitmap_->setBitRange(0, reserved_length_, true);
+    // TODO(refactor-type): Specialize nullable GenericColumnVector.
+    LOG(FATAL) << "Not implemented";
+  }
+
+  inline void fillWithValue(const TypedValue &value) {
+    std::unique_ptr<cpptype> cppvalue = std::unique_ptr<cpptype>(
+        static_cast<cpptype*>(type_.unmarshallTypedValue(value)));
+    for (std::size_t i = 0; i < reserved_length_; ++i) {
+      values_.emplace_back(*cppvalue);
+    }
+  }
+
+  inline void appendLiteralValue(const cpptype &value) {
+    DCHECK_LT(values_.size(), reserved_length_);
+    values_.emplace_back(value);
+  }
+
+  inline void appendLiteralValue(cpptype &&value) {
+    DCHECK_LT(values_.size(), reserved_length_);
+    values_.emplace_back(std::move(value));
+  }
+
+ private:
+  const TypeClass &type_;
+  const std::size_t reserved_length_;
+
+  std::vector<cpptype> values_;
+  std::unique_ptr<BitVector<false>> null_bitmap_;
+
+  DISALLOW_COPY_AND_ASSIGN(GenericColumnVector);
 };
+
+template <typename TypeClass>
+constexpr ColumnVector::Implementation GenericColumnVector<TypeClass>::kImplementation;
 
 /** @} */
 

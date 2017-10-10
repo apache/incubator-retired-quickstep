@@ -181,7 +181,7 @@ Scalar* ScalarFactory::ReconstructFromProto(const serialization::Scalar &proto,
               proto.GetExtension(serialization::ScalarUnaryExpression::op_signature));
       return new ScalarUnaryExpression(
           op_signature,
-          OperationFactory::Instance().getUnaryOperation(op_signature),
+          OperationFactory::GetUnaryOperation(op_signature),
           ReconstructFromProto(proto.GetExtension(serialization::ScalarUnaryExpression::operand), database),
           std::make_shared<std::vector<TypedValue>>(std::move(static_arguments)));
     }
@@ -199,7 +199,7 @@ Scalar* ScalarFactory::ReconstructFromProto(const serialization::Scalar &proto,
               proto.GetExtension(serialization::ScalarBinaryExpression::op_signature));
       return new ScalarBinaryExpression(
           op_signature,
-          OperationFactory::Instance().getBinaryOperation(op_signature),
+          OperationFactory::GetBinaryOperation(op_signature),
           ReconstructFromProto(
               proto.GetExtension(serialization::ScalarBinaryExpression::left_operand), database),
           ReconstructFromProto(

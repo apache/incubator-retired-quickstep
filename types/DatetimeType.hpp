@@ -41,8 +41,7 @@ class TypedValue;
 /**
  * @brief A type representing the datetime.
  **/
-class DatetimeType
-    : public TypeSynthesizer<kDatetime> {
+class DatetimeType final : public TypeSynthesizer<kDatetime> {
  public:
   int getPrintWidth() const override {
     return DatetimeLit::kIsoChars;

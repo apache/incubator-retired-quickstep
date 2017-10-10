@@ -23,12 +23,19 @@ add_library(quickstep_types_operations_utility_OperationSynthesizeUtil
 
 # Link dependencies:
 target_link_libraries(quickstep_types_operations_utility_CastUtil
-                      glog)
+                      quickstep_types_TypeID
+                      quickstep_types_TypeRegistrar
+                      quickstep_types_operations_unaryoperations_CastFunctorOverloads
+                      quickstep_utility_Macros
+                      quickstep_utility_meta_Common
+                      quickstep_utility_meta_TypeList)
 target_link_libraries(quickstep_types_operations_utility_OperationSynthesizeUtil
                       quickstep_catalog_CatalogTypedefs
                       quickstep_types_Type
                       quickstep_types_TypedValue
-                      quickstep_types_containers_ColumnVector)
+                      quickstep_types_containers_ColumnVector
+                      quickstep_utility_Macros
+                      quickstep_utility_meta_TypeList)
 
 # Module all-in-one library:
 add_library(quickstep_types_operations_utility ../../../empty_src.cpp)

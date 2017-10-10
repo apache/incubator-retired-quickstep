@@ -40,7 +40,7 @@ class TypedValue;
 /**
  * @brief A type representing a double-precision floating-point number.
  **/
-class DoubleType : public NumericSuperType<kDouble> {
+class DoubleType final : public NumericSuperType<kDouble> {
  public:
   int getPrintWidth() const override {
     return kPrintWidth;

@@ -41,14 +41,11 @@ bool AggregateFunctionAvg::canApplyToTypes(
 
   // Argument must be addable and divisible.
   const Type &type = *argument_types.front();
-  if (!OperationFactory::Instance()
-          .getBinaryOperation("+", {type.getTypeID(), type.getTypeID()})
-              ->canApplyTo(type, type)) {
+  if (!OperationFactory::CanApplyAddOperation(type, type)) {
     return false;
   }
-  return OperationFactory::Instance()
-      .getBinaryOperation("/", {type.getTypeID(), kDouble})
-          ->canApplyTo(type, TypeFactory::GetType(kDouble));
+  return OperationFactory::CanApplyDivideOperation(
+      type, TypeFactory::GetType(kDouble));
 }
 
 const Type* AggregateFunctionAvg::resultTypeForArgumentTypes(
@@ -71,8 +68,8 @@ const Type* AggregateFunctionAvg::resultTypeForArgumentTypes(
       break;
   }
 
-  return OperationFactory::Instance()
-      .getBinaryOperation("/", {sum_type->getTypeID(), kDouble})
+  return OperationFactory::GetDivideOperation(
+      sum_type->getTypeID(), kDouble)
           ->getResultType(*sum_type, TypeFactory::GetType(kDouble));
 }
 

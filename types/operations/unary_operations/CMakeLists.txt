@@ -36,9 +36,9 @@ add_library(quickstep_types_operations_unaryoperations_SubstringOperation
             SubstringOperation.cpp
             SubstringOperation.hpp)
 add_library(quickstep_types_operations_unaryoperations_UnaryOperation UnaryOperation.cpp UnaryOperation.hpp)
-add_library(quickstep_types_operations_unaryoperations_UnaryOperationWrapper
+add_library(quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
             ../../../empty_src.cpp
-            UnaryOperationWrapper.hpp)
+            UnaryOperationSynthesizer.hpp)
 
 # Link dependencies:
 target_link_libraries(quickstep_types_operations_unaryoperations_ArithmeticUnaryFunctors
@@ -49,7 +49,7 @@ target_link_libraries(quickstep_types_operations_unaryoperations_ArithmeticUnary
                       quickstep_types_IntType
                       quickstep_types_LongType
                       quickstep_types_YearMonthIntervalType
-                      quickstep_types_operations_unaryoperations_UnaryOperationWrapper
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
                       quickstep_types_operations_utility_OperationSynthesizeUtil)
 target_link_libraries(quickstep_types_operations_unaryoperations_AsciiStringUnaryFunctors
                       quickstep_types_CharType
@@ -58,7 +58,7 @@ target_link_libraries(quickstep_types_operations_unaryoperations_AsciiStringUnar
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID
                       quickstep_types_VarCharType
-                      quickstep_types_operations_unaryoperations_UnaryOperationWrapper
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
                       quickstep_types_operations_utility_OperationSynthesizeUtil
                       quickstep_types_port_strnlen
                       quickstep_utility_meta_Common)
@@ -67,28 +67,37 @@ target_link_libraries(quickstep_types_operations_unaryoperations_CMathUnaryFunct
                       quickstep_types_FloatType
                       quickstep_types_IntType
                       quickstep_types_LongType
-                      quickstep_types_operations_unaryoperations_UnaryOperationWrapper
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
                       quickstep_types_operations_utility_OperationSynthesizeUtil
                       quickstep_utility_meta_Common)
+target_link_libraries(quickstep_types_operations_unaryoperations_CastFunctorOverloads
+                      quickstep_types_TypeRegistrar
+                      quickstep_types_TypedValue
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
+                      quickstep_utility_meta_TypeList)
 target_link_libraries(quickstep_types_operations_unaryoperations_CastOperation
                       glog
                       quickstep_types_CharType
                       quickstep_types_DoubleType
                       quickstep_types_FloatType
+                      quickstep_types_GenericValue
                       quickstep_types_IntType
                       quickstep_types_LongType
+                      quickstep_types_MetaType
                       quickstep_types_Type
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID
                       quickstep_types_TypeUtil
                       quickstep_types_TypedValue
                       quickstep_types_VarCharType
+                      quickstep_types_operations_unaryoperations_CastFunctorOverloads
                       quickstep_types_operations_unaryoperations_UnaryOperation
-                      quickstep_types_operations_unaryoperations_UnaryOperationWrapper
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
                       quickstep_types_port_strnlen
                       quickstep_utility_EqualsAnyConstant
                       quickstep_utility_Macros
-                      quickstep_utility_StringUtil)
+                      quickstep_utility_StringUtil
+                      quickstep_utility_meta_Common)
 target_link_libraries(quickstep_types_operations_unaryoperations_DateExtractOperation
                       glog
                       quickstep_types_DateType
@@ -100,7 +109,7 @@ target_link_libraries(quickstep_types_operations_unaryoperations_DateExtractOper
                       quickstep_types_TypeID
                       quickstep_types_TypedValue
                       quickstep_types_operations_unaryoperations_UnaryOperation
-                      quickstep_types_operations_unaryoperations_UnaryOperationWrapper
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
                       quickstep_utility_Macros
                       quickstep_utility_StringUtil)
 target_link_libraries(quickstep_types_operations_unaryoperations_SubstringOperation
@@ -126,7 +135,7 @@ target_link_libraries(quickstep_types_operations_unaryoperations_UnaryOperation
                       quickstep_types_operations_OperationSignature
                       quickstep_types_operations_Operation_proto
                       quickstep_utility_Macros)
-target_link_libraries(quickstep_types_operations_unaryoperations_UnaryOperationWrapper
+target_link_libraries(quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
                       glog
                       quickstep_catalog_CatalogTypedefs
                       quickstep_storage_ValueAccessor
@@ -152,7 +161,7 @@ target_link_libraries(quickstep_types_operations_unaryoperations
                       quickstep_types_operations_unaryoperations_DateExtractOperation
                       quickstep_types_operations_unaryoperations_SubstringOperation
                       quickstep_types_operations_unaryoperations_UnaryOperation
-                      quickstep_types_operations_unaryoperations_UnaryOperationWrapper)
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer)
 
 # Tests:
 

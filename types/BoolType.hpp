@@ -41,7 +41,7 @@ class TypedValue;
 /**
  * @brief A type representing a 8-bit bool.
  **/
-class BoolType : public NumericSuperType<kBool> {
+class BoolType final : public NumericSuperType<kBool> {
  public:
   int getPrintWidth() const override {
     // "true" or "false"

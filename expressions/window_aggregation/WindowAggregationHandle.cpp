@@ -82,8 +82,8 @@ WindowAggregationHandle::WindowAggregationHandle(
         TypeFactory::GetUnifyingType(*first_order_key_type, long_type);
 
     range_add_operator_.reset(
-        OperationFactory::Instance().getBinaryOperation(
-            "+", {first_order_key_type->getTypeID(), kLong}, 0)
+        OperationFactory::GetAddOperation(
+            first_order_key_type->getTypeID(), kLong)
                 ->makeUncheckedBinaryOperator(*first_order_key_type, long_type));
     range_comparator_.reset(
         ComparisonFactory::GetComparison(ComparisonID::kLessOrEqual)

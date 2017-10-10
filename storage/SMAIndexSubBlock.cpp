@@ -358,10 +358,9 @@ SMAIndexSubBlock::SMAIndexSubBlock(const TupleStorageSubBlock &tuple_store,
       TypeID attr_sum_typeid = sma_internal::getTypeForSum(attr_typeid);
       if (add_operations_.elementIsNullAt(attr_typeid)) {
         add_operations_.replaceElement(attr_typeid,
-            OperationFactory::Instance().getBinaryOperation(
-                "+", {attr_typeid, attr_sum_typeid})
-                    ->makeUncheckedBinaryOperator(TypeFactory::GetType(attr_typeid),
-                                                  TypeFactory::GetType(attr_sum_typeid)));
+            OperationFactory::GetAddOperation(attr_typeid, attr_sum_typeid)
+                ->makeUncheckedBinaryOperator(TypeFactory::GetType(attr_typeid),
+                                              TypeFactory::GetType(attr_sum_typeid)));
       }
     }
 

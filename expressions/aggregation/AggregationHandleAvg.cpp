@@ -67,22 +67,22 @@ AggregationHandleAvg::AggregationHandleAvg(const Type &type)
 
   // Make operators to do arithmetic:
   // Add operator for summing argument values.
-  fast_add_operator_.reset(OperationFactory::Instance()
-      .getBinaryOperation("+", {type_precision_id, argument_type_.getTypeID()})
+  fast_add_operator_.reset(
+      OperationFactory::GetAddOperation(type_precision_id, argument_type_.getTypeID())
           ->makeUncheckedBinaryOperator(sum_type, argument_type_));
   // Add operator for merging states.
-  merge_add_operator_.reset(OperationFactory::Instance()
-      .getBinaryOperation("+", {type_precision_id, type_precision_id})
+  merge_add_operator_.reset(
+      OperationFactory::GetAddOperation(type_precision_id, type_precision_id)
           ->makeUncheckedBinaryOperator(sum_type, sum_type));
   // Divide operator for dividing sum by count to get final average.
-  divide_operator_.reset(OperationFactory::Instance()
-      .getBinaryOperation("/", {type_precision_id, kDouble})
+  divide_operator_.reset(
+      OperationFactory::GetDivideOperation(type_precision_id, kDouble)
           ->makeUncheckedBinaryOperator(sum_type, TypeFactory::GetType(kDouble)));
 
   // Result is nullable, because AVG() over 0 values (or all NULL values) is
   // NULL.
-  result_type_ = &OperationFactory::Instance()
-      .getBinaryOperation("/", {type_precision_id, kDouble})
+  result_type_ =
+      &OperationFactory::GetDivideOperation(type_precision_id, kDouble)
           ->getResultType(sum_type, TypeFactory::GetType(kDouble))
               ->getNullableVersion();
 }

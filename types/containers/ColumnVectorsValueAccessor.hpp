@@ -38,6 +38,7 @@
 namespace quickstep {
 
 class TupleIdSequence;
+typedef void UntypedLiteral;
 
 /**
  * @brief Implementation of ValueAccessor as a group of equal-length
@@ -77,9 +78,8 @@ class ColumnVectorsValueAccessor : public ValueAccessor {
     // If this is not the first column to be added, make sure it is the same
     // length as the others.
     DCHECK(columns_.empty() || column->size() == column_length_);
-    DCHECK(column->isNative() || column->isIndrect());
-    columns_.push_back(column);
-    column_native_.push_back(column->isNative());
+    columns_.emplace_back(column);
+    column_impl_.emplace_back(column->getImplementation());
     column_length_ = column->size();
   }
 
@@ -152,10 +152,15 @@ class ColumnVectorsValueAccessor : public ValueAccessor {
                                                        const tuple_id tid) const {
     DCHECK(attributeIdInRange(attr_id));
     DCHECK(tupleIdInRange(tid));
-    if (column_native_[attr_id]) {
-      return static_cast<const NativeColumnVector&>(*columns_[attr_id]).getUntypedValue<check_null>(tid);
-    } else {
-      return static_cast<const IndirectColumnVector&>(*columns_[attr_id]).getUntypedValue<check_null>(tid);
+    // TODO(jianqiao): Implement specialized column accessors to improve performance.
+    switch (column_impl_[attr_id]) {
+      case ColumnVector::kNative:
+        return static_cast<const NativeColumnVector&>(*columns_[attr_id]).getUntypedValue<check_null>(tid);
+      case ColumnVector::kIndirect:
+        return static_cast<const IndirectColumnVector&>(*columns_[attr_id]).getUntypedValue<check_null>(tid);
+      default:
+        LOG(FATAL) << "Can not apply getUntypedValueAtAbsolutionPosition() to "
+                   << "GenericColumnVector";
     }
   }
 
@@ -163,14 +168,18 @@ class ColumnVectorsValueAccessor : public ValueAccessor {
                                                     const tuple_id tid) const {
     DCHECK(attributeIdInRange(attr_id));
     DCHECK(tupleIdInRange(tid));
-    if (column_native_[attr_id]) {
-      return static_cast<const NativeColumnVector&>(*columns_[attr_id])
-          .getTypedValue(tid)
-          .makeReferenceToThis();
-    } else {
-      return static_cast<const IndirectColumnVector&>(*columns_[attr_id])
-          .getTypedValue(tid)
-          .makeReferenceToThis();
+    // TODO(jianqiao): Implement specialized column accessors to improve performance.
+    switch (column_impl_[attr_id]) {
+      case ColumnVector::kNative:
+        return static_cast<const NativeColumnVector&>(*columns_[attr_id])
+            .getTypedValue(tid)
+            .makeReferenceToThis();
+      case ColumnVector::kIndirect:
+        return static_cast<const IndirectColumnVector&>(*columns_[attr_id])
+            .getTypedValue(tid)
+            .makeReferenceToThis();
+      case ColumnVector::kGeneric:
+        return columns_[attr_id]->getTypedValueVirtual(tid);
     }
   }
 
@@ -305,7 +314,7 @@ class ColumnVectorsValueAccessor : public ValueAccessor {
   }
 
   std::vector<ColumnVectorPtr> columns_;
-  std::vector<bool> column_native_;
+  std::vector<ColumnVector::Implementation> column_impl_;
   std::size_t column_length_;
   std::size_t current_position_;
 

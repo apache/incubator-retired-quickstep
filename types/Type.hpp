@@ -126,6 +126,10 @@ class Type {
     return type_id_;
   }
 
+  inline MemoryLayout getMemoryLayout() const {
+    return memory_layout_;
+  }
+
   /**
    * @brief Determine whether this Type allows NULL values.
    *
@@ -223,7 +227,7 @@ class Type {
    * @param original_type The original Type for coercion to this Type.
    * @return true if coercion is supported, false otherwise.
    **/
-  virtual bool isCoercibleFrom(const Type &original_type) const;
+  virtual bool isCoercibleFrom(const Type &original_type) const = 0;
 
   /**
    * @brief Determine whether data items of another type can be coerced (used
@@ -431,11 +435,13 @@ class Type {
  protected:
   Type(const SuperTypeID super_type_id,
        const TypeID type_id,
+       const MemoryLayout memory_layout,
        const bool nullable,
        const std::size_t minimum_byte_length,
        const std::size_t maximum_byte_length)
       : super_type_id_(super_type_id),
         type_id_(type_id),
+        memory_layout_(memory_layout),
         nullable_(nullable),
         minimum_byte_length_(minimum_byte_length),
         maximum_byte_length_(maximum_byte_length) {
@@ -443,6 +449,7 @@ class Type {
 
   const SuperTypeID super_type_id_;
   const TypeID type_id_;
+  const MemoryLayout memory_layout_;
   const bool nullable_;
   const std::size_t minimum_byte_length_;
   const std::size_t maximum_byte_length_;

@@ -38,14 +38,6 @@ namespace quickstep {
 template <TypeID type_id>
 class AsciiStringSuperType : public TypeSynthesizer<type_id> {
  public:
-  bool isCoercibleFrom(const Type &original_type) const override {
-    if (original_type.isNullable() && !this->nullable_) {
-      return false;
-    }
-    return (original_type.getSuperTypeID() == SuperTypeID::kAsciiString)
-           || (original_type.getTypeID() == kNullType);
-  }
-
   /**
    * @brief Get the character-length of this string type.
    *

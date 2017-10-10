@@ -27,7 +27,7 @@
 #include "types/FloatType.hpp"
 #include "types/IntType.hpp"
 #include "types/LongType.hpp"
-#include "types/operations/unary_operations/UnaryOperationWrapper.hpp"
+#include "types/operations/unary_operations/UnaryOperationSynthesizer.hpp"
 #include "types/operations/utility/OperationSynthesizeUtil.hpp"
 #include "utility/meta/Common.hpp"
 

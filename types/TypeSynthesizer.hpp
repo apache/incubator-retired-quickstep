@@ -30,12 +30,15 @@
 #include <unordered_map>
 #include <vector>
 
+#include "types/ArrayLit.hpp"
 #include "types/GenericValue.hpp"
 #include "types/Type.hpp"
 #include "types/Type.pb.h"
 #include "types/TypeID.hpp"
 #include "types/TypeRegistrar.hpp"
 #include "types/TypedValue.hpp"
+#include "types/operations/utility/CastUtil.hpp"
+#include "utility/Cast.hpp"
 #include "utility/HashPair.hpp"
 #include "utility/Macros.hpp"
 #include "utility/meta/Common.hpp"
@@ -90,6 +93,8 @@ class TypeSynthesizePolicy<
   bool checkValuesEqual(const UntypedLiteral *lhs,
                         const UntypedLiteral *rhs,
                         const Type &rhs_type) const override {
+    DCHECK(lhs != nullptr);
+    DCHECK(rhs != nullptr);
     // TODO(refactor-type): Operator == overloading.
     if (type_id_ != rhs_type.getTypeID()) {
       return false;
@@ -110,15 +115,18 @@ class TypeSynthesizePolicy<
   }
 
   std::size_t hashValue(const UntypedLiteral *value) const override {
+    DCHECK(value != nullptr);
     return hashValueInl<sizeof(cpptype)>(value);
   }
 
   TypedValue marshallValue(const UntypedLiteral *value) const override {
+    DCHECK(value != nullptr);
     return makeValue(value, sizeof(cpptype)).ensureNotReference();
   }
 
   UntypedLiteral* unmarshallValue(const void *data,
                                   const std::size_t length) const override {
+    DCHECK(data != nullptr);
     DCHECK_EQ(sizeof(cpptype), length);
     UntypedLiteral *value = std::malloc(sizeof(cpptype));
     std::memcpy(value, data, sizeof(cpptype));
@@ -127,7 +135,7 @@ class TypeSynthesizePolicy<
 
  protected:
   explicit TypeSynthesizePolicy(const bool nullable)
-      : Type(Trait::kStaticSuperTypeID, type_id, nullable,
+      : Type(Trait::kStaticSuperTypeID, type_id, kCxxInlinePod, nullable,
              sizeof(cpptype), sizeof(cpptype)) {}
 
   inline const Type& getInstance(const bool nullable) const {
@@ -216,6 +224,7 @@ class TypeSynthesizePolicy<
 
   std::size_t hashValue(const UntypedLiteral *value) const override {
     // TODO(refactor-type): Implementation.
+    DCHECK(value != nullptr);
     return TypedValue(type_id_,
                       *static_cast<const cpptype*>(value),
                       maximum_byte_length_).getHash();
@@ -224,6 +233,8 @@ class TypeSynthesizePolicy<
   bool checkValuesEqual(const UntypedLiteral *lhs,
                         const UntypedLiteral *rhs,
                         const Type &rhs_type) const override {
+    DCHECK(lhs != nullptr);
+    DCHECK(rhs != nullptr);
     if (!equals(rhs_type)) {
       return false;
     }
@@ -254,6 +265,7 @@ class TypeSynthesizePolicy<
 
   UntypedLiteral* unmarshallValue(const void *data,
                                   const std::size_t length) const override {
+    DCHECK(data != nullptr);
     DCHECK_EQ(maximum_byte_length_, length);
     void *value = std::malloc(maximum_byte_length_);
     std::memcpy(value, data, length);
@@ -265,7 +277,7 @@ class TypeSynthesizePolicy<
                        const std::size_t minimum_byte_length,
                        const std::size_t maximum_byte_length,
                        const std::size_t length)
-      : Type(Trait::kStaticSuperTypeID, type_id, nullable,
+      : Type(Trait::kStaticSuperTypeID, type_id, kParInlinePod, nullable,
              minimum_byte_length, maximum_byte_length),
         length_(length) {}
 
@@ -345,6 +357,7 @@ class TypeSynthesizePolicy<
 
   std::size_t hashValue(const UntypedLiteral *value) const override {
     // TODO(refactor-type): Better implementation.
+    DCHECK(value != nullptr);
     return static_cast<const TypedValue*>(value)->getHash();
   }
 
@@ -368,11 +381,13 @@ class TypeSynthesizePolicy<
   }
 
   TypedValue marshallValue(const UntypedLiteral *value) const override {
+    DCHECK(value != nullptr);
     return *static_cast<const TypedValue*>(value);
   }
 
   UntypedLiteral* unmarshallValue(const void *data,
                                   const std::size_t length) const override {
+    DCHECK(data != nullptr);
     TypedValue *value = new TypedValue(makeValue(data, length));
     value->ensureNotReference();
     return value;
@@ -383,7 +398,7 @@ class TypeSynthesizePolicy<
                        const std::size_t minimum_byte_length,
                        const std::size_t maximum_byte_length,
                        const std::size_t length)
-      : Type(Trait::kStaticSuperTypeID, type_id, nullable,
+      : Type(Trait::kStaticSuperTypeID, type_id, kParOutOfLinePod, nullable,
              minimum_byte_length, maximum_byte_length),
         length_(length) {}
 
@@ -504,7 +519,7 @@ class TypeSynthesizePolicy<
                        const std::size_t minimum_byte_length,
                        const std::size_t maximum_byte_length,
                        const std::vector<GenericValue> &parameters)
-      : Type(Trait::kStaticSuperTypeID, type_id, nullable,
+      : Type(Trait::kStaticSuperTypeID, type_id, kCxxGeneric, nullable,
              minimum_byte_length, maximum_byte_length),
         parameters_(parameters) {}
 
@@ -619,6 +634,11 @@ class TypeSynthesizer : public TypeSynthesizePolicy<type_id> {
     return SynthesizePolicy::getInstance(false);
   }
 
+  bool isCoercibleFrom(const Type &original_type) const override {
+    auto it = kCoercibleSourceTypeIDs.find(original_type.getTypeID());
+    return it != kCoercibleSourceTypeIDs.end();
+  };
+
   UntypedLiteral* unmarshallTypedValue(const TypedValue &value) const override {
     return SynthesizePolicy::unmarshallTypedValueInl(value);
   }
@@ -680,6 +700,8 @@ class TypeSynthesizer : public TypeSynthesizePolicy<type_id> {
  private:
   template <TypeID, typename> friend class TypeSynthesizePolicy;
 
+  static const std::unordered_set<TypeID> kCoercibleSourceTypeIDs;
+
   DISALLOW_COPY_AND_ASSIGN(TypeSynthesizer);
 };
 
@@ -695,6 +717,10 @@ constexpr bool TypeSynthesizer<type_id>::kIsParPod;
 template <TypeID type_id>
 constexpr MemoryLayout TypeSynthesizer<type_id>::kMemoryLayout;
 
+template <TypeID type_id>
+const std::unordered_set<TypeID> TypeSynthesizer<type_id>::kCoercibleSourceTypeIDs =
+    CastSTLContainer<std::unordered_set<TypeID>>(
+        CastUtil::GetCoercibleSourceTypeIDs(type_id));
 
 #define QUICKSTEP_SYNTHESIZE_TYPE(type) \
   template <TypeID, typename> friend class TypeSynthesizePolicy; \

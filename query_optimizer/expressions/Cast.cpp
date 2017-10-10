@@ -61,7 +61,7 @@ ExpressionPtr Cast::copyWithNewChildren(
       OperationSignature::Create(
           "cast", {operand_->getValueType().getTypeID(), kMetaType}, 1);
   const UnaryOperationPtr cast_operation =
-      OperationFactory::Instance().getUnaryOperation(op_signature);
+      OperationFactory::GetUnaryOperation(op_signature);
 
   std::vector<TypedValue> meta_type_value =
       { GenericValue::CreateWithLiteral(

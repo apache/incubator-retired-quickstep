@@ -58,8 +58,8 @@ struct Sequence {
   using contains = EqualsAny<std::integral_constant<T, v>,
                              std::integral_constant<T, s>...>;
 
-  template <typename CollectionT>
-  inline static CollectionT Instantiate() {
+  template <typename Collection>
+  inline static Collection Instantiate() {
     return { s... };
   }
 };
@@ -167,6 +167,22 @@ template <> struct UnsignedInteger<4u> {
 template <> struct UnsignedInteger<8u> {
   using type = std::uint64_t;
 };
+
+
+//// ----------------------------------------------------------------------------
+//// Macros.
+
+#define QUICKSTEP_TRAIT_HAS_STATIC_METHOD(traitname, methodname) \
+  template <typename C> \
+  class traitname { \
+   private: \
+    template <typename T> \
+    static std::true_type Impl(int, decltype(T::methodname) * = 0); \
+    template <typename T> \
+    static std::false_type Impl(...); \
+   public: \
+    static constexpr bool value = decltype(Impl<C>(0))::value; \
+  }
 
 /** @} */
 

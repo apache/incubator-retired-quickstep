@@ -43,7 +43,7 @@ namespace quickstep {
  *       represented WITHOUT a null-terminator character. Any strings shorter
  *       than the maximum length will have a null-terminator.
  **/
-class CharType : public AsciiStringSuperType<kChar> {
+class CharType final : public AsciiStringSuperType<kChar> {
  public:
   bool isSafelyCoercibleFrom(const Type &original_type) const override;
 

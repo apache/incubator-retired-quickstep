@@ -39,13 +39,15 @@ class TypedValue;
  *  @{
  */
 
-class ArrayType : public TypeSynthesizer<kArray> {
+class ArrayType final : public TypeSynthesizer<kArray> {
  public:
   int getPrintWidth() const override {
     return 32;
   }
 
   std::string getName() const override;
+
+  bool isCoercibleFrom(const Type &original_type) const override;
 
   bool checkValuesEqual(const UntypedLiteral *lhs,
                         const UntypedLiteral *rhs,
@@ -63,6 +65,10 @@ class ArrayType : public TypeSynthesizer<kArray> {
     return false;
   }
 
+  const Type &getElementType() const {
+    return element_type_;
+  }
+
   static bool TypeParametersAreValid(const std::vector<GenericValue> &parameters);
 
  private:
@@ -73,7 +79,7 @@ class ArrayType : public TypeSynthesizer<kArray> {
 
   static const Type& ExtractType(const std::vector<GenericValue> &parameters) {
     DCHECK(TypeParametersAreValid(parameters));
-    return **static_cast<const MetaTypeLiteral*>(parameters.front().getValue());
+    return **static_cast<const MetaTypeLit*>(parameters.front().getValue());
   }
 
   const Type &element_type_;

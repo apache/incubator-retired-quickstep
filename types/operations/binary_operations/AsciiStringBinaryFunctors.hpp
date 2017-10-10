@@ -26,11 +26,12 @@
 
 #include "types/CharType.hpp"
 #include "types/IntType.hpp"
+#include "types/TextType.hpp"
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
 #include "types/VarCharType.hpp"
-#include "types/operations/unary_operations/UnaryOperationWrapper.hpp"
+#include "types/operations/unary_operations/UnaryOperationSynthesizer.hpp"
 #include "types/operations/utility/OperationSynthesizeUtil.hpp"
 #include "types/port/strnlen.hpp"
 
@@ -41,8 +42,8 @@ namespace quickstep {
  */
 
 template <typename LeftT, typename RightT, typename ResultT>
-struct AsciiStringConcatFunctor : public BinaryFunctor<LeftT, RightT, ResultT> {
-  explicit AsciiStringConcatFunctor(const LeftT &left, const RightT &right)
+struct RawStringConcatFunctor : public BinaryFunctor<LeftT, RightT, ResultT> {
+  explicit RawStringConcatFunctor(const LeftT &left, const RightT &right)
       : left_max_(left.getStringLength()),
         right_max_(right.getStringLength()),
         result_max_(left_max_ + right_max_) {}
@@ -114,13 +115,22 @@ struct AsciiStringConcatFunctor : public BinaryFunctor<LeftT, RightT, ResultT> {
   const std::size_t result_max_;
 };
 
+struct CxxStringConcatFunctor : public BinaryFunctor<TextType, TextType, TextType> {
+  inline std::string apply(const std::string &left, const std::string &right) const {
+    return left + right;
+  }
+  inline static std::string GetName() {
+    return "+";
+  }
+};
 
 using AsciiStringBinaryFunctorPack = FunctorPack<
 // concat
-    AsciiStringConcatFunctor<CharType, CharType, CharType>,
-    AsciiStringConcatFunctor<CharType, VarCharType, VarCharType>,
-    AsciiStringConcatFunctor<VarCharType, CharType, VarCharType>,
-    AsciiStringConcatFunctor<VarCharType, VarCharType, VarCharType>
+    RawStringConcatFunctor<CharType, CharType, CharType>,
+    RawStringConcatFunctor<CharType, VarCharType, VarCharType>,
+    RawStringConcatFunctor<VarCharType, CharType, VarCharType>,
+    RawStringConcatFunctor<VarCharType, VarCharType, VarCharType>,
+    CxxStringConcatFunctor
 >;
 
 /** @} */

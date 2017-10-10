@@ -32,6 +32,7 @@ QS_PROTOBUF_GENERATE_CPP(types_TypedValue_proto_srcs types_TypedValue_proto_hdrs
 QS_PROTOBUF_GENERATE_CPP(types_Type_proto_srcs types_Type_proto_hdrs Type.proto)
 
 # Declare micro-libs:
+add_library(quickstep_types_ArrayLit ../empty_src.cpp ArrayLit.hpp)
 add_library(quickstep_types_ArrayType ArrayType.cpp ArrayType.hpp)
 add_library(quickstep_types_AsciiStringSuperType ../empty_src.cpp AsciiStringSuperType.hpp)
 add_library(quickstep_types_BoolType BoolType.cpp BoolType.hpp)
@@ -185,6 +186,7 @@ target_link_libraries(quickstep_types_MetaType-decl
                       quickstep_types_Type
                       quickstep_types_TypeID
                       quickstep_types_TypeSynthesizer
+                      quickstep_types_TypedValue
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_types_NullType
                       glog
@@ -203,6 +205,7 @@ target_link_libraries(quickstep_types_NumericSuperType
                       quickstep_utility_Macros
                       quickstep_utility_meta_TMP)
 target_link_libraries(quickstep_types_NumericTypeSafeCoercibility
+                      quickstep_types_TypeRegistrar
                       quickstep_utility_meta_TMP)
 target_link_libraries(quickstep_types_NumericTypeUnifier
                       quickstep_types_NumericTypeSafeCoercibility)
@@ -228,7 +231,8 @@ target_link_libraries(quickstep_types_TypeFactory
                       quickstep_types_TypeSynthesizer
                       quickstep_types_TypeUtil
                       quickstep_types_Type_proto
-                      quickstep_utility_Macros)
+                      quickstep_utility_Macros
+                      quickstep_utility_StringUtil)
 target_link_libraries(quickstep_types_TypeFactory-decl
                       glog
                       quickstep_types_GenericValue
@@ -254,6 +258,7 @@ target_link_libraries(quickstep_types_TypeSynthesizer
                       quickstep_types_TypeRegistrar
                       quickstep_types_TypedValue
                       quickstep_types_Type_proto
+                      quickstep_types_operations_utility_CastUtil
                       quickstep_utility_HashPair
                       quickstep_utility_Macros
                       quickstep_utility_meta_Common)

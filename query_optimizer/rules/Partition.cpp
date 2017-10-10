@@ -416,7 +416,7 @@ P::PhysicalPtr Partition::applyToNode(const P::PhysicalPtr &node) {
                   get<2>(avg_recompute_expression)->getValueType().getTypeID() },
                 0);
         const BinaryOperationPtr divide_op =
-            OperationFactory::Instance().getBinaryOperation(op_sig);
+            OperationFactory::GetBinaryOperation(op_sig);
         const E::BinaryExpressionPtr new_avg_expr =
             E::BinaryExpression::Create(op_sig,
                                         divide_op,

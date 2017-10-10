@@ -37,7 +37,7 @@ namespace quickstep {
  *  @{
  */
 
-class MetaType : public TypeSynthesizer<kMetaType> {
+class MetaType final : public TypeSynthesizer<kMetaType> {
  public:
   int getPrintWidth() const override {
     return 16;

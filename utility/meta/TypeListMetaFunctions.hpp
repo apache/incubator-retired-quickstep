@@ -30,7 +30,7 @@ namespace meta {
  */
 
 template <typename ...Ts>
-class TypeList;
+struct TypeList;
 
 
 template <typename T>
@@ -110,6 +110,15 @@ struct UniqueImpl<Out, Rest,
                   std::enable_if_t<!Out::template contains<typename Rest::head>::value>>
     : UniqueImpl<typename Out::template push_back<typename Rest::head>,
                  typename Rest::tail> {};
+
+
+template <typename TL, typename UL>
+struct AppendImpl;
+
+template <typename ...Ts, typename ...Us>
+struct AppendImpl<meta::TypeList<Ts...>, meta::TypeList<Us...>> {
+  using type = meta::TypeList<Ts..., Us...>;
+};
 
 
 template <typename Out, typename Rest, typename Subtrahend, typename Enable = void>

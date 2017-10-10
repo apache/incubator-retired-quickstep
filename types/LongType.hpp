@@ -41,7 +41,7 @@ class TypedValue;
 /**
  * @brief A type representing a 64-bit integer.
  **/
-class LongType : public NumericSuperType<kLong> {
+class LongType final : public NumericSuperType<kLong> {
  public:
   // Fully represented digits, single leading digit, and possible '-'
   // character.

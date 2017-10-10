@@ -40,6 +40,8 @@
 #include "utility/Macros.hpp"
 #include "utility/meta/Common.hpp"
 
+#include "glog/logging.h"
+
 namespace quickstep {
 
 /** \addtogroup Types
@@ -57,15 +59,19 @@ struct BinaryFunctor {
 };
 
 template <typename FunctorT, typename ...SpecArgs>
-class UncheckedBinaryOperatorWrapperCodegen : public UncheckedBinaryOperator {
+class UncheckedBinaryOperatorSynthesizer : public UncheckedBinaryOperator {
  public:
-  template <typename ...ConstructorArgs>
-  UncheckedBinaryOperatorWrapperCodegen(const Type &left_type,
-                                        const Type &right_type,
-                                        const Type &result_type,
-                                        ConstructorArgs &&...args)
-      : functor_(std::forward<ConstructorArgs>(args)...),
-        impl_(functor_, left_type, right_type, result_type) {}
+  template <typename ...FunctorArgs>
+  UncheckedBinaryOperatorSynthesizer(const Type &left_type,
+                                     const Type &right_type,
+                                     const Type &result_type,
+                                     FunctorArgs &&...args)
+      : functor_(std::forward<FunctorArgs>(args)...),
+        impl_(functor_, left_type, right_type, result_type) {
+    DCHECK(left_type.getTypeID() == LeftType::kStaticTypeID);
+    DCHECK(right_type.getTypeID() == RightType::kStaticTypeID);
+    DCHECK(result_type.getTypeID() == ResultType::kStaticTypeID);
+  }
 
   TypedValue applyToTypedValues(const TypedValue &left,
                                 const TypedValue &right) const override {
@@ -75,13 +81,13 @@ class UncheckedBinaryOperatorWrapperCodegen : public UncheckedBinaryOperator {
   ColumnVector* applyToColumnVectors(const ColumnVector &left,
                                      const ColumnVector &right) const override {
     using LeftCVT = typename LeftGen::ColumnVectorType;
-    DCHECK_EQ(left.isNative(), LeftCVT::kNative);
-    using LeftAccessorT = ColumnVectorValueAccessor<LeftCVT>;
+    DCHECK(left.getImplementation() == LeftCVT::kImplementation);
+    using LeftAccessorT = ColumnVectorAccessor<LeftCVT>;
     LeftAccessorT left_accessor(static_cast<const LeftCVT&>(left));
 
     using RightCVT = typename RightGen::ColumnVectorType;
-    DCHECK_EQ(right.isNative(), RightCVT::kNative);
-    using RightAccessorT = ColumnVectorValueAccessor<RightCVT>;
+    DCHECK(right.getImplementation() == RightCVT::kImplementation);
+    using RightAccessorT = ColumnVectorAccessor<RightCVT>;
     RightAccessorT right_accessor(static_cast<const RightCVT&>(right));
 
     const std::size_t num_tuples = left_accessor.getNumTuples();
@@ -96,9 +102,9 @@ class UncheckedBinaryOperatorWrapperCodegen : public UncheckedBinaryOperator {
       const ColumnVector &left,
       const TypedValue &right) const override {
     using LeftCVT = typename LeftGen::ColumnVectorType;
-    DCHECK_EQ(left.isNative(), LeftCVT::kNative);
+    DCHECK(left.getImplementation() == LeftCVT::kImplementation);
 
-    using LeftAccessorT = ColumnVectorValueAccessor<LeftCVT>;
+    using LeftAccessorT = ColumnVectorAccessor<LeftCVT>;
     LeftAccessorT accessor(static_cast<const LeftCVT&>(left));
     return impl_.applyToValueAccessorAndStaticValue(&accessor, 0, right);
   }
@@ -107,9 +113,9 @@ class UncheckedBinaryOperatorWrapperCodegen : public UncheckedBinaryOperator {
       const TypedValue &left,
       const ColumnVector &right) const override {
     using RightCVT = typename RightGen::ColumnVectorType;
-    DCHECK_EQ(right.isNative(), RightCVT::kNative);
+    DCHECK(right.getImplementation() == RightCVT::kImplementation);
 
-    using RightAccessorT = ColumnVectorValueAccessor<RightCVT>;
+    using RightAccessorT = ColumnVectorAccessor<RightCVT>;
     RightAccessorT accessor(static_cast<const RightCVT&>(right));
     return impl_.applyToStaticValueAndValueAccessor(left, &accessor, 0);
   }
@@ -152,8 +158,8 @@ class UncheckedBinaryOperatorWrapperCodegen : public UncheckedBinaryOperator {
       ValueAccessor *right_accessor,
       const attribute_id right_id) const override {
     using LeftCVT = typename LeftGen::ColumnVectorType;
-    DCHECK_EQ(left.isNative(), LeftCVT::kNative);
-    using LeftAccessorT = ColumnVectorValueAccessor<LeftCVT>;
+    DCHECK(left.getImplementation() == LeftCVT::kImplementation);
+    using LeftAccessorT = ColumnVectorAccessor<LeftCVT>;
     LeftAccessorT left_accessor(static_cast<const LeftCVT&>(left));
 
     return InvokeOnValueAccessorMaybeTupleIdSequenceAdapter(
@@ -173,8 +179,8 @@ class UncheckedBinaryOperatorWrapperCodegen : public UncheckedBinaryOperator {
       const attribute_id left_id,
       const ColumnVector &right) const override {
     using RightCVT = typename RightGen::ColumnVectorType;
-    DCHECK_EQ(right.isNative(), RightCVT::kNative);
-    using RightAccessorT = ColumnVectorValueAccessor<RightCVT>;
+    DCHECK(right.getImplementation() == RightCVT::kImplementation);
+    using RightAccessorT = ColumnVectorAccessor<RightCVT>;
     RightAccessorT right_accessor(static_cast<const RightCVT&>(right));
 
     return InvokeOnValueAccessorMaybeTupleIdSequenceAdapter(
@@ -199,8 +205,8 @@ class UncheckedBinaryOperatorWrapperCodegen : public UncheckedBinaryOperator {
         std::is_copy_assignable<typename LeftType::cpptype>::value;
 
     using RightCVT = typename RightGen::ColumnVectorType;
-    DCHECK_EQ(column_vector.isNative(), RightCVT::kNative);
-    using RightAccessorT = ColumnVectorValueAccessor<RightCVT>;
+    DCHECK(column_vector.getImplementation() == RightCVT::kImplementation);
+    using RightAccessorT = ColumnVectorAccessor<RightCVT>;
     RightAccessorT accessor(static_cast<const RightCVT&>(column_vector));
 
     return impl_.template accumulateValueAccessor<is_supported>(
@@ -247,21 +253,21 @@ class UncheckedBinaryOperatorWrapperCodegen : public UncheckedBinaryOperator {
   const FunctorT functor_;
   const Implementation<false, false> impl_;
 
-  DISALLOW_COPY_AND_ASSIGN(UncheckedBinaryOperatorWrapperCodegen);
+  DISALLOW_COPY_AND_ASSIGN(UncheckedBinaryOperatorSynthesizer);
 };
 
 template <typename FunctorT, typename ...SpecArgs>
 template <bool left_nullable, bool right_nullable>
-struct UncheckedBinaryOperatorWrapperCodegen<FunctorT, SpecArgs...>
+struct UncheckedBinaryOperatorSynthesizer<FunctorT, SpecArgs...>
     ::Implementation {
   Implementation(const FunctorT &functor_in,
                  const Type &left_type_in,
                  const Type &right_type_in,
                  const Type &result_type_in)
       : functor(functor_in),
-        left_type(left_type_in),
-        right_type(right_type_in),
-        result_type(result_type_in) {}
+        left_type(static_cast<const LeftType&>(left_type_in)),
+        right_type(static_cast<const RightType&>(right_type_in)),
+        result_type(static_cast<const ResultType&>(result_type_in)) {}
 
   inline TypedValue applyToTypedValues(const TypedValue &left,
                                        const TypedValue &right) const {
@@ -270,8 +276,8 @@ struct UncheckedBinaryOperatorWrapperCodegen<FunctorT, SpecArgs...>
     }
 
     return ResultGen::template ApplyBinaryTypedValue<LeftGen, RightGen>(
-        LeftGen::ToNativeValueConst(left),
-        RightGen::ToNativeValueConst(right),
+        LeftGen::ToNativeValueConst(left, left_type),
+        RightGen::ToNativeValueConst(right, right_type),
         result_type,
         functor);
   }
@@ -296,12 +302,13 @@ struct UncheckedBinaryOperatorWrapperCodegen<FunctorT, SpecArgs...>
     }
 
     typename StaticValueGen::NativeTypeConst literal =
-        StaticValueGen::ToNativeValueConst(static_value);
+        StaticValueGen::ToNativeValueConst(static_value, right_type);
+    std::unique_ptr<typename AccessorGen::NativeType> value_cache;
     accessor->beginIteration();
     while (accessor->next()) {
       typename AccessorGen::NativeTypeConstPtr arg_value =
-          AccessorGen::template GetValuePtr<
-              accessor_nullable, AccessorT>(accessor, attr_id);
+          AccessorGen::template GetValuePtr<accessor_nullable, AccessorT>(
+              accessor, attr_id, left_type, &value_cache);
       if (accessor_nullable && AccessorGen::IsNull(arg_value)) {
         result_cv->appendNullValue();
       } else {
@@ -332,12 +339,13 @@ struct UncheckedBinaryOperatorWrapperCodegen<FunctorT, SpecArgs...>
     }
 
     typename StaticValueGen::NativeTypeConst literal =
-        StaticValueGen::ToNativeValueConst(static_value);
+        StaticValueGen::ToNativeValueConst(static_value, left_type);
+    std::unique_ptr<typename AccessorGen::NativeType> value_cache;
     accessor->beginIteration();
     while (accessor->next()) {
       typename AccessorGen::NativeTypeConstPtr arg_value =
-          AccessorGen::template GetValuePtr<
-              accessor_nullable, AccessorT>(accessor, attr_id);
+          AccessorGen::template GetValuePtr<accessor_nullable, AccessorT>(
+              accessor, attr_id, right_type, &value_cache);
       if (accessor_nullable && AccessorGen::IsNull(arg_value)) {
         result_cv->appendNullValue();
       } else {
@@ -356,18 +364,20 @@ struct UncheckedBinaryOperatorWrapperCodegen<FunctorT, SpecArgs...>
     using ResultCVT = typename ResultGen::ColumnVectorType;
     ResultCVT *result_cv = new ResultCVT(result_type, accessor->getNumTuples());
 
+    std::unique_ptr<typename LeftGen::NativeType> left_value_cache;
+    std::unique_ptr<typename RightGen::NativeType> right_value_cache;
     accessor->beginIteration();
     while (accessor->next()) {
       typename LeftGen::NativeTypeConstPtr left_value =
-          LeftGen::template GetValuePtr<
-              left_nullable, AccessorT>(accessor, left_id);
+          LeftGen::template GetValuePtr<left_nullable, AccessorT>(
+              accessor, left_id, left_type, &left_value_cache);
       if (left_nullable && LeftGen::IsNull(left_value)) {
         result_cv->appendNullValue();
         continue;
       }
       typename RightGen::NativeTypeConstPtr right_value =
-          RightGen::template GetValuePtr<
-              right_nullable, AccessorT>(accessor, right_id);
+          RightGen::template GetValuePtr<right_nullable, AccessorT>(
+              accessor, right_id, right_type, &right_value_cache);
       if (right_nullable && RightGen::IsNull(right_value)) {
         result_cv->appendNullValue();
         continue;
@@ -393,20 +403,22 @@ struct UncheckedBinaryOperatorWrapperCodegen<FunctorT, SpecArgs...>
     using ResultCVT = typename ResultGen::ColumnVectorType;
     ResultCVT *result_cv = new ResultCVT(result_type, num_tuples);
 
+    std::unique_ptr<typename LeftGen::NativeType> left_value_cache;
+    std::unique_ptr<typename RightGen::NativeType> right_value_cache;
     left_accessor->beginIteration();
     right_accessor->beginIteration();
     while (left_accessor->next()) {
       right_accessor->next();
       typename LeftGen::NativeTypeConstPtr left_value =
-          LeftGen::template GetValuePtr<
-              left_nullable, LeftAccessorT>(left_accessor, left_id);
+          LeftGen::template GetValuePtr<left_nullable, LeftAccessorT>(
+              left_accessor, left_id, left_type, &left_value_cache);
       if (left_nullable && LeftGen::IsNull(left_value)) {
         result_cv->appendNullValue();
         continue;
       }
       typename RightGen::NativeTypeConstPtr right_value =
-          RightGen::template GetValuePtr<
-              right_nullable, RightAccessorT>(right_accessor, right_id);
+          RightGen::template GetValuePtr<right_nullable, RightAccessorT>(
+              right_accessor, right_id, right_type, &right_value_cache);
       if (right_nullable && RightGen::IsNull(right_value)) {
         result_cv->appendNullValue();
         continue;
@@ -437,11 +449,12 @@ struct UncheckedBinaryOperatorWrapperCodegen<FunctorT, SpecArgs...>
     using ResultCppType = typename ResultType::cpptype;
     ResultCppType accumulated = current.getLiteral<LeftCppType>();
 
+    std::unique_ptr<typename RightGen::NativeType> value_cache;
     accessor->beginIteration();
     while (accessor->next()) {
       typename RightGen::NativeTypeConstPtr right_value =
           RightGen::template GetValuePtr<
-              right_nullable, AccessorT>(accessor, attr_id);
+              right_nullable, AccessorT>(accessor, attr_id, right_type, &value_cache);
       if (right_nullable && RightGen::IsNull(right_value)) {
         continue;
       }
@@ -461,21 +474,22 @@ struct UncheckedBinaryOperatorWrapperCodegen<FunctorT, SpecArgs...>
                                             const attribute_id attr_id,
                                             std::size_t *num_tuples_applied,
                                             std::enable_if_t<!supported>* = 0) const {
-    LOG(FATAL) << "Unimplemented method UncheckedBinaryOperatorWrapperCodegen"
+    LOG(FATAL) << "Unimplemented method UncheckedBinaryOperatorSynthesizer"
                << "::accumulateValueAccessor() because ResultType and LeftType "
                << "are not same or not native types.";
   }
 
   const FunctorT &functor;
-  const Type &left_type;
-  const Type &right_type;
-  const Type &result_type;
+  const LeftType &left_type;
+  const RightType &right_type;
+  const ResultType &result_type;
 };
 
+
 template <typename FunctorT>
-class BinaryOperationWrapper : public BinaryOperation {
+class BinaryOperationSynthesizer : public BinaryOperation {
  public:
-  BinaryOperationWrapper()
+  BinaryOperationSynthesizer()
       : BinaryOperation(),
         operation_name_(FunctorT::GetName()) {}
 
@@ -511,7 +525,7 @@ class BinaryOperationWrapper : public BinaryOperation {
     DCHECK(left.getTypeID() == LeftType::kStaticTypeID);
     DCHECK(right.getTypeID() == RightType::kStaticTypeID);
     DCHECK(static_arguments.empty());
-    return getResultTypeImpl<ResultType::kIsParPod>(
+    return getResultTypeImpl<HasGetType<FunctorT>::value>(
         left, right, static_arguments);
   }
 
@@ -532,13 +546,15 @@ class BinaryOperationWrapper : public BinaryOperation {
   using RightType = typename FunctorT::RightArgumentType;
   using ResultType = typename FunctorT::ResultType;
 
+  QUICKSTEP_TRAIT_HAS_STATIC_METHOD(HasGetType, GetType);
+
   template <bool functor_use_default_constructor>
   inline UncheckedBinaryOperator* makeUncheckedBinaryOperatorImpl(
       const Type &left,
       const Type &right,
       const std::vector<TypedValue> &static_arguments,
-      std::enable_if_t<functor_use_default_constructor>* = 0) const {
-    return new UncheckedBinaryOperatorWrapperCodegen<FunctorT>(
+      std::enable_if_t<functor_use_default_constructor> * = 0) const {
+    return new UncheckedBinaryOperatorSynthesizer<FunctorT>(
         left, right, *getResultType(left, right, static_arguments));
   }
 
@@ -547,36 +563,51 @@ class BinaryOperationWrapper : public BinaryOperation {
       const Type &left,
       const Type &right,
       const std::vector<TypedValue> &static_arguments,
-      std::enable_if_t<!functor_use_default_constructor>* = 0) const {
-    return new UncheckedBinaryOperatorWrapperCodegen<FunctorT>(
+      std::enable_if_t<!functor_use_default_constructor> * = 0) const {
+    return new UncheckedBinaryOperatorSynthesizer<FunctorT>(
         left, right, *getResultType(left, right, static_arguments),
         static_cast<const LeftType&>(left),
         static_cast<const RightType&>(right));
   }
 
-  template <bool result_type_has_parameter>
+  template <bool user_defined_get_type>
   inline const Type* getResultTypeImpl(
       const Type &left,
       const Type &right,
       const std::vector<TypedValue> &static_arguments,
-      std::enable_if_t<!result_type_has_parameter>* = 0) const {
-    return &TypeFactory::GetType(
-        ResultType::kStaticTypeID,
-        left.isNullable() || right.isNullable());
+      std::enable_if_t<!user_defined_get_type &&
+                       ResultType::kMemoryLayout == kCxxInlinePod> * = 0) const {
+    return &TypeFactory::GetType(ResultType::kStaticTypeID,
+                                 left.isNullable() || right.isNullable());
   }
 
-  template <bool result_type_has_parameter>
+  template <bool user_defined_get_type>
   inline const Type* getResultTypeImpl(
       const Type &left,
       const Type &right,
       const std::vector<TypedValue> &static_arguments,
-      std::enable_if_t<result_type_has_parameter>* = 0) const {
+      std::enable_if_t<!user_defined_get_type &&
+                       ResultType::kMemoryLayout == kCxxGeneric> * = 0) const {
+    return &TypeFactory::GetType(ResultType::kStaticTypeID,
+                                 std::vector<GenericValue>(),
+                                 left.isNullable() || right.isNullable());
+  }
+
+  template <bool user_defined_get_type>
+  inline const Type* getResultTypeImpl(
+      const Type &left,
+      const Type &right,
+      const std::vector<TypedValue> &static_arguments,
+      std::enable_if_t<user_defined_get_type ||
+                       ResultType::kMemoryLayout == kParInlinePod ||
+                       ResultType::kMemoryLayout == kParOutOfLinePod> * = 0) const {
+    // TODO(refactor-type): Specialize with regard to static arguments.
     return FunctorT::GetResultType(left, right);
   }
 
   const std::string operation_name_;
 
-  DISALLOW_COPY_AND_ASSIGN(BinaryOperationWrapper);
+  DISALLOW_COPY_AND_ASSIGN(BinaryOperationSynthesizer);
 };
 
 template <typename LeftPack, typename RightPack,
@@ -593,7 +624,7 @@ struct BinaryFunctorCrossProductPack {
     using ResultType = typename ResultGenerator<LeftType, RightType>::type;
 
     return std::make_shared<
-        const BinaryOperationWrapper<
+        const BinaryOperationSynthesizer<
             FunctorT<LeftType, RightType, ResultType>>>();
   }
 

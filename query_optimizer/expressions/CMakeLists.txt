@@ -113,8 +113,11 @@ target_link_libraries(quickstep_queryoptimizer_expressions_Cast
                       quickstep_queryoptimizer_expressions_ExpressionType
                       quickstep_queryoptimizer_expressions_PatternMatcher
                       quickstep_queryoptimizer_expressions_Scalar
+                      quickstep_types_MetaType
                       quickstep_types_Type
-                      quickstep_types_operations_unaryoperations_CastOperation
+                      quickstep_types_operations_OperationFactory
+                      quickstep_types_operations_OperationSignature
+                      quickstep_types_operations_unaryoperations_UnaryOperation
                       quickstep_utility_HashPair
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_expressions_CommonSubexpression
@@ -255,6 +258,8 @@ target_link_libraries(quickstep_queryoptimizer_expressions_Scalar
                       glog
                       quickstep_queryoptimizer_expressions_ExprId
                       quickstep_queryoptimizer_expressions_Expression
+                      quickstep_types_GenericValue
+                      quickstep_types_TypedValue
                       quickstep_utility_HashError
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_expressions_ScalarLiteral
@@ -267,8 +272,8 @@ target_link_libraries(quickstep_queryoptimizer_expressions_ScalarLiteral
                       quickstep_queryoptimizer_expressions_ExpressionType
                       quickstep_queryoptimizer_expressions_PatternMatcher
                       quickstep_queryoptimizer_expressions_Scalar
+                      quickstep_types_GenericValue
                       quickstep_types_Type
-                      quickstep_types_TypedValue
                       quickstep_utility_HashPair
                       quickstep_utility_Macros)
 target_link_libraries(quickstep_queryoptimizer_expressions_SearchedCase
@@ -327,6 +332,7 @@ target_link_libraries(quickstep_queryoptimizer_expressions_UnaryExpression
                       quickstep_queryoptimizer_expressions_PatternMatcher
                       quickstep_queryoptimizer_expressions_Scalar
                       quickstep_queryoptimizer_expressions_ScalarLiteral
+                      quickstep_types_GenericValue
                       quickstep_types_operations_OperationSignature
                       quickstep_types_operations_unaryoperations_UnaryOperation
                       quickstep_utility_HashPair
@@ -352,6 +358,7 @@ target_link_libraries(quickstep_queryoptimizer_expressions
                       quickstep_queryoptimizer_expressions_Alias
                       quickstep_queryoptimizer_expressions_AttributeReference
                       quickstep_queryoptimizer_expressions_BinaryExpression
+                      quickstep_queryoptimizer_expressions_Cast
                       quickstep_queryoptimizer_expressions_CommonSubexpression
                       quickstep_queryoptimizer_expressions_ComparisonExpression
                       quickstep_queryoptimizer_expressions_Exists

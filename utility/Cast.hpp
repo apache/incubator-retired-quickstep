@@ -36,7 +36,7 @@ namespace quickstep {
  * @param source_ptrs The vector of shared_ptr objects to be casted.
  * @return target_ptrs The casted vector of shared_ptr with pointers of type const TargetType.
  */
-template<class TargetType, class SourceType>
+template <class TargetType, class SourceType>
 static std::vector<std::shared_ptr<const TargetType>> CastSharedPtrVector(
     const std::vector<std::shared_ptr<const SourceType>> &source_ptrs) {
   std::vector<std::shared_ptr<const TargetType>> target_ptrs;
@@ -44,6 +44,11 @@ static std::vector<std::shared_ptr<const TargetType>> CastSharedPtrVector(
     target_ptrs.push_back(std::static_pointer_cast<const TargetType>(ptr));
   }
   return target_ptrs;
+}
+
+template <class TargetContainer, class SourceContainer>
+static TargetContainer CastSTLContainer(const SourceContainer &source_container) {
+  return TargetContainer(source_container.begin(), source_container.end());
 }
 
 /** @} */

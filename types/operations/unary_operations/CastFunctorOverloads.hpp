@@ -26,9 +26,10 @@
 #include <type_traits>
 #include <vector>
 
+#include "types/GenericValue.hpp"
 #include "types/TypeRegistrar.hpp"
 #include "types/TypedValue.hpp"
-#include "types/operations/unary_operations/UnaryOperationWrapper.hpp"
+#include "types/operations/unary_operations/UnaryOperationSynthesizer.hpp"
 #include "utility/meta/TypeList.hpp"
 
 namespace quickstep {
@@ -62,12 +63,17 @@ struct CastFunctor<
 // ----------------------------------------------------------------------------
 // Implementations of any type to ascii string casts.
 
+using UnsupportedCastToAsciiStringTypes = meta::TypeList<NullType>;
+
+// TODO(refactor-type): Better implementation of casting among ascii string types.
+
 template <typename SourceType>
-struct CastFunctor<SourceType, CharType,
-                   std::enable_if_t<SourceType::kStaticSuperTypeID == SuperTypeID::kNumeric>>
+struct CastFunctor<
+    SourceType, CharType,
+    std::enable_if_t<!UnsupportedCastToAsciiStringTypes::contains<SourceType>::value>>
     : public UnaryFunctor<SourceType, CharType> {
-  explicit CastFunctor(const SourceType &source_type_in,
-                       const CharType &target_type_in)
+  CastFunctor(const SourceType &source_type_in,
+              const CharType &target_type_in)
       : source_type(source_type_in),
         max_string_length(target_type_in.getStringLength()) {}
   inline void apply(const typename SourceType::cpptype &argument, void *result) const {
@@ -85,11 +91,12 @@ struct CastFunctor<SourceType, CharType,
 };
 
 template <typename SourceType>
-struct CastFunctor<SourceType, VarCharType,
-                   std::enable_if_t<SourceType::kStaticSuperTypeID == SuperTypeID::kNumeric>>
+struct CastFunctor<
+    SourceType, VarCharType,
+    std::enable_if_t<!UnsupportedCastToAsciiStringTypes::contains<SourceType>::value>>
     : public UnaryFunctor<SourceType, VarCharType> {
-  explicit CastFunctor(const SourceType &source_type_in,
-                       const VarCharType &target_type_in)
+  CastFunctor(const SourceType &source_type_in,
+              const VarCharType &target_type_in)
       : source_type(source_type_in),
         max_string_length(target_type_in.getStringLength()) {}
   inline TypedValue apply(const typename SourceType::cpptype &argument) const {
@@ -105,75 +112,109 @@ struct CastFunctor<SourceType, VarCharType,
   const std::size_t max_string_length;
 };
 
-//template <typename SourceType>
-//struct CastFunctor<SourceType, TextType>
-//    : public UnaryFunctor<SourceType, TextType> {
-//  explicit CastFunctor(const SourceType &source_type_in,
-//                       const TextType &target_type_in)
-//      : source_type(source_type_in) {}
-//  inline std::string apply(const typename SourceType::cpptype &argument) const {
-//    return source_type.printValueToString(&argument);
-//  }
-//  const SourceType &source_type;
-//};
-//
-//
+template <typename SourceType>
+struct CastFunctor<
+    SourceType, TextType,
+    std::enable_if_t<!UnsupportedCastToAsciiStringTypes::contains<SourceType>::value>>
+    : public UnaryFunctor<SourceType, TextType> {
+  CastFunctor(const SourceType &source_type_in,
+              const TextType &target_type_in)
+      : source_type(source_type_in) {}
+  inline std::string apply(const typename SourceType::cpptype &argument) const {
+    return source_type.printValueToString(&argument);
+  }
+  const SourceType &source_type;
+};
+
+
 //// ----------------------------------------------------------------------------
-//// Implementations of ascii string to numeric casts.
-//
-//template <typename T>
-//T CastStringToNumericOverload(const char *str);
-//
-//template <>
-//bool CastStringToNumericOverload(const char *str) {
-//  return ToLower(str) == "true";
-//}
-//template <>
-//int CastStringToNumericOverload(const char *str) {
-//  return std::atoi(str);
-//}
-//template <>
-//float CastStringToNumericOverload(const char *str) {
-//  return static_cast<float>(std::atof(str));
-//}
-//template <>
-//std::int64_t CastStringToNumericOverload(const char *str) {
-//  return std::atoll(str);
-//}
-//template <>
-//double CastStringToNumericOverload(const char *str) {
-//  return std::atof(str);
-//}
-//
-//template <typename TargetType>
-//struct CastFunctor<CharType, TargetType,
-//                   std::enable_if_t<NumericTypes::contains<TargetType>::value>>
-//    : public UnaryFunctor<CharType, TargetType> {
-//  explicit CastFunctor(const CharType &source_type_in,
-//                       const TargetType &target_type_in)
-//      : max_string_length(source_type_in.getStringLength()) {}
-//  inline typename TargetType::cpptype apply(const void *argument) const {
-//    const char *str = static_cast<const char*>(argument);
-//    const std::string value(str, strnlen(str, max_string_length));
-//    return CastStringToNumericOverload<typename TargetType::cpptype>(value.c_str());
-//  }
-//  const std::size_t max_string_length;
-//};
-//
-//
-//template <typename TargetType>
-//struct CastFunctor<VarCharType, TargetType,
-//                   std::enable_if_t<NumericTypes::contains<TargetType>::value>>
-//    : public UnaryFunctor<VarCharType, TargetType> {
-//  explicit CastFunctor(const VarCharType &source_type_in,
-//                       const TargetType &target_type_in)
-//      : max_string_length(source_type_in.getStringLength()) {}
-//  inline typename TargetType::cpptype apply(const TypedValue &argument) const {
-//    return CastStringToNumericOverload<typename TargetType::cpptype>(
-//        static_cast<const char*>(argument.getDataPtr()));
-//  }
-//  const std::size_t max_string_length;
-//};
+//// Implementations of ascii string to other types casts.
+
+using UnsupportedParseFromAsciiStringTypes = meta::TypeList<NullType>;
+
+// TODO(refactor-type): Implement parseTypedValueFromString for other non-numeric types.
+// TODO(refactor-type): Possibly return NULL values.
+
+template <typename TargetType>
+struct CastFunctor<
+    CharType, TargetType,
+    std::enable_if_t<!UnsupportedParseFromAsciiStringTypes::contains<TargetType>::value &&
+                     TargetType::kMemoryLayout == kCxxInlinePod>>
+    : public UnaryFunctor<CharType, TargetType> {
+  CastFunctor(const CharType &source_type_in,
+              const TargetType &target_type_in)
+      : max_string_length(source_type_in.getStringLength()),
+        target_type(target_type_in) {}
+  inline typename TargetType::cpptype apply(const void *argument) const {
+    // TODO(refactor-type): Implement specialized parseValueFromString.
+    const char *str = static_cast<const char*>(argument);
+    const std::string value(str, strnlen(str, max_string_length));
+    TypedValue result;
+    target_type.parseTypedValueFromString(value, &result);
+    return result.getLiteral<typename TargetType::cpptype>();
+  }
+  const std::size_t max_string_length;
+  const TargetType &target_type;
+};
+
+
+template <typename TargetType>
+struct CastFunctor<VarCharType, TargetType,
+                   std::enable_if_t<NumericTypes::contains<TargetType>::value>>
+    : public UnaryFunctor<VarCharType, TargetType> {
+  CastFunctor(const VarCharType &source_type_in,
+              const TargetType &target_type_in)
+      : max_string_length(source_type_in.getStringLength()),
+        target_type(target_type_in) {}
+  inline typename TargetType::cpptype apply(const TypedValue &argument) const {
+    const std::string value(static_cast<const char*>(argument.getOutOfLineData()));
+    TypedValue result;
+    target_type.parseTypedValueFromString(value, &result);
+    return result.getLiteral<typename TargetType::cpptype>();
+  }
+  const std::size_t max_string_length;
+  const Type &target_type;
+};
+
+template <typename TargetType>
+struct CastFunctor<
+    TextType, TargetType,
+    std::enable_if_t<!UnsupportedParseFromAsciiStringTypes::contains<TargetType>::value &&
+                     TargetType::kMemoryLayout == kCxxInlinePod>>
+    : public UnaryFunctor<TextType, TargetType> {
+  CastFunctor(const TextType &source_type_in,
+              const TargetType &target_type_in)
+      : target_type(target_type_in) {}
+  inline typename TargetType::cpptype apply(const std::string &argument) const {
+    // TODO(refactor-type): Implement specialized parseValueFromString.
+    TypedValue result;
+    target_type.parseTypedValueFromString(argument, &result);
+    return result.getLiteral<typename TargetType::cpptype>();
+  }
+  const TargetType &target_type;
+};
+
+
+//// ----------------------------------------------------------------------------
+//// Implementations of array to array casts.
+
+template <>
+struct CastFunctor<ArrayType, ArrayType>
+    : public UnaryFunctor<ArrayType, ArrayType> {
+  CastFunctor(const ArrayType &source_type_in,
+              const ArrayType &target_type_in)
+      : source_element_type(source_type_in.getElementType()),
+        target_element_type(target_type_in.getElementType()) {}
+  inline ArrayLit apply(const ArrayLit &argument) const {
+    ArrayLit result(target_element_type);
+    for (const auto *value : argument) {
+      result.push_back(target_element_type.coerceValue(value, source_element_type));
+    }
+    return result;
+  }
+  const Type &source_element_type;
+  const Type &target_element_type;
+};
 
 
 /** @} */

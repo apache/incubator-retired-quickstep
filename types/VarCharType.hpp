@@ -43,7 +43,7 @@ namespace quickstep {
  *       character. This means that the VARCHAR(X) type requires from 1 to X+1
  *       bytes of storage, depending on string length.
  **/
-class VarCharType : public AsciiStringSuperType<kVarChar> {
+class VarCharType final : public AsciiStringSuperType<kVarChar> {
  public:
   /**
    * @note Includes an extra byte for a terminating null character.

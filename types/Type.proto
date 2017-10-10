@@ -35,6 +35,6 @@ message GenericValue {
   optional bytes data = 2;
 }
 
-message ArrayLiteral {
+message ArrayLit {
   repeated bytes data = 1;
 }

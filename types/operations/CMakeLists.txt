@@ -39,13 +39,12 @@ target_link_libraries(quickstep_types_operations_OperationFactory
                       quickstep_types_TypeFactory
                       quickstep_types_TypeID
                       quickstep_types_TypeUtil
-                      quickstep_types_TypedValue
                       quickstep_types_operations_Operation
                       quickstep_types_operations_OperationSignature
                       quickstep_types_operations_binaryoperations_ArithmeticBinaryFunctors
                       quickstep_types_operations_binaryoperations_AsciiStringBinaryFunctors
                       quickstep_types_operations_binaryoperations_BinaryOperation
-                      quickstep_types_operations_binaryoperations_BinaryOperationWrapper
+                      quickstep_types_operations_binaryoperations_BinaryOperationSynthesizer
                       quickstep_types_operations_binaryoperations_CMathBinaryFunctors
                       quickstep_types_operations_unaryoperations_ArithmeticUnaryFunctors
                       quickstep_types_operations_unaryoperations_AsciiStringUnaryFunctors
@@ -54,7 +53,7 @@ target_link_libraries(quickstep_types_operations_OperationFactory
                       quickstep_types_operations_unaryoperations_DateExtractOperation
                       quickstep_types_operations_unaryoperations_SubstringOperation
                       quickstep_types_operations_unaryoperations_UnaryOperation
-                      quickstep_types_operations_unaryoperations_UnaryOperationWrapper
+                      quickstep_types_operations_unaryoperations_UnaryOperationSynthesizer
                       quickstep_utility_HashPair
                       quickstep_utility_Macros
                       quickstep_utility_StringUtil)

@@ -26,10 +26,10 @@
 #include <utility>
 #include <vector>
 
-#include "types/IntType.hpp"
 #include "types/Type.hpp"
 #include "types/TypeFactory.hpp"
 #include "types/TypeID.hpp"
+#include "types/TypeRegistrar.hpp"
 #include "types/TypedValue.hpp"
 #include "types/operations/unary_operations/UnaryOperation.hpp"
 #include "utility/Macros.hpp"
@@ -63,7 +63,7 @@ class CastOperation : public UnaryOperation {
 
   std::vector<OperationSignaturePtr> getSignatures() const override {
     const std::vector<TypeID> source_type_ids =
-        { kBool, kInt, kLong, kFloat, kDouble, kChar, kVarChar };
+        TypeIDSequenceAll::Instantiate<std::vector<TypeID>>();
     const std::vector<TypeID> target_type_carrier = { kMetaType };
 
     std::vector<OperationSignaturePtr> signatures;

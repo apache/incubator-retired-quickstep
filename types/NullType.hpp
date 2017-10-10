@@ -49,7 +49,7 @@ class TypedValue;
  *       a particular operation may accept. It is also assumed that applying
  *       any operation to an argument of NullType always yields NULL values.
  **/
-class NullType : public TypeSynthesizer<kNullType> {
+class NullType final : public TypeSynthesizer<kNullType> {
  public:
   static const NullType& InstanceNonNullable() {
     LOG(FATAL) << "Called NullType::InstanceNonNullable(), "
