@@ -2931,24 +2931,37 @@ E::ScalarPtr Resolver::resolveScalarFunction(
     }
   }
 
-  // TODO: add cast if neccessary.
-  (void)coerced_argument_types;
+  // Add cast if neccessary.
+  std::vector<E::ScalarPtr> coerced_arguments;
+  for (std::size_t i = 0; i < op_signature->getNonStaticArity(); ++i) {
+    const auto &argument = resolved_arguments[i];
+    const Type &target_type = *(*coerced_argument_types)[i];
+    if (argument->getValueType().equals(target_type)) {
+      coerced_arguments.emplace_back(argument);
+    } else {
+      coerced_arguments.emplace_back(E::Cast::Create(argument, target_type));
+    }
+  }
 
   const OperationPtr operation = OperationFactory::GetOperation(op_signature);
   switch (operation->getOperationSuperTypeID()) {
-    case Operation::kUnaryOperation:
+    case Operation::kUnaryOperation: {
+      DCHECK_EQ(1u, coerced_arguments.size());
       return E::UnaryExpression::Create(
           op_signature,
           std::static_pointer_cast<const UnaryOperation>(operation),
-          resolved_arguments[0],
+          coerced_arguments[0],
           coerced_static_arguments);
-    case Operation::kBinaryOperation:
+    }
+    case Operation::kBinaryOperation: {
+      DCHECK_EQ(2u, coerced_arguments.size());
       return E::BinaryExpression::Create(
           op_signature,
           std::static_pointer_cast<const BinaryOperation>(operation),
-          resolved_arguments[0],
-          resolved_arguments[1],
+          coerced_arguments[0],
+          coerced_arguments[1],
           coerced_static_arguments);
+    }
     default: {
       const auto operation_id =
          static_cast<std::underlying_type_t<Operation::OperationSuperTypeID>>(

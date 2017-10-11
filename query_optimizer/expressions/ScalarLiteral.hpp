@@ -65,7 +65,13 @@ class ScalarLiteral : public Scalar {
 
   const Type& getValueType() const override;
 
-  bool isConstant() const override { return true; }
+  bool isConstant() const override {
+    return true;
+  }
+
+  TypedValue getConstantValue() const override {
+    return value_.toTypedValue();
+  }
 
   /**
    * @return The literal value.

@@ -22,7 +22,16 @@
 #include <cstddef>
 #include <string>
 
+#include "types/Type.hpp"
+#include "types/TypeID.hpp"
+#include "utility/EqualsAnyConstant.hpp"
+
 namespace quickstep {
+
+bool TextType::isSafelyCoercibleFrom(const Type &original_type) const {
+  return QUICKSTEP_EQUALS_ANY_CONSTANT(original_type.getTypeID(),
+                                       kChar, kVarChar, kText);
+}
 
 bool TextType::checkValuesEqual(const UntypedLiteral *lhs,
                                 const UntypedLiteral *rhs,

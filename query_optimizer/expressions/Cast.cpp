@@ -73,6 +73,22 @@ ExpressionPtr Cast::copyWithNewChildren(
       std::make_shared<const std::vector<TypedValue>>(std::move(meta_type_value)));
 }
 
+TypedValue Cast::getConstantValue() const {
+  DCHECK(isConstant());
+  const Type &source_type = operand_->getValueType();
+  const UnaryOperationPtr cast_operation =
+      OperationFactory::GetCastOperation(source_type.getTypeID());
+
+  std::vector<TypedValue> meta_type_value =
+      { GenericValue::CreateWithLiteral(
+            MetaType::InstanceNonNullable(), &target_type_).toTypedValue() };
+  DCHECK(cast_operation->canApplyTo(source_type, meta_type_value));
+
+  std::unique_ptr<UncheckedUnaryOperator> cast_op(
+      cast_operation->makeUncheckedUnaryOperator(source_type, meta_type_value));
+  return cast_op->applyToTypedValue(operand_->getConstantValue());
+}
+
 std::size_t Cast::computeHash() const {
   return CombineHashes(
       CombineHashes(static_cast<std::size_t>(ExpressionType::kCast),

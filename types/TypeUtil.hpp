@@ -41,6 +41,7 @@
 #include "types/VarCharType.hpp"
 #include "types/YearMonthIntervalType.hpp"
 #include "utility/Macros.hpp"
+#include "utility/meta/TypeList.hpp"
 
 #include "glog/logging.h"
 
@@ -50,14 +51,40 @@ namespace quickstep {
  *  @{
  */
 
+namespace internal {
+
+// TODO(refactor-type): Organize selector predicates, refactor the old design.
+template <MemoryLayout layout>
+struct MemoryLayoutSelector {
+  template <typename TypeIDConstant>
+  struct type {
+    static constexpr bool value =
+        TypeIDTrait<TypeIDConstant::value>::kMemoryLayout == layout;
+  };
+};
+
+}  // namespace internal
+
+
 class TypeUtil {
  public:
+  template <MemoryLayout layout>
+  using TypeIDSequenceMemoryLayout =
+      TypeIDSequenceAll::bind_to<meta::TypeList>
+                       ::filter<internal::MemoryLayoutSelector<kCxxInlinePod>::type>
+                       ::as_sequence<TypeID>;
+
   static MemoryLayout GetMemoryLayout(const TypeID type_id) {
     return InvokeOnTypeID(
         type_id,
         [&](auto tid) -> MemoryLayout {  // NOLINT(build/c++11)
       return TypeIDTrait<decltype(tid)::value>::kMemoryLayout;
     });
+  }
+
+  template <MemoryLayout layout>
+  static std::vector<TypeID> GetTypeIDVectorOfMemoryLayout(){
+    return TypeIDSequenceMemoryLayout<layout>::Instantiate<std::vector<TypeID>>();
   }
 
   static bool IsParameterizedPod(const TypeID type_id) {

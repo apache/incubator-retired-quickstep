@@ -42,6 +42,8 @@ class TextType final : public TypeSynthesizer<kText> {
     return 32;
   }
 
+  bool isSafelyCoercibleFrom(const Type &original_type) const override;
+
   bool checkValuesEqual(const UntypedLiteral *lhs,
                         const UntypedLiteral *rhs,
                         const Type &rhs_type) const override;

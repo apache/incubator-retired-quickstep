@@ -134,30 +134,49 @@ class OperationFactory {
 
   void registerOperationInternal(const OperationPtr &operation);
 
-  using PartialSignature = std::pair<const std::vector<TypeID>*, std::size_t>;
-
-  struct PartialSignatureLess {
-    inline bool operator()(const PartialSignature &lhs,
-                           const PartialSignature &rhs) const {
-      int cmp_code = static_cast<int>(lhs.first->size())
-                         - static_cast<int>(lhs.first->size());
+  struct PartialSignature {
+    PartialSignature(const std::vector<TypeID> *argument_type_ids_in,
+                     const std::size_t num_static_arguments_in)
+        : argument_type_ids(argument_type_ids_in),
+          num_static_arguments(num_static_arguments_in) {
+    }
+    inline bool operator<(const PartialSignature &rhs) const {
+      const PartialSignature &lhs = *this;
+      const std::vector<TypeID> &lhs_ids = *lhs.argument_type_ids;
+      const std::vector<TypeID> &rhs_ids = *rhs.argument_type_ids;
+      int cmp_code = static_cast<int>(lhs_ids.size()) - static_cast<int>(rhs_ids.size());
       if (cmp_code != 0) {
         return cmp_code < 0;
       }
-      for (std::size_t i = 0; i < lhs.first->size(); ++i) {
-        cmp_code = static_cast<int>(lhs.first->at(i))
-                       - static_cast<int>(rhs.first->at(i));
+      for (std::size_t i = 0; i < lhs.argument_type_ids->size(); ++i) {
+        cmp_code = static_cast<int>(lhs_ids[i]) - static_cast<int>(rhs_ids[i]);
         if (cmp_code != 0) {
           return cmp_code < 0;
         }
       }
-      return lhs.second > rhs.second;
+      return lhs.num_static_arguments > rhs.num_static_arguments;
     }
+    const std::vector<TypeID> *argument_type_ids;
+    const std::size_t num_static_arguments;
   };
 
   using PartialSignatureIndex = std::map<PartialSignature,
+                                         OperationSignaturePtr>;
+  using StaticArityIndex = std::multimap<std::size_t,
                                          OperationSignaturePtr,
-                                         PartialSignatureLess>;
+                                         std::greater<std::size_t>>;
+
+  struct SecondaryIndex {
+    inline void addSignature(const OperationSignaturePtr &op_sig) {
+      partial_signature_index.emplace(
+          PartialSignature(&op_sig->getArgumentTypeIDs(),
+                           op_sig->getNumStaticArguments()),
+          op_sig);
+      static_arity_index.emplace(op_sig->getNumStaticArguments(), op_sig);
+    }
+    PartialSignatureIndex partial_signature_index;
+    StaticArityIndex static_arity_index;
+  };
 
   enum class ResolveStatus {
     kSuccess = 0,
@@ -174,7 +193,7 @@ class OperationFactory {
       std::string *message) const;
 
   ResolveStatus resolveOperationWithFullTypeMatch(
-      const PartialSignatureIndex &secondary_index,
+      const PartialSignatureIndex &partial_signature_index,
       const std::vector<TypeID> &argument_type_ids,
       const std::vector<const Type*> &argument_types,
       const std::vector<GenericValue> &static_arguments,
@@ -183,7 +202,7 @@ class OperationFactory {
       std::string *message) const;
 
   ResolveStatus resolveOperationWithPartialTypeMatch(
-      const PartialSignatureIndex &secondary_index,
+      const StaticArityIndex &static_arity_index,
       const std::vector<TypeID> &argument_type_ids,
       const std::vector<const Type*> &argument_types,
       const std::vector<GenericValue> &static_arguments,
@@ -191,6 +210,11 @@ class OperationFactory {
       std::shared_ptr<const std::vector<GenericValue>> *coerced_static_arguments,
       OperationSignaturePtr *resolved_op_signature,
       std::string *message) const;
+
+  bool canSafelyCoerceTypes(const std::vector<TypeID> &source_type_ids,
+                            const std::vector<TypeID> &target_type_ids) const;
+
+  void initializeTypeIDSafeCoercibility();
 
   bool canApplyOperationTo(const OperationPtr operation,
                            const std::vector<const Type*> &argument_types,
@@ -203,7 +227,9 @@ class OperationFactory {
                      OperationSignatureEqual> operations_;
 
   std::unordered_map<std::pair<std::string, std::size_t>,
-                     PartialSignatureIndex> primary_index_;
+                     SecondaryIndex> primary_index_;
+
+  std::unordered_set<std::pair<TypeID, TypeID>> type_id_safe_coercibility_;
 
   DISALLOW_COPY_AND_ASSIGN(OperationFactory);
 };
