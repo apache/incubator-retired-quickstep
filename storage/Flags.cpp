@@ -40,7 +40,7 @@ static bool ValidateHdfsNameNodePort(const char *flagname,
   }
 }
 DEFINE_int32(hdfs_namenode_port, 9000, "Port of HDFS namenode.");
-static const bool hdfs_namenode_port_dummy
+static volatile const bool hdfs_namenode_port_dummy
     = gflags::RegisterFlagValidator(&FLAGS_hdfs_namenode_port, &ValidateHdfsNameNodePort);
 
 static bool ValidateHdfsNumReplications(const char *flagname,
@@ -55,7 +55,7 @@ static bool ValidateHdfsNumReplications(const char *flagname,
   }
 }
 DEFINE_int32(hdfs_num_replications, 1, "Number of HDFS file replications.");
-static const bool hdfs_num_replications_dummy
+static volatile const bool hdfs_num_replications_dummy
     = gflags::RegisterFlagValidator(&FLAGS_hdfs_num_replications, &ValidateHdfsNumReplications);
 #endif
 
