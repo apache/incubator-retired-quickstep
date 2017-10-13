@@ -34,7 +34,7 @@
 #include "utility/HashPair.hpp"
 #include "utility/Macros.hpp"
 
-#include "third_party/src/farmhash/farmhash.h"
+#include "farmhash/farmhash.h"
 
 #include "glog/logging.h"
 

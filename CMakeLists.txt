@@ -635,6 +635,7 @@ endif()
 
 # Add required cmake-controlled third-party libraries (farmhash, gflags, glog, and re2).
 add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/farmhash" "${CMAKE_CURRENT_BINARY_DIR}/third_party/farmhash")
+include_directories("${THIRD_PARTY_SOURCE_DIR}")
 
 add_subdirectory ("${THIRD_PARTY_SOURCE_DIR}/gflags" "${CMAKE_CURRENT_BINARY_DIR}/third_party/gflags")
 include_directories("${CMAKE_CURRENT_BINARY_DIR}/third_party/gflags/include")
